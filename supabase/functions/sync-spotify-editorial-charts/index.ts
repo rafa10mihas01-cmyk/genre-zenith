@@ -1,32 +1,24 @@
 // sync-spotify-editorial-charts
 // =====================================================================
-// Sincroniza charts editoriais oficiais do Spotify (Top 50 BR, Viral 50 BR,
-// Top 50 Global) lendo as playlists curadas oficialmente via Web API.
+// IMPORTANTE: desde nov/2024 o Spotify bloqueou leitura das playlists
+// editoriais (Top 50 BR etc) — retorna 404 mesmo com user token.
+// Então a estratégia aqui é OUTRA:
 //
-// Diferente do `sync-kworb-charts` (scraping kworb.net = só posição + streams),
-// aqui pegamos via API oficial: capa, álbum, popularidade, track_id e artist_id.
+//   1. Lê os track_ids do raw_chart_daily de hoje (top200_br do kworb).
+//   2. Chama /v1/tracks?ids=... em batches de 50 → pega capa, popularity,
+//      artist_id, album_name.
+//   3. UPDATE nas mesmas linhas com cover_url / album_name / popularity.
 //
-// Grava em public.raw_chart_daily com chart_name distinto:
-//   - spotify_top50_br
-//   - spotify_viral50_br
-//   - spotify_top50_global
-// source = 'spotify_editorial'
-//
-// Estratégia de token: tenta user token primeiro (mais permissivo p/ editorial),
-// cai pra client_credentials se não houver usuário conectado.
+// Resultado: o Top 200 (e consequentemente o Top 50 = LIMIT 50) fica
+// enriquecido com a CAPA OFICIAL e popularidade — exatamente o que o
+// pipeline de diagnóstico precisa pra sugerir adds e referenciar capa.
 // =====================================================================
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getSpotifyToken, getUserAccessToken } from "../_shared/spotify.ts";
+import { getSpotifyToken } from "../_shared/spotify.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-const CHARTS: Array<{ chart_name: string; playlist_id: string; label: string }> = [
-  { chart_name: "spotify_top50_br",     playlist_id: "37i9dQZEVXbMXbN3EUUhlg", label: "Top 50 — Brasil" },
-  { chart_name: "spotify_viral50_br",   playlist_id: "37i9dQZEVXbKuaTI1Z1Afx", label: "Viral 50 — Brasil" },
-  { chart_name: "spotify_top50_global", playlist_id: "37i9dQZEVXbMDoHDwVN2tF", label: "Top 50 — Global" },
-];
 
 function jr(p: unknown, status = 200) {
   return new Response(JSON.stringify(p), {
@@ -35,45 +27,18 @@ function jr(p: unknown, status = 200) {
   });
 }
 
-async function getAnyToken(): Promise<string> {
-  try {
-    const { token } = await getUserAccessToken();
-    return token;
-  } catch {
-    return await getSpotifyToken();
-  }
+function chunk<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
 }
 
-async function fetchPlaylistTracks(playlistId: string, token: string) {
-  const url =
-    `https://api.spotify.com/v1/playlists/${playlistId}` +
-    `?fields=name,tracks.items(track(id,name,popularity,artists(id,name),album(name,images)))`;
+async function fetchTracksBatch(ids: string[], token: string) {
+  const url = `https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`;
   const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-  if (!r.ok) {
-    const t = await r.text();
-    throw new Error(`Spotify ${r.status}: ${t.slice(0, 200)}`);
-  }
+  if (!r.ok) throw new Error(`Spotify ${r.status}: ${(await r.text()).slice(0, 200)}`);
   const j = await r.json();
-  const items = j?.tracks?.items ?? [];
-  return items
-    .map((it: any, idx: number) => {
-      const tr = it?.track;
-      if (!tr?.id) return null;
-      const imgs = tr.album?.images ?? [];
-      const cover = imgs[0]?.url ?? null;
-      const artists = (tr.artists ?? []).filter(Boolean);
-      return {
-        position: idx + 1,
-        spotify_track_id: tr.id,
-        track: tr.name ?? null,
-        artist: artists.map((a: any) => a?.name).filter(Boolean).join(", ") || null,
-        spotify_artist_id: artists[0]?.id ?? null,
-        album_name: tr.album?.name ?? null,
-        cover_url: cover,
-        popularity: typeof tr.popularity === "number" ? tr.popularity : null,
-      };
-    })
-    .filter(Boolean);
+  return j.tracks ?? [];
 }
 
 Deno.serve(async (req) => {
@@ -81,51 +46,63 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
   const start = Date.now();
+  const url = new URL(req.url);
+  const chartName = url.searchParams.get("chart") ?? "top200_br";
   const today = new Date().toISOString().slice(0, 10);
 
   try {
-    const token = await getAnyToken();
-    const out: Record<string, number> = {};
+    // Pega snapshot mais recente desse chart (até 7 dias atrás se hoje vazio)
+    const { data: rows, error } = await supabase
+      .from("raw_chart_daily")
+      .select("id, spotify_track_id, cover_url")
+      .eq("chart_name", chartName)
+      .gte("chart_date", new Date(Date.now() - 7 * 86400_000).toISOString().slice(0, 10))
+      .order("chart_date", { ascending: false })
+      .order("position", { ascending: true })
+      .limit(250);
+    if (error) throw new Error(error.message);
 
-    for (const chart of CHARTS) {
+    const targets = (rows ?? []).filter((r) => r.spotify_track_id && !r.cover_url);
+    if (targets.length === 0) {
+      return jr({ ok: true, message: "nada pra enriquecer", chart: chartName });
+    }
+
+    const token = await getSpotifyToken();
+    let enriched = 0;
+    let failed = 0;
+
+    for (const batch of chunk(targets, 50)) {
+      const ids = batch.map((b) => b.spotify_track_id!);
       try {
-        const rows = await fetchPlaylistTracks(chart.playlist_id, token);
-        if (rows.length === 0) {
-          out[chart.chart_name] = 0;
-          continue;
+        const tracks = await fetchTracksBatch(ids, token);
+        // map por id pra preservar ordem
+        const byId = new Map<string, any>();
+        for (const tr of tracks) if (tr?.id) byId.set(tr.id, tr);
+
+        for (const row of batch) {
+          const tr = byId.get(row.spotify_track_id!);
+          if (!tr) continue;
+          const imgs = tr.album?.images ?? [];
+          const cover = imgs[0]?.url ?? null;
+          const artists = (tr.artists ?? []).filter(Boolean);
+          const { error: upErr } = await supabase
+            .from("raw_chart_daily")
+            .update({
+              cover_url: cover,
+              album_name: tr.album?.name ?? null,
+              popularity: typeof tr.popularity === "number" ? tr.popularity : null,
+              spotify_artist_id: artists[0]?.id ?? null,
+            })
+            .eq("id", row.id);
+          if (upErr) failed++;
+          else enriched++;
         }
-
-        // Limpa snapshot do dia (idempotente)
-        await supabase
-          .from("raw_chart_daily")
-          .delete()
-          .eq("chart_name", chart.chart_name)
-          .eq("chart_date", today);
-
-        const payload = rows.map((r: any) => ({
-          chart_name: chart.chart_name,
-          chart_date: today,
-          position: r.position,
-          artist: r.artist,
-          track: r.track,
-          streams_day: 0, // editorial não tem streams; popularity guarda o sinal
-          spotify_track_id: r.spotify_track_id,
-          spotify_artist_id: r.spotify_artist_id,
-          cover_url: r.cover_url,
-          album_name: r.album_name,
-          popularity: r.popularity,
-          source: "spotify_editorial",
-        }));
-
-        const { error } = await supabase.from("raw_chart_daily").insert(payload);
-        if (error) throw new Error(`insert ${chart.chart_name}: ${error.message}`);
-        out[chart.chart_name] = rows.length;
       } catch (e) {
-        out[chart.chart_name] = -1;
+        failed += batch.length;
         await supabase.from("collection_logs").insert({
           acao: "sync-spotify-editorial-charts",
           status: "erro",
-          mensagem: `${chart.chart_name}: ${(e as Error).message}`.slice(0, 500),
+          mensagem: `batch ${ids.length}: ${(e as Error).message}`.slice(0, 500),
         });
       }
     }
@@ -133,11 +110,11 @@ Deno.serve(async (req) => {
     await supabase.from("collection_logs").insert({
       acao: "sync-spotify-editorial-charts",
       status: "sucesso",
-      mensagem: `charts: ${JSON.stringify(out)}`,
+      mensagem: `chart=${chartName} enriched=${enriched} failed=${failed}`,
       duracao_ms: Date.now() - start,
     });
 
-    return jr({ ok: true, date: today, results: out });
+    return jr({ ok: true, chart: chartName, date: today, enriched, failed });
   } catch (e) {
     const msg = (e as Error).message;
     await supabase.from("collection_logs").insert({
