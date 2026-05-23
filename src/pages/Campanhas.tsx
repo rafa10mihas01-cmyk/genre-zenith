@@ -305,23 +305,24 @@ function CampaignRow({ c }: { c: Campaign }) {
               </>
             )}
             {c.status === "paused" ? (
-              <DropdownMenuItem onSelect={() => updateStatus("active", "Campanha retomada")}>
+              <DropdownMenuItem onSelect={() => doUpdateStatus("active", "Campanha retomada")}>
                 <Play className="h-4 w-4 mr-2" /> Retomar
               </DropdownMenuItem>
             ) : (
               <DropdownMenuItem
                 disabled={c.status === "completed" || c.status === "cancelled" || c.status === "draft"}
-                onSelect={() => updateStatus("paused", "Campanha pausada")}
+                onSelect={() => doUpdateStatus("paused", "Campanha pausada")}
               >
                 <Pause className="h-4 w-4 mr-2" /> Pausar
               </DropdownMenuItem>
             )}
             <DropdownMenuItem
               disabled={c.status === "cancelled"}
-              onSelect={() => updateStatus("cancelled", "Campanha arquivada")}
+              onSelect={() => doUpdateStatus("cancelled", "Campanha arquivada")}
             >
               <Archive className="h-4 w-4 mr-2" /> Arquivar
             </DropdownMenuItem>
+
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
