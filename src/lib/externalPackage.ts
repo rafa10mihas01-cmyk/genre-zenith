@@ -140,24 +140,28 @@ export async function ensureExternalPackageDraft(
   }
   if (!pkg) throw new Error("Falha ao criar pacote externo");
 
-  const candidates = await fetchCuratorCandidates();
-  const suggestions = suggestExternalAllocations(snapshot.streamsExt, candidates);
-
-  if (suggestions.length > 0) {
-    const rows = suggestions.map(s => ({
-      package_id: pkg.id,
-      curator_id: s.curator_id,
-      assigned_streams: s.assigned_streams,
-      assigned_cost: s.assigned_cost,
-      cost_per_stream: s.cost_per_stream,
-    }));
-    const { error: itemErr } = await supabase
-      .from("campaign_external_package_items")
-      .insert(rows);
-    if (itemErr) throw itemErr;
-  }
-
+  // Não auto-popular itens — o usuário escolhe manualmente quais curadores entram no pacote.
   return { packageId: pkg.id, created: true };
+}
+
+export async function addPackageItem(args: {
+  packageId: string;
+  curatorId: string;
+  assignedStreams?: number;
+  costPerStream?: number;
+}) {
+  const cps = args.costPerStream && args.costPerStream > 0 ? args.costPerStream : DEFAULT_COST_PER_STREAM;
+  const streams = Math.max(0, args.assignedStreams ?? 0);
+  const { error } = await supabase
+    .from("campaign_external_package_items")
+    .insert({
+      package_id: args.packageId,
+      curator_id: args.curatorId,
+      assigned_streams: streams,
+      cost_per_stream: cps,
+      assigned_cost: +(streams * cps).toFixed(2),
+    });
+  if (error) throw error;
 }
 
 /**

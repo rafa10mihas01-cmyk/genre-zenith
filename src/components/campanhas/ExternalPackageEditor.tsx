@@ -11,10 +11,15 @@ import {
   confirmExternalPackage,
   updatePackageItem,
   removePackageItem,
+  addPackageItem,
+  fetchCuratorCandidates,
+  type CuratorCandidate,
 } from "@/lib/externalPackage";
 import { Link } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Trash2, Users, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Loader2, Trash2, Users, AlertTriangle, CheckCircle2, Plus, Search } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 
 type PackageRow = {
@@ -49,11 +54,14 @@ export function ExternalPackageEditor({
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
 
+  const [candidates, setCandidates] = useState<CuratorCandidate[]>([]);
+  const [addOpen, setAddOpen] = useState(false);
+
   async function load() {
     setLoading(true);
     try {
       const { packageId } = await ensureExternalPackageDraft(campaignId, snapshot);
-      const [{ data: p }, { data: its }] = await Promise.all([
+      const [{ data: p }, { data: its }, cand] = await Promise.all([
         supabase
           .from("campaign_external_packages")
           .select("id, status, target_streams, target_cost, confirmed_at")
@@ -64,9 +72,11 @@ export function ExternalPackageEditor({
           .select("id, curator_id, assigned_streams, assigned_cost, cost_per_stream, curator_deal_id, curators(name, contact)")
           .eq("package_id", packageId)
           .order("assigned_streams", { ascending: false }),
+        fetchCuratorCandidates(),
       ]);
       setPkg(p as any);
       setItems((its ?? []) as any);
+      setCandidates(cand);
       onChanged?.();
     } catch (e: any) {
       toast({ title: "Erro ao carregar pacote", description: e.message ?? String(e), variant: "destructive" });
@@ -76,6 +86,22 @@ export function ExternalPackageEditor({
   }
 
   useEffect(() => { load(); }, [campaignId]);
+
+  async function handleAdd(curator: CuratorCandidate) {
+    if (!pkg) return;
+    setAddOpen(false);
+    try {
+      await addPackageItem({
+        packageId: pkg.id,
+        curatorId: curator.id,
+        assignedStreams: 0,
+        costPerStream: curator.cost_per_stream,
+      });
+      await load();
+    } catch (e: any) {
+      toast({ title: "Erro ao adicionar curador", description: e.message, variant: "destructive" });
+    }
+  }
 
   async function handleStreamsChange(item: ItemRow, value: number) {
     setItems(prev => prev.map(i => i.id === item.id
@@ -134,15 +160,48 @@ export function ExternalPackageEditor({
             Alvo do snapshot: <strong className="text-foreground tabular-nums">{formatInt(snapshot.streamsExt)}</strong> streams · <strong className="text-foreground">{formatBRL(snapshot.custoExt)}</strong>.
             {isDispatched
               ? <> Pacote já confirmado em {pkg?.confirmed_at ? new Date(pkg.confirmed_at).toLocaleString("pt-BR") : "—"}.</>
-              : <> Ajuste os curadores sugeridos e confirme pra gerar os deals.</>}
+              : <> Adicione os curadores que vão entregar e ajuste o volume de cada um.</>}
           </p>
         </div>
-        {!isDispatched && (
-          <Button size="sm" variant="solid" onClick={handleConfirm} disabled={confirming || items.length === 0}>
-            {confirming ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-1.5" />}
-            Confirmar pacote
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {!isDispatched && (
+            <Popover open={addOpen} onOpenChange={setAddOpen}>
+              <PopoverTrigger asChild>
+                <Button size="sm" variant="outline">
+                  <Plus className="h-4 w-4 mr-1.5" /> Adicionar curador
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-0" align="end">
+                <Command>
+                  <CommandInput placeholder="Buscar curador..." />
+                  <CommandList>
+                    <CommandEmpty>Nenhum curador disponível.</CommandEmpty>
+                    <CommandGroup>
+                      {candidates
+                        .filter(c => !items.some(it => it.curator_id === c.id))
+                        .map(c => (
+                          <CommandItem key={c.id} value={c.name} onSelect={() => handleAdd(c)}>
+                            <div className="flex flex-col">
+                              <span className="text-sm">{c.name}</span>
+                              <span className="text-[10px] text-muted-foreground tabular-nums">
+                                cap. {formatInt(c.purchased_plays)} · R$ {c.cost_per_stream.toFixed(3)}/stream
+                              </span>
+                            </div>
+                          </CommandItem>
+                        ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          )}
+          {!isDispatched && (
+            <Button size="sm" variant="solid" onClick={handleConfirm} disabled={confirming || items.length === 0}>
+              {confirming ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-1.5" />}
+              Confirmar pacote
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
         {/* KPIs */}
@@ -154,15 +213,14 @@ export function ExternalPackageEditor({
           <KPI label="Curadores" value={String(items.length)} />
         </div>
 
-
-        {noCapacity && (
-          <div className="flex items-start gap-2 rounded-md bg-warning/10 border border-warning/30 p-3">
-            <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
+        {noCapacity && !isDispatched && (
+          <div className="flex items-start gap-2 rounded-md border border-dashed border-border p-4">
+            <Users className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
             <div className="text-xs">
-              <div className="font-medium text-warning">Sem curadores ativos disponíveis</div>
+              <div className="font-medium text-foreground">Nenhum curador adicionado ainda</div>
               <p className="text-muted-foreground mt-0.5">
-                Adicione curadores em <Link to="/curadores" className="underline">/curadores</Link> ou prospecte novos
-                em <Link to="/curadores?tab=prospeccao" className="underline">CRM</Link>.
+                Clique em <strong>Adicionar curador</strong> acima pra escolher quem vai entregar os {formatInt(snapshot.streamsExt)} streams externos.
+                Você pode colocar um único curador no volume total ou dividir entre vários.
               </p>
             </div>
           </div>
@@ -174,12 +232,13 @@ export function ExternalPackageEditor({
             <div className="text-xs">
               <div className="font-medium text-warning">Capacidade abaixo do alvo</div>
               <p className="text-muted-foreground mt-0.5">
-                Sua biblioteca cobre {coverage.toFixed(0)}% dos {formatInt(snapshot.streamsExt)} streams previstos.
-                Aumente o volume por curador ou abra prospecção em <Link to="/curadores?tab=prospeccao" className="underline">CRM</Link>.
+                Os curadores adicionados cobrem {coverage.toFixed(0)}% dos {formatInt(snapshot.streamsExt)} streams previstos.
+                Aumente o volume por curador ou adicione mais.
               </p>
             </div>
           </div>
         )}
+
 
         {items.length > 0 && (
           <>
