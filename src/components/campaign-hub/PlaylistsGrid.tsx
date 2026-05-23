@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronRight, Music, TrendingUp, TrendingDown, Minus, ExternalLink, Camera } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatInt } from "@/lib/campaignEngine";
-import type { EcoAllocation } from "../types";
+import type { EcoAllocation } from "./types";
 
 type EcoSnap = {
   managed_playlist_id: string;
