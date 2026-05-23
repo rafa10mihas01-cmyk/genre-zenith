@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LayoutDashboard, ListMusic, Camera, LineChart, Wallet, ScrollText, Upload, Network } from "lucide-react";
+import { LayoutDashboard, ListMusic, Camera, LineChart, Wallet, ScrollText, Network } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CampaignHero } from "./CampaignHero";
 import type { CampaignHubCampaign, CampaignHubMode, CampaignHubTabId } from "./types";
