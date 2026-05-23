@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { calculatePlaylistCapacity } from "@/lib/campaignOperationalPlan";
+import { calculateTrackDailyStreams } from "@/lib/campaignOperationalPlan";
 
 
 export interface EcosystemCapacity {
@@ -9,6 +9,7 @@ export interface EcosystemCapacity {
   coreCount: number;
   neighborCount: number;
   savesTotal: number;         // soma de saves das playlists compatíveis
+  slotPositions: number[];    // uma posição por playlist, distribuída nesses slots
   capacityTotal: number;     // streams totais que o eco aguenta na janela
   capacityPerDay: number;    // streams/dia
   genreResolved: boolean;    // true se conseguimos casar o gênero com a tabela genres
@@ -17,16 +18,23 @@ export interface EcosystemCapacity {
 /**
  * Calcula a capacidade do ecossistema próprio filtrado por afinidade de gênero.
  * Mesma lógica de filtragem do closeOne(): núcleo (mesmo gênero) + vizinhos ≥ 0.70.
- * Capacidade diária = saves × (multiplicador/30).
- * Ex.: 1.000 saves com ×30 por 30 dias = 30.000 streams na janela.
+ * Capacidade diária = soma do slot usado por UMA música em cada playlist.
+ * Ex.: saves × (multiplicador/30) × % da posição (#1/#2/#3/#3 padrão).
  */
-export function useEcosystemCapacity(genre: string, days: number, engagementMultiplier = 30): EcosystemCapacity {
+export function useEcosystemCapacity(
+  genre: string,
+  days: number,
+  engagementMultiplier = 30,
+  slotPositions: number[] = [3],
+): EcosystemCapacity {
+  const slotKey = slotPositions.join(",");
   const [state, setState] = useState<EcosystemCapacity>({
     loading: false,
     playlistCount: 0,
     coreCount: 0,
     neighborCount: 0,
     savesTotal: 0,
+    slotPositions: [3],
     capacityTotal: 0,
     capacityPerDay: 0,
     genreResolved: false,
@@ -81,8 +89,13 @@ export function useEcosystemCapacity(genre: string, days: number, engagementMult
 
       const sumFollowers = (list: typeof all) =>
         list.reduce((s, p) => s + Math.max(0, p.followers ?? 0), 0);
-      const saves = sumFollowers(core) + sumFollowers(neighbors);
-      const perDay = Math.round(calculatePlaylistCapacity(saves, engagementMultiplier));
+      const compatible = [...core, ...neighbors].sort((a, b) => (b.followers ?? 0) - (a.followers ?? 0));
+      const safeSlots = slotPositions.length > 0 ? slotPositions : [3];
+      const saves = sumFollowers(compatible);
+      const perDay = Math.round(compatible.reduce((sum, playlist, index) => {
+        const slot = safeSlots[index % safeSlots.length] ?? 3;
+        return sum + calculateTrackDailyStreams(playlist.followers ?? 0, engagementMultiplier, slot);
+      }, 0));
 
       const total = perDay * Math.max(1, days);
 
@@ -93,13 +106,14 @@ export function useEcosystemCapacity(genre: string, days: number, engagementMult
         coreCount: core.length,
         neighborCount: neighbors.length,
         savesTotal: saves,
+        slotPositions: safeSlots,
         capacityPerDay: perDay,
         capacityTotal: total,
         genreResolved,
       });
     })();
     return () => { cancelled = true; };
-  }, [genre, days, engagementMultiplier]);
+  }, [genre, days, engagementMultiplier, slotKey]);
 
   return state;
 }
