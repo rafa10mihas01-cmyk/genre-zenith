@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -196,6 +197,7 @@ export function PlaylistCockpit({
   const [activeTab, setActiveTab] = useState<string>("identidade");
   const [archiving, setArchiving] = useState(false);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   async function handleArchive() {
     if (!confirm(`Mover "${playlistName}" para a lixeira?`)) return;
@@ -208,6 +210,11 @@ export function PlaylistCockpit({
       toast({ title: "Erro ao arquivar", description: error.message, variant: "destructive" });
       return;
     }
+    // Atualiza cache local imediatamente (otimista) + invalida pra refetch ao chegar em /catalogo.
+    queryClient.setQueryData<any[]>(["managed-playlists"], (prev) =>
+      (prev ?? []).map((p) => (p.id === managedId ? { ...p, archived_at: new Date().toISOString() } : p)),
+    );
+    queryClient.invalidateQueries({ queryKey: ["managed-playlists"] });
     toast({ title: "Movida para lixeira", description: "Você pode restaurar em Catálogo › Lixeira." });
     if (onBack) onBack(); else navigate("/catalogo");
   }
