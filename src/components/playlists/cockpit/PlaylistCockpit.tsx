@@ -649,6 +649,7 @@ export function PlaylistCockpit({
                   </div>
                 </Card>
               )}
+              <GenreAffinityCard managedId={managedId} />
             </TabsContent>
 
 
