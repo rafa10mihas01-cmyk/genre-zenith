@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Copy, ExternalLink, Check, MessageCircle, Share2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { PUBLIC_DOMAIN } from "@/lib/curatorPublicUrl";
 
 type Props = {
   token: string;
@@ -14,7 +15,7 @@ type Props = {
 
 export function ShareLinkCard({ token, trackName, artist, approved }: Props) {
   const [copied, setCopied] = useState(false);
-  const url = `${window.location.origin}/p/plano/${token}`;
+  const url = `${PUBLIC_DOMAIN}/p/plano/${token}`;
 
   async function copy() {
     try {

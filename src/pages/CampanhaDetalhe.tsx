@@ -9,6 +9,7 @@ import { StatusDot } from "@/components/ui/status-dot";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, RefreshCw, Target, Trash2, Copy, CheckCircle2, MessageSquareWarning, Clock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { PUBLIC_DOMAIN } from "@/lib/curatorPublicUrl";
 
 type Campaign = {
   id: string; track_name: string; artist: string | null;
@@ -228,7 +229,7 @@ function Kpi({ label, value, sub }: { label: string; value: string; sub?: string
 
 function ClientApprovalCard({ camp }: { camp: Campaign }) {
   const token = camp.public_plan_token;
-  const url = token ? `${window.location.origin}/p/plano/${token}` : null;
+  const url = token ? `${PUBLIC_DOMAIN}/p/plano/${token}` : null;
   const isApproved = !!camp.client_approved_at;
   const isRejected = !!camp.client_rejected_at && !isApproved;
 
