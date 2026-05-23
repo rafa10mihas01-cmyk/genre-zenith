@@ -1206,6 +1206,7 @@ Deno.serve(async (req) => {
           count: p.count,
           popularity: p.popularity,
           from_missing_artist: p.from_missing_artist,
+          trending_position: p.trending_position,
           target_zone: p.target_zone,
           target_zone_label: ZONE_LABELS[p.target_zone],
           function_role: p.function_role,
@@ -1214,6 +1215,7 @@ Deno.serve(async (req) => {
           fills_deficit: false,
           score: p.score,
         });
+
       }
     }
 
