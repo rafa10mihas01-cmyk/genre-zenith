@@ -1282,6 +1282,7 @@ Deno.serve(async (req) => {
     // Adiciona contagem ao summary pra UI exibir KPI "ADICIONAR"
     (tracksSummary as any).add = tracksSuggestions.length;
     (tracksSummary as any).add_from_missing = tracksSuggestions.filter((t: any) => t.from_missing_artist).length;
+    (tracksSummary as any).add_trending = tracksSuggestions.filter((t: any) => t.trending_position != null).length;
     (tracksSummary as any).substitutions = substitutions.filter((s) => s.candidate).length;
     (tracksSummary as any).zone_deficits = deficits;
     (tracksSummary as any).zone_ideal = zoneIdeal;
