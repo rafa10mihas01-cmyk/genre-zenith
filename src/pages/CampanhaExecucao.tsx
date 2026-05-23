@@ -14,10 +14,11 @@ import { CampaignDailyPlan } from "@/components/campanhas/CampaignDailyPlan";
 import { PlaylistDailyPlanDialog } from "@/components/campanhas/PlaylistDailyPlanDialog";
 import { buildEcoPlaylistPlan, distributeEcoPositions } from "@/lib/campaignOperationalPlan";
 import { CampaignFullPlanCard } from "@/components/campanhas/CampaignFullPlanCard";
-import { ArrowLeft, ListMusic } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { ArrowLeft } from "lucide-react";
 import { CampaignHub } from "@/components/campaign-hub/CampaignHub";
 import { OverviewTab } from "@/components/campaign-hub/tabs/OverviewTab";
+import { PlaylistsGrid } from "@/components/campaign-hub/PlaylistsGrid";
+import { ProofsTimeline, type ProofEvent } from "@/components/campaign-hub/ProofsTimeline";
 import type { CampaignHubCampaign, CampaignHubTabId, EcoAllocation } from "@/components/campaign-hub/types";
 
 const STATUS_LABEL: Record<string, string> = {
