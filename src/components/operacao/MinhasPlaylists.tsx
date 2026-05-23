@@ -397,6 +397,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const [savingGenre, setSavingGenre] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
   const [suggestProgress, setSuggestProgress] = useState<{ done: number; total: number } | null>(null);
+  const pendingSuggestionCount = items.filter(i => !i.archived_at && !i.genre_id && i.suggested_genre_id).length;
 
 
   async function runGenreSuggest() {
@@ -442,9 +443,11 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
 
       toast({
         title: "Sugestões geradas",
-        description: `${okTotal} de ${ids.length} classificadas${failTotal ? ` · ${failTotal} falharam` : ""}.`,
+        description: `${okTotal} de ${ids.length} classificadas${failTotal ? ` · ${failTotal} falharam` : ""}. Abrindo Sem gênero para revisar.`,
       });
       await load();
+      setFilterGenreId(null);
+      setFilterMissingGenre(true);
     } catch (e: any) {
       toast({ title: "Falha ao sugerir gêneros", description: e.message ?? String(e), variant: "destructive" });
     } finally {
