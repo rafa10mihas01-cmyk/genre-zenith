@@ -16,6 +16,9 @@ export interface CampaignSnapshot {
     coverUrl: string | null;
     baselineStreamsDay: number;
     genre?: string | null;
+    top200Position?: number | null;
+    top200StreamsDay?: number | null;
+    top200ChartDate?: string | null;
   };
   meta: number;
   days: number;
