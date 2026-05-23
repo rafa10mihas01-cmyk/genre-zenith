@@ -65,7 +65,12 @@ type Song = {
   startDateISO: string; // yyyy-mm-dd
   clientPriceTotal: number; // R$ que o cliente paga (manual) — 0 = usa tabela
   genre: string; // p/ filtrar playlists na distribuição
+  // Top 200 picker (controlado pra meta recalcular sozinho quando days muda)
+  top200Pos: number | null;
+  top200StreamsDay: number | null;
+  top200ChartDate: string | null;
 };
+
 
 const ENGAGEMENT_PRESETS = [18, 30, 50] as const;
 
@@ -105,7 +110,11 @@ function emptySong(): Song {
     startDateISO: startOfDay(new Date()).toISOString().slice(0, 10),
     clientPriceTotal: 0,
     genre: "",
+    top200Pos: null,
+    top200StreamsDay: null,
+    top200ChartDate: null,
   };
+
 }
 
 function loadPersisted(): PersistedV2 {
@@ -208,12 +217,17 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
 
   const effectiveMeta = useMemo(() => {
     if (active.fonte === "orcamento") return reverseFromBudget(active.budget, active.splitEco, pricingCosts);
+    if (active.fonte === "top200" && active.top200StreamsDay != null) {
+      const gapDay = Math.max(0, active.top200StreamsDay - active.baselineStreamsDay);
+      return gapDay * Math.max(1, active.days);
+    }
     return active.meta;
-  }, [active.fonte, active.budget, active.splitEco, active.meta, pricingCosts]);
+  }, [active.fonte, active.budget, active.splitEco, active.meta, active.top200StreamsDay, active.baselineStreamsDay, active.days, pricingCosts]);
 
   const result = useMemo(() => calcCampaign({
     meta: effectiveMeta, days: active.days, modo: active.modo, perfil: active.perfil, splitEcoPct: active.splitEco,
   }, pricingCosts), [effectiveMeta, active.days, active.modo, active.perfil, active.splitEco, pricingCosts]);
+
 
   const preferredSlots = useMemo(() => {
     const pos = active.track?.position ?? 999;
@@ -232,8 +246,16 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
     : null;
   const suggestedEcoPct = suggestedExtPct != null ? 100 - suggestedExtPct : null;
 
+  function songEffectiveMeta(s: Song): number {
+    if (s.fonte === "orcamento") return reverseFromBudget(s.budget, s.splitEco, pricingCosts);
+    if (s.fonte === "top200" && s.top200StreamsDay != null) {
+      return Math.max(0, s.top200StreamsDay - s.baselineStreamsDay) * Math.max(1, s.days);
+    }
+    return s.meta;
+  }
+
   function isSongReady(s: Song): boolean {
-    return !!s.track?.id && s.baselineStreamsDay >= 0 && (s.fonte === "orcamento" ? s.budget > 0 : s.meta > 0);
+    return !!s.track?.id && s.baselineStreamsDay >= 0 && songEffectiveMeta(s) > 0;
   }
   const readyCount = songs.filter(isSongReady).length;
 
@@ -242,10 +264,11 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
     song: s,
     ready: isSongReady(s),
     r: calcCampaign({
-      meta: s.fonte === "orcamento" ? reverseFromBudget(s.budget, s.splitEco, pricingCosts) : s.meta,
+      meta: songEffectiveMeta(s),
       days: s.days, modo: s.modo, perfil: s.perfil, splitEcoPct: s.splitEco,
     }, pricingCosts),
   })), [songs, pricingCosts]);
+
   const totals = useMemo(() => {
     const ready = songResults.filter(x => x.ready);
     return {
@@ -835,9 +858,12 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     <Top200Picker
                       days={active.days}
                       currentStreamsDay={active.baselineStreamsDay}
-                      onPick={(streamsDay, pos) => {
+                      value={active.top200Pos}
+                      valueStreamsDay={active.top200StreamsDay}
+                      valueChartDate={active.top200ChartDate}
+                      onPick={(streamsDay, pos, chartDate) => {
+                        patchActive({ top200Pos: pos, top200StreamsDay: streamsDay, top200ChartDate: chartDate });
                         const gapDay = Math.max(0, streamsDay - active.baselineStreamsDay);
-                        setMeta(gapDay * active.days);
                         toast({
                           title: `Posição #${pos}`,
                           description: active.baselineStreamsDay > 0
@@ -845,6 +871,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                             : `${formatInt(streamsDay)} streams/dia × ${active.days}d = ${formatInt(streamsDay * active.days)}`,
                         });
                       }}
+
                       onOpenList={() => setTop200Open(true)}
                     />
                   )}
@@ -1315,15 +1342,22 @@ function NumberInput({
 }
 
 function Top200Picker({
-  days, currentStreamsDay = 0, onPick, onOpenList,
-}: { days: number; currentStreamsDay?: number; onPick: (streamsDay: number, position: number) => void; onOpenList: () => void }) {
-  const [pos, setPos] = useState<number | null>(null);
-  const [posStreamsDay, setPosStreamsDay] = useState<number | null>(null);
+  days, currentStreamsDay = 0, value, valueStreamsDay, valueChartDate, onPick, onOpenList,
+}: {
+  days: number;
+  currentStreamsDay?: number;
+  value?: number | null;
+  valueStreamsDay?: number | null;
+  valueChartDate?: string | null;
+  onPick: (streamsDay: number, position: number, chartDate: string) => void;
+  onOpenList: () => void;
+}) {
+  const pos = value ?? null;
+  const posStreamsDay = valueStreamsDay ?? null;
+  const chartDate = valueChartDate ?? null;
   const [loading, setLoading] = useState(false);
-  const [chartDate, setChartDate] = useState<string | null>(null);
 
   async function handlePick(p: number) {
-    setPos(p);
     setLoading(true);
     try {
       const { data: latest } = await supabase
@@ -1348,13 +1382,12 @@ function Top200Picker({
         toast({ title: `Posição ${p} sem dados`, variant: "destructive" });
         return;
       }
-      setChartDate(data.chart_date);
-      setPosStreamsDay(Number(data.streams_day));
-      onPick(Number(data.streams_day), p);
+      onPick(Number(data.streams_day), p, data.chart_date);
     } finally {
       setLoading(false);
     }
   }
+
 
   return (
     <div className="space-y-2">
