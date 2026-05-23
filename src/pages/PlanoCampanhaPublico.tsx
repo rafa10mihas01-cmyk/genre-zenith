@@ -350,7 +350,7 @@ export default function PlanoCampanhaPublico() {
           mode="client"
           tab={tab}
           onTabChange={setTab}
-          hiddenTabs={["curve", "upload", "operacao", "finance", "logs"]}
+          hiddenTabs={["curve", "operacao", "finance", "logs"]}
           delivered={delivered}
           goal={snapshot.meta}
           daysElapsed={daysElapsed}
