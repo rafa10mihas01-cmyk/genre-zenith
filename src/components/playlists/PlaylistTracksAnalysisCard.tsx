@@ -383,6 +383,11 @@ export function PlaylistTracksAnalysisCard({ managedId }: { managedId: string })
                   </div>
                   <div className="text-xs font-medium text-foreground/90 truncate flex items-center gap-1.5">
                     {s.candidate!.nome}
+                    {s.candidate!.trending_position != null && (
+                      <Badge variant="outline" className="text-[9px] h-4 px-1 border-primary/40 text-primary bg-primary/5">
+                        🔥 #{s.candidate!.trending_position} Top 200
+                      </Badge>
+                    )}
                     {s.candidate!.from_missing_artist && (
                       <Badge variant="outline" className="text-[9px] h-4 px-1 border-warning/40 text-warning bg-warning/5">
                         artista faltando
