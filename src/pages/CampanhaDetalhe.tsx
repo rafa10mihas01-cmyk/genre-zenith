@@ -143,6 +143,11 @@ export default function CampanhaDetalhe() {
           <Kpi label="Prazo" value={camp.deadline} sub={daysLeft > 0 ? `${daysLeft}d restantes` : daysLeft === 0 ? "Hoje" : `${Math.abs(daysLeft)}d atraso`} />
         </div>
 
+        {/* Aprovação do cliente + link compartilhável */}
+        <ClientApprovalCard camp={camp} />
+
+
+
         {/* Barra de progresso */}
         <div className="mb-8 rounded-2xl border border-border bg-card p-5">
           <div className="flex items-center justify-between text-sm mb-2">
