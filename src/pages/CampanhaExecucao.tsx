@@ -217,6 +217,39 @@ export default function CampanhaExecucao() {
     } else {
       setProofs([]);
     }
+
+    // Itens externos do pacote (curadores contratados) com plays reais via curator_deals
+    const { data: extPkg } = await supabase
+      .from("campaign_external_packages")
+      .select("id")
+      .eq("campaign_id", id)
+      .maybeSingle();
+    if (extPkg?.id) {
+      const { data: items } = await supabase
+        .from("campaign_external_package_items")
+        .select("id, assigned_streams, assigned_cost, curator_deal_id, curators(name), curator_deals(reconciled_total_plays, state)")
+        .eq("package_id", extPkg.id)
+        .order("assigned_streams", { ascending: false });
+      const mapped: ExternalItemRow[] = ((items ?? []) as unknown as Array<{
+        id: string;
+        assigned_streams: number;
+        assigned_cost: number;
+        curator_deal_id: string | null;
+        curators: { name: string } | null;
+        curator_deals: { reconciled_total_plays: number | null; state: string | null } | null;
+      }>).map((it) => ({
+        id: it.id,
+        curator_name: it.curators?.name ?? "Curador",
+        assigned_streams: Number(it.assigned_streams ?? 0),
+        assigned_cost: Number(it.assigned_cost ?? 0),
+        curator_deal_id: it.curator_deal_id,
+        delivered_plays: Number(it.curator_deals?.reconciled_total_plays ?? 0),
+        state: it.curator_deals?.state ?? "pending",
+      }));
+      setExternalItems(mapped);
+    } else {
+      setExternalItems([]);
+    }
     setLoading(false);
   };
 
