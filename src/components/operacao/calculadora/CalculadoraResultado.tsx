@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatBRL, formatInt, type CampaignResult } from "@/lib/campaignEngine";
-import { TrendingUp, Wallet, Zap, Layers, Flame, Rocket, Activity, Anchor } from "lucide-react";
+import { TrendingUp, Wallet, Zap, Layers, Flame, Rocket, Activity, Anchor, Coins } from "lucide-react";
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -8,8 +8,12 @@ import { cn } from "@/lib/utils";
  *   META é o headline (peso visual dominante)
  *   Pico/dia e Duração são secundários (leitura tática)
  *   Custo é terciário (referência financeira)
+ *   Cliente paga é o valor cobrado (se pricePerStreamSell informado)
  */
-export function CalculadoraKpis({ r }: { r: CampaignResult }) {
+export function CalculadoraKpis({ r, pricePerStreamSell }: { r: CampaignResult; pricePerStreamSell?: number }) {
+  const clientTotal = pricePerStreamSell && pricePerStreamSell > 0
+    ? Math.round(r.meta * pricePerStreamSell * 100) / 100
+    : null;
   return (
     <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
       {/* Headline — ocupa 2 colunas no desktop, tipografia maior, acento primary */}
@@ -31,15 +35,25 @@ export function CalculadoraKpis({ r }: { r: CampaignResult }) {
         value={`${r.days}d`}
         hint={r.modo === "simultaneo" ? "simultâneo" : "sequencial"}
       />
-      <KpiQuiet
-        icon={Wallet}
-        label="Custo"
-        value={formatBRL(r.custoTotal)}
-        hint={`R$ ${r.custoPorStream.toFixed(3)}/stream`}
-      />
+      {clientTotal != null ? (
+        <KpiClient
+          icon={Coins}
+          label="Cliente paga"
+          value={formatBRL(clientTotal)}
+          hint={`custo ${formatBRL(r.custoTotal)} · margem ${formatBRL(clientTotal - r.custoTotal)}`}
+        />
+      ) : (
+        <KpiQuiet
+          icon={Wallet}
+          label="Custo"
+          value={formatBRL(r.custoTotal)}
+          hint={`R$ ${r.custoPorStream.toFixed(3)}/stream`}
+        />
+      )}
     </div>
   );
 }
+
 
 export function CalculadoraResultado({ r }: { r: CampaignResult }) {
   return (
