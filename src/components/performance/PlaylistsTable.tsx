@@ -94,6 +94,16 @@ export function PlaylistsTable({
             ))}
           </SelectContent>
         </Select>
+        <Select value={sizeFilter} onValueChange={setSizeFilter}>
+          <SelectTrigger className="w-[160px] h-9"><SelectValue placeholder="Tamanho" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os tamanhos</SelectItem>
+            <SelectItem value="pequena">Pequenas (&lt; 1K)</SelectItem>
+            <SelectItem value="media">Médias (1K–10K)</SelectItem>
+            <SelectItem value="grande">Grandes (10K–100K)</SelectItem>
+            <SelectItem value="top">Top (100K+)</SelectItem>
+          </SelectContent>
+        </Select>
         <Select value={classFilter} onValueChange={setClassFilter}>
           <SelectTrigger className="w-[140px] h-9"><SelectValue placeholder="Classe" /></SelectTrigger>
           <SelectContent>
