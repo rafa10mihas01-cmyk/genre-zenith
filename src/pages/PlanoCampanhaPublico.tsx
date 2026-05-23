@@ -22,6 +22,7 @@ import { PlaylistsGrid } from "@/components/campaign-hub/PlaylistsGrid";
 import { ProofsTimeline, type ProofEvent } from "@/components/campaign-hub/ProofsTimeline";
 import { CampaignDailyPlan } from "@/components/campanhas/CampaignDailyPlan";
 import { distributeEcoPositions } from "@/lib/campaignOperationalPlan";
+import { ClientHeroCard } from "@/components/campaign-hub/ClientHeroCard";
 import type { CampaignHubCampaign, CampaignHubTabId, EcoAllocation } from "@/components/campaign-hub/types";
 
 type EcoSnap = {
@@ -312,12 +313,24 @@ export default function PlanoCampanhaPublico() {
           slots={{
             overview: (
               <div className="space-y-6">
-                <ClientInvestmentCard
-                  meta={snapshot.meta}
-                  days={snapshot.days}
-                  pricePerStreamSell={snapshot.pricePerStreamSell}
-                  clientPriceTotal={snapshot.clientPriceTotal}
+                <ClientHeroCard
+                  camp={camp}
+                  delivered={delivered}
+                  goal={snapshot.meta}
+                  daysElapsed={daysElapsed}
+                  daysTotal={snapshot.days}
+                  allocations={allocs}
+                  snapshots={snaps}
+                  stage={isApproved ? "live" : isRejected ? "rejected" : "approval"}
                 />
+                {!isApproved && (
+                  <ClientInvestmentCard
+                    meta={snapshot.meta}
+                    days={snapshot.days}
+                    pricePerStreamSell={snapshot.pricePerStreamSell}
+                    clientPriceTotal={snapshot.clientPriceTotal}
+                  />
+                )}
                 <OverviewTab
                   snapshot={snapshot}
                   delivered={delivered}
@@ -334,7 +347,6 @@ export default function PlanoCampanhaPublico() {
                   })) : []}
                   onJumpTab={(t) => setTab(t)}
                 />
-
               </div>
             ),
             playlists: (
