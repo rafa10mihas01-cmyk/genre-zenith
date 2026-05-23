@@ -109,16 +109,42 @@ export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed 
                 </Button>
               </Link>
               {camp.public_plan_token && (
-                <Button variant="outline" size="sm" onClick={copyClientLink}>
-                  <Share2 className="h-4 w-4 mr-1.5" /> Compartilhar
-                </Button>
-              )}
-              {camp.public_plan_token && (
-                <a href={`/p/plano/${camp.public_plan_token}`} target="_blank" rel="noreferrer">
-                  <Button variant="ghost" size="sm">
-                    <ExternalLink className="h-4 w-4 mr-1.5" /> Portal
-                  </Button>
-                </a>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Share2 className="h-4 w-4 mr-1.5" /> Compartilhar
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-[360px] p-4 space-y-3">
+                    <div>
+                      <div className="text-sm font-semibold">Link do cliente</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        Mesmo link de antes — agora mostra a campanha ao vivo.
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Input
+                        readOnly
+                        value={clientUrl}
+                        onFocus={(e) => e.currentTarget.select()}
+                        className="font-mono text-[11px] h-9"
+                      />
+                      <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={copyClientLink} title="Copiar">
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button variant="default" size="sm" onClick={shareWhatsApp}>
+                        <MessageCircle className="h-3.5 w-3.5 mr-1.5" /> WhatsApp
+                      </Button>
+                      <a href={clientUrl} target="_blank" rel="noreferrer">
+                        <Button variant="outline" size="sm" className="w-full">
+                          <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Abrir portal
+                        </Button>
+                      </a>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               )}
             </>
           )}
