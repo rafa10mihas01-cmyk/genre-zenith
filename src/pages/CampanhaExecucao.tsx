@@ -77,6 +77,7 @@ export default function CampanhaExecucao() {
   const [clientToken, setClientToken] = useState<string | null>(null);
   const [lastSpreadsheetUploadAt, setLastSpreadsheetUploadAt] = useState<string | null>(null);
   const [recentUploads, setRecentUploads] = useState<SpreadsheetUpload[]>([]);
+  const [externalItems, setExternalItems] = useState<ExternalItemRow[]>([]);
 
   const loadCampaign = async () => {
     if (!id) return;
