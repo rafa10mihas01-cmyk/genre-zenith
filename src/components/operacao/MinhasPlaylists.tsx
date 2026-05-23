@@ -962,6 +962,37 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                   <span><span className="font-semibold text-foreground">{formatNumber(p.followers)}</span> seg.</span>
                   <span><span className="font-semibold text-foreground">{p.tracks_count || "—"}</span> fx</span>
                 </div>
+                {!p.genre_id && p.suggested_genre_id && (
+                  <div
+                    className="flex items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-1.5 py-1 text-[10.5px]"
+                    onClick={(e) => e.preventDefault()}
+                    title={p.suggestion_reason ?? ""}
+                  >
+                    <Sparkles className="h-3 w-3 text-primary shrink-0" />
+                    <span className="flex-1 truncate text-primary capitalize">
+                      {genres.find(g => g.id === p.suggested_genre_id)?.nome ?? "—"}
+                      <span className="text-muted-foreground ml-1 tabular-nums">{p.suggestion_confidence ?? 0}%</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); acceptSuggestion(p); }}
+                      className="h-4 w-4 inline-flex items-center justify-center rounded hover:bg-primary/20 text-primary"
+                      title="Aceitar sugestão"
+                      aria-label="Aceitar sugestão"
+                    >
+                      <Check className="h-3 w-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); dismissSuggestion(p); }}
+                      className="h-4 w-4 inline-flex items-center justify-center rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive"
+                      title="Descartar sugestão"
+                      aria-label="Descartar sugestão"
+                    >
+                      <XCircle className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
                 {/* Régua única — ícones à esquerda, números à direita, distribuídos */}
                 {(valuations[p.spotify_playlist_id] || p.last_diagnosis_at || p.account_id || !p.account_id || p.curatorial_state || p.lifecycle_stage === "onboarding" || (cooldownsByPlaylist[p.id]?.length ?? 0) > 0 || (p.canonical_playlist_id && scores[p.canonical_playlist_id])) && (
                   <div className="flex items-center justify-between flex-wrap gap-y-1 mt-0.5">
