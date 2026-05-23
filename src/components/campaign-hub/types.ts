@@ -25,6 +25,7 @@ export type CampaignHubCampaign = {
   eco_dispatched_at: string | null;
   engagement_multiplier?: number | null;
   public_plan_token?: string | null;
+  deal_id?: string | null;
   spotify_track_url?: string | null;
   total_delivered?: number | null;
   client_approved_at?: string | null;

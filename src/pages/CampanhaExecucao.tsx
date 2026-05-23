@@ -22,6 +22,7 @@ import { OverviewTab } from "@/components/campaign-hub/tabs/OverviewTab";
 import { PlaylistsGrid } from "@/components/campaign-hub/PlaylistsGrid";
 import { ProofsTimeline, type ProofEvent } from "@/components/campaign-hub/ProofsTimeline";
 import { ShareLinkCard } from "@/components/campaign-hub/ShareLinkCard";
+import { SpreadsheetUploadCard } from "@/components/client-portal/SpreadsheetUploadCard";
 import type { CampaignHubCampaign, CampaignHubTabId, EcoAllocation } from "@/components/campaign-hub/types";
 import { toast } from "sonner";
 import type { Json } from "@/integrations/supabase/types";
@@ -50,6 +51,15 @@ type DeliveryProof = {
 
 type PackageItem = { curator_deal_id: string | null };
 
+type SpreadsheetUpload = {
+  id: string;
+  created_at: string;
+  rows_imported: number;
+  total_streams: number;
+  status: string;
+  file_name: string | null;
+};
+
 export default function CampanhaExecucao() {
   const { id } = useParams<{ id: string }>();
   const [camp, setCamp] = useState<CampaignHubCampaign | null>(null);
@@ -62,52 +72,155 @@ export default function CampanhaExecucao() {
   const [selectedAlloc, setSelectedAlloc] = useState<EcoAllocation | null>(null);
   const [clientPriceInput, setClientPriceInput] = useState("");
   const [savingClientPrice, setSavingClientPrice] = useState(false);
+  const [clientToken, setClientToken] = useState<string | null>(null);
+  const [lastSpreadsheetUploadAt, setLastSpreadsheetUploadAt] = useState<string | null>(null);
+  const [recentUploads, setRecentUploads] = useState<SpreadsheetUpload[]>([]);
+
+  const loadCampaign = async () => {
+    if (!id) return;
+    setLoading(true);
+    const [{ data: c }, { data: a }, { data: s }, { data: pkg }] = await Promise.all([
+      supabase
+        .from("campaigns")
+        .select("id, deal_id, track_name, artist, cover_url, status, deadline, started_at, simulation_snapshot, snapshot_locked_at, eco_dispatched_at, engagement_multiplier, public_plan_token, spotify_track_id, spotify_track_url, goal_plays, created_by, total_delivered, client_approved_at")
+        .eq("id", id)
+        .maybeSingle(),
+      supabase
+        .from("campaign_eco_allocations")
+        .select("id, managed_playlist_id, planned_streams, start_day, status, dispatched_at, managed_playlists(name, cover_url, followers, spotify_url)")
+        .eq("campaign_id", id)
+        .order("planned_streams", { ascending: false }),
+      supabase
+        .from("campaign_eco_snapshots")
+        .select("id, managed_playlist_id, plays_24h, plays_7d, plays_28d, captured_at, source")
+        .eq("campaign_id", id)
+        .order("captured_at", { ascending: false })
+        .limit(500),
+      supabase
+        .from("campaign_external_package_items")
+        .select("curator_deal_id, campaign_external_packages!inner(campaign_id)")
+        .eq("campaign_external_packages.campaign_id", id)
+        .not("curator_deal_id", "is", null),
+    ]);
+    setCamp(c as unknown as CampaignHubCampaign | null);
+    setAllocs((a ?? []) as unknown as EcoAllocation[]);
+    setSnaps((s ?? []) as EcoSnap[]);
+
+    let dealId = (c as { deal_id?: string | null } | null)?.deal_id ?? null;
+    if (!dealId && c?.spotify_track_id) {
+      const { data: auth } = await supabase.auth.getUser();
+      const userId = c.created_by ?? auth.user?.id ?? null;
+      if (userId) {
+        const goal = Number(c.goal_plays ?? snapshot?.meta ?? 0);
+        const { data: newDeal } = await supabase
+          .from("curator_deals")
+          .insert({
+            user_id: userId,
+            curator_name: "Campanha",
+            song_spotify_url: c.spotify_track_url || `spotify:track:${c.spotify_track_id}`,
+            song_name: c.track_name,
+            song_artist: c.artist,
+            song_cover_url: c.cover_url,
+            target_plays: goal,
+            baseline_plays: 0,
+            cost: 0,
+            started_at: c.started_at,
+            ends_at: c.deadline ? `${c.deadline}T23:59:59.000Z` : null,
+            state: "active",
+            source: "campaign_internal",
+            origin: "campaign",
+            campaign_id: c.id,
+          })
+          .select("id")
+          .single();
+        if (newDeal?.id) {
+          dealId = newDeal.id;
+          await supabase.from("curator_deal_songs").insert({
+            deal_id: dealId,
+            spotify_track_id: c.spotify_track_id,
+            song_spotify_url: c.spotify_track_url || `spotify:track:${c.spotify_track_id}`,
+            song_name: c.track_name,
+            song_artist: c.artist,
+            song_cover_url: c.cover_url,
+            target_plays: goal,
+            baseline_plays: 0,
+            position: 1,
+            started_at: c.started_at,
+            ends_at: c.deadline ? `${c.deadline}T23:59:59.000Z` : null,
+          });
+          await supabase.from("campaigns").update({ deal_id: dealId }).eq("id", c.id);
+          setCamp({ ...(c as unknown as CampaignHubCampaign), deal_id: dealId });
+        }
+      }
+    }
+    let hydratedUploadState = false;
+    if (!dealId && (c as { public_plan_token?: string | null } | null)?.public_plan_token) {
+      const { data: shared } = await supabase.functions.invoke("get-shared-campaign-plan", {
+        body: { token: (c as { public_plan_token: string }).public_plan_token },
+      });
+      dealId = (shared as { campaign?: { deal_id?: string | null } } | null)?.campaign?.deal_id ?? null;
+      if (dealId) setCamp({ ...(c as unknown as CampaignHubCampaign), deal_id: dealId });
+      if ((shared as { client_token?: string | null } | null)?.client_token) {
+        setClientToken((shared as { client_token: string }).client_token);
+        setRecentUploads(((shared as { recent_uploads?: SpreadsheetUpload[] }).recent_uploads ?? []) as SpreadsheetUpload[]);
+        setLastSpreadsheetUploadAt((shared as { last_spreadsheet_upload_at?: string | null }).last_spreadsheet_upload_at ?? null);
+        hydratedUploadState = true;
+      }
+    }
+    if (dealId) {
+      const { data: song } = await supabase
+        .from("curator_deal_songs")
+        .select("id, client_token")
+        .eq("deal_id", dealId)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      let token = (song as { client_token?: string | null } | null)?.client_token ?? null;
+      if (!token && song?.id) {
+        token = `${crypto.randomUUID().replace(/-/g, "")}${crypto.randomUUID().replace(/-/g, "")}`;
+        const { error: tokenError } = await supabase
+          .from("curator_deal_songs")
+          .update({ client_token: token })
+          .eq("id", song.id);
+        if (tokenError) token = null;
+      }
+
+      const { data: uploads } = await supabase
+        .from("label_spreadsheet_uploads")
+        .select("id, created_at, rows_imported, total_streams, status, file_name")
+        .eq("deal_id", dealId)
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      setClientToken(token);
+      setRecentUploads((uploads ?? []) as SpreadsheetUpload[]);
+      setLastSpreadsheetUploadAt((uploads as SpreadsheetUpload[] | null)?.[0]?.created_at ?? null);
+    } else if (!hydratedUploadState) {
+      setClientToken(null);
+      setRecentUploads([]);
+      setLastSpreadsheetUploadAt(null);
+    }
+
+    const dealIds = ((pkg ?? []) as PackageItem[]).map((p) => p.curator_deal_id).filter((dealId): dealId is string => !!dealId);
+    if (dealIds.length > 0) {
+      const { data: dp } = await supabase
+        .from("delivery_proofs")
+        .select("id, playlist_id, playlist_name, screenshot_url, plays_total, plays_24h, position_in_playlist, source, captured_at")
+        .in("deal_id", dealIds)
+        .order("captured_at", { ascending: false })
+        .limit(200);
+      setProofs((dp ?? []) as DeliveryProof[]);
+    } else {
+      setProofs([]);
+    }
+    setLoading(false);
+  };
 
   useEffect(() => {
     if (!id) return;
-    (async () => {
-      setLoading(true);
-      const [{ data: c }, { data: a }, { data: s }, { data: pkg }] = await Promise.all([
-        supabase
-          .from("campaigns")
-          .select("id, track_name, artist, cover_url, status, deadline, started_at, simulation_snapshot, snapshot_locked_at, eco_dispatched_at, engagement_multiplier, public_plan_token, spotify_track_url, total_delivered, client_approved_at")
-          .eq("id", id)
-          .maybeSingle(),
-        supabase
-          .from("campaign_eco_allocations")
-          .select("id, managed_playlist_id, planned_streams, start_day, status, dispatched_at, managed_playlists(name, cover_url, followers, spotify_url)")
-          .eq("campaign_id", id)
-          .order("planned_streams", { ascending: false }),
-        supabase
-          .from("campaign_eco_snapshots")
-          .select("id, managed_playlist_id, plays_24h, plays_7d, plays_28d, captured_at, source")
-          .eq("campaign_id", id)
-          .order("captured_at", { ascending: false })
-          .limit(500),
-        supabase
-          .from("campaign_external_package_items")
-          .select("curator_deal_id, campaign_external_packages!inner(campaign_id)")
-          .eq("campaign_external_packages.campaign_id", id)
-          .not("curator_deal_id", "is", null),
-      ]);
-      setCamp(c as unknown as CampaignHubCampaign | null);
-      setAllocs((a ?? []) as unknown as EcoAllocation[]);
-      setSnaps((s ?? []) as EcoSnap[]);
-
-      const dealIds = ((pkg ?? []) as PackageItem[]).map((p) => p.curator_deal_id).filter((dealId): dealId is string => !!dealId);
-      if (dealIds.length > 0) {
-        const { data: dp } = await supabase
-          .from("delivery_proofs")
-          .select("id, playlist_id, playlist_name, screenshot_url, plays_total, plays_24h, position_in_playlist, source, captured_at")
-          .in("deal_id", dealIds)
-          .order("captured_at", { ascending: false })
-          .limit(200);
-        setProofs((dp ?? []) as DeliveryProof[]);
-      } else {
-        setProofs([]);
-      }
-      setLoading(false);
-    })();
+    loadCampaign();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const snapshot = camp?.simulation_snapshot ?? null;
@@ -313,6 +426,20 @@ export default function CampanhaExecucao() {
               />
               <ExternalPackageEditor campaignId={camp.id} snapshot={snapshot} onChanged={() => setPlanRefreshKey(k => k + 1)} />
             </div>
+          ),
+          upload: clientToken ? (
+            <SpreadsheetUploadCard
+              clientToken={clientToken}
+              lastUploadAt={lastSpreadsheetUploadAt}
+              recentUploads={recentUploads}
+              onUploaded={loadCampaign}
+            />
+          ) : (
+            <Card>
+              <CardContent className="p-6 text-sm text-muted-foreground text-center">
+                Esta campanha ainda não tem link de cliente para receber planilha.
+              </CardContent>
+            </Card>
           ),
           proofs: (
             <div className="space-y-6">

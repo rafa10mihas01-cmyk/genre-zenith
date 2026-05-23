@@ -33,9 +33,9 @@ export function CampaignHub({
   const tabs: TabDef[] = [
     { id: "overview",  label: "Visão geral", icon: LayoutDashboard, content: slots.overview  ?? null },
     { id: "playlists", label: "Playlists",   icon: ListMusic,       content: slots.playlists ?? null },
+    { id: "upload",    label: "Importar",    icon: Upload,          content: slots.upload    ?? null },
     { id: "proofs",    label: "Histórico",   icon: Camera,          content: slots.proofs    ?? null },
     { id: "curve",     label: "Curva",       icon: LineChart,       content: slots.curve     ?? null },
-    { id: "upload",    label: "Atualizar",   icon: Upload,          content: slots.upload    ?? null },
     { id: "finance",   label: "Financeiro",  icon: Wallet,          content: slots.finance   ?? null, internalOnly: true },
     { id: "logs",      label: "Logs",        icon: ScrollText,      content: slots.logs      ?? null, internalOnly: true },
   ];
