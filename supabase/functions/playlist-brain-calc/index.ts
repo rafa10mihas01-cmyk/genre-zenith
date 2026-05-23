@@ -61,6 +61,7 @@ async function calcOne(supabase: any, playlistId: string) {
       .from("playlists")
       .upsert({
         spotify_playlist_id: directManaged.spotify_playlist_id,
+        name: directManaged.spotify_playlist_id,
         ownership: "own",
         source: "managed",
         monitored: true,
