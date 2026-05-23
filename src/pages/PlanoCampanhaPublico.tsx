@@ -312,12 +312,24 @@ export default function PlanoCampanhaPublico() {
           slots={{
             overview: (
               <div className="space-y-6">
-                <ClientInvestmentCard
-                  meta={snapshot.meta}
-                  days={snapshot.days}
-                  pricePerStreamSell={snapshot.pricePerStreamSell}
-                  clientPriceTotal={snapshot.clientPriceTotal}
+                <ClientHeroCard
+                  camp={camp}
+                  delivered={delivered}
+                  goal={snapshot.meta}
+                  daysElapsed={daysElapsed}
+                  daysTotal={snapshot.days}
+                  allocations={allocs}
+                  snapshots={snaps}
+                  stage={isApproved ? "live" : isRejected ? "rejected" : "approval"}
                 />
+                {!isApproved && (
+                  <ClientInvestmentCard
+                    meta={snapshot.meta}
+                    days={snapshot.days}
+                    pricePerStreamSell={snapshot.pricePerStreamSell}
+                    clientPriceTotal={snapshot.clientPriceTotal}
+                  />
+                )}
                 <OverviewTab
                   snapshot={snapshot}
                   delivered={delivered}
@@ -334,7 +346,6 @@ export default function PlanoCampanhaPublico() {
                   })) : []}
                   onJumpTab={(t) => setTab(t)}
                 />
-
               </div>
             ),
             playlists: (
