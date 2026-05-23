@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
     .is("archived_at", null)
     .or(`last_diagnosis_at.is.null,last_diagnosis_at.lt.${cutoff}`)
     .order("last_diagnosis_at", { ascending: true, nullsFirst: true })
-    .limit(limit * 4);
+    .limit(Math.max(1000, limit * 25));
   if (genreId) query = query.eq("genre_id", genreId);
 
   const { data: candidates, error } = await query;
