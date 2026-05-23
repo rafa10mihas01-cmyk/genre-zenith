@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusDot } from "@/components/ui/status-dot";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, RefreshCw, Target, Trash2 } from "lucide-react";
+import { ArrowLeft, RefreshCw, Target, Trash2, Copy, CheckCircle2, MessageSquareWarning, Clock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 type Campaign = {
@@ -15,6 +15,11 @@ type Campaign = {
   goal_plays: number; deadline: string; started_at: string;
   status: "draft" | "active" | "paused" | "completed" | "cancelled";
   total_allocated: number; total_delivered: number; notes: string | null;
+  public_plan_token: string | null;
+  client_approved_at: string | null;
+  client_approved_by: string | null;
+  client_rejected_at: string | null;
+  client_adjustment_request: string | null;
 };
 
 type Allocation = {
