@@ -4141,6 +4141,8 @@ export type Database = {
             | null
           last_metrics_at: string | null
           last_onboarding_check_at: string | null
+          lifecycle_phase: string
+          lifecycle_phase_updated_at: string | null
           lifecycle_stage: string
           max_change_pct: number
           metadata: Json
@@ -4179,6 +4181,8 @@ export type Database = {
             | null
           last_metrics_at?: string | null
           last_onboarding_check_at?: string | null
+          lifecycle_phase?: string
+          lifecycle_phase_updated_at?: string | null
           lifecycle_stage?: string
           max_change_pct?: number
           metadata?: Json
@@ -4217,6 +4221,8 @@ export type Database = {
             | null
           last_metrics_at?: string | null
           last_onboarding_check_at?: string | null
+          lifecycle_phase?: string
+          lifecycle_phase_updated_at?: string | null
           lifecycle_stage?: string
           max_change_pct?: number
           metadata?: Json
@@ -4532,58 +4538,70 @@ export type Database = {
       }
       playlist_brain: {
         Row: {
+          benchmark_tracks: number | null
           calculation_version: number
           capacity_ceiling: number | null
           capacity_per_slot: number | null
           capacity_total: number | null
           confidence_score: number
           created_at: string
+          growth_roadmap: Json
           headroom_pct: number | null
           health_trend: string
           id: string
           identity: Json
           last_calculated_at: string
+          lifecycle_phase: string | null
           metadata: Json
           personality: Json
           playlist_id: string
+          ratio_to_benchmark: number | null
           recommendations: Json
           signals: Json
           updated_at: string
         }
         Insert: {
+          benchmark_tracks?: number | null
           calculation_version?: number
           capacity_ceiling?: number | null
           capacity_per_slot?: number | null
           capacity_total?: number | null
           confidence_score?: number
           created_at?: string
+          growth_roadmap?: Json
           headroom_pct?: number | null
           health_trend?: string
           id?: string
           identity?: Json
           last_calculated_at?: string
+          lifecycle_phase?: string | null
           metadata?: Json
           personality?: Json
           playlist_id: string
+          ratio_to_benchmark?: number | null
           recommendations?: Json
           signals?: Json
           updated_at?: string
         }
         Update: {
+          benchmark_tracks?: number | null
           calculation_version?: number
           capacity_ceiling?: number | null
           capacity_per_slot?: number | null
           capacity_total?: number | null
           confidence_score?: number
           created_at?: string
+          growth_roadmap?: Json
           headroom_pct?: number | null
           health_trend?: string
           id?: string
           identity?: Json
           last_calculated_at?: string
+          lifecycle_phase?: string | null
           metadata?: Json
           personality?: Json
           playlist_id?: string
+          ratio_to_benchmark?: number | null
           recommendations?: Json
           signals?: Json
           updated_at?: string
