@@ -51,10 +51,10 @@ export function useTrackPresence(spotifyTrackId: string | null | undefined) {
     setError(null);
     (async () => {
       try {
-        // 1) Todas as managed_playlists ativas (com gênero).
+        // 1) Todas as managed_playlists ativas.
         const { data: playlists, error: plErr } = await supabase
           .from("managed_playlists")
-          .select("id, name, followers, genre_id, lifecycle_phase, genres:genre_id(nome)")
+          .select("id, name, followers, genre_id, lifecycle_phase")
           .is("archived_at", null)
           .limit(2000);
         if (plErr) throw plErr;
@@ -66,6 +66,20 @@ export function useTrackPresence(spotifyTrackId: string | null | undefined) {
           .limit(2000);
         if (tErr) throw tErr;
 
+        // 3) Gêneros (sem FK no PostgREST → busca separada).
+        const genreIds = Array.from(
+          new Set((playlists ?? []).map((p: any) => p.genre_id).filter(Boolean)),
+        );
+        const genreMap = new Map<string, string>();
+        if (genreIds.length > 0) {
+          const { data: genres, error: gErr } = await supabase
+            .from("genres")
+            .select("id, nome")
+            .in("id", genreIds as string[]);
+          if (gErr) throw gErr;
+          for (const g of (genres ?? []) as any[]) genreMap.set(g.id, g.nome);
+        }
+
         if (cancelled) return;
 
         const byPlaylist = new Map<
@@ -73,7 +87,6 @@ export function useTrackPresence(spotifyTrackId: string | null | undefined) {
           { position: number; added_at: string | null; snapshot_at: string | null }
         >();
         for (const t of (tracks ?? []) as any[]) {
-          // Se houver mais de um snapshot histórico por playlist, fica o mais recente.
           const prev = byPlaylist.get(t.playlist_id);
           const snapAt = t.snapshot_at ?? null;
           if (!prev || (snapAt && (!prev.snapshot_at || snapAt > prev.snapshot_at))) {
@@ -92,7 +105,7 @@ export function useTrackPresence(spotifyTrackId: string | null | undefined) {
             playlist_name: p.name,
             followers: p.followers ?? null,
             genre_id: p.genre_id ?? null,
-            genre_name: p.genres?.nome ?? null,
+            genre_name: p.genre_id ? genreMap.get(p.genre_id) ?? null : null,
             lifecycle_phase: p.lifecycle_phase ?? null,
             position: hit?.position ?? null,
             added_at: hit?.added_at ?? null,
@@ -101,7 +114,6 @@ export function useTrackPresence(spotifyTrackId: string | null | undefined) {
           };
         });
 
-        // Presentes primeiro (por posição ASC), ausentes depois (por followers DESC).
         out.sort((a, b) => {
           if (a.position != null && b.position != null) return a.position - b.position;
           if (a.position != null) return -1;
@@ -110,8 +122,16 @@ export function useTrackPresence(spotifyTrackId: string | null | undefined) {
         });
 
         setRows(out);
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
+      } catch (e: any) {
+        if (!cancelled) {
+          const msg =
+            e?.message ||
+            e?.error_description ||
+            e?.hint ||
+            e?.details ||
+            (typeof e === "string" ? e : JSON.stringify(e));
+          setError(msg);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
