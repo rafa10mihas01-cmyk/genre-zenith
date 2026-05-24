@@ -181,8 +181,9 @@ export async function closeCampaignFromCalculator(args: {
   clientId?: string | null;
   curatorId?: string | null;
   status?: "draft" | "active";
+  campaignType?: "ecosystem" | "external" | "hybrid";
 }): Promise<{ campaignId: string }> {
-  const { snapshot, deadlineISO, allocations, engagementMultiplier = 30, clientId = null, curatorId = null, status = "draft" } = args;
+  const { snapshot, deadlineISO, allocations, engagementMultiplier = 30, clientId = null, curatorId = null, status = "draft", campaignType = "ecosystem" } = args;
 
   // Snapshot de pricing (operacional + mercado + venda) pras alocações eco
   const { data: { user } } = await supabase.auth.getUser();
@@ -233,6 +234,7 @@ export async function closeCampaignFromCalculator(args: {
       snapshot_locked_at: snapshot.lockedAt,
       client_id: clientId,
       curator_id: curatorId ?? NEXENGINE_CURATOR_ID,
+      campaign_type: campaignType,
     } as any)
     .select("id")
     .single();
