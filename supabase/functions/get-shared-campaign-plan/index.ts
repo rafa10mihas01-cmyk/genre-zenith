@@ -30,6 +30,12 @@ function sanitizeSnapshot(raw: any): Record<string, unknown> | null {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  // Rate limit por IP — mesmo padrão do get-client-campaign-public (120 rpm/IP).
+  const ip = clientIp(req);
+  const rl = await checkRateLimit(`getSharedCampaignPlan:${ip}`, 60, 120);
+  if (!rl.allowed) return rateLimitResponse(corsHeaders);
+
+
   let token = "";
   try {
     const body = await req.json();
