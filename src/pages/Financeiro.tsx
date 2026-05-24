@@ -16,7 +16,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { FinanceiroTab } from "@/components/playlist-deals/FinanceiroTab";
 import { FinancialOverview } from "@/components/financeiro/FinancialOverview";
 import { PricingSettingsPanel } from "@/components/financeiro/PricingSettingsPanel";
-import { useCuratorDeals } from "@/hooks/useCuratorDeals";
+import { useCuratorDealsList } from "@/hooks/useCuratorDealsList";
 import { useFinancialOverview } from "@/hooks/useFinancialOverview";
 import { cn } from "@/lib/utils";
 
