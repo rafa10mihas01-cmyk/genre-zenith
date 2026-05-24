@@ -232,6 +232,7 @@ Deno.serve(async (req) => {
   }
 
   if (toInsert.length === 0) {
+    await reportCronHealth(supabase, { job_name: "execution-planner", status: "ok", startedAt: cronT0, metrics: { enqueued: 0, considered: candidates.length } });
     return jr({ ok: true, enqueued: 0, considered: candidates.length });
   }
 
@@ -239,11 +240,23 @@ Deno.serve(async (req) => {
     .from("playlist_execution_jobs")
     .insert(toInsert, { count: "exact" });
 
-  if (insErr) return jr({ error: insErr.message }, 500);
+  if (insErr) {
+    await reportCronHealth(supabase, { job_name: "execution-planner", status: "error", startedAt: cronT0, message: insErr.message });
+    return jr({ error: insErr.message }, 500);
+  }
+
+  const enqueued = count ?? toInsert.length;
+  await reportCronHealth(supabase, {
+    job_name: "execution-planner",
+    status: "ok",
+    startedAt: cronT0,
+    metrics: { enqueued, considered: candidates.length },
+    message: `enqueued=${enqueued} considered=${candidates.length}`,
+  });
 
   return jr({
     ok: true,
-    enqueued: count ?? toInsert.length,
+    enqueued,
     considered: candidates.length,
     pacing: {
       min_spacing_min: MIN_SPACING_MIN,
