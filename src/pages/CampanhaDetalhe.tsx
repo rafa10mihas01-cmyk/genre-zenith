@@ -83,6 +83,29 @@ export default function CampanhaDetalhe() {
     else load();
   }
 
+  async function approvePlan() {
+    if (!id) return;
+    setBusy(true);
+    const { data, error } = await supabase.functions.invoke("approve-campaign-plan", {
+      body: { campaign_id: id },
+    });
+    setBusy(false);
+    if (error) {
+      toast({ title: "Erro ao aprovar plano", description: error.message, variant: "destructive" });
+      return;
+    }
+    const res = data as { ok: boolean; deal_created?: boolean; reason?: string; deal_id?: string; already_approved?: boolean };
+    if (!res?.ok) {
+      toast({ title: "Não foi possível aprovar", description: res?.reason ?? "", variant: "destructive" });
+      return;
+    }
+    toast({
+      title: res.already_approved ? "Plano já estava aprovado" : "Plano aprovado",
+      description: res.deal_created ? "Deal criado automaticamente." : (res.reason === "flag_disabled" ? "Criação automática de deal está desativada." : undefined),
+    });
+    load();
+  }
+
   async function removeAlloc(allocId: string) {
     if (!confirm("Remover esta playlist da campanha?")) return;
     const { error } = await supabase.from("campaign_allocations").delete().eq("id", allocId);
