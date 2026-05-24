@@ -15,9 +15,10 @@ import {
   ArrowLeft, ExternalLink, Sparkles, Loader2, Music2, TrendingUp,
   TrendingDown, ArrowUp, ArrowDown, Trash2, Plus, ChevronDown,
   Flame, Snowflake, Activity, Users, Crown, Target, Check,
-  Heart, Eye, RotateCcw, Timer, Zap, ShieldCheck, AlertTriangle,
+  Heart, Eye, RotateCcw, Timer, Zap, ShieldCheck, AlertTriangle, ListMusic,
 } from "lucide-react";
 import { PlaylistTracksTab } from "@/components/playlists/PlaylistTracksTab";
+import { PlaylistEditorTab } from "@/components/playlists/PlaylistEditorTab";
 import { KpiBig } from "@/components/KpiBig";
 import { ProjecaoFaixa } from "@/components/operacao/SimuladorEntrega";
 import { CuratorialStateBadge, CooldownChip } from "@/components/playlist/CuratorialStateBadge";
@@ -585,6 +586,9 @@ export function PlaylistCockpit({
               <TabsTrigger value="projecao" className="gap-1.5">
                 <Activity className="h-3.5 w-3.5" /> Projeção
               </TabsTrigger>
+              <TabsTrigger value="editor" className="gap-1.5">
+                <ListMusic className="h-3.5 w-3.5" /> Editor
+              </TabsTrigger>
               {/* Aba "Faixas" ocultada — endpoint instável. Manter código pra reativar depois. */}
             </TabsList>
 
@@ -762,6 +766,11 @@ export function PlaylistCockpit({
                   tracks_count: liveTracksCount,
                 }}
               />
+            </TabsContent>
+
+            {/* ============ EDITOR (drag-and-drop) ============ */}
+            <TabsContent value="editor" className="mt-0">
+              <PlaylistEditorTab playlistId={managedId} />
             </TabsContent>
 
             {/* ============ TODAS AS FAIXAS ============ */}
