@@ -16,6 +16,7 @@
 // Não toca em scoring/ranking. Só ingestão.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -175,6 +176,19 @@ Deno.serve(async (req) => {
       duracao_ms: summary.duration_ms,
     });
 
+    await reportCronHealth(sb, {
+      job_name: "refresh-search-tracks",
+      status: summary.alerts.length > 0 ? "partial" : "ok",
+      startedAt,
+      metrics: {
+        genres: summary.genres_processed,
+        terms_run: summary.terms_run,
+        rows_inserted: summary.rows_inserted_total,
+        deleted_old: summary.deleted_old_rows,
+        alerts: summary.alerts.length,
+      },
+    });
+
     return new Response(JSON.stringify(summary), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -185,6 +199,12 @@ Deno.serve(async (req) => {
       status: "erro",
       mensagem: `cron falhou: ${msg}`.slice(0, 500),
       duracao_ms: Date.now() - startedAt,
+    });
+    await reportCronHealth(sb, {
+      job_name: "refresh-search-tracks",
+      status: "error",
+      startedAt,
+      message: msg,
     });
     return new Response(JSON.stringify({ ok: false, error: msg }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -1,12 +1,13 @@
 // Snapshot diário do playlist_leadership → playlist_leadership_history.
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { reportCronHealth } from '../_shared/cron-health.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+  const startedAt = Date.now();
   try {
-    const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-
     const { data, error } = await sb
       .from('playlist_leadership')
       .select('playlist_id, leadership_score, freshness_rank, follower_rank, growth_rank, activity_rank, evidence')
@@ -26,10 +27,23 @@ Deno.serve(async (req) => {
       if (ie) throw ie;
     }
 
+    await reportCronHealth(sb, {
+      job_name: 'snapshot-playlist-leadership',
+      status: 'ok',
+      startedAt,
+      metrics: { snapshots: rows.length },
+    });
+
     return new Response(JSON.stringify({ ok: true, snapshots: rows.length }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
+    await reportCronHealth(sb, {
+      job_name: 'snapshot-playlist-leadership',
+      status: 'error',
+      startedAt,
+      message: String((e as Error).message),
+    });
     return new Response(JSON.stringify({ error: String((e as Error).message) }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
