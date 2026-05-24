@@ -419,6 +419,13 @@ export default function PlanoCampanhaPublico() {
                   snapshots={snaps}
                   stage={isApproved ? "live" : isRejected ? "rejected" : "approval"}
                 />
+                {isApproved && evolutionSeries.length > 1 && (
+                  <EvolutionChart
+                    series={evolutionSeries}
+                    target={snapshot.meta}
+                    pct={snapshot.meta > 0 ? Math.min(100, Math.round((delivered / snapshot.meta) * 100)) : 0}
+                  />
+                )}
                 <OverviewTab
                   snapshot={snapshot}
                   delivered={delivered}
