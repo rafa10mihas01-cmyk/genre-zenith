@@ -207,7 +207,29 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "playlist_execution_jobs", filter: `playlist_id=eq.${playlistId}` },
-        () => loadJobs(),
+        (payload: any) => {
+          loadJobs();
+          const row = payload?.new;
+          if (!row || row.status !== "done") return;
+          const trackId = row.spotify_track_id as string;
+          if (row.job_type === "playlist.track.remove") {
+            setTracks((prev) => prev.filter((t) => t.spotify_track_id !== trackId));
+          } else if (row.job_type === "playlist.track.reorder") {
+            const from = Number(row.from_position);
+            const to = Number(row.to_position);
+            if (Number.isFinite(from) && Number.isFinite(to) && from >= 1 && to >= 1) {
+              setTracks((prev) => {
+                const idx = prev.findIndex((t) => t.spotify_track_id === trackId);
+                const targetIdx = to - 1;
+                if (idx === -1 || idx === targetIdx) return prev;
+                return arrayMove(prev, idx, targetIdx);
+              });
+            }
+          } else if (row.job_type === "playlist.track.add") {
+            // Refetch pra obter metadata rica (nome, capa, duração) da nova faixa
+            loadTracks();
+          }
+        },
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
