@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import {
   Activity, Workflow, Music2, HeartPulse, Bot, Bell, ListPlus,
-  Settings as SettingsIcon, Server, Brain, FlaskConical, LayoutDashboard, Cpu, Wrench,
+  Settings as SettingsIcon, Server, Brain, FlaskConical, LayoutDashboard, Cpu, Wrench, Flag,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
