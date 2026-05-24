@@ -849,14 +849,33 @@ Deno.serve(async (req) => {
     if (isAlgo) {
       algorithmicCount++;
       const algoName = sName ?? "Algorítmica";
-      // Procura registro existente
-      const { data: existing } = await supabase
-        .from("curator_playlists")
-        .select("id, match_status")
-        .eq("deal_id", deal_id)
-        .eq("playlist_name", algoName)
-        .eq("match_status", "algorithmic")
-        .maybeSingle();
+      // Prefere lookup por spotify_playlist_id real quando existir.
+      // Cai pra nome só como fallback (algoritmicas reais raramente têm ID).
+      const hasRealId = !!preResolvedId && !preResolvedId.startsWith("algo:");
+      let existing: { id: string; match_status: string } | null = null;
+      if (hasRealId) {
+        const { data } = await supabase
+          .from("curator_playlists")
+          .select("id, match_status")
+          .eq("deal_id", deal_id)
+          .eq("spotify_playlist_id", preResolvedId)
+          .eq("match_status", "algorithmic")
+          .maybeSingle();
+        existing = (data as any) ?? null;
+      }
+      if (!existing) {
+        if (!hasRealId) {
+          console.warn(`[WARN] extract-snapshot-from-print: lookup algorítmica por playlist_name fallback (sem spotify_playlist_id). deal=${deal_id} name="${algoName}"`);
+        }
+        const { data } = await supabase
+          .from("curator_playlists")
+          .select("id, match_status")
+          .eq("deal_id", deal_id)
+          .eq("playlist_name", algoName)
+          .eq("match_status", "algorithmic")
+          .maybeSingle();
+        existing = (data as any) ?? null;
+      }
 
       let algoId = existing?.id as string | undefined;
       if (!algoId) {
