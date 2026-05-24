@@ -4,6 +4,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getSpotifyToken } from "../_shared/spotify.ts";
+import { listPlaylistTracksRich } from "../_shared/spotify-playlist.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -38,37 +39,22 @@ Deno.serve(async (req) => {
 
   try {
     const token = await getSpotifyToken();
-    const rows: any[] = [];
-    let url: string | null =
-      `https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}/items` +
-      `?fields=items(added_at,track(id,name,duration_ms,artists(name),album(images))),next&limit=100`;
-    let pos = 0;
-    while (url) {
-      const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-      if (!r.ok) {
-        const txt = await r.text();
-        throw new Error(`Spotify ${r.status}: ${txt.slice(0, 200)}`);
-      }
-      const j = await r.json();
-      for (const it of j.items ?? []) {
-        const tr = it?.track;
-        if (!tr?.id) { pos++; continue; }
-        const imgs = tr.album?.images ?? [];
-        const cover = imgs[imgs.length - 1]?.url ?? imgs[0]?.url ?? null;
-        rows.push({
-          playlist_id: pl.id,
-          spotify_track_id: tr.id,
-          track_name: tr.name ?? null,
-          artist_name: (tr.artists ?? []).map((a: any) => a?.name).filter(Boolean).join(", ") || null,
-          album_cover: cover,
-          position: pos,
-          added_at: it.added_at ?? null,
-          duration_ms: tr.duration_ms ?? null,
-        });
-        pos++;
-      }
-      url = j.next ?? null;
-    }
+    const rich = await listPlaylistTracksRich(pl.spotify_playlist_id, token, {
+      max: 10000,
+      fields: "items(added_at,track(id,name,duration_ms,artists(name),album(images))),next",
+    });
+    const rows = rich
+      .filter((t) => t.spotify_track_id)
+      .map((t) => ({
+        playlist_id: pl.id,
+        spotify_track_id: t.spotify_track_id,
+        track_name: t.name || null,
+        artist_name: t.artists || null,
+        album_cover: t.album_cover,
+        position: t.position - 1,
+        added_at: t.added_at,
+        duration_ms: t.duration_ms,
+      }));
 
     // Replace-all por playlist (snapshot atual)
     const { error: delErr } = await supabase

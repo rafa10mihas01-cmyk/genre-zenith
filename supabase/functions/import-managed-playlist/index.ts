@@ -4,6 +4,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
 import { getSpotifyToken } from "../_shared/spotify.ts";
+import { getPlaylistMeta } from "../_shared/spotify-playlist.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -39,18 +40,14 @@ Deno.serve(async (req) => {
     let description: string | null = null;
     try {
       const token = await getSpotifyToken();
-      const r = await fetch(
-        `https://api.spotify.com/v1/playlists/${playlistId}?fields=name,description,images,followers(total),tracks(total)`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      if (r.ok) {
-        const j = await r.json();
-        name = j?.name ?? name;
-        cover_url = Array.isArray(j?.images) && j.images[0]?.url ? j.images[0].url : null;
-        followers = j?.followers?.total ?? 0;
-        tracks_count = j?.tracks?.total ?? 0;
-        description = j?.description ?? null;
-      }
+      const meta = await getPlaylistMeta(playlistId, token, {
+        fields: "name,description,images,followers(total),tracks(total)",
+      });
+      name = meta.name || name;
+      cover_url = meta.cover_url;
+      followers = meta.followers;
+      tracks_count = meta.tracks_total;
+      description = meta.description;
     } catch (_e) { /* fallback abaixo */ }
 
     // Fallback oEmbed se Spotify falhou (ex: 404)

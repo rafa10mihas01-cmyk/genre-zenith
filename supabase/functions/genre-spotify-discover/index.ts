@@ -8,6 +8,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
 import { getSpotifyToken } from "../_shared/spotify.ts";
+import { getPlaylistMeta } from "../_shared/spotify-playlist.ts";
 import {
   loadGateContext,
   scoreAndGate,
@@ -154,10 +155,10 @@ Deno.serve(async (req) => {
           let ownerType: string | null = null;
           let trackItems: any[] = [];
           try {
-            const detail = await spotifyFetch(
-              token,
-              `https://api.spotify.com/v1/playlists/${p.id}?fields=followers(total),tracks(total,items(track(id,name,artists(name)))),owner(id)&limit=${maxTracksPerPl}`,
-            );
+            const meta = await getPlaylistMeta(p.id, token, {
+              fields: `followers(total),tracks(total,items(track(id,name,artists(name)))),owner(id)&limit=${maxTracksPerPl}`,
+            });
+            const detail = meta.raw;
             if (detail?.followers?.total != null) detailFollowers = detail.followers.total;
             if (detail?.tracks?.total != null) detailTracks = detail.tracks.total;
             ownerId = detail?.owner?.id ?? null;

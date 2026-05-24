@@ -14,6 +14,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getSpotifyToken } from "../_shared/spotify.ts";
+import { listPlaylistTracksRich } from "../_shared/spotify-playlist.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
 
 import { deprecationGate } from "../_shared/_deprecation.ts";
@@ -39,34 +40,16 @@ async function fetchPlaylistTracks(
   token: string,
   max: number,
 ): Promise<TrackOut[]> {
-  const out: TrackOut[] = [];
-  let url: string | null =
-    `https://api.spotify.com/v1/playlists/${playlistId}/items` +
-    `?fields=items(track(id,name,artists(name))),next&limit=100`;
-  let pos = 0;
-
-  while (url && out.length < max) {
-    const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-    if (!r.ok) {
-      const txt = await r.text();
-      throw new Error(`Spotify ${r.status}: ${txt.slice(0, 200)}`);
-    }
-    const j = await r.json();
-    for (const it of j.items ?? []) {
-      const tr = it?.track;
-      if (!tr) continue;
-      const artists = Array.isArray(tr.artists) ? tr.artists : [];
-      out.push({
-        spotify_track_id: tr.id ?? null,
-        nome_musica: tr.name ?? "Unknown",
-        artista: artists.map((a: any) => a?.name).filter(Boolean).join(", ") || "Unknown",
-        posicao_na_playlist: ++pos,
-      });
-      if (out.length >= max) break;
-    }
-    url = j.next ?? null;
-  }
-  return out;
+  const rich = await listPlaylistTracksRich(playlistId, token, {
+    max,
+    fields: "items(track(id,name,artists(name))),next",
+  });
+  return rich.map((t, i) => ({
+    spotify_track_id: t.spotify_track_id,
+    nome_musica: t.name || "Unknown",
+    artista: t.artists || "Unknown",
+    posicao_na_playlist: i + 1,
+  }));
 }
 
 Deno.serve(async (req) => {
