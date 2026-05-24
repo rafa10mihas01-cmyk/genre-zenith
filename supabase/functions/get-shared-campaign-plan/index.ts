@@ -58,6 +58,14 @@ Deno.serve(async (req) => {
   if (cErr) return jr({ error: cErr.message }, 500);
   if (!campRaw) return jr({ error: "not_found" }, 404);
 
+  // Link expira automaticamente quando a campanha é encerrada.
+  // Hoje só `status='completed'` indica encerramento (não existe coluna closed_at em campaigns).
+  // Se um dia for adicionada, basta incluir aqui — mantemos o contrato.
+  const closedAt = (campRaw as { closed_at?: string | null }).closed_at ?? null;
+  if (campRaw.status === "completed" || closedAt) {
+    return jr({ error: "not_found" }, 404);
+  }
+
   // Payload sanitizado — sem custos, sem margens, sem campos internos.
   const camp = {
     id: campRaw.id,
