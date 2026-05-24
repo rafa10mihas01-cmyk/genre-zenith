@@ -79,7 +79,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
       />
 
       {/* ── Header global ────────────────────────────────────────── */}
-      <header className="sticky top-0 z-40 border-b border-white/5 bg-[#050505]/70 backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-white/5 bg-background/70 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4">
           <Link
             to="/"
