@@ -52,7 +52,10 @@ export function OverviewTab({
   const [planOpen, setPlanOpen] = useState(false);
   const [savingLock, setSavingLock] = useState(false);
   const pct = snapshot.meta > 0 ? Math.min(100, Math.round((delivered / snapshot.meta) * 100)) : 0;
-  const plannedToDate = snapshot.curva.slice(0, daysElapsed).reduce((s, p) => s + p.streamsDay, 0);
+  // `curva` pode vir indefinida quando o snapshot é entregue por endpoints
+  // públicos sanitizados (ex: get-shared-campaign-plan no portal do cliente).
+  const curva = Array.isArray(snapshot.curva) ? snapshot.curva : [];
+  const plannedToDate = curva.slice(0, daysElapsed).reduce((s, p) => s + p.streamsDay, 0);
   const adherence = plannedToDate > 0 ? Math.round((delivered / plannedToDate) * 100) : 0;
 
   // ---- Plano de entrega: meta · eco vs externo · hoje ----
@@ -90,7 +93,7 @@ export function OverviewTab({
   const splitDiverged = Math.abs(ecoTarget - snapshot.streamsEco) > Math.max(1000, snapshot.meta * 0.005);
   const hitCeiling = !isLocked && ecoTargetLive >= ecoCeiling && ecoCapacityRemaining + ecoDelivered > ecoCeiling;
 
-  const today = snapshot.curva[Math.max(0, Math.min(snapshot.curva.length - 1, daysElapsed - 1))];
+  const today = curva.length > 0 ? curva[Math.max(0, Math.min(curva.length - 1, daysElapsed - 1))] : undefined;
   const todayTotal = today?.streamsDay ?? 0;
   const todayEco = Math.round(todayTotal * (ecoEffectivePct / 100));
   const todayExt = Math.max(0, todayTotal - todayEco);
@@ -272,7 +275,7 @@ export function OverviewTab({
                 média {formatInt(snapshot.mediaPorDia)}/dia · pico {formatInt(snapshot.picoPorDia)}
               </div>
             </div>
-            <MiniCurva curva={snapshot.curva} elapsedDays={daysElapsed} />
+            <MiniCurva curva={curva} elapsedDays={daysElapsed} />
             {onJumpTab && !hideCurveShortcut && (
               <div className="mt-3 text-right">
                 <Button variant="ghost" size="sm" onClick={() => onJumpTab("curve")} className="h-7 text-xs">
