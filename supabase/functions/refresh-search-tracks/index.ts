@@ -176,6 +176,19 @@ Deno.serve(async (req) => {
       duracao_ms: summary.duration_ms,
     });
 
+    await reportCronHealth(sb, {
+      job_name: "refresh-search-tracks",
+      status: summary.alerts.length > 0 ? "partial" : "ok",
+      startedAt,
+      metrics: {
+        genres: summary.genres_processed,
+        terms_run: summary.terms_run,
+        rows_inserted: summary.rows_inserted_total,
+        deleted_old: summary.deleted_old_rows,
+        alerts: summary.alerts.length,
+      },
+    });
+
     return new Response(JSON.stringify(summary), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -186,6 +199,12 @@ Deno.serve(async (req) => {
       status: "erro",
       mensagem: `cron falhou: ${msg}`.slice(0, 500),
       duracao_ms: Date.now() - startedAt,
+    });
+    await reportCronHealth(sb, {
+      job_name: "refresh-search-tracks",
+      status: "error",
+      startedAt,
+      message: msg,
     });
     return new Response(JSON.stringify({ ok: false, error: msg }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
