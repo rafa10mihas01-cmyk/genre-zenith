@@ -195,8 +195,17 @@ async function callGeminiChunked(
       continue;
     }
     for (const p of part) {
-      const key = normName(p.playlist_name ?? "");
-      if (!key) continue;
+      // Preferir spotify_playlist_id (extraído da URL) como chave. Nome só como fallback.
+      const idKey = extractId(p.spotify_url ?? "");
+      let key: string;
+      if (idKey) {
+        key = `id:${idKey}`;
+      } else {
+        const nameKey = normName(p.playlist_name ?? "");
+        if (!nameKey) continue;
+        console.warn(`[WARN] extract-snapshot-from-print: dedupe por playlist_name fallback (sem spotify URL). name="${p.playlist_name}"`);
+        key = `name:${nameKey}`;
+      }
       if (seen.has(key)) {
         // mantém entrada com mais plays + menor position
         const idx = seen.get(key)!;
