@@ -70,7 +70,7 @@ export function NexEngineLogo({
       height={height}
       loading="eager"
       decoding="sync"
-      fetchPriority="high"
+      {...({ fetchpriority: "high" } as any)}
       className={cn("shrink-0 select-none", className)}
       draggable={false}
     />
