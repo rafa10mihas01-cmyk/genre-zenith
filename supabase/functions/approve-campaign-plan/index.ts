@@ -182,8 +182,11 @@ Deno.serve(async (req) => {
   }];
 
   // 7) Cria deal via RPC atômica
+  // IMPORTANTE: A RPC usa auth.uid() internamente (SECURITY DEFINER mas exige
+  // contexto de usuário). Precisa ser chamada via userClient (JWT do dono da
+  // campanha), não pelo admin (service role).
   // deno-lint-ignore no-explicit-any
-  const { data: rpcRes, error: rpcErr } = await (admin as any).rpc(
+  const { data: rpcRes, error: rpcErr } = await (userClient as any).rpc(
     "create_curator_deal_atomic",
     { p_deal: dealPayload, p_songs: songPayload, p_force: false, p_new_curator: null },
   );
@@ -248,14 +251,12 @@ Deno.serve(async (req) => {
         .filter(Boolean);
 
       if (rows.length > 0) {
+        // Plain insert — seed roda uma única vez por criação de deal.
+        // O índice único existente é parcial com COALESCE, então ON CONFLICT
+        // não casa; insert direto é seguro porque não há linhas pré-existentes.
         // deno-lint-ignore no-explicit-any
-        const { error: seedErr } = await admin
-          .from("curator_playlists")
-          .upsert(rows as any[], {
-            onConflict: "deal_id,song_id,spotify_playlist_id",
-            ignoreDuplicates: true,
-          });
-        if (!seedErr) seeded_playlists = rows.length;
+        await admin.from("curator_playlists").insert(rows as any[]);
+        seeded_playlists = rows.length;
       }
     } catch (_e) {
       // Não bloqueia aprovação se seed falhar — log silencioso.
