@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Grid3x3, Link2, Check, ExternalLink } from "lucide-react";
+import { Grid3x3, Link2, Check, ExternalLink, Shuffle, Loader2 } from "lucide-react";
 import { formatInt } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { buildEcoPlaylistPlan, distributeEcoPositions, inferEcoPreferredPositions, type DailyPlaylistPlan } from "@/lib/campaignOperationalPlan";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 type EcoAlloc = {
   id: string;
