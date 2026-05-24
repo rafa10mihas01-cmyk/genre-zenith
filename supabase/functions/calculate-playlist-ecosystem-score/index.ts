@@ -307,6 +307,12 @@ Deno.serve(async (req) => {
 
     const processed_to = offset + slice.length;
     const has_more = processed_to < targets.length;
+    await reportCronHealth(supabase, {
+      job_name: "calculate-playlist-ecosystem-score",
+      status: failed > 0 ? "partial" : "ok",
+      startedAt,
+      metrics: { mode, total: targets.length, ok, failed, processed_to, has_more },
+    });
     return new Response(JSON.stringify({
       mode: body?.mode ?? "full",
       total: targets.length,
@@ -314,6 +320,7 @@ Deno.serve(async (req) => {
       ok, failed, sampleErrors: errors,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
+    await reportCronHealth(supabase, { job_name: "calculate-playlist-ecosystem-score", status: "error", startedAt, message: String(e) });
     return new Response(JSON.stringify({ error: String(e) }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
