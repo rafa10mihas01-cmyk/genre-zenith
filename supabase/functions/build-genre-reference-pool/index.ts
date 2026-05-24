@@ -133,10 +133,22 @@ Deno.serve(async (req) => {
       summary.push({ genre: g.slug, historic: historicTop.length, leader: leaderTop.length });
     }
 
+    await reportCronHealth(sb, {
+      job_name: "build-genre-reference-pool",
+      status: "ok",
+      startedAt,
+      metrics: { processed: summary.length },
+    });
     return new Response(JSON.stringify({ ok: true, processed: summary.length, summary }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    await reportCronHealth(sb, {
+      job_name: "build-genre-reference-pool",
+      status: "error",
+      startedAt,
+      message: String(e),
+    });
     return new Response(JSON.stringify({ ok: false, error: String(e) }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
