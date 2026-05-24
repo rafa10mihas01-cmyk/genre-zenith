@@ -653,6 +653,11 @@ export default function CampanhaExecucao() {
                     )}
                   </CardContent>
                 </Card>
+                <TrackActionsPanel
+                  spotifyTrackId={camp.spotify_track_id ?? null}
+                  allocations={allocs as unknown as Parameters<typeof TrackActionsPanel>[0]["allocations"]}
+                  targetPositionsByAllocId={ecoPositionByAllocation}
+                />
                 <CampaignFullPlanCard
                   snapshot={snapshot}
                   startedAt={camp.started_at}
