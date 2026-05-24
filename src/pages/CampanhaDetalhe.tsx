@@ -177,6 +177,26 @@ export default function CampanhaDetalhe() {
           <Kpi label="Prazo" value={camp.deadline} sub={daysLeft > 0 ? `${daysLeft}d restantes` : daysLeft === 0 ? "Hoje" : `${Math.abs(daysLeft)}d atraso`} />
         </div>
 
+        {/* Tipo + aprovação do plano */}
+        <div className="mb-8 flex flex-wrap items-center gap-2 text-xs">
+          <span className="rounded-full border border-border bg-card px-2.5 py-1 font-medium text-foreground">
+            Tipo: {CAMPAIGN_TYPE_LABEL[camp.campaign_type ?? "hybrid"]}
+          </span>
+          {camp.plan_approved_at ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 font-medium text-primary">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Plano aprovado em {new Date(camp.plan_approved_at).toLocaleDateString("pt-BR")}
+              {camp.auto_deal_created && camp.deal_id && (
+                <Link to={`/playlist-deals/${camp.deal_id}`} className="ml-1 underline">deal vinculado</Link>
+              )}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/30 px-2.5 py-1 font-medium text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" /> Plano pendente de aprovação
+            </span>
+          )}
+        </div>
+
         {/* Aprovação do cliente + link compartilhável */}
         <ClientApprovalCard camp={camp} />
 
