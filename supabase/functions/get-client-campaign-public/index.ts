@@ -295,10 +295,13 @@ Deno.serve(async (req) => {
         name: String(p.playlist_name ?? "Playlist"),
         image_url: (p.image_url as string) ?? null,
         delivered: grown,
+        plays_24h: null,
+        plays_7d: null,
         status: pickPlaylistStatus(p, grown),
         source: "curator" as const,
       };
     });
+
 
     // 5b) Playlists INTERNAS (NexEngine) — vindas de campaign_eco_allocations
     // ligadas à campanha deste deal. Sem isso, o cliente não enxergava as
@@ -320,6 +323,8 @@ Deno.serve(async (req) => {
           .filter(Boolean);
         // Plays entregues por playlist: pega snapshot mais recente (28d > 7d > 24h)
         const deliveredByEco = new Map<string, number>();
+        const plays24hByEco = new Map<string, number | null>();
+        const plays7dByEco = new Map<string, number | null>();
         if (ecoIds.length > 0) {
           const { data: snaps } = await admin
             .from("campaign_eco_snapshots")
@@ -335,6 +340,8 @@ Deno.serve(async (req) => {
               k,
               Number(s.plays_28d ?? s.plays_7d ?? s.plays_24h ?? 0),
             );
+            plays24hByEco.set(k, s.plays_24h == null ? null : Number(s.plays_24h));
+            plays7dByEco.set(k, s.plays_7d == null ? null : Number(s.plays_7d));
           }
         }
         for (const a of (ecoAllocs ?? []) as AnyRec[]) {
@@ -345,11 +352,14 @@ Deno.serve(async (req) => {
             name: String(mp.name ?? "Playlist Engine"),
             image_url: (mp.cover_url as string) ?? null,
             delivered: grown,
+            plays_24h: plays24hByEco.get(k) ?? null,
+            plays_7d: plays7dByEco.get(k) ?? null,
             status: grown > 0 ? "Crescendo" : "Nova",
             source: "engine" as const,
             planned: Number(a.planned_streams ?? 0),
           });
         }
+
       }
     } catch (_) { /* não bloqueia o portal se isso falhar */ }
 
