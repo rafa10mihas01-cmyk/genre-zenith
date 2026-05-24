@@ -52,20 +52,12 @@ async function spotifyFetch(token: string, url: string, init?: RequestInit) {
 }
 
 async function getPlaylistTracks(token: string, playlistId: string): Promise<string[]> {
-  const uris: string[] = [];
-  let url: string | null =
-    `https://api.spotify.com/v1/playlists/${playlistId}/items?fields=items(track(uri)),next&limit=100`;
-  while (url) {
-    const r = await spotifyFetch(token, url);
-    if (!r.ok) break;
-    const j = await r.json();
-    for (const it of j.items ?? []) {
-      const u = it?.track?.uri;
-      if (u && u.startsWith("spotify:track:")) uris.push(u);
-    }
-    url = j.next ?? null;
+  try {
+    const uris = await listPlaylistTrackUris(playlistId, token);
+    return uris.filter((u) => u.startsWith("spotify:track:"));
+  } catch {
+    return [];
   }
-  return uris;
 }
 
 async function searchTrackUri(token: string, nome: string, artista: string): Promise<string | null> {
@@ -78,34 +70,27 @@ async function searchTrackUri(token: string, nome: string, artista: string): Pro
 }
 
 async function changePlaylistDetails(token: string, playlistId: string, name: string) {
-  const r = await spotifyFetch(
-    token,
-    `https://api.spotify.com/v1/playlists/${playlistId}`,
-    { method: "PUT", body: JSON.stringify({ name }) },
-  );
-  return r.ok;
+  try {
+    await setPlaylistDetails(playlistId, { name }, token);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function replaceTracks(token: string, playlistId: string, uris: string[]) {
-  // Spotify aceita até 100 por chamada no PUT (replace)
-  const first = uris.slice(0, 100);
-  const r = await spotifyFetch(
-    token,
-    `https://api.spotify.com/v1/playlists/${playlistId}/items`,
-    { method: "PUT", body: JSON.stringify({ uris: first }) },
-  );
-  if (!r.ok) return false;
-  // Append do restante (>100)
-  for (let i = 100; i < uris.length; i += 100) {
-    const chunk = uris.slice(i, i + 100);
-    const rr = await spotifyFetch(
-      token,
-      `https://api.spotify.com/v1/playlists/${playlistId}/items`,
-      { method: "POST", body: JSON.stringify({ uris: chunk }) },
-    );
-    if (!rr.ok) return false;
+  // Spotify aceita até 100 por chamada no PUT (replace). Append do restante via POST.
+  try {
+    const first = uris.slice(0, 100);
+    await replacePlaylistTracks(playlistId, first, token);
+    if (uris.length > 100) {
+      const rest = uris.slice(100);
+      await addPlaylistTracks(playlistId, rest, token);
+    }
+    return true;
+  } catch {
+    return false;
   }
-  return true;
 }
 
 // ─────────── Lógica de transformação ───────────
