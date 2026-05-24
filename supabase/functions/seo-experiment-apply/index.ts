@@ -4,6 +4,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
 import { getUserAccessToken } from "../_shared/spotify.ts";
+import { setPlaylistDetails, SpotifyApiError } from "../_shared/spotify-playlist.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -60,20 +61,17 @@ Deno.serve(async (req) => {
     if (exp.field === "name") payload.name = exp.version_after;
     else payload.description = exp.version_after;
 
-    const spotifyResp = await fetch(`https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}`, {
-      method: "PUT",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    if (!spotifyResp.ok) {
-      const t = await spotifyResp.text();
+    try {
+      await setPlaylistDetails(pl.spotify_playlist_id, payload, token);
+    } catch (e) {
+      const status = e instanceof SpotifyApiError ? e.status : 0;
+      const bodyText = e instanceof SpotifyApiError ? e.body : (e as Error).message;
       await supabase.from("playlist_seo_experiments").update({
         status: "rejected",
-        reasoning: `[apply-fail] Spotify ${spotifyResp.status}: ${t.slice(0, 200)}`,
+        reasoning: `[apply-fail] Spotify ${status}: ${bodyText.slice(0, 200)}`,
         updated_at: new Date().toISOString(),
       }).eq("id", exp.id);
-      return jr({ ok: false, error: `Spotify ${spotifyResp.status}: ${t.slice(0, 200)}` }, 502);
+      return jr({ ok: false, error: `Spotify ${status}: ${bodyText.slice(0, 200)}` }, 502);
     }
 
     const now = new Date();
