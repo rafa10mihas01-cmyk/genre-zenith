@@ -181,5 +181,13 @@ Deno.serve(async (req) => {
     results.push({ genre_id: g.id, knowledge_score: row.knowledge_score });
   }
 
+  if (isCron) {
+    await reportCronHealth(sb, {
+      job_name: "recompute-genre-brain",
+      status: "ok",
+      startedAt,
+      metrics: { processed, total_genres: genres.length },
+    });
+  }
   return jr({ ok: true, processed, results });
 });
