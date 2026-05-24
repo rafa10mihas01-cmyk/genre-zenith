@@ -48,6 +48,7 @@ Deno.serve(async (req) => {
       .in("action", ["converted_to_deal", "removal_requested", "visto"]);
     const fb = (feedbacks ?? []) as Feedback[];
     if (fb.length === 0) {
+      await reportCronHealth(supabase, { job_name: "detect-recommendation-outcomes", status: "ok", startedAt, metrics: { considered: 0 } });
       return new Response(JSON.stringify({ ok: true, considered: 0 }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
