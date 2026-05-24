@@ -658,6 +658,8 @@ export default function CampanhaExecucao() {
                   allocations={allocs as unknown as Parameters<typeof CampaignFullPlanCard>[0]["allocations"]}
                   engagementMultiplier={camp.engagement_multiplier ?? 30}
                   shareToken={camp.public_plan_token ?? null}
+                  campaignId={camp.id}
+                  onPositionsRedistributed={loadCampaign}
                   track={{
                     name: camp.track_name,
                     artist: camp.artist,
@@ -665,6 +667,7 @@ export default function CampanhaExecucao() {
                     spotifyUrl: camp.spotify_track_url ?? null,
                   }}
                 />
+
               </TabsContent>
 
             </Tabs>
