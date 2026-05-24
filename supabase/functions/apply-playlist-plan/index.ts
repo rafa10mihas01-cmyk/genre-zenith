@@ -1,14 +1,17 @@
 // apply-playlist-plan — executa o plano de manutenção do último diagnóstico
-// via Spotify Web API. Suporta ação isolada por bucket ou o plano completo.
+// via Spotify Web API, UMA AÇÃO POR VEZ, recalculando o estado real entre cada.
 //
 // Body: {
 //   playlist_id: string (managed_playlists.id),
 //   action: "remove" | "demote" | "promote" | "add" | "all",
 //   limit_add?: number (default 15, max 50),
+//   stream?: boolean (default true) — se true, retorna text/event-stream com
+//     progresso por ação; se false, retorna JSON final ao terminar.
 // }
 //
-// Ordem do "all": add → remove → demote → promote (executado em sequência,
-// parando no primeiro erro fatal, mas retornando relatório por etapa).
+// Ordem do "all": removes → promotes (topo → baixo por target) →
+//   demotes (baixo → topo por target) → adds. Entre cada ação, a playlist é
+//   re-listada via Spotify e os índices recalculados sobre o estado real.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
@@ -27,6 +30,15 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 type Action = "remove" | "demote" | "promote" | "add" | "all";
+type StepKind = "remove" | "promote" | "demote" | "add";
+
+type PlanStep = {
+  kind: StepKind;
+  spotify_track_id: string;
+  name: string | null;
+  target_position?: number | null;
+  source_position?: number | null;
+};
 
 function jr(p: unknown, status = 200) {
   return new Response(JSON.stringify(p), {
@@ -35,36 +47,30 @@ function jr(p: unknown, status = 200) {
   });
 }
 
-async function spotifyFetch(url: string, init: RequestInit, token: string) {
-  const r = await fetch(url, {
-    ...init,
-    headers: {
-      ...(init.headers ?? {}),
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-  });
-  const txt = await r.text();
-  if (!r.ok) {
-    throw new Error(`Spotify ${r.status}: ${txt.slice(0, 300)}`);
-  }
-  try { return txt ? JSON.parse(txt) : {}; } catch { return {}; }
-}
-
-async function syncManagedSnapshot(authHeader: string, playlistId: string) {
+async function syncManagedSnapshot(playlistId: string) {
   const r = await fetch(`${SUPABASE_URL}/functions/v1/sync-managed-playlist-tracks`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: authHeader,
+      Authorization: `Bearer ${SERVICE_KEY}`,
       apikey: SERVICE_KEY,
     },
     body: JSON.stringify({ playlist_id: playlistId }),
   });
   const txt = await r.text();
   let body: any = null;
-  try { body = JSON.parse(txt); } catch { /* ignore */ }
+  try { body = JSON.parse(txt); } catch { /* */ }
   return { ok: r.ok && body?.ok !== false, total: body?.total ?? null, error: body?.error ?? txt };
+}
+
+function describeStep(s: PlanStep, idx0: number): string {
+  const name = s.name ?? s.spotify_track_id;
+  switch (s.kind) {
+    case "remove":  return `Removendo "${name}"`;
+    case "promote": return `Promovendo "${name}" para #${(s.target_position ?? 0) + 1}`;
+    case "demote":  return `Rebaixando "${name}" para #${(s.target_position ?? 0) + 1}`;
+    case "add":     return `Adicionando "${name}"`;
+  }
 }
 
 Deno.serve(async (req) => {
@@ -72,264 +78,361 @@ Deno.serve(async (req) => {
   const guard = await requireTeamAccess(req);
   if (!guard.ok) return guard.resp;
 
-  try {
-    const body = await req.json().catch(() => ({}));
-    const playlistId: string = body?.playlist_id;
-    const action: Action = (body?.action ?? "all") as Action;
-    const limitAdd: number = Math.max(1, Math.min(Number(body?.limit_add ?? 15), 50));
-    if (!playlistId) return jr({ ok: false, error: "playlist_id obrigatório" }, 400);
-    if (!["remove", "demote", "promote", "add", "all"].includes(action)) {
-      return jr({ ok: false, error: "action inválida" }, 400);
+  let body: any;
+  try { body = await req.json(); } catch { return jr({ ok: false, error: "Invalid JSON" }, 400); }
+  const playlistId: string = body?.playlist_id;
+  const action: Action = (body?.action ?? "all") as Action;
+  const limitAdd: number = Math.max(1, Math.min(Number(body?.limit_add ?? 15), 50));
+  const stream: boolean = body?.stream !== false; // default true
+  if (!playlistId) return jr({ ok: false, error: "playlist_id obrigatório" }, 400);
+  if (!["remove", "demote", "promote", "add", "all"].includes(action)) {
+    return jr({ ok: false, error: "action inválida" }, 400);
+  }
+
+  const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+
+  // 1) Managed playlist
+  const { data: pl } = await supabase
+    .from("managed_playlists")
+    .select("id, spotify_playlist_id, name, tracks_count, lifecycle_phase, owner_spotify_user_id")
+    .eq("id", playlistId)
+    .maybeSingle();
+  if (!pl?.spotify_playlist_id) return jr({ ok: false, error: "playlist sem spotify_playlist_id" }, 404);
+
+  // 2) Último diagnóstico
+  const { data: diag } = await supabase
+    .from("playlist_diagnoses")
+    .select("id, tracks_analysis, tracks_suggestions, raw, created_at")
+    .eq("playlist_id", pl.id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!diag) return jr({ ok: false, error: "sem diagnóstico — rode a análise primeiro" }, 400);
+
+  const analysis: any[] = Array.isArray(diag.tracks_analysis) ? diag.tracks_analysis : [];
+  const suggestions: any[] = Array.isArray(diag.tracks_suggestions) ? diag.tracks_suggestions : [];
+  const caps = (diag as any).raw?.applied_caps ?? null;
+
+  let removeItems = analysis.filter((t) => t.status === "remove" && t.spotify_track_id)
+    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  let demoteItems = analysis.filter((t) => t.status === "demote" && t.spotify_track_id)
+    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  let promoteItems = analysis.filter((t) => t.status === "promote" && t.spotify_track_id)
+    .sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0));
+
+  if (caps) {
+    if (typeof caps.recommended_remove === "number") removeItems = removeItems.slice(0, caps.recommended_remove);
+    if (typeof caps.recommended_demote === "number") demoteItems = demoteItems.slice(0, caps.recommended_demote);
+    if (typeof caps.recommended_promote === "number") promoteItems = promoteItems.slice(0, caps.recommended_promote);
+  }
+  let addItems = suggestions.filter((s) => s.spotify_track_id).slice(0, limitAdd);
+
+  // Net-positive enforcement
+  const phase = (pl as any).lifecycle_phase ?? "seed";
+  if (action === "all" || action === "add" || action === "remove") {
+    const netChange = addItems.length - removeItems.length;
+    if (phase !== "bloated" && netChange < 0) {
+      return jr({
+        ok: false,
+        error: `BLOCKED: ciclo net-negativo (${netChange}) só permitido em fase 'bloated'. Fase atual: '${phase}'.`,
+        phase,
+        additions: addItems.length,
+        removals: removeItems.length,
+      }, 409);
     }
-
-    const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
-
-    // 1) Managed playlist
-    const { data: pl } = await supabase
-      .from("managed_playlists")
-      .select("id, spotify_playlist_id, name, tracks_count, lifecycle_phase")
-      .eq("id", playlistId)
-      .maybeSingle();
-    if (!pl?.spotify_playlist_id) return jr({ ok: false, error: "playlist sem spotify_playlist_id" }, 404);
-
-    // 2) Último diagnóstico
-    const { data: diag } = await supabase
-      .from("playlist_diagnoses")
-      .select("id, tracks_analysis, tracks_suggestions, raw, created_at")
-      .eq("playlist_id", pl.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (!diag) return jr({ ok: false, error: "sem diagnóstico — rode a análise primeiro" }, 400);
-
-    const analysis: any[] = Array.isArray(diag.tracks_analysis) ? diag.tracks_analysis : [];
-    const suggestions: any[] = Array.isArray(diag.tracks_suggestions) ? diag.tracks_suggestions : [];
-    const caps = (diag as any).raw?.applied_caps ?? null;
-
-    // Respeita os caps do cérebro: detecta tudo, aplica só o recomendado neste
-    // ciclo. Ordena por prioridade ANTES de truncar pra pegar os mais críticos.
-    let removeItems = analysis.filter((t) => t.status === "remove" && t.spotify_track_id)
-      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
-    let demoteItems = analysis.filter((t) => t.status === "demote" && t.spotify_track_id)
-      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
-    let promoteItems = analysis.filter((t) => t.status === "promote" && t.spotify_track_id)
-      .sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0));
-
-    if (caps) {
-      if (typeof caps.recommended_remove === "number") removeItems = removeItems.slice(0, caps.recommended_remove);
-      if (typeof caps.recommended_demote === "number") demoteItems = demoteItems.slice(0, caps.recommended_demote);
-      if (typeof caps.recommended_promote === "number") promoteItems = promoteItems.slice(0, caps.recommended_promote);
+    if (phase === "bloated" && (action === "all" || action === "add")) {
+      addItems = [];
     }
-    const addItems = suggestions.filter((s) => s.spotify_track_id).slice(0, limitAdd);
+  }
 
-    // === NET-POSITIVE ENFORCEMENT ===
-    // Fora de 'bloated', o ciclo NÃO pode terminar com saldo negativo de faixas.
-    const phase = (pl as any).lifecycle_phase ?? "seed";
-    if (action === "all" || action === "add" || action === "remove") {
-      const netChange = addItems.length - removeItems.length;
-      if (phase !== "bloated" && netChange < 0) {
-        return jr({
-          ok: false,
-          error: `BLOCKED: ciclo net-negativo (${netChange}) só permitido em fase 'bloated'. Fase atual: '${phase}'.`,
-          phase,
-          additions: addItems.length,
-          removals: removeItems.length,
-        }, 409);
-      }
-      if (phase === "bloated" && (action === "all" || action === "add")) {
-        // bloated: zera adições padrão pra forçar redução gradual
-        addItems.length = 0;
-      }
-    }
-
-
-
-
-    // 3) OAuth token do dono
-    let ownerId: string | null = null;
+  // 3) OAuth token do dono — fonte de verdade: managed_playlists
+  let ownerId = pl.owner_spotify_user_id as string | null;
+  if (!ownerId) {
+    // fallback: lê do Spotify
     try {
       const appToken = await getSpotifyToken();
       const meta = await getPlaylistMeta(pl.spotify_playlist_id, appToken, { fields: "owner(id)" });
       ownerId = meta.owner_id;
     } catch { /* */ }
+  }
+  let token: string;
+  try {
+    const r = await getUserAccessToken(ownerId ?? undefined);
+    token = r.token;
+  } catch (e) {
+    return jr({
+      ok: false,
+      error: ownerId
+        ? `conta do dono "${ownerId}" não está conectada. Conecte em Configurações → Spotify.`
+        : `nenhuma conta Spotify conectada: ${(e as Error).message}`,
+    }, 412);
+  }
 
-    let token: string;
-    try {
-      const r = await getUserAccessToken(ownerId ?? undefined);
-      token = r.token;
-    } catch (e) {
-      return jr({
-        ok: false,
-        error: ownerId
-          ? `conta do dono "${ownerId}" não está conectada. Conecte em Configurações → Spotify.`
-          : `nenhuma conta Spotify conectada: ${(e as Error).message}`,
-      }, 412);
-    }
+  const spId = pl.spotify_playlist_id;
 
-    const spId = pl.spotify_playlist_id;
-    const playlistDbId = pl.id;
-    const expectedTracksCount = Number(pl.tracks_count ?? 0);
-    const report: Record<string, any> = { ok: true, steps: [] };
+  // 4) Monta o plano ordenado: removes → promotes (target asc) → demotes (target desc) → adds
+  const steps: PlanStep[] = [];
 
-    // helpers que mantêm a tracklist em memória sincronizada com a playlist real.
-    // Usamos refs com linked_from porque o Spotify pode devolver uma URI relinkada
-    // diferente da URI original salva no diagnóstico.
-    let currentRefs: PlaylistTrackRef[] | null = null;
-    async function loadSnapshotRefs(): Promise<PlaylistTrackRef[]> {
-      const { data } = await supabase
-        .from("managed_playlist_tracks")
-        .select("spotify_track_id")
-        .eq("playlist_id", playlistDbId)
-        .order("position", { ascending: true });
-      return (data ?? [])
-        .map((row: any) => String(row.spotify_track_id ?? "").trim())
-        .filter(Boolean)
-        .map((id) => ({ uri: `spotify:track:${id}`, id }));
-    }
-    async function ensureCurrent(): Promise<PlaylistTrackRef[]> {
-      if (!currentRefs) {
-        const refs = await listPlaylistTrackRefs(spId, token).catch(() => []);
-        currentRefs = expectedTracksCount > 0 && refs.length < Math.floor(expectedTracksCount * 0.8)
-          ? await loadSnapshotRefs()
-          : refs;
-      }
-      return currentRefs;
-    }
+  const wantRemove = action === "remove" || action === "all";
+  const wantPromote = action === "promote" || action === "all";
+  const wantDemote = action === "demote" || action === "all";
+  const wantAdd = action === "add" || action === "all";
 
-    async function doRemove() {
-      if (removeItems.length === 0) {
-        report.steps.push({ action: "remove", skipped: true, reason: "nada a remover" });
-        return;
-      }
-      const uris = removeItems.map((t) => `spotify:track:${t.spotify_track_id}`);
-      const res = await removePlaylistTracks(spId, uris, token);
-      if (currentRefs) currentRefs = currentRefs.filter((ref) => !uris.some((uri) => ref.uri === uri || ref.linked_from_uri === uri));
-      report.snapshot_id = res?.snapshot_id ?? report.snapshot_id;
-      const removed = res.removed;
-      report.steps.push({ action: "remove", removed });
-    }
-
-    async function doReorder(kind: "demote" | "promote") {
-      const items = kind === "promote" ? promoteItems : demoteItems;
-      if (items.length === 0) {
-        report.steps.push({ action: kind, skipped: true, reason: `nada a ${kind === "promote" ? "promover" : "rebaixar"}` });
-        return;
-      }
-      await ensureCurrent();
-      // Ordena: promote do mais "merecedor" primeiro (topo); demote do mais
-      // próximo do topo primeiro (mandar pra zona inferior).
-      const sorted = [...items].sort((a, b) => {
-        if (kind === "promote") return (b.popularity ?? 0) - (a.popularity ?? 0);
-        return (a.position ?? 0) - (b.position ?? 0);
+  if (wantRemove) {
+    for (const t of removeItems) {
+      steps.push({
+        kind: "remove",
+        spotify_track_id: String(t.spotify_track_id),
+        name: t.name ?? t.track_name ?? null,
+        source_position: Number.isFinite(t.position) ? Number(t.position) : null,
       });
-      let moved = 0;
-      let skipped = 0;
-      const details: any[] = [];
-      for (const it of sorted) {
-        const uri = `spotify:track:${it.spotify_track_id}`;
-        const total = currentRefs!.length;
-        let idx = findPlaylistTrackIndex(currentRefs!, uri);
-        let index_source = "track_id";
-        if (idx < 0 && Number.isFinite(it.position)) {
-          const fallbackIdx = Math.max(0, Math.min(Number(it.position), total - 1));
-          idx = fallbackIdx;
-          index_source = "diagnosis_position";
-        }
-        if (idx < 0) {
-          skipped++;
-          details.push({ track_id: it.spotify_track_id, skipped: "not_found", position: it.position, target_position: it.target_position });
-          continue;
-        }
-        // target: usa target_position se vier do diag, senão fallback
-        // Promote (subir): fallback é "moved" (vai empilhando no topo).
-        // Demote (descer): fallback é o final da lista (índice total-1).
-        const fallback = kind === "promote" ? moved : Math.max(total - 1, 0);
-        let target = Number.isFinite(it.target_position) ? Number(it.target_position) : fallback;
-        target = Math.max(0, Math.min(target, total - 1));
-        // Spotify reorder: insert_before usa índices da lista ORIGINAL.
-        //   - Subindo (idx > target): insert_before = target → cai em target ✓
-        //   - Descendo (idx < target): insert_before = target + 1 (compensa o slot
-        //     que o próprio item ocupa antes de ser movido) → cai em target ✓
-        const insertBefore = idx < target
-          ? Math.min(target + 1, total)
-          : target;
-        if (insertBefore === idx || insertBefore === idx + 1) {
-          skipped++;
-          details.push({ track_id: it.spotify_track_id, skipped: "already_at_target", index: idx, target_position: target });
-          continue;
-        }
-        const res = await reorderPlaylistTracks(spId, { range_start: idx, insert_before: insertBefore, range_length: 1 }, token);
-        // Atualiza memória local
-        const [item] = currentRefs!.splice(idx, 1);
-        const adjusted = insertBefore > idx ? insertBefore - 1 : insertBefore;
-        currentRefs!.splice(adjusted, 0, item);
-        moved++;
-        details.push({ track_id: it.spotify_track_id, from: idx, to: adjusted, target_position: target, index_source });
-        report.snapshot_id = res?.snapshot_id ?? report.snapshot_id;
-      }
-      report.steps.push({ action: kind, moved, skipped, details });
     }
-
-    async function doAdd() {
-      if (addItems.length === 0) {
-        report.steps.push({ action: "add", skipped: true, reason: "sem sugestões" });
-        return;
-      }
-      await ensureCurrent();
-      const uris = addItems.map((s) => `spotify:track:${s.spotify_track_id}`);
-      const res = await addPlaylistTracks(spId, uris, token, { position: 0 });
-      report.steps.push({ action: "add", added: uris.length });
-      report.snapshot_id = res?.snapshot_id ?? report.snapshot_id;
-      currentRefs = [
-        ...uris.map((uri) => ({ uri, id: uri.split(":").pop() ?? null })),
-        ...(currentRefs ?? []),
-      ];
-    }
-
-    try {
-      // Ordem editorial: remove → demote → promote → add.
-      // ADD por último para que promote/demote operem sobre a lista ORIGINAL
-      // (que é a base dos target_position calculados pelo diagnose). Caso
-      // contrário, um ADD prévio empurra todos os índices originais e os
-      // targets caem dentro do bloco recém-adicionado.
-      if (action === "remove" || action === "all") await doRemove();
-      if (action === "demote" || action === "all") await doReorder("demote");
-      if (action === "promote" || action === "all") await doReorder("promote");
-      if (action === "add" || action === "all") await doAdd();
-    } catch (e) {
-      const msg = (e as Error).message;
-      const hint = msg.includes("403")
-        ? ` — verifique se o dono da playlist ("${ownerId ?? "?"}") está conectado em Configurações → Spotify com escopos playlist-modify-public/private.`
-        : "";
-      await supabase.from("collection_logs").insert({
-        acao: "apply-playlist-plan",
-        status: "erro",
-        mensagem: `${spId} (${action}): ${msg}${hint}`,
+  }
+  if (wantPromote) {
+    const sorted = [...promoteItems].sort((a, b) => {
+      const ta = Number.isFinite(a.target_position) ? Number(a.target_position) : 9999;
+      const tb = Number.isFinite(b.target_position) ? Number(b.target_position) : 9999;
+      return ta - tb; // topo primeiro
+    });
+    for (const t of sorted) {
+      steps.push({
+        kind: "promote",
+        spotify_track_id: String(t.spotify_track_id),
+        name: t.name ?? t.track_name ?? null,
+        target_position: Number.isFinite(t.target_position) ? Number(t.target_position) : null,
+        source_position: Number.isFinite(t.position) ? Number(t.position) : null,
       });
-      return jr({ ok: false, action, partial: report, error: `${msg}${hint}` }, 502);
+    }
+  }
+  if (wantDemote) {
+    const sorted = [...demoteItems].sort((a, b) => {
+      const ta = Number.isFinite(a.target_position) ? Number(a.target_position) : -1;
+      const tb = Number.isFinite(b.target_position) ? Number(b.target_position) : -1;
+      return tb - ta; // baixo primeiro
+    });
+    for (const t of sorted) {
+      steps.push({
+        kind: "demote",
+        spotify_track_id: String(t.spotify_track_id),
+        name: t.name ?? t.track_name ?? null,
+        target_position: Number.isFinite(t.target_position) ? Number(t.target_position) : null,
+        source_position: Number.isFinite(t.position) ? Number(t.position) : null,
+      });
+    }
+  }
+  if (wantAdd) {
+    for (const s of addItems) {
+      steps.push({
+        kind: "add",
+        spotify_track_id: String(s.spotify_track_id),
+        name: s.name ?? s.track_name ?? null,
+        target_position: Number.isFinite(s.suggested_position) ? Number(s.suggested_position) : 0,
+      });
+    }
+  }
+
+  // 5) Loop sequencial com recálculo entre cada ação
+  const total = steps.length;
+  const results: any[] = [];
+  let snapshotId: string | null = null;
+  let failedAt: number | null = null;
+  let fatalError: string | null = null;
+
+  // helper que executa uma step, devolvendo um result
+  async function runStep(step: PlanStep, idx0: number): Promise<any> {
+    // re-fetch estado real da playlist antes de cada ação
+    const currentRefs: PlaylistTrackRef[] = await listPlaylistTrackRefs(spId, token);
+    const total = currentRefs.length;
+    const uri = `spotify:track:${step.spotify_track_id}`;
+
+    if (step.kind === "remove") {
+      const res = await removePlaylistTracks(spId, [uri], token);
+      snapshotId = res?.snapshot_id ?? snapshotId;
+      return { ok: true, kind: step.kind, removed: res.removed ?? 1, snapshot_size_before: total };
     }
 
-    const finalRefs = await listPlaylistTrackRefs(spId, token).catch(() => null);
-    if (finalRefs) {
-      report.current_tracks_count = finalRefs.length;
-      await supabase
-        .from("managed_playlists")
-        .update({ tracks_count: finalRefs.length, last_metrics_at: new Date().toISOString() })
-        .eq("id", pl.id);
+    if (step.kind === "add") {
+      const pos = Math.max(0, Math.min(Number(step.target_position ?? 0), total));
+      const res = await addPlaylistTracks(spId, [uri], token, { position: pos });
+      snapshotId = res?.snapshot_id ?? snapshotId;
+      return { ok: true, kind: step.kind, added_at: pos, snapshot_size_before: total };
     }
 
-    const sync = await syncManagedSnapshot(`Bearer ${SERVICE_KEY}`, pl.id).catch((e) => ({ ok: false, error: String(e), total: null }));
-    report.sync = sync.ok ? { ok: true, total: sync.total } : { ok: false, error: sync.error };
-    if (sync.ok && typeof sync.total === "number") report.current_tracks_count = sync.total;
+    // promote / demote
+    let idx = findPlaylistTrackIndex(currentRefs, uri);
+    let index_source = "track_id";
+    if (idx < 0 && Number.isFinite(step.source_position)) {
+      idx = Math.max(0, Math.min(Number(step.source_position), total - 1));
+      index_source = "diagnosis_position";
+    }
+    if (idx < 0) {
+      return { ok: false, kind: step.kind, skipped: "not_found_in_playlist" };
+    }
+    const fallback = step.kind === "promote" ? 0 : Math.max(total - 1, 0);
+    let target = Number.isFinite(step.target_position) ? Number(step.target_position) : fallback;
+    target = Math.max(0, Math.min(target, total - 1));
+    const insertBefore = idx < target ? Math.min(target + 1, total) : target;
+    if (insertBefore === idx || insertBefore === idx + 1) {
+      return { ok: true, kind: step.kind, skipped: "already_at_target", from: idx, target };
+    }
+    const res = await reorderPlaylistTracks(
+      spId,
+      { range_start: idx, insert_before: insertBefore, range_length: 1 },
+      token,
+    );
+    snapshotId = res?.snapshot_id ?? snapshotId;
+    const finalIdx = insertBefore > idx ? insertBefore - 1 : insertBefore;
+    return { ok: true, kind: step.kind, from: idx, to: finalIdx, target, index_source };
+  }
 
-    await supabase.from("collection_logs").insert({
-      acao: "apply-playlist-plan",
-      status: "sucesso",
-      mensagem: `${spId} (${action}): ${JSON.stringify(report.steps)} count=${report.current_tracks_count ?? "?"}`,
+  // ============= Branch: STREAM (SSE) vs JSON =============
+  if (stream) {
+    const encoder = new TextEncoder();
+    const body = new ReadableStream({
+      async start(controller) {
+        const send = (evt: any) => {
+          try { controller.enqueue(encoder.encode(`data: ${JSON.stringify(evt)}\n\n`)); } catch { /* */ }
+        };
+
+        send({ type: "start", total, action, playlist_id: pl.id, spotify_playlist_id: spId });
+
+        for (let i = 0; i < steps.length; i++) {
+          const step = steps[i];
+          send({
+            type: "step",
+            index: i + 1,
+            total,
+            status: "running",
+            kind: step.kind,
+            spotify_track_id: step.spotify_track_id,
+            name: step.name,
+            target_position: step.target_position ?? null,
+            description: describeStep(step, i),
+          });
+          try {
+            const res = await runStep(step, i);
+            results.push({ ...step, ...res });
+            send({
+              type: "step",
+              index: i + 1,
+              total,
+              status: res.skipped ? "skipped" : "done",
+              kind: step.kind,
+              spotify_track_id: step.spotify_track_id,
+              name: step.name,
+              target_position: step.target_position ?? null,
+              detail: res,
+            });
+          } catch (e) {
+            const msg = (e as Error).message ?? String(e);
+            failedAt = i + 1;
+            fatalError = msg;
+            results.push({ ...step, ok: false, error: msg });
+            send({
+              type: "step",
+              index: i + 1,
+              total,
+              status: "failed",
+              kind: step.kind,
+              spotify_track_id: step.spotify_track_id,
+              name: step.name,
+              error: msg,
+            });
+            break;
+          }
+        }
+
+        // sync local
+        let syncRes: any = null;
+        try { syncRes = await syncManagedSnapshot(pl.id); } catch (e) { syncRes = { ok: false, error: String(e) }; }
+
+        // tracks count final
+        let currentCount: number | null = syncRes?.total ?? null;
+        if (currentCount === null) {
+          try {
+            const finalRefs = await listPlaylistTrackRefs(spId, token);
+            currentCount = finalRefs.length;
+            await supabase.from("managed_playlists")
+              .update({ tracks_count: finalRefs.length, last_metrics_at: new Date().toISOString() })
+              .eq("id", pl.id);
+          } catch { /* */ }
+        }
+
+        await supabase.from("collection_logs").insert({
+          acao: "apply-playlist-plan",
+          status: fatalError ? "erro" : "sucesso",
+          mensagem: `${spId} (${action}): ${results.length}/${total} executadas${fatalError ? ` — FAILED@${failedAt}: ${fatalError}` : ""}`,
+        });
+
+        send({
+          type: "complete",
+          ok: !fatalError,
+          executed: results.length,
+          total,
+          failed_at: failedAt,
+          error: fatalError,
+          current_tracks_count: currentCount,
+          snapshot_id: snapshotId,
+          sync: syncRes,
+          results,
+        });
+        controller.close();
+      },
     });
 
-    return jr(report);
-  } catch (e) {
-    return jr({ ok: false, error: (e as Error).message }, 500);
+    return new Response(body, {
+      status: 200,
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache, no-transform",
+        "X-Accel-Buffering": "no",
+      },
+    });
   }
+
+  // ============= Branch: JSON (non-stream, compat) =============
+  for (let i = 0; i < steps.length; i++) {
+    try {
+      const res = await runStep(steps[i], i);
+      results.push({ ...steps[i], ...res });
+    } catch (e) {
+      const msg = (e as Error).message ?? String(e);
+      failedAt = i + 1;
+      fatalError = msg;
+      results.push({ ...steps[i], ok: false, error: msg });
+      break;
+    }
+  }
+
+  const sync = await syncManagedSnapshot(pl.id).catch((e) => ({ ok: false, error: String(e), total: null }));
+  let currentCount: number | null = (sync as any)?.total ?? null;
+  if (currentCount === null) {
+    try {
+      const finalRefs = await listPlaylistTrackRefs(spId, token);
+      currentCount = finalRefs.length;
+      await supabase.from("managed_playlists")
+        .update({ tracks_count: finalRefs.length, last_metrics_at: new Date().toISOString() })
+        .eq("id", pl.id);
+    } catch { /* */ }
+  }
+
+  await supabase.from("collection_logs").insert({
+    acao: "apply-playlist-plan",
+    status: fatalError ? "erro" : "sucesso",
+    mensagem: `${spId} (${action}): ${results.length}/${steps.length} executadas${fatalError ? ` — FAILED@${failedAt}: ${fatalError}` : ""}`,
+  });
+
+  return jr({
+    ok: !fatalError,
+    action,
+    executed: results.length,
+    total: steps.length,
+    failed_at: failedAt,
+    error: fatalError,
+    current_tracks_count: currentCount,
+    snapshot_id: snapshotId,
+    sync,
+    results,
+  });
 });
