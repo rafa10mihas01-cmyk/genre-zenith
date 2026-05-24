@@ -1,0 +1,1 @@
+ALTER TABLE public.campaign_eco_allocations ADD COLUMN IF NOT EXISTS position smallint NULL;

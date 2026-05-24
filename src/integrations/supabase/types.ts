@@ -503,6 +503,7 @@ export type Database = {
           managed_playlist_id: string
           market_per_stream: number | null
           planned_streams: number
+          position: number | null
           price_per_stream_sell: number | null
           start_day: number
           status: string
@@ -518,6 +519,7 @@ export type Database = {
           managed_playlist_id: string
           market_per_stream?: number | null
           planned_streams?: number
+          position?: number | null
           price_per_stream_sell?: number | null
           start_day?: number
           status?: string
@@ -533,6 +535,7 @@ export type Database = {
           managed_playlist_id?: string
           market_per_stream?: number | null
           planned_streams?: number
+          position?: number | null
           price_per_stream_sell?: number | null
           start_day?: number
           status?: string
