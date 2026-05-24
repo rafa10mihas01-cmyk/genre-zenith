@@ -209,10 +209,18 @@ export default function PlanoCampanhaPublico() {
   }
 
   if (err || !camp || !snapshot) {
+    const isClosed = err === "campaign_closed";
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
-        <div className="text-center">
-          <p className="text-muted-foreground">Plano indisponível ou link inválido.</p>
+        <div className="text-center space-y-2">
+          <p className="text-foreground font-medium">
+            {isClosed ? "Campanha encerrada" : "Plano indisponível"}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {isClosed
+              ? "Este link expirou porque a campanha foi finalizada."
+              : "Link inválido ou expirado."}
+          </p>
         </div>
       </div>
     );
