@@ -1,8 +1,12 @@
 // bot-execution-queue — Devolve fila de execução (add/remove track em playlist).
+// Jobs do tipo `playlist.track.reorder` são executados INLINE aqui (chamando
+// a Web API do Spotify via reorderPlaylistTracks) e NÃO são entregues ao bot.
 // Auth: header x-bot-key (compara com env BOT_API_KEY).
 // GET ?limit=3
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { reportCronHealth } from "../_shared/cron-health.ts";
+import { reorderPlaylistTracks, listPlaylistTrackUris } from "../_shared/spotify-playlist.ts";
+import { getSpotifyToken, getUserAccessToken } from "../_shared/spotify.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
