@@ -84,31 +84,28 @@ type SpotifyResp = {
 async function fetchSpotifyPlaylist(id: string, token: string): Promise<SpotifyResp> {
   // Inclui owner(id) → permite distinguir playlists oficiais Spotify (owner.id='spotify')
   // de playlists de usuários comuns. Usado depois pra priorizar tendência editorial.
-  const url = `https://api.spotify.com/v1/playlists/${id}?fields=followers(total),tracks(total),owner(id)`;
-  const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-  if (r.status === 401) { await r.text().catch(() => ""); throw new Error("TOKEN_EXPIRED"); }
-  if (r.status === 429) {
-    const retry = Number(r.headers.get("Retry-After") ?? "2");
-    await r.text().catch(() => "");
-    throw new Error(`RATE_LIMIT:${retry}`);
+  try {
+    const meta = await getPlaylistMeta(id, token, { fields: "followers(total),tracks(total),owner(id)" });
+    const ownerId = meta.owner_id;
+    // classifyOwner detecta selos majors (filtr.br, somlivre, digster_brasil, ...) como 'label'
+    // — equivalentes a oficiais Spotify pra fins de scoring.
+    const ownerType: "spotify" | "label" | "user" | null = ownerId ? classifyOwner(ownerId) : null;
+    return {
+      followers: meta.followers ?? null,
+      total: meta.tracks_total ?? null,
+      status: 200,
+      owner_id: ownerId,
+      owner_type: ownerType,
+    };
+  } catch (e) {
+    if (e instanceof SpotifyApiError) {
+      if (e.status === 401) throw new Error("TOKEN_EXPIRED");
+      if (e.status === 429) throw new Error(`RATE_LIMIT:${e.retryAfter ?? 2}`);
+      if (e.status === 404) return { followers: null, total: null, status: 404, owner_id: null, owner_type: null };
+      throw new Error(`Spotify ${e.status}: ${e.body.slice(0, 200)}`);
+    }
+    throw e;
   }
-  if (r.status === 404) { await r.text().catch(() => ""); return { followers: null, total: null, status: 404, owner_id: null, owner_type: null }; }
-  if (!r.ok) {
-    const t = await r.text();
-    throw new Error(`Spotify ${r.status}: ${t.slice(0, 200)}`);
-  }
-  const j = await r.json();
-  const ownerId: string | null = j?.owner?.id ?? null;
-  // classifyOwner detecta selos majors (filtr.br, somlivre, digster_brasil, ...) como 'label'
-  // — equivalentes a oficiais Spotify pra fins de scoring.
-  const ownerType: "spotify" | "label" | "user" | null = ownerId ? classifyOwner(ownerId) : null;
-  return {
-    followers: j?.followers?.total ?? null,
-    total: j?.tracks?.total ?? null,
-    status: 200,
-    owner_id: ownerId,
-    owner_type: ownerType,
-  };
 }
 
 async function fetchApifyTracks(playlistUrl: string): Promise<any[]> {
