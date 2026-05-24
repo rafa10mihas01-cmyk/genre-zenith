@@ -5,6 +5,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { getSpotifyToken } from "../_shared/spotify.ts";
 import { classifyOwner } from "../_shared/labels.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 import { deprecationGate } from "../_shared/_deprecation.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -460,6 +461,17 @@ Deno.serve(async (req) => {
       duracao_ms: Date.now() - start,
     });
 
+    // Reporta cron_health apenas quando invocado pelo cron weekly-followers-revalidation
+    if ((body as any).mode === "followers" || body.revalidate_existing) {
+      await reportCronHealth(supabase, {
+        job_name: "enrich-playlists-followers",
+        status: status === "sucesso" ? "ok" : status === "parcial" ? "partial" : "error",
+        startedAt: start,
+        metrics: { processed: pending.length, enriched, errors, skipped, zombies_marked: zombiesMarked },
+        message: `enriched=${enriched}/${pending.length} errors=${errors}`,
+      });
+    }
+
     return new Response(
       JSON.stringify({
         ok: true,
@@ -510,6 +522,14 @@ Deno.serve(async (req) => {
       mensagem: msg.slice(0, 500),
       duracao_ms: Date.now() - start,
     });
+    if ((body as any).mode === "followers" || body.revalidate_existing) {
+      await reportCronHealth(supabase, {
+        job_name: "enrich-playlists-followers",
+        status: "error",
+        startedAt: start,
+        message: msg,
+      });
+    }
     return new Response(JSON.stringify({ ok: false, error: msg }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
