@@ -183,5 +183,18 @@ Deno.serve(async (req) => {
     mensagem: `checked=${accounts?.length ?? 0} ok=${okCount} fail=${failCount} app_refreshed=${appTokenRefreshed}${appTokenError ? ` app_err=${appTokenError}` : ""}`,
   }).then(() => {}, (e) => console.error("[spotify-token-watchdog] log/op failed:", e?.message ?? e));
 
+  await reportCronHealth(sb, {
+    job_name: "spotify-token-watchdog",
+    status: (failCount > 0 || appTokenError) ? "partial" : "ok",
+    startedAt,
+    metrics: {
+      checked: accounts?.length ?? 0,
+      ok_count: okCount,
+      fail_count: failCount,
+      app_token_refreshed: appTokenRefreshed,
+    },
+    message: `checked=${accounts?.length ?? 0} ok=${okCount} fail=${failCount} app_refreshed=${appTokenRefreshed}${appTokenError ? ` app_err=${appTokenError}` : ""}`,
+  });
+
   return jr({ ok: true, checked: accounts?.length ?? 0, ok_count: okCount, fail_count: failCount, app_token_refreshed: appTokenRefreshed, app_token_error: appTokenError, results });
 });
