@@ -4987,7 +4987,22 @@ export type Database = {
           playlist_spotify_id?: string | null
           track_sample_size?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_pds_playlist"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "managed_playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_pds_playlist"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_playlist_vps_assignment"
+            referencedColumns: ["managed_playlist_id"]
+          },
+        ]
       }
       playlist_ecosystem_score: {
         Row: {
@@ -5175,7 +5190,22 @@ export type Database = {
           playlist_spotify_id?: string
           total_tracks?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_pfs_playlist"
+            columns: ["playlist_spotify_id"]
+            isOneToOne: false
+            referencedRelation: "managed_playlists"
+            referencedColumns: ["spotify_playlist_id"]
+          },
+          {
+            foreignKeyName: "fk_pfs_playlist"
+            columns: ["playlist_spotify_id"]
+            isOneToOne: false
+            referencedRelation: "v_playlist_vps_assignment"
+            referencedColumns: ["spotify_playlist_id"]
+          },
+        ]
       }
       playlist_genre_history: {
         Row: {
@@ -5414,7 +5444,15 @@ export type Database = {
           template_id?: string | null
           total_tracks?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_pms_template"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "playlist_templates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       playlist_scores: {
         Row: {
