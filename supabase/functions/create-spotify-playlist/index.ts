@@ -210,15 +210,10 @@ Deno.serve(async (req) => {
   let snapshotId: string | null = null;
   for (let i = 0; i < uris.length; i += 100) {
     const chunk = uris.slice(i, i + 100);
-    const addResp = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/items`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ uris: chunk }),
-    });
-    if (addResp.ok) {
-      const j = await addResp.json();
-      snapshotId = j?.snapshot_id ?? snapshotId;
-    } else {
+    try {
+      const res = await addPlaylistTracks(playlistId, chunk, token);
+      snapshotId = res.snapshot_id ?? snapshotId;
+    } catch {
       failed += chunk.length;
     }
   }
