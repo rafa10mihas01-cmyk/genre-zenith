@@ -19,7 +19,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { PageHeader } from "@/components/PageHeader";
 import { KpiBig } from "@/components/KpiBig";
 import { Button } from "@/components/ui/button";
-import { useCuratorDeals } from "@/hooks/useCuratorDeals";
+import { useCuratorDealDetail } from "@/hooks/useCuratorDealDetail";
 import { DealHistorySheet } from "@/components/playlist-deals/DealHistorySheet";
 import { computeCuratorStats } from "@/lib/curatorDealsUtils";
 
@@ -37,27 +37,22 @@ export default function DealDetail() {
   const { dealId } = useParams<{ dealId: string }>();
   const navigate = useNavigate();
   const {
-    deals,
+    deal,
     logs,
     playlists,
     songs,
-    progressByDeal,
+    progress,
     loading,
     reload,
-  } = useCuratorDeals();
+  } = useCuratorDealDetail(dealId);
 
-  const deal = deals.find((d) => d.id === dealId) ?? null;
   const back = () => navigate("/playlist-deals");
 
   const stats = useMemo(() => {
     if (!deal) return null;
-    return computeCuratorStats(
-      deal,
-      logs.filter((l) => l.deal_id === deal.id),
-      playlists.filter((p) => p.deal_id === deal.id),
-      progressByDeal[deal.id] ?? null,
-    );
-  }, [deal, logs, playlists, progressByDeal]);
+    return computeCuratorStats(deal, logs, playlists, progress);
+  }, [deal, logs, playlists, progress]);
+
 
   return (
     <PageContainer>
@@ -176,10 +171,10 @@ export default function DealDetail() {
             asPage
             open
             deal={deal}
-            songs={songs.filter((s) => s.deal_id === deal.id)}
+            songs={songs}
             allLogs={logs}
             allPlaylists={playlists}
-            progress={progressByDeal[deal.id]}
+            progress={progress ?? undefined}
             onClose={back}
             onReload={reload}
           />
