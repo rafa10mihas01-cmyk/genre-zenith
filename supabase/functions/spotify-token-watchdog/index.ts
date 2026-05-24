@@ -63,6 +63,7 @@ Deno.serve(async (req) => {
       acao: "spotify_token_watchdog", status: "erro",
       mensagem: `query failed: ${error.message}`,
     }).then(() => {}, (e) => console.error("[spotify-token-watchdog] log/op failed:", e?.message ?? e));
+    await reportCronHealth(sb, { job_name: "spotify-token-watchdog", status: "error", startedAt, message: error.message });
     return jr({ error: error.message }, 500);
   }
 
