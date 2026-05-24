@@ -109,8 +109,20 @@ Deno.serve(async (req) => {
       }, { onConflict: "genre_id,pattern_key" });
     }
 
+    await reportCronHealth(supabase, {
+      job_name: "seo-experiment-measure",
+      status: "ok",
+      startedAt,
+      metrics: { measured, lessons_updated: touchedLessons.size },
+    });
     return jr({ ok: true, measured, lessons_updated: touchedLessons.size });
   } catch (e) {
+    await reportCronHealth(supabase, {
+      job_name: "seo-experiment-measure",
+      status: "error",
+      startedAt,
+      message: (e as Error).message,
+    });
     return jr({ ok: false, error: (e as Error).message }, 500);
   }
 });
