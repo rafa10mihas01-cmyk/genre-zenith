@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
 
   try {
     const token = await getSpotifyToken();
-    const rich = await listPlaylistTracksRich(pl.spotify_playlist_id, token, {
+    const rich = await listPlaylistTracksRich(spotifyPlaylistId, token, {
       max: 10000,
       fields: "items(added_at,track(id,name,duration_ms,artists(name),album(images))),next",
     });
