@@ -5,7 +5,7 @@
 // GET ?limit=3
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { reportCronHealth } from "../_shared/cron-health.ts";
-import { reorderPlaylistTracks, listPlaylistTrackUris, getPlaylistMeta } from "../_shared/spotify-playlist.ts";
+import { reorderPlaylistTracks, listPlaylistTrackUris } from "../_shared/spotify-playlist.ts";
 import { getSpotifyToken, getUserAccessToken } from "../_shared/spotify.ts";
 
 const corsHeaders = {
@@ -76,18 +76,32 @@ Deno.serve(async (req) => {
     if (!claimedRow) continue;
 
     try {
-      // descobre dono pra pegar token user
-      let ownerId: string | null = null;
-      const appToken = await getSpotifyToken();
-      try {
-        const meta = await getPlaylistMeta(j.spotify_playlist_id, appToken, { fields: "owner(id)" });
-        ownerId = meta.owner_id;
-      } catch { /* segue sem owner */ }
-      const { token } = await getUserAccessToken(ownerId ?? undefined);
+      // Owner = fonte de verdade em managed_playlists (sem chamada extra ao Spotify)
+      const { data: mp, error: mpErr } = await supabase
+        .from("managed_playlists")
+        .select("owner_spotify_user_id")
+        .eq("spotify_playlist_id", j.spotify_playlist_id)
+        .maybeSingle();
+      if (mpErr) throw new Error(`lookup managed_playlists falhou: ${mpErr.message}`);
+      const ownerId = mp?.owner_spotify_user_id ?? null;
+      if (!ownerId) throw new Error("owner_spotify_user_id não encontrado em managed_playlists");
 
-      // valida posições e calcula insert_before pro endpoint do Spotify
-      const uris = await listPlaylistTrackUris(j.spotify_playlist_id, token);
+      const { token } = await getUserAccessToken(ownerId);
+
+      // listing usa app token (read-only, sem filtro de mercado por usuário)
+      const appToken = await getSpotifyToken();
+      const uris = await listPlaylistTrackUris(j.spotify_playlist_id, appToken);
       const total = uris.length;
+      console.log(JSON.stringify({
+        evt: "reorder.attempt",
+        job_id: j.id,
+        spotify_playlist_id: j.spotify_playlist_id,
+        owner_id: ownerId,
+        total,
+        from: j.from_position,
+        to: j.to_position,
+        attempt: (j.attempts ?? 0) + 1,
+      }));
       const from0 = Number(j.from_position) - 1;
       const to0 = Number(j.to_position) - 1;
       if (from0 < 0 || from0 >= total) throw new Error(`from_position fora da faixa (total=${total})`);
@@ -108,10 +122,12 @@ Deno.serve(async (req) => {
       await supabase.from("playlist_execution_jobs")
         .update({ status: "done", completed_at: new Date().toISOString(), last_error: null })
         .eq("id", j.id);
+      console.log(JSON.stringify({ evt: "reorder.done", job_id: j.id, owner_id: ownerId, total }));
       reorderDone++;
     } catch (e) {
       const msg = (e as Error).message ?? String(e);
       const nextStatus = ((j.attempts ?? 0) + 1) >= (j.max_attempts ?? 3) ? "failed" : "pending";
+      console.log(JSON.stringify({ evt: "reorder.error", job_id: j.id, error: msg, next_status: nextStatus }));
       await supabase.from("playlist_execution_jobs")
         .update({ status: nextStatus, last_error: msg, claimed_by: null, claimed_at: null, lease_expires_at: null })
         .eq("id", j.id);
