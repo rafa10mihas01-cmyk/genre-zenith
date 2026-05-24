@@ -317,8 +317,36 @@ Deno.serve(async (req) => {
         bot_correlation_id: correlation_id ?? null,
         captured_at: new Date().toISOString(),
       });
+
+      // Espelha snapshot em campaign_eco_snapshots se: (a) existe campanha
+      // ativa para a faixa; (b) a playlist é uma managed_playlist do ecossistema.
+      // Falha silenciosa — nunca bloqueia ingestão principal.
+      if (ecoCampaignId && sId) {
+        try {
+          const { data: mp } = await supabase
+            .from("managed_playlists")
+            .select("id")
+            .eq("spotify_playlist_id", sId)
+            .maybeSingle();
+          if (mp?.id) {
+            await supabase
+              .from("campaign_eco_snapshots")
+              .upsert({
+                campaign_id: ecoCampaignId,
+                managed_playlist_id: mp.id,
+                spotify_playlist_id: sId,
+                plays_24h: plays24h,
+                plays_7d: plays7d,
+                plays_28d: plays28d,
+                source: snap.source ?? "spotify_for_artists",
+                correlation_id: correlation_id ?? null,
+              }, { onConflict: "campaign_id,managed_playlist_id,captured_at", ignoreDuplicates: true });
+          }
+        } catch (_) { /* silencia */ }
+      }
     }
   }
+
 
   // Se for baseline, persiste blacklist de playlists do deal.
   if (isBaseline) {
