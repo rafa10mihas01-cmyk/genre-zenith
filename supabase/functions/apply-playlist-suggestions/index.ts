@@ -66,16 +66,9 @@ Deno.serve(async (req) => {
     //    Descobre o owner via API pública, depois acha o token correspondente.
     let ownerId: string | null = null;
     try {
-      const { getSpotifyToken } = await import("../_shared/spotify.ts");
       const appToken = await getSpotifyToken();
-      const or = await fetch(
-        `https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}?fields=owner(id,display_name)`,
-        { headers: { Authorization: `Bearer ${appToken}` } },
-      );
-      if (or.ok) {
-        const oj = await or.json();
-        ownerId = oj?.owner?.id ?? null;
-      }
+      const meta = await getPlaylistMeta(pl.spotify_playlist_id, appToken);
+      ownerId = meta.owner_id;
     } catch { /* segue sem ownerId, cai no default */ }
 
     let token: string;
@@ -93,23 +86,20 @@ Deno.serve(async (req) => {
 
     // 4) POST /playlists/{id}/items — insere todas em bloco na posição 0 (topo)
     //    Spotify aceita até 100 URIs por chamada; nosso limit é 50.
-    const r = await fetch(`https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}/items`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ uris, position: 0 }),
-    });
-    const txt = await r.text();
-    if (!r.ok) {
-      const hint = r.status === 403
-        ? ` — dono da playlist é "${ownerId ?? "?"}"; reconecte essa conta em Configurações com escopos playlist-modify-public/private.`
-        : "";
-      return jr({ ok: false, error: `Spotify ${r.status}: ${txt.slice(0, 300)}${hint}` }, 502);
-    }
     let snapshot: string | null = null;
-    try { snapshot = JSON.parse(txt)?.snapshot_id ?? null; } catch { /* ignore */ }
+    try {
+      const res = await addPlaylistTracks(pl.spotify_playlist_id, uris, token, { position: 0 });
+      snapshot = res.snapshot_id ?? null;
+    } catch (e) {
+      if (e instanceof SpotifyApiError) {
+        const hint = e.status === 403
+          ? ` — dono da playlist é "${ownerId ?? "?"}"; reconecte essa conta em Configurações com escopos playlist-modify-public/private.`
+          : "";
+        return jr({ ok: false, error: `Spotify ${e.status}: ${e.body.slice(0, 300)}${hint}` }, 502);
+      }
+      throw e;
+    }
+
 
     // 5) Log
     await supabase.from("collection_logs").insert({
