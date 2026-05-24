@@ -12,7 +12,10 @@ export type MonitoredPlaylist = {
   status: "Nova" | "Crescendo" | "Destaque" | "Estável";
   source?: "curator" | "engine";
   planned?: number;
+  plays_24h?: number | null;
+  plays_7d?: number | null;
 };
+
 
 function formatPlays(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(Number(n))) return "0";
@@ -118,20 +121,24 @@ export function MonitoredPlaylistsCard({ playlists }: { playlists: MonitoredPlay
                       </span>
                     </div>
                   </div>
-                  <div className="text-right shrink-0">
+                  <div className="text-right shrink-0 space-y-1">
                     {p.delivered > 0 ? (
                       <>
                         <div className="text-[14px] font-semibold tabular-nums text-foreground leading-none">
                           +{formatPlays(p.delivered)}
                         </div>
-                        <div className="text-[9px] uppercase tracking-wider text-muted-foreground mt-1">entregues</div>
+                        <div className="text-[9px] uppercase tracking-wider text-muted-foreground">entregues</div>
                       </>
                     ) : (
-                      <div className="text-[10.5px] text-muted-foreground/80 italic leading-snug max-w-[120px]">
-                        Aguardando primeiro print
-                      </div>
+                      <div className="text-[14px] font-semibold tabular-nums text-muted-foreground/70 leading-none">—</div>
                     )}
+                    <div className="flex items-center justify-end gap-2 pt-0.5 text-[10px] tabular-nums text-muted-foreground">
+                      <span>24h: <span className="text-foreground/80">{p.plays_24h != null ? formatPlays(p.plays_24h) : "—"}</span></span>
+                      <span className="text-border">·</span>
+                      <span>7d: <span className="text-foreground/80">{p.plays_7d != null ? formatPlays(p.plays_7d) : "—"}</span></span>
+                    </div>
                   </div>
+
                 </div>
               </li>
             );
