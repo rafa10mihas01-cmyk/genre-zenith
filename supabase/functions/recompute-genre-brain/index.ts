@@ -12,6 +12,7 @@
 
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -31,8 +32,10 @@ function clamp01(x: number) { return Math.max(0, Math.min(1, x)); }
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  const startedAt = Date.now();
   let body: { genre_id?: string } = {};
   try { body = await req.json(); } catch { /* ok */ }
+  const isCron = !body.genre_id;
 
   const sb = createClient(SUPABASE_URL, SERVICE_KEY);
 
@@ -178,5 +181,13 @@ Deno.serve(async (req) => {
     results.push({ genre_id: g.id, knowledge_score: row.knowledge_score });
   }
 
+  if (isCron) {
+    await reportCronHealth(sb, {
+      job_name: "recompute-genre-brain",
+      status: "ok",
+      startedAt,
+      metrics: { processed, total_genres: genres.length },
+    });
+  }
   return jr({ ok: true, processed, results });
 });

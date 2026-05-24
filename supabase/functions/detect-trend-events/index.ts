@@ -7,11 +7,13 @@
 //  - leadership_score +25% em 7d → leader_rising; -25% → leader_falling
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { reportCronHealth } from '../_shared/cron-health.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  const startedAt = Date.now();
+  const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
   try {
-    const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
     const events: any[] = [];
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 86400000).toISOString();
@@ -120,10 +122,22 @@ Deno.serve(async (req) => {
       if (ie) throw ie;
     }
 
+    await reportCronHealth(sb, {
+      job_name: "detect-trend-events",
+      status: "ok",
+      startedAt,
+      metrics: { events: clean.length },
+    });
     return new Response(JSON.stringify({ ok: true, events: clean.length }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
+    await reportCronHealth(sb, {
+      job_name: "detect-trend-events",
+      status: "error",
+      startedAt,
+      message: String((e as Error).message),
+    });
     return new Response(JSON.stringify({ error: String((e as Error).message) }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

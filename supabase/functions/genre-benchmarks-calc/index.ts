@@ -4,6 +4,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -139,6 +140,7 @@ Deno.serve(async (req) => {
     }
 
     if (body?.batch === true) {
+      const startedAt = Date.now();
       const { data: genres } = await supabase
         .from("playlists")
         .select("genre_id")
@@ -147,10 +149,17 @@ Deno.serve(async (req) => {
         .not("genre_id", "is", null);
       const uniq = Array.from(new Set((genres ?? []).map((g: any) => g.genre_id)));
       const results: any[] = [];
+      let errCount = 0;
       for (const gid of uniq) {
         try { results.push(await calcOne(supabase, gid)); }
-        catch (e) { results.push({ genre_id: gid, error: (e as Error).message }); }
+        catch (e) { results.push({ genre_id: gid, error: (e as Error).message }); errCount++; }
       }
+      await reportCronHealth(supabase, {
+        job_name: "genre-benchmarks-calc",
+        status: errCount === 0 ? "ok" : (errCount === results.length ? "error" : "partial"),
+        startedAt,
+        metrics: { processed: results.length, errors: errCount },
+      });
       return jr({ ok: true, mode: "batch", processed: results.length, results });
     }
 
