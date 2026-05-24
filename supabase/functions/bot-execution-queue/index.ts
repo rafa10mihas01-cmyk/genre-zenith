@@ -1,8 +1,12 @@
 // bot-execution-queue — Devolve fila de execução (add/remove track em playlist).
+// Jobs do tipo `playlist.track.reorder` são executados INLINE aqui (chamando
+// a Web API do Spotify via reorderPlaylistTracks) e NÃO são entregues ao bot.
 // Auth: header x-bot-key (compara com env BOT_API_KEY).
 // GET ?limit=3
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { reportCronHealth } from "../_shared/cron-health.ts";
+import { reorderPlaylistTracks, listPlaylistTrackUris } from "../_shared/spotify-playlist.ts";
+import { getSpotifyToken, getUserAccessToken } from "../_shared/spotify.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -49,20 +53,88 @@ Deno.serve(async (req) => {
     .eq("status", "claimed")
     .lt("lease_expires_at", nowIso);
 
+  const lease = new Date(Date.now() + LEASE_MS).toISOString();
+
+  // ============= 1) REORDER: executa inline e marca done/failed antes do dispatch =============
+  const { data: reorderJobs } = await supabase
+    .from("playlist_execution_jobs")
+    .select("id, playlist_id, spotify_playlist_id, spotify_track_id, from_position, to_position, attempts, max_attempts")
+    .eq("status", "pending")
+    .eq("job_type", "playlist.track.reorder")
+    .lte("scheduled_for", nowIso)
+    .order("scheduled_for", { ascending: true })
+    .limit(10);
+
+  let reorderDone = 0, reorderFailed = 0;
+  for (const j of (reorderJobs ?? []) as any[]) {
+    // claim
+    const { data: claimedRow } = await supabase
+      .from("playlist_execution_jobs")
+      .update({ status: "claimed", claimed_by: workerId, claimed_at: nowIso, lease_expires_at: lease, attempts: (j.attempts ?? 0) + 1 })
+      .eq("id", j.id).eq("status", "pending")
+      .select("id").maybeSingle();
+    if (!claimedRow) continue;
+
+    try {
+      // descobre dono pra pegar token user
+      let ownerId: string | null = null;
+      const appToken = await getSpotifyToken();
+      const or = await fetch(
+        `https://api.spotify.com/v1/playlists/${j.spotify_playlist_id}?fields=owner(id)`,
+        { headers: { Authorization: `Bearer ${appToken}` } },
+      );
+      if (or.ok) ownerId = (await or.json())?.owner?.id ?? null;
+      const { token } = await getUserAccessToken(ownerId ?? undefined);
+
+      // valida posições e calcula insert_before pro endpoint do Spotify
+      const uris = await listPlaylistTrackUris(token, j.spotify_playlist_id);
+      const total = uris.length;
+      const from0 = Number(j.from_position) - 1;
+      const to0 = Number(j.to_position) - 1;
+      if (from0 < 0 || from0 >= total) throw new Error(`from_position fora da faixa (total=${total})`);
+      if (to0 < 0 || to0 >= total) throw new Error(`to_position fora da faixa (total=${total})`);
+      // valida que a faixa na from_position é mesmo a esperada (best-effort)
+      const expectedUri = `spotify:track:${j.spotify_track_id}`;
+      if (uris[from0] && uris[from0] !== expectedUri) {
+        throw new Error(`faixa em from_position=${j.from_position} não é a esperada (snapshot dessincronizado)`);
+      }
+      // insert_before: se for pra frente (to > from) usa to0+1; pra trás usa to0.
+      const insertBefore = to0 > from0 ? to0 + 1 : to0;
+      await reorderPlaylistTracks(token, j.spotify_playlist_id, from0, insertBefore, 1);
+
+      await supabase.from("playlist_execution_jobs")
+        .update({ status: "done", completed_at: new Date().toISOString(), last_error: null })
+        .eq("id", j.id);
+      reorderDone++;
+    } catch (e) {
+      const msg = (e as Error).message ?? String(e);
+      const nextStatus = ((j.attempts ?? 0) + 1) >= (j.max_attempts ?? 3) ? "failed" : "pending";
+      await supabase.from("playlist_execution_jobs")
+        .update({ status: nextStatus, last_error: msg, claimed_by: null, claimed_at: null, lease_expires_at: null })
+        .eq("id", j.id);
+      reorderFailed++;
+    }
+  }
+
+  // ============= 2) ADD/REMOVE: dispatch normal pro bot =============
   // Busca candidatos (com JOIN em playlists para pegar o nome)
   const { data: candidates, error: selErr } = await supabase
     .from("playlist_execution_jobs")
     .select("id, job_type, allocation_id, campaign_id, playlist_id, spotify_playlist_id, spotify_track_id, attempts, max_attempts, playlists(name)")
     .eq("status", "pending")
+    .in("job_type", ["playlist.track.add", "playlist.track.remove"])
     .lte("scheduled_for", nowIso)
     .order("scheduled_for", { ascending: true })
     .limit(limit);
 
   if (selErr) return jr({ error: selErr.message }, 500);
-  if (!candidates || candidates.length === 0) return jr({ ok: true, count: 0, queue: [] });
+  if (!candidates || candidates.length === 0) {
+    return jr({ ok: true, count: 0, queue: [], reorder: { done: reorderDone, failed: reorderFailed } });
+  }
+
 
   const ids = candidates.map((c: any) => c.id);
-  const lease = new Date(Date.now() + LEASE_MS).toISOString();
+
 
   // Marca claimed e gera correlation_id
   const updates = candidates.map((c: any) => ({

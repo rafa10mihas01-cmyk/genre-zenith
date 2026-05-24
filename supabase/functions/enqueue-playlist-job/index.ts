@@ -1,5 +1,7 @@
-// enqueue-playlist-job — cria um job manual de add/remove de faixa em uma playlist gerenciada.
-// Body: { playlist_id: uuid, spotify_track_id: string, action: 'add' | 'remove' }
+// enqueue-playlist-job — cria um job manual de add/remove/reorder de faixa em playlist gerenciada.
+// Body:
+//   { playlist_id, spotify_track_id, action: 'add' | 'remove' }
+//   { playlist_id, spotify_track_id, action: 'reorder', from_position, to_position }  // 1-indexed
 // Auth: usuário autenticado com role admin/curador (has_team_access).
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -42,10 +44,22 @@ Deno.serve(async (req) => {
   const trackId = extractTrackId(String(body?.spotify_track_id ?? ""));
 
   if (!playlist_id) return jr({ error: "playlist_id obrigatório" }, 400);
-  if (action !== "add" && action !== "remove") {
-    return jr({ error: "action deve ser 'add' ou 'remove'" }, 400);
+  if (action !== "add" && action !== "remove" && action !== "reorder") {
+    return jr({ error: "action deve ser 'add', 'remove' ou 'reorder'" }, 400);
   }
   if (!trackId) return jr({ error: "spotify_track_id inválido (cole URL, URI ou ID de 22 chars)" }, 400);
+
+  let fromPosition: number | null = null;
+  let toPosition: number | null = null;
+  if (action === "reorder") {
+    const fp = Number(body?.from_position);
+    const tp = Number(body?.to_position);
+    if (!Number.isInteger(fp) || fp < 1) return jr({ error: "from_position inválido (>=1)" }, 400);
+    if (!Number.isInteger(tp) || tp < 1) return jr({ error: "to_position inválido (>=1)" }, 400);
+    if (fp === tp) return jr({ error: "from_position e to_position são iguais" }, 400);
+    fromPosition = fp;
+    toPosition = tp;
+  }
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
@@ -57,10 +71,13 @@ Deno.serve(async (req) => {
   if (plErr) return jr({ error: plErr.message }, 500);
   if (!pl?.spotify_playlist_id) return jr({ error: "playlist não encontrada" }, 404);
 
-  const job_type = action === "add" ? "playlist.track.add" : "playlist.track.remove";
-  // Inclui timestamp pra permitir múltiplos jobs do mesmo tipo na mesma faixa ao longo do tempo
-  // (o índice único parcial só bloqueia jobs abertos com mesma chave).
-  const dedupe_key = `${action}:${pl.spotify_playlist_id}:${trackId}:manual:${Date.now()}`;
+  const job_type =
+    action === "add" ? "playlist.track.add"
+    : action === "remove" ? "playlist.track.remove"
+    : "playlist.track.reorder";
+
+  const posSuffix = action === "reorder" ? `:${fromPosition}->${toPosition}` : "";
+  const dedupe_key = `${action}:${pl.spotify_playlist_id}:${trackId}${posSuffix}:manual:${Date.now()}`;
 
   const { data: inserted, error: insErr } = await supabase
     .from("playlist_execution_jobs")
@@ -69,6 +86,8 @@ Deno.serve(async (req) => {
       playlist_id: pl.id,
       spotify_playlist_id: pl.spotify_playlist_id,
       spotify_track_id: trackId,
+      from_position: fromPosition,
+      to_position: toPosition,
       dedupe_key,
       status: "pending",
       metadata: { source: "manual_ui", actor: guard.via === "user" ? guard.userId ?? null : "service_role" },

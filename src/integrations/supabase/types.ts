@@ -5108,6 +5108,7 @@ export type Database = {
           correlation_id: string | null
           created_at: string
           dedupe_key: string
+          from_position: number | null
           id: string
           job_type: string
           last_error: string | null
@@ -5119,6 +5120,7 @@ export type Database = {
           spotify_playlist_id: string
           spotify_track_id: string
           status: string
+          to_position: number | null
           updated_at: string
         }
         Insert: {
@@ -5131,6 +5133,7 @@ export type Database = {
           correlation_id?: string | null
           created_at?: string
           dedupe_key: string
+          from_position?: number | null
           id?: string
           job_type?: string
           last_error?: string | null
@@ -5142,6 +5145,7 @@ export type Database = {
           spotify_playlist_id: string
           spotify_track_id: string
           status?: string
+          to_position?: number | null
           updated_at?: string
         }
         Update: {
@@ -5154,6 +5158,7 @@ export type Database = {
           correlation_id?: string | null
           created_at?: string
           dedupe_key?: string
+          from_position?: number | null
           id?: string
           job_type?: string
           last_error?: string | null
@@ -5165,6 +5170,7 @@ export type Database = {
           spotify_playlist_id?: string
           spotify_track_id?: string
           status?: string
+          to_position?: number | null
           updated_at?: string
         }
         Relationships: [
