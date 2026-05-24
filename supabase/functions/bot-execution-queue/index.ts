@@ -53,6 +53,8 @@ Deno.serve(async (req) => {
     .eq("status", "claimed")
     .lt("lease_expires_at", nowIso);
 
+  const lease = new Date(Date.now() + LEASE_MS).toISOString();
+
   // ============= 1) REORDER: executa inline e marca done/failed antes do dispatch =============
   const { data: reorderJobs } = await supabase
     .from("playlist_execution_jobs")
