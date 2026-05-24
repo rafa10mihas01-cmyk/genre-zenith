@@ -169,6 +169,7 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
     setNotes(d.notes ?? "");
     setClientId((d as any).clientId ?? "");
     setCuratorId((d as any).curatorId ?? "");
+    setCampaignType(((d as any).campaignType as "ecosystem" | "external" | "hybrid") ?? "hybrid");
     setValorCobradoDigits((d as any).valorCobradoDigits ?? "");
     setFormaRecebimento((d as any).formaRecebimento ?? "");
     setJaRecebido(Boolean((d as any).jaRecebido));
