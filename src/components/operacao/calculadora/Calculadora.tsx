@@ -812,6 +812,11 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     </div>
                   )}
 
+                  {active.track?.id && (
+                    <TrackPresencePanel spotifyTrackId={active.track.id} />
+                  )}
+
+
                   <div className="space-y-1.5 pt-1">
                     <Label className="text-xs flex items-center justify-between">
                       <span>Streams/dia atuais <span className="text-destructive">*</span></span>
