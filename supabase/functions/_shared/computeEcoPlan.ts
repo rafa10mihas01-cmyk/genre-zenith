@@ -136,6 +136,7 @@ export type Alloc = {
   planned_streams: number;
   start_day: number;
   status?: string;
+  position?: number | null;
   managed_playlists?: {
     id?: string;
     name?: string;
