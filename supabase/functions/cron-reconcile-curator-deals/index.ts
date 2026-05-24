@@ -2,6 +2,7 @@
 // como ÚNICA fonte de verdade. Não recalcula nada manualmente — apenas
 // persiste o resultado oficial em curator_deals e dispara milestones.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
