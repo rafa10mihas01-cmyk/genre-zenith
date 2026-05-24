@@ -31,6 +31,7 @@ async function fetchMeta(token: string, id: string) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const startedAt = Date.now();
   const guard = await requireTeamAccess(req);
   if (!guard.ok) return guard.resp;
 
