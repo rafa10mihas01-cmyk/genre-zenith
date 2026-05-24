@@ -23,6 +23,12 @@ Deno.serve(async (req) => {
   const { data: stuck, error } = await supabase.rpc("recover_stuck_print_batches");
   if (error) {
     console.error("rpc recover failed", error);
+    await reportCronHealth(supabase, {
+      job_name: "cron-recover-print-batches",
+      status: "error",
+      startedAt: t0,
+      message: error.message,
+    });
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
