@@ -19,7 +19,6 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useCampaigns, type Campaign } from "@/hooks/useCampaigns";
-import { NewCampaignDialog } from "@/components/campanhas/NewCampaignDialog";
 
 
 const STATUS_TONE: Record<string, "success" | "warning" | "neutral" | "danger"> = {
@@ -39,7 +38,6 @@ export default function Campanhas() {
   const { items, loading, recalcAll } = useCampaigns();
   const [filter, setFilter] = useState<"all" | "active" | "draft" | "completed">("all");
   const [tab, setTab] = useState<"lista" | "financeiro">("financeiro");
-  const [newOpen, setNewOpen] = useState(false);
 
   const filtered = useMemo(
     () => filter === "all" ? items : items.filter(i => i.status === filter),
@@ -77,19 +75,14 @@ export default function Campanhas() {
         manualKey="campanhas"
 
         actions={
-          <>
-            <Button onClick={() => setNewOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Nova Campanha
+          tab === "lista" ? (
+            <Button variant="outline" onClick={doRecalcAll} disabled={recalcAll.isPending}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${recalcAll.isPending ? "animate-spin" : ""}`} />
+              Recalcular
             </Button>
-            {tab === "lista" && (
-              <Button variant="outline" onClick={doRecalcAll} disabled={recalcAll.isPending}>
-                <RefreshCw className={`h-4 w-4 mr-2 ${recalcAll.isPending ? "animate-spin" : ""}`} />
-                Recalcular
-              </Button>
-            )}
-          </>
+          ) : undefined
         }
+
 
 
       />
