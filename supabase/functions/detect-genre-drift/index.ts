@@ -4,6 +4,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { recencyWeight } from "../_shared/recency.ts";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -94,8 +95,9 @@ async function scorePlaylist(
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const startedAt = Date.now();
+  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
   try {
-    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const limit = Number(body.limit ?? 200);
     const onlyPlaylist: string | undefined = body.playlist_id;
@@ -184,10 +186,22 @@ Deno.serve(async (req) => {
       }
     }
 
+    await reportCronHealth(supabase, {
+      job_name: "detect-genre-drift",
+      status: "ok",
+      startedAt,
+      metrics: stats,
+    });
     return new Response(JSON.stringify({ ok: true, stats, switches: switches.slice(0, 20) }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    await reportCronHealth(supabase, {
+      job_name: "detect-genre-drift",
+      status: "error",
+      startedAt,
+      message: String(e),
+    });
     return new Response(JSON.stringify({ ok: false, error: String(e) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -3,6 +3,7 @@
 // method='manual' tem prioridade e nunca é sobrescrito por lexicon puro.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -34,8 +35,10 @@ function orderPair(a: string, b: string): [string, string] {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  const startedAt = Date.now();
+  const sb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
   try {
-    const sb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+
 
     // 1) Carrega gêneros ativos + brain
     const { data: genres, error: gErr } = await sb
@@ -168,16 +171,28 @@ Deno.serve(async (req) => {
       }
     }
 
-    return jr({
-      ok: true,
+    const metrics = {
       computed: rows.length,
       persisted: filtered.length,
       manual_seeds: seedMap.size,
       with_lexicon: rows.filter(r => r.lexicon_score > 0).length,
+    };
+    await reportCronHealth(sb, {
+      job_name: "compute-genre-affinities",
+      status: "ok",
+      startedAt,
+      metrics,
     });
+    return jr({ ok: true, ...metrics });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("compute-genre-affinities error", msg);
+    await reportCronHealth(sb, {
+      job_name: "compute-genre-affinities",
+      status: "error",
+      startedAt,
+      message: msg,
+    });
     return jr({ ok: false, error: msg }, 500);
   }
 });

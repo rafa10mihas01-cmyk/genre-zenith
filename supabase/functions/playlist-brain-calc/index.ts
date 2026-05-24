@@ -11,6 +11,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
 import { buildRoadmap, derivePhase } from "../_shared/lifecycle.ts";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -536,38 +537,54 @@ Deno.serve(async (req) => {
 
     // Modo batch (cron)
     if (body?.batch === true) {
-      const { data: managedRows, error: mErr } = await supabase
-        .from("managed_playlists")
-        .select("id, canonical_playlist_id, spotify_playlist_id, archived_at")
-        .is("archived_at", null);
-      if (mErr) throw new Error(mErr.message);
+      const startedAt = Date.now();
+      try {
+        const { data: managedRows, error: mErr } = await supabase
+          .from("managed_playlists")
+          .select("id, canonical_playlist_id, spotify_playlist_id, archived_at")
+          .is("archived_at", null);
+        if (mErr) throw new Error(mErr.message);
 
-      const list = (managedRows ?? []).map((row: any) => ({
-        id: row.canonical_playlist_id ?? row.id,
-      }));
+        const list = (managedRows ?? []).map((row: any) => ({
+          id: row.canonical_playlist_id ?? row.id,
+        }));
 
-      const limit = Math.min(body?.limit ?? 200, 500);
-      const subset = (list ?? []).slice(0, limit);
+        const limit = Math.min(body?.limit ?? 200, 500);
+        const subset = (list ?? []).slice(0, limit);
 
-      const results: any[] = [];
-      const errors: any[] = [];
-      // Paralelismo controlado: 8 por vez
-      const CONCURRENCY = 8;
-      for (let i = 0; i < subset.length; i += CONCURRENCY) {
-        const chunk = subset.slice(i, i + CONCURRENCY);
-        const settled = await Promise.allSettled(chunk.map((p) => calcOne(supabase, p.id)));
-        settled.forEach((s, idx) => {
-          if (s.status === "fulfilled") results.push(s.value);
-          else errors.push({ playlist_id: chunk[idx].id, error: s.reason?.message ?? String(s.reason) });
+        const results: any[] = [];
+        const errors: any[] = [];
+        const CONCURRENCY = 8;
+        for (let i = 0; i < subset.length; i += CONCURRENCY) {
+          const chunk = subset.slice(i, i + CONCURRENCY);
+          const settled = await Promise.allSettled(chunk.map((p) => calcOne(supabase, p.id)));
+          settled.forEach((s, idx) => {
+            if (s.status === "fulfilled") results.push(s.value);
+            else errors.push({ playlist_id: chunk[idx].id, error: s.reason?.message ?? String(s.reason) });
+          });
+        }
+        await reportCronHealth(supabase, {
+          job_name: "playlist-brain-calc",
+          status: errors.length > 0 ? "partial" : "ok",
+          startedAt,
+          metrics: { processed: results.length, errors_count: errors.length, total: subset.length },
         });
+        return jr({
+          ok: true,
+          mode: "batch",
+          processed: results.length,
+          errors_count: errors.length,
+          errors: errors.slice(0, 10),
+        });
+      } catch (e) {
+        await reportCronHealth(supabase, {
+          job_name: "playlist-brain-calc",
+          status: "error",
+          startedAt,
+          message: (e as Error).message,
+        });
+        throw e;
       }
-      return jr({
-        ok: true,
-        mode: "batch",
-        processed: results.length,
-        errors_count: errors.length,
-        errors: errors.slice(0, 10),
-      });
     }
 
     return jr({ ok: false, error: "informe playlist_id ou batch:true" }, 400);
