@@ -54,10 +54,13 @@ export function CampaignFullPlanCard({
   shareToken,
   showShare = true,
   track = null,
+  campaignId,
+  onPositionsRedistributed,
 }: Props) {
   const [showZeros, setShowZeros] = useState(false);
   const [mode, setMode] = useState<"diario" | "acumulado">("acumulado");
   const [copied, setCopied] = useState(false);
+  const [redistributing, setRedistributing] = useState(false);
 
   function copyShareLink() {
     if (!shareToken) return;
