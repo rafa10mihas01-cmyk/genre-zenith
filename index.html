@@ -26,6 +26,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <style>
+      /* Pinta o fundo imediato no primeiro byte para evitar flash branco
+         enquanto o CSS principal e o chunk da rota ainda baixam. */
+      html, body { background-color: #050505; color: #fff; margin: 0; }
+      #root { min-height: 100vh; background-color: #050505; }
+    </style>
   </head>
   <body>
     <div id="root"></div>
