@@ -31,7 +31,7 @@ import { FeatureFlagsPanel } from "@/components/sistema/FeatureFlagsPanel";
 
 type SistemaTab = "visao-geral" | "motores" | "avancado" | "configuracoes";
 type MotorSub = "robo" | "coleta" | "execucao";
-type AvancadoSub = "aprendizado" | "seo" | "infra";
+type AvancadoSub = "aprendizado" | "seo" | "infra" | "flags";
 
 type TabDef = { id: SistemaTab; label: string; icon: typeof Activity; adminOnly?: boolean };
 
