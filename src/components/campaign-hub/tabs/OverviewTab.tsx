@@ -275,7 +275,7 @@ export function OverviewTab({
                 média {formatInt(snapshot.mediaPorDia)}/dia · pico {formatInt(snapshot.picoPorDia)}
               </div>
             </div>
-            <MiniCurva curva={snapshot.curva} elapsedDays={daysElapsed} />
+            <MiniCurva curva={curva} elapsedDays={daysElapsed} />
             {onJumpTab && !hideCurveShortcut && (
               <div className="mt-3 text-right">
                 <Button variant="ghost" size="sm" onClick={() => onJumpTab("curve")} className="h-7 text-xs">
