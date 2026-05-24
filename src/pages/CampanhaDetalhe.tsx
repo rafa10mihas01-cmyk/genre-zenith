@@ -149,6 +149,11 @@ export default function CampanhaDetalhe() {
             <Button variant="outline" onClick={recalc} disabled={busy}>
               <RefreshCw className={`h-4 w-4 mr-2 ${busy ? "animate-spin" : ""}`} /> Recalcular
             </Button>
+            {!camp.plan_approved_at && (
+              <Button onClick={approvePlan} disabled={busy}>
+                <CheckCircle2 className="h-4 w-4 mr-2" /> Aprovar plano
+              </Button>
+            )}
             <Select value={camp.status} onValueChange={updateStatus}>
               <SelectTrigger className="h-9 w-36"><SelectValue /></SelectTrigger>
               <SelectContent>
