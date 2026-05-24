@@ -30,7 +30,9 @@ import DealDetail from "./pages/DealDetail";
 import CuradorDetail from "./pages/CuradorDetail";
 import CompararCuradores from "./pages/CompararCuradores";
 import CuratorPage from "./pages/CuratorPage";
-import ClientCampaignPage from "./pages/ClientCampaignPage";
+// ClientCampaignPage (portal antigo /campanha/:token) foi aposentado.
+// Mantido em disco por 30 dias como fallback — o router agora usa LegacyCampaignRedirect.
+import LegacyCampaignRedirect from "./pages/LegacyCampaignRedirect";
 import CuradoriaPreview from "./pages/CuradoriaPreview";
 import Sistema from "./pages/Sistema";
 
@@ -97,7 +99,7 @@ const App = () => (
               <Route path="/spotify/callback/:slug" element={<SpotifyCallback />} />
               <Route path="/spotify/invite/:token" element={<SpotifyInvite />} />
               <Route path="/curador/:token" element={<CuratorPage />} />
-              <Route path="/campanha/:token" element={<ClientCampaignPage />} />
+              <Route path="/campanha/:token" element={<LegacyCampaignRedirect />} />
               <Route path="/p/plano/:token" element={<PlanoCampanhaPublico />} />
               {/* Comunidade — beta fechado por convite. Membro não usa AppLayout. */}
               <Route path="/comunidade/join/:code" element={<JoinInvite />} />
