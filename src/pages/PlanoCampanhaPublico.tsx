@@ -93,6 +93,7 @@ export default function PlanoCampanhaPublico() {
   const [tab, setTab] = useState<CampaignHubTabId>("overview");
   const [livePlaylists, setLivePlaylists] = useState<MonitoredPlaylist[]>([]);
   const [snapshotHistory, setSnapshotHistory] = useState<PrintsHistoryEntry[]>([]);
+  const [evolutionSeries, setEvolutionSeries] = useState<EvolutionSeriesPoint[]>([]);
 
   const [approveOpen, setApproveOpen] = useState(false);
   const [approverName, setApproverName] = useState("");
