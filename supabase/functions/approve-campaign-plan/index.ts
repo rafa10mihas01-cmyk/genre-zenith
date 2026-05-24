@@ -217,9 +217,10 @@ Deno.serve(async (req) => {
   // curator_playlists do deal-shadow. Sem isso, o bot DOM coleta e descarta
   // tudo como "no_match" e campaign_eco_snapshots nunca recebe linha.
   let seeded_playlists = 0;
+  let seed_debug: any = null;
   if (newDealId) {
     try {
-      const { data: ecoAllocs } = await admin
+      const { data: ecoAllocs, error: allocErr } = await admin
         .from("campaign_eco_allocations")
         .select("managed_playlist_id, managed_playlists!inner(spotify_playlist_id,name)")
         .eq("campaign_id", campaignId);
@@ -250,6 +251,7 @@ Deno.serve(async (req) => {
         })
         .filter(Boolean);
 
+      let seedErrMsg: string | null = null;
       if (rows.length > 0) {
         // deno-lint-ignore no-explicit-any
         const { error: seedErr } = await admin
@@ -259,9 +261,17 @@ Deno.serve(async (req) => {
             ignoreDuplicates: true,
           });
         if (!seedErr) seeded_playlists = rows.length;
+        else seedErrMsg = seedErr.message;
       }
-    } catch (_e) {
-      // Não bloqueia aprovação se seed falhar — log silencioso.
+      seed_debug = {
+        alloc_count: ecoAllocs?.length ?? 0,
+        alloc_err: allocErr?.message ?? null,
+        song_id: songId,
+        rows_built: rows.length,
+        seed_err: seedErrMsg,
+      };
+    } catch (e) {
+      seed_debug = { exception: String((e as any)?.message ?? e) };
     }
   }
 
@@ -271,6 +281,7 @@ Deno.serve(async (req) => {
     deal_created: !!newDealId,
     deal_id: newDealId,
     seeded_playlists,
+    seed_debug,
     flag_on: true,
   });
 });
