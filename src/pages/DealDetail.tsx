@@ -37,27 +37,22 @@ export default function DealDetail() {
   const { dealId } = useParams<{ dealId: string }>();
   const navigate = useNavigate();
   const {
-    deals,
+    deal,
     logs,
     playlists,
     songs,
-    progressByDeal,
+    progress,
     loading,
     reload,
-  } = useCuratorDeals();
+  } = useCuratorDealDetail(dealId);
 
-  const deal = deals.find((d) => d.id === dealId) ?? null;
   const back = () => navigate("/playlist-deals");
 
   const stats = useMemo(() => {
     if (!deal) return null;
-    return computeCuratorStats(
-      deal,
-      logs.filter((l) => l.deal_id === deal.id),
-      playlists.filter((p) => p.deal_id === deal.id),
-      progressByDeal[deal.id] ?? null,
-    );
-  }, [deal, logs, playlists, progressByDeal]);
+    return computeCuratorStats(deal, logs, playlists, progress);
+  }, [deal, logs, playlists, progress]);
+
 
   return (
     <PageContainer>
