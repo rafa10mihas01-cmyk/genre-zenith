@@ -11,8 +11,9 @@ import { reportCronHealth } from '../_shared/cron-health.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  const startedAt = Date.now();
+  const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
   try {
-    const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
     const events: any[] = [];
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 86400000).toISOString();
