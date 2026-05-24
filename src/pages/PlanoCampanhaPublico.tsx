@@ -27,6 +27,7 @@ import { SpreadsheetUploadCard } from "@/components/client-portal/SpreadsheetUpl
 import { MonitoredPlaylistsCard, type MonitoredPlaylist } from "@/components/client-portal/MonitoredPlaylistsCard";
 import { PrintsHistoryCard, type PrintsHistoryEntry } from "@/components/client-portal/PrintsHistoryCard";
 import type { CampaignHubCampaign, CampaignHubTabId, EcoAllocation } from "@/components/campaign-hub/types";
+import { EvolutionChart, type EvolutionSeriesPoint } from "@/components/client-portal/EvolutionChart";
 
 type EcoSnap = {
   id: string;
@@ -92,6 +93,7 @@ export default function PlanoCampanhaPublico() {
   const [tab, setTab] = useState<CampaignHubTabId>("overview");
   const [livePlaylists, setLivePlaylists] = useState<MonitoredPlaylist[]>([]);
   const [snapshotHistory, setSnapshotHistory] = useState<PrintsHistoryEntry[]>([]);
+  const [evolutionSeries, setEvolutionSeries] = useState<EvolutionSeriesPoint[]>([]);
 
   const [approveOpen, setApproveOpen] = useState(false);
   const [approverName, setApproverName] = useState("");
@@ -136,10 +138,11 @@ export default function PlanoCampanhaPublico() {
         body: { client_token: clientToken },
       });
       if (cancelled || !data || (data as { ok?: boolean }).ok === false) return;
-      const payload = data as { playlists?: MonitoredPlaylist[]; snapshot_history?: PrintsHistoryEntry[]; snapshotHistory?: PrintsHistoryEntry[] };
+      const payload = data as { playlists?: MonitoredPlaylist[]; snapshot_history?: PrintsHistoryEntry[]; snapshotHistory?: PrintsHistoryEntry[]; series?: EvolutionSeriesPoint[] };
       setLivePlaylists(Array.isArray(payload.playlists) ? payload.playlists : []);
       const hist = payload.snapshot_history ?? payload.snapshotHistory ?? [];
       setSnapshotHistory(Array.isArray(hist) ? hist : []);
+      setEvolutionSeries(Array.isArray(payload.series) ? payload.series : []);
     })();
     return () => { cancelled = true; };
   }, [clientToken]);
@@ -416,6 +419,13 @@ export default function PlanoCampanhaPublico() {
                   snapshots={snaps}
                   stage={isApproved ? "live" : isRejected ? "rejected" : "approval"}
                 />
+                {isApproved && evolutionSeries.length > 1 && (
+                  <EvolutionChart
+                    series={evolutionSeries}
+                    target={snapshot.meta}
+                    pct={snapshot.meta > 0 ? Math.min(100, Math.round((delivered / snapshot.meta) * 100)) : 0}
+                  />
+                )}
                 <OverviewTab
                   snapshot={snapshot}
                   delivered={delivered}
