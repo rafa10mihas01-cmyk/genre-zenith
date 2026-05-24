@@ -13,6 +13,7 @@ type EcoAlloc = {
   id: string;
   planned_streams: number;
   start_day: number;
+  position?: number | null;
   managed_playlists?: {
     name: string;
     cover_url: string | null;
