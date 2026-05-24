@@ -88,8 +88,9 @@ Deno.serve(async (req) => {
 
       const { token } = await getUserAccessToken(ownerId);
 
-      // valida posições e calcula insert_before pro endpoint do Spotify
-      const uris = await listPlaylistTrackUris(j.spotify_playlist_id, token);
+      // listing usa app token (read-only, sem filtro de mercado por usuário)
+      const appToken = await getSpotifyToken();
+      const uris = await listPlaylistTrackUris(j.spotify_playlist_id, appToken);
       const total = uris.length;
       console.log(JSON.stringify({
         evt: "reorder.attempt",
