@@ -4,6 +4,7 @@
 // 2. Quando a mudança bate com o recommendation_kind, registra detected_at e captura streams_before_28d.
 // 3. Após 28 dias do detected_at, calcula streams_after_28d e dá veredito.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
