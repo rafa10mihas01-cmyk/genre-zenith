@@ -465,6 +465,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         clientId: clientId || null,
         curatorId: curatorId || null,
         status: "draft",
+        campaignType,
       });
       return { ok: true, campaignId, shortfall };
     } catch (e: any) {
