@@ -266,6 +266,16 @@ Deno.serve(async (req) => {
       }
     }
 
+    if (isCron) {
+      const errCount = results.filter((r: any) => r.error).length;
+      await reportCronHealth(supabase, {
+        job_name: "detect-curator-fraud",
+        status: errCount === 0 ? "ok" : (errCount === results.length ? "error" : "partial"),
+        startedAt,
+        metrics: { processed: results.length, errors: errCount },
+      });
+    }
+
     return new Response(JSON.stringify({ results, mode: isCron ? "cron" : "user" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
