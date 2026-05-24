@@ -101,10 +101,22 @@ Deno.serve(async (req) => {
     }
 
     const viralCount = rows.filter(r => r.bucket === "viral").length;
+    await reportCronHealth(sb, {
+      job_name: "compute-trend-velocity",
+      status: "ok",
+      startedAt,
+      metrics: { tracks: rows.length, viral: viralCount, snapshots: snaps.length, written },
+    });
     return new Response(JSON.stringify({
       ok: true, tracks: rows.length, viral: viralCount, snapshots: snaps.length,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
+    await reportCronHealth(sb, {
+      job_name: "compute-trend-velocity",
+      status: "error",
+      startedAt,
+      message: String(e),
+    });
     return new Response(JSON.stringify({ ok: false, error: String(e) }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
