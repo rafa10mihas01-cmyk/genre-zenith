@@ -289,15 +289,69 @@ Deno.serve(async (req) => {
       deliveredByPlaylist.set(String(p.playlist_id), Number(p.delivered ?? 0));
     }
 
-    const safePlaylists = playlistsFiltered.map((p) => {
+    const safePlaylists: AnyRec[] = playlistsFiltered.map((p) => {
       const grown = deliveredByPlaylist.get(String(p.id)) ?? 0;
       return {
         name: String(p.playlist_name ?? "Playlist"),
         image_url: (p.image_url as string) ?? null,
         delivered: grown,
         status: pickPlaylistStatus(p, grown),
+        source: "curator" as const,
       };
     });
+
+    // 5b) Playlists INTERNAS (NexEngine) — vindas de campaign_eco_allocations
+    // ligadas à campanha deste deal. Sem isso, o cliente não enxergava as
+    // playlists próprias onde a música foi inserida internamente.
+    try {
+      const { data: campRow } = await admin
+        .from("campaigns")
+        .select("id")
+        .eq("deal_id", dealId!)
+        .maybeSingle();
+      const campaignId = campRow?.id as string | undefined;
+      if (campaignId) {
+        const { data: ecoAllocs } = await admin
+          .from("campaign_eco_allocations")
+          .select("managed_playlist_id, planned_streams, status, managed_playlists(name, cover_url, followers)")
+          .eq("campaign_id", campaignId);
+        const ecoIds = (ecoAllocs ?? [])
+          .map((a: AnyRec) => String(a.managed_playlist_id ?? ""))
+          .filter(Boolean);
+        // Plays entregues por playlist: pega snapshot mais recente (28d > 7d > 24h)
+        const deliveredByEco = new Map<string, number>();
+        if (ecoIds.length > 0) {
+          const { data: snaps } = await admin
+            .from("campaign_eco_snapshots")
+            .select("managed_playlist_id, plays_24h, plays_7d, plays_28d, captured_at")
+            .eq("campaign_id", campaignId)
+            .in("managed_playlist_id", ecoIds)
+            .order("captured_at", { ascending: false })
+            .limit(500);
+          for (const s of (snaps ?? []) as AnyRec[]) {
+            const k = String(s.managed_playlist_id);
+            if (deliveredByEco.has(k)) continue;
+            deliveredByEco.set(
+              k,
+              Number(s.plays_28d ?? s.plays_7d ?? s.plays_24h ?? 0),
+            );
+          }
+        }
+        for (const a of (ecoAllocs ?? []) as AnyRec[]) {
+          const mp = (a.managed_playlists as AnyRec) ?? {};
+          const k = String(a.managed_playlist_id ?? "");
+          const grown = deliveredByEco.get(k) ?? 0;
+          safePlaylists.push({
+            name: String(mp.name ?? "Playlist Engine"),
+            image_url: (mp.cover_url as string) ?? null,
+            delivered: grown,
+            status: grown > 0 ? "Crescendo" : "Nova",
+            source: "engine" as const,
+            planned: Number(a.planned_streams ?? 0),
+          });
+        }
+      }
+    } catch (_) { /* não bloqueia o portal se isso falhar */ }
 
     const startedAt = (activeSong?.started_at as string | null)
       ?? (dealRow.started_at as string)
