@@ -185,6 +185,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
+  const startedAt = Date.now();
 
   try {
     let body: any = {};
@@ -205,17 +206,20 @@ Deno.serve(async (req) => {
 
     const results: ExpandStats[] = [];
     let totalInserted = 0;
+    let totalErrors = 0;
     for (const gid of genreIds) {
       try {
         const r = await expandGenre(supabase, gid, { minWinner, maxOwners, maxPerOwner });
         results.push(r);
         totalInserted += r.inserted;
+        totalErrors += r.errors;
       } catch (e) {
         console.error(`[expand] genre ${gid} failed:`, (e as Error).message);
         results.push({
           genre_id: gid, slug: "?", owners_processed: 0, playlists_fetched: 0,
           already_existed: 0, rejected_by_gate: 0, inserted: 0, errors: 1,
         });
+        totalErrors++;
       }
     }
 
@@ -226,15 +230,27 @@ Deno.serve(async (req) => {
         stats: { min_winner: minWinner, max_owners: maxOwners, max_per_owner: maxPerOwner, total_inserted: totalInserted, by_genre: results },
       });
     } catch (e) {
-      // Tabela pode não ter coluna "wave"; ignore silenciosamente
       console.warn("[expand] report log skipped:", (e as Error).message);
     }
+
+    await reportCronHealth(supabase, {
+      job_name: "expand-from-winners",
+      status: totalErrors === 0 ? "ok" : (totalInserted === 0 ? "error" : "partial"),
+      startedAt,
+      metrics: { total_inserted: totalInserted, genres: genreIds.length, errors: totalErrors },
+    });
 
     return new Response(JSON.stringify({ ok: true, total_inserted: totalInserted, by_genre: results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("[expand] fatal", e);
+    await reportCronHealth(supabase, {
+      job_name: "expand-from-winners",
+      status: "error",
+      startedAt,
+      message: String((e as Error).message),
+    });
     return new Response(JSON.stringify({ ok: false, error: String((e as Error).message) }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
