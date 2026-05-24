@@ -2,6 +2,7 @@
 // para os termos pendentes e re-analisa o modelo.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { requireTeamAccess } from "../_shared/auth.ts";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 import { deprecationGate } from "../_shared/_deprecation.ts";
 const corsHeaders = {
@@ -36,7 +37,6 @@ Deno.serve(async (req) => {
 
     for (const g of genres ?? []) {
       try {
-        // Buscar termos não executados (limit 3 por gênero por execução)
         const { data: terms } = await supabase
           .from("search_terms")
           .select("id")
@@ -57,7 +57,6 @@ Deno.serve(async (req) => {
           else summary.errors++;
         }
 
-        // Re-analisar modelo do gênero
         const a = await fetch(`${supabaseUrl}/functions/v1/analyze-genre`, {
           method: "POST",
           headers: {
@@ -81,6 +80,13 @@ Deno.serve(async (req) => {
       duracao_ms: Date.now() - startedAt,
     });
 
+    await reportCronHealth(supabase, {
+      job_name: "daily-collect",
+      status: summary.errors > 0 ? "partial" : "ok",
+      startedAt,
+      metrics: summary,
+    });
+
     return new Response(JSON.stringify({ ok: true, ...summary }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -90,6 +96,12 @@ Deno.serve(async (req) => {
       status: "erro",
       mensagem: `Cron falhou: ${e.message}`,
       duracao_ms: Date.now() - startedAt,
+    });
+    await reportCronHealth(supabase, {
+      job_name: "daily-collect",
+      status: "error",
+      startedAt,
+      message: e.message,
     });
     return new Response(JSON.stringify({ ok: false, error: e.message }), {
       status: 500,
