@@ -81,11 +81,24 @@ Deno.serve(async (req) => {
       alerts.push({ bot: hb.bot_name, hours });
     }
 
+    await reportCronHealth(supabase, {
+      job_name: "ops-alerts-cron-every-5min",
+      status: "ok",
+      startedAt,
+      metrics: { alerts_emitted: alerts.length },
+      message: `alerts=${alerts.length}`,
+    });
     return new Response(JSON.stringify({ ok: true, alerts }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("ops-alerts-cron error", e);
+    await reportCronHealth(supabase, {
+      job_name: "ops-alerts-cron-every-5min",
+      status: "error",
+      startedAt,
+      message: String(e),
+    });
     return new Response(JSON.stringify({ ok: false, error: String(e) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
