@@ -24,6 +24,8 @@ import { CampaignDailyPlan } from "@/components/campanhas/CampaignDailyPlan";
 import { distributeEcoPositions } from "@/lib/campaignOperationalPlan";
 import { ClientHeroCard } from "@/components/campaign-hub/ClientHeroCard";
 import { SpreadsheetUploadCard } from "@/components/client-portal/SpreadsheetUploadCard";
+import { MonitoredPlaylistsCard, type MonitoredPlaylist } from "@/components/client-portal/MonitoredPlaylistsCard";
+import { PrintsHistoryCard, type PrintsHistoryEntry } from "@/components/client-portal/PrintsHistoryCard";
 import type { CampaignHubCampaign, CampaignHubTabId, EcoAllocation } from "@/components/campaign-hub/types";
 
 type EcoSnap = {
@@ -88,6 +90,8 @@ export default function PlanoCampanhaPublico() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [tab, setTab] = useState<CampaignHubTabId>("overview");
+  const [livePlaylists, setLivePlaylists] = useState<MonitoredPlaylist[]>([]);
+  const [snapshotHistory, setSnapshotHistory] = useState<PrintsHistoryEntry[]>([]);
 
   const [approveOpen, setApproveOpen] = useState(false);
   const [approverName, setApproverName] = useState("");
@@ -119,6 +123,26 @@ export default function PlanoCampanhaPublico() {
   }
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [token]);
+
+  // Após termos o client_token (resolvido pela edge get-shared-campaign-plan),
+  // buscamos o payload público sanitizado para alimentar as listas de
+  // "Playlists monitoradas" e "Histórico de prints" — mesma UI da página
+  // antiga /campanha/:token, sem duplicar lógica.
+  useEffect(() => {
+    if (!clientToken) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.functions.invoke("get-client-campaign-public", {
+        body: { client_token: clientToken },
+      });
+      if (cancelled || !data || (data as { ok?: boolean }).ok === false) return;
+      const payload = data as { playlists?: MonitoredPlaylist[]; snapshot_history?: PrintsHistoryEntry[]; snapshotHistory?: PrintsHistoryEntry[] };
+      setLivePlaylists(Array.isArray(payload.playlists) ? payload.playlists : []);
+      const hist = payload.snapshot_history ?? payload.snapshotHistory ?? [];
+      setSnapshotHistory(Array.isArray(hist) ? hist : []);
+    })();
+    return () => { cancelled = true; };
+  }, [clientToken]);
 
   const snapshot = camp?.simulation_snapshot ?? null;
 
@@ -414,20 +438,13 @@ export default function PlanoCampanhaPublico() {
               </div>
             ),
             playlists: (
-              <PlaylistsGrid
-                allocations={allocs}
-                snapshots={snaps}
-                proofThumbs={proofs.map(p => ({
-                  playlist_id: p.playlist_id,
-                  screenshot_url: p.screenshot_url,
-                  captured_at: p.captured_at,
-                }))}
-                positions={ecoPositionByAllocation}
-                mode="client"
-              />
+              <MonitoredPlaylistsCard playlists={livePlaylists} />
             ),
             proofs: isApproved ? (
-              <ProofsTimeline events={proofEvents} />
+              <PrintsHistoryCard
+                history={snapshotHistory}
+                coverUrl={camp.cover_url ?? null}
+              />
             ) : (
               <Card>
                 <CardContent className="p-6 text-sm text-muted-foreground text-center">
