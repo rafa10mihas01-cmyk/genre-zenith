@@ -29,7 +29,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#050505] text-foreground antialiased">
+    <div className="relative min-h-screen overflow-hidden bg-background text-foreground antialiased">
       {/* ── Camada 1: gradiente base ─────────────────────────────── */}
       <div
         aria-hidden
