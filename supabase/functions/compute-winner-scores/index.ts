@@ -16,6 +16,7 @@ import {
   type WinnerContext,
 } from "../_shared/winner-score.ts";
 import { BR_BOOST_BY_GENRE } from "../_shared/discovery-scoring.ts";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
