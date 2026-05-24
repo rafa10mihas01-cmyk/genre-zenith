@@ -72,6 +72,7 @@ Deno.serve(async (req) => {
     if (cErr) throw cErr;
 
     if (!cands?.length) {
+      await reportCronHealth(sb, { job_name: jobName, status: "ok", startedAt, metrics: { processed: 0 } });
       return new Response(JSON.stringify({ ok: true, processed: 0, tier: tierFilter ?? "auto" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
