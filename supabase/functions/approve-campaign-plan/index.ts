@@ -91,6 +91,54 @@ Deno.serve(async (req) => {
     });
   }
 
+  // 1.5) Fix #2: Verificação de conflito de posição.
+  // Antes de aprovar, garante que nenhuma playlist do plano desta campanha já
+  // tem outra campanha ATIVA/PAUSADA para a MESMA faixa. Sem isso, duas
+  // campanhas concorreriam pela mesma posição na mesma playlist+faixa.
+  if (campaign.spotify_track_id) {
+    const { data: myAllocs } = await admin
+      .from("campaign_eco_allocations")
+      .select("managed_playlist_id, managed_playlists(name)")
+      .eq("campaign_id", campaignId);
+
+    const playlistIds = (myAllocs ?? [])
+      .map((a: any) => a.managed_playlist_id)
+      .filter(Boolean);
+
+    if (playlistIds.length > 0) {
+      const { data: conflicts } = await admin
+        .from("campaign_eco_allocations")
+        .select(
+          "managed_playlist_id, managed_playlists(name), campaigns!inner(id, track_name, status, spotify_track_id)",
+        )
+        .in("managed_playlist_id", playlistIds)
+        .neq("campaign_id", campaignId)
+        .in("campaigns.status", ["active", "paused"])
+        .eq("campaigns.spotify_track_id", campaign.spotify_track_id);
+
+      if (conflicts && conflicts.length > 0) {
+        const list = conflicts.map((c: any) => ({
+          playlist_id: c.managed_playlist_id,
+          playlist_name: c.managed_playlists?.name ?? "(playlist)",
+          conflict_campaign_id: c.campaigns?.id,
+          conflict_campaign_track: c.campaigns?.track_name,
+        }));
+        return json(
+          {
+            ok: false,
+            error: "position_conflict",
+            message:
+              "Não é possível aprovar: esta faixa já está em campanha ativa em uma ou mais playlists do plano.",
+            conflicts: list,
+          },
+          409,
+        );
+      }
+    }
+  }
+
+
+
   // 2) Aprova plano + garante valor_cobrado a partir do snapshot do cliente.
   // O simulation_snapshot.clientPriceTotal é a fonte de verdade do preço
   // apresentado (e aceito) pelo cliente no portal. Se valor_cobrado estiver
