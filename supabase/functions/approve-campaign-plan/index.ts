@@ -210,11 +210,65 @@ Deno.serve(async (req) => {
       .eq("id", campaignId);
   }
 
+  // 9) Seed das managed playlists planejadas (campaign_eco_allocations) como
+  // curator_playlists do deal-shadow. Sem isso, o bot DOM coleta e descarta
+  // tudo como "no_match" e campaign_eco_snapshots nunca recebe linha.
+  let seeded_playlists = 0;
+  if (newDealId) {
+    try {
+      const { data: ecoAllocs } = await admin
+        .from("campaign_eco_allocations")
+        .select("managed_playlist_id, managed_playlists!inner(spotify_playlist_id,name)")
+        .eq("campaign_id", campaignId);
+
+      const { data: dealSongs } = await admin
+        .from("curator_deal_songs")
+        .select("id")
+        .eq("deal_id", newDealId)
+        .limit(1);
+      const songId = (dealSongs?.[0] as any)?.id ?? null;
+
+      const rows = (ecoAllocs ?? [])
+        // deno-lint-ignore no-explicit-any
+        .map((a: any) => {
+          const spId = a.managed_playlists?.spotify_playlist_id;
+          if (!spId) return null;
+          return {
+            deal_id: newDealId,
+            song_id: songId,
+            spotify_url: `https://open.spotify.com/playlist/${spId}`,
+            spotify_playlist_id: spId,
+            playlist_name: a.managed_playlists?.name ?? "Managed Playlist",
+            is_baseline: true,
+            match_status: "baseline",
+            attribution_method: "campaign_seed",
+            attribution_reason: "Seed from campaign_eco_allocations (auto)",
+          };
+        })
+        .filter(Boolean);
+
+      if (rows.length > 0) {
+        // deno-lint-ignore no-explicit-any
+        const { error: seedErr } = await admin
+          .from("curator_playlists")
+          .upsert(rows as any[], {
+            onConflict: "deal_id,song_id,spotify_playlist_id",
+            ignoreDuplicates: true,
+          });
+        if (!seedErr) seeded_playlists = rows.length;
+      }
+    } catch (_e) {
+      // Não bloqueia aprovação se seed falhar — log silencioso.
+    }
+  }
+
   return json({
     ok: true,
     already_approved: false,
     deal_created: !!newDealId,
     deal_id: newDealId,
+    seeded_playlists,
     flag_on: true,
   });
 });
+
