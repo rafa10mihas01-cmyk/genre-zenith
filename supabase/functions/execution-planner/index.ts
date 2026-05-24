@@ -7,6 +7,7 @@
 //   3. WINDOW [start,end)  — só agenda dentro da janela horária BR (UTC-3)
 // + jitter de ±JITTER_MIN minutos pra não cravar horário batido.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
