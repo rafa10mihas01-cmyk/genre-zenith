@@ -123,7 +123,10 @@ Deno.serve(async (req) => {
     }
   }
 
-  if (candidates.length === 0) return jr({ ok: true, enqueued: 0, considered: 0 });
+  if (candidates.length === 0) {
+    await reportCronHealth(supabase, { job_name: "execution-planner", status: "ok", startedAt: cronT0, metrics: { enqueued: 0, considered: 0 }, message: "no candidates" });
+    return jr({ ok: true, enqueued: 0, considered: 0 });
+  }
 
   // 2. Filtra os que já têm job aberto/feito
   const dedupeKeys = candidates.map((c) => c.dedupe_key);
