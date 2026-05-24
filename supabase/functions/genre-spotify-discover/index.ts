@@ -156,7 +156,7 @@ Deno.serve(async (req) => {
           let trackItems: any[] = [];
           try {
             const meta = await getPlaylistMeta(p.id, token, {
-              fields: `followers(total),tracks(total,items(track(id,name,artists(name)))),owner(id)&limit=${maxTracksPerPl}`,
+              fields: `followers(total),tracks(total,items(track(id,name,artists(name)))),owner(id)`,
             });
             const detail = meta.raw;
             if (detail?.followers?.total != null) detailFollowers = detail.followers.total;
