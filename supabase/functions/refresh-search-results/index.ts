@@ -41,10 +41,12 @@ function nextDue(tier: string, ref = new Date()): string {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const startedAt = Date.now();
+  const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
+  const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
+  const tierFilter: string | undefined = body.tier;
+  const jobName = `refresh-search-results:${tierFilter ?? "auto"}`;
   try {
-    const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
-    const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
-    const tierFilter: string | undefined = body.tier;
     const limit = Math.min(Number(body.limit ?? 80), 200);
 
     // 1) carrega leaders (playlist_leadership joinable via playlists.spotify_playlist_id)
