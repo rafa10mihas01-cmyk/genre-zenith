@@ -1,5 +1,7 @@
-// enqueue-playlist-job — cria um job manual de add/remove de faixa em uma playlist gerenciada.
-// Body: { playlist_id: uuid, spotify_track_id: string, action: 'add' | 'remove' }
+// enqueue-playlist-job — cria um job manual de add/remove/reorder de faixa em playlist gerenciada.
+// Body:
+//   { playlist_id, spotify_track_id, action: 'add' | 'remove' }
+//   { playlist_id, spotify_track_id, action: 'reorder', from_position, to_position }  // 1-indexed
 // Auth: usuário autenticado com role admin/curador (has_team_access).
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
