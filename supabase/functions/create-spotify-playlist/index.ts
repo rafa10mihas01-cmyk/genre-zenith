@@ -45,14 +45,11 @@ async function requireTeamAccess(req: Request): Promise<{ ok: true } | { ok: fal
 }
 
 // 🎯 Busca followers atuais da playlist no Spotify (usado p/ baseline correto t0)
+// 🎯 Busca followers atuais da playlist no Spotify (usado p/ baseline correto t0)
 async function fetchPlaylistFollowers(token: string, playlistId: string): Promise<number> {
   try {
-    const r = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}?fields=followers.total`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!r.ok) return 0;
-    const j = await r.json();
-    return Number(j?.followers?.total ?? 0);
+    const meta = await getPlaylistMeta(playlistId, token, { fields: "followers(total)" });
+    return Number(meta.followers ?? 0);
   } catch {
     return 0;
   }
