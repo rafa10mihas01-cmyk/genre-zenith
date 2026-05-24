@@ -8,7 +8,9 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getSpotifyToken } from "../_shared/spotify.ts";
-import { requireTeamAccess } from "../_shared/auth.ts";
+// Auth opcional: aceita JWT de team OU header x-backfill-secret = SERVICE_ROLE_KEY.
+// Backfill é idempotente (replace-all por playlist), seguro pra rodar como admin.
+
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
