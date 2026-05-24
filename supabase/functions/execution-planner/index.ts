@@ -86,7 +86,10 @@ Deno.serve(async (req) => {
     .in("campaigns.status", ["active", "running", "live"])
     .order("created_at", { ascending: true });
 
-  if (aErr) return jr({ error: aErr.message }, 500);
+  if (aErr) {
+    await reportCronHealth(supabase, { job_name: "execution-planner", status: "error", startedAt: cronT0, message: aErr.message });
+    return jr({ error: aErr.message }, 500);
+  }
 
   // 1b. Ramp-up de aquecimento (motor único, espalha no tempo)
   const now = Date.now();
