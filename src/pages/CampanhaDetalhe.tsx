@@ -21,6 +21,11 @@ type Campaign = {
   client_approved_by: string | null;
   client_rejected_at: string | null;
   client_adjustment_request: string | null;
+  campaign_type: "ecosystem" | "external" | "hybrid" | null;
+  plan_approved_at: string | null;
+  plan_approved_by: string | null;
+  auto_deal_created: boolean | null;
+  deal_id: string | null;
 };
 
 type Allocation = {
@@ -35,6 +40,10 @@ type Allocation = {
 
 const STATUS_LABEL: Record<string, string> = {
   active: "Ativa", draft: "Rascunho", paused: "Pausada", completed: "Concluída", cancelled: "Cancelada",
+};
+
+const CAMPAIGN_TYPE_LABEL: Record<string, string> = {
+  ecosystem: "Ecossistema", external: "Externa", hybrid: "Híbrida",
 };
 
 export default function CampanhaDetalhe() {
@@ -76,6 +85,29 @@ export default function CampanhaDetalhe() {
     const { error } = await supabase.from("campaigns").update({ status: newStatus }).eq("id", id);
     if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
     else load();
+  }
+
+  async function approvePlan() {
+    if (!id) return;
+    setBusy(true);
+    const { data, error } = await supabase.functions.invoke("approve-campaign-plan", {
+      body: { campaign_id: id },
+    });
+    setBusy(false);
+    if (error) {
+      toast({ title: "Erro ao aprovar plano", description: error.message, variant: "destructive" });
+      return;
+    }
+    const res = data as { ok: boolean; deal_created?: boolean; reason?: string; deal_id?: string; already_approved?: boolean };
+    if (!res?.ok) {
+      toast({ title: "Não foi possível aprovar", description: res?.reason ?? "", variant: "destructive" });
+      return;
+    }
+    toast({
+      title: res.already_approved ? "Plano já estava aprovado" : "Plano aprovado",
+      description: res.deal_created ? "Deal criado automaticamente." : (res.reason === "flag_disabled" ? "Criação automática de deal está desativada." : undefined),
+    });
+    load();
   }
 
   async function removeAlloc(allocId: string) {
@@ -121,6 +153,11 @@ export default function CampanhaDetalhe() {
             <Button variant="outline" onClick={recalc} disabled={busy}>
               <RefreshCw className={`h-4 w-4 mr-2 ${busy ? "animate-spin" : ""}`} /> Recalcular
             </Button>
+            {!camp.plan_approved_at && (
+              <Button onClick={approvePlan} disabled={busy}>
+                <CheckCircle2 className="h-4 w-4 mr-2" /> Aprovar plano
+              </Button>
+            )}
             <Select value={camp.status} onValueChange={updateStatus}>
               <SelectTrigger className="h-9 w-36"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -142,6 +179,26 @@ export default function CampanhaDetalhe() {
           <Kpi label="Entregue" value={camp.total_delivered.toLocaleString()} sub={`${pct}%`} />
           <Kpi label="Alocado" value={camp.total_allocated.toLocaleString()} />
           <Kpi label="Prazo" value={camp.deadline} sub={daysLeft > 0 ? `${daysLeft}d restantes` : daysLeft === 0 ? "Hoje" : `${Math.abs(daysLeft)}d atraso`} />
+        </div>
+
+        {/* Tipo + aprovação do plano */}
+        <div className="mb-8 flex flex-wrap items-center gap-2 text-xs">
+          <span className="rounded-full border border-border bg-card px-2.5 py-1 font-medium text-foreground">
+            Tipo: {CAMPAIGN_TYPE_LABEL[camp.campaign_type ?? "hybrid"]}
+          </span>
+          {camp.plan_approved_at ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 font-medium text-primary">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Plano aprovado em {new Date(camp.plan_approved_at).toLocaleDateString("pt-BR")}
+              {camp.auto_deal_created && camp.deal_id && (
+                <Link to={`/playlist-deals/${camp.deal_id}`} className="ml-1 underline">deal vinculado</Link>
+              )}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/30 px-2.5 py-1 font-medium text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" /> Plano pendente de aprovação
+            </span>
+          )}
         </div>
 
         {/* Aprovação do cliente + link compartilhável */}
