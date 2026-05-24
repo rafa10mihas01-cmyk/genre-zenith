@@ -188,6 +188,12 @@ Deno.serve(async (req) => {
       if (error) throw error;
     }
 
+    await reportCronHealth(supabase, {
+      job_name: "detect-recommendation-outcomes",
+      status: "ok",
+      startedAt,
+      metrics: { considered: fb.length, detected, verdicts, upserts: upserts.length },
+    });
     return new Response(JSON.stringify({
       ok: true,
       considered: fb.length,
@@ -196,6 +202,7 @@ Deno.serve(async (req) => {
       upserts: upserts.length,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
+    await reportCronHealth(supabase, { job_name: "detect-recommendation-outcomes", status: "error", startedAt, message: String(e) });
     return new Response(JSON.stringify({ error: String(e) }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
