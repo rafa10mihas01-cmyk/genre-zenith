@@ -234,13 +234,14 @@ async function processPlaylist(
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const startedAt = Date.now();
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+  const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
+  const mode = body?.mode ?? "full";
   try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
-    const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
-    const mode = body?.mode ?? "full";
 
     if (mode === "single") {
       const spid = body?.spotify_playlist_id;
