@@ -54,6 +54,19 @@ function fmtDuration(ms: number | null) {
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
 }
 
+function fmtTotalDuration(ms: number) {
+  const totalMin = Math.round(ms / 60000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h > 0) return `${h}h ${m}min`;
+  return `${m}min`;
+}
+
+type PlaylistMeta = {
+  name: string | null;
+  cover_url: string | null;
+};
+
 function SortableRow({
   track, position, pendingJob, onRemove, onAddAt, busy,
 }: {
