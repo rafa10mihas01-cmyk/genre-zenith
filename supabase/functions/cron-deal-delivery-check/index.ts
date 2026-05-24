@@ -2,6 +2,7 @@
 // de cada curator_deal ativo e grava status em curator_deal_delivery_status.
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -111,6 +112,13 @@ Deno.serve(async (req) => {
       results.push({ deal_id: deal.id, status, expected, actual, delta_pct: deltaPct, spikes: spikes.length });
     }
 
+    await reportCronHealth(admin, {
+      job_name: "cron-deal-delivery-check",
+      status: "ok",
+      startedAt: t0,
+      metrics: { processed: results.length },
+      message: `processed=${results.length}`,
+    });
     return jr({
       ok: true,
       processed: results.length,
@@ -119,6 +127,12 @@ Deno.serve(async (req) => {
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    await reportCronHealth(admin, {
+      job_name: "cron-deal-delivery-check",
+      status: "error",
+      startedAt: t0,
+      message: msg,
+    });
     return jr({ ok: false, error: msg }, 500);
   }
 });

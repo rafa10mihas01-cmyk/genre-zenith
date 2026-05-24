@@ -8,6 +8,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
 import { getSpotifyToken } from "../_shared/spotify.ts";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -145,6 +146,15 @@ Deno.serve(async (req) => {
       duration_ms: Date.now() - startedAt,
     });
 
+    if (isCron) {
+      await reportCronHealth(supabase, {
+        job_name: "sync-managed-playlists",
+        status: failed === 0 ? "ok" : (synced === 0 ? "error" : "partial"),
+        startedAt,
+        metrics: { synced, failed, recalculated },
+      });
+    }
+
     return jr({ ok: true, synced, failed, recalculated, errors: errors.slice(0, 5) });
   } catch (e) {
     await supabase.from("sync_log").insert({
@@ -152,6 +162,14 @@ Deno.serve(async (req) => {
       errors: [(e as Error).message],
       duration_ms: Date.now() - startedAt,
     });
+    if (isCron) {
+      await reportCronHealth(supabase, {
+        job_name: "sync-managed-playlists",
+        status: "error",
+        startedAt,
+        message: (e as Error).message,
+      });
+    }
     return jr({ ok: false, error: (e as Error).message }, 500);
   }
 });

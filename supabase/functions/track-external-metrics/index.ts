@@ -5,6 +5,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getSpotifyToken } from "../_shared/spotify.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -30,6 +31,7 @@ async function fetchMeta(token: string, id: string) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const startedAt = Date.now();
   const guard = await requireTeamAccess(req);
   if (!guard.ok) return guard.resp;
 
@@ -89,6 +91,13 @@ Deno.serve(async (req) => {
     acao: "track_external_metrics",
     status: failed === 0 ? "ok" : "parcial",
     mensagem: `external snapshots ok=${ok} failed=${failed} total=${pls.length}`,
+  });
+
+  await reportCronHealth(supabase, {
+    job_name: "track-external-metrics",
+    status: failed === 0 ? "ok" : (ok === 0 ? "error" : "partial"),
+    startedAt,
+    metrics: { processed: pls.length, ok, failed },
   });
 
   return jr({ ok: true, processed: pls.length, snapshots_ok: ok, failed });

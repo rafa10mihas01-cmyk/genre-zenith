@@ -2,6 +2,7 @@
 // como ÚNICA fonte de verdade. Não recalcula nada manualmente — apenas
 // persiste o resultado oficial em curator_deals e dispara milestones.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -124,11 +125,12 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const startedAt = Date.now();
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
   try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
 
     // Auth: aceita o CRON_SECRET vindo de DUAS fontes (env da função OU
     // vault.get_cron_secret() usado pelo pg_cron). Elas drifaram em produção
@@ -175,12 +177,26 @@ Deno.serve(async (req) => {
 
     console.log(`[cron-reconcile] ${results.length} deals processados via RPC get_curator_deal_progress`);
 
+    const errCount = results.filter((r: any) => r.error).length;
+    await reportCronHealth(supabase, {
+      job_name: "cron-reconcile-curator-deals",
+      status: errCount === 0 ? "ok" : (errCount === results.length ? "error" : "partial"),
+      startedAt,
+      metrics: { deals_processed: results.length, errors: errCount },
+    });
+
     return new Response(
       JSON.stringify({ deals_processed: results.length, results }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
     console.error("cron-reconcile error", err);
+    await reportCronHealth(supabase, {
+      job_name: "cron-reconcile-curator-deals",
+      status: "error",
+      startedAt,
+      message: String(err),
+    });
     return new Response(JSON.stringify({ error: String(err) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

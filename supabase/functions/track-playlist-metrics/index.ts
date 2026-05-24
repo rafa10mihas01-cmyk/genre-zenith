@@ -6,6 +6,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getSpotifyToken } from "../_shared/spotify.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -35,6 +36,7 @@ async function fetchPlaylistMeta(token: string, id: string) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const startedAt = Date.now();
 
   const guard = await requireTeamAccess(req);
   if (!guard.ok) return guard.resp;
@@ -164,6 +166,13 @@ Deno.serve(async (req) => {
       p_metadata: { failed, total: totalProcessed, failure_rate: failureRate },
     }).then(() => {}, (e) => console.error("[track-playlist-metrics] log/op failed:", e?.message ?? e));
   }
+
+  await reportCronHealth(supabase, {
+    job_name: "track-playlist-metrics",
+    status: isSystemicFailure ? "error" : (failed === 0 ? "ok" : "partial"),
+    startedAt,
+    metrics: { processed: totalProcessed, ok, failed, systemic_failure: isSystemicFailure },
+  });
 
   return jr({
     ok: !isSystemicFailure,
