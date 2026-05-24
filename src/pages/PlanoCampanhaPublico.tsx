@@ -243,11 +243,12 @@ export default function PlanoCampanhaPublico() {
   async function handleApprove() {
     if (approverName.trim().length < 2) { toast.error("Informe seu nome"); return; }
     setApproving(true);
-    const { error } = await (supabase.rpc as unknown as PublicRpc)("client_approve_campaign", {
-      p_token: token, p_approver_name: approverName.trim(), p_approver_ip: null,
+    const { data, error } = await supabase.functions.invoke("client-approve-campaign", {
+      body: { token, approver_name: approverName.trim() },
     });
     setApproving(false);
-    if (error) { toast.error(error.message); return; }
+    const errMsg = error?.message || (data && (data as any).ok === false ? (data as any).error : null);
+    if (errMsg) { toast.error(errMsg); return; }
     toast.success("Campanha aprovada");
     setApproveOpen(false); setApproverName(""); load();
   }
@@ -255,14 +256,16 @@ export default function PlanoCampanhaPublico() {
   async function handleAdjust() {
     if (adjustMsg.trim().length < 3) { toast.error("Descreva o ajuste"); return; }
     setAdjusting(true);
-    const { error } = await (supabase.rpc as unknown as PublicRpc)("client_request_adjustment", {
-      p_token: token, p_message: adjustMsg.trim(), p_requester_name: adjustName.trim() || null,
+    const { data, error } = await supabase.functions.invoke("client-request-adjustment", {
+      body: { token, message: adjustMsg.trim(), requester_name: adjustName.trim() || null },
     });
     setAdjusting(false);
-    if (error) { toast.error(error.message); return; }
+    const errMsg = error?.message || (data && (data as any).ok === false ? (data as any).error : null);
+    if (errMsg) { toast.error(errMsg); return; }
     toast.success("Pedido de ajuste enviado");
     setAdjustOpen(false); setAdjustMsg(""); setAdjustName(""); load();
   }
+
 
   return (
     <div className="min-h-screen bg-background">
