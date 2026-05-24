@@ -4,6 +4,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getSpotifyToken } from "../_shared/spotify.ts";
+import { listPlaylistTracksRich } from "../_shared/spotify-playlist.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -46,33 +47,20 @@ Deno.serve(async (req) => {
 
   try {
     const token = await getSpotifyToken();
-    const out: any[] = [];
-    let url: string | null =
-      `https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}/items` +
-      `?fields=items(added_at,track(id,name,duration_ms,artists(name),album(images))),next&limit=100`;
-    while (url) {
-      const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-      if (!r.ok) {
-        const txt = await r.text();
-        throw new Error(`Spotify ${r.status}: ${txt.slice(0, 200)}`);
-      }
-      const j = await r.json();
-      for (const it of j.items ?? []) {
-        const tr = it?.track;
-        if (!tr?.id) continue;
-        const imgs = tr.album?.images ?? [];
-        const cover = imgs[imgs.length - 1]?.url ?? imgs[0]?.url ?? null;
-        out.push({
-          spotify_track_id: tr.id,
-          name: tr.name ?? "Unknown",
-          artists: (tr.artists ?? []).map((a: any) => a?.name).filter(Boolean).join(", "),
-          album_cover: cover,
-          duration_ms: tr.duration_ms ?? null,
-          added_at: it.added_at ?? null,
-        });
-      }
-      url = j.next ?? null;
-    }
+    const rich = await listPlaylistTracksRich(pl.spotify_playlist_id, token, {
+      max: 10000,
+      fields: "items(added_at,track(id,name,duration_ms,artists(name),album(images))),next",
+    });
+    const out = rich
+      .filter((t) => t.spotify_track_id)
+      .map((t) => ({
+        spotify_track_id: t.spotify_track_id,
+        name: t.name || "Unknown",
+        artists: t.artists,
+        album_cover: t.album_cover,
+        duration_ms: t.duration_ms,
+        added_at: t.added_at,
+      }));
     return jr({ ok: true, tracks: out, total: out.length });
   } catch (e) {
     return jr({ ok: false, error: (e as Error).message }, 500);
