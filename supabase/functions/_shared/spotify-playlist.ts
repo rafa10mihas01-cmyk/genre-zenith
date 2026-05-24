@@ -22,7 +22,25 @@ export type SpotifyFetch = (
   token: string,
 ) => Promise<any>;
 
-/** Fetch wrapper padrão — joga erro com status + body do Spotify. */
+/**
+ * Erro lançado por defaultSpotifyFetch. Expõe `status` (HTTP) e `retryAfter`
+ * (segundos parseados do header Retry-After) pra consumers que precisam decidir
+ * retry/backoff (ex: enrich-playlists distingue 401/404/429).
+ */
+export class SpotifyApiError extends Error {
+  status: number;
+  retryAfter: number | null;
+  body: string;
+  constructor(status: number, body: string, retryAfter: number | null) {
+    super(`Spotify ${status}: ${body.slice(0, 400)}`);
+    this.name = "SpotifyApiError";
+    this.status = status;
+    this.body = body;
+    this.retryAfter = retryAfter;
+  }
+}
+
+/** Fetch wrapper padrão — joga SpotifyApiError com status + body + retryAfter. */
 export const defaultSpotifyFetch: SpotifyFetch = async (url, init, token) => {
   const r = await fetch(url, {
     ...init,
@@ -34,13 +52,15 @@ export const defaultSpotifyFetch: SpotifyFetch = async (url, init, token) => {
   });
   if (!r.ok) {
     const t = await r.text();
-    throw new Error(`Spotify ${r.status}: ${t.slice(0, 400)}`);
+    const ra = Number(r.headers.get("Retry-After") ?? "");
+    throw new SpotifyApiError(r.status, t, Number.isFinite(ra) && ra > 0 ? ra : null);
   }
   // DELETE/PUT podem voltar 200 sem body útil
   const txt = await r.text();
   if (!txt) return {};
   try { return JSON.parse(txt); } catch { return {}; }
 };
+
 
 function chunk<T>(arr: T[], size = 100): T[][] {
   const out: T[][] = [];
