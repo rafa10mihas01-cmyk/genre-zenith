@@ -294,15 +294,15 @@ export default function Operacao() {
             const totalHint = filtered ? playlistStats.filterLabel! : "Catálogo importado";
             return (
               <>
-                <KpiBig tier="hero" icon={Heart} label="Salvamentos totais" value={formatNumber(followers)} hint={scopeHint} domain="playlists" loading={loading} />
-                <KpiBig icon={Target}        label="Plays teóricos / mês" value={formatNumber(followers * 30)} tone="primary" hint={playsHint} loading={loading} />
-                <KpiBig icon={Activity}      label="Total ativas"  value={formatNumber(count)} hint={totalHint} loading={loading} />
+                <KpiBig tier="hero" icon={Heart} label="Salvamentos totais" value={formatNumber(followers)} hint={scopeHint} domain="playlists" loading={loading && playlistsAll.length === 0} />
+                <KpiBig icon={Target}        label="Plays teóricos / mês" value={formatNumber(followers * 30)} tone="primary" hint={playsHint} loading={loading && playlistsAll.length === 0} />
+                <KpiBig icon={Activity}      label="Total ativas"  value={formatNumber(count)} hint={totalHint} loading={loading && playlistsAll.length === 0} />
               </>
             );
           })()}
-          <KpiBig icon={Gauge}         label="Saúde média"  value={String(playlistStats.avgHealth)} hint={`${playlistStats.topPerf} ${playlistStats.topPerf === 1 ? "destaque" : "destaques"}`} loading={loading} />
-          <KpiBig icon={ShieldAlert}   label="Em risco / inativas" value={`${playlistStats.atRisk} / ${playlistStats.inactive}`} tone={(playlistStats.atRisk + playlistStats.inactive) > 0 ? "destructive" : "default"} hint="Risco ≥ 60 · Atividade < 30" loading={loading} />
-          <KpiBig tier="quiet" icon={AlertCircle} label="Precisa atenção" value={formatNumber(kpi.atencao)} tone={kpi.atencao > 0 ? "destructive" : "default"} hint="Auto em queda" loading={loading} />
+          <KpiBig icon={Gauge}         label="Saúde média"  value={String(playlistStats.avgHealth)} hint={`${playlistStats.topPerf} ${playlistStats.topPerf === 1 ? "destaque" : "destaques"}`} loading={loading && playlistsAll.length === 0} />
+          <KpiBig icon={ShieldAlert}   label="Em risco / inativas" value={`${playlistStats.atRisk} / ${playlistStats.inactive}`} tone={(playlistStats.atRisk + playlistStats.inactive) > 0 ? "destructive" : "default"} hint="Risco ≥ 60 · Atividade < 30" loading={loading && playlistsAll.length === 0} />
+          <KpiBig tier="quiet" icon={AlertCircle} label="Precisa atenção" value={formatNumber(kpi.atencao)} tone={kpi.atencao > 0 ? "destructive" : "default"} hint="Auto em queda" loading={loading && playlistsAll.length === 0} />
 
         </section>
 
