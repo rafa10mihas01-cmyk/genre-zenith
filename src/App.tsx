@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -10,8 +10,8 @@ import AdminRoute from "@/components/AdminRoute";
 import AppLayout from "@/components/AppLayout";
 import ScrollManager from "@/components/ScrollManager";
 import ScreenStateManager from "@/components/ScreenStateManager";
-import { LoadingProvider } from "@/contexts/LoadingContext";
-import { Skeleton } from "@/components/ui/skeleton";
+import { LoadingProvider, useBootGate } from "@/contexts/LoadingContext";
+import { SplashLoader } from "@/components/SplashLoader";
 import RootRoute from "./components/RootRoute";
 
 // ---------------------------------------------------------------------------
@@ -79,17 +79,14 @@ const Protected = ({ children }: { children: React.ReactNode }) => (
   </ProtectedRoute>
 );
 
-// Fallback global de Suspense. Usa o bg-background (#050505) e mostra
-// skeletons sutis pra evitar tela preta enquanto o chunk da rota carrega.
-const RouteFallback = () => (
-  <div className="min-h-screen bg-background p-6">
-    <div className="max-w-7xl mx-auto space-y-4">
-      <Skeleton className="h-8 w-64" />
-      <Skeleton className="h-4 w-40" />
-      <Skeleton className="h-96 w-full" />
-    </div>
-  </div>
-);
+// Fallback global de Suspense. Em vez de renderizar skeleton próprio (causa
+// "flash de layout" quando o chunk chega), apenas mantém o SplashLoader global
+// ligado via useBootGate. Resultado: um único loader, sincronizado de verdade
+// com o término do chunk — nada de timer fixo.
+const RouteFallback = () => {
+  useBootGate(true);
+  return null;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -100,6 +97,8 @@ const App = () => (
         <ScrollManager />
         <ScreenStateManager />
         <LoadingProvider>
+          {/* Splash global — cobre auth + Suspense + rotas públicas */}
+          <SplashLoader />
           <AuthProvider>
             <Suspense fallback={<RouteFallback />}>
               <Routes>
