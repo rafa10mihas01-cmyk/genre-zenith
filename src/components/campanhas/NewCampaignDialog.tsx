@@ -426,7 +426,11 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
                 </div>
                 <p className="text-xs text-muted-foreground">Cole o link e clique em Buscar para preencher nome e artista automaticamente.</p>
               </div>
+              <div className="md:col-span-2">
+                <TrackPresencePanel spotifyTrackId={extractSpotifyTrackId(trackUrl)} />
+              </div>
               <div className="space-y-2 md:col-span-2">
+
                 <Label>Meta de plays *</Label>
                 <Input type="number" min={1} value={goal} onChange={e => setGoal(Number(e.target.value))} />
                 <p className="text-xs text-muted-foreground tabular-nums">
