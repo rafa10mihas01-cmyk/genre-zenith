@@ -7,6 +7,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { getSpotifyToken } from "../_shared/spotify.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
+import { getPlaylistMeta, SpotifyApiError } from "../_shared/spotify-playlist.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -21,19 +22,19 @@ function jr(p: unknown, status = 200) {
 async function fetchPlaylistMeta(token: string, id: string): Promise<
   { followers: number; total_tracks: number | null } | { status: number } | null
 > {
-  const r = await fetch(
-    `https://api.spotify.com/v1/playlists/${id}?fields=followers.total,tracks.total`,
-    { headers: { Authorization: `Bearer ${token}` } },
-  );
-  if (!r.ok) {
-    if (r.status === 401) throw new Error("UNAUTH");
-    return { status: r.status };
+  try {
+    const meta = await getPlaylistMeta(id, token, { fields: "followers(total),tracks(total)" });
+    return {
+      followers: meta.followers ?? 0,
+      total_tracks: meta.tracks_total ?? null,
+    };
+  } catch (e) {
+    if (e instanceof SpotifyApiError) {
+      if (e.status === 401) throw new Error("UNAUTH");
+      return { status: e.status };
+    }
+    throw e;
   }
-  const j = await r.json();
-  return {
-    followers: j?.followers?.total ?? 0,
-    total_tracks: j?.tracks?.total ?? null,
-  };
 }
 
 Deno.serve(async (req) => {

@@ -14,6 +14,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { getSpotifyToken } from "../_shared/spotify.ts";
+import { listPlaylistTrackRefs, SpotifyApiError } from "../_shared/spotify-playlist.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -115,29 +116,28 @@ Deno.serve(async (req) => {
 
     for (const t of list) {
       try {
-        const resp = await fetch(
-          `https://api.spotify.com/v1/playlists/${t.id}/tracks?fields=items(track(id))&limit=50`,
-          { headers: { Authorization: `Bearer ${token}` } },
-        );
-        if (!resp.ok) {
-          // Auto-archive 404 em managed → para de poluir o status
-          if (resp.status === 404 && managedIds.has(t.id)) {
-            await sb.from("managed_playlists")
-              .update({ archived_at: new Date().toISOString() })
-              .eq("spotify_playlist_id", t.id)
-              .is("archived_at", null);
-            auto_archived++;
-            console.log(`[snapshot] auto-archived 404 playlist ${t.id}`);
-            continue; // não conta como failed
+        let ids: string[];
+        try {
+          const refs = await listPlaylistTrackRefs(t.id, token);
+          ids = refs.map((r) => r.id).filter((x): x is string => !!x).slice(0, 50);
+        } catch (e) {
+          if (e instanceof SpotifyApiError) {
+            // Auto-archive 404 em managed → para de poluir o status
+            if (e.status === 404 && managedIds.has(t.id)) {
+              await sb.from("managed_playlists")
+                .update({ archived_at: new Date().toISOString() })
+                .eq("spotify_playlist_id", t.id)
+                .is("archived_at", null);
+              auto_archived++;
+              console.log(`[snapshot] auto-archived 404 playlist ${t.id}`);
+              continue;
+            }
+            failed++;
+            if (failed_ids.length < 10) failed_ids.push(`${t.id}:${e.status}`);
+            continue;
           }
-          failed++;
-          if (failed_ids.length < 10) failed_ids.push(`${t.id}:${resp.status}`);
-          continue;
+          throw e;
         }
-        const json = await resp.json();
-        const ids: string[] = (json.items ?? [])
-          .map((it: any) => it?.track?.id)
-          .filter((x: any): x is string => !!x);
         if (!ids.length) continue;
         const hash = await sha1(ids.join("|"));
 

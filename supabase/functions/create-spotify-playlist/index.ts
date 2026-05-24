@@ -4,6 +4,12 @@
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getUserAccessToken } from "../_shared/spotify.ts";
+import {
+  addPlaylistTracks,
+  createPlaylist,
+  getPlaylistMeta,
+  SpotifyApiError,
+} from "../_shared/spotify-playlist.ts";
 
 import { deprecationGate } from "../_shared/_deprecation.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -39,14 +45,11 @@ async function requireTeamAccess(req: Request): Promise<{ ok: true } | { ok: fal
 }
 
 // 🎯 Busca followers atuais da playlist no Spotify (usado p/ baseline correto t0)
+// 🎯 Busca followers atuais da playlist no Spotify (usado p/ baseline correto t0)
 async function fetchPlaylistFollowers(token: string, playlistId: string): Promise<number> {
   try {
-    const r = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}?fields=followers.total`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!r.ok) return 0;
-    const j = await r.json();
-    return Number(j?.followers?.total ?? 0);
+    const meta = await getPlaylistMeta(playlistId, token, { fields: "followers(total)" });
+    return Number(meta.followers ?? 0);
   } catch {
     return 0;
   }
@@ -154,25 +157,28 @@ Deno.serve(async (req) => {
   }
 
   // 1) Cria a playlist
-  const createResp = await fetch(`https://api.spotify.com/v1/users/${encodeURIComponent(ownerId)}/playlists`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      name: tpl.name,
-      description: (tpl.description ?? "").slice(0, 300),
-      public: isPublic,
-    }),
-  });
-  if (!createResp.ok) {
-    const t = await createResp.text();
-    const msg = `create playlist ${createResp.status}: ${t.slice(0, 200)}`;
+  let playlistId: string;
+  let playlistUrl: string;
+  try {
+    const res = await createPlaylist(
+      ownerId,
+      {
+        name: tpl.name,
+        description: (tpl.description ?? "").slice(0, 300),
+        public: isPublic,
+      },
+      token,
+    );
+    playlistId = res.id;
+    playlistUrl = res.raw?.external_urls?.spotify ?? `https://open.spotify.com/playlist/${playlistId}`;
+  } catch (e) {
+    const status = e instanceof SpotifyApiError ? e.status : 0;
+    const detail = e instanceof SpotifyApiError ? e.body.slice(0, 200) : (e as Error).message;
+    const msg = `create playlist ${status || ""}: ${detail}`.trim();
     await supabase.from("playlist_templates")
       .update({ creation_error: msg }).eq("id", templateId);
     return jr({ ok: false, error: msg }, 200);
   }
-  const created = await createResp.json();
-  const playlistId: string = created.id;
-  const playlistUrl: string = created?.external_urls?.spotify ?? `https://open.spotify.com/playlist/${playlistId}`;
 
   // 2) Resolve URIs das faixas (track_seeds)
   // 🎯 Se seed traz spotify_track_id (vindo do generate-templates), usa direto:
@@ -204,15 +210,10 @@ Deno.serve(async (req) => {
   let snapshotId: string | null = null;
   for (let i = 0; i < uris.length; i += 100) {
     const chunk = uris.slice(i, i + 100);
-    const addResp = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/items`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ uris: chunk }),
-    });
-    if (addResp.ok) {
-      const j = await addResp.json();
-      snapshotId = j?.snapshot_id ?? snapshotId;
-    } else {
+    try {
+      const res = await addPlaylistTracks(playlistId, chunk, token);
+      snapshotId = res.snapshot_id ?? snapshotId;
+    } catch {
       failed += chunk.length;
     }
   }
