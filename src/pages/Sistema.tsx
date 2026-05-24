@@ -54,6 +54,7 @@ const LEGACY_TAB_MAP: Record<string, { tab: SistemaTab; motor?: MotorSub; avanca
   "aprendizado": { tab: "avancado", avancado: "aprendizado" },
   "seo": { tab: "avancado", avancado: "seo" },
   "infra": { tab: "avancado", avancado: "infra" },
+  "flags": { tab: "avancado", avancado: "flags" },
   "configuracoes": { tab: "configuracoes" },
 };
 
