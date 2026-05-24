@@ -140,13 +140,30 @@ Deno.serve(async (req) => {
     .eq("song_id", song_id);
   const isBaseline = (existingLogs ?? 0) === 0;
 
-  // Pega nome da faixa pra delivery_proofs
+  // Pega nome da faixa pra delivery_proofs + spotify_track_id pra espelhar em campaign_eco_snapshots
   const { data: songInfo } = await supabase
     .from("curator_deal_songs")
-    .select("song_name, song_artist")
+    .select("song_name, song_artist, spotify_track_id")
     .eq("id", song_id)
     .maybeSingle();
   const trackName = [songInfo?.song_name, songInfo?.song_artist].filter(Boolean).join(" — ") || "unknown";
+
+  // Resolve campanha ativa por spotify_track_id (uma única vez por ingestão).
+  // Se existir campanha + a playlist for managed, espelhamos o snapshot em
+  // campaign_eco_snapshots pra alimentar o timeline do portal do cliente.
+  let ecoCampaignId: string | null = null;
+  if (songInfo?.spotify_track_id) {
+    const { data: campRow } = await supabase
+      .from("campaigns")
+      .select("id")
+      .eq("spotify_track_id", songInfo.spotify_track_id)
+      .in("status", ["active", "draft"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    ecoCampaignId = (campRow?.id as string | undefined) ?? null;
+  }
+
 
   // Para cada snapshot, achar/criar curator_playlist e inserir snapshot.
   // Função utilitária inline pra extrair playlist id do url.
