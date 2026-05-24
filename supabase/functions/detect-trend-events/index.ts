@@ -122,10 +122,22 @@ Deno.serve(async (req) => {
       if (ie) throw ie;
     }
 
+    await reportCronHealth(sb, {
+      job_name: "detect-trend-events",
+      status: "ok",
+      startedAt,
+      metrics: { events: clean.length },
+    });
     return new Response(JSON.stringify({ ok: true, events: clean.length }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
+    await reportCronHealth(sb, {
+      job_name: "detect-trend-events",
+      status: "error",
+      startedAt,
+      message: String((e as Error).message),
+    });
     return new Response(JSON.stringify({ error: String((e as Error).message) }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
