@@ -93,7 +93,7 @@ export function OverviewTab({
   const splitDiverged = Math.abs(ecoTarget - snapshot.streamsEco) > Math.max(1000, snapshot.meta * 0.005);
   const hitCeiling = !isLocked && ecoTargetLive >= ecoCeiling && ecoCapacityRemaining + ecoDelivered > ecoCeiling;
 
-  const today = snapshot.curva[Math.max(0, Math.min(snapshot.curva.length - 1, daysElapsed - 1))];
+  const today = curva.length > 0 ? curva[Math.max(0, Math.min(curva.length - 1, daysElapsed - 1))] : undefined;
   const todayTotal = today?.streamsDay ?? 0;
   const todayEco = Math.round(todayTotal * (ecoEffectivePct / 100));
   const todayExt = Math.max(0, todayTotal - todayEco);
