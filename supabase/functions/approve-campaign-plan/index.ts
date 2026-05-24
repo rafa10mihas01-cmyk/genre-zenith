@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
     .select(
       "id, created_by, status, campaign_type, plan_approved_at, auto_deal_created, " +
       "deal_id, curator_id, valor_cobrado, track_name, artist, spotify_track_id, " +
-      "spotify_track_url, cover_url, goal_plays, deadline, started_at",
+      "spotify_track_url, cover_url, goal_plays, deadline, started_at, simulation_snapshot, client_id",
     )
     .eq("id", campaignId)
     .maybeSingle();
@@ -90,16 +90,38 @@ Deno.serve(async (req) => {
     });
   }
 
-  // 2) Aprova plano
+  // 2) Aprova plano + garante valor_cobrado a partir do snapshot do cliente.
+  // O simulation_snapshot.clientPriceTotal é a fonte de verdade do preço
+  // apresentado (e aceito) pelo cliente no portal. Se valor_cobrado estiver
+  // NULL no momento da aprovação, copiamos dali — sem isso o financeiro
+  // perde o ticket dessa campanha.
+  const snap = (campaign as any).simulation_snapshot ?? null;
+  const snapPrice = Number(snap?.clientPriceTotal ?? 0);
+  const resolvedValorCobrado =
+    campaign.valor_cobrado != null
+      ? Number(campaign.valor_cobrado)
+      : Number.isFinite(snapPrice) && snapPrice > 0
+        ? snapPrice
+        : null;
+
   const nowIso = new Date().toISOString();
+  const approvePatch: Record<string, unknown> = {
+    plan_approved_at: nowIso,
+    plan_approved_by: userId,
+  };
+  if (campaign.valor_cobrado == null && resolvedValorCobrado != null) {
+    approvePatch.valor_cobrado = resolvedValorCobrado;
+  }
+
   const { error: updErr } = await admin
     .from("campaigns")
-    .update({
-      plan_approved_at: nowIso,
-      plan_approved_by: userId,
-    })
+    .update(approvePatch)
     .eq("id", campaignId);
   if (updErr) return json({ ok: false, error: `approve_failed: ${updErr.message}` }, 500);
+
+  // Refletir no objeto local pra resto do fluxo (cost do deal usa isso).
+  (campaign as any).valor_cobrado = resolvedValorCobrado;
+
 
   // 3) Lê feature flag
   const { data: flagRow } = await admin
