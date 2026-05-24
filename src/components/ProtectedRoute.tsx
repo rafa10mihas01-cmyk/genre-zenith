@@ -1,25 +1,16 @@
 import { Navigate } from "react-router-dom";
 import { ReactNode } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Zap } from "lucide-react";
+import { useBootGate } from "@/contexts/LoadingContext";
 import { getCuratorPublicPath, isCuratorPublicMode } from "@/lib/publicRouteMode";
 
 export default function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
+  // Mantém o splash global ligado enquanto a auth não terminou.
+  // Sem UI própria: o SplashLoader já está em tela via AppLayout/LoadingProvider.
+  useBootGate(loading);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex items-center gap-3 text-muted-foreground">
-          <Zap className="h-5 w-5 text-primary animate-pulse-soft" />
-          <span>Carregando…</span>
-        </div>
-      </div>
-    );
-  }
-  // Visitantes vão para a Landing (rota /), não para /login.
-  // /login fica reservado para uso interno/admin.
-  // Modo curador público só trava quem NÃO está autenticado — admins navegam livre.
+  if (loading) return null;
   if (!user && isCuratorPublicMode()) return <Navigate to={getCuratorPublicPath()} replace />;
   if (!user) return <Navigate to="/" replace />;
   return <>{children}</>;
