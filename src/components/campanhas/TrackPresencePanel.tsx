@@ -18,19 +18,19 @@ const STATUS_META = {
     chipClass: "text-primary bg-primary/10 border-primary/30",
   },
   middle: {
-    label: "Médio",
-    icon: ArrowUp,
+    label: "Meio",
+    icon: Music,
     chipClass: "text-foreground bg-elevated border-border",
   },
   tail: {
-    label: "Promover",
-    icon: ArrowUp,
-    chipClass: "text-amber-500 bg-amber-500/10 border-amber-500/30",
+    label: "Cauda",
+    icon: Music,
+    chipClass: "text-muted-foreground bg-elevated border-border",
   },
   absent: {
-    label: "Adicionar",
-    icon: Plus,
-    chipClass: "text-muted-foreground bg-elevated border-border",
+    label: "Fora",
+    icon: Music,
+    chipClass: "text-subtle-foreground bg-elevated border-border",
   },
 } as const;
 
