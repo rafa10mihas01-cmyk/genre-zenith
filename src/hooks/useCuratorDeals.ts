@@ -176,19 +176,23 @@ export function useCuratorDeals() {
     setError(null);
     try {
       // Curadores + saldos em paralelo com deals
+      // Tetos altos para não cortar dado atual mas impedir crescimento ilimitado.
       const [dealsRes, curatorsRes, balancesRes] = await Promise.all([
         supabase
           .from("curator_deals")
           .select("*")
           .or("source.is.null,source.neq.campaign_internal")
-          .order("created_at", { ascending: false }),
+          .order("created_at", { ascending: false })
+          .limit(1000),
         supabase
           .from("curators")
           .select("*")
-          .order("created_at", { ascending: false }),
+          .order("created_at", { ascending: false })
+          .limit(2000),
         supabase
           .from("v_curator_balance")
-          .select("*"),
+          .select("*")
+          .limit(2000),
       ]);
       if (dealsRes.error) throw dealsRes.error;
       if (curatorsRes.error) throw curatorsRes.error;
@@ -211,23 +215,27 @@ export function useCuratorDeals() {
             .from("curator_deal_logs")
             .select("*")
             .in("deal_id", dealIds)
-            .order("created_at", { ascending: true }),
+            .order("created_at", { ascending: true })
+            .limit(5000),
           supabase
             .from("curator_playlists")
             .select("*")
             .in("deal_id", dealIds)
-            .order("added_at", { ascending: true }),
+            .order("added_at", { ascending: true })
+            .limit(5000),
           supabase
             .from("curator_deal_songs")
             .select("*")
             .in("deal_id", dealIds)
-            .order("position", { ascending: true }),
+            .order("position", { ascending: true })
+            .limit(5000),
           supabase
             .from("curator_fraud_alerts")
             .select("*")
             .in("deal_id", dealIds)
             .eq("status", "open")
-            .order("created_at", { ascending: false }),
+            .order("created_at", { ascending: false })
+            .limit(500),
         ]);
         if (logsRes.error) throw logsRes.error;
         if (plRes.error) throw plRes.error;
@@ -243,6 +251,7 @@ export function useCuratorDeals() {
         setSongs((songsRes.data ?? []) as CuratorDealSong[]);
         setAlerts((alertsRes.data ?? []) as CuratorFraudAlert[]);
       }
+
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
