@@ -101,15 +101,24 @@ Deno.serve(async (req) => {
   const allIds = (all ?? []).map((r: any) => r.id);
   if (allIds.length === 0) return jr({ ok: true, processed: 0, ok_count: 0, failed: 0, remaining: 0, details: [] });
 
-  // Busca playlist_ids que JÁ têm tracks
+  // Busca playlist_ids que JÁ têm tracks (paginado — default PostgREST 1000 rows trunca)
   const present = new Set<string>();
-  for (let i = 0; i < allIds.length; i += 500) {
-    const slice = allIds.slice(i, i + 500);
-    const { data } = await sb
-      .from("managed_playlist_tracks")
-      .select("playlist_id")
-      .in("playlist_id", slice);
-    for (const r of (data ?? []) as any[]) present.add(r.playlist_id);
+  for (let i = 0; i < allIds.length; i += 200) {
+    const slice = allIds.slice(i, i + 200);
+    let from = 0;
+    const PAGE = 1000;
+    while (true) {
+      const { data, error } = await sb
+        .from("managed_playlist_tracks")
+        .select("playlist_id")
+        .in("playlist_id", slice)
+        .range(from, from + PAGE - 1);
+      if (error) throw new Error(`present query: ${error.message}`);
+      const rows = (data ?? []) as any[];
+      for (const r of rows) present.add(r.playlist_id);
+      if (rows.length < PAGE) break;
+      from += PAGE;
+    }
   }
 
   const missing = (all ?? []).filter((r: any) => !present.has(r.id));
@@ -129,7 +138,12 @@ Deno.serve(async (req) => {
       details.push({ id: pl.id, ok: true, tracks: n });
     } catch (e) {
       failed++;
-      details.push({ id: pl.id, ok: false, error: (e as Error).message.slice(0, 200) });
+      const msg = (e as Error).message.slice(0, 200);
+      details.push({ id: pl.id, ok: false, error: msg });
+      // Auto-arquiva playlists removidas do Spotify pra não voltarem ao backlog
+      if (msg.includes("spotify 404")) {
+        await sb.from("managed_playlists").update({ archived_at: new Date().toISOString() }).eq("id", pl.id);
+      }
     }
   }
 
