@@ -6,6 +6,7 @@
 // depender do dist da VPS chamar /bot-ingest-dom diretamente.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { processDomItem, type DomItem } from "../_shared/ingest-dom.ts";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,6 +27,7 @@ function jr(p: unknown, status = 200) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const startedAt = Date.now();
   if (req.method !== "POST") return jr({ error: "method_not_allowed" }, 405);
   if (req.headers.get("x-bot-key") !== BOT_API_KEY) return jr({ error: "unauthorized" }, 401);
 
@@ -167,5 +169,37 @@ Deno.serve(async (req) => {
       console.error("Failed to enqueue spotify-session-expired email", e);
     }
   }
+  // Health: amostragem temporal — registra no máximo 1x por 5 min por bot
+  // pra evitar inundar (heartbeat chega a cada ~30s).
+  // Sempre loga quando sessão inválida (importante pra timeline de incidentes).
+  const sessionInvalid = body.spotify_session_valid === false;
+  const fiveMinAgo = new Date(Date.now() - 5 * 60_000).toISOString();
+  const botName = body.bot_name ?? req.headers.get("x-bot-name") ?? "spotify-artists-bot";
+  let shouldLog = sessionInvalid || (domSnapshots && domSnapshots.length > 0);
+  if (!shouldLog) {
+    const { count } = await supabase
+      .from("cron_health")
+      .select("id", { count: "exact", head: true })
+      .eq("job_name", "bot-heartbeat")
+      .gte("ran_at", fiveMinAgo);
+    shouldLog = (count ?? 0) === 0;
+  }
+  if (shouldLog) {
+    await reportCronHealth(supabase, {
+      job_name: "bot-heartbeat",
+      status: sessionInvalid ? "error" : "ok",
+      startedAt,
+      metrics: {
+        bot_name: botName,
+        spotify_session_valid: body.spotify_session_valid ?? true,
+        dom_snapshots: domSnapshots?.length ?? 0,
+        hostname,
+      },
+      message: sessionInvalid
+        ? `session_invalid · ${body.message ?? ""}`.slice(0, 200)
+        : `online · dom=${domSnapshots?.length ?? 0}`,
+    });
+  }
+
   return jr({ ok: true, dom_results: domResults });
 });
