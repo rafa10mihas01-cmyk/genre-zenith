@@ -83,8 +83,15 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (mpErr) return jr({ error: mpErr.message }, 500);
     if (mp?.spotify_playlist_id) {
-      resolvedPlaylistId = mp.id;
       spotifyPlaylistId = mp.spotify_playlist_id;
+      // Resolve canonical playlists.id via spotify_playlist_id (FK alvo)
+      const { data: canon, error: canonErr } = await supabase
+        .from("playlists")
+        .select("id")
+        .eq("spotify_playlist_id", mp.spotify_playlist_id)
+        .maybeSingle();
+      if (canonErr) return jr({ error: canonErr.message }, 500);
+      resolvedPlaylistId = canon?.id ?? null;
     }
   }
   if (!spotifyPlaylistId || !resolvedPlaylistId) return jr({ error: "playlist não encontrada" }, 404);
