@@ -242,23 +242,42 @@ export async function closeCampaignFromCalculator(args: {
   if (error || !campaign) throw error ?? new Error("Falha ao criar campanha");
 
   if (allocations.length > 0) {
+    // Trava defensiva: clamp planned_streams pela capacidade REAL da playlist
+    // (followers × mult/30 × POSITION_PCT[pos] × days). Garante invariante no
+    // banco mesmo se alguma rota antiga gerar alocação acima do cap.
+    const playlistIds = allocations.map(a => a.managed_playlist_id);
+    const { data: mps } = await supabase
+      .from("managed_playlists")
+      .select("id, followers")
+      .in("id", playlistIds);
+    const followersById = new Map<string, number>((mps ?? []).map((m: any) => [m.id, Number(m.followers) || 0]));
+    const mult = Math.max(1, Math.round(engagementMultiplier));
+    const days = snapshot.days;
+
     // `position` já vem materializada do planEcoAllocations (Fix 2) — usa direto.
     // Se a alloc vier sem position (chamada externa antiga), grava NULL e o
     // backfill em approve-campaign-plan resolve depois.
-    const rows = allocations.map(a => ({
-      campaign_id: campaign.id,
-      managed_playlist_id: a.managed_playlist_id,
-      planned_streams: a.planned_streams,
-      start_day: a.start_day,
-      status: "pending" as const,
-      position: Number.isFinite((a as any).position) ? (a as any).position : null,
-      cost_per_stream_op: pricingOpEco,
-      market_per_stream: pricingMarketEco,
-      price_per_stream_sell: finalPricePerStream,
-    }));
+    const rows = allocations.map(a => {
+      const followers = followersById.get(a.managed_playlist_id) ?? 0;
+      const posRaw = Number.isFinite((a as any).position) ? (a as any).position as number : 3;
+      const pct = POSITION_PCT[posRaw - 1] ?? 0.003;
+      const hardCap = Math.max(1, Math.round(followers * (mult / 30) * pct * days));
+      return {
+        campaign_id: campaign.id,
+        managed_playlist_id: a.managed_playlist_id,
+        planned_streams: Math.min(a.planned_streams, hardCap),
+        start_day: a.start_day,
+        status: "pending" as const,
+        position: Number.isFinite((a as any).position) ? (a as any).position : null,
+        cost_per_stream_op: pricingOpEco,
+        market_per_stream: pricingMarketEco,
+        price_per_stream_sell: finalPricePerStream,
+      };
+    });
     const { error: allocErr } = await supabase.from("campaign_eco_allocations").insert(rows as any);
     if (allocErr) throw allocErr;
   }
+
 
   return { campaignId: campaign.id };
 }
