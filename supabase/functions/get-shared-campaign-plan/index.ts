@@ -1,6 +1,5 @@
-// Public endpoint: returns sanitized campaign plan + live tracking data for a share token.
-// Same token is valid before and after approval — the page morphs from "orçamento"
-// to "live portal" without changing URL.
+// Public endpoint: returns SANITIZED campaign plan + live tracking data for a share token.
+// READ-ONLY — não muta banco. Criação de deal é responsabilidade do approve-campaign-plan.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -12,6 +11,18 @@ function jr(p: unknown, status = 200) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+// Whitelist do que o cliente pode ver do simulation_snapshot.
+// Tudo que envolve custo interno, margem, preço de compra ou multiplicadores fica fora.
+function sanitizeSnapshot(raw: any): Record<string, unknown> | null {
+  if (!raw || typeof raw !== "object") return null;
+  const allowed = ["clientPriceTotal", "meta", "days"];
+  const out: Record<string, unknown> = {};
+  for (const k of allowed) {
+    if (raw[k] !== undefined) out[k] = raw[k];
+  }
+  return out;
 }
 
 Deno.serve(async (req) => {
@@ -29,14 +40,34 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
-  const { data: camp, error: cErr } = await supabase
+  // Lê só o estritamente necessário pro portal do cliente.
+  const { data: campRaw, error: cErr } = await supabase
     .from("campaigns")
-    .select("id, deal_id, track_name, artist, cover_url, spotify_track_url, spotify_track_id, goal_plays, status, started_at, deadline, simulation_snapshot, snapshot_locked_at, eco_dispatched_at, engagement_multiplier, total_delivered, client_approved_at, client_approved_by, client_rejected_at, client_adjustment_request, created_by")
+    .select("id, deal_id, track_name, artist, cover_url, spotify_track_url, goal_plays, status, started_at, deadline, simulation_snapshot, total_delivered, client_approved_at, client_rejected_at, client_adjustment_request")
     .eq("public_plan_token", token)
     .maybeSingle();
 
   if (cErr) return jr({ error: cErr.message }, 500);
-  if (!camp) return jr({ error: "not_found" }, 404);
+  if (!campRaw) return jr({ error: "not_found" }, 404);
+
+  // Payload sanitizado — sem custos, sem margens, sem campos internos.
+  const camp = {
+    id: campRaw.id,
+    deal_id: campRaw.deal_id,
+    track_name: campRaw.track_name,
+    artist: campRaw.artist,
+    cover_url: campRaw.cover_url,
+    spotify_track_url: campRaw.spotify_track_url,
+    goal_plays: campRaw.goal_plays,
+    status: campRaw.status,
+    started_at: campRaw.started_at,
+    deadline: campRaw.deadline,
+    total_delivered: campRaw.total_delivered,
+    client_approved_at: campRaw.client_approved_at,
+    client_rejected_at: campRaw.client_rejected_at,
+    client_adjustment_request: campRaw.client_adjustment_request,
+    simulation_snapshot: sanitizeSnapshot(campRaw.simulation_snapshot),
+  };
 
   const { data: allocs, error: aErr } = await supabase
     .from("campaign_eco_allocations")
@@ -46,8 +77,6 @@ Deno.serve(async (req) => {
 
   if (aErr) return jr({ error: aErr.message }, 500);
 
-  // Live data: only relevant once the client approved (so the orçamento stays
-  // limpo antes). We still query it sempre — barato e simplifica o front.
   const { data: snaps } = await supabase
     .from("campaign_eco_snapshots")
     .select("id, managed_playlist_id, plays_24h, plays_7d, plays_28d, captured_at, source")
@@ -55,7 +84,6 @@ Deno.serve(async (req) => {
     .order("captured_at", { ascending: false })
     .limit(500);
 
-  // Provas externas (telas) ligadas aos deals desta campanha
   const { data: pkgItems } = await supabase
     .from("campaign_external_package_items")
     .select("curator_deal_id, campaign_external_packages!inner(campaign_id)")
@@ -74,76 +102,14 @@ Deno.serve(async (req) => {
     proofs = dp ?? [];
   }
 
-  // Cliente também precisa subir planilha — pegamos o client_token da primeira
-  // música do deal correspondente (mesma lógica do portal /campanha/:token).
+  // Leitura do client_token + uploads — somente se o deal JÁ existir
+  // (criação foi movida pra approve-campaign-plan).
   let clientToken: string | null = null;
   let lastSpreadsheetUploadAt: string | null = null;
   let recentUploads: any[] = [];
-  let dealId = camp.deal_id as string | null;
-  if (!dealId && camp.spotify_track_id) {
-    let userId = (camp as any).created_by as string | null;
-    if (!userId) {
-      const { data: latestDeal } = await supabase
-        .from("curator_deals")
-        .select("user_id")
-        .not("user_id", "is", null)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      userId = (latestDeal as any)?.user_id ?? null;
-    }
-
-    if (userId) {
-      const goal = Number((camp as any).goal_plays ?? (camp as any).simulation_snapshot?.meta ?? 0);
-      const { data: newDeal } = await supabase
-        .from("curator_deals")
-        .insert({
-          user_id: userId,
-          curator_name: "Campanha",
-          song_spotify_url: camp.spotify_track_url || `spotify:track:${camp.spotify_track_id}`,
-          song_name: camp.track_name,
-          song_artist: camp.artist,
-          song_cover_url: camp.cover_url,
-          target_plays: goal,
-          baseline_plays: 0,
-          cost: 0,
-          started_at: camp.started_at,
-          ends_at: camp.deadline ? `${camp.deadline}T23:59:59.000Z` : null,
-          state: "active",
-          source: "campaign_internal",
-          origin: "campaign",
-          campaign_id: camp.id,
-        })
-        .select("id")
-        .single();
-
-      if (newDeal?.id) {
-        dealId = newDeal.id as string;
-        await supabase
-          .from("curator_deal_songs")
-          .insert({
-            deal_id: dealId,
-            spotify_track_id: camp.spotify_track_id,
-            song_spotify_url: camp.spotify_track_url || `spotify:track:${camp.spotify_track_id}`,
-            song_name: camp.track_name,
-            song_artist: camp.artist,
-            song_cover_url: camp.cover_url,
-            target_plays: goal,
-            baseline_plays: 0,
-            position: 1,
-            started_at: camp.started_at,
-            ends_at: camp.deadline ? `${camp.deadline}T23:59:59.000Z` : null,
-          });
-        await supabase.from("campaigns").update({ deal_id: dealId }).eq("id", camp.id);
-        (camp as any).deal_id = dealId;
-      }
-    }
-  }
+  const dealId = camp.deal_id as string | null;
 
   if (dealId) {
-    // Pega primeira música do deal. Se já tiver client_token, usa.
-    // Se não tiver, mintamos um na hora pra garantir que o card de
-    // upload de planilha sempre funcione no portal da campanha.
     const { data: song } = await supabase
       .from("curator_deal_songs")
       .select("id, client_token")
@@ -152,19 +118,7 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
     if (song) {
-      const existing = (song as any).client_token as string | null;
-      if (existing) {
-        clientToken = existing;
-      } else {
-        const newToken =
-          crypto.randomUUID().replace(/-/g, "") +
-          crypto.randomUUID().replace(/-/g, "");
-        const { error: tokErr } = await supabase
-          .from("curator_deal_songs")
-          .update({ client_token: newToken })
-          .eq("id", (song as any).id);
-        if (!tokErr) clientToken = newToken;
-      }
+      clientToken = (song as any).client_token ?? null;
     }
 
     const { data: uploads } = await supabase
@@ -187,4 +141,3 @@ Deno.serve(async (req) => {
     recent_uploads: recentUploads,
   });
 });
-
