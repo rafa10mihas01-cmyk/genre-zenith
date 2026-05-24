@@ -29,6 +29,7 @@ Deno.serve(async (req) => {
   if (!isCron && !isService) return jr({ ok: false, error: "unauthorized" }, 401);
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+  const startedAt = Date.now();
 
   try {
     const { data: due, error } = await supabase
