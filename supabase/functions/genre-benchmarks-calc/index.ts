@@ -140,6 +140,7 @@ Deno.serve(async (req) => {
     }
 
     if (body?.batch === true) {
+      const startedAt = Date.now();
       const { data: genres } = await supabase
         .from("playlists")
         .select("genre_id")
@@ -148,10 +149,17 @@ Deno.serve(async (req) => {
         .not("genre_id", "is", null);
       const uniq = Array.from(new Set((genres ?? []).map((g: any) => g.genre_id)));
       const results: any[] = [];
+      let errCount = 0;
       for (const gid of uniq) {
         try { results.push(await calcOne(supabase, gid)); }
-        catch (e) { results.push({ genre_id: gid, error: (e as Error).message }); }
+        catch (e) { results.push({ genre_id: gid, error: (e as Error).message }); errCount++; }
       }
+      await reportCronHealth(supabase, {
+        job_name: "genre-benchmarks-calc",
+        status: errCount === 0 ? "ok" : (errCount === results.length ? "error" : "partial"),
+        startedAt,
+        metrics: { processed: results.length, errors: errCount },
+      });
       return jr({ ok: true, mode: "batch", processed: results.length, results });
     }
 
