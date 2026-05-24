@@ -193,15 +193,6 @@ export default function Campanhas() {
 
         {tab === "financeiro" && <Calculadora />}
       </PageContainer>
-
-      <NewCampaignDialog
-        open={newOpen}
-        onOpenChange={setNewOpen}
-        onCreated={(id) => {
-          setNewOpen(false);
-          navigate(`/campanhas/${id}`);
-        }}
-      />
     </>
   );
 }
