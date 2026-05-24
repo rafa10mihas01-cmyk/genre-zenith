@@ -16,6 +16,7 @@ import { getUserAccessToken, getSpotifyToken } from "../_shared/spotify.ts";
 import {
   addPlaylistTracks,
   findPlaylistTrackIndex,
+  getPlaylistMeta,
   listPlaylistTrackRefs,
   removePlaylistTracks,
   reorderPlaylistTracks,
@@ -148,11 +149,8 @@ Deno.serve(async (req) => {
     let ownerId: string | null = null;
     try {
       const appToken = await getSpotifyToken();
-      const or = await fetch(
-        `https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}?fields=owner(id)`,
-        { headers: { Authorization: `Bearer ${appToken}` } },
-      );
-      if (or.ok) ownerId = (await or.json())?.owner?.id ?? null;
+      const meta = await getPlaylistMeta(pl.spotify_playlist_id, appToken, { fields: "owner(id)" });
+      ownerId = meta.owner_id;
     } catch { /* */ }
 
     let token: string;
