@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
 
 
   const ids = candidates.map((c: any) => c.id);
-  const lease = new Date(Date.now() + LEASE_MS).toISOString();
+
 
   // Marca claimed e gera correlation_id
   const updates = candidates.map((c: any) => ({
