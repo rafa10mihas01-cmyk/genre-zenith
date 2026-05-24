@@ -438,20 +438,13 @@ export default function PlanoCampanhaPublico() {
               </div>
             ),
             playlists: (
-              <PlaylistsGrid
-                allocations={allocs}
-                snapshots={snaps}
-                proofThumbs={proofs.map(p => ({
-                  playlist_id: p.playlist_id,
-                  screenshot_url: p.screenshot_url,
-                  captured_at: p.captured_at,
-                }))}
-                positions={ecoPositionByAllocation}
-                mode="client"
-              />
+              <MonitoredPlaylistsCard playlists={livePlaylists} />
             ),
             proofs: isApproved ? (
-              <ProofsTimeline events={proofEvents} />
+              <PrintsHistoryCard
+                history={snapshotHistory}
+                coverUrl={camp.cover_url ?? null}
+              />
             ) : (
               <Card>
                 <CardContent className="p-6 text-sm text-muted-foreground text-center">
