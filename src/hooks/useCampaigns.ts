@@ -41,7 +41,8 @@ export function useCampaigns() {
       const { data, error } = await supabase
         .from("campaigns")
         .select(SELECT)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(500);
       if (error) throw error;
       return (data ?? []) as Campaign[];
     },
