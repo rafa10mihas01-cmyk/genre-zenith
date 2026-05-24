@@ -1,23 +1,35 @@
-import { useMemo, useState } from "react";
-import { Bell, Trophy, Flame, CheckCircle2, AlertTriangle, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import {
+  Bell,
+  Trophy,
+  Flame,
+  CheckCircle2,
+  AlertTriangle,
+  Sparkles,
+  Handshake,
+  Info,
+  AlertCircle,
+  ExternalLink,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
 /**
  * CuratorNotificationsBell — sino do portal público do curador.
  *
- * Recebe os stats já calculados pela página e deriva 4 notificações:
- *   1. 🏆 Meta total atingida   (earned >= target)         → success
- *   2. 🔥 Quase lá              (pct >= 80% e não bateu)   → primary
- *   3. ✅ Ritmo do dia ok       (todayPlays >= dailyGoal)  → info
- *   4. ⚠️ Atrasado / sem ritmo (isOverdue OU sem progresso 3+ dias) → warning
+ * Combina DUAS fontes:
+ *   A) Notificações derivadas dos `stats` (meta, ritmo, atraso) — sem backend
+ *   B) Notificações persistidas em `notifications` para o user_id do curador
+ *      (lidas via edge function `curator-portal-notifications` usando o public_token)
  *
- * Sem backend, sem persistência: o sino sempre reflete o estado atual.
+ * Notificações B com `metadata.category = 'new_deal'` viram cards "Novo deal criado"
+ * com link direto pro portal daquele deal.
  */
 
 export type CuratorNotifInput = {
@@ -37,7 +49,8 @@ export type CuratorNotifInput = {
 
 type Severity = "success" | "primary" | "info" | "warning";
 
-type Notif = {
+type DerivedNotif = {
+  source: "derived";
   id: string;
   severity: Severity;
   icon: React.ComponentType<{ className?: string }>;
@@ -45,12 +58,51 @@ type Notif = {
   description: string;
 };
 
-function buildNotifications(s: CuratorNotifInput): Notif[] {
-  const out: Notif[] = [];
+type RemoteNotif = {
+  source: "remote";
+  id: string;
+  severity: Severity;
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  description: string;
+  createdAt: string;
+  read: boolean;
+  actionUrl?: string | null;
+  category?: string | null;
+  dealId?: string | null;
+};
 
-  // Antes do baseline ainda, não tem nada útil pra dizer
+type Notif = DerivedNotif | RemoteNotif;
+
+type RemoteRow = {
+  id: string;
+  type: "critical" | "warning" | "info";
+  title: string;
+  message: string;
+  action_url: string | null;
+  read: boolean;
+  created_at: string;
+  metadata: Record<string, unknown> | null;
+};
+
+function mapRemoteSeverity(t: RemoteRow["type"]): Severity {
+  if (t === "critical") return "warning";
+  if (t === "warning") return "warning";
+  return "info";
+}
+
+function iconForCategory(category: string | null | undefined, severity: Severity) {
+  if (category === "new_deal") return Handshake;
+  if (severity === "warning") return AlertCircle;
+  return Info;
+}
+
+function buildDerived(s: CuratorNotifInput): DerivedNotif[] {
+  const out: DerivedNotif[] = [];
+
   if (!s.hasBaseline) {
     out.push({
+      source: "derived",
       id: "waiting-baseline",
       severity: "info",
       icon: Sparkles,
@@ -63,9 +115,9 @@ function buildNotifications(s: CuratorNotifInput): Notif[] {
 
   const isDone = s.target > 0 && s.earned >= s.target;
 
-  // 1. META TOTAL ATINGIDA
   if (isDone) {
     out.push({
+      source: "derived",
       id: "goal-hit",
       severity: "success",
       icon: Trophy,
@@ -73,9 +125,9 @@ function buildNotifications(s: CuratorNotifInput): Notif[] {
       description: `Você entregou ${s.earned.toLocaleString("pt-BR")} de ${s.target.toLocaleString("pt-BR")} plays. Trabalho concluído.`,
     });
   } else if (s.target > 0 && s.pct >= 80) {
-    // 2. QUASE LÁ (>=80% mas não bateu)
     const remaining = Math.max(0, s.target - s.earned);
     out.push({
+      source: "derived",
       id: "almost-there",
       severity: "primary",
       icon: Flame,
@@ -84,9 +136,9 @@ function buildNotifications(s: CuratorNotifInput): Notif[] {
     });
   }
 
-  // 3. RITMO DO DIA OK
   if (!isDone && s.dailyGoal > 0 && s.todayPlays >= s.dailyGoal) {
     out.push({
+      source: "derived",
       id: "today-ok",
       severity: "info",
       icon: CheckCircle2,
@@ -95,9 +147,6 @@ function buildNotifications(s: CuratorNotifInput): Notif[] {
     });
   }
 
-  // 4. ATRASADO
-  // - Overdue do ciclo (passou de seg 17h sem print) OU
-  // - Mais de 3 dias sem nenhum import desde o último
   const daysSinceLast = s.lastImportAt
     ? Math.floor((Date.now() - s.lastImportAt.getTime()) / (1000 * 60 * 60 * 24))
     : Infinity;
@@ -108,6 +157,7 @@ function buildNotifications(s: CuratorNotifInput): Notif[] {
       ? "O ciclo semanal virou e nenhum print novo foi processado."
       : `Último envio há ${daysSinceLast} dias — atualize com um print recente.`;
     out.push({
+      source: "derived",
       id: "overdue",
       severity: "warning",
       icon: AlertTriangle,
@@ -116,59 +166,112 @@ function buildNotifications(s: CuratorNotifInput): Notif[] {
     });
   }
 
-  // Fallback positivo se nada disparou — mostra status saudável
-  if (out.length === 0) {
-    out.push({
-      id: "on-track",
-      severity: "info",
-      icon: Sparkles,
-      title: "Tudo no ritmo",
-      description:
-        s.pct > 0
-          ? `${s.pct}% concluído. Continue enviando os prints nos prazos do ciclo.`
-          : "Aguardando o próximo print pra atualizar o progresso.",
-    });
-  }
-
   return out;
 }
 
-const SEVERITY_STYLES: Record<Severity, { dot: string; iconWrap: string; iconColor: string; ring: string }> = {
-  success: {
-    dot: "bg-success",
-    iconWrap: "bg-success/10 border-success/30",
-    iconColor: "text-success",
-    ring: "ring-success/40",
-  },
-  primary: {
-    dot: "bg-primary",
-    iconWrap: "bg-primary/10 border-primary/30",
-    iconColor: "text-primary",
-    ring: "ring-primary/40",
-  },
-  info: {
-    dot: "bg-blue-400",
-    iconWrap: "bg-blue-500/10 border-blue-500/30",
-    iconColor: "text-blue-400",
-    ring: "ring-blue-500/40",
-  },
-  warning: {
-    dot: "bg-warning",
-    iconWrap: "bg-warning/10 border-warning/30",
-    iconColor: "text-warning",
-    ring: "ring-warning/40",
-  },
+const SEVERITY_STYLES: Record<Severity, { dot: string; iconWrap: string; iconColor: string }> = {
+  success: { dot: "bg-success", iconWrap: "bg-success/10 border-success/30", iconColor: "text-success" },
+  primary: { dot: "bg-primary", iconWrap: "bg-primary/10 border-primary/30", iconColor: "text-primary" },
+  info: { dot: "bg-blue-400", iconWrap: "bg-blue-500/10 border-blue-500/30", iconColor: "text-blue-400" },
+  warning: { dot: "bg-warning", iconWrap: "bg-warning/10 border-warning/30", iconColor: "text-warning" },
 };
 
-export function CuratorNotificationsBell({ stats }: { stats: CuratorNotifInput }) {
+export function CuratorNotificationsBell({
+  stats,
+  publicToken,
+}: {
+  stats: CuratorNotifInput;
+  publicToken?: string | null;
+}) {
   const [open, setOpen] = useState(false);
-  const notifications = useMemo(() => buildNotifications(stats), [stats]);
+  const [remote, setRemote] = useState<RemoteNotif[]>([]);
 
-  // Conta só notificações "acionáveis" (success / primary / warning) no badge
-  const actionable = notifications.filter(
+  const fetchRemote = useCallback(async () => {
+    if (!publicToken) return;
+    try {
+      const { data, error } = await supabase.functions.invoke("curator-portal-notifications", {
+        body: { action: "list", public_token: publicToken, limit: 20 },
+      });
+      if (error) return;
+      const res = data as { ok: boolean; notifications?: RemoteRow[] };
+      if (!res?.ok || !Array.isArray(res.notifications)) return;
+      const mapped: RemoteNotif[] = res.notifications.map((r) => {
+        const meta = (r.metadata ?? {}) as { category?: string; deal_id?: string };
+        const severity = mapRemoteSeverity(r.type);
+        const isNewDeal = meta.category === "new_deal";
+        return {
+          source: "remote",
+          id: r.id,
+          severity,
+          icon: iconForCategory(meta.category, severity),
+          title: isNewDeal ? "Novo deal criado" : r.title,
+          description: r.message,
+          createdAt: r.created_at,
+          read: r.read,
+          actionUrl: r.action_url ?? (isNewDeal && meta.deal_id ? `/c/${meta.deal_id}` : null),
+          category: meta.category ?? null,
+          dealId: meta.deal_id ?? null,
+        };
+      });
+      setRemote(mapped);
+    } catch {
+      /* portal silencioso — falha de notificação não bloqueia UX */
+    }
+  }, [publicToken]);
+
+  useEffect(() => {
+    fetchRemote();
+    if (!publicToken) return;
+    const t = setInterval(fetchRemote, 60_000);
+    return () => clearInterval(t);
+  }, [fetchRemote, publicToken]);
+
+  const markRead = useCallback(
+    async (id: string) => {
+      setRemote((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+      if (!publicToken) return;
+      try {
+        await supabase.functions.invoke("curator-portal-notifications", {
+          body: { action: "mark_read", public_token: publicToken, notification_id: id },
+        });
+      } catch {
+        /* otimista — refetch corrige no próximo ciclo */
+      }
+    },
+    [publicToken],
+  );
+
+  const derived = useMemo(() => buildDerived(stats), [stats]);
+
+  // Ordem final: remotas (mais recentes primeiro), depois derivadas.
+  // Se não houver nada, fallback positivo.
+  const notifications: Notif[] = useMemo(() => {
+    const merged: Notif[] = [...remote, ...derived];
+    if (merged.length === 0) {
+      merged.push({
+        source: "derived",
+        id: "on-track",
+        severity: "info",
+        icon: Sparkles,
+        title: "Tudo no ritmo",
+        description:
+          stats.pct > 0
+            ? `${stats.pct}% concluído. Continue enviando os prints nos prazos do ciclo.`
+            : "Aguardando o próximo print pra atualizar o progresso.",
+      });
+    }
+    return merged;
+  }, [remote, derived, stats.pct]);
+
+  // Badge: remotas não lidas + derivadas acionáveis (success/primary/warning)
+  const unreadRemote = remote.filter((r) => !r.read).length;
+  const actionableDerived = derived.filter(
     (n) => n.severity === "success" || n.severity === "primary" || n.severity === "warning",
   ).length;
-  const hasAlert = notifications.some((n) => n.severity === "warning");
+  const badgeCount = unreadRemote + actionableDerived;
+  const hasAlert =
+    remote.some((r) => !r.read && r.severity === "warning") ||
+    derived.some((n) => n.severity === "warning");
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -180,14 +283,14 @@ export function CuratorNotificationsBell({ stats }: { stats: CuratorNotifInput }
           aria-label="Notificações"
         >
           <Bell className="h-[18px] w-[18px]" />
-          {actionable > 0 && (
+          {badgeCount > 0 && (
             <span
               className={cn(
                 "absolute top-1.5 right-1.5 min-w-[16px] h-[16px] px-1 rounded-full text-[9px] font-bold leading-none flex items-center justify-center text-white",
                 hasAlert ? "bg-warning" : "bg-primary",
               )}
             >
-              {actionable}
+              {badgeCount}
             </span>
           )}
         </Button>
@@ -195,21 +298,25 @@ export function CuratorNotificationsBell({ stats }: { stats: CuratorNotifInput }
       <PopoverContent
         align="end"
         sideOffset={8}
-        className="w-[340px] p-0 bg-card border-border"
+        className="w-[360px] p-0 bg-card border-border"
       >
         <div className="px-4 py-3 border-b border-border">
           <h3 className="text-sm font-semibold text-foreground">Acompanhamento</h3>
           <p className="text-[11px] text-muted-foreground mt-0.5">
-            Status atual do seu progresso na campanha
+            Avisos do sistema e status da sua campanha
           </p>
         </div>
 
-        <ul className="max-h-[420px] overflow-y-auto divide-y divide-border">
+        <ul className="max-h-[480px] overflow-y-auto divide-y divide-border">
           {notifications.map((n) => {
             const Icon = n.icon;
             const styles = SEVERITY_STYLES[n.severity];
-            return (
-              <li key={n.id} className="px-4 py-3 flex items-start gap-3 hover:bg-elevated/40 transition-colors">
+            const isRemote = n.source === "remote";
+            const unread = isRemote && !n.read;
+            const href = isRemote ? n.actionUrl : null;
+
+            const inner = (
+              <>
                 <div
                   className={cn(
                     "h-9 w-9 rounded-full border flex items-center justify-center shrink-0",
@@ -221,14 +328,58 @@ export function CuratorNotificationsBell({ stats }: { stats: CuratorNotifInput }
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", styles.dot)} />
-                    <p className="text-[13px] font-semibold text-foreground leading-tight">
+                    <p className={cn("text-[13px] font-semibold leading-tight truncate", unread ? "text-foreground" : "text-foreground")}>
                       {n.title}
                     </p>
+                    {unread && (
+                      <span className="ml-auto text-[9px] font-bold uppercase tracking-wider text-primary">
+                        novo
+                      </span>
+                    )}
                   </div>
                   <p className="text-[11.5px] text-muted-foreground leading-snug mt-1">
                     {n.description}
                   </p>
+                  {isRemote && href && (
+                    <div className="mt-1.5 inline-flex items-center gap-1 text-[10.5px] text-primary font-medium">
+                      Abrir portal do deal <ExternalLink className="h-3 w-3" />
+                    </div>
+                  )}
                 </div>
+              </>
+            );
+
+            const baseClass = cn(
+              "px-4 py-3 flex items-start gap-3 transition-colors w-full text-left",
+              unread ? "bg-primary/[0.04]" : "",
+              isRemote ? "hover:bg-elevated/60 cursor-pointer" : "hover:bg-elevated/40",
+            );
+
+            if (isRemote && href) {
+              return (
+                <li key={`${n.source}-${n.id}`}>
+                  <a
+                    href={href}
+                    onClick={() => markRead(n.id)}
+                    className={baseClass}
+                  >
+                    {inner}
+                  </a>
+                </li>
+              );
+            }
+            if (isRemote) {
+              return (
+                <li key={`${n.source}-${n.id}`}>
+                  <button onClick={() => markRead(n.id)} className={baseClass}>
+                    {inner}
+                  </button>
+                </li>
+              );
+            }
+            return (
+              <li key={`${n.source}-${n.id}`} className={baseClass}>
+                {inner}
               </li>
             );
           })}
