@@ -370,6 +370,7 @@ Deno.serve(async (req) => {
     }
   }
 
+  await reportCronHealth(supabase, { job_name: 'process-email-queue', status: 'ok', startedAt, metrics: { processed: totalProcessed }, message: `processed=${totalProcessed}` })
   return new Response(
     JSON.stringify({ processed: totalProcessed }),
     { headers: { 'Content-Type': 'application/json' } }
