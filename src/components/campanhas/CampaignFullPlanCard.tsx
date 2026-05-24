@@ -34,6 +34,10 @@ type Props = {
     coverUrl?: string | null;
     spotifyUrl?: string | null;
   } | null;
+  /** Quando informado, habilita botão "Redistribuir posições" (admin/interno). */
+  campaignId?: string;
+  /** Callback após gravar novas posições no banco — usado pra recarregar allocs. */
+  onPositionsRedistributed?: () => void;
 };
 
 function dateLabel(startedAt: string, day: number) {
