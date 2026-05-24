@@ -362,26 +362,50 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
 
   return (
     <div className="space-y-4">
-      <Card className="p-5 space-y-3">
-        <div className="flex items-center gap-2">
-          <ListMusic className="h-4 w-4 text-primary" />
-          <h2 className="text-sm font-semibold">Editor da playlist</h2>
-          {!loading && <span className="text-xs text-muted-foreground">{tracks.length} faixas</span>}
+      <Card className="p-5 space-y-4">
+        {/* Cabeçalho Spotify-style */}
+        <div className="flex items-center gap-4">
+          {meta.cover_url ? (
+            <img
+              src={meta.cover_url}
+              alt=""
+              className="h-20 w-20 rounded-md object-cover shrink-0 shadow-md"
+            />
+          ) : (
+            <div className="h-20 w-20 rounded-md bg-muted shrink-0 grid place-items-center">
+              <ListMusic className="h-8 w-8 text-muted-foreground" />
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+              Editor da playlist
+            </div>
+            <h2 className="text-2xl font-bold truncate text-foreground">
+              {meta.name ?? "—"}
+            </h2>
+            <div className="text-sm text-muted-foreground mt-1">
+              {loading
+                ? "Carregando…"
+                : `${tracks.length} ${tracks.length === 1 ? "faixa" : "faixas"} · ${fmtTotalDuration(totalDurationMs)}`}
+            </div>
+          </div>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => { loadTracks(); loadJobs(); }}
+            onClick={() => { loadTracks(); loadJobs(); loadMeta(); }}
             disabled={loading}
-            className="ml-auto nx-pill"
+            className="nx-pill"
           >
             <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
             <span className="ml-1.5">Atualizar</span>
           </Button>
         </div>
+
         <p className="text-[11px] text-muted-foreground">
           Arraste pela alça para reordenar · Passe o mouse entre faixas para revelar o botão <Plus className="inline h-3 w-3" /> · Use a lixeira para remover.
           Ações entram numa fila e o badge mostra o estado.
         </p>
+
 
         {err && (
           <div className="flex items-start gap-2 text-sm text-destructive p-3 rounded-md border border-destructive/30 bg-destructive/5">
