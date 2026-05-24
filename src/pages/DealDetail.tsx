@@ -19,7 +19,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { PageHeader } from "@/components/PageHeader";
 import { KpiBig } from "@/components/KpiBig";
 import { Button } from "@/components/ui/button";
-import { useCuratorDeals } from "@/hooks/useCuratorDeals";
+import { useCuratorDealDetail } from "@/hooks/useCuratorDealDetail";
 import { DealHistorySheet } from "@/components/playlist-deals/DealHistorySheet";
 import { computeCuratorStats } from "@/lib/curatorDealsUtils";
 
