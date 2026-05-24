@@ -138,7 +138,12 @@ Deno.serve(async (req) => {
       details.push({ id: pl.id, ok: true, tracks: n });
     } catch (e) {
       failed++;
-      details.push({ id: pl.id, ok: false, error: (e as Error).message.slice(0, 200) });
+      const msg = (e as Error).message.slice(0, 200);
+      details.push({ id: pl.id, ok: false, error: msg });
+      // Auto-arquiva playlists removidas do Spotify pra não voltarem ao backlog
+      if (msg.includes("spotify 404")) {
+        await sb.from("managed_playlists").update({ archived_at: new Date().toISOString() }).eq("id", pl.id);
+      }
     }
   }
 
