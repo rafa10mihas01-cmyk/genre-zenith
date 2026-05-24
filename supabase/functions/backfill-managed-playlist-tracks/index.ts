@@ -8,6 +8,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getSpotifyToken } from "../_shared/spotify.ts";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 // Auth opcional: aceita JWT de team OU header x-backfill-secret = SERVICE_ROLE_KEY.
 // Backfill é idempotente (replace-all por playlist), seguro pra rodar como admin.
 
@@ -70,6 +71,7 @@ async function syncOne(sb: any, token: string, pl: { id: string; spotify_playlis
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const startedAt = Date.now();
 
   // Guard: aceita header com service role key OU bearer JWT (qualquer team_access).
   const secret = req.headers.get("x-backfill-secret");
@@ -146,6 +148,19 @@ Deno.serve(async (req) => {
       }
     }
   }
+
+  let auto_archived = 0;
+  for (const d of details) {
+    if (!d.ok && typeof d.error === "string" && d.error.includes("spotify 404")) auto_archived++;
+  }
+
+  await reportCronHealth(sb, {
+    job_name: "backfill-managed-playlist-tracks",
+    status: failed > 0 ? (okCount === 0 ? "error" : "partial") : "ok",
+    startedAt,
+    metrics: { processed: batch.length, ok: okCount, failed, remaining, auto_archived },
+    message: `processed=${batch.length} ok=${okCount} failed=${failed} remaining=${remaining} archived=${auto_archived}`,
+  });
 
   return jr({
     ok: true,

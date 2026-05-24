@@ -4,6 +4,7 @@
 // + cria notificação interna pra equipe. Idempotente por dia.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -19,8 +20,9 @@ const PORTAL_BASE = "https://engine.nexcreatorx.com/campanha";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const startedAt = Date.now();
+  const admin = createClient(SUPABASE_URL, SERVICE_KEY);
   try {
-    const admin = createClient(SUPABASE_URL, SERVICE_KEY);
     const today = new Date().toISOString().slice(0, 10);
     const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
 
@@ -110,9 +112,24 @@ Deno.serve(async (req) => {
       }
     }
 
+    const sent = results.filter((r) => r.action === "sent").length;
+    const errored = results.filter((r) => r.action === "error").length;
+    await reportCronHealth(admin, {
+      job_name: "check-spreadsheet-reminders",
+      status: errored > 0 ? "partial" : "ok",
+      startedAt,
+      metrics: { processed: results.length, sent, errored, skipped: results.length - sent - errored },
+      message: `processed=${results.length} sent=${sent} errors=${errored}`,
+    });
     return jr({ ok: true, processed: results.length, results });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    await reportCronHealth(admin, {
+      job_name: "check-spreadsheet-reminders",
+      status: "error",
+      startedAt,
+      message: msg.slice(0, 200),
+    });
     return jr({ ok: false, error: msg }, 200);
   }
 });
