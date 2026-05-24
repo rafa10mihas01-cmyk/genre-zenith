@@ -271,6 +271,11 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
     return m;
   }, [jobs]);
 
+  const totalDurationMs = useMemo(
+    () => tracks.reduce((acc, t) => acc + (t.duration_ms ?? 0), 0),
+    [tracks],
+  );
+
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
