@@ -2,12 +2,13 @@
 // emerging | stable | declining | dead, comparando vs último snapshot.
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { reportCronHealth } from '../_shared/cron-health.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+  const startedAt = Date.now();
   try {
-    const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-
     const { data: brain, error } = await sb
       .from('genre_brain')
       .select('genre_id, slug, top_tokens');
@@ -15,11 +16,11 @@ Deno.serve(async (req) => {
 
     const now = new Date().toISOString();
     const out: any[] = [];
+    const counts = { emerging: 0, stable: 0, declining: 0, dead: 0 };
 
     for (const b of brain ?? []) {
       const tokens = (b.top_tokens as any[]) ?? [];
 
-      // último snapshot por gênero (uma data anterior)
       const { data: prev } = await sb
         .from('genre_lexicon_history')
         .select('term, weight, captured_at')
@@ -41,15 +42,16 @@ Deno.serve(async (req) => {
         if (prevW == null) status = 'emerging';
         else if (w < prevW * 0.6) status = 'declining';
         else status = 'stable';
+        counts[status]++;
         out.push({
           genre_id: b.genre_id, slug: b.slug, term, weight: w,
           rank: i + 1, status, captured_at: now,
         });
       });
 
-      // termos sumiram = dead
       for (const [term, w] of prevMap) {
         if (!currentTerms.has(term)) {
+          counts.dead++;
           out.push({
             genre_id: b.genre_id, slug: b.slug, term, weight: w,
             rank: null, status: 'dead', captured_at: now,
@@ -59,17 +61,29 @@ Deno.serve(async (req) => {
     }
 
     if (out.length) {
-      // insert in chunks
       for (let i = 0; i < out.length; i += 500) {
         const { error: ie } = await sb.from('genre_lexicon_history').insert(out.slice(i, i + 500));
         if (ie) throw ie;
       }
     }
 
+    await reportCronHealth(sb, {
+      job_name: 'snapshot-genre-lexicon',
+      status: 'ok',
+      startedAt,
+      metrics: { genres: brain?.length ?? 0, snapshots: out.length, ...counts },
+    });
+
     return new Response(JSON.stringify({ ok: true, snapshots: out.length }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
+    await reportCronHealth(sb, {
+      job_name: 'snapshot-genre-lexicon',
+      status: 'error',
+      startedAt,
+      message: String((e as Error).message),
+    });
     return new Response(JSON.stringify({ error: String((e as Error).message) }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
