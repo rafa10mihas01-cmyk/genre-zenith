@@ -340,6 +340,38 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
 
         {step === 1 && (
           <div className="space-y-4">
+            {/* Tipo da campanha */}
+            <div className="space-y-2">
+              <Label>Tipo da campanha</Label>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                {([
+                  { id: "ecosystem", title: "Ecossistema", desc: "Só playlists internas (managed)." },
+                  { id: "external",  title: "Externa",     desc: "Só curadores externos (deals reais)." },
+                  { id: "hybrid",    title: "Híbrida",     desc: "Mistura ecossistema + curadores." },
+                ] as const).map(opt => {
+                  const active = campaignType === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setCampaignType(opt.id)}
+                      className={`text-left rounded-lg border p-3 transition ${
+                        active
+                          ? "border-primary bg-primary/5"
+                          : "border-border/60 hover:border-border bg-muted/10"
+                      }`}
+                    >
+                      <div className="text-sm font-semibold text-foreground">{opt.title}</div>
+                      <div className="text-xs text-muted-foreground mt-1">{opt.desc}</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Define como o plano vai ser executado. Externa/Híbrida exigem curador.
+              </p>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Cliente <span className="text-muted-foreground font-normal">(dono da campanha)</span></Label>
