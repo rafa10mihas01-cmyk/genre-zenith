@@ -263,12 +263,46 @@ Deno.serve(async (req) => {
     }
   }
 
+  // 10) Notifica o curador (destinatário = curators.user_id). O enum
+  // notification_type tem apenas info/warning/critical — a categoria
+  // semântica "new_deal" vai no metadata.
+  let notification_sent = false;
+  if (newDealId && campaign.curator_id) {
+    try {
+      const { data: curatorUser } = await admin
+        .from("curators")
+        .select("user_id, name")
+        .eq("id", campaign.curator_id)
+        .maybeSingle();
+      const recipientUserId = (curatorUser as any)?.user_id ?? null;
+      if (recipientUserId) {
+        await admin.from("notifications").insert({
+          user_id: recipientUserId,
+          type: "info",
+          title: "Novo deal criado",
+          message:
+            "Novo deal criado — acesse seu portal para registrar as playlists",
+          metadata: {
+            category: "new_deal",
+            deal_id: newDealId,
+            campaign_id: campaignId,
+            curator_id: campaign.curator_id,
+          },
+        });
+        notification_sent = true;
+      }
+    } catch (_e) {
+      // Não bloqueia aprovação se notificação falhar.
+    }
+  }
+
   return json({
     ok: true,
     already_approved: false,
     deal_created: !!newDealId,
     deal_id: newDealId,
     seeded_playlists,
+    notification_sent,
     flag_on: true,
   });
 });
