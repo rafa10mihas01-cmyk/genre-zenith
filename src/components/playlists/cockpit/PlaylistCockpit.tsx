@@ -197,6 +197,13 @@ export function PlaylistCockpit({
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [applying, setApplying] = useState<null | "remove" | "demote" | "promote" | "add" | "all">(null);
+  const [applyProgress, setApplyProgress] = useState<null | {
+    index: number;
+    total: number;
+    description: string;
+    status: "running" | "done" | "skipped" | "failed";
+    error?: string;
+  }>(null);
   const [activeTab, setActiveTab] = useState<string>("identidade");
   const [archiving, setArchiving] = useState(false);
   const navigate = useNavigate();
