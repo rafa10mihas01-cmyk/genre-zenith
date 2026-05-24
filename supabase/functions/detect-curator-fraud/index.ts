@@ -196,6 +196,7 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const startedAt = Date.now();
   try {
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const dealId: string | undefined = body?.deal_id;
