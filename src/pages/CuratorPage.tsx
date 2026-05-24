@@ -806,6 +806,7 @@ export default function CuratorPage() {
             <ThemeToggle />
             <span className="w-px h-5 bg-border/50" aria-hidden />
             <CuratorNotificationsBell
+              publicToken={deal.public_token}
               stats={{
                 target: stats.target,
                 dailyGoal: stats.dailyGoal,
