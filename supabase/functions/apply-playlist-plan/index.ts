@@ -16,6 +16,7 @@ import { getUserAccessToken, getSpotifyToken } from "../_shared/spotify.ts";
 import {
   addPlaylistTracks,
   findPlaylistTrackIndex,
+  getPlaylistMeta,
   listPlaylistTrackRefs,
   removePlaylistTracks,
   reorderPlaylistTracks,
