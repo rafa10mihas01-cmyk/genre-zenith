@@ -21,8 +21,9 @@ const LEADER_THRESHOLD = 0.55;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const startedAt = Date.now();
+  const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
   try {
-    const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
 
     let gQ = sb.from("genres").select("id, slug, nome").eq("ativo", true);
