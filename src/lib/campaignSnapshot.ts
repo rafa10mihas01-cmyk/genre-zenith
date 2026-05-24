@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { CampaignResult } from "@/lib/campaignEngine";
-import { distributeEcoPositions, inferEcoPreferredPositions, POSITION_PCT } from "@/lib/campaignOperationalPlan";
+import { distributeEcoPositions, POSITION_PCT } from "@/lib/campaignOperationalPlan";
 
 /**
  * Snapshot imutável da calculadora — gravado em campaigns.simulation_snapshot
