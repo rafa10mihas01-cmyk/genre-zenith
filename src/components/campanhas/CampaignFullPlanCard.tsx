@@ -1,17 +1,19 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Grid3x3, Link2, Check, ExternalLink } from "lucide-react";
+import { Grid3x3, Link2, Check, ExternalLink, Shuffle, Loader2 } from "lucide-react";
 import { formatInt } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { buildEcoPlaylistPlan, distributeEcoPositions, inferEcoPreferredPositions, type DailyPlaylistPlan } from "@/lib/campaignOperationalPlan";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 type EcoAlloc = {
   id: string;
   planned_streams: number;
   start_day: number;
+  position?: number | null;
   managed_playlists?: {
     name: string;
     cover_url: string | null;
@@ -33,6 +35,10 @@ type Props = {
     coverUrl?: string | null;
     spotifyUrl?: string | null;
   } | null;
+  /** Quando informado, habilita botão "Redistribuir posições" (admin/interno). */
+  campaignId?: string;
+  /** Callback após gravar novas posições no banco — usado pra recarregar allocs. */
+  onPositionsRedistributed?: () => void;
 };
 
 function dateLabel(startedAt: string, day: number) {
@@ -49,10 +55,13 @@ export function CampaignFullPlanCard({
   shareToken,
   showShare = true,
   track = null,
+  campaignId,
+  onPositionsRedistributed,
 }: Props) {
   const [showZeros, setShowZeros] = useState(false);
   const [mode, setMode] = useState<"diario" | "acumulado">("acumulado");
   const [copied, setCopied] = useState(false);
+  const [redistributing, setRedistributing] = useState(false);
 
   function copyShareLink() {
     if (!shareToken) return;
@@ -70,6 +79,10 @@ export function CampaignFullPlanCard({
 
   const positionByAllocation = useMemo(
     () => {
+      // Se TODAS as allocs têm position persistida no banco, usa direto — o plano
+      // fica estável entre aberturas. Só recalcula se admin clicar em "Redistribuir".
+      const allPersisted = allocations.length > 0 && allocations.every(a => Number.isFinite((a as any).position) && (a as any).position >= 1);
+      if (allPersisted) return new Map(allocations.map(a => [a.id, (a as any).position as number]));
       const positionInputs = allocations.map((a) => ({
         id: a.id,
         planned_streams: a.planned_streams,
@@ -85,6 +98,42 @@ export function CampaignFullPlanCard({
     },
     [allocations, days, engagementMultiplier, snapshot],
   );
+
+  async function handleRedistribute() {
+    if (!campaignId || redistributing) return;
+    setRedistributing(true);
+    try {
+      // Força nova distribuição ignorando posições persistidas.
+      const positionInputs = allocations.map((a) => ({
+        id: a.id,
+        planned_streams: a.planned_streams,
+        followers: a.managed_playlists?.followers ?? 0,
+      }));
+      const preferredSlots = inferEcoPreferredPositions(snapshot, positionInputs, engagementMultiplier);
+      const fresh = distributeEcoPositions(positionInputs, days, engagementMultiplier, { preferredSlots });
+      // UPDATE row-a-row (Supabase JS não tem update em batch nativo).
+      const results = await Promise.all(
+        Array.from(fresh.entries()).map(([allocId, pos]) =>
+          supabase.from("campaign_eco_allocations").update({ position: pos }).eq("id", allocId),
+        ),
+      );
+      const firstErr = results.find(r => r.error);
+      if (firstErr?.error) throw firstErr.error;
+      toast({
+        title: "Posições redistribuídas",
+        description: "Plano regravado com novo sorteio. Recarregando…",
+      });
+      onPositionsRedistributed?.();
+    } catch (e) {
+      toast({
+        title: "Falha ao redistribuir",
+        description: (e as Error)?.message ?? "Erro desconhecido",
+        variant: "destructive",
+      });
+    } finally {
+      setRedistributing(false);
+    }
+  }
 
   const plans = useMemo<DailyPlaylistPlan[]>(
     () => buildEcoPlaylistPlan(snapshot, allocations, {
@@ -184,6 +233,22 @@ export function CampaignFullPlanCard({
           <Button size="sm" variant="ghost" onClick={() => setShowZeros((s) => !s)}>
             {showZeros ? "Esconder zeros" : "Mostrar zeros"}
           </Button>
+          {campaignId && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleRedistribute}
+              disabled={redistributing || allocations.length === 0}
+              title="Sorteia novas posições para todas as playlists e grava no plano"
+            >
+              {redistributing ? (
+                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+              ) : (
+                <Shuffle className="h-4 w-4 mr-1.5" />
+              )}
+              Redistribuir posições
+            </Button>
+          )}
           {showShare && (
             <Button size="sm" variant="outline" onClick={copyShareLink}>
               {copied ? <Check className="h-4 w-4 mr-1.5" /> : <Link2 className="h-4 w-4 mr-1.5" />}

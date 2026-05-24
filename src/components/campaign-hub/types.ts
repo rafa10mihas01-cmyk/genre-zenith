@@ -9,6 +9,7 @@ export type EcoAllocation = {
   start_day: number;
   status: string;
   dispatched_at: string | null;
+  position?: number | null;
   managed_playlists?: { name: string; cover_url: string | null; followers: number; spotify_url?: string | null } | null;
 };
 

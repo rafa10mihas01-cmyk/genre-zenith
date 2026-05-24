@@ -124,7 +124,7 @@ export default function CampanhaExecucao() {
         .maybeSingle(),
       supabase
         .from("campaign_eco_allocations")
-        .select("id, managed_playlist_id, planned_streams, start_day, status, dispatched_at, managed_playlists(name, cover_url, followers, spotify_url)")
+        .select("id, managed_playlist_id, planned_streams, start_day, status, dispatched_at, position, managed_playlists(name, cover_url, followers, spotify_url)")
         .eq("campaign_id", id)
         .order("planned_streams", { ascending: false }),
       supabase
@@ -372,6 +372,9 @@ export default function CampanhaExecucao() {
 
   const ecoPositionByAllocation = useMemo(() => {
     if (!snapshot) return new Map<string, number>();
+    // Se TODAS as allocs têm position persistida, usa direto. Senão, deriva dinâmica.
+    const allPersisted = allocs.length > 0 && allocs.every(a => Number.isFinite(a.position as number) && (a.position as number) >= 1);
+    if (allPersisted) return new Map(allocs.map(a => [a.id, a.position as number]));
     return distributeEcoPositions(
       allocs.map(a => ({
         id: a.id,
@@ -655,6 +658,8 @@ export default function CampanhaExecucao() {
                   allocations={allocs as unknown as Parameters<typeof CampaignFullPlanCard>[0]["allocations"]}
                   engagementMultiplier={camp.engagement_multiplier ?? 30}
                   shareToken={camp.public_plan_token ?? null}
+                  campaignId={camp.id}
+                  onPositionsRedistributed={loadCampaign}
                   track={{
                     name: camp.track_name,
                     artist: camp.artist,
@@ -662,6 +667,7 @@ export default function CampanhaExecucao() {
                     spotifyUrl: camp.spotify_track_url ?? null,
                   }}
                 />
+
               </TabsContent>
 
             </Tabs>

@@ -439,6 +439,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         r.days,
         coreSlice.map(p => ({ id: p.id, followers: p.followers ?? 0 })),
         r.modo,
+        song.engagementMultiplier ?? 30,
       );
       const neighborAllocs = neighborBudget > 0
         ? planEcoAllocations(
@@ -446,6 +447,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
             r.days,
             neighborSlice.map(p => ({ id: p.id, followers: p.followers ?? 0 })),
             r.modo,
+            song.engagementMultiplier ?? 30,
           )
         : [];
       const allocations = [...coreAllocs, ...neighborAllocs];

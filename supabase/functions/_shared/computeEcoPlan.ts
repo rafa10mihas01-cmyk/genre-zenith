@@ -136,6 +136,7 @@ export type Alloc = {
   planned_streams: number;
   start_day: number;
   status?: string;
+  position?: number | null;
   managed_playlists?: {
     id?: string;
     name?: string;
@@ -183,14 +184,18 @@ export function buildEcoPlan(args: {
   const modo = snapshot.modo;
   const ecoFloor = modo === "sequencial" ? curveThresholdDay(snapshot.curva, 0.25) : 1;
 
-  const positions = distributeEcoPositions(
-    allocs.map(a => ({
-      id: a.id,
-      planned_streams: a.planned_streams,
-      followers: Number(a.managed_playlists?.followers ?? 0),
-    })),
-    days, mult,
-  );
+  // Preferir posições persistidas em campaign_eco_allocations.position.
+  const allPersisted = allocs.length > 0 && allocs.every(a => Number.isFinite(a.position as number) && (a.position as number) >= 1);
+  const positions = allPersisted
+    ? new Map<string, number>(allocs.map(a => [a.id, a.position as number]))
+    : distributeEcoPositions(
+        allocs.map(a => ({
+          id: a.id,
+          planned_streams: a.planned_streams,
+          followers: Number(a.managed_playlists?.followers ?? 0),
+        })),
+        days, mult,
+      );
 
   const ordered = [...allocs].sort((a, b) => b.planned_streams - a.planned_streams);
   const stored = ordered.map(a => Number(a.start_day || 1));

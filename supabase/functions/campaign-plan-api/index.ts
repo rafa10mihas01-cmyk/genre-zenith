@@ -205,7 +205,7 @@ Deno.serve(async (req) => {
 
   const { data: allocs, error: aErr } = await supabase
     .from("campaign_eco_allocations")
-    .select("id, planned_streams, start_day, status, managed_playlists(name, cover_url, followers, spotify_url)")
+    .select("id, planned_streams, start_day, status, position, managed_playlists(name, cover_url, followers, spotify_url)")
     .eq("campaign_id", (camp as any).id)
     .order("planned_streams", { ascending: false });
   if (aErr) return jr({ error: aErr.message }, 500);
@@ -216,14 +216,19 @@ Deno.serve(async (req) => {
   const modo = snapshot.modo as "simultaneo" | "sequencial";
   const ecoFloor = modo === "sequencial" ? curveThresholdDay(snapshot.curva, 0.25) : 1;
 
-  const positions = distributeEcoPositions(
-    (allocs ?? []).map((a: any) => ({
-      id: a.id,
-      planned_streams: a.planned_streams,
-      followers: Number(a.managed_playlists?.followers ?? 0),
-    })),
-    days, mult,
-  );
+  // Preferir posições persistidas. Só recalcula dinamicamente se faltar alguma.
+  const allRows = allocs ?? [];
+  const allPersisted = allRows.length > 0 && allRows.every((a: any) => Number.isFinite(a.position) && a.position >= 1);
+  const positions = allPersisted
+    ? new Map<string, number>(allRows.map((a: any) => [a.id, a.position as number]))
+    : distributeEcoPositions(
+        allRows.map((a: any) => ({
+          id: a.id,
+          planned_streams: a.planned_streams,
+          followers: Number(a.managed_playlists?.followers ?? 0),
+        })),
+        days, mult,
+      );
 
   const ordered = [...(allocs ?? [])].sort((a: any, b: any) => b.planned_streams - a.planned_streams);
   const storedStarts = ordered.map((a: any) => Number(a.start_day || 1));

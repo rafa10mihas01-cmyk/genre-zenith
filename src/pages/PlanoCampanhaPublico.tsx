@@ -151,6 +151,8 @@ export default function PlanoCampanhaPublico() {
 
   const ecoPositionByAllocation = useMemo(() => {
     if (!snapshot) return new Map<string, number>();
+    const allPersisted = allocs.length > 0 && allocs.every(a => Number.isFinite((a as any).position) && (a as any).position >= 1);
+    if (allPersisted) return new Map(allocs.map(a => [a.id, (a as any).position as number]));
     return distributeEcoPositions(
       allocs.map(a => ({
         id: a.id,

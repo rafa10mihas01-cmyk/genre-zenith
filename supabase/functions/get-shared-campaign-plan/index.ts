@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
 
   const { data: allocs, error: aErr } = await supabase
     .from("campaign_eco_allocations")
-    .select("id, managed_playlist_id, planned_streams, start_day, status, dispatched_at, managed_playlists(name, cover_url, followers, spotify_url)")
+    .select("id, managed_playlist_id, planned_streams, start_day, status, dispatched_at, position, managed_playlists(name, cover_url, followers, spotify_url)")
     .eq("campaign_id", camp.id)
     .order("planned_streams", { ascending: false });
 

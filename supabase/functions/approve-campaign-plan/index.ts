@@ -14,6 +14,7 @@
 // Header: Authorization: Bearer <jwt do usuário dono da campanha>
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { distributeEcoPositions } from "../_shared/computeEcoPlan.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -121,6 +122,41 @@ Deno.serve(async (req) => {
 
   // Refletir no objeto local pra resto do fluxo (cost do deal usa isso).
   (campaign as any).valor_cobrado = resolvedValorCobrado;
+
+  // Backfill: se a campanha (legada) foi criada sem `position` em campaign_eco_allocations,
+  // materializa agora — idempotente. Só toca em linhas onde position IS NULL.
+  try {
+    const snapDays = Number(snap?.days ?? 0);
+    const mult = Math.max(1, Math.round(Number((campaign as any).engagement_multiplier ?? snap?.engagement_multiplier ?? 30)));
+    if (snapDays > 0) {
+      const { data: ecoRows } = await admin
+        .from("campaign_eco_allocations")
+        .select("id, planned_streams, position, managed_playlists(followers)")
+        .eq("campaign_id", campaignId);
+      const rows = (ecoRows ?? []) as any[];
+      const hasNull = rows.some(r => r.position == null);
+      if (hasNull && rows.length > 0) {
+        const positions = distributeEcoPositions(
+          rows.map(r => ({
+            id: r.id,
+            planned_streams: Number(r.planned_streams ?? 0),
+            followers: Number(r.managed_playlists?.followers ?? 0),
+          })),
+          snapDays, mult,
+        );
+        // UPDATE só nas que estão NULL (preserva eventual override manual já gravado).
+        await Promise.all(
+          rows.filter(r => r.position == null).map(r =>
+            admin.from("campaign_eco_allocations")
+              .update({ position: positions.get(r.id) ?? null })
+              .eq("id", r.id),
+          ),
+        );
+      }
+    }
+  } catch (_e) {
+    // Backfill é best-effort — não bloqueia aprovação.
+  }
 
 
   // 3) Lê feature flag

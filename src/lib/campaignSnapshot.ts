@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { CampaignResult } from "@/lib/campaignEngine";
+import { distributeEcoPositions, POSITION_PCT } from "@/lib/campaignOperationalPlan";
 
 /**
  * Snapshot imutável da calculadora — gravado em campaigns.simulation_snapshot
@@ -79,10 +80,12 @@ export interface EcoAllocationPlan {
   managed_playlist_id: string;
   planned_streams: number;
   start_day: number;
+  /** Posição sorteada já no momento do fechamento — usada pra gravar campaign_eco_allocations.position. */
+  position: number;
 }
 
 const PLAYS_PER_SAVE_MONTH = 30;
-const DEFAULT_CAMPAIGN_SLOT_PCT = 0.08; // posição #3 do motor operacional
+const DEFAULT_CAMPAIGN_SLOT_PCT = 0.08; // posição #3 — usada SÓ pra dimensionar inventário
 
 function ecoWarmupStartDay(index: number, total: number, days: number, modo: CampaignSnapshot["modo"]) {
   if (total <= 1) return 1;
@@ -96,38 +99,65 @@ export function planEcoAllocations(
   days: number,
   playlists: { id: string; followers: number }[],
   modo: CampaignSnapshot["modo"] = "simultaneo",
+  engagementMultiplier: number = 30,
 ): EcoAllocationPlan[] {
   if (streamsEco <= 0 || playlists.length === 0) return [];
 
-  // Capacidade útil estimada por faixa em posição #3 ao longo da campanha.
-  // A distribuição deve usar o menor inventário necessário para bater a meta,
-  // não espalhar uma meta pequena em todas as playlists compatíveis.
-  const capacities = playlists
+  // 1) SELEÇÃO de inventário (capacidade proxy em posição #3 — só pra escolher
+  //    quantas playlists entram, não pra calcular planned_streams).
+  const sizingCapacities = playlists
     .map(p => ({
       id: p.id,
-      capacity: Math.max(1, Math.round(Math.max(1, p.followers) * (PLAYS_PER_SAVE_MONTH / 30) * DEFAULT_CAMPAIGN_SLOT_PCT * days)),
+      followers: Math.max(1, p.followers),
+      sizingCap: Math.max(1, Math.round(Math.max(1, p.followers) * (PLAYS_PER_SAVE_MONTH / 30) * DEFAULT_CAMPAIGN_SLOT_PCT * days)),
     }))
-    .sort((a, b) => b.capacity - a.capacity);
-  const selected: typeof capacities = [];
-  let selectedCapacity = 0;
-  for (const c of capacities) {
-    if (selectedCapacity >= streamsEco) break;
+    .sort((a, b) => b.sizingCap - a.sizingCap);
+  const selected: typeof sizingCapacities = [];
+  let selectedSizing = 0;
+  for (const c of sizingCapacities) {
+    if (selectedSizing >= streamsEco) break;
     selected.push(c);
-    selectedCapacity += c.capacity;
+    selectedSizing += c.sizingCap;
   }
-  if (selected.length === 0 || selectedCapacity <= 0) return [];
+  if (selected.length === 0) return [];
 
+  // 2) Sorteia POSIÇÕES reais pra cada playlist selecionada (mesmo engine da UI).
+  // Usa fake planned_streams = streamsEco/N como proxy pro maxViablePosition —
+  // refinaremos abaixo. Sem preferredSlots aqui (default da distribuição padrão).
+  const proxyPerPl = Math.max(1, Math.round(streamsEco / selected.length));
+  const positions = distributeEcoPositions(
+    selected.map(c => ({ id: c.id, planned_streams: proxyPerPl, followers: c.followers })),
+    days,
+    Math.max(1, Math.round(engagementMultiplier)),
+  );
+
+  // 3) Capacidade REAL na posição sorteada: followers × (mult/30) × POSITION_PCT[pos] × days.
+  const realCapById = new Map<string, number>();
+  let totalReal = 0;
+  for (const c of selected) {
+    const pos = positions.get(c.id) ?? 3;
+    const pct = POSITION_PCT[pos - 1] ?? 0.003;
+    const cap = Math.max(1, Math.round(c.followers * (Math.max(1, engagementMultiplier) / 30) * pct * days));
+    realCapById.set(c.id, cap);
+    totalReal += cap;
+  }
+  if (totalReal <= 0) return [];
+
+  // 4) Reparte streamsEco proporcional à capacidade real, respeitando cap por playlist
+  //    (mantém a propriedade: nenhuma playlist recebe mais que entrega).
   let allocated = 0;
   const ordered = selected
     .map((c, index) => {
+      const cap = realCapById.get(c.id) ?? 0;
       const planned = index === selected.length - 1
-        ? Math.max(0, streamsEco - allocated)
-        : Math.min(c.capacity, Math.round((c.capacity / selectedCapacity) * streamsEco));
+        ? Math.max(0, Math.min(cap, streamsEco - allocated))
+        : Math.min(cap, Math.round((cap / totalReal) * streamsEco));
       allocated += planned;
       return {
         managed_playlist_id: c.id,
         planned_streams: planned,
         start_day: ecoWarmupStartDay(index, selected.length, days, modo),
+        position: positions.get(c.id) ?? 3,
       };
     })
     .filter(a => a.planned_streams > 0);
@@ -210,12 +240,16 @@ export async function closeCampaignFromCalculator(args: {
   if (error || !campaign) throw error ?? new Error("Falha ao criar campanha");
 
   if (allocations.length > 0) {
+    // `position` já vem materializada do planEcoAllocations (Fix 2) — usa direto.
+    // Se a alloc vier sem position (chamada externa antiga), grava NULL e o
+    // backfill em approve-campaign-plan resolve depois.
     const rows = allocations.map(a => ({
       campaign_id: campaign.id,
       managed_playlist_id: a.managed_playlist_id,
       planned_streams: a.planned_streams,
       start_day: a.start_day,
       status: "pending" as const,
+      position: Number.isFinite((a as any).position) ? (a as any).position : null,
       cost_per_stream_op: pricingOpEco,
       market_per_stream: pricingMarketEco,
       price_per_stream_sell: finalPricePerStream,
