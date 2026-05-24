@@ -157,12 +157,14 @@ Deno.serve(async (req) => {
     try {
       const { data: mp, error: mpErr } = await supabase
         .from("managed_playlists")
-        .select("owner_spotify_user_id")
+        .select("id, owner_spotify_user_id, tracks_count")
         .eq("spotify_playlist_id", j.spotify_playlist_id)
         .maybeSingle();
       if (mpErr) throw new Error(`lookup managed_playlists falhou: ${mpErr.message}`);
       const ownerId = mp?.owner_spotify_user_id ?? null;
       if (!ownerId) throw new Error("owner_spotify_user_id não encontrado em managed_playlists");
+      const managedId = mp!.id as string;
+      const currentCount = Number(mp?.tracks_count ?? 0);
 
       const { token } = await getUserAccessToken(ownerId);
       const trackUri = `spotify:track:${j.spotify_track_id}`;
@@ -181,6 +183,25 @@ Deno.serve(async (req) => {
         await addPlaylistTracks(j.spotify_playlist_id, [trackUri], token);
       } else {
         await removePlaylistTracks(j.spotify_playlist_id, [trackUri], token);
+
+        // Sync local: remove de managed_playlist_tracks e decrementa tracks_count
+        const { data: deletedRows, error: delErr } = await supabase
+          .from("managed_playlist_tracks")
+          .delete()
+          .eq("playlist_id", managedId)
+          .eq("spotify_track_id", j.spotify_track_id)
+          .select("id");
+        if (delErr) {
+          console.log(JSON.stringify({ evt: "mutation.sync_error", job_id: j.id, error: delErr.message }));
+        }
+        const removed = deletedRows?.length ?? 0;
+        if (removed > 0) {
+          await supabase
+            .from("managed_playlists")
+            .update({ tracks_count: Math.max(0, currentCount - removed), updated_at: new Date().toISOString() })
+            .eq("id", managedId);
+        }
+        console.log(JSON.stringify({ evt: "mutation.sync", job_id: j.id, managed_id: managedId, deleted: removed, new_count: Math.max(0, currentCount - removed) }));
       }
 
       await supabase.from("playlist_execution_jobs")
