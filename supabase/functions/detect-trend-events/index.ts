@@ -7,6 +7,7 @@
 //  - leadership_score +25% em 7d → leader_rising; -25% → leader_falling
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { reportCronHealth } from '../_shared/cron-health.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
