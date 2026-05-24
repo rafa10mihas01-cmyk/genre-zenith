@@ -710,6 +710,51 @@ export function PlaylistCockpit({
                 </Card>
               )}
 
+              {applyProgress && (
+                <Card className={cn(
+                  "p-4 space-y-2 border",
+                  applyProgress.status === "failed"
+                    ? "bg-destructive/5 border-destructive/40"
+                    : "bg-primary/5 border-primary/30",
+                )}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {applyProgress.status === "failed" ? (
+                        <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+                      ) : applyProgress.status === "done" || applyProgress.status === "skipped" ? (
+                        <Check className="h-4 w-4 text-primary shrink-0" />
+                      ) : (
+                        <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+                      )}
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium truncate">
+                          {applyProgress.description}
+                        </div>
+                        {applyProgress.error && (
+                          <div className="text-xs text-destructive mt-0.5 truncate">
+                            {applyProgress.error}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-xs font-mono text-muted-foreground shrink-0">
+                      {applyProgress.index} / {applyProgress.total}
+                    </div>
+                  </div>
+                  {applyProgress.total > 0 && (
+                    <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={cn(
+                          "h-full transition-all duration-300",
+                          applyProgress.status === "failed" ? "bg-destructive" : "bg-primary",
+                        )}
+                        style={{ width: `${Math.min(100, (applyProgress.index / applyProgress.total) * 100)}%` }}
+                      />
+                    </div>
+                  )}
+                </Card>
+              )}
+
               <BucketRemove
                 items={buckets.remove}
                 applying={applying === "remove" || applying === "all"}
