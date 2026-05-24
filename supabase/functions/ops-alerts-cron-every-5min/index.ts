@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,6 +9,7 @@ const corsHeaders = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  const startedAt = Date.now();
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -79,11 +81,24 @@ Deno.serve(async (req) => {
       alerts.push({ bot: hb.bot_name, hours });
     }
 
+    await reportCronHealth(supabase, {
+      job_name: "ops-alerts-cron-every-5min",
+      status: "ok",
+      startedAt,
+      metrics: { alerts_emitted: alerts.length },
+      message: `alerts=${alerts.length}`,
+    });
     return new Response(JSON.stringify({ ok: true, alerts }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("ops-alerts-cron error", e);
+    await reportCronHealth(supabase, {
+      job_name: "ops-alerts-cron-every-5min",
+      status: "error",
+      startedAt,
+      message: String(e),
+    });
     return new Response(JSON.stringify({ ok: false, error: String(e) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

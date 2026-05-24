@@ -4,6 +4,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getAppCredentials } from "../_shared/spotify.ts";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -62,6 +63,7 @@ Deno.serve(async (req) => {
       acao: "spotify_token_watchdog", status: "erro",
       mensagem: `query failed: ${error.message}`,
     }).then(() => {}, (e) => console.error("[spotify-token-watchdog] log/op failed:", e?.message ?? e));
+    await reportCronHealth(sb, { job_name: "spotify-token-watchdog", status: "error", startedAt, message: error.message });
     return jr({ error: error.message }, 500);
   }
 
@@ -180,6 +182,19 @@ Deno.serve(async (req) => {
     duracao_ms: dur,
     mensagem: `checked=${accounts?.length ?? 0} ok=${okCount} fail=${failCount} app_refreshed=${appTokenRefreshed}${appTokenError ? ` app_err=${appTokenError}` : ""}`,
   }).then(() => {}, (e) => console.error("[spotify-token-watchdog] log/op failed:", e?.message ?? e));
+
+  await reportCronHealth(sb, {
+    job_name: "spotify-token-watchdog",
+    status: (failCount > 0 || appTokenError) ? "partial" : "ok",
+    startedAt,
+    metrics: {
+      checked: accounts?.length ?? 0,
+      ok_count: okCount,
+      fail_count: failCount,
+      app_token_refreshed: appTokenRefreshed,
+    },
+    message: `checked=${accounts?.length ?? 0} ok=${okCount} fail=${failCount} app_refreshed=${appTokenRefreshed}${appTokenError ? ` app_err=${appTokenError}` : ""}`,
+  });
 
   return jr({ ok: true, checked: accounts?.length ?? 0, ok_count: okCount, fail_count: failCount, app_token_refreshed: appTokenRefreshed, app_token_error: appTokenError, results });
 });

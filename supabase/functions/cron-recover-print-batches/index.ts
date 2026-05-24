@@ -3,6 +3,7 @@
 // disparou) e re-dispara extract-snapshot-from-print.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { recordMetric } from "../_shared/ops-metrics.ts";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,6 +23,12 @@ Deno.serve(async (req) => {
   const { data: stuck, error } = await supabase.rpc("recover_stuck_print_batches");
   if (error) {
     console.error("rpc recover failed", error);
+    await reportCronHealth(supabase, {
+      job_name: "cron-recover-print-batches",
+      status: "error",
+      startedAt: t0,
+      message: error.message,
+    });
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -70,6 +77,14 @@ Deno.serve(async (req) => {
     status: "success",
     duration_ms: Date.now() - t0,
     metadata: { stuck: batches.length, dispatched },
+  });
+
+  await reportCronHealth(supabase, {
+    job_name: "cron-recover-print-batches",
+    status: dispatched < (stuck?.length ?? 0) ? "partial" : "ok",
+    startedAt: t0,
+    metrics: { stuck: batches.length, dispatched },
+    message: `stuck=${batches.length} dispatched=${dispatched}`,
   });
 
   return new Response(

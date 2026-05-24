@@ -7,6 +7,7 @@
 //   3. WINDOW [start,end)  — só agenda dentro da janela horária BR (UTC-3)
 // + jitter de ±JITTER_MIN minutos pra não cravar horário batido.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -70,6 +71,7 @@ function clampToWindow(date: Date): Date {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  const cronT0 = Date.now();
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
   // 1. Allocations elegíveis
@@ -84,7 +86,10 @@ Deno.serve(async (req) => {
     .in("campaigns.status", ["active", "running", "live"])
     .order("created_at", { ascending: true });
 
-  if (aErr) return jr({ error: aErr.message }, 500);
+  if (aErr) {
+    await reportCronHealth(supabase, { job_name: "execution-planner", status: "error", startedAt: cronT0, message: aErr.message });
+    return jr({ error: aErr.message }, 500);
+  }
 
   // 1b. Ramp-up de aquecimento (motor único, espalha no tempo)
   const now = Date.now();
@@ -118,7 +123,10 @@ Deno.serve(async (req) => {
     }
   }
 
-  if (candidates.length === 0) return jr({ ok: true, enqueued: 0, considered: 0 });
+  if (candidates.length === 0) {
+    await reportCronHealth(supabase, { job_name: "execution-planner", status: "ok", startedAt: cronT0, metrics: { enqueued: 0, considered: 0 }, message: "no candidates" });
+    return jr({ ok: true, enqueued: 0, considered: 0 });
+  }
 
   // 2. Filtra os que já têm job aberto/feito
   const dedupeKeys = candidates.map((c) => c.dedupe_key);
@@ -135,6 +143,7 @@ Deno.serve(async (req) => {
 
   const fresh = candidates.filter((c) => !skip.has(c.dedupe_key));
   if (fresh.length === 0) {
+    await reportCronHealth(supabase, { job_name: "execution-planner", status: "ok", startedAt: cronT0, metrics: { enqueued: 0, considered: candidates.length, dedupe_skipped: candidates.length } });
     return jr({ ok: true, enqueued: 0, considered: candidates.length });
   }
 
@@ -223,6 +232,7 @@ Deno.serve(async (req) => {
   }
 
   if (toInsert.length === 0) {
+    await reportCronHealth(supabase, { job_name: "execution-planner", status: "ok", startedAt: cronT0, metrics: { enqueued: 0, considered: candidates.length } });
     return jr({ ok: true, enqueued: 0, considered: candidates.length });
   }
 
@@ -230,11 +240,23 @@ Deno.serve(async (req) => {
     .from("playlist_execution_jobs")
     .insert(toInsert, { count: "exact" });
 
-  if (insErr) return jr({ error: insErr.message }, 500);
+  if (insErr) {
+    await reportCronHealth(supabase, { job_name: "execution-planner", status: "error", startedAt: cronT0, message: insErr.message });
+    return jr({ error: insErr.message }, 500);
+  }
+
+  const enqueued = count ?? toInsert.length;
+  await reportCronHealth(supabase, {
+    job_name: "execution-planner",
+    status: "ok",
+    startedAt: cronT0,
+    metrics: { enqueued, considered: candidates.length },
+    message: `enqueued=${enqueued} considered=${candidates.length}`,
+  });
 
   return jr({
     ok: true,
-    enqueued: count ?? toInsert.length,
+    enqueued,
     considered: candidates.length,
     pacing: {
       min_spacing_min: MIN_SPACING_MIN,
