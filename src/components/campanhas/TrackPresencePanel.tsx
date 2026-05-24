@@ -18,19 +18,19 @@ const STATUS_META = {
     chipClass: "text-primary bg-primary/10 border-primary/30",
   },
   middle: {
-    label: "Médio",
-    icon: ArrowUp,
+    label: "Meio",
+    icon: Music,
     chipClass: "text-foreground bg-elevated border-border",
   },
   tail: {
-    label: "Promover",
-    icon: ArrowUp,
-    chipClass: "text-amber-500 bg-amber-500/10 border-amber-500/30",
+    label: "Cauda",
+    icon: Music,
+    chipClass: "text-muted-foreground bg-elevated border-border",
   },
   absent: {
-    label: "Adicionar",
-    icon: Plus,
-    chipClass: "text-muted-foreground bg-elevated border-border",
+    label: "Fora",
+    icon: Music,
+    chipClass: "text-subtle-foreground bg-elevated border-border",
   },
 } as const;
 
@@ -106,9 +106,9 @@ export function TrackPresencePanel({ spotifyTrackId, className }: Props) {
 
       {present.length === 0 ? (
         <div className="px-4 py-6 text-center">
-          <div className="text-sm text-foreground mb-1">Música ainda não está em nenhuma playlist</div>
+          <div className="text-sm text-foreground mb-1">Música ainda não está em nenhuma playlist do ecossistema</div>
           <div className="text-xs text-muted-foreground">
-            O plano vai adicionar automaticamente nas playlists certas.
+            Posição atual: fora de todas as {rows.length} playlists ativas.
           </div>
         </div>
       ) : (
@@ -140,12 +140,6 @@ export function TrackPresencePanel({ spotifyTrackId, className }: Props) {
             </div>
           )}
         </>
-      )}
-
-      {summary.present > 0 && summary.top >= 3 && (
-        <div className="px-4 py-2.5 border-t border-border bg-primary/5 text-[11px] text-primary">
-          Música já bem posicionada em {summary.top} playlist{summary.top === 1 ? "" : "s"} — foco nas demais.
-        </div>
       )}
     </div>
   );

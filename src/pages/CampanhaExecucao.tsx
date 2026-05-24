@@ -17,6 +17,7 @@ import { CampaignDailyPlan } from "@/components/campanhas/CampaignDailyPlan";
 import { PlaylistDailyPlanDialog } from "@/components/campanhas/PlaylistDailyPlanDialog";
 import { buildEcoPlaylistPlan, distributeEcoPositions } from "@/lib/campaignOperationalPlan";
 import { CampaignFullPlanCard } from "@/components/campanhas/CampaignFullPlanCard";
+import { TrackActionsPanel } from "@/components/campanhas/TrackActionsPanel";
 import { ArrowLeft, Loader2, Save, Upload, Rocket, CheckCircle2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
@@ -652,6 +653,11 @@ export default function CampanhaExecucao() {
                     )}
                   </CardContent>
                 </Card>
+                <TrackActionsPanel
+                  spotifyTrackId={camp.spotify_track_id ?? null}
+                  allocations={allocs as unknown as Parameters<typeof TrackActionsPanel>[0]["allocations"]}
+                  targetPositionsByAllocId={ecoPositionByAllocation}
+                />
                 <CampaignFullPlanCard
                   snapshot={snapshot}
                   startedAt={camp.started_at}
