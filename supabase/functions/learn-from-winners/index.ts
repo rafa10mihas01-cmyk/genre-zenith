@@ -201,6 +201,7 @@ async function learnGenre(
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
+  const startedAt = Date.now();
 
   try {
     let body: any = {};
@@ -235,11 +236,26 @@ Deno.serve(async (req) => {
       });
     } catch (e) { console.warn("[learn] report skipped:", (e as Error).message); }
 
+    if (!body.genre_id) {
+      await reportCronHealth(supabase, {
+        job_name: "learn-from-winners",
+        status: "ok",
+        startedAt,
+        metrics: { updated, total: results.length },
+      });
+    }
+
     return new Response(JSON.stringify({ ok: true, updated, total: results.length, by_genre: results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("[learn] fatal", e);
+    await reportCronHealth(supabase, {
+      job_name: "learn-from-winners",
+      status: "error",
+      startedAt,
+      message: (e as Error).message,
+    });
     return new Response(JSON.stringify({ ok: false, error: (e as Error).message }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
