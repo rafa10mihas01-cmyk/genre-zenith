@@ -282,6 +282,7 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
         created_by: user?.id ?? null,
         client_id: clientId || null,
         curator_id: curatorId || null,
+        campaign_type: campaignType,
         valor_cobrado: currencyDigitsToNumber(valorCobradoDigits) ?? null,
         forma_recebimento: formaRecebimento || null,
         valor_recebido: jaRecebido ? (currencyDigitsToNumber(valorCobradoDigits) ?? null) : null,
