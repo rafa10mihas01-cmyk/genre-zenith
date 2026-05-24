@@ -304,6 +304,13 @@ Deno.serve(async (req) => {
       duracao_ms: result.duration_ms,
     });
 
+    await reportCronHealth(supabase, {
+      job_name: "cleanup-brain",
+      status: errors.length === 0 ? "ok" : "partial",
+      startedAt: start,
+      metrics: { trigger, total: result.total, orphan_tracks: result.orphan_tracks, blacklisted: result.blacklisted, invalidated: result.invalidated },
+    });
+
     return j({
       ok: true,
       trigger,
@@ -320,6 +327,12 @@ Deno.serve(async (req) => {
       status: "erro",
       mensagem: `cleanup-brain (${trigger}) FALHOU: ${msg}`.slice(0, 4000),
       duracao_ms: Date.now() - start,
+    });
+    await reportCronHealth(supabase, {
+      job_name: "cleanup-brain",
+      status: "error",
+      startedAt: start,
+      message: msg,
     });
     return j({ ok: false, error: msg }, 500);
   }
