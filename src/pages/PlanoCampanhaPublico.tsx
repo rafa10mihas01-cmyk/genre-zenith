@@ -138,10 +138,11 @@ export default function PlanoCampanhaPublico() {
         body: { client_token: clientToken },
       });
       if (cancelled || !data || (data as { ok?: boolean }).ok === false) return;
-      const payload = data as { playlists?: MonitoredPlaylist[]; snapshot_history?: PrintsHistoryEntry[]; snapshotHistory?: PrintsHistoryEntry[] };
+      const payload = data as { playlists?: MonitoredPlaylist[]; snapshot_history?: PrintsHistoryEntry[]; snapshotHistory?: PrintsHistoryEntry[]; series?: EvolutionSeriesPoint[] };
       setLivePlaylists(Array.isArray(payload.playlists) ? payload.playlists : []);
       const hist = payload.snapshot_history ?? payload.snapshotHistory ?? [];
       setSnapshotHistory(Array.isArray(hist) ? hist : []);
+      setEvolutionSeries(Array.isArray(payload.series) ? payload.series : []);
     })();
     return () => { cancelled = true; };
   }, [clientToken]);
