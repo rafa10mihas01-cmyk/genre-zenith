@@ -28,6 +28,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { format, addDays, differenceInCalendarDays, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { calculateTrackDailyStreams } from "@/lib/campaignOperationalPlan";
+import { TrackPresencePanel } from "@/components/campanhas/TrackPresencePanel";
 
 type Fonte = "manual" | "top200" | "concorrente" | "orcamento";
 
