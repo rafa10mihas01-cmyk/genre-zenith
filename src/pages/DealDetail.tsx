@@ -171,10 +171,10 @@ export default function DealDetail() {
             asPage
             open
             deal={deal}
-            songs={songs.filter((s) => s.deal_id === deal.id)}
+            songs={songs}
             allLogs={logs}
             allPlaylists={playlists}
-            progress={progressByDeal[deal.id]}
+            progress={progress ?? undefined}
             onClose={back}
             onReload={reload}
           />
