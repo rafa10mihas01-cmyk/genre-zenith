@@ -42,11 +42,8 @@ async function tokenForOwner(spId: string): Promise<{ token: string; ownerId: st
   let ownerId: string | null = null;
   try {
     const appToken = await getSpotifyToken();
-    const or = await fetch(
-      `https://api.spotify.com/v1/playlists/${spId}?fields=owner(id)`,
-      { headers: { Authorization: `Bearer ${appToken}` } },
-    );
-    if (or.ok) ownerId = (await or.json())?.owner?.id ?? null;
+    const meta = await getPlaylistMeta(spId, appToken, { fields: "owner(id)" });
+    ownerId = meta.owner_id;
   } catch { /* */ }
   const key = ownerId ?? "_default";
   if (tokenCache.has(key)) return { token: tokenCache.get(key)!, ownerId };
