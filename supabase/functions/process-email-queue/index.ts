@@ -131,6 +131,7 @@ Deno.serve(async (req) => {
     .single()
 
   if (state?.retry_after_until && new Date(state.retry_after_until) > new Date()) {
+    await reportCronHealth(supabase, { job_name: 'process-email-queue', status: 'ok', startedAt, metrics: { processed: 0, skipped: true }, message: 'rate_limited' })
     return new Response(
       JSON.stringify({ skipped: true, reason: 'rate_limited' }),
       { headers: { 'Content-Type': 'application/json' } }
