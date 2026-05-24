@@ -182,8 +182,14 @@ Deno.serve(async (req) => {
     (x.followers != null ? 1 : 0);
   const dedupMap = new Map<string, any>();
   for (const s of snapshots) {
-    const key = extractId(s.spotify_url) ?? `name:${String(s.playlist_name ?? "").trim().toLowerCase()}`;
-    if (!key) continue;
+    const sid = extractId(s.spotify_url);
+    let key: string | null = sid;
+    if (!key) {
+      const nameKey = String(s.playlist_name ?? "").trim().toLowerCase();
+      if (!nameKey) continue;
+      console.warn(`[WARN] bot-ingest-snapshot: dedupe por playlist_name fallback (sem spotify_url). deal=${deal_id} name="${nameKey}"`);
+      key = `name:${nameKey}`;
+    }
     const prev = dedupMap.get(key);
     if (!prev || scoreSnap(s) > scoreSnap(prev)) dedupMap.set(key, s);
   }
