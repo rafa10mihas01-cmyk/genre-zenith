@@ -5,7 +5,7 @@
 // GET ?limit=3
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { reportCronHealth } from "../_shared/cron-health.ts";
-import { reorderPlaylistTracks, listPlaylistTrackUris, getPlaylistMeta } from "../_shared/spotify-playlist.ts";
+import { reorderPlaylistTracks, listPlaylistTrackUris } from "../_shared/spotify-playlist.ts";
 import { getSpotifyToken, getUserAccessToken } from "../_shared/spotify.ts";
 
 const corsHeaders = {
