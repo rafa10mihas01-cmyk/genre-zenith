@@ -1,16 +1,52 @@
+import { useEffect, useRef, useState } from "react";
 import { useLoading } from "@/contexts/LoadingContext";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
 import { cn } from "@/lib/utils";
 
 /**
  * Splash full-screen com logo "N" centralizado + barra animada embaixo.
- * Aparece na primeira carga do app e em toda troca de rota (mín. 600ms).
  *
- * Visual: fundo escuro sólido (sem distração), logo com pulse suave,
- * barra fina indeterminada logo abaixo. Some com fade rápido.
+ * Threshold anti-flicker: o splash só monta se `isSplashing` permanecer true
+ * por >= 50ms. Em navegações rápidas (chunk já cacheado), o boot termina
+ * antes do timer disparar e o splash nunca aparece — evita o "double layer"
+ * de overlay piscando sobre conteúdo já renderizado.
  */
+const SHOW_DELAY_MS = 50;
+
 export function SplashLoader() {
   const { isSplashing } = useLoading();
+  const [visible, setVisible] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (isSplashing) {
+      if (visible) return;
+      if (timerRef.current) return;
+      timerRef.current = setTimeout(() => {
+        timerRef.current = null;
+        setVisible(true);
+      }, SHOW_DELAY_MS);
+    } else {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      if (visible) setVisible(false);
+    }
+    return () => {
+      // cleanup só ao desmontar — o else acima cobre os toggles
+    };
+  }, [isSplashing, visible]);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  // Não renderiza nada até o threshold disparar — zero custo de DOM.
+  if (!visible && !isSplashing) return null;
+  if (!visible) return null;
 
   return (
     <div
@@ -34,12 +70,10 @@ export function SplashLoader() {
       />
 
       <div className="relative flex flex-col items-center gap-6">
-        {/* Logo N com pulse */}
         <div className="animate-nx-logo-pulse">
           <NexEngineLogo variant="mark" size={64} />
         </div>
 
-        {/* Barra indeterminada — 160px de largura, 3px alta, rounded */}
         <div className="relative h-[3px] w-40 overflow-hidden rounded-full bg-elevated">
           <div
             className={cn(
