@@ -167,6 +167,13 @@ Deno.serve(async (req) => {
     }).then(() => {}, (e) => console.error("[track-playlist-metrics] log/op failed:", e?.message ?? e));
   }
 
+  await reportCronHealth(supabase, {
+    job_name: "track-playlist-metrics",
+    status: isSystemicFailure ? "error" : (failed === 0 ? "ok" : "partial"),
+    startedAt,
+    metrics: { processed: totalProcessed, ok, failed, systemic_failure: isSystemicFailure },
+  });
+
   return jr({
     ok: !isSystemicFailure,
     processed: totalProcessed,
