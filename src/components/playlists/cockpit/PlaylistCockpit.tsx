@@ -15,7 +15,7 @@ import {
   ArrowLeft, ExternalLink, Sparkles, Loader2, Music2, TrendingUp,
   TrendingDown, ArrowUp, ArrowDown, Trash2, Plus, ChevronDown,
   Flame, Snowflake, Activity, Users, Crown, Target, Check,
-  Heart, Eye, RotateCcw, Timer, Zap, ShieldCheck, AlertTriangle,
+  Heart, Eye, RotateCcw, Timer, Zap, ShieldCheck, AlertTriangle, ListMusic,
 } from "lucide-react";
 import { PlaylistTracksTab } from "@/components/playlists/PlaylistTracksTab";
 import { PlaylistEditorTab } from "@/components/playlists/PlaylistEditorTab";
