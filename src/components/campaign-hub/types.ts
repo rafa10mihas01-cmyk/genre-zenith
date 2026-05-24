@@ -28,6 +28,7 @@ export type CampaignHubCampaign = {
   public_plan_token?: string | null;
   deal_id?: string | null;
   spotify_track_url?: string | null;
+  spotify_track_id?: string | null;
   total_delivered?: number | null;
   client_approved_at?: string | null;
   split_locked_at?: string | null;
