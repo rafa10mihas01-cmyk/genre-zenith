@@ -28,6 +28,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { format, addDays, differenceInCalendarDays, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { calculateTrackDailyStreams } from "@/lib/campaignOperationalPlan";
+import { TrackPresencePanel } from "@/components/campanhas/TrackPresencePanel";
 
 type Fonte = "manual" | "top200" | "concorrente" | "orcamento";
 
@@ -810,6 +811,11 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                       </button>
                     </div>
                   )}
+
+                  {active.track?.id && (
+                    <TrackPresencePanel spotifyTrackId={active.track.id} />
+                  )}
+
 
                   <div className="space-y-1.5 pt-1">
                     <Label className="text-xs flex items-center justify-between">
