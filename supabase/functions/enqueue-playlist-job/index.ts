@@ -63,13 +63,31 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
+  // Aceita tanto playlists.id (canonical) quanto managed_playlists.id
+  let resolvedPlaylistId: string | null = null;
+  let spotifyPlaylistId: string | null = null;
   const { data: pl, error: plErr } = await supabase
     .from("playlists")
     .select("id, spotify_playlist_id")
     .eq("id", playlist_id)
     .maybeSingle();
   if (plErr) return jr({ error: plErr.message }, 500);
-  if (!pl?.spotify_playlist_id) return jr({ error: "playlist não encontrada" }, 404);
+  if (pl?.spotify_playlist_id) {
+    resolvedPlaylistId = pl.id;
+    spotifyPlaylistId = pl.spotify_playlist_id;
+  } else {
+    const { data: mp, error: mpErr } = await supabase
+      .from("managed_playlists")
+      .select("id, spotify_playlist_id")
+      .eq("id", playlist_id)
+      .maybeSingle();
+    if (mpErr) return jr({ error: mpErr.message }, 500);
+    if (mp?.spotify_playlist_id) {
+      resolvedPlaylistId = mp.id;
+      spotifyPlaylistId = mp.spotify_playlist_id;
+    }
+  }
+  if (!spotifyPlaylistId || !resolvedPlaylistId) return jr({ error: "playlist não encontrada" }, 404);
 
   const job_type =
     action === "add" ? "playlist.track.add"
@@ -77,14 +95,14 @@ Deno.serve(async (req) => {
     : "playlist.track.reorder";
 
   const posSuffix = action === "reorder" ? `:${fromPosition}->${toPosition}` : "";
-  const dedupe_key = `${action}:${pl.spotify_playlist_id}:${trackId}${posSuffix}:manual:${Date.now()}`;
+  const dedupe_key = `${action}:${spotifyPlaylistId}:${trackId}${posSuffix}:manual:${Date.now()}`;
 
   const { data: inserted, error: insErr } = await supabase
     .from("playlist_execution_jobs")
     .insert({
       job_type,
-      playlist_id: pl.id,
-      spotify_playlist_id: pl.spotify_playlist_id,
+      playlist_id: resolvedPlaylistId,
+      spotify_playlist_id: spotifyPlaylistId,
       spotify_track_id: trackId,
       from_position: fromPosition,
       to_position: toPosition,

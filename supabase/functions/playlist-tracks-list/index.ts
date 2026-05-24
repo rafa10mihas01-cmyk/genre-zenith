@@ -29,13 +29,27 @@ Deno.serve(async (req) => {
   if (!playlist_id) return jr({ error: "playlist_id obrigatório" }, 400);
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+
+  // Aceita tanto playlists.id (canonical) quanto managed_playlists.id
+  let spotifyPlaylistId: string | null = null;
   const { data: pl, error: plErr } = await supabase
     .from("playlists")
     .select("id, spotify_playlist_id")
     .eq("id", playlist_id)
     .maybeSingle();
   if (plErr) return jr({ ok: false, error: plErr.message }, 500);
-  if (!pl?.spotify_playlist_id) {
+  if (pl?.spotify_playlist_id) {
+    spotifyPlaylistId = pl.spotify_playlist_id;
+  } else {
+    const { data: mp, error: mpErr } = await supabase
+      .from("managed_playlists")
+      .select("id, spotify_playlist_id")
+      .eq("id", playlist_id)
+      .maybeSingle();
+    if (mpErr) return jr({ ok: false, error: mpErr.message }, 500);
+    spotifyPlaylistId = mp?.spotify_playlist_id ?? null;
+  }
+  if (!spotifyPlaylistId) {
     return jr({
       ok: false,
       code: "playlist_not_found",
@@ -47,7 +61,7 @@ Deno.serve(async (req) => {
 
   try {
     const token = await getSpotifyToken();
-    const rich = await listPlaylistTracksRich(pl.spotify_playlist_id, token, {
+    const rich = await listPlaylistTracksRich(spotifyPlaylistId, token, {
       max: 10000,
       fields: "items(added_at,track(id,name,duration_ms,artists(name),album(images))),next",
     });
