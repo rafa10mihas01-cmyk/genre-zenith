@@ -71,6 +71,7 @@ function clampToWindow(date: Date): Date {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  const cronT0 = Date.now();
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
   // 1. Allocations elegíveis
