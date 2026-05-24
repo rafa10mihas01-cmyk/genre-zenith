@@ -157,25 +157,28 @@ Deno.serve(async (req) => {
   }
 
   // 1) Cria a playlist
-  const createResp = await fetch(`https://api.spotify.com/v1/users/${encodeURIComponent(ownerId)}/playlists`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      name: tpl.name,
-      description: (tpl.description ?? "").slice(0, 300),
-      public: isPublic,
-    }),
-  });
-  if (!createResp.ok) {
-    const t = await createResp.text();
-    const msg = `create playlist ${createResp.status}: ${t.slice(0, 200)}`;
+  let playlistId: string;
+  let playlistUrl: string;
+  try {
+    const res = await createPlaylist(
+      ownerId,
+      {
+        name: tpl.name,
+        description: (tpl.description ?? "").slice(0, 300),
+        public: isPublic,
+      },
+      token,
+    );
+    playlistId = res.id;
+    playlistUrl = res.raw?.external_urls?.spotify ?? `https://open.spotify.com/playlist/${playlistId}`;
+  } catch (e) {
+    const status = e instanceof SpotifyApiError ? e.status : 0;
+    const detail = e instanceof SpotifyApiError ? e.body.slice(0, 200) : (e as Error).message;
+    const msg = `create playlist ${status || ""}: ${detail}`.trim();
     await supabase.from("playlist_templates")
       .update({ creation_error: msg }).eq("id", templateId);
     return jr({ ok: false, error: msg }, 200);
   }
-  const created = await createResp.json();
-  const playlistId: string = created.id;
-  const playlistUrl: string = created?.external_urls?.spotify ?? `https://open.spotify.com/playlist/${playlistId}`;
 
   // 2) Resolve URIs das faixas (track_seeds)
   // 🎯 Se seed traz spotify_track_id (vindo do generate-templates), usa direto:
