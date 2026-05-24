@@ -32,8 +32,10 @@ function clamp01(x: number) { return Math.max(0, Math.min(1, x)); }
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  const startedAt = Date.now();
   let body: { genre_id?: string } = {};
   try { body = await req.json(); } catch { /* ok */ }
+  const isCron = !body.genre_id;
 
   const sb = createClient(SUPABASE_URL, SERVICE_KEY);
 
