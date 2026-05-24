@@ -2626,6 +2626,7 @@ export type Database = {
           song_id: string
           source: string
           spotify_playlist_id: string
+          spotify_track_id: string | null
           track_name: string
         }
         Insert: {
@@ -2644,6 +2645,7 @@ export type Database = {
           song_id: string
           source?: string
           spotify_playlist_id: string
+          spotify_track_id?: string | null
           track_name: string
         }
         Update: {
@@ -2662,6 +2664,7 @@ export type Database = {
           song_id?: string
           source?: string
           spotify_playlist_id?: string
+          spotify_track_id?: string | null
           track_name?: string
         }
         Relationships: [
