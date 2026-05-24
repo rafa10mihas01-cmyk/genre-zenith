@@ -467,6 +467,15 @@ Deno.serve(async (req) => {
       });
     }
 
+    // 🎯 Primeiro upload do deal vira BASELINE automaticamente.
+    // Sem isso, o cálculo de "delivered" conta tudo desde o início como
+    // entrega — inflando o progresso. Marcamos uma vez só.
+    const { count: prevUploadsCount } = await admin
+      .from("label_spreadsheet_uploads")
+      .select("id", { count: "exact", head: true })
+      .eq("deal_id", dealId);
+    const isBaseline = (prevUploadsCount ?? 0) === 0;
+
     const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
     const filePath = `${dealId}/${Date.now()}-${safeName}`;
     try {
@@ -495,9 +504,11 @@ Deno.serve(async (req) => {
         total_streams: totalStreams,
         status: "imported",
         reference_date: today,
+        is_baseline: isBaseline,
       })
       .select()
       .single();
+
     if (upErr) return jr({ ok: false, error: upErr.message }, 200);
     const uploadId = uploadRow.id as string;
 
@@ -547,7 +558,7 @@ Deno.serve(async (req) => {
         plays: r.streams,
         captured_at: capturedAt,
         source: "label_spreadsheet",
-        is_baseline: false,
+        is_baseline: isBaseline,
         notes: r.playlist_name + (r.owner_name ? ` (${r.owner_name})` : ""),
         ai_raw: {
           source: "label_spreadsheet",
@@ -578,9 +589,10 @@ Deno.serve(async (req) => {
       total_plays: totalStreams,
       note: `Planilha (${fmt.toUpperCase()}) — ${rows.length} playlists · ${internalCount} nossas · ${
         rows.length - internalCount
-      } orgânicas`,
-      is_baseline: false,
+      } orgânicas${isBaseline ? " · BASELINE" : ""}`,
+      is_baseline: isBaseline,
     });
+
 
     return jr({
       ok: true,

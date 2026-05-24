@@ -75,7 +75,9 @@ type SharedCampaignPlanResponse = {
   client_token?: string | null;
   last_spreadsheet_upload_at?: string | null;
   recent_uploads?: SpreadsheetUpload[];
+  has_spotify_access?: boolean;
 };
+
 
 type PublicRpc = (fn: string, args: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
 
@@ -88,11 +90,13 @@ export default function PlanoCampanhaPublico() {
   const [clientToken, setClientToken] = useState<string | null>(null);
   const [lastUploadAt, setLastUploadAt] = useState<string | null>(null);
   const [recentUploads, setRecentUploads] = useState<SpreadsheetUpload[]>([]);
+  const [hasSpotifyAccess, setHasSpotifyAccess] = useState(false);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [tab, setTab] = useState<CampaignHubTabId>("overview");
   const [livePlaylists, setLivePlaylists] = useState<MonitoredPlaylist[]>([]);
   const [snapshotHistory, setSnapshotHistory] = useState<PrintsHistoryEntry[]>([]);
+
   const [evolutionSeries, setEvolutionSeries] = useState<EvolutionSeriesPoint[]>([]);
 
   const [approveOpen, setApproveOpen] = useState(false);
@@ -119,7 +123,9 @@ export default function PlanoCampanhaPublico() {
       setClientToken(payload?.client_token ?? null);
       setLastUploadAt(payload?.last_spreadsheet_upload_at ?? null);
       setRecentUploads(payload?.recent_uploads ?? []);
+      setHasSpotifyAccess(Boolean(payload?.has_spotify_access));
       setErr(null);
+
     }
     setLoading(false);
   }
@@ -472,7 +478,7 @@ export default function PlanoCampanhaPublico() {
                 </CardContent>
               </Card>
             ),
-            upload: clientToken ? (
+            upload: clientToken && !hasSpotifyAccess ? (
               <SpreadsheetUploadCard
                 clientToken={clientToken}
                 lastUploadAt={lastUploadAt}
@@ -480,6 +486,7 @@ export default function PlanoCampanhaPublico() {
                 onUploaded={load}
               />
             ) : null,
+
           }}
         />
 

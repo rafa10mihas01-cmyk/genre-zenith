@@ -3967,6 +3967,7 @@ export type Database = {
           file_name: string | null
           file_path: string
           id: string
+          is_baseline: boolean
           reference_date: string
           rows_imported: number
           song_id: string | null
@@ -3983,6 +3984,7 @@ export type Database = {
           file_name?: string | null
           file_path: string
           id?: string
+          is_baseline?: boolean
           reference_date?: string
           rows_imported?: number
           song_id?: string | null
@@ -3999,6 +4001,7 @@ export type Database = {
           file_name?: string | null
           file_path?: string
           id?: string
+          is_baseline?: boolean
           reference_date?: string
           rows_imported?: number
           song_id?: string | null
