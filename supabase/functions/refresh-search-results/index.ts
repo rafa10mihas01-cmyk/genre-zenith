@@ -16,6 +16,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { getSpotifyToken } from "../_shared/spotify.ts";
+import { getPlaylistMeta, SpotifyApiError } from "../_shared/spotify-playlist.ts";
 import { recencyFactor } from "../_shared/recency.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 
@@ -95,13 +96,13 @@ Deno.serve(async (req) => {
 
     for (const row of unique) {
       const spId = row.spotify_playlist_id as string;
+      let meta;
       try {
-        const resp = await fetch(
-          `https://api.spotify.com/v1/playlists/${spId}?fields=name,images,followers(total),tracks(total)`,
-          { headers: { Authorization: `Bearer ${token}` } },
-        );
-        if (resp.status === 404) {
-          // playlist removida — marca tier small e empurra pra 30d
+        meta = await getPlaylistMeta(spId, token, {
+          fields: "name,images,followers(total),tracks(total)",
+        });
+      } catch (e) {
+        if (e instanceof SpotifyApiError && e.status === 404) {
           await sb.from("search_results").update({
             refresh_tier: "small",
             next_refresh_due: new Date(now.getTime() + 30 * 86400_000).toISOString(),
@@ -109,13 +110,14 @@ Deno.serve(async (req) => {
           }).eq("id", row.id);
           continue;
         }
-        if (!resp.ok) { failed++; continue; }
-        const json = await resp.json();
-
-        const newFollowers: number | null = json?.followers?.total ?? null;
-        const totalTracks: number | null = json?.tracks?.total ?? null;
-        const cover: string | null = json?.images?.[0]?.url ?? null;
-        const name: string | null = json?.name ?? null;
+        failed++;
+        continue;
+      }
+      try {
+        const newFollowers: number | null = meta.followers ?? null;
+        const totalTracks: number | null = meta.tracks_total ?? null;
+        const cover: string | null = meta.cover_url;
+        const name: string | null = meta.name || null;
 
         const prevFollowers = row.seguidores ?? null;
         const lastRefresh = row.last_refreshed_at ? new Date(row.last_refreshed_at) : null;
