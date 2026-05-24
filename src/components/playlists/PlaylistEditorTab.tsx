@@ -216,7 +216,7 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
 
   const pendingByTrack = useMemo(() => {
     const m = new Map<string, Job>();
-    for (const j of jobs) if (!m.has(j.spotic_track_id ?? j.spotify_track_id)) m.set(j.spotify_track_id, j);
+    for (const j of jobs) if (!m.has(j.spotify_track_id)) m.set(j.spotify_track_id, j);
     return m;
   }, [jobs]);
 
