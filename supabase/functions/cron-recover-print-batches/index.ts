@@ -79,6 +79,14 @@ Deno.serve(async (req) => {
     metadata: { stuck: batches.length, dispatched },
   });
 
+  await reportCronHealth(supabase, {
+    job_name: "cron-recover-print-batches",
+    status: dispatched < (stuck?.length ?? 0) ? "partial" : "ok",
+    startedAt: t0,
+    metrics: { stuck: batches.length, dispatched },
+    message: `stuck=${batches.length} dispatched=${dispatched}`,
+  });
+
   return new Response(
     JSON.stringify({ ok: true, stuck: batches.length, dispatched }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },
