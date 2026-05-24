@@ -189,3 +189,223 @@ export async function replacePlaylistTracks(
   );
   return { snapshot_id: r?.snapshot_id };
 }
+
+// =====================================================================
+// Metadata / identity / cover / creation / rich listing
+// =====================================================================
+
+export type SpotifyImage = { url: string; width: number | null; height: number | null };
+
+export type PlaylistMeta = {
+  id: string;
+  name: string;
+  description: string | null;
+  followers: number;
+  tracks_total: number;
+  owner_id: string | null;
+  owner_display_name: string | null;
+  images: SpotifyImage[];
+  cover_url: string | null;
+};
+
+/**
+ * GET /v1/playlists/{id} — metadata canônica.
+ * `fields` é opcional; default cobre tudo que PlaylistMeta expõe.
+ * Quando você passa `fields` custom, ainda recebe o objeto bruto via segundo retorno.
+ */
+export async function getPlaylistMeta(
+  playlistId: string,
+  token: string,
+  opts: { fields?: string; fetcher?: SpotifyFetch } = {},
+): Promise<PlaylistMeta & { raw: any }> {
+  const fetcher = opts.fetcher ?? defaultSpotifyFetch;
+  const fields = opts.fields
+    ?? "id,name,description,followers(total),tracks(total),owner(id,display_name),images";
+  const url = `https://api.spotify.com/v1/playlists/${playlistId}?fields=${encodeURIComponent(fields)}`;
+  const j: any = await fetcher(url, { method: "GET" }, token);
+  const images: SpotifyImage[] = Array.isArray(j?.images)
+    ? j.images.map((im: any) => ({
+        url: im?.url ?? "",
+        width: typeof im?.width === "number" ? im.width : null,
+        height: typeof im?.height === "number" ? im.height : null,
+      })).filter((im: SpotifyImage) => im.url)
+    : [];
+  return {
+    id: j?.id ?? playlistId,
+    name: j?.name ?? "",
+    description: j?.description ?? null,
+    followers: j?.followers?.total ?? 0,
+    tracks_total: j?.tracks?.total ?? 0,
+    owner_id: j?.owner?.id ?? null,
+    owner_display_name: j?.owner?.display_name ?? null,
+    images,
+    cover_url: images[0]?.url ?? null,
+    raw: j,
+  };
+}
+
+/**
+ * PUT /v1/playlists/{id} — altera name / description / public / collaborative.
+ * Pelo menos um campo deve ser passado.
+ */
+export async function setPlaylistDetails(
+  playlistId: string,
+  details: {
+    name?: string;
+    description?: string;
+    public?: boolean;
+    collaborative?: boolean;
+  },
+  token: string,
+  opts: { fetcher?: SpotifyFetch } = {},
+): Promise<void> {
+  const fetcher = opts.fetcher ?? defaultSpotifyFetch;
+  const body: Record<string, unknown> = {};
+  if (typeof details.name === "string") body.name = details.name;
+  if (typeof details.description === "string") body.description = details.description;
+  if (typeof details.public === "boolean") body.public = details.public;
+  if (typeof details.collaborative === "boolean") body.collaborative = details.collaborative;
+  if (Object.keys(body).length === 0) {
+    throw new Error("setPlaylistDetails: pelo menos um campo (name/description/public/collaborative) é obrigatório");
+  }
+  await fetcher(
+    `https://api.spotify.com/v1/playlists/${playlistId}`,
+    { method: "PUT", body: JSON.stringify(body) },
+    token,
+  );
+}
+
+/**
+ * PUT /v1/playlists/{id}/images — sobe capa JPEG.
+ * Aceita base64 (sem prefixo data:) ou um Uint8Array — que vira base64 internamente.
+ * Limite Spotify: 256 KB no JPEG já encodado.
+ * NOTE: este endpoint usa Content-Type: image/jpeg e body cru base64, não JSON.
+ */
+export async function uploadPlaylistCover(
+  playlistId: string,
+  jpeg: string | Uint8Array,
+  token: string,
+): Promise<void> {
+  let base64: string;
+  if (typeof jpeg === "string") {
+    base64 = jpeg.replace(/^data:image\/\w+;base64,/, "");
+  } else {
+    let bin = "";
+    for (let i = 0; i < jpeg.length; i++) bin += String.fromCharCode(jpeg[i]);
+    base64 = btoa(bin);
+  }
+  const r = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/images`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "image/jpeg",
+    },
+    body: base64,
+  });
+  if (!r.ok) {
+    const t = await r.text();
+    throw new Error(`Spotify ${r.status} (upload cover): ${t.slice(0, 400)}`);
+  }
+}
+
+/**
+ * POST /v1/users/{userId}/playlists — cria playlist na conta do usuário.
+ * Retorna o id da playlist criada (necessário pra próximos passos: add tracks, cover, etc).
+ */
+export async function createPlaylist(
+  userId: string,
+  details: {
+    name: string;
+    description?: string;
+    public?: boolean;
+    collaborative?: boolean;
+  },
+  token: string,
+  opts: { fetcher?: SpotifyFetch } = {},
+): Promise<{ id: string; raw: any }> {
+  const fetcher = opts.fetcher ?? defaultSpotifyFetch;
+  const body: Record<string, unknown> = { name: details.name };
+  if (typeof details.description === "string") body.description = details.description;
+  if (typeof details.public === "boolean") body.public = details.public;
+  if (typeof details.collaborative === "boolean") body.collaborative = details.collaborative;
+  const j: any = await fetcher(
+    `https://api.spotify.com/v1/users/${encodeURIComponent(userId)}/playlists`,
+    { method: "POST", body: JSON.stringify(body) },
+    token,
+  );
+  if (!j?.id) throw new Error("createPlaylist: Spotify não retornou id");
+  return { id: j.id, raw: j };
+}
+
+export type RichTrack = {
+  spotify_track_id: string | null;
+  uri: string | null;
+  name: string;
+  artists: string;
+  artist_names: string[];
+  album: string | null;
+  album_cover: string | null;
+  album_images: SpotifyImage[];
+  release_date: string | null;
+  duration_ms: number | null;
+  popularity: number | null;
+  added_at: string | null;
+  position: number;
+};
+
+/**
+ * GET /v1/playlists/{id}/items — listagem rica (name, artists, album, duration, popularity).
+ * Use isto pra hidratação / snapshots de tracks. Paginado, 100 por página.
+ *
+ * `max`: corta a coleta (default 1000). `fields`: override completo se precisar.
+ */
+export async function listPlaylistTracksRich(
+  playlistId: string,
+  token: string,
+  opts: { max?: number; fields?: string; fetcher?: SpotifyFetch } = {},
+): Promise<RichTrack[]> {
+  const fetcher = opts.fetcher ?? defaultSpotifyFetch;
+  const max = Math.max(1, opts.max ?? 1000);
+  const fields = opts.fields ?? "items(added_at,track(id,uri,name,duration_ms,popularity,artists(name),album(name,release_date,images))),next";
+  const out: RichTrack[] = [];
+  let url: string | null =
+    `https://api.spotify.com/v1/playlists/${playlistId}/items?fields=${encodeURIComponent(fields)}&limit=100`;
+  let pos = 0;
+  while (url && out.length < max) {
+    const j: any = await fetcher(url, { method: "GET" }, token);
+    for (const it of j.items ?? []) {
+      const tr = it?.track;
+      pos++;
+      if (!tr) continue;
+      const artistNames: string[] = Array.isArray(tr.artists)
+        ? tr.artists.map((a: any) => a?.name).filter((n: any) => typeof n === "string" && n.length)
+        : [];
+      const images: SpotifyImage[] = Array.isArray(tr.album?.images)
+        ? tr.album.images.map((im: any) => ({
+            url: im?.url ?? "",
+            width: typeof im?.width === "number" ? im.width : null,
+            height: typeof im?.height === "number" ? im.height : null,
+          })).filter((im: SpotifyImage) => im.url)
+        : [];
+      out.push({
+        spotify_track_id: tr.id ?? null,
+        uri: tr.uri ?? null,
+        name: tr.name ?? "Unknown",
+        artists: artistNames.join(", ") || "Unknown",
+        artist_names: artistNames,
+        album: tr.album?.name ?? null,
+        album_cover: images[images.length - 1]?.url ?? images[0]?.url ?? null,
+        album_images: images,
+        release_date: typeof tr.album?.release_date === "string" ? tr.album.release_date : null,
+        duration_ms: typeof tr.duration_ms === "number" ? tr.duration_ms : null,
+        popularity: typeof tr.popularity === "number" ? tr.popularity : null,
+        added_at: typeof it?.added_at === "string" ? it.added_at : null,
+        position: pos,
+      });
+      if (out.length >= max) break;
+    }
+    url = j.next ?? null;
+  }
+  return out;
+}
+
