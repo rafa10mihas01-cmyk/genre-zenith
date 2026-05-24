@@ -1,4 +1,4 @@
-// cron-deal-stale-notify
+// curator-deal-followup
 // Detecta deals ativos há mais de 3 dias sem novo snapshot e notifica o curador
 // no portal dele. Roda diariamente às 08:00 UTC.
 //
@@ -136,7 +136,7 @@ Deno.serve(async (req) => {
     };
 
     await reportCronHealth(sb, {
-      job_name: "cron-deal-stale-notify",
+      job_name: "curator-deal-followup",
       status: failed > 0 && notified === 0 ? "error"
         : failed > 0
         ? "partial"
@@ -151,9 +151,9 @@ Deno.serve(async (req) => {
     });
   } catch (e) {
     const msg = (e as Error).message ?? String(e);
-    console.error("[cron-deal-stale-notify] fatal:", msg);
+    console.error("[curator-deal-followup] fatal:", msg);
     await reportCronHealth(sb, {
-      job_name: "cron-deal-stale-notify",
+      job_name: "curator-deal-followup",
       status: "error",
       startedAt,
       message: msg,
