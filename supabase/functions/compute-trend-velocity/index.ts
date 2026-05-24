@@ -16,8 +16,9 @@ const VIRAL_THRESHOLD = 2.5;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const startedAt = Date.now();
+  const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
   try {
-    const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
 
     const cutoffRecent = new Date(Date.now() - WINDOW_RECENT * 86400_000).toISOString();
     const cutoffHistoric = new Date(Date.now() - WINDOW_HISTORIC * 86400_000).toISOString();
