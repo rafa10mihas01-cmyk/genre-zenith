@@ -141,6 +141,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   // Contexto fixo da sessão
   const [clientId, setClientId] = useState<string>(initial.clientId);
   const [curatorId, setCuratorId] = useState<string>(initial.curatorId);
+  const [campaignType, setCampaignType] = useState<"ecosystem" | "external" | "hybrid">("ecosystem");
   const [clientsList, setClientsList] = useState<{ id: string; name: string }[]>([]);
   const [curatorsList, setCuratorsList] = useState<{ id: string; name: string }[]>([]);
 
@@ -609,6 +610,43 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
       {/* ============== STEP 1 — SESSÃO ============== */}
       {step === 1 && (
         <div className="space-y-5">
+          {/* Tipo de campanha — define como o plano vai ser executado */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Tipo da campanha</CardTitle>
+              <CardDescription>
+                Define como o plano vai ser executado. Externa/Híbrida exigem curador.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {([
+                  { id: "ecosystem", title: "Ecossistema", desc: "Só playlists internas (managed)." },
+                  { id: "external",  title: "Externa",    desc: "Só curadores externos (deals reais)." },
+                  { id: "hybrid",    title: "Híbrida",    desc: "Mistura ecossistema + curadores." },
+                ] as const).map(opt => {
+                  const active = campaignType === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setCampaignType(opt.id)}
+                      className={cn(
+                        "text-left rounded-xl border p-4 transition-colors",
+                        active
+                          ? "border-primary/60 bg-primary/5 ring-1 ring-primary/40"
+                          : "border-border hover:border-foreground/30 hover:bg-accent/30",
+                      )}
+                    >
+                      <div className="font-semibold mb-1">{opt.title}</div>
+                      <div className="text-xs text-muted-foreground">{opt.desc}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Sessão</CardTitle>
@@ -626,7 +664,9 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Curador <span className="text-destructive">*</span></Label>
+                <Label className="text-xs">
+                  Curador {campaignType !== "ecosystem" && <span className="text-destructive">*</span>}
+                </Label>
                 <Select value={curatorId || "__none__"} onValueChange={v => setCuratorId(v === "__none__" ? "" : v)}>
                   <SelectTrigger><SelectValue placeholder="Sem curador" /></SelectTrigger>
                   <SelectContent>
@@ -639,12 +679,18 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
           </Card>
 
           <div className="flex justify-end">
-            <Button size="lg" variant="solid" onClick={() => setStep(2)} disabled={!canGoStep2}>
+            <Button
+              size="lg"
+              variant="solid"
+              onClick={() => setStep(2)}
+              disabled={!canGoStep2 || (campaignType !== "ecosystem" && !curatorId)}
+            >
               Avançar pra Músicas <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           </div>
         </div>
       )}
+
 
       {/* ============== STEP 2 — MÚSICAS ============== */}
       {step === 2 && (
