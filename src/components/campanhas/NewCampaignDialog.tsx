@@ -86,6 +86,7 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   const [notes, setNotes] = useState("");
   const [clientId, setClientId] = useState<string>("");
   const [curatorId, setCuratorId] = useState<string>("");
+  const [campaignType, setCampaignType] = useState<"ecosystem" | "external" | "hybrid">("hybrid");
 
   // Cobrança do cliente
   const [valorCobradoDigits, setValorCobradoDigits] = useState<string>("");
@@ -134,13 +135,13 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   // Mantém os campos preenchidos mesmo se o usuário fechar o dialog ou recarregar a página.
   const draftSnapshot = useMemo(() => ({
     step, trackName, artist, trackUrl, goal, startDate, deadline, notes,
-    clientId, curatorId,
+    clientId, curatorId, campaignType,
     valorCobradoDigits, formaRecebimento, jaRecebido, recebidoEm,
     items: items.map(i => ({
       playlist_id: i.playlist_id, selected: i.selected, target_override: i.target_override,
     })),
     activate,
-  }), [step, trackName, artist, trackUrl, goal, startDate, deadline, notes, clientId, curatorId,
+  }), [step, trackName, artist, trackUrl, goal, startDate, deadline, notes, clientId, curatorId, campaignType,
        valorCobradoDigits, formaRecebimento, jaRecebido, recebidoEm, items, activate]);
 
   const isDraftEmpty = !trackName.trim() && !artist.trim() && !trackUrl.trim() && !notes.trim()
@@ -168,6 +169,7 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
     setNotes(d.notes ?? "");
     setClientId((d as any).clientId ?? "");
     setCuratorId((d as any).curatorId ?? "");
+    setCampaignType(((d as any).campaignType as "ecosystem" | "external" | "hybrid") ?? "hybrid");
     setValorCobradoDigits((d as any).valorCobradoDigits ?? "");
     setFormaRecebimento((d as any).formaRecebimento ?? "");
     setJaRecebido(Boolean((d as any).jaRecebido));
@@ -280,6 +282,7 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
         created_by: user?.id ?? null,
         client_id: clientId || null,
         curator_id: curatorId || null,
+        campaign_type: campaignType,
         valor_cobrado: currencyDigitsToNumber(valorCobradoDigits) ?? null,
         forma_recebimento: formaRecebimento || null,
         valor_recebido: jaRecebido ? (currencyDigitsToNumber(valorCobradoDigits) ?? null) : null,
@@ -337,6 +340,38 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
 
         {step === 1 && (
           <div className="space-y-4">
+            {/* Tipo da campanha */}
+            <div className="space-y-2">
+              <Label>Tipo da campanha</Label>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                {([
+                  { id: "ecosystem", title: "Ecossistema", desc: "Só playlists internas (managed)." },
+                  { id: "external",  title: "Externa",     desc: "Só curadores externos (deals reais)." },
+                  { id: "hybrid",    title: "Híbrida",     desc: "Mistura ecossistema + curadores." },
+                ] as const).map(opt => {
+                  const active = campaignType === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setCampaignType(opt.id)}
+                      className={`text-left rounded-lg border p-3 transition ${
+                        active
+                          ? "border-primary bg-primary/5"
+                          : "border-border/60 hover:border-border bg-muted/10"
+                      }`}
+                    >
+                      <div className="text-sm font-semibold text-foreground">{opt.title}</div>
+                      <div className="text-xs text-muted-foreground mt-1">{opt.desc}</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Define como o plano vai ser executado. Externa/Híbrida exigem curador.
+              </p>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Cliente <span className="text-muted-foreground font-normal">(dono da campanha)</span></Label>
