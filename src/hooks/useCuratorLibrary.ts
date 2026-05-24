@@ -82,15 +82,18 @@ export function useCuratorLibrary(curatorId: string | null) {
           .from("curator_playlist_library")
           .select("*")
           .eq("curator_id", curatorId)
-          .order("last_used_at", { ascending: false, nullsFirst: false }),
+          .order("last_used_at", { ascending: false, nullsFirst: false })
+          .limit(2000),
         supabase
           .from("curator_playlist_library_stats" as never)
           .select("*")
-          .eq("curator_id", curatorId),
+          .eq("curator_id", curatorId)
+          .limit(2000),
         supabase
           .from("curator_playlist_performance" as never)
           .select("*")
-          .eq("curator_id", curatorId),
+          .eq("curator_id", curatorId)
+          .limit(2000),
       ]);
       if (libRes.error) throw libRes.error;
       const libItems = (libRes.data ?? []) as CuratorLibraryPlaylist[];
@@ -104,14 +107,16 @@ export function useCuratorLibrary(curatorId: string | null) {
         const { data: dealsForCurator } = await supabase
           .from("curator_deals")
           .select("id")
-          .eq("curator_id", curatorId);
+          .eq("curator_id", curatorId)
+          .limit(2000);
         const dealIds = ((dealsForCurator ?? []) as { id: string }[]).map((d) => d.id);
         if (dealIds.length) {
           const { data: songs } = await supabase
             .from("curator_deal_songs")
             .select("deal_id, client_id")
             .in("deal_id", dealIds)
-            .not("client_id", "is", null);
+            .not("client_id", "is", null)
+            .limit(5000);
           const clientIds = Array.from(
             new Set(((songs ?? []) as { client_id: string | null }[]).map((s) => s.client_id).filter(Boolean) as string[]),
           );
@@ -120,9 +125,11 @@ export function useCuratorLibrary(curatorId: string | null) {
               supabase
                 .from("curator_playlists")
                 .select("deal_id, spotify_playlist_id, spotify_url")
-                .in("deal_id", dealIds),
-              supabase.from("clients").select("id, primary_genre").in("id", clientIds),
+                .in("deal_id", dealIds)
+                .limit(5000),
+              supabase.from("clients").select("id, primary_genre").in("id", clientIds).limit(2000),
             ]);
+
             // Mapa deal_id → conjunto de genres (pode ter várias músicas/clientes por deal).
             const dealToGenres = new Map<string, Set<string>>();
             const clientToGenre = new Map<string, string | null>(

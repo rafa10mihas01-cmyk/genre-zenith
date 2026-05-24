@@ -54,7 +54,7 @@ export function useFinancialOverview() {
     staleTime: 60_000,
     placeholderData: keepPreviousData,
     queryFn: async () => {
-      const { data, error } = await supabase.from("v_financial_summary").select("*");
+      const { data, error } = await supabase.from("v_financial_summary").select("*").limit(1000);
       if (error) throw error;
       return (data ?? []) as FinancialSummaryRow[];
     },
