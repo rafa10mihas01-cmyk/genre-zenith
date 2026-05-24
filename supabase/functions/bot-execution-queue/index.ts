@@ -2,6 +2,7 @@
 // Auth: header x-bot-key (compara com env BOT_API_KEY).
 // GET ?limit=3
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -25,6 +26,7 @@ function jr(p: unknown, status = 200) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const startedAt = Date.now();
   if (req.headers.get("x-bot-key") !== BOT_API_KEY) return jr({ error: "unauthorized" }, 401);
 
   const url = new URL(req.url);
@@ -115,6 +117,17 @@ Deno.serve(async (req) => {
       },
     }));
     await supabase.from("bot_events").insert(events);
+  }
+
+  // Health: só loga quando houve dispatch real ou erro acima
+  if (claimed.length > 0) {
+    await reportCronHealth(supabase, {
+      job_name: "bot-execution-queue",
+      status: "ok",
+      startedAt,
+      metrics: { claimed: claimed.length, candidates: candidates.length },
+      message: `claimed=${claimed.length} candidates=${candidates.length}`,
+    });
   }
 
   return jr({ ok: true, count: claimed.length, queue: claimed });

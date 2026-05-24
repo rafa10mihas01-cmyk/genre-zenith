@@ -3,6 +3,7 @@
 // GET ?limit=5
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { recordMetric } from "../_shared/ops-metrics.ts";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,6 +24,7 @@ function jr(p: unknown, status = 200) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const startedAt = Date.now();
 
   if (req.headers.get("x-bot-key") !== BOT_API_KEY) {
     return jr({ error: "unauthorized" }, 401);
@@ -232,6 +234,17 @@ Deno.serve(async (req) => {
       dispatched_song_ids: ids,
     },
   });
+
+  // Health report — só quando houve trabalho real ou bloqueio (evita inundar cron_health)
+  if (ids.length > 0 || blocked.length > 0) {
+    await reportCronHealth(supabase, {
+      job_name: "bot-collect-queue",
+      status: "ok",
+      startedAt,
+      metrics: { dispatched: ids.length, blocked_no_whitelist: blocked.length, candidates: candidates.length, stuck_recovered: stuckRows?.length ?? 0 },
+      message: `dispatched=${ids.length} blocked=${blocked.length} candidates=${candidates.length}`,
+    });
+  }
 
   return jr({
     ok: true,
