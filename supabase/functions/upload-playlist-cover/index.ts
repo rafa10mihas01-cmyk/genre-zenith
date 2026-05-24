@@ -4,6 +4,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getUserAccessToken } from "../_shared/spotify.ts";
+import { uploadPlaylistCover } from "../_shared/spotify-playlist.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
 // WASM puro — funciona no edge runtime do Deno (sem libs nativas)
 import decodePng from "npm:@jsquash/png@3.1.0/decode.js";
@@ -81,6 +82,8 @@ async function fetchAsBase64Jpeg(url: string): Promise<string> {
   return uint8ToBase64(jpeg);
 }
 
+// uploadPlaylistCover helper aceita base64 sem prefixo; basta passar.
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jr({ error: "POST only" }, 405);
@@ -116,18 +119,10 @@ Deno.serve(async (req) => {
     return jr({ error: (e as Error).message }, 400);
   }
 
-  const resp = await fetch(`https://api.spotify.com/v1/playlists/${tpl.spotify_playlist_id}/images`, {
-    method: "PUT",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "image/jpeg",
-    },
-    body: b64,
-  });
-
-  if (!resp.ok && resp.status !== 202) {
-    const t = await resp.text();
-    return jr({ ok: false, error: `Spotify ${resp.status}: ${t.slice(0, 200)}` }, 200);
+  try {
+    await uploadPlaylistCover(tpl.spotify_playlist_id, b64, token);
+  } catch (e) {
+    return jr({ ok: false, error: (e as Error).message }, 200);
   }
 
   await supabase.from("playlist_templates").update({

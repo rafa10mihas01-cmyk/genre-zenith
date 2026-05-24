@@ -4,6 +4,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getSpotifyToken } from "../_shared/spotify.ts";
+import { getPlaylistMeta, SpotifyApiError } from "../_shared/spotify-playlist.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -48,17 +49,16 @@ Deno.serve(async (req) => {
 
   for (const p of pls ?? []) {
     try {
-      const r = await fetch(
-        `https://api.spotify.com/v1/playlists/${p.spotify_playlist_id}?fields=owner(id,display_name)`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      if (!r.ok) {
+      let meta;
+      try {
+        meta = await getPlaylistMeta(p.spotify_playlist_id, token, { fields: "owner(id,display_name)" });
+      } catch (e) {
         failed++;
-        results.push({ playlist: p.name, error: `spotify ${r.status}` });
+        const status = e instanceof SpotifyApiError ? `spotify ${e.status}` : (e as Error).message;
+        results.push({ playlist: p.name, error: status });
         continue;
       }
-      const j = await r.json();
-      const ownerId: string | null = j?.owner?.id ?? null;
+      const ownerId = meta.owner_id;
       if (!ownerId) { failed++; results.push({ playlist: p.name, error: "no owner" }); continue; }
 
       const isKnown = knownIds.has(ownerId);
@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
       results.push({
         playlist: p.name,
         owner_spotify_user_id: ownerId,
-        owner_display: j?.owner?.display_name ?? null,
+        owner_display: meta.owner_display_name,
         known_account: isKnown,
       });
     } catch (e) {

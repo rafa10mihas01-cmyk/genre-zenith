@@ -8,6 +8,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
 import { getUserAccessToken } from "../_shared/spotify.ts";
+import { getPlaylistMeta } from "../_shared/spotify-playlist.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -94,13 +95,8 @@ Deno.serve(async (req) => {
       const batch = owned.slice(i, i + CONCURRENCY);
       await Promise.all(batch.map(async (p) => {
         try {
-          const r = await fetch(
-            `https://api.spotify.com/v1/playlists/${p.id}?fields=followers(total)`,
-            { headers: { Authorization: `Bearer ${token}` } },
-          );
-          if (!r.ok) { followersMap.set(p.id, null); return; }
-          const j = await r.json();
-          followersMap.set(p.id, j?.followers?.total ?? null);
+          const meta = await getPlaylistMeta(p.id, token, { fields: "followers(total)" });
+          followersMap.set(p.id, meta.followers ?? null);
         } catch {
           followersMap.set(p.id, null);
         }

@@ -5,7 +5,7 @@
 // GET ?limit=3
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { reportCronHealth } from "../_shared/cron-health.ts";
-import { reorderPlaylistTracks, listPlaylistTrackUris } from "../_shared/spotify-playlist.ts";
+import { reorderPlaylistTracks, listPlaylistTrackUris, getPlaylistMeta } from "../_shared/spotify-playlist.ts";
 import { getSpotifyToken, getUserAccessToken } from "../_shared/spotify.ts";
 
 const corsHeaders = {
@@ -79,15 +79,14 @@ Deno.serve(async (req) => {
       // descobre dono pra pegar token user
       let ownerId: string | null = null;
       const appToken = await getSpotifyToken();
-      const or = await fetch(
-        `https://api.spotify.com/v1/playlists/${j.spotify_playlist_id}?fields=owner(id)`,
-        { headers: { Authorization: `Bearer ${appToken}` } },
-      );
-      if (or.ok) ownerId = (await or.json())?.owner?.id ?? null;
+      try {
+        const meta = await getPlaylistMeta(j.spotify_playlist_id, appToken, { fields: "owner(id)" });
+        ownerId = meta.owner_id;
+      } catch { /* segue sem owner */ }
       const { token } = await getUserAccessToken(ownerId ?? undefined);
 
       // valida posições e calcula insert_before pro endpoint do Spotify
-      const uris = await listPlaylistTrackUris(token, j.spotify_playlist_id);
+      const uris = await listPlaylistTrackUris(j.spotify_playlist_id, token);
       const total = uris.length;
       const from0 = Number(j.from_position) - 1;
       const to0 = Number(j.to_position) - 1;
@@ -100,7 +99,11 @@ Deno.serve(async (req) => {
       }
       // insert_before: se for pra frente (to > from) usa to0+1; pra trás usa to0.
       const insertBefore = to0 > from0 ? to0 + 1 : to0;
-      await reorderPlaylistTracks(token, j.spotify_playlist_id, from0, insertBefore, 1);
+      await reorderPlaylistTracks(
+        j.spotify_playlist_id,
+        { range_start: from0, insert_before: insertBefore, range_length: 1 },
+        token,
+      );
 
       await supabase.from("playlist_execution_jobs")
         .update({ status: "done", completed_at: new Date().toISOString(), last_error: null })

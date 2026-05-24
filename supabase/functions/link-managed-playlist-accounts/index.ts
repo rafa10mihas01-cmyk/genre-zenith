@@ -2,6 +2,7 @@
 // owner.id against connected spotify_user_tokens.spotify_user_id.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getSpotifyToken } from "../_shared/spotify.ts";
+import { getPlaylistMeta, SpotifyApiError } from "../_shared/spotify-playlist.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -57,18 +58,16 @@ Deno.serve(async (req) => {
           (p.metadata as any)?.owner_id || (p.metadata as any)?.owner?.id || null;
 
         if (!ownerId) {
-          const r = await fetch(
-            `https://api.spotify.com/v1/playlists/${p.spotify_playlist_id}?fields=owner(id,display_name)`,
-            { headers: { Authorization: `Bearer ${appToken}` } },
-          );
-          if (!r.ok) {
-            if (r.status === 404) continue;
-            throw new Error(`spotify ${r.status}`);
+          let meta;
+          try {
+            meta = await getPlaylistMeta(p.spotify_playlist_id, appToken, { fields: "owner(id,display_name)" });
+          } catch (e) {
+            if (e instanceof SpotifyApiError && e.status === 404) continue;
+            throw e instanceof SpotifyApiError ? new Error(`spotify ${e.status}`) : e;
           }
-          const j = await r.json();
-          ownerId = j?.owner?.id ?? null;
+          ownerId = meta.owner_id;
           // cache in metadata so next time we skip the API call
-          const newMeta = { ...(p.metadata || {}), owner_id: ownerId, owner_name: j?.owner?.display_name ?? null };
+          const newMeta = { ...(p.metadata || {}), owner_id: ownerId, owner_name: meta.owner_display_name };
           await supabase.from("managed_playlists").update({ metadata: newMeta }).eq("id", p.id);
         }
 
