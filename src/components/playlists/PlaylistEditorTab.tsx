@@ -94,29 +94,33 @@ function SortableRow({
     : null;
 
   return (
-    <li ref={setNodeRef} style={style} className="group relative">
+    <li ref={setNodeRef} style={style} className="group/row relative">
       {/* Botão + acima da linha (insere nesta posição) */}
       <button
         type="button"
         onClick={() => onAddAt(position)}
-        className="absolute -top-2 left-1/2 -translate-x-1/2 z-20 h-5 w-5 rounded-full bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground border border-primary/30 opacity-0 group-hover:opacity-100 transition-opacity grid place-items-center"
+        className="absolute -top-1.5 left-1/2 -translate-x-1/2 z-20 h-5 w-5 rounded-full bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground border border-primary/30 opacity-0 group-hover/row:opacity-100 transition-opacity grid place-items-center"
         title={`Adicionar na posição ${position}`}
       >
         <Plus className="h-3 w-3" />
       </button>
 
-      <div className="flex items-center gap-3 py-2.5 px-2 rounded-md hover:bg-muted/40">
-        {/* Drag handle + posição */}
-        <button
-          type="button"
-          {...attributes}
-          {...listeners}
-          className="flex items-center gap-1 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
-          aria-label="Arrastar"
-        >
-          <GripVertical className="h-4 w-4" />
-          <span className="tabular-nums text-xs font-mono w-8 text-right">{position}</span>
-        </button>
+      <div className="flex items-center gap-3 py-1.5 px-2 rounded-md hover:bg-muted/40 transition-colors">
+        {/* Posição / drag handle no hover */}
+        <div className="w-8 shrink-0 grid place-items-center">
+          <span className="tabular-nums text-sm text-muted-foreground group-hover/row:hidden">
+            {position}
+          </span>
+          <button
+            type="button"
+            {...attributes}
+            {...listeners}
+            className="hidden group-hover/row:grid place-items-center cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
+            aria-label="Arrastar"
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+        </div>
 
         {/* Capa */}
         {track.album_cover ? (
@@ -127,12 +131,8 @@ function SortableRow({
 
         {/* Metadados */}
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-medium truncate">{track.name}</div>
+          <div className="text-sm font-medium text-foreground truncate">{track.name}</div>
           <div className="text-xs text-muted-foreground truncate">{track.artists}</div>
-        </div>
-
-        <div className="text-xs text-muted-foreground tabular-nums hidden sm:block">
-          {fmtDuration(track.duration_ms)}
         </div>
 
         {/* Badge pendente */}
@@ -151,11 +151,16 @@ function SortableRow({
           </Badge>
         )}
 
-        {/* Remover */}
+        {/* Duração */}
+        <div className="text-xs text-muted-foreground tabular-nums hidden sm:block w-12 text-right">
+          {fmtDuration(track.duration_ms)}
+        </div>
+
+        {/* Remover — só no hover */}
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+          className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover/row:opacity-100 transition-opacity"
           disabled={busy || !!pendingJob}
           onClick={() => onRemove(track.spotify_track_id)}
           title="Remover faixa"
