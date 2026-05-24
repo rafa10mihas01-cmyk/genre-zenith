@@ -1,6 +1,7 @@
 // Scraping do Top 200 BR diário do kworb.net → raw_chart_daily
 // + auto-calibração da chart_position_benchmarks
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
