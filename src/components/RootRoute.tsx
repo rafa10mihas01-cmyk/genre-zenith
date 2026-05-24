@@ -4,7 +4,7 @@
 // Mantém a rota "/" intacta para todos os links internos existentes.
 import { ReactNode } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Zap } from "lucide-react";
+import { useBootGate } from "@/contexts/LoadingContext";
 import Landing from "@/pages/Landing";
 import AppLayout from "@/components/AppLayout";
 import Home from "@/pages/Home";
@@ -13,17 +13,9 @@ import { Navigate } from "react-router-dom";
 
 export default function RootRoute() {
   const { user, loading } = useAuth();
+  useBootGate(loading);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex items-center gap-3 text-muted-foreground">
-          <Zap className="h-5 w-5 text-primary animate-pulse-soft" />
-          <span>Carregando…</span>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return null;
 
   // Modo curador só redireciona visitantes não autenticados.
   if (!user && isCuratorPublicMode()) return <Navigate to={getCuratorPublicPath()} replace />;

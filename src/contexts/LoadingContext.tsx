@@ -1,36 +1,25 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { useLocation } from "react-router-dom";
 
 /**
  * Contexto GLOBAL de loading do app.
  *
- * Modelo: contador de "tarefas em andamento". Cada chamada a `start()` retorna
- * uma função `stop()`. Enquanto contador > 0, o app está "carregando".
+ * Dois contadores independentes:
+ *  • count    → tasks "soft" (queries de página). Dirige o TopProgressBar fino.
+ *  • bootCount → tasks de BOOT (auth init + chunks Suspense). Dirige o SplashLoader.
  *
- * Componentes exibidos pelo AppLayout:
- *  • TopProgressBar  — barra fina no topo (estilo YouTube), sempre que ativo
- *  • SplashLoader    — overlay com logo N + barra; só na 1ª carga e troca de rota
- *
- * Como usar em qualquer página:
- *   const { withLoading } = useLoading();
- *   await withLoading(supabase.from(...).select(...));
- *
- * Ou manualmente:
- *   const { start } = useLoading();
- *   const stop = start();
- *   try { ... } finally { stop(); }
+ * O splash NÃO usa mais timer fixo: ele liga quando bootCount > 0 e desliga
+ * assim que TODO chunk pendente termina + auth deixa de estar loading.
  */
 
 type LoadingCtx = {
-  /** True enquanto houver qualquer tarefa em andamento */
   isLoading: boolean;
-  /** Marca início de uma tarefa. Retorna função para encerrar. */
   start: () => () => void;
-  /** Embrulha uma promise marcando start/stop automaticamente. */
   withLoading: <T,>(promise: Promise<T>) => Promise<T>;
-  /** True enquanto o splash full-screen está ativo (1ª carga / troca de rota). */
+  /** True enquanto qualquer task de boot estiver pendente (auth | Suspense). */
   isSplashing: boolean;
-  /** Mostra o splash full-screen por X ms (padrão 800ms). Útil ao abrir links externos. */
+  /** Marca início de uma task de boot. Retorna função de stop idempotente. */
+  startBoot: () => () => void;
+  /** Mostra o splash full-screen por X ms (útil ao abrir links externos). */
   triggerSplash: (ms?: number) => void;
 };
 
@@ -38,9 +27,18 @@ const Ctx = createContext<LoadingCtx | null>(null);
 
 export function LoadingProvider({ children }: { children: ReactNode }) {
   const [count, setCount] = useState(0);
-  const [isSplashing, setSplashing] = useState(true); // primeira carga
-  const splashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const location = useLocation();
+  // Começa em 1: cobre o intervalo entre o primeiro render do Provider e o
+  // mount do AuthProvider/RouteFallback. Decrementa no próximo tick.
+  const [bootCount, setBootCount] = useState(1);
+  const [manualSplash, setManualSplash] = useState(false);
+  const manualTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Decrementa o boot inicial assim que a árvore monta — a partir daí, quem
+  // mantém o splash ligado é Suspense (RouteFallback) e Auth (ProtectedRoute).
+  useEffect(() => {
+    const t = setTimeout(() => setBootCount((c) => Math.max(0, c - 1)), 0);
+    return () => clearTimeout(t);
+  }, []);
 
   const start = useCallback<LoadingCtx["start"]>(() => {
     setCount((c) => c + 1);
@@ -54,29 +52,23 @@ export function LoadingProvider({ children }: { children: ReactNode }) {
 
   const withLoading = useCallback<LoadingCtx["withLoading"]>(async (promise) => {
     const stop = start();
-    try {
-      return await promise;
-    } finally {
-      stop();
-    }
+    try { return await promise; } finally { stop(); }
   }, [start]);
 
-  // SPLASH: ativa automaticamente em toda troca de rota e no primeiro mount.
-  // Permanece visível por no mínimo 350ms (evita flicker em rotas instantâneas)
-  // e some assim que o tempo mínimo passa.
-  useEffect(() => {
-    setSplashing(true);
-    if (splashTimer.current) clearTimeout(splashTimer.current);
-    splashTimer.current = setTimeout(() => setSplashing(false), 600);
+  const startBoot = useCallback<LoadingCtx["startBoot"]>(() => {
+    setBootCount((c) => c + 1);
+    let stopped = false;
     return () => {
-      if (splashTimer.current) clearTimeout(splashTimer.current);
+      if (stopped) return;
+      stopped = true;
+      setBootCount((c) => Math.max(0, c - 1));
     };
-  }, [location.pathname]);
+  }, []);
 
   const triggerSplash = useCallback((ms: number = 800) => {
-    setSplashing(true);
-    if (splashTimer.current) clearTimeout(splashTimer.current);
-    splashTimer.current = setTimeout(() => setSplashing(false), ms);
+    setManualSplash(true);
+    if (manualTimer.current) clearTimeout(manualTimer.current);
+    manualTimer.current = setTimeout(() => setManualSplash(false), ms);
   }, []);
 
   return (
@@ -85,7 +77,8 @@ export function LoadingProvider({ children }: { children: ReactNode }) {
         isLoading: count > 0,
         start,
         withLoading,
-        isSplashing,
+        isSplashing: bootCount > 0 || manualSplash,
+        startBoot,
         triggerSplash,
       }}
     >
@@ -98,4 +91,18 @@ export function useLoading() {
   const v = useContext(Ctx);
   if (!v) throw new Error("useLoading deve ser usado dentro de <LoadingProvider>");
   return v;
+}
+
+/**
+ * Mantém uma task de boot ativa enquanto `active` for true.
+ * Usado por RouteFallback (Suspense) e ProtectedRoute (auth) pra unificar
+ * todos os loaders de boot em um único splash.
+ */
+export function useBootGate(active: boolean) {
+  const { startBoot } = useLoading();
+  useEffect(() => {
+    if (!active) return;
+    const stop = startBoot();
+    return stop;
+  }, [active, startBoot]);
 }

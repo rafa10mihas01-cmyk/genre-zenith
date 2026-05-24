@@ -11,7 +11,8 @@ import { NotificationsBell } from "@/components/NotificationsBell";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { CommandPalette } from "@/components/CommandPalette";
 import { TopProgressBar } from "@/components/TopProgressBar";
-import { SplashLoader } from "@/components/SplashLoader";
+// SplashLoader é montado UMA vez em App.tsx (fora do AppLayout) pra cobrir
+// rotas públicas e o boot inteiro. Não duplicar aqui.
 import { AppFooter } from "@/components/AppFooter";
 
 // Mapa de rótulos curtos para o título no header mobile/tablet
@@ -90,9 +91,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <SidebarProvider>
       <SidebarContextProvider>
-      {/* Loading global: barra fina no topo + splash full-screen */}
+      {/* Loading global: barra fina no topo. Splash já está em App.tsx. */}
       <TopProgressBar />
-      <SplashLoader />
+
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden shadow-[-1px_0_0_rgba(255,255,255,0.04)]">
