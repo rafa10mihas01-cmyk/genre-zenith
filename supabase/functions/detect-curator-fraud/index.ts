@@ -7,6 +7,7 @@
 // Body: { deal_id?: string } — se ausente, processa todos os deals do user.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
