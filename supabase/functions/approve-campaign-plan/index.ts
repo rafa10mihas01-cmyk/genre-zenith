@@ -182,8 +182,11 @@ Deno.serve(async (req) => {
   }];
 
   // 7) Cria deal via RPC atômica
+  // IMPORTANTE: A RPC usa auth.uid() internamente (SECURITY DEFINER mas exige
+  // contexto de usuário). Precisa ser chamada via userClient (JWT do dono da
+  // campanha), não pelo admin (service role).
   // deno-lint-ignore no-explicit-any
-  const { data: rpcRes, error: rpcErr } = await (admin as any).rpc(
+  const { data: rpcRes, error: rpcErr } = await (userClient as any).rpc(
     "create_curator_deal_atomic",
     { p_deal: dealPayload, p_songs: songPayload, p_force: false, p_new_curator: null },
   );
