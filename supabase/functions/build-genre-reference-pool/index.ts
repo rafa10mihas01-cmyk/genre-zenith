@@ -31,6 +31,7 @@ Deno.serve(async (req) => {
     const { data: genres, error } = await gQ;
     if (error) throw error;
     if (!genres?.length) {
+      await reportCronHealth(sb, { job_name: "build-genre-reference-pool", status: "ok", startedAt, metrics: { processed: 0 } });
       return new Response(JSON.stringify({ ok: true, processed: 0 }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
