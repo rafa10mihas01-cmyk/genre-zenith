@@ -22,17 +22,18 @@ function jr(p: unknown, status = 200) {
 }
 
 async function fetchMeta(id: string, token: string) {
-  const url = `https://api.spotify.com/v1/playlists/${id}?fields=followers(total),tracks(total),name,images,description`;
-  const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-  if (!r.ok) return null;
-  const j = await r.json();
-  return {
-    followers: j?.followers?.total ?? 0,
-    tracks_count: j?.tracks?.total ?? 0,
-    name: j?.name ?? null,
-    cover_url: Array.isArray(j?.images) && j.images[0]?.url ? j.images[0].url : null,
-    description: j?.description ?? null,
-  };
+  try {
+    const meta = await getPlaylistMeta(id, token, { fields: "followers(total),tracks(total),name,images,description" });
+    return {
+      followers: meta.followers ?? 0,
+      tracks_count: meta.tracks_total ?? 0,
+      name: meta.name || null,
+      cover_url: meta.cover_url,
+      description: meta.description,
+    };
+  } catch {
+    return null;
+  }
 }
 
 Deno.serve(async (req) => {
