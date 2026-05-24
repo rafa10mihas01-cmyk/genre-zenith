@@ -18,14 +18,16 @@ function jr(p: unknown, status = 200) {
   });
 }
 
-async function fetchPlaylistMeta(token: string, id: string) {
+async function fetchPlaylistMeta(token: string, id: string): Promise<
+  { followers: number; total_tracks: number | null } | { status: number } | null
+> {
   const r = await fetch(
     `https://api.spotify.com/v1/playlists/${id}?fields=followers.total,tracks.total`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
   if (!r.ok) {
     if (r.status === 401) throw new Error("UNAUTH");
-    return null;
+    return { status: r.status };
   }
   const j = await r.json();
   return {
@@ -100,7 +102,11 @@ Deno.serve(async (req) => {
 
   const snapshots: any[] = [];
   let unauthRetried = false;
-  let ok = 0, failed = 0;
+  let ok = 0, failed = 0, auto_archived = 0;
+  const failed_ids: string[] = [];
+
+  // Lookup pra saber quais alvos vieram de managed_playlists (pra auto-archive 404)
+  const managedIdSet = new Set(managed.map((m) => m.spotify_playlist_id));
 
   for (const target of targets) {
     try {
@@ -112,7 +118,22 @@ Deno.serve(async (req) => {
         }
         throw e;
       });
-      if (!meta) { failed++; continue; }
+      if (!meta) { failed++; if (failed_ids.length < 10) failed_ids.push(target.spotify_playlist_id); continue; }
+      // Erro HTTP do Spotify
+      if ("status" in meta) {
+        if (meta.status === 404 && managedIdSet.has(target.spotify_playlist_id)) {
+          await supabase.from("managed_playlists")
+            .update({ archived_at: new Date().toISOString() })
+            .eq("spotify_playlist_id", target.spotify_playlist_id)
+            .is("archived_at", null);
+          auto_archived++;
+          console.log(`[track-playlist-metrics] auto-archived 404 ${target.spotify_playlist_id}`);
+          continue;
+        }
+        failed++;
+        if (failed_ids.length < 10) failed_ids.push(`${target.spotify_playlist_id}:${meta.status}`);
+        continue;
+      }
 
       const row: any = {
         template_id: target.tpl?.id ?? null,
@@ -121,7 +142,11 @@ Deno.serve(async (req) => {
         total_tracks: meta.total_tracks,
       };
       const { error: insErr } = await supabase.from("playlist_metrics_snapshots").insert(row);
-      if (insErr) { failed++; continue; }
+      if (insErr) {
+        failed++;
+        if (failed_ids.length < 10) failed_ids.push(`${target.spotify_playlist_id}:insert`);
+        continue;
+      }
 
       // Backfill followers_at_creation APENAS pra templates recém-criados (<1h).
       if (target.kind === "template" && target.tpl) {
@@ -142,6 +167,7 @@ Deno.serve(async (req) => {
     } catch (e) {
       console.error("snapshot failed", target.spotify_playlist_id, e);
       failed++;
+      if (failed_ids.length < 10) failed_ids.push(`${target.spotify_playlist_id}:${String(e).slice(0, 30)}`);
     }
   }
 
@@ -171,7 +197,9 @@ Deno.serve(async (req) => {
     job_name: "track-playlist-metrics",
     status: isSystemicFailure ? "error" : (failed === 0 ? "ok" : "partial"),
     startedAt,
-    metrics: { processed: totalProcessed, ok, failed, systemic_failure: isSystemicFailure },
+    metrics: { processed: totalProcessed, ok, failed, auto_archived, systemic_failure: isSystemicFailure, failed_ids },
+    message: `processed=${totalProcessed} ok=${ok} failed=${failed} archived=${auto_archived}` +
+      (failed_ids.length ? ` · first=[${failed_ids.slice(0, 3).join(",")}]` : ""),
   });
 
   return jr({
@@ -179,6 +207,8 @@ Deno.serve(async (req) => {
     processed: totalProcessed,
     snapshots_ok: ok,
     failed,
+    auto_archived,
     systemic_failure: isSystemicFailure,
+    failed_ids: failed_ids.length ? failed_ids : undefined,
   });
 });
