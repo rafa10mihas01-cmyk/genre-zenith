@@ -768,6 +768,11 @@ export function PlaylistCockpit({
               />
             </TabsContent>
 
+            {/* ============ EDITOR (drag-and-drop) ============ */}
+            <TabsContent value="editor" className="mt-0">
+              <PlaylistEditorTab playlistId={managedId} />
+            </TabsContent>
+
             {/* ============ TODAS AS FAIXAS ============ */}
             <TabsContent value="faixas" className="mt-0">
               <Card className="p-4">
