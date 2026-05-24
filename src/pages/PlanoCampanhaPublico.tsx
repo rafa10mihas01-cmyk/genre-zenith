@@ -124,6 +124,26 @@ export default function PlanoCampanhaPublico() {
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [token]);
 
+  // Após termos o client_token (resolvido pela edge get-shared-campaign-plan),
+  // buscamos o payload público sanitizado para alimentar as listas de
+  // "Playlists monitoradas" e "Histórico de prints" — mesma UI da página
+  // antiga /campanha/:token, sem duplicar lógica.
+  useEffect(() => {
+    if (!clientToken) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.functions.invoke("get-client-campaign-public", {
+        body: { client_token: clientToken },
+      });
+      if (cancelled || !data || (data as { ok?: boolean }).ok === false) return;
+      const payload = data as { playlists?: MonitoredPlaylist[]; snapshot_history?: PrintsHistoryEntry[]; snapshotHistory?: PrintsHistoryEntry[] };
+      setLivePlaylists(Array.isArray(payload.playlists) ? payload.playlists : []);
+      const hist = payload.snapshot_history ?? payload.snapshotHistory ?? [];
+      setSnapshotHistory(Array.isArray(hist) ? hist : []);
+    })();
+    return () => { cancelled = true; };
+  }, [clientToken]);
+
   const snapshot = camp?.simulation_snapshot ?? null;
 
   const ecoPositionByAllocation = useMemo(() => {
