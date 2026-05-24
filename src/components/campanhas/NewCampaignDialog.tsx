@@ -15,6 +15,8 @@ import { Loader2, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { useFormDraft } from "@/hooks/useFormDraft";
 import { DraftBanner, DraftIndicator } from "@/components/forms/DraftBanner";
 import { usePricingSettings } from "@/hooks/usePricingSettings";
+import { TrackPresencePanel } from "@/components/campanhas/TrackPresencePanel";
+import { extractSpotifyTrackId } from "@/hooks/useTrackPresence";
 
 function formatPlaysShort(n: number): string {
   if (!n || n < 1) return "0";
