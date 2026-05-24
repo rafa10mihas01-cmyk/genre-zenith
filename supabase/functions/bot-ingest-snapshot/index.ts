@@ -312,6 +312,7 @@ Deno.serve(async (req) => {
         song_id,
         playlist_id: playlistId,
         spotify_playlist_id: sId ?? "",
+        spotify_track_id: songInfo?.spotify_track_id ?? null,
         playlist_name: sName ?? "unknown",
         track_name: trackName,
         plays_total: plays,
