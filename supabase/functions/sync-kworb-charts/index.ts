@@ -131,12 +131,12 @@ async function recalibrateBenchmarks(supabase: any, chartDate: string) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  const startedAt = Date.now();
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
   try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
-
     const res = await fetch(KWORB_URL, {
       headers: { "User-Agent": "NexEngineBot/1.0 (+https://nexcreatorx.com)" },
     });
@@ -162,14 +162,27 @@ Deno.serve(async (req) => {
 
     await recalibrateBenchmarks(supabase, date);
 
+    await reportCronHealth(supabase, {
+      job_name: "sync-kworb-charts",
+      status: "ok",
+      startedAt,
+      metrics: { date, rows: rows.length },
+    });
+
     return new Response(
       JSON.stringify({ ok: true, date, rows: rows.length }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
     console.error("sync-kworb-charts", e);
+    await reportCronHealth(supabase, {
+      job_name: "sync-kworb-charts",
+      status: "error",
+      startedAt,
+      message: String((e as any)?.message ?? e),
+    });
     return new Response(
-      JSON.stringify({ ok: false, error: String(e?.message ?? e) }),
+      JSON.stringify({ ok: false, error: String((e as any)?.message ?? e) }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
