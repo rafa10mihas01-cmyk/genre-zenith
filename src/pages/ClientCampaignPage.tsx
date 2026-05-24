@@ -70,6 +70,8 @@ type SafePlaylist = {
   image_url: string | null;
   delivered: number;
   status: "Nova" | "Crescendo" | "Destaque" | "Estável";
+  source?: "curator" | "engine";
+  planned?: number;
 };
 type SafeSeriesPoint = { date: string; delivered: number };
 type SafeSnapshotPlaylist = {
