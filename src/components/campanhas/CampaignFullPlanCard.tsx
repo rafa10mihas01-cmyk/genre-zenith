@@ -233,6 +233,22 @@ export function CampaignFullPlanCard({
           <Button size="sm" variant="ghost" onClick={() => setShowZeros((s) => !s)}>
             {showZeros ? "Esconder zeros" : "Mostrar zeros"}
           </Button>
+          {campaignId && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleRedistribute}
+              disabled={redistributing || allocations.length === 0}
+              title="Sorteia novas posições para todas as playlists e grava no plano"
+            >
+              {redistributing ? (
+                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+              ) : (
+                <Shuffle className="h-4 w-4 mr-1.5" />
+              )}
+              Redistribuir posições
+            </Button>
+          )}
           {showShare && (
             <Button size="sm" variant="outline" onClick={copyShareLink}>
               {copied ? <Check className="h-4 w-4 mr-1.5" /> : <Link2 className="h-4 w-4 mr-1.5" />}
