@@ -140,13 +140,30 @@ Deno.serve(async (req) => {
     .eq("song_id", song_id);
   const isBaseline = (existingLogs ?? 0) === 0;
 
-  // Pega nome da faixa pra delivery_proofs
+  // Pega nome da faixa pra delivery_proofs + spotify_track_id pra espelhar em campaign_eco_snapshots
   const { data: songInfo } = await supabase
     .from("curator_deal_songs")
-    .select("song_name, song_artist")
+    .select("song_name, song_artist, spotify_track_id")
     .eq("id", song_id)
     .maybeSingle();
   const trackName = [songInfo?.song_name, songInfo?.song_artist].filter(Boolean).join(" — ") || "unknown";
+
+  // Resolve campanha ativa por spotify_track_id (uma única vez por ingestão).
+  // Se existir campanha + a playlist for managed, espelhamos o snapshot em
+  // campaign_eco_snapshots pra alimentar o timeline do portal do cliente.
+  let ecoCampaignId: string | null = null;
+  if (songInfo?.spotify_track_id) {
+    const { data: campRow } = await supabase
+      .from("campaigns")
+      .select("id")
+      .eq("spotify_track_id", songInfo.spotify_track_id)
+      .in("status", ["active", "draft"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    ecoCampaignId = (campRow?.id as string | undefined) ?? null;
+  }
+
 
   // Para cada snapshot, achar/criar curator_playlist e inserir snapshot.
   // Função utilitária inline pra extrair playlist id do url.
@@ -300,8 +317,36 @@ Deno.serve(async (req) => {
         bot_correlation_id: correlation_id ?? null,
         captured_at: new Date().toISOString(),
       });
+
+      // Espelha snapshot em campaign_eco_snapshots se: (a) existe campanha
+      // ativa para a faixa; (b) a playlist é uma managed_playlist do ecossistema.
+      // Falha silenciosa — nunca bloqueia ingestão principal.
+      if (ecoCampaignId && sId) {
+        try {
+          const { data: mp } = await supabase
+            .from("managed_playlists")
+            .select("id")
+            .eq("spotify_playlist_id", sId)
+            .maybeSingle();
+          if (mp?.id) {
+            await supabase
+              .from("campaign_eco_snapshots")
+              .upsert({
+                campaign_id: ecoCampaignId,
+                managed_playlist_id: mp.id,
+                spotify_playlist_id: sId,
+                plays_24h: plays24h,
+                plays_7d: plays7d,
+                plays_28d: plays28d,
+                source: snap.source ?? "spotify_for_artists",
+                correlation_id: correlation_id ?? null,
+              }, { onConflict: "campaign_id,managed_playlist_id,captured_at", ignoreDuplicates: true });
+          }
+        } catch (_) { /* silencia */ }
+      }
     }
   }
+
 
   // Se for baseline, persiste blacklist de playlists do deal.
   if (isBaseline) {
