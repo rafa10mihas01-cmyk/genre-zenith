@@ -135,6 +135,13 @@ Deno.serve(async (req) => {
       written += slice.length;
     }
 
+    await reportCronHealth(supabase, {
+      job_name: "compute-leadership",
+      status: "ok",
+      startedAt,
+      metrics: { processed: written },
+    });
+
     return new Response(
       JSON.stringify({
         ok: true,
@@ -147,6 +154,12 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
+    await reportCronHealth(supabase, {
+      job_name: "compute-leadership",
+      status: "error",
+      startedAt,
+      message: String(e),
+    });
     return new Response(JSON.stringify({ ok: false, error: String(e) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
