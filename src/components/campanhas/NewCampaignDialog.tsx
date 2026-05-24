@@ -135,13 +135,13 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   // Mantém os campos preenchidos mesmo se o usuário fechar o dialog ou recarregar a página.
   const draftSnapshot = useMemo(() => ({
     step, trackName, artist, trackUrl, goal, startDate, deadline, notes,
-    clientId, curatorId,
+    clientId, curatorId, campaignType,
     valorCobradoDigits, formaRecebimento, jaRecebido, recebidoEm,
     items: items.map(i => ({
       playlist_id: i.playlist_id, selected: i.selected, target_override: i.target_override,
     })),
     activate,
-  }), [step, trackName, artist, trackUrl, goal, startDate, deadline, notes, clientId, curatorId,
+  }), [step, trackName, artist, trackUrl, goal, startDate, deadline, notes, clientId, curatorId, campaignType,
        valorCobradoDigits, formaRecebimento, jaRecebido, recebidoEm, items, activate]);
 
   const isDraftEmpty = !trackName.trim() && !artist.trim() && !trackUrl.trim() && !notes.trim()
