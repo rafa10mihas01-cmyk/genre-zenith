@@ -165,10 +165,17 @@ Deno.serve(async (req) => {
       if (sErr) console.error("snapshot insert:", sErr.message);
     }
 
+    await reportCronHealth(sb, {
+      job_name: jobName,
+      status: failed > 0 ? "partial" : "ok",
+      startedAt,
+      metrics: { processed, failed, batch: unique.length, tier: tierFilter ?? "auto" },
+    });
     return new Response(JSON.stringify({
       ok: true, processed, failed, tier: tierFilter ?? "auto", batch: unique.length,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
+    await reportCronHealth(sb, { job_name: jobName, status: "error", startedAt, message: String(e) });
     return new Response(JSON.stringify({ ok: false, error: String(e) }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
