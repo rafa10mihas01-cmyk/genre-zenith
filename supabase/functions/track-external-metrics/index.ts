@@ -93,5 +93,12 @@ Deno.serve(async (req) => {
     mensagem: `external snapshots ok=${ok} failed=${failed} total=${pls.length}`,
   });
 
+  await reportCronHealth(supabase, {
+    job_name: "track-external-metrics",
+    status: failed === 0 ? "ok" : (ok === 0 ? "error" : "partial"),
+    startedAt,
+    metrics: { processed: pls.length, ok, failed },
+  });
+
   return jr({ ok: true, processed: pls.length, snapshots_ok: ok, failed });
 });
