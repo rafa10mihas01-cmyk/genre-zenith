@@ -8,6 +8,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getSpotifyToken } from "../_shared/spotify.ts";
+import { listPlaylistTracksRich } from "../_shared/spotify-playlist.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 // Auth opcional: aceita JWT de team OU header x-backfill-secret = SERVICE_ROLE_KEY.
 // Backfill é idempotente (replace-all por playlist), seguro pra rodar como admin.
@@ -23,37 +24,22 @@ function jr(p: unknown, status = 200) {
 }
 
 async function syncOne(sb: any, token: string, pl: { id: string; spotify_playlist_id: string }) {
-  const rows: any[] = [];
-  let url: string | null =
-    `https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}/items` +
-    `?fields=items(added_at,track(id,name,duration_ms,artists(name),album(images))),next&limit=100`;
-  let pos = 0;
-  while (url) {
-    const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-    if (!r.ok) {
-      const txt = await r.text();
-      throw new Error(`spotify ${r.status}: ${txt.slice(0, 120)}`);
-    }
-    const j = await r.json();
-    for (const it of j.items ?? []) {
-      const tr = it?.track;
-      if (!tr?.id) { pos++; continue; }
-      const imgs = tr.album?.images ?? [];
-      const cover = imgs[imgs.length - 1]?.url ?? imgs[0]?.url ?? null;
-      rows.push({
-        playlist_id: pl.id,
-        spotify_track_id: tr.id,
-        track_name: tr.name ?? null,
-        artist_name: (tr.artists ?? []).map((a: any) => a?.name).filter(Boolean).join(", ") || null,
-        album_cover: cover,
-        position: pos,
-        added_at: it.added_at ?? null,
-        duration_ms: tr.duration_ms ?? null,
-      });
-      pos++;
-    }
-    url = j.next ?? null;
-  }
+  const rich = await listPlaylistTracksRich(pl.spotify_playlist_id, token, {
+    max: 10000,
+    fields: "items(added_at,track(id,name,duration_ms,artists(name),album(images))),next",
+  });
+  const rows = rich
+    .filter((t) => t.spotify_track_id)
+    .map((t) => ({
+      playlist_id: pl.id,
+      spotify_track_id: t.spotify_track_id,
+      track_name: t.name || null,
+      artist_name: t.artists || null,
+      album_cover: t.album_cover,
+      position: t.position - 1,
+      added_at: t.added_at,
+      duration_ms: t.duration_ms,
+    }));
 
   // Replace-all
   await sb.from("managed_playlist_tracks").delete().eq("playlist_id", pl.id);
@@ -143,7 +129,7 @@ Deno.serve(async (req) => {
       const msg = (e as Error).message.slice(0, 200);
       details.push({ id: pl.id, ok: false, error: msg });
       // Auto-arquiva playlists removidas do Spotify pra não voltarem ao backlog
-      if (msg.includes("spotify 404")) {
+      if (/spotify 404/i.test(msg)) {
         await sb.from("managed_playlists").update({ archived_at: new Date().toISOString() }).eq("id", pl.id);
       }
     }
@@ -151,7 +137,7 @@ Deno.serve(async (req) => {
 
   let auto_archived = 0;
   for (const d of details) {
-    if (!d.ok && typeof d.error === "string" && d.error.includes("spotify 404")) auto_archived++;
+    if (!d.ok && typeof d.error === "string" && /spotify 404/i.test(d.error)) auto_archived++;
   }
 
   await reportCronHealth(sb, {

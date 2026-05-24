@@ -6,6 +6,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
 import { getUserAccessToken, getSpotifyToken } from "../_shared/spotify.ts";
+import { getPlaylistMeta } from "../_shared/spotify-playlist.ts";
 import decodePng from "npm:@jsquash/png@3.1.0/decode.js";
 import decodeJpeg from "npm:@jsquash/jpeg@1.5.0/decode.js";
 import encodeJpeg from "npm:@jsquash/jpeg@1.5.0/encode.js";
@@ -146,11 +147,8 @@ Deno.serve(async (req) => {
     let ownerId: string | null = null;
     try {
       const appToken = await getSpotifyToken();
-      const or = await fetch(
-        `https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}?fields=owner(id)`,
-        { headers: { Authorization: `Bearer ${appToken}` } },
-      );
-      if (or.ok) ownerId = (await or.json())?.owner?.id ?? null;
+      const meta = await getPlaylistMeta(pl.spotify_playlist_id, appToken, { fields: "owner(id)" });
+      ownerId = meta.owner_id;
     } catch { /* */ }
 
     let token: string;

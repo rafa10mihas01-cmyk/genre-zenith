@@ -5,6 +5,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
 import { getSpotifyToken } from "../_shared/spotify.ts";
+import { listPlaylistTracksRich } from "../_shared/spotify-playlist.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -84,34 +85,30 @@ Deno.serve(async (req) => {
 
     for (const row of picked) {
       try {
+        const rich = await listPlaylistTracksRich(row.spotify_playlist_id, token, {
+          max: maxTracks,
+          fields: "items(track(id,name,duration_ms,popularity,artists(name),album(name,release_date,images))),next",
+        });
         const rowsByTrack = new Map<string, any>();
-        let url: string | null =
-          `https://api.spotify.com/v1/playlists/${row.spotify_playlist_id}/items` +
-          `?fields=items(track(id,name,duration_ms,popularity,artists(name),album(name,release_date,images))),next&limit=100`;
         let pos = 0;
-        while (url && rowsByTrack.size < maxTracks) {
-          const j = await spotifyFetch(token, url);
-          for (const it of j.items ?? []) {
-            const tr = it?.track;
-            if (!tr?.id) { pos++; continue; }
-            const imgs = tr.album?.images ?? [];
-            if (!rowsByTrack.has(tr.id)) rowsByTrack.set(tr.id, {
-              genre_id: row.genre_id,
-              result_id: row.id,
-              nome_musica: tr.name ?? "Desconhecida",
-              artista: (tr.artists ?? []).map((a: any) => a?.name).filter(Boolean).join(", ") || "Desconhecido",
-              spotify_track_id: tr.id,
-              posicao_na_playlist: ++pos,
-              coletado_em: new Date().toISOString(),
-              cover_url: imgs[0]?.url ?? imgs[imgs.length - 1]?.url ?? null,
-              release_date: normalizeReleaseDate(tr.album?.release_date),
-              popularity: typeof tr.popularity === "number" ? tr.popularity : null,
-              album: tr.album?.name ?? null,
-              duration_ms: tr.duration_ms ?? null,
-            });
-            if (rowsByTrack.size >= maxTracks) break;
-          }
-          url = j.next ?? null;
+        for (const t of rich) {
+          if (!t.spotify_track_id) continue;
+          if (rowsByTrack.has(t.spotify_track_id)) continue;
+          rowsByTrack.set(t.spotify_track_id, {
+            genre_id: row.genre_id,
+            result_id: row.id,
+            nome_musica: t.name || "Desconhecida",
+            artista: t.artists || "Desconhecido",
+            spotify_track_id: t.spotify_track_id,
+            posicao_na_playlist: ++pos,
+            coletado_em: new Date().toISOString(),
+            cover_url: t.album_images[0]?.url ?? t.album_cover,
+            release_date: normalizeReleaseDate(t.release_date),
+            popularity: t.popularity,
+            album: t.album,
+            duration_ms: t.duration_ms,
+          });
+          if (rowsByTrack.size >= maxTracks) break;
         }
         const rows = Array.from(rowsByTrack.values());
         if (rows.length > 0) {

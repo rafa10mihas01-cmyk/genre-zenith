@@ -6,6 +6,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
 import { getUserAccessToken, getSpotifyToken } from "../_shared/spotify.ts";
+import { getPlaylistMeta, setPlaylistDetails, SpotifyApiError } from "../_shared/spotify-playlist.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -42,11 +43,8 @@ Deno.serve(async (req) => {
     let ownerId: string | null = null;
     try {
       const appToken = await getSpotifyToken();
-      const or = await fetch(
-        `https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}?fields=owner(id)`,
-        { headers: { Authorization: `Bearer ${appToken}` } },
-      );
-      if (or.ok) ownerId = (await or.json())?.owner?.id ?? null;
+      const meta = await getPlaylistMeta(pl.spotify_playlist_id, appToken, { fields: "owner(id)" });
+      ownerId = meta.owner_id;
     } catch { /* */ }
 
     let token: string;
@@ -66,17 +64,13 @@ Deno.serve(async (req) => {
     if (name) payload.name = name;
     if (description) payload.description = description;
 
-    const r = await fetch(`https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}`, {
-      method: "PUT",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-    if (!r.ok) {
-      const txt = await r.text();
-      return jr({ ok: false, error: `Spotify ${r.status}: ${txt.slice(0, 300)}` }, 502);
+    try {
+      await setPlaylistDetails(pl.spotify_playlist_id, payload, token);
+    } catch (e) {
+      if (e instanceof SpotifyApiError) {
+        return jr({ ok: false, error: `Spotify ${e.status}: ${e.body.slice(0, 300)}` }, 502);
+      }
+      throw e;
     }
 
     // atualiza cache local também
