@@ -3,6 +3,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { recencyWeight } from "../_shared/recency.ts";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -132,8 +133,9 @@ async function clusterSubgenre(
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const startedAt = Date.now();
+  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
   try {
-    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const onlySubgenreId: string | undefined = body.subgenre_id;
 
@@ -143,17 +145,32 @@ Deno.serve(async (req) => {
     if (error) throw error;
 
     const results: any[] = [];
+    let clustersInserted = 0;
     for (const s of (subs ?? []) as any[]) {
       try {
-        results.push(await clusterSubgenre(supabase, s));
+        const r = await clusterSubgenre(supabase, s);
+        results.push(r);
+        if (typeof (r as any).clusters === "number") clustersInserted += (r as any).clusters;
       } catch (e) {
         results.push({ subgenre: s.nome, error: String(e) });
       }
     }
+    await reportCronHealth(supabase, {
+      job_name: "cluster-playlists",
+      status: "ok",
+      startedAt,
+      metrics: { processed: results.length, clusters_inserted: clustersInserted },
+    });
     return new Response(JSON.stringify({ ok: true, processed: results.length, results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    await reportCronHealth(supabase, {
+      job_name: "cluster-playlists",
+      status: "error",
+      startedAt,
+      message: String(e),
+    });
     return new Response(JSON.stringify({ ok: false, error: String(e) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
