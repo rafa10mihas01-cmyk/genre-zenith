@@ -2,6 +2,7 @@
 // POST {} ou {mode:"full"} → recalcula tudo
 // POST {mode:"single", spotify_playlist_id:"..."} → recalcula uma playlist
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -233,13 +234,14 @@ async function processPlaylist(
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const startedAt = Date.now();
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+  const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
+  const mode = body?.mode ?? "full";
   try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
-    const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
-    const mode = body?.mode ?? "full";
 
     if (mode === "single") {
       const spid = body?.spotify_playlist_id;
@@ -305,6 +307,12 @@ Deno.serve(async (req) => {
 
     const processed_to = offset + slice.length;
     const has_more = processed_to < targets.length;
+    await reportCronHealth(supabase, {
+      job_name: "calculate-playlist-ecosystem-score",
+      status: failed > 0 ? "partial" : "ok",
+      startedAt,
+      metrics: { mode, total: targets.length, ok, failed, processed_to, has_more },
+    });
     return new Response(JSON.stringify({
       mode: body?.mode ?? "full",
       total: targets.length,
@@ -312,6 +320,7 @@ Deno.serve(async (req) => {
       ok, failed, sampleErrors: errors,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
+    await reportCronHealth(supabase, { job_name: "calculate-playlist-ecosystem-score", status: "error", startedAt, message: String(e) });
     return new Response(JSON.stringify({ error: String(e) }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

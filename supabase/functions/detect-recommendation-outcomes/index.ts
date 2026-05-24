@@ -4,6 +4,7 @@
 // 2. Quando a mudança bate com o recommendation_kind, registra detected_at e captura streams_before_28d.
 // 3. Após 28 dias do detected_at, calcula streams_after_28d e dá veredito.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -34,12 +35,12 @@ type Outcome = {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const startedAt = Date.now();
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
   try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
-
     // 1. Carrega feedbacks acionáveis
     const { data: feedbacks } = await supabase
       .from("recommendation_feedback")
@@ -47,6 +48,7 @@ Deno.serve(async (req) => {
       .in("action", ["converted_to_deal", "removal_requested", "visto"]);
     const fb = (feedbacks ?? []) as Feedback[];
     if (fb.length === 0) {
+      await reportCronHealth(supabase, { job_name: "detect-recommendation-outcomes", status: "ok", startedAt, metrics: { considered: 0 } });
       return new Response(JSON.stringify({ ok: true, considered: 0 }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -186,6 +188,12 @@ Deno.serve(async (req) => {
       if (error) throw error;
     }
 
+    await reportCronHealth(supabase, {
+      job_name: "detect-recommendation-outcomes",
+      status: "ok",
+      startedAt,
+      metrics: { considered: fb.length, detected, verdicts, upserts: upserts.length },
+    });
     return new Response(JSON.stringify({
       ok: true,
       considered: fb.length,
@@ -194,6 +202,7 @@ Deno.serve(async (req) => {
       upserts: upserts.length,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
+    await reportCronHealth(supabase, { job_name: "detect-recommendation-outcomes", status: "error", startedAt, message: String(e) });
     return new Response(JSON.stringify({ error: String(e) }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

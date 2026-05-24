@@ -2,6 +2,7 @@
 // + agrega lições por nicho. Disparado por cron diário.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -28,6 +29,7 @@ Deno.serve(async (req) => {
   if (!isCron && !isService) return jr({ ok: false, error: "unauthorized" }, 401);
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+  const startedAt = Date.now();
 
   try {
     const { data: due, error } = await supabase
@@ -107,8 +109,20 @@ Deno.serve(async (req) => {
       }, { onConflict: "genre_id,pattern_key" });
     }
 
+    await reportCronHealth(supabase, {
+      job_name: "seo-experiment-measure",
+      status: "ok",
+      startedAt,
+      metrics: { measured, lessons_updated: touchedLessons.size },
+    });
     return jr({ ok: true, measured, lessons_updated: touchedLessons.size });
   } catch (e) {
+    await reportCronHealth(supabase, {
+      job_name: "seo-experiment-measure",
+      status: "error",
+      startedAt,
+      message: (e as Error).message,
+    });
     return jr({ ok: false, error: (e as Error).message }, 500);
   }
 });

@@ -17,6 +17,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { getSpotifyToken } from "../_shared/spotify.ts";
 import { recencyFactor } from "../_shared/recency.ts";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -40,10 +41,12 @@ function nextDue(tier: string, ref = new Date()): string {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const startedAt = Date.now();
+  const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
+  const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
+  const tierFilter: string | undefined = body.tier;
+  const jobName = `refresh-search-results:${tierFilter ?? "auto"}`;
   try {
-    const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
-    const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
-    const tierFilter: string | undefined = body.tier;
     const limit = Math.min(Number(body.limit ?? 80), 200);
 
     // 1) carrega leaders (playlist_leadership joinable via playlists.spotify_playlist_id)
@@ -69,6 +72,7 @@ Deno.serve(async (req) => {
     if (cErr) throw cErr;
 
     if (!cands?.length) {
+      await reportCronHealth(sb, { job_name: jobName, status: "ok", startedAt, metrics: { processed: 0 } });
       return new Response(JSON.stringify({ ok: true, processed: 0, tier: tierFilter ?? "auto" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -161,10 +165,17 @@ Deno.serve(async (req) => {
       if (sErr) console.error("snapshot insert:", sErr.message);
     }
 
+    await reportCronHealth(sb, {
+      job_name: jobName,
+      status: failed > 0 ? "partial" : "ok",
+      startedAt,
+      metrics: { processed, failed, batch: unique.length, tier: tierFilter ?? "auto" },
+    });
     return new Response(JSON.stringify({
       ok: true, processed, failed, tier: tierFilter ?? "auto", batch: unique.length,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
+    await reportCronHealth(sb, { job_name: jobName, status: "error", startedAt, message: String(e) });
     return new Response(JSON.stringify({ ok: false, error: String(e) }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
