@@ -436,6 +436,20 @@ export default function PlanoCampanhaPublico() {
                   snapshots={snaps}
                   stage={isApproved ? "live" : isRejected ? "rejected" : "approval"}
                 />
+                {(() => {
+                  const valorCobrado = snapshot.clientPriceTotal && snapshot.clientPriceTotal > 0
+                    ? snapshot.clientPriceTotal
+                    : snapshot.pricePerStreamSell
+                      ? Math.round(snapshot.meta * snapshot.pricePerStreamSell * 100) / 100
+                      : 0;
+                  return (
+                    <AlgorithmicImpactCard
+                      goalPlays={snapshot.meta}
+                      valorCobrado={valorCobrado}
+                      totalDelivered={delivered}
+                    />
+                  );
+                })()}
                 {isApproved && evolutionSeries.length > 1 && (
                   <EvolutionChart
                     series={evolutionSeries}
