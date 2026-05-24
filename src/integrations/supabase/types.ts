@@ -787,6 +787,8 @@ export type Database = {
       campaigns: {
         Row: {
           artist: string | null
+          auto_deal_created: boolean
+          campaign_type: string
           client_adjustment_request: string | null
           client_approved_at: string | null
           client_approved_by: string | null
@@ -807,6 +809,8 @@ export type Database = {
           id: string
           locked_eco_streams: number | null
           notes: string | null
+          plan_approved_at: string | null
+          plan_approved_by: string | null
           public_plan_token: string
           recebido_em: string | null
           simulation_snapshot: Json | null
@@ -825,6 +829,8 @@ export type Database = {
         }
         Insert: {
           artist?: string | null
+          auto_deal_created?: boolean
+          campaign_type?: string
           client_adjustment_request?: string | null
           client_approved_at?: string | null
           client_approved_by?: string | null
@@ -845,6 +851,8 @@ export type Database = {
           id?: string
           locked_eco_streams?: number | null
           notes?: string | null
+          plan_approved_at?: string | null
+          plan_approved_by?: string | null
           public_plan_token?: string
           recebido_em?: string | null
           simulation_snapshot?: Json | null
@@ -863,6 +871,8 @@ export type Database = {
         }
         Update: {
           artist?: string | null
+          auto_deal_created?: boolean
+          campaign_type?: string
           client_adjustment_request?: string | null
           client_approved_at?: string | null
           client_approved_by?: string | null
@@ -883,6 +893,8 @@ export type Database = {
           id?: string
           locked_eco_streams?: number | null
           notes?: string | null
+          plan_approved_at?: string | null
+          plan_approved_by?: string | null
           public_plan_token?: string
           recebido_em?: string | null
           simulation_snapshot?: Json | null
@@ -6940,6 +6952,7 @@ export type Database = {
           apify_blocked: boolean
           apify_blocked_at: string | null
           apify_blocked_reason: string | null
+          auto_deal_from_campaign: boolean
           created_at: string
           id: string
           singleton_key: string
@@ -6949,6 +6962,7 @@ export type Database = {
           apify_blocked?: boolean
           apify_blocked_at?: string | null
           apify_blocked_reason?: string | null
+          auto_deal_from_campaign?: boolean
           created_at?: string
           id?: string
           singleton_key?: string
@@ -6958,6 +6972,7 @@ export type Database = {
           apify_blocked?: boolean
           apify_blocked_at?: string | null
           apify_blocked_reason?: string | null
+          auto_deal_from_campaign?: boolean
           created_at?: string
           id?: string
           singleton_key?: string
