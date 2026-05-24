@@ -78,6 +78,10 @@ export function CampaignFullPlanCard({
 
   const positionByAllocation = useMemo(
     () => {
+      // Se TODAS as allocs têm position persistida no banco, usa direto — o plano
+      // fica estável entre aberturas. Só recalcula se admin clicar em "Redistribuir".
+      const allPersisted = allocations.length > 0 && allocations.every(a => Number.isFinite((a as any).position) && (a as any).position >= 1);
+      if (allPersisted) return new Map(allocations.map(a => [a.id, (a as any).position as number]));
       const positionInputs = allocations.map((a) => ({
         id: a.id,
         planned_streams: a.planned_streams,
@@ -93,6 +97,42 @@ export function CampaignFullPlanCard({
     },
     [allocations, days, engagementMultiplier, snapshot],
   );
+
+  async function handleRedistribute() {
+    if (!campaignId || redistributing) return;
+    setRedistributing(true);
+    try {
+      // Força nova distribuição ignorando posições persistidas.
+      const positionInputs = allocations.map((a) => ({
+        id: a.id,
+        planned_streams: a.planned_streams,
+        followers: a.managed_playlists?.followers ?? 0,
+      }));
+      const preferredSlots = inferEcoPreferredPositions(snapshot, positionInputs, engagementMultiplier);
+      const fresh = distributeEcoPositions(positionInputs, days, engagementMultiplier, { preferredSlots });
+      // UPDATE row-a-row (Supabase JS não tem update em batch nativo).
+      const results = await Promise.all(
+        Array.from(fresh.entries()).map(([allocId, pos]) =>
+          supabase.from("campaign_eco_allocations").update({ position: pos }).eq("id", allocId),
+        ),
+      );
+      const firstErr = results.find(r => r.error);
+      if (firstErr?.error) throw firstErr.error;
+      toast({
+        title: "Posições redistribuídas",
+        description: "Plano regravado com novo sorteio. Recarregando…",
+      });
+      onPositionsRedistributed?.();
+    } catch (e) {
+      toast({
+        title: "Falha ao redistribuir",
+        description: (e as Error)?.message ?? "Erro desconhecido",
+        variant: "destructive",
+      });
+    } finally {
+      setRedistributing(false);
+    }
+  }
 
   const plans = useMemo<DailyPlaylistPlan[]>(
     () => buildEcoPlaylistPlan(snapshot, allocations, {
