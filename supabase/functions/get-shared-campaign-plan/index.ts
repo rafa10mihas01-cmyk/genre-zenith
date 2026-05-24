@@ -123,6 +123,7 @@ Deno.serve(async (req) => {
   let clientToken: string | null = null;
   let lastSpreadsheetUploadAt: string | null = null;
   let recentUploads: any[] = [];
+  let hasSpotifyAccess = false;
   const dealId = camp.deal_id as string | null;
 
   if (dealId) {
@@ -136,6 +137,16 @@ Deno.serve(async (req) => {
     if (song) {
       clientToken = (song as any).client_token ?? null;
     }
+
+    // Indica se o deal tem Spotify for Artists conectado (spotify_owner_id
+    // preenchido). Quando true, o portal esconde o card de upload de planilha
+    // pra evitar dupla fonte de dados.
+    const { data: dealRow } = await supabase
+      .from("curator_deals")
+      .select("spotify_owner_id")
+      .eq("id", dealId)
+      .maybeSingle();
+    hasSpotifyAccess = Boolean((dealRow as any)?.spotify_owner_id);
 
     const { data: uploads } = await supabase
       .from("label_spreadsheet_uploads")
@@ -155,5 +166,7 @@ Deno.serve(async (req) => {
     client_token: clientToken,
     last_spreadsheet_upload_at: lastSpreadsheetUploadAt,
     recent_uploads: recentUploads,
+    has_spotify_access: hasSpotifyAccess,
   });
 });
+
