@@ -667,8 +667,9 @@ export default function ClientCampaignPage() {
                           </p>
                           {(() => {
                             const st = clientPlaylistStatus(p);
+                            const isEngine = p.source === "engine";
                             return (
-                              <div className="flex items-center gap-2 mt-1 min-w-0">
+                              <div className="flex items-center gap-1.5 mt-1 min-w-0 flex-wrap">
                                 <span
                                   className={cn(
                                     "text-[10px] font-medium px-1.5 py-0.5 rounded border whitespace-nowrap",
@@ -676,6 +677,16 @@ export default function ClientCampaignPage() {
                                   )}
                                 >
                                   {PLAYLIST_STATUS_LABEL[st]}
+                                </span>
+                                <span
+                                  className={cn(
+                                    "text-[9.5px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border whitespace-nowrap",
+                                    isEngine
+                                      ? "text-primary border-primary/40 bg-primary/10"
+                                      : "text-muted-foreground border-border bg-[hsl(var(--elevated))]",
+                                  )}
+                                >
+                                  {isEngine ? "Engine" : "Curador"}
                                 </span>
                               </div>
                             );
