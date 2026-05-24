@@ -178,6 +178,7 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [busyTrack, setBusyTrack] = useState<string | null>(null);
+  const [meta, setMeta] = useState<PlaylistMeta>({ name: null, cover_url: null });
 
   // Dialog "Adicionar na posição X"
   const [addOpen, setAddOpen] = useState(false);
