@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import {
   Activity, Workflow, Music2, HeartPulse, Bot, Bell, ListPlus,
-  Settings as SettingsIcon, Server, Brain, FlaskConical, LayoutDashboard, Cpu, Wrench,
+  Settings as SettingsIcon, Server, Brain, FlaskConical, LayoutDashboard, Cpu, Wrench, Flag,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
@@ -27,10 +27,11 @@ import AdminAprendizado from "@/pages/AdminAprendizado";
 import { SeoLessonsPanel } from "@/components/sistema/SeoLessonsPanel";
 import { SpotifyReconnectBanner } from "@/components/sistema/SpotifyReconnectBanner";
 import { SystemKpis } from "@/components/sistema/SystemKpis";
+import { FeatureFlagsPanel } from "@/components/sistema/FeatureFlagsPanel";
 
 type SistemaTab = "visao-geral" | "motores" | "avancado" | "configuracoes";
 type MotorSub = "robo" | "coleta" | "execucao";
-type AvancadoSub = "aprendizado" | "seo" | "infra";
+type AvancadoSub = "aprendizado" | "seo" | "infra" | "flags";
 
 type TabDef = { id: SistemaTab; label: string; icon: typeof Activity; adminOnly?: boolean };
 
@@ -53,6 +54,7 @@ const LEGACY_TAB_MAP: Record<string, { tab: SistemaTab; motor?: MotorSub; avanca
   "aprendizado": { tab: "avancado", avancado: "aprendizado" },
   "seo": { tab: "avancado", avancado: "seo" },
   "infra": { tab: "avancado", avancado: "infra" },
+  "flags": { tab: "avancado", avancado: "flags" },
   "configuracoes": { tab: "configuracoes" },
 };
 
@@ -168,11 +170,13 @@ export default function Sistema() {
                 { id: "aprendizado", label: "Aprendizado", icon: Brain },
                 { id: "seo", label: "SEO", icon: FlaskConical },
                 { id: "infra", label: "Infraestrutura", icon: Server },
+                { id: "flags", label: "Feature flags", icon: Flag },
               ]}
             />
             {avancadoSub === "aprendizado" && <AdminAprendizado embedded />}
             {avancadoSub === "seo" && <SeoLessonsPanel />}
             {avancadoSub === "infra" && <Infraestrutura embedded />}
+            {avancadoSub === "flags" && <FeatureFlagsPanel />}
           </div>
         )}
 
