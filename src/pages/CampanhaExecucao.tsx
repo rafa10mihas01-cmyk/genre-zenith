@@ -372,6 +372,9 @@ export default function CampanhaExecucao() {
 
   const ecoPositionByAllocation = useMemo(() => {
     if (!snapshot) return new Map<string, number>();
+    // Se TODAS as allocs têm position persistida, usa direto. Senão, deriva dinâmica.
+    const allPersisted = allocs.length > 0 && allocs.every(a => Number.isFinite(a.position as number) && (a.position as number) >= 1);
+    if (allPersisted) return new Map(allocs.map(a => [a.id, a.position as number]));
     return distributeEcoPositions(
       allocs.map(a => ({
         id: a.id,
