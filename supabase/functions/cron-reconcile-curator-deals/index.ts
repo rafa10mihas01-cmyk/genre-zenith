@@ -177,12 +177,26 @@ Deno.serve(async (req) => {
 
     console.log(`[cron-reconcile] ${results.length} deals processados via RPC get_curator_deal_progress`);
 
+    const errCount = results.filter((r: any) => r.error).length;
+    await reportCronHealth(supabase, {
+      job_name: "cron-reconcile-curator-deals",
+      status: errCount === 0 ? "ok" : (errCount === results.length ? "error" : "partial"),
+      startedAt,
+      metrics: { deals_processed: results.length, errors: errCount },
+    });
+
     return new Response(
       JSON.stringify({ deals_processed: results.length, results }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
     console.error("cron-reconcile error", err);
+    await reportCronHealth(supabase, {
+      job_name: "cron-reconcile-curator-deals",
+      status: "error",
+      startedAt,
+      message: String(err),
+    });
     return new Response(JSON.stringify({ error: String(err) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
