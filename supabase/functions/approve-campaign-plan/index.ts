@@ -253,13 +253,13 @@ Deno.serve(async (req) => {
 
       let seedErrMsg: string | null = null;
       if (rows.length > 0) {
+        // Plain insert — seed roda uma única vez por criação de deal,
+        // não há linhas pré-existentes para conflitar. O índice único
+        // existente é parcial com COALESCE, então ON CONFLICT não casa.
         // deno-lint-ignore no-explicit-any
         const { error: seedErr } = await admin
           .from("curator_playlists")
-          .upsert(rows as any[], {
-            onConflict: "deal_id,song_id,spotify_playlist_id",
-            ignoreDuplicates: true,
-          });
+          .insert(rows as any[]);
         if (!seedErr) seeded_playlists = rows.length;
         else seedErrMsg = seedErr.message;
       }
