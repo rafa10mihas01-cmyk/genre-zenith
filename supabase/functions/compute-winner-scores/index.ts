@@ -141,6 +141,7 @@ Deno.serve(async (req) => {
   const isCron = CRON_SECRET && cronHeader === CRON_SECRET;
 
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
+  const startedAt = Date.now();
 
   try {
     let payload: { genre_id?: string; limit?: number; force?: boolean } = {};
@@ -171,12 +172,27 @@ Deno.serve(async (req) => {
       if (isCron && totalProcessed >= limit) break; // cron-bounded
     }
 
+    if (isCron || !payload.genre_id) {
+      await reportCronHealth(supabase, {
+        job_name: "compute-winner-scores",
+        status: "ok",
+        startedAt,
+        metrics: { total_processed: totalProcessed, genres: genreIds.length },
+      });
+    }
+
     return new Response(
       JSON.stringify({ ok: true, total_processed: totalProcessed, by_genre: results }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
     console.error("compute-winner-scores error", e);
+    await reportCronHealth(supabase, {
+      job_name: "compute-winner-scores",
+      status: "error",
+      startedAt,
+      message: String((e as any)?.message ?? e),
+    });
     return new Response(
       JSON.stringify({ ok: false, error: String(e?.message ?? e) }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
