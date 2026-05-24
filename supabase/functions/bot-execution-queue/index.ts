@@ -5,7 +5,7 @@
 // GET ?limit=3
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { reportCronHealth } from "../_shared/cron-health.ts";
-import { reorderPlaylistTracks, listPlaylistTrackUris } from "../_shared/spotify-playlist.ts";
+import { reorderPlaylistTracks, listPlaylistTrackUris, addPlaylistTracks, removePlaylistTracks } from "../_shared/spotify-playlist.ts";
 import { getSpotifyToken, getUserAccessToken } from "../_shared/spotify.ts";
 
 const corsHeaders = {
@@ -135,20 +135,84 @@ Deno.serve(async (req) => {
     }
   }
 
-  // ============= 2) ADD/REMOVE: dispatch normal pro bot =============
-  // Busca candidatos (com JOIN em playlists para pegar o nome)
+  // ============= 1b) ADD / REMOVE: executa inline via Web API do Spotify =============
+  const { data: mutationJobs } = await supabase
+    .from("playlist_execution_jobs")
+    .select("id, job_type, spotify_playlist_id, spotify_track_id, attempts, max_attempts")
+    .eq("status", "pending")
+    .in("job_type", ["playlist.track.add", "playlist.track.remove"])
+    .lte("scheduled_for", nowIso)
+    .order("scheduled_for", { ascending: true })
+    .limit(10);
+
+  let addRemoveDone = 0, addRemoveFailed = 0;
+  for (const j of (mutationJobs ?? []) as any[]) {
+    const { data: claimedRow } = await supabase
+      .from("playlist_execution_jobs")
+      .update({ status: "claimed", claimed_by: workerId, claimed_at: nowIso, lease_expires_at: lease, attempts: (j.attempts ?? 0) + 1 })
+      .eq("id", j.id).eq("status", "pending")
+      .select("id").maybeSingle();
+    if (!claimedRow) continue;
+
+    try {
+      const { data: mp, error: mpErr } = await supabase
+        .from("managed_playlists")
+        .select("owner_spotify_user_id")
+        .eq("spotify_playlist_id", j.spotify_playlist_id)
+        .maybeSingle();
+      if (mpErr) throw new Error(`lookup managed_playlists falhou: ${mpErr.message}`);
+      const ownerId = mp?.owner_spotify_user_id ?? null;
+      if (!ownerId) throw new Error("owner_spotify_user_id não encontrado em managed_playlists");
+
+      const { token } = await getUserAccessToken(ownerId);
+      const trackUri = `spotify:track:${j.spotify_track_id}`;
+
+      console.log(JSON.stringify({
+        evt: "mutation.attempt",
+        job_id: j.id,
+        job_type: j.job_type,
+        spotify_playlist_id: j.spotify_playlist_id,
+        spotify_track_id: j.spotify_track_id,
+        owner_id: ownerId,
+        attempt: (j.attempts ?? 0) + 1,
+      }));
+
+      if (j.job_type === "playlist.track.add") {
+        await addPlaylistTracks(j.spotify_playlist_id, [trackUri], token);
+      } else {
+        await removePlaylistTracks(j.spotify_playlist_id, [trackUri], token);
+      }
+
+      await supabase.from("playlist_execution_jobs")
+        .update({ status: "done", completed_at: new Date().toISOString(), last_error: null })
+        .eq("id", j.id);
+      console.log(JSON.stringify({ evt: "mutation.done", job_id: j.id, job_type: j.job_type, owner_id: ownerId }));
+      addRemoveDone++;
+    } catch (e) {
+      const msg = (e as Error).message ?? String(e);
+      const nextStatus = ((j.attempts ?? 0) + 1) >= (j.max_attempts ?? 3) ? "failed" : "pending";
+      console.log(JSON.stringify({ evt: "mutation.error", job_id: j.id, job_type: j.job_type, error: msg, next_status: nextStatus }));
+      await supabase.from("playlist_execution_jobs")
+        .update({ status: nextStatus, last_error: msg, claimed_by: null, claimed_at: null, lease_expires_at: null })
+        .eq("id", j.id);
+      addRemoveFailed++;
+    }
+  }
+
+  // ============= 2) Dispatch pro bot (já não inclui add/remove — agora rodam inline acima) =============
+  // Mantido por compatibilidade caso surjam novos job_types futuros que precisem do bot.
   const { data: candidates, error: selErr } = await supabase
     .from("playlist_execution_jobs")
     .select("id, job_type, allocation_id, campaign_id, playlist_id, spotify_playlist_id, spotify_track_id, attempts, max_attempts, playlists(name)")
     .eq("status", "pending")
-    .in("job_type", ["playlist.track.add", "playlist.track.remove"])
+    .in("job_type", [] as string[])
     .lte("scheduled_for", nowIso)
     .order("scheduled_for", { ascending: true })
     .limit(limit);
 
   if (selErr) return jr({ error: selErr.message }, 500);
   if (!candidates || candidates.length === 0) {
-    return jr({ ok: true, count: 0, queue: [], reorder: { done: reorderDone, failed: reorderFailed } });
+    return jr({ ok: true, count: 0, queue: [], reorder: { done: reorderDone, failed: reorderFailed }, mutations: { done: addRemoveDone, failed: addRemoveFailed } });
   }
 
 
