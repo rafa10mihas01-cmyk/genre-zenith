@@ -14,6 +14,7 @@
 // Header: Authorization: Bearer <jwt do usuário dono da campanha>
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { distributeEcoPositions } from "../_shared/computeEcoPlan.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
