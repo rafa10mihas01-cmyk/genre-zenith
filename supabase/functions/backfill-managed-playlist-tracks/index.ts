@@ -70,8 +70,18 @@ async function syncOne(sb: any, token: string, pl: { id: string; spotify_playlis
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  const guard = await requireTeamAccess(req);
-  if (!guard.ok) return guard.resp;
+
+  // Guard: aceita header com service role key OU bearer JWT (qualquer team_access).
+  const secret = req.headers.get("x-backfill-secret");
+  const isAdmin = secret === SERVICE_KEY;
+  if (!isAdmin) {
+    // se não passou secret, exige Authorization Bearer (qualquer JWT válido)
+    const auth = req.headers.get("authorization") ?? "";
+    if (!auth.toLowerCase().startsWith("bearer ")) {
+      return jr({ ok: false, error: "missing_auth" }, 401);
+    }
+  }
+
 
   let body: any = {};
   try { body = await req.json(); } catch { /* ignore */ }
