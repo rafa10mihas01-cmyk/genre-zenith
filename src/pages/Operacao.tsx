@@ -102,7 +102,9 @@ export default function Operacao() {
       supabase
         .from("playlist_metrics_snapshots")
         .select("template_id,followers,total_tracks,collected_at")
-        .order("collected_at", { ascending: false }),
+        .gte("collected_at", sevenDaysAgo)
+        .order("collected_at", { ascending: false })
+        .limit(5000),
       supabase
         .from("playlist_adjustments")
         .select("id,template_id,action_type,status,created_at,details")
