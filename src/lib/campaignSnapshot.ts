@@ -240,29 +240,16 @@ export async function closeCampaignFromCalculator(args: {
   if (error || !campaign) throw error ?? new Error("Falha ao criar campanha");
 
   if (allocations.length > 0) {
-    // Pré-calcula posição persistida pra cada playlist usando o mesmo engine que a UI usa.
-    // Sem followers aqui, busca em batch.
-    const ids = allocations.map(a => a.managed_playlist_id);
-    const { data: pls } = await supabase
-      .from("managed_playlists")
-      .select("id, followers")
-      .in("id", ids);
-    const followersById = new Map<string, number>((pls ?? []).map((p: any) => [p.id, Number(p.followers ?? 0)]));
-    const posInputs = allocations.map(a => ({
-      id: a.managed_playlist_id,
-      planned_streams: a.planned_streams,
-      followers: followersById.get(a.managed_playlist_id) ?? 0,
-    }));
-    const preferredSlots = inferEcoPreferredPositions(enrichedSnapshot, posInputs, Math.max(1, Math.round(engagementMultiplier)));
-    const positions = distributeEcoPositions(posInputs, enrichedSnapshot.days, Math.max(1, Math.round(engagementMultiplier)), { preferredSlots });
-
+    // `position` já vem materializada do planEcoAllocations (Fix 2) — usa direto.
+    // Se a alloc vier sem position (chamada externa antiga), grava NULL e o
+    // backfill em approve-campaign-plan resolve depois.
     const rows = allocations.map(a => ({
       campaign_id: campaign.id,
       managed_playlist_id: a.managed_playlist_id,
       planned_streams: a.planned_streams,
       start_day: a.start_day,
       status: "pending" as const,
-      position: positions.get(a.managed_playlist_id) ?? null,
+      position: Number.isFinite((a as any).position) ? (a as any).position : null,
       cost_per_stream_op: pricingOpEco,
       market_per_stream: pricingMarketEco,
       price_per_stream_sell: finalPricePerStream,
