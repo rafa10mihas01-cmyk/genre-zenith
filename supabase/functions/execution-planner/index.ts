@@ -143,6 +143,7 @@ Deno.serve(async (req) => {
 
   const fresh = candidates.filter((c) => !skip.has(c.dedupe_key));
   if (fresh.length === 0) {
+    await reportCronHealth(supabase, { job_name: "execution-planner", status: "ok", startedAt: cronT0, metrics: { enqueued: 0, considered: candidates.length, dedupe_skipped: candidates.length } });
     return jr({ ok: true, enqueued: 0, considered: candidates.length });
   }
 
