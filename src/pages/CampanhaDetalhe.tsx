@@ -42,6 +42,10 @@ const STATUS_LABEL: Record<string, string> = {
   active: "Ativa", draft: "Rascunho", paused: "Pausada", completed: "Concluída", cancelled: "Cancelada",
 };
 
+const CAMPAIGN_TYPE_LABEL: Record<string, string> = {
+  ecosystem: "Ecossistema", external: "Externa", hybrid: "Híbrida",
+};
+
 export default function CampanhaDetalhe() {
   const { id } = useParams<{ id: string }>();
   const [camp, setCamp] = useState<Campaign | null>(null);
