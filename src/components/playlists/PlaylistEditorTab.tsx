@@ -54,6 +54,19 @@ function fmtDuration(ms: number | null) {
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
 }
 
+function fmtTotalDuration(ms: number) {
+  const totalMin = Math.round(ms / 60000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h > 0) return `${h}h ${m}min`;
+  return `${m}min`;
+}
+
+type PlaylistMeta = {
+  name: string | null;
+  cover_url: string | null;
+};
+
 function SortableRow({
   track, position, pendingJob, onRemove, onAddAt, busy,
 }: {
@@ -81,29 +94,33 @@ function SortableRow({
     : null;
 
   return (
-    <li ref={setNodeRef} style={style} className="group relative">
+    <li ref={setNodeRef} style={style} className="group/row relative">
       {/* Botão + acima da linha (insere nesta posição) */}
       <button
         type="button"
         onClick={() => onAddAt(position)}
-        className="absolute -top-2 left-1/2 -translate-x-1/2 z-20 h-5 w-5 rounded-full bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground border border-primary/30 opacity-0 group-hover:opacity-100 transition-opacity grid place-items-center"
+        className="absolute -top-1.5 left-1/2 -translate-x-1/2 z-20 h-5 w-5 rounded-full bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground border border-primary/30 opacity-0 group-hover/row:opacity-100 transition-opacity grid place-items-center"
         title={`Adicionar na posição ${position}`}
       >
         <Plus className="h-3 w-3" />
       </button>
 
-      <div className="flex items-center gap-3 py-2.5 px-2 rounded-md hover:bg-muted/40">
-        {/* Drag handle + posição */}
-        <button
-          type="button"
-          {...attributes}
-          {...listeners}
-          className="flex items-center gap-1 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
-          aria-label="Arrastar"
-        >
-          <GripVertical className="h-4 w-4" />
-          <span className="tabular-nums text-xs font-mono w-8 text-right">{position}</span>
-        </button>
+      <div className="flex items-center gap-3 py-1.5 px-2 rounded-md hover:bg-muted/40 transition-colors">
+        {/* Posição / drag handle no hover */}
+        <div className="w-8 shrink-0 grid place-items-center">
+          <span className="tabular-nums text-sm text-muted-foreground group-hover/row:hidden">
+            {position}
+          </span>
+          <button
+            type="button"
+            {...attributes}
+            {...listeners}
+            className="hidden group-hover/row:grid place-items-center cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
+            aria-label="Arrastar"
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+        </div>
 
         {/* Capa */}
         {track.album_cover ? (
@@ -114,12 +131,8 @@ function SortableRow({
 
         {/* Metadados */}
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-medium truncate">{track.name}</div>
+          <div className="text-sm font-medium text-foreground truncate">{track.name}</div>
           <div className="text-xs text-muted-foreground truncate">{track.artists}</div>
-        </div>
-
-        <div className="text-xs text-muted-foreground tabular-nums hidden sm:block">
-          {fmtDuration(track.duration_ms)}
         </div>
 
         {/* Badge pendente */}
@@ -138,11 +151,16 @@ function SortableRow({
           </Badge>
         )}
 
-        {/* Remover */}
+        {/* Duração */}
+        <div className="text-xs text-muted-foreground tabular-nums hidden sm:block w-12 text-right">
+          {fmtDuration(track.duration_ms)}
+        </div>
+
+        {/* Remover — só no hover */}
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+          className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover/row:opacity-100 transition-opacity"
           disabled={busy || !!pendingJob}
           onClick={() => onRemove(track.spotify_track_id)}
           title="Remover faixa"
@@ -160,6 +178,7 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [busyTrack, setBusyTrack] = useState<string | null>(null);
+  const [meta, setMeta] = useState<PlaylistMeta>({ name: null, cover_url: null });
 
   // Dialog "Adicionar na posição X"
   const [addOpen, setAddOpen] = useState(false);
@@ -199,9 +218,19 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
     setJobs((data ?? []) as Job[]);
   }
 
+  async function loadMeta() {
+    const { data } = await supabase
+      .from("managed_playlists")
+      .select("name, cover_url")
+      .eq("id", playlistId)
+      .maybeSingle();
+    if (data) setMeta({ name: data.name ?? null, cover_url: (data as any).cover_url ?? null });
+  }
+
   useEffect(() => {
     loadTracks();
     loadJobs();
+    loadMeta();
     const channel = supabase
       .channel(`pej-editor:${playlistId}`)
       .on(
@@ -241,6 +270,11 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
     for (const j of jobs) if (!m.has(j.spotify_track_id)) m.set(j.spotify_track_id, j);
     return m;
   }, [jobs]);
+
+  const totalDurationMs = useMemo(
+    () => tracks.reduce((acc, t) => acc + (t.duration_ms ?? 0), 0),
+    [tracks],
+  );
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -328,26 +362,50 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
 
   return (
     <div className="space-y-4">
-      <Card className="p-5 space-y-3">
-        <div className="flex items-center gap-2">
-          <ListMusic className="h-4 w-4 text-primary" />
-          <h2 className="text-sm font-semibold">Editor da playlist</h2>
-          {!loading && <span className="text-xs text-muted-foreground">{tracks.length} faixas</span>}
+      <Card className="p-5 space-y-4">
+        {/* Cabeçalho Spotify-style */}
+        <div className="flex items-center gap-4">
+          {meta.cover_url ? (
+            <img
+              src={meta.cover_url}
+              alt=""
+              className="h-20 w-20 rounded-md object-cover shrink-0 shadow-md"
+            />
+          ) : (
+            <div className="h-20 w-20 rounded-md bg-muted shrink-0 grid place-items-center">
+              <ListMusic className="h-8 w-8 text-muted-foreground" />
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+              Editor da playlist
+            </div>
+            <h2 className="text-2xl font-bold truncate text-foreground">
+              {meta.name ?? "—"}
+            </h2>
+            <div className="text-sm text-muted-foreground mt-1">
+              {loading
+                ? "Carregando…"
+                : `${tracks.length} ${tracks.length === 1 ? "faixa" : "faixas"} · ${fmtTotalDuration(totalDurationMs)}`}
+            </div>
+          </div>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => { loadTracks(); loadJobs(); }}
+            onClick={() => { loadTracks(); loadJobs(); loadMeta(); }}
             disabled={loading}
-            className="ml-auto nx-pill"
+            className="nx-pill"
           >
             <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
             <span className="ml-1.5">Atualizar</span>
           </Button>
         </div>
+
         <p className="text-[11px] text-muted-foreground">
           Arraste pela alça para reordenar · Passe o mouse entre faixas para revelar o botão <Plus className="inline h-3 w-3" /> · Use a lixeira para remover.
           Ações entram numa fila e o badge mostra o estado.
         </p>
+
 
         {err && (
           <div className="flex items-start gap-2 text-sm text-destructive p-3 rounded-md border border-destructive/30 bg-destructive/5">
