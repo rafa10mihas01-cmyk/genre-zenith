@@ -21,6 +21,11 @@ type Campaign = {
   client_approved_by: string | null;
   client_rejected_at: string | null;
   client_adjustment_request: string | null;
+  campaign_type: "ecosystem" | "external" | "hybrid" | null;
+  plan_approved_at: string | null;
+  plan_approved_by: string | null;
+  auto_deal_created: boolean | null;
+  deal_id: string | null;
 };
 
 type Allocation = {
