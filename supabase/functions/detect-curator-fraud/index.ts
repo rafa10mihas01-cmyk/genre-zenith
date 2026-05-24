@@ -7,6 +7,7 @@
 // Body: { deal_id?: string } — se ausente, processa todos os deals do user.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -195,6 +196,7 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const startedAt = Date.now();
   try {
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const dealId: string | undefined = body?.deal_id;
@@ -262,6 +264,16 @@ Deno.serve(async (req) => {
         console.error("detect-curator-fraud error", d.id, err);
         results.push({ deal_id: d.id, error: String(err) });
       }
+    }
+
+    if (isCron) {
+      const errCount = results.filter((r: any) => r.error).length;
+      await reportCronHealth(supabase, {
+        job_name: "detect-curator-fraud",
+        status: errCount === 0 ? "ok" : (errCount === results.length ? "error" : "partial"),
+        startedAt,
+        metrics: { processed: results.length, errors: errCount },
+      });
     }
 
     return new Response(JSON.stringify({ results, mode: isCron ? "cron" : "user" }), {

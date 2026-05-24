@@ -3,14 +3,16 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { recencyWeight, normalize } from "../_shared/recency.ts";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const startedAt = Date.now();
+  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
   try {
-    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const limit = Number(body.limit ?? 2000);
 
@@ -133,6 +135,13 @@ Deno.serve(async (req) => {
       written += slice.length;
     }
 
+    await reportCronHealth(supabase, {
+      job_name: "compute-leadership",
+      status: "ok",
+      startedAt,
+      metrics: { processed: written },
+    });
+
     return new Response(
       JSON.stringify({
         ok: true,
@@ -145,6 +154,12 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
+    await reportCronHealth(supabase, {
+      job_name: "compute-leadership",
+      status: "error",
+      startedAt,
+      message: String(e),
+    });
     return new Response(JSON.stringify({ ok: false, error: String(e) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

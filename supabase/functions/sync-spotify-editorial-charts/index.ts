@@ -16,6 +16,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getSpotifyToken } from "../_shared/spotify.ts";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -114,6 +115,13 @@ Deno.serve(async (req) => {
       duracao_ms: Date.now() - start,
     });
 
+    await reportCronHealth(supabase, {
+      job_name: "sync-spotify-editorial-charts",
+      status: failed === 0 ? "ok" : (enriched === 0 ? "error" : "partial"),
+      startedAt: start,
+      metrics: { chart: chartName, date: today, enriched, failed },
+    });
+
     return jr({ ok: true, chart: chartName, date: today, enriched, failed });
   } catch (e) {
     const msg = (e as Error).message;
@@ -122,6 +130,12 @@ Deno.serve(async (req) => {
       status: "erro",
       mensagem: msg.slice(0, 500),
       duracao_ms: Date.now() - start,
+    });
+    await reportCronHealth(supabase, {
+      job_name: "sync-spotify-editorial-charts",
+      status: "error",
+      startedAt: start,
+      message: msg,
     });
     return jr({ ok: false, error: msg }, 500);
   }

@@ -8,6 +8,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -310,6 +311,7 @@ Deno.serve(async (req) => {
     }
 
     if (body?.batch === true) {
+      const startedAt = Date.now();
       const { data: list, error } = await supabase
         .from("curators")
         .select("id")
@@ -328,6 +330,12 @@ Deno.serve(async (req) => {
           else errors.push({ curator_id: chunk[idx].id, error: s.reason?.message ?? String(s.reason) });
         });
       }
+      await reportCronHealth(supabase, {
+        job_name: "curator-brain-calc",
+        status: errors.length === 0 ? "ok" : (results.length === 0 ? "error" : "partial"),
+        startedAt,
+        metrics: { processed: results.length, errors: errors.length, total: subset.length },
+      });
       return jr({
         ok: true, mode: "batch", processed: results.length,
         errors_count: errors.length, errors: errors.slice(0, 10),
