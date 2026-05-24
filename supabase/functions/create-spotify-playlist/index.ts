@@ -4,6 +4,12 @@
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getUserAccessToken } from "../_shared/spotify.ts";
+import {
+  addPlaylistTracks,
+  createPlaylist,
+  getPlaylistMeta,
+  SpotifyApiError,
+} from "../_shared/spotify-playlist.ts";
 
 import { deprecationGate } from "../_shared/_deprecation.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
