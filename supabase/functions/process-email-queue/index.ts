@@ -330,6 +330,7 @@ Deno.serve(async (req) => {
             .eq('id', 1)
 
           // Stop processing — remaining messages stay in queue (VT expires, retried next cycle)
+          await reportCronHealth(supabase, { job_name: 'process-email-queue', status: 'partial', startedAt, metrics: { processed: totalProcessed }, message: 'stopped: rate_limited' })
           return new Response(
             JSON.stringify({ processed: totalProcessed, stopped: 'rate_limited' }),
             { headers: { 'Content-Type': 'application/json' } }
@@ -340,6 +341,7 @@ Deno.serve(async (req) => {
         // message, so move straight to DLQ and stop processing the rest of the batch.
         if (isForbidden(error)) {
           await moveToDlq(supabase, queue, msg, errorMsg.slice(0, 1000))
+          await reportCronHealth(supabase, { job_name: 'process-email-queue', status: 'partial', startedAt, metrics: { processed: totalProcessed }, message: 'stopped: forbidden' })
           return new Response(
             JSON.stringify({ processed: totalProcessed, stopped: 'forbidden' }),
             { headers: { 'Content-Type': 'application/json' } }
