@@ -197,6 +197,13 @@ export function PlaylistCockpit({
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [applying, setApplying] = useState<null | "remove" | "demote" | "promote" | "add" | "all">(null);
+  const [applyProgress, setApplyProgress] = useState<null | {
+    index: number;
+    total: number;
+    description: string;
+    status: "running" | "done" | "skipped" | "failed";
+    error?: string;
+  }>(null);
   const [activeTab, setActiveTab] = useState<string>("identidade");
   const [archiving, setArchiving] = useState(false);
   const navigate = useNavigate();
@@ -281,52 +288,95 @@ export function PlaylistCockpit({
 
   async function applyPlan(action: "remove" | "demote" | "promote" | "add" | "all") {
     setApplying(action);
+    setApplyProgress(null);
+    let completed: any = null;
+    let lastError: string | null = null;
     try {
-      const { data, error } = await supabase.functions.invoke("apply-playlist-plan", {
-        body: { playlist_id: managedId, action },
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/apply-playlist-plan`;
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({ playlist_id: managedId, action, stream: true }),
       });
-      let serverError: string | null = null;
-      let status: number | null = null;
-      if (error && (error as any).context) {
-        try {
-          const ctx = (error as any).context as Response;
-          status = ctx.status ?? null;
-          const b = await ctx.clone().json().catch(() => null);
-          serverError = b?.error ?? null;
-        } catch { /* */ }
-      }
-      if (error || data?.ok === false) {
+
+      if (!resp.ok || !resp.body) {
+        const txt = await resp.text().catch(() => "");
+        let parsed: any = null;
+        try { parsed = JSON.parse(txt); } catch { /* */ }
         toast({
-          title: status ? `Erro ${status}` : "Falha ao aplicar",
-          description: serverError ?? data?.error ?? error?.message ?? "erro desconhecido",
+          title: `Erro ${resp.status}`,
+          description: parsed?.error ?? txt ?? "falha ao iniciar execução",
           variant: "destructive",
         });
         return;
       }
-      if (typeof data?.current_tracks_count === "number") {
-        setLiveTracksCount(data.current_tracks_count);
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() ?? "";
+        for (const block of lines) {
+          const line = block.split("\n").find((l) => l.startsWith("data: "));
+          if (!line) continue;
+          let evt: any;
+          try { evt = JSON.parse(line.slice(6)); } catch { continue; }
+          if (evt.type === "start") {
+            setApplyProgress({
+              index: 0,
+              total: evt.total ?? 0,
+              description: evt.total ? `Iniciando ${evt.total} ações…` : "Sem ações a executar",
+              status: "running",
+            });
+          } else if (evt.type === "step") {
+            setApplyProgress({
+              index: evt.index,
+              total: evt.total,
+              description: evt.description ?? `Executando ${evt.index} de ${evt.total}`,
+              status: evt.status,
+              error: evt.error,
+            });
+            if (evt.status === "failed") {
+              lastError = `Falhou em ${evt.index}/${evt.total}: ${evt.description ?? evt.kind} — ${evt.error ?? "erro"}`;
+            }
+          } else if (evt.type === "complete") {
+            completed = evt;
+          }
+        }
       }
-      const summary = (data?.steps ?? [])
-        .map((s: any) => {
-          if (s.skipped) return null;
-          if (s.action === "remove") return `removidas ${s.removed}`;
-          if (s.action === "add") return `adicionadas ${s.added}`;
-          if (s.action === "promote" || s.action === "demote")
-            return `${s.action === "promote" ? "promovidas" : "rebaixadas"} ${s.moved}`;
-          return null;
-        })
-        .filter(Boolean)
-        .join(" · ");
-      toast({
-        title: action === "all" ? "Plano executado" : "Bucket aplicado",
-        description: summary || "sem alterações necessárias",
-      });
+
+      if (typeof completed?.current_tracks_count === "number") {
+        setLiveTracksCount(completed.current_tracks_count);
+      }
+
+      if (completed?.ok === false || lastError) {
+        toast({
+          title: "Plano interrompido",
+          description: lastError ?? completed?.error ?? "erro durante execução",
+          variant: "destructive",
+        });
+      } else {
+        const executed = completed?.executed ?? 0;
+        const total = completed?.total ?? 0;
+        toast({
+          title: action === "all" ? "Plano executado" : "Bucket aplicado",
+          description: total === 0 ? "sem alterações necessárias" : `${executed}/${total} ações concluídas`,
+        });
+      }
+
       if (action === "all") {
-        // Plano completo: re-roda diagnóstico pra refletir o novo estado.
         runDiagnose();
       } else {
-        // Bucket isolado: limpa SÓ esse bucket localmente, preservando os outros
-        // ainda pendentes. O usuário decide quando reavaliar.
         setDiag((prev) => {
           if (!prev) return prev;
           const next: any = { ...prev };
@@ -341,8 +391,16 @@ export function PlaylistCockpit({
           return next;
         });
       }
+    } catch (e: any) {
+      toast({
+        title: "Falha ao aplicar",
+        description: e?.message ?? String(e),
+        variant: "destructive",
+      });
     } finally {
       setApplying(null);
+      // mantém o progresso visível por 2.5s pra usuário ver o estado final
+      setTimeout(() => setApplyProgress(null), 2500);
     }
   }
 
@@ -649,6 +707,51 @@ export function PlaylistCockpit({
                     {applying === "all" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                     Aprovar e executar tudo
                   </Button>
+                </Card>
+              )}
+
+              {applyProgress && (
+                <Card className={cn(
+                  "p-4 space-y-2 border",
+                  applyProgress.status === "failed"
+                    ? "bg-destructive/5 border-destructive/40"
+                    : "bg-primary/5 border-primary/30",
+                )}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {applyProgress.status === "failed" ? (
+                        <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+                      ) : applyProgress.status === "done" || applyProgress.status === "skipped" ? (
+                        <Check className="h-4 w-4 text-primary shrink-0" />
+                      ) : (
+                        <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+                      )}
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium truncate">
+                          {applyProgress.description}
+                        </div>
+                        {applyProgress.error && (
+                          <div className="text-xs text-destructive mt-0.5 truncate">
+                            {applyProgress.error}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-xs font-mono text-muted-foreground shrink-0">
+                      {applyProgress.index} / {applyProgress.total}
+                    </div>
+                  </div>
+                  {applyProgress.total > 0 && (
+                    <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={cn(
+                          "h-full transition-all duration-300",
+                          applyProgress.status === "failed" ? "bg-destructive" : "bg-primary",
+                        )}
+                        style={{ width: `${Math.min(100, (applyProgress.index / applyProgress.total) * 100)}%` }}
+                      />
+                    </div>
+                  )}
                 </Card>
               )}
 
