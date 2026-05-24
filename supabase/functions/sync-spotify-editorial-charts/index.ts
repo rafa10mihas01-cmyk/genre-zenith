@@ -115,6 +115,13 @@ Deno.serve(async (req) => {
       duracao_ms: Date.now() - start,
     });
 
+    await reportCronHealth(supabase, {
+      job_name: "sync-spotify-editorial-charts",
+      status: failed === 0 ? "ok" : (enriched === 0 ? "error" : "partial"),
+      startedAt: start,
+      metrics: { chart: chartName, date: today, enriched, failed },
+    });
+
     return jr({ ok: true, chart: chartName, date: today, enriched, failed });
   } catch (e) {
     const msg = (e as Error).message;
@@ -123,6 +130,12 @@ Deno.serve(async (req) => {
       status: "erro",
       mensagem: msg.slice(0, 500),
       duracao_ms: Date.now() - start,
+    });
+    await reportCronHealth(supabase, {
+      job_name: "sync-spotify-editorial-charts",
+      status: "error",
+      startedAt: start,
+      message: msg,
     });
     return jr({ ok: false, error: msg }, 500);
   }
