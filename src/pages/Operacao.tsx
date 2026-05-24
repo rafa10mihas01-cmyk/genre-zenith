@@ -189,9 +189,15 @@ export default function Operacao() {
 
   useEffect(() => {
     load();
-    const t = setInterval(() => load({ silent: true }), 60_000);
+    // Polling de 60s — só roda quando a aba está visível, pausa quando o usuário
+    // troca de aba do navegador. Evita queries contínuas em background.
+    const tick = () => {
+      if (document.visibilityState === "visible") load({ silent: true });
+    };
+    const t = setInterval(tick, 60_000);
     return () => clearInterval(t);
   }, []);
+
 
   // Sidebar KPIs: publicadas / em teste / em queda
   useSetSidebarKpis(
