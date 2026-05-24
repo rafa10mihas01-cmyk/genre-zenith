@@ -8,10 +8,13 @@
 //     (mesmo que não tenham mudado — força registro de "ainda igual" via
 //     no-op skip; o snapshot anterior comprova continuidade).
 //   - PLUS: tier=leader (todos) + sample 20% medium até `limit`.
+//   - Auto-archive: managed_playlists que retornam 404 (apagadas no Spotify)
+//     viram archived_at = now() pra parar de poluir o status do cron.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { getSpotifyToken } from "../_shared/spotify.ts";
+import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -29,7 +32,7 @@ Deno.serve(async (req) => {
   try {
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const limit = Math.min(Number(body.limit ?? 60), 300);
-    const tierMode: string | null = body.tier ?? null; // "leader" → force top-N by followers per genre
+    const tierMode: string | null = body.tier ?? null;
     const explicitIds: string[] = Array.isArray(body.playlist_ids) ? body.playlist_ids : [];
 
     // Retenção: 60 dias
@@ -39,10 +42,11 @@ Deno.serve(async (req) => {
       .delete({ count: "exact" })
       .lt("captured_at", cutoffISO);
 
-    // 1. MINIMUM: todas as managed_playlists (com spotify_playlist_id)
+    // 1. MINIMUM: todas as managed_playlists (com spotify_playlist_id) NÃO arquivadas
     const { data: managed } = await sb
       .from("managed_playlists")
       .select("spotify_playlist_id")
+      .is("archived_at", null)
       .not("spotify_playlist_id", "is", null);
     const managedIds = new Set<string>((managed ?? []).map((m: any) => m.spotify_playlist_id));
 
@@ -54,12 +58,10 @@ Deno.serve(async (req) => {
       .not("spotify_playlist_id", "is", null)
       .limit(limit * 3);
 
-    // 3. EXTRA: top-N por followers de cada genre ativo (cobre playlists sem refresh_tier)
+    // 3. EXTRA: top-N por followers de cada genre ativo
     const topByGenre: Array<{ id: string; source: string }> = [];
     if (tierMode === "leader" || explicitIds.length === 0) {
-      const { data: genreRows } = await sb
-        .from("genres")
-        .select("id");
+      const { data: genreRows } = await sb.from("genres").select("id");
       const N_PER_GENRE = tierMode === "leader" ? 10 : 5;
       for (const g of (genreRows ?? []) as any[]) {
         const { data: topRows } = await sb
@@ -81,25 +83,21 @@ Deno.serve(async (req) => {
     const list: Array<{ id: string; source: string }> = [];
     const seen = new Set<string>();
 
-    // explicit ids first (manual override)
     for (const id of explicitIds) {
       if (seen.has(id)) continue;
       seen.add(id);
       list.push({ id, source: "explicit" });
     }
-    // managed (garantia mínima)
     for (const id of managedIds) {
       if (seen.has(id)) continue;
       seen.add(id);
       list.push({ id, source: "managed" });
     }
-    // top por followers de cada genre (cobre leaders sem refresh_tier)
     for (const t of topByGenre) {
       if (seen.has(t.id)) continue;
       seen.add(t.id);
       list.push(t);
     }
-    // depois os tier leader/medium até o limit
     for (const r of (targets ?? []) as any[]) {
       if (seen.has(r.spotify_playlist_id)) continue;
       if (r.refresh_tier === "medium" && Math.random() > 0.2) continue;
@@ -112,6 +110,8 @@ Deno.serve(async (req) => {
     let inserted = 0;
     let unchanged = 0;
     let failed = 0;
+    let auto_archived = 0;
+    const failed_ids: string[] = [];
 
     for (const t of list) {
       try {
@@ -119,7 +119,21 @@ Deno.serve(async (req) => {
           `https://api.spotify.com/v1/playlists/${t.id}/tracks?fields=items(track(id))&limit=50`,
           { headers: { Authorization: `Bearer ${token}` } },
         );
-        if (!resp.ok) { failed++; continue; }
+        if (!resp.ok) {
+          // Auto-archive 404 em managed → para de poluir o status
+          if (resp.status === 404 && managedIds.has(t.id)) {
+            await sb.from("managed_playlists")
+              .update({ archived_at: new Date().toISOString() })
+              .eq("spotify_playlist_id", t.id)
+              .is("archived_at", null);
+            auto_archived++;
+            console.log(`[snapshot] auto-archived 404 playlist ${t.id}`);
+            continue; // não conta como failed
+          }
+          failed++;
+          if (failed_ids.length < 10) failed_ids.push(`${t.id}:${resp.status}`);
+          continue;
+        }
         const json = await resp.json();
         const ids: string[] = (json.items ?? [])
           .map((it: any) => it?.track?.id)
@@ -142,10 +156,15 @@ Deno.serve(async (req) => {
           tracks_hash: hash,
           track_ids: ids,
         });
-        if (error) { failed++; continue; }
+        if (error) {
+          failed++;
+          if (failed_ids.length < 10) failed_ids.push(`${t.id}:insert`);
+          continue;
+        }
         inserted++;
       } catch (e) {
         failed++;
+        if (failed_ids.length < 10) failed_ids.push(`${t.id}:${String(e).slice(0, 40)}`);
         console.error("snap failed", t.id, String(e));
       }
     }
@@ -154,37 +173,41 @@ Deno.serve(async (req) => {
       ok: true,
       scanned: list.length,
       managed_covered: managedIds.size,
-      inserted, unchanged, failed,
+      inserted, unchanged, failed, auto_archived,
       pruned_old: pruned ?? 0,
       retention_days: RETENTION_DAYS,
+      failed_ids: failed_ids.length ? failed_ids : undefined,
     };
 
-    await sb.from("cron_health").insert({
+    await reportCronHealth(sb, {
       job_name: "snapshot-playlist-tracks",
       status: failed > 0 ? "partial" : "ok",
+      startedAt,
       metrics: {
         snapshot_count_per_run: inserted,
         scanned: list.length,
         managed_covered: managedIds.size,
         unchanged,
         failed,
+        auto_archived,
         pruned_old: pruned ?? 0,
+        failed_ids,
       },
-      duration_ms: Date.now() - startedAt,
-      message: `inserted=${inserted} unchanged=${unchanged} failed=${failed} pruned=${pruned ?? 0}`,
+      message: `inserted=${inserted} unchanged=${unchanged} failed=${failed} archived=${auto_archived} pruned=${pruned ?? 0}` +
+        (failed_ids.length ? ` · first_failures=[${failed_ids.slice(0, 3).join(",")}]` : ""),
     });
 
     return new Response(JSON.stringify(payload), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    await sb.from("cron_health").insert({
+    await reportCronHealth(sb, {
       job_name: "snapshot-playlist-tracks",
       status: "error",
+      startedAt,
       metrics: { snapshot_count_per_run: 0 },
-      duration_ms: Date.now() - startedAt,
       message: String(e).slice(0, 500),
-    }).then(() => {}, () => {});
+    });
     return new Response(JSON.stringify({ ok: false, error: String(e) }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
