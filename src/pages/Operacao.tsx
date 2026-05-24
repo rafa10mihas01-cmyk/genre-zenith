@@ -98,7 +98,8 @@ export default function Operacao() {
         .from("playlist_templates")
         .select("id,name,genre_id,status,spotify_playlist_id,spotify_url,created_on_spotify_at,followers_at_creation,tracks_added,performance_class,cover_image_url,cover_variations,cover_selected_index")
         .not("spotify_playlist_id", "is", null)
-        .order("created_on_spotify_at", { ascending: false, nullsFirst: false }),
+        .order("created_on_spotify_at", { ascending: false, nullsFirst: false })
+        .limit(2000),
       supabase
         .from("playlist_metrics_snapshots")
         .select("template_id,followers,total_tracks,collected_at")
@@ -109,11 +110,13 @@ export default function Operacao() {
         .from("playlist_adjustments")
         .select("id,template_id,action_type,status,created_at,details")
         .gte("created_at", sevenDaysAgo)
-        .order("created_at", { ascending: false }),
-      supabase.from("genres").select("id,nome"),
-      supabase.from("accounts").select("status,current_playlists,max_playlists"),
-      supabase.from("managed_playlists").select("followers").is("archived_at", null),
+        .order("created_at", { ascending: false })
+        .limit(2000),
+      supabase.from("genres").select("id,nome").limit(500),
+      supabase.from("accounts").select("status,current_playlists,max_playlists").limit(500),
+      supabase.from("managed_playlists").select("followers").is("archived_at", null).limit(5000),
     ]);
+
 
     const managedRows = (managed ?? []) as Array<{ followers: number | null }>;
     setManagedFollowers({
