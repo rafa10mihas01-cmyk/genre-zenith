@@ -169,11 +169,13 @@ export default function Sistema() {
                 { id: "aprendizado", label: "Aprendizado", icon: Brain },
                 { id: "seo", label: "SEO", icon: FlaskConical },
                 { id: "infra", label: "Infraestrutura", icon: Server },
+                { id: "flags", label: "Feature flags", icon: Flag },
               ]}
             />
             {avancadoSub === "aprendizado" && <AdminAprendizado embedded />}
             {avancadoSub === "seo" && <SeoLessonsPanel />}
             {avancadoSub === "infra" && <Infraestrutura embedded />}
+            {avancadoSub === "flags" && <FeatureFlagsPanel />}
           </div>
         )}
 
