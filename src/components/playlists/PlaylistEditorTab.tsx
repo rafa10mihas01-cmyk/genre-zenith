@@ -218,9 +218,19 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
     setJobs((data ?? []) as Job[]);
   }
 
+  async function loadMeta() {
+    const { data } = await supabase
+      .from("managed_playlists")
+      .select("name, cover_url")
+      .eq("id", playlistId)
+      .maybeSingle();
+    if (data) setMeta({ name: data.name ?? null, cover_url: (data as any).cover_url ?? null });
+  }
+
   useEffect(() => {
     loadTracks();
     loadJobs();
+    loadMeta();
     const channel = supabase
       .channel(`pej-editor:${playlistId}`)
       .on(
