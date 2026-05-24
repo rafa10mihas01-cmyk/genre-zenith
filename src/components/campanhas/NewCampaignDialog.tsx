@@ -86,6 +86,7 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   const [notes, setNotes] = useState("");
   const [clientId, setClientId] = useState<string>("");
   const [curatorId, setCuratorId] = useState<string>("");
+  const [campaignType, setCampaignType] = useState<"ecosystem" | "external" | "hybrid">("hybrid");
 
   // Cobrança do cliente
   const [valorCobradoDigits, setValorCobradoDigits] = useState<string>("");
