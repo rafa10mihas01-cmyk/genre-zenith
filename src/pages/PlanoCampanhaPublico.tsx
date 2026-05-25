@@ -51,6 +51,7 @@ import type { CampaignHubCampaign, CampaignHubTabId, EcoAllocation } from "@/com
 import { EvolutionChart, type EvolutionSeriesPoint } from "@/components/client-portal/EvolutionChart";
 import { DeliveryForecastCard, type ForecastPayload } from "@/components/client-portal/DeliveryForecastCard";
 import { GenresUsedChip, type GenreUsed } from "@/components/campanhas/GenresUsedChip";
+import { CurvaEntregaChart } from "@/components/shared/CurvaEntregaChart";
 
 type EcoSnap = {
   id: string;
@@ -489,6 +490,19 @@ export default function PlanoCampanhaPublico() {
                   );
                 })()}
                 {forecast && <DeliveryForecastCard forecast={forecast} />}
+                {Array.isArray(snapshot.curva) && snapshot.curva.length > 0 && (
+                  <Card>
+                    <CardContent className="p-5 sm:p-6 space-y-4">
+                      <div>
+                        <h2 className="text-[15px] font-semibold tracking-tight">Curva de entrega</h2>
+                        <p className="text-[12px] text-muted-foreground mt-1 leading-snug">
+                          Como os streams são distribuídos ao longo das fases da campanha.
+                        </p>
+                      </div>
+                      <CurvaEntregaChart curva={snapshot.curva} clientMode />
+                    </CardContent>
+                  </Card>
+                )}
                 {isApproved && evolutionSeries.length > 1 && (
                   <EvolutionChart
                     series={evolutionSeries}
