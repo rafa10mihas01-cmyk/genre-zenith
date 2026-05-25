@@ -645,6 +645,7 @@ export default function CampanhaExecucao() {
                   mode="internal"
                   flat
                 />
+                <OrganicCollectedSection rows={organicRows} />
               </TabsContent>
               <TabsContent value="externo" className="mt-0">
                 <ExternalPackageEditor campaignId={camp.id} snapshot={snapshot} onChanged={() => setPlanRefreshKey(k => k + 1)} />
