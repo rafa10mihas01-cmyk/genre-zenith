@@ -1,7 +1,7 @@
 // SpotifyAppsManager — central operacional multi-app/multi-conta.
 // Cada APP é um card; contas vivem aninhadas dentro do app correspondente.
 // Configs técnicas (Redirect URIs, scopes, edit/remove) ficam em <details> colapsável.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -156,6 +156,7 @@ export function SpotifyAppsManager({
   const [page, setPage] = useState(0);
   const [inviteAppId, setInviteAppId] = useState<string | null>(null);
   const [collapsedApps, setCollapsedApps] = useState<Set<string>>(new Set());
+  const initializedCollapse = useRef(false);
   const toggleAppCollapsed = (id: string) => setCollapsedApps((prev) => {
     const next = new Set(prev);
     if (next.has(id)) next.delete(id); else next.add(id);
@@ -181,6 +182,12 @@ export function SpotifyAppsManager({
   }
 
   useEffect(() => { void load(); void loadScopes(); }, []);
+
+  useEffect(() => {
+    if (initializedCollapse.current || apps.length === 0) return;
+    initializedCollapse.current = true;
+    setCollapsedApps(new Set(apps.map((a) => a.id)));
+  }, [apps]);
 
   async function save() {
     if (!editing) return;
