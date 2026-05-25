@@ -195,7 +195,7 @@ export function classifyPlaylistSize(followers: number): PlaylistSizeTier {
  * Grandes preferem slots fortes (#3-5), pequenas preferem cauda.
  */
 const POSITION_BUCKETS: Record<PlaylistSizeTier, Array<[number, number, number]>> = {
-  large:  [[3, 5, 0.70], [6, 8, 0.20], [9, 12, 0.10]],
+  large:  [[1, 2, 0.40], [3, 5, 0.40], [6, 10, 0.20]],
   medium: [[3, 5, 0.20], [6, 10, 0.60], [11, 15, 0.20]],
   small:  [[3, 5, 0.10], [6, 10, 0.30], [11, 20, 0.60]],
 };
