@@ -27,6 +27,7 @@ import { OperacaoTab, type ExternalItemRow } from "@/components/campaign-hub/tab
 import { PlaylistsGrid } from "@/components/campaign-hub/PlaylistsGrid";
 import { InternalEcosystemHeader } from "@/components/campaign-hub/InternalEcosystemHeader";
 import { GenresUsedFromAllocs } from "@/components/campanhas/GenresUsedFromAllocs";
+import { CampaignAccessManager } from "@/components/campanhas/CampaignAccessManager";
 import { ProofsTimeline, type ProofEvent } from "@/components/campaign-hub/ProofsTimeline";
 
 import { SpreadsheetUploadCard } from "@/components/client-portal/SpreadsheetUploadCard";
@@ -630,7 +631,10 @@ export default function CampanhaExecucao() {
               <TabsContent value="interno" className="mt-0 space-y-4">
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                   <GenresUsedFromAllocs allocs={allocs} />
-                  <ReplanButton campaignId={camp.id} onReplanned={loadCampaign} />
+                  <div className="flex items-center gap-2">
+                    <CampaignAccessManager campaignId={camp.id} />
+                    <ReplanButton campaignId={camp.id} onReplanned={loadCampaign} />
+                  </div>
                 </div>
 
                 <InternalEcosystemHeader
