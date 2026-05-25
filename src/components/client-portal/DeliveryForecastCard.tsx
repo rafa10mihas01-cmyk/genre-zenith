@@ -145,6 +145,7 @@ export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
       label: `D${c.day}`,
       trackPlays: Math.round(trackPlays[i]),
       delivery: Math.round(delivery[i]),
+      cumulative: Math.round(c.cumulative || 0),
       organic: showOrganic && (i + 1) >= organicStartDay
         ? Math.round(organicPerDay)
         : null,
