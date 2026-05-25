@@ -6669,6 +6669,7 @@ export type Database = {
           max_accounts: number
           name: string
           notes: string | null
+          owner_email: string | null
           slug: string
           status: string
           updated_at: string
@@ -6682,6 +6683,7 @@ export type Database = {
           max_accounts?: number
           name: string
           notes?: string | null
+          owner_email?: string | null
           slug: string
           status?: string
           updated_at?: string
@@ -6695,6 +6697,7 @@ export type Database = {
           max_accounts?: number
           name?: string
           notes?: string | null
+          owner_email?: string | null
           slug?: string
           status?: string
           updated_at?: string

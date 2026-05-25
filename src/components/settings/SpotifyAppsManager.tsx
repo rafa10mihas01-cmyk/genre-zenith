@@ -25,6 +25,7 @@ export type SpotifyApp = {
   is_default: boolean;
   status: string;
   notes: string | null;
+  owner_email: string | null;
   accounts_used: number;
   slots_remaining: number;
   created_at: string;
@@ -197,6 +198,7 @@ export function SpotifyAppsManager({
       max_accounts: Number(editing.max_accounts ?? 5),
       is_default: !!editing.is_default,
       notes: editing.notes ?? null,
+      owner_email: (editing as any).owner_email ?? null,
       status: editing.status ?? "active",
     };
     if (editing.slug) body.slug = String(editing.slug).trim();
@@ -356,19 +358,19 @@ export function SpotifyAppsManager({
                         )}
                       </div>
                       <div className="text-[11px] text-muted-foreground font-mono truncate mt-1">{a.client_id_preview}</div>
-                      {(() => {
-                        const owner = appAccounts.find((acc) => acc.is_default) ?? appAccounts[0];
-                        if (!owner) return null;
-                        const label = owner.email ?? owner.display_name ?? owner.spotify_user_id;
-                        return (
-                          <div className="flex items-center gap-1.5 mt-1 text-[11px] text-muted-foreground min-w-0">
-                            {owner.is_default && <Star className="h-2.5 w-2.5 text-primary shrink-0" />}
-                            <span className="truncate" title={`Conta ${owner.is_default ? "padrão" : "principal"} deste app: ${label}`}>
-                              {label}
-                            </span>
-                          </div>
-                        );
-                      })()}
+                      {a.owner_email ? (
+                        <div
+                          className="flex items-center gap-1.5 mt-1 text-[11px] text-muted-foreground min-w-0"
+                          title={`Dono do app no Spotify Developer: ${a.owner_email}`}
+                        >
+                          <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70 shrink-0">Dono:</span>
+                          <span className="truncate">{a.owner_email}</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 mt-1 text-[11px] text-muted-foreground/60 min-w-0 italic">
+                          Dono do app não informado — edite o app para preencher.
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <Button
@@ -660,6 +662,19 @@ export function SpotifyAppsManager({
                   <option value="paused">Pausado</option>
                 </select>
               </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-foreground">E-mail do dono do app no Spotify Developer</Label>
+              <Input
+                type="email"
+                placeholder="ex: rafa.desmirras@gmail.com"
+                value={(editing as any)?.owner_email ?? ""}
+                onChange={(e) => setEditing((s) => ({ ...(s as any)!, owner_email: e.target.value }))}
+                className="h-10 text-sm bg-muted/30 border-border/60 focus-visible:border-primary/60 focus-visible:ring-primary/20"
+              />
+              <p className="text-[10.5px] text-muted-foreground/80 leading-snug">
+                Conta que criou o app no Spotify Developer (não é a conta da playlist).
+              </p>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-foreground">Notas (opcional)</Label>

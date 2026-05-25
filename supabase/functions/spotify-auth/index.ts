@@ -343,7 +343,7 @@ Deno.serve(async (req) => {
       const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
       const { data: apps, error } = await supabase
         .from("spotify_apps")
-        .select("id, name, slug, client_id, max_accounts, is_default, status, notes, created_at")
+        .select("id, name, slug, client_id, max_accounts, is_default, status, notes, owner_email, created_at")
         .order("is_default", { ascending: false })
         .order("created_at", { ascending: true });
       if (error) return jr({ ok: false, error: error.message }, 500);
@@ -382,6 +382,7 @@ Deno.serve(async (req) => {
       const max_accounts: number = Number(body.max_accounts ?? 5);
       const is_default: boolean = !!body.is_default;
       const notes: string | null = body.notes ?? null;
+      const owner_email: string | null = body.owner_email ? String(body.owner_email).trim().toLowerCase() : null;
       const status: string = body.status ?? "active";
 
       if (!name) return jr({ ok: false, error: "name obrigatório" }, 400);
@@ -397,7 +398,7 @@ Deno.serve(async (req) => {
       }
 
       if (id) {
-        const patch: any = { name, max_accounts, is_default, notes, status };
+        const patch: any = { name, max_accounts, is_default, notes, owner_email, status };
         if (client_id) patch.client_id = client_id;
         if (client_secret) patch.client_secret = client_secret;
         if (slug) patch.slug = slug;
@@ -405,7 +406,7 @@ Deno.serve(async (req) => {
         if (error) return jr({ ok: false, error: error.message }, 500);
         return jr({ ok: true, id });
       } else {
-        const insert: any = { name, client_id, client_secret, max_accounts, is_default, notes, status };
+        const insert: any = { name, client_id, client_secret, max_accounts, is_default, notes, owner_email, status };
         if (slug) insert.slug = slug;
         const { data, error } = await supabase
           .from("spotify_apps")
