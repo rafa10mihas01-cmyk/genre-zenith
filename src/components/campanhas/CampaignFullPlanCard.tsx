@@ -156,11 +156,41 @@ export function CampaignFullPlanCard({
     return m;
   }, [allocations]);
 
+  // Linha "Rádio · Autoplay · Mixes" — distribuída na curva da campanha
+  // (snapshot.curva.streamsDay), preservando o platô natural. Soma exata = radioTotal.
+  const radioTotal = Math.max(0, Math.round(radioGoal ?? snapshot.meta * 0.18));
+  const radioDaily = useMemo(() => {
+    const arr = Array.from({ length: days }, () => 0);
+    if (radioTotal <= 0) return arr;
+    const curva = snapshot.curva ?? [];
+    const weights: number[] = Array.from({ length: days }, (_, i) => Math.max(0, Number(curva[i]?.streamsDay ?? 0)));
+    const sum = weights.reduce((s, w) => s + w, 0);
+    if (sum <= 0) {
+      const flat = Math.floor(radioTotal / days);
+      for (let i = 0; i < days; i++) arr[i] = flat;
+      arr[days - 1] += radioTotal - flat * days;
+      return arr;
+    }
+    let allocated = 0;
+    let lastIdx = 0;
+    for (let i = 0; i < days; i++) if (weights[i] > 0) lastIdx = i;
+    for (let i = 0; i < days; i++) {
+      if (i === lastIdx) continue;
+      const v = Math.round((weights[i] / sum) * radioTotal);
+      arr[i] = v;
+      allocated += v;
+    }
+    arr[lastIdx] = Math.max(0, radioTotal - allocated);
+    return arr;
+  }, [snapshot.curva, days, radioTotal]);
+  const radioCollected = radioCollectedTotal != null && radioCollectedTotal > 0;
+
   const dailyTotals = useMemo(() => {
     const arr = Array.from({ length: days }, () => 0);
     for (const p of plans) for (let i = 0; i < days; i++) arr[i] += p.daily[i] ?? 0;
+    for (let i = 0; i < days; i++) arr[i] += radioDaily[i] ?? 0;
     return arr;
-  }, [plans, days]);
+  }, [plans, days, radioDaily]);
 
   const cumulativeTotals = useMemo(() => {
     const arr: number[] = [];
