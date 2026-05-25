@@ -254,13 +254,16 @@ export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
                   strokeDasharray="2 4"
                   strokeOpacity={0.55}
                   label={{
-                    value: top200Position
-                      ? `Top ${top200Position} · ${formatPlays(data.target)}`
-                      : `Alvo · ${formatPlays(data.target)}`,
+                    value: isNarrow
+                      ? (top200Position ? `Top ${top200Position}` : "Alvo")
+                      : (top200Position
+                          ? `Top ${top200Position} · ${formatPlays(data.target)}`
+                          : `Alvo · ${formatPlays(data.target)}`),
                     position: "insideTopRight",
                     fill: "hsl(var(--muted-foreground))",
-                    fontSize: 10, fillOpacity: 0.9,
+                    fontSize: isNarrow ? 9 : 10, fillOpacity: 0.9,
                   }}
+
                 />
               )}
 
