@@ -637,8 +637,10 @@ Deno.serve(async (req) => {
         .insert(snapshotRows);
       if (snapErr) console.error("snapshot insert error", snapErr);
 
-      // delivery_proofs — alimenta o painel admin (campaign hub → Prints)
-      if (songId && trackNameForProofs) {
+      // delivery_proofs — alimenta o painel admin (campaign hub → Prints).
+      // ⚠️ Baseline NÃO vira entrega: é apenas o ponto de partida da música
+      //   antes da campanha. Só uploads incrementais geram delivery_proofs.
+      if (!isBaseline && songId && trackNameForProofs) {
         const proofRows = enriched.map(({ r, cpId }) => ({
           deal_id: dealId,
           song_id: songId,
@@ -659,20 +661,41 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 3b) Atualiza campaigns.total_delivered com o total acumulado vindo
-    //     das planilhas (todas as linhas do deal, não só esse upload).
+    // 3b) Atualiza campaigns.total_delivered = soma (por playlist) do
+    //     último upload incremental MENOS a baseline. Baseline sozinha
+    //     deixa total_delivered = 0 — o ponto de partida não é entrega.
     if (campaignIdForUpdate) {
-      const { data: agg } = await admin
+      const { data: allRows } = await admin
         .from("label_spreadsheet_rows")
-        .select("streams")
+        .select("streams, playlist_spotify_id, upload_id, label_spreadsheet_uploads!inner(is_baseline, created_at)")
         .eq("deal_id", dealId);
-      const cumulative = (agg ?? []).reduce(
-        (s: number, r: any) => s + Number(r.streams || 0),
-        0,
-      );
+
+      const baselineByPlaylist = new Map<string, number>();
+      // Map<playlist_spotify_id, { streams, createdAt }>
+      const latestByPlaylist = new Map<string, { streams: number; t: number }>();
+      for (const row of (allRows ?? []) as any[]) {
+        const pid = row.playlist_spotify_id as string | null;
+        if (!pid) continue;
+        const upload = row.label_spreadsheet_uploads as any;
+        const streams = Number(row.streams || 0);
+        if (upload?.is_baseline) {
+          baselineByPlaylist.set(pid, Math.max(baselineByPlaylist.get(pid) ?? 0, streams));
+        } else {
+          const t = new Date(upload?.created_at ?? 0).getTime();
+          const cur = latestByPlaylist.get(pid);
+          if (!cur || t > cur.t) latestByPlaylist.set(pid, { streams, t });
+        }
+      }
+
+      let delivered = 0;
+      for (const [pid, { streams }] of latestByPlaylist) {
+        const base = baselineByPlaylist.get(pid) ?? 0;
+        delivered += Math.max(0, streams - base);
+      }
+
       await admin
         .from("campaigns")
-        .update({ total_delivered: cumulative })
+        .update({ total_delivered: delivered })
         .eq("id", campaignIdForUpdate);
     }
 
