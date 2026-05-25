@@ -47,6 +47,7 @@ import {
   type CuratorMatchStatus,
   type CuratorDealProgress,
 } from "@/lib/curatorDealsUtils";
+import { Kpi as UnifiedKpi } from "@/components/ui/kpi";
 
 export interface DealHistorySheetProps {
   open: boolean;
