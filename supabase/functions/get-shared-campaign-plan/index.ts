@@ -123,7 +123,10 @@ Deno.serve(async (req) => {
   let clientToken: string | null = null;
   let lastSpreadsheetUploadAt: string | null = null;
   let recentUploads: any[] = [];
-  let collectionMode: "bot" | "spreadsheet" = "bot";
+  // Fonte de verdade: campaigns.collection_mode (escolha do operador no
+  // momento da criação). Fallback pro deal só se a campanha não tiver valor.
+  let collectionMode: "bot" | "spreadsheet" =
+    (campRaw as any)?.collection_mode === "spreadsheet" ? "spreadsheet" : "bot";
   const dealId = camp.deal_id as string | null;
 
   if (dealId) {
@@ -138,16 +141,15 @@ Deno.serve(async (req) => {
       clientToken = (song as any).client_token ?? null;
     }
 
-    // Fonte de verdade única: collection_mode em curator_deals.
-    // 'spreadsheet' → portal mostra card de upload. 'bot' → esconde.
-    const { data: dealRow } = await supabase
-      .from("curator_deals")
-      .select("collection_mode")
-      .eq("id", dealId)
-      .maybeSingle();
-    collectionMode = ((dealRow as any)?.collection_mode === "spreadsheet")
-      ? "spreadsheet"
-      : "bot";
+    // Se a campanha não tinha collection_mode (rows antigas), checa o deal.
+    if (!(campRaw as any)?.collection_mode) {
+      const { data: dealRow } = await supabase
+        .from("curator_deals")
+        .select("collection_mode")
+        .eq("id", dealId)
+        .maybeSingle();
+      if ((dealRow as any)?.collection_mode === "spreadsheet") collectionMode = "spreadsheet";
+    }
 
     const { data: uploads } = await supabase
       .from("label_spreadsheet_uploads")
