@@ -164,11 +164,17 @@ export function planEcoAllocations(
         ? Math.max(0, Math.min(cap, streamsEco - allocated))
         : Math.min(cap, Math.round((cap / totalReal) * streamsEco));
       allocated += planned;
+      const source = genreContext?.source ?? "primary";
+      const score = source === "affinity"
+        ? (genreContext?.affinityByPlaylistId?.get(c.id) ?? null)
+        : null;
       return {
         managed_playlist_id: c.id,
         planned_streams: planned,
         start_day: ecoWarmupStartDay(index, selected.length, days, modo),
         position: positions.get(c.id) ?? 3,
+        genre_source: source,
+        genre_affinity_score: score,
       };
     })
     .filter(a => a.planned_streams > 0);
