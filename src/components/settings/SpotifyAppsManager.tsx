@@ -486,6 +486,7 @@ export function SpotifyAppsManager({
                     </div>
                   </div>
                 </details>
+                </>}
               </article>
             );
           })}
