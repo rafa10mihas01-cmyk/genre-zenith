@@ -211,7 +211,8 @@ Deno.serve(async (req) => {
   if (aErr) return jr({ error: aErr.message }, 500);
 
   const mult = Math.max(1, (camp as any).engagement_multiplier ?? 30);
-  const days = snapshot.days;
+  // Plano roda sobre effectiveDays (real). Snapshots antigos caem em days.
+  const days = (snapshot as any).effectiveDays ?? snapshot.days;
   const startedAt = (camp as any).started_at as string;
   const modo = snapshot.modo as "simultaneo" | "sequencial";
   const ecoFloor = modo === "sequencial" ? curveThresholdDay(snapshot.curva, 0.25) : 1;
