@@ -129,7 +129,6 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const setFilterGenreId = (v: string | null) => updateParam("genero", v);
   const setFilterSize = (v: "all" | "pequena" | "media" | "grande" | "top") => updateParam("tamanho", v);
   const setShowArchived = (v: boolean) => {
-    console.log("[MinhasPlaylists] setShowArchived", v);
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
       if (v) { next.set("arquivadas", "1"); next.delete("aba"); }
@@ -138,7 +137,6 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     }, { replace: true });
   };
   const setShowCapacity = (v: boolean) => {
-    console.log("[MinhasPlaylists] setShowCapacity", v);
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
       if (v) { next.set("aba", "capacidade"); next.delete("arquivadas"); }
