@@ -132,9 +132,12 @@ function buildCurve(
   const weekdayAmp = Math.max(0, 0.15 - (inercia - 1) * 0.15);
 
   const weights: number[] = new Array(days).fill(0);
-  // Rampa: 0 → 1 (smoothstep). Começa em peso > 0 logo no D1.
+  // Rampa: 0 → 1 com easeInQuad t² — sobe devagar no início e empurra o
+  // "joelho" pro fim da fase, evitando atingir o platô cedo demais.
+  // (Saída segue smoothstep — descida suave faz sentido manter simétrica.)
   for (let i = 0; i < rampDays; i++) {
-    weights[i] = S((i + 1) / rampDays);
+    const t = (i + 1) / rampDays;
+    weights[i] = t * t;
   }
   // Platô: peso ≈ 1 com leve sazonalidade.
   for (let i = 0; i < plateauDays; i++) {
