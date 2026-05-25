@@ -421,6 +421,150 @@ export type Database = {
           },
         ]
       }
+      campaign_access_emails: {
+        Row: {
+          added_at: string
+          added_by: string | null
+          campaign_id: string
+          email: string
+          id: string
+        }
+        Insert: {
+          added_at?: string
+          added_by?: string | null
+          campaign_id: string
+          email: string
+          id?: string
+        }
+        Update: {
+          added_at?: string
+          added_by?: string | null
+          campaign_id?: string
+          email?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_access_emails_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_access_emails_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_campaign_velocity"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "campaign_access_emails_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_financial_summary"
+            referencedColumns: ["campaign_id"]
+          },
+        ]
+      }
+      campaign_access_logs: {
+        Row: {
+          accessed_at: string
+          campaign_id: string
+          email: string
+          id: string
+          ip: string | null
+        }
+        Insert: {
+          accessed_at?: string
+          campaign_id: string
+          email: string
+          id?: string
+          ip?: string | null
+        }
+        Update: {
+          accessed_at?: string
+          campaign_id?: string
+          email?: string
+          id?: string
+          ip?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_access_logs_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_access_logs_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_campaign_velocity"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "campaign_access_logs_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_financial_summary"
+            referencedColumns: ["campaign_id"]
+          },
+        ]
+      }
+      campaign_access_otps: {
+        Row: {
+          campaign_id: string
+          code: string
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          used_at: string | null
+        }
+        Insert: {
+          campaign_id: string
+          code: string
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          used_at?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          code?: string
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_access_otps_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_access_otps_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_campaign_velocity"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "campaign_access_otps_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_financial_summary"
+            referencedColumns: ["campaign_id"]
+          },
+        ]
+      }
       campaign_allocations: {
         Row: {
           campaign_id: string
