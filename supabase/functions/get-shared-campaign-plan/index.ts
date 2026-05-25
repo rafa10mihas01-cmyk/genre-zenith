@@ -174,6 +174,7 @@ Deno.serve(async (req) => {
     startedAt: string;
     top200Position: number | null;
     top200StreamsDay: number | null;
+    baselineStreamsDay: number | null;
     plannedDailyAverage: number;
   } | null = null;
   try {
