@@ -93,6 +93,10 @@ Deno.serve(async (req) => {
           details.push({ id: row.id, spotify_playlist_id: row.spotify_playlist_id, before: row.tracks_count ?? null, after: null, ok: false, error: (e as Error).message });
         }
       }));
+      // Delay entre lotes pra respeitar rate limit do Spotify (evita 429 em série).
+      if (i + CONCURRENCY < rows.length) {
+        await new Promise((res) => setTimeout(res, BATCH_DELAY_MS));
+      }
     }
 
     // remaining: quantos ainda batem o filtro original
