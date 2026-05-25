@@ -317,6 +317,14 @@ Deno.serve(async (req) => {
       .from("campaigns")
       .update({ deal_id: newDealId, auto_deal_created: true })
       .eq("id", campaignId);
+
+    // 8.1) Marca songs shadow como auto_collect=true pra entrar na fila do bot.
+    // Sem isso, bot-collect-queue filtra `.eq("auto_collect", true)` e nunca
+    // coleta — campaign_eco_snapshots fica vazio.
+    await admin
+      .from("curator_deal_songs")
+      .update({ auto_collect: true, next_auto_collect_at: new Date().toISOString() })
+      .eq("deal_id", newDealId);
   }
 
   // 9) Seed das managed playlists planejadas (campaign_eco_allocations) como
