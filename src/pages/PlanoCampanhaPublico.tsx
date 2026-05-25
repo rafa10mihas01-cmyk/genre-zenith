@@ -29,6 +29,7 @@ import { AlgorithmicImpactCard } from "@/components/client-portal/AlgorithmicImp
 import { PrintsHistoryCard, type PrintsHistoryEntry } from "@/components/client-portal/PrintsHistoryCard";
 import type { CampaignHubCampaign, CampaignHubTabId, EcoAllocation } from "@/components/campaign-hub/types";
 import { EvolutionChart, type EvolutionSeriesPoint } from "@/components/client-portal/EvolutionChart";
+import { DeliveryForecastCard, type ForecastPayload } from "@/components/client-portal/DeliveryForecastCard";
 
 type EcoSnap = {
   id: string;
@@ -78,6 +79,7 @@ type SharedCampaignPlanResponse = {
   recent_uploads?: SpreadsheetUpload[];
   has_spotify_access?: boolean;
   collection_mode?: "bot" | "spreadsheet";
+  forecast?: ForecastPayload | null;
 };
 
 
@@ -93,6 +95,7 @@ export default function PlanoCampanhaPublico() {
   const [lastUploadAt, setLastUploadAt] = useState<string | null>(null);
   const [recentUploads, setRecentUploads] = useState<SpreadsheetUpload[]>([]);
   const [collectionMode, setCollectionMode] = useState<"bot" | "spreadsheet">("bot");
+  const [forecast, setForecast] = useState<ForecastPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [tab, setTab] = useState<CampaignHubTabId>("overview");
@@ -126,6 +129,7 @@ export default function PlanoCampanhaPublico() {
       setLastUploadAt(payload?.last_spreadsheet_upload_at ?? null);
       setRecentUploads(payload?.recent_uploads ?? []);
       setCollectionMode(payload?.collection_mode === "spreadsheet" ? "spreadsheet" : "bot");
+      setForecast(payload?.forecast ?? null);
       setErr(null);
 
     }
@@ -454,6 +458,7 @@ export default function PlanoCampanhaPublico() {
                     />
                   );
                 })()}
+                {forecast && <DeliveryForecastCard forecast={forecast} />}
                 {isApproved && evolutionSeries.length > 1 && (
                   <EvolutionChart
                     series={evolutionSeries}
