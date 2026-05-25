@@ -198,6 +198,7 @@ export function SpotifyAppsManager({
       max_accounts: Number(editing.max_accounts ?? 5),
       is_default: !!editing.is_default,
       notes: editing.notes ?? null,
+      owner_email: (editing as any).owner_email ?? null,
       status: editing.status ?? "active",
     };
     if (editing.slug) body.slug = String(editing.slug).trim();
