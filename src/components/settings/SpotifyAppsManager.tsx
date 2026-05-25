@@ -155,6 +155,12 @@ export function SpotifyAppsManager({
   const [scopes, setScopes] = useState<string[]>([]);
   const [page, setPage] = useState(0);
   const [inviteAppId, setInviteAppId] = useState<string | null>(null);
+  const [collapsedApps, setCollapsedApps] = useState<Set<string>>(new Set());
+  const toggleAppCollapsed = (id: string) => setCollapsedApps((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
   const APPS_PER_PAGE = 5;
 
   async function load() {
