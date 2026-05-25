@@ -204,6 +204,7 @@ Deno.serve(async (req) => {
       const music = rawSnap.music ?? {};
       const t200p = Number(music?.top200Position);
       const t200s = Number(music?.top200StreamsDay);
+      const baseline = Number(music?.baselineStreamsDay);
       forecast = {
         curve,
         goalHitDay,
@@ -212,6 +213,7 @@ Deno.serve(async (req) => {
         startedAt: (campRaw as any).started_at ?? new Date().toISOString(),
         top200Position: Number.isFinite(t200p) && t200p > 0 ? t200p : null,
         top200StreamsDay: Number.isFinite(t200s) && t200s > 0 ? t200s : null,
+        baselineStreamsDay: Number.isFinite(baseline) && baseline >= 0 ? baseline : null,
         plannedDailyAverage,
       };
     }
