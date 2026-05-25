@@ -162,6 +162,43 @@ Deno.serve(async (req) => {
     lastSpreadsheetUploadAt = (uploads as any)?.[0]?.created_at ?? null;
   }
 
+  // Forecast — curva acumulada PLANEJADA (não real). Usa a mesma lógica
+  // canônica do buildEcoPlan (plano de distribuição aprovado), só agregando
+  // por dia. Cliente vê só shape + dia previsto pra meta — sem playlist,
+  // sem preço, sem nomes.
+  let forecast: {
+    curve: Array<{ day: number; cumulative: number }>;
+    goalHitDay: number | null;
+    totalDays: number;
+    goalPlays: number;
+  } | null = null;
+  try {
+    const rawSnap = campRaw.simulation_snapshot as any;
+    if (rawSnap?.days && Array.isArray(rawSnap?.curva) && (allocs?.length ?? 0) > 0) {
+      const plan = buildEcoPlan({
+        snapshot: rawSnap,
+        startedAt: (campRaw as any).started_at ?? new Date().toISOString(),
+        engagementMultiplier: Math.max(1, (campRaw as any).engagement_multiplier ?? 30),
+        allocs: allocs as any,
+      });
+      const days = rawSnap.days as number;
+      const dailyTotal: number[] = Array.from({ length: days }, () => 0);
+      for (const row of plan) {
+        for (let i = 0; i < days; i++) dailyTotal[i] += row.daily?.[i] ?? 0;
+      }
+      let running = 0;
+      const curve: Array<{ day: number; cumulative: number }> = [];
+      let goalHitDay: number | null = null;
+      const goal = campRaw.goal_plays ?? 0;
+      for (let i = 0; i < days; i++) {
+        running += dailyTotal[i];
+        curve.push({ day: i + 1, cumulative: running });
+        if (goalHitDay === null && goal > 0 && running >= goal) goalHitDay = i + 1;
+      }
+      forecast = { curve, goalHitDay, totalDays: days, goalPlays: goal };
+    }
+  } catch (_) { /* forecast é opcional — não bloqueia a resposta */ }
+
   return jr({
     campaign: camp,
     allocations: allocs ?? [],
@@ -171,6 +208,7 @@ Deno.serve(async (req) => {
     last_spreadsheet_upload_at: lastSpreadsheetUploadAt,
     recent_uploads: recentUploads,
     collection_mode: collectionMode,
+    forecast,
     // compat: até o portal antigo migrar
     has_spotify_access: collectionMode !== "spreadsheet",
   });
