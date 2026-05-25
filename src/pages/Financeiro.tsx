@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+// (Tabs shadcn removidos — padronizado pro padrão underline+ícone das outras telas)
 import { FinanceiroTab } from "@/components/playlist-deals/FinanceiroTab";
 import { FinancialOverview } from "@/components/financeiro/FinancialOverview";
 import { PricingSettingsPanel } from "@/components/financeiro/PricingSettingsPanel";
@@ -194,6 +194,14 @@ export default function Financeiro() {
     setParams(next, { replace: true });
   };
 
+  const TABS = [
+    { id: "visao",   label: "Visão",        icon: Wallet },
+    { id: "receita", label: "Receita",      icon: DollarSign },
+    { id: "custo",   label: "Custo",        icon: Receipt },
+    { id: "margem",  label: "Margem",       icon: TrendingUp },
+    { id: "config",  label: "Configuração", icon: SettingsIcon },
+  ];
+
   return (
     <>
       <PageHeader
@@ -205,39 +213,38 @@ export default function Financeiro() {
         manualKey="financeiro"
       />
       <PageContainer>
-        <Tabs value={tab} onValueChange={setTab} className="w-full">
-          <TabsList className="w-full sm:w-auto h-auto flex-wrap justify-start bg-elevated/40 p-1">
-            <TabsTrigger value="visao">Visão</TabsTrigger>
-            <TabsTrigger value="receita">Receita</TabsTrigger>
-            <TabsTrigger value="custo">Custo</TabsTrigger>
-            <TabsTrigger value="margem">Margem</TabsTrigger>
-            <TabsTrigger value="config">
-              <SettingsIcon className="h-3.5 w-3.5 mr-1.5" />
-              Configuração
-            </TabsTrigger>
-          </TabsList>
+        {/* Tabs no mesmo padrão das outras telas (underline + ícone) */}
+        <div className="flex items-center gap-1 border-b border-border mb-6 overflow-x-auto scrollbar-none -mx-4 px-4 lg:mx-0 lg:px-0">
+          {TABS.map((t) => {
+            const Icon = t.icon;
+            const active = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={cn(
+                  "px-3 lg:px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap shrink-0",
+                  active
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
 
-          <TabsContent value="visao" className="mt-6">
-            <FinancialOverview />
-          </TabsContent>
-
-          <TabsContent value="receita" className="mt-6">
-            <ReceitaView />
-          </TabsContent>
-
-          <TabsContent value="custo" className="mt-6">
-            <FinanceiroTab deals={deals} hideHero />
-          </TabsContent>
-
-          <TabsContent value="margem" className="mt-6">
-            <MargemView />
-          </TabsContent>
-
-          <TabsContent value="config" className="mt-6">
-            <PricingSettingsPanel />
-          </TabsContent>
-        </Tabs>
+        <div className="animate-tab-in">
+          {tab === "visao"   && <FinancialOverview />}
+          {tab === "receita" && <ReceitaView />}
+          {tab === "custo"   && <FinanceiroTab deals={deals} hideHero />}
+          {tab === "margem"  && <MargemView />}
+          {tab === "config"  && <PricingSettingsPanel />}
+        </div>
       </PageContainer>
     </>
   );
 }
+

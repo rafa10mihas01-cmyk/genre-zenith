@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { ListMusic, Plus, CheckCircle2, Layers, Activity, Target, Users, Receipt, User, ChevronDown, Briefcase, Filter, Check, Play, Hourglass } from "lucide-react";
+import { ListMusic, Plus, CheckCircle2, Layers, Activity, Target, Users, Receipt, User, ChevronDown, Briefcase, Filter, Check, Play, Hourglass, List } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
@@ -27,9 +27,9 @@ import { FinanceiroTab } from "@/components/playlist-deals/FinanceiroTab";
 type DealsTab = "active" | "running" | "waiting" | "done" | "ledger" | "all";
 
 const TABS = [
-  { id: "running"  as const, label: "Rodando",           icon: Play },
-  { id: "waiting"  as const, label: "Aguardando início", icon: Hourglass },
-  { id: "done"     as const, label: "Concluídos",        icon: CheckCircle2 },
+  { id: "active" as const, label: "Ativos",      icon: Activity },
+  { id: "done"   as const, label: "Concluídos",  icon: CheckCircle2 },
+  { id: "all"    as const, label: "Todos",       icon: List },
 ];
 
 function filterByTab(
@@ -49,9 +49,10 @@ function filterByTab(
 }
 
 export default function PlaylistDeals() {
-  const [tabRaw, setTab] = useScreenField<DealsTab>("/playlist-deals", "tab", "running");
-  // Abas "active", "all" e "ledger" foram removidas/extraídas — normaliza pra "running".
-  const tab: DealsTab = (tabRaw === "ledger" || tabRaw === "active" || tabRaw === "all") ? "running" : tabRaw;
+  const [tabRaw, setTab] = useScreenField<DealsTab>("/playlist-deals", "tab", "active");
+  // Abas "ledger", "running" e "waiting" foram consolidadas em "active". Mantém aliases pra deep-links antigos.
+  const tab: DealsTab = (tabRaw === "ledger" || tabRaw === "running" || tabRaw === "waiting") ? "active" : tabRaw;
+
   const [artistFilter, setArtistFilter] = useScreenField<string>("/playlist-deals", "artist", "");
   const [newOpen, setNewOpen] = useState(false);
   const [logDeal, setLogDeal] = useState<CuratorDeal | null>(null);
@@ -452,7 +453,7 @@ export default function PlaylistDeals() {
       {/* Conteúdo — altura mínima estável evita layout shift entre abas */}
       <div className="min-h-[480px] animate-tab-in">
         {loading && deals.length === 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
             {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
               <div key={i} className="nx-card h-56 animate-pulse" />
             ))}
@@ -481,7 +482,7 @@ export default function PlaylistDeals() {
             </div>
           </div>
         ) : useLegacyCards ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
             {filtered.map((d) => (
               <CuratorDealCard
                 key={d.id}
@@ -502,7 +503,7 @@ export default function PlaylistDeals() {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
             {filtered.map((d) => (
               <DealRow
                 key={d.id}
