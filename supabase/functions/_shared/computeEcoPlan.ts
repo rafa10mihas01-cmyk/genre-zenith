@@ -174,13 +174,14 @@ export function dayLabel(startedAt: string, day: number) {
 }
 
 export function buildEcoPlan(args: {
-  snapshot: { days: number; modo: "simultaneo" | "sequencial"; curva: Array<{ streamsDay: number }> };
+  snapshot: { days: number; effectiveDays?: number; modo: "simultaneo" | "sequencial"; curva: Array<{ streamsDay: number }> };
   startedAt: string;
   engagementMultiplier: number;
   allocs: Alloc[];
 }): EcoPlanRow[] {
   const { snapshot, startedAt, engagementMultiplier: mult, allocs } = args;
-  const days = snapshot.days;
+  // Plano roda sobre a duração REAL (effectiveDays). Snapshots antigos usam days.
+  const days = snapshot.effectiveDays ?? snapshot.days;
   const modo = snapshot.modo;
   const ecoFloor = modo === "sequencial" ? curveThresholdDay(snapshot.curva, 0.25) : 1;
 
