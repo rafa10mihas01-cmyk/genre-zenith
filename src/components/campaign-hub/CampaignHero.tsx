@@ -62,11 +62,14 @@ export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed 
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
   }
 
+  const bleed = mode === "internal";
   return (
     <div className={cn(
-      "sticky top-0 z-30 -mx-4 md:-mx-6 px-4 md:px-6",
+      "sticky top-0 z-30",
+      bleed && "-mx-4 md:-mx-6 px-4 md:px-6",
       "border-b border-border bg-background/85 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70",
     )}>
+
       <div className="py-4 flex items-center gap-4 flex-wrap">
         {/* Capa */}
         {camp.cover_url ? (
