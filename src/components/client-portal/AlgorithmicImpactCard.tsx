@@ -59,36 +59,44 @@ export function AlgorithmicImpactCard({
           </span>
         </div>
 
-        {/* Linha única: Garantido + Expansão = Total */}
-        <div className="grid grid-cols-3 gap-3 items-end">
-          <div>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+        {/* Mobile: linhas empilhadas / Desktop: grid 3 colunas */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 sm:items-end">
+          <div className="flex sm:block items-baseline justify-between gap-3">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground sm:mb-1">
               Garantido
             </div>
-            <div className="text-base sm:text-lg font-semibold tabular-nums text-foreground leading-none">
-              {fmtInt(garantido)}
+            <div className="flex items-baseline gap-1">
+              <span className="text-base sm:text-lg font-semibold tabular-nums text-foreground leading-none">
+                {fmtInt(garantido)}
+              </span>
+              <span className="text-[10px] text-muted-foreground sm:hidden">streams</span>
             </div>
-            <div className="text-[10px] text-muted-foreground mt-1">streams</div>
+            <div className="hidden sm:block text-[10px] text-muted-foreground mt-1">streams</div>
           </div>
-          <div>
-            <div className="text-[10px] uppercase tracking-wider mb-1" style={{ color: ORG }}>
+          <div className="flex sm:block items-baseline justify-between gap-3">
+            <div className="text-[10px] uppercase tracking-wider sm:mb-1" style={{ color: ORG }}>
               + Orgânico estimado
             </div>
-            <div className="text-base sm:text-lg font-semibold tabular-nums leading-none" style={{ color: ORG }}>
-              +{fmtInt(expansao)}
+            <div className="flex items-baseline gap-1">
+              <span className="text-base sm:text-lg font-semibold tabular-nums leading-none" style={{ color: ORG }}>
+                +{fmtInt(expansao)}
+              </span>
             </div>
-            <div className="text-[10px] text-muted-foreground mt-1">
+            <div className="hidden sm:block text-[10px] text-muted-foreground mt-1">
               Radio · Autoplay · Mixes
             </div>
           </div>
-          <div className="text-right">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+          <div className="flex sm:block items-baseline justify-between gap-3 sm:text-right pt-2 sm:pt-0 border-t sm:border-0 border-border">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground sm:mb-1">
               Potencial total
             </div>
-            <div className="text-lg sm:text-xl font-bold tabular-nums text-primary leading-none">
-              {fmtInt(potencialTotal)}
+            <div className="flex items-baseline gap-1 sm:justify-end">
+              <span className="text-lg sm:text-xl font-bold tabular-nums text-primary leading-none">
+                {fmtInt(potencialTotal)}
+              </span>
+              <span className="text-[10px] text-muted-foreground sm:hidden">streams</span>
             </div>
-            <div className="text-[10px] text-muted-foreground mt-1">streams</div>
+            <div className="hidden sm:block text-[10px] text-muted-foreground mt-1">streams</div>
           </div>
         </div>
 

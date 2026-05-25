@@ -9,13 +9,26 @@
 //    direto da curva do snapshot (curve[i].cumulative — cumulative[i-1]).
 //
 //  Ponto verde: primeiro dia em que a curva 1 atinge top200StreamsDay.
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Sparkles } from "lucide-react";
 import {
   CartesianGrid, ComposedChart, Line, ReferenceDot, ReferenceLine,
   ResponsiveContainer, Tooltip as ReTooltip, XAxis, YAxis,
 } from "recharts";
+
+function useNarrow(breakpoint = 640) {
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${breakpoint - 1}px)`);
+    const sync = () => setNarrow(mql.matches);
+    sync();
+    mql.addEventListener("change", sync);
+    return () => mql.removeEventListener("change", sync);
+  }, [breakpoint]);
+  return narrow;
+}
+
 
 export type ForecastPayload = {
   curve?: Array<{ day: number; cumulative: number }>;
@@ -58,9 +71,11 @@ export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
   const {
     curve, top200Position, top200StreamsDay, baselineStreamsDay, goalPlays,
   } = forecast;
+  const isNarrow = useNarrow();
 
   const organicTotal = Math.max(0, Number(organicSummary?.total_plays ?? 0));
   const showOrganic = organicTotal > 0;
+
 
 
   const data = useMemo(() => {
@@ -174,32 +189,41 @@ export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
           </p>
         </div>
 
-        <div className="h-[200px] sm:h-[220px] w-full -mx-2">
+        <div className="h-[220px] sm:h-[240px] w-full -mx-2">
 
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={data.points} margin={{ top: 24, right: 16, left: 0, bottom: 0 }}>
+            <ComposedChart
+              data={data.points}
+              margin={{ top: 20, right: isNarrow ? 8 : 16, left: 0, bottom: 0 }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
               <XAxis
                 dataKey="label"
-                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                axisLine={false} tickLine={false} minTickGap={24}
+                tick={{ fontSize: isNarrow ? 9 : 11, fill: "hsl(var(--muted-foreground))" }}
+                axisLine={false} tickLine={false}
+                minTickGap={isNarrow ? 40 : 24}
+                interval="preserveStartEnd"
               />
               {/* Eixo esquerdo: plays/dia da música */}
               <YAxis
                 yAxisId="left"
-                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                tick={{ fontSize: isNarrow ? 9 : 11, fill: "hsl(var(--muted-foreground))" }}
                 axisLine={false} tickLine={false}
-                tickFormatter={(v) => formatPlays(v as number)} width={56}
+                tickFormatter={(v) => formatPlays(v as number)}
+                width={isNarrow ? 38 : 56}
                 domain={[yLeftMin, yLeftMax]}
               />
-              {/* Eixo direito: entrega diária */}
+              {/* Eixo direito: entrega diária — escondido em telas estreitas */}
               <YAxis
                 yAxisId="right" orientation="right"
                 tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground) / 0.7)" }}
                 axisLine={false} tickLine={false}
-                tickFormatter={(v) => formatPlays(v as number)} width={48}
+                tickFormatter={(v) => formatPlays(v as number)}
+                width={isNarrow ? 0 : 48}
+                hide={isNarrow}
                 domain={[0, yRightMax]}
               />
+
               {/* Eixo oculto pra plotar a meta total contratada */}
               {goalPlays > 0 && (
                 <YAxis
@@ -230,13 +254,16 @@ export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
                   strokeDasharray="2 4"
                   strokeOpacity={0.55}
                   label={{
-                    value: top200Position
-                      ? `Top ${top200Position} · ${formatPlays(data.target)}`
-                      : `Alvo · ${formatPlays(data.target)}`,
+                    value: isNarrow
+                      ? (top200Position ? `Top ${top200Position}` : "Alvo")
+                      : (top200Position
+                          ? `Top ${top200Position} · ${formatPlays(data.target)}`
+                          : `Alvo · ${formatPlays(data.target)}`),
                     position: "insideTopRight",
                     fill: "hsl(var(--muted-foreground))",
-                    fontSize: 10, fillOpacity: 0.9,
+                    fontSize: isNarrow ? 9 : 10, fillOpacity: 0.9,
                   }}
+
                 />
               )}
 
@@ -248,11 +275,12 @@ export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
                   strokeDasharray="2 4"
                   strokeOpacity={0.45}
                   label={{
-                    value: `Meta · ${formatPlays(goalPlays)}`,
+                    value: isNarrow ? "Meta" : `Meta · ${formatPlays(goalPlays)}`,
                     position: "insideTopRight",
                     fill: "hsl(var(--muted-foreground))",
-                    fontSize: 10, fillOpacity: 0.85,
+                    fontSize: isNarrow ? 9 : 10, fillOpacity: 0.85,
                   }}
+
                 />
               )}
 
@@ -299,13 +327,16 @@ export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
                   stroke="hsl(var(--background))"
                   strokeWidth={2}
                   label={{
-                    value: top200Position
-                      ? `Top ${top200Position} · Dia ${data.markDay}`
-                      : `Alvo · Dia ${data.markDay}`,
+                    value: isNarrow
+                      ? `D${data.markDay}`
+                      : (top200Position
+                          ? `Top ${top200Position} · Dia ${data.markDay}`
+                          : `Alvo · Dia ${data.markDay}`),
                     position: "top",
                     fill: "hsl(var(--primary))",
-                    fontSize: 10.5, fontWeight: 600,
+                    fontSize: isNarrow ? 9.5 : 10.5, fontWeight: 600,
                   }}
+
                 />
               )}
             </ComposedChart>
