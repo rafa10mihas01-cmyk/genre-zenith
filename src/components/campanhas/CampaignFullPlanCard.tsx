@@ -387,6 +387,64 @@ export function CampaignFullPlanCard({
                 </tr>
               </thead>
               <tbody>
+                {radioTotal > 0 && (
+                  <tr className="bg-primary/[0.04] hover:bg-primary/10">
+                    <td className="sticky left-0 z-10 py-1.5 px-3 border-b border-r border-border/30 bg-primary/[0.04]">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded bg-primary/15 grid place-items-center flex-shrink-0">
+                          <Radio className="h-3.5 w-3.5 text-primary" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium truncate">Rádio · Autoplay · Mixes</div>
+                          <div className="text-[9px] text-muted-foreground tabular-nums">
+                            {radioCollected ? (
+                              <>
+                                <span className="text-primary font-medium uppercase tracking-wider">coletado</span>
+                                {" · "}{formatInt(Math.round(radioCollectedTotal ?? 0))} plays reais
+                              </>
+                            ) : (
+                              <>
+                                <span className="uppercase tracking-wider">estimado</span>
+                                {" · "}18% da meta
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="text-center font-semibold py-1.5 px-2 border-b border-border/30 tabular-nums text-primary">
+                      #1
+                    </td>
+                    <td className="text-right tabular-nums font-semibold py-1.5 px-2 border-b border-border/30">
+                      {formatInt(radioTotal)}
+                    </td>
+                    {Array.from({ length: days }, (_, i) => {
+                      const dailyV = radioDaily[i] ?? 0;
+                      let v = 0;
+                      if (mode === "diario") v = dailyV;
+                      else for (let k = 0; k <= i; k++) v += radioDaily[k] ?? 0;
+                      const isEmpty = mode === "diario" ? dailyV === 0 : v === 0;
+                      const peak = Math.max(1, ...radioDaily);
+                      const intensity = peak > 0 ? Math.min(1, dailyV / peak) : 0;
+                      return (
+                        <td
+                          key={i}
+                          className={cn(
+                            "text-right tabular-nums py-1.5 px-2 border-b border-border/30 whitespace-nowrap",
+                            isEmpty && (showZeros ? "text-muted-foreground/40" : "text-transparent select-none"),
+                          )}
+                          style={
+                            dailyV > 0 && mode === "diario"
+                              ? { backgroundColor: `hsl(var(--primary) / ${0.06 + intensity * 0.22})` }
+                              : undefined
+                          }
+                        >
+                          {v > 0 ? formatInt(v) : "0"}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                )}
                 {plans.map((p, rowIdx) => {
                   const pos = positionByAllocation.get(p.allocationId) ?? null;
                   const posClass =
