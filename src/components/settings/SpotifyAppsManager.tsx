@@ -314,13 +314,23 @@ export function SpotifyAppsManager({
             const liveUsed = appAccounts.length;
             const full = liveUsed >= a.max_accounts;
             const isPaused = a.status !== "active";
+            const isCollapsed = collapsedApps.has(a.id);
             return (
               <article key={a.id} className="nx-card overflow-hidden">
                 {/* App header */}
-                <header className="p-4 border-b border-border">
+                <header className={cn("p-4", !isCollapsed && "border-b border-border")}>
                   <div className="flex items-start justify-between gap-3 flex-wrap">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => toggleAppCollapsed(a.id)}
+                          className="h-6 w-6 -ml-1 rounded hover:bg-muted/40 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                          title={isCollapsed ? "Expandir" : "Recolher"}
+                          aria-expanded={!isCollapsed}
+                        >
+                          <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isCollapsed && "-rotate-90")} />
+                        </button>
                         <h3 className="text-sm font-bold">{a.name}</h3>
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">{a.slug}</span>
                         {a.is_default && (
