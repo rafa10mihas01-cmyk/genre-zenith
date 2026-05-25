@@ -1,18 +1,11 @@
-// Previsão de entrega — duas curvas estáticas calculadas do simulation_snapshot:
+// Previsão de entrega — usa a curva JÁ CALCULADA pelo motor em
+// simulation_snapshot.curva (exposta no payload como forecast.curve).
+// Não recalculamos nada localmente: o motor já aplicou rampa de entrada,
+// platô e saída suave sobre os effective_days.
 //
-//  CURVA 1 (linha principal, eixo esq.): plays/dia da MÚSICA dia a dia.
-//    Começa em baselineStreamsDay (plays/dia atual da faixa) e soma a cada
-//    dia o incremento planejado da campanha (meta × peso da rampa 20/60/20).
-//
-//  CURVA 2 (área sutil, eixo dir.): ACUMULADO entregue pela campanha dia a dia.
-//    Começa em 0 e termina em `meta` no último dia (mesma rampa 20/60/20).
-//
-//  Benchmark (linha pontilhada): top200StreamsDay — plays/dia necessários
-//  pra atingir a posição alvo do Top 200.
-//
-//  Ponto marcado: primeiro dia em que a curva 1 cruza o benchmark.
-//
-// Sem dados ao vivo, sem fetch, sem estado.
+//  Y = baselineStreamsDay + cumulative[day]  (plays totais da música no dia)
+//  Benchmark (linha pontilhada): top200StreamsDay
+//  Ponto verde: primeiro dia em que Y >= top200StreamsDay
 import { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Sparkles } from "lucide-react";
@@ -46,55 +39,46 @@ function formatFull(n: number): string {
   return new Intl.NumberFormat("pt-BR").format(Math.round(n));
 }
 
-// Distribuição suave (smoothstep S-curve). CDF S(t) = t² (3 − 2t), peso
-// diário = S((i+1)/days) − S(i/days). Soma == 1, sem picos abruptos.
-function smoothCumulative(days: number): number[] {
-  if (days <= 0) return [];
-  const S = (t: number) => Math.max(0, Math.min(1, t * t * (3 - 2 * t)));
-  const cdf: number[] = [];
-  for (let i = 1; i <= days; i++) cdf.push(S(i / days));
-  return cdf;
-}
-
 export function DeliveryForecastCard({ forecast }: Props) {
   const {
-    totalDays, goalPlays,
+    curve, totalDays, goalPlays,
     top200Position, top200StreamsDay,
     baselineStreamsDay,
   } = forecast;
 
   const data = useMemo(() => {
-    const days = Math.max(1, totalDays || 0);
-    const meta = Math.max(0, goalPlays || 0);
     const baseline = Math.max(0, baselineStreamsDay ?? 0);
-    const cdf = smoothCumulative(days);
+    const meta = Math.max(0, goalPlays || 0);
+    const src = Array.isArray(curve) ? curve : [];
 
-    // Acumulado da música = baseline (o que ela já tem) + acumulado da
-    // entrega da campanha até aquele dia. Linha única, smooth.
-    const points = cdf.map((c, i) => ({
-      day: i + 1,
-      label: `D${i + 1}`,
-      acumulado: Math.round(baseline + meta * c),
+    // Eixo X = dias da curva do motor; Y = baseline + cumulative[day]
+    const points = src.map((c) => ({
+      day: c.day,
+      label: `D${c.day}`,
+      acumulado: Math.round(baseline + Math.max(0, c.cumulative || 0)),
     }));
 
-    // Marco: primeiro dia em que o acumulado cruza o benchmark do chart.
+    // Primeiro dia onde Y cruza o benchmark do Top 200
     let markDay: number | null = null;
     let markValue: number | null = null;
-    if (top200StreamsDay && top200Position) {
+    if (top200StreamsDay && top200StreamsDay > 0) {
       for (let i = 0; i < points.length; i++) {
         if (points[i].acumulado >= top200StreamsDay) {
-          markDay = i + 1;
+          markDay = points[i].day;
           markValue = points[i].acumulado;
           break;
         }
       }
     }
 
+    const days = points.length || Math.max(1, totalDays || 0);
     const dailyAvg = days > 0 ? Math.round(meta / days) : 0;
     return { points, markDay, markValue, dailyAvg, days, meta, baseline };
-  }, [totalDays, goalPlays, top200Position, top200StreamsDay, baselineStreamsDay]);
+  }, [curve, totalDays, goalPlays, top200StreamsDay, baselineStreamsDay]);
 
-  if (data.points.length < 2 || data.meta <= 0) return null;
+  if (data.points.length < 2) return null;
+
+  const showBenchmark = !!(top200StreamsDay && top200StreamsDay > 0);
 
   return (
     <Card className="border-border">
@@ -137,14 +121,16 @@ export function DeliveryForecastCard({ forecast }: Props) {
                 formatter={(v: number) => [formatFull(v), "Plays acumulados"]}
               />
 
-              {top200StreamsDay && top200Position && (
+              {showBenchmark && (
                 <ReferenceLine
-                  y={top200StreamsDay}
+                  y={top200StreamsDay as number}
                   stroke="hsl(var(--muted-foreground))"
                   strokeDasharray="2 4"
                   strokeOpacity={0.6}
                   label={{
-                    value: `Top ${top200Position} · ${formatPlays(top200StreamsDay)}`,
+                    value: top200Position
+                      ? `Top ${top200Position} · ${formatPlays(top200StreamsDay as number)}`
+                      : `Benchmark · ${formatPlays(top200StreamsDay as number)}`,
                     position: "insideTopRight",
                     fill: "hsl(var(--muted-foreground))",
                     fontSize: 10, fillOpacity: 0.9,
@@ -159,7 +145,7 @@ export function DeliveryForecastCard({ forecast }: Props) {
                 dot={false} isAnimationActive={false}
               />
 
-              {data.markDay && data.markValue != null && (
+              {showBenchmark && data.markDay && data.markValue != null && (
                 <ReferenceDot
                   x={`D${data.markDay}`} y={data.markValue}
                   r={5}
@@ -167,7 +153,9 @@ export function DeliveryForecastCard({ forecast }: Props) {
                   stroke="hsl(var(--background))"
                   strokeWidth={2}
                   label={{
-                    value: `Top ${top200Position} estimado · D${data.markDay}`,
+                    value: top200Position
+                      ? `Top ${top200Position} · Dia ${data.markDay}`
+                      : `Dia ${data.markDay}`,
                     position: "top",
                     fill: "hsl(var(--primary))",
                     fontSize: 10.5, fontWeight: 600,
@@ -183,10 +171,10 @@ export function DeliveryForecastCard({ forecast }: Props) {
             <span className="inline-block h-[2px] w-4 bg-primary rounded" />
             Acumulado da música
           </span>
-          {top200StreamsDay && (
+          {showBenchmark && (
             <span className="inline-flex items-center gap-1.5">
               <span className="inline-block h-[2px] w-4 border-t-2 border-dashed border-muted-foreground/60" />
-              Benchmark Top {top200Position}
+              {top200Position ? `Benchmark Top ${top200Position}` : "Benchmark"}
             </span>
           )}
         </div>
@@ -197,7 +185,7 @@ export function DeliveryForecastCard({ forecast }: Props) {
             {data.baseline > 0 && <> · Base atual da música: {formatFull(data.baseline)} plays/dia</>}
           </p>
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            Esta é uma estimativa da curva esperada. A meta contratada será entregue — esta projeção mostra o ritmo planejado, que pode variar dia a dia.
+            Estimativa baseada no plano aprovado. Não é garantia de resultado.
           </p>
         </div>
       </CardContent>
