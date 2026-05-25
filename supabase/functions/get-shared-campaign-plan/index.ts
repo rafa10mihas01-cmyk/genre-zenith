@@ -4,6 +4,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkRateLimit, clientIp, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { buildEcoPlan } from "../_shared/computeEcoPlan.ts";
+import { verifyAccessJwt } from "../_shared/campaign-access-jwt.ts";
 
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
