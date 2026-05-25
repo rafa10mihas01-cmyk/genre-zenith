@@ -107,12 +107,17 @@ export function BaselineTab({ dealId }: Props) {
 
       const [internalRes, curatorsRes] = await Promise.all([
         spIds.length
-          ? supabase.from("playlists").select("spotify_playlist_id").in("spotify_playlist_id", spIds)
+          ? supabase
+              .from("playlists")
+              .select("spotify_playlist_id")
+              .eq("ownership", "own") // 🎯 Só marca Engine se for REALMENTE nossa
+              .in("spotify_playlist_id", spIds)
           : Promise.resolve({ data: [] as Array<{ spotify_playlist_id: string }> }),
         ownerIds.length
           ? supabase.from("curators").select("spotify_owner_id, name").in("spotify_owner_id", ownerIds)
           : Promise.resolve({ data: [] as Array<{ spotify_owner_id: string; name: string }> }),
       ]);
+
 
       const internalSet = new Set((internalRes.data ?? []).map((p) => p.spotify_playlist_id));
       const curatorMap = new Map((curatorsRes.data ?? []).map((c) => [c.spotify_owner_id, c.name]));
