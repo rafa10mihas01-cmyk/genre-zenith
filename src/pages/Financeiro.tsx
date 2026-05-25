@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+// (Tabs shadcn removidos — padronizado pro padrão underline+ícone das outras telas)
 import { FinanceiroTab } from "@/components/playlist-deals/FinanceiroTab";
 import { FinancialOverview } from "@/components/financeiro/FinancialOverview";
 import { PricingSettingsPanel } from "@/components/financeiro/PricingSettingsPanel";
