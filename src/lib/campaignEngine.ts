@@ -220,7 +220,7 @@ export function calcCampaign(input: CampaignInput, costs: CostPerStream = COST_P
 export function recomputeCurva(
   meta: number,
   effectiveDays: number,
-  splitEcoPct = DEFAULT_SPLIT.eco,
+  splitEcoPct: number = DEFAULT_SPLIT.eco,
   perfil: Perfil = "mercado",
   modo: Modo = "simultaneo",
 ): CurvaPonto[] {
