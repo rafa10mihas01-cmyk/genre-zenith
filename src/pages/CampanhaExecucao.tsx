@@ -427,6 +427,22 @@ export default function CampanhaExecucao() {
 
   const delivered = camp?.total_delivered ?? 0;
 
+  // Soma dos plays_7d mais recentes por playlist em organic_plays_snapshots —
+  // alimenta o label "coletado" da linha Rádio/Orgânico no plano completo.
+  const radioCollectedTotal = useMemo(() => {
+    if (organicRows.length === 0) return null;
+    const latest = new Map<string, OrganicRow>();
+    for (const r of organicRows) {
+      const key = r.spotify_playlist_id ?? `name:${r.playlist_name ?? r.id}`;
+      const prev = latest.get(key);
+      if (!prev || new Date(r.captured_at) > new Date(prev.captured_at)) latest.set(key, r);
+    }
+    let total = 0;
+    for (const r of latest.values()) total += Number(r.plays_7d ?? r.plays_28d ?? 0);
+    return total > 0 ? total : null;
+  }, [organicRows]);
+
+
   const proofEvents = useMemo<ProofEvent[]>(() => {
 
     // 1) Provas externas (delivery_proofs) — já têm screenshot
