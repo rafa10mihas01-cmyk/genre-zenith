@@ -101,6 +101,7 @@ Deno.serve(async (req) => {
     .is("curator_deals.closed_at", null)
     .is("curator_deals.token_revoked_at", null)
     .in("curator_deals.state", ["collecting", "active"])
+    .neq("curator_deals.collection_mode", "spreadsheet")
     .or(`next_auto_collect_at.is.null,next_auto_collect_at.lte.${new Date().toISOString()}`)
     .order("next_auto_collect_at", { ascending: true, nullsFirst: true })
     .limit(limit);

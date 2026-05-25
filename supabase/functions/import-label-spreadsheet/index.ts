@@ -593,6 +593,22 @@ Deno.serve(async (req) => {
       is_baseline: isBaseline,
     });
 
+    // 5) Primeira importação tira a campanha do limbo automaticamente
+    if (isBaseline) {
+      await admin
+        .from("curator_deals")
+        .update({ state: "collecting" })
+        .eq("id", dealId)
+        .in("state", ["awaiting_playlists", "draft", "pending"]);
+      await admin
+        .from("campaigns")
+        .update({ status: "active" })
+        .eq("deal_id", dealId)
+        .neq("status", "active");
+    }
+
+
+
 
     return jr({
       ok: true,
