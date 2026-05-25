@@ -14,7 +14,9 @@ export type MonitoredPlaylist = {
   planned?: number;
   plays_24h?: number | null;
   plays_7d?: number | null;
+  plays_28d?: number | null;
 };
+
 
 
 function formatPlays(n: number | null | undefined): string {
@@ -89,7 +91,8 @@ export function MonitoredPlaylistsCard({ playlists }: { playlists: MonitoredPlay
         <ul className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
           {playlists.map((p, i) => {
             const st = clientStatus(p);
-            const isEngine = p.source === "engine";
+            // Para o cliente, toda playlist no portal é apresentada como "Engine".
+            // A distinção engine vs curador continua no banco (p.source) para uso interno.
             return (
               <li
                 key={`${p.name}-${i}`}
@@ -111,13 +114,8 @@ export function MonitoredPlaylistsCard({ playlists }: { playlists: MonitoredPlay
                       <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded border whitespace-nowrap", STATUS_STYLES[st])}>
                         {STATUS_LABEL[st]}
                       </span>
-                      <span className={cn(
-                        "text-[9.5px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border whitespace-nowrap",
-                        isEngine
-                          ? "text-primary border-primary/40 bg-primary/10"
-                          : "text-muted-foreground border-border bg-muted/30",
-                      )}>
-                        {isEngine ? "Engine" : "Curador"}
+                      <span className="text-[9.5px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border whitespace-nowrap text-primary border-primary/40 bg-primary/10">
+                        Engine
                       </span>
                     </div>
                   </div>
@@ -133,9 +131,9 @@ export function MonitoredPlaylistsCard({ playlists }: { playlists: MonitoredPlay
                       <div className="text-[14px] font-semibold tabular-nums text-muted-foreground/70 leading-none">—</div>
                     )}
                     <div className="flex items-center justify-end gap-2 pt-0.5 text-[10px] tabular-nums text-muted-foreground">
-                      <span>24h: <span className="text-foreground/80">{p.plays_24h != null ? formatPlays(p.plays_24h) : "—"}</span></span>
-                      <span className="text-border">·</span>
                       <span>7d: <span className="text-foreground/80">{p.plays_7d != null ? formatPlays(p.plays_7d) : "—"}</span></span>
+                      <span className="text-border">·</span>
+                      <span>28d: <span className="text-foreground/80">{p.plays_28d != null ? formatPlays(p.plays_28d) : "—"}</span></span>
                     </div>
                   </div>
 
@@ -143,6 +141,7 @@ export function MonitoredPlaylistsCard({ playlists }: { playlists: MonitoredPlay
               </li>
             );
           })}
+
         </ul>
       </CardContent>
     </Card>
