@@ -428,26 +428,15 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
             neighborSlice = [];
             neighborAffinityByPlaylistId = undefined;
           } else if (neighborSlice.length > 0) {
-            // Capacidade aproximada do core (mesma fórmula sizingCap do planEcoAllocations).
-            const SLOT_PCT = 0.08;
-            const mult = song.engagementMultiplier ?? 30;
-            const coreCap = coreSlice.reduce((s, p) => (
-              s + Math.max(1, Math.round((p.followers ?? 0) * (mult / 30) * SLOT_PCT * r.days))
-            ), 0);
-            const coreCovers60 = coreCap >= r.streamsEco * 0.6;
-            if (!coreCovers60) {
-              const maxNeighbor = Math.round(r.streamsEco * 0.4);
-              const gap = Math.max(0, r.streamsEco - coreCap);
-              neighborBudget = Math.min(maxNeighbor, gap);
-              coreBudget = r.streamsEco - neighborBudget;
-            } else {
-              neighborBudget = 0;
-              neighborSlice = [];
-              neighborAffinityByPlaylistId = undefined;
-            }
+            // Regra unificada: vizinhos SEMPRE entram, com teto de 40% do streamsEco.
+            // Sem gate de "core cobre 60%" — card e plano materializam o mesmo conjunto.
+            const maxNeighbor = Math.round(r.streamsEco * 0.4);
+            neighborBudget = maxNeighbor;
+            coreBudget = Math.max(0, r.streamsEco - neighborBudget);
           }
         }
       }
+
 
       // Capacidade total do eco = uma posição diária por playlist, sem repetir a música.
       const compatiblePlaylists = [...coreSlice, ...neighborSlice].sort((a, b) => (b.followers ?? 0) - (a.followers ?? 0));
