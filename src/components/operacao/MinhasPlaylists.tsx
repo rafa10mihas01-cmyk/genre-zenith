@@ -1031,8 +1031,10 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         </div>
       </div>
 
-      {/* Grid */}
-      {loading && items.length === 0 ? (
+      {/* Grid ou Matriz de Capacidade */}
+      {showCapacity ? (
+        <CapacityMatrixTab />
+      ) : loading && items.length === 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="nx-card !p-0 overflow-hidden">
