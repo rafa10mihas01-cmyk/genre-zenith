@@ -516,7 +516,7 @@ export default function CampanhaExecucao() {
                     capturedAt={baseline.created_at}
                     totalStreams={baseline.total_streams}
                     playlistsDetected={baseline.rows_imported}
-                    fileName={baseline.file_name}
+                    onClick={() => setTab("baseline")}
                   />
                 ) : null;
               })()}
