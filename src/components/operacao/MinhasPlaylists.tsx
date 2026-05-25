@@ -988,16 +988,16 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         )}
         <div className="sm:ml-auto flex items-center gap-1.5 shrink-0">
           <button
-            onClick={() => setShowArchived(false)}
+            onClick={() => { setShowArchived(false); setShowCapacity(false); }}
             className={cn(
               "h-9 px-3 rounded-full text-[11px] sm:text-xs font-medium border transition-colors tabular-nums shrink-0",
-              !showArchived
+              !showArchived && !showCapacity
                 ? "bg-primary/15 border-primary/40 text-primary"
                 : "bg-elevated border-border text-muted-foreground hover:text-foreground",
             )}
           >Ativas ({items.filter(i => !i.archived_at).length})</button>
           <button
-            onClick={() => setShowArchived(true)}
+            onClick={() => { setShowArchived(true); }}
             className={cn(
               "h-9 px-3 rounded-full text-[11px] sm:text-xs font-medium border transition-colors tabular-nums shrink-0",
               showArchived
@@ -1005,6 +1005,15 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                 : "bg-elevated border-border text-muted-foreground hover:text-foreground",
             )}
           >Lixeira ({items.filter(i => i.archived_at).length})</button>
+          <button
+            onClick={() => { setShowCapacity(true); }}
+            className={cn(
+              "h-9 px-3 rounded-full text-[11px] sm:text-xs font-medium border transition-colors shrink-0",
+              showCapacity
+                ? "bg-primary/15 border-primary/40 text-primary"
+                : "bg-elevated border-border text-muted-foreground hover:text-foreground",
+            )}
+          >Capacidade</button>
 
 
 
