@@ -110,6 +110,7 @@ Deno.serve(async (req) => {
     const nowIso = new Date().toISOString();
     let imported = 0;
     let skipped = 0;
+    const importedIds: string[] = []; // managed_playlists.id (UUID) das playlists upsertadas com sucesso
     const snapshotInserts: Array<{ playlist_spotify_id: string; followers: number | null; total_tracks: number | null }> = [];
     const { data: existingManaged } = owned.length > 0
       ? await supabase
