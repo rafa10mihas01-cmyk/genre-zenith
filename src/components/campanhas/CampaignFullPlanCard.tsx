@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Grid3x3, Link2, Check, ExternalLink, Shuffle, Loader2 } from "lucide-react";
+import { Grid3x3, Link2, Check, ExternalLink, Shuffle, Loader2, Radio } from "lucide-react";
 import { formatInt } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { buildEcoPlaylistPlan, distributeEcoPositions, inferEcoPreferredPositions, type DailyPlaylistPlan } from "@/lib/campaignOperationalPlan";
@@ -39,6 +39,10 @@ type Props = {
   campaignId?: string;
   /** Callback após gravar novas posições no banco — usado pra recarregar allocs. */
   onPositionsRedistributed?: () => void;
+  /** Total estimado de plays orgânicos/rádio/autoplay (default 18% da meta). */
+  radioGoal?: number;
+  /** Soma dos plays já coletados em organic_plays_snapshots (null = sem dados, mostra "estimado"). */
+  radioCollectedTotal?: number | null;
 };
 
 function dateLabel(startedAt: string, day: number) {
@@ -57,6 +61,8 @@ export function CampaignFullPlanCard({
   track = null,
   campaignId,
   onPositionsRedistributed,
+  radioGoal,
+  radioCollectedTotal = null,
 }: Props) {
   const [showZeros, setShowZeros] = useState(false);
   const [mode, setMode] = useState<"diario" | "acumulado">("acumulado");
@@ -150,11 +156,42 @@ export function CampaignFullPlanCard({
     return m;
   }, [allocations]);
 
+  // Linha "Rádio · Autoplay · Mixes" — só renderiza quando o consumidor
+  // (somente página interna) passar `radioGoal` explicitamente. Distribuída
+  // na curva da campanha (snapshot.curva.streamsDay). Soma exata = radioTotal.
+  const radioTotal = radioGoal != null ? Math.max(0, Math.round(radioGoal)) : 0;
+  const radioDaily = useMemo(() => {
+    const arr = Array.from({ length: days }, () => 0);
+    if (radioTotal <= 0) return arr;
+    const curva = snapshot.curva ?? [];
+    const weights: number[] = Array.from({ length: days }, (_, i) => Math.max(0, Number(curva[i]?.streamsDay ?? 0)));
+    const sum = weights.reduce((s, w) => s + w, 0);
+    if (sum <= 0) {
+      const flat = Math.floor(radioTotal / days);
+      for (let i = 0; i < days; i++) arr[i] = flat;
+      arr[days - 1] += radioTotal - flat * days;
+      return arr;
+    }
+    let allocated = 0;
+    let lastIdx = 0;
+    for (let i = 0; i < days; i++) if (weights[i] > 0) lastIdx = i;
+    for (let i = 0; i < days; i++) {
+      if (i === lastIdx) continue;
+      const v = Math.round((weights[i] / sum) * radioTotal);
+      arr[i] = v;
+      allocated += v;
+    }
+    arr[lastIdx] = Math.max(0, radioTotal - allocated);
+    return arr;
+  }, [snapshot.curva, days, radioTotal]);
+  const radioCollected = radioCollectedTotal != null && radioCollectedTotal > 0;
+
   const dailyTotals = useMemo(() => {
     const arr = Array.from({ length: days }, () => 0);
     for (const p of plans) for (let i = 0; i < days; i++) arr[i] += p.daily[i] ?? 0;
+    for (let i = 0; i < days; i++) arr[i] += radioDaily[i] ?? 0;
     return arr;
-  }, [plans, days]);
+  }, [plans, days, radioDaily]);
 
   const cumulativeTotals = useMemo(() => {
     const arr: number[] = [];
@@ -351,6 +388,64 @@ export function CampaignFullPlanCard({
                 </tr>
               </thead>
               <tbody>
+                {radioTotal > 0 && (
+                  <tr className="bg-primary/[0.04] hover:bg-primary/10">
+                    <td className="sticky left-0 z-10 py-1.5 px-3 border-b border-r border-border/30 bg-primary/[0.04]">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded bg-primary/15 grid place-items-center flex-shrink-0">
+                          <Radio className="h-3.5 w-3.5 text-primary" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium truncate">Rádio · Autoplay · Mixes</div>
+                          <div className="text-[9px] text-muted-foreground tabular-nums">
+                            {radioCollected ? (
+                              <>
+                                <span className="text-primary font-medium uppercase tracking-wider">coletado</span>
+                                {" · "}{formatInt(Math.round(radioCollectedTotal ?? 0))} plays reais
+                              </>
+                            ) : (
+                              <>
+                                <span className="uppercase tracking-wider">estimado</span>
+                                {" · "}18% da meta
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="text-center font-semibold py-1.5 px-2 border-b border-border/30 tabular-nums text-primary">
+                      #1
+                    </td>
+                    <td className="text-right tabular-nums font-semibold py-1.5 px-2 border-b border-border/30">
+                      {formatInt(radioTotal)}
+                    </td>
+                    {Array.from({ length: days }, (_, i) => {
+                      const dailyV = radioDaily[i] ?? 0;
+                      let v = 0;
+                      if (mode === "diario") v = dailyV;
+                      else for (let k = 0; k <= i; k++) v += radioDaily[k] ?? 0;
+                      const isEmpty = mode === "diario" ? dailyV === 0 : v === 0;
+                      const peak = Math.max(1, ...radioDaily);
+                      const intensity = peak > 0 ? Math.min(1, dailyV / peak) : 0;
+                      return (
+                        <td
+                          key={i}
+                          className={cn(
+                            "text-right tabular-nums py-1.5 px-2 border-b border-border/30 whitespace-nowrap",
+                            isEmpty && (showZeros ? "text-muted-foreground/40" : "text-transparent select-none"),
+                          )}
+                          style={
+                            dailyV > 0 && mode === "diario"
+                              ? { backgroundColor: `hsl(var(--primary) / ${0.06 + intensity * 0.22})` }
+                              : undefined
+                          }
+                        >
+                          {v > 0 ? formatInt(v) : "0"}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                )}
                 {plans.map((p, rowIdx) => {
                   const pos = positionByAllocation.get(p.allocationId) ?? null;
                   const posClass =

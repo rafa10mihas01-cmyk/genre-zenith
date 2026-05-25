@@ -32,6 +32,7 @@ import { ProofsTimeline, type ProofEvent } from "@/components/campaign-hub/Proof
 import { SpreadsheetUploadCard } from "@/components/client-portal/SpreadsheetUploadCard";
 import { BaselineCard } from "@/components/campanhas/BaselineCard";
 import { BaselineTab } from "@/components/campanhas/BaselineTab";
+import { OrganicCollectedSection, type OrganicRow } from "@/components/campanhas/OrganicCollectedSection";
 import type { CampaignHubCampaign, CampaignHubTabId, EcoAllocation } from "@/components/campaign-hub/types";
 import { toast } from "sonner";
 import type { Json } from "@/integrations/supabase/types";
@@ -86,6 +87,7 @@ export default function CampanhaExecucao() {
   const [lastSpreadsheetUploadAt, setLastSpreadsheetUploadAt] = useState<string | null>(null);
   const [recentUploads, setRecentUploads] = useState<SpreadsheetUpload[]>([]);
   const [externalItems, setExternalItems] = useState<ExternalItemRow[]>([]);
+  const [organicRows, setOrganicRows] = useState<OrganicRow[]>([]);
   const [dispatching, setDispatching] = useState(false);
 
   async function handleDispatchEco() {
@@ -289,6 +291,20 @@ export default function CampanhaExecucao() {
     } else {
       setExternalItems([]);
     }
+
+    // Snapshots orgânicos (rádio, autoplay, mixes, editoriais, listas de usuário)
+    // capturados pelo bot e ligados ao deal desta campanha.
+    if (dealId) {
+      const { data: organic } = await supabase
+        .from("organic_plays_snapshots")
+        .select("id, spotify_playlist_id, playlist_name, kind, plays_24h, plays_7d, plays_28d, captured_at")
+        .eq("deal_id", dealId)
+        .order("captured_at", { ascending: false })
+        .limit(500);
+      setOrganicRows((organic ?? []) as OrganicRow[]);
+    } else {
+      setOrganicRows([]);
+    }
     setLoading(false);
   };
 
@@ -410,6 +426,22 @@ export default function CampanhaExecucao() {
   }, [camp, snapshot]);
 
   const delivered = camp?.total_delivered ?? 0;
+
+  // Soma dos plays_7d mais recentes por playlist em organic_plays_snapshots —
+  // alimenta o label "coletado" da linha Rádio/Orgânico no plano completo.
+  const radioCollectedTotal = useMemo(() => {
+    if (organicRows.length === 0) return null;
+    const latest = new Map<string, OrganicRow>();
+    for (const r of organicRows) {
+      const key = r.spotify_playlist_id ?? `name:${r.playlist_name ?? r.id}`;
+      const prev = latest.get(key);
+      if (!prev || new Date(r.captured_at) > new Date(prev.captured_at)) latest.set(key, r);
+    }
+    let total = 0;
+    for (const r of latest.values()) total += Number(r.plays_7d ?? r.plays_28d ?? 0);
+    return total > 0 ? total : null;
+  }, [organicRows]);
+
 
   const proofEvents = useMemo<ProofEvent[]>(() => {
 
@@ -613,6 +645,7 @@ export default function CampanhaExecucao() {
                   mode="internal"
                   flat
                 />
+                <OrganicCollectedSection rows={organicRows} />
               </TabsContent>
               <TabsContent value="externo" className="mt-0">
                 <ExternalPackageEditor campaignId={camp.id} snapshot={snapshot} onChanged={() => setPlanRefreshKey(k => k + 1)} />
@@ -682,6 +715,8 @@ export default function CampanhaExecucao() {
                   shareToken={camp.public_plan_token ?? null}
                   campaignId={camp.id}
                   onPositionsRedistributed={loadCampaign}
+                  radioGoal={Math.round(snapshot.meta * 0.18)}
+                  radioCollectedTotal={radioCollectedTotal}
                   track={{
                     name: camp.track_name,
                     artist: camp.artist,
