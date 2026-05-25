@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
       .from("curator_playlists")
       .select("deal_id")
       .in("deal_id", dealIds)
-      .eq("match_status", "curator")
+      .in("match_status", ["curator", "baseline"]) // baseline = seed de campanha (managed playlists)
       .not("spotify_playlist_id", "is", null);
     for (const r of wl ?? []) dealsWithWhitelist.add((r as any).deal_id);
   }
