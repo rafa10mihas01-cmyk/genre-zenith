@@ -67,6 +67,7 @@ function Row({ row }: { row: TrackPresenceRow }) {
 export function TrackPresencePanel({ spotifyTrackId, className }: Props) {
   const { rows, summary, loading, error } = useTrackPresence(spotifyTrackId);
   const [showAbsent, setShowAbsent] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
 
   if (!spotifyTrackId) return null;
 
@@ -86,7 +87,7 @@ export function TrackPresencePanel({ spotifyTrackId, className }: Props) {
     );
   }
   if (rows.length === 0) {
-    return null; // Nenhuma playlist ativa cadastrada — não polui a UI.
+    return null;
   }
 
   const present = rows.filter((r) => r.status !== "absent");
@@ -94,50 +95,65 @@ export function TrackPresencePanel({ spotifyTrackId, className }: Props) {
 
   return (
     <div className={cn("rounded-2xl border border-border bg-card overflow-hidden", className)}>
-      <header className="flex items-center justify-between px-4 py-3 border-b border-border">
+      <button
+        type="button"
+        onClick={() => setCollapsed((v) => !v)}
+        className={cn(
+          "w-full flex items-center justify-between px-4 py-3 hover:bg-elevated/40 transition-colors text-left",
+          !collapsed && "border-b border-border",
+        )}
+        aria-expanded={!collapsed}
+      >
         <div className="flex items-center gap-2">
           <Music className="h-4 w-4 text-muted-foreground" />
           <h4 className="text-sm font-semibold text-foreground">Presença nas suas playlists</h4>
         </div>
-        <span className="text-[11px] text-muted-foreground tabular-nums">
-          {summary.present} com a música · {summary.absent} sem
-        </span>
-      </header>
-
-      {present.length === 0 ? (
-        <div className="px-4 py-6 text-center">
-          <div className="text-sm text-foreground mb-1">Música ainda não está em nenhuma playlist do ecossistema</div>
-          <div className="text-xs text-muted-foreground">
-            Posição atual: fora de todas as {rows.length} playlists ativas.
-          </div>
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] text-muted-foreground tabular-nums">
+            {summary.present} com a música · {summary.absent} sem
+          </span>
+          {collapsed ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronUp className="h-4 w-4 text-muted-foreground" />}
         </div>
-      ) : (
-        <div className="divide-y divide-border">
-          {present.map((r) => (
-            <Row key={r.playlist_id} row={r} />
-          ))}
-        </div>
-      )}
+      </button>
 
-      {absent.length > 0 && (
+      {!collapsed && (
         <>
-          <button
-            type="button"
-            onClick={() => setShowAbsent((v) => !v)}
-            className="w-full flex items-center justify-between px-4 py-2.5 border-t border-border bg-elevated/20 hover:bg-elevated/40 transition-colors text-xs text-muted-foreground"
-          >
-            <span>
-              {showAbsent ? "Ocultar" : "Ver"} {absent.length} playlist
-              {absent.length === 1 ? "" : "s"} sem a música
-            </span>
-            {showAbsent ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-          </button>
-          {showAbsent && (
-            <div className="divide-y divide-border max-h-[280px] overflow-y-auto">
-              {absent.map((r) => (
+          {present.length === 0 ? (
+            <div className="px-4 py-6 text-center">
+              <div className="text-sm text-foreground mb-1">Música ainda não está em nenhuma playlist do ecossistema</div>
+              <div className="text-xs text-muted-foreground">
+                Posição atual: fora de todas as {rows.length} playlists ativas.
+              </div>
+            </div>
+          ) : (
+            <div className="divide-y divide-border max-h-[360px] overflow-y-auto">
+              {present.map((r) => (
                 <Row key={r.playlist_id} row={r} />
               ))}
             </div>
+          )}
+
+          {absent.length > 0 && (
+            <>
+              <button
+                type="button"
+                onClick={() => setShowAbsent((v) => !v)}
+                className="w-full flex items-center justify-between px-4 py-2.5 border-t border-border bg-elevated/20 hover:bg-elevated/40 transition-colors text-xs text-muted-foreground"
+              >
+                <span>
+                  {showAbsent ? "Ocultar" : "Ver"} {absent.length} playlist
+                  {absent.length === 1 ? "" : "s"} sem a música
+                </span>
+                {showAbsent ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </button>
+              {showAbsent && (
+                <div className="divide-y divide-border max-h-[280px] overflow-y-auto">
+                  {absent.map((r) => (
+                    <Row key={r.playlist_id} row={r} />
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </>
       )}
