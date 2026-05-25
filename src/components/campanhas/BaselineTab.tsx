@@ -281,10 +281,27 @@ export function BaselineTab({ dealId }: Props) {
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-sm font-medium text-foreground truncate">
                         {r.playlist_name ?? "Playlist sem nome"}
                       </span>
+                      {r.isInternal && (
+                        <span
+                          className="text-[9px] uppercase tracking-wide bg-primary/15 text-primary border border-primary/40 rounded px-1.5 py-0.5 font-semibold shrink-0"
+                          title="Playlist do nosso inventário interno"
+                        >
+                          Engine
+                        </span>
+                      )}
+                      {!r.isInternal && r.curatorName && (
+                        <span
+                          className="text-[9px] uppercase tracking-wide bg-purple-500/15 text-purple-400 border border-purple-500/40 rounded px-1.5 py-0.5 font-semibold shrink-0"
+                          title={`Curador cadastrado: ${r.curatorName}`}
+                        >
+                          Curador
+                        </span>
+                      )}
+
                       {r.spotify_url && (
                         <a
                           href={r.spotify_url}
