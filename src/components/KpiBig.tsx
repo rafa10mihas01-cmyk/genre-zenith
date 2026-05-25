@@ -24,14 +24,20 @@ export interface KpiBigProps {
   tier?: "hero" | "default" | "quiet";
 }
 
-export function KpiBig({ tier = "default", ...props }: KpiBigProps) {
+export function KpiBig({ tier = "default", className, ...props }: KpiBigProps) {
   const variant = tier === "hero" ? "hero" : "default";
+  const composed = [
+    tier === "hero" && "md:col-span-2",
+    tier === "quiet" && "opacity-80",
+    className,
+  ].filter(Boolean).join(" ");
   return (
     <Kpi
       {...props}
       variant={variant}
-      tone={tier === "quiet" ? "default" : (props.tone ?? "default")}
-      className={tier === "quiet" ? `opacity-80 ${props.className ?? ""}` : props.className}
+      tone={props.tone ?? "default"}
+      className={composed || undefined}
     />
   );
 }
+
