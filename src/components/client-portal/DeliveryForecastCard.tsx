@@ -54,10 +54,14 @@ const S = (t: number) => {
   return c * c * (3 - 2 * c);
 };
 
-export function DeliveryForecastCard({ forecast }: Props) {
+export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
   const {
     curve, top200Position, top200StreamsDay, baselineStreamsDay, goalPlays,
   } = forecast;
+
+  const organicTotal = Math.max(0, Number(organicSummary?.total_plays ?? 0));
+  const showOrganic = organicTotal > 0;
+
 
   const data = useMemo(() => {
     const baseline = Math.max(0, baselineStreamsDay ?? 0);
