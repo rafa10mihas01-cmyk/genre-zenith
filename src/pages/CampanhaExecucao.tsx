@@ -64,6 +64,7 @@ type SpreadsheetUpload = {
   total_streams: number;
   status: string;
   file_name: string | null;
+  is_baseline?: boolean | null;
 };
 
 export default function CampanhaExecucao() {
