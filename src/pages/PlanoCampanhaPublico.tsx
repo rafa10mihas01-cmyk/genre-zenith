@@ -103,7 +103,9 @@ type SharedCampaignPlanResponse = {
   collection_mode?: "bot" | "spreadsheet";
   forecast?: ForecastPayload | null;
   genres_used?: GenreUsed[];
+  organic_summary?: { total_plays?: number; by_kind?: Record<string, number> } | null;
 };
+
 
 
 type PublicRpc = (fn: string, args: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
