@@ -1,69 +1,61 @@
-// BaselineCard — mostra a baseline (ponto de partida) registrada na campanha.
-// Renderiza só quando existe um upload com is_baseline=true.
+// BaselineCard — versão compacta e clicável. Resumo da baseline + CTA pra
+// aba "Baseline" no hub da campanha (com lista completa de playlists).
 import { Card, CardContent } from "@/components/ui/card";
-import { Flag } from "lucide-react";
+import { Flag, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type Props = {
   capturedAt: string;
   totalStreams: number;
   playlistsDetected: number;
-  fileName?: string | null;
+  onClick?: () => void;
 };
 
 function fmt(n: number) {
   return new Intl.NumberFormat("pt-BR").format(Math.round(n));
 }
 
-export function BaselineCard({ capturedAt, totalStreams, playlistsDetected, fileName }: Props) {
+export function BaselineCard({ capturedAt, totalStreams, playlistsDetected, onClick }: Props) {
   const date = new Date(capturedAt);
+  const dateLabel = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
+
   return (
-    <Card className="border-border/60 bg-card">
-      <CardContent className="p-5 space-y-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-2">
-            <Flag className="h-4 w-4 text-primary mt-0.5" />
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-semibold text-foreground">Baseline registrada</h3>
-                <span className="text-[10px] uppercase tracking-wide border border-primary/40 text-primary rounded px-1.5 py-0.5 font-medium">
-                  Referência
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1 max-w-md">
-                Ponto de partida da campanha. Os streams entregues são calculados a partir
-                deste momento — tudo que já existia antes não conta como entrega.
-              </p>
-            </div>
-          </div>
-          <div className="text-right shrink-0">
-            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Capturada</div>
-            <div className="text-sm font-medium text-foreground mt-0.5">
-              {date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
-            </div>
-            <div className="text-[11px] text-muted-foreground">
-              {date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-            </div>
-          </div>
+    <Card
+      onClick={onClick}
+      className={cn(
+        "border-border/60 bg-card transition-colors",
+        onClick && "cursor-pointer hover:bg-muted/30 hover:border-primary/40",
+      )}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={(e) => {
+        if (onClick && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+    >
+      <CardContent className="p-3.5 flex items-center gap-3">
+        <Flag className="h-3.5 w-3.5 text-primary shrink-0" />
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-sm font-medium text-foreground">Baseline</span>
+          <span className="text-[10px] uppercase tracking-wide border border-primary/40 text-primary rounded px-1 py-px font-medium">
+            Ref
+          </span>
         </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-md border border-border/60 bg-muted/20 p-3">
-            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Streams iniciais</div>
-            <div className="text-xl font-semibold text-foreground tabular-nums mt-0.5">{fmt(totalStreams)}</div>
-            <div className="text-[11px] text-muted-foreground mt-0.5">soma das playlists na partida</div>
+        <div className="text-xs text-muted-foreground hidden sm:block">·</div>
+        <div className="text-xs text-muted-foreground truncate hidden sm:block">{dateLabel}</div>
+        <div className="ml-auto flex items-center gap-4 shrink-0">
+          <div className="text-right">
+            <div className="text-sm font-semibold tabular-nums text-foreground leading-tight">{fmt(playlistsDetected)}</div>
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">playlists</div>
           </div>
-          <div className="rounded-md border border-border/60 bg-muted/20 p-3">
-            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Playlists detectadas</div>
-            <div className="text-xl font-semibold text-foreground tabular-nums mt-0.5">{fmt(playlistsDetected)}</div>
-            <div className="text-[11px] text-muted-foreground mt-0.5">capturadas no snapshot inicial</div>
+          <div className="text-right">
+            <div className="text-sm font-semibold tabular-nums text-foreground leading-tight">{fmt(totalStreams)}</div>
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">streams</div>
           </div>
+          {onClick && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
         </div>
-
-        {fileName && (
-          <div className="text-[11px] text-muted-foreground border-t border-border/60 pt-2">
-            Arquivo: <span className="text-foreground/80">{fileName}</span>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
