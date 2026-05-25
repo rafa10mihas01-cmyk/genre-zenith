@@ -274,6 +274,20 @@ export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
                 strokeLinecap="round" strokeLinejoin="round"
                 dot={false} isAnimationActive={false}
               />
+              {/* Orgânico coletado (a partir do dia 7) */}
+              {showOrganic && (
+                <Line
+                  yAxisId="right"
+                  type="monotone" dataKey="organic"
+                  stroke="hsl(210 90% 60%)"
+                  strokeWidth={1.75}
+                  strokeDasharray="5 4"
+                  strokeLinecap="round"
+                  dot={false} isAnimationActive={false}
+                  connectNulls={false}
+                />
+              )}
+
 
               {data.markDay && data.markValue != null && (
                 <ReferenceDot
