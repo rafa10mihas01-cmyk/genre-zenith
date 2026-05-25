@@ -664,6 +664,19 @@ export function SpotifyAppsManager({
               </div>
             </div>
             <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-foreground">E-mail do dono do app no Spotify Developer</Label>
+              <Input
+                type="email"
+                placeholder="ex: rafa.desmirras@gmail.com"
+                value={(editing as any)?.owner_email ?? ""}
+                onChange={(e) => setEditing((s) => ({ ...(s as any)!, owner_email: e.target.value }))}
+                className="h-10 text-sm bg-muted/30 border-border/60 focus-visible:border-primary/60 focus-visible:ring-primary/20"
+              />
+              <p className="text-[10.5px] text-muted-foreground/80 leading-snug">
+                Conta que criou o app no Spotify Developer (não é a conta da playlist).
+              </p>
+            </div>
+            <div className="space-y-1.5">
               <Label className="text-xs font-medium text-foreground">Notas (opcional)</Label>
               <Textarea
                 value={editing?.notes ?? ""}
