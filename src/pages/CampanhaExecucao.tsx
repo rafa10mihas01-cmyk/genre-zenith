@@ -18,7 +18,7 @@ import { PlaylistDailyPlanDialog } from "@/components/campanhas/PlaylistDailyPla
 import { buildEcoPlaylistPlan, distributeEcoPositions } from "@/lib/campaignOperationalPlan";
 import { CampaignFullPlanCard } from "@/components/campanhas/CampaignFullPlanCard";
 import { TrackActionsPanel } from "@/components/campanhas/TrackActionsPanel";
-import { ArrowLeft, Loader2, Save, Upload, Rocket, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Upload, Rocket, CheckCircle2, RefreshCw } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { CampaignHub } from "@/components/campaign-hub/CampaignHub";
