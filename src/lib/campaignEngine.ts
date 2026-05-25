@@ -209,6 +209,30 @@ export function calcCampaign(input: CampaignInput, costs: CostPerStream = COST_P
   };
 }
 
+/**
+ * Recalcula APENAS a forma da curva (streamsDay/cumulative) a partir de
+ * meta + effectiveDays, aplicando o envelope canônico ATUAL do motor.
+ *
+ * Uso: substituir `snapshot.curva` salvo no banco (potencialmente com
+ * envelope antigo) por uma curva fresca, sem alterar meta/custos/split.
+ * O snapshot continua sendo fonte de verdade pra meta, effectiveDays e split.
+ */
+export function recomputeCurva(
+  meta: number,
+  effectiveDays: number,
+  splitEcoPct = DEFAULT_SPLIT.eco,
+  perfil: Perfil = "mercado",
+  modo: Modo = "simultaneo",
+): CurvaPonto[] {
+  const m = Math.max(0, Math.round(meta));
+  const d = Math.max(1, Math.round(effectiveDays));
+  const split = Math.min(100, Math.max(0, splitEcoPct));
+  const inercia = INERCIA_BY_PERFIL[perfil] ?? 1;
+  return buildCurve(m, d, modo, inercia, split);
+}
+
+
+
 
 
 /**
