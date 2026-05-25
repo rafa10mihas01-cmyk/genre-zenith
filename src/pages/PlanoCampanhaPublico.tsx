@@ -123,6 +123,8 @@ export default function PlanoCampanhaPublico() {
   const [collectionMode, setCollectionMode] = useState<"bot" | "spreadsheet">("bot");
   const [forecast, setForecast] = useState<ForecastPayload | null>(null);
   const [genresUsed, setGenresUsed] = useState<GenreUsed[]>([]);
+  const [organicSummary, setOrganicSummary] = useState<{ total_plays?: number; by_kind?: Record<string, number> } | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [tab, setTab] = useState<CampaignHubTabId>("overview");
