@@ -173,6 +173,7 @@ Deno.serve(async (req) => {
         console.error("upsert error", p.id, error.message);
       } else {
         imported++;
+        if (upserted?.id) importedIds.push(upserted.id);
         snapshotInserts.push({
           playlist_spotify_id: p.id,
           followers,
