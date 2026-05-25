@@ -110,6 +110,7 @@ Deno.serve(async (req) => {
     const nowIso = new Date().toISOString();
     let imported = 0;
     let skipped = 0;
+    const importedIds: string[] = []; // managed_playlists.id (UUID) das playlists upsertadas com sucesso
     const snapshotInserts: Array<{ playlist_spotify_id: string; followers: number | null; total_tracks: number | null }> = [];
     const { data: existingManaged } = owned.length > 0
       ? await supabase
@@ -172,6 +173,7 @@ Deno.serve(async (req) => {
         console.error("upsert error", p.id, error.message);
       } else {
         imported++;
+        if (upserted?.id) importedIds.push(upserted.id);
         snapshotInserts.push({
           playlist_spotify_id: p.id,
           followers,
@@ -223,6 +225,62 @@ Deno.serve(async (req) => {
         .eq("id", accountId);
     }
 
+    // 10) Pipeline automático pós-import (fire-and-forget, não bloqueia resposta).
+    //     Para cada playlist importada: classify-playlist-genre → snapshot-playlist-tracks → playlist-brain-calc.
+    //     Cada step tem timeout próprio; falha de uma playlist não derruba as outras.
+    if (importedIds.length > 0) {
+      const PIPELINE_STEPS = [
+        { name: "classify-playlist-genre", bodyKey: "playlist_id", timeoutMs: 45_000 },
+        { name: "snapshot-playlist-tracks", bodyKey: "playlist_id", timeoutMs: 60_000 },
+        { name: "playlist-brain-calc", bodyKey: "playlist_id", timeoutMs: 45_000 },
+      ] as const;
+      const PIPELINE_CONCURRENCY = 4;
+
+      const callStep = async (step: typeof PIPELINE_STEPS[number], playlistId: string) => {
+        const ctrl = new AbortController();
+        const tid = setTimeout(() => ctrl.abort(), step.timeoutMs);
+        try {
+          const r = await fetch(`${SUPABASE_URL}/functions/v1/${step.name}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${SERVICE_KEY}`,
+            },
+            body: JSON.stringify({ [step.bodyKey]: playlistId }),
+            signal: ctrl.signal,
+          });
+          if (!r.ok) {
+            console.warn(`pipeline ${step.name} ${playlistId} → ${r.status}`);
+          }
+        } catch (e) {
+          console.warn(`pipeline ${step.name} ${playlistId} error:`, (e as Error).message);
+        } finally {
+          clearTimeout(tid);
+        }
+      };
+
+      const runPipeline = async () => {
+        for (let i = 0; i < importedIds.length; i += PIPELINE_CONCURRENCY) {
+          const batch = importedIds.slice(i, i + PIPELINE_CONCURRENCY);
+          await Promise.all(batch.map(async (pid) => {
+            for (const step of PIPELINE_STEPS) {
+              await callStep(step, pid);
+            }
+          }));
+        }
+        console.log(`pipeline done: ${importedIds.length} playlists processed`);
+      };
+
+      // EdgeRuntime.waitUntil mantém a função viva após o response.
+      // Fallback: dispara sem await.
+      const runtime = (globalThis as any).EdgeRuntime;
+      if (runtime?.waitUntil) {
+        runtime.waitUntil(runPipeline());
+      } else {
+        runPipeline().catch((e) => console.warn("pipeline fatal:", (e as Error).message));
+      }
+    }
+
     return jr({
       ok: true,
       spotify_user_id: ownerId,
@@ -232,6 +290,7 @@ Deno.serve(async (req) => {
       others_count: others,
       imported,
       skipped,
+      pipeline_dispatched: importedIds.length,
     });
   } catch (e) {
     return jr({ ok: false, error: (e as Error).message }, 500);
