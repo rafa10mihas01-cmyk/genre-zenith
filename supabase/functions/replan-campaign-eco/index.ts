@@ -23,6 +23,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
   distributeEcoPositions,
   POSITION_PCT,
+  selectCoverageMode,
+  AFFINITY_RANGE_BY_MODE,
 } from "../_shared/computeEcoPlan.ts";
 import { getGenreNeighbors } from "../_shared/genre-affinity.ts";
 
@@ -112,10 +114,10 @@ Deno.serve(async (req) => {
   const mult = Math.max(1, Math.round(Number((campaign as any).engagement_multiplier ?? snap?.engagement_multiplier ?? 30)));
   if (days <= 0) return json({ ok: false, error: "invalid_snapshot_days" }, 400);
 
-  // 2) Allocs existentes — descobre gênero primário e playlists já usadas
+  // 2) Allocs existentes — descobre gênero primário, playlists já usadas e capacidade atual
   const { data: existing, error: exErr } = await admin
     .from("campaign_eco_allocations")
-    .select("managed_playlist_id, status, managed_playlists(genre_id)")
+    .select("managed_playlist_id, status, planned_streams, managed_playlists(genre_id)")
     .eq("campaign_id", campaignId);
   if (exErr) return json({ ok: false, error: exErr.message }, 500);
 
@@ -126,8 +128,10 @@ Deno.serve(async (req) => {
 
   const genreCounts = new Map<string, number>();
   const usedIds = new Set<string>();
+  let existingTotalPlanned = 0;
   for (const r of existingRows) {
     if (r.managed_playlist_id) usedIds.add(r.managed_playlist_id);
+    existingTotalPlanned += Number(r.planned_streams ?? 0);
     const gid = r.managed_playlists?.genre_id;
     if (gid) genreCounts.set(gid, (genreCounts.get(gid) ?? 0) + 1);
   }
@@ -135,6 +139,16 @@ Deno.serve(async (req) => {
   if (!primaryGenreId) {
     return json({ ok: false, error: "no_primary_genre" }, 400);
   }
+
+  // 2b) Coverage ratio → modo adaptativo.
+  //     metaEco = meta total × splitEcoPct/100; coverage = capacidade atual / metaEco.
+  const meta = Number(snap?.meta ?? 0);
+  const splitEcoPct = Number(snap?.splitEcoPct ?? 0);
+  const metaEco = meta > 0 && splitEcoPct > 0 ? meta * (splitEcoPct / 100) : 0;
+  const coverageRatio = metaEco > 0 ? existingTotalPlanned / metaEco : 1;
+  const mode = selectCoverageMode(coverageRatio);
+  const [affLo, affHi] = AFFINITY_RANGE_BY_MODE[mode];
+  console.log("[replan] coverage", { existingTotalPlanned, metaEco, coverageRatio, mode, affinityRange: [affLo, affHi] });
 
   // 3) Candidatas PRIMÁRIAS: managed_playlists do mesmo gênero, ativas, fora do plano
   const { data: candidatePls, error: cErr } = await admin
@@ -149,7 +163,7 @@ Deno.serve(async (req) => {
   const freshPrimary = (candidatePls ?? []).filter((p: any) => !usedIds.has(p.id));
 
   // 3b) Candidatas VIZINHAS: gêneros com afinidade >= 0.60 (excluindo o primário).
-  //     Posições forçadas em [5,10] para não competir com slots premium do primário.
+  //     Posições forçadas em AFFINITY_RANGE_BY_MODE (3-5 em modo máximo, senão 5-10).
   const neighbors = await getGenreNeighbors(admin, primaryGenreId, NEIGHBOR_AFFINITY_THRESHOLD);
   const neighborGenreIds = neighbors
     .map(n => n.genre_id)
@@ -173,24 +187,26 @@ Deno.serve(async (req) => {
       ok: true,
       added: 0,
       plays_per_day_added: 0,
+      mode,
+      coverage_ratio: coverageRatio,
       message: "Nenhuma playlist nova (primário ou vizinhos) fora do plano.",
     });
   }
 
-  // 4) Posições — primário usa distributeEcoPositions (respeita tier).
-  //    Vizinhos são forçados em [5,10] via RNG determinístico por id.
+  // 4) Posições — primário via distributeEcoPositions com modo adaptativo.
+  //    Vizinhos forçados em AFFINITY_RANGE_BY_MODE.
   const prelimAllocs = freshPrimary.map((p: any) => ({
     id: p.id,
     planned_streams: Math.round(Number(p.followers ?? 0) * (mult / 30) * 0.05 * days),
     followers: Number(p.followers ?? 0),
   }));
-  const primaryPositions = distributeEcoPositions(prelimAllocs, days, mult);
+  const primaryPositions = distributeEcoPositions(prelimAllocs, days, mult, { mode });
 
   const neighborPositions = new Map<string, number>();
   for (const p of freshNeighbor) {
     const rng = seededRng(`neighbor-pos:${p.id}`);
-    const range = NEIGHBOR_POS_MAX - NEIGHBOR_POS_MIN + 1;
-    neighborPositions.set(p.id, NEIGHBOR_POS_MIN + Math.floor(rng() * range));
+    const range = affHi - affLo + 1;
+    neighborPositions.set(p.id, affLo + Math.floor(rng() * range));
   }
 
   // 5) Monta linhas + soma plays/dia adicionais
@@ -222,7 +238,7 @@ Deno.serve(async (req) => {
     buildRow(p, primaryPositions.get(p.id) ?? 3, "primary");
   }
   for (const p of freshNeighbor) {
-    buildRow(p, neighborPositions.get(p.id) ?? NEIGHBOR_POS_MIN, "affinity");
+    buildRow(p, neighborPositions.get(p.id) ?? affLo, "affinity");
   }
 
   const summary = {
@@ -233,6 +249,9 @@ Deno.serve(async (req) => {
     plays_per_day_primary: playsPerDayPrimary,
     plays_per_day_neighbor: playsPerDayNeighbor,
     neighbor_genres: neighborGenreIds,
+    coverage_ratio: coverageRatio,
+    mode,
+    affinity_range: [affLo, affHi],
   };
 
   if (dryRun) {

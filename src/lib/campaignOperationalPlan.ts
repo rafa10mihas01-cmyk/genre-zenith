@@ -256,50 +256,85 @@ export function recommendEcoPosition(
 
 export type EcoPositionInput = { id: string; planned_streams: number; followers: number };
 
+export type CoverageMode = "normal" | "optimized" | "maximum";
+
+/** Seleciona o modo de distribuição com base na razão capacidade/meta. */
+export function selectCoverageMode(coverageRatio?: number): CoverageMode {
+  if (!Number.isFinite(coverageRatio as number)) return "normal";
+  const r = coverageRatio as number;
+  if (r >= 0.8) return "normal";
+  if (r >= 0.5) return "optimized";
+  return "maximum";
+}
+
+/** Faixas fixas (lo,hi) por tier para modos otimizado/máximo (primário). */
+const PRIMARY_RANGES_BY_MODE: Partial<Record<CoverageMode, Record<PlaylistSizeTier, [number, number]>>> = {
+  optimized: { large: [1, 3], medium: [2, 5], small: [3, 7] },
+  maximum:   { large: [1, 2], medium: [1, 3], small: [2, 4] },
+};
+
+/** Faixa fixa para playlists de afinidade (vizinhos) por modo. */
+export const AFFINITY_RANGE_BY_MODE: Record<CoverageMode, [number, number]> = {
+  normal:    [5, 10],
+  optimized: [5, 10],
+  maximum:   [3, 5],
+};
+
 /**
  * Distribui posições para um lote, com anti-saturação: limita a fração de
- * faixas em slots fortes (#3-5). Se passar do teto, empurra próximas pra
- * slots médios/cauda. Determinístico (seed por id da alocação).
+ * faixas em slots fortes (#3-5). Determinístico (seed por id da alocação).
+ *
+ * Modo adaptativo: passe `coverageRatio` (capacidadeTotal/metaEco) para
+ * selecionar `normal` (≥0.80, tiers atuais), `optimized` (≥0.50, faixas
+ * encurtadas pra frente) ou `maximum` (<0.50, primário em slots fortes,
+ * cap de slots fortes IGNORADO).
  */
 export function distributeEcoPositions(
   allocs: EcoPositionInput[],
   days: number,
   engagementMultiplier = 30,
-  opts: { strongSlotShareCap?: number; preferredSlots?: number[] } = {},
+  opts: { strongSlotShareCap?: number; preferredSlots?: number[]; coverageRatio?: number; mode?: CoverageMode } = {},
 ): Map<string, number> {
   const preferredSlots = (opts.preferredSlots ?? []).filter((p) => Number.isFinite(p) && p >= 1);
+  const mode: CoverageMode = opts.mode ?? selectCoverageMode(opts.coverageRatio);
   const cap = opts.strongSlotShareCap ?? 0.4;
   const total = allocs.length;
-  const maxStrong = Math.max(1, Math.floor(total * cap));
+  const maxStrong = mode === "maximum" ? Infinity : Math.max(1, Math.floor(total * cap));
   const ordered = [...allocs].sort((a, b) => b.followers - a.followers);
   const result = new Map<string, number>();
   if (preferredSlots.length > 0) {
     ordered.forEach((a, index) => result.set(a.id, preferredSlots[index % preferredSlots.length] ?? MIN_CAMPAIGN_POSITION));
     return result;
   }
+  const fixedRanges = PRIMARY_RANGES_BY_MODE[mode];
   let strongUsed = 0;
 
   for (const a of ordered) {
     const tier = classifyPlaylistSize(a.followers);
     const rng = seededRng(`pos:${a.id}`);
-    let [lo, hi] = pickBucket(rng, tier);
-    if (lo <= 5 && strongUsed >= maxStrong) {
-      const rest = POSITION_BUCKETS[tier].filter(b => b[0] > 5);
-      if (rest.length) {
-        const sum = rest.reduce((s, b) => s + b[2], 0);
-        const r = rng();
-        let acc = 0;
-        for (const [blo, bhi, p] of rest) {
-          acc += p / sum;
-          if (r <= acc) { lo = blo; hi = bhi; break; }
+    let lo: number;
+    let hi: number;
+    if (fixedRanges) {
+      [lo, hi] = fixedRanges[tier];
+    } else {
+      [lo, hi] = pickBucket(rng, tier);
+      if (lo <= 5 && strongUsed >= maxStrong) {
+        const rest = POSITION_BUCKETS[tier].filter(b => b[0] > 5);
+        if (rest.length) {
+          const sum = rest.reduce((s, b) => s + b[2], 0);
+          const r = rng();
+          let acc = 0;
+          for (const [blo, bhi, p] of rest) {
+            acc += p / sum;
+            if (r <= acc) { lo = blo; hi = bhi; break; }
+          }
+        } else {
+          lo = 6; hi = 10;
         }
-      } else {
-        lo = 6; hi = 10;
       }
     }
     const candidate = lo + Math.floor(rng() * (hi - lo + 1));
     const viable = maxViablePosition(a.planned_streams, days, a.followers, engagementMultiplier);
-    // Slot mais fraco aceitável = `viable`. Se o sorteio caiu mais fraco que isso, sobe.
     const pos = Math.max(MIN_CAMPAIGN_POSITION, Math.min(candidate, viable));
     if (pos <= 5) strongUsed++;
     result.set(a.id, pos);
