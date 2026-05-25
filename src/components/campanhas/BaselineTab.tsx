@@ -18,7 +18,12 @@ type Row = {
   image_url: string | null;
   followers: number | null;
   spotify_owner_name: string | null;
+  spotify_playlist_id: string | null;
+  spotify_owner_id: string | null;
+  isInternal?: boolean;
+  curatorName?: string | null;
 };
+
 
 type BaselineUpload = {
   id: string;
@@ -55,7 +60,7 @@ export function BaselineTab({ dealId }: Props) {
       const [snapsRes, uploadRes] = await Promise.all([
         supabase
           .from("curator_deal_snapshots")
-          .select("playlist_id, plays, captured_at, curator_playlists(playlist_name, spotify_url, image_url, followers, spotify_owner_name)")
+          .select("playlist_id, plays, captured_at, curator_playlists(playlist_name, spotify_url, image_url, followers, spotify_owner_name, spotify_playlist_id, spotify_owner_id)")
           .eq("deal_id", dealId)
           .eq("is_baseline", true)
           .order("plays", { ascending: false }),
@@ -79,6 +84,8 @@ export function BaselineTab({ dealId }: Props) {
           image_url: string | null;
           followers: number | null;
           spotify_owner_name: string | null;
+          spotify_playlist_id: string | null;
+          spotify_owner_id: string | null;
         } | null;
       }>).map((r) => ({
         playlist_id: r.playlist_id,
@@ -89,14 +96,40 @@ export function BaselineTab({ dealId }: Props) {
         image_url: r.curator_playlists?.image_url ?? null,
         followers: r.curator_playlists?.followers ?? null,
         spotify_owner_name: r.curator_playlists?.spotify_owner_name ?? null,
+        spotify_playlist_id: r.curator_playlists?.spotify_playlist_id ?? null,
+        spotify_owner_id: r.curator_playlists?.spotify_owner_id ?? null,
       }));
 
-      setRows(mapped);
-      setCapturedAt(mapped[0]?.captured_at ?? null);
+      // 🏷️ Marca: (1) Engine = playlist está no nosso inventário interno
+      //          (2) Curador = owner é um curador cadastrado
+      const spIds = Array.from(new Set(mapped.map((r) => r.spotify_playlist_id).filter(Boolean) as string[]));
+      const ownerIds = Array.from(new Set(mapped.map((r) => r.spotify_owner_id).filter(Boolean) as string[]));
+
+      const [internalRes, curatorsRes] = await Promise.all([
+        spIds.length
+          ? supabase.from("playlists").select("spotify_playlist_id").in("spotify_playlist_id", spIds)
+          : Promise.resolve({ data: [] as Array<{ spotify_playlist_id: string }> }),
+        ownerIds.length
+          ? supabase.from("curators").select("spotify_owner_id, name").in("spotify_owner_id", ownerIds)
+          : Promise.resolve({ data: [] as Array<{ spotify_owner_id: string; name: string }> }),
+      ]);
+
+      const internalSet = new Set((internalRes.data ?? []).map((p) => p.spotify_playlist_id));
+      const curatorMap = new Map((curatorsRes.data ?? []).map((c) => [c.spotify_owner_id, c.name]));
+
+      const enriched = mapped.map((r) => ({
+        ...r,
+        isInternal: r.spotify_playlist_id ? internalSet.has(r.spotify_playlist_id) : false,
+        curatorName: r.spotify_owner_id ? curatorMap.get(r.spotify_owner_id) ?? null : null,
+      }));
+
+      setRows(enriched);
+      setCapturedAt(enriched[0]?.captured_at ?? null);
       setUpload((uploadRes.data as BaselineUpload | null) ?? null);
       setLoading(false);
     })();
   }, [dealId]);
+
 
   async function handleDownload() {
     if (!upload?.file_path) {
@@ -248,10 +281,27 @@ export function BaselineTab({ dealId }: Props) {
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-sm font-medium text-foreground truncate">
                         {r.playlist_name ?? "Playlist sem nome"}
                       </span>
+                      {r.isInternal && (
+                        <span
+                          className="text-[9px] uppercase tracking-wide bg-primary/15 text-primary border border-primary/40 rounded px-1.5 py-0.5 font-semibold shrink-0"
+                          title="Playlist do nosso inventário interno"
+                        >
+                          Engine
+                        </span>
+                      )}
+                      {!r.isInternal && r.curatorName && (
+                        <span
+                          className="text-[9px] uppercase tracking-wide bg-purple-500/15 text-purple-400 border border-purple-500/40 rounded px-1.5 py-0.5 font-semibold shrink-0"
+                          title={`Curador cadastrado: ${r.curatorName}`}
+                        >
+                          Curador
+                        </span>
+                      )}
+
                       {r.spotify_url && (
                         <a
                           href={r.spotify_url}
