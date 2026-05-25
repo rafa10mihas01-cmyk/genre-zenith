@@ -1,4 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
+
+// Portal público do cliente — força tema escuro independente da preferência
+// salva no localStorage ou do sistema do visitante. O portal sempre preto.
+function useForceDarkTheme() {
+  useEffect(() => {
+    const root = document.documentElement;
+    const hadLight = root.classList.contains("light");
+    const prevColorScheme = root.style.colorScheme;
+    root.classList.remove("light");
+    root.classList.add("dark");
+    root.style.colorScheme = "dark";
+    return () => {
+      if (hadLight) {
+        root.classList.remove("dark");
+        root.classList.add("light");
+      }
+      root.style.colorScheme = prevColorScheme;
+    };
+  }, []);
+}
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -88,6 +108,7 @@ type SharedCampaignPlanResponse = {
 type PublicRpc = (fn: string, args: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
 
 export default function PlanoCampanhaPublico() {
+  useForceDarkTheme();
   const { token } = useParams<{ token: string }>();
   const [camp, setCamp] = useState<Camp | null>(null);
   const [allocs, setAllocs] = useState<EcoAllocation[]>([]);
