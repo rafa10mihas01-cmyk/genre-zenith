@@ -185,7 +185,7 @@ export function TrackActionsPanel({
             Não foi possível ler presença atual: {error}
           </div>
         ) : (
-          <div className="divide-y divide-border">
+          <div className="divide-y divide-border max-h-[900px] overflow-y-auto">
             {actions.map((a) => {
               const meta = KIND_META[a.kind];
               const Icon = meta.icon;
