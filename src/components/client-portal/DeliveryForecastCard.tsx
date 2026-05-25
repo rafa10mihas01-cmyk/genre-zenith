@@ -174,6 +174,13 @@ export function DeliveryForecastCard({ forecast }: Props) {
                 tickFormatter={(v) => formatPlays(v as number)} width={48}
                 domain={[0, yRightMax]}
               />
+              {/* Eixo oculto pra plotar a meta total contratada */}
+              {goalPlays > 0 && (
+                <YAxis
+                  yAxisId="goal" orientation="right" hide
+                  domain={[0, goalPlays * 1.1]}
+                />
+              )}
               <ReTooltip
                 contentStyle={{
                   background: "hsl(var(--card))",
