@@ -508,6 +508,17 @@ export default function CampanhaExecucao() {
         slots={{
           overview: (
             <div className="space-y-6">
+              {(() => {
+                const baseline = recentUploads.find((u) => u.is_baseline);
+                return baseline ? (
+                  <BaselineCard
+                    capturedAt={baseline.created_at}
+                    totalStreams={baseline.total_streams}
+                    playlistsDetected={baseline.rows_imported}
+                    fileName={baseline.file_name}
+                  />
+                ) : null;
+              })()}
               <OverviewTab
                 snapshot={snapshot}
                 delivered={delivered}
