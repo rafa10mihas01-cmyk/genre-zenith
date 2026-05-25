@@ -285,6 +285,12 @@ export function DeliveryForecastCard({ forecast }: Props) {
               {top200Position ? `Alvo Top ${top200Position}` : "Alvo"}
             </span>
           )}
+          {goalPlays > 0 && (
+            <span className="inline-flex items-center gap-1.5">
+              <span className="inline-block h-0 w-4 border-t-2 border-dashed border-muted-foreground/40" />
+              Meta contratada
+            </span>
+          )}
         </div>
 
         <p className="text-[11px] text-muted-foreground leading-relaxed">
