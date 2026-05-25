@@ -108,65 +108,8 @@ export function CalculadoraResultado({ r }: { r: CampaignResult }) {
   );
 }
 
-/** KPI headline — destaque máximo, ocupa 2 colunas no desktop */
-function KpiHero({ icon: Icon, label, value, hint }: { icon: any; label: string; value: string; hint?: string }) {
-  return (
-    <div className="md:col-span-2 rounded-2xl border border-border border-l-2 border-l-primary bg-card p-4 relative overflow-hidden">
-      {/* glow sutil verde no canto — cockpit feel */}
-      <div className="absolute -top-12 -right-12 h-32 w-32 rounded-full bg-primary/10 blur-2xl pointer-events-none" aria-hidden />
-      <div className="relative flex items-center gap-2 text-[11px] uppercase tracking-[0.12em] font-semibold text-primary">
-        <Icon className="h-3.5 w-3.5" />
-        {label}
-      </div>
-      <div className="relative text-3xl md:text-4xl font-semibold mt-1.5 tabular-nums tracking-tight text-foreground">
-        {value}
-      </div>
-      {hint && <div className="relative text-xs text-muted-foreground mt-1">{hint}</div>}
-    </div>
-  );
-}
+// KPIs locais (KpiHero/Kpi/KpiQuiet/KpiClient) consolidados em @/components/ui/kpi
 
-/** KPI secundário — leitura tática */
-function Kpi({ icon: Icon, label, value, hint }: { icon: any; label: string; value: string; hint?: string }) {
-  return (
-    <div className="rounded-2xl border border-border bg-card p-4">
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
-        <Icon className="h-3.5 w-3.5" />
-        {label}
-      </div>
-      <div className="text-xl font-semibold mt-1 tabular-nums text-foreground">{value}</div>
-      {hint && <div className="text-xs text-muted-foreground mt-0.5">{hint}</div>}
-    </div>
-  );
-}
-
-/** KPI terciário — referência financeira, peso reduzido */
-function KpiQuiet({ icon: Icon, label, value, hint }: { icon: any; label: string; value: string; hint?: string }) {
-  return (
-    <div className="rounded-2xl border border-border/60 bg-card/60 p-4">
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground/80">
-        <Icon className="h-3.5 w-3.5" />
-        {label}
-      </div>
-      <div className="text-lg font-medium mt-1 tabular-nums text-muted-foreground">{value}</div>
-      {hint && <div className="text-xs text-muted-foreground/70 mt-0.5">{hint}</div>}
-    </div>
-  );
-}
-
-/** KPI cliente — destaca o valor cobrado, com borda primary suave */
-function KpiClient({ icon: Icon, label, value, hint }: { icon: any; label: string; value: string; hint?: string }) {
-  return (
-    <div className="rounded-2xl border border-primary/40 bg-primary/5 p-4">
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider font-semibold text-primary">
-        <Icon className="h-3.5 w-3.5" />
-        {label}
-      </div>
-      <div className="text-xl font-semibold mt-1 tabular-nums text-foreground">{value}</div>
-      {hint && <div className="text-[10px] text-muted-foreground mt-0.5">{hint}</div>}
-    </div>
-  );
-}
 
 function SplitBar({
   label, pct, streams, custo, tone,
