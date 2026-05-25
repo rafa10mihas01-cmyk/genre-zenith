@@ -628,7 +628,11 @@ export default function CampanhaExecucao() {
                 <TabsTrigger value="externo">Externo</TabsTrigger>
               </TabsList>
               <TabsContent value="interno" className="mt-0 space-y-4">
-                <GenresUsedFromAllocs allocs={allocs} />
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <GenresUsedFromAllocs allocs={allocs} />
+                  <ReplanButton campaignId={camp.id} onReplanned={loadCampaign} />
+                </div>
+
                 <InternalEcosystemHeader
                   snapshot={snapshot}
                   allocations={allocs}
