@@ -95,6 +95,7 @@ export default function PlanoCampanhaPublico() {
   const [lastUploadAt, setLastUploadAt] = useState<string | null>(null);
   const [recentUploads, setRecentUploads] = useState<SpreadsheetUpload[]>([]);
   const [collectionMode, setCollectionMode] = useState<"bot" | "spreadsheet">("bot");
+  const [forecast, setForecast] = useState<ForecastPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [tab, setTab] = useState<CampaignHubTabId>("overview");
