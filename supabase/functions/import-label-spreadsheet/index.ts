@@ -599,7 +599,7 @@ Deno.serve(async (req) => {
       if (cpErr) console.error("curator_playlists upsert error", cpErr);
 
       // 3.0b) Lê de volta os ids (curator_playlists.id) pra usar como playlist_id.
-      const spIds = matchedInternal.map((r) => r.playlist_spotify_id as string);
+      const spIds = allPlaylistRows.map((r) => r.playlist_spotify_id as string);
       const { data: cpRows } = await admin
         .from("curator_playlists")
         .select("id, spotify_playlist_id")
@@ -609,11 +609,13 @@ Deno.serve(async (req) => {
         (cpRows ?? []).map((p: any) => [p.spotify_playlist_id as string, p.id as string]),
       );
 
-      const enriched = matchedInternal
+      // Snapshots: TODAS as playlists (internas + orgânicas) — pra baseline ter
+      // a foto completa e pra calcular entrega a partir de qualquer playlist.
+      const enrichedAll = allPlaylistRows
         .map((r) => ({ r, cpId: cpIdBySpotify.get(r.playlist_spotify_id as string) }))
-        .filter((x): x is { r: typeof matchedInternal[number]; cpId: string } => !!x.cpId);
+        .filter((x): x is { r: typeof allPlaylistRows[number]; cpId: string } => !!x.cpId);
 
-      const snapshotRows = enriched.map(({ r, cpId }) => ({
+      const snapshotRows = enrichedAll.map(({ r, cpId }) => ({
         deal_id: dealId,
         song_id: songId,
         playlist_id: cpId,
@@ -647,8 +649,13 @@ Deno.serve(async (req) => {
       // delivery_proofs — alimenta o painel admin (campaign hub → Prints).
       // ⚠️ Baseline NÃO vira entrega: é apenas o ponto de partida da música
       //   antes da campanha. Só uploads incrementais geram delivery_proofs.
+      // E só vale pras playlists INTERNAS (nossas) — orgânicas ficam só
+      // no snapshot, sem print de entrega.
       if (!isBaseline && songId && trackNameForProofs) {
-        const proofRows = enriched.map(({ r, cpId }) => ({
+        const enrichedInternal = matchedInternal
+          .map((r) => ({ r, cpId: cpIdBySpotify.get(r.playlist_spotify_id as string) }))
+          .filter((x): x is { r: typeof matchedInternal[number]; cpId: string } => !!x.cpId);
+        const proofRows = enrichedInternal.map(({ r, cpId }) => ({
           deal_id: dealId,
           song_id: songId,
           playlist_id: cpId,
