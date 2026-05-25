@@ -133,7 +133,7 @@ export function canAllocateTrackToPosition(
  * Posições 1 e 2 são reservadas pras faixas orgânicas que trazem engajamento
  * pra própria playlist — campanha nunca entra nelas (anti-spam Spotify).
  */
-export const MIN_CAMPAIGN_POSITION = 3;
+export const MIN_CAMPAIGN_POSITION = 1;
 
 export function getCampaignPreferredPositions(snapshot?: CampaignSnapshot | null): number[] {
   const music = snapshot?.music as (CampaignSnapshot["music"] & {
