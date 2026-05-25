@@ -398,7 +398,7 @@ Deno.serve(async (req) => {
       }
 
       if (id) {
-        const patch: any = { name, max_accounts, is_default, notes, status };
+        const patch: any = { name, max_accounts, is_default, notes, owner_email, status };
         if (client_id) patch.client_id = client_id;
         if (client_secret) patch.client_secret = client_secret;
         if (slug) patch.slug = slug;
@@ -406,7 +406,7 @@ Deno.serve(async (req) => {
         if (error) return jr({ ok: false, error: error.message }, 500);
         return jr({ ok: true, id });
       } else {
-        const insert: any = { name, client_id, client_secret, max_accounts, is_default, notes, status };
+        const insert: any = { name, client_id, client_secret, max_accounts, is_default, notes, owner_email, status };
         if (slug) insert.slug = slug;
         const { data, error } = await supabase
           .from("spotify_apps")
