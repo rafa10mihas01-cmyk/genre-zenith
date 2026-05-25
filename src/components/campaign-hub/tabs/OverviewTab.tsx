@@ -443,18 +443,16 @@ export function OverviewTab({
 
 function Kpi({ label, value, sub, tone, compact }: { label: string; value: string; sub?: string; tone?: "primary" | "warning"; compact?: boolean }) {
   return (
-    <div className={cn("rounded-xl border border-border bg-card", compact ? "p-3" : "p-4")}>
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{label}</div>
-      <div className={cn(
-        "font-semibold tabular-nums leading-tight mt-1",
-        compact ? "text-lg" : "text-2xl",
-        tone === "primary" && "text-primary",
-        tone === "warning" && "text-warning",
-      )}>{value}</div>
-      {sub && <div className="text-[10px] text-muted-foreground tabular-nums mt-1">{sub}</div>}
-    </div>
+    <UnifiedKpi
+      variant={compact ? "compact" : "default"}
+      label={label}
+      value={value}
+      hint={sub}
+      tone={tone}
+    />
   );
 }
+
 
 function SplitRow({
   tone, label, metaTotal, metaPct, deliveredTotal, perDay,
