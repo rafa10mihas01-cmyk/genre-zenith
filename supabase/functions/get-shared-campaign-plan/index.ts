@@ -4,6 +4,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkRateLimit, clientIp, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { buildEcoPlan } from "../_shared/computeEcoPlan.ts";
+import { verifyAccessJwt } from "../_shared/campaign-access-jwt.ts";
 
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -47,6 +48,14 @@ Deno.serve(async (req) => {
     return jr({ error: "invalid_token" }, 400);
   }
 
+  // Gate de autenticação OTP — exige Bearer JWT emitido por verify-campaign-otp,
+  // ligado a este mesmo token público.
+  const authHeader = req.headers.get("authorization") || req.headers.get("Authorization") || "";
+  const bearer = authHeader.toLowerCase().startsWith("bearer ") ? authHeader.slice(7).trim() : "";
+  if (!bearer) return jr({ error: "auth_required" }, 401);
+  const payload = await verifyAccessJwt(bearer);
+  if (!payload || payload.token !== token) return jr({ error: "auth_required" }, 401);
+
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
   // Lê só o estritamente necessário pro portal do cliente.
@@ -58,6 +67,9 @@ Deno.serve(async (req) => {
 
   if (cErr) return jr({ error: cErr.message }, 500);
   if (!campRaw) return jr({ error: "not_found" }, 404);
+
+  // Defesa em profundidade: JWT precisa ser pra esta campanha
+  if (payload.campaign_id !== campRaw.id) return jr({ error: "auth_required" }, 401);
 
   // Link expira automaticamente quando a campanha é encerrada.
   // Hoje só `status='completed'` indica encerramento (não existe coluna closed_at em campaigns).

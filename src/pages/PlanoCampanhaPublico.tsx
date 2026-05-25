@@ -51,6 +51,7 @@ import type { CampaignHubCampaign, CampaignHubTabId, EcoAllocation } from "@/com
 import { EvolutionChart, type EvolutionSeriesPoint } from "@/components/client-portal/EvolutionChart";
 import { DeliveryForecastCard, type ForecastPayload } from "@/components/client-portal/DeliveryForecastCard";
 import { GenresUsedChip, type GenreUsed } from "@/components/campanhas/GenresUsedChip";
+import { CampaignAccessGate, accessStorageKey } from "@/components/client-portal/CampaignAccessGate";
 
 
 type EcoSnap = {
@@ -142,12 +143,36 @@ export default function PlanoCampanhaPublico() {
   const [adjustName, setAdjustName] = useState("");
   const [adjusting, setAdjusting] = useState(false);
 
+  // Sessão OTP — JWT 24h no localStorage
+  const [accessJwt, setAccessJwt] = useState<string | null>(() => {
+    if (!token) return null;
+    try {
+      const raw = localStorage.getItem(accessStorageKey(token));
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as { jwt: string; exp: number };
+      if (!parsed?.jwt || !parsed?.exp || parsed.exp < Date.now()) {
+        localStorage.removeItem(accessStorageKey(token));
+        return null;
+      }
+      return parsed.jwt;
+    } catch { return null; }
+  });
+
   async function load() {
-    if (!token) return;
+    if (!token || !accessJwt) return;
     setLoading(true);
-    const { data, error } = await supabase.functions.invoke("get-shared-campaign-plan", { body: { token } });
+    const { data, error } = await supabase.functions.invoke("get-shared-campaign-plan", {
+      body: { token },
+      headers: { Authorization: `Bearer ${accessJwt}` },
+    });
     const payload = data as SharedCampaignPlanResponse | null;
     if (error || payload?.error) {
+      if (payload?.error === "auth_required") {
+        try { localStorage.removeItem(accessStorageKey(token)); } catch { /* ignore */ }
+        setAccessJwt(null);
+        setLoading(false);
+        return;
+      }
       setErr(payload?.error ?? error?.message ?? "Erro");
     } else {
       setCamp(payload?.campaign ?? null);
@@ -161,14 +186,18 @@ export default function PlanoCampanhaPublico() {
       setForecast(payload?.forecast ?? null);
       setGenresUsed(payload?.genres_used ?? []);
       setOrganicSummary(payload?.organic_summary ?? null);
-
       setErr(null);
-
     }
     setLoading(false);
   }
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [token]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [token, accessJwt]);
+
+  if (!token) return null;
+  if (!accessJwt) {
+    return <CampaignAccessGate token={token} onAuthed={(jwt) => setAccessJwt(jwt)} />;
+  }
+
 
   // Após termos o client_token (resolvido pela edge get-shared-campaign-plan),
   // buscamos o payload público sanitizado para alimentar as listas de
