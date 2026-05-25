@@ -373,6 +373,13 @@
   .nx-tabs-scroll::-webkit-scrollbar,
   .nx-tab-rail::-webkit-scrollbar { display: none; }
   .nx-tab-rail > * { flex-shrink: 0; }
+  /* Utilitário global pra esconder scrollbar nativa (usado por trilhos de abas com overflow-x-auto). */
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+
   /* Card de gênero: usa a variável --g (HSL) injetada via style. Borda + glow tingidos. */
   .genre-card {
     border-color: hsl(var(--g) / 0.18);
