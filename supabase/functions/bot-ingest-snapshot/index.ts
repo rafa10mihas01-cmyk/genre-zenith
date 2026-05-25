@@ -4,6 +4,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { assertDealOperable } from "../_shared/deal-access.ts";
 import { recordMetric } from "../_shared/ops-metrics.ts";
+import { classifyPlaylistKind, isAlgorithmic } from "../_shared/algorithmic-classifier.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -230,8 +231,29 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Se não encontrou: NÃO cria nova playlist. Loga + notifica + pula.
+    // Se não encontrou: NÃO cria nova playlist. Antes de descartar, checa
+    // se é superfície ALGORÍTMICA do Spotify (Rádio, Mixes, Daily Mix,
+    // Discover Weekly, Smart Shuffle...) e grava em organic_plays_snapshots
+    // pra preservar a tração algorítmica em vez de jogar fora.
     if (!playlistId) {
+      const madeBy = (snap as any).made_by ?? null;
+      if (isAlgorithmic(sName, madeBy, sId)) {
+        const kind = classifyPlaylistKind(sName, madeBy, sId);
+        await supabase.from("organic_plays_snapshots").insert({
+          deal_id,
+          song_id,
+          spotify_track_id: songInfo?.spotify_track_id ?? null,
+          spotify_playlist_id: sId,
+          playlist_name: sName,
+          kind,
+          plays_24h: plays24h,
+          plays_7d: plays7d,
+          plays_28d: plays28d,
+          source: snap.source ?? "spotify_for_artists",
+        });
+        continue;
+      }
+
       const ref = sId ?? sName ?? "unknown";
       await supabase.from("collection_logs").insert({
         acao: "no_match",

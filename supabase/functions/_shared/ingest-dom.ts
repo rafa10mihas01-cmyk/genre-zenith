@@ -2,6 +2,7 @@
 // Single source of truth for processing playsMap snapshots from the VPS bot.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { assertDealOperable } from "./deal-access.ts";
+import { classifyPlaylistKind, isAlgorithmic } from "./algorithmic-classifier.ts";
 
 export type DomItem = {
   deal_id: string;
@@ -165,8 +166,29 @@ export async function processDomItem(
     }
 
     if (!playlistId) {
-      // NÃO cria nova playlist automaticamente: snapshot pertence a playlist
-      // não cadastrada no deal. Loga + notifica + pula.
+      // NÃO cria nova playlist automaticamente. Antes de descartar, checa
+      // se é superfície ALGORÍTMICA do Spotify (Rádio, Mixes, Daily Mix,
+      // Discover Weekly, etc.) — se for, grava em organic_plays_snapshots
+      // pra preservar a tração algorítmica em vez de jogar fora.
+      const madeBy = (p as any).made_by ?? null;
+      if (isAlgorithmic(sName, madeBy, sId)) {
+        const kind = classifyPlaylistKind(sName, madeBy, sId);
+        await supabase.from("organic_plays_snapshots").insert({
+          deal_id,
+          song_id,
+          spotify_track_id: null,
+          spotify_playlist_id: sId,
+          playlist_name: sName,
+          kind,
+          plays_24h: plays24h,
+          plays_7d: plays7d,
+          plays_28d: plays28d,
+          source: p.source ?? "spotify_for_artists_dom",
+          correlation_id: item.correlation_id ?? null,
+        });
+        continue;
+      }
+
       const ref = sId ?? sName ?? "unknown";
       await supabase.from("collection_logs").insert({
         acao: "no_match",

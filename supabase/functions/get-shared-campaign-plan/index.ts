@@ -250,6 +250,35 @@ Deno.serve(async (req) => {
     }
   } catch (_) { /* genres_used é opcional */ }
 
+  // Resumo de plays orgânicos/algorítmicos vindos de superfícies não
+  // cadastradas no deal (Rádio, Mixes, Daily Mix, Discover Weekly...).
+  // Pega o último snapshot por playlist e soma — proxy de tração algorítmica.
+  let organicSummary: { total_plays: number; by_kind: Record<string, number> } = {
+    total_plays: 0,
+    by_kind: {},
+  };
+  try {
+    if (dealId) {
+      const { data: organicRows } = await supabase
+        .from("organic_plays_snapshots")
+        .select("spotify_playlist_id, playlist_name, kind, plays_7d, plays_28d, plays_24h, captured_at")
+        .eq("deal_id", dealId)
+        .order("captured_at", { ascending: false })
+        .limit(1000);
+      const seen = new Set<string>();
+      for (const r of (organicRows ?? []) as any[]) {
+        const key = r.spotify_playlist_id ?? `name:${(r.playlist_name ?? "").toLowerCase()}`;
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        const v = Number(r.plays_7d ?? r.plays_28d ?? r.plays_24h ?? 0);
+        if (!Number.isFinite(v) || v <= 0) continue;
+        const k = String(r.kind ?? "algorithmic");
+        organicSummary.by_kind[k] = (organicSummary.by_kind[k] ?? 0) + v;
+        organicSummary.total_plays += v;
+      }
+    }
+  } catch (_) { /* organic_summary é opcional */ }
+
   return jr({
     campaign: camp,
     allocations: allocs ?? [],
@@ -261,6 +290,7 @@ Deno.serve(async (req) => {
     collection_mode: collectionMode,
     forecast,
     genres_used: genresUsed,
+    organic_summary: organicSummary,
     // compat: até o portal antigo migrar
     has_spotify_access: collectionMode !== "spreadsheet",
   });
