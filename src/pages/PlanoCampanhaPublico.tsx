@@ -458,7 +458,7 @@ export default function PlanoCampanhaPublico() {
                     />
                   );
                 })()}
-                {forecast && <DeliveryForecastCard forecast={forecast} evolutionSeries={evolutionSeries} />}
+                {forecast && <DeliveryForecastCard forecast={forecast} />}
                 {isApproved && evolutionSeries.length > 1 && (
                   <EvolutionChart
                     series={evolutionSeries}

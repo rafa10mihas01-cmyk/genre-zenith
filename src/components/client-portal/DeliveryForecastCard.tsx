@@ -1,7 +1,10 @@
-// Previsão de entrega — gráfico híbrido: REAL acumulado (linha sólida) +
-// PROJEÇÃO inteligente a partir de hoje (linha tracejada), com marco da
-// posição alvo do chart (Top 200) quando a campanha tem `top200Position`
-// no snapshot. Quando não tem (meta manual), mostra só o marco da meta.
+// Previsão de entrega — curva ESTÁTICA do plano aprovado.
+// Calculada uma vez a partir do simulation_snapshot (meta, days,
+// top200Position, top200StreamsDay) e nunca muda. Não lê dados ao vivo,
+// não acumula entrega real, não faz fetch.
+//
+// Distribuição: rampa 20/60/20 — primeiros 20% dos dias entregam 10%,
+// meio 60% entregam 70%, últimos 20% entregam 20% (entrada gradual).
 import { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Sparkles } from "lucide-react";
@@ -11,8 +14,8 @@ import {
 } from "recharts";
 
 export type ForecastPayload = {
-  curve: Array<{ day: number; cumulative: number }>;
-  goalHitDay: number | null;
+  curve?: Array<{ day: number; cumulative: number }>;
+  goalHitDay?: number | null;
   totalDays: number;
   goalPlays: number;
   startedAt?: string;
@@ -21,12 +24,7 @@ export type ForecastPayload = {
   plannedDailyAverage?: number;
 };
 
-export type EvolutionPoint = { date: string; delivered: number };
-
-type Props = {
-  forecast: ForecastPayload;
-  evolutionSeries?: EvolutionPoint[];
-};
+type Props = { forecast: ForecastPayload };
 
 function formatPlays(n: number): string {
   if (!Number.isFinite(n)) return "0";
@@ -39,108 +37,74 @@ function formatFull(n: number): string {
   return new Intl.NumberFormat("pt-BR").format(Math.round(n));
 }
 
-export function DeliveryForecastCard({ forecast, evolutionSeries = [] }: Props) {
+// Rampa 20/60/20: pesos por dia. Soma == 1.
+function buildRampWeights(days: number): number[] {
+  if (days <= 0) return [];
+  const n1 = Math.max(1, Math.floor(days * 0.2));
+  const n3 = Math.max(1, Math.floor(days * 0.2));
+  const n2 = Math.max(1, days - n1 - n3);
+  const w: number[] = [];
+  for (let i = 0; i < n1; i++) w.push(0.10 / n1);
+  for (let i = 0; i < n2; i++) w.push(0.70 / n2);
+  for (let i = 0; i < n3; i++) w.push(0.20 / n3);
+  // Garante length == days (arredondamento de Math.floor pode ter sobrado/faltado)
+  while (w.length < days) w.push(w[w.length - 1] ?? 0);
+  return w.slice(0, days);
+}
+
+export function DeliveryForecastCard({ forecast }: Props) {
   const {
     totalDays, goalPlays,
-    startedAt, top200Position, top200StreamsDay,
-    plannedDailyAverage = 0,
+    top200Position, top200StreamsDay,
   } = forecast;
 
-  // Benchmark de chart: top200StreamsDay × 30 (equivalente mensal cumulativo
-  // pra "manter a posição X" no Top 200 ao longo de um mês).
-  const chartBenchmark = top200Position && top200StreamsDay
-    ? top200StreamsDay * 30
-    : null;
-
   const data = useMemo(() => {
-    const days = Math.max(1, totalDays || 30);
-    const start = startedAt ? new Date(startedAt) : null;
+    const days = Math.max(1, totalDays || 0);
+    const meta = Math.max(0, goalPlays || 0);
+    const weights = buildRampWeights(days);
 
-    // 1) Curva REAL — agrega evolutionSeries por dia da campanha (D1..DN).
-    const realByDay: number[] = Array.from({ length: days }, () => 0);
-    if (start && evolutionSeries.length > 0) {
-      for (const p of evolutionSeries) {
-        const t = new Date(p.date).getTime();
-        const dayIdx = Math.floor((t - start.getTime()) / 86_400_000);
-        if (dayIdx >= 0 && dayIdx < days) {
-          realByDay[dayIdx] += Math.max(0, p.delivered || 0);
-        }
-      }
-    }
+    // Curva acumulada planejada (rampa 20/60/20).
+    let running = 0;
+    const points = weights.map((w, i) => {
+      running += meta * w;
+      return { day: i + 1, label: `D${i + 1}`, planejado: Math.round(running) };
+    });
 
-    // 2) Dia atual relativo à campanha (1-based, clamp).
-    const today = start
-      ? Math.min(days, Math.max(1, Math.ceil((Date.now() - start.getTime()) / 86_400_000)))
-      : 1;
+    // Benchmark: total necessário pra manter posição alvo durante toda a campanha.
+    const benchmark = top200Position && top200StreamsDay
+      ? top200StreamsDay * days
+      : null;
 
-    // 3) Cumulativo real até hoje.
-    let runningReal = 0;
-    const realCumByDay: (number | null)[] = Array.from({ length: days }, () => null);
-    for (let i = 0; i < today; i++) {
-      runningReal += realByDay[i] ?? 0;
-      realCumByDay[i] = runningReal;
-    }
-    const cumulativeNow = runningReal;
-
-    // 4) Ritmo dos últimos 7 dias com dados reais (> 0). Se 0, cai pro planejado.
-    const recentDays = realByDay.slice(Math.max(0, today - 7), today);
-    const nonZero = recentDays.filter((v) => v > 0);
-    const avgRecent = nonZero.length > 0
-      ? nonZero.reduce((s, v) => s + v, 0) / nonZero.length
-      : 0;
-    const rate = avgRecent > 0 ? avgRecent : Math.max(0, plannedDailyAverage);
-
-    // 5) Projeção linear a partir de hoje. Estende até cruzar benchmark/goal,
-    //    sem exceder totalDays*2 (proteção).
-    const projCumByDay: (number | null)[] = Array.from({ length: days }, () => null);
-    if (today >= 1 && today <= days) {
-      projCumByDay[today - 1] = cumulativeNow;
-      for (let i = today; i < days; i++) {
-        projCumByDay[i] = (projCumByDay[i - 1] ?? cumulativeNow) + rate;
-      }
-    }
-
-    // 6) Dia do marco (benchmark do chart OU goal_plays quando não há chart).
-    const targetForMark = chartBenchmark ?? (goalPlays > 0 ? goalPlays : null);
+    // Dia do marco: primeiro dia onde acumulado >= top200StreamsDay × dia
+    // (ritmo necessário pra manter a posição). Fallback pro benchmark total
+    // se nunca cruzar a curva incremental.
     let markDay: number | null = null;
     let markValue: number | null = null;
-    if (targetForMark) {
-      for (let i = 0; i < days; i++) {
-        const cum = realCumByDay[i] ?? projCumByDay[i];
-        if (cum != null && cum >= targetForMark) { markDay = i + 1; markValue = cum; break; }
+    if (top200StreamsDay && top200Position) {
+      for (let i = 0; i < points.length; i++) {
+        const needed = top200StreamsDay * (i + 1);
+        if (points[i].planejado >= needed) {
+          markDay = i + 1;
+          markValue = points[i].planejado;
+          break;
+        }
       }
-      // Se não cruza dentro do prazo mas tem ritmo, extrapola só pra label.
-      if (markDay === null && rate > 0) {
-        const remaining = targetForMark - cumulativeNow;
-        if (remaining > 0) {
-          const extraDays = Math.ceil(remaining / rate);
-          const cand = today + extraDays;
-          if (cand <= days * 2) { markDay = cand; markValue = targetForMark; }
+      if (markDay === null && benchmark) {
+        for (let i = 0; i < points.length; i++) {
+          if (points[i].planejado >= benchmark) {
+            markDay = i + 1;
+            markValue = points[i].planejado;
+            break;
+          }
         }
       }
     }
 
-    const points = Array.from({ length: days }, (_, i) => ({
-      day: i + 1,
-      label: `D${i + 1}`,
-      real: realCumByDay[i],
-      projecao: projCumByDay[i],
-    }));
+    const dailyAvg = days > 0 ? Math.round(meta / days) : 0;
+    return { points, benchmark, markDay, markValue, dailyAvg, days, meta };
+  }, [totalDays, goalPlays, top200Position, top200StreamsDay]);
 
-    return { points, today, markDay, markValue, rate, cumulativeNow, targetForMark };
-  }, [evolutionSeries, totalDays, startedAt, plannedDailyAverage, chartBenchmark, goalPlays]);
-
-  if (data.points.length < 2) return null;
-
-  const sentence = (() => {
-    if (data.markDay && chartBenchmark && top200Position) {
-      return `No ritmo atual (${formatFull(data.rate)} plays/dia), a faixa atinge o equivalente da posição #${top200Position} do Top 200 por volta do dia ${data.markDay}.`;
-    }
-    if (data.markDay && goalPlays > 0) {
-      return `No ritmo atual (${formatFull(data.rate)} plays/dia), a meta de ${formatFull(goalPlays)} plays é atingida por volta do dia ${data.markDay}.`;
-    }
-    return `Ritmo atual de ${formatFull(data.rate)} plays/dia ao longo de ${totalDays} dias.`;
-  })();
+  if (data.points.length < 2 || data.meta <= 0) return null;
 
   return (
     <Card className="border-border">
@@ -151,13 +115,13 @@ export function DeliveryForecastCard({ forecast, evolutionSeries = [] }: Props) 
             Previsão de entrega
           </h2>
           <p className="text-[12px] text-muted-foreground mt-1 leading-snug">
-            Plays reais entregues e projeção a partir de hoje
+            Curva planejada do plano aprovado
           </p>
         </div>
 
         <div className="h-[240px] sm:h-[280px] w-full -mx-2">
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={data.points} margin={{ top: 16, right: 16, left: 0, bottom: 0 }}>
+            <ComposedChart data={data.points} margin={{ top: 20, right: 16, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
               <XAxis
                 dataKey="label"
@@ -176,21 +140,17 @@ export function DeliveryForecastCard({ forecast, evolutionSeries = [] }: Props) 
                   borderRadius: 12, fontSize: 12,
                 }}
                 labelStyle={{ color: "hsl(var(--muted-foreground))" }}
-                formatter={(v: number, name: string) => {
-                  const label = name === "real" ? "Entregue" : "Projeção";
-                  return [formatFull(v), label];
-                }}
+                formatter={(v: number) => [formatFull(v), "Plays planejados"]}
               />
 
-              {/* Benchmark do chart (cinza, pontilhado) */}
-              {chartBenchmark && (
+              {data.benchmark && (
                 <ReferenceLine
-                  y={chartBenchmark}
+                  y={data.benchmark}
                   stroke="hsl(var(--muted-foreground))"
                   strokeDasharray="2 4"
                   strokeOpacity={0.55}
                   label={{
-                    value: `Top ${top200Position} · ${formatPlays(chartBenchmark)}`,
+                    value: `Top ${top200Position} · ${formatPlays(data.benchmark)}`,
                     position: "insideTopRight",
                     fill: "hsl(var(--muted-foreground))",
                     fontSize: 10, fillOpacity: 0.85,
@@ -198,41 +158,13 @@ export function DeliveryForecastCard({ forecast, evolutionSeries = [] }: Props) 
                 />
               )}
 
-              {/* Meta contratada (quando não tem chart, vira referência principal) */}
-              {!chartBenchmark && goalPlays > 0 && (
-                <ReferenceLine
-                  y={goalPlays}
-                  stroke="hsl(var(--primary))"
-                  strokeDasharray="4 4"
-                  strokeOpacity={0.5}
-                  label={{
-                    value: `Meta · ${formatPlays(goalPlays)}`,
-                    position: "insideTopRight",
-                    fill: "hsl(var(--primary))",
-                    fontSize: 10, fillOpacity: 0.85,
-                  }}
-                />
-              )}
-
-              {/* Real — linha sólida verde */}
               <Line
-                type="monotone" dataKey="real"
+                type="monotone" dataKey="planejado"
                 stroke="hsl(var(--primary))" strokeWidth={2}
                 dot={false} isAnimationActive={false}
-                connectNulls={false}
               />
 
-              {/* Projeção — linha tracejada verde clara */}
-              <Line
-                type="monotone" dataKey="projecao"
-                stroke="hsl(var(--primary))" strokeWidth={1.5}
-                strokeDasharray="5 4" strokeOpacity={0.55}
-                dot={false} isAnimationActive={false}
-                connectNulls={false}
-              />
-
-              {/* Marco do dia estimado */}
-              {data.markDay && data.markValue != null && data.markDay <= totalDays && (
+              {data.markDay && data.markValue != null && (
                 <ReferenceDot
                   x={`D${data.markDay}`} y={data.markValue}
                   r={5}
@@ -240,9 +172,7 @@ export function DeliveryForecastCard({ forecast, evolutionSeries = [] }: Props) 
                   stroke="hsl(var(--background))"
                   strokeWidth={2}
                   label={{
-                    value: chartBenchmark && top200Position
-                      ? `Top ${top200Position} estimado · D${data.markDay}`
-                      : `Meta estimada · D${data.markDay}`,
+                    value: `Top ${top200Position} estimado · D${data.markDay}`,
                     position: "top",
                     fill: "hsl(var(--primary))",
                     fontSize: 10.5, fontWeight: 600,
@@ -255,10 +185,10 @@ export function DeliveryForecastCard({ forecast, evolutionSeries = [] }: Props) 
 
         <div className="space-y-1.5">
           <p className="text-[12.5px] text-foreground/85 leading-relaxed">
-            {sentence}
+            Ritmo planejado: {formatFull(data.dailyAvg)} plays/dia · Meta: {formatFull(data.meta)} plays em {data.days} dias
           </p>
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            Estimativa baseada no ritmo atual. Não é garantia de resultado.
+            Estimativa baseada no plano aprovado. Não é garantia de resultado.
           </p>
         </div>
       </CardContent>
