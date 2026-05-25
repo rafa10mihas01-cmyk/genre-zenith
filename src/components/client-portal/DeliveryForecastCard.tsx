@@ -9,13 +9,26 @@
 //    direto da curva do snapshot (curve[i].cumulative — cumulative[i-1]).
 //
 //  Ponto verde: primeiro dia em que a curva 1 atinge top200StreamsDay.
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Sparkles } from "lucide-react";
 import {
   CartesianGrid, ComposedChart, Line, ReferenceDot, ReferenceLine,
   ResponsiveContainer, Tooltip as ReTooltip, XAxis, YAxis,
 } from "recharts";
+
+function useNarrow(breakpoint = 640) {
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${breakpoint - 1}px)`);
+    const sync = () => setNarrow(mql.matches);
+    sync();
+    mql.addEventListener("change", sync);
+    return () => mql.removeEventListener("change", sync);
+  }, [breakpoint]);
+  return narrow;
+}
+
 
 export type ForecastPayload = {
   curve?: Array<{ day: number; cumulative: number }>;
