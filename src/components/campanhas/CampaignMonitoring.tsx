@@ -64,13 +64,21 @@ export function CampaignMonitoring({ campaignId, snapshot, campaignStartedAt, ca
 
   useEffect(() => { load(); }, [campaignId]);
 
+  // Curva fresca, recomputada com o envelope ATUAL do motor.
+  // Snapshot continua fonte de verdade pra meta/effectiveDays/split/custos;
+  // só a FORMA (streamsDay por dia) é refeita aqui.
+  const freshCurva = useMemo(() => {
+    const eff = (snapshot as any).effectiveDays ?? snapshot.days;
+    return recomputeCurva(snapshot.meta, eff, snapshot.splitEcoPct);
+  }, [snapshot.meta, (snapshot as any).effectiveDays, snapshot.days, snapshot.splitEcoPct]);
+
   const metrics = useMemo(() => {
-    const totalDays = snapshot.days;
+    const totalDays = freshCurva.length || snapshot.days;
     const elapsedMs = Date.now() - new Date(campaignStartedAt).getTime();
     const elapsedDays = Math.max(1, Math.min(totalDays, Math.ceil(elapsedMs / (1000 * 60 * 60 * 24))));
 
-    // Planejado até hoje (cumulativo da curva)
-    const plannedToDate = snapshot.curva
+    // Planejado até hoje (cumulativo da curva FRESCA)
+    const plannedToDate = freshCurva
       .slice(0, elapsedDays)
       .reduce((s, p) => s + p.streamsDay, 0);
 
