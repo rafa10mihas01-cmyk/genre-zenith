@@ -3385,6 +3385,45 @@ export type Database = {
         }
         Relationships: []
       }
+      genre_capacity_matrix: {
+        Row: {
+          genre_id: string
+          genre_name: string
+          id: string
+          playlist_count: number
+          plays_per_day_x18: number
+          plays_per_day_x30: number
+          plays_per_day_x50: number
+          position: number
+          total_followers: number
+          updated_at: string
+        }
+        Insert: {
+          genre_id: string
+          genre_name: string
+          id?: string
+          playlist_count?: number
+          plays_per_day_x18?: number
+          plays_per_day_x30?: number
+          plays_per_day_x50?: number
+          position: number
+          total_followers?: number
+          updated_at?: string
+        }
+        Update: {
+          genre_id?: string
+          genre_name?: string
+          id?: string
+          playlist_count?: number
+          plays_per_day_x18?: number
+          plays_per_day_x30?: number
+          plays_per_day_x50?: number
+          position?: number
+          total_followers?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       genre_filters: {
         Row: {
           base_daily: number
@@ -8095,6 +8134,7 @@ export type Database = {
           song_id: string
         }[]
       }
+      refresh_genre_capacity_matrix: { Args: never; Returns: Json }
       resolve_client_token: {
         Args: { _token: string }
         Returns: {
