@@ -291,6 +291,20 @@ export default function CampanhaExecucao() {
     } else {
       setExternalItems([]);
     }
+
+    // Snapshots orgânicos (rádio, autoplay, mixes, editoriais, listas de usuário)
+    // capturados pelo bot e ligados ao deal desta campanha.
+    if (dealId) {
+      const { data: organic } = await supabase
+        .from("organic_plays_snapshots")
+        .select("id, spotify_playlist_id, playlist_name, kind, plays_24h, plays_7d, plays_28d, captured_at")
+        .eq("deal_id", dealId)
+        .order("captured_at", { ascending: false })
+        .limit(500);
+      setOrganicRows((organic ?? []) as OrganicRow[]);
+    } else {
+      setOrganicRows([]);
+    }
     setLoading(false);
   };
 
