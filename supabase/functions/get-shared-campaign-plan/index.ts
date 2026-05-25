@@ -186,7 +186,7 @@ Deno.serve(async (req) => {
         engagementMultiplier: Math.max(1, (campRaw as any).engagement_multiplier ?? 30),
         allocs: allocs as any,
       });
-      const days = rawSnap.days as number;
+      const days = (rawSnap.effectiveDays ?? rawSnap.days) as number;
       const dailyTotal: number[] = Array.from({ length: days }, () => 0);
       for (const row of plan) {
         for (let i = 0; i < days; i++) dailyTotal[i] += row.daily?.[i] ?? 0;
