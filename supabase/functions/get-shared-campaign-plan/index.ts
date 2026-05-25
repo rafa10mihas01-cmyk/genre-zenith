@@ -219,6 +219,37 @@ Deno.serve(async (req) => {
     }
   } catch (_) { /* forecast é opcional — não bloqueia a resposta */ }
 
+  // Genres used: agrega gêneros vindos por afinidade (top 3 por score).
+  // Se nenhuma alloc tem genre_source='affinity', devolve [] (cliente esconde o chip).
+  let genresUsed: Array<{ name: string; score: number }> = [];
+  try {
+    const affAllocs = (allocs ?? []).filter((a: any) => a.genre_source === "affinity");
+    if (affAllocs.length > 0) {
+      const byGenre = new Map<string, { score: number; weight: number }>();
+      for (const a of affAllocs) {
+        const gid = (a as any).managed_playlists?.genre_id;
+        const score = Number((a as any).genre_affinity_score ?? 0);
+        if (!gid || !(score > 0)) continue;
+        const cur = byGenre.get(gid);
+        if (cur) {
+          cur.score = Math.max(cur.score, score);
+          cur.weight += Number((a as any).planned_streams ?? 1);
+        } else {
+          byGenre.set(gid, { score, weight: Number((a as any).planned_streams ?? 1) });
+        }
+      }
+      const ids = [...byGenre.keys()];
+      if (ids.length > 0) {
+        const { data: gRows } = await supabase.from("genres").select("id, nome").in("id", ids);
+        const nameById = new Map((gRows ?? []).map((g: any) => [g.id, g.nome as string]));
+        genresUsed = ids
+          .map(id => ({ name: nameById.get(id) ?? "Vizinho", score: byGenre.get(id)!.score }))
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 3);
+      }
+    }
+  } catch (_) { /* genres_used é opcional */ }
+
   return jr({
     campaign: camp,
     allocations: allocs ?? [],
@@ -229,6 +260,7 @@ Deno.serve(async (req) => {
     recent_uploads: recentUploads,
     collection_mode: collectionMode,
     forecast,
+    genres_used: genresUsed,
     // compat: até o portal antigo migrar
     has_spotify_access: collectionMode !== "spreadsheet",
   });
