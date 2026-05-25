@@ -207,6 +207,87 @@ Deno.serve(async (req) => {
     // Backfill é best-effort — não bloqueia aprovação.
   }
 
+  // Safety net: se a capacidade total das allocs eco for < 80% do goal_plays
+  // E ainda não houver expansão de afinidade gravada, busca gêneros vizinhos
+  // (score ≥ 0.60) e completa com playlists novas até cobrir 100% — limite de
+  // 40% da meta vindo de vizinhos. Idempotente: skip se já existe alloc
+  // com genre_source='affinity'.
+  try {
+    const goalPlays = Number((campaign as any).goal_plays ?? 0);
+    const snapDays = Number(snap?.days ?? 0);
+    const mult = Math.max(1, Math.round(Number((campaign as any).engagement_multiplier ?? 30)));
+
+    if (goalPlays > 0 && snapDays > 0) {
+      const { data: existingAllocs } = await admin
+        .from("campaign_eco_allocations")
+        .select("id, planned_streams, managed_playlist_id, genre_source, managed_playlists(genre_id, followers)")
+        .eq("campaign_id", campaignId);
+
+      const allocs = (existingAllocs ?? []) as any[];
+      const alreadyExpanded = allocs.some(a => a.genre_source === "affinity");
+      const totalPlanned = allocs.reduce((s, a) => s + Number(a.planned_streams ?? 0), 0);
+      const coverage = goalPlays > 0 ? totalPlanned / goalPlays : 1;
+
+      // Descobre genre_id primário a partir das allocs existentes (moda)
+      const genreCounts = new Map<string, number>();
+      for (const a of allocs) {
+        const gid = a.managed_playlists?.genre_id;
+        if (gid) genreCounts.set(gid, (genreCounts.get(gid) ?? 0) + 1);
+      }
+      const primaryGenreId = [...genreCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+
+      if (!alreadyExpanded && coverage < 0.8 && primaryGenreId) {
+        const neighbors = await getGenreNeighbors(admin, primaryGenreId, 0.6);
+        if (neighbors.length > 0) {
+          const usedIds = new Set(allocs.map(a => a.managed_playlist_id));
+          const neighborGenreIds = neighbors.map(n => n.genre_id);
+          const { data: candidatePls } = await admin
+            .from("managed_playlists")
+            .select("id, followers, genre_id")
+            .in("genre_id", neighborGenreIds)
+            .is("archived_at", null)
+            .gte("followers", 100)
+            .order("followers", { ascending: false });
+
+          const affByGenre = new Map(neighbors.map(n => [n.genre_id, n.score]));
+          const fresh = (candidatePls ?? []).filter((p: any) => !usedIds.has(p.id));
+
+          // Limite: vizinhos até 40% do goal, mas só preenchendo o gap.
+          const maxNeighborBudget = Math.round(goalPlays * 0.4);
+          const gap = Math.max(0, goalPlays - totalPlanned);
+          let neighborBudget = Math.min(maxNeighborBudget, gap);
+
+          const SLOT_PCT = 0.08;
+          const rows: any[] = [];
+          for (const p of fresh) {
+            if (neighborBudget <= 0) break;
+            const followers = Number(p.followers ?? 0);
+            const cap = Math.max(1, Math.round(followers * (mult / 30) * SLOT_PCT * snapDays));
+            const planned = Math.min(cap, neighborBudget);
+            if (planned <= 0) continue;
+            rows.push({
+              campaign_id: campaignId,
+              managed_playlist_id: p.id,
+              planned_streams: planned,
+              start_day: 1,
+              status: "pending",
+              position: 3,
+              genre_source: "affinity",
+              genre_affinity_score: affByGenre.get(p.genre_id) ?? null,
+            });
+            neighborBudget -= planned;
+          }
+
+          if (rows.length > 0) {
+            await admin.from("campaign_eco_allocations").insert(rows);
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("[approve-campaign-plan] affinity expansion failed:", (e as Error).message);
+  }
+
 
   // 3) Lê feature flag
   const { data: flagRow } = await admin
