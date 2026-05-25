@@ -82,6 +82,16 @@ export interface EcoAllocationPlan {
   start_day: number;
   /** Posição sorteada já no momento do fechamento — usada pra gravar campaign_eco_allocations.position. */
   position: number;
+  /** 'primary' = gênero da campanha; 'affinity' = gênero vizinho via genre_affinities. */
+  genre_source?: "primary" | "affinity";
+  /** Score 0–1 quando vier de afinidade. */
+  genre_affinity_score?: number | null;
+}
+
+export interface GenreContext {
+  source: "primary" | "affinity";
+  /** Map playlistId → affinity score (0–1). Só usado quando source='affinity'. */
+  affinityByPlaylistId?: Map<string, number>;
 }
 
 const PLAYS_PER_SAVE_MONTH = 30;
