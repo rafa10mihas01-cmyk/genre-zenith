@@ -171,6 +171,45 @@ export function BaselineTab({ dealId }: Props) {
         </CardContent>
       </Card>
 
+      {/* Planilha original importada */}
+      {upload && (
+        <Card className="border-border/60 bg-card">
+          <CardContent className="p-4 flex items-center gap-3 flex-wrap">
+            <div className="h-10 w-10 rounded bg-muted flex items-center justify-center shrink-0 border border-border/60">
+              <FileSpreadsheet className="h-5 w-5 text-primary" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium text-foreground truncate">
+                {upload.file_name ?? "planilha.xlsx"}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                Importada em{" "}
+                {new Date(upload.created_at).toLocaleString("pt-BR", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+                {upload.rows_imported != null && <> · {fmt(upload.rows_imported)} linhas</>}
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleDownload}
+              disabled={downloading || !upload.file_path}
+              className="shrink-0"
+            >
+              <Download className="h-3.5 w-3.5 mr-1.5" />
+              {downloading ? "Gerando..." : "Baixar planilha"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+
+
       {/* Lista de playlists */}
       {loading ? (
         <div className="space-y-2">
