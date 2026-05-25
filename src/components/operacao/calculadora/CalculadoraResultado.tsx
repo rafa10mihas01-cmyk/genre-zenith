@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatBRL, formatInt, type CampaignResult } from "@/lib/campaignEngine";
-import { TrendingUp, Wallet, Zap, Layers, Flame, Rocket, Activity, Anchor, Coins } from "lucide-react";
+import { formatBRL, formatInt, computePhaseDays, type CampaignResult } from "@/lib/campaignEngine";
+import { TrendingUp, Wallet, Zap, Layers, Flame, Rocket, Activity, Anchor, Coins, Info } from "lucide-react";
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 
