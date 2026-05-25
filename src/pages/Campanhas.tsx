@@ -439,22 +439,57 @@ function CampaignRow({ c }: { c: Campaign }) {
 
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir campanha?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta ação não pode ser desfeita. A campanha "{c.track_name}" e suas alocações serão removidas permanentemente.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={busy}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={doDelete}
-              disabled={busy}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Excluir
-            </AlertDialogAction>
-          </AlertDialogFooter>
+          {(() => {
+            const blocked = c.status === "active" || (c.total_delivered ?? 0) > 0;
+            return blocked ? (
+              <>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Não é possível excluir</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Campanhas ativas ou com entrega registrada não podem ser excluídas. Use <strong>Arquivar</strong> para encerrar a campanha sem perder o histórico.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={busy}>Fechar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={(e) => { e.preventDefault(); setConfirmDelete(false); doUpdateStatus("cancelled", "Campanha arquivada"); }}
+                    disabled={busy || c.status === "cancelled"}
+                  >
+                    Arquivar
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </>
+            ) : (
+              <>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Excluir campanha "{c.track_name}"?</AlertDialogTitle>
+                  <AlertDialogDescription asChild>
+                    <div className="space-y-2">
+                      <p>Esta ação apagará permanentemente:</p>
+                      <ul className="list-disc pl-5 text-[13px] space-y-1">
+                        <li>O deal vinculado a esta campanha</li>
+                        <li>Todas as playlists do curador deste deal</li>
+                        <li>Prints coletados e snapshots</li>
+                        <li>Provas de entrega</li>
+                        <li>Pagamentos registrados</li>
+                      </ul>
+                      <p className="font-medium text-destructive pt-1">Esta ação não pode ser desfeita.</p>
+                    </div>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={busy}>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={doDelete}
+                    disabled={busy}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Excluir tudo
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </>
+            );
+          })()}
         </AlertDialogContent>
       </AlertDialog>
     </div>
