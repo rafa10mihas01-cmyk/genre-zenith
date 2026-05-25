@@ -1,7 +1,7 @@
 // SpotifyAppsManager — central operacional multi-app/multi-conta.
 // Cada APP é um card; contas vivem aninhadas dentro do app correspondente.
 // Configs técnicas (Redirect URIs, scopes, edit/remove) ficam em <details> colapsável.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
