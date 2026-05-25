@@ -453,6 +453,7 @@ export default function PlanoCampanhaPublico() {
                     <GenresUsedChip genres={genresUsed} />
                   </div>
                 )}
+                {(() => {
                   const valorCobrado = snapshot.clientPriceTotal && snapshot.clientPriceTotal > 0
                     ? snapshot.clientPriceTotal
                     : snapshot.pricePerStreamSell
