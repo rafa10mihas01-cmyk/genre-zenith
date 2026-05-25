@@ -66,7 +66,9 @@ export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed 
   return (
     <div className={cn(
       "sticky top-0 z-30",
-      bleed && "-mx-4 md:-mx-6 px-4 md:px-6",
+      // Encosta no topo do scroll container cancelando o padding do .nx-page
+      // (8px mobile / 24px md / 32px lg) — assim NÃO sobe ao rolar.
+      bleed && "-mt-2 md:-mt-6 lg:-mt-8 -mx-2 md:-mx-3 px-4 md:px-6",
       "border-b border-border bg-background/85 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70",
     )}>
 
