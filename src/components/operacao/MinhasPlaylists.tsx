@@ -33,6 +33,7 @@ import { CuratorialStateBadge, CooldownStack, type CuratorialState } from "@/com
 import { IconBadge } from "@/components/playlist/IconBadge";
 import { GraduationCap } from "lucide-react";
 import { useActiveCooldowns } from "@/hooks/useActiveCooldowns";
+import { CapacityMatrixTab } from "./CapacityMatrixTab";
 
 type ManagedPlaylist = {
   id: string;
@@ -109,6 +110,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const filterGenreId = searchParams.get("genero");
   const filterSize = (searchParams.get("tamanho") as "all" | "pequena" | "media" | "grande" | "top") || "all";
   const showArchived = searchParams.get("arquivadas") === "1";
+  const showCapacity = searchParams.get("aba") === "capacidade";
   const sortBy = (searchParams.get("sort") as "recent" | "valuation") || "recent";
 
   const updateParam = useCallback((key: string, val: string | null) => {
@@ -126,7 +128,14 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   };
   const setFilterGenreId = (v: string | null) => updateParam("genero", v);
   const setFilterSize = (v: "all" | "pequena" | "media" | "grande" | "top") => updateParam("tamanho", v);
-  const setShowArchived = (v: boolean) => updateParam("arquivadas", v ? "1" : null);
+  const setShowArchived = (v: boolean) => {
+    updateParam("arquivadas", v ? "1" : null);
+    if (v) updateParam("aba", null);
+  };
+  const setShowCapacity = (v: boolean) => {
+    updateParam("aba", v ? "capacidade" : null);
+    if (v) updateParam("arquivadas", null);
+  };
   const setSortBy = (v: "recent" | "valuation") => updateParam("sort", v);
 
   // items via React Query — cache global (staleTime 60s), navegação não refetcha.
@@ -979,16 +988,16 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         )}
         <div className="sm:ml-auto flex items-center gap-1.5 shrink-0">
           <button
-            onClick={() => setShowArchived(false)}
+            onClick={() => { setShowArchived(false); setShowCapacity(false); }}
             className={cn(
               "h-9 px-3 rounded-full text-[11px] sm:text-xs font-medium border transition-colors tabular-nums shrink-0",
-              !showArchived
+              !showArchived && !showCapacity
                 ? "bg-primary/15 border-primary/40 text-primary"
                 : "bg-elevated border-border text-muted-foreground hover:text-foreground",
             )}
           >Ativas ({items.filter(i => !i.archived_at).length})</button>
           <button
-            onClick={() => setShowArchived(true)}
+            onClick={() => { setShowArchived(true); }}
             className={cn(
               "h-9 px-3 rounded-full text-[11px] sm:text-xs font-medium border transition-colors tabular-nums shrink-0",
               showArchived
@@ -996,6 +1005,15 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                 : "bg-elevated border-border text-muted-foreground hover:text-foreground",
             )}
           >Lixeira ({items.filter(i => i.archived_at).length})</button>
+          <button
+            onClick={() => { setShowCapacity(true); }}
+            className={cn(
+              "h-9 px-3 rounded-full text-[11px] sm:text-xs font-medium border transition-colors shrink-0",
+              showCapacity
+                ? "bg-primary/15 border-primary/40 text-primary"
+                : "bg-elevated border-border text-muted-foreground hover:text-foreground",
+            )}
+          >Capacidade</button>
 
 
 
@@ -1013,8 +1031,10 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         </div>
       </div>
 
-      {/* Grid */}
-      {loading && items.length === 0 ? (
+      {/* Grid ou Matriz de Capacidade */}
+      {showCapacity ? (
+        <CapacityMatrixTab />
+      ) : loading && items.length === 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="nx-card !p-0 overflow-hidden">
