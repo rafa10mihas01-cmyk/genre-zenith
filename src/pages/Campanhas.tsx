@@ -118,12 +118,13 @@ export default function Campanhas() {
           <KpiBig
             tier="quiet"
             icon={Percent}
-            label="Cumprimento médio"
+            label="Cumprimento"
             value={`${kpis.pct}%`}
             hint="Entregue ÷ meta"
             domain="playlists"
             loading={loading}
           />
+
         </section>
 
 
