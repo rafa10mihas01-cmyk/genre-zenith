@@ -34,6 +34,7 @@ import { BaselineCard } from "@/components/campanhas/BaselineCard";
 import { BaselineTab } from "@/components/campanhas/BaselineTab";
 import { OrganicCollectedSection, type OrganicRow } from "@/components/campanhas/OrganicCollectedSection";
 import type { CampaignHubCampaign, CampaignHubTabId, EcoAllocation } from "@/components/campaign-hub/types";
+import { Kpi } from "@/components/ui/kpi";
 import { toast } from "sonner";
 import type { Json } from "@/integrations/supabase/types";
 
@@ -886,11 +887,6 @@ function getErrorMessage(error: unknown, fallback: string) {
 }
 
 function FinKpi({ label, value, sub }: { label: string; value: string; sub?: string }) {
-  return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{label}</div>
-      <div className="text-xl font-semibold tabular-nums leading-tight mt-1">{value}</div>
-      {sub && <div className="text-[10px] text-muted-foreground mt-1">{sub}</div>}
-    </div>
-  );
+  return <Kpi variant="compact" label={label} value={value} hint={sub} />;
 }
+
