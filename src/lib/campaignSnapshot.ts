@@ -291,6 +291,8 @@ export async function closeCampaignFromCalculator(args: {
         cost_per_stream_op: pricingOpEco,
         market_per_stream: pricingMarketEco,
         price_per_stream_sell: finalPricePerStream,
+        genre_source: a.genre_source ?? "primary",
+        genre_affinity_score: a.genre_affinity_score ?? null,
       };
     });
     const { error: allocErr } = await supabase.from("campaign_eco_allocations").insert(rows as any);
