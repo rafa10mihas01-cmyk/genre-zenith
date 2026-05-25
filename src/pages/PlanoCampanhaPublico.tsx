@@ -81,6 +81,7 @@ type SharedCampaignPlanResponse = {
   has_spotify_access?: boolean;
   collection_mode?: "bot" | "spreadsheet";
   forecast?: ForecastPayload | null;
+  genres_used?: GenreUsed[];
 };
 
 
