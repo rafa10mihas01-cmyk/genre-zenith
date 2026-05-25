@@ -51,6 +51,7 @@ import type { CampaignHubCampaign, CampaignHubTabId, EcoAllocation } from "@/com
 import { EvolutionChart, type EvolutionSeriesPoint } from "@/components/client-portal/EvolutionChart";
 import { DeliveryForecastCard, type ForecastPayload } from "@/components/client-portal/DeliveryForecastCard";
 import { GenresUsedChip, type GenreUsed } from "@/components/campanhas/GenresUsedChip";
+import { CampaignAccessGate, accessStorageKey } from "@/components/client-portal/CampaignAccessGate";
 
 
 type EcoSnap = {
