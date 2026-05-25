@@ -127,7 +127,14 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   };
   const setFilterGenreId = (v: string | null) => updateParam("genero", v);
   const setFilterSize = (v: "all" | "pequena" | "media" | "grande" | "top") => updateParam("tamanho", v);
-  const setShowArchived = (v: boolean) => updateParam("arquivadas", v ? "1" : null);
+  const setShowArchived = (v: boolean) => {
+    updateParam("arquivadas", v ? "1" : null);
+    if (v) updateParam("aba", null);
+  };
+  const setShowCapacity = (v: boolean) => {
+    updateParam("aba", v ? "capacidade" : null);
+    if (v) updateParam("arquivadas", null);
+  };
   const setSortBy = (v: "recent" | "valuation") => updateParam("sort", v);
 
   // items via React Query — cache global (staleTime 60s), navegação não refetcha.
