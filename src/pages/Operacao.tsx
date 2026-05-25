@@ -280,7 +280,7 @@ export default function Operacao() {
       <PageContainer>
         {/* KPIs operacionais — todos referenciam o catálogo importado (managed_playlists) */}
         {/* KPIs — hierarquia cockpit: hero (Salvamentos) + secundários + quiet (derivada) */}
-        <section className="grid grid-cols-2 md:grid-cols-7 gap-3">
+        <section className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-7 gap-3">
           {(() => {
             const filtered = !!playlistStats.filterLabel;
             const followers = filtered ? playlistStats.filteredFollowers : kpi.totalFollowers;
@@ -294,7 +294,7 @@ export default function Operacao() {
             const totalHint = filtered ? playlistStats.filterLabel! : "Catálogo importado";
             return (
               <>
-                <KpiBig tier="hero" icon={Heart} label="Salvamentos totais" value={formatNumber(followers)} hint={scopeHint} domain="playlists" loading={loading && playlistsAll.length === 0} />
+                <KpiBig tier="hero" icon={Heart} label="Salvamentos totais" value={formatNumber(followers)} hint={scopeHint} domain="playlists" loading={loading && playlistsAll.length === 0} className="!col-span-2 xl:!col-span-2" />
                 <KpiBig icon={Target}        label="Plays teóricos / mês" value={formatNumber(followers * 30)} tone="primary" hint={playsHint} loading={loading && playlistsAll.length === 0} />
                 <KpiBig icon={Activity}      label="Total ativas"  value={formatNumber(count)} hint={totalHint} loading={loading && playlistsAll.length === 0} />
               </>
@@ -305,6 +305,7 @@ export default function Operacao() {
           <KpiBig tier="quiet" icon={AlertCircle} label="Precisa atenção" value={formatNumber(kpi.atencao)} tone={kpi.atencao > 0 ? "destructive" : "default"} hint="Auto em queda" loading={loading && playlistsAll.length === 0} />
 
         </section>
+
 
         {/* Conteúdo único — Minhas Playlists (Simulador foi movido para /campanhas) */}
         <div className="min-h-[640px]">
