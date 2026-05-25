@@ -238,7 +238,7 @@ Deno.serve(async (req) => {
     buildRow(p, primaryPositions.get(p.id) ?? 3, "primary");
   }
   for (const p of freshNeighbor) {
-    buildRow(p, neighborPositions.get(p.id) ?? NEIGHBOR_POS_MIN, "affinity");
+    buildRow(p, neighborPositions.get(p.id) ?? affLo, "affinity");
   }
 
   const summary = {
@@ -249,6 +249,9 @@ Deno.serve(async (req) => {
     plays_per_day_primary: playsPerDayPrimary,
     plays_per_day_neighbor: playsPerDayNeighbor,
     neighbor_genres: neighborGenreIds,
+    coverage_ratio: coverageRatio,
+    mode,
+    affinity_range: [affLo, affHi],
   };
 
   if (dryRun) {
