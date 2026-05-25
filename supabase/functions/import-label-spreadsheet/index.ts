@@ -565,14 +565,19 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Pra baseline a gente precisa registrar TODAS as playlists (internas +
+    // orgânicas) pra ter ponto de partida completo. Só exige spotify_id.
+    const allPlaylistRows = matched.filter(
+      (r) => typeof r.playlist_spotify_id === "string" && r.playlist_spotify_id.length > 0,
+    );
     const matchedInternal = matched.filter(
       (r) => typeof r.matched_playlist_id === "string" && r.matched_playlist_id.length === 36 && !!r.playlist_spotify_id,
     );
 
-    if (matchedInternal.length > 0) {
+    if (allPlaylistRows.length > 0) {
       // 3.0) Garante que existe um curator_playlists pra cada (deal, song, spotify_id).
       //      Snapshots e proofs têm FK pra essa tabela — sem ela o insert quebra.
-      const upsertRows = matchedInternal.map((r) => ({
+      const upsertRows = allPlaylistRows.map((r) => ({
         deal_id: dealId,
         song_id: songId,
         spotify_playlist_id: r.playlist_spotify_id as string,
@@ -580,7 +585,9 @@ Deno.serve(async (req) => {
           || (r.playlist_spotify_id ? `https://open.spotify.com/playlist/${r.playlist_spotify_id}` : ""),
         playlist_name: r.playlist_name,
         spotify_owner_name: r.owner_name ?? null,
-        canonical_playlist_id: r.matched_playlist_id as string,
+        canonical_playlist_id: (typeof r.matched_playlist_id === "string" && r.matched_playlist_id.length === 36)
+          ? r.matched_playlist_id
+          : null,
         attribution_method: "label_spreadsheet",
       }));
       const { error: cpErr } = await admin
