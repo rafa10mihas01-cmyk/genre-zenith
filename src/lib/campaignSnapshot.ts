@@ -276,7 +276,8 @@ export async function closeCampaignFromCalculator(args: {
       .in("id", playlistIds);
     const followersById = new Map<string, number>((mps ?? []).map((m: any) => [m.id, Number(m.followers) || 0]));
     const mult = Math.max(1, Math.round(engagementMultiplier));
-    const days = snapshot.days;
+    // Capacidade considera a duração REAL do plano (effectiveDays), não a contratada.
+    const days = snapshot.effectiveDays ?? snapshot.days;
 
     // `position` já vem materializada do planEcoAllocations (Fix 2) — usa direto.
     // Se a alloc vier sem position (chamada externa antiga), grava NULL e o
