@@ -4,6 +4,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { assertDealOperable } from "../_shared/deal-access.ts";
 import { recordMetric } from "../_shared/ops-metrics.ts";
+import { classifyPlaylistKind, isAlgorithmic } from "../_shared/algorithmic-classifier.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
