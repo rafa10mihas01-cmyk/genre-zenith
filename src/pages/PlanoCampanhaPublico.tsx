@@ -77,6 +77,7 @@ type SharedCampaignPlanResponse = {
   last_spreadsheet_upload_at?: string | null;
   recent_uploads?: SpreadsheetUpload[];
   has_spotify_access?: boolean;
+  collection_mode?: "bot" | "spreadsheet";
 };
 
 
@@ -91,7 +92,7 @@ export default function PlanoCampanhaPublico() {
   const [clientToken, setClientToken] = useState<string | null>(null);
   const [lastUploadAt, setLastUploadAt] = useState<string | null>(null);
   const [recentUploads, setRecentUploads] = useState<SpreadsheetUpload[]>([]);
-  const [hasSpotifyAccess, setHasSpotifyAccess] = useState(false);
+  const [collectionMode, setCollectionMode] = useState<"bot" | "spreadsheet">("bot");
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [tab, setTab] = useState<CampaignHubTabId>("overview");
@@ -124,7 +125,7 @@ export default function PlanoCampanhaPublico() {
       setClientToken(payload?.client_token ?? null);
       setLastUploadAt(payload?.last_spreadsheet_upload_at ?? null);
       setRecentUploads(payload?.recent_uploads ?? []);
-      setHasSpotifyAccess(Boolean(payload?.has_spotify_access));
+      setCollectionMode(payload?.collection_mode === "spreadsheet" ? "spreadsheet" : "bot");
       setErr(null);
 
     }
@@ -496,7 +497,7 @@ export default function PlanoCampanhaPublico() {
                 </CardContent>
               </Card>
             ),
-            upload: clientToken && !hasSpotifyAccess ? (
+            upload: clientToken && collectionMode === "spreadsheet" ? (
               <SpreadsheetUploadCard
                 clientToken={clientToken}
                 lastUploadAt={lastUploadAt}
