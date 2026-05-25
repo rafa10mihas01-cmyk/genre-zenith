@@ -79,6 +79,7 @@ type SharedCampaignPlanResponse = {
   recent_uploads?: SpreadsheetUpload[];
   has_spotify_access?: boolean;
   collection_mode?: "bot" | "spreadsheet";
+  forecast?: ForecastPayload | null;
 };
 
 
