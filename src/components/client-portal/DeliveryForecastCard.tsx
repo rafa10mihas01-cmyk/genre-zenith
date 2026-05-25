@@ -117,15 +117,28 @@ export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
       }
     }
 
+    // Curva 3 (opcional): plays orgânicos coletados — distribui o total
+    // capturado uniformemente do dia 7 em diante (proxy diário).
+    const organicStartDay = 7;
+    const organicDaysCount = Math.max(0, days - (organicStartDay - 1));
+    const organicPerDay = showOrganic && organicDaysCount > 0
+      ? organicTotal / organicDaysCount
+      : 0;
+
     const points = src.map((c, i) => ({
       day: c.day,
       label: `D${c.day}`,
       trackPlays: Math.round(trackPlays[i]),
       delivery: Math.round(delivery[i]),
+      organic: showOrganic && (i + 1) >= organicStartDay
+        ? Math.round(organicPerDay)
+        : null,
     }));
 
-    return { points, markDay, markValue, baseline, target, peakValue };
-  }, [curve, top200StreamsDay, baselineStreamsDay]);
+    const deliveryTotal = delivery.reduce((s, v) => s + v, 0);
+    return { points, markDay, markValue, baseline, target, peakValue, deliveryTotal };
+  }, [curve, top200StreamsDay, baselineStreamsDay, showOrganic, organicTotal]);
+
 
   if (!data) return null;
 
