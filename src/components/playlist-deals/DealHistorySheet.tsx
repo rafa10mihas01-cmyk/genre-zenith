@@ -47,6 +47,7 @@ import {
   type CuratorMatchStatus,
   type CuratorDealProgress,
 } from "@/lib/curatorDealsUtils";
+import { Kpi as UnifiedKpi } from "@/components/ui/kpi";
 
 export interface DealHistorySheetProps {
   open: boolean;
@@ -121,7 +122,7 @@ function fmtCompact(n: number): string {
 }
 
 /* ------------------------------------------------------------------
- * KPI tile — usa tokens do design system (card #171717, border #2E2E2E).
+ * KPI tile — wrapper fino sobre <UnifiedKpi> mantendo a API local (tone).
  * ------------------------------------------------------------------ */
 function Kpi({
   label,
@@ -134,28 +135,10 @@ function Kpi({
   hint?: string;
   tone?: "default" | "success" | "primary" | "warning";
 }) {
-  const toneCls =
-    tone === "success"
-      ? "text-success"
-      : tone === "primary"
-      ? "text-primary"
-      : tone === "warning"
-      ? "text-destructive"
-      : "text-foreground";
-  return (
-    <div className="rounded-2xl bg-card border border-border p-4 sm:p-5">
-      <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-        {label}
-      </div>
-      <div className={cn("text-xl sm:text-[28px] font-semibold leading-tight mt-2 tabular-nums whitespace-nowrap overflow-hidden text-ellipsis", toneCls)}>
-        {value}
-      </div>
-      {hint && (
-        <div className="text-[11px] sm:text-xs text-muted-foreground mt-1.5 truncate">{hint}</div>
-      )}
-    </div>
-  );
+  const mappedTone = tone === "warning" ? "warning" : tone;
+  return <UnifiedKpi label={label} value={value} hint={hint} tone={mappedTone as any} />;
 }
+
 
 /* Card seção — wrapper para blocos de leitura no Resumo */
 function SectionCard({

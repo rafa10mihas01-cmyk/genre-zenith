@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { RefreshCw, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { Kpi } from "@/components/ui/kpi";
 
 type FitRow = {
   id: string;
@@ -334,12 +335,5 @@ export function ImpactoPanel() {
   );
 }
 
-function Kpi({ label, value, hint }: { label: string; value: number | string; hint?: string }) {
-  return (
-    <Card className="p-4">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="text-2xl font-semibold mt-1 tabular-nums">{value}</div>
-      {hint && <div className="text-[11px] text-muted-foreground mt-1">{hint}</div>}
-    </Card>
-  );
-}
+// Kpi consolidado em @/components/ui/kpi
+

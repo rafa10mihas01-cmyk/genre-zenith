@@ -31,6 +31,7 @@ import { ptBR } from "date-fns/locale";
 import { PageContainer } from "@/components/PageContainer";
 import { PageHeader } from "@/components/PageHeader";
 import { KpiBig } from "@/components/KpiBig";
+import { formatBRLHero } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -262,7 +263,7 @@ export default function ClienteDetalhe() {
       <div className="grid grid-cols-2 md:grid-cols-6 gap-2 pt-4 mb-6">
         <KpiBig
           label="Investido"
-          value={formatBRL(kpis.investido)}
+          value={formatBRLHero(kpis.investido)}
           icon={CreditCard}
           hint={kpis.deals > 0 ? `Em ${kpis.deals} deal${kpis.deals === 1 ? "" : "s"}` : "Sem deals"}
           tier="hero"

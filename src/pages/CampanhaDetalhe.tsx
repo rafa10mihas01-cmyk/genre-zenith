@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, RefreshCw, Target, Trash2, Copy, CheckCircle2, MessageSquareWarning, Clock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { PUBLIC_DOMAIN } from "@/lib/curatorPublicUrl";
+import { Kpi } from "@/components/ui/kpi";
 
 type Campaign = {
   id: string; track_name: string; artist: string | null;
@@ -176,9 +177,9 @@ export default function CampanhaDetalhe() {
         {/* Resumo */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <Kpi label="Meta" value={camp.goal_plays.toLocaleString()} />
-          <Kpi label="Entregue" value={camp.total_delivered.toLocaleString()} sub={`${pct}%`} />
+          <Kpi label="Entregue" value={camp.total_delivered.toLocaleString()} hint={`${pct}%`} />
           <Kpi label="Alocado" value={camp.total_allocated.toLocaleString()} />
-          <Kpi label="Prazo" value={camp.deadline} sub={daysLeft > 0 ? `${daysLeft}d restantes` : daysLeft === 0 ? "Hoje" : `${Math.abs(daysLeft)}d atraso`} />
+          <Kpi label="Prazo" value={camp.deadline} hint={daysLeft > 0 ? `${daysLeft}d restantes` : daysLeft === 0 ? "Hoje" : `${Math.abs(daysLeft)}d atraso`} />
         </div>
 
         {/* Tipo + aprovação do plano */}
@@ -274,15 +275,8 @@ export default function CampanhaDetalhe() {
   );
 }
 
-function Kpi({ label, value, sub }: { label: string; value: string; sub?: string }) {
-  return (
-    <div className="rounded-2xl border border-border bg-card p-5">
-      <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="text-2xl font-semibold mt-1 tabular-nums">{value}</div>
-      {sub && <div className="text-xs text-muted-foreground mt-1">{sub}</div>}
-    </div>
-  );
-}
+// Kpi consolidado em @/components/ui/kpi
+
 
 function ClientApprovalCard({ camp }: { camp: Campaign }) {
   const token = camp.public_plan_token;

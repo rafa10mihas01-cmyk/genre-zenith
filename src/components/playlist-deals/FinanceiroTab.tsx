@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { Wallet, TrendingUp, TrendingDown, Receipt, Target, Trophy, Medal, Award, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { useCuratorFinance } from "@/hooks/useCuratorFinance";
-import { formatNumber } from "@/lib/format";
+import { formatNumber, formatBRLHero } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { CuratorDeal } from "@/lib/curatorDealsUtils";
 
@@ -118,7 +118,7 @@ export function FinanceiroTab({ deals, hideHero = false }: Props) {
                   saldoVirtual >= 0 ? "text-primary" : "text-amber-500",
                 )}
               >
-                {fmtBRL(saldoVirtual)}
+                {formatBRLHero(saldoVirtual)}
               </span>
               {trendPct != null && !isEmpty && (
                 <span
