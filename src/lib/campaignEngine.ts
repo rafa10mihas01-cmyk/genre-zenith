@@ -109,7 +109,7 @@ export function computePhaseDays(effectiveDays: number): { ramp: number; plateau
  *
  * `inercia` afeta só a amplitude da micro-variação semanal do platô.
  */
-function buildCurve(
+export function buildCurve(
   meta: number,
   effectiveDays: number,
   _modo: Modo,
