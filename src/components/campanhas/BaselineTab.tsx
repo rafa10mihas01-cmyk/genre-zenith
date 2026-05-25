@@ -5,7 +5,9 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Flag, ExternalLink, Music2, Users } from "lucide-react";
+import { Flag, ExternalLink, Music2, Users, FileSpreadsheet, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "@/hooks/use-toast";
 
 type Row = {
   playlist_id: string;
@@ -18,9 +20,18 @@ type Row = {
   spotify_owner_name: string | null;
 };
 
+type BaselineUpload = {
+  id: string;
+  file_name: string | null;
+  file_path: string | null;
+  created_at: string;
+  rows_imported: number | null;
+};
+
 type Props = {
   dealId: string | null;
 };
+
 
 function fmt(n: number | null | undefined) {
   if (n == null) return "—";
@@ -31,6 +42,8 @@ export function BaselineTab({ dealId }: Props) {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [capturedAt, setCapturedAt] = useState<string | null>(null);
+  const [upload, setUpload] = useState<BaselineUpload | null>(null);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     if (!dealId) {
@@ -39,14 +52,24 @@ export function BaselineTab({ dealId }: Props) {
     }
     (async () => {
       setLoading(true);
-      const { data } = await supabase
-        .from("curator_deal_snapshots")
-        .select("playlist_id, plays, captured_at, curator_playlists(playlist_name, spotify_url, image_url, followers, spotify_owner_name)")
-        .eq("deal_id", dealId)
-        .eq("is_baseline", true)
-        .order("plays", { ascending: false });
+      const [snapsRes, uploadRes] = await Promise.all([
+        supabase
+          .from("curator_deal_snapshots")
+          .select("playlist_id, plays, captured_at, curator_playlists(playlist_name, spotify_url, image_url, followers, spotify_owner_name)")
+          .eq("deal_id", dealId)
+          .eq("is_baseline", true)
+          .order("plays", { ascending: false }),
+        supabase
+          .from("label_spreadsheet_uploads")
+          .select("id, file_name, file_path, created_at, rows_imported")
+          .eq("deal_id", dealId)
+          .eq("is_baseline", true)
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle(),
+      ]);
 
-      const mapped: Row[] = ((data ?? []) as unknown as Array<{
+      const mapped: Row[] = ((snapsRes.data ?? []) as unknown as Array<{
         playlist_id: string;
         plays: number;
         captured_at: string;
@@ -70,9 +93,28 @@ export function BaselineTab({ dealId }: Props) {
 
       setRows(mapped);
       setCapturedAt(mapped[0]?.captured_at ?? null);
+      setUpload((uploadRes.data as BaselineUpload | null) ?? null);
       setLoading(false);
     })();
   }, [dealId]);
+
+  async function handleDownload() {
+    if (!upload?.file_path) {
+      toast({ title: "Planilha não disponível", description: "O arquivo original não foi armazenado.", variant: "destructive" });
+      return;
+    }
+    setDownloading(true);
+    const { data, error } = await supabase.storage
+      .from("label-spreadsheets")
+      .createSignedUrl(upload.file_path, 60 * 10);
+    setDownloading(false);
+    if (error || !data?.signedUrl) {
+      toast({ title: "Erro ao gerar link", description: error?.message ?? "Tente novamente.", variant: "destructive" });
+      return;
+    }
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  }
+
 
   const totalStreams = useMemo(() => rows.reduce((acc, r) => acc + r.plays, 0), [rows]);
 
@@ -128,6 +170,45 @@ export function BaselineTab({ dealId }: Props) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Planilha original importada */}
+      {upload && (
+        <Card className="border-border/60 bg-card">
+          <CardContent className="p-4 flex items-center gap-3 flex-wrap">
+            <div className="h-10 w-10 rounded bg-muted flex items-center justify-center shrink-0 border border-border/60">
+              <FileSpreadsheet className="h-5 w-5 text-primary" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium text-foreground truncate">
+                {upload.file_name ?? "planilha.xlsx"}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                Importada em{" "}
+                {new Date(upload.created_at).toLocaleString("pt-BR", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+                {upload.rows_imported != null && <> · {fmt(upload.rows_imported)} linhas</>}
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleDownload}
+              disabled={downloading || !upload.file_path}
+              className="shrink-0"
+            >
+              <Download className="h-3.5 w-3.5 mr-1.5" />
+              {downloading ? "Gerando..." : "Baixar planilha"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+
 
       {/* Lista de playlists */}
       {loading ? (
