@@ -55,7 +55,8 @@ Deno.serve(async (req) => {
 
     const token = await getSpotifyToken();
     const nowIso = new Date().toISOString();
-    const CONCURRENCY = 10;
+    const CONCURRENCY = 3;
+    const BATCH_DELAY_MS = 500;
     const details: Array<{ id: string; spotify_playlist_id: string; before: number | null; after: number | null; ok: boolean; error?: string }> = [];
     let updated = 0;
     let failed = 0;
@@ -92,6 +93,10 @@ Deno.serve(async (req) => {
           details.push({ id: row.id, spotify_playlist_id: row.spotify_playlist_id, before: row.tracks_count ?? null, after: null, ok: false, error: (e as Error).message });
         }
       }));
+      // Delay entre lotes pra respeitar rate limit do Spotify (evita 429 em série).
+      if (i + CONCURRENCY < rows.length) {
+        await new Promise((res) => setTimeout(res, BATCH_DELAY_MS));
+      }
     }
 
     // remaining: quantos ainda batem o filtro original
