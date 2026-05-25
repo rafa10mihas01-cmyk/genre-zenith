@@ -227,8 +227,7 @@ function KPI({ label, value, hint, tone }: { label: string; value: string; hint?
   );
 }
 
-function CurvaReal({ snapshot, elapsedDays, delivered }: { snapshot: CampaignSnapshot; elapsedDays: number; delivered: number }) {
-  const curva = snapshot.curva;
+function CurvaReal({ curva, elapsedDays, delivered }: { curva: { day: number; streamsDay: number; cumulative: number }[]; elapsedDays: number; delivered: number }) {
   if (curva.length === 0) return null;
   const w = 720, h = 140, pad = 12;
   const maxS = Math.max(...curva.map(p => p.streamsDay), 1);
