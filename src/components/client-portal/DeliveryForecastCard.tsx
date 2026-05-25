@@ -239,13 +239,21 @@ export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
                   borderRadius: 12, fontSize: 12,
                 }}
                 labelStyle={{ color: "hsl(var(--muted-foreground))" }}
-                formatter={(value: number, name: string) => {
+                formatter={(value: number, name: string, item: any) => {
                   if (name === "trackPlays") return [`${formatFull(value)} plays`, "Plays/dia da música"];
                   if (name === "organic") return [`${formatFull(value)} plays/dia`, "Orgânico (Rádio · Autoplay · Mixes)"];
-                  return [`${formatFull(value)} plays`, "Entrega do dia"];
+                  if (name === "delivery") {
+                    const cum = item?.payload?.cumulative;
+                    const acc = Number.isFinite(cum)
+                      ? `\nAcumulado: ${formatPlays(cum)} plays`
+                      : "";
+                    return [`${formatFull(value)} plays${acc}`, "Entrega do dia"];
+                  }
+                  return [`${formatFull(value)} plays`, name];
                 }}
 
               />
+
 
               {data.target != null && (
                 <ReferenceLine
