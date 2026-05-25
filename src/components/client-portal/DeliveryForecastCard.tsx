@@ -215,8 +215,10 @@ export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
                 labelStyle={{ color: "hsl(var(--muted-foreground))" }}
                 formatter={(value: number, name: string) => {
                   if (name === "trackPlays") return [`${formatFull(value)} plays`, "Plays/dia da música"];
+                  if (name === "organic") return [`${formatFull(value)} plays/dia`, "Orgânico (Rádio · Autoplay · Mixes)"];
                   return [`${formatFull(value)} plays`, "Entrega do dia"];
                 }}
+
               />
 
               {data.target != null && (
