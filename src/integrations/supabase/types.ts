@@ -498,6 +498,8 @@ export type Database = {
           cost_per_stream_op: number | null
           created_at: string
           dispatched_at: string | null
+          genre_affinity_score: number | null
+          genre_source: string
           id: string
           job_id: string | null
           managed_playlist_id: string
@@ -514,6 +516,8 @@ export type Database = {
           cost_per_stream_op?: number | null
           created_at?: string
           dispatched_at?: string | null
+          genre_affinity_score?: number | null
+          genre_source?: string
           id?: string
           job_id?: string | null
           managed_playlist_id: string
@@ -530,6 +534,8 @@ export type Database = {
           cost_per_stream_op?: number | null
           created_at?: string
           dispatched_at?: string | null
+          genre_affinity_score?: number | null
+          genre_source?: string
           id?: string
           job_id?: string | null
           managed_playlist_id?: string
