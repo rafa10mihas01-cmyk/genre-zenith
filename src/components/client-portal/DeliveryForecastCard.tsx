@@ -155,9 +155,11 @@ export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
   );
   const yLeftMax = round50k(yLeftMaxBase * 1.05, "ceil");
 
-  // Eixo direito: entrega diária, com folga.
+  // Eixo direito: entrega diária + orgânico, com folga.
   const maxDelivery = Math.max(0, ...data.points.map(p => p.delivery));
-  const yRightMax = Math.max(1_000, round50k(maxDelivery * 1.3, "ceil"));
+  const maxOrganic = Math.max(0, ...data.points.map(p => p.organic ?? 0));
+  const yRightMax = Math.max(1_000, round50k(Math.max(maxDelivery, maxOrganic) * 1.3, "ceil"));
+
 
   return (
     <Card className="border-border">
