@@ -70,8 +70,8 @@ export function CampaignHub({
 
       <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as CampaignHubTabId)}>
         <div className={cn(
-          "sticky top-[120px] z-20",
-          mode === "internal" && "-mx-4 md:-mx-6 px-4 md:px-6",
+          "sticky top-[88px] z-20",
+          mode === "internal" && "-mx-2 md:-mx-3 px-4 md:px-6",
           "border-b border-border bg-background/85 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70",
         )}>
 
