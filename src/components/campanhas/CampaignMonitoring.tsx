@@ -194,7 +194,7 @@ export function CampaignMonitoring({ campaignId, snapshot, campaignStartedAt, ca
             </div>
             <span className="tabular-nums">{formatBRL(snapshot.custoTotal)} orçado</span>
           </div>
-          <CurvaReal snapshot={snapshot} elapsedDays={metrics.elapsedDays} delivered={metrics.delivered} />
+          <CurvaReal curva={freshCurva} elapsedDays={metrics.elapsedDays} delivered={metrics.delivered} />
         </div>
 
         {isCompleted && (
