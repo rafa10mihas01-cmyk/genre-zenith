@@ -409,7 +409,7 @@ export default function PlanoCampanhaPublico() {
                   <div className="sm:border-l sm:border-primary/15 sm:pl-6">
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Duração</div>
                     <div className="text-2xl sm:text-3xl font-semibold tabular-nums text-foreground">{snapshot.days}d</div>
-                    <div className="text-[11px] text-muted-foreground mt-1">janela de entrega</div>
+                    <div className="text-[11px] text-muted-foreground mt-1">contratado{snapshot.effectiveDays && snapshot.effectiveDays !== snapshot.days ? ` · plano real: ${snapshot.effectiveDays}d` : ""}</div>
                   </div>
                 </div>
               )}

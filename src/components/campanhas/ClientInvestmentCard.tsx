@@ -5,6 +5,7 @@ import { Sparkles, TrendingUp, CalendarDays, Coins } from "lucide-react";
 type Props = {
   meta: number;
   days: number;
+  effectiveDays?: number;
   pricePerStreamSell?: number;
   clientPriceTotal?: number;
 };
@@ -14,7 +15,7 @@ type Props = {
  *  - meta de streams · duração · investimento total · investimento por stream
  * NÃO mostra split eco/ext, custos internos, pricing operacional ou margem.
  */
-export function ClientInvestmentCard({ meta, days, pricePerStreamSell, clientPriceTotal }: Props) {
+export function ClientInvestmentCard({ meta, days, effectiveDays, pricePerStreamSell, clientPriceTotal }: Props) {
   const hasPrice = !!clientPriceTotal && clientPriceTotal > 0;
   // fallback: recomputar caso snapshot antigo sem clientPriceTotal mas com pricePerStreamSell
   const total = hasPrice
@@ -72,7 +73,7 @@ export function ClientInvestmentCard({ meta, days, pricePerStreamSell, clientPri
             <div className="text-2xl md:text-3xl font-semibold tabular-nums text-foreground">
               {days}d
             </div>
-            <div className="text-xs text-muted-foreground mt-1.5">janela de entrega</div>
+            <div className="text-xs text-muted-foreground mt-1.5">contratado{effectiveDays && effectiveDays !== days ? ` · plano real: ${effectiveDays}d` : ""}</div>
           </div>
         </div>
 

@@ -293,7 +293,7 @@ export function CampaignFullPlanCard({
             <div>
               <div className="text-sm font-semibold">Resumo da distribuição</div>
               <div className="text-[11px] text-muted-foreground">
-                Meta {formatInt(snapshot.meta)} streams em {days} dias · {resumo.qtdPlaylists} playlists do ecossistema
+                Meta {formatInt(snapshot.meta)} streams em {days} dias contratados{snapshot.effectiveDays && snapshot.effectiveDays !== days ? ` (${snapshot.effectiveDays} dias de plano real)` : ""} · {resumo.qtdPlaylists} playlists do ecossistema
               </div>
             </div>
             <div className="text-right">
