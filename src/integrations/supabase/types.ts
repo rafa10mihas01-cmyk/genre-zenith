@@ -4391,6 +4391,72 @@ export type Database = {
         }
         Relationships: []
       }
+      organic_plays_snapshots: {
+        Row: {
+          captured_at: string
+          correlation_id: string | null
+          created_at: string
+          deal_id: string
+          id: string
+          kind: Database["public"]["Enums"]["organic_play_kind"]
+          playlist_name: string | null
+          plays_24h: number | null
+          plays_28d: number | null
+          plays_7d: number | null
+          song_id: string | null
+          source: string | null
+          spotify_playlist_id: string | null
+          spotify_track_id: string | null
+        }
+        Insert: {
+          captured_at?: string
+          correlation_id?: string | null
+          created_at?: string
+          deal_id: string
+          id?: string
+          kind?: Database["public"]["Enums"]["organic_play_kind"]
+          playlist_name?: string | null
+          plays_24h?: number | null
+          plays_28d?: number | null
+          plays_7d?: number | null
+          song_id?: string | null
+          source?: string | null
+          spotify_playlist_id?: string | null
+          spotify_track_id?: string | null
+        }
+        Update: {
+          captured_at?: string
+          correlation_id?: string | null
+          created_at?: string
+          deal_id?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["organic_play_kind"]
+          playlist_name?: string | null
+          plays_24h?: number | null
+          plays_28d?: number | null
+          plays_7d?: number | null
+          song_id?: string | null
+          source?: string | null
+          spotify_playlist_id?: string | null
+          spotify_track_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organic_plays_snapshots_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organic_plays_snapshots_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deal_songs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       performance_insights: {
         Row: {
           acoes_sugeridas: Json
@@ -8086,6 +8152,7 @@ export type Database = {
         | "negative"
         | "inconclusive"
       notification_type: "critical" | "warning" | "info"
+      organic_play_kind: "algorithmic" | "organic" | "editorial"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -8238,6 +8305,7 @@ export const Constants = {
         "inconclusive",
       ],
       notification_type: ["critical", "warning", "info"],
+      organic_play_kind: ["algorithmic", "organic", "editorial"],
     },
   },
 } as const
