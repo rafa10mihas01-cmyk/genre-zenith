@@ -64,30 +64,57 @@ function maxViablePosition(planned: number, days: number, followers: number, mul
   }
   return best;
 }
+export type CoverageMode = "normal" | "optimized" | "maximum";
+export function selectCoverageMode(coverageRatio?: number): CoverageMode {
+  if (!Number.isFinite(coverageRatio as number)) return "normal";
+  const r = coverageRatio as number;
+  if (r >= 0.8) return "normal";
+  if (r >= 0.5) return "optimized";
+  return "maximum";
+}
+const PRIMARY_RANGES_BY_MODE: Partial<Record<CoverageMode, Record<Tier, [number, number]>>> = {
+  optimized: { large: [1, 3], medium: [2, 5], small: [3, 7] },
+  maximum:   { large: [1, 2], medium: [1, 3], small: [2, 4] },
+};
+export const AFFINITY_RANGE_BY_MODE: Record<CoverageMode, [number, number]> = {
+  normal:    [5, 10],
+  optimized: [5, 10],
+  maximum:   [3, 5],
+};
+
 export function distributeEcoPositions(
   allocs: Array<{ id: string; planned_streams: number; followers: number }>,
   days: number, mult = 30,
+  opts: { coverageRatio?: number; mode?: CoverageMode } = {},
 ): Map<string, number> {
+  const mode: CoverageMode = opts.mode ?? selectCoverageMode(opts.coverageRatio);
   const cap = 0.4;
   const total = allocs.length;
-  const maxStrong = Math.max(1, Math.floor(total * cap));
+  const maxStrong = mode === "maximum" ? Infinity : Math.max(1, Math.floor(total * cap));
   const ordered = [...allocs].sort((a, b) => b.followers - a.followers);
   const out = new Map<string, number>();
+  const fixedRanges = PRIMARY_RANGES_BY_MODE[mode];
   let strong = 0;
   for (const a of ordered) {
     const tier = classify(a.followers);
     const rng = seededRng(`pos:${a.id}`);
-    let [lo, hi] = pickBucket(rng, tier);
-    if (lo <= 5 && strong >= maxStrong) {
-      const rest = POSITION_BUCKETS[tier].filter(b => b[0] > 5);
-      if (rest.length) {
-        const sum = rest.reduce((s, b) => s + b[2], 0);
-        const r = rng(); let acc = 0;
-        for (const [blo, bhi, p] of rest) {
-          acc += p / sum;
-          if (r <= acc) { lo = blo; hi = bhi; break; }
-        }
-      } else { lo = 6; hi = 10; }
+    let lo: number;
+    let hi: number;
+    if (fixedRanges) {
+      [lo, hi] = fixedRanges[tier];
+    } else {
+      [lo, hi] = pickBucket(rng, tier);
+      if (lo <= 5 && strong >= maxStrong) {
+        const rest = POSITION_BUCKETS[tier].filter(b => b[0] > 5);
+        if (rest.length) {
+          const sum = rest.reduce((s, b) => s + b[2], 0);
+          const r = rng(); let acc = 0;
+          for (const [blo, bhi, p] of rest) {
+            acc += p / sum;
+            if (r <= acc) { lo = blo; hi = bhi; break; }
+          }
+        } else { lo = 6; hi = 10; }
+      }
     }
     const candidate = lo + Math.floor(rng() * (hi - lo + 1));
     const viable = maxViablePosition(a.planned_streams, days, a.followers, mult);
