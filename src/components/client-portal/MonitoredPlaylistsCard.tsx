@@ -14,7 +14,9 @@ export type MonitoredPlaylist = {
   planned?: number;
   plays_24h?: number | null;
   plays_7d?: number | null;
+  plays_28d?: number | null;
 };
+
 
 
 function formatPlays(n: number | null | undefined): string {
