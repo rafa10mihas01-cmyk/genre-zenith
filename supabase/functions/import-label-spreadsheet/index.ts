@@ -566,14 +566,48 @@ Deno.serve(async (req) => {
     }
 
     const matchedInternal = matched.filter(
-      (r) => typeof r.matched_playlist_id === "string" && r.matched_playlist_id.length === 36,
+      (r) => typeof r.matched_playlist_id === "string" && r.matched_playlist_id.length === 36 && !!r.playlist_spotify_id,
     );
 
     if (matchedInternal.length > 0) {
-      const snapshotRows = matchedInternal.map((r) => ({
+      // 3.0) Garante que existe um curator_playlists pra cada (deal, song, spotify_id).
+      //      Snapshots e proofs têm FK pra essa tabela — sem ela o insert quebra.
+      const upsertRows = matchedInternal.map((r) => ({
         deal_id: dealId,
         song_id: songId,
-        playlist_id: r.matched_playlist_id as string,
+        spotify_playlist_id: r.playlist_spotify_id as string,
+        playlist_name: r.playlist_name,
+        spotify_owner_name: r.owner_name ?? null,
+        canonical_playlist_id: r.matched_playlist_id as string,
+        attribution_method: "label_spreadsheet",
+      }));
+      const { error: cpErr } = await admin
+        .from("curator_playlists")
+        .upsert(upsertRows, {
+          onConflict: "deal_id,song_id,spotify_playlist_id",
+          ignoreDuplicates: false,
+        });
+      if (cpErr) console.error("curator_playlists upsert error", cpErr);
+
+      // 3.0b) Lê de volta os ids (curator_playlists.id) pra usar como playlist_id.
+      const spIds = matchedInternal.map((r) => r.playlist_spotify_id as string);
+      const { data: cpRows } = await admin
+        .from("curator_playlists")
+        .select("id, spotify_playlist_id")
+        .eq("deal_id", dealId)
+        .in("spotify_playlist_id", spIds);
+      const cpIdBySpotify = new Map<string, string>(
+        (cpRows ?? []).map((p: any) => [p.spotify_playlist_id as string, p.id as string]),
+      );
+
+      const enriched = matchedInternal
+        .map((r) => ({ r, cpId: cpIdBySpotify.get(r.playlist_spotify_id as string) }))
+        .filter((x): x is { r: typeof matchedInternal[number]; cpId: string } => !!x.cpId);
+
+      const snapshotRows = enriched.map(({ r, cpId }) => ({
+        deal_id: dealId,
+        song_id: songId,
+        playlist_id: cpId,
         plays: r.streams,
         captured_at: capturedAt,
         source: "label_spreadsheet",
@@ -590,6 +624,7 @@ Deno.serve(async (req) => {
           position_in_playlist: r.position_in_playlist,
           version_name: r.version_name,
           matched_curator_id: r.matched_curator_id,
+          managed_playlist_id: r.matched_playlist_id,
           is_internal: r.is_internal,
           upload_id: uploadId,
         },
@@ -602,21 +637,19 @@ Deno.serve(async (req) => {
 
       // delivery_proofs — alimenta o painel admin (campaign hub → Prints)
       if (songId && trackNameForProofs) {
-        const proofRows = matchedInternal
-          .filter((r) => r.playlist_spotify_id) // spotify_playlist_id é NOT NULL
-          .map((r) => ({
-            deal_id: dealId,
-            song_id: songId,
-            playlist_id: r.matched_playlist_id as string,
-            spotify_playlist_id: r.playlist_spotify_id as string,
-            playlist_name: r.playlist_name,
-            track_name: trackNameForProofs,
-            plays_total: r.streams,
-            position_in_playlist: r.position_in_playlist ?? null,
-            source: "label_spreadsheet",
-            captured_at: capturedAt,
-            spotify_track_id: spotifyTrackIdForProofs,
-          }));
+        const proofRows = enriched.map(({ r, cpId }) => ({
+          deal_id: dealId,
+          song_id: songId,
+          playlist_id: cpId,
+          spotify_playlist_id: r.playlist_spotify_id as string,
+          playlist_name: r.playlist_name,
+          track_name: trackNameForProofs,
+          plays_total: r.streams,
+          position_in_playlist: r.position_in_playlist ?? null,
+          source: "label_spreadsheet",
+          captured_at: capturedAt,
+          spotify_track_id: spotifyTrackIdForProofs,
+        }));
         if (proofRows.length > 0) {
           const { error: proofErr } = await admin.from("delivery_proofs").insert(proofRows);
           if (proofErr) console.error("delivery_proofs insert error", proofErr);
