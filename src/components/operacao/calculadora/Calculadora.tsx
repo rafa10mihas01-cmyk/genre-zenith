@@ -142,6 +142,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   const [clientId, setClientId] = useState<string>(initial.clientId);
   const [curatorId, setCuratorId] = useState<string>(initial.curatorId);
   const [campaignType, setCampaignType] = useState<"ecosystem" | "external" | "hybrid">("ecosystem");
+  const [collectionMode, setCollectionMode] = useState<"bot" | "spreadsheet">("bot");
   const [clientsList, setClientsList] = useState<{ id: string; name: string }[]>([]);
   const [curatorsList, setCuratorsList] = useState<{ id: string; name: string }[]>([]);
 
@@ -466,6 +467,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         curatorId: curatorId || null,
         status: "draft",
         campaignType,
+        collectionMode,
       });
       return { ok: true, campaignId, shortfall };
     } catch (e: any) {
@@ -613,18 +615,18 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         <div className="space-y-5">
           {/* Tipo de campanha — define como o plano vai ser executado */}
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-3">
               <CardTitle className="text-base">Tipo da campanha</CardTitle>
-              <CardDescription>
-                Define como o plano vai ser executado. Externa/Híbrida exigem curador.
+              <CardDescription className="text-xs">
+                Externa/Híbrida exigem curador.
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <CardContent className="pt-0">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                 {([
-                  { id: "ecosystem", title: "Ecossistema", desc: "Só playlists internas (managed)." },
-                  { id: "external",  title: "Externa",    desc: "Só curadores externos (deals reais)." },
-                  { id: "hybrid",    title: "Híbrida",    desc: "Mistura ecossistema + curadores." },
+                  { id: "ecosystem", title: "Ecossistema", desc: "Só playlists internas." },
+                  { id: "external",  title: "Externa",    desc: "Só curadores externos." },
+                  { id: "hybrid",    title: "Híbrida",    desc: "Ecossistema + curadores." },
                 ] as const).map(opt => {
                   const active = campaignType === opt.id;
                   return (
@@ -633,20 +635,57 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                       type="button"
                       onClick={() => setCampaignType(opt.id)}
                       className={cn(
-                        "text-left rounded-xl border p-4 transition-colors",
+                        "text-left rounded-lg border px-3 py-2 transition-colors",
                         active
                           ? "border-primary/60 bg-primary/5 ring-1 ring-primary/40"
                           : "border-border hover:border-foreground/30 hover:bg-accent/30",
                       )}
                     >
-                      <div className="font-semibold mb-1">{opt.title}</div>
-                      <div className="text-xs text-muted-foreground">{opt.desc}</div>
+                      <div className="text-sm font-semibold leading-tight">{opt.title}</div>
+                      <div className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{opt.desc}</div>
                     </button>
                   );
                 })}
               </div>
             </CardContent>
           </Card>
+
+          {/* Fonte de coleta — Spotify (bot) vs Planilha (Nielsen). Evita gastar crédito do bot quando não temos acesso. */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Fonte de coleta</CardTitle>
+              <CardDescription className="text-xs">
+                Define quem alimenta os dados. Planilha não dispara o bot.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {([
+                  { id: "bot",         title: "Spotify (bot)",      desc: "Temos acesso ao Spotify for Artists. Coleta automática." },
+                  { id: "spreadsheet", title: "Planilha (Nielsen)", desc: "Sem acesso — cliente envia planilha. Não gasta crédito do bot." },
+                ] as const).map(opt => {
+                  const active = collectionMode === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setCollectionMode(opt.id)}
+                      className={cn(
+                        "text-left rounded-lg border px-3 py-2 transition-colors",
+                        active
+                          ? "border-primary/60 bg-primary/5 ring-1 ring-primary/40"
+                          : "border-border hover:border-foreground/30 hover:bg-accent/30",
+                      )}
+                    >
+                      <div className="text-sm font-semibold leading-tight">{opt.title}</div>
+                      <div className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{opt.desc}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
 
           <Card>
             <CardHeader>
