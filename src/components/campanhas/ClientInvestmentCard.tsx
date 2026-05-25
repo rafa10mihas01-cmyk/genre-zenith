@@ -5,6 +5,7 @@ import { Sparkles, TrendingUp, CalendarDays, Coins } from "lucide-react";
 type Props = {
   meta: number;
   days: number;
+  effectiveDays?: number;
   pricePerStreamSell?: number;
   clientPriceTotal?: number;
 };
