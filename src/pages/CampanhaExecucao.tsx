@@ -87,6 +87,7 @@ export default function CampanhaExecucao() {
   const [lastSpreadsheetUploadAt, setLastSpreadsheetUploadAt] = useState<string | null>(null);
   const [recentUploads, setRecentUploads] = useState<SpreadsheetUpload[]>([]);
   const [externalItems, setExternalItems] = useState<ExternalItemRow[]>([]);
+  const [organicRows, setOrganicRows] = useState<OrganicRow[]>([]);
   const [dispatching, setDispatching] = useState(false);
 
   async function handleDispatchEco() {
