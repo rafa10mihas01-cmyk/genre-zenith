@@ -51,7 +51,9 @@ export interface CurvaPonto {
 
 export interface CampaignResult {
   meta: number;
-  days: number;
+  days: number;              // duração CONTRATADA (o que o cliente pediu)
+  effectiveDays: number;     // duração REAL do plano (ceil(days × 1.5)) —
+                             // inclui rampa de entrada + platô + saída suave
   modo: Modo;
   perfil: Perfil;
   splitEcoPct: number;
@@ -71,8 +73,28 @@ export interface CampaignResult {
   mediaPorDia: number;
   inercia: number;
 
-  // Curva
+  // Curva (length = effectiveDays)
   curva: CurvaPonto[];
+}
+
+/** Multiplicador interno fixo: usuário pede N dias plenos → motor opera em N×1.5. */
+export const EFFECTIVE_DAYS_MULTIPLIER = 1.5;
+
+/** Repartição interna fixa da janela efetiva: rampa / platô / saída. */
+export const PHASE_PCT = { ramp: 0.22, plateau: 0.62, outro: 0.16 } as const;
+
+/** Calcula a duração real do plano a partir da contratada. */
+export function toEffectiveDays(days: number): number {
+  return Math.max(1, Math.ceil(Math.max(1, Math.round(days)) * EFFECTIVE_DAYS_MULTIPLIER));
+}
+
+/** Dias por fase a partir de effectiveDays — soma sempre == effectiveDays. */
+export function computePhaseDays(effectiveDays: number): { ramp: number; plateau: number; outro: number } {
+  const d = Math.max(3, Math.round(effectiveDays));
+  const ramp = Math.max(1, Math.round(d * PHASE_PCT.ramp));
+  const outro = Math.max(1, Math.round(d * PHASE_PCT.outro));
+  const plateau = Math.max(1, d - ramp - outro);
+  return { ramp, plateau, outro };
 }
 
 import { buildDailyPlateau, sumDaily } from "./playlistGrowthEngine";
