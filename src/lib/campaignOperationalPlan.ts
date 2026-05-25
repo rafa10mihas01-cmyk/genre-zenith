@@ -1,6 +1,11 @@
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { buildDailyPlateau } from "@/lib/playlistGrowthEngine";
 
+/** Duração REAL do plano. effectiveDays quando disponível, senão days (snapshots antigos). */
+function planDaysOf(snapshot: CampaignSnapshot): number {
+  return Math.max(1, snapshot.effectiveDays ?? snapshot.days);
+}
+
 export type EcoPlanInput = {
   id: string;
   planned_streams: number;
