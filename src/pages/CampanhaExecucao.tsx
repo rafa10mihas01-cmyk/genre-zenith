@@ -26,6 +26,7 @@ import { OverviewTab } from "@/components/campaign-hub/tabs/OverviewTab";
 import { OperacaoTab, type ExternalItemRow } from "@/components/campaign-hub/tabs/OperacaoTab";
 import { PlaylistsGrid } from "@/components/campaign-hub/PlaylistsGrid";
 import { InternalEcosystemHeader } from "@/components/campaign-hub/InternalEcosystemHeader";
+import { GenresUsedFromAllocs } from "@/components/campanhas/GenresUsedFromAllocs";
 import { ProofsTimeline, type ProofEvent } from "@/components/campaign-hub/ProofsTimeline";
 
 import { SpreadsheetUploadCard } from "@/components/client-portal/SpreadsheetUploadCard";
@@ -128,7 +129,7 @@ export default function CampanhaExecucao() {
         .maybeSingle(),
       supabase
         .from("campaign_eco_allocations")
-        .select("id, managed_playlist_id, planned_streams, start_day, status, dispatched_at, position, managed_playlists(name, cover_url, followers, spotify_url)")
+        .select("id, managed_playlist_id, planned_streams, start_day, status, dispatched_at, position, genre_source, genre_affinity_score, managed_playlists(name, cover_url, followers, spotify_url, genre_id)")
         .eq("campaign_id", id)
         .order("planned_streams", { ascending: false }),
       supabase
@@ -594,6 +595,7 @@ export default function CampanhaExecucao() {
                 <TabsTrigger value="externo">Externo</TabsTrigger>
               </TabsList>
               <TabsContent value="interno" className="mt-0 space-y-4">
+                <GenresUsedFromAllocs allocs={allocs} />
                 <InternalEcosystemHeader
                   snapshot={snapshot}
                   allocations={allocs}

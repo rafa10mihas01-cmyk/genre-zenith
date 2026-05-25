@@ -30,6 +30,7 @@ import { PrintsHistoryCard, type PrintsHistoryEntry } from "@/components/client-
 import type { CampaignHubCampaign, CampaignHubTabId, EcoAllocation } from "@/components/campaign-hub/types";
 import { EvolutionChart, type EvolutionSeriesPoint } from "@/components/client-portal/EvolutionChart";
 import { DeliveryForecastCard, type ForecastPayload } from "@/components/client-portal/DeliveryForecastCard";
+import { GenresUsedChip, type GenreUsed } from "@/components/campanhas/GenresUsedChip";
 
 type EcoSnap = {
   id: string;
@@ -80,6 +81,7 @@ type SharedCampaignPlanResponse = {
   has_spotify_access?: boolean;
   collection_mode?: "bot" | "spreadsheet";
   forecast?: ForecastPayload | null;
+  genres_used?: GenreUsed[];
 };
 
 
@@ -96,6 +98,7 @@ export default function PlanoCampanhaPublico() {
   const [recentUploads, setRecentUploads] = useState<SpreadsheetUpload[]>([]);
   const [collectionMode, setCollectionMode] = useState<"bot" | "spreadsheet">("bot");
   const [forecast, setForecast] = useState<ForecastPayload | null>(null);
+  const [genresUsed, setGenresUsed] = useState<GenreUsed[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [tab, setTab] = useState<CampaignHubTabId>("overview");
@@ -130,6 +133,7 @@ export default function PlanoCampanhaPublico() {
       setRecentUploads(payload?.recent_uploads ?? []);
       setCollectionMode(payload?.collection_mode === "spreadsheet" ? "spreadsheet" : "bot");
       setForecast(payload?.forecast ?? null);
+      setGenresUsed(payload?.genres_used ?? []);
       setErr(null);
 
     }
@@ -444,6 +448,11 @@ export default function PlanoCampanhaPublico() {
                   snapshots={snaps}
                   stage={isApproved ? "live" : isRejected ? "rejected" : "approval"}
                 />
+                {genresUsed.length > 0 && (
+                  <div className="-mt-2">
+                    <GenresUsedChip genres={genresUsed} />
+                  </div>
+                )}
                 {(() => {
                   const valorCobrado = snapshot.clientPriceTotal && snapshot.clientPriceTotal > 0
                     ? snapshot.clientPriceTotal

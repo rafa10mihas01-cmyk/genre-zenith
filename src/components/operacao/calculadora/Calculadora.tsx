@@ -373,12 +373,17 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         },
       );
 
-      // Filtra playlists por afinidade de gênero (núcleo + vizinhas ≥ 0.70, teto 30% mistura, corte duro 0.50)
+      // Seleção por gênero:
+      //   1) coreSlice = playlists do gênero principal
+      //   2) Se capacidade do core < 60% de streamsEco → expande com vizinhos
+      //      (afinidade ≥ 0.60), com TETO de 40% de streamsEco vindo de vizinhos.
+      //   3) Caso core forte (≥ 60%): mantém 100% no core, sem mistura.
       const allPlaylists = playlists as { id: string; followers: number | null; genre_id: string | null }[];
       let coreSlice = allPlaylists;
       let neighborSlice: typeof allPlaylists = [];
       let neighborBudget = 0;
       let coreBudget = r.streamsEco;
+      let neighborAffinityByPlaylistId: Map<string, number> | undefined;
 
       if (song.genre) {
         const slug = song.genre
@@ -400,24 +405,46 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
             .from("genre_affinities")
             .select("genre_a_id, genre_b_id, score")
             .or(`genre_a_id.eq.${campaignGenreId},genre_b_id.eq.${campaignGenreId}`)
-            .gte("score", 0.5);
-          const affMap = new Map<string, number>();
+            .gte("score", 0.6);
+          const affByGenreId = new Map<string, number>();
           for (const row of (aff ?? []) as { genre_a_id: string; genre_b_id: string; score: number }[]) {
             const other = row.genre_a_id === campaignGenreId ? row.genre_b_id : row.genre_a_id;
-            affMap.set(other, Number(row.score));
+            affByGenreId.set(other, Number(row.score));
           }
           coreSlice = allPlaylists.filter(p => p.genre_id === campaignGenreId);
           neighborSlice = allPlaylists.filter(p => {
             if (!p.genre_id || p.genre_id === campaignGenreId) return false;
-            const s = affMap.get(p.genre_id) ?? 0;
-            return s >= 0.7;
+            return (affByGenreId.get(p.genre_id) ?? 0) >= 0.6;
           });
+          neighborAffinityByPlaylistId = new Map(
+            neighborSlice
+              .map(p => [p.id, affByGenreId.get(p.genre_id!) ?? 0] as const)
+              .filter(([, s]) => s > 0),
+          );
+
           if (coreSlice.length === 0 && neighborSlice.length > 0) {
+            // Sem core: trata vizinhos como core (caso de borda preservado).
             coreSlice = neighborSlice;
             neighborSlice = [];
-          } else {
-            neighborBudget = neighborSlice.length > 0 ? Math.round(r.streamsEco * 0.3) : 0;
-            coreBudget = r.streamsEco - neighborBudget;
+            neighborAffinityByPlaylistId = undefined;
+          } else if (neighborSlice.length > 0) {
+            // Capacidade aproximada do core (mesma fórmula sizingCap do planEcoAllocations).
+            const SLOT_PCT = 0.08;
+            const mult = song.engagementMultiplier ?? 30;
+            const coreCap = coreSlice.reduce((s, p) => (
+              s + Math.max(1, Math.round((p.followers ?? 0) * (mult / 30) * SLOT_PCT * r.days))
+            ), 0);
+            const coreCovers60 = coreCap >= r.streamsEco * 0.6;
+            if (!coreCovers60) {
+              const maxNeighbor = Math.round(r.streamsEco * 0.4);
+              const gap = Math.max(0, r.streamsEco - coreCap);
+              neighborBudget = Math.min(maxNeighbor, gap);
+              coreBudget = r.streamsEco - neighborBudget;
+            } else {
+              neighborBudget = 0;
+              neighborSlice = [];
+              neighborAffinityByPlaylistId = undefined;
+            }
           }
         }
       }
@@ -443,6 +470,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         coreSlice.map(p => ({ id: p.id, followers: p.followers ?? 0 })),
         r.modo,
         song.engagementMultiplier ?? 30,
+        { source: "primary" },
       );
       const neighborAllocs = neighborBudget > 0
         ? planEcoAllocations(
@@ -451,6 +479,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
             neighborSlice.map(p => ({ id: p.id, followers: p.followers ?? 0 })),
             r.modo,
             song.engagementMultiplier ?? 30,
+            { source: "affinity", affinityByPlaylistId: neighborAffinityByPlaylistId },
           )
         : [];
       const allocations = [...coreAllocs, ...neighborAllocs];

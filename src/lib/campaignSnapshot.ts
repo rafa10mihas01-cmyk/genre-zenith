@@ -82,6 +82,16 @@ export interface EcoAllocationPlan {
   start_day: number;
   /** Posição sorteada já no momento do fechamento — usada pra gravar campaign_eco_allocations.position. */
   position: number;
+  /** 'primary' = gênero da campanha; 'affinity' = gênero vizinho via genre_affinities. */
+  genre_source?: "primary" | "affinity";
+  /** Score 0–1 quando vier de afinidade. */
+  genre_affinity_score?: number | null;
+}
+
+export interface GenreContext {
+  source: "primary" | "affinity";
+  /** Map playlistId → affinity score (0–1). Só usado quando source='affinity'. */
+  affinityByPlaylistId?: Map<string, number>;
 }
 
 const PLAYS_PER_SAVE_MONTH = 30;
@@ -100,6 +110,7 @@ export function planEcoAllocations(
   playlists: { id: string; followers: number }[],
   modo: CampaignSnapshot["modo"] = "simultaneo",
   engagementMultiplier: number = 30,
+  genreContext?: GenreContext,
 ): EcoAllocationPlan[] {
   if (streamsEco <= 0 || playlists.length === 0) return [];
 
@@ -153,11 +164,17 @@ export function planEcoAllocations(
         ? Math.max(0, Math.min(cap, streamsEco - allocated))
         : Math.min(cap, Math.round((cap / totalReal) * streamsEco));
       allocated += planned;
+      const source = genreContext?.source ?? "primary";
+      const score = source === "affinity"
+        ? (genreContext?.affinityByPlaylistId?.get(c.id) ?? null)
+        : null;
       return {
         managed_playlist_id: c.id,
         planned_streams: planned,
         start_day: ecoWarmupStartDay(index, selected.length, days, modo),
         position: positions.get(c.id) ?? 3,
+        genre_source: source,
+        genre_affinity_score: score,
       };
     })
     .filter(a => a.planned_streams > 0);
@@ -274,6 +291,8 @@ export async function closeCampaignFromCalculator(args: {
         cost_per_stream_op: pricingOpEco,
         market_per_stream: pricingMarketEco,
         price_per_stream_sell: finalPricePerStream,
+        genre_source: a.genre_source ?? "primary",
+        genre_affinity_score: a.genre_affinity_score ?? null,
       };
     });
     const { error: allocErr } = await supabase.from("campaign_eco_allocations").insert(rows as any);
