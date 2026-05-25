@@ -349,6 +349,19 @@ export function SpotifyAppsManager({
                         )}
                       </div>
                       <div className="text-[11px] text-muted-foreground font-mono truncate mt-1">{a.client_id_preview}</div>
+                      {(() => {
+                        const owner = appAccounts.find((acc) => acc.is_default) ?? appAccounts[0];
+                        if (!owner) return null;
+                        const label = owner.email ?? owner.display_name ?? owner.spotify_user_id;
+                        return (
+                          <div className="flex items-center gap-1.5 mt-1 text-[11px] text-muted-foreground min-w-0">
+                            {owner.is_default && <Star className="h-2.5 w-2.5 text-primary shrink-0" />}
+                            <span className="truncate" title={`Conta ${owner.is_default ? "padrão" : "principal"} deste app: ${label}`}>
+                              {label}
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </div>
                     <div className="flex items-center gap-2">
                       <Button
