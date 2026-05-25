@@ -386,6 +386,7 @@ export function SpotifyAppsManager({
                   </div>
                 </header>
 
+                {!isCollapsed && <>
                 {/* Contas aninhadas */}
                 <div className="p-4 space-y-1.5">
                   <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-bold">
