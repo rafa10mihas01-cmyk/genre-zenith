@@ -50,7 +50,7 @@ const S = (t: number) => {
 
 export function DeliveryForecastCard({ forecast }: Props) {
   const {
-    curve, top200Position, top200StreamsDay, baselineStreamsDay,
+    curve, top200Position, top200StreamsDay, baselineStreamsDay, goalPlays,
   } = forecast;
 
   const data = useMemo(() => {
