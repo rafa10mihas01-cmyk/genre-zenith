@@ -43,6 +43,8 @@ export interface CampaignSnapshot {
   // Pricing pro cliente — snapshot do que ele vai pagar. Opcionais p/ retrocompat.
   pricePerStreamSell?: number;
   clientPriceTotal?: number;
+  /** Multiplicador escolhido na calculadora (saves→plays). Espelha campaigns.engagement_multiplier. */
+  engagementMultiplier?: number;
 }
 
 export function buildSnapshot(
@@ -237,6 +239,7 @@ export async function closeCampaignFromCalculator(args: {
     ...snapshot,
     pricePerStreamSell: finalPricePerStream,
     clientPriceTotal: finalClientPrice,
+    engagementMultiplier: Math.max(1, Math.round(engagementMultiplier)),
   };
 
 

@@ -219,6 +219,11 @@ export function buildEcoPlan(args: {
     const baseCap = Math.max(1, Math.round(calcTrackDailyStreams(followers, mult, pos)));
 
     const daily: number[] = Array.from({ length: days }, () => 0);
+    // Rampa de saída: últimos 20% dos dias decaem suavemente, espelhando a rampa de entrada.
+    // tailFactor = 1 − 0.5 × ((day − tailStart) / tailDays)^2  (0.5 no último dia).
+    const runLen = Math.max(1, days - (startDay - 1));
+    const tailDays = Math.max(1, Math.round(runLen * 0.2));
+    const tailStart = days - tailDays + 1;
     for (let i = startDay - 1; i < days; i++) {
       const rampIdx = i - (startDay - 1);
       const ramp = rampIdx < ECO_RAMP.length ? ECO_RAMP[rampIdx] : 1;
@@ -228,7 +233,13 @@ export function buildEcoPlan(args: {
         d.setDate(d.getDate() + i);
         weekday = WEEKDAY_FLAT_FACTOR[d.getDay()] ?? 1;
       }
-      daily[i] = Math.max(1, Math.round(baseCap * ramp * weekday));
+      const dayNum = i + 1;
+      let tail = 1;
+      if (dayNum >= tailStart) {
+        const t = (dayNum - tailStart) / tailDays;
+        tail = 1 - 0.5 * t * t;
+      }
+      daily[i] = Math.max(1, Math.round(baseCap * ramp * tail * weekday));
     }
     const total = daily.reduce((s, v) => s + v, 0);
 

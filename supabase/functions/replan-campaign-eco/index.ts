@@ -212,7 +212,7 @@ Deno.serve(async (req) => {
       managed_playlist_id: p.id,
       planned_streams: plannedStreams,
       start_day: 1,
-      status: "approved",
+      status: "pending",
       position: pos,
       genre_source: source,
     });

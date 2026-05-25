@@ -609,7 +609,13 @@ export function buildEcoPlaylistPlan(
     const baseCap = Math.max(1, Math.round(calculateTrackDailyStreams(followers, multiplier, pos)));
 
     const daily = Array.from({ length: planDaysOf(snapshot) }, () => 0);
-    for (let i = startDay - 1; i < planDaysOf(snapshot); i++) {
+    // Rampa de saída: últimos 20% dos dias da alocação decaem suavemente,
+    // espelhando a rampa de entrada. tailFactor = 1 − 0.5 × ((day − tailStart) / tailDays)^2.
+    const planLen = planDaysOf(snapshot);
+    const runLen = Math.max(1, planLen - (startDay - 1));
+    const tailDays = Math.max(1, Math.round(runLen * 0.2));
+    const tailStart = planLen - tailDays + 1;
+    for (let i = startDay - 1; i < planLen; i++) {
       // Ramp suave nos primeiros dias de entrada na playlist.
       const rampIdx = i - (startDay - 1);
       const ramp = rampIdx < ECO_RAMP.length ? ECO_RAMP[rampIdx] : 1;
@@ -620,7 +626,13 @@ export function buildEcoPlaylistPlan(
         d.setDate(d.getDate() + i);
         weekday = WEEKDAY_FLAT_FACTOR[d.getDay()] ?? 1;
       }
-      daily[i] = Math.max(1, Math.round(baseCap * ramp * weekday));
+      const dayNum = i + 1;
+      let tail = 1;
+      if (dayNum >= tailStart) {
+        const t = (dayNum - tailStart) / tailDays;
+        tail = 1 - 0.5 * t * t;
+      }
+      daily[i] = Math.max(1, Math.round(baseCap * ramp * tail * weekday));
     }
 
     const targetTotal = Math.max(0, Math.round(a.planned_streams || 0));
