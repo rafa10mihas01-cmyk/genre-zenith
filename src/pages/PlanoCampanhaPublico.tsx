@@ -30,6 +30,7 @@ import { PrintsHistoryCard, type PrintsHistoryEntry } from "@/components/client-
 import type { CampaignHubCampaign, CampaignHubTabId, EcoAllocation } from "@/components/campaign-hub/types";
 import { EvolutionChart, type EvolutionSeriesPoint } from "@/components/client-portal/EvolutionChart";
 import { DeliveryForecastCard, type ForecastPayload } from "@/components/client-portal/DeliveryForecastCard";
+import { GenresUsedChip, type GenreUsed } from "@/components/campanhas/GenresUsedChip";
 
 type EcoSnap = {
   id: string;
