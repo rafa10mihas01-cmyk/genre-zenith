@@ -336,7 +336,7 @@ Deno.serve(async (req) => {
             .eq("spotify_playlist_id", sId)
             .maybeSingle();
           if (mp?.id) {
-            await supabase
+            const { error: ecoErr } = await supabase
               .from("campaign_eco_snapshots")
               .upsert({
                 campaign_id: ecoCampaignId,
@@ -348,8 +348,11 @@ Deno.serve(async (req) => {
                 source: snap.source ?? "spotify_for_artists",
                 correlation_id: correlation_id ?? null,
               }, { onConflict: "campaign_id,managed_playlist_id,captured_at", ignoreDuplicates: true });
+            if (ecoErr) {
+              console.warn("[bot-ingest-snapshot] eco_snapshots upsert failed:", ecoErr.message, { ecoCampaignId, sId });
+            }
           }
-        } catch (_) { /* silencia */ }
+        } catch (e) { console.warn("[bot-ingest-snapshot] eco mirror error:", (e as Error).message); }
       }
     }
   }
