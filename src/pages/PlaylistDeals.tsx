@@ -453,7 +453,7 @@ export default function PlaylistDeals() {
       {/* Conteúdo — altura mínima estável evita layout shift entre abas */}
       <div className="min-h-[480px] animate-tab-in">
         {loading && deals.length === 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
             {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
               <div key={i} className="nx-card h-56 animate-pulse" />
             ))}
@@ -482,7 +482,7 @@ export default function PlaylistDeals() {
             </div>
           </div>
         ) : useLegacyCards ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
             {filtered.map((d) => (
               <CuratorDealCard
                 key={d.id}
@@ -503,7 +503,7 @@ export default function PlaylistDeals() {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
             {filtered.map((d) => (
               <DealRow
                 key={d.id}
