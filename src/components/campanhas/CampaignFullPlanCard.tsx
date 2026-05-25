@@ -39,6 +39,10 @@ type Props = {
   campaignId?: string;
   /** Callback após gravar novas posições no banco — usado pra recarregar allocs. */
   onPositionsRedistributed?: () => void;
+  /** Total estimado de plays orgânicos/rádio/autoplay (default 18% da meta). */
+  radioGoal?: number;
+  /** Soma dos plays já coletados em organic_plays_snapshots (null = sem dados, mostra "estimado"). */
+  radioCollectedTotal?: number | null;
 };
 
 function dateLabel(startedAt: string, day: number) {
