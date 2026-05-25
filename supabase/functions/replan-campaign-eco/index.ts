@@ -101,9 +101,10 @@ Deno.serve(async (req) => {
     .maybeSingle();
   if (campErr) return json({ ok: false, error: campErr.message }, 500);
   if (!campaign) return json({ ok: false, error: "campaign_not_found" }, 404);
-  if (campaign.created_by !== userId) {
-    const { data: isAdmin } = await admin.rpc("has_role", { _user_id: userId, _role: "admin" });
-    if (!isAdmin) return json({ ok: false, error: "forbidden" }, 403);
+  if (campaign.created_by && campaign.created_by !== userId) {
+    const { data: isAdmin, error: roleErr } = await admin.rpc("has_role", { _user_id: userId, _role: "admin" });
+    console.log("[replan] auth check", { userId, created_by: campaign.created_by, isAdmin, roleErr: roleErr?.message });
+    if (!isAdmin) return json({ ok: false, error: "forbidden", debug: { userId, isAdmin, roleErr: roleErr?.message } }, 403);
   }
 
   const snap = (campaign as any).simulation_snapshot ?? null;
