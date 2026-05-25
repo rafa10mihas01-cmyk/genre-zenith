@@ -8,7 +8,7 @@ export const POSITION_PCT: number[] = [
   0.012, 0.011, 0.010, 0.009, 0.008,
 ];
 const POSITION_RESIDUAL = 0.003;
-export const MIN_CAMPAIGN_POSITION = 3;
+export const MIN_CAMPAIGN_POSITION = 1;
 const ECO_RAMP = [0.2, 0.4, 0.6, 0.8, 1.0];
 const WEEKDAY_FLAT_FACTOR = [0.92, 0.85, 1.00, 1.04, 1.06, 1.08, 1.05];
 
@@ -40,7 +40,7 @@ function classify(f: number): Tier {
   return "small";
 }
 const POSITION_BUCKETS: Record<Tier, Array<[number, number, number]>> = {
-  large:  [[3, 5, 0.70], [6, 8, 0.20], [9, 12, 0.10]],
+  large:  [[1, 2, 0.40], [3, 5, 0.40], [6, 10, 0.20]],
   medium: [[3, 5, 0.20], [6, 10, 0.60], [11, 15, 0.20]],
   small:  [[3, 5, 0.10], [6, 10, 0.30], [11, 20, 0.60]],
 };

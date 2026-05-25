@@ -24,6 +24,27 @@ import {
   distributeEcoPositions,
   POSITION_PCT,
 } from "../_shared/computeEcoPlan.ts";
+import { getGenreNeighbors } from "../_shared/genre-affinity.ts";
+
+// Pequeno RNG determinístico (mesma família do computeEcoPlan) para
+// distribuir uniformemente posições 5–10 nas playlists de gêneros vizinhos.
+function seededRng(seed: string) {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  let a = h >>> 0;
+  return () => {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const NEIGHBOR_POS_MIN = 5;
+const NEIGHBOR_POS_MAX = 10;
+const NEIGHBOR_AFFINITY_THRESHOLD = 0.60;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -111,7 +132,7 @@ Deno.serve(async (req) => {
     return json({ ok: false, error: "no_primary_genre" }, 400);
   }
 
-  // 3) Candidatas: managed_playlists do mesmo gênero, ativas, fora do plano
+  // 3) Candidatas PRIMÁRIAS: managed_playlists do mesmo gênero, ativas, fora do plano
   const { data: candidatePls, error: cErr } = await admin
     .from("managed_playlists")
     .select("id, followers, genre_id")
@@ -121,37 +142,67 @@ Deno.serve(async (req) => {
     .order("followers", { ascending: false });
   if (cErr) return json({ ok: false, error: cErr.message }, 500);
 
-  const fresh = (candidatePls ?? []).filter((p: any) => !usedIds.has(p.id));
-  if (fresh.length === 0) {
+  const freshPrimary = (candidatePls ?? []).filter((p: any) => !usedIds.has(p.id));
+
+  // 3b) Candidatas VIZINHAS: gêneros com afinidade >= 0.60 (excluindo o primário).
+  //     Posições forçadas em [5,10] para não competir com slots premium do primário.
+  const neighbors = await getGenreNeighbors(admin, primaryGenreId, NEIGHBOR_AFFINITY_THRESHOLD);
+  const neighborGenreIds = neighbors
+    .map(n => n.genre_id)
+    .filter(gid => gid && gid !== primaryGenreId);
+
+  let freshNeighbor: any[] = [];
+  if (neighborGenreIds.length > 0) {
+    const { data: neighborPls, error: nErr } = await admin
+      .from("managed_playlists")
+      .select("id, followers, genre_id")
+      .in("genre_id", neighborGenreIds)
+      .is("archived_at", null)
+      .gt("followers", 0)
+      .order("followers", { ascending: false });
+    if (nErr) return json({ ok: false, error: nErr.message }, 500);
+    freshNeighbor = (neighborPls ?? []).filter((p: any) => !usedIds.has(p.id));
+  }
+
+  if (freshPrimary.length === 0 && freshNeighbor.length === 0) {
     return json({
       ok: true,
       added: 0,
       plays_per_day_added: 0,
-      message: "Nenhuma playlist nova do gênero primário fora do plano.",
+      message: "Nenhuma playlist nova (primário ou vizinhos) fora do plano.",
     });
   }
 
-  // 4) Pré-calcula posições nas NOVAS (sem mexer nas existentes).
-  //    distributeEcoPositions precisa de planned_streams e followers; usamos
-  //    estimativa preliminar com SLOT_PCT médio (0.05) só pra ranking — a
-  //    posição final será respeitada quando recalcularmos cap_dia.
-  const prelimAllocs = fresh.map((p: any) => ({
+  // 4) Posições — primário usa distributeEcoPositions (respeita tier).
+  //    Vizinhos são forçados em [5,10] via RNG determinístico por id.
+  const prelimAllocs = freshPrimary.map((p: any) => ({
     id: p.id,
     planned_streams: Math.round(Number(p.followers ?? 0) * (mult / 30) * 0.05 * days),
     followers: Number(p.followers ?? 0),
   }));
-  const positions = distributeEcoPositions(prelimAllocs, days, mult);
+  const primaryPositions = distributeEcoPositions(prelimAllocs, days, mult);
+
+  const neighborPositions = new Map<string, number>();
+  for (const p of freshNeighbor) {
+    const rng = seededRng(`neighbor-pos:${p.id}`);
+    const range = NEIGHBOR_POS_MAX - NEIGHBOR_POS_MIN + 1;
+    neighborPositions.set(p.id, NEIGHBOR_POS_MIN + Math.floor(rng() * range));
+  }
 
   // 5) Monta linhas + soma plays/dia adicionais
   let playsPerDayAdded = 0;
+  let playsPerDayPrimary = 0;
+  let playsPerDayNeighbor = 0;
   const rows: any[] = [];
-  for (const p of fresh) {
-    const pos = positions.get(p.id) ?? 3;
+
+  const buildRow = (p: any, pos: number, source: "primary" | "affinity") => {
     const positionPct = POSITION_PCT[pos - 1] ?? 0.003;
     const followers = Number(p.followers ?? 0);
     const capDia = Math.max(1, Math.round(followers * (mult / 30) * positionPct));
     const plannedStreams = Math.max(1, capDia * days);
     playsPerDayAdded += capDia;
+    if (source === "primary") playsPerDayPrimary += capDia;
+    else playsPerDayNeighbor += capDia;
     rows.push({
       campaign_id: campaignId,
       managed_playlist_id: p.id,
@@ -159,17 +210,29 @@ Deno.serve(async (req) => {
       start_day: 1,
       status: "approved",
       position: pos,
-      genre_source: "primary",
+      genre_source: source,
     });
+  };
+
+  for (const p of freshPrimary) {
+    buildRow(p, primaryPositions.get(p.id) ?? 3, "primary");
+  }
+  for (const p of freshNeighbor) {
+    buildRow(p, neighborPositions.get(p.id) ?? NEIGHBOR_POS_MIN, "affinity");
   }
 
+  const summary = {
+    added: rows.length,
+    added_primary: freshPrimary.length,
+    added_neighbor: freshNeighbor.length,
+    plays_per_day_added: playsPerDayAdded,
+    plays_per_day_primary: playsPerDayPrimary,
+    plays_per_day_neighbor: playsPerDayNeighbor,
+    neighbor_genres: neighborGenreIds,
+  };
+
   if (dryRun) {
-    return json({
-      ok: true,
-      dry_run: true,
-      added: rows.length,
-      plays_per_day_added: playsPerDayAdded,
-    });
+    return json({ ok: true, dry_run: true, ...summary });
   }
 
   // 6) Insert
@@ -178,9 +241,5 @@ Deno.serve(async (req) => {
     .insert(rows, { count: "exact" });
   if (insErr) return json({ ok: false, error: insErr.message }, 500);
 
-  return json({
-    ok: true,
-    added: count ?? rows.length,
-    plays_per_day_added: playsPerDayAdded,
-  });
+  return json({ ok: true, ...summary, added: count ?? rows.length });
 });
