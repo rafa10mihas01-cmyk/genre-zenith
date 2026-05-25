@@ -890,6 +890,107 @@ function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
 
+function ReplanButton({ campaignId, onReplanned }: { campaignId: string; onReplanned: () => void | Promise<void> }) {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [executing, setExecuting] = useState(false);
+  const [preview, setPreview] = useState<{ added: number; plays_per_day_added: number } | null>(null);
+
+  const handleOpen = async () => {
+    setOpen(true);
+    setPreview(null);
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("replan-campaign-eco", {
+        body: { campaign_id: campaignId, dry_run: true },
+      });
+      if (error) throw error;
+      const res = data as { ok: boolean; added?: number; plays_per_day_added?: number; error?: string };
+      if (!res?.ok) throw new Error(res?.error ?? "Falha ao calcular replanejamento");
+      setPreview({ added: Number(res.added ?? 0), plays_per_day_added: Number(res.plays_per_day_added ?? 0) });
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e, "Falha ao calcular replanejamento"));
+      setOpen(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirm = async () => {
+    setExecuting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("replan-campaign-eco", {
+        body: { campaign_id: campaignId, dry_run: false },
+      });
+      if (error) throw error;
+      const res = data as { ok: boolean; added?: number; error?: string };
+      if (!res?.ok) throw new Error(res?.error ?? "Falha ao replanejar");
+      toast.success(`${res.added ?? 0} playlists adicionadas ao plano`);
+      setOpen(false);
+      await onReplanned();
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e, "Falha ao replanejar"));
+    } finally {
+      setExecuting(false);
+    }
+  };
+
+  return (
+    <>
+      <Button variant="outline" size="sm" onClick={handleOpen}>
+        <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+        Replanejar plano
+      </Button>
+      <Dialog open={open} onOpenChange={(o) => !executing && setOpen(o)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Replanejar plano</DialogTitle>
+          </DialogHeader>
+          {loading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground py-6">
+              <Loader2 className="h-4 w-4 animate-spin" /> Buscando playlists do gênero…
+            </div>
+          ) : preview ? (
+            preview.added === 0 ? (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Nenhuma playlist nova do gênero primário fora do plano atual.
+                </p>
+                <div className="flex justify-end">
+                  <Button variant="outline" size="sm" onClick={() => setOpen(false)}>Fechar</Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg border border-border bg-card p-3">
+                    <div className="text-xs text-muted-foreground">Playlists novas</div>
+                    <div className="text-2xl font-semibold tabular-nums">{preview.added}</div>
+                  </div>
+                  <div className="rounded-lg border border-border bg-card p-3">
+                    <div className="text-xs text-muted-foreground">Plays/dia adicionais</div>
+                    <div className="text-2xl font-semibold tabular-nums">{preview.plays_per_day_added.toLocaleString("pt-BR")}</div>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  As playlists existentes (incluindo já despachadas) não serão alteradas. Só novas allocs serão inseridas com status <span className="font-mono">approved</span>.
+                </p>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setOpen(false)} disabled={executing}>Cancelar</Button>
+                  <Button size="sm" onClick={handleConfirm} disabled={executing}>
+                    {executing ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : null}
+                    Confirmar
+                  </Button>
+                </div>
+              </div>
+            )
+          ) : null}
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 function FinKpi({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return <Kpi variant="compact" label={label} value={value} hint={sub} />;
 }
