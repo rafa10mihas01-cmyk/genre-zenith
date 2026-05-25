@@ -55,7 +55,8 @@ Deno.serve(async (req) => {
 
     const token = await getSpotifyToken();
     const nowIso = new Date().toISOString();
-    const CONCURRENCY = 10;
+    const CONCURRENCY = 3;
+    const BATCH_DELAY_MS = 500;
     const details: Array<{ id: string; spotify_playlist_id: string; before: number | null; after: number | null; ok: boolean; error?: string }> = [];
     let updated = 0;
     let failed = 0;
