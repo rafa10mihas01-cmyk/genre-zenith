@@ -162,19 +162,20 @@ export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
 
 
   return (
-    <Card className="border-border">
-      <CardContent className="p-5 sm:p-6 space-y-5">
+    <Card>
+      <CardContent className="space-y-3">
         <div>
-          <h2 className="text-[15px] font-semibold inline-flex items-center gap-2 tracking-tight">
-            <Sparkles className="h-4 w-4 text-muted-foreground" />
+          <h2 className="text-[13px] font-semibold inline-flex items-center gap-1.5 tracking-tight">
+            <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
             Previsão de entrega
           </h2>
-          <p className="text-[12px] text-muted-foreground mt-1 leading-snug">
+          <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
             Plays/dia da música e combustível diário da campanha
           </p>
         </div>
 
-        <div className="h-[280px] sm:h-[320px] w-full -mx-2">
+        <div className="h-[200px] sm:h-[220px] w-full -mx-2">
+
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={data.points} margin={{ top: 24, right: 16, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
