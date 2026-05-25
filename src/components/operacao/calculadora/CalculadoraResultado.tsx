@@ -33,7 +33,7 @@ export function CalculadoraKpis({ r, pricePerStreamSell }: { r: CampaignResult; 
         icon={Layers}
         label="Duração"
         value={`${r.days}d`}
-        hint={r.modo === "simultaneo" ? "simultâneo" : "sequencial"}
+        hint={`plano real: ${r.effectiveDays}d`}
       />
       {clientTotal != null ? (
         <KpiClient
