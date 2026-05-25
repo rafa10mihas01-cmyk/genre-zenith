@@ -244,10 +244,18 @@ export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
                   if (name === "organic") return [`${formatFull(value)} plays/dia`, "Orgânico (Rádio · Autoplay · Mixes)"];
                   if (name === "delivery") {
                     const cum = item?.payload?.cumulative;
-                    const acc = Number.isFinite(cum)
-                      ? `\nAcumulado: ${formatPlays(cum)} plays`
-                      : "";
-                    return [`${formatFull(value)} plays${acc}`, "Entrega do dia"];
+                    const node = (
+                      <span>
+                        {formatFull(value)} plays
+                        {Number.isFinite(cum) && (
+                          <>
+                            {" · "}
+                            <span className="text-muted-foreground">Acumulado: {formatPlays(cum)} plays</span>
+                          </>
+                        )}
+                      </span>
+                    );
+                    return [node, "Entrega do dia"];
                   }
                   return [`${formatFull(value)} plays`, name];
                 }}
