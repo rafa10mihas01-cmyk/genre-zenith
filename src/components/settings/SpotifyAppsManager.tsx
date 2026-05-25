@@ -183,6 +183,12 @@ export function SpotifyAppsManager({
 
   useEffect(() => { void load(); void loadScopes(); }, []);
 
+  useEffect(() => {
+    if (initializedCollapse.current || apps.length === 0) return;
+    initializedCollapse.current = true;
+    setCollapsedApps(new Set(apps.map((a) => a.id)));
+  }, [apps]);
+
   async function save() {
     if (!editing) return;
     const body: any = {
