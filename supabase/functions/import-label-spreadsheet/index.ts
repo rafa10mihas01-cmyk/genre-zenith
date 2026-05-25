@@ -542,19 +542,38 @@ Deno.serve(async (req) => {
       if (rowsErr) console.error("rows insert error", rowsErr);
     }
 
-    // 3) Snapshots no motor de velocidade (mantém compat)
+    // 3) Snapshots + delivery_proofs — só para linhas que casaram com
+    //    uma playlist nossa (matched_playlist_id é UUID real). Sem isso,
+    //    a inserção quebrava inteira (playlist_id é UUID) e nada do
+    //    upload aparecia no admin/cliente.
     const capturedAt = new Date().toISOString();
-    const snapshotRows = matched.map((r) => {
-      const placeholderId = r.playlist_spotify_id
-        ? `spotify:${r.playlist_spotify_id}`
-        : `label:${dealId}:${r.playlist_name}|${r.owner_name ?? ""}`
-          .toLowerCase()
-          .replace(/\s+/g, "-")
-          .slice(0, 240);
-      return {
+
+    // Buscamos a música/campanha pra ter o track_name correto em proofs.
+    let trackNameForProofs = "";
+    let campaignIdForUpdate: string | null = null;
+    let spotifyTrackIdForProofs: string | null = null;
+    {
+      const { data: campRow } = await admin
+        .from("campaigns")
+        .select("id, track_name, spotify_track_id")
+        .eq("deal_id", dealId)
+        .maybeSingle();
+      if (campRow) {
+        trackNameForProofs = (campRow as any).track_name ?? "";
+        campaignIdForUpdate = (campRow as any).id ?? null;
+        spotifyTrackIdForProofs = (campRow as any).spotify_track_id ?? null;
+      }
+    }
+
+    const matchedInternal = matched.filter(
+      (r) => typeof r.matched_playlist_id === "string" && r.matched_playlist_id.length === 36,
+    );
+
+    if (matchedInternal.length > 0) {
+      const snapshotRows = matchedInternal.map((r) => ({
         deal_id: dealId,
         song_id: songId,
-        playlist_id: placeholderId,
+        playlist_id: r.matched_playlist_id as string,
         plays: r.streams,
         captured_at: capturedAt,
         source: "label_spreadsheet",
@@ -570,17 +589,57 @@ Deno.serve(async (req) => {
           isrc: r.isrc,
           position_in_playlist: r.position_in_playlist,
           version_name: r.version_name,
-          matched_playlist_id: r.matched_playlist_id,
           matched_curator_id: r.matched_curator_id,
           is_internal: r.is_internal,
+          upload_id: uploadId,
         },
-      };
-    });
+      }));
 
-    const { error: snapErr } = await admin
-      .from("curator_deal_snapshots")
-      .insert(snapshotRows);
-    if (snapErr) console.error("snapshot insert error", snapErr);
+      const { error: snapErr } = await admin
+        .from("curator_deal_snapshots")
+        .insert(snapshotRows);
+      if (snapErr) console.error("snapshot insert error", snapErr);
+
+      // delivery_proofs — alimenta o painel admin (campaign hub → Prints)
+      if (songId && trackNameForProofs) {
+        const proofRows = matchedInternal
+          .filter((r) => r.playlist_spotify_id) // spotify_playlist_id é NOT NULL
+          .map((r) => ({
+            deal_id: dealId,
+            song_id: songId,
+            playlist_id: r.matched_playlist_id as string,
+            spotify_playlist_id: r.playlist_spotify_id as string,
+            playlist_name: r.playlist_name,
+            track_name: trackNameForProofs,
+            plays_total: r.streams,
+            position_in_playlist: r.position_in_playlist ?? null,
+            source: "label_spreadsheet",
+            captured_at: capturedAt,
+            spotify_track_id: spotifyTrackIdForProofs,
+          }));
+        if (proofRows.length > 0) {
+          const { error: proofErr } = await admin.from("delivery_proofs").insert(proofRows);
+          if (proofErr) console.error("delivery_proofs insert error", proofErr);
+        }
+      }
+    }
+
+    // 3b) Atualiza campaigns.total_delivered com o total acumulado vindo
+    //     das planilhas (todas as linhas do deal, não só esse upload).
+    if (campaignIdForUpdate) {
+      const { data: agg } = await admin
+        .from("label_spreadsheet_rows")
+        .select("streams")
+        .eq("deal_id", dealId);
+      const cumulative = (agg ?? []).reduce(
+        (s: number, r: any) => s + Number(r.streams || 0),
+        0,
+      );
+      await admin
+        .from("campaigns")
+        .update({ total_delivered: cumulative })
+        .eq("id", campaignIdForUpdate);
+    }
 
     // 4) Log agregado
     await admin.from("curator_deal_logs").insert({
