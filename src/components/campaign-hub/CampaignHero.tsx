@@ -103,7 +103,8 @@ export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed 
         </div>
 
         {/* Ações */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+
           {mode === "internal" && (
             <>
               <Link to="/campanhas">
