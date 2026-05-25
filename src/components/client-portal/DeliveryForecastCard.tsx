@@ -29,7 +29,13 @@ export type ForecastPayload = {
   plannedDailyAverage?: number;
 };
 
-type Props = { forecast: ForecastPayload };
+export type OrganicSummary = {
+  total_plays?: number;
+  by_kind?: Record<string, number>;
+};
+
+type Props = { forecast: ForecastPayload; organicSummary?: OrganicSummary | null };
+
 
 function formatPlays(n: number): string {
   if (!Number.isFinite(n)) return "0";
