@@ -1,8 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatBRL, formatInt, computePhaseDays, type CampaignResult } from "@/lib/campaignEngine";
-import { TrendingUp, Wallet, Zap, Layers, Flame, Rocket, Activity, Anchor, Coins, Info } from "lucide-react";
-import { useMemo, useState } from "react";
-import { cn } from "@/lib/utils";
+import { TrendingUp, Wallet, Zap, Layers, Coins, Info } from "lucide-react";
+import { CurvaEntregaChart } from "@/components/shared/CurvaEntregaChart";
 
 /** KPIs do resultado — hierarquia operacional:
  *   META é o headline (peso visual dominante)
