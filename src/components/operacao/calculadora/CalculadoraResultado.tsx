@@ -95,7 +95,7 @@ export function CalculadoraResultado({ r }: { r: CampaignResult }) {
           <CardTitle className="text-sm">Curva de entrega</CardTitle>
         </CardHeader>
         <CardContent>
-          <CurvaChart curva={r.curva} inercia={r.inercia} />
+          <CurvaEntregaChart curva={r.curva} inercia={r.inercia} />
         </CardContent>
       </Card>
     </div>
