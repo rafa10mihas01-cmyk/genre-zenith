@@ -154,8 +154,8 @@ export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed 
             </>
           )}
           {mode === "client" && camp.spotify_track_url && (
-            <a href={camp.spotify_track_url} target="_blank" rel="noreferrer">
-              <Button variant="outline" size="sm">
+            <a href={camp.spotify_track_url} target="_blank" rel="noreferrer" className="shrink-0">
+              <Button variant="outline" size="sm" className="shrink-0">
                 <ExternalLink className="h-4 w-4 mr-1.5" /> Ouvir
               </Button>
             </a>
