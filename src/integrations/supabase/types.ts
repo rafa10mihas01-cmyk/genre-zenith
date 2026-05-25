@@ -798,6 +798,7 @@ export type Database = {
           client_approved_ip: string | null
           client_id: string | null
           client_rejected_at: string | null
+          collection_mode: string
           cover_url: string | null
           created_at: string
           created_by: string | null
@@ -840,6 +841,7 @@ export type Database = {
           client_approved_ip?: string | null
           client_id?: string | null
           client_rejected_at?: string | null
+          collection_mode?: string
           cover_url?: string | null
           created_at?: string
           created_by?: string | null
@@ -882,6 +884,7 @@ export type Database = {
           client_approved_ip?: string | null
           client_id?: string | null
           client_rejected_at?: string | null
+          collection_mode?: string
           cover_url?: string | null
           created_at?: string
           created_by?: string | null
