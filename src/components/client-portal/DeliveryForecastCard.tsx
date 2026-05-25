@@ -16,6 +16,7 @@ import {
   CartesianGrid, ComposedChart, Line, ReferenceDot, ReferenceLine,
   ResponsiveContainer, Tooltip as ReTooltip, XAxis, YAxis,
 } from "recharts";
+import { recomputeCurva } from "@/lib/campaignEngine";
 
 function useNarrow(breakpoint = 640) {
   const [narrow, setNarrow] = useState(false);
