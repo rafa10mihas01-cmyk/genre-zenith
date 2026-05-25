@@ -886,11 +886,6 @@ function getErrorMessage(error: unknown, fallback: string) {
 }
 
 function FinKpi({ label, value, sub }: { label: string; value: string; sub?: string }) {
-  return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{label}</div>
-      <div className="text-xl font-semibold tabular-nums leading-tight mt-1">{value}</div>
-      {sub && <div className="text-[10px] text-muted-foreground mt-1">{sub}</div>}
-    </div>
-  );
+  return <Kpi variant="compact" label={label} value={value} hint={sub} />;
 }
+
