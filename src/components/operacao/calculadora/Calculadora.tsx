@@ -17,7 +17,7 @@ import { CalculadoraResultado, CalculadoraKpis } from "./CalculadoraResultado";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import {
-  calcCampaign, reverseFromBudget, formatInt, formatBRL,
+  calcCampaign, reverseFromBudget, metaFromBudgetSell, estimateBudgetMargin, formatInt, formatBRL,
   DEFAULT_SPLIT, COST_PER_STREAM,
   type Modo, type Perfil, type CampaignResult,
 } from "@/lib/campaignEngine";
@@ -219,13 +219,13 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   const endDate = useMemo(() => addDays(startDate, active.days), [startDate, active.days]);
 
   const effectiveMeta = useMemo(() => {
-    if (active.fonte === "orcamento") return reverseFromBudget(active.budget, active.splitEco, pricingCosts);
+    if (active.fonte === "orcamento") return metaFromBudgetSell(active.budget, pricingSettings.price_per_stream_sell);
     if (active.fonte === "top200" && active.top200StreamsDay != null) {
       const gapDay = Math.max(0, active.top200StreamsDay - active.baselineStreamsDay);
       return gapDay * Math.max(1, active.days);
     }
     return active.meta;
-  }, [active.fonte, active.budget, active.splitEco, active.meta, active.top200StreamsDay, active.baselineStreamsDay, active.days, pricingCosts]);
+  }, [active.fonte, active.budget, active.splitEco, active.meta, active.top200StreamsDay, active.baselineStreamsDay, active.days, pricingSettings.price_per_stream_sell]);
 
   const result = useMemo(() => calcCampaign({
     meta: effectiveMeta, days: active.days, modo: active.modo, perfil: active.perfil, splitEcoPct: active.splitEco,
@@ -250,7 +250,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   const suggestedEcoPct = suggestedExtPct != null ? 100 - suggestedExtPct : null;
 
   function songEffectiveMeta(s: Song): number {
-    if (s.fonte === "orcamento") return reverseFromBudget(s.budget, s.splitEco, pricingCosts);
+    if (s.fonte === "orcamento") return metaFromBudgetSell(s.budget, pricingSettings.price_per_stream_sell);
     if (s.fonte === "top200" && s.top200StreamsDay != null) {
       return Math.max(0, s.top200StreamsDay - s.baselineStreamsDay) * Math.max(1, s.days);
     }
@@ -1014,15 +1014,44 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                       <NumberInput value={active.meta} onChange={setMeta} />
                     </div>
                   )}
-                  {active.fonte === "orcamento" && (
-                    <div className="space-y-2">
-                      <Label className="text-xs">Orçamento disponível (R$)</Label>
-                      <NumberInput value={active.budget} onChange={setBudget} placeholder="40.000" />
-                      <p className="text-xs text-muted-foreground">
-                        Meta calculada: <span className="font-semibold text-foreground">{formatInt(effectiveMeta)} streams</span>
-                      </p>
-                    </div>
-                  )}
+                  {active.fonte === "orcamento" && (() => {
+                    const sell = pricingSettings.price_per_stream_sell;
+                    const meta = metaFromBudgetSell(active.budget, sell);
+                    const { cost, margin, marginPct } = estimateBudgetMargin(
+                      active.budget, meta, active.splitEco, pricingCosts,
+                    );
+                    return (
+                      <div className="space-y-2">
+                        <Label className="text-xs">Orçamento disponível (R$)</Label>
+                        <NumberInput value={active.budget} onChange={setBudget} placeholder="40.000" />
+                        {active.budget > 0 && sell > 0 ? (
+                          <div className="rounded-lg border border-border bg-muted/20 px-3 py-2 space-y-1 text-xs">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Meta entregável</span>
+                              <span className="font-semibold text-foreground tabular-nums">{formatInt(meta)} streams</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Custo interno estimado</span>
+                              <span className="tabular-nums">{formatBRL(cost)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Margem estimada</span>
+                              <span className={cn("font-semibold tabular-nums", margin >= 0 ? "text-primary" : "text-destructive")}>
+                                {formatBRL(margin)} ({marginPct.toFixed(0)}%)
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground pt-1 border-t border-border">
+                              Preço de venda: R$ {(sell * 1000).toFixed(0)}/mil · split {active.splitEco}% eco / {100 - active.splitEco}% ext
+                            </p>
+                          </div>
+                        ) : sell <= 0 ? (
+                          <p className="text-xs text-destructive">Configure o preço de venda em Financeiro → Pricing antes de usar orçamento.</p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">Digite o orçamento pra calcular a meta.</p>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </CardContent>
               </Card>
 

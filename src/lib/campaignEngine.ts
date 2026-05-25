@@ -237,8 +237,9 @@ export function recomputeCurva(
 
 
 /**
- * Modo reverso: dado um orçamento, retorna a meta (streams) atingível
- * mantendo o mesmo split eco/ext.
+ * Modo reverso (custo): dado um orçamento, retorna a meta (streams) atingível
+ * mantendo o mesmo split eco/ext usando custo médio ponderado.
+ * Útil pra cálculo de margem interna — NÃO usar pra preencher meta da campanha.
  */
 export function reverseFromBudget(budget: number, splitEcoPct: number, costs: CostPerStream = COST_PER_STREAM): number {
   const ecoFrac = splitEcoPct / 100;
@@ -246,6 +247,35 @@ export function reverseFromBudget(budget: number, splitEcoPct: number, costs: Co
   const blended = ecoFrac * costs.eco + extFrac * costs.ext;
   if (blended <= 0) return 0;
   return Math.floor(budget / blended);
+}
+
+/**
+ * Meta entregável a partir do orçamento usando PREÇO DE VENDA ao cliente.
+ * É essa meta que vira goalPlays da campanha — o que o cliente "compra"
+ * com o orçamento dele. A margem é calculada à parte.
+ */
+export function metaFromBudgetSell(budget: number, pricePerStreamSell: number): number {
+  if (pricePerStreamSell <= 0 || budget <= 0) return 0;
+  return Math.floor(budget / pricePerStreamSell);
+}
+
+/**
+ * Margem estimada de uma venda por orçamento:
+ *   margem = orçamento − (meta × custo_médio_ponderado_interno)
+ */
+export function estimateBudgetMargin(
+  budget: number,
+  meta: number,
+  splitEcoPct: number,
+  costs: CostPerStream = COST_PER_STREAM,
+): { cost: number; margin: number; marginPct: number } {
+  const ecoFrac = splitEcoPct / 100;
+  const extFrac = 1 - ecoFrac;
+  const blended = ecoFrac * costs.eco + extFrac * costs.ext;
+  const cost = meta * blended;
+  const margin = budget - cost;
+  const marginPct = budget > 0 ? (margin / budget) * 100 : 0;
+  return { cost, margin, marginPct };
 }
 
 /** Estima posição no Top 200 a partir de streams/dia médios. */
