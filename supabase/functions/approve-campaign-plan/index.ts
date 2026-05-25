@@ -15,6 +15,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { distributeEcoPositions } from "../_shared/computeEcoPlan.ts";
+import { getGenreNeighbors } from "../_shared/genre-affinity.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
