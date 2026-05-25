@@ -2,6 +2,7 @@
 // para public_plan_token (portal novo /p/plano/:token).
 // Público, sem auth. Usado apenas pelo componente LegacyCampaignRedirect.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { checkRateLimit, clientIp, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,6 +20,11 @@ function jr(p: unknown, status = 200) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jr({ error: "method_not_allowed" }, 405);
+
+  // Rate limit: 120 req/min por IP (mesmo padrão dos outros endpoints públicos).
+  const ip = clientIp(req);
+  const rl = await checkRateLimit(`resolveLegacyToken:${ip}`, 60, 120);
+  if (!rl.allowed) return rateLimitResponse(corsHeaders);
 
   let body: { client_token?: string };
   try { body = await req.json(); } catch { return jr({ error: "invalid_json" }, 400); }
