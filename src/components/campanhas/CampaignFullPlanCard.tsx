@@ -156,9 +156,10 @@ export function CampaignFullPlanCard({
     return m;
   }, [allocations]);
 
-  // Linha "Rádio · Autoplay · Mixes" — distribuída na curva da campanha
-  // (snapshot.curva.streamsDay), preservando o platô natural. Soma exata = radioTotal.
-  const radioTotal = Math.max(0, Math.round(radioGoal ?? snapshot.meta * 0.18));
+  // Linha "Rádio · Autoplay · Mixes" — só renderiza quando o consumidor
+  // (somente página interna) passar `radioGoal` explicitamente. Distribuída
+  // na curva da campanha (snapshot.curva.streamsDay). Soma exata = radioTotal.
+  const radioTotal = radioGoal != null ? Math.max(0, Math.round(radioGoal)) : 0;
   const radioDaily = useMemo(() => {
     const arr = Array.from({ length: days }, () => 0);
     if (radioTotal <= 0) return arr;
