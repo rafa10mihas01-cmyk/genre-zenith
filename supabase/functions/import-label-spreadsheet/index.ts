@@ -565,14 +565,19 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Pra baseline a gente precisa registrar TODAS as playlists (internas +
+    // orgânicas) pra ter ponto de partida completo. Só exige spotify_id.
+    const allPlaylistRows = matched.filter(
+      (r) => typeof r.playlist_spotify_id === "string" && r.playlist_spotify_id.length > 0,
+    );
     const matchedInternal = matched.filter(
       (r) => typeof r.matched_playlist_id === "string" && r.matched_playlist_id.length === 36 && !!r.playlist_spotify_id,
     );
 
-    if (matchedInternal.length > 0) {
+    if (allPlaylistRows.length > 0) {
       // 3.0) Garante que existe um curator_playlists pra cada (deal, song, spotify_id).
       //      Snapshots e proofs têm FK pra essa tabela — sem ela o insert quebra.
-      const upsertRows = matchedInternal.map((r) => ({
+      const upsertRows = allPlaylistRows.map((r) => ({
         deal_id: dealId,
         song_id: songId,
         spotify_playlist_id: r.playlist_spotify_id as string,
@@ -580,7 +585,9 @@ Deno.serve(async (req) => {
           || (r.playlist_spotify_id ? `https://open.spotify.com/playlist/${r.playlist_spotify_id}` : ""),
         playlist_name: r.playlist_name,
         spotify_owner_name: r.owner_name ?? null,
-        canonical_playlist_id: r.matched_playlist_id as string,
+        canonical_playlist_id: (typeof r.matched_playlist_id === "string" && r.matched_playlist_id.length === 36)
+          ? r.matched_playlist_id
+          : null,
         attribution_method: "label_spreadsheet",
       }));
       const { error: cpErr } = await admin
@@ -592,7 +599,7 @@ Deno.serve(async (req) => {
       if (cpErr) console.error("curator_playlists upsert error", cpErr);
 
       // 3.0b) Lê de volta os ids (curator_playlists.id) pra usar como playlist_id.
-      const spIds = matchedInternal.map((r) => r.playlist_spotify_id as string);
+      const spIds = allPlaylistRows.map((r) => r.playlist_spotify_id as string);
       const { data: cpRows } = await admin
         .from("curator_playlists")
         .select("id, spotify_playlist_id")
@@ -602,11 +609,13 @@ Deno.serve(async (req) => {
         (cpRows ?? []).map((p: any) => [p.spotify_playlist_id as string, p.id as string]),
       );
 
-      const enriched = matchedInternal
+      // Snapshots: TODAS as playlists (internas + orgânicas) — pra baseline ter
+      // a foto completa e pra calcular entrega a partir de qualquer playlist.
+      const enrichedAll = allPlaylistRows
         .map((r) => ({ r, cpId: cpIdBySpotify.get(r.playlist_spotify_id as string) }))
-        .filter((x): x is { r: typeof matchedInternal[number]; cpId: string } => !!x.cpId);
+        .filter((x): x is { r: typeof allPlaylistRows[number]; cpId: string } => !!x.cpId);
 
-      const snapshotRows = enriched.map(({ r, cpId }) => ({
+      const snapshotRows = enrichedAll.map(({ r, cpId }) => ({
         deal_id: dealId,
         song_id: songId,
         playlist_id: cpId,
@@ -640,8 +649,13 @@ Deno.serve(async (req) => {
       // delivery_proofs — alimenta o painel admin (campaign hub → Prints).
       // ⚠️ Baseline NÃO vira entrega: é apenas o ponto de partida da música
       //   antes da campanha. Só uploads incrementais geram delivery_proofs.
+      // E só vale pras playlists INTERNAS (nossas) — orgânicas ficam só
+      // no snapshot, sem print de entrega.
       if (!isBaseline && songId && trackNameForProofs) {
-        const proofRows = enriched.map(({ r, cpId }) => ({
+        const enrichedInternal = matchedInternal
+          .map((r) => ({ r, cpId: cpIdBySpotify.get(r.playlist_spotify_id as string) }))
+          .filter((x): x is { r: typeof matchedInternal[number]; cpId: string } => !!x.cpId);
+        const proofRows = enrichedInternal.map(({ r, cpId }) => ({
           deal_id: dealId,
           song_id: songId,
           playlist_id: cpId,
