@@ -118,7 +118,7 @@ export function FinanceiroTab({ deals, hideHero = false }: Props) {
                   saldoVirtual >= 0 ? "text-primary" : "text-amber-500",
                 )}
               >
-                {fmtBRL(saldoVirtual)}
+                {formatBRLHero(saldoVirtual)}
               </span>
               {trendPct != null && !isEmpty && (
                 <span
