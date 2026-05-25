@@ -264,7 +264,9 @@ export function BaselineTab({ dealId }: Props) {
       ) : (
         <Card className="border-border/60 bg-card">
           <CardContent className="p-0">
-            <ul className="divide-y divide-border/60">
+            {/* ~15 linhas visíveis (~56px cada) e scroll pro resto */}
+            <ul className="divide-y divide-border/60 max-h-[840px] overflow-y-auto">
+
               {rows.map((r, idx) => (
                 <li
                   key={r.playlist_id}
