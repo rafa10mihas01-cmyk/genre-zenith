@@ -275,11 +275,12 @@ export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
                   strokeDasharray="2 4"
                   strokeOpacity={0.45}
                   label={{
-                    value: `Meta · ${formatPlays(goalPlays)}`,
+                    value: isNarrow ? "Meta" : `Meta · ${formatPlays(goalPlays)}`,
                     position: "insideTopRight",
                     fill: "hsl(var(--muted-foreground))",
-                    fontSize: 10, fillOpacity: 0.85,
+                    fontSize: isNarrow ? 9 : 10, fillOpacity: 0.85,
                   }}
+
                 />
               )}
 
