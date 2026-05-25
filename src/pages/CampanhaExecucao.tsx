@@ -30,6 +30,7 @@ import { ProofsTimeline, type ProofEvent } from "@/components/campaign-hub/Proof
 
 import { SpreadsheetUploadCard } from "@/components/client-portal/SpreadsheetUploadCard";
 import { BaselineCard } from "@/components/campanhas/BaselineCard";
+import { BaselineTab } from "@/components/campanhas/BaselineTab";
 import type { CampaignHubCampaign, CampaignHubTabId, EcoAllocation } from "@/components/campaign-hub/types";
 import { toast } from "sonner";
 import type { Json } from "@/integrations/supabase/types";
@@ -515,7 +516,7 @@ export default function CampanhaExecucao() {
                     capturedAt={baseline.created_at}
                     totalStreams={baseline.total_streams}
                     playlistsDetected={baseline.rows_imported}
-                    fileName={baseline.file_name}
+                    onClick={() => setTab("baseline")}
                   />
                 ) : null;
               })()}
@@ -715,6 +716,7 @@ export default function CampanhaExecucao() {
               </Card>
             </div>
           ),
+          baseline: <BaselineTab dealId={camp.deal_id ?? null} />,
           upload: clientToken ? (
             <SpreadsheetUploadCard
               clientToken={clientToken}
