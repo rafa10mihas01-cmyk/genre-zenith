@@ -177,9 +177,9 @@ export default function CampanhaDetalhe() {
         {/* Resumo */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <Kpi label="Meta" value={camp.goal_plays.toLocaleString()} />
-          <Kpi label="Entregue" value={camp.total_delivered.toLocaleString()} sub={`${pct}%`} />
+          <Kpi label="Entregue" value={camp.total_delivered.toLocaleString()} hint={`${pct}%`} />
           <Kpi label="Alocado" value={camp.total_allocated.toLocaleString()} />
-          <Kpi label="Prazo" value={camp.deadline} sub={daysLeft > 0 ? `${daysLeft}d restantes` : daysLeft === 0 ? "Hoje" : `${Math.abs(daysLeft)}d atraso`} />
+          <Kpi label="Prazo" value={camp.deadline} hint={daysLeft > 0 ? `${daysLeft}d restantes` : daysLeft === 0 ? "Hoje" : `${Math.abs(daysLeft)}d atraso`} />
         </div>
 
         {/* Tipo + aprovação do plano */}
