@@ -22,7 +22,11 @@ export interface CampaignSnapshot {
     top200ChartDate?: string | null;
   };
   meta: number;
+  /** Duração CONTRATADA (o que o cliente pediu). Vira o deadline. */
   days: number;
+  /** Duração REAL do plano = ceil(days × 1.5). Inclui rampa + saída suave.
+   *  Opcional para retrocompat: snapshots antigos só têm `days`. */
+  effectiveDays?: number;
   modo: "simultaneo" | "sequencial";
   perfil: "frio" | "mercado" | "engajado";
   splitEcoPct: number;
