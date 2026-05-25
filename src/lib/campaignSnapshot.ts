@@ -110,6 +110,7 @@ export function planEcoAllocations(
   playlists: { id: string; followers: number }[],
   modo: CampaignSnapshot["modo"] = "simultaneo",
   engagementMultiplier: number = 30,
+  genreContext?: GenreContext,
 ): EcoAllocationPlan[] {
   if (streamsEco <= 0 || playlists.length === 0) return [];
 
