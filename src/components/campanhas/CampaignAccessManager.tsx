@@ -71,21 +71,28 @@ export function CampaignAccessManager({ campaignId }: Props) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <ShieldCheck className="h-4 w-4 mr-1.5" /> Acessos
+        <Button variant="outline" size="sm" className="gap-1.5">
+          <ShieldCheck className="h-4 w-4" /> Acessos
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Acessos do portal do cliente</DialogTitle>
-          <DialogDescription>
-            Somente e-mails autorizados podem entrar. Cada acesso usa código OTP enviado por e-mail.
-          </DialogDescription>
+      <DialogContent className="max-w-2xl p-0 overflow-hidden">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b border-border">
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+              <ShieldCheck className="h-4.5 w-4.5 text-primary" />
+            </div>
+            <div>
+              <DialogTitle className="text-base">Acessos do portal do cliente</DialogTitle>
+              <DialogDescription className="text-xs mt-0.5">
+                Só e-mails autorizados entram. Acesso por código OTP enviado por e-mail.
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
 
-        <Tabs defaultValue="emails" className="mt-2">
-          <TabsList>
-            <TabsTrigger value="emails">E-mails autorizados ({emails.length})</TabsTrigger>
+        <Tabs defaultValue="emails" className="px-6 pt-4 pb-6">
+          <TabsList className="bg-muted/40">
+            <TabsTrigger value="emails">Autorizados ({emails.length})</TabsTrigger>
             <TabsTrigger value="logs">Histórico ({logs.length})</TabsTrigger>
           </TabsList>
 
@@ -98,24 +105,27 @@ export function CampaignAccessManager({ campaignId }: Props) {
                 onChange={(e) => setNewEmail(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && !adding && add()}
               />
-              <Button onClick={add} disabled={adding}>
-                {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              <Button onClick={add} disabled={adding} className="shrink-0">
+                {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Plus className="h-4 w-4 mr-1" /> Adicionar</>}
               </Button>
             </div>
-            <div className="border rounded-lg divide-y max-h-[320px] overflow-auto">
+            <div className="rounded-lg border border-border bg-card/40 divide-y divide-border max-h-[340px] overflow-auto">
               {loading ? (
-                <div className="p-4 text-sm text-muted-foreground">Carregando…</div>
+                <div className="p-6 text-sm text-muted-foreground text-center">Carregando…</div>
               ) : emails.length === 0 ? (
-                <div className="p-4 text-sm text-muted-foreground">Nenhum e-mail autorizado.</div>
+                <div className="p-8 text-sm text-muted-foreground text-center">
+                  <ShieldCheck className="h-6 w-6 mx-auto mb-2 opacity-40" />
+                  Nenhum e-mail autorizado ainda.
+                </div>
               ) : emails.map(e => (
-                <div key={e.id} className="flex items-center justify-between p-3 text-sm">
-                  <div>
-                    <div className="font-medium">{e.email}</div>
-                    <div className="text-xs text-muted-foreground">
+                <div key={e.id} className="flex items-center justify-between px-4 py-3 text-sm hover:bg-muted/30 transition-colors">
+                  <div className="min-w-0">
+                    <div className="font-medium truncate">{e.email}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
                       Adicionado em {new Date(e.added_at).toLocaleString("pt-BR")}
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => remove(e.id)}>
+                  <Button variant="ghost" size="icon" onClick={() => remove(e.id)} className="shrink-0 h-8 w-8">
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>
@@ -124,18 +134,20 @@ export function CampaignAccessManager({ campaignId }: Props) {
           </TabsContent>
 
           <TabsContent value="logs" className="mt-4">
-            <div className="border rounded-lg divide-y max-h-[420px] overflow-auto">
+            <div className="rounded-lg border border-border bg-card/40 divide-y divide-border max-h-[420px] overflow-auto">
               {loading ? (
-                <div className="p-4 text-sm text-muted-foreground">Carregando…</div>
+                <div className="p-6 text-sm text-muted-foreground text-center">Carregando…</div>
               ) : logs.length === 0 ? (
-                <div className="p-4 text-sm text-muted-foreground">Nenhum acesso registrado ainda.</div>
+                <div className="p-8 text-sm text-muted-foreground text-center">
+                  Nenhum acesso registrado ainda.
+                </div>
               ) : logs.map(l => (
-                <div key={l.id} className="flex items-center justify-between p-3 text-sm">
-                  <div>
-                    <div className="font-medium">{l.email}</div>
-                    <div className="text-xs text-muted-foreground">IP: {l.ip ?? "—"}</div>
+                <div key={l.id} className="flex items-center justify-between px-4 py-3 text-sm hover:bg-muted/30 transition-colors">
+                  <div className="min-w-0">
+                    <div className="font-medium truncate">{l.email}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">IP: {l.ip ?? "—"}</div>
                   </div>
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-xs text-muted-foreground shrink-0 ml-3">
                     {new Date(l.accessed_at).toLocaleString("pt-BR")}
                   </div>
                 </div>
