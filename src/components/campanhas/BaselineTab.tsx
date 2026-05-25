@@ -5,7 +5,9 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Flag, ExternalLink, Music2, Users } from "lucide-react";
+import { Flag, ExternalLink, Music2, Users, FileSpreadsheet, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "@/hooks/use-toast";
 
 type Row = {
   playlist_id: string;
@@ -18,9 +20,18 @@ type Row = {
   spotify_owner_name: string | null;
 };
 
+type BaselineUpload = {
+  id: string;
+  file_name: string | null;
+  file_path: string | null;
+  created_at: string;
+  rows_imported: number | null;
+};
+
 type Props = {
   dealId: string | null;
 };
+
 
 function fmt(n: number | null | undefined) {
   if (n == null) return "—";
