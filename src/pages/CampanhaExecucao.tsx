@@ -26,6 +26,7 @@ import { OverviewTab } from "@/components/campaign-hub/tabs/OverviewTab";
 import { OperacaoTab, type ExternalItemRow } from "@/components/campaign-hub/tabs/OperacaoTab";
 import { PlaylistsGrid } from "@/components/campaign-hub/PlaylistsGrid";
 import { InternalEcosystemHeader } from "@/components/campaign-hub/InternalEcosystemHeader";
+import { GenresUsedFromAllocs } from "@/components/campanhas/GenresUsedFromAllocs";
 import { ProofsTimeline, type ProofEvent } from "@/components/campaign-hub/ProofsTimeline";
 
 import { SpreadsheetUploadCard } from "@/components/client-portal/SpreadsheetUploadCard";
