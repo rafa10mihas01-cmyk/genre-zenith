@@ -8,7 +8,7 @@ export const POSITION_PCT: number[] = [
   0.012, 0.011, 0.010, 0.009, 0.008,
 ];
 const POSITION_RESIDUAL = 0.003;
-export const MIN_CAMPAIGN_POSITION = 3;
+export const MIN_CAMPAIGN_POSITION = 1;
 const ECO_RAMP = [0.2, 0.4, 0.6, 0.8, 1.0];
 const WEEKDAY_FLAT_FACTOR = [0.92, 0.85, 1.00, 1.04, 1.06, 1.08, 1.05];
 
