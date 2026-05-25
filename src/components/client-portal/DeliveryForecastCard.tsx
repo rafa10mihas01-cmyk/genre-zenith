@@ -145,6 +145,7 @@ export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
       label: `D${c.day}`,
       trackPlays: Math.round(trackPlays[i]),
       delivery: Math.round(delivery[i]),
+      cumulative: Math.round(c.cumulative || 0),
       organic: showOrganic && (i + 1) >= organicStartDay
         ? Math.round(organicPerDay)
         : null,
@@ -238,13 +239,29 @@ export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
                   borderRadius: 12, fontSize: 12,
                 }}
                 labelStyle={{ color: "hsl(var(--muted-foreground))" }}
-                formatter={(value: number, name: string) => {
+                formatter={(value: number, name: string, item: any) => {
                   if (name === "trackPlays") return [`${formatFull(value)} plays`, "Plays/dia da música"];
                   if (name === "organic") return [`${formatFull(value)} plays/dia`, "Orgânico (Rádio · Autoplay · Mixes)"];
-                  return [`${formatFull(value)} plays`, "Entrega do dia"];
+                  if (name === "delivery") {
+                    const cum = item?.payload?.cumulative;
+                    const node = (
+                      <span>
+                        {formatFull(value)} plays
+                        {Number.isFinite(cum) && (
+                          <>
+                            {" · "}
+                            <span className="text-muted-foreground">Acumulado: {formatPlays(cum)} plays</span>
+                          </>
+                        )}
+                      </span>
+                    );
+                    return [node, "Entrega do dia"];
+                  }
+                  return [`${formatFull(value)} plays`, name];
                 }}
 
               />
+
 
               {data.target != null && (
                 <ReferenceLine
