@@ -33,6 +33,7 @@ import { CuratorialStateBadge, CooldownStack, type CuratorialState } from "@/com
 import { IconBadge } from "@/components/playlist/IconBadge";
 import { GraduationCap } from "lucide-react";
 import { useActiveCooldowns } from "@/hooks/useActiveCooldowns";
+import { CapacityMatrixTab } from "./CapacityMatrixTab";
 
 type ManagedPlaylist = {
   id: string;
