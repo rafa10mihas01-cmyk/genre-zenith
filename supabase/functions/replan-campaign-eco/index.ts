@@ -195,7 +195,7 @@ Deno.serve(async (req) => {
   let playsPerDayNeighbor = 0;
   const rows: any[] = [];
 
-  const buildRow = (p: any, pos: number, source: "primary" | "neighbor") => {
+  const buildRow = (p: any, pos: number, source: "primary" | "affinity") => {
     const positionPct = POSITION_PCT[pos - 1] ?? 0.003;
     const followers = Number(p.followers ?? 0);
     const capDia = Math.max(1, Math.round(followers * (mult / 30) * positionPct));
@@ -218,7 +218,7 @@ Deno.serve(async (req) => {
     buildRow(p, primaryPositions.get(p.id) ?? 3, "primary");
   }
   for (const p of freshNeighbor) {
-    buildRow(p, neighborPositions.get(p.id) ?? NEIGHBOR_POS_MIN, "neighbor");
+    buildRow(p, neighborPositions.get(p.id) ?? NEIGHBOR_POS_MIN, "affinity");
   }
 
   const summary = {
