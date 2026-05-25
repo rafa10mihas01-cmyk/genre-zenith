@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatBRL, formatInt, type CampaignResult } from "@/lib/campaignEngine";
-import { TrendingUp, Wallet, Zap, Layers, Flame, Rocket, Activity, Anchor, Coins } from "lucide-react";
+import { formatBRL, formatInt, computePhaseDays, type CampaignResult } from "@/lib/campaignEngine";
+import { TrendingUp, Wallet, Zap, Layers, Flame, Rocket, Activity, Anchor, Coins, Info } from "lucide-react";
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -33,7 +33,7 @@ export function CalculadoraKpis({ r, pricePerStreamSell }: { r: CampaignResult; 
         icon={Layers}
         label="Duração"
         value={`${r.days}d`}
-        hint={r.modo === "simultaneo" ? "simultâneo" : "sequencial"}
+        hint={`plano real: ${r.effectiveDays}d`}
       />
       {clientTotal != null ? (
         <KpiClient
@@ -56,8 +56,19 @@ export function CalculadoraKpis({ r, pricePerStreamSell }: { r: CampaignResult; 
 
 
 export function CalculadoraResultado({ r }: { r: CampaignResult }) {
+  const phases = computePhaseDays(r.effectiveDays);
   return (
     <div className="space-y-4">
+      <div className="flex items-start gap-2 rounded-xl border border-border bg-muted/20 px-3 py-2.5 text-[12px] text-foreground/85">
+        <Info className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
+        <span className="leading-relaxed">
+          Duração contratada: <strong className="text-foreground">{r.days} dias</strong> · Duração real do plano: <strong className="text-foreground">{r.effectiveDays} dias</strong>{" "}
+          <span className="text-muted-foreground">
+            (inclui {phases.ramp} dias de rampa + {phases.outro} dias de saída suave)
+          </span>
+        </span>
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle className="text-sm">Distribuição do investimento</CardTitle>

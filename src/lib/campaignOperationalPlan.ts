@@ -1,6 +1,11 @@
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { buildDailyPlateau } from "@/lib/playlistGrowthEngine";
 
+/** Duração REAL do plano. effectiveDays quando disponível, senão days (snapshots antigos). */
+function planDaysOf(snapshot: CampaignSnapshot): number {
+  return Math.max(1, snapshot.effectiveDays ?? snapshot.days);
+}
+
 export type EcoPlanInput = {
   id: string;
   planned_streams: number;
@@ -148,7 +153,7 @@ export function inferEcoPreferredPositions(
 ): number[] {
   const saved = getCampaignPreferredPositions(snapshot);
   if (saved.some((p) => p < MIN_CAMPAIGN_POSITION)) return saved;
-  const neededPerDay = allocs.reduce((sum, a) => sum + Math.max(0, a.planned_streams || 0), 0) / Math.max(1, snapshot.days);
+  const neededPerDay = allocs.reduce((sum, a) => sum + Math.max(0, a.planned_streams || 0), 0) / Math.max(1, planDaysOf(snapshot));
   const baseSlotThree = allocs.reduce(
     (sum, a) => sum + calculateTrackDailyStreams(a.followers, engagementMultiplier, MIN_CAMPAIGN_POSITION),
     0,
@@ -564,7 +569,7 @@ export function buildEcoPlaylistPlan(
           planned_streams: a.planned_streams,
           followers: Number(a.managed_playlists?.followers ?? 0),
         })),
-        snapshot.days,
+        planDaysOf(snapshot),
         multiplier,
         { preferredSlots: inferEcoPreferredPositions(snapshot, allocs.map(a => ({
           id: a.id,
@@ -575,8 +580,8 @@ export function buildEcoPlaylistPlan(
 
   const ordered = [...allocs].sort((a, b) => b.planned_streams - a.planned_streams);
   const storedStarts = ordered.map(a => Number(a.start_day || 1));
-  const generatedStarts = ordered.map((_, index) => generatedStartDay(index, ordered.length, snapshot.days, snapshot.modo));
-  const legacyStarts = ordered.map((_, index) => legacyStartDay(index, ordered.length, snapshot.days));
+  const generatedStarts = ordered.map((_, index) => generatedStartDay(index, ordered.length, planDaysOf(snapshot), snapshot.modo));
+  const legacyStarts = ordered.map((_, index) => legacyStartDay(index, ordered.length, planDaysOf(snapshot)));
   const startsLookSystemGenerated = ordered.length > 1 && (
     storedStarts.every(s => s === 1)
     || matchesSequence(storedStarts, generatedStarts)
@@ -594,8 +599,8 @@ export function buildEcoPlaylistPlan(
   const plans: DailyPlaylistPlan[] = ordered.map((a, index) => {
     const baseStart = startsLookSystemGenerated
       ? generatedStarts[index]
-      : effectiveEcoStartDay(index, ordered.length, snapshot.days, a.start_day, snapshot.modo);
-    const startDay = Math.min(snapshot.days, Math.max(baseStart, ecoFloorDay));
+      : effectiveEcoStartDay(index, ordered.length, planDaysOf(snapshot), a.start_day, snapshot.modo);
+    const startDay = Math.min(planDaysOf(snapshot), Math.max(baseStart, ecoFloorDay));
     const followers = Number(a.managed_playlists?.followers ?? 0);
     const pos = positions.get(a.id) ?? MIN_CAMPAIGN_POSITION;
     // VERDADE: capDia da faixa = saves × (mult/30) × POSITION_PCT[pos].
@@ -603,8 +608,8 @@ export function buildEcoPlaylistPlan(
     // dip de fim-de-semana/segunda. Sem curva gaussiana, sem delay, sem jitter.
     const baseCap = Math.max(1, Math.round(calculateTrackDailyStreams(followers, multiplier, pos)));
 
-    const daily = Array.from({ length: snapshot.days }, () => 0);
-    for (let i = startDay - 1; i < snapshot.days; i++) {
+    const daily = Array.from({ length: planDaysOf(snapshot) }, () => 0);
+    for (let i = startDay - 1; i < planDaysOf(snapshot); i++) {
       // Ramp suave nos primeiros dias de entrada na playlist.
       const rampIdx = i - (startDay - 1);
       const ramp = rampIdx < ECO_RAMP.length ? ECO_RAMP[rampIdx] : 1;
@@ -671,12 +676,12 @@ export function buildExternalPlan(
 ): DailyExternalPlan[] {
   const ordered = [...items].sort((a, b) => b.assigned_streams - a.assigned_streams);
   return ordered.map((item, index) => {
-    const startDay = generatedStartDay(index, ordered.length, snapshot.days, snapshot.modo);
+    const startDay = generatedStartDay(index, ordered.length, planDaysOf(snapshot), snapshot.modo);
     // Motor único: platô natural com ramp 5d + reporting delay 2d.
     // Cada curador vira fonte contínua de entrega, não pico explosivo.
     const daily = buildDailyPlateau({
       totalStreams: Number(item.assigned_streams ?? 0),
-      days: snapshot.days,
+      days: planDaysOf(snapshot),
       source: "external",
       startDay,
       startedAt: opts.startedAt,

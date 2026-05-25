@@ -464,9 +464,12 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         shortfall = { capacity, missing, suggestedExtPct };
       }
 
+      // Alocações operam sobre a duração REAL do plano (effectiveDays).
+      // Deadline contratual continua usando r.days (linha abaixo).
+      const planDays = r.effectiveDays;
       const coreAllocs = planEcoAllocations(
         coreBudget,
-        r.days,
+        planDays,
         coreSlice.map(p => ({ id: p.id, followers: p.followers ?? 0 })),
         r.modo,
         song.engagementMultiplier ?? 30,
@@ -475,7 +478,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
       const neighborAllocs = neighborBudget > 0
         ? planEcoAllocations(
             neighborBudget,
-            r.days,
+            planDays,
             neighborSlice.map(p => ({ id: p.id, followers: p.followers ?? 0 })),
             r.modo,
             song.engagementMultiplier ?? 30,

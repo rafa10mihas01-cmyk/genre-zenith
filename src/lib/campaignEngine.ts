@@ -51,7 +51,9 @@ export interface CurvaPonto {
 
 export interface CampaignResult {
   meta: number;
-  days: number;
+  days: number;              // duração CONTRATADA (o que o cliente pediu)
+  effectiveDays: number;     // duração REAL do plano (ceil(days × 1.5)) —
+                             // inclui rampa de entrada + platô + saída suave
   modo: Modo;
   perfil: Perfil;
   splitEcoPct: number;
@@ -71,143 +73,107 @@ export interface CampaignResult {
   mediaPorDia: number;
   inercia: number;
 
-  // Curva
+  // Curva (length = effectiveDays)
   curva: CurvaPonto[];
 }
 
-import { buildDailyPlateau, sumDaily } from "./playlistGrowthEngine";
+/** Multiplicador interno fixo: usuário pede N dias plenos → motor opera em N×1.5. */
+export const EFFECTIVE_DAYS_MULTIPLIER = 1.5;
+
+/** Repartição interna fixa da janela efetiva: rampa / platô / saída. */
+export const PHASE_PCT = { ramp: 0.22, plateau: 0.62, outro: 0.16 } as const;
+
+/** Calcula a duração real do plano a partir da contratada. */
+export function toEffectiveDays(days: number): number {
+  return Math.max(1, Math.ceil(Math.max(1, Math.round(days)) * EFFECTIVE_DAYS_MULTIPLIER));
+}
+
+/** Dias por fase a partir de effectiveDays — soma sempre == effectiveDays. */
+export function computePhaseDays(effectiveDays: number): { ramp: number; plateau: number; outro: number } {
+  const d = Math.max(3, Math.round(effectiveDays));
+  const ramp = Math.max(1, Math.round(d * PHASE_PCT.ramp));
+  const outro = Math.max(1, Math.round(d * PHASE_PCT.outro));
+  const plateau = Math.max(1, d - ramp - outro);
+  return { ramp, plateau, outro };
+}
 
 /**
- * Curva derivada da OPERAÇÃO simulada — não mais uma forma artística imposta.
+ * Curva interna com envelope FIXO em 3 fases:
+ *   rampa de entrada (22% dos effectiveDays) — smoothstep subindo de 0 → 1
+ *   platô pleno    (62%) — peso 1 com leve sazonalidade semanal (inercia)
+ *   saída suave    (16%) — smoothstep descendo de 1 → 0
  *
- * Modelo:
- *   1. Simula N fontes eco (platô natural, ramp 3d, sem delay)
- *   2. Simula M fontes externas (platô natural, ramp 5d, delay 2d)
- *   3. Soma dia-a-dia → curva final
+ * `modo` NÃO afeta o shape geral aqui (a forma é sempre 22/62/16). O `modo`
+ * continua afetando apenas o warmup ENTRE FONTES (em `planEcoAllocations` /
+ * `computeEcoPlan` via `start_day` de cada playlist).
  *
- * O resultado é a assinatura ECO única do sistema: ramp suave + platô estável
- * + sazonalidade leve + cauda mantida. Sem pico cinematográfico, sem decay
- * teatral. O cliente vê o que a operação realmente entrega.
- *
- * `modo` afeta o ESCALONAMENTO de entrada (sequencial = warmup mais longo
- * entre fontes); `inercia` afeta a amplitude da sazonalidade semanal
- * (engajado = pouquíssima variação; frio = mais flutuação natural).
+ * `inercia` afeta só a amplitude da micro-variação semanal do platô.
  */
 function buildCurve(
   meta: number,
-  days: number,
-  modo: Modo,
+  effectiveDays: number,
+  _modo: Modo,
   inercia: number,
   splitEcoPct: number,
 ): CurvaPonto[] {
+  const days = Math.max(1, Math.round(effectiveDays));
   if (days <= 0 || meta <= 0) return [];
 
   const ecoFrac = Math.min(1, Math.max(0, splitEcoPct / 100));
-  const streamsEco = Math.round(meta * ecoFrac);
-  const streamsExt = meta - streamsEco;
+  const { ramp: rampDays, plateau: plateauDays, outro: outroDays } = computePhaseDays(days);
 
-  // Fontes simuladas: heurística simples — escala com a meta.
-  // Eco: 1 playlist por ~3k streams (mín 1, máx 24).
-  // Ext: 1 curador por ~5k streams (mín 1, máx 16).
-  const ecoSources = streamsEco > 0
-    ? Math.max(1, Math.min(24, Math.round(streamsEco / 3000)))
-    : 0;
-  const extSources = streamsExt > 0
-    ? Math.max(1, Math.min(16, Math.round(streamsExt / 5000)))
-    : 0;
+  // smoothstep S(t) = t²·(3 − 2t) — suave nas pontas, sem cantos.
+  const S = (t: number) => {
+    const c = Math.max(0, Math.min(1, t));
+    return c * c * (3 - 2 * c);
+  };
 
-  // Sequencial: warmup ocupa ~70% da janela. Simultâneo: ~25%.
-  const rampPct = modo === "sequencial" ? 0.7 : 0.25;
-  const rampWindow = Math.max(2, Math.ceil(days * rampPct));
+  // Amplitude semanal: frio 0.15, mercado 0, engajado < 0. Clamp ≥ 0.
+  const weekdayAmp = Math.max(0, 0.15 - (inercia - 1) * 0.15);
 
-  // Inércia altera amplitude semanal: engajado mais estável, frio mais ruidoso.
-  // INERCIA: frio 0.85, mercado 1.0, engajado 1.18.
-  const weekdayAmplitude = Math.max(0.04, 0.15 - (inercia - 1) * 0.15);
-
-  function startDayFor(index: number, total: number): number {
-    if (total <= 1) return 1;
-    return Math.min(days, 1 + Math.floor((index / (total - 1)) * (rampWindow - 1)));
+  const weights: number[] = new Array(days).fill(0);
+  // Rampa: 0 → 1 (smoothstep). Começa em peso > 0 logo no D1.
+  for (let i = 0; i < rampDays; i++) {
+    weights[i] = S((i + 1) / rampDays);
+  }
+  // Platô: peso ≈ 1 com leve sazonalidade.
+  for (let i = 0; i < plateauDays; i++) {
+    const idx = rampDays + i;
+    const wk = weekdayAmp > 0
+      ? 1 + weekdayAmp * 0.5 * Math.sin((i / 7) * Math.PI * 2)
+      : 1;
+    weights[idx] = wk;
+  }
+  // Saída: 1 → 0 (smoothstep invertido).
+  for (let i = 0; i < outroDays; i++) {
+    const idx = rampDays + plateauDays + i;
+    weights[idx] = S(1 - (i + 1) / outroDays);
   }
 
-  function splitEvenly(total: number, parts: number): number[] {
-    if (parts <= 0 || total <= 0) return [];
-    const base = Math.floor(total / parts);
-    const arr = Array.from({ length: parts }, () => base);
-    arr[parts - 1] += total - base * parts;
-    return arr;
-  }
+  const sumW = weights.reduce((s, w) => s + w, 0);
+  if (sumW <= 0) return [];
 
-  const ecoSeries: number[][] = [];
-  for (let i = 0; i < ecoSources; i++) {
-    const slice = splitEvenly(streamsEco, ecoSources)[i] ?? 0;
-    ecoSeries.push(buildDailyPlateau({
-      totalStreams: slice,
-      days,
-      source: "eco",
-      startDay: startDayFor(i, ecoSources),
-      weekdayAmplitude,
-    }));
-  }
-
-  const extSeries: number[][] = [];
-  for (let i = 0; i < extSources; i++) {
-    const slice = splitEvenly(streamsExt, extSources)[i] ?? 0;
-    extSeries.push(buildDailyPlateau({
-      totalStreams: slice,
-      days,
-      source: "external",
-      startDay: startDayFor(i, extSources),
-      weekdayAmplitude,
-    }));
-  }
-
-  const ecoDaily = sumDaily(...ecoSeries);
-  const extDaily = sumDaily(...extSeries);
-  // Garante length = days mesmo quando uma das séries está vazia.
-  while (ecoDaily.length < days) ecoDaily.push(0);
-  while (extDaily.length < days) extDaily.push(0);
-
-  let cum = 0;
+  // Distribui meta proporcional ao envelope; corrige resíduo no último dia ativo.
   const result: CurvaPonto[] = [];
+  let allocated = 0;
+  let cum = 0;
   for (let i = 0; i < days; i++) {
-    const e = ecoDaily[i] ?? 0;
-    const x = extDaily[i] ?? 0;
-    const total = e + x;
-    cum += total;
+    const isLast = i === days - 1;
+    const sd = isLast
+      ? Math.max(0, meta - allocated)
+      : Math.round((meta * weights[i]) / sumW);
+    allocated += sd;
+    const eco = Math.round(sd * ecoFrac);
+    const ext = Math.max(0, sd - eco);
+    cum += sd;
     result.push({
       day: i + 1,
-      streamsDay: total,
-      streamsEcoDay: e,
-      streamsExtDay: x,
+      streamsDay: sd,
+      streamsEcoDay: eco,
+      streamsExtDay: ext,
       cumulative: cum,
     });
   }
-
-  // Normaliza para bater exatamente em meta (corrige arredondamentos do split).
-  const sum = result.reduce((s, p) => s + p.streamsDay, 0);
-  const delta = meta - sum;
-  if (delta !== 0 && result.length > 0) {
-    // Distribui delta no último dia ativo.
-    let lastIdx = result.length - 1;
-    for (let i = result.length - 1; i >= 0; i--) {
-      if (result[i].streamsDay > 0) { lastIdx = i; break; }
-    }
-    result[lastIdx].streamsDay = Math.max(0, result[lastIdx].streamsDay + delta);
-    // Re-split eco/ext proporcional, re-cumulative.
-    let cum2 = 0;
-    for (let i = 0; i < result.length; i++) {
-      const p = result[i];
-      const ratio = (p.streamsEcoDay + p.streamsExtDay) > 0
-        ? p.streamsEcoDay / (p.streamsEcoDay + p.streamsExtDay)
-        : ecoFrac;
-      const eco = Math.round(p.streamsDay * ratio);
-      p.streamsEcoDay = eco;
-      p.streamsExtDay = Math.max(0, p.streamsDay - eco);
-      cum2 += p.streamsDay;
-      p.cumulative = cum2;
-    }
-  }
-
   return result;
 }
 
@@ -215,6 +181,7 @@ function buildCurve(
 export function calcCampaign(input: CampaignInput, costs: CostPerStream = COST_PER_STREAM): CampaignResult {
   const meta = Math.max(0, Math.round(input.meta));
   const days = Math.max(1, Math.round(input.days));
+  const effectiveDays = toEffectiveDays(days);
   const splitEcoPct = Math.min(100, Math.max(0, input.splitEcoPct));
   const inercia = INERCIA_BY_PERFIL[input.perfil];
 
@@ -226,17 +193,20 @@ export function calcCampaign(input: CampaignInput, costs: CostPerStream = COST_P
   const custoTotal = custoEco + custoExt;
   const custoPorStream = meta > 0 ? custoTotal / meta : 0;
 
-  const curva = buildCurve(meta, days, input.modo, inercia, splitEcoPct);
+  const curva = buildCurve(meta, effectiveDays, input.modo, inercia, splitEcoPct);
   const picoPorDia = curva.reduce((m, p) => Math.max(m, p.streamsDay), 0);
-  const mediaPorDia = meta / days;
+  // Média diária reflete a duração REAL do plano (motor opera em effectiveDays).
+  const mediaPorDia = effectiveDays > 0 ? meta / effectiveDays : 0;
 
   return {
-    meta, days, modo: input.modo, perfil: input.perfil, splitEcoPct,
+    meta, days, effectiveDays, modo: input.modo, perfil: input.perfil, splitEcoPct,
     streamsEco, streamsExt,
     custoEco, custoExt, custoTotal, custoPorStream,
     picoPorDia, mediaPorDia, inercia, curva,
   };
 }
+
+
 
 /**
  * Modo reverso: dado um orçamento, retorna a meta (streams) atingível

@@ -137,9 +137,12 @@ Deno.serve(async (req) => {
     campaign_name: (camp as any).track_name,
   };
 
+  // Plano roda sobre effectiveDays (real). Snapshots antigos caem em days.
+  const planDays = (snapshot as any).effectiveDays ?? snapshot.days;
+
   // Single-day mode: flat items list
   if (targetDay !== null) {
-    if (targetDay < 1 || targetDay > snapshot.days) {
+    if (targetDay < 1 || targetDay > planDays) {
       return jr({ ...baseResp, day: `D${targetDay}`, items: [] });
     }
     const dayIdx = targetDay - 1;
@@ -173,7 +176,7 @@ Deno.serve(async (req) => {
   }));
   return jr({
     ...baseResp,
-    days: snapshot.days,
+    days: planDays,
     items,
   });
 });

@@ -22,7 +22,11 @@ export interface CampaignSnapshot {
     top200ChartDate?: string | null;
   };
   meta: number;
+  /** Duração CONTRATADA (o que o cliente pediu). Vira o deadline. */
   days: number;
+  /** Duração REAL do plano = ceil(days × 1.5). Inclui rampa + saída suave.
+   *  Opcional para retrocompat: snapshots antigos só têm `days`. */
+  effectiveDays?: number;
   modo: "simultaneo" | "sequencial";
   perfil: "frio" | "mercado" | "engajado";
   splitEcoPct: number;
@@ -52,6 +56,7 @@ export function buildSnapshot(
     music,
     meta: result.meta,
     days: result.days,
+    effectiveDays: result.effectiveDays,
     modo: result.modo,
     perfil: result.perfil,
     splitEcoPct: result.splitEcoPct,
@@ -271,7 +276,8 @@ export async function closeCampaignFromCalculator(args: {
       .in("id", playlistIds);
     const followersById = new Map<string, number>((mps ?? []).map((m: any) => [m.id, Number(m.followers) || 0]));
     const mult = Math.max(1, Math.round(engagementMultiplier));
-    const days = snapshot.days;
+    // Capacidade considera a duração REAL do plano (effectiveDays), não a contratada.
+    const days = snapshot.effectiveDays ?? snapshot.days;
 
     // `position` já vem materializada do planEcoAllocations (Fix 2) — usa direto.
     // Se a alloc vier sem position (chamada externa antiga), grava NULL e o
