@@ -61,6 +61,8 @@ export function CampaignFullPlanCard({
   track = null,
   campaignId,
   onPositionsRedistributed,
+  radioGoal,
+  radioCollectedTotal = null,
 }: Props) {
   const [showZeros, setShowZeros] = useState(false);
   const [mode, setMode] = useState<"diario" | "acumulado">("acumulado");
