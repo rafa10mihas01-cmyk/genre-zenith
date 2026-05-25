@@ -103,7 +103,9 @@ type SharedCampaignPlanResponse = {
   collection_mode?: "bot" | "spreadsheet";
   forecast?: ForecastPayload | null;
   genres_used?: GenreUsed[];
+  organic_summary?: { total_plays?: number; by_kind?: Record<string, number> } | null;
 };
+
 
 
 type PublicRpc = (fn: string, args: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
@@ -121,6 +123,8 @@ export default function PlanoCampanhaPublico() {
   const [collectionMode, setCollectionMode] = useState<"bot" | "spreadsheet">("bot");
   const [forecast, setForecast] = useState<ForecastPayload | null>(null);
   const [genresUsed, setGenresUsed] = useState<GenreUsed[]>([]);
+  const [organicSummary, setOrganicSummary] = useState<{ total_plays?: number; by_kind?: Record<string, number> } | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [tab, setTab] = useState<CampaignHubTabId>("overview");
@@ -156,6 +160,8 @@ export default function PlanoCampanhaPublico() {
       setCollectionMode(payload?.collection_mode === "spreadsheet" ? "spreadsheet" : "bot");
       setForecast(payload?.forecast ?? null);
       setGenresUsed(payload?.genres_used ?? []);
+      setOrganicSummary(payload?.organic_summary ?? null);
+
       setErr(null);
 
     }
@@ -489,7 +495,7 @@ export default function PlanoCampanhaPublico() {
                     />
                   );
                 })()}
-                {forecast && <DeliveryForecastCard forecast={forecast} />}
+                {forecast && <DeliveryForecastCard forecast={forecast} organicSummary={organicSummary} />}
                 {isApproved && evolutionSeries.length > 1 && (
                   <EvolutionChart
                     series={evolutionSeries}

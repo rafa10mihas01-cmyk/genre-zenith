@@ -29,7 +29,13 @@ export type ForecastPayload = {
   plannedDailyAverage?: number;
 };
 
-type Props = { forecast: ForecastPayload };
+export type OrganicSummary = {
+  total_plays?: number;
+  by_kind?: Record<string, number>;
+};
+
+type Props = { forecast: ForecastPayload; organicSummary?: OrganicSummary | null };
+
 
 function formatPlays(n: number): string {
   if (!Number.isFinite(n)) return "0";
@@ -48,10 +54,14 @@ const S = (t: number) => {
   return c * c * (3 - 2 * c);
 };
 
-export function DeliveryForecastCard({ forecast }: Props) {
+export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
   const {
     curve, top200Position, top200StreamsDay, baselineStreamsDay, goalPlays,
   } = forecast;
+
+  const organicTotal = Math.max(0, Number(organicSummary?.total_plays ?? 0));
+  const showOrganic = organicTotal > 0;
+
 
   const data = useMemo(() => {
     const baseline = Math.max(0, baselineStreamsDay ?? 0);
@@ -107,15 +117,28 @@ export function DeliveryForecastCard({ forecast }: Props) {
       }
     }
 
+    // Curva 3 (opcional): plays orgânicos coletados — distribui o total
+    // capturado uniformemente do dia 7 em diante (proxy diário).
+    const organicStartDay = 7;
+    const organicDaysCount = Math.max(0, days - (organicStartDay - 1));
+    const organicPerDay = showOrganic && organicDaysCount > 0
+      ? organicTotal / organicDaysCount
+      : 0;
+
     const points = src.map((c, i) => ({
       day: c.day,
       label: `D${c.day}`,
       trackPlays: Math.round(trackPlays[i]),
       delivery: Math.round(delivery[i]),
+      organic: showOrganic && (i + 1) >= organicStartDay
+        ? Math.round(organicPerDay)
+        : null,
     }));
 
-    return { points, markDay, markValue, baseline, target, peakValue };
-  }, [curve, top200StreamsDay, baselineStreamsDay]);
+    const deliveryTotal = delivery.reduce((s, v) => s + v, 0);
+    return { points, markDay, markValue, baseline, target, peakValue, deliveryTotal };
+  }, [curve, top200StreamsDay, baselineStreamsDay, showOrganic, organicTotal]);
+
 
   if (!data) return null;
 
@@ -132,9 +155,11 @@ export function DeliveryForecastCard({ forecast }: Props) {
   );
   const yLeftMax = round50k(yLeftMaxBase * 1.05, "ceil");
 
-  // Eixo direito: entrega diária, com folga.
+  // Eixo direito: entrega diária + orgânico, com folga.
   const maxDelivery = Math.max(0, ...data.points.map(p => p.delivery));
-  const yRightMax = Math.max(1_000, round50k(maxDelivery * 1.3, "ceil"));
+  const maxOrganic = Math.max(0, ...data.points.map(p => p.organic ?? 0));
+  const yRightMax = Math.max(1_000, round50k(Math.max(maxDelivery, maxOrganic) * 1.3, "ceil"));
+
 
   return (
     <Card className="border-border">
@@ -190,8 +215,10 @@ export function DeliveryForecastCard({ forecast }: Props) {
                 labelStyle={{ color: "hsl(var(--muted-foreground))" }}
                 formatter={(value: number, name: string) => {
                   if (name === "trackPlays") return [`${formatFull(value)} plays`, "Plays/dia da música"];
+                  if (name === "organic") return [`${formatFull(value)} plays/dia`, "Orgânico (Rádio · Autoplay · Mixes)"];
                   return [`${formatFull(value)} plays`, "Entrega do dia"];
                 }}
+
               />
 
               {data.target != null && (
@@ -247,6 +274,20 @@ export function DeliveryForecastCard({ forecast }: Props) {
                 strokeLinecap="round" strokeLinejoin="round"
                 dot={false} isAnimationActive={false}
               />
+              {/* Orgânico coletado (a partir do dia 7) */}
+              {showOrganic && (
+                <Line
+                  yAxisId="right"
+                  type="monotone" dataKey="organic"
+                  stroke="hsl(210 90% 60%)"
+                  strokeWidth={1.75}
+                  strokeDasharray="5 4"
+                  strokeLinecap="round"
+                  dot={false} isAnimationActive={false}
+                  connectNulls={false}
+                />
+              )}
+
 
               {data.markDay && data.markValue != null && (
                 <ReferenceDot
@@ -291,11 +332,26 @@ export function DeliveryForecastCard({ forecast }: Props) {
               Meta contratada
             </span>
           )}
+          {showOrganic && (
+            <span className="inline-flex items-center gap-1.5">
+              <span className="inline-block h-0 w-4 border-t-2 border-dashed" style={{ borderColor: "hsl(210 90% 60%)" }} />
+              Orgânico (Rádio · Autoplay · Mixes)
+            </span>
+          )}
         </div>
+
+        {showOrganic && (
+          <p className="text-[12px] text-foreground/80 leading-snug">
+            Entregue pela campanha: <span className="font-semibold">{formatPlays(data.deliveryTotal)}</span>
+            {" · "}Orgânico: <span className="font-semibold">{formatPlays(organicTotal)}</span>
+            {" · "}Total estimado: <span className="font-semibold">{formatPlays(data.deliveryTotal + organicTotal)}</span>
+          </p>
+        )}
 
         <p className="text-[11px] text-muted-foreground leading-relaxed">
           Estimativa baseada no plano aprovado. Não é garantia de resultado.
         </p>
+
       </CardContent>
     </Card>
   );
