@@ -17,7 +17,7 @@ import { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Sparkles } from "lucide-react";
 import {
-  Area, CartesianGrid, ComposedChart, Line, ReferenceDot, ReferenceLine,
+  CartesianGrid, ComposedChart, Line, ReferenceDot, ReferenceLine,
   ResponsiveContainer, Tooltip as ReTooltip, XAxis, YAxis,
 } from "recharts";
 
@@ -46,18 +46,14 @@ function formatFull(n: number): string {
   return new Intl.NumberFormat("pt-BR").format(Math.round(n));
 }
 
-// Rampa 20/60/20: peso por dia. Soma == 1.
-function buildRampWeights(days: number): number[] {
+// Distribuição suave (smoothstep S-curve). CDF S(t) = t² (3 − 2t), peso
+// diário = S((i+1)/days) − S(i/days). Soma == 1, sem picos abruptos.
+function smoothCumulative(days: number): number[] {
   if (days <= 0) return [];
-  const n1 = Math.max(1, Math.floor(days * 0.2));
-  const n3 = Math.max(1, Math.floor(days * 0.2));
-  const n2 = Math.max(1, days - n1 - n3);
-  const w: number[] = [];
-  for (let i = 0; i < n1; i++) w.push(0.10 / n1);
-  for (let i = 0; i < n2; i++) w.push(0.70 / n2);
-  for (let i = 0; i < n3; i++) w.push(0.20 / n3);
-  while (w.length < days) w.push(w[w.length - 1] ?? 0);
-  return w.slice(0, days);
+  const S = (t: number) => Math.max(0, Math.min(1, t * t * (3 - 2 * t)));
+  const cdf: number[] = [];
+  for (let i = 1; i <= days; i++) cdf.push(S(i / days));
+  return cdf;
 }
 
 export function DeliveryForecastCard({ forecast }: Props) {
@@ -71,28 +67,24 @@ export function DeliveryForecastCard({ forecast }: Props) {
     const days = Math.max(1, totalDays || 0);
     const meta = Math.max(0, goalPlays || 0);
     const baseline = Math.max(0, baselineStreamsDay ?? 0);
-    const weights = buildRampWeights(days);
+    const cdf = smoothCumulative(days);
 
-    let running = 0;
-    const points = weights.map((w, i) => {
-      const delivered = meta * w;
-      running += delivered;
-      return {
-        day: i + 1,
-        label: `D${i + 1}`,
-        playsDay: Math.round(baseline + delivered),
-        acumulado: Math.round(running),
-      };
-    });
+    // Acumulado da música = baseline (o que ela já tem) + acumulado da
+    // entrega da campanha até aquele dia. Linha única, smooth.
+    const points = cdf.map((c, i) => ({
+      day: i + 1,
+      label: `D${i + 1}`,
+      acumulado: Math.round(baseline + meta * c),
+    }));
 
-    // Marco: primeiro dia em que plays/dia da música cruza o benchmark.
+    // Marco: primeiro dia em que o acumulado cruza o benchmark do chart.
     let markDay: number | null = null;
     let markValue: number | null = null;
     if (top200StreamsDay && top200Position) {
       for (let i = 0; i < points.length; i++) {
-        if (points[i].playsDay >= top200StreamsDay) {
+        if (points[i].acumulado >= top200StreamsDay) {
           markDay = i + 1;
-          markValue = points[i].playsDay;
+          markValue = points[i].acumulado;
           break;
         }
       }
@@ -113,19 +105,13 @@ export function DeliveryForecastCard({ forecast }: Props) {
             Previsão de entrega
           </h2>
           <p className="text-[12px] text-muted-foreground mt-1 leading-snug">
-            Plays/dia projetados da música e total acumulado pela campanha
+            Plays acumulados da música ao longo da campanha
           </p>
         </div>
 
         <div className="h-[260px] sm:h-[300px] w-full -mx-2">
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={data.points} margin={{ top: 24, right: 12, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id="g_forecast_acum" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.18} />
-                  <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                </linearGradient>
-              </defs>
+            <ComposedChart data={data.points} margin={{ top: 24, right: 16, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
               <XAxis
                 dataKey="label"
@@ -133,16 +119,13 @@ export function DeliveryForecastCard({ forecast }: Props) {
                 axisLine={false} tickLine={false} minTickGap={24}
               />
               <YAxis
-                yAxisId="left"
                 tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
                 axisLine={false} tickLine={false}
-                tickFormatter={(v) => formatPlays(v as number)} width={48}
-              />
-              <YAxis
-                yAxisId="right" orientation="right"
-                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                axisLine={false} tickLine={false}
-                tickFormatter={(v) => formatPlays(v as number)} width={48}
+                tickFormatter={(v) => formatPlays(v as number)} width={52}
+                domain={[
+                  (dataMin: number) => Math.max(0, Math.floor(dataMin * 0.95)),
+                  (dataMax: number) => Math.ceil(dataMax * 1.05),
+                ]}
               />
               <ReTooltip
                 contentStyle={{
@@ -151,23 +134,17 @@ export function DeliveryForecastCard({ forecast }: Props) {
                   borderRadius: 12, fontSize: 12,
                 }}
                 labelStyle={{ color: "hsl(var(--muted-foreground))" }}
-                formatter={(v: number, name: string) => {
-                  if (name === "playsDay") return [formatFull(v), "Plays/dia da música"];
-                  if (name === "acumulado") return [formatFull(v), "Entregue pela campanha"];
-                  return [formatFull(v), name];
-                }}
+                formatter={(v: number) => [formatFull(v), "Plays acumulados"]}
               />
 
-              {/* Benchmark — plays/dia necessários pra posição alvo */}
               {top200StreamsDay && top200Position && (
                 <ReferenceLine
-                  yAxisId="left"
                   y={top200StreamsDay}
                   stroke="hsl(var(--muted-foreground))"
                   strokeDasharray="2 4"
                   strokeOpacity={0.6}
                   label={{
-                    value: `Top ${top200Position} · ${formatPlays(top200StreamsDay)}/dia`,
+                    value: `Top ${top200Position} · ${formatPlays(top200StreamsDay)}`,
                     position: "insideTopRight",
                     fill: "hsl(var(--muted-foreground))",
                     fontSize: 10, fillOpacity: 0.9,
@@ -175,27 +152,15 @@ export function DeliveryForecastCard({ forecast }: Props) {
                 />
               )}
 
-              {/* Curva 2 — acumulado entregue (área sutil, eixo direito) */}
-              <Area
-                yAxisId="right"
-                type="monotone" dataKey="acumulado"
-                stroke="hsl(var(--primary))" strokeOpacity={0.35} strokeWidth={1}
-                fill="url(#g_forecast_acum)"
-                isAnimationActive={false}
-              />
-
-              {/* Curva 1 — plays/dia da música (linha principal, eixo esquerdo) */}
               <Line
-                yAxisId="left"
-                type="monotone" dataKey="playsDay"
-                stroke="hsl(var(--primary))" strokeWidth={2.25}
+                type="basis" dataKey="acumulado"
+                stroke="hsl(var(--primary))" strokeWidth={2.5}
+                strokeLinecap="round" strokeLinejoin="round"
                 dot={false} isAnimationActive={false}
               />
 
-              {/* Marco — dia que cruza o benchmark */}
               {data.markDay && data.markValue != null && (
                 <ReferenceDot
-                  yAxisId="left"
                   x={`D${data.markDay}`} y={data.markValue}
                   r={5}
                   fill="hsl(var(--primary))"
@@ -216,11 +181,7 @@ export function DeliveryForecastCard({ forecast }: Props) {
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11.5px] text-muted-foreground">
           <span className="inline-flex items-center gap-1.5">
             <span className="inline-block h-[2px] w-4 bg-primary rounded" />
-            Plays/dia da música
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="inline-block h-2 w-3 bg-primary/25 rounded-sm" />
-            Acumulado da campanha
+            Acumulado da música
           </span>
           {top200StreamsDay && (
             <span className="inline-flex items-center gap-1.5">
