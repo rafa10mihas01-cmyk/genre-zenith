@@ -327,13 +327,16 @@ export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
                   stroke="hsl(var(--background))"
                   strokeWidth={2}
                   label={{
-                    value: top200Position
-                      ? `Top ${top200Position} · Dia ${data.markDay}`
-                      : `Alvo · Dia ${data.markDay}`,
+                    value: isNarrow
+                      ? `D${data.markDay}`
+                      : (top200Position
+                          ? `Top ${top200Position} · Dia ${data.markDay}`
+                          : `Alvo · Dia ${data.markDay}`),
                     position: "top",
                     fill: "hsl(var(--primary))",
-                    fontSize: 10.5, fontWeight: 600,
+                    fontSize: isNarrow ? 9.5 : 10.5, fontWeight: 600,
                   }}
+
                 />
               )}
             </ComposedChart>
