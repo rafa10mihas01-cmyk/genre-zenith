@@ -162,19 +162,20 @@ export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
 
 
   return (
-    <Card className="border-border">
-      <CardContent className="p-5 sm:p-6 space-y-5">
+    <Card>
+      <CardContent className="space-y-3">
         <div>
-          <h2 className="text-[15px] font-semibold inline-flex items-center gap-2 tracking-tight">
-            <Sparkles className="h-4 w-4 text-muted-foreground" />
+          <h2 className="text-[13px] font-semibold inline-flex items-center gap-1.5 tracking-tight">
+            <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
             Previsão de entrega
           </h2>
-          <p className="text-[12px] text-muted-foreground mt-1 leading-snug">
+          <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
             Plays/dia da música e combustível diário da campanha
           </p>
         </div>
 
-        <div className="h-[280px] sm:h-[320px] w-full -mx-2">
+        <div className="h-[200px] sm:h-[220px] w-full -mx-2">
+
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={data.points} margin={{ top: 24, right: 16, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
@@ -311,44 +312,44 @@ export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
           </ResponsiveContainer>
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11.5px] text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] text-muted-foreground">
           <span className="inline-flex items-center gap-1.5">
-            <span className="inline-block h-[2px] w-4 bg-primary rounded" />
-            Plays/dia da música
+            <span className="inline-block h-[2px] w-3 bg-primary rounded" />
+            Plays/dia
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="inline-block h-0 w-4 border-t-2 border-dashed border-primary/60" />
-            Entrega do dia (campanha)
+            <span className="inline-block h-0 w-3 border-t-2 border-dashed border-primary/60" />
+            Entrega diária
           </span>
           {data.target != null && (
             <span className="inline-flex items-center gap-1.5">
-              <span className="inline-block h-0 w-4 border-t-2 border-dashed border-muted-foreground/60" />
-              {top200Position ? `Alvo Top ${top200Position}` : "Alvo"}
+              <span className="inline-block h-0 w-3 border-t-2 border-dashed border-muted-foreground/60" />
+              {top200Position ? `Top ${top200Position}` : "Alvo"}
             </span>
           )}
           {goalPlays > 0 && (
             <span className="inline-flex items-center gap-1.5">
-              <span className="inline-block h-0 w-4 border-t-2 border-dashed border-muted-foreground/40" />
-              Meta contratada
+              <span className="inline-block h-0 w-3 border-t-2 border-dashed border-muted-foreground/40" />
+              Meta
             </span>
           )}
           {showOrganic && (
             <span className="inline-flex items-center gap-1.5">
-              <span className="inline-block h-0 w-4 border-t-2 border-dashed" style={{ borderColor: "hsl(210 90% 60%)" }} />
-              Orgânico (Rádio · Autoplay · Mixes)
+              <span className="inline-block h-0 w-3 border-t-2 border-dashed" style={{ borderColor: "hsl(210 90% 60%)" }} />
+              Orgânico
             </span>
           )}
         </div>
 
         {showOrganic && (
-          <p className="text-[12px] text-foreground/80 leading-snug">
-            Entregue pela campanha: <span className="font-semibold">{formatPlays(data.deliveryTotal)}</span>
+          <p className="text-[11px] text-foreground/80 leading-snug pt-2 border-t border-border">
+            Campanha: <span className="font-semibold">{formatPlays(data.deliveryTotal)}</span>
             {" · "}Orgânico: <span className="font-semibold">{formatPlays(organicTotal)}</span>
-            {" · "}Total estimado: <span className="font-semibold">{formatPlays(data.deliveryTotal + organicTotal)}</span>
+            {" · "}Total: <span className="font-semibold">{formatPlays(data.deliveryTotal + organicTotal)}</span>
           </p>
         )}
 
-        <p className="text-[11px] text-muted-foreground leading-relaxed">
+        <p className="text-[10px] text-muted-foreground leading-relaxed">
           Estimativa baseada no plano aprovado. Não é garantia de resultado.
         </p>
 
@@ -356,3 +357,4 @@ export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
     </Card>
   );
 }
+
