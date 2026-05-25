@@ -716,6 +716,7 @@ export default function CampanhaExecucao() {
               </Card>
             </div>
           ),
+          baseline: <BaselineTab dealId={camp.deal_id ?? null} />,
           upload: clientToken ? (
             <SpreadsheetUploadCard
               clientToken={clientToken}
