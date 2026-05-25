@@ -56,6 +56,7 @@ export function buildSnapshot(
     music,
     meta: result.meta,
     days: result.days,
+    effectiveDays: result.effectiveDays,
     modo: result.modo,
     perfil: result.perfil,
     splitEcoPct: result.splitEcoPct,
