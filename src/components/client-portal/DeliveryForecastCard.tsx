@@ -212,6 +212,22 @@ export function DeliveryForecastCard({ forecast }: Props) {
                 />
               )}
 
+              {goalPlays > 0 && (
+                <ReferenceLine
+                  yAxisId="goal"
+                  y={goalPlays}
+                  stroke="hsl(var(--muted-foreground))"
+                  strokeDasharray="2 4"
+                  strokeOpacity={0.45}
+                  label={{
+                    value: `Meta · ${formatPlays(goalPlays)}`,
+                    position: "insideTopRight",
+                    fill: "hsl(var(--muted-foreground))",
+                    fontSize: 10, fillOpacity: 0.85,
+                  }}
+                />
+              )}
+
               {/* Entrega diária (atrás) */}
               <Line
                 yAxisId="right"
