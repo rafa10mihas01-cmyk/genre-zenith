@@ -52,8 +52,9 @@ export function AlgorithmicImpactCard({
           </h3>
           <span
             className="ml-1 text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded"
-            style={{ background: `${ORG} / 0.12`, color: ORG, backgroundColor: "hsl(217 91% 60% / 0.12)" }}
+            style={{ color: ORG, backgroundColor: "hsl(217 91% 60% / 0.12)" }}
           >
+
             estimativa
           </span>
         </div>
