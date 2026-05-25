@@ -30,6 +30,7 @@ type Props = {
   showFinance: boolean;
   hideDeliveryPlan?: boolean;
   hideCurveShortcut?: boolean;
+  hideCurveCard?: boolean;
   allocations?: EcoAllocation[];
   snapshots?: EcoSnap[];
   proofs?: ProofPreview[];
@@ -44,7 +45,7 @@ type Props = {
 };
 
 export function OverviewTab({
-  snapshot, delivered, daysElapsed, showFinance, hideDeliveryPlan = false, hideCurveShortcut = false,
+  snapshot, delivered, daysElapsed, showFinance, hideDeliveryPlan = false, hideCurveShortcut = false, hideCurveCard = false,
   allocations = [], snapshots = [], proofs = [], onJumpTab,
   splitLockedAt = null, lockedEcoStreams = null, ecoMaxPct = 70,
   canManageSplit = false, onLockSplit, onUnlockSplit,
@@ -263,7 +264,8 @@ export function OverviewTab({
       </div>
 
       {/* Grid principal: Curva + Top playlists */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className={cn("grid grid-cols-1 gap-4", hideCurveCard ? "" : "lg:grid-cols-3")}>
+        {!hideCurveCard && (
         <Card className="lg:col-span-2">
           <CardContent className="p-5">
             <div className="flex items-center justify-between mb-3">
@@ -285,6 +287,7 @@ export function OverviewTab({
             )}
           </CardContent>
         </Card>
+        )}
 
         <Card>
           <CardContent className="p-5">
