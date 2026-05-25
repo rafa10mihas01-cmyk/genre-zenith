@@ -15,7 +15,7 @@ type Props = {
  *  - meta de streams · duração · investimento total · investimento por stream
  * NÃO mostra split eco/ext, custos internos, pricing operacional ou margem.
  */
-export function ClientInvestmentCard({ meta, days, pricePerStreamSell, clientPriceTotal }: Props) {
+export function ClientInvestmentCard({ meta, days, effectiveDays, pricePerStreamSell, clientPriceTotal }: Props) {
   const hasPrice = !!clientPriceTotal && clientPriceTotal > 0;
   // fallback: recomputar caso snapshot antigo sem clientPriceTotal mas com pricePerStreamSell
   const total = hasPrice
