@@ -595,6 +595,7 @@ export default function CampanhaExecucao() {
                 <TabsTrigger value="externo">Externo</TabsTrigger>
               </TabsList>
               <TabsContent value="interno" className="mt-0 space-y-4">
+                <GenresUsedFromAllocs allocs={allocs} />
                 <InternalEcosystemHeader
                   snapshot={snapshot}
                   allocations={allocs}
