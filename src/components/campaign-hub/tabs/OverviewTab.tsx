@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Music, Camera, TrendingUp, TrendingDown, Minus, ArrowRight, ExternalLink, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import type { EcoAllocation } from "../types";
+import { Kpi as UnifiedKpi } from "@/components/ui/kpi";
 
 type EcoSnap = {
   managed_playlist_id: string;
