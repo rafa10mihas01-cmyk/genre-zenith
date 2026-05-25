@@ -382,6 +382,7 @@ Deno.serve(async (req) => {
       const max_accounts: number = Number(body.max_accounts ?? 5);
       const is_default: boolean = !!body.is_default;
       const notes: string | null = body.notes ?? null;
+      const owner_email: string | null = body.owner_email ? String(body.owner_email).trim().toLowerCase() : null;
       const status: string = body.status ?? "active";
 
       if (!name) return jr({ ok: false, error: "name obrigatório" }, 400);
