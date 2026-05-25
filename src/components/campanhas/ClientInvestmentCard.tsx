@@ -73,7 +73,7 @@ export function ClientInvestmentCard({ meta, days, effectiveDays, pricePerStream
             <div className="text-2xl md:text-3xl font-semibold tabular-nums text-foreground">
               {days}d
             </div>
-            <div className="text-xs text-muted-foreground mt-1.5">janela de entrega</div>
+            <div className="text-xs text-muted-foreground mt-1.5">contratado{effectiveDays && effectiveDays !== days ? ` · plano real: ${effectiveDays}d` : ""}</div>
           </div>
         </div>
 
