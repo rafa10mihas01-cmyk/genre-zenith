@@ -18,7 +18,12 @@ type Row = {
   image_url: string | null;
   followers: number | null;
   spotify_owner_name: string | null;
+  spotify_playlist_id: string | null;
+  spotify_owner_id: string | null;
+  isInternal?: boolean;
+  curatorName?: string | null;
 };
+
 
 type BaselineUpload = {
   id: string;
