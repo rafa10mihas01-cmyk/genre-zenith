@@ -262,7 +262,7 @@ export default function ClienteDetalhe() {
       <div className="grid grid-cols-2 md:grid-cols-6 gap-2 pt-4 mb-6">
         <KpiBig
           label="Investido"
-          value={formatBRL(kpis.investido)}
+          value={formatBRLHero(kpis.investido)}
           icon={CreditCard}
           hint={kpis.deals > 0 ? `Em ${kpis.deals} deal${kpis.deals === 1 ? "" : "s"}` : "Sem deals"}
           tier="hero"
