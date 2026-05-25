@@ -108,11 +108,12 @@ export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed 
         </div>
 
         {/* Ações */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 lg:gap-2 flex-nowrap shrink-0">
 
           {mode === "internal" && (
             <>
-              <Link to="/campanhas">
+              {/* Botão "Campanhas" só no desktop — no mobile o topbar global já tem o < */}
+              <Link to="/campanhas" className="hidden lg:inline-flex">
                 <Button variant="ghost" size="sm">
                   <ArrowLeft className="h-4 w-4 mr-1.5" /> Campanhas
                 </Button>
@@ -120,11 +121,12 @@ export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed 
               {camp.public_plan_token && (
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <Share2 className="h-4 w-4 mr-1.5" /> Compartilhar
+                    <Button variant="outline" size="sm" className="px-2 lg:px-3">
+                      <Share2 className="h-4 w-4 lg:mr-1.5" />
+                      <span className="hidden lg:inline">Compartilhar</span>
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent align="end" className="w-[360px] p-4 space-y-3">
+                  <PopoverContent align="end" className="w-[300px] sm:w-[360px] p-4 space-y-3">
                     <div>
                       <div className="text-sm font-semibold">Link do cliente</div>
                       <div className="text-[11px] text-muted-foreground">
