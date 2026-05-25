@@ -332,11 +332,26 @@ export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
               Meta contratada
             </span>
           )}
+          {showOrganic && (
+            <span className="inline-flex items-center gap-1.5">
+              <span className="inline-block h-0 w-4 border-t-2 border-dashed" style={{ borderColor: "hsl(210 90% 60%)" }} />
+              Orgânico (Rádio · Autoplay · Mixes)
+            </span>
+          )}
         </div>
+
+        {showOrganic && (
+          <p className="text-[12px] text-foreground/80 leading-snug">
+            Entregue pela campanha: <span className="font-semibold">{formatPlays(data.deliveryTotal)}</span>
+            {" · "}Orgânico: <span className="font-semibold">{formatPlays(organicTotal)}</span>
+            {" · "}Total estimado: <span className="font-semibold">{formatPlays(data.deliveryTotal + organicTotal)}</span>
+          </p>
+        )}
 
         <p className="text-[11px] text-muted-foreground leading-relaxed">
           Estimativa baseada no plano aprovado. Não é garantia de resultado.
         </p>
+
       </CardContent>
     </Card>
   );
