@@ -448,7 +448,11 @@ export default function PlanoCampanhaPublico() {
                   snapshots={snaps}
                   stage={isApproved ? "live" : isRejected ? "rejected" : "approval"}
                 />
-                {(() => {
+                {genresUsed.length > 0 && (
+                  <div className="-mt-2">
+                    <GenresUsedChip genres={genresUsed} />
+                  </div>
+                )}
                   const valorCobrado = snapshot.clientPriceTotal && snapshot.clientPriceTotal > 0
                     ? snapshot.clientPriceTotal
                     : snapshot.pricePerStreamSell
