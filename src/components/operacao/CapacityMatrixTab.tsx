@@ -103,28 +103,21 @@ export function CapacityMatrixTab() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-col gap-1.5">
           <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Gênero</label>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="h-9 min-w-[200px] rounded-md border border-border bg-elevated px-3 text-sm text-left flex items-center justify-between gap-2 hover:border-foreground/25">
-                <span className="truncate">{selectedGenreName}</span>
-                <ChevronDown className="h-4 w-4 opacity-60 shrink-0" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="max-h-[60vh] overflow-y-auto w-[260px]">
-              {genres.length === 0 && (
-                <div className="px-3 py-2 text-xs text-muted-foreground">Sem dados</div>
-              )}
-              {genres.map(g => (
-                <DropdownMenuItem
-                  key={g.id}
-                  onClick={() => setGenreId(g.id)}
-                  className={cn("text-sm", g.id === genreId && "bg-primary/10 text-primary")}
-                >
+          <div className="relative">
+            <select
+              value={genreId ?? ""}
+              onChange={(e) => setGenreId(e.target.value || null)}
+              className="h-9 min-w-[220px] appearance-none rounded-md border border-border bg-elevated pl-3 pr-8 text-sm text-foreground hover:border-foreground/25 focus:outline-none focus:ring-2 focus:ring-primary/30"
+            >
+              {genres.length === 0 && <option value="">Sem dados</option>}
+              {genres.map((g) => (
+                <option key={g.id} value={g.id}>
                   {g.name}
-                </DropdownMenuItem>
+                </option>
               ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 opacity-60" />
+          </div>
         </div>
 
         <div className="flex flex-col gap-1.5">
