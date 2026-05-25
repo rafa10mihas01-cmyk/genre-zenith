@@ -17,7 +17,7 @@ import { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Sparkles } from "lucide-react";
 import {
-  Area, CartesianGrid, ComposedChart, Line, ReferenceDot, ReferenceLine,
+  CartesianGrid, ComposedChart, Line, ReferenceDot, ReferenceLine,
   ResponsiveContainer, Tooltip as ReTooltip, XAxis, YAxis,
 } from "recharts";
 
