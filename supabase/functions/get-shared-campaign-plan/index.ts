@@ -171,6 +171,10 @@ Deno.serve(async (req) => {
     goalHitDay: number | null;
     totalDays: number;
     goalPlays: number;
+    startedAt: string;
+    top200Position: number | null;
+    top200StreamsDay: number | null;
+    plannedDailyAverage: number;
   } | null = null;
   try {
     const rawSnap = campRaw.simulation_snapshot as any;
@@ -195,7 +199,20 @@ Deno.serve(async (req) => {
         curve.push({ day: i + 1, cumulative: running });
         if (goalHitDay === null && goal > 0 && running >= goal) goalHitDay = i + 1;
       }
-      forecast = { curve, goalHitDay, totalDays: days, goalPlays: goal };
+      const plannedDailyAverage = days > 0 ? Math.round(running / days) : 0;
+      const music = rawSnap.music ?? {};
+      const t200p = Number(music?.top200Position);
+      const t200s = Number(music?.top200StreamsDay);
+      forecast = {
+        curve,
+        goalHitDay,
+        totalDays: days,
+        goalPlays: goal,
+        startedAt: (campRaw as any).started_at ?? new Date().toISOString(),
+        top200Position: Number.isFinite(t200p) && t200p > 0 ? t200p : null,
+        top200StreamsDay: Number.isFinite(t200s) && t200s > 0 ? t200s : null,
+        plannedDailyAverage,
+      };
     }
   } catch (_) { /* forecast é opcional — não bloqueia a resposta */ }
 
