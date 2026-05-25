@@ -76,7 +76,7 @@ export function CapacityMatrixTab() {
     [rows, genreId],
   );
 
-  const selectedGenreName = genres.find(g => g.id === genreId)?.name ?? "Selecione um gênero";
+  
 
   /** Plays/dia para a linha aplicando o multiplicador efetivo (escala linear vs ×30). */
   const playsForRow = (r: Row) => Math.round(r.plays_per_day_x30 * (effectiveMult / 30));
