@@ -5,6 +5,58 @@ export function formatNumber(n: number | null | undefined): string {
   return String(n);
 }
 
+/**
+ * formatCompact — formatador ÚNICO pra números grandes em KPI hero/default.
+ *
+ * Regras:
+ *  - >= 1_000_000 → "1.2M" (1 decimal, sem ".0")
+ *  - >= 1_000     → "137k" (sem decimais)
+ *  - menores      → número cheio com separador pt-BR ("503", "1.000")
+ *
+ * NUNCA concatenar "k"/"M" manualmente em componente — usar este helper.
+ */
+export function formatCompact(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n)) return "—";
+  const abs = Math.abs(n);
+  const sign = n < 0 ? "-" : "";
+  if (abs >= 1_000_000) {
+    return sign + (abs / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
+  }
+  if (abs >= 1_000) {
+    return sign + Math.round(abs / 1_000) + "k";
+  }
+  return sign + Math.round(abs).toLocaleString("pt-BR");
+}
+
+/**
+ * BRL pra KPI hero — sem decimais ("R$ 137k", "R$ 1.250").
+ * Usa formatCompact pra números grandes.
+ */
+export function formatBRLHero(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n)) return "—";
+  const abs = Math.abs(n);
+  if (abs >= 1_000) return "R$ " + formatCompact(n);
+  return n.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+}
+
+/**
+ * BRL pra detalhes / tabelas / linhas — 2 decimais ("R$ 453.717,50").
+ */
+export function formatBRLDetail(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n)) return "—";
+  return n.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
 export function formatDate(d: string | null | undefined): string {
   if (!d) return "—";
   const date = new Date(d);
