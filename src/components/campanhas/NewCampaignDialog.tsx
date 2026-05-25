@@ -89,6 +89,7 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   const [clientId, setClientId] = useState<string>("");
   const [curatorId, setCuratorId] = useState<string>("");
   const [campaignType, setCampaignType] = useState<"ecosystem" | "external" | "hybrid">("hybrid");
+  const [collectionMode, setCollectionMode] = useState<"bot" | "spreadsheet">("bot");
 
   // Cobrança do cliente
   const [valorCobradoDigits, setValorCobradoDigits] = useState<string>("");
@@ -137,13 +138,13 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   // Mantém os campos preenchidos mesmo se o usuário fechar o dialog ou recarregar a página.
   const draftSnapshot = useMemo(() => ({
     step, trackName, artist, trackUrl, goal, startDate, deadline, notes,
-    clientId, curatorId, campaignType,
+    clientId, curatorId, campaignType, collectionMode,
     valorCobradoDigits, formaRecebimento, jaRecebido, recebidoEm,
     items: items.map(i => ({
       playlist_id: i.playlist_id, selected: i.selected, target_override: i.target_override,
     })),
     activate,
-  }), [step, trackName, artist, trackUrl, goal, startDate, deadline, notes, clientId, curatorId, campaignType,
+  }), [step, trackName, artist, trackUrl, goal, startDate, deadline, notes, clientId, curatorId, campaignType, collectionMode,
        valorCobradoDigits, formaRecebimento, jaRecebido, recebidoEm, items, activate]);
 
   const isDraftEmpty = !trackName.trim() && !artist.trim() && !trackUrl.trim() && !notes.trim()
@@ -172,6 +173,7 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
     setClientId((d as any).clientId ?? "");
     setCuratorId((d as any).curatorId ?? "");
     setCampaignType(((d as any).campaignType as "ecosystem" | "external" | "hybrid") ?? "hybrid");
+    setCollectionMode(((d as any).collectionMode as "bot" | "spreadsheet") ?? "bot");
     setValorCobradoDigits((d as any).valorCobradoDigits ?? "");
     setFormaRecebimento((d as any).formaRecebimento ?? "");
     setJaRecebido(Boolean((d as any).jaRecebido));
@@ -285,6 +287,7 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
         client_id: clientId || null,
         curator_id: curatorId || null,
         campaign_type: campaignType,
+        collection_mode: collectionMode,
         valor_cobrado: currencyDigitsToNumber(valorCobradoDigits) ?? null,
         forma_recebimento: formaRecebimento || null,
         valor_recebido: jaRecebido ? (currencyDigitsToNumber(valorCobradoDigits) ?? null) : null,
@@ -343,13 +346,13 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
         {step === 1 && (
           <div className="space-y-4">
             {/* Tipo da campanha */}
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label>Tipo da campanha</Label>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                 {([
-                  { id: "ecosystem", title: "Ecossistema", desc: "Só playlists internas (managed)." },
-                  { id: "external",  title: "Externa",     desc: "Só curadores externos (deals reais)." },
-                  { id: "hybrid",    title: "Híbrida",     desc: "Mistura ecossistema + curadores." },
+                  { id: "ecosystem", title: "Ecossistema", desc: "Só playlists internas." },
+                  { id: "external",  title: "Externa",     desc: "Só curadores externos." },
+                  { id: "hybrid",    title: "Híbrida",     desc: "Ecossistema + curadores." },
                 ] as const).map(opt => {
                   const active = campaignType === opt.id;
                   return (
@@ -357,22 +360,51 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
                       key={opt.id}
                       type="button"
                       onClick={() => setCampaignType(opt.id)}
-                      className={`text-left rounded-lg border p-3 transition ${
+                      className={`text-left rounded-lg border px-3 py-2 transition ${
                         active
                           ? "border-primary bg-primary/5"
                           : "border-border/60 hover:border-border bg-muted/10"
                       }`}
                     >
-                      <div className="text-sm font-semibold text-foreground">{opt.title}</div>
-                      <div className="text-xs text-muted-foreground mt-1">{opt.desc}</div>
+                      <div className="text-sm font-semibold text-foreground leading-tight">{opt.title}</div>
+                      <div className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{opt.desc}</div>
                     </button>
                   );
                 })}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Define como o plano vai ser executado. Externa/Híbrida exigem curador.
+              <p className="text-[11px] text-muted-foreground">
+                Externa/Híbrida exigem curador.
               </p>
             </div>
+
+            {/* Fonte de coleta — decide se o bot do Spotify roda ou se cliente manda planilha */}
+            <div className="space-y-1.5">
+              <Label>Fonte de coleta</Label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {([
+                  { id: "bot",         title: "Spotify (bot)",   desc: "Temos acesso ao Spotify for Artists. Bot coleta automaticamente." },
+                  { id: "spreadsheet", title: "Planilha (Nielsen)", desc: "Sem acesso ao Spotify. Cliente envia planilha — não gasta crédito do bot." },
+                ] as const).map(opt => {
+                  const active = collectionMode === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setCollectionMode(opt.id)}
+                      className={`text-left rounded-lg border px-3 py-2 transition ${
+                        active
+                          ? "border-primary bg-primary/5"
+                          : "border-border/60 hover:border-border bg-muted/10"
+                      }`}
+                    >
+                      <div className="text-sm font-semibold text-foreground leading-tight">{opt.title}</div>
+                      <div className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{opt.desc}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
