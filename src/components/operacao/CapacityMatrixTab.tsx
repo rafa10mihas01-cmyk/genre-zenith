@@ -62,9 +62,18 @@ export function CapacityMatrixTab() {
   const genres = useMemo(() => {
     const map = new Map<string, string>();
     for (const r of rows) map.set(r.genre_id, r.genre_name);
-    return Array.from(map.entries())
-      .map(([id, name]) => ({ id, name }))
-      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+    const PRIORITY = ["funk", "trap", "eletrofunk", "sertanejo", "pagode", "rap"];
+    const all = Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+    const rank = (n: string) => {
+      const i = PRIORITY.indexOf(n.toLowerCase());
+      return i === -1 ? Infinity : i;
+    };
+    return all.sort((a, b) => {
+      const ra = rank(a.name);
+      const rb = rank(b.name);
+      if (ra !== rb) return ra - rb;
+      return a.name.localeCompare(b.name, "pt-BR");
+    });
   }, [rows]);
 
   const effectiveMult = mult === "custom"
