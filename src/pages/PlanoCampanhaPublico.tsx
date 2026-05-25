@@ -133,6 +133,7 @@ export default function PlanoCampanhaPublico() {
       setRecentUploads(payload?.recent_uploads ?? []);
       setCollectionMode(payload?.collection_mode === "spreadsheet" ? "spreadsheet" : "bot");
       setForecast(payload?.forecast ?? null);
+      setGenresUsed(payload?.genres_used ?? []);
       setErr(null);
 
     }
