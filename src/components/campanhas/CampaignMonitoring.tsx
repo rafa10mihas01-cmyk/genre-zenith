@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Activity, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatInt, formatBRL } from "@/lib/campaignEngine";
+import { formatInt, formatBRL, recomputeCurva } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { toast } from "@/hooks/use-toast";
 
@@ -64,13 +64,21 @@ export function CampaignMonitoring({ campaignId, snapshot, campaignStartedAt, ca
 
   useEffect(() => { load(); }, [campaignId]);
 
+  // Curva fresca, recomputada com o envelope ATUAL do motor.
+  // Snapshot continua fonte de verdade pra meta/effectiveDays/split/custos;
+  // só a FORMA (streamsDay por dia) é refeita aqui.
+  const freshCurva = useMemo(() => {
+    const eff = (snapshot as any).effectiveDays ?? snapshot.days;
+    return recomputeCurva(snapshot.meta, eff, snapshot.splitEcoPct);
+  }, [snapshot.meta, (snapshot as any).effectiveDays, snapshot.days, snapshot.splitEcoPct]);
+
   const metrics = useMemo(() => {
-    const totalDays = snapshot.days;
+    const totalDays = freshCurva.length || snapshot.days;
     const elapsedMs = Date.now() - new Date(campaignStartedAt).getTime();
     const elapsedDays = Math.max(1, Math.min(totalDays, Math.ceil(elapsedMs / (1000 * 60 * 60 * 24))));
 
-    // Planejado até hoje (cumulativo da curva)
-    const plannedToDate = snapshot.curva
+    // Planejado até hoje (cumulativo da curva FRESCA)
+    const plannedToDate = freshCurva
       .slice(0, elapsedDays)
       .reduce((s, p) => s + p.streamsDay, 0);
 
@@ -186,7 +194,7 @@ export function CampaignMonitoring({ campaignId, snapshot, campaignStartedAt, ca
             </div>
             <span className="tabular-nums">{formatBRL(snapshot.custoTotal)} orçado</span>
           </div>
-          <CurvaReal snapshot={snapshot} elapsedDays={metrics.elapsedDays} delivered={metrics.delivered} />
+          <CurvaReal curva={freshCurva} elapsedDays={metrics.elapsedDays} delivered={metrics.delivered} />
         </div>
 
         {isCompleted && (
@@ -219,8 +227,7 @@ function KPI({ label, value, hint, tone }: { label: string; value: string; hint?
   );
 }
 
-function CurvaReal({ snapshot, elapsedDays, delivered }: { snapshot: CampaignSnapshot; elapsedDays: number; delivered: number }) {
-  const curva = snapshot.curva;
+function CurvaReal({ curva, elapsedDays, delivered }: { curva: { day: number; streamsDay: number; cumulative: number }[]; elapsedDays: number; delivered: number }) {
   if (curva.length === 0) return null;
   const w = 720, h = 140, pad = 12;
   const maxS = Math.max(...curva.map(p => p.streamsDay), 1);
