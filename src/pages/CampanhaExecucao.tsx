@@ -29,6 +29,7 @@ import { InternalEcosystemHeader } from "@/components/campaign-hub/InternalEcosy
 import { ProofsTimeline, type ProofEvent } from "@/components/campaign-hub/ProofsTimeline";
 
 import { SpreadsheetUploadCard } from "@/components/client-portal/SpreadsheetUploadCard";
+import { BaselineCard } from "@/components/campanhas/BaselineCard";
 import type { CampaignHubCampaign, CampaignHubTabId, EcoAllocation } from "@/components/campaign-hub/types";
 import { toast } from "sonner";
 import type { Json } from "@/integrations/supabase/types";
@@ -64,6 +65,7 @@ type SpreadsheetUpload = {
   total_streams: number;
   status: string;
   file_name: string | null;
+  is_baseline?: boolean | null;
 };
 
 export default function CampanhaExecucao() {
@@ -226,7 +228,7 @@ export default function CampanhaExecucao() {
 
       const { data: uploads } = await supabase
         .from("label_spreadsheet_uploads")
-        .select("id, created_at, rows_imported, total_streams, status, file_name")
+        .select("id, created_at, rows_imported, total_streams, status, file_name, is_baseline")
         .eq("deal_id", dealId)
         .order("created_at", { ascending: false })
         .limit(10);
@@ -506,6 +508,17 @@ export default function CampanhaExecucao() {
         slots={{
           overview: (
             <div className="space-y-6">
+              {(() => {
+                const baseline = recentUploads.find((u) => u.is_baseline);
+                return baseline ? (
+                  <BaselineCard
+                    capturedAt={baseline.created_at}
+                    totalStreams={baseline.total_streams}
+                    playlistsDetected={baseline.rows_imported}
+                    fileName={baseline.file_name}
+                  />
+                ) : null;
+              })()}
               <OverviewTab
                 snapshot={snapshot}
                 delivered={delivered}
