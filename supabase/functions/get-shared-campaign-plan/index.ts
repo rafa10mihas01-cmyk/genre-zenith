@@ -179,25 +179,20 @@ Deno.serve(async (req) => {
   } | null = null;
   try {
     const rawSnap = campRaw.simulation_snapshot as any;
-    if (rawSnap?.days && Array.isArray(rawSnap?.curva) && (allocs?.length ?? 0) > 0) {
-      const plan = buildEcoPlan({
-        snapshot: rawSnap,
-        startedAt: (campRaw as any).started_at ?? new Date().toISOString(),
-        engagementMultiplier: Math.max(1, (campRaw as any).engagement_multiplier ?? 30),
-        allocs: allocs as any,
-      });
-      const days = (rawSnap.effectiveDays ?? rawSnap.days) as number;
-      const dailyTotal: number[] = Array.from({ length: days }, () => 0);
-      for (const row of plan) {
-        for (let i = 0; i < days; i++) dailyTotal[i] += row.daily?.[i] ?? 0;
-      }
+    if (rawSnap?.days && Array.isArray(rawSnap?.curva) && rawSnap.curva.length > 0) {
+      // Fonte canônica = snapshot.curva[i].streamsDay (curva TOTAL da campanha,
+      // inclui eco + externo + rádio). NÃO usar buildEcoPlan aqui — aquele só
+      // distribui o slice do ecossistema e subestima o ritmo diário em ~10×.
+      const curvaSnap = rawSnap.curva as Array<{ streamsDay?: number; cumulative?: number }>;
+      const days = curvaSnap.length;
       let running = 0;
       const curve: Array<{ day: number; cumulative: number }> = [];
       let goalHitDay: number | null = null;
       const goal = campRaw.goal_plays ?? 0;
       for (let i = 0; i < days; i++) {
-        running += dailyTotal[i];
-        curve.push({ day: i + 1, cumulative: running });
+        const sd = Number(curvaSnap[i]?.streamsDay ?? 0);
+        running += Number.isFinite(sd) ? sd : 0;
+        curve.push({ day: i + 1, cumulative: Math.round(running) });
         if (goalHitDay === null && goal > 0 && running >= goal) goalHitDay = i + 1;
       }
       const plannedDailyAverage = days > 0 ? Math.round(running / days) : 0;
