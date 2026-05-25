@@ -208,7 +208,7 @@ export async function processDomItem(
         .eq("spotify_playlist_id", sId)
         .maybeSingle();
       if ((mp as any)?.id) {
-        await supabase.from("campaign_eco_snapshots").insert({
+        const { error: ecoErr } = await supabase.from("campaign_eco_snapshots").insert({
           campaign_id: campaignId,
           managed_playlist_id: (mp as any).id,
           spotify_playlist_id: sId,
@@ -218,6 +218,9 @@ export async function processDomItem(
           source: p.source ?? "spotify_for_artists_dom",
           correlation_id: item.correlation_id ?? null,
         });
+        if (ecoErr) {
+          console.warn("[ingest-dom] eco_snapshots insert failed:", ecoErr.message, { campaignId, sId });
+        }
       }
     }
   }
