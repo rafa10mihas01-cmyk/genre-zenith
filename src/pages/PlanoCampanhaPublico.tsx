@@ -108,6 +108,7 @@ type SharedCampaignPlanResponse = {
 type PublicRpc = (fn: string, args: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
 
 export default function PlanoCampanhaPublico() {
+  useForceDarkTheme();
   const { token } = useParams<{ token: string }>();
   const [camp, setCamp] = useState<Camp | null>(null);
   const [allocs, setAllocs] = useState<EcoAllocation[]>([]);
