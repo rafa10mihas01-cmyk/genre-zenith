@@ -166,7 +166,7 @@ export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
 
     const deliveryTotal = delivery.reduce((s, v) => s + v, 0);
     return { points, markDay, markValue, baseline, target, peakValue, deliveryTotal };
-  }, [curve, top200StreamsDay, baselineStreamsDay, showOrganic, organicTotal]);
+  }, [curve, top200StreamsDay, baselineStreamsDay, showOrganic, organicTotal, goalPlays, forecast.totalDays]);
 
 
   if (!data) return null;
