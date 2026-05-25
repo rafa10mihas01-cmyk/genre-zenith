@@ -25,6 +25,7 @@ export type SpotifyApp = {
   is_default: boolean;
   status: string;
   notes: string | null;
+  owner_email: string | null;
   accounts_used: number;
   slots_remaining: number;
   created_at: string;
