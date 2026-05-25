@@ -29,6 +29,7 @@ import { InternalEcosystemHeader } from "@/components/campaign-hub/InternalEcosy
 import { ProofsTimeline, type ProofEvent } from "@/components/campaign-hub/ProofsTimeline";
 
 import { SpreadsheetUploadCard } from "@/components/client-portal/SpreadsheetUploadCard";
+import { BaselineCard } from "@/components/campanhas/BaselineCard";
 import type { CampaignHubCampaign, CampaignHubTabId, EcoAllocation } from "@/components/campaign-hub/types";
 import { toast } from "sonner";
 import type { Json } from "@/integrations/supabase/types";
