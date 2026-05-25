@@ -79,7 +79,7 @@ export function useEcosystemCapacity(
             affMap.set(other, Number(r.score));
           }
           core = all.filter(p => p.genre_id === gid);
-          neighbors = all.filter(p => p.genre_id && p.genre_id !== gid && (affMap.get(p.genre_id) ?? 0) >= 0.7);
+          neighbors = all.filter(p => p.genre_id && p.genre_id !== gid && (affMap.get(p.genre_id) ?? 0) >= 0.6);
           if (core.length === 0 && neighbors.length > 0) {
             core = neighbors;
             neighbors = [];
@@ -87,15 +87,26 @@ export function useEcosystemCapacity(
         }
       }
 
-      const sumFollowers = (list: typeof all) =>
-        list.reduce((s, p) => s + Math.max(0, p.followers ?? 0), 0);
-      const compatible = [...core, ...neighbors].sort((a, b) => (b.followers ?? 0) - (a.followers ?? 0));
       const safeSlots = slotPositions.length > 0 ? slotPositions : [3];
-      const saves = sumFollowers(compatible);
-      const perDay = Math.round(compatible.reduce((sum, playlist, index) => {
-        const slot = safeSlots[index % safeSlots.length] ?? 3;
-        return sum + calculateTrackDailyStreams(playlist.followers ?? 0, engagementMultiplier, slot);
-      }, 0));
+      const perDayOf = (list: typeof all) => Math.round(
+        [...list]
+          .sort((a, b) => (b.followers ?? 0) - (a.followers ?? 0))
+          .reduce((sum, playlist, index) => {
+            const slot = safeSlots[index % safeSlots.length] ?? 3;
+            return sum + calculateTrackDailyStreams(playlist.followers ?? 0, engagementMultiplier, slot);
+          }, 0),
+      );
+
+      const corePerDay = perDayOf(core);
+      const neighborPerDayRaw = perDayOf(neighbors);
+      // Teto de 40% do total para vizinhos (mesma regra das allocations):
+      // neighbors <= 0.4 * (core + neighbors)  →  neighbors <= (2/3) * core
+      const neighborCap = Math.floor((2 / 3) * corePerDay);
+      const neighborPerDay = Math.min(neighborPerDayRaw, neighborCap);
+      const perDay = corePerDay + neighborPerDay;
+      const saves =
+        core.reduce((s, p) => s + Math.max(0, p.followers ?? 0), 0) +
+        neighbors.reduce((s, p) => s + Math.max(0, p.followers ?? 0), 0);
 
       const total = perDay * Math.max(1, days);
 
@@ -111,6 +122,7 @@ export function useEcosystemCapacity(
         capacityTotal: total,
         genreResolved,
       });
+
     })();
     return () => { cancelled = true; };
   }, [genre, days, engagementMultiplier, slotKey]);
