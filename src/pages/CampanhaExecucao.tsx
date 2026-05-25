@@ -715,6 +715,7 @@ export default function CampanhaExecucao() {
                   shareToken={camp.public_plan_token ?? null}
                   campaignId={camp.id}
                   onPositionsRedistributed={loadCampaign}
+                  radioCollectedTotal={radioCollectedTotal}
                   track={{
                     name: camp.track_name,
                     artist: camp.artist,
