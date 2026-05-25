@@ -576,6 +576,8 @@ Deno.serve(async (req) => {
         deal_id: dealId,
         song_id: songId,
         spotify_playlist_id: r.playlist_spotify_id as string,
+        spotify_url: r.playlist_url
+          || (r.playlist_spotify_id ? `https://open.spotify.com/playlist/${r.playlist_spotify_id}` : ""),
         playlist_name: r.playlist_name,
         spotify_owner_name: r.owner_name ?? null,
         canonical_playlist_id: r.matched_playlist_id as string,
