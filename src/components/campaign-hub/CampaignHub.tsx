@@ -72,25 +72,27 @@ export function CampaignHub({
           "sticky top-[120px] z-20 -mx-4 md:-mx-6 px-4 md:px-6",
           "border-b border-border bg-background/85 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70",
         )}>
-          <TabsList className="h-11 bg-transparent gap-1 p-0 rounded-none">
-            {visible.map((t) => {
-              const Icon = t.icon;
-              return (
-                <TabsTrigger
-                  key={t.id}
-                  value={t.id}
-                  className={cn(
-                    "gap-1.5 px-3 h-11 rounded-none border-b-2 border-transparent bg-transparent",
-                    "data-[state=active]:bg-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none",
-                    "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {t.label}
-                </TabsTrigger>
-              );
-            })}
-          </TabsList>
+          <div className="overflow-x-auto scrollbar-none">
+            <TabsList className="h-11 bg-transparent gap-1 p-0 rounded-none w-max min-w-full justify-start">
+              {visible.map((t) => {
+                const Icon = t.icon;
+                return (
+                  <TabsTrigger
+                    key={t.id}
+                    value={t.id}
+                    className={cn(
+                      "gap-1.5 px-3 h-11 rounded-none border-b-2 border-transparent bg-transparent shrink-0 whitespace-nowrap",
+                      "data-[state=active]:bg-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none",
+                      "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {t.label}
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+          </div>
         </div>
 
         <div className="pt-6">
