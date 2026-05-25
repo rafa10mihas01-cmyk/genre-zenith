@@ -1,7 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatBRL, formatInt, computePhaseDays, type CampaignResult } from "@/lib/campaignEngine";
+import { formatBRLHero } from "@/lib/format";
 import { TrendingUp, Wallet, Zap, Layers, Coins, Info } from "lucide-react";
 import { CurvaEntregaChart } from "@/components/shared/CurvaEntregaChart";
+import { Kpi } from "@/components/ui/kpi";
 
 /** KPIs do resultado — hierarquia operacional:
  *   META é o headline (peso visual dominante)
@@ -15,12 +17,13 @@ export function CalculadoraKpis({ r, pricePerStreamSell }: { r: CampaignResult; 
     : null;
   return (
     <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-      {/* Headline — ocupa 2 colunas no desktop, tipografia maior, acento primary */}
-      <KpiHero
+      <Kpi
+        variant="hero"
         icon={TrendingUp}
         label="Meta"
         value={formatInt(r.meta)}
         hint="streams totais planejados"
+        className="md:col-span-2"
       />
       <Kpi
         icon={Zap}
@@ -35,23 +38,26 @@ export function CalculadoraKpis({ r, pricePerStreamSell }: { r: CampaignResult; 
         hint={`plano real: ${r.effectiveDays}d`}
       />
       {clientTotal != null ? (
-        <KpiClient
+        <Kpi
           icon={Coins}
+          tone="primary"
           label="Cliente paga"
-          value={formatBRL(clientTotal)}
-          hint={`custo ${formatBRL(r.custoTotal)} · margem ${formatBRL(clientTotal - r.custoTotal)}`}
+          value={formatBRLHero(clientTotal)}
+          hint={`custo ${formatBRLHero(r.custoTotal)} · margem ${formatBRLHero(clientTotal - r.custoTotal)}`}
         />
       ) : (
-        <KpiQuiet
+        <Kpi
+          variant="compact"
           icon={Wallet}
           label="Custo"
-          value={formatBRL(r.custoTotal)}
+          value={formatBRLHero(r.custoTotal)}
           hint={`R$ ${r.custoPorStream.toFixed(3)}/stream`}
         />
       )}
     </div>
   );
 }
+
 
 
 export function CalculadoraResultado({ r }: { r: CampaignResult }) {
