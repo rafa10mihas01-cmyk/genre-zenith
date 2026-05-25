@@ -46,18 +46,14 @@ function formatFull(n: number): string {
   return new Intl.NumberFormat("pt-BR").format(Math.round(n));
 }
 
-// Rampa 20/60/20: peso por dia. Soma == 1.
-function buildRampWeights(days: number): number[] {
+// Distribuição suave (smoothstep S-curve). CDF S(t) = t² (3 − 2t), peso
+// diário = S((i+1)/days) − S(i/days). Soma == 1, sem picos abruptos.
+function smoothCumulative(days: number): number[] {
   if (days <= 0) return [];
-  const n1 = Math.max(1, Math.floor(days * 0.2));
-  const n3 = Math.max(1, Math.floor(days * 0.2));
-  const n2 = Math.max(1, days - n1 - n3);
-  const w: number[] = [];
-  for (let i = 0; i < n1; i++) w.push(0.10 / n1);
-  for (let i = 0; i < n2; i++) w.push(0.70 / n2);
-  for (let i = 0; i < n3; i++) w.push(0.20 / n3);
-  while (w.length < days) w.push(w[w.length - 1] ?? 0);
-  return w.slice(0, days);
+  const S = (t: number) => Math.max(0, Math.min(1, t * t * (3 - 2 * t)));
+  const cdf: number[] = [];
+  for (let i = 1; i <= days; i++) cdf.push(S(i / days));
+  return cdf;
 }
 
 export function DeliveryForecastCard({ forecast }: Props) {
@@ -71,28 +67,24 @@ export function DeliveryForecastCard({ forecast }: Props) {
     const days = Math.max(1, totalDays || 0);
     const meta = Math.max(0, goalPlays || 0);
     const baseline = Math.max(0, baselineStreamsDay ?? 0);
-    const weights = buildRampWeights(days);
+    const cdf = smoothCumulative(days);
 
-    let running = 0;
-    const points = weights.map((w, i) => {
-      const delivered = meta * w;
-      running += delivered;
-      return {
-        day: i + 1,
-        label: `D${i + 1}`,
-        playsDay: Math.round(baseline + delivered),
-        acumulado: Math.round(running),
-      };
-    });
+    // Acumulado da música = baseline (o que ela já tem) + acumulado da
+    // entrega da campanha até aquele dia. Linha única, smooth.
+    const points = cdf.map((c, i) => ({
+      day: i + 1,
+      label: `D${i + 1}`,
+      acumulado: Math.round(baseline + meta * c),
+    }));
 
-    // Marco: primeiro dia em que plays/dia da música cruza o benchmark.
+    // Marco: primeiro dia em que o acumulado cruza o benchmark do chart.
     let markDay: number | null = null;
     let markValue: number | null = null;
     if (top200StreamsDay && top200Position) {
       for (let i = 0; i < points.length; i++) {
-        if (points[i].playsDay >= top200StreamsDay) {
+        if (points[i].acumulado >= top200StreamsDay) {
           markDay = i + 1;
-          markValue = points[i].playsDay;
+          markValue = points[i].acumulado;
           break;
         }
       }
