@@ -1957,6 +1957,7 @@ export type Database = {
           closed_at: string | null
           closed_reason: string | null
           closed_status: string | null
+          collection_mode: string
           cost: number | null
           created_at: string
           curator_id: string | null
@@ -2000,6 +2001,7 @@ export type Database = {
           closed_at?: string | null
           closed_reason?: string | null
           closed_status?: string | null
+          collection_mode?: string
           cost?: number | null
           created_at?: string
           curator_id?: string | null
@@ -2043,6 +2045,7 @@ export type Database = {
           closed_at?: string | null
           closed_reason?: string | null
           closed_status?: string | null
+          collection_mode?: string
           cost?: number | null
           created_at?: string
           curator_id?: string | null
