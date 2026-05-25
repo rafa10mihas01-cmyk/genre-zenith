@@ -189,32 +189,41 @@ export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
           </p>
         </div>
 
-        <div className="h-[200px] sm:h-[220px] w-full -mx-2">
+        <div className="h-[220px] sm:h-[240px] w-full -mx-2">
 
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={data.points} margin={{ top: 24, right: 16, left: 0, bottom: 0 }}>
+            <ComposedChart
+              data={data.points}
+              margin={{ top: 20, right: isNarrow ? 8 : 16, left: 0, bottom: 0 }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
               <XAxis
                 dataKey="label"
-                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                axisLine={false} tickLine={false} minTickGap={24}
+                tick={{ fontSize: isNarrow ? 9 : 11, fill: "hsl(var(--muted-foreground))" }}
+                axisLine={false} tickLine={false}
+                minTickGap={isNarrow ? 40 : 24}
+                interval="preserveStartEnd"
               />
               {/* Eixo esquerdo: plays/dia da música */}
               <YAxis
                 yAxisId="left"
-                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                tick={{ fontSize: isNarrow ? 9 : 11, fill: "hsl(var(--muted-foreground))" }}
                 axisLine={false} tickLine={false}
-                tickFormatter={(v) => formatPlays(v as number)} width={56}
+                tickFormatter={(v) => formatPlays(v as number)}
+                width={isNarrow ? 38 : 56}
                 domain={[yLeftMin, yLeftMax]}
               />
-              {/* Eixo direito: entrega diária */}
+              {/* Eixo direito: entrega diária — escondido em telas estreitas */}
               <YAxis
                 yAxisId="right" orientation="right"
                 tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground) / 0.7)" }}
                 axisLine={false} tickLine={false}
-                tickFormatter={(v) => formatPlays(v as number)} width={48}
+                tickFormatter={(v) => formatPlays(v as number)}
+                width={isNarrow ? 0 : 48}
+                hide={isNarrow}
                 domain={[0, yRightMax]}
               />
+
               {/* Eixo oculto pra plotar a meta total contratada */}
               {goalPlays > 0 && (
                 <YAxis
