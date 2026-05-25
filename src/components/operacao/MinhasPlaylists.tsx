@@ -109,6 +109,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const filterGenreId = searchParams.get("genero");
   const filterSize = (searchParams.get("tamanho") as "all" | "pequena" | "media" | "grande" | "top") || "all";
   const showArchived = searchParams.get("arquivadas") === "1";
+  const showCapacity = searchParams.get("aba") === "capacidade";
   const sortBy = (searchParams.get("sort") as "recent" | "valuation") || "recent";
 
   const updateParam = useCallback((key: string, val: string | null) => {
