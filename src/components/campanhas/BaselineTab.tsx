@@ -42,6 +42,8 @@ export function BaselineTab({ dealId }: Props) {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [capturedAt, setCapturedAt] = useState<string | null>(null);
+  const [upload, setUpload] = useState<BaselineUpload | null>(null);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     if (!dealId) {
@@ -50,14 +52,24 @@ export function BaselineTab({ dealId }: Props) {
     }
     (async () => {
       setLoading(true);
-      const { data } = await supabase
-        .from("curator_deal_snapshots")
-        .select("playlist_id, plays, captured_at, curator_playlists(playlist_name, spotify_url, image_url, followers, spotify_owner_name)")
-        .eq("deal_id", dealId)
-        .eq("is_baseline", true)
-        .order("plays", { ascending: false });
+      const [snapsRes, uploadRes] = await Promise.all([
+        supabase
+          .from("curator_deal_snapshots")
+          .select("playlist_id, plays, captured_at, curator_playlists(playlist_name, spotify_url, image_url, followers, spotify_owner_name)")
+          .eq("deal_id", dealId)
+          .eq("is_baseline", true)
+          .order("plays", { ascending: false }),
+        supabase
+          .from("label_spreadsheet_uploads")
+          .select("id, file_name, file_path, created_at, rows_imported")
+          .eq("deal_id", dealId)
+          .eq("is_baseline", true)
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle(),
+      ]);
 
-      const mapped: Row[] = ((data ?? []) as unknown as Array<{
+      const mapped: Row[] = ((snapsRes.data ?? []) as unknown as Array<{
         playlist_id: string;
         plays: number;
         captured_at: string;
@@ -81,9 +93,28 @@ export function BaselineTab({ dealId }: Props) {
 
       setRows(mapped);
       setCapturedAt(mapped[0]?.captured_at ?? null);
+      setUpload((uploadRes.data as BaselineUpload | null) ?? null);
       setLoading(false);
     })();
   }, [dealId]);
+
+  async function handleDownload() {
+    if (!upload?.file_path) {
+      toast({ title: "Planilha não disponível", description: "O arquivo original não foi armazenado.", variant: "destructive" });
+      return;
+    }
+    setDownloading(true);
+    const { data, error } = await supabase.storage
+      .from("label-spreadsheets")
+      .createSignedUrl(upload.file_path, 60 * 10);
+    setDownloading(false);
+    if (error || !data?.signedUrl) {
+      toast({ title: "Erro ao gerar link", description: error?.message ?? "Tente novamente.", variant: "destructive" });
+      return;
+    }
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  }
+
 
   const totalStreams = useMemo(() => rows.reduce((acc, r) => acc + r.plays, 0), [rows]);
 
