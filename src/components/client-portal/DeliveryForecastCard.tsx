@@ -50,7 +50,7 @@ const S = (t: number) => {
 
 export function DeliveryForecastCard({ forecast }: Props) {
   const {
-    curve, top200Position, top200StreamsDay, baselineStreamsDay,
+    curve, top200Position, top200StreamsDay, baselineStreamsDay, goalPlays,
   } = forecast;
 
   const data = useMemo(() => {
@@ -174,6 +174,13 @@ export function DeliveryForecastCard({ forecast }: Props) {
                 tickFormatter={(v) => formatPlays(v as number)} width={48}
                 domain={[0, yRightMax]}
               />
+              {/* Eixo oculto pra plotar a meta total contratada */}
+              {goalPlays > 0 && (
+                <YAxis
+                  yAxisId="goal" orientation="right" hide
+                  domain={[0, goalPlays * 1.1]}
+                />
+              )}
               <ReTooltip
                 contentStyle={{
                   background: "hsl(var(--card))",
@@ -201,6 +208,22 @@ export function DeliveryForecastCard({ forecast }: Props) {
                     position: "insideTopRight",
                     fill: "hsl(var(--muted-foreground))",
                     fontSize: 10, fillOpacity: 0.9,
+                  }}
+                />
+              )}
+
+              {goalPlays > 0 && (
+                <ReferenceLine
+                  yAxisId="goal"
+                  y={goalPlays}
+                  stroke="hsl(var(--muted-foreground))"
+                  strokeDasharray="2 4"
+                  strokeOpacity={0.45}
+                  label={{
+                    value: `Meta · ${formatPlays(goalPlays)}`,
+                    position: "insideTopRight",
+                    fill: "hsl(var(--muted-foreground))",
+                    fontSize: 10, fillOpacity: 0.85,
                   }}
                 />
               )}
@@ -260,6 +283,12 @@ export function DeliveryForecastCard({ forecast }: Props) {
             <span className="inline-flex items-center gap-1.5">
               <span className="inline-block h-0 w-4 border-t-2 border-dashed border-muted-foreground/60" />
               {top200Position ? `Alvo Top ${top200Position}` : "Alvo"}
+            </span>
+          )}
+          {goalPlays > 0 && (
+            <span className="inline-flex items-center gap-1.5">
+              <span className="inline-block h-0 w-4 border-t-2 border-dashed border-muted-foreground/40" />
+              Meta contratada
             </span>
           )}
         </div>
