@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { formatInt, formatBRL, recomputeCurva } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { toast } from "@/hooks/use-toast";
+import { CampaignCuratorDeals } from "./CampaignCuratorDeals";
 
 type Props = {
   campaignId: string;
