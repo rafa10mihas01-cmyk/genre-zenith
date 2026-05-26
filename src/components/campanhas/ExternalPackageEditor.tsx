@@ -55,12 +55,12 @@ export function ExternalPackageEditor({
   campaignId,
   snapshot,
   onChanged,
-  tabsRow,
+  renderTabsRow,
 }: {
   campaignId: string;
   snapshot: CampaignSnapshot;
   onChanged?: () => void;
-  tabsRow?: React.ReactNode;
+  renderTabsRow?: (extra?: React.ReactNode) => React.ReactNode;
 }) {
   const [pkg, setPkg] = useState<PackageRow | null>(null);
   const [items, setItems] = useState<ItemRow[]>([]);
@@ -163,61 +163,63 @@ export function ExternalPackageEditor({
   const noCapacity = items.length === 0;
   const underCovered = coverage < 95;
 
+  const actionButtons = !isDispatched ? (
+    <>
+      <Popover open={addOpen} onOpenChange={setAddOpen}>
+        <PopoverTrigger asChild>
+          <Button size="sm" variant="outline">
+            <Plus className="h-4 w-4 mr-1.5" /> Adicionar curador
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-80 p-0" align="end">
+          <Command>
+            <CommandInput placeholder="Buscar curador..." />
+            <CommandList>
+              <CommandEmpty>Nenhum curador disponível.</CommandEmpty>
+              <CommandGroup>
+                {candidates
+                  .filter(c => !items.some(it => it.curator_id === c.id))
+                  .map(c => (
+                    <CommandItem key={c.id} value={c.name} onSelect={() => handleAdd(c)}>
+                      <div className="flex flex-col">
+                        <span className="text-sm">{c.name}</span>
+                        <span className="text-[10px] text-muted-foreground tabular-nums">
+                          cap. {formatInt(c.purchased_plays)} · R$ {c.cost_per_stream.toFixed(3)}/stream
+                        </span>
+                      </div>
+                    </CommandItem>
+                  ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      <Button size="sm" variant="solid" onClick={handleConfirm} disabled={confirming || items.length === 0}>
+        {confirming ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-1.5" />}
+        Confirmar pacote
+      </Button>
+    </>
+  ) : null;
+
   return (
     <>
-    <section className="space-y-5">
-      <header className="flex flex-row items-start justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-semibold flex items-center gap-2">
-            <Users className="h-4 w-4 text-primary" /> Ecossistema externo
-          </h3>
-          <p className="text-xs text-muted-foreground mt-1">
-            Alvo do snapshot: <strong className="text-foreground tabular-nums">{formatInt(snapshot.streamsExt)}</strong> streams · <strong className="text-foreground">{formatBRL(snapshot.custoExt)}</strong>.
-            {isDispatched
-              ? <> Pacote já confirmado em {pkg?.confirmed_at ? new Date(pkg.confirmed_at).toLocaleString("pt-BR") : "—"}.</>
-              : <> Adicione os curadores que vão entregar e ajuste o volume de cada um.</>}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {!isDispatched && (
-            <Popover open={addOpen} onOpenChange={setAddOpen}>
-              <PopoverTrigger asChild>
-                <Button size="sm" variant="outline">
-                  <Plus className="h-4 w-4 mr-1.5" /> Adicionar curador
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80 p-0" align="end">
-                <Command>
-                  <CommandInput placeholder="Buscar curador..." />
-                  <CommandList>
-                    <CommandEmpty>Nenhum curador disponível.</CommandEmpty>
-                    <CommandGroup>
-                      {candidates
-                        .filter(c => !items.some(it => it.curator_id === c.id))
-                        .map(c => (
-                          <CommandItem key={c.id} value={c.name} onSelect={() => handleAdd(c)}>
-                            <div className="flex flex-col">
-                              <span className="text-sm">{c.name}</span>
-                              <span className="text-[10px] text-muted-foreground tabular-nums">
-                                cap. {formatInt(c.purchased_plays)} · R$ {c.cost_per_stream.toFixed(3)}/stream
-                              </span>
-                            </div>
-                          </CommandItem>
-                        ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-          )}
-          {!isDispatched && (
-            <Button size="sm" variant="solid" onClick={handleConfirm} disabled={confirming || items.length === 0}>
-              {confirming ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-1.5" />}
-              Confirmar pacote
-            </Button>
-          )}
-        </div>
+    <section className="space-y-6">
+      {renderTabsRow?.(actionButtons)}
+
+      <div className="border-t border-border" />
+
+      <header>
+        <h3 className="text-base font-semibold flex items-center gap-2">
+          <Users className="h-4 w-4 text-primary" /> Ecossistema externo
+        </h3>
+        <p className="text-xs text-muted-foreground mt-1.5">
+          Alvo do snapshot: <strong className="text-foreground tabular-nums">{formatInt(snapshot.streamsExt)}</strong> streams · <strong className="text-foreground">{formatBRL(snapshot.custoExt)}</strong>.
+          {isDispatched
+            ? <> Pacote já confirmado em {pkg?.confirmed_at ? new Date(pkg.confirmed_at).toLocaleString("pt-BR") : "—"}.</>
+            : <> Adicione os curadores que vão entregar e ajuste o volume de cada um.</>}
+        </p>
       </header>
+
       <div className="space-y-4">
         {/* KPIs — padrão Curadores (KpiBig) */}
         <section className="grid grid-cols-2 md:grid-cols-6 gap-3">
@@ -260,7 +262,8 @@ export function ExternalPackageEditor({
           />
         </section>
 
-        {tabsRow}
+        <div className="border-t border-border pt-2" />
+
 
 
 

@@ -619,13 +619,15 @@ export default function CampanhaExecucao() {
 
 
           playlists: (() => {
-            const tabsRow = (
+            const renderTabsRow = (extra?: React.ReactNode) => (
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <TabsList>
                   <TabsTrigger value="interno">Interno ({allocs.length})</TabsTrigger>
                   <TabsTrigger value="externo">Externo</TabsTrigger>
                 </TabsList>
                 <div className="flex items-center gap-2">
+                  {extra}
+                  {extra && <div className="h-5 w-px bg-border mx-1" />}
                   <CampaignAccessManager campaignId={camp.id} />
                   <ReplanButton campaignId={camp.id} onReplanned={loadCampaign} />
                 </div>
@@ -635,7 +637,7 @@ export default function CampanhaExecucao() {
             <Tabs defaultValue="interno" className="space-y-4">
               <TabsContent value="interno" className="mt-0 space-y-4">
                 <GenresUsedFromAllocs allocs={allocs} />
-                {tabsRow}
+                {renderTabsRow()}
                 <PlaylistsGrid
                   allocations={allocs}
                   snapshots={snaps}
@@ -651,7 +653,7 @@ export default function CampanhaExecucao() {
                 <OrganicCollectedSection rows={organicRows} />
               </TabsContent>
               <TabsContent value="externo" className="mt-0 space-y-4">
-                <ExternalPackageEditor campaignId={camp.id} snapshot={snapshot} onChanged={() => setPlanRefreshKey(k => k + 1)} tabsRow={tabsRow} />
+                <ExternalPackageEditor campaignId={camp.id} snapshot={snapshot} onChanged={() => setPlanRefreshKey(k => k + 1)} renderTabsRow={renderTabsRow} />
               </TabsContent>
             </Tabs>
             );
