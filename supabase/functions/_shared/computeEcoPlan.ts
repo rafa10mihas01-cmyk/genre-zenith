@@ -229,6 +229,7 @@ export type Alloc = {
   start_day: number;
   status?: string;
   position?: number | null;
+  genre_source?: "primary" | "affinity" | null;
   managed_playlists?: {
     id?: string;
     name?: string;
