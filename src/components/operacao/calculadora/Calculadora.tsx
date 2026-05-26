@@ -787,8 +787,8 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
               {/* KPIs SÓ da música ativa (operação atual). */}
               <CalculadoraKpis r={result} pricePerStreamSell={pricingSettings.price_per_stream_sell} />
 
-              {/* Régua de sessão ativa — entre KPIs e o card de Música */}
-              <SessionChip clientName={clientName} curatorName={curatorName} onEdit={() => setStep(1)} />
+
+
 
 
 
