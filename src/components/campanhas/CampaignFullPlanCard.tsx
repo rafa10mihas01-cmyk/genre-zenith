@@ -578,3 +578,101 @@ function ResumoStat({
     </div>
   );
 }
+
+export function CampaignFullPlanSummary({
+  snapshot,
+  startedAt,
+  allocations,
+  engagementMultiplier = 30,
+}: {
+  snapshot: CampaignSnapshot;
+  startedAt: string;
+  allocations: EcoAlloc[];
+  engagementMultiplier?: number;
+}) {
+  const days = snapshot.effectiveDays ?? snapshot.days;
+
+  const positionByAllocation = useMemo(() => {
+    const allPersisted = allocations.length > 0 && allocations.every(a => Number.isFinite((a as any).position) && (a as any).position >= 1);
+    if (allPersisted) return new Map(allocations.map(a => [a.id, (a as any).position as number]));
+    const top = (snapshot as any)?.music?.top200Position ?? (snapshot as any)?.music?.top200Pos ?? null;
+    const positionInputs = allocations.map((a) => ({
+      id: a.id,
+      planned_streams: a.planned_streams,
+      followers: a.managed_playlists?.followers ?? 0,
+      genreSource: ((a as any).genre_source as "primary" | "affinity" | null) ?? "primary",
+    }));
+    return distributeEcoPositions(positionInputs, days, engagementMultiplier, { chartTier: chartTierFromTopPosition(top) });
+  }, [allocations, days, engagementMultiplier, snapshot]);
+
+  const plans = useMemo<DailyPlaylistPlan[]>(
+    () => buildEcoPlaylistPlan(snapshot, allocations, { engagementMultiplier, startedAt, positions: positionByAllocation }),
+    [snapshot, allocations, engagementMultiplier, startedAt, positionByAllocation],
+  );
+
+  const dailyTotals = useMemo(() => {
+    const arr = Array.from({ length: days }, () => 0);
+    for (const p of plans) for (let i = 0; i < days; i++) arr[i] += p.daily[i] ?? 0;
+    return arr;
+  }, [plans, days]);
+
+  const resumo = useMemo(() => {
+    const capacidadeEcoDia = plans.reduce((s, p) => s + (p.capDia ?? 0), 0);
+    const ecoCobertoTotal = plans.reduce((s, p) => s + (p.totalStreams ?? 0), 0);
+    const metaEco = snapshot.streamsEco ?? 0;
+    const metaExt = snapshot.streamsExt ?? Math.max(0, snapshot.meta - metaEco);
+    const necDiaTotal = Math.round(snapshot.meta / Math.max(1, days));
+    const necDiaEco = Math.round(metaEco / Math.max(1, days));
+    const necDiaExt = Math.round(metaExt / Math.max(1, days));
+    const pico = dailyTotals.length ? Math.max(...dailyTotals) : 0;
+    const planDays = snapshot.effectiveDays ?? days;
+    const mediaDiaReal = planDays > 0 ? Math.round(ecoCobertoTotal / planDays) : 0;
+    const usoCap = mediaDiaReal > 0 ? Math.round((necDiaEco / mediaDiaReal) * 100) : 0;
+    const deficitEco = Math.max(0, metaEco - ecoCobertoTotal);
+    return { capacidadeEcoDia, mediaDiaReal, ecoCobertoTotal, metaEco, metaExt, necDiaTotal, necDiaEco, necDiaExt, pico, usoCap, deficitEco, qtdPlaylists: plans.length };
+  }, [plans, dailyTotals, snapshot, days]);
+
+  if (plans.length === 0) return null;
+
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+      <KpiBig
+        tier="hero"
+        icon={CalendarClock}
+        label="Precisa/dia (total)"
+        value={formatInt(resumo.necDiaTotal)}
+        hint={`${formatInt(resumo.necDiaEco)} eco · ${formatInt(resumo.necDiaExt)} ext`}
+        domain="campaigns"
+      />
+      <KpiBig
+        icon={Activity}
+        label="Eco entrega/dia"
+        value={formatInt(resumo.mediaDiaReal)}
+        hint={`base ${formatInt(resumo.capacidadeEcoDia)} · uso ${resumo.usoCap}%`}
+        domain="playlists"
+      />
+      <KpiBig
+        icon={Layers}
+        label="Eco coberto"
+        value={formatInt(resumo.ecoCobertoTotal)}
+        hint={`meta ${formatInt(resumo.metaEco)}${resumo.deficitEco > 0 ? ` · falta ${formatInt(resumo.deficitEco)}` : ""}`}
+        domain="curators"
+      />
+      <KpiBig
+        icon={ShoppingCart}
+        label="Externo a comprar"
+        value={formatInt(resumo.metaExt)}
+        hint={`${formatInt(resumo.necDiaExt)}/dia em deals`}
+        domain="deals"
+      />
+      <KpiBig
+        tier="quiet"
+        icon={TrendingUp}
+        label="Pico/dia previsto"
+        value={formatInt(resumo.pico)}
+        hint={`${resumo.qtdPlaylists} playlists`}
+        domain="clients"
+      />
+    </div>
+  );
+}
