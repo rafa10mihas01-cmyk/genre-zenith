@@ -246,7 +246,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   }, [active.track?.position]);
 
   // Capacidade real do ecossistema filtrada por gênero da música ativa.
-  const ecoCap = useEcosystemCapacity(active.genre, active.days, active.engagementMultiplier ?? 30, preferredSlots, active.track?.position ?? null);
+  const ecoCap = useEcosystemCapacity(active.genre, active.days, active.engagementMultiplier ?? 30, preferredSlots, active.track?.position ?? null, result.streamsEco);
   const ecoNeeded = result.streamsEco;
   const ecoUsagePct = ecoCap.capacityTotal > 0
     ? Math.round((ecoNeeded / ecoCap.capacityTotal) * 100)
@@ -1305,7 +1305,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                             <div className="space-y-1 text-[11px] text-foreground/85 tabular-nums">
                               <div>
                                 <span className="text-muted-foreground">Ecossistema:</span>{" "}
-                                <strong>{formatCompact(ecoPerDay)}/dia</strong> · {ecoCap.playlistCount} playlists · {genreLabel}
+                                <strong>{formatCompact(ecoPerDay)}/dia</strong> · {ecoCap.playlistsSelected != null ? `${ecoCap.playlistsSelected} de ${ecoCap.playlistCount}` : ecoCap.playlistCount} playlists · {genreLabel}
                                 {ecoRealPct > 0 && <span className="text-muted-foreground/70"> ({ecoRealPct}%)</span>}
                               </div>
                               <div>

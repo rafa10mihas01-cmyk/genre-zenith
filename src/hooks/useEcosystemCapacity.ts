@@ -13,7 +13,15 @@ export interface EcosystemCapacity {
   capacityTotal: number;
   capacityPerDay: number;
   genreResolved: boolean;
+  /** Quantas playlists do pool serão realmente usadas pra cobrir streamsEco.
+   *  null quando streamsEcoNeeded não foi informado. Espelha a heurística de
+   *  seleção do planEcoAllocations (followers desc + sizingCap em pos #3). */
+  playlistsSelected: number | null;
 }
+
+// Mirror das constantes de planEcoAllocations (campaignSnapshot.ts).
+const PLAYS_PER_SAVE_MONTH = 30;
+const DEFAULT_CAMPAIGN_SLOT_PCT = 0.08; // proxy posição #3
 
 const PRIMARY_RANGES_BY_CHART: Record<ChartTier, Record<"large" | "medium" | "small", [number, number]>> = {
   top50:   { large: [1, 1], medium: [1, 1], small: [1, 1] },
@@ -73,6 +81,7 @@ export function useEcosystemCapacity(
   engagementMultiplier = 30,
   slotPositions: number[] = [3],
   topPosition: number | null = null,
+  streamsEcoNeeded: number | null = null,
 ): EcosystemCapacity {
   const slotKey = slotPositions.join(",");
   const [state, setState] = useState<EcosystemCapacity>({
@@ -85,6 +94,7 @@ export function useEcosystemCapacity(
     capacityTotal: 0,
     capacityPerDay: 0,
     genreResolved: false,
+    playlistsSelected: null,
   });
 
   useEffect(() => {
@@ -166,6 +176,32 @@ export function useEcosystemCapacity(
 
       const total = perDay * Math.max(1, days);
 
+      // Heurística de seleção (mirror de planEcoAllocations): ordena todas
+      // as compatíveis por followers desc e acumula sizingCap @ pos #3 até
+      // cobrir streamsEcoNeeded. Resultado é estimativa do nº de playlists
+      // que serão realmente alocadas — pode divergir levemente do plano real
+      // por causa do split core/vizinho com teto de 40%, mas serve pro card.
+      let playlistsSelected: number | null = null;
+      if (streamsEcoNeeded !== null && streamsEcoNeeded > 0) {
+        const compatible = [...core, ...neighbors]
+          .map(p => ({
+            followers: Math.max(1, p.followers ?? 0),
+            sizingCap: Math.max(
+              1,
+              Math.round(Math.max(1, p.followers ?? 0) * (PLAYS_PER_SAVE_MONTH / 30) * DEFAULT_CAMPAIGN_SLOT_PCT * Math.max(1, days)),
+            ),
+          }))
+          .sort((a, b) => b.sizingCap - a.sizingCap);
+        let acc = 0;
+        let count = 0;
+        for (const c of compatible) {
+          if (acc >= streamsEcoNeeded) break;
+          acc += c.sizingCap;
+          count += 1;
+        }
+        playlistsSelected = count;
+      }
+
       if (cancelled) return;
       setState({
         loading: false,
@@ -177,13 +213,15 @@ export function useEcosystemCapacity(
         capacityPerDay: perDay,
         capacityTotal: total,
         genreResolved,
+        playlistsSelected,
       });
+
 
       })();
     }, 300);
     return () => { cancelled = true; clearTimeout(timer); };
 
-  }, [genre, days, engagementMultiplier, slotKey, topPosition]);
+  }, [genre, days, engagementMultiplier, slotKey, topPosition, streamsEcoNeeded]);
 
   return state;
 }
