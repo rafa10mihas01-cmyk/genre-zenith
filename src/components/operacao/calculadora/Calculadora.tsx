@@ -235,7 +235,8 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
 
   const result = useMemo(() => calcCampaign({
     meta: effectiveMeta, days: active.days, modo: active.modo, perfil: active.perfil, splitEcoPct: active.splitEco,
-  }, pricingCosts), [effectiveMeta, active.days, active.modo, active.perfil, active.splitEco, pricingCosts]);
+    splitOrganicPct: active.splitOrganic, clientProfile: active.clientProfile,
+  }, pricingCosts), [effectiveMeta, active.days, active.modo, active.perfil, active.splitEco, active.splitOrganic, active.clientProfile, pricingCosts]);
 
 
   const preferredSlots = useMemo(() => {
