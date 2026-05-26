@@ -1,12 +1,25 @@
 // Public endpoint: gera código OTP de 6 dígitos pro portal do cliente.
 // Valida que o e-mail está autorizado pra campanha (campaign_access_emails).
 // Rate limit: 3 pedidos por e-mail+campanha por hora.
+//
+// Envio do email: renderiza o template e enfileira DIRETO via rpc('enqueue_email'),
+// sem passar pelo gateway de send-transactional-email (que rejeita com
+// UNAUTHORIZED_INVALID_JWT_FORMAT quando o service-role key não é JWT).
+import * as React from "npm:react@18.3.1";
+import { renderAsync } from "npm:@react-email/components@0.0.22";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkRateLimit, clientIp, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { template as otpTemplate } from "../_shared/transactional-email-templates/campaign-access-otp.tsx";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+// Mesmas constantes que send-transactional-email usa.
+const SITE_NAME = "NexEngine";
+const SENDER_DOMAIN = "notify.engine.nexcreatorx.com";
+const FROM_DOMAIN = "notify.engine.nexcreatorx.com";
+const FROM_LOCAL_PART = "parcerias";
 
 function jr(p: unknown, status = 200) {
   return new Response(JSON.stringify(p), {
@@ -65,7 +78,6 @@ Deno.serve(async (req) => {
     .maybeSingle();
 
   // Resposta NEUTRA quando não autorizado — não vaza se o e-mail existe.
-  // O front mostra a mensagem genérica de "se autorizado, código enviado".
   if (!authed) {
     return jr({ ok: true, sent: true });
   }
@@ -76,22 +88,95 @@ Deno.serve(async (req) => {
     .insert({ campaign_id: camp.id, email: emailRaw, code });
   if (insErr) return jr({ error: insErr.message }, 500);
 
-  // Enfileira e-mail via send-transactional-email (que enfileira no pgmq)
+  // Renderiza o template e enfileira direto no pgmq via RPC.
+  // OTPs são transacionais críticos (token de 10min) — não checamos suppression
+  // nem geramos token de unsubscribe.
+  const messageId = crypto.randomUUID();
+  const templateData = { code, track_name: camp.track_name, artist: camp.artist };
+
+  let html: string, text: string;
   try {
-    const { error: invErr } = await supabase.functions.invoke("send-transactional-email", {
-      body: {
-        template_name: "campaign-access-otp",
-        recipient_email: emailRaw,
-        purpose: "transactional",
-        idempotency_key: `campaign-otp:${camp.id}:${emailRaw}:${code}`,
-        templateData: { code, track_name: camp.track_name, artist: camp.artist },
-      },
-    });
-    if (invErr) console.error("send-transactional-email invoke error", invErr);
+    html = await renderAsync(React.createElement(otpTemplate.component, templateData));
+    text = await renderAsync(React.createElement(otpTemplate.component, templateData), { plainText: true });
   } catch (e) {
-    console.error("Failed to enqueue OTP email", e);
-    // Não revela falha pro cliente — log no servidor.
+    console.error("Failed to render OTP template", e);
+    return jr({ error: "template_render_failed" }, 500);
   }
+
+  const subject = typeof otpTemplate.subject === "function"
+    ? otpTemplate.subject(templateData)
+    : otpTemplate.subject;
+
+  // Lovable Email API exige unsubscribe_token para emails transacionais.
+  // Reusa token existente do destinatário ou cria um novo.
+  let unsubscribeToken: string | null = null;
+  const { data: existingTok } = await supabase
+    .from("email_unsubscribe_tokens")
+    .select("token, used_at")
+    .eq("email", emailRaw)
+    .maybeSingle();
+
+  if (existingTok && !existingTok.used_at) {
+    unsubscribeToken = existingTok.token;
+  } else if (!existingTok) {
+    const bytes = new Uint8Array(32);
+    crypto.getRandomValues(bytes);
+    const newTok = Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+    const { error: tokErr } = await supabase
+      .from("email_unsubscribe_tokens")
+      .upsert({ token: newTok, email: emailRaw }, { onConflict: "email", ignoreDuplicates: true });
+    if (tokErr) {
+      console.error("unsubscribe token upsert failed", tokErr);
+      return jr({ error: "token_create_failed", message: tokErr.message }, 500);
+    }
+    const { data: stored } = await supabase
+      .from("email_unsubscribe_tokens")
+      .select("token")
+      .eq("email", emailRaw)
+      .maybeSingle();
+    unsubscribeToken = stored?.token ?? newTok;
+  } else {
+    // Token usado: destinatário descadastrou. Aborta envio.
+    console.warn("OTP requested for unsubscribed email", { emailRaw });
+    return jr({ ok: true, sent: true });
+  }
+
+  const { error: enqErr } = await supabase.rpc("enqueue_email", {
+    queue_name: "transactional_emails",
+    payload: {
+      message_id: messageId,
+      to: emailRaw,
+      from: `${SITE_NAME} <${FROM_LOCAL_PART}@${FROM_DOMAIN}>`,
+      sender_domain: SENDER_DOMAIN,
+      subject,
+      html,
+      text,
+      purpose: "transactional",
+      label: "campaign-access-otp",
+      idempotency_key: `campaign-otp:${camp.id}:${emailRaw}:${code}`,
+      unsubscribe_token: unsubscribeToken,
+      queued_at: new Date().toISOString(),
+    },
+  });
+
+  if (enqErr) {
+    console.error("enqueue_email failed for OTP", enqErr);
+    await supabase.from("email_send_log").insert({
+      message_id: messageId,
+      template_name: "campaign-access-otp",
+      recipient_email: emailRaw,
+      status: "failed",
+      error_message: `enqueue failed: ${enqErr.message}`.slice(0, 1000),
+    });
+    return jr({ error: "enqueue_failed", message: enqErr.message }, 500);
+  }
+
+  await supabase.from("email_send_log").insert({
+    message_id: messageId,
+    template_name: "campaign-access-otp",
+    recipient_email: emailRaw,
+    status: "pending",
+  });
 
   return jr({ ok: true, sent: true });
 });
