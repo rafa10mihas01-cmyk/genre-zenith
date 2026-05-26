@@ -1132,7 +1132,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                   </div>
 
                   <div>
-                    <Label className="text-xs">Modo</Label>
+                    <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">Modo</Label>
                     <div className="grid grid-cols-2 gap-2 mt-1.5">
                       <ModeBtn active={active.modo === "simultaneo"} onClick={() => setModo("simultaneo")} label="Simultâneo" hint="largura ampla" tooltip="Todas as playlists do plano recebem a faixa no mesmo dia. Cobertura maior e curva mais larga — bom pra lançamentos que querem volume rápido." />
                       <ModeBtn active={active.modo === "sequencial"} onClick={() => setModo("sequencial")} label="Sequencial" hint="pico marcado" tooltip="Playlists entram em ondas ao longo dos dias. Gera pico mais marcado e ajuda a sustentar engajamento — bom pra faixa que precisa de momentum." />
