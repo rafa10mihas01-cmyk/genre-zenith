@@ -359,13 +359,17 @@ export function chartTierFromSnapshot(snapshot?: { music?: { top200Position?: nu
 const PRIMARY_RANGES_BY_CHART: Record<ChartTier, Record<PlaylistSizeTier, [number, number]>> = {
   top50:   { large: [1, 1], medium: [1, 1], small: [1, 1] },
   top100:  { large: [1, 2], medium: [2, 4], small: [3, 5] },
-  outside: { large: [1, 1], medium: [1, 1], small: [1, 1] }, // ignorado — usa rank-based
+  outside: { large: [1, 1], medium: [1, 1], small: [1, 1] }, // ignorado — usa ranking [3-7]
 };
 const NEIGHBOR_RANGE_BY_CHART: Record<ChartTier, [number, number]> = {
   top50:   [4, 5],
   top100:  [5, 7],
   outside: [7, 10],
 };
+/** Faixa de posições para primárias quando a música está fora do Top 200.
+ *  Música sem chart precisa de posições FORTES pra entrar — não fracas.
+ *  Range [3-7] distribui por followers (maior → posição mais forte). */
+const OUTSIDE_PRIMARY_RANGE: [number, number] = [3, 7];
 
 function distributeByChartTier(
   allocs: Array<{ id: string; followers: number; genreSource?: "primary" | "affinity" }>,
