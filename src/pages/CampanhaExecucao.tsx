@@ -625,12 +625,11 @@ export default function CampanhaExecucao() {
                   <TabsTrigger value="interno">Interno ({allocs.length})</TabsTrigger>
                   <TabsTrigger value="externo">Externo</TabsTrigger>
                 </TabsList>
-                <div className="flex items-center gap-2">
-                  {extra}
-                  {extra && <div className="h-5 w-px bg-border mx-1" />}
-                  <CampaignAccessManager campaignId={camp.id} />
-                  <ReplanButton campaignId={camp.id} onReplanned={loadCampaign} />
-                </div>
+                {extra && (
+                  <div className="flex items-center gap-2">
+                    {extra}
+                  </div>
+                )}
               </div>
             );
             return (
