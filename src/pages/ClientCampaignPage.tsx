@@ -921,27 +921,10 @@ export default function ClientCampaignPage() {
 
 
 
-          {/* Footer — padrão NexEngine */}
-          <footer className="pt-6 pb-4 flex flex-col items-center justify-center gap-1.5 text-center">
-            <div className="text-[11px] text-muted-foreground/70">
-              © {new Date().getFullYear()} <span className="text-foreground/80 font-medium">NexEngine</span>
-            </div>
-            <div className="text-[11px] text-muted-foreground/60 max-w-xs leading-snug">
-              Infraestrutura para distribuição e inteligência musical
-            </div>
-            <div className="flex items-center justify-center gap-2 text-[11px] text-muted-foreground/60 mt-1">
-              <a href="mailto:suporte@nexengine.app" className="hover:text-foreground transition-colors">
-                Suporte
-              </a>
-              <span className="text-muted-foreground/30">•</span>
-              <a href="/termos" className="hover:text-foreground transition-colors">
-                Termos
-              </a>
-              <span className="text-muted-foreground/30">•</span>
-              <a href="/privacidade" className="hover:text-foreground transition-colors">
-                Privacidade
-              </a>
-            </div>
+          {/* Footer — minimal: logo + wordmark */}
+          <footer className="pt-6 pb-4 flex flex-col items-center justify-center gap-1 text-center">
+            <NexEngineLogo variant="auto" size={16} />
+            <span className="text-[11px] text-foreground/70 font-medium tracking-wide">NexEngine</span>
           </footer>
         </div>
       </div>
