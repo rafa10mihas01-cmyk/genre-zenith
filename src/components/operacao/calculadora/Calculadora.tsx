@@ -977,9 +977,8 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                   <div className="grid grid-cols-2 gap-2">
                     <FonteBtn active={active.fonte === "manual"} onClick={() => setFonte("manual")} icon={TargetIcon} label="Manual" />
                     <FonteBtn active={active.fonte === "top200"} onClick={() => setFonte("top200")} icon={Table2} label="Top 200" />
-                    <FonteBtn active={active.fonte === "concorrente"} onClick={() => setFonte("concorrente")} icon={Users} label="Concorrente" />
-                    <FonteBtn active={active.fonte === "orcamento"} onClick={() => setFonte("orcamento")} icon={Wallet} label="Orçamento" />
                   </div>
+
 
                   {active.fonte === "manual" && (
                     <div>
