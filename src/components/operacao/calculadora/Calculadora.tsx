@@ -1146,7 +1146,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                       </div>
                     ) : (
                       <div className={cn(
-                        "mt-3 rounded-md border px-2.5 py-2 space-y-1.5",
+                        "mt-3 rounded-lg border px-3.5 py-3",
                         ecoOverflow
                           ? "border-destructive/50 bg-destructive/5"
                           : ecoUsagePct >= 90
@@ -1154,10 +1154,10 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                             : "border-primary/30 bg-primary/5",
                       )}>
                         <div className="flex items-center justify-between text-[11px]">
-                          <span className="text-muted-foreground">
+                          <span className="text-muted-foreground uppercase tracking-wide">
                             Capacidade eco · {active.genre}
                             {ecoCap.neighborCount > 0 && (
-                              <span className="text-muted-foreground/70"> (+{ecoCap.neighborCount} vizinhos)</span>
+                              <span className="text-muted-foreground/70 normal-case tracking-normal"> (+{ecoCap.neighborCount} vizinhos)</span>
                             )}
                           </span>
                           <span className={cn(
@@ -1177,37 +1177,44 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                           const genreLabel = ecoCap.neighborCount > 0
                             ? `${active.genre}+vizinhos`
                             : active.genre;
-                          return (
-                            <div className="space-y-1 text-[11px] text-foreground/85 tabular-nums">
-                              <div>
-                                <span className="text-muted-foreground">Ecossistema:</span>{" "}
-                                <strong>{formatCompact(ecoPerDay)}/dia</strong> · {ecoCap.playlistsSelected != null ? `${ecoCap.playlistsSelected} de ${ecoCap.playlistCount}` : ecoCap.playlistCount} playlists · {genreLabel}
-                                {ecoRealPct > 0 && <span className="text-muted-foreground/70"> ({ecoRealPct}%)</span>}
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground">Externo:</span>{" "}
-                                <strong>{formatCompact(extPerDay)}/dia</strong> em deals
-                                {extRealPct > 0 && <span className="text-muted-foreground/70"> ({extRealPct}%)</span>}
-                              </div>
-                              {result.streamsOrganic > 0 && (
-                                <div>
-                                  <span className="text-muted-foreground">Orgânico estimado:</span>{" "}
-                                  <strong>{organicPct}%</strong> · {formatCompact(result.streamsOrganic)} streams
-                                  {active.clientProfile === "gravadora" && <span className="text-muted-foreground/70"> · bônus</span>}
-                                </div>
-                              )}
-                              <div className="pt-1 border-t border-border/30">
-                                <span className="text-muted-foreground">Meta operacional:</span>{" "}
-                                <strong>{formatCompact(result.metaOperacional)}</strong>
-                                {result.streamsOrganic > 0 && (
-                                  <> · <span className="text-muted-foreground">Meta total:</span>{" "}
-                                    <strong>{formatCompact(result.meta)}</strong>
-                                  </>
-                                )}
+                          const Row = ({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: string }) => (
+                            <div className="flex items-baseline justify-between gap-3 py-1.5">
+                              <span className="text-[12px] text-muted-foreground shrink-0">{label}</span>
+                              <div className="flex items-baseline gap-2 min-w-0 text-right">
+                                {sub && <span className="text-[11px] text-muted-foreground/70 truncate">{sub}</span>}
+                                <span className={cn("text-[15px] font-semibold tabular-nums leading-none", accent)}>{value}</span>
                               </div>
                             </div>
                           );
+                          return (
+                            <div className="mt-2 divide-y divide-border/30">
+                              <Row
+                                label="Meta"
+                                value={formatCompact(result.meta)}
+                                sub={result.streamsOrganic > 0 ? `op. ${formatCompact(result.metaOperacional)}` : undefined}
+                                accent="text-foreground"
+                              />
+                              <Row
+                                label="Ecossistema"
+                                value={`${formatCompact(ecoPerDay)}/dia`}
+                                sub={`${formatCompact(result.streamsEco)} · ${ecoCap.playlistsSelected != null ? `${ecoCap.playlistsSelected} de ${ecoCap.playlistCount}` : `${ecoCap.playlistCount}`} pl · ${genreLabel}${ecoRealPct > 0 ? ` · ${ecoRealPct}%` : ""}`}
+                              />
+                              <Row
+                                label="Externo"
+                                value={`${formatCompact(extPerDay)}/dia`}
+                                sub={`${formatCompact(result.streamsExt)} em deals${extRealPct > 0 ? ` · ${extRealPct}%` : ""}`}
+                              />
+                              {result.streamsOrganic > 0 && (
+                                <Row
+                                  label="Orgânico"
+                                  value={formatCompact(result.streamsOrganic)}
+                                  sub={`${organicPct}%${active.clientProfile === "gravadora" ? " · bônus" : ""}`}
+                                />
+                              )}
+                            </div>
+                          );
                         })()}
+
 
                         {ecoOverflow && suggestedEcoPct != null && (
                           <div className="flex items-center justify-between gap-2 pt-1 border-t border-destructive/20">
