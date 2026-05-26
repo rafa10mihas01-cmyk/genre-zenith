@@ -11,6 +11,10 @@ export type ChartProjection = {
   peakBand: number | null;
   /** Posição estimada exata (sem arredondar), pra tooltip. */
   peakExact: number | null;
+  /** Estima a posição exata pra um valor arbitrário de plays/dia. null se fora do Top 200. */
+  estimatePosition: (streamsDay: number) => number | null;
+  /** Idem, mas arredondada pra faixa amigável. */
+  estimateBand: (streamsDay: number) => number | null;
   loading: boolean;
 };
 
@@ -20,6 +24,8 @@ function snapToBand(pos: number): number {
   for (const b of BANDS) if (pos <= b) return b;
   return 200;
 }
+
+const NOOP = () => null;
 
 export function useChartProjection(
   spotifyTrackId: string | null | undefined,
