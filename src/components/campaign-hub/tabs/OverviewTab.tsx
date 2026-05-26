@@ -134,18 +134,18 @@ export function OverviewTab({
         <button
           type="button"
           onClick={() => setPlanOpen(o => !o)}
-          className="w-full text-left p-5 flex items-start justify-between gap-4 flex-wrap hover:bg-muted/20 transition-colors rounded-[inherit]"
+          className="w-full text-left p-4 md:p-5 flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-4 hover:bg-muted/20 transition-colors rounded-[inherit]"
         >
-          <div>
+          <div className="min-w-0">
             <div className="text-sm font-semibold flex items-center gap-2">
               Plano de entrega
               <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", planOpen && "rotate-180")} />
             </div>
-            <div className="text-xs text-muted-foreground">
+            <div className="text-xs text-muted-foreground mt-0.5 leading-snug">
               Quanto falta, em quanto tempo, e como se divide entre ecossistema e externo
             </div>
           </div>
-          <div className="text-right">
+          <div className="md:text-right shrink-0">
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Ritmo necessário</div>
             <div className="text-2xl font-semibold tabular-nums leading-none mt-1">
               {formatInt(ritmoNecessario)}<span className="text-xs text-muted-foreground font-normal">/dia</span>
@@ -155,6 +155,7 @@ export function OverviewTab({
             </div>
           </div>
         </button>
+
         {planOpen && (
         <CardContent className="p-5 pt-0 space-y-5">
           <div>
