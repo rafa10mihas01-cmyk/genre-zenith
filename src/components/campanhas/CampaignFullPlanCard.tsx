@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Grid3x3, Link2, Check, ExternalLink, Shuffle, Loader2, Radio, CalendarClock, Activity, Layers, ShoppingCart, TrendingUp } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Grid3x3, Link2, Check, ExternalLink, Shuffle, Loader2, Radio, AudioLines, HelpCircle, CalendarClock, Activity, Layers, ShoppingCart, TrendingUp } from "lucide-react";
 import { formatInt } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { buildEcoPlaylistPlan, distributeEcoPositions, inferEcoPreferredPositions, chartTierFromTopPosition, type DailyPlaylistPlan } from "@/lib/campaignOperationalPlan";
