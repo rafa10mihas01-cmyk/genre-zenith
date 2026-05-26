@@ -62,23 +62,37 @@ Deno.serve(async (req) => {
 
   const { data: camp, error: cErr } = await supabase
     .from("campaigns")
-    .select("id, status, track_name, artist")
+    .select("id, status, track_name, artist, client_id")
     .eq("public_plan_token", token)
     .maybeSingle();
   if (cErr) return jr({ error: cErr.message }, 500);
   if (!camp) return jr({ error: "not_found" }, 404);
   if (camp.status === "completed") return jr({ error: "campaign_closed" }, 404);
 
-  // Verifica autorização (case-insensitive)
-  const { data: authed } = await supabase
+  // Autorização: (a) email está em campaign_access_emails OU
+  // (b) bate com o email do cliente dono da campanha (clients.email).
+  let authorized = false;
+  const { data: authedRow } = await supabase
     .from("campaign_access_emails")
     .select("id")
     .eq("campaign_id", camp.id)
     .ilike("email", emailRaw)
     .maybeSingle();
+  if (authedRow) authorized = true;
+
+  if (!authorized && camp.client_id) {
+    const { data: client } = await supabase
+      .from("clients")
+      .select("email")
+      .eq("id", camp.client_id)
+      .maybeSingle();
+    if (client?.email && client.email.trim().toLowerCase() === emailRaw) {
+      authorized = true;
+    }
+  }
 
   // Resposta NEUTRA quando não autorizado — não vaza se o e-mail existe.
-  if (!authed) {
+  if (!authorized) {
     return jr({ ok: true, sent: true });
   }
 
