@@ -253,17 +253,39 @@ export function OverviewTab({
 
 
       {/* KPIs grandes */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Kpi label="Meta" value={formatInt(snapshot.meta)} sub="streams" />
-        <Kpi label="Entregue" value={formatInt(delivered)} sub={`${pct}% da meta`} tone="primary" />
-        <Kpi
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 md:gap-3">
+        <UnifiedKpi
+          label="Meta"
+          value={formatInt(snapshot.meta)}
+          hint="streams"
+          variant="compact"
+          className="md:!p-4 md:!min-h-[112px] [&>div:nth-child(2)_span]:md:!text-3xl"
+        />
+        <UnifiedKpi
+          label="Entregue"
+          value={formatInt(delivered)}
+          hint={`${pct}% da meta`}
+          tone="primary"
+          variant="compact"
+          className="md:!p-4 md:!min-h-[112px] [&>div:nth-child(2)_span]:md:!text-3xl"
+        />
+        <UnifiedKpi
           label="Aderência ao plano"
           value={`${adherence}%`}
-          sub={`vs ${formatInt(plannedToDate)} planejados`}
+          hint={`vs ${formatInt(plannedToDate)} planejados`}
           tone={adherence >= 85 ? "primary" : "warning"}
+          variant="compact"
+          className="md:!p-4 md:!min-h-[112px] [&>div:nth-child(2)_span]:md:!text-3xl"
         />
-        <Kpi label="Duração" value={`${snapshot.days}d`} sub={snapshot.modo === "simultaneo" ? "simultâneo" : "sequencial"} />
+        <UnifiedKpi
+          label="Duração"
+          value={`${snapshot.days}d`}
+          hint={snapshot.modo === "simultaneo" ? "simultâneo" : "sequencial"}
+          variant="compact"
+          className="md:!p-4 md:!min-h-[112px] [&>div:nth-child(2)_span]:md:!text-3xl"
+        />
       </div>
+
 
       {/* Grid principal: Curva + Top playlists */}
       <div className={cn("grid grid-cols-1 gap-4", hideCurveCard ? "" : "lg:grid-cols-3")}>
