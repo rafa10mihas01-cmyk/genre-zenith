@@ -204,8 +204,6 @@ export function ExternalPackageEditor({
   return (
     <>
     <section className="space-y-6">
-      {renderTabsRow?.(actionButtons)}
-
       {/* KPIs — padrão Curadores (KpiBig) */}
       <section className="grid grid-cols-2 md:grid-cols-6 gap-3">
         <KpiBig
@@ -246,6 +244,9 @@ export function ExternalPackageEditor({
           domain="community"
         />
       </section>
+
+      {renderTabsRow?.(actionButtons)}
+
 
       <header>
         <h3 className="text-base font-semibold flex items-center gap-2">
