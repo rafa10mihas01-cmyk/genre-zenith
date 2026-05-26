@@ -134,18 +134,18 @@ export function OverviewTab({
         <button
           type="button"
           onClick={() => setPlanOpen(o => !o)}
-          className="w-full text-left p-5 flex items-start justify-between gap-4 flex-wrap hover:bg-muted/20 transition-colors rounded-[inherit]"
+          className="w-full text-left p-4 md:p-5 flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-4 hover:bg-muted/20 transition-colors rounded-[inherit]"
         >
-          <div>
+          <div className="min-w-0">
             <div className="text-sm font-semibold flex items-center gap-2">
               Plano de entrega
               <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", planOpen && "rotate-180")} />
             </div>
-            <div className="text-xs text-muted-foreground">
+            <div className="text-xs text-muted-foreground mt-0.5 leading-snug">
               Quanto falta, em quanto tempo, e como se divide entre ecossistema e externo
             </div>
           </div>
-          <div className="text-right">
+          <div className="md:text-right shrink-0">
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Ritmo necessário</div>
             <div className="text-2xl font-semibold tabular-nums leading-none mt-1">
               {formatInt(ritmoNecessario)}<span className="text-xs text-muted-foreground font-normal">/dia</span>
@@ -155,6 +155,7 @@ export function OverviewTab({
             </div>
           </div>
         </button>
+
         {planOpen && (
         <CardContent className="p-5 pt-0 space-y-5">
           <div>
@@ -251,18 +252,37 @@ export function OverviewTab({
       )}
 
 
-      {/* KPIs grandes */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Kpi label="Meta" value={formatInt(snapshot.meta)} sub="streams" />
-        <Kpi label="Entregue" value={formatInt(delivered)} sub={`${pct}% da meta`} tone="primary" />
-        <Kpi
+      {/* KPIs — variante compacta pra caber "3.000.000" no mobile e manter padrão consistente */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 md:gap-3">
+        <UnifiedKpi
+          label="Meta"
+          value={formatInt(snapshot.meta)}
+          hint="streams"
+          variant="compact"
+        />
+        <UnifiedKpi
+          label="Entregue"
+          value={formatInt(delivered)}
+          hint={`${pct}% da meta`}
+          tone="primary"
+          variant="compact"
+        />
+        <UnifiedKpi
           label="Aderência ao plano"
           value={`${adherence}%`}
-          sub={`vs ${formatInt(plannedToDate)} planejados`}
+          hint={`vs ${formatInt(plannedToDate)} planejados`}
           tone={adherence >= 85 ? "primary" : "warning"}
+          variant="compact"
         />
-        <Kpi label="Duração" value={`${snapshot.days}d`} sub={snapshot.modo === "simultaneo" ? "simultâneo" : "sequencial"} />
+        <UnifiedKpi
+          label="Duração"
+          value={`${snapshot.days}d`}
+          hint={snapshot.modo === "simultaneo" ? "simultâneo" : "sequencial"}
+          variant="compact"
+        />
       </div>
+
+
 
       {/* Grid principal: Curva + Top playlists */}
       <div className={cn("grid grid-cols-1 gap-4", hideCurveCard ? "" : "lg:grid-cols-3")}>

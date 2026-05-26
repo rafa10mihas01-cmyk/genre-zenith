@@ -71,10 +71,18 @@ export function CampaignAccessManager({ campaignId }: Props) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-1.5">
-          <ShieldCheck className="h-4 w-4" /> Acessos
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5 px-2 lg:px-3"
+          aria-label="Acessos"
+          title="Acessos"
+        >
+          <ShieldCheck className="h-4 w-4" />
+          <span className="hidden lg:inline">Acessos</span>
         </Button>
       </DialogTrigger>
+
       <DialogContent className="max-w-2xl p-0 overflow-hidden">
         <DialogHeader className="px-6 pt-6 pb-4 border-b border-border">
           <div className="flex items-center gap-2.5">

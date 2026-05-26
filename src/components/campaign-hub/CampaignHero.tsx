@@ -72,44 +72,49 @@ export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed 
       "border-b border-border bg-background/85 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70",
     )}>
 
-      <div className="py-4 flex items-center gap-4 flex-wrap">
-        {/* Capa */}
-        {camp.cover_url ? (
-          <img src={camp.cover_url} alt="" className="w-14 h-14 rounded-lg object-cover shadow-sm shrink-0" />
-        ) : (
-          <div className="w-14 h-14 rounded-lg bg-muted grid place-items-center shrink-0">
-            <Music className="h-6 w-6 text-muted-foreground" />
-          </div>
-        )}
+      <div className="py-3 md:py-4 flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
+        {/* Linha 1 mobile / esquerda desktop: capa + texto */}
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          {camp.cover_url ? (
+            <img src={camp.cover_url} alt="" className="w-12 h-12 md:w-14 md:h-14 rounded-lg object-cover shadow-sm shrink-0" />
+          ) : (
+            <div className="w-12 h-12 md:w-14 md:h-14 rounded-lg bg-muted grid place-items-center shrink-0">
+              <Music className="h-5 w-5 md:h-6 md:w-6 text-muted-foreground" />
+            </div>
+          )}
 
-        {/* Texto */}
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-lg md:text-xl font-semibold leading-tight truncate">{camp.track_name}</h1>
-            <span className={cn("inline-flex items-center px-2 h-5 rounded text-[10px] font-medium", STATUS_TONE[statusKey])}>
-              {STATUS_LABEL[statusKey] ?? statusKey}
-            </span>
-          </div>
-          <div className="text-xs text-muted-foreground truncate mt-0.5">
-            {camp.artist ?? "—"}
-            {daysTotal > 0 && (
-              <>
-                {" · "}D{daysElapsed} de {daysTotal}
-                {" · "}faltam {daysLeft}d
-              </>
-            )}
-            {lastUpdateAt && (
-              <>
-                {" · "}
-                <Clock className="inline h-3 w-3 -mt-0.5" /> atualizado {timeAgo(lastUpdateAt)}
-              </>
-            )}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 min-w-0">
+              <h1 className="text-base md:text-xl font-semibold leading-tight truncate min-w-0">
+                {camp.track_name}
+              </h1>
+              <span className={cn(
+                "inline-flex items-center px-1.5 h-[18px] rounded text-[10px] font-medium shrink-0",
+                STATUS_TONE[statusKey],
+              )}>
+                {STATUS_LABEL[statusKey] ?? statusKey}
+              </span>
+            </div>
+            <div className="text-[11px] md:text-xs text-muted-foreground truncate mt-0.5">
+              {camp.artist ?? "—"}
+              {daysTotal > 0 && (
+                <>
+                  {" · "}D{daysElapsed}/{daysTotal}
+                  <span className="hidden md:inline"> · faltam {daysLeft}d</span>
+                </>
+              )}
+              {lastUpdateAt && (
+                <span className="hidden md:inline">
+                  {" · "}
+                  <Clock className="inline h-3 w-3 -mt-0.5" /> {timeAgo(lastUpdateAt)}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Ações */}
-        <div className="flex items-center gap-1.5 lg:gap-2 flex-nowrap shrink-0">
-
+        <div className="flex items-center gap-1.5 lg:gap-2 flex-nowrap justify-end shrink-0">
           {mode === "internal" && (
             <>
               {/* Botão "Campanhas" só no desktop — no mobile o topbar global já tem o < */}
@@ -121,7 +126,13 @@ export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed 
               {camp.public_plan_token && (
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className="px-2 lg:px-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="px-2 lg:px-3"
+                      aria-label="Compartilhar"
+                      title="Compartilhar"
+                    >
                       <Share2 className="h-4 w-4 lg:mr-1.5" />
                       <span className="hidden lg:inline">Compartilhar</span>
                     </Button>
@@ -173,10 +184,11 @@ export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed 
       {/* Barra de progresso */}
       {goal > 0 && (
         <div className="pb-3">
-          <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1.5">
-            <span>Progresso da entrega</span>
-            <span className="tabular-nums font-medium text-foreground">
-              {formatInt(delivered)} <span className="text-muted-foreground">/ {formatInt(goal)} streams · {pct}%</span>
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1.5 gap-2">
+            <span className="shrink-0">Progresso</span>
+            <span className="tabular-nums font-medium text-foreground truncate text-right">
+              {formatInt(delivered)}
+              <span className="text-muted-foreground"> / {formatInt(goal)} · {pct}%</span>
             </span>
           </div>
           <div className="h-1.5 rounded-full bg-muted overflow-hidden">
@@ -191,6 +203,7 @@ export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed 
         </div>
       )}
     </div>
+
   );
 }
 
