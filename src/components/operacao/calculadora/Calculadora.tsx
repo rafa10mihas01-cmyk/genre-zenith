@@ -1229,8 +1229,8 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                                     label="Orgânico"
                                     total={formatCompact(result.streamsOrganic)}
                                     pct={`${organicPct}%`}
-                                    perDay="natural"
-                                    sub={active.clientProfile === "gravadora" ? "bônus" : undefined}
+                                    perDay={`${formatCompact(Math.round(result.streamsOrganic / days))}/dia`}
+                                    sub={active.clientProfile === "gravadora" ? "natural · bônus" : "natural"}
                                   />
                                 )}
                               </div>
