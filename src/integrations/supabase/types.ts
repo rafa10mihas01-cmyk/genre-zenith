@@ -962,6 +962,7 @@ export type Database = {
           eco_dispatched_at: string | null
           eco_max_pct: number
           engagement_multiplier: number
+          expires_at: string | null
           forma_recebimento: string | null
           goal_plays: number
           id: string
@@ -1008,6 +1009,7 @@ export type Database = {
           eco_dispatched_at?: string | null
           eco_max_pct?: number
           engagement_multiplier?: number
+          expires_at?: string | null
           forma_recebimento?: string | null
           goal_plays: number
           id?: string
@@ -1054,6 +1056,7 @@ export type Database = {
           eco_dispatched_at?: string | null
           eco_max_pct?: number
           engagement_multiplier?: number
+          expires_at?: string | null
           forma_recebimento?: string | null
           goal_plays?: number
           id?: string
