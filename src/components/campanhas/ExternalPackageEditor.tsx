@@ -69,6 +69,7 @@ export function ExternalPackageEditor({
 
   const [candidates, setCandidates] = useState<CuratorCandidate[]>([]);
   const [addOpen, setAddOpen] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState<ItemRow | null>(null);
 
   async function load() {
     setLoading(true);
