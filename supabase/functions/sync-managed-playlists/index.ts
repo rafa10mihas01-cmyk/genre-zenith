@@ -64,7 +64,9 @@ Deno.serve(async (req) => {
 
     if (pls && pls.length > 0) {
       const token = await getSpotifyToken();
-      const CONCURRENCY = 6;
+      const CONCURRENCY = 10;
+      const BATCH_DELAY_MS = 2000;
+      const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
       const processOne = async (p: typeof pls[number]) => {
         try {
