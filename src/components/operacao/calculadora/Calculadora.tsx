@@ -1190,6 +1190,38 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                   </div>
 
                   <div>
+                    <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">Perfil do cliente</Label>
+                    <div className="grid grid-cols-2 gap-2 mt-1.5">
+                      <ModeBtn
+                        active={active.clientProfile === "artista"}
+                        onClick={() => setClientProfile("artista")}
+                        label="Artista / Empresário"
+                        tooltip="Meta contratada inclui o orgânico estimado. Eco+externo cobrem só a meta operacional (meta − orgânico). Custo cai proporcionalmente."
+                      />
+                      <ModeBtn
+                        active={active.clientProfile === "gravadora"}
+                        onClick={() => setClientProfile("gravadora")}
+                        label="Gravadora"
+                        tooltip="Meta contratada é só pago. Eco+externo cobrem a meta inteira; orgânico vem como bônus em cima. Custo calculado sobre a meta cheia."
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">
+                      Orgânico estimado <span className="text-muted-foreground/60 normal-case tracking-normal">· {active.splitOrganic}%</span>
+                    </Label>
+                    <Slider value={[active.splitOrganic]} onValueChange={([v]) => setSplitOrganic(v)} min={0} max={50} step={5} className="mt-2" />
+                    <p className="text-[11px] text-muted-foreground mt-1.5">
+                      {active.clientProfile === "artista"
+                        ? `Reservamos ${active.splitOrganic}% da meta como entrega orgânica esperada. Eco+externo cobrem ${100 - active.splitOrganic}%.`
+                        : `Estimativa de bônus orgânico ${active.splitOrganic}% em cima da meta paga (não reduz custo).`}
+                    </p>
+                  </div>
+
+
+
+                  <div>
                     <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">Split ecossistema <span className="text-muted-foreground/60 normal-case tracking-normal">· {active.splitEco}% próprio · {100 - active.splitEco}% externo</span></Label>
                     <Slider value={[active.splitEco]} onValueChange={([v]) => setSplitEco(v)} min={0} max={100} step={5} className="mt-2" />
                     <div className="text-[11px] text-muted-foreground mt-1.5 flex justify-between">
