@@ -250,8 +250,9 @@ Deno.serve(async (req) => {
   }
 
   if (toInsert.length === 0) {
-    await reportCronHealth(supabase, { job_name: "execution-planner", status: "ok", startedAt: cronT0, metrics: { enqueued: 0, considered: candidates.length } });
-    return jr({ ok: true, enqueued: 0, considered: candidates.length });
+    const r = await runEcoReorderPass(supabase, new Date(now));
+    await reportCronHealth(supabase, { job_name: "execution-planner", status: "ok", startedAt: cronT0, metrics: { enqueued: 0, considered: candidates.length, reorder_enqueued: r.enqueued } });
+    return jr({ ok: true, enqueued: 0, considered: candidates.length, reorder: r });
   }
 
   const { error: insErr, count } = await supabase
