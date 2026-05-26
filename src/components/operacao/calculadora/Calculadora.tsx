@@ -22,6 +22,7 @@ import {
   type Modo, type Perfil, type CampaignResult,
 } from "@/lib/campaignEngine";
 import { usePricingSettings } from "@/hooks/usePricingSettings";
+import { formatCompact } from "@/lib/format";
 import { Table2, ArrowRight, ArrowLeft, Target as TargetIcon, Users, Wallet, Music, Search, CheckCircle2, X, Loader2, CalendarIcon, FileText, Plus, ListMusic, Layers, Zap, Pencil, AlertTriangle } from "lucide-react";
 import { useEcosystemCapacity } from "@/hooks/useEcosystemCapacity";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -1265,22 +1266,48 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                             {ecoUsagePct}% usado
                           </span>
                         </div>
-                        <div className="text-[11px] text-foreground/80 tabular-nums">
-                          Aguenta <strong>{formatInt(ecoCap.capacityTotal)}</strong> streams
-                          ({formatInt(ecoCap.capacityPerDay)}/dia · ×{active.engagementMultiplier ?? 30} · {ecoCap.playlistCount} playlists) ·
-                          {" "}precisa entregar <strong>{formatInt(ecoNeeded)}</strong> pelo eco
-                        </div>
-                        <div className="text-[11px] text-foreground/80 tabular-nums pt-1 border-t border-border/30 mt-1">
-                          Meta operacional: <strong>{formatInt(result.metaOperacional)}</strong>
-                          {result.streamsOrganic > 0 && (
-                            <> · Orgânico estimado: <strong>{formatInt(result.streamsOrganic)}</strong> ({active.splitOrganic}%)
-                              {active.clientProfile === "gravadora" && <span className="text-muted-foreground/70"> · bônus em cima da meta</span>}
-                            </>
-                          )}
-                        </div>
-                        <div className="text-[10px] text-muted-foreground tabular-nums">
-                          Conta: {formatInt(ecoCap.savesTotal)} saves × {active.engagementMultiplier ?? 30} ÷ 30 × % da posição {ecoCap.slotPositions.map(p => `#${p}`).join("/")} × {active.days} dias
-                        </div>
+                        {(() => {
+                          const days = result.effectiveDays || 1;
+                          const ecoPerDay = Math.round(result.streamsEco / days);
+                          const extPerDay = Math.round(result.streamsExt / days);
+                          const organicPct = active.splitOrganic ?? 0;
+                          const ecoRealPct = Math.round(result.splitEcoPct * (1 - organicPct / 100));
+                          const extRealPct = Math.max(0, 100 - ecoRealPct - organicPct);
+                          const genreLabel = ecoCap.neighborCount > 0
+                            ? `${active.genre}+vizinhos`
+                            : active.genre;
+                          return (
+                            <div className="space-y-1 text-[11px] text-foreground/85 tabular-nums">
+                              <div>
+                                <span className="text-muted-foreground">Ecossistema:</span>{" "}
+                                <strong>{formatCompact(ecoPerDay)}/dia</strong> · {ecoCap.playlistCount} playlists · {genreLabel}
+                                {ecoRealPct > 0 && <span className="text-muted-foreground/70"> ({ecoRealPct}%)</span>}
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Externo:</span>{" "}
+                                <strong>{formatCompact(extPerDay)}/dia</strong> em deals
+                                {extRealPct > 0 && <span className="text-muted-foreground/70"> ({extRealPct}%)</span>}
+                              </div>
+                              {result.streamsOrganic > 0 && (
+                                <div>
+                                  <span className="text-muted-foreground">Orgânico estimado:</span>{" "}
+                                  <strong>{organicPct}%</strong> · {formatCompact(result.streamsOrganic)} streams
+                                  {active.clientProfile === "gravadora" && <span className="text-muted-foreground/70"> · bônus</span>}
+                                </div>
+                              )}
+                              <div className="pt-1 border-t border-border/30">
+                                <span className="text-muted-foreground">Meta operacional:</span>{" "}
+                                <strong>{formatCompact(result.metaOperacional)}</strong>
+                                {result.streamsOrganic > 0 && (
+                                  <> · <span className="text-muted-foreground">Meta total:</span>{" "}
+                                    <strong>{formatCompact(result.meta)}</strong>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })()}
+
                         {ecoOverflow && suggestedEcoPct != null && (
                           <div className="flex items-center justify-between gap-2 pt-1 border-t border-destructive/20">
                             <span className="text-[11px] text-destructive flex items-center gap-1">
