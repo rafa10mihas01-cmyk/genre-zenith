@@ -388,7 +388,7 @@ export function DeliveryForecastCard({ forecast, organicSummary, spotifyTrackId 
                       : (top200Position
                           ? `Top ${top200Position} · ${formatPlays(data.target)}`
                           : `Alvo · ${formatPlays(data.target)}`),
-                    position: "insideTopRight",
+                    position: "insideTopLeft",
                     fill: "hsl(var(--muted-foreground))",
                     fontSize: isNarrow ? 9 : 10, fillOpacity: 0.9,
                   }}
