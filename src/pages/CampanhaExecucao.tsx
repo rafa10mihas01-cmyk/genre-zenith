@@ -747,7 +747,7 @@ export default function CampanhaExecucao() {
                   shareToken={camp.public_plan_token ?? null}
                   campaignId={camp.id}
                   onPositionsRedistributed={loadCampaign}
-                  radioGoal={Math.round(snapshot.meta * 0.18)}
+                  radioGoal={Math.round(snapshot.meta * ((snapshot.splitOrganicPct ?? 15) / 100))}
                   radioCollectedTotal={radioCollectedTotal}
                   track={{
                     name: camp.track_name,
