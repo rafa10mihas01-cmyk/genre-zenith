@@ -505,7 +505,7 @@ export default function PlanoCampanhaPublico() {
                     />
                   );
                 })()}
-                {forecast && <DeliveryForecastCard forecast={forecast} organicSummary={organicSummary} spotifyTrackId={snapshot.music.spotifyTrackId} />}
+                {forecast && <DeliveryForecastCard forecast={forecast} organicSummary={organicSummary} spotifyTrackId={snapshot?.music?.spotifyTrackId ?? null} />}
                 {isApproved && evolutionSeries.length > 1 && (
                   <EvolutionChart
                     series={evolutionSeries}
