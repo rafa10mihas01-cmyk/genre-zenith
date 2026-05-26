@@ -1127,7 +1127,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                   </div>
 
                   <div>
-                    <Label className="text-xs">Duração: {active.days} dias</Label>
+                    <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">Duração <span className="text-muted-foreground/60 normal-case tracking-normal">· {active.days} dias</span></Label>
                     <Slider value={[active.days]} onValueChange={([v]) => setDays(v)} min={15} max={180} step={5} className="mt-2" />
                   </div>
 
