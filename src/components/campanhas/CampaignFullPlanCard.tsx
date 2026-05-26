@@ -419,7 +419,7 @@ export function CampaignFullPlanCard({
                             ) : (
                               <>
                                 <span className="uppercase tracking-wider">estimado</span>
-                                {" · "}18% da meta
+                                {" · "}{Math.round(((snapshot.splitOrganicPct ?? 15)))}% da meta · lag 5d
                               </>
                             )}
                           </div>
