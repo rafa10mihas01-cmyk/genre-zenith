@@ -582,6 +582,7 @@ export function CampaignFullPlanCard({
         <p className="text-[10px] text-muted-foreground mt-2">
           Dica: clique no nome da playlist pra abrir no Spotify. A coluna com borda verde marca o dia de entrada (D1 da playlist).
           Posições <span className="text-primary font-medium">#3–5</span> são as mais fortes; #6–12 médias; #13+ cauda.
+          Badge <span className="text-warning font-medium">#N</span> no fim do plano indica desmame: a música é rebaixada gradualmente nos últimos 20% dos dias (pos → ×2 → ×5 → ×15 → ×30) antes de sair da playlist.
         </p>
       </CardContent>
     </Card>
