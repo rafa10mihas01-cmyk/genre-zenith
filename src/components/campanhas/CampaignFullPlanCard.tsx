@@ -211,10 +211,13 @@ export function CampaignFullPlanCard({
     const necDiaEco = Math.round(metaEco / Math.max(1, days));
     const necDiaExt = Math.round(metaExt / Math.max(1, days));
     const pico = dailyTotals.length ? Math.max(...dailyTotals) : 0;
-    const usoCap = capacidadeEcoDia > 0 ? Math.round((necDiaEco / capacidadeEcoDia) * 100) : 0;
+    // Média/dia REAL do plano (rampa + boost + tail). É o que realmente vamos entregar por dia.
+    const planDays = snapshot.effectiveDays ?? days;
+    const mediaDiaReal = planDays > 0 ? Math.round(ecoCobertoTotal / planDays) : 0;
+    const usoCap = mediaDiaReal > 0 ? Math.round((necDiaEco / mediaDiaReal) * 100) : 0;
     const deficitEco = Math.max(0, metaEco - ecoCobertoTotal);
     return {
-      capacidadeEcoDia, ecoCobertoTotal, metaEco, metaExt,
+      capacidadeEcoDia, mediaDiaReal, ecoCobertoTotal, metaEco, metaExt,
       necDiaTotal, necDiaEco, necDiaExt, pico, usoCap, deficitEco,
       qtdPlaylists: plans.length,
     };
@@ -343,9 +346,9 @@ export function CampaignFullPlanCard({
               hint={`${formatInt(resumo.necDiaEco)} eco · ${formatInt(resumo.necDiaExt)} ext`}
             />
             <ResumoStat
-              label="Eco base/dia"
-              value={formatInt(resumo.capacidadeEcoDia)}
-              hint={`pico ${formatInt(resumo.pico)} com boost · uso ${resumo.usoCap}%`}
+              label="Eco entrega/dia (real)"
+              value={formatInt(resumo.mediaDiaReal)}
+              hint={`base ${formatInt(resumo.capacidadeEcoDia)} · pico ${formatInt(resumo.pico)} · uso ${resumo.usoCap}%`}
               tone={resumo.usoCap > 90 ? "warning" : "primary"}
             />
             <ResumoStat
