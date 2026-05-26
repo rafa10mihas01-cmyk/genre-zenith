@@ -13,7 +13,15 @@ export interface EcosystemCapacity {
   capacityTotal: number;
   capacityPerDay: number;
   genreResolved: boolean;
+  /** Quantas playlists do pool serão realmente usadas pra cobrir streamsEco.
+   *  null quando streamsEcoNeeded não foi informado. Espelha a heurística de
+   *  seleção do planEcoAllocations (followers desc + sizingCap em pos #3). */
+  playlistsSelected: number | null;
 }
+
+// Mirror das constantes de planEcoAllocations (campaignSnapshot.ts).
+const PLAYS_PER_SAVE_MONTH = 30;
+const DEFAULT_CAMPAIGN_SLOT_PCT = 0.08; // proxy posição #3
 
 const PRIMARY_RANGES_BY_CHART: Record<ChartTier, Record<"large" | "medium" | "small", [number, number]>> = {
   top50:   { large: [1, 1], medium: [1, 1], small: [1, 1] },
