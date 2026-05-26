@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { calculateTrackDailyStreams } from "@/lib/campaignOperationalPlan";
+import { calculateTrackDailyStreams, chartTierFromTopPosition, type ChartTier, classifyPlaylistSize } from "@/lib/campaignOperationalPlan";
 
 
 export interface EcosystemCapacity {
@@ -8,24 +8,71 @@ export interface EcosystemCapacity {
   playlistCount: number;
   coreCount: number;
   neighborCount: number;
-  savesTotal: number;         // soma de saves das playlists compatíveis
-  slotPositions: number[];    // uma posição por playlist, distribuída nesses slots
-  capacityTotal: number;     // streams totais que o eco aguenta na janela
-  capacityPerDay: number;    // streams/dia
-  genreResolved: boolean;    // true se conseguimos casar o gênero com a tabela genres
+  savesTotal: number;
+  slotPositions: number[];
+  capacityTotal: number;
+  capacityPerDay: number;
+  genreResolved: boolean;
+}
+
+const PRIMARY_RANGES_BY_CHART: Record<ChartTier, Record<"large" | "medium" | "small", [number, number]>> = {
+  top50:   { large: [1, 1], medium: [1, 1], small: [1, 1] },
+  top100:  { large: [1, 2], medium: [2, 4], small: [3, 5] },
+  outside: { large: [1, 1], medium: [1, 1], small: [1, 1] },
+};
+const NEIGHBOR_RANGE_BY_CHART: Record<ChartTier, [number, number]> = {
+  top50:   [4, 5],
+  top100:  [5, 7],
+  outside: [7, 10],
+};
+
+function assignPositions(
+  list: { id: string; followers: number }[],
+  group: "primary" | "neighbor",
+  chartTier: ChartTier,
+): number[] {
+  const sorted = [...list].sort((a, b) => b.followers - a.followers);
+  const out: number[] = new Array(sorted.length).fill(1);
+
+  if (group === "neighbor") {
+    const [lo, hi] = NEIGHBOR_RANGE_BY_CHART[chartTier];
+    sorted.forEach((_, idx) => {
+      const pct = sorted.length <= 1 ? 0 : idx / (sorted.length - 1);
+      out[idx] = lo + Math.round(pct * (hi - lo));
+    });
+  } else if (chartTier === "outside") {
+    const N = Math.max(1, sorted.length);
+    sorted.forEach((_, i) => {
+      out[i] = Math.max(1, Math.min(20, Math.round(((i + 1) / N) * 20)));
+    });
+  } else {
+    const byTier: Record<"large" | "medium" | "small", number[]> = { large: [], medium: [], small: [] };
+    sorted.forEach((p, idx) => byTier[classifyPlaylistSize(p.followers)].push(idx));
+    (Object.keys(byTier) as Array<"large" | "medium" | "small">).forEach(t => {
+      const idxs = byTier[t];
+      const [lo, hi] = PRIMARY_RANGES_BY_CHART[chartTier][t];
+      idxs.forEach((origIdx, i) => {
+        const pct = idxs.length <= 1 ? 0 : i / (idxs.length - 1);
+        out[origIdx] = lo + Math.round(pct * (hi - lo));
+      });
+    });
+  }
+  // Return positions aligned with the SORTED order; caller iterates the same sorted list.
+  return out;
 }
 
 /**
- * Calcula a capacidade do ecossistema próprio filtrado por afinidade de gênero.
- * Mesma lógica de filtragem do closeOne(): núcleo (mesmo gênero) + vizinhos ≥ 0.70.
- * Capacidade diária = soma do slot usado por UMA música em cada playlist.
- * Ex.: saves × (multiplicador/30) × % da posição (#1/#2/#3/#3 padrão).
+ * Capacidade do ecossistema próprio filtrado por afinidade de gênero.
+ * Quando `topPosition` está disponível, usa a MESMA lógica determinística
+ * de `distributeEcoPositions(chartTier)` — assim card e distribuição batem.
+ * Fallback (sem topPosition): cicla `slotPositions` (compat legada).
  */
 export function useEcosystemCapacity(
   genre: string,
   days: number,
   engagementMultiplier = 30,
   slotPositions: number[] = [3],
+  topPosition: number | null = null,
 ): EcosystemCapacity {
   const slotKey = slotPositions.join(",");
   const [state, setState] = useState<EcosystemCapacity>({
@@ -87,20 +134,26 @@ export function useEcosystemCapacity(
         }
       }
 
+      const chartTier = chartTierFromTopPosition(topPosition);
+      const useChartLogic = topPosition !== null && topPosition !== undefined;
       const safeSlots = slotPositions.length > 0 ? slotPositions : [3];
-      const perDayOf = (list: typeof all) => Math.round(
-        [...list]
-          .sort((a, b) => (b.followers ?? 0) - (a.followers ?? 0))
-          .reduce((sum, playlist, index) => {
-            const slot = safeSlots[index % safeSlots.length] ?? 3;
+
+      const perDayOf = (list: typeof all, group: "primary" | "neighbor") => {
+        const sorted = [...list].sort((a, b) => (b.followers ?? 0) - (a.followers ?? 0));
+        const positions = useChartLogic
+          ? assignPositions(sorted.map(p => ({ id: p.id, followers: p.followers ?? 0 })), group, chartTier)
+          : sorted.map((_, i) => safeSlots[i % safeSlots.length] ?? 3);
+        return Math.round(
+          sorted.reduce((sum, playlist, index) => {
+            const slot = positions[index] ?? 3;
             return sum + calculateTrackDailyStreams(playlist.followers ?? 0, engagementMultiplier, slot);
           }, 0),
-      );
+        );
+      };
 
-      const corePerDay = perDayOf(core);
-      const neighborPerDayRaw = perDayOf(neighbors);
-      // Teto de 40% do total para vizinhos (mesma regra das allocations):
-      // neighbors <= 0.4 * (core + neighbors)  →  neighbors <= (2/3) * core
+      const corePerDay = perDayOf(core, "primary");
+      const neighborPerDayRaw = perDayOf(neighbors, "neighbor");
+      // Teto de 40% do total para vizinhos (mesma regra das allocations).
       const neighborCap = Math.floor((2 / 3) * corePerDay);
       const neighborPerDay = Math.min(neighborPerDayRaw, neighborCap);
       const perDay = corePerDay + neighborPerDay;
@@ -125,7 +178,7 @@ export function useEcosystemCapacity(
 
     })();
     return () => { cancelled = true; };
-  }, [genre, days, engagementMultiplier, slotKey]);
+  }, [genre, days, engagementMultiplier, slotKey, topPosition]);
 
   return state;
 }

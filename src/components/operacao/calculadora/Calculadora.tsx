@@ -238,7 +238,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   }, [active.track?.position]);
 
   // Capacidade real do ecossistema filtrada por gênero da música ativa.
-  const ecoCap = useEcosystemCapacity(active.genre, active.days, active.engagementMultiplier ?? 30, preferredSlots);
+  const ecoCap = useEcosystemCapacity(active.genre, active.days, active.engagementMultiplier ?? 30, preferredSlots, active.track?.position ?? null);
   const ecoNeeded = result.streamsEco;
   const ecoUsagePct = ecoCap.capacityTotal > 0
     ? Math.round((ecoNeeded / ecoCap.capacityTotal) * 100)
@@ -463,6 +463,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         r.modo,
         song.engagementMultiplier ?? 30,
         { source: "primary" },
+        song.track?.position ?? null,
       );
       const neighborAllocs = neighborBudget > 0
         ? planEcoAllocations(
@@ -472,6 +473,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
             r.modo,
             song.engagementMultiplier ?? 30,
             { source: "affinity", affinityByPlaylistId: neighborAffinityByPlaylistId },
+            song.track?.position ?? null,
           )
         : [];
       const allocations = [...coreAllocs, ...neighborAllocs];

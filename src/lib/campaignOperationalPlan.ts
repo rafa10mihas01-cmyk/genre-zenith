@@ -289,12 +289,79 @@ export const AFFINITY_RANGE_BY_MODE: Record<CoverageMode, [number, number]> = {
  * encurtadas pra frente) ou `maximum` (<0.50, primário em slots fortes,
  * cap de slots fortes IGNORADO).
  */
+/** Tier do chart Top200 da música — top50 agressivo, outside rank-based. */
+export type ChartTier = "top50" | "top100" | "outside";
+
+export function chartTierFromTopPosition(top?: number | null): ChartTier {
+  const p = Number(top ?? 0);
+  if (p > 0 && p <= 50) return "top50";
+  if (p > 50 && p <= 100) return "top100";
+  return "outside";
+}
+
+export function chartTierFromSnapshot(snapshot?: { music?: { top200Position?: number | null; top200Pos?: number | null } | null } | null): ChartTier {
+  const m = snapshot?.music as any;
+  return chartTierFromTopPosition(m?.top200Position ?? m?.top200Pos ?? null);
+}
+
+const PRIMARY_RANGES_BY_CHART: Record<ChartTier, Record<PlaylistSizeTier, [number, number]>> = {
+  top50:   { large: [1, 1], medium: [1, 1], small: [1, 1] },
+  top100:  { large: [1, 2], medium: [2, 4], small: [3, 5] },
+  outside: { large: [1, 1], medium: [1, 1], small: [1, 1] }, // ignorado — usa rank-based
+};
+const NEIGHBOR_RANGE_BY_CHART: Record<ChartTier, [number, number]> = {
+  top50:   [4, 5],
+  top100:  [5, 7],
+  outside: [7, 10],
+};
+
+function distributeByChartTier(
+  allocs: Array<{ id: string; followers: number; genreSource?: "primary" | "affinity" }>,
+  chartTier: ChartTier,
+): Map<string, number> {
+  const out = new Map<string, number>();
+  const primary = allocs.filter(a => (a.genreSource ?? "primary") === "primary")
+    .sort((a, b) => b.followers - a.followers);
+  const affinity = allocs.filter(a => a.genreSource === "affinity")
+    .sort((a, b) => b.followers - a.followers);
+
+  if (chartTier === "outside") {
+    const N = Math.max(1, primary.length);
+    primary.forEach((a, i) => {
+      const pos = Math.max(1, Math.min(20, Math.round(((i + 1) / N) * 20)));
+      out.set(a.id, pos);
+    });
+  } else {
+    const byTier: Record<PlaylistSizeTier, typeof primary> = { large: [], medium: [], small: [] };
+    for (const a of primary) byTier[classifyPlaylistSize(a.followers)].push(a);
+    for (const t of ["large", "medium", "small"] as PlaylistSizeTier[]) {
+      const list = byTier[t];
+      const [lo, hi] = PRIMARY_RANGES_BY_CHART[chartTier][t];
+      list.forEach((a, idx) => {
+        const pct = list.length <= 1 ? 0 : idx / (list.length - 1);
+        out.set(a.id, lo + Math.round(pct * (hi - lo)));
+      });
+    }
+  }
+
+  const [nlo, nhi] = NEIGHBOR_RANGE_BY_CHART[chartTier];
+  affinity.forEach((a, idx) => {
+    const pct = affinity.length <= 1 ? 0 : idx / (affinity.length - 1);
+    out.set(a.id, nlo + Math.round(pct * (nhi - nlo)));
+  });
+
+  return out;
+}
+
 export function distributeEcoPositions(
-  allocs: EcoPositionInput[],
+  allocs: Array<EcoPositionInput & { genreSource?: "primary" | "affinity" }>,
   days: number,
   engagementMultiplier = 30,
-  opts: { strongSlotShareCap?: number; preferredSlots?: number[]; coverageRatio?: number; mode?: CoverageMode } = {},
+  opts: { strongSlotShareCap?: number; preferredSlots?: number[]; coverageRatio?: number; mode?: CoverageMode; chartTier?: ChartTier } = {},
 ): Map<string, number> {
+  // Modo determinístico baseado na posição no Top200 — sem RNG, sem buckets.
+  if (opts.chartTier) return distributeByChartTier(allocs, opts.chartTier);
+
   const preferredSlots = (opts.preferredSlots ?? []).filter((p) => Number.isFinite(p) && p >= 1);
   const mode: CoverageMode = opts.mode ?? selectCoverageMode(opts.coverageRatio);
   const cap = opts.strongSlotShareCap ?? 0.4;
@@ -341,6 +408,7 @@ export function distributeEcoPositions(
   }
   return result;
 }
+
 
 /**
  * Sazonalidade semanal de streaming (BR/global). Multiplicadores relativos
@@ -596,6 +664,7 @@ export function buildEcoPlaylistPlan(
   // 3) fallback: distribuição dinâmica via distributeEcoPositions. Só recálculo "automático" acontece
   // quando NINGUÉM passou positions e nenhuma alloc tem position salva (campanhas legadas).
   const allPersisted = allocs.length > 0 && allocs.every(a => Number.isFinite(a.position as number) && (a.position as number) >= 1);
+  const chartTier = chartTierFromSnapshot(snapshot);
   const positions = opts.positions ?? (allPersisted
     ? new Map(allocs.map(a => [a.id, a.position as number]))
     : distributeEcoPositions(
@@ -603,15 +672,13 @@ export function buildEcoPlaylistPlan(
           id: a.id,
           planned_streams: a.planned_streams,
           followers: Number(a.managed_playlists?.followers ?? 0),
+          genreSource: (a as any).genre_source ?? "primary",
         })),
         planDaysOf(snapshot),
         multiplier,
-        { preferredSlots: inferEcoPreferredPositions(snapshot, allocs.map(a => ({
-          id: a.id,
-          planned_streams: a.planned_streams,
-          followers: Number(a.managed_playlists?.followers ?? 0),
-        })), multiplier) },
+        { chartTier },
       ));
+
 
   const ordered = [...allocs].sort((a, b) => b.planned_streams - a.planned_streams);
   const storedStarts = ordered.map(a => Number(a.start_day || 1));

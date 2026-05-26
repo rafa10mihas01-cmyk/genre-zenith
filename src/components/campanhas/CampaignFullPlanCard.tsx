@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Grid3x3, Link2, Check, ExternalLink, Shuffle, Loader2, Radio } from "lucide-react";
 import { formatInt } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
-import { buildEcoPlaylistPlan, distributeEcoPositions, inferEcoPreferredPositions, type DailyPlaylistPlan } from "@/lib/campaignOperationalPlan";
+import { buildEcoPlaylistPlan, distributeEcoPositions, inferEcoPreferredPositions, chartTierFromTopPosition, type DailyPlaylistPlan } from "@/lib/campaignOperationalPlan";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -85,21 +85,20 @@ export function CampaignFullPlanCard({
 
   const positionByAllocation = useMemo(
     () => {
-      // Se TODAS as allocs têm position persistida no banco, usa direto — o plano
-      // fica estável entre aberturas. Só recalcula se admin clicar em "Redistribuir".
       const allPersisted = allocations.length > 0 && allocations.every(a => Number.isFinite((a as any).position) && (a as any).position >= 1);
       if (allPersisted) return new Map(allocations.map(a => [a.id, (a as any).position as number]));
+      const top = (snapshot as any)?.music?.top200Position ?? (snapshot as any)?.music?.top200Pos ?? null;
       const positionInputs = allocations.map((a) => ({
         id: a.id,
         planned_streams: a.planned_streams,
         followers: a.managed_playlists?.followers ?? 0,
+        genreSource: ((a as any).genre_source as "primary" | "affinity" | null) ?? "primary",
       }));
-      const preferredSlots = inferEcoPreferredPositions(snapshot, positionInputs, engagementMultiplier);
       return distributeEcoPositions(
         positionInputs,
         days,
         engagementMultiplier,
-        { preferredSlots },
+        { chartTier: chartTierFromTopPosition(top) },
       );
     },
     [allocations, days, engagementMultiplier, snapshot],
@@ -109,15 +108,14 @@ export function CampaignFullPlanCard({
     if (!campaignId || redistributing) return;
     setRedistributing(true);
     try {
-      // Força nova distribuição ignorando posições persistidas.
+      const top = (snapshot as any)?.music?.top200Position ?? (snapshot as any)?.music?.top200Pos ?? null;
       const positionInputs = allocations.map((a) => ({
         id: a.id,
         planned_streams: a.planned_streams,
         followers: a.managed_playlists?.followers ?? 0,
+        genreSource: ((a as any).genre_source as "primary" | "affinity" | null) ?? "primary",
       }));
-      const preferredSlots = inferEcoPreferredPositions(snapshot, positionInputs, engagementMultiplier);
-      const fresh = distributeEcoPositions(positionInputs, days, engagementMultiplier, { preferredSlots });
-      // UPDATE row-a-row (Supabase JS não tem update em batch nativo).
+      const fresh = distributeEcoPositions(positionInputs, days, engagementMultiplier, { chartTier: chartTierFromTopPosition(top) });
       const results = await Promise.all(
         Array.from(fresh.entries()).map(([allocId, pos]) =>
           supabase.from("campaign_eco_allocations").update({ position: pos }).eq("id", allocId),

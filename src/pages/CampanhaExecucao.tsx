@@ -15,7 +15,7 @@ import { ExternalPackageEditor } from "@/components/campanhas/ExternalPackageEdi
 import { CampaignMonitoring } from "@/components/campanhas/CampaignMonitoring";
 import { CampaignDailyPlan } from "@/components/campanhas/CampaignDailyPlan";
 import { PlaylistDailyPlanDialog } from "@/components/campanhas/PlaylistDailyPlanDialog";
-import { buildEcoPlaylistPlan, distributeEcoPositions } from "@/lib/campaignOperationalPlan";
+import { buildEcoPlaylistPlan, distributeEcoPositions, chartTierFromTopPosition } from "@/lib/campaignOperationalPlan";
 import { CampaignFullPlanCard } from "@/components/campanhas/CampaignFullPlanCard";
 import { TrackActionsPanel } from "@/components/campanhas/TrackActionsPanel";
 import { ArrowLeft, Loader2, Save, Upload, Rocket, CheckCircle2, RefreshCw } from "lucide-react";
@@ -395,17 +395,19 @@ export default function CampanhaExecucao() {
 
   const ecoPositionByAllocation = useMemo(() => {
     if (!snapshot) return new Map<string, number>();
-    // Se TODAS as allocs têm position persistida, usa direto. Senão, deriva dinâmica.
     const allPersisted = allocs.length > 0 && allocs.every(a => Number.isFinite(a.position as number) && (a.position as number) >= 1);
     if (allPersisted) return new Map(allocs.map(a => [a.id, a.position as number]));
+    const top = (snapshot as any)?.music?.top200Position ?? (snapshot as any)?.music?.top200Pos ?? null;
     return distributeEcoPositions(
       allocs.map(a => ({
         id: a.id,
         planned_streams: a.planned_streams,
         followers: a.managed_playlists?.followers ?? 0,
+        genreSource: (a.genre_source as "primary" | "affinity" | null) ?? "primary",
       })),
       snapshot.days,
       camp?.engagement_multiplier ?? 30,
+      { chartTier: chartTierFromTopPosition(top) },
     );
   }, [snapshot, allocs, camp?.engagement_multiplier]);
 

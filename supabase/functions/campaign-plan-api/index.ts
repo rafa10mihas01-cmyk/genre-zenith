@@ -92,11 +92,54 @@ function maxViablePosition(planned: number, days: number, followers: number, mul
   }
   return best;
 }
+type ChartTier = "top50" | "top100" | "outside";
+function chartTierFromTopPosition(top?: number | null): ChartTier {
+  const p = Number(top ?? 0);
+  if (p > 0 && p <= 50) return "top50";
+  if (p > 50 && p <= 100) return "top100";
+  return "outside";
+}
+const PRIMARY_RANGES_BY_CHART: Record<ChartTier, Record<"large" | "medium" | "small", [number, number]>> = {
+  top50:   { large: [1, 1], medium: [1, 1], small: [1, 1] },
+  top100:  { large: [1, 2], medium: [2, 4], small: [3, 5] },
+  outside: { large: [1, 1], medium: [1, 1], small: [1, 1] },
+};
+const NEIGHBOR_RANGE_BY_CHART: Record<ChartTier, [number, number]> = {
+  top50: [4, 5], top100: [5, 7], outside: [7, 10],
+};
 function distributeEcoPositions(
-  allocs: Array<{ id: string; planned_streams: number; followers: number }>,
+  allocs: Array<{ id: string; planned_streams: number; followers: number; genreSource?: "primary" | "affinity" }>,
   days: number,
   mult = 30,
+  opts: { chartTier?: ChartTier } = {},
 ): Map<string, number> {
+  if (opts.chartTier) {
+    const out = new Map<string, number>();
+    const primary = allocs.filter(a => (a.genreSource ?? "primary") === "primary").sort((a, b) => b.followers - a.followers);
+    const affinity = allocs.filter(a => a.genreSource === "affinity").sort((a, b) => b.followers - a.followers);
+    if (opts.chartTier === "outside") {
+      const N = Math.max(1, primary.length);
+      primary.forEach((a, i) => out.set(a.id, Math.max(1, Math.min(20, Math.round(((i + 1) / N) * 20)))));
+    } else {
+      const byTier: Record<"large" | "medium" | "small", typeof primary> = { large: [], medium: [], small: [] };
+      for (const a of primary) byTier[classifyPlaylistSize(a.followers)].push(a);
+      for (const t of ["large", "medium", "small"] as const) {
+        const list = byTier[t];
+        const [lo, hi] = PRIMARY_RANGES_BY_CHART[opts.chartTier][t];
+        list.forEach((a, idx) => {
+          const pct = list.length <= 1 ? 0 : idx / (list.length - 1);
+          out.set(a.id, lo + Math.round(pct * (hi - lo)));
+        });
+      }
+    }
+    const [nlo, nhi] = NEIGHBOR_RANGE_BY_CHART[opts.chartTier];
+    affinity.forEach((a, idx) => {
+      const pct = affinity.length <= 1 ? 0 : idx / (affinity.length - 1);
+      out.set(a.id, nlo + Math.round(pct * (nhi - nlo)));
+    });
+    return out;
+  }
+  // Legacy fallback
   const cap = 0.4;
   const total = allocs.length;
   const maxStrong = Math.max(1, Math.floor(total * cap));
@@ -205,7 +248,7 @@ Deno.serve(async (req) => {
 
   const { data: allocs, error: aErr } = await supabase
     .from("campaign_eco_allocations")
-    .select("id, planned_streams, start_day, status, position, managed_playlists(name, cover_url, followers, spotify_url)")
+    .select("id, planned_streams, start_day, status, position, genre_source, managed_playlists(name, cover_url, followers, spotify_url)")
     .eq("campaign_id", (camp as any).id)
     .order("planned_streams", { ascending: false });
   if (aErr) return jr({ error: aErr.message }, 500);
@@ -216,6 +259,8 @@ Deno.serve(async (req) => {
   const startedAt = (camp as any).started_at as string;
   const modo = snapshot.modo as "simultaneo" | "sequencial";
   const ecoFloor = modo === "sequencial" ? curveThresholdDay(snapshot.curva, 0.25) : 1;
+  const topPos = Number((snapshot as any)?.music?.top200Position ?? (snapshot as any)?.music?.top200Pos ?? 0) || null;
+  const chartTier = chartTierFromTopPosition(topPos);
 
   // Preferir posições persistidas. Só recalcula dinamicamente se faltar alguma.
   const allRows = allocs ?? [];
@@ -227,8 +272,9 @@ Deno.serve(async (req) => {
           id: a.id,
           planned_streams: a.planned_streams,
           followers: Number(a.managed_playlists?.followers ?? 0),
+          genreSource: (a.genre_source as "primary" | "affinity" | null) ?? "primary",
         })),
-        days, mult,
+        days, mult, { chartTier },
       );
 
   const ordered = [...(allocs ?? [])].sort((a: any, b: any) => b.planned_streams - a.planned_streams);

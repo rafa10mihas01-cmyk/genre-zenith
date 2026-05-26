@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { formatInt } from "@/lib/campaignEngine";
-import { buildEcoPlaylistPlan, distributeEcoPositions } from "@/lib/campaignOperationalPlan";
+import { buildEcoPlaylistPlan, distributeEcoPositions, chartTierFromTopPosition } from "@/lib/campaignOperationalPlan";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { Download, Printer, Music } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -43,14 +43,17 @@ export function PlaylistDailyPlanDialog({
 }: Props) {
   const plan = useMemo(() => {
     if (!allocation) return null;
+    const top = (snapshot as any)?.music?.top200Position ?? (snapshot as any)?.music?.top200Pos ?? null;
     const positions = distributeEcoPositions(
       allAllocations.map(a => ({
         id: a.id,
         planned_streams: a.planned_streams,
         followers: a.managed_playlists?.followers ?? 0,
+        genreSource: ((a as any).genre_source as "primary" | "affinity" | null) ?? "primary",
       })),
       snapshot.days,
       engagementMultiplier,
+      { chartTier: chartTierFromTopPosition(top) },
     );
     const all = buildEcoPlaylistPlan(snapshot, allAllocations as any, {
       startedAt,
