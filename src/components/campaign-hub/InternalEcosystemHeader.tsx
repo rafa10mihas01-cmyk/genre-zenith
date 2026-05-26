@@ -44,59 +44,46 @@ export function InternalEcosystemHeader({
   const fmtDeltaBRL = (n: number) => `${n > 0 ? "+" : ""}${formatBRL(n)} vs snapshot`;
 
   return (
-    <Card>
-      <CardHeader className="space-y-1 pb-3">
-        <CardTitle className="text-sm flex items-center gap-2">
-          <ListMusic className="h-4 w-4 text-primary" /> Ecossistema interno
-        </CardTitle>
-        <p className="text-xs text-muted-foreground">
-          Alvo do snapshot: <strong className="text-foreground tabular-nums">{formatInt(snapshot.streamsEco)}</strong> streams ·{" "}
-          <strong className="text-foreground">{formatBRL(snapshot.custoEco)}</strong>. Entregue até agora:{" "}
-          <strong className="text-foreground tabular-nums">{formatInt(delivered)}</strong>.
-        </p>
-      </CardHeader>
-      <CardContent>
-        <section className="grid grid-cols-2 md:grid-cols-6 gap-3">
-          <KpiBig
-            tier="hero"
-            icon={BarChart3}
-            label="Streams totais"
-            value={formatInt(planned)}
-            hint={Math.abs(deltaStreams) > 1 ? fmtDelta(deltaStreams) : "alinhado ao snapshot"}
-            domain="campaigns"
-          />
-          <KpiBig
-            icon={CalendarClock}
-            label="Diário necessário"
-            value={formatInt(Math.round(planned / days))}
-            hint={`em ${days} dias`}
-            domain="deals"
-          />
-          <KpiBig
-            icon={DollarSign}
-            label="Custo"
-            value={formatBRL(custoPlanejado)}
-            hint={Math.abs(deltaCusto) > 0.5 ? fmtDeltaBRL(deltaCusto) : "alinhado ao snapshot"}
-            domain="clients"
-          />
-          <KpiBig
-            icon={Target}
-            label="Cobertura"
-            value={`${cobertura.toFixed(0)}%`}
-            hint="do alvo eco"
-            domain="curators"
-          />
-          <KpiBig
-            tier="quiet"
-            icon={Music}
-            label="Playlists"
-            value={String(allocations.length)}
-            hint="no plano"
-            domain="playlists"
-          />
-        </section>
-      </CardContent>
-    </Card>
+    <section className="grid grid-cols-2 md:grid-cols-6 gap-3">
+      <KpiBig
+        tier="hero"
+        icon={BarChart3}
+        label="Streams totais"
+        value={formatInt(planned)}
+        hint={Math.abs(deltaStreams) > 1 ? fmtDelta(deltaStreams) : "alinhado ao snapshot"}
+        domain="campaigns"
+      />
+      <KpiBig
+        icon={CalendarClock}
+        label="Diário necessário"
+        value={formatInt(Math.round(planned / days))}
+        hint={`em ${days} dias`}
+        domain="deals"
+      />
+      <KpiBig
+        icon={DollarSign}
+        label="Custo"
+        value={formatBRL(custoPlanejado)}
+        hint={Math.abs(deltaCusto) > 0.5 ? fmtDeltaBRL(deltaCusto) : "alinhado ao snapshot"}
+        domain="clients"
+      />
+      <KpiBig
+        icon={Target}
+        label="Cobertura"
+        value={`${cobertura.toFixed(0)}%`}
+        hint="do alvo eco"
+        domain="curators"
+      />
+      <KpiBig
+        tier="quiet"
+        icon={Music}
+        label="Playlists"
+        value={String(allocations.length)}
+        hint="no plano"
+        domain="playlists"
+      />
+    </section>
   );
 }
+
 
