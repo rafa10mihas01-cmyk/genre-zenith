@@ -118,6 +118,7 @@ export function planEcoAllocations(
   modo: CampaignSnapshot["modo"] = "simultaneo",
   engagementMultiplier: number = 30,
   genreContext?: GenreContext,
+  topPosition?: number | null,
 ): EcoAllocationPlan[] {
   if (streamsEco <= 0 || playlists.length === 0) return [];
 
@@ -139,16 +140,23 @@ export function planEcoAllocations(
   }
   if (selected.length === 0) return [];
 
-  // 2) Sorteia POSIÇÕES reais pra cada playlist selecionada (mesmo engine da UI).
-  // planned_streams=0 desativa o clamp do maxViablePosition: deixa o bucket por
-  // tier (large→[1,2], medium→[6,10], small→[11,20]) decidir sem interferência
-  // de uma "demanda proxy" que distorceria o sorteio. A capacidade real entra
-  // no passo (3) abaixo via POSITION_PCT na posição já sorteada.
+  // 2) Distribui POSIÇÕES via lógica determinística do chartTier — sem RNG.
+  //    Top50 = todas primárias em pos 1; Top100 = ranges por tier; Outside = rank-based.
+  //    Vizinhos (affinity) recebem posições mais profundas (4-5 / 5-7 / 7-10).
+  const source = genreContext?.source ?? "primary";
+  const chartTier = chartTierFromTopPosition(topPosition ?? null);
   const positions = distributeEcoPositions(
-    selected.map(c => ({ id: c.id, planned_streams: 0, followers: c.followers })),
+    selected.map(c => ({
+      id: c.id,
+      planned_streams: 0,
+      followers: c.followers,
+      genreSource: source,
+    })),
     days,
     Math.max(1, Math.round(engagementMultiplier)),
+    { chartTier },
   );
+
 
   // 3) Capacidade REAL na posição sorteada: followers × (mult/30) × POSITION_PCT[pos] × days.
   const realCapById = new Map<string, number>();
