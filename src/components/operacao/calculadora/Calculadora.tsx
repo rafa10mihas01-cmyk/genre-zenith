@@ -62,6 +62,8 @@ type Song = {
   modo: Modo;
   perfil: Perfil;
   splitEco: number;
+  splitOrganic: number;
+  clientProfile: "gravadora" | "artista";
   engagementMultiplier: number;
   startDateISO: string; // yyyy-mm-dd
   clientPriceTotal: number; // R$ que o cliente paga (manual) — 0 = usa tabela
