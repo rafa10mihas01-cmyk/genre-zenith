@@ -1177,40 +1177,63 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                           const genreLabel = ecoCap.neighborCount > 0
                             ? `${active.genre}+vizinhos`
                             : active.genre;
-                          const Row = ({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: string }) => (
-                            <div className="flex items-baseline justify-between gap-3 py-1.5">
-                              <span className="text-[12px] text-muted-foreground shrink-0">{label}</span>
-                              <div className="flex items-baseline gap-2 min-w-0 text-right">
-                                {sub && <span className="text-[11px] text-muted-foreground/70 truncate">{sub}</span>}
-                                <span className={cn("text-[15px] font-semibold tabular-nums leading-none", accent)}>{value}</span>
+                          const Card = ({ label, total, pct, perDay, sub, accent }: {
+                            label: string;
+                            total: string;
+                            pct?: string;
+                            perDay?: string;
+                            sub?: string;
+                            accent?: string;
+                          }) => (
+                            <div className="flex flex-col gap-1 rounded-md border border-border/40 bg-background/40 px-3 py-2.5 min-w-0">
+                              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</span>
+                              <span className={cn("text-[18px] font-semibold tabular-nums leading-none", accent)}>{total}</span>
+                              <div className="flex items-baseline justify-between gap-2 text-[11px] text-muted-foreground/80 tabular-nums">
+                                {pct && <span>{pct}</span>}
+                                {perDay && <span className="font-medium text-muted-foreground">{perDay}</span>}
                               </div>
+                              {sub && <span className="text-[10px] text-muted-foreground/60 truncate">{sub}</span>}
                             </div>
                           );
                           return (
-                            <div className="mt-2 divide-y divide-border/30">
-                              <Row
-                                label="Meta"
-                                value={formatCompact(result.meta)}
-                                sub={result.streamsOrganic > 0 ? `op. ${formatCompact(result.metaOperacional)}` : undefined}
-                                accent="text-foreground"
-                              />
-                              <Row
-                                label="Ecossistema"
-                                value={`${formatCompact(ecoPerDay)}/dia`}
-                                sub={`${formatCompact(result.streamsEco)} · ${ecoCap.playlistsSelected != null ? `${ecoCap.playlistsSelected} de ${ecoCap.playlistCount}` : `${ecoCap.playlistCount}`} pl · ${genreLabel}${ecoRealPct > 0 ? ` · ${ecoRealPct}%` : ""}`}
-                              />
-                              <Row
-                                label="Externo"
-                                value={`${formatCompact(extPerDay)}/dia`}
-                                sub={`${formatCompact(result.streamsExt)} em deals${extRealPct > 0 ? ` · ${extRealPct}%` : ""}`}
-                              />
-                              {result.streamsOrganic > 0 && (
-                                <Row
-                                  label="Orgânico"
-                                  value={formatCompact(result.streamsOrganic)}
-                                  sub={`${organicPct}%${active.clientProfile === "gravadora" ? " · bônus" : ""}`}
+                            <div className="mt-2 space-y-2">
+                              <div className="flex items-baseline justify-between gap-3 px-1">
+                                <span className="text-[12px] text-muted-foreground">Meta</span>
+                                <div className="flex items-baseline gap-2">
+                                  {result.streamsOrganic > 0 && (
+                                    <span className="text-[11px] text-muted-foreground/70">op. {formatCompact(result.metaOperacional)}</span>
+                                  )}
+                                  <span className="text-[16px] font-semibold tabular-nums text-foreground">{formatCompact(result.meta)}</span>
+                                </div>
+                              </div>
+                              <div className={cn(
+                                "grid gap-2",
+                                result.streamsOrganic > 0 ? "grid-cols-3" : "grid-cols-2",
+                              )}>
+                                <Card
+                                  label="Eco"
+                                  total={formatCompact(result.streamsEco)}
+                                  pct={ecoRealPct > 0 ? `${ecoRealPct}%` : undefined}
+                                  perDay={`${formatCompact(ecoPerDay)}/dia`}
+                                  sub={`${ecoCap.playlistsSelected != null ? `${ecoCap.playlistsSelected} de ${ecoCap.playlistCount}` : `${ecoCap.playlistCount}`} pl · ${genreLabel}`}
                                 />
-                              )}
+                                <Card
+                                  label="Externo"
+                                  total={formatCompact(result.streamsExt)}
+                                  pct={extRealPct > 0 ? `${extRealPct}%` : undefined}
+                                  perDay={`${formatCompact(extPerDay)}/dia`}
+                                  sub="em deals"
+                                />
+                                {result.streamsOrganic > 0 && (
+                                  <Card
+                                    label="Orgânico"
+                                    total={formatCompact(result.streamsOrganic)}
+                                    pct={`${organicPct}%`}
+                                    perDay="natural"
+                                    sub={active.clientProfile === "gravadora" ? "bônus" : undefined}
+                                  />
+                                )}
+                              </div>
                             </div>
                           );
                         })()}
