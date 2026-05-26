@@ -59,8 +59,35 @@ export type DailyCampaignPlan = {
 
 /** Atraso médio de contabilização do Spotify (em dias). */
 export const REPORTING_DELAY_DAYS = 2;
-/** Ramp de entrada de playlist eco nos primeiros dias. */
-export const ECO_RAMP = [0.2, 0.4, 0.6, 0.8, 1.0];
+/** Ramp de entrada de playlist eco nos primeiros dias — agora curto (3 dias). */
+export const ECO_RAMP = [0.6, 0.85, 1.0];
+
+/**
+ * Boost algorítmico após a rampa: a faixa fica fixa na posição e o Spotify
+ * começa a recomendar mais quando engaja. Padrão compounding +5% / -3%
+ * (alternado) aplicado por dia, com teto pra não estourar.
+ */
+export const ECO_GROWTH_CAP = 1.25;
+export function ecoGrowthFactor(daysSinceSteady: number): number {
+  if (daysSinceSteady < 0) return 1;
+  let f = 1;
+  for (let i = 0; i <= daysSinceSteady; i++) {
+    f *= i % 2 === 0 ? 1.05 : 0.97;
+    if (f >= ECO_GROWTH_CAP) return ECO_GROWTH_CAP;
+  }
+  return f;
+}
+/** Soma teórica do multiplicador de plano (rampa + growth, sem weekday/tail). */
+export function ecoPlanTotalMultiplier(days: number): number {
+  let total = 0;
+  for (let i = 0; i < days; i++) {
+    const ramp = i < ECO_RAMP.length ? ECO_RAMP[i] : 1;
+    const growthIdx = i - ECO_RAMP.length;
+    const growth = growthIdx >= 0 ? ecoGrowthFactor(growthIdx) : 1;
+    total += ramp * growth;
+  }
+  return total;
+}
 
 /**
  * VERDADE ÚNICA do sistema — curva de tráfego por posição na playlist.
@@ -721,6 +748,9 @@ export function buildEcoPlaylistPlan(
       // Ramp suave nos primeiros dias de entrada na playlist.
       const rampIdx = i - (startDay - 1);
       const ramp = rampIdx < ECO_RAMP.length ? ECO_RAMP[rampIdx] : 1;
+      // Boost algorítmico (compounding +5/-3) após a rampa.
+      const growthIdx = rampIdx - ECO_RAMP.length;
+      const growth = growthIdx >= 0 ? ecoGrowthFactor(growthIdx) : 1;
       // Dia da semana (se conhecido).
       let weekday = 1;
       if (startValid) {
@@ -734,12 +764,14 @@ export function buildEcoPlaylistPlan(
         const t = (dayNum - tailStart) / tailDays;
         tail = 1 - 0.5 * t * t;
       }
-      daily[i] = Math.max(1, Math.round(baseCap * ramp * tail * weekday));
+      daily[i] = Math.max(1, Math.round(baseCap * ramp * growth * tail * weekday));
     }
 
+    // Downscale só é acionado se o plano teórico estourar MUITO o planned_streams
+    // (folga de 5% pra absorver weekday/growth). Isso evita squashing do boost.
     const targetTotal = Math.max(0, Math.round(a.planned_streams || 0));
     const rawTotal = daily.reduce((s, v) => s + v, 0);
-    if (targetTotal > 0 && rawTotal > targetTotal) {
+    if (targetTotal > 0 && rawTotal > targetTotal * 1.05) {
       let allocated = 0;
       for (let i = 0; i < daily.length; i++) {
         if (daily[i] <= 0) continue;

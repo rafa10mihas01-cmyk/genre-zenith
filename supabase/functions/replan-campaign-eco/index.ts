@@ -23,6 +23,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
   distributeEcoPositions,
   POSITION_PCT,
+  ecoPlanTotalMultiplier,
   selectCoverageMode,
   AFFINITY_RANGE_BY_MODE,
   chartTierFromTopPosition,
@@ -217,11 +218,12 @@ Deno.serve(async (req) => {
   let playsPerDayNeighbor = 0;
   const rows: any[] = [];
 
+  const planMultiplier = ecoPlanTotalMultiplier(days);
   const buildRow = (p: any, pos: number, source: "primary" | "affinity") => {
     const positionPct = POSITION_PCT[pos - 1] ?? 0.003;
     const followers = Number(p.followers ?? 0);
     const capDia = Math.max(1, Math.round(followers * (mult / 30) * positionPct));
-    const plannedStreams = Math.max(1, capDia * days);
+    const plannedStreams = Math.max(1, Math.round(capDia * planMultiplier));
     playsPerDayAdded += capDia;
     if (source === "primary") playsPerDayPrimary += capDia;
     else playsPerDayNeighbor += capDia;
