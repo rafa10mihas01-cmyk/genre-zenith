@@ -17,6 +17,7 @@ import { CampaignDailyPlan } from "@/components/campanhas/CampaignDailyPlan";
 import { PlaylistDailyPlanDialog } from "@/components/campanhas/PlaylistDailyPlanDialog";
 import { buildEcoPlaylistPlan, distributeEcoPositions, chartTierFromTopPosition } from "@/lib/campaignOperationalPlan";
 import { CampaignFullPlanCard, CampaignFullPlanSummary } from "@/components/campanhas/CampaignFullPlanCard";
+import { CampaignExecutionStatus } from "@/components/campanhas/CampaignExecutionStatus";
 import { TrackActionsPanel } from "@/components/campanhas/TrackActionsPanel";
 import { ArrowLeft, Loader2, Save, Upload, Rocket, CheckCircle2, RefreshCw } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -646,6 +647,8 @@ export default function CampanhaExecucao() {
               startedAt={camp.started_at}
             />
           ),
+
+          execucao: <CampaignExecutionStatus campaignId={camp.id} />,
 
 
           playlists: (() => {

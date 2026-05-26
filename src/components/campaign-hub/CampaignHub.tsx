@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LayoutDashboard, ListMusic, LineChart, Wallet, ScrollText, Network, Upload, Flag } from "lucide-react";
+import { LayoutDashboard, ListMusic, LineChart, Wallet, ScrollText, Network, Upload, Flag, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CampaignHero } from "./CampaignHero";
 import type { CampaignHubCampaign, CampaignHubMode, CampaignHubTabId } from "./types";
@@ -44,6 +44,7 @@ export function CampaignHub({
     { id: "baseline",  label: "Baseline",     icon: Flag,            content: slots.baseline  ?? null, internalOnly: true },
     { id: "upload",    label: "Importar",     icon: Upload,          content: slots.upload    ?? null },
     { id: "finance",   label: "Financeiro",   icon: Wallet,          content: slots.finance   ?? null, internalOnly: true },
+    { id: "execucao",  label: "Execução",     icon: Activity,        content: slots.execucao  ?? null, internalOnly: true },
     { id: "logs",      label: "Logs",         icon: ScrollText,      content: slots.logs      ?? null, internalOnly: true },
   ];
 
