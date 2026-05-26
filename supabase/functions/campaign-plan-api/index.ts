@@ -248,7 +248,7 @@ Deno.serve(async (req) => {
 
   const { data: allocs, error: aErr } = await supabase
     .from("campaign_eco_allocations")
-    .select("id, planned_streams, start_day, status, position, managed_playlists(name, cover_url, followers, spotify_url)")
+    .select("id, planned_streams, start_day, status, position, genre_source, managed_playlists(name, cover_url, followers, spotify_url)")
     .eq("campaign_id", (camp as any).id)
     .order("planned_streams", { ascending: false });
   if (aErr) return jr({ error: aErr.message }, 500);
@@ -259,6 +259,8 @@ Deno.serve(async (req) => {
   const startedAt = (camp as any).started_at as string;
   const modo = snapshot.modo as "simultaneo" | "sequencial";
   const ecoFloor = modo === "sequencial" ? curveThresholdDay(snapshot.curva, 0.25) : 1;
+  const topPos = Number((snapshot as any)?.music?.top200Position ?? (snapshot as any)?.music?.top200Pos ?? 0) || null;
+  const chartTier = chartTierFromTopPosition(topPos);
 
   // Preferir posições persistidas. Só recalcula dinamicamente se faltar alguma.
   const allRows = allocs ?? [];
@@ -270,8 +272,9 @@ Deno.serve(async (req) => {
           id: a.id,
           planned_streams: a.planned_streams,
           followers: Number(a.managed_playlists?.followers ?? 0),
+          genreSource: (a.genre_source as "primary" | "affinity" | null) ?? "primary",
         })),
-        days, mult,
+        days, mult, { chartTier },
       );
 
   const ordered = [...(allocs ?? [])].sort((a: any, b: any) => b.planned_streams - a.planned_streams);
