@@ -1245,7 +1245,19 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
       {/* ============== STEP 3 — REVISÃO ============== */}
       {step === 3 && (
         <div className="space-y-5">
-          <SessionChip clientName={clientName} curatorName={curatorName} onEdit={() => setStep(1)} />
+          <SessionChip
+            clientName={clientName}
+            curatorName={curatorName}
+            onEdit={() => setStep(1)}
+            songs={songResults}
+            activeIdx={activeIdx}
+            setActiveIdx={setActiveIdx}
+            addSong={addSong}
+            removeSong={removeSong}
+            songsCount={songs.length}
+            readyCount={readyCount}
+          />
+
 
           {/* KPIs agregados — só desta operação. */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
