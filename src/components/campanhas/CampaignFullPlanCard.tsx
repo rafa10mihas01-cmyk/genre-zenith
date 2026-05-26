@@ -402,15 +402,15 @@ export function CampaignFullPlanCard({
               </thead>
               <tbody>
                 {radioTotal > 0 && (
-                  <tr className="bg-primary/[0.04] hover:bg-primary/10">
-                    <td className="sticky left-0 z-10 py-0 px-3 border-b border-r border-border/30 leading-tight bg-primary/[0.04]">
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 rounded bg-primary/15 grid place-items-center flex-shrink-0">
-                          <Radio className="h-3.5 w-3.5 text-primary" />
+                  <tr className="bg-primary/[0.07] hover:bg-primary/10">
+                    <td className="sticky left-0 z-10 py-2 px-3 border-b border-r border-border/30 border-t-2 border-t-primary/40 leading-tight bg-primary/[0.07]">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-primary/15 grid place-items-center flex-shrink-0">
+                          <AudioLines className="h-5 w-5 text-primary" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="font-medium truncate">Rádio · Autoplay · Mixes</div>
-                          <div className="text-[9px] text-muted-foreground tabular-nums">
+                          <div className="text-[12px] font-semibold truncate text-foreground">Rádio · Autoplay · Mixes</div>
+                          <div className="text-[11px] text-muted-foreground tabular-nums">
                             {radioCollected ? (
                               <>
                                 <span className="text-primary font-medium uppercase tracking-wider">coletado</span>
@@ -426,10 +426,10 @@ export function CampaignFullPlanCard({
                         </div>
                       </div>
                     </td>
-                    <td className="text-center font-semibold py-0 px-2 border-b border-border/30 leading-tight tabular-nums text-primary">
+                    <td className="text-center font-semibold py-0 px-2 border-b border-border/30 border-t-2 border-t-primary/40 leading-tight tabular-nums text-primary">
                       #1
                     </td>
-                    <td className="text-right tabular-nums font-semibold py-0 px-2 border-b border-border/30 leading-tight">
+                    <td className="text-right tabular-nums font-semibold py-0 px-2 border-b border-border/30 border-t-2 border-t-primary/40 leading-tight">
                       {formatInt(radioTotal)}
                     </td>
                     {Array.from({ length: days }, (_, i) => {
@@ -444,7 +444,7 @@ export function CampaignFullPlanCard({
                         <td
                           key={i}
                           className={cn(
-                            "text-right tabular-nums py-0 px-2 border-b border-border/30 leading-tight whitespace-nowrap",
+                            "text-right tabular-nums py-0 px-2 border-b border-border/30 border-t-2 border-t-primary/40 leading-tight whitespace-nowrap",
                             isEmpty && (showZeros ? "text-muted-foreground/40" : "text-transparent select-none"),
                           )}
                           style={
