@@ -664,6 +664,7 @@ export function buildEcoPlaylistPlan(
   // 3) fallback: distribuição dinâmica via distributeEcoPositions. Só recálculo "automático" acontece
   // quando NINGUÉM passou positions e nenhuma alloc tem position salva (campanhas legadas).
   const allPersisted = allocs.length > 0 && allocs.every(a => Number.isFinite(a.position as number) && (a.position as number) >= 1);
+  const chartTier = chartTierFromSnapshot(snapshot);
   const positions = opts.positions ?? (allPersisted
     ? new Map(allocs.map(a => [a.id, a.position as number]))
     : distributeEcoPositions(
@@ -671,15 +672,13 @@ export function buildEcoPlaylistPlan(
           id: a.id,
           planned_streams: a.planned_streams,
           followers: Number(a.managed_playlists?.followers ?? 0),
+          genreSource: (a as any).genre_source ?? "primary",
         })),
         planDaysOf(snapshot),
         multiplier,
-        { preferredSlots: inferEcoPreferredPositions(snapshot, allocs.map(a => ({
-          id: a.id,
-          planned_streams: a.planned_streams,
-          followers: Number(a.managed_playlists?.followers ?? 0),
-        })), multiplier) },
+        { chartTier },
       ));
+
 
   const ordered = [...allocs].sort((a, b) => b.planned_streams - a.planned_streams);
   const storedStarts = ordered.map(a => Number(a.start_day || 1));
