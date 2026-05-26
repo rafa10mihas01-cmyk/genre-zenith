@@ -165,3 +165,43 @@ export function AlgorithmicImpactCard({
     </Card>
   );
 }
+
+function ImpactRow({
+  label,
+  labelColor,
+  value,
+  valueColor,
+  unit,
+  big,
+}: {
+  label: string;
+  labelColor: string;
+  value: string;
+  valueColor: string;
+  unit: string;
+  big?: boolean;
+}) {
+  return (
+    <div className="grid grid-cols-[1fr_auto] items-baseline gap-3 py-2.5 first:pt-0 last:pb-0">
+      <div
+        className="text-[10px] uppercase tracking-[0.12em] font-medium leading-tight"
+        style={{ color: labelColor }}
+      >
+        {label}
+      </div>
+      <div className="flex items-baseline gap-1.5 justify-end">
+        <span
+          className={
+            "tabular-nums leading-none " +
+            (big ? "text-2xl font-bold" : "text-xl font-semibold")
+          }
+          style={{ color: valueColor }}
+        >
+          {value}
+        </span>
+        <span className="text-[10px] text-muted-foreground leading-none">{unit}</span>
+      </div>
+    </div>
+  );
+}
+
