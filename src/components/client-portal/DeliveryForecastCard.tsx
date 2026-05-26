@@ -70,7 +70,7 @@ const S = (t: number) => {
   return c * c * (3 - 2 * c);
 };
 
-export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
+export function DeliveryForecastCard({ forecast, organicSummary, spotifyTrackId }: Props) {
   const {
     curve, top200Position, top200StreamsDay, baselineStreamsDay, goalPlays,
   } = forecast;
