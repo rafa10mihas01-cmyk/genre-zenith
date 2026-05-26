@@ -247,19 +247,6 @@ export function ExternalPackageEditor({
 
       {renderTabsRow?.(actionButtons)}
 
-
-      <header>
-        <h3 className="text-base font-semibold flex items-center gap-2">
-          <Users className="h-4 w-4 text-primary" /> Ecossistema externo
-        </h3>
-        <p className="text-xs text-muted-foreground mt-1.5">
-          Alvo do snapshot: <strong className="text-foreground tabular-nums">{formatInt(snapshot.streamsExt)}</strong> streams · <strong className="text-foreground">{formatBRL(snapshot.custoExt)}</strong>.
-          {isDispatched
-            ? <> Pacote já confirmado em {pkg?.confirmed_at ? new Date(pkg.confirmed_at).toLocaleString("pt-BR") : "—"}.</>
-            : <> Adicione os curadores que vão entregar e ajuste o volume de cada um.</>}
-        </p>
-      </header>
-
       <div className="border-t border-border" />
 
       <div className="space-y-4">
@@ -297,22 +284,31 @@ export function ExternalPackageEditor({
 
         {items.length > 0 && (
           <>
-            <div className="text-[11px] text-muted-foreground">
-              Distribuição calculada sobre <strong className="text-foreground">{snapshot.days} dias</strong> de campanha.
-              Use essas metas para combinar a entrega com cada curador.
+            <div className="flex items-center justify-between gap-3 flex-wrap text-[11px]">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Users className="h-3.5 w-3.5 text-primary" />
+                <span>
+                  Distribuição sobre <strong className="text-foreground">{snapshot.days} dias</strong> ·
+                  Alvo <strong className="text-foreground tabular-nums">{formatInt(snapshot.streamsExt)}</strong> streams ·
+                  <strong className="text-foreground"> {formatBRL(snapshot.custoExt)}</strong>
+                  {isDispatched && pkg?.confirmed_at && (
+                    <> · Confirmado em {new Date(pkg.confirmed_at).toLocaleString("pt-BR")}</>
+                  )}
+                </span>
+              </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs border-separate border-spacing-0">
-                <thead className="text-muted-foreground">
+            <div className="overflow-x-auto rounded-md border border-border">
+              <table className="w-full text-xs border-collapse">
+                <thead className="text-muted-foreground bg-elevated/40">
                   <tr>
-                    <th className="text-left font-medium py-2 px-3 border-b border-border">Curador</th>
-                    <th className="text-right font-medium py-2 px-3 border-b border-border w-32">Total streams</th>
-                    <th className="text-right font-medium py-2 px-3 border-b border-border w-24">Por dia</th>
-                    <th className="text-right font-medium py-2 px-3 border-b border-border w-24">Por mês</th>
-                    <th className="text-right font-medium py-2 px-3 border-b border-border w-20">R$/stream</th>
-                    <th className="text-right font-medium py-2 px-3 border-b border-border w-28">Custo total</th>
-                    <th className="text-right font-medium py-2 px-3 border-b border-border w-28">Status</th>
-                    {!isDispatched && <th className="w-10 border-b border-border" />}
+                    <th className="text-left font-medium py-2.5 px-3 border-b border-r border-border">Curador</th>
+                    <th className="text-right font-medium py-2.5 px-3 border-b border-r border-border w-32">Total streams</th>
+                    <th className="text-right font-medium py-2.5 px-3 border-b border-r border-border w-24">Por dia</th>
+                    <th className="text-right font-medium py-2.5 px-3 border-b border-r border-border w-24">Por mês</th>
+                    <th className="text-right font-medium py-2.5 px-3 border-b border-r border-border w-20">R$/stream</th>
+                    <th className="text-right font-medium py-2.5 px-3 border-b border-r border-border w-28">Custo total</th>
+                    <th className="text-right font-medium py-2.5 px-3 border-b border-border w-28">Status</th>
+                    {!isDispatched && <th className="w-10 border-b border-l border-border" />}
                   </tr>
                 </thead>
                 <tbody>
@@ -321,12 +317,12 @@ export function ExternalPackageEditor({
                     const perDay = Math.round(it.assigned_streams / days);
                     const perMonth = Math.round(perDay * 30);
                     return (
-                      <tr key={it.id} className={cn("hover:bg-elevated/60", i % 2 === 1 && "bg-elevated/30")}>
-                        <td className="py-2.5 px-3 border-b border-border/30">
+                      <tr key={it.id} className={cn("hover:bg-elevated/60 transition-colors", i % 2 === 1 && "bg-elevated/20")}>
+                        <td className="py-2.5 px-3 border-b border-r border-border/40">
                           <div className="font-medium">{it.curators?.name ?? "—"}</div>
                           {it.curators?.contact && <div className="text-[10px] text-muted-foreground">{it.curators.contact}</div>}
                         </td>
-                        <td className="py-2.5 px-3 text-right border-b border-border/30">
+                        <td className="py-2.5 px-3 text-right border-b border-r border-border/40">
                           {isDispatched ? (
                             <span className="tabular-nums font-semibold">{formatInt(it.assigned_streams)}</span>
                           ) : (
@@ -338,21 +334,21 @@ export function ExternalPackageEditor({
                             />
                           )}
                         </td>
-                        <td className="py-2.5 px-3 text-right tabular-nums border-b border-border/30">
+                        <td className="py-2.5 px-3 text-right tabular-nums border-b border-r border-border/40">
                           <span className="font-medium">{formatInt(perDay)}</span>
                           <span className="text-[10px] text-muted-foreground ml-1">/dia</span>
                         </td>
-                        <td className="py-2.5 px-3 text-right tabular-nums border-b border-border/30">
+                        <td className="py-2.5 px-3 text-right tabular-nums border-b border-r border-border/40">
                           <span className="font-medium">{formatInt(perMonth)}</span>
                           <span className="text-[10px] text-muted-foreground ml-1">/mês</span>
                         </td>
-                        <td className="py-2.5 px-3 text-right tabular-nums text-muted-foreground border-b border-border/30">
+                        <td className="py-2.5 px-3 text-right tabular-nums text-muted-foreground border-b border-r border-border/40">
                           {it.cost_per_stream.toFixed(3)}
                         </td>
-                        <td className="py-2.5 px-3 text-right tabular-nums font-semibold border-b border-border/30">
+                        <td className="py-2.5 px-3 text-right tabular-nums font-semibold border-b border-r border-border/40">
                           {formatBRL(it.assigned_cost)}
                         </td>
-                        <td className="py-2.5 px-3 text-right border-b border-border/30">
+                        <td className="py-2.5 px-3 text-right border-b border-border/40">
                           {it.curator_deal_id ? (
                             <Link to={`/deals/${it.curator_deal_id}`} className="text-primary text-[10px] underline">
                               Deal aberto
@@ -362,7 +358,7 @@ export function ExternalPackageEditor({
                           )}
                         </td>
                         {!isDispatched && (
-                          <td className="py-2.5 px-2 text-right border-b border-border/30">
+                          <td className="py-2.5 px-2 text-center border-b border-l border-border/40">
                             <button onClick={() => setRemoveTarget(it)} className="text-muted-foreground hover:text-destructive">
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -372,22 +368,22 @@ export function ExternalPackageEditor({
                     );
                   })}
                 </tbody>
-                <tfoot className="text-muted-foreground">
+                <tfoot className="text-muted-foreground bg-elevated/30">
                   <tr>
-                    <td className="py-2 px-3 text-[10px] uppercase tracking-wider">Total externo</td>
-                    <td className="py-2 px-3 text-right tabular-nums font-semibold text-foreground">{formatInt(totalStreams)}</td>
-                    <td className="py-2 px-3 text-right tabular-nums font-semibold text-foreground">
+                    <td className="py-2.5 px-3 text-[10px] uppercase tracking-wider border-r border-border">Total externo</td>
+                    <td className="py-2.5 px-3 text-right tabular-nums font-semibold text-foreground border-r border-border">{formatInt(totalStreams)}</td>
+                    <td className="py-2.5 px-3 text-right tabular-nums font-semibold text-foreground border-r border-border">
                       {formatInt(Math.round(totalStreams / Math.max(1, snapshot.days || 1)))}
                       <span className="text-[10px] text-muted-foreground ml-1">/dia</span>
                     </td>
-                    <td className="py-2 px-3 text-right tabular-nums font-semibold text-foreground">
+                    <td className="py-2.5 px-3 text-right tabular-nums font-semibold text-foreground border-r border-border">
                       {formatInt(Math.round((totalStreams / Math.max(1, snapshot.days || 1)) * 30))}
                       <span className="text-[10px] text-muted-foreground ml-1">/mês</span>
                     </td>
-                    <td className="py-2 px-3" />
-                    <td className="py-2 px-3 text-right tabular-nums font-semibold text-foreground">{formatBRL(totalCost)}</td>
-                    <td className="py-2 px-3" />
-                    {!isDispatched && <td />}
+                    <td className="py-2.5 px-3 border-r border-border" />
+                    <td className="py-2.5 px-3 text-right tabular-nums font-semibold text-foreground border-r border-border">{formatBRL(totalCost)}</td>
+                    <td className="py-2.5 px-3" />
+                    {!isDispatched && <td className="border-l border-border" />}
                   </tr>
                 </tfoot>
               </table>
