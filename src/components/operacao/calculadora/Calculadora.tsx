@@ -1070,7 +1070,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label className="text-xs">Janela da campanha</Label>
+                    <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">Janela da campanha</Label>
                     <div className="grid grid-cols-2 gap-2 mt-1.5">
                       <Popover>
                         <PopoverTrigger asChild>
