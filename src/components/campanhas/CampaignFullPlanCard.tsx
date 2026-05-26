@@ -365,10 +365,27 @@ export function CampaignFullPlanCard({
             <table className="text-[11px] border-separate border-spacing-0 min-w-full">
               <thead className="sticky top-0 z-20 bg-card text-muted-foreground">
                 <tr>
-                  <th className="sticky left-0 z-30 bg-card text-left font-medium py-2 px-3 border-b border-r border-border min-w-[180px]">
+                  <th className="sticky left-0 z-30 bg-card text-left font-medium py-2 px-3 border-b border-r border-border min-w-[200px]">
                     Playlist
                   </th>
-                  <th className="text-center font-medium py-2 px-2 border-b border-border w-12">Pos</th>
+                  <th className="text-center font-medium py-2 px-2 border-b border-border w-14">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button className="inline-flex items-center gap-1 hover:text-foreground" aria-label="O que é Pos?">
+                          Pos
+                          <HelpCircle className="h-3 w-3 opacity-60" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent side="bottom" align="center" className="w-72 text-xs leading-relaxed">
+                        <div className="font-semibold mb-1 text-foreground">Posição planejada</div>
+                        <p className="text-muted-foreground">
+                          Sorteada pelo simulador com base em força da playlist + tier do artista.
+                          É <span className="text-foreground font-medium">forçada via REORDER</span> imediatamente após o ADD —
+                          o bot adiciona no fim e move pra esta posição.
+                        </p>
+                      </PopoverContent>
+                    </Popover>
+                  </th>
                   <th className="text-right font-medium py-2 px-2 border-b border-border w-16">Total</th>
                   {Array.from({ length: days }, (_, i) => (
                     <th
