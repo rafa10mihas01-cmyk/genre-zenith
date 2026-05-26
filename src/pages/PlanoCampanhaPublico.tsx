@@ -143,48 +143,7 @@ export default function PlanoCampanhaPublico() {
   const [adjustName, setAdjustName] = useState("");
   const [adjusting, setAdjusting] = useState(false);
 
-  // Sessão OTP — JWT 24h no localStorage
-  const [accessJwt, setAccessJwt] = useState<string | null>(() => {
-    if (!token) return null;
-    try {
-      const raw = localStorage.getItem(accessStorageKey(token));
-      if (!raw) return null;
-      const parsed = JSON.parse(raw) as { jwt: string; exp: number };
-      if (!parsed?.jwt || !parsed?.exp || parsed.exp < Date.now()) {
-        localStorage.removeItem(accessStorageKey(token));
-        return null;
-      }
-      return parsed.jwt;
-    } catch { return null; }
-  });
-
-  // Admin bypass: se o usuário logado for admin, troca o JWT do Supabase
-  // por um access JWT da campanha sem precisar de OTP.
-  const [bypassChecked, setBypassChecked] = useState(false);
-  useEffect(() => {
-    if (!token || accessJwt) { setBypassChecked(true); return; }
-    let cancelled = false;
-    (async () => {
-      const { data: sessRes } = await supabase.auth.getSession();
-      const sess = sessRes?.session;
-      if (!sess?.access_token) { if (!cancelled) setBypassChecked(true); return; }
-      const { data, error } = await supabase.functions.invoke("issue-admin-campaign-access", {
-        body: { token },
-      });
-      if (cancelled) return;
-      const payload = data as { ok?: boolean; jwt?: string } | null;
-      if (!error && payload?.ok && payload.jwt) {
-        try {
-          localStorage.setItem(accessStorageKey(token), JSON.stringify({
-            jwt: payload.jwt, email: sess.user.email ?? "admin", exp: Date.now() + 86400_000,
-          }));
-        } catch { /* ignore */ }
-        setAccessJwt(payload.jwt);
-      }
-      setBypassChecked(true);
-    })();
-    return () => { cancelled = true; };
-  }, [token, accessJwt]);
+  // Portal público token-only: quem tem o link entra direto, sem OTP nem admin bypass.
 
   async function load() {
     if (!token || !accessJwt) return;
