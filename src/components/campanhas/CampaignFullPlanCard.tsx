@@ -81,7 +81,7 @@ export function CampaignFullPlanCard({
     setTimeout(() => setCopied(false), 2000);
   }
 
-  const days = snapshot.days;
+  const days = snapshot.effectiveDays ?? snapshot.days;
 
   const positionByAllocation = useMemo(
     () => {
