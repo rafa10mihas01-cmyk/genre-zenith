@@ -254,7 +254,7 @@ export default function PlanoCampanhaPublico() {
       playlist_cover: null,
       screenshot_url: p.screenshot_url,
       plays_total: Number(p.plays_total ?? 0),
-      delta_plays: p.plays_24h ?? null,
+      delta_plays: null,
       position: p.position_in_playlist ?? null,
       source: p.source ?? "bot",
     }));
@@ -267,8 +267,8 @@ export default function PlanoCampanhaPublico() {
         playlist_name: pl?.name ?? "Playlist própria",
         playlist_cover: pl?.cover_url ?? null,
         screenshot_url: null,
-        plays_total: Number(s.plays_28d ?? s.plays_7d ?? s.plays_24h ?? 0),
-        delta_plays: s.plays_24h ?? null,
+        plays_total: Number(s.plays_28d ?? s.plays_7d ?? 0),
+        delta_plays: null,
         position: null,
         source: s.source ?? "bot",
         spotify_url: pl?.spotify_url ?? null,
@@ -550,7 +550,7 @@ export default function PlanoCampanhaPublico() {
                     captured_at: p.captured_at,
                     playlist_name: p.playlist_name,
                     screenshot_url: p.screenshot_url,
-                    delta_plays: p.plays_24h ?? null,
+                    delta_plays: null,
                   })) : []}
                   onJumpTab={(t) => setTab(t)}
                 />
