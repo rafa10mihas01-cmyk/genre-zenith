@@ -11,7 +11,6 @@ export type OrganicRow = {
   spotify_playlist_id: string | null;
   playlist_name: string | null;
   kind: OrganicKind;
-  plays_24h: number | null;
   plays_7d: number | null;
   plays_28d: number | null;
   captured_at: string;
