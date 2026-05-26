@@ -23,6 +23,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { cn } from "@/lib/utils";
 import { CampaignHub } from "@/components/campaign-hub/CampaignHub";
 import { OverviewTab } from "@/components/campaign-hub/tabs/OverviewTab";
+import { CampaignKpis } from "@/components/campaign-hub/CampaignKpis";
+import { Lock } from "lucide-react";
 import { OperacaoTab, type ExternalItemRow } from "@/components/campaign-hub/tabs/OperacaoTab";
 import { PlaylistsGrid } from "@/components/campaign-hub/PlaylistsGrid";
 import { InternalEcosystemHeader } from "@/components/campaign-hub/InternalEcosystemHeader";
@@ -539,6 +541,30 @@ export default function CampanhaExecucao() {
         daysTotal={snapshot.days}
         lastUpdateAt={lastUpdateAt}
         hiddenTabs={["upload"]}
+        kpis={<CampaignKpis snapshot={snapshot} delivered={delivered} daysElapsed={daysElapsed} />}
+        progressSection={
+          <div>
+            {snapshot.meta > 0 && (
+              <div className="pb-2">
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1.5 gap-2">
+                  <span className="shrink-0">Progresso</span>
+                  <span className="tabular-nums font-medium text-foreground truncate text-right">
+                    {formatInt(delivered)}
+                    <span className="text-muted-foreground"> / {formatInt(snapshot.meta)} · {snapshot.meta > 0 ? Math.min(100, Math.round((delivered / snapshot.meta) * 100)) : 0}%</span>
+                  </span>
+                </div>
+                <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div className="h-full bg-primary transition-all" style={{ width: `${snapshot.meta > 0 ? Math.min(100, Math.round((delivered / snapshot.meta) * 100)) : 0}%` }} />
+                </div>
+              </div>
+            )}
+            {camp.snapshot_locked_at && (
+              <div className="pb-2 text-[10px] text-primary inline-flex items-center gap-1">
+                <Lock className="h-3 w-3" /> Plano congelado em {new Date(camp.snapshot_locked_at).toLocaleDateString("pt-BR")}
+              </div>
+            )}
+          </div>
+        }
         heroExtraActions={
           <>
             <CampaignAccessManager campaignId={camp.id} />
@@ -583,6 +609,7 @@ export default function CampanhaExecucao() {
                 delivered={delivered}
                 daysElapsed={daysElapsed}
                 showFinance={false}
+                hideKpis
                 allocations={allocs}
                 snapshots={snaps}
                 proofs={proofs.map(p => ({

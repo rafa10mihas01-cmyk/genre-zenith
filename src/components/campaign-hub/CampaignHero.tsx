@@ -19,6 +19,7 @@ type Props = {
   daysTotal?: number;
   lastUpdateAt?: string | null;
   extraActions?: ReactNode;
+  hideProgress?: boolean;
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -37,7 +38,7 @@ const STATUS_TONE: Record<string, string> = {
   cancelled: "bg-muted text-muted-foreground",
 };
 
-export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed = 0, daysTotal = 0, lastUpdateAt, extraActions }: Props) {
+export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed = 0, daysTotal = 0, lastUpdateAt, extraActions, hideProgress = false }: Props) {
   const pct = goal > 0 ? Math.min(100, Math.round((delivered / goal) * 100)) : 0;
   const daysLeft = Math.max(0, daysTotal - daysElapsed);
   const statusKey = camp.status ?? "draft";
@@ -182,7 +183,7 @@ export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed 
       </div>
 
       {/* Barra de progresso */}
-      {goal > 0 && (
+      {!hideProgress && goal > 0 && (
         <div className="pb-3">
           <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1.5 gap-2">
             <span className="shrink-0">Progresso</span>
@@ -197,7 +198,7 @@ export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed 
         </div>
       )}
 
-      {mode === "internal" && camp.snapshot_locked_at && (
+      {!hideProgress && mode === "internal" && camp.snapshot_locked_at && (
         <div className="pb-2 text-[10px] text-primary inline-flex items-center gap-1">
           <Lock className="h-3 w-3" /> Plano congelado em {new Date(camp.snapshot_locked_at).toLocaleDateString("pt-BR")}
         </div>

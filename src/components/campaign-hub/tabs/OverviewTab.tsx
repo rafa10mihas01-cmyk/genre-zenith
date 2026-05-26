@@ -32,6 +32,7 @@ type Props = {
   hideDeliveryPlan?: boolean;
   hideCurveShortcut?: boolean;
   hideCurveCard?: boolean;
+  hideKpis?: boolean;
   allocations?: EcoAllocation[];
   snapshots?: EcoSnap[];
   proofs?: ProofPreview[];
@@ -46,7 +47,7 @@ type Props = {
 };
 
 export function OverviewTab({
-  snapshot, delivered, daysElapsed, showFinance, hideDeliveryPlan = false, hideCurveShortcut = false, hideCurveCard = false,
+  snapshot, delivered, daysElapsed, showFinance, hideDeliveryPlan = false, hideCurveShortcut = false, hideCurveCard = false, hideKpis = false,
   allocations = [], snapshots = [], proofs = [], onJumpTab,
   splitLockedAt = null, lockedEcoStreams = null, ecoMaxPct = 70,
   canManageSplit = false, onLockSplit, onUnlockSplit,
@@ -129,6 +130,7 @@ export function OverviewTab({
   return (
     <div className="space-y-6">
       {/* KPIs — padrão Curadores: hero (Entregue) + secundários + quiet (Duração) */}
+      {!hideKpis && (
       <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <KpiBig
           tier="hero"
@@ -161,6 +163,7 @@ export function OverviewTab({
           domain="curators"
         />
       </section>
+      )}
 
 
       {/* Plano de entrega — leitura única: meta total, ritmo, split eco/ext, hoje */}

@@ -26,11 +26,13 @@ type Props = {
   slots: Partial<Record<CampaignHubTabId, ReactNode>>;
   hiddenTabs?: CampaignHubTabId[];
   heroExtraActions?: ReactNode;
+  kpis?: ReactNode;
+  progressSection?: ReactNode;
 };
 
 export function CampaignHub({
   camp, mode, delivered, goal, daysElapsed, daysTotal, lastUpdateAt,
-  tab, onTabChange, slots, hiddenTabs = [], heroExtraActions,
+  tab, onTabChange, slots, hiddenTabs = [], heroExtraActions, kpis, progressSection,
 }: Props) {
   const clientAllowedTabs: CampaignHubTabId[] = ["overview", "playlists", "proofs", "upload"];
   const tabs: TabDef[] = [
@@ -65,7 +67,14 @@ export function CampaignHub({
         daysTotal={daysTotal}
         lastUpdateAt={lastUpdateAt}
         extraActions={heroExtraActions}
+        hideProgress={!!progressSection}
       />
+
+      {kpis && (
+        <div className="pt-4 pb-2">
+          {kpis}
+        </div>
+      )}
 
 
       <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as CampaignHubTabId)}>
@@ -97,6 +106,14 @@ export function CampaignHub({
             </TabsList>
           </div>
         </div>
+
+        {progressSection && (
+          <div className="pt-3">
+            {progressSection}
+          </div>
+        )}
+
+
 
         <div className="pt-6">
           {visible.map((t) => (
