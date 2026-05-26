@@ -382,10 +382,12 @@ function distributeByChartTier(
     .sort((a, b) => b.followers - a.followers);
 
   if (chartTier === "outside") {
-    const N = Math.max(1, primary.length);
-    primary.forEach((a, i) => {
-      const pos = Math.max(1, Math.min(20, Math.round(((i + 1) / N) * 20)));
-      out.set(a.id, pos);
+    // Distribui primárias em [3-7] por followers descendente (já ordenado acima).
+    // Maior playlist recebe pos mais forte (3), menor recebe a mais fraca (7).
+    const [lo, hi] = OUTSIDE_PRIMARY_RANGE;
+    primary.forEach((a, idx) => {
+      const pct = primary.length <= 1 ? 0 : idx / (primary.length - 1);
+      out.set(a.id, lo + Math.round(pct * (hi - lo)));
     });
   } else {
     const byTier: Record<PlaylistSizeTier, typeof primary> = { large: [], medium: [], small: [] };
