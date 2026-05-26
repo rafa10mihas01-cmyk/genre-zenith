@@ -767,96 +767,20 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         <div className="space-y-5">
 
 
-          {/* Trilha horizontal de músicas (substitui sidebar) */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
-                <ListMusic className="h-3.5 w-3.5" />
-                Músicas em planejamento
-                <span className="text-foreground font-medium ml-0.5">({songs.length})</span>
-                {readyCount > 0 && (
-                  <span className="ml-1 text-primary">· {readyCount} pronta{readyCount > 1 ? "s" : ""}</span>
-                )}
-              </div>
-              <Button variant="outline" size="sm" onClick={addSong}>
-                <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar música
-              </Button>
-            </div>
+          {/* Régua única: sessão + músicas (substitui a antiga trilha horizontal) */}
+          <SessionChip
+            clientName={clientName}
+            curatorName={curatorName}
+            onEdit={() => setStep(1)}
+            songs={songResults}
+            activeIdx={activeIdx}
+            setActiveIdx={setActiveIdx}
+            addSong={addSong}
+            removeSong={removeSong}
+            songsCount={songs.length}
+            readyCount={readyCount}
+          />
 
-            <div className="flex gap-2 overflow-x-auto nx-scroll pb-1 -mx-1 px-1">
-              {songResults.map((x, idx) => {
-                const isActive = idx === activeIdx;
-                const hasTrack = !!x.song.track?.title;
-                const label = x.song.track?.title ?? "Em preparação";
-                const artist = x.song.track?.artist;
-                return (
-                  <div
-                    key={x.song.uid}
-                    className={cn(
-                      "group relative shrink-0 w-[240px] rounded-xl border bg-card transition-all",
-                      isActive
-                        ? "border-primary/60 ring-1 ring-primary/30 shadow-[0_0_0_1px_hsl(var(--primary)/0.15)]"
-                        : "border-border hover:border-border/80 hover:bg-muted/20",
-                    )}
-                  >
-                    <button
-                      onClick={() => setActiveIdx(idx)}
-                      className="w-full text-left p-2.5 pr-8 flex items-center gap-2.5"
-                    >
-                      {x.song.track?.thumbnail_url ? (
-                        <img src={x.song.track.thumbnail_url} alt="" className="h-10 w-10 rounded-md object-cover shrink-0" />
-                      ) : (
-                        <div className={cn(
-                          "h-10 w-10 rounded-md grid place-items-center shrink-0 border border-dashed",
-                          isActive ? "bg-primary/5 border-primary/30" : "bg-muted/40 border-border/60",
-                        )}>
-                          <Music className={cn("h-4 w-4", isActive ? "text-primary/70" : "text-muted-foreground/60")} />
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          <span className="text-[10px] font-semibold text-muted-foreground tabular-nums">#{idx + 1}</span>
-                          <span className={cn(
-                            "h-1.5 w-1.5 rounded-full shrink-0",
-                            x.ready ? "bg-primary" : "bg-muted-foreground/30",
-                          )} />
-                          <span className="text-[10px] uppercase tracking-wider text-muted-foreground truncate">
-                            {x.ready ? `${formatInt(x.r.meta)} · ${x.r.days}d` : "aguardando"}
-                          </span>
-                        </div>
-                        <div className={cn(
-                          "text-sm font-medium truncate",
-                          isActive ? "text-foreground" : hasTrack ? "text-muted-foreground" : "text-muted-foreground/70 italic",
-                        )}>
-                          {label}
-                        </div>
-                        {artist && (
-                          <div className="text-[11px] text-muted-foreground truncate">{artist}</div>
-                        )}
-                      </div>
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); removeSong(idx); }}
-                      className="absolute right-1.5 top-1.5 h-6 w-6 inline-flex items-center justify-center text-muted-foreground hover:text-foreground rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                      aria-label="Remover música"
-                      title={songs.length === 1 ? "Limpar esta música" : "Remover música"}
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                );
-              })}
-
-              {/* Card "adicionar" inline pra preencher o espaço quando há poucas músicas */}
-              <button
-                onClick={addSong}
-                className="shrink-0 w-[180px] rounded-xl border border-dashed border-border/60 hover:border-primary/40 hover:bg-muted/20 transition-colors flex items-center justify-center gap-2 text-xs text-muted-foreground hover:text-foreground"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Nova música
-              </button>
-            </div>
-          </div>
 
           {/* Formulário vertical único — Música → Meta → Estratégia */}
           <div className="space-y-5">
