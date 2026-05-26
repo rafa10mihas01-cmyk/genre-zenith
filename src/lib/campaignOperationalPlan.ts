@@ -59,8 +59,35 @@ export type DailyCampaignPlan = {
 
 /** Atraso médio de contabilização do Spotify (em dias). */
 export const REPORTING_DELAY_DAYS = 2;
-/** Ramp de entrada de playlist eco nos primeiros dias. */
-export const ECO_RAMP = [0.2, 0.4, 0.6, 0.8, 1.0];
+/** Ramp de entrada de playlist eco nos primeiros dias — agora curto (3 dias). */
+export const ECO_RAMP = [0.6, 0.85, 1.0];
+
+/**
+ * Boost algorítmico após a rampa: a faixa fica fixa na posição e o Spotify
+ * começa a recomendar mais quando engaja. Padrão compounding +5% / -3%
+ * (alternado) aplicado por dia, com teto pra não estourar.
+ */
+export const ECO_GROWTH_CAP = 1.25;
+export function ecoGrowthFactor(daysSinceSteady: number): number {
+  if (daysSinceSteady < 0) return 1;
+  let f = 1;
+  for (let i = 0; i <= daysSinceSteady; i++) {
+    f *= i % 2 === 0 ? 1.05 : 0.97;
+    if (f >= ECO_GROWTH_CAP) return ECO_GROWTH_CAP;
+  }
+  return f;
+}
+/** Soma teórica do multiplicador de plano (rampa + growth, sem weekday/tail). */
+export function ecoPlanTotalMultiplier(days: number): number {
+  let total = 0;
+  for (let i = 0; i < days; i++) {
+    const ramp = i < ECO_RAMP.length ? ECO_RAMP[i] : 1;
+    const growthIdx = i - ECO_RAMP.length;
+    const growth = growthIdx >= 0 ? ecoGrowthFactor(growthIdx) : 1;
+    total += ramp * growth;
+  }
+  return total;
+}
 
 /**
  * VERDADE ÚNICA do sistema — curva de tráfego por posição na playlist.
