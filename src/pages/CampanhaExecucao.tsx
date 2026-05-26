@@ -15,7 +15,7 @@ import { ExternalPackageEditor } from "@/components/campanhas/ExternalPackageEdi
 import { CampaignMonitoring } from "@/components/campanhas/CampaignMonitoring";
 import { CampaignDailyPlan } from "@/components/campanhas/CampaignDailyPlan";
 import { PlaylistDailyPlanDialog } from "@/components/campanhas/PlaylistDailyPlanDialog";
-import { buildEcoPlaylistPlan, distributeEcoPositions } from "@/lib/campaignOperationalPlan";
+import { buildEcoPlaylistPlan, distributeEcoPositions, chartTierFromTopPosition } from "@/lib/campaignOperationalPlan";
 import { CampaignFullPlanCard } from "@/components/campanhas/CampaignFullPlanCard";
 import { TrackActionsPanel } from "@/components/campanhas/TrackActionsPanel";
 import { ArrowLeft, Loader2, Save, Upload, Rocket, CheckCircle2, RefreshCw } from "lucide-react";

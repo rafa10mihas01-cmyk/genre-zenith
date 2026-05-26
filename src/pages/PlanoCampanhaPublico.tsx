@@ -41,7 +41,7 @@ import { OverviewTab } from "@/components/campaign-hub/tabs/OverviewTab";
 import { PlaylistsGrid } from "@/components/campaign-hub/PlaylistsGrid";
 import { ProofsTimeline, type ProofEvent } from "@/components/campaign-hub/ProofsTimeline";
 import { CampaignDailyPlan } from "@/components/campanhas/CampaignDailyPlan";
-import { distributeEcoPositions } from "@/lib/campaignOperationalPlan";
+import { distributeEcoPositions, chartTierFromTopPosition } from "@/lib/campaignOperationalPlan";
 import { ClientHeroCard } from "@/components/campaign-hub/ClientHeroCard";
 import { SpreadsheetUploadCard } from "@/components/client-portal/SpreadsheetUploadCard";
 import { MonitoredPlaylistsCard, type MonitoredPlaylist } from "@/components/client-portal/MonitoredPlaylistsCard";
@@ -226,14 +226,17 @@ export default function PlanoCampanhaPublico() {
     if (!snapshot) return new Map<string, number>();
     const allPersisted = allocs.length > 0 && allocs.every(a => Number.isFinite((a as any).position) && (a as any).position >= 1);
     if (allPersisted) return new Map(allocs.map(a => [a.id, (a as any).position as number]));
+    const top = (snapshot as any)?.music?.top200Position ?? (snapshot as any)?.music?.top200Pos ?? null;
     return distributeEcoPositions(
       allocs.map(a => ({
         id: a.id,
         planned_streams: a.planned_streams,
         followers: a.managed_playlists?.followers ?? 0,
+        genreSource: ((a as any).genre_source as "primary" | "affinity" | null) ?? "primary",
       })),
       snapshot.days,
       camp?.engagement_multiplier ?? 30,
+      { chartTier: chartTierFromTopPosition(top) },
     );
   }, [snapshot, allocs, camp?.engagement_multiplier]);
 
