@@ -1070,7 +1070,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label className="text-xs">Janela da campanha</Label>
+                    <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">Janela da campanha</Label>
                     <div className="grid grid-cols-2 gap-2 mt-1.5">
                       <Popover>
                         <PopoverTrigger asChild>
@@ -1127,12 +1127,12 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                   </div>
 
                   <div>
-                    <Label className="text-xs">Duração: {active.days} dias</Label>
+                    <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">Duração <span className="text-muted-foreground/60 normal-case tracking-normal">· {active.days} dias</span></Label>
                     <Slider value={[active.days]} onValueChange={([v]) => setDays(v)} min={15} max={180} step={5} className="mt-2" />
                   </div>
 
                   <div>
-                    <Label className="text-xs">Modo</Label>
+                    <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">Modo</Label>
                     <div className="grid grid-cols-2 gap-2 mt-1.5">
                       <ModeBtn active={active.modo === "simultaneo"} onClick={() => setModo("simultaneo")} label="Simultâneo" hint="largura ampla" tooltip="Todas as playlists do plano recebem a faixa no mesmo dia. Cobertura maior e curva mais larga — bom pra lançamentos que querem volume rápido." />
                       <ModeBtn active={active.modo === "sequencial"} onClick={() => setModo("sequencial")} label="Sequencial" hint="pico marcado" tooltip="Playlists entram em ondas ao longo dos dias. Gera pico mais marcado e ajuda a sustentar engajamento — bom pra faixa que precisa de momentum." />
@@ -1140,7 +1140,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                   </div>
 
                   <div>
-                    <Label className="text-xs">Perfil de audiência</Label>
+                    <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">Perfil de audiência</Label>
                     <div className="grid grid-cols-3 gap-2 mt-1.5">
                       <ModeBtn active={active.perfil === "frio"} onClick={() => setPerfil("frio")} label="Frio" tooltip="Faixa nova, sem tração. Prioriza ecossistema próprio pra garantir entrega controlada e construir histórico. Curva mais lenta e estável." />
                       <ModeBtn active={active.perfil === "mercado"} onClick={() => setPerfil("mercado")} label="Mercado" tooltip="Lançamento em ritmo normal. Split equilibrado (~60% eco / 40% externo) — mistura playlists internas com curadores externos sem perder previsibilidade." />
@@ -1149,7 +1149,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                   </div>
 
                   <div>
-                    <Label className="text-xs">Capacidade das playlists</Label>
+                    <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">Capacidade das playlists</Label>
                     <div className="flex flex-wrap items-center gap-2 mt-1.5">
                       {ENGAGEMENT_PRESETS.map(p => (
                         <button
@@ -1181,7 +1181,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                   </div>
 
                   <div>
-                    <Label className="text-xs">Split ecossistema: {active.splitEco}% próprio · {100 - active.splitEco}% externo</Label>
+                    <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">Split ecossistema <span className="text-muted-foreground/60 normal-case tracking-normal">· {active.splitEco}% próprio · {100 - active.splitEco}% externo</span></Label>
                     <Slider value={[active.splitEco]} onValueChange={([v]) => setSplitEco(v)} min={0} max={100} step={5} className="mt-2" />
                     <div className="text-[11px] text-muted-foreground mt-1.5 flex justify-between">
                       <span>Próprio R$ {(pricingCosts.eco * 1000).toFixed(0)}/mil</span>
