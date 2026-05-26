@@ -200,10 +200,10 @@ export function SpreadsheetUploadCard({
   return (
     <Card className="border-border/60 bg-card">
       <CardContent className="p-5 space-y-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <FileSpreadsheet className="h-4 w-4 text-primary" />
+              <FileSpreadsheet className="h-4 w-4 text-primary shrink-0" />
               <h3 className="text-sm font-semibold text-foreground">
                 Atualizar dados da campanha
               </h3>
@@ -213,13 +213,13 @@ export function SpreadsheetUploadCard({
               O sistema reconhece as colunas, cruza com playlists e curadores conhecidos e atualiza o painel.
             </p>
           </div>
-          <div className="text-right shrink-0">
-            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+          <div className="flex items-center justify-between sm:flex-col sm:items-end sm:text-right shrink-0 rounded-md border border-border/50 sm:border-0 bg-muted/30 sm:bg-transparent px-3 py-2 sm:p-0">
+            <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
               Última atualização
             </div>
             <div
               className={cn(
-                "text-sm font-medium mt-0.5",
+                "text-sm font-medium sm:mt-0.5 tabular-nums",
                 never
                   ? "text-muted-foreground"
                   : stale
@@ -237,6 +237,7 @@ export function SpreadsheetUploadCard({
             </div>
           </div>
         </div>
+
 
         {stale && (
           <div className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[12px] text-amber-600 dark:text-amber-400 flex items-start gap-2">
