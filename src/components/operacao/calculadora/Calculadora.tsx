@@ -109,6 +109,8 @@ function emptySong(): Song {
     modo: "simultaneo",
     perfil: "mercado",
     splitEco: DEFAULT_SPLIT.eco,
+    splitOrganic: 15,
+    clientProfile: "artista",
     engagementMultiplier: 30,
     startDateISO: startOfDay(new Date()).toISOString().slice(0, 10),
     clientPriceTotal: 0,
