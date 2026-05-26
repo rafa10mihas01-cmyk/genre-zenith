@@ -44,6 +44,7 @@ export function CampaignHub({
     { id: "baseline",  label: "Baseline",     icon: Flag,            content: slots.baseline  ?? null, internalOnly: true },
     { id: "upload",    label: "Importar",     icon: Upload,          content: slots.upload    ?? null },
     { id: "finance",   label: "Financeiro",   icon: Wallet,          content: slots.finance   ?? null, internalOnly: true },
+    { id: "execucao",  label: "Execução",     icon: Activity,        content: slots.execucao  ?? null, internalOnly: true },
     { id: "logs",      label: "Logs",         icon: ScrollText,      content: slots.logs      ?? null, internalOnly: true },
   ];
 
