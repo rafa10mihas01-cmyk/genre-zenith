@@ -692,23 +692,12 @@ export default function CampanhaExecucao() {
             );
           })(),
           curve: (
-            <Tabs defaultValue="completo" className="space-y-4">
-              <TabsList className="hidden">
-                <TabsTrigger value="diario">Diário</TabsTrigger>
-                <TabsTrigger value="completo">Plano completo</TabsTrigger>
+            <Tabs defaultValue="mapa" className="space-y-4">
+              <TabsList>
+                <TabsTrigger value="mapa">Mapa</TabsTrigger>
+                <TabsTrigger value="distribuicao">Distribuição</TabsTrigger>
               </TabsList>
-              <TabsContent value="diario" className="mt-0 space-y-4">
-                <CampaignDailyPlan
-                  campaignId={camp.id}
-                  snapshot={snapshot}
-                  startedAt={camp.started_at}
-                  ecoAllocations={allocs as unknown as Parameters<typeof CampaignDailyPlan>[0]["ecoAllocations"]}
-                  refreshKey={planRefreshKey}
-                  engagementMultiplier={camp.engagement_multiplier ?? 30}
-                  onEngagementChange={(v) => setCamp((c) => c ? ({ ...c, engagement_multiplier: v }) : c)}
-                />
-              </TabsContent>
-              <TabsContent value="completo" className="mt-0 space-y-4">
+              <TabsContent value="mapa" className="mt-0 space-y-4">
                 <CampaignFullPlanSummary
                   snapshot={snapshot}
                   startedAt={camp.started_at}
@@ -732,6 +721,8 @@ export default function CampanhaExecucao() {
                     spotifyUrl: camp.spotify_track_url ?? null,
                   }}
                 />
+              </TabsContent>
+              <TabsContent value="distribuicao" className="mt-0 space-y-4">
                 <Card className={cn(
                   "border-2",
                   camp.eco_dispatched_at ? "border-primary/30 bg-primary/[0.03]" : "border-primary/40",
@@ -770,8 +761,6 @@ export default function CampanhaExecucao() {
                   targetPositionsByAllocId={ecoPositionByAllocation}
                 />
               </TabsContent>
-
-
             </Tabs>
           ),
 
