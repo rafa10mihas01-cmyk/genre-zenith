@@ -21,6 +21,16 @@ import { Loader2, Trash2, Users, AlertTriangle, CheckCircle2, Plus, Search, BarC
 import { KpiBig } from "@/components/KpiBig";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 
 type PackageRow = {
@@ -59,6 +69,7 @@ export function ExternalPackageEditor({
 
   const [candidates, setCandidates] = useState<CuratorCandidate[]>([]);
   const [addOpen, setAddOpen] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState<ItemRow | null>(null);
 
   async function load() {
     setLoading(true);
@@ -153,6 +164,7 @@ export function ExternalPackageEditor({
   const underCovered = coverage < 95;
 
   return (
+    <>
     <Card>
       <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
         <div>
@@ -339,7 +351,7 @@ export function ExternalPackageEditor({
                         </td>
                         <td className="py-2.5 px-3 text-right border-b border-border/30">
                           {it.curator_deal_id ? (
-                            <Link to={`/playlist-deals/${it.curator_deal_id}`} className="text-primary text-[10px] underline">
+                            <Link to={`/deals/${it.curator_deal_id}`} className="text-primary text-[10px] underline">
                               Deal aberto
                             </Link>
                           ) : (
@@ -348,7 +360,7 @@ export function ExternalPackageEditor({
                         </td>
                         {!isDispatched && (
                           <td className="py-2.5 px-2 text-right border-b border-border/30">
-                            <button onClick={() => handleRemove(it)} className="text-muted-foreground hover:text-destructive">
+                            <button onClick={() => setRemoveTarget(it)} className="text-muted-foreground hover:text-destructive">
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
                           </td>
@@ -381,6 +393,30 @@ export function ExternalPackageEditor({
         )}
       </CardContent>
     </Card>
+    <AlertDialog open={!!removeTarget} onOpenChange={(open) => !open && setRemoveTarget(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Remover {removeTarget?.curators?.name ?? "curador"} do pacote?</AlertDialogTitle>
+          <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              if (removeTarget) {
+                const target = removeTarget;
+                setRemoveTarget(null);
+                handleRemove(target);
+              }
+            }}
+          >
+            Remover
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
+
 

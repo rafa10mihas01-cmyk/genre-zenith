@@ -29,7 +29,7 @@ import { CampaignKpis } from "@/components/campaign-hub/CampaignKpis";
 import { Lock } from "lucide-react";
 import { OperacaoTab, type ExternalItemRow } from "@/components/campaign-hub/tabs/OperacaoTab";
 import { PlaylistsGrid } from "@/components/campaign-hub/PlaylistsGrid";
-import { InternalEcosystemHeader } from "@/components/campaign-hub/InternalEcosystemHeader";
+
 import { GenresUsedFromAllocs } from "@/components/campanhas/GenresUsedFromAllocs";
 import { CampaignAccessManager } from "@/components/campanhas/CampaignAccessManager";
 import { ProofsTimeline, type ProofEvent } from "@/components/campaign-hub/ProofsTimeline";
@@ -635,11 +635,6 @@ export default function CampanhaExecucao() {
             <Tabs defaultValue="interno" className="space-y-4">
               <TabsContent value="interno" className="mt-0 space-y-4">
                 <GenresUsedFromAllocs allocs={allocs} />
-                <InternalEcosystemHeader
-                  snapshot={snapshot}
-                  allocations={allocs}
-                  snaps={snaps}
-                />
                 {tabsRow}
                 <PlaylistsGrid
                   allocations={allocs}
