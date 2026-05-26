@@ -203,6 +203,49 @@ export function CampaignFullPlanCard({
     return () => { cancelled = true; supabase.removeChannel(ch); };
   }, [campaignId]);
 
+  // ---- Entrega real por playlist (campaign_eco_snapshots) ----
+  // Pega snapshot mais recente por managed_playlist_id desta campanha e usa
+  // plays_28d como proxy de plays entregues.
+  const mplIdByAllocation = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const a of allocations) {
+      const mpl = (a as any).managed_playlist_id as string | null | undefined;
+      if (mpl) m.set(a.id, mpl);
+    }
+    return m;
+  }, [allocations]);
+
+  const [deliveredByMpl, setDeliveredByMpl] = useState<Map<string, number>>(new Map());
+  useEffect(() => {
+    if (!campaignId) return;
+    let cancelled = false;
+    const load = async () => {
+      const { data } = await supabase
+        .from("campaign_eco_snapshots")
+        .select("managed_playlist_id, plays_28d, plays_7d, plays_24h, captured_at")
+        .eq("campaign_id", campaignId)
+        .order("captured_at", { ascending: false });
+      if (cancelled) return;
+      const latest = new Map<string, number>();
+      for (const s of (data ?? []) as Array<{ managed_playlist_id: string; plays_28d: number | null; plays_7d: number | null; plays_24h: number | null }>) {
+        if (latest.has(s.managed_playlist_id)) continue;
+        const v = s.plays_28d ?? s.plays_7d ?? s.plays_24h ?? 0;
+        latest.set(s.managed_playlist_id, Math.max(0, Math.round(Number(v) || 0)));
+      }
+      setDeliveredByMpl(latest);
+    };
+    load();
+    const ch = supabase
+      .channel(`cfpc-eco-snaps-${campaignId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "campaign_eco_snapshots", filter: `campaign_id=eq.${campaignId}` },
+        () => load(),
+      )
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(ch); };
+  }, [campaignId]);
+
   // Linha "Rádio · Autoplay · Mixes" — só renderiza quando o consumidor
   // (somente página interna) passar `radioGoal` explicitamente. Distribuída
   // na curva da campanha (snapshot.curva.streamsDay). Soma exata = radioTotal.
