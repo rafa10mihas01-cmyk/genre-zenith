@@ -248,6 +248,10 @@ export function ExternalPackageEditor({
           />
         </section>
 
+        {tabsRow}
+
+
+
 
         {noCapacity && !isDispatched && (
           <div className="flex items-start gap-2 rounded-md border border-dashed border-border p-4">
