@@ -388,9 +388,9 @@ export function CampaignFullPlanCard({
               <tbody>
                 {radioTotal > 0 && (
                   <tr className="bg-primary/[0.04] hover:bg-primary/10">
-                    <td className="sticky left-0 z-10 py-1.5 px-3 border-b border-r border-border/30 bg-primary/[0.04]">
+                    <td className="sticky left-0 z-10 py-0.5 px-3 border-b border-r border-border/30 bg-primary/[0.04]">
                       <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded bg-primary/15 grid place-items-center flex-shrink-0">
+                        <div className="w-5 h-5 rounded bg-primary/15 grid place-items-center flex-shrink-0">
                           <Radio className="h-3.5 w-3.5 text-primary" />
                         </div>
                         <div className="min-w-0 flex-1">
@@ -411,10 +411,10 @@ export function CampaignFullPlanCard({
                         </div>
                       </div>
                     </td>
-                    <td className="text-center font-semibold py-1.5 px-2 border-b border-border/30 tabular-nums text-primary">
+                    <td className="text-center font-semibold py-0.5 px-2 border-b border-border/30 tabular-nums text-primary">
                       #1
                     </td>
-                    <td className="text-right tabular-nums font-semibold py-1.5 px-2 border-b border-border/30">
+                    <td className="text-right tabular-nums font-semibold py-0.5 px-2 border-b border-border/30">
                       {formatInt(radioTotal)}
                     </td>
                     {Array.from({ length: days }, (_, i) => {
@@ -429,7 +429,7 @@ export function CampaignFullPlanCard({
                         <td
                           key={i}
                           className={cn(
-                            "text-right tabular-nums py-1.5 px-2 border-b border-border/30 whitespace-nowrap",
+                            "text-right tabular-nums py-0.5 px-2 border-b border-border/30 whitespace-nowrap",
                             isEmpty && (showZeros ? "text-muted-foreground/40" : "text-transparent select-none"),
                           )}
                           style={
@@ -459,15 +459,15 @@ export function CampaignFullPlanCard({
                     <tr key={p.allocationId} className={cn("hover:bg-primary/5", rowIdx % 2 === 1 && "bg-elevated/20")}>
                       <td
                         className={cn(
-                          "sticky left-0 z-10 py-1.5 px-3 border-b border-r border-border/30",
+                          "sticky left-0 z-10 py-0.5 px-3 border-b border-r border-border/30",
                           rowIdx % 2 === 1 ? "bg-elevated/40" : "bg-card",
                         )}
                       >
                         <div className="flex items-center gap-2">
                           {p.coverUrl ? (
-                            <img src={p.coverUrl} alt="" className="w-6 h-6 rounded object-cover flex-shrink-0" />
+                            <img src={p.coverUrl} alt="" className="w-5 h-5 rounded object-cover flex-shrink-0" />
                           ) : (
-                            <div className="w-6 h-6 rounded bg-muted flex-shrink-0" />
+                            <div className="w-5 h-5 rounded bg-muted flex-shrink-0" />
                           )}
                           <div className="min-w-0 flex-1">
                             <div className="font-medium truncate flex items-center gap-1">
@@ -494,14 +494,14 @@ export function CampaignFullPlanCard({
                       </td>
                       <td
                         className={cn(
-                          "text-center font-semibold py-1.5 px-2 border-b border-border/30 tabular-nums",
+                          "text-center font-semibold py-0.5 px-2 border-b border-border/30 tabular-nums",
                           posClass,
                         )}
                         title={pos != null ? `Posição #${pos} na playlist` : undefined}
                       >
                         {pos != null ? `#${pos}` : "—"}
                       </td>
-                      <td className="text-right tabular-nums font-semibold py-1.5 px-2 border-b border-border/30">
+                      <td className="text-right tabular-nums font-semibold py-0.5 px-2 border-b border-border/30">
                         {formatInt(p.totalStreams)}
                       </td>
                       {Array.from({ length: days }, (_, i) => {
@@ -514,7 +514,7 @@ export function CampaignFullPlanCard({
                           <td
                             key={i}
                             className={cn(
-                              "text-right tabular-nums py-1.5 px-2 border-b border-border/30 whitespace-nowrap",
+                              "text-right tabular-nums py-0.5 px-2 border-b border-border/30 whitespace-nowrap",
                               isEmpty && (showZeros ? "text-muted-foreground/40" : "text-transparent select-none"),
                               isStart && "ring-1 ring-inset ring-primary/40",
                             )}
