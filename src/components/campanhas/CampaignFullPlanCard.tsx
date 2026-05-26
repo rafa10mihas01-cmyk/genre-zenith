@@ -614,6 +614,29 @@ export function CampaignFullPlanCard({
   );
 }
 
+function PlaylistJobBadge({ agg }: { agg?: { done: number; pending: number; failed: number } }) {
+  if (!agg || (agg.done + agg.pending + agg.failed) === 0) return null;
+  if (agg.failed > 0) {
+    return (
+      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border bg-rose-500/15 text-rose-400 border-rose-500/30 flex-shrink-0">
+        Falhou
+      </span>
+    );
+  }
+  if (agg.pending > 0) {
+    return (
+      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border bg-amber-500/15 text-amber-400 border-amber-500/30 flex-shrink-0">
+        Pendente
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border bg-primary/15 text-primary border-primary/30 flex-shrink-0">
+      Adicionada
+    </span>
+  );
+}
+
 function ResumoStat({
   label, value, hint, tone,
 }: { label: string; value: string; hint?: string; tone?: "primary" | "warning" }) {
