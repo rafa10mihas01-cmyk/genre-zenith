@@ -59,46 +59,68 @@ export function AlgorithmicImpactCard({
           </span>
         </div>
 
-        {/* Mobile: linhas empilhadas / Desktop: grid 3 colunas */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 sm:items-end">
-          <div className="flex sm:block items-baseline justify-between gap-3">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground sm:mb-1">
+        {/* Mobile: 3 linhas idênticas (label esq · número dir alinhado tabular)
+            Desktop: grid 3 colunas */}
+        <div className="hidden sm:grid sm:grid-cols-3 gap-3 sm:items-end">
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
               Garantido
             </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-base sm:text-lg font-semibold tabular-nums text-foreground leading-none">
-                {fmtInt(garantido)}
-              </span>
-              <span className="text-[10px] text-muted-foreground sm:hidden">streams</span>
+            <div className="text-lg font-semibold tabular-nums text-foreground leading-none">
+              {fmtInt(garantido)}
             </div>
-            <div className="hidden sm:block text-[10px] text-muted-foreground mt-1">streams</div>
+            <div className="text-[10px] text-muted-foreground mt-1">streams</div>
           </div>
-          <div className="flex sm:block items-baseline justify-between gap-3">
-            <div className="text-[10px] uppercase tracking-wider sm:mb-1" style={{ color: ORG }}>
+          <div>
+            <div className="text-[10px] uppercase tracking-wider mb-1" style={{ color: ORG }}>
               + Orgânico estimado
             </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-base sm:text-lg font-semibold tabular-nums leading-none" style={{ color: ORG }}>
-                +{fmtInt(expansao)}
-              </span>
+            <div className="text-lg font-semibold tabular-nums leading-none" style={{ color: ORG }}>
+              +{fmtInt(expansao)}
             </div>
-            <div className="hidden sm:block text-[10px] text-muted-foreground mt-1">
+            <div className="text-[10px] text-muted-foreground mt-1">
               Radio · Autoplay · Mixes
             </div>
           </div>
-          <div className="flex sm:block items-baseline justify-between gap-3 sm:text-right pt-2 sm:pt-0 border-t sm:border-0 border-border">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground sm:mb-1">
+          <div className="text-right">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
               Potencial total
             </div>
-            <div className="flex items-baseline gap-1 sm:justify-end">
-              <span className="text-lg sm:text-xl font-bold tabular-nums text-primary leading-none">
-                {fmtInt(potencialTotal)}
-              </span>
-              <span className="text-[10px] text-muted-foreground sm:hidden">streams</span>
+            <div className="text-xl font-bold tabular-nums text-primary leading-none">
+              {fmtInt(potencialTotal)}
             </div>
-            <div className="hidden sm:block text-[10px] text-muted-foreground mt-1">streams</div>
+            <div className="text-[10px] text-muted-foreground mt-1">streams</div>
           </div>
         </div>
+
+        {/* Mobile: 3 linhas alinhadas em grid de 2 colunas (label | número+unit) */}
+        <div className="sm:hidden divide-y divide-border/60 -mt-1">
+          <ImpactRow
+            label="Garantido"
+            labelColor="hsl(var(--muted-foreground))"
+            value={fmtInt(garantido)}
+            valueColor="hsl(var(--foreground))"
+            unit="streams"
+            big={false}
+          />
+          <ImpactRow
+            label="+ Orgânico estimado"
+            labelColor={ORG}
+            value={`+${fmtInt(expansao)}`}
+            valueColor={ORG}
+            unit="streams"
+            big={false}
+          />
+          <ImpactRow
+            label="Potencial total"
+            labelColor="hsl(var(--muted-foreground))"
+            value={fmtInt(potencialTotal)}
+            valueColor="hsl(var(--primary))"
+            unit="streams"
+            big
+          />
+        </div>
+
 
         {/* Barra compacta */}
         <div className="space-y-1.5">
@@ -143,3 +165,43 @@ export function AlgorithmicImpactCard({
     </Card>
   );
 }
+
+function ImpactRow({
+  label,
+  labelColor,
+  value,
+  valueColor,
+  unit,
+  big,
+}: {
+  label: string;
+  labelColor: string;
+  value: string;
+  valueColor: string;
+  unit: string;
+  big?: boolean;
+}) {
+  return (
+    <div className="grid grid-cols-[1fr_auto] items-baseline gap-3 py-2.5 first:pt-0 last:pb-0">
+      <div
+        className="text-[10px] uppercase tracking-[0.12em] font-medium leading-tight"
+        style={{ color: labelColor }}
+      >
+        {label}
+      </div>
+      <div className="flex items-baseline gap-1.5 justify-end">
+        <span
+          className={
+            "tabular-nums leading-none " +
+            (big ? "text-2xl font-bold" : "text-xl font-semibold")
+          }
+          style={{ color: valueColor }}
+        >
+          {value}
+        </span>
+        <span className="text-[10px] text-muted-foreground leading-none">{unit}</span>
+      </div>
+    </div>
+  );
+}
+
