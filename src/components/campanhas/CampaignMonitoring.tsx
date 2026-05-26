@@ -182,6 +182,9 @@ export function CampaignMonitoring({ campaignId, snapshot, campaignStartedAt, ca
           </div>
         )}
 
+        {/* Entrega por fonte (curadores externos) — sobe pra cima do gráfico */}
+        <CampaignCuratorDeals campaignId={campaignId} />
+
         {/* Gráfico planejado x real */}
         <div className="rounded-lg border border-border bg-elevated/30 p-3">
           <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-2">
@@ -197,9 +200,6 @@ export function CampaignMonitoring({ campaignId, snapshot, campaignStartedAt, ca
           </div>
           <CurvaReal curva={freshCurva} elapsedDays={metrics.elapsedDays} delivered={metrics.delivered} />
         </div>
-        {/* Acompanhamento dos curadores externos vinculados ao pacote */}
-        <CampaignCuratorDeals campaignId={campaignId} />
-
 
         {isCompleted && (
           <div className="flex items-start gap-2 rounded-md bg-primary/10 border border-primary/30 p-3">
