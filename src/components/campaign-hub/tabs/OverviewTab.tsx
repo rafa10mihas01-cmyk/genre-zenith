@@ -3,10 +3,10 @@ import { Button } from "@/components/ui/button";
 import { formatInt, formatBRL } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { cn } from "@/lib/utils";
-import { Music, Camera, TrendingUp, TrendingDown, Minus, ArrowRight, ExternalLink, ChevronDown } from "lucide-react";
+import { Music, Camera, TrendingUp, TrendingDown, Minus, ArrowRight, ExternalLink, ChevronDown, Target, Activity, Gauge, CalendarDays } from "lucide-react";
 import { useState } from "react";
 import type { EcoAllocation } from "../types";
-import { Kpi as UnifiedKpi } from "@/components/ui/kpi";
+import { KpiBig } from "@/components/KpiBig";
 
 type EcoSnap = {
   managed_playlist_id: string;
