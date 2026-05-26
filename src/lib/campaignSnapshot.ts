@@ -140,11 +140,12 @@ export function planEcoAllocations(
   if (selected.length === 0) return [];
 
   // 2) Sorteia POSIÇÕES reais pra cada playlist selecionada (mesmo engine da UI).
-  // Usa fake planned_streams = streamsEco/N como proxy pro maxViablePosition —
-  // refinaremos abaixo. Sem preferredSlots aqui (default da distribuição padrão).
-  const proxyPerPl = Math.max(1, Math.round(streamsEco / selected.length));
+  // planned_streams=0 desativa o clamp do maxViablePosition: deixa o bucket por
+  // tier (large→[1,2], medium→[6,10], small→[11,20]) decidir sem interferência
+  // de uma "demanda proxy" que distorceria o sorteio. A capacidade real entra
+  // no passo (3) abaixo via POSITION_PCT na posição já sorteada.
   const positions = distributeEcoPositions(
-    selected.map(c => ({ id: c.id, planned_streams: proxyPerPl, followers: c.followers })),
+    selected.map(c => ({ id: c.id, planned_streams: 0, followers: c.followers })),
     days,
     Math.max(1, Math.round(engagementMultiplier)),
   );
