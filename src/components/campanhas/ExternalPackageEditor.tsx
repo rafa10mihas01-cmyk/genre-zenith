@@ -359,7 +359,7 @@ export function ExternalPackageEditor({
                         </td>
                         {!isDispatched && (
                           <td className="py-2.5 px-2 text-right border-b border-border/30">
-                            <button onClick={() => handleRemove(it)} className="text-muted-foreground hover:text-destructive">
+                            <button onClick={() => setRemoveTarget(it)} className="text-muted-foreground hover:text-destructive">
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
                           </td>
