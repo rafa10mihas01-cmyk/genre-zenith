@@ -470,38 +470,51 @@ export function CampaignFullPlanCard({
                       ? "text-foreground"
                       : "text-muted-foreground";
                   const spotifyUrl = spotifyByAllocation.get(p.allocationId);
+                  const spid = spotifyIdByAllocation.get(p.allocationId);
+                  const jobAgg = spid ? jobStatusBySpid.get(spid) : undefined;
+                  const initial = (p.playlistName ?? "?").trim().charAt(0).toUpperCase() || "?";
                   return (
                     <tr key={p.allocationId} className={cn("hover:bg-primary/5", rowIdx % 2 === 1 && "bg-elevated/20")}>
                       <td
                         className={cn(
-                          "sticky left-0 z-10 py-0 px-3 border-b border-r border-border/30 leading-tight",
+                          "sticky left-0 z-10 py-2 px-3 border-b border-r border-border/30 leading-tight",
                           rowIdx % 2 === 1 ? "bg-elevated/40" : "bg-card",
                         )}
                       >
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3">
                           {p.coverUrl ? (
-                            <img src={p.coverUrl} alt="" className="w-4 h-4 rounded object-cover flex-shrink-0" />
+                            <img
+                              src={p.coverUrl}
+                              alt=""
+                              loading="lazy"
+                              className="w-10 h-10 rounded-lg object-cover flex-shrink-0 border border-border/40"
+                            />
                           ) : (
-                            <div className="w-4 h-4 rounded bg-muted flex-shrink-0" />
+                            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 border border-border/40 text-xs font-semibold text-muted-foreground">
+                              {initial}
+                            </div>
                           )}
                           <div className="min-w-0 flex-1">
-                            <div className="font-medium truncate flex items-center gap-1">
-                              {spotifyUrl ? (
-                                <a
-                                  href={spotifyUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="hover:text-primary inline-flex items-center gap-1 truncate"
-                                  title="Abrir playlist no Spotify"
-                                >
-                                  {p.playlistName}
-                                  <ExternalLink className="h-2.5 w-2.5 flex-shrink-0 opacity-60" />
-                                </a>
-                              ) : (
-                                p.playlistName
-                              )}
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <div className="text-[12px] font-medium truncate text-foreground">
+                                {spotifyUrl ? (
+                                  <a
+                                    href={spotifyUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="hover:text-primary inline-flex items-center gap-1 truncate"
+                                    title="Abrir playlist no Spotify"
+                                  >
+                                    <span className="truncate">{p.playlistName}</span>
+                                    <ExternalLink className="h-3 w-3 flex-shrink-0 opacity-60" />
+                                  </a>
+                                ) : (
+                                  p.playlistName
+                                )}
+                              </div>
+                              <PlaylistJobBadge agg={jobAgg} />
                             </div>
-                            <div className="text-[9px] text-muted-foreground tabular-nums">
+                            <div className="text-[11px] text-muted-foreground tabular-nums truncate">
                               {formatInt(p.followers)} saves · cap {formatInt(p.capDia)}/dia
                             </div>
                           </div>
