@@ -471,26 +471,23 @@ export type Database = {
         Row: {
           accessed_at: string
           campaign_id: string
-          email: string | null
+          email: string
           id: string
           ip: string | null
-          user_agent: string | null
         }
         Insert: {
           accessed_at?: string
           campaign_id: string
-          email?: string | null
+          email: string
           id?: string
           ip?: string | null
-          user_agent?: string | null
         }
         Update: {
           accessed_at?: string
           campaign_id?: string
-          email?: string | null
+          email?: string
           id?: string
           ip?: string | null
-          user_agent?: string | null
         }
         Relationships: [
           {
@@ -978,8 +975,6 @@ export type Database = {
           spotify_track_url: string | null
           started_at: string
           status: string
-          token_expires_at: string | null
-          token_revoked_at: string | null
           total_allocated: number
           total_delivered: number
           track_name: string
@@ -1024,8 +1019,6 @@ export type Database = {
           spotify_track_url?: string | null
           started_at?: string
           status?: string
-          token_expires_at?: string | null
-          token_revoked_at?: string | null
           total_allocated?: number
           total_delivered?: number
           track_name: string
@@ -1070,8 +1063,6 @@ export type Database = {
           spotify_track_url?: string | null
           started_at?: string
           status?: string
-          token_expires_at?: string | null
-          token_revoked_at?: string | null
           total_allocated?: number
           total_delivered?: number
           track_name?: string

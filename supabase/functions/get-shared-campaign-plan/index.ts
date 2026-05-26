@@ -4,6 +4,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkRateLimit, clientIp, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { buildEcoPlan } from "../_shared/computeEcoPlan.ts";
+import { verifyAccessJwt } from "../_shared/campaign-access-jwt.ts";
 
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -47,42 +48,36 @@ Deno.serve(async (req) => {
     return jr({ error: "invalid_token" }, 400);
   }
 
+  // Gate de autenticação OTP — exige Bearer JWT emitido por verify-campaign-otp,
+  // ligado a este mesmo token público.
+  const authHeader = req.headers.get("authorization") || req.headers.get("Authorization") || "";
+  const bearer = authHeader.toLowerCase().startsWith("bearer ") ? authHeader.slice(7).trim() : "";
+  if (!bearer) return jr({ error: "auth_required" }, 401);
+  const payload = await verifyAccessJwt(bearer);
+  if (!payload || payload.token !== token) return jr({ error: "auth_required" }, 401);
+
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
-  // Modelo token-only (mesmo padrão do /curador/:token): quem tem o link entra.
-  // Revogação e expiração ficam em campaigns.token_revoked_at / token_expires_at.
+  // Lê só o estritamente necessário pro portal do cliente.
   const { data: campRaw, error: cErr } = await supabase
     .from("campaigns")
-    .select("id, deal_id, track_name, artist, cover_url, spotify_track_url, goal_plays, status, started_at, deadline, simulation_snapshot, total_delivered, client_approved_at, client_rejected_at, client_adjustment_request, collection_mode, engagement_multiplier, token_revoked_at, token_expires_at")
+    .select("id, deal_id, track_name, artist, cover_url, spotify_track_url, goal_plays, status, started_at, deadline, simulation_snapshot, total_delivered, client_approved_at, client_rejected_at, client_adjustment_request, collection_mode, engagement_multiplier")
     .eq("public_plan_token", token)
     .maybeSingle();
 
   if (cErr) return jr({ error: cErr.message }, 500);
   if (!campRaw) return jr({ error: "not_found" }, 404);
 
-  // Revogação / expiração do link público.
-  const revokedAt = (campRaw as { token_revoked_at?: string | null }).token_revoked_at ?? null;
-  const expiresAt = (campRaw as { token_expires_at?: string | null }).token_expires_at ?? null;
-  if (revokedAt) return jr({ error: "token_revoked" }, 404);
-  if (expiresAt && new Date(expiresAt).getTime() < Date.now()) {
-    return jr({ error: "token_expired" }, 404);
-  }
+  // Defesa em profundidade: JWT precisa ser pra esta campanha
+  if (payload.campaign_id !== campRaw.id) return jr({ error: "auth_required" }, 401);
 
   // Link expira automaticamente quando a campanha é encerrada.
+  // Hoje só `status='completed'` indica encerramento (não existe coluna closed_at em campaigns).
+  // Se um dia for adicionada, o gate já a contempla.
   const closedAt = (campRaw as { closed_at?: string | null }).closed_at ?? null;
   if (campRaw.status === "completed" || closedAt) {
     return jr({ error: "campaign_closed", message: "Campanha encerrada" }, 404);
   }
-
-  // Log de acesso: IP + user-agent (sem e-mail — agora é token-only).
-  try {
-    const ua = (req.headers.get("user-agent") ?? "").slice(0, 500);
-    await supabase.from("campaign_access_logs").insert({
-      campaign_id: campRaw.id,
-      ip,
-      user_agent: ua || null,
-    });
-  } catch (_) { /* logging não bloqueia resposta */ }
 
   // Payload sanitizado — sem custos, sem margens, sem campos internos.
   const camp = {
