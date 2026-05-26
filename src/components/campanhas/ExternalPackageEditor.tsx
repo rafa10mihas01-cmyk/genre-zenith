@@ -378,17 +378,3 @@ export function ExternalPackageEditor({
   );
 }
 
-function KPI({ label, value, delta, unit, isCurrency }: { label: string; value: string; delta?: number; unit?: string; isCurrency?: boolean }) {
-  const showDelta = delta != null && Math.abs(delta) > (isCurrency ? 0.5 : 1);
-  return (
-    <div className="rounded-lg border border-border bg-elevated/30 p-2.5">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="text-base font-semibold tabular-nums mt-0.5">{value}</div>
-      {showDelta && (
-        <div className={cn("text-[10px] tabular-nums mt-0.5", delta! > 0 ? "text-warning" : "text-primary")}>
-          {delta! > 0 ? "+" : ""}{isCurrency ? formatBRL(delta!) : formatInt(delta!)}{unit} vs snapshot
-        </div>
-      )}
-    </div>
-  );
-}
