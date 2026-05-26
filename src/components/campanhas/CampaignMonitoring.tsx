@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { formatInt, formatBRL, recomputeCurva } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { toast } from "@/hooks/use-toast";
+import { CampaignCuratorDeals } from "./CampaignCuratorDeals";
 
 type Props = {
   campaignId: string;
@@ -196,6 +197,9 @@ export function CampaignMonitoring({ campaignId, snapshot, campaignStartedAt, ca
           </div>
           <CurvaReal curva={freshCurva} elapsedDays={metrics.elapsedDays} delivered={metrics.delivered} />
         </div>
+        {/* Acompanhamento dos curadores externos vinculados ao pacote */}
+        <CampaignCuratorDeals campaignId={campaignId} />
+
 
         {isCompleted && (
           <div className="flex items-start gap-2 rounded-md bg-primary/10 border border-primary/30 p-3">
