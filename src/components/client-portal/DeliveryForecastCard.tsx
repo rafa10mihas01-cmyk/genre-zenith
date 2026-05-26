@@ -11,12 +11,14 @@
 //  Ponto verde: primeiro dia em que a curva 1 atinge top200StreamsDay.
 import { useMemo, useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Sparkles } from "lucide-react";
+import { Sparkles, TrendingUp } from "lucide-react";
 import {
   CartesianGrid, ComposedChart, Line, ReferenceDot, ReferenceLine,
   ResponsiveContainer, Tooltip as ReTooltip, XAxis, YAxis,
 } from "recharts";
 import { recomputeCurva } from "@/lib/campaignEngine";
+import { useChartProjection } from "@/hooks/useChartProjection";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 function useNarrow(breakpoint = 640) {
   const [narrow, setNarrow] = useState(false);
@@ -48,7 +50,7 @@ export type OrganicSummary = {
   by_kind?: Record<string, number>;
 };
 
-type Props = { forecast: ForecastPayload; organicSummary?: OrganicSummary | null };
+type Props = { forecast: ForecastPayload; organicSummary?: OrganicSummary | null; spotifyTrackId?: string | null };
 
 
 function formatPlays(n: number): string {
@@ -68,7 +70,7 @@ const S = (t: number) => {
   return c * c * (3 - 2 * c);
 };
 
-export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
+export function DeliveryForecastCard({ forecast, organicSummary, spotifyTrackId }: Props) {
   const {
     curve, top200Position, top200StreamsDay, baselineStreamsDay, goalPlays,
   } = forecast;
@@ -162,7 +164,8 @@ export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
     const deliveryTotal = delivery.reduce((s, v) => s + v, 0);
     return { points, markDay, markValue, baseline, target, peakValue, deliveryTotal };
   }, [curve, top200StreamsDay, baselineStreamsDay, showOrganic, organicTotal, goalPlays, forecast.totalDays]);
-
+  // Projeção de posição no chart (puramente ilustrativa, não afeta a curva).
+  const projection = useChartProjection(spotifyTrackId ?? null, data?.peakValue ?? null);
 
   if (!data) return null;
 
@@ -188,17 +191,46 @@ export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
   return (
     <Card>
       <CardContent className="space-y-3">
-        <div>
-          <h2 className="text-[13px] font-semibold inline-flex items-center gap-1.5 tracking-tight">
-            <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
-            Previsão de entrega
-          </h2>
-          <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
-            Plays/dia da música e combustível diário da campanha
-          </p>
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="min-w-0">
+            <h2 className="text-[13px] font-semibold inline-flex items-center gap-1.5 tracking-tight">
+              <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
+              Previsão de entrega
+            </h2>
+            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+              Plays/dia da música e combustível diário da campanha
+            </p>
+          </div>
+          {projection.peakBand != null && (
+            <TooltipProvider delayDuration={120}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[10.5px] font-semibold uppercase tracking-[0.06em] text-primary cursor-help shrink-0"
+                  >
+                    <TrendingUp className="h-3 w-3" />
+                    {projection.currentPosition != null
+                      ? <>Hoje #{projection.currentPosition} <span className="opacity-60">→</span> Pico ~Top {projection.peakBand}</>
+                      : <>Pico estimado ~Top {projection.peakBand}</>}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-[280px]">
+                  <p className="text-[11px] leading-relaxed">
+                    {projection.currentPosition != null && (
+                      <>A música está em <strong>#{projection.currentPosition}</strong> no Top 200 BR hoje. </>
+                    )}
+                    No pico projetado da campanha, o ritmo diário equivale à posição <strong>#{projection.peakExact}</strong> do chart de hoje — faixa <strong>Top {projection.peakBand}</strong>.
+                    <br />
+                    <span className="text-muted-foreground">Estimativa ilustrativa baseada no Top 200 BR (kworb).</span>
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </div>
 
         <div className="h-[220px] sm:h-[240px] w-full -mx-2">
+
 
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
