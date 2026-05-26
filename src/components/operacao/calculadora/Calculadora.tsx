@@ -500,9 +500,19 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
             song.track?.position ?? null,
           )
         : [];
-      const allocations = [...coreAllocs, ...neighborAllocs];
+      const rawAllocations = [...coreAllocs, ...neighborAllocs];
+      // Dropa allocations cuja (playlist, posição) já está reservada em
+      // campanha ativa ou rascunho recente (< 48h). Evita conflito de slot.
+      const allocations = rawAllocations.filter(a =>
+        !reservedKeys.has(`${a.managed_playlist_id}:${a.position}`)
+      );
+      const droppedCount = rawAllocations.length - allocations.length;
+      if (droppedCount > 0) {
+        console.info(`[Calculadora] Dropped ${droppedCount} allocations já reservadas em campanhas ativas/rascunhos recentes`);
+      }
 
       const startD = startOfDay(new Date(song.startDateISO));
+
       const deadlineISO = addDays(startD, r.days).toISOString().slice(0, 10);
 
       const { campaignId } = await closeCampaignFromCalculator({
