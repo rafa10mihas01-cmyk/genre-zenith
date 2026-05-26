@@ -360,7 +360,6 @@ export function buildEcoPlan(args: {
       daily[i] = Math.max(1, Math.round(baseCap * ramp * growth * tail * weekday));
     }
     const total = daily.reduce((s, v) => s + v, 0);
-    const total = daily.reduce((s, v) => s + v, 0);
 
     return {
       allocation_id: a.id,
