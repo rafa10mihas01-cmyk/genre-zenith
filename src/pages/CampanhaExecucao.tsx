@@ -709,6 +709,12 @@ export default function CampanhaExecucao() {
                 />
               </TabsContent>
               <TabsContent value="completo" className="mt-0 space-y-4">
+                <CampaignFullPlanSummary
+                  snapshot={snapshot}
+                  startedAt={camp.started_at}
+                  allocations={allocs as unknown as Parameters<typeof CampaignFullPlanSummary>[0]["allocations"]}
+                  engagementMultiplier={camp.engagement_multiplier ?? 30}
+                />
                 <CampaignFullPlanCard
                   snapshot={snapshot}
                   startedAt={camp.started_at}
