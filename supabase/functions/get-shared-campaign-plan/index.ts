@@ -48,13 +48,8 @@ Deno.serve(async (req) => {
     return jr({ error: "invalid_token" }, 400);
   }
 
-  // Gate de autenticação OTP — exige Bearer JWT emitido por verify-campaign-otp,
-  // ligado a este mesmo token público.
-  const authHeader = req.headers.get("authorization") || req.headers.get("Authorization") || "";
-  const bearer = authHeader.toLowerCase().startsWith("bearer ") ? authHeader.slice(7).trim() : "";
-  if (!bearer) return jr({ error: "auth_required" }, 401);
-  const payload = await verifyAccessJwt(bearer);
-  if (!payload || payload.token !== token) return jr({ error: "auth_required" }, 401);
+  // Acesso público token-only: quem tem o link entra direto.
+  // Token é unguessable (>=16 chars, base64url) e revogável via rotação em campaigns.public_plan_token.
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
