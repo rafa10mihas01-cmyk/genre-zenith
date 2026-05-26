@@ -64,7 +64,17 @@ export function CampaignAccessGate({ token, onAuthed }: Props) {
       body: { token, email: email.trim().toLowerCase(), code: code.trim() },
     });
     setLoading(false);
-    const e = (data as any)?.error ?? error?.message;
+    let e: string | undefined = (data as any)?.error;
+    if (!e && error) {
+      try {
+        const ctx: any = (error as any).context;
+        if (ctx && typeof ctx.json === "function") {
+          const body = await ctx.json();
+          e = body?.error;
+        }
+      } catch { /* ignore */ }
+      if (!e) e = error.message;
+    }
     if (e) {
       if (e === "invalid_or_expired") toast.error("Código inválido ou expirado.");
       else if (e === "too_many_attempts") toast.error("Muitas tentativas. Tente novamente em 1 hora.");
