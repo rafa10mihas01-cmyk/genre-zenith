@@ -136,10 +136,11 @@ Deno.serve(async (req) => {
         }
       };
 
-      // processa em chunks paralelos pra caber no timeout do edge function
+      // processa em lotes de 10 com 2s de pausa entre lotes (rate-limit Spotify)
       for (let i = 0; i < pls.length; i += CONCURRENCY) {
         const chunk = pls.slice(i, i + CONCURRENCY);
         await Promise.all(chunk.map(processOne));
+        if (i + CONCURRENCY < pls.length) await sleep(BATCH_DELAY_MS);
       }
     }
 
