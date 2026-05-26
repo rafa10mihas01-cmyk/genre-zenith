@@ -30,6 +30,14 @@ export interface CampaignSnapshot {
   modo: "simultaneo" | "sequencial";
   perfil: "frio" | "mercado" | "engajado";
   splitEcoPct: number;
+  /** % de meta tratada como orgânico (sem custo). Opcional p/ retrocompat — ausente = 0. */
+  splitOrganicPct?: number;
+  /** Streams orgânicos esperados. Opcional p/ retrocompat. */
+  streamsOrganic?: number;
+  /** Meta operacional (que eco+ext cobrem). Opcional — ausente = meta (perfil 'artista' c/ orgânico 0). */
+  metaOperacional?: number;
+  /** Perfil do cliente. Opcional — ausente = 'artista'. */
+  clientProfile?: "gravadora" | "artista";
   streamsEco: number;
   streamsExt: number;
   custoEco: number;
@@ -62,6 +70,10 @@ export function buildSnapshot(
     modo: result.modo,
     perfil: result.perfil,
     splitEcoPct: result.splitEcoPct,
+    splitOrganicPct: result.splitOrganicPct,
+    streamsOrganic: result.streamsOrganic,
+    metaOperacional: result.metaOperacional,
+    clientProfile: result.clientProfile,
     streamsEco: result.streamsEco,
     streamsExt: result.streamsExt,
     custoEco: result.custoEco,

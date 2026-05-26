@@ -33,12 +33,22 @@ export const INERCIA_BY_PERFIL: Record<Perfil, number> = {
   engajado: 1.18,
 };
 
+export type ClientProfile = "gravadora" | "artista";
+
 export interface CampaignInput {
   meta: number;              // streams totais
   days: number;              // duração em dias
   modo: Modo;
   perfil: Perfil;
   splitEcoPct: number;       // 0-100, ex 60
+  /** % da meta reservada como entrega orgânica (sem custo). 0-50. Default 0. */
+  splitOrganicPct?: number;
+  /**
+   * 'artista'   → meta inclui orgânico (eco+ext cobrem só metaOperacional = meta − orgânico).
+   * 'gravadora' → meta é só pago (eco+ext cobrem a meta inteira; orgânico é bônus em cima).
+   * Default: 'artista'.
+   */
+  clientProfile?: ClientProfile;
 }
 
 export interface CurvaPonto {
@@ -57,23 +67,28 @@ export interface CampaignResult {
   modo: Modo;
   perfil: Perfil;
   splitEcoPct: number;
+  splitOrganicPct: number;
+  clientProfile: ClientProfile;
 
   // Distribuição
+  /** Meta que eco+externo precisam cobrir (depende do clientProfile). */
+  metaOperacional: number;
   streamsEco: number;
   streamsExt: number;
+  streamsOrganic: number;
 
   // Custos
   custoEco: number;          // R$
   custoExt: number;          // R$
   custoTotal: number;        // R$
-  custoPorStream: number;    // R$ médio
+  custoPorStream: number;    // R$ médio (sobre metaOperacional)
 
   // Operação
   picoPorDia: number;        // pico de streams/dia
   mediaPorDia: number;
   inercia: number;
 
-  // Curva (length = effectiveDays)
+  // Curva (length = effectiveDays) — só eco+ext, refletindo metaOperacional
   curva: CurvaPonto[];
 }
 
@@ -187,24 +202,33 @@ export function calcCampaign(input: CampaignInput, costs: CostPerStream = COST_P
   const days = Math.max(1, Math.round(input.days));
   const effectiveDays = toEffectiveDays(days);
   const splitEcoPct = Math.min(100, Math.max(0, input.splitEcoPct));
+  const splitOrganicPct = Math.min(50, Math.max(0, input.splitOrganicPct ?? 0));
+  const clientProfile: ClientProfile = input.clientProfile ?? "artista";
   const inercia = INERCIA_BY_PERFIL[input.perfil];
 
-  const streamsEco = Math.round((meta * splitEcoPct) / 100);
-  const streamsExt = meta - streamsEco;
+  // 'artista': orgânico faz PARTE da meta (eco+ext cobrem só metaOperacional).
+  // 'gravadora': orgânico é BÔNUS em cima (eco+ext cobrem a meta inteira).
+  const streamsOrganic = Math.round((meta * splitOrganicPct) / 100);
+  const metaOperacional = clientProfile === "gravadora"
+    ? meta
+    : Math.max(0, meta - streamsOrganic);
+
+  const streamsEco = Math.round((metaOperacional * splitEcoPct) / 100);
+  const streamsExt = metaOperacional - streamsEco;
 
   const custoEco = streamsEco * costs.eco;
   const custoExt = streamsExt * costs.ext;
   const custoTotal = custoEco + custoExt;
-  const custoPorStream = meta > 0 ? custoTotal / meta : 0;
+  const custoPorStream = metaOperacional > 0 ? custoTotal / metaOperacional : 0;
 
-  const curva = buildCurve(meta, effectiveDays, input.modo, inercia, splitEcoPct);
+  const curva = buildCurve(metaOperacional, effectiveDays, input.modo, inercia, splitEcoPct);
   const picoPorDia = curva.reduce((m, p) => Math.max(m, p.streamsDay), 0);
-  // Média diária reflete a duração REAL do plano (motor opera em effectiveDays).
-  const mediaPorDia = effectiveDays > 0 ? meta / effectiveDays : 0;
+  const mediaPorDia = effectiveDays > 0 ? metaOperacional / effectiveDays : 0;
 
   return {
     meta, days, effectiveDays, modo: input.modo, perfil: input.perfil, splitEcoPct,
-    streamsEco, streamsExt,
+    splitOrganicPct, clientProfile,
+    metaOperacional, streamsEco, streamsExt, streamsOrganic,
     custoEco, custoExt, custoTotal, custoPorStream,
     picoPorDia, mediaPorDia, inercia, curva,
   };

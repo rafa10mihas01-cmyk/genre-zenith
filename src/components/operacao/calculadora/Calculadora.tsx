@@ -62,6 +62,8 @@ type Song = {
   modo: Modo;
   perfil: Perfil;
   splitEco: number;
+  splitOrganic: number;
+  clientProfile: "gravadora" | "artista";
   engagementMultiplier: number;
   startDateISO: string; // yyyy-mm-dd
   clientPriceTotal: number; // R$ que o cliente paga (manual) — 0 = usa tabela
@@ -107,6 +109,8 @@ function emptySong(): Song {
     modo: "simultaneo",
     perfil: "mercado",
     splitEco: DEFAULT_SPLIT.eco,
+    splitOrganic: 15,
+    clientProfile: "artista",
     engagementMultiplier: 30,
     startDateISO: startOfDay(new Date()).toISOString().slice(0, 10),
     clientPriceTotal: 0,
@@ -189,6 +193,8 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   const setModo = (v: Modo) => patchActive({ modo: v });
   const setPerfil = (v: Perfil) => patchActive({ perfil: v });
   const setSplitEco = (v: number) => patchActive({ splitEco: v });
+  const setSplitOrganic = (v: number) => patchActive({ splitOrganic: Math.max(0, Math.min(50, v)) });
+  const setClientProfile = (v: "gravadora" | "artista") => patchActive({ clientProfile: v });
   const setEngagementMultiplier = (v: number) => patchActive({ engagementMultiplier: Math.max(1, Math.min(200, Math.round(v || 1))) });
   const setStartDate = (d: Date) => patchActive({ startDateISO: startOfDay(d).toISOString().slice(0, 10) });
   const setClientPriceTotal = (v: number) => patchActive({ clientPriceTotal: v });
@@ -229,7 +235,8 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
 
   const result = useMemo(() => calcCampaign({
     meta: effectiveMeta, days: active.days, modo: active.modo, perfil: active.perfil, splitEcoPct: active.splitEco,
-  }, pricingCosts), [effectiveMeta, active.days, active.modo, active.perfil, active.splitEco, pricingCosts]);
+    splitOrganicPct: active.splitOrganic, clientProfile: active.clientProfile,
+  }, pricingCosts), [effectiveMeta, active.days, active.modo, active.perfil, active.splitEco, active.splitOrganic, active.clientProfile, pricingCosts]);
 
 
   const preferredSlots = useMemo(() => {
@@ -269,6 +276,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
     r: calcCampaign({
       meta: songEffectiveMeta(s),
       days: s.days, modo: s.modo, perfil: s.perfil, splitEcoPct: s.splitEco,
+      splitOrganicPct: s.splitOrganic, clientProfile: s.clientProfile,
     }, pricingCosts),
   })), [songs, pricingCosts]);
 
@@ -349,7 +357,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
       const playlists = (playlistsRaw ?? []).filter(p => (p.followers ?? 0) >= 100);
 
       const effMeta = songEffectiveMeta(song);
-      const r = calcCampaign({ meta: effMeta, days: song.days, modo: song.modo, perfil: song.perfil, splitEcoPct: song.splitEco }, pricingCosts);
+      const r = calcCampaign({ meta: effMeta, days: song.days, modo: song.modo, perfil: song.perfil, splitEcoPct: song.splitEco, splitOrganicPct: song.splitOrganic, clientProfile: song.clientProfile }, pricingCosts);
 
       const snapshot = buildSnapshot(
         r,
@@ -1182,6 +1190,38 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                   </div>
 
                   <div>
+                    <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">Perfil do cliente</Label>
+                    <div className="grid grid-cols-2 gap-2 mt-1.5">
+                      <ModeBtn
+                        active={active.clientProfile === "artista"}
+                        onClick={() => setClientProfile("artista")}
+                        label="Artista / Empresário"
+                        tooltip="Meta contratada inclui o orgânico estimado. Eco+externo cobrem só a meta operacional (meta − orgânico). Custo cai proporcionalmente."
+                      />
+                      <ModeBtn
+                        active={active.clientProfile === "gravadora"}
+                        onClick={() => setClientProfile("gravadora")}
+                        label="Gravadora"
+                        tooltip="Meta contratada é só pago. Eco+externo cobrem a meta inteira; orgânico vem como bônus em cima. Custo calculado sobre a meta cheia."
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">
+                      Orgânico estimado <span className="text-muted-foreground/60 normal-case tracking-normal">· {active.splitOrganic}%</span>
+                    </Label>
+                    <Slider value={[active.splitOrganic]} onValueChange={([v]) => setSplitOrganic(v)} min={0} max={50} step={5} className="mt-2" />
+                    <p className="text-[11px] text-muted-foreground mt-1.5">
+                      {active.clientProfile === "artista"
+                        ? `Reservamos ${active.splitOrganic}% da meta como entrega orgânica esperada. Eco+externo cobrem ${100 - active.splitOrganic}%.`
+                        : `Estimativa de bônus orgânico ${active.splitOrganic}% em cima da meta paga (não reduz custo).`}
+                    </p>
+                  </div>
+
+
+
+                  <div>
                     <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">Split ecossistema <span className="text-muted-foreground/60 normal-case tracking-normal">· {active.splitEco}% próprio · {100 - active.splitEco}% externo</span></Label>
                     <Slider value={[active.splitEco]} onValueChange={([v]) => setSplitEco(v)} min={0} max={100} step={5} className="mt-2" />
                     <div className="text-[11px] text-muted-foreground mt-1.5 flex justify-between">
@@ -1229,6 +1269,14 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                           Aguenta <strong>{formatInt(ecoCap.capacityTotal)}</strong> streams
                           ({formatInt(ecoCap.capacityPerDay)}/dia · ×{active.engagementMultiplier ?? 30} · {ecoCap.playlistCount} playlists) ·
                           {" "}precisa entregar <strong>{formatInt(ecoNeeded)}</strong> pelo eco
+                        </div>
+                        <div className="text-[11px] text-foreground/80 tabular-nums pt-1 border-t border-border/30 mt-1">
+                          Meta operacional: <strong>{formatInt(result.metaOperacional)}</strong>
+                          {result.streamsOrganic > 0 && (
+                            <> · Orgânico estimado: <strong>{formatInt(result.streamsOrganic)}</strong> ({active.splitOrganic}%)
+                              {active.clientProfile === "gravadora" && <span className="text-muted-foreground/70"> · bônus em cima da meta</span>}
+                            </>
+                          )}
                         </div>
                         <div className="text-[10px] text-muted-foreground tabular-nums">
                           Conta: {formatInt(ecoCap.savesTotal)} saves × {active.engagementMultiplier ?? 30} ÷ 30 × % da posição {ecoCap.slotPositions.map(p => `#${p}`).join("/")} × {active.days} dias
