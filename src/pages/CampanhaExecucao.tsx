@@ -16,7 +16,7 @@ import { CampaignMonitoring } from "@/components/campanhas/CampaignMonitoring";
 import { CampaignDailyPlan } from "@/components/campanhas/CampaignDailyPlan";
 import { PlaylistDailyPlanDialog } from "@/components/campanhas/PlaylistDailyPlanDialog";
 import { buildEcoPlaylistPlan, distributeEcoPositions, chartTierFromTopPosition } from "@/lib/campaignOperationalPlan";
-import { CampaignFullPlanCard } from "@/components/campanhas/CampaignFullPlanCard";
+import { CampaignFullPlanCard, CampaignFullPlanSummary } from "@/components/campanhas/CampaignFullPlanCard";
 import { TrackActionsPanel } from "@/components/campanhas/TrackActionsPanel";
 import { ArrowLeft, Loader2, Save, Upload, Rocket, CheckCircle2, RefreshCw } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -709,6 +709,12 @@ export default function CampanhaExecucao() {
                 />
               </TabsContent>
               <TabsContent value="completo" className="mt-0 space-y-4">
+                <CampaignFullPlanSummary
+                  snapshot={snapshot}
+                  startedAt={camp.started_at}
+                  allocations={allocs as unknown as Parameters<typeof CampaignFullPlanSummary>[0]["allocations"]}
+                  engagementMultiplier={camp.engagement_multiplier ?? 30}
+                />
                 <CampaignFullPlanCard
                   snapshot={snapshot}
                   startedAt={camp.started_at}
