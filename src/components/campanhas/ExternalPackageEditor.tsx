@@ -245,6 +245,9 @@ export function ExternalPackageEditor({
         />
       </section>
 
+      {renderTabsRow?.(actionButtons)}
+
+
       <header>
         <h3 className="text-base font-semibold flex items-center gap-2">
           <Users className="h-4 w-4 text-primary" /> Ecossistema externo
