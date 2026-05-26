@@ -977,9 +977,8 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                   <div className="grid grid-cols-2 gap-2">
                     <FonteBtn active={active.fonte === "manual"} onClick={() => setFonte("manual")} icon={TargetIcon} label="Manual" />
                     <FonteBtn active={active.fonte === "top200"} onClick={() => setFonte("top200")} icon={Table2} label="Top 200" />
-                    <FonteBtn active={active.fonte === "concorrente"} onClick={() => setFonte("concorrente")} icon={Users} label="Concorrente" />
-                    <FonteBtn active={active.fonte === "orcamento"} onClick={() => setFonte("orcamento")} icon={Wallet} label="Orçamento" />
                   </div>
+
 
                   {active.fonte === "manual" && (
                     <div>
@@ -1133,22 +1132,8 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     <Slider value={[active.days]} onValueChange={([v]) => setDays(v)} min={15} max={180} step={5} className="mt-2" />
                   </div>
 
-                  <div>
-                    <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">Modo</Label>
-                    <div className="grid grid-cols-2 gap-2 mt-1.5">
-                      <ModeBtn active={active.modo === "simultaneo"} onClick={() => setModo("simultaneo")} label="Simultâneo" hint="largura ampla" tooltip="Todas as playlists do plano recebem a faixa no mesmo dia. Cobertura maior e curva mais larga — bom pra lançamentos que querem volume rápido." />
-                      <ModeBtn active={active.modo === "sequencial"} onClick={() => setModo("sequencial")} label="Sequencial" hint="pico marcado" tooltip="Playlists entram em ondas ao longo dos dias. Gera pico mais marcado e ajuda a sustentar engajamento — bom pra faixa que precisa de momentum." />
-                    </div>
-                  </div>
+                  {/* Modo (sempre simultâneo) e Perfil (sempre mercado) — fixados como default no automático */}
 
-                  <div>
-                    <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">Perfil de audiência</Label>
-                    <div className="grid grid-cols-3 gap-2 mt-1.5">
-                      <ModeBtn active={active.perfil === "frio"} onClick={() => setPerfil("frio")} label="Frio" tooltip="Faixa nova, sem tração. Prioriza ecossistema próprio pra garantir entrega controlada e construir histórico. Curva mais lenta e estável." />
-                      <ModeBtn active={active.perfil === "mercado"} onClick={() => setPerfil("mercado")} label="Mercado" tooltip="Lançamento em ritmo normal. Split equilibrado (~60% eco / 40% externo) — mistura playlists internas com curadores externos sem perder previsibilidade." />
-                      <ModeBtn active={active.perfil === "engajado"} onClick={() => setPerfil("engajado")} label="Engajado" tooltip="Faixa com audiência já aquecida. Puxa mais pro externo (curadores) pra empurrar pra novos ouvintes, já que o ecossistema sozinho não dá conta do volume." />
-                    </div>
-                  </div>
 
                   <div>
                     <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">Capacidade das playlists</Label>
