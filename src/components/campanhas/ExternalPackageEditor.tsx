@@ -17,7 +17,8 @@ import {
 } from "@/lib/externalPackage";
 import { Link } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Trash2, Users, AlertTriangle, CheckCircle2, Plus, Search } from "lucide-react";
+import { Loader2, Trash2, Users, AlertTriangle, CheckCircle2, Plus, Search, BarChart3, CalendarClock, DollarSign, Target } from "lucide-react";
+import { KpiBig } from "@/components/KpiBig";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
@@ -204,14 +205,47 @@ export function ExternalPackageEditor({
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {/* KPIs */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
-          <KPI label="Streams totais" value={formatInt(totalStreams)} delta={deltaStreams} unit="" />
-          <KPI label="Diário necessário" value={formatInt(Math.round(totalStreams / Math.max(1, snapshot.days || 1)))} />
-          <KPI label="Custo" value={formatBRL(totalCost)} delta={deltaCost} unit=" R$" isCurrency />
-          <KPI label="Cobertura" value={`${coverage.toFixed(0)}%`} />
-          <KPI label="Curadores" value={String(items.length)} />
-        </div>
+        {/* KPIs — padrão Curadores (KpiBig) */}
+        <section className="grid grid-cols-2 md:grid-cols-6 gap-3">
+          <KpiBig
+            tier="hero"
+            icon={BarChart3}
+            label="Streams totais"
+            value={formatInt(totalStreams)}
+            hint={Math.abs(deltaStreams) > 1 ? `${deltaStreams > 0 ? "+" : ""}${formatInt(deltaStreams)} vs snapshot` : "alinhado ao snapshot"}
+            domain="campaigns"
+          />
+          <KpiBig
+            icon={CalendarClock}
+            label="Diário necessário"
+            value={formatInt(Math.round(totalStreams / Math.max(1, snapshot.days || 1)))}
+            hint={`em ${snapshot.days || 1} dias`}
+            domain="deals"
+          />
+          <KpiBig
+            icon={DollarSign}
+            label="Custo"
+            value={formatBRL(totalCost)}
+            hint={Math.abs(deltaCost) > 0.5 ? `${deltaCost > 0 ? "+" : ""}${formatBRL(deltaCost)} vs snapshot` : "alinhado ao snapshot"}
+            domain="clients"
+          />
+          <KpiBig
+            icon={Target}
+            label="Cobertura"
+            value={`${coverage.toFixed(0)}%`}
+            hint="do alvo externo"
+            domain="curators"
+          />
+          <KpiBig
+            tier="quiet"
+            icon={Users}
+            label="Curadores"
+            value={String(items.length)}
+            hint="no pacote"
+            domain="community"
+          />
+        </section>
+
 
         {noCapacity && !isDispatched && (
           <div className="flex items-start gap-2 rounded-md border border-dashed border-border p-4">
@@ -344,17 +378,3 @@ export function ExternalPackageEditor({
   );
 }
 
-function KPI({ label, value, delta, unit, isCurrency }: { label: string; value: string; delta?: number; unit?: string; isCurrency?: boolean }) {
-  const showDelta = delta != null && Math.abs(delta) > (isCurrency ? 0.5 : 1);
-  return (
-    <div className="rounded-lg border border-border bg-elevated/30 p-2.5">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="text-base font-semibold tabular-nums mt-0.5">{value}</div>
-      {showDelta && (
-        <div className={cn("text-[10px] tabular-nums mt-0.5", delta! > 0 ? "text-warning" : "text-primary")}>
-          {delta! > 0 ? "+" : ""}{isCurrency ? formatBRL(delta!) : formatInt(delta!)}{unit} vs snapshot
-        </div>
-      )}
-    </div>
-  );
-}

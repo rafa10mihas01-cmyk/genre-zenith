@@ -1,9 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ListMusic } from "lucide-react";
+import { ListMusic, BarChart3, CalendarClock, DollarSign, Target, Music } from "lucide-react";
 import { formatBRL, formatInt } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import type { EcoAllocation } from "./types";
-import { cn } from "@/lib/utils";
+import { KpiBig } from "@/components/KpiBig";
 
 type EcoSnap = {
   managed_playlist_id: string;
@@ -40,6 +40,8 @@ export function InternalEcosystemHeader({
 
   const deltaStreams = planned - snapshot.streamsEco;
   const deltaCusto = custoPlanejado - snapshot.custoEco;
+  const fmtDelta = (n: number) => `${n > 0 ? "+" : ""}${formatInt(n)} vs snapshot`;
+  const fmtDeltaBRL = (n: number) => `${n > 0 ? "+" : ""}${formatBRL(n)} vs snapshot`;
 
   return (
     <Card>
@@ -54,29 +56,47 @@ export function InternalEcosystemHeader({
         </p>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
-          <KPI label="Streams totais" value={formatInt(planned)} delta={deltaStreams} />
-          <KPI label="Diário necessário" value={formatInt(Math.round(planned / days))} />
-          <KPI label="Custo" value={formatBRL(custoPlanejado)} delta={deltaCusto} isCurrency />
-          <KPI label="Cobertura" value={`${cobertura.toFixed(0)}%`} />
-          <KPI label="Playlists" value={String(allocations.length)} />
-        </div>
+        <section className="grid grid-cols-2 md:grid-cols-6 gap-3">
+          <KpiBig
+            tier="hero"
+            icon={BarChart3}
+            label="Streams totais"
+            value={formatInt(planned)}
+            hint={Math.abs(deltaStreams) > 1 ? fmtDelta(deltaStreams) : "alinhado ao snapshot"}
+            domain="campaigns"
+          />
+          <KpiBig
+            icon={CalendarClock}
+            label="Diário necessário"
+            value={formatInt(Math.round(planned / days))}
+            hint={`em ${days} dias`}
+            domain="deals"
+          />
+          <KpiBig
+            icon={DollarSign}
+            label="Custo"
+            value={formatBRL(custoPlanejado)}
+            hint={Math.abs(deltaCusto) > 0.5 ? fmtDeltaBRL(deltaCusto) : "alinhado ao snapshot"}
+            domain="clients"
+          />
+          <KpiBig
+            icon={Target}
+            label="Cobertura"
+            value={`${cobertura.toFixed(0)}%`}
+            hint="do alvo eco"
+            domain="curators"
+          />
+          <KpiBig
+            tier="quiet"
+            icon={Music}
+            label="Playlists"
+            value={String(allocations.length)}
+            hint="no plano"
+            domain="playlists"
+          />
+        </section>
       </CardContent>
     </Card>
   );
 }
 
-function KPI({ label, value, delta, isCurrency }: { label: string; value: string; delta?: number; isCurrency?: boolean }) {
-  const showDelta = delta != null && Math.abs(delta) > (isCurrency ? 0.5 : 1);
-  return (
-    <div className="rounded-lg border border-border bg-elevated/30 p-2.5">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="text-base font-semibold tabular-nums mt-0.5">{value}</div>
-      {showDelta && (
-        <div className={cn("text-[10px] tabular-nums mt-0.5", delta! > 0 ? "text-warning" : "text-primary")}>
-          {delta! > 0 ? "+" : ""}{isCurrency ? formatBRL(delta!) : formatInt(delta!)} vs snapshot
-        </div>
-      )}
-    </div>
-  );
-}
