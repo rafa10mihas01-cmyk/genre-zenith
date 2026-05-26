@@ -23,6 +23,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
   distributeEcoPositions,
   POSITION_PCT,
+  ecoPlanTotalMultiplier,
   selectCoverageMode,
   AFFINITY_RANGE_BY_MODE,
   chartTierFromTopPosition,
