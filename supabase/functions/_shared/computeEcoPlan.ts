@@ -359,22 +359,7 @@ export function buildEcoPlan(args: {
       }
       daily[i] = Math.max(1, Math.round(baseCap * ramp * growth * tail * weekday));
     }
-      const rampIdx = i - (startDay - 1);
-      const ramp = rampIdx < ECO_RAMP.length ? ECO_RAMP[rampIdx] : 1;
-      let weekday = 1;
-      if (startValid) {
-        const d = new Date(startBase!);
-        d.setDate(d.getDate() + i);
-        weekday = WEEKDAY_FLAT_FACTOR[d.getDay()] ?? 1;
-      }
-      const dayNum = i + 1;
-      let tail = 1;
-      if (dayNum >= tailStart) {
-        const t = (dayNum - tailStart) / tailDays;
-        tail = 1 - 0.5 * t * t;
-      }
-      daily[i] = Math.max(1, Math.round(baseCap * ramp * tail * weekday));
-    }
+    const total = daily.reduce((s, v) => s + v, 0);
     const total = daily.reduce((s, v) => s + v, 0);
 
     return {
