@@ -33,7 +33,32 @@ export type DailyPlaylistPlan = {
   daily: number[];
   capDia: number;
   overflow: number;
+  /**
+   * Posição planejada por dia (1-indexed por dia do plano, length = effectiveDays).
+   * Durante o platô = posição fixa. Durante a saída (últimos 20% dos dias) rebaixa
+   * em 4 degraus: pos → pos×2 → pos×5 → pos×15 → pos×30 (cap 100).
+   * Cells antes do startDay também ficam = posição base (facilita exibição).
+   */
+  positionByDay: number[];
 };
+
+/** Degrau de rebaixamento na fase de saída suave. Multiplicador aplicado sobre a posição-base. */
+export function tailPositionMultiplier(t: number): number {
+  if (t < 0.25) return 1;
+  if (t < 0.5) return 2;
+  if (t < 0.75) return 5;
+  if (t < 1) return 15;
+  return 30;
+}
+
+/** Posição rebaixada da música no dia (1..100). dayNum/tailStart/tailDays 1-indexed. */
+export function positionForDay(basePos: number, dayNum: number, tailStart: number, tailDays: number): number {
+  if (dayNum < tailStart) return basePos;
+  const denom = Math.max(1, tailDays - 1);
+  const t = (dayNum - tailStart) / denom;
+  const mult = tailPositionMultiplier(t);
+  return Math.min(100, Math.max(1, basePos * mult));
+}
 
 export type DailyExternalPlan = {
   itemId: string;
@@ -737,13 +762,18 @@ export function buildEcoPlaylistPlan(
     // dip de fim-de-semana/segunda. Sem curva gaussiana, sem delay, sem jitter.
     const baseCap = Math.max(1, Math.round(calculateTrackDailyStreams(followers, multiplier, pos)));
 
-    const daily = Array.from({ length: planDaysOf(snapshot) }, () => 0);
+    const planLen = planDaysOf(snapshot);
+    const daily = Array.from({ length: planLen }, () => 0);
     // Rampa de saída: últimos 20% dos dias da alocação decaem suavemente,
     // espelhando a rampa de entrada. tailFactor = 1 − 0.5 × ((day − tailStart) / tailDays)^2.
-    const planLen = planDaysOf(snapshot);
     const runLen = Math.max(1, planLen - (startDay - 1));
     const tailDays = Math.max(1, Math.round(runLen * 0.2));
     const tailStart = planLen - tailDays + 1;
+    // Posição planejada por dia (rebaixamento gradual na fase de saída).
+    // Fora da janela ativa também guardo a posição base — facilita o card.
+    const positionByDay = Array.from({ length: planLen }, (_, i) =>
+      positionForDay(pos, i + 1, tailStart, tailDays),
+    );
     for (let i = startDay - 1; i < planLen; i++) {
       // Ramp suave nos primeiros dias de entrada na playlist.
       const rampIdx = i - (startDay - 1);
