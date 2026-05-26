@@ -45,10 +45,12 @@ export function ExternalPackageEditor({
   campaignId,
   snapshot,
   onChanged,
+  tabsRow,
 }: {
   campaignId: string;
   snapshot: CampaignSnapshot;
   onChanged?: () => void;
+  tabsRow?: React.ReactNode;
 }) {
   const [pkg, setPkg] = useState<PackageRow | null>(null);
   const [items, setItems] = useState<ItemRow[]>([]);
