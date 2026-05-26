@@ -418,6 +418,8 @@ export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
                           ? `Top ${top200Position} · Dia ${data.markDay}`
                           : `Alvo · Dia ${data.markDay}`),
                     position: "top",
+                    offset: 12,
+                    dx: isNarrow ? 18 : 28,
                     fill: "hsl(var(--primary))",
                     fontSize: isNarrow ? 9.5 : 10.5, fontWeight: 600,
                   }}
