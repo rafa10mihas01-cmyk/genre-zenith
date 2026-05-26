@@ -63,9 +63,6 @@ Deno.serve(async (req) => {
   if (cErr) return jr({ error: cErr.message }, 500);
   if (!campRaw) return jr({ error: "not_found" }, 404);
 
-  // Defesa em profundidade: JWT precisa ser pra esta campanha
-  if (payload.campaign_id !== campRaw.id) return jr({ error: "auth_required" }, 401);
-
   // Link expira automaticamente quando a campanha é encerrada.
   // Hoje só `status='completed'` indica encerramento (não existe coluna closed_at em campaigns).
   // Se um dia for adicionada, o gate já a contempla.
