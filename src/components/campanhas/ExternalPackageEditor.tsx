@@ -339,7 +339,7 @@ export function ExternalPackageEditor({
                         </td>
                         <td className="py-2.5 px-3 text-right border-b border-border/30">
                           {it.curator_deal_id ? (
-                            <Link to={`/playlist-deals/${it.curator_deal_id}`} className="text-primary text-[10px] underline">
+                            <Link to={`/deals/${it.curator_deal_id}`} className="text-primary text-[10px] underline">
                               Deal aberto
                             </Link>
                           ) : (
