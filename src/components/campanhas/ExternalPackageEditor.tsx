@@ -391,8 +391,8 @@ export function ExternalPackageEditor({
             </div>
           </>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
     <AlertDialog open={!!removeTarget} onOpenChange={(open) => !open && setRemoveTarget(null)}>
       <AlertDialogContent>
         <AlertDialogHeader>
