@@ -641,15 +641,14 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Tipo da campanha</CardTitle>
               <CardDescription className="text-xs">
-                Externa/Híbrida exigem curador.
+                Define de onde vêm as playlists. Externa exige curador.
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-0">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {([
-                  { id: "ecosystem", title: "Ecossistema", desc: "Só playlists internas." },
-                  { id: "external",  title: "Externa",    desc: "Só curadores externos." },
-                  { id: "hybrid",    title: "Híbrida",    desc: "Ecossistema + curadores." },
+                  { id: "ecosystem", title: "Ecossistema", desc: "Playlists internas da casa. Sem curador externo." },
+                  { id: "external",  title: "Externa",    desc: "Curadores externos contratados pra essa campanha." },
                 ] as const).map(opt => {
                   const active = campaignType === opt.id;
                   return (
@@ -673,19 +672,19 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
             </CardContent>
           </Card>
 
-          {/* Fonte de coleta — Spotify (bot) vs Planilha (Nielsen). Evita gastar crédito do bot quando não temos acesso. */}
+          {/* Fonte de coleta — Spotify (bot) vs Excel (planilha). Evita gastar crédito do bot quando não temos acesso. */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Fonte de coleta</CardTitle>
               <CardDescription className="text-xs">
-                Define quem alimenta os dados. Planilha não dispara o bot.
+                Como os números entram no sistema durante a campanha.
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-0">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {([
-                  { id: "bot",         title: "Spotify (bot)",      desc: "Temos acesso ao Spotify for Artists. Coleta automática." },
-                  { id: "spreadsheet", title: "Planilha (Nielsen)", desc: "Sem acesso — cliente envia planilha. Não gasta crédito do bot." },
+                  { id: "bot",         title: "Spotify",  desc: "Bot puxa os dados direto do Spotify for Artists. Atualização diária automática." },
+                  { id: "spreadsheet", title: "Excel",    desc: "Cliente envia a planilha semanal. Indicado quando não temos acesso à conta do artista." },
                 ] as const).map(opt => {
                   const active = collectionMode === opt.id;
                   return (
@@ -717,7 +716,9 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-xs">Cliente</Label>
+                <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">
+                  Cliente
+                </Label>
                 <Select value={clientId || "__none__"} onValueChange={v => setClientId(v === "__none__" ? "" : v)}>
                   <SelectTrigger><SelectValue placeholder="Sem cliente" /></SelectTrigger>
                   <SelectContent>
@@ -727,8 +728,8 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">
-                  Curador {campaignType !== "ecosystem" && <span className="text-destructive">*</span>}
+                <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">
+                  Curador {campaignType !== "ecosystem" && <span className="text-destructive normal-case">*</span>}
                 </Label>
                 <Select value={curatorId || "__none__"} onValueChange={v => setCuratorId(v === "__none__" ? "" : v)}>
                   <SelectTrigger><SelectValue placeholder="Sem curador" /></SelectTrigger>
