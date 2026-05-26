@@ -252,14 +252,13 @@ export function OverviewTab({
       )}
 
 
-      {/* KPIs grandes */}
+      {/* KPIs — variante compacta pra caber "3.000.000" no mobile e manter padrão consistente */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 md:gap-3">
         <UnifiedKpi
           label="Meta"
           value={formatInt(snapshot.meta)}
           hint="streams"
           variant="compact"
-          className="md:!p-4 md:!min-h-[112px] [&>div:nth-child(2)_span]:md:!text-3xl"
         />
         <UnifiedKpi
           label="Entregue"
@@ -267,7 +266,6 @@ export function OverviewTab({
           hint={`${pct}% da meta`}
           tone="primary"
           variant="compact"
-          className="md:!p-4 md:!min-h-[112px] [&>div:nth-child(2)_span]:md:!text-3xl"
         />
         <UnifiedKpi
           label="Aderência ao plano"
@@ -275,16 +273,15 @@ export function OverviewTab({
           hint={`vs ${formatInt(plannedToDate)} planejados`}
           tone={adherence >= 85 ? "primary" : "warning"}
           variant="compact"
-          className="md:!p-4 md:!min-h-[112px] [&>div:nth-child(2)_span]:md:!text-3xl"
         />
         <UnifiedKpi
           label="Duração"
           value={`${snapshot.days}d`}
           hint={snapshot.modo === "simultaneo" ? "simultâneo" : "sequencial"}
           variant="compact"
-          className="md:!p-4 md:!min-h-[112px] [&>div:nth-child(2)_span]:md:!text-3xl"
         />
       </div>
+
 
 
       {/* Grid principal: Curva + Top playlists */}
