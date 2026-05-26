@@ -335,11 +335,20 @@ export function buildEcoPlan(args: {
     const baseCap = Math.max(1, Math.round(calcTrackDailyStreams(followers, mult, pos)));
 
     const daily: number[] = Array.from({ length: days }, () => 0);
-    // Rampa de saída: últimos 20% dos dias decaem suavemente, espelhando a rampa de entrada.
-    // tailFactor = 1 − 0.5 × ((day − tailStart) / tailDays)^2  (0.5 no último dia).
+    // Saída suave: últimos 20% dos dias. Posição rebaixa em degraus
+    // (pos → pos×2 → pos×5 → pos×15 → pos×30) e o cap diário usa
+    // POSITION_PCT da nova posição — sem fator quadrático artificial.
     const runLen = Math.max(1, days - (startDay - 1));
     const tailDays = Math.max(1, Math.round(runLen * 0.2));
     const tailStart = days - tailDays + 1;
+    const positionByDay: number[] = Array.from({ length: days }, (_, i) => {
+      const dayNum = i + 1;
+      if (dayNum < tailStart) return pos;
+      const denom = Math.max(1, tailDays - 1);
+      const t = (dayNum - tailStart) / denom;
+      const mult = t < 0.25 ? 1 : t < 0.5 ? 2 : t < 0.75 ? 5 : t < 1 ? 15 : 30;
+      return Math.min(100, Math.max(1, pos * mult));
+    });
     for (let i = startDay - 1; i < days; i++) {
       const rampIdx = i - (startDay - 1);
       const ramp = rampIdx < ECO_RAMP.length ? ECO_RAMP[rampIdx] : 1;
@@ -351,13 +360,8 @@ export function buildEcoPlan(args: {
         d.setDate(d.getDate() + i);
         weekday = WEEKDAY_FLAT_FACTOR[d.getDay()] ?? 1;
       }
-      const dayNum = i + 1;
-      let tail = 1;
-      if (dayNum >= tailStart) {
-        const t = (dayNum - tailStart) / tailDays;
-        tail = 1 - 0.5 * t * t;
-      }
-      daily[i] = Math.max(1, Math.round(baseCap * ramp * growth * tail * weekday));
+      const dayCap = Math.max(1, Math.round(calcTrackDailyStreams(followers, mult, positionByDay[i])));
+      daily[i] = Math.max(1, Math.round(dayCap * ramp * growth * weekday));
     }
     const total = daily.reduce((s, v) => s + v, 0);
 
