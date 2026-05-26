@@ -430,6 +430,7 @@ export function CampaignFullPlanCard({
                       </PopoverContent>
                     </Popover>
                   </th>
+                  <th className="text-left font-medium py-2 px-2 border-b border-border min-w-[160px]">Entregue</th>
                   <th className="text-right font-medium py-2 px-2 border-b border-border w-16">Total</th>
                   {Array.from({ length: days }, (_, i) => (
                     <th
