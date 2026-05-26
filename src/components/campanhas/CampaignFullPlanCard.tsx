@@ -333,7 +333,7 @@ export function CampaignFullPlanCard({
 
 
         <div className="rounded-lg border border-border overflow-hidden">
-          <div className="max-h-[560px] overflow-auto">
+          <div className="max-h-[80vh] overflow-auto">
             <table className="text-[11px] border-separate border-spacing-0 min-w-full">
               <thead className="sticky top-0 z-20 bg-card text-muted-foreground">
                 <tr>
