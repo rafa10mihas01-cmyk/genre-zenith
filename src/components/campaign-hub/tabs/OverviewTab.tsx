@@ -32,6 +32,7 @@ type Props = {
   hideDeliveryPlan?: boolean;
   hideCurveShortcut?: boolean;
   hideCurveCard?: boolean;
+  hideKpis?: boolean;
   allocations?: EcoAllocation[];
   snapshots?: EcoSnap[];
   proofs?: ProofPreview[];
@@ -46,7 +47,7 @@ type Props = {
 };
 
 export function OverviewTab({
-  snapshot, delivered, daysElapsed, showFinance, hideDeliveryPlan = false, hideCurveShortcut = false, hideCurveCard = false,
+  snapshot, delivered, daysElapsed, showFinance, hideDeliveryPlan = false, hideCurveShortcut = false, hideCurveCard = false, hideKpis = false,
   allocations = [], snapshots = [], proofs = [], onJumpTab,
   splitLockedAt = null, lockedEcoStreams = null, ecoMaxPct = 70,
   canManageSplit = false, onLockSplit, onUnlockSplit,
