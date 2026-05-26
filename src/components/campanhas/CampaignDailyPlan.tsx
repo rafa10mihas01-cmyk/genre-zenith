@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Download, CalendarDays, ListChecks, Users, Music2, Music, AlertTriangle, Clock, Heart, Gauge, ListMusic, TrendingUp } from "lucide-react";
+import { Download, CalendarDays, ListChecks, Users, Music2, Music, AlertTriangle, Clock, Heart, Gauge, ListMusic, TrendingUp, CalendarDays as CalendarIcon, Target, BarChart3, Activity, Layers } from "lucide-react";
+import { KpiBig } from "@/components/KpiBig";
 import { formatBRL, formatInt } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import {
@@ -175,30 +176,53 @@ export function CampaignDailyPlan({
         </div>
 
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
-          <Metric label="Dia selecionado" value={`D${day?.day ?? 1}`} hint={day?.dateLabel} />
-          <Metric
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <KpiBig
+            icon={CalendarIcon}
+            label="Dia selecionado"
+            value={`D${day?.day ?? 1}`}
+            hint={day?.dateLabel}
+            domain="campaigns"
+          />
+          <KpiBig
+            icon={Music}
             label="Música diário"
             value={formatInt(baselineStreams)}
             hint={baselineStreams > 0 ? "orgânico (baseline)" : "não informado"}
+            domain="playlists"
           />
-          <Metric
+          <KpiBig
+            tier="hero"
+            icon={Target}
             label={`Meta do dia · ${sourceLabel}`}
             value={formatInt(dayTotalForSource)}
             hint={dayHint}
+            domain="deals"
           />
-          <Metric
+          <KpiBig
+            icon={BarChart3}
             label="Esperado no Spotify"
             value={formatInt(baselineStreams + dayTotalForSource)}
             hint={baselineStreams > 0 ? `${formatInt(baselineStreams)} + ${formatInt(dayTotalForSource)}` : "música + meta"}
+            domain="clients"
           />
-          <Metric
+          <KpiBig
+            icon={Layers}
             label={`Acumulado · ${sourceLabel}`}
             value={formatInt(cumulativeForSource)}
             hint={`${formatInt(sourceTotal)} no filtro`}
+            domain="curators"
           />
-          <Metric label="Ativos no dia" value={activeValue} hint={activeHint} />
+          <KpiBig
+            tier="quiet"
+            icon={Activity}
+            label="Ativos no dia"
+            value={activeValue}
+            hint={activeHint}
+            domain="community"
+          />
         </div>
+
 
         <div className="rounded-lg border border-border bg-elevated/20 p-3">
           <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
