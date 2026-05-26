@@ -722,20 +722,11 @@ export default function CampanhaExecucao() {
                 onSave={handleSaveClientPrice}
                 saving={savingClientPrice}
                 approved={!!camp.client_approved_at}
+                approvedAt={camp.client_approved_at ?? null}
               />
-              <Card>
-                <CardContent className="p-5 space-y-4">
-                  <div className="text-sm font-semibold">Resumo financeiro interno</div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <FinKpi label="Custo total" value={formatBRL(snapshot.custoTotal)} sub="quanto você paga" />
-                    <FinKpi label="Venda ao cliente" value={formatBRL(getClientPriceTotal(snapshot))} sub="valor do orçamento" />
-                    <FinKpi label="Margem" value={formatBRL(getClientPriceTotal(snapshot) - snapshot.custoTotal)} sub="venda menos custo" />
-                    <FinKpi label="CPP interno" value={formatBRL(snapshot.custoPorStream)} sub="custo por stream" />
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           ),
+
           proofs: (
             <div className="space-y-6">
               <ProofsTimeline events={proofEvents} campaignStartedAt={camp.started_at} />
