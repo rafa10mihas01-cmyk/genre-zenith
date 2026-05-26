@@ -65,7 +65,7 @@ export function CampaignFullPlanCard({
   radioCollectedTotal = null,
 }: Props) {
   const [showZeros, setShowZeros] = useState(false);
-  const [mode, setMode] = useState<"diario" | "acumulado">("acumulado");
+  const [mode, setMode] = useState<"diario" | "acumulado">("diario");
   const [copied, setCopied] = useState(false);
   const [redistributing, setRedistributing] = useState(false);
 
