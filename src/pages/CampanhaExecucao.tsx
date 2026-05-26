@@ -29,7 +29,7 @@ import { CampaignKpis } from "@/components/campaign-hub/CampaignKpis";
 import { Lock } from "lucide-react";
 import { OperacaoTab, type ExternalItemRow } from "@/components/campaign-hub/tabs/OperacaoTab";
 import { PlaylistsGrid } from "@/components/campaign-hub/PlaylistsGrid";
-import { InternalEcosystemHeader } from "@/components/campaign-hub/InternalEcosystemHeader";
+
 import { GenresUsedFromAllocs } from "@/components/campanhas/GenresUsedFromAllocs";
 import { CampaignAccessManager } from "@/components/campanhas/CampaignAccessManager";
 import { ProofsTimeline, type ProofEvent } from "@/components/campaign-hub/ProofsTimeline";
