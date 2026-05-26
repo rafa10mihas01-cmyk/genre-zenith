@@ -393,6 +393,30 @@ export function ExternalPackageEditor({
         )}
       </CardContent>
     </Card>
+    <AlertDialog open={!!removeTarget} onOpenChange={(open) => !open && setRemoveTarget(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Remover {removeTarget?.curators?.name ?? "curador"} do pacote?</AlertDialogTitle>
+          <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              if (removeTarget) {
+                const target = removeTarget;
+                setRemoveTarget(null);
+                handleRemove(target);
+              }
+            }}
+          >
+            Remover
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
+
 
