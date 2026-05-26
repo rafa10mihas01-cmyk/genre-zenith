@@ -130,6 +130,7 @@ export function OverviewTab({
   return (
     <div className="space-y-6">
       {/* KPIs — padrão Curadores: hero (Entregue) + secundários + quiet (Duração) */}
+      {!hideKpis && (
       <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <KpiBig
           tier="hero"
@@ -162,6 +163,7 @@ export function OverviewTab({
           domain="curators"
         />
       </section>
+      )}
 
 
       {/* Plano de entrega — leitura única: meta total, ritmo, split eco/ext, hoje */}
