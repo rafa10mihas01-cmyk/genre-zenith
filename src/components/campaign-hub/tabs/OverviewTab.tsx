@@ -128,6 +128,36 @@ export function OverviewTab({
 
   return (
     <div className="space-y-6">
+      {/* KPIs — variante compacta pra caber "3.000.000" no mobile e manter padrão consistente */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 md:gap-3">
+        <UnifiedKpi
+          label="Meta"
+          value={formatInt(snapshot.meta)}
+          hint="streams"
+          variant="compact"
+        />
+        <UnifiedKpi
+          label="Entregue"
+          value={formatInt(delivered)}
+          hint={`${pct}% da meta`}
+          tone="primary"
+          variant="compact"
+        />
+        <UnifiedKpi
+          label="Aderência ao plano"
+          value={`${adherence}%`}
+          hint={`vs ${formatInt(plannedToDate)} planejados`}
+          tone={adherence >= 85 ? "primary" : "warning"}
+          variant="compact"
+        />
+        <UnifiedKpi
+          label="Duração"
+          value={`${snapshot.days}d`}
+          hint={snapshot.modo === "simultaneo" ? "simultâneo" : "sequencial"}
+          variant="compact"
+        />
+      </div>
+
       {/* Plano de entrega — leitura única: meta total, ritmo, split eco/ext, hoje */}
       {!hideDeliveryPlan && (
       <Card>
@@ -250,37 +280,6 @@ export function OverviewTab({
         )}
       </Card>
       )}
-
-
-      {/* KPIs — variante compacta pra caber "3.000.000" no mobile e manter padrão consistente */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 md:gap-3">
-        <UnifiedKpi
-          label="Meta"
-          value={formatInt(snapshot.meta)}
-          hint="streams"
-          variant="compact"
-        />
-        <UnifiedKpi
-          label="Entregue"
-          value={formatInt(delivered)}
-          hint={`${pct}% da meta`}
-          tone="primary"
-          variant="compact"
-        />
-        <UnifiedKpi
-          label="Aderência ao plano"
-          value={`${adherence}%`}
-          hint={`vs ${formatInt(plannedToDate)} planejados`}
-          tone={adherence >= 85 ? "primary" : "warning"}
-          variant="compact"
-        />
-        <UnifiedKpi
-          label="Duração"
-          value={`${snapshot.days}d`}
-          hint={snapshot.modo === "simultaneo" ? "simultâneo" : "sequencial"}
-          variant="compact"
-        />
-      </div>
 
 
 
