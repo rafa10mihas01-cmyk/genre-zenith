@@ -233,7 +233,6 @@ Deno.serve(async (req) => {
           const remsg = (re as Error).message ?? String(re);
           console.log(JSON.stringify({ evt: "post_add_reorder.error", job_id: j.id, error: remsg }));
         }
-      }
       } else {
         await removePlaylistTracks(j.spotify_playlist_id, [trackUri], token);
 
