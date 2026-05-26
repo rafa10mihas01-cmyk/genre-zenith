@@ -176,6 +176,32 @@ export function useEcosystemCapacity(
 
       const total = perDay * Math.max(1, days);
 
+      // Heurística de seleção (mirror de planEcoAllocations): ordena todas
+      // as compatíveis por followers desc e acumula sizingCap @ pos #3 até
+      // cobrir streamsEcoNeeded. Resultado é estimativa do nº de playlists
+      // que serão realmente alocadas — pode divergir levemente do plano real
+      // por causa do split core/vizinho com teto de 40%, mas serve pro card.
+      let playlistsSelected: number | null = null;
+      if (streamsEcoNeeded !== null && streamsEcoNeeded > 0) {
+        const compatible = [...core, ...neighbors]
+          .map(p => ({
+            followers: Math.max(1, p.followers ?? 0),
+            sizingCap: Math.max(
+              1,
+              Math.round(Math.max(1, p.followers ?? 0) * (PLAYS_PER_SAVE_MONTH / 30) * DEFAULT_CAMPAIGN_SLOT_PCT * Math.max(1, days)),
+            ),
+          }))
+          .sort((a, b) => b.sizingCap - a.sizingCap);
+        let acc = 0;
+        let count = 0;
+        for (const c of compatible) {
+          if (acc >= streamsEcoNeeded) break;
+          acc += c.sizingCap;
+          count += 1;
+        }
+        playlistsSelected = count;
+      }
+
       if (cancelled) return;
       setState({
         loading: false,
@@ -187,7 +213,9 @@ export function useEcosystemCapacity(
         capacityPerDay: perDay,
         capacityTotal: total,
         genreResolved,
+        playlistsSelected,
       });
+
 
       })();
     }, 300);
