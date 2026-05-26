@@ -1,5 +1,5 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ListMusic, BarChart3, CalendarClock, DollarSign, Target, Music } from "lucide-react";
+import { BarChart3, CalendarClock, DollarSign, Target, Music } from "lucide-react";
+
 import { formatBRL, formatInt } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import type { EcoAllocation } from "./types";
