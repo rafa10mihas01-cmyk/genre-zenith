@@ -648,6 +648,8 @@ export default function CampanhaExecucao() {
             />
           ),
 
+          execucao: <CampaignExecutionStatus campaignId={camp.id} />,
+
 
           playlists: (() => {
             const tabsRow = (
