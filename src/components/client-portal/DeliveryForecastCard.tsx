@@ -164,7 +164,8 @@ export function DeliveryForecastCard({ forecast, organicSummary, spotifyTrackId 
     const deliveryTotal = delivery.reduce((s, v) => s + v, 0);
     return { points, markDay, markValue, baseline, target, peakValue, deliveryTotal };
   }, [curve, top200StreamsDay, baselineStreamsDay, showOrganic, organicTotal, goalPlays, forecast.totalDays]);
-
+  // Projeção de posição no chart (puramente ilustrativa, não afeta a curva).
+  const projection = useChartProjection(spotifyTrackId ?? null, data?.peakValue ?? null);
 
   if (!data) return null;
 
