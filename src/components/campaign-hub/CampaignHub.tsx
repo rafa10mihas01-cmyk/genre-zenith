@@ -67,7 +67,14 @@ export function CampaignHub({
         daysTotal={daysTotal}
         lastUpdateAt={lastUpdateAt}
         extraActions={heroExtraActions}
+        hideProgress={!!progressSection}
       />
+
+      {kpis && (
+        <div className="pt-4 pb-2">
+          {kpis}
+        </div>
+      )}
 
 
       <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as CampaignHubTabId)}>
