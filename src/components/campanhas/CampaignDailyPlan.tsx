@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Download, CalendarDays, ListChecks, Users, Music2, Music, AlertTriangle, Clock, Heart, Gauge, ListMusic, TrendingUp } from "lucide-react";
+import { Download, CalendarDays, ListChecks, Users, Music2, Music, AlertTriangle, Clock, Heart, Gauge, ListMusic, TrendingUp, CalendarDays as CalendarIcon, Target, BarChart3, Activity, Layers } from "lucide-react";
+import { KpiBig } from "@/components/KpiBig";
 import { formatBRL, formatInt } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import {
