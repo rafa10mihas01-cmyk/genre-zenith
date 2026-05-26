@@ -33,12 +33,22 @@ export const INERCIA_BY_PERFIL: Record<Perfil, number> = {
   engajado: 1.18,
 };
 
+export type ClientProfile = "gravadora" | "artista";
+
 export interface CampaignInput {
   meta: number;              // streams totais
   days: number;              // duração em dias
   modo: Modo;
   perfil: Perfil;
   splitEcoPct: number;       // 0-100, ex 60
+  /** % da meta reservada como entrega orgânica (sem custo). 0-50. Default 0. */
+  splitOrganicPct?: number;
+  /**
+   * 'artista'   → meta inclui orgânico (eco+ext cobrem só metaOperacional = meta − orgânico).
+   * 'gravadora' → meta é só pago (eco+ext cobrem a meta inteira; orgânico é bônus em cima).
+   * Default: 'artista'.
+   */
+  clientProfile?: ClientProfile;
 }
 
 export interface CurvaPonto {
