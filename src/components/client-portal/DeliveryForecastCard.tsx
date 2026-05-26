@@ -201,7 +201,7 @@ export function DeliveryForecastCard({ forecast, organicSummary, spotifyTrackId 
               Plays/dia da música e combustível diário da campanha
             </p>
           </div>
-          {projection.peakBand != null && (
+          {projection.currentPosition != null && (
             <TooltipProvider delayDuration={120}>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -209,19 +209,14 @@ export function DeliveryForecastCard({ forecast, organicSummary, spotifyTrackId 
                     className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[10.5px] font-semibold uppercase tracking-[0.06em] text-primary cursor-help shrink-0"
                   >
                     <TrendingUp className="h-3 w-3" />
-                    {projection.currentPosition != null
-                      ? <>Hoje #{projection.currentPosition} <span className="opacity-60">→</span> Pico ~Top {projection.peakBand}</>
-                      : <>Pico estimado ~Top {projection.peakBand}</>}
+                    Posição atual #{projection.currentPosition}
                   </span>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="max-w-[280px]">
                   <p className="text-[11px] leading-relaxed">
-                    {projection.currentPosition != null && (
-                      <>A música está em <strong>#{projection.currentPosition}</strong> no Top 200 BR hoje. </>
-                    )}
-                    No pico projetado da campanha, o ritmo diário equivale à posição <strong>#{projection.peakExact}</strong> do chart de hoje — faixa <strong>Top {projection.peakBand}</strong>.
+                    A música está em <strong>#{projection.currentPosition}</strong> no Top 200 BR hoje.
                     <br />
-                    <span className="text-muted-foreground">Estimativa ilustrativa baseada no Top 200 BR (kworb).</span>
+                    <span className="text-muted-foreground">Passe o mouse sobre a curva pra ver a posição estimada em cada dia.</span>
                   </p>
                 </TooltipContent>
               </Tooltip>
