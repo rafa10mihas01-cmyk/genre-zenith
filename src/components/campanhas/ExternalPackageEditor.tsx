@@ -247,19 +247,6 @@ export function ExternalPackageEditor({
 
       {renderTabsRow?.(actionButtons)}
 
-
-      <header>
-        <h3 className="text-base font-semibold flex items-center gap-2">
-          <Users className="h-4 w-4 text-primary" /> Ecossistema externo
-        </h3>
-        <p className="text-xs text-muted-foreground mt-1.5">
-          Alvo do snapshot: <strong className="text-foreground tabular-nums">{formatInt(snapshot.streamsExt)}</strong> streams · <strong className="text-foreground">{formatBRL(snapshot.custoExt)}</strong>.
-          {isDispatched
-            ? <> Pacote já confirmado em {pkg?.confirmed_at ? new Date(pkg.confirmed_at).toLocaleString("pt-BR") : "—"}.</>
-            : <> Adicione os curadores que vão entregar e ajuste o volume de cada um.</>}
-        </p>
-      </header>
-
       <div className="border-t border-border" />
 
       <div className="space-y-4">
