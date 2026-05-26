@@ -11,12 +11,14 @@
 //  Ponto verde: primeiro dia em que a curva 1 atinge top200StreamsDay.
 import { useMemo, useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Sparkles } from "lucide-react";
+import { Sparkles, TrendingUp } from "lucide-react";
 import {
   CartesianGrid, ComposedChart, Line, ReferenceDot, ReferenceLine,
   ResponsiveContainer, Tooltip as ReTooltip, XAxis, YAxis,
 } from "recharts";
 import { recomputeCurva } from "@/lib/campaignEngine";
+import { useChartProjection } from "@/hooks/useChartProjection";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 function useNarrow(breakpoint = 640) {
   const [narrow, setNarrow] = useState(false);
