@@ -542,7 +542,7 @@ export default function CampanhaExecucao() {
         daysElapsed={daysElapsed}
         daysTotal={snapshot.days}
         lastUpdateAt={lastUpdateAt}
-        hiddenTabs={["upload"]}
+        hiddenTabs={["upload", "logs"]}
         heroExtraActions={
           <>
             <CampaignAccessManager campaignId={camp.id} />
@@ -578,7 +578,7 @@ export default function CampanhaExecucao() {
                     capturedAt={baseline.created_at}
                     totalStreams={baseline.total_streams}
                     playlistsDetected={baseline.rows_imported}
-                    onClick={() => setTab("baseline")}
+                    onClick={() => setTab("proofs")}
                   />
                 ) : null;
               })()}
