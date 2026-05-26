@@ -467,12 +467,12 @@ export function OverviewTab({
 
 function Kpi({ label, value, sub, tone, compact }: { label: string; value: string; sub?: string; tone?: "primary" | "warning"; compact?: boolean }) {
   return (
-    <UnifiedKpi
-      variant={compact ? "compact" : "default"}
+    <KpiBig
       label={label}
       value={value}
       hint={sub}
       tone={tone}
+      tier={compact ? "quiet" : "default"}
     />
   );
 }
