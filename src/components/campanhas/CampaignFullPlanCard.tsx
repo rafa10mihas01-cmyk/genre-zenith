@@ -162,18 +162,30 @@ export function CampaignFullPlanCard({
     const arr = Array.from({ length: days }, () => 0);
     if (radioTotal <= 0) return arr;
     const curva = snapshot.curva ?? [];
-    const weights: number[] = Array.from({ length: days }, (_, i) => Math.max(0, Number(curva[i]?.streamsDay ?? 0)));
+    // Rampa própria: D1–D6 = 0 (Spotify só começa a empurrar autoplay/rádio
+    // depois de ~1 semana de sinal). A partir do D7, o peso de cada dia é
+    // o streamsDay da curva eco com lag de 5 dias (curva[i-5]). Assim a
+    // rádio sempre reflete o que foi tocado 5 dias antes.
+    const LAG = 5;
+    const START = 6; // index 6 = D7 (1-indexed)
+    const weights: number[] = Array.from({ length: days }, (_, i) => {
+      if (i < START) return 0;
+      const src = i - LAG;
+      return Math.max(0, Number(curva[src]?.streamsDay ?? 0));
+    });
     const sum = weights.reduce((s, w) => s + w, 0);
     if (sum <= 0) {
-      const flat = Math.floor(radioTotal / days);
-      for (let i = 0; i < days; i++) arr[i] = flat;
-      arr[days - 1] += radioTotal - flat * days;
+      // Fallback: distribui linear a partir do D7.
+      const activeDays = Math.max(1, days - START);
+      const flat = Math.floor(radioTotal / activeDays);
+      for (let i = START; i < days; i++) arr[i] = flat;
+      arr[days - 1] += radioTotal - flat * activeDays;
       return arr;
     }
     let allocated = 0;
-    let lastIdx = 0;
-    for (let i = 0; i < days; i++) if (weights[i] > 0) lastIdx = i;
-    for (let i = 0; i < days; i++) {
+    let lastIdx = START;
+    for (let i = START; i < days; i++) if (weights[i] > 0) lastIdx = i;
+    for (let i = START; i < days; i++) {
       if (i === lastIdx) continue;
       const v = Math.round((weights[i] / sum) * radioTotal);
       arr[i] = v;
@@ -407,7 +419,7 @@ export function CampaignFullPlanCard({
                             ) : (
                               <>
                                 <span className="uppercase tracking-wider">estimado</span>
-                                {" · "}18% da meta
+                                {" · "}{Math.round(((snapshot.splitOrganicPct ?? 15)))}% da meta · lag 5d
                               </>
                             )}
                           </div>
