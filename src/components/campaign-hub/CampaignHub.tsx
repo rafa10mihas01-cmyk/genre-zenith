@@ -107,6 +107,14 @@ export function CampaignHub({
           </div>
         </div>
 
+        {progressSection && (
+          <div className="pt-3">
+            {progressSection}
+          </div>
+        )}
+
+
+
         <div className="pt-6">
           {visible.map((t) => (
             <TabsContent key={t.id} value={t.id} className="mt-0 scroll-mt-32">
