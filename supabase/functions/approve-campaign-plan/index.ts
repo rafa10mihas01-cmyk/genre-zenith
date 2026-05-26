@@ -14,7 +14,7 @@
 // Header: Authorization: Bearer <jwt do usuário dono da campanha>
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { distributeEcoPositions } from "../_shared/computeEcoPlan.ts";
+import { distributeEcoPositions, chartTierFromTopPosition } from "../_shared/computeEcoPlan.ts";
 import { getGenreNeighbors } from "../_shared/genre-affinity.ts";
 
 const corsHeaders = {
@@ -177,10 +177,12 @@ Deno.serve(async (req) => {
   try {
     const snapDays = Number(snap?.days ?? 0);
     const mult = Math.max(1, Math.round(Number((campaign as any).engagement_multiplier ?? snap?.engagement_multiplier ?? 30)));
+    const topPos = Number(snap?.music?.top200Position ?? snap?.music?.top200Pos ?? 0) || null;
+    const chartTier = chartTierFromTopPosition(topPos);
     if (snapDays > 0) {
       const { data: ecoRows } = await admin
         .from("campaign_eco_allocations")
-        .select("id, planned_streams, position, managed_playlists(followers)")
+        .select("id, planned_streams, position, genre_source, managed_playlists(followers)")
         .eq("campaign_id", campaignId);
       const rows = (ecoRows ?? []) as any[];
       const hasNull = rows.some(r => r.position == null);
@@ -190,8 +192,9 @@ Deno.serve(async (req) => {
             id: r.id,
             planned_streams: Number(r.planned_streams ?? 0),
             followers: Number(r.managed_playlists?.followers ?? 0),
+            genreSource: (r.genre_source as "primary" | "affinity" | null) ?? "primary",
           })),
-          snapDays, mult,
+          snapDays, mult, { chartTier },
         );
         // UPDATE só nas que estão NULL (preserva eventual override manual já gravado).
         await Promise.all(
@@ -206,6 +209,7 @@ Deno.serve(async (req) => {
   } catch (_e) {
     // Backfill é best-effort — não bloqueia aprovação.
   }
+
 
   // Safety net: se a capacidade total das allocs eco for < 80% do goal_plays
   // E ainda não houver expansão de afinidade gravada, busca gêneros vizinhos
