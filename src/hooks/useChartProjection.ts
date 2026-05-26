@@ -11,6 +11,10 @@ export type ChartProjection = {
   peakBand: number | null;
   /** Posição estimada exata (sem arredondar), pra tooltip. */
   peakExact: number | null;
+  /** Estima a posição exata pra um valor arbitrário de plays/dia. null se fora do Top 200. */
+  estimatePosition: (streamsDay: number) => number | null;
+  /** Idem, mas arredondada pra faixa amigável. */
+  estimateBand: (streamsDay: number) => number | null;
   loading: boolean;
 };
 
@@ -21,6 +25,8 @@ function snapToBand(pos: number): number {
   return 200;
 }
 
+const NOOP = () => null;
+
 export function useChartProjection(
   spotifyTrackId: string | null | undefined,
   peakStreamsDay: number | null | undefined,
@@ -29,6 +35,8 @@ export function useChartProjection(
     currentPosition: null,
     peakBand: null,
     peakExact: null,
+    estimatePosition: NOOP,
+    estimateBand: NOOP,
     loading: true,
   });
 
@@ -36,7 +44,10 @@ export function useChartProjection(
     let cancelled = false;
     (async () => {
       if (!peakStreamsDay || peakStreamsDay <= 0) {
-        if (!cancelled) setState({ currentPosition: null, peakBand: null, peakExact: null, loading: false });
+        if (!cancelled) setState({
+          currentPosition: null, peakBand: null, peakExact: null,
+          estimatePosition: NOOP, estimateBand: NOOP, loading: false,
+        });
         return;
       }
 
@@ -62,8 +73,8 @@ export function useChartProjection(
         if (cur?.[0]?.position) currentPosition = cur[0].position as number;
       }
 
-      // 3) Benchmark: posição cujo streams_day é o mais próximo do pico projetado
-      let peakExact: number | null = null;
+      // 3) Carrega benchmark completo do dia (posição -> streams_day)
+      let benchmark: Array<{ position: number; streams_day: number }> = [];
       if (chartDate) {
         const { data: bench } = await supabase
           .from("raw_chart_daily")
@@ -71,28 +82,36 @@ export function useChartProjection(
           .eq("chart_name", "top200_br")
           .eq("chart_date", chartDate)
           .order("position", { ascending: true });
-        if (bench && bench.length > 0) {
-          // se o pico for menor que o streams_day da pos 200, não entra no Top 200
-          const last = bench[bench.length - 1];
-          if (peakStreamsDay >= (last.streams_day ?? 0)) {
-            // procura a primeira posição cujo streams_day <= peak (curva decrescente)
-            let found = bench[bench.length - 1].position as number;
-            for (const row of bench) {
-              if ((row.streams_day ?? 0) <= peakStreamsDay) {
-                found = row.position as number;
-                break;
-              }
-            }
-            peakExact = found;
-          }
+        if (bench) {
+          benchmark = bench
+            .filter((r: any) => r.position != null && r.streams_day != null)
+            .map((r: any) => ({ position: r.position as number, streams_day: r.streams_day as number }));
         }
       }
+
+      const estimatePosition = (streamsDay: number): number | null => {
+        if (!streamsDay || streamsDay <= 0 || benchmark.length === 0) return null;
+        const last = benchmark[benchmark.length - 1];
+        if (streamsDay < (last.streams_day ?? 0)) return null; // fora do Top 200
+        for (const row of benchmark) {
+          if ((row.streams_day ?? 0) <= streamsDay) return row.position;
+        }
+        return last.position;
+      };
+      const estimateBand = (streamsDay: number): number | null => {
+        const p = estimatePosition(streamsDay);
+        return p != null ? snapToBand(p) : null;
+      };
+
+      const peakExact = estimatePosition(peakStreamsDay);
 
       if (cancelled) return;
       setState({
         currentPosition,
         peakExact,
-        peakBand: peakExact ? snapToBand(peakExact) : null,
+        peakBand: peakExact != null ? snapToBand(peakExact) : null,
+        estimatePosition,
+        estimateBand,
         loading: false,
       });
     })();
