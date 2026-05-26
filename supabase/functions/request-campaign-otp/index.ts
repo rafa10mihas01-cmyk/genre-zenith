@@ -107,6 +107,40 @@ Deno.serve(async (req) => {
     ? otpTemplate.subject(templateData)
     : otpTemplate.subject;
 
+  // Lovable Email API exige unsubscribe_token para emails transacionais.
+  // Reusa token existente do destinatário ou cria um novo.
+  let unsubscribeToken: string | null = null;
+  const { data: existingTok } = await supabase
+    .from("email_unsubscribe_tokens")
+    .select("token, used_at")
+    .eq("email", emailRaw)
+    .maybeSingle();
+
+  if (existingTok && !existingTok.used_at) {
+    unsubscribeToken = existingTok.token;
+  } else if (!existingTok) {
+    const bytes = new Uint8Array(32);
+    crypto.getRandomValues(bytes);
+    const newTok = Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+    const { error: tokErr } = await supabase
+      .from("email_unsubscribe_tokens")
+      .upsert({ token: newTok, email: emailRaw }, { onConflict: "email", ignoreDuplicates: true });
+    if (tokErr) {
+      console.error("unsubscribe token upsert failed", tokErr);
+      return jr({ error: "token_create_failed", message: tokErr.message }, 500);
+    }
+    const { data: stored } = await supabase
+      .from("email_unsubscribe_tokens")
+      .select("token")
+      .eq("email", emailRaw)
+      .maybeSingle();
+    unsubscribeToken = stored?.token ?? newTok;
+  } else {
+    // Token usado: destinatário descadastrou. Aborta envio.
+    console.warn("OTP requested for unsubscribed email", { emailRaw });
+    return jr({ ok: true, sent: true });
+  }
+
   const { error: enqErr } = await supabase.rpc("enqueue_email", {
     queue_name: "transactional_emails",
     payload: {
@@ -120,6 +154,7 @@ Deno.serve(async (req) => {
       purpose: "transactional",
       label: "campaign-access-otp",
       idempotency_key: `campaign-otp:${camp.id}:${emailRaw}:${code}`,
+      unsubscribe_token: unsubscribeToken,
       queued_at: new Date().toISOString(),
     },
   });
