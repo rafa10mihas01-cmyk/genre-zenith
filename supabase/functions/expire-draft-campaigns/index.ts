@@ -47,13 +47,16 @@ Deno.serve(async (req) => {
     if (updErr) throw updErr;
 
     // 4) Notifica no cockpit (best-effort — não bloqueia se falhar)
-    const notifications = (expired ?? []).map((c) => ({
-      user_id: c.curator_id, // dono operacional
-      kind: "campaign_expired",
-      title: "Rascunho expirou",
-      body: `Campanha "${c.track_name}"${c.artist ? ` — ${c.artist}` : ""} expirou após 48h. Inventário liberado.`,
-      data: { campaign_id: c.id, expires_at: c.expires_at },
-    }));
+    const notifications = (expired ?? [])
+      .filter((c) => !!c.curator_id)
+      .map((c) => ({
+        user_id: c.curator_id,
+        type: "warning" as const,
+        title: "Rascunho expirou",
+        message: `Campanha "${c.track_name}"${c.artist ? ` — ${c.artist}` : ""} expirou após 48h. Inventário liberado.`,
+        metadata: { kind: "campaign_expired", domain: "campanhas", campaign_id: c.id, expires_at: c.expires_at },
+      }));
+
     if (notifications.length > 0) {
       await supabase.from("notifications").insert(notifications);
     }
