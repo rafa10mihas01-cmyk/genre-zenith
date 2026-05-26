@@ -645,10 +645,11 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-0">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                 {([
                   { id: "ecosystem", title: "Ecossistema", desc: "Playlists internas da casa. Sem curador externo." },
                   { id: "external",  title: "Externa",    desc: "Curadores externos contratados pra essa campanha." },
+                  { id: "hybrid",    title: "Híbrida",    desc: "Ecossistema interno + curadores externos juntos." },
                 ] as const).map(opt => {
                   const active = campaignType === opt.id;
                   return (
