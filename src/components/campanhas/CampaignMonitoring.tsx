@@ -197,6 +197,9 @@ export function CampaignMonitoring({ campaignId, snapshot, campaignStartedAt, ca
           </div>
           <CurvaReal curva={freshCurva} elapsedDays={metrics.elapsedDays} delivered={metrics.delivered} />
         </div>
+        {/* Acompanhamento dos curadores externos vinculados ao pacote */}
+        <CampaignCuratorDeals campaignId={campaignId} />
+
 
         {isCompleted && (
           <div className="flex items-start gap-2 rounded-md bg-primary/10 border border-primary/30 p-3">
