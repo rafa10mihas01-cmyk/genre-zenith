@@ -1442,25 +1442,26 @@ function SessionChip({
             <div
               key={x.song.uid}
               className={cn(
-                "group relative shrink-0 inline-flex items-center gap-1.5 rounded-md border pl-2 pr-1.5 py-1 text-xs transition-colors",
+                "group relative flex-1 min-w-[120px] max-w-[280px] inline-flex items-center gap-1.5 rounded-md border pl-2 pr-1.5 py-1 text-xs transition-colors",
                 isActive
                   ? "border-primary/60 bg-primary/5 text-foreground"
                   : "border-border bg-card hover:border-border/80 text-muted-foreground hover:text-foreground",
               )}
             >
-              <button onClick={() => setActiveIdx(idx)} className="inline-flex items-center gap-1.5">
-                <span className="text-[10px] font-semibold tabular-nums opacity-70">#{idx + 1}</span>
-                <span className={cn("h-1.5 w-1.5 rounded-full", x.ready ? "bg-primary" : "bg-muted-foreground/30")} />
-                <span className="truncate max-w-[140px]">{label}</span>
+              <button onClick={() => setActiveIdx(idx)} className="inline-flex items-center gap-1.5 flex-1 min-w-0">
+                <span className="text-[10px] font-semibold tabular-nums opacity-70 shrink-0">#{idx + 1}</span>
+                <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", x.ready ? "bg-primary" : "bg-muted-foreground/30")} />
+                <span className="truncate flex-1 text-left">{label}</span>
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); removeSong(idx); }}
-                className="ml-0.5 h-4 w-4 inline-flex items-center justify-center text-muted-foreground/60 hover:text-foreground rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                className="ml-0.5 h-4 w-4 shrink-0 inline-flex items-center justify-center text-muted-foreground/60 hover:text-foreground rounded opacity-0 group-hover:opacity-100 transition-opacity"
                 aria-label="Remover música"
               >
                 <X className="h-3 w-3" />
               </button>
             </div>
+
           );
         })}
         <button
