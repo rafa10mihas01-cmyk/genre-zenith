@@ -158,6 +158,34 @@ export default function PlanoCampanhaPublico() {
     } catch { return null; }
   });
 
+  // Admin bypass: se o usuário logado for admin, troca o JWT do Supabase
+  // por um access JWT da campanha sem precisar de OTP.
+  const [bypassChecked, setBypassChecked] = useState(false);
+  useEffect(() => {
+    if (!token || accessJwt) { setBypassChecked(true); return; }
+    let cancelled = false;
+    (async () => {
+      const { data: sessRes } = await supabase.auth.getSession();
+      const sess = sessRes?.session;
+      if (!sess?.access_token) { if (!cancelled) setBypassChecked(true); return; }
+      const { data, error } = await supabase.functions.invoke("issue-admin-campaign-access", {
+        body: { token },
+      });
+      if (cancelled) return;
+      const payload = data as { ok?: boolean; jwt?: string } | null;
+      if (!error && payload?.ok && payload.jwt) {
+        try {
+          localStorage.setItem(accessStorageKey(token), JSON.stringify({
+            jwt: payload.jwt, email: sess.user.email ?? "admin", exp: Date.now() + 86400_000,
+          }));
+        } catch { /* ignore */ }
+        setAccessJwt(payload.jwt);
+      }
+      setBypassChecked(true);
+    })();
+    return () => { cancelled = true; };
+  }, [token, accessJwt]);
+
   async function load() {
     if (!token || !accessJwt) return;
     setLoading(true);
@@ -195,8 +223,16 @@ export default function PlanoCampanhaPublico() {
 
   if (!token) return null;
   if (!accessJwt) {
+    if (!bypassChecked) {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      );
+    }
     return <CampaignAccessGate token={token} onAuthed={(jwt) => setAccessJwt(jwt)} />;
   }
+
 
 
   // Após termos o client_token (resolvido pela edge get-shared-campaign-plan),
