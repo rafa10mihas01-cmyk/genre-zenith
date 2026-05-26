@@ -27,6 +27,22 @@ const WINDOW_END_HOUR_BR = 22;    // 22:00 BR (exclusivo)
 const JITTER_MIN = 7;             // ±7min de variação aleatória
 const BR_OFFSET_MS = 3 * 60 * 60 * 1000; // UTC-3
 
+// === Desmame por posição (espelha src/lib/campaignOperationalPlan.ts) ===
+// Degraus do rebaixamento na fase de saída: pos → ×1 → ×2 → ×5 → ×15 → ×30 (cap 100).
+function tailPositionMultiplier(t: number): number {
+  if (t < 0.25) return 1;
+  if (t < 0.5) return 2;
+  if (t < 0.75) return 5;
+  if (t < 1) return 15;
+  return 30;
+}
+function positionForDay(basePos: number, dayNum: number, tailStart: number, tailDays: number): number {
+  if (dayNum < tailStart) return basePos;
+  const denom = Math.max(1, tailDays - 1);
+  const t = (dayNum - tailStart) / denom;
+  return Math.min(100, Math.max(1, basePos * tailPositionMultiplier(t)));
+}
+
 function jr(p: unknown, status = 200) {
   return new Response(JSON.stringify(p), {
     status,
@@ -124,8 +140,9 @@ Deno.serve(async (req) => {
   }
 
   if (candidates.length === 0) {
-    await reportCronHealth(supabase, { job_name: "execution-planner", status: "ok", startedAt: cronT0, metrics: { enqueued: 0, considered: 0 }, message: "no candidates" });
-    return jr({ ok: true, enqueued: 0, considered: 0 });
+    const r = await runEcoReorderPass(supabase, new Date(now));
+    await reportCronHealth(supabase, { job_name: "execution-planner", status: "ok", startedAt: cronT0, metrics: { enqueued: 0, considered: 0, reorder_enqueued: r.enqueued }, message: "no candidates" });
+    return jr({ ok: true, enqueued: 0, considered: 0, reorder: r });
   }
 
   // 2. Filtra os que já têm job aberto/feito
@@ -143,8 +160,9 @@ Deno.serve(async (req) => {
 
   const fresh = candidates.filter((c) => !skip.has(c.dedupe_key));
   if (fresh.length === 0) {
-    await reportCronHealth(supabase, { job_name: "execution-planner", status: "ok", startedAt: cronT0, metrics: { enqueued: 0, considered: candidates.length, dedupe_skipped: candidates.length } });
-    return jr({ ok: true, enqueued: 0, considered: candidates.length });
+    const r = await runEcoReorderPass(supabase, new Date(now));
+    await reportCronHealth(supabase, { job_name: "execution-planner", status: "ok", startedAt: cronT0, metrics: { enqueued: 0, considered: candidates.length, dedupe_skipped: candidates.length, reorder_enqueued: r.enqueued } });
+    return jr({ ok: true, enqueued: 0, considered: candidates.length, reorder: r });
   }
 
   // 3. Pacing: pra cada playlist envolvida, busca histórico recente pra
@@ -232,8 +250,9 @@ Deno.serve(async (req) => {
   }
 
   if (toInsert.length === 0) {
-    await reportCronHealth(supabase, { job_name: "execution-planner", status: "ok", startedAt: cronT0, metrics: { enqueued: 0, considered: candidates.length } });
-    return jr({ ok: true, enqueued: 0, considered: candidates.length });
+    const r = await runEcoReorderPass(supabase, new Date(now));
+    await reportCronHealth(supabase, { job_name: "execution-planner", status: "ok", startedAt: cronT0, metrics: { enqueued: 0, considered: candidates.length, reorder_enqueued: r.enqueued } });
+    return jr({ ok: true, enqueued: 0, considered: candidates.length, reorder: r });
   }
 
   const { error: insErr, count } = await supabase
@@ -246,18 +265,29 @@ Deno.serve(async (req) => {
   }
 
   const enqueued = count ?? toInsert.length;
+
+  // 5. Desmame: enfileira playlist.track.reorder quando hoje é um dia de
+  //    transição de posição planejada (eco allocations + simulation_snapshot).
+  const reorderResult = await runEcoReorderPass(supabase, new Date(now));
+
   await reportCronHealth(supabase, {
     job_name: "execution-planner",
     status: "ok",
     startedAt: cronT0,
-    metrics: { enqueued, considered: candidates.length },
-    message: `enqueued=${enqueued} considered=${candidates.length}`,
+    metrics: {
+      enqueued,
+      considered: candidates.length,
+      reorder_enqueued: reorderResult.enqueued,
+      reorder_considered: reorderResult.considered,
+    },
+    message: `enqueued=${enqueued} considered=${candidates.length} reorder=${reorderResult.enqueued}/${reorderResult.considered}`,
   });
 
   return jr({
     ok: true,
     enqueued,
     considered: candidates.length,
+    reorder: reorderResult,
     pacing: {
       min_spacing_min: MIN_SPACING_MIN,
       max_adds_per_day: MAX_ADDS_PER_DAY,
@@ -266,3 +296,122 @@ Deno.serve(async (req) => {
     },
   });
 });
+
+// ============================================================================
+// Passo de desmame: lê campaign_eco_allocations ativas, calcula a posição
+// planejada para hoje vs. ontem (via positionForDay) e, se houver transição,
+// enfileira um job playlist.track.reorder com from_position/to_position.
+// Idempotente via dedupe_key `reorder:{spId}:{trackId}:d{dayNum}` — uma única
+// reordenação por dia de transição.
+// ============================================================================
+async function runEcoReorderPass(
+  supabase: ReturnType<typeof createClient>,
+  now: Date,
+): Promise<{ enqueued: number; considered: number; transitions: number }> {
+  const { data: ecos, error } = await supabase
+    .from("campaign_eco_allocations")
+    .select(`
+      id, campaign_id, position, start_day, status,
+      managed_playlists!inner ( spotify_playlist_id ),
+      campaigns!inner ( status, started_at, spotify_track_id, simulation_snapshot )
+    `)
+    .in("status", ["dispatched", "active"])
+    .in("campaigns.status", ["active", "running", "live"]);
+
+  if (error) return { enqueued: 0, considered: 0, transitions: 0 };
+  if (!ecos || ecos.length === 0) return { enqueued: 0, considered: 0, transitions: 0 };
+
+  const candidates: Array<{
+    dedupe_key: string;
+    allocation_id: string;
+    campaign_id: string;
+    spotify_playlist_id: string;
+    spotify_track_id: string;
+    from_position: number;
+    to_position: number;
+    dayNum: number;
+  }> = [];
+
+  for (const e of ecos as any[]) {
+    const basePos = Number(e.position ?? 0);
+    if (!Number.isFinite(basePos) || basePos < 1) continue;
+    const spId = e.managed_playlists?.spotify_playlist_id as string | null;
+    const trackId = e.campaigns?.spotify_track_id as string | null;
+    const startedAt = e.campaigns?.started_at as string | null;
+    const snap = e.campaigns?.simulation_snapshot as { days?: number; effectiveDays?: number } | null;
+    if (!spId || !trackId || !startedAt || !snap) continue;
+    const planDays = Math.max(1, Number(snap.effectiveDays ?? snap.days ?? 0));
+    if (planDays <= 0) continue;
+
+    const start = new Date(startedAt);
+    if (isNaN(start.getTime())) continue;
+    const daysSinceStart = Math.floor((now.getTime() - start.getTime()) / 86_400_000) + 1; // 1-indexed
+    if (daysSinceStart < 1 || daysSinceStart > planDays) continue;
+
+    const allocStart = Math.max(1, Math.min(planDays, Number(e.start_day || 1)));
+    const runLen = Math.max(1, planDays - (allocStart - 1));
+    const tailDays = Math.max(1, Math.round(runLen * 0.2));
+    const tailStart = planDays - tailDays + 1;
+    if (daysSinceStart < tailStart) continue; // ainda no platô — sem rebaixamento
+
+    const posToday = positionForDay(basePos, daysSinceStart, tailStart, tailDays);
+    const posYesterday = positionForDay(basePos, daysSinceStart - 1, tailStart, tailDays);
+    if (posToday <= posYesterday) continue; // sem transição
+
+    candidates.push({
+      dedupe_key: `reorder:${spId}:${trackId}:d${daysSinceStart}`,
+      allocation_id: e.id,
+      campaign_id: e.campaign_id,
+      spotify_playlist_id: spId,
+      spotify_track_id: trackId,
+      from_position: posYesterday,
+      to_position: posToday,
+      dayNum: daysSinceStart,
+    });
+  }
+
+  if (candidates.length === 0) {
+    return { enqueued: 0, considered: ecos.length, transitions: 0 };
+  }
+
+  // Filtra dedupe — mesmo critério dos ADDs (jobs em qualquer estado bloqueiam).
+  const keys = candidates.map((c) => c.dedupe_key);
+  const { data: existing } = await supabase
+    .from("playlist_execution_jobs")
+    .select("dedupe_key, status")
+    .in("dedupe_key", keys);
+  const skip = new Set(
+    (existing ?? [])
+      .filter((e: any) => ["pending", "claimed", "failed", "done"].includes(e.status))
+      .map((e: any) => e.dedupe_key),
+  );
+  const fresh = candidates.filter((c) => !skip.has(c.dedupe_key));
+  if (fresh.length === 0) {
+    return { enqueued: 0, considered: ecos.length, transitions: candidates.length };
+  }
+
+  // Agenda dentro da janela horária BR (sem cap diário — reorder é raro).
+  const toInsert = fresh.map((c) => {
+    const when = clampToWindow(new Date(now.getTime() + seededJitterMs(c.dedupe_key)));
+    return {
+      job_type: "playlist.track.reorder",
+      allocation_id: c.allocation_id,
+      campaign_id: c.campaign_id,
+      spotify_playlist_id: c.spotify_playlist_id,
+      spotify_track_id: c.spotify_track_id,
+      from_position: c.from_position,
+      to_position: c.to_position,
+      dedupe_key: c.dedupe_key,
+      status: "pending",
+      scheduled_for: when.toISOString(),
+      metadata: { reason: "desmame", day_num: c.dayNum },
+    };
+  });
+
+  const { error: insErr, count } = await supabase
+    .from("playlist_execution_jobs")
+    .insert(toInsert, { count: "exact" });
+
+  if (insErr) return { enqueued: 0, considered: ecos.length, transitions: candidates.length };
+  return { enqueued: count ?? toInsert.length, considered: ecos.length, transitions: candidates.length };
+}
