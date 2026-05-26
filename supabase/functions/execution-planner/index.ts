@@ -27,6 +27,22 @@ const WINDOW_END_HOUR_BR = 22;    // 22:00 BR (exclusivo)
 const JITTER_MIN = 7;             // ±7min de variação aleatória
 const BR_OFFSET_MS = 3 * 60 * 60 * 1000; // UTC-3
 
+// === Desmame por posição (espelha src/lib/campaignOperationalPlan.ts) ===
+// Degraus do rebaixamento na fase de saída: pos → ×1 → ×2 → ×5 → ×15 → ×30 (cap 100).
+function tailPositionMultiplier(t: number): number {
+  if (t < 0.25) return 1;
+  if (t < 0.5) return 2;
+  if (t < 0.75) return 5;
+  if (t < 1) return 15;
+  return 30;
+}
+function positionForDay(basePos: number, dayNum: number, tailStart: number, tailDays: number): number {
+  if (dayNum < tailStart) return basePos;
+  const denom = Math.max(1, tailDays - 1);
+  const t = (dayNum - tailStart) / denom;
+  return Math.min(100, Math.max(1, basePos * tailPositionMultiplier(t)));
+}
+
 function jr(p: unknown, status = 200) {
   return new Response(JSON.stringify(p), {
     status,
