@@ -722,20 +722,11 @@ export default function CampanhaExecucao() {
                 onSave={handleSaveClientPrice}
                 saving={savingClientPrice}
                 approved={!!camp.client_approved_at}
+                approvedAt={camp.client_approved_at ?? null}
               />
-              <Card>
-                <CardContent className="p-5 space-y-4">
-                  <div className="text-sm font-semibold">Resumo financeiro interno</div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <FinKpi label="Custo total" value={formatBRL(snapshot.custoTotal)} sub="quanto você paga" />
-                    <FinKpi label="Venda ao cliente" value={formatBRL(getClientPriceTotal(snapshot))} sub="valor do orçamento" />
-                    <FinKpi label="Margem" value={formatBRL(getClientPriceTotal(snapshot) - snapshot.custoTotal)} sub="venda menos custo" />
-                    <FinKpi label="CPP interno" value={formatBRL(snapshot.custoPorStream)} sub="custo por stream" />
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           ),
+
           proofs: (
             <div className="space-y-6">
               <ProofsTimeline events={proofEvents} campaignStartedAt={camp.started_at} />
@@ -791,7 +782,7 @@ export default function CampanhaExecucao() {
 }
 
 function ClientPriceEditor({
-  snapshot, value, onChange, onSave, saving, approved, showFinanceKpis = true,
+  snapshot, value, onChange, onSave, saving, approved, approvedAt, showFinanceKpis = true,
 }: {
   snapshot: CampaignSnapshot;
   value: string;
@@ -799,6 +790,7 @@ function ClientPriceEditor({
   onSave: () => void;
   saving: boolean;
   approved: boolean;
+  approvedAt?: string | null;
   showFinanceKpis?: boolean;
 }) {
   const currentTotal = getClientPriceTotal(snapshot);
@@ -807,6 +799,10 @@ function ClientPriceEditor({
   const perMillion = snapshot.meta > 0 ? (effectiveTotal / snapshot.meta) * 1_000_000 : 0;
   const margin = effectiveTotal - snapshot.custoTotal;
   const marginPct = effectiveTotal > 0 ? Math.round((margin / effectiveTotal) * 100) : 0;
+  const locked = approved;
+  const approvedLabel = approvedAt
+    ? new Date(approvedAt).toLocaleString("pt-BR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
+    : null;
 
   return (
     <Card className="border-primary/30">
@@ -821,8 +817,21 @@ function ClientPriceEditor({
           {approved && <div className="text-[10px] uppercase tracking-wide text-primary font-semibold">Cliente já aprovou</div>}
         </div>
 
+        {locked && (
+          <div className="flex items-start gap-2 rounded-md border border-primary/30 bg-primary/10 px-3 py-2.5 text-xs">
+            <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+            <div>
+              <div className="font-medium text-primary">Orçamento travado</div>
+              <p className="text-muted-foreground mt-0.5">
+                Cliente já aprovou este orçamento{approvedLabel ? <> em <strong className="text-foreground">{approvedLabel}</strong></> : null}.
+                Para alterar, contate o cliente.
+              </p>
+            </div>
+          </div>
+        )}
+
         {(() => {
-          const isDirty = Number.isFinite(typedTotal) && typedTotal > 0 && Math.abs(typedTotal - currentTotal) > 0.005;
+          const isDirty = !locked && Number.isFinite(typedTotal) && typedTotal > 0 && Math.abs(typedTotal - currentTotal) > 0.005;
           const isSaved = !isDirty && currentTotal > 0;
           return (
             <div className="grid grid-cols-1 lg:grid-cols-[minmax(220px,1fr)_auto] gap-3 lg:items-end">
@@ -833,15 +842,17 @@ function ClientPriceEditor({
                   onChange={(e) => onChange(e.target.value)}
                   inputMode="decimal"
                   placeholder="Ex.: 50.000,00"
+                  disabled={locked}
                   className={cn(
                     "text-lg font-semibold tabular-nums transition-colors",
                     isSaved && "text-muted-foreground/70",
+                    locked && "opacity-60 cursor-not-allowed",
                   )}
                 />
               </div>
               <Button
                 onClick={onSave}
-                disabled={saving || !isDirty}
+                disabled={saving || !isDirty || locked}
                 variant={isDirty ? "default" : "outline"}
                 className="w-full lg:w-auto"
               >
@@ -852,7 +863,6 @@ function ClientPriceEditor({
           );
         })()}
 
-
         {showFinanceKpis && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <FinKpi label="Cliente paga" value={formatBRL(effectiveTotal)} sub={`${formatInt(snapshot.meta)} streams`} />
@@ -861,10 +871,26 @@ function ClientPriceEditor({
             <FinKpi label="Margem" value={formatBRL(margin)} sub={`${marginPct}% sobre venda`} />
           </div>
         )}
+
+        {/* Breakdown do custo Eco vs Externo */}
+        <div className="rounded-md border border-border bg-elevated/20 px-3 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs tabular-nums">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Composição do custo</span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+            Eco <strong className="text-foreground">{formatBRL(snapshot.custoEco)}</strong>
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-curators" />
+            Externo <strong className="text-foreground">{formatBRL(snapshot.custoExt)}</strong>
+          </span>
+          <span className="text-muted-foreground">·</span>
+          <span>Total <strong className="text-foreground">{formatBRL(snapshot.custoTotal)}</strong></span>
+        </div>
       </CardContent>
     </Card>
   );
 }
+
 
 function parseBRLInput(value: string) {
   const normalized = value.trim().replace(/\s/g, "").replace(/\./g, "").replace(",", ".");
