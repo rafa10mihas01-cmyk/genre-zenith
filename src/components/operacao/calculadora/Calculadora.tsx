@@ -463,6 +463,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         r.modo,
         song.engagementMultiplier ?? 30,
         { source: "primary" },
+        song.track?.position ?? null,
       );
       const neighborAllocs = neighborBudget > 0
         ? planEcoAllocations(
@@ -472,6 +473,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
             r.modo,
             song.engagementMultiplier ?? 30,
             { source: "affinity", affinityByPlaylistId: neighborAffinityByPlaylistId },
+            song.track?.position ?? null,
           )
         : [];
       const allocations = [...coreAllocs, ...neighborAllocs];
