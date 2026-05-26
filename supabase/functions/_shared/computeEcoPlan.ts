@@ -9,7 +9,26 @@ export const POSITION_PCT: number[] = [
 ];
 const POSITION_RESIDUAL = 0.003;
 export const MIN_CAMPAIGN_POSITION = 1;
-const ECO_RAMP = [0.2, 0.4, 0.6, 0.8, 1.0];
+const ECO_RAMP = [0.6, 0.85, 1.0];
+const ECO_GROWTH_CAP = 1.25;
+function ecoGrowthFactor(daysSinceSteady: number): number {
+  if (daysSinceSteady < 0) return 1;
+  let f = 1;
+  for (let i = 0; i <= daysSinceSteady; i++) {
+    f *= i % 2 === 0 ? 1.05 : 0.97;
+    if (f >= ECO_GROWTH_CAP) return ECO_GROWTH_CAP;
+  }
+  return f;
+}
+export function ecoPlanTotalMultiplier(days: number): number {
+  let total = 0;
+  for (let i = 0; i < days; i++) {
+    const ramp = i < ECO_RAMP.length ? ECO_RAMP[i] : 1;
+    const gi = i - ECO_RAMP.length;
+    total += ramp * (gi >= 0 ? ecoGrowthFactor(gi) : 1);
+  }
+  return total;
+}
 const WEEKDAY_FLAT_FACTOR = [0.92, 0.85, 1.00, 1.04, 1.06, 1.08, 1.05];
 
 function getPositionPct(pos: number) {
