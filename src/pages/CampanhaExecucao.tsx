@@ -313,8 +313,26 @@ export default function CampanhaExecucao() {
   useEffect(() => {
     if (!id) return;
     loadCampaign();
+    // Refetch quando a aba volta ao foco (cobre backfills/replans externos
+    // que mudam allocations/positions sem o usuário ter recarregado a página).
+    const onFocus = () => loadCampaign();
+    const onVisible = () => { if (document.visibilityState === "visible") loadCampaign(); };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    // Realtime: qualquer mudança nas allocations desta campanha → refetch.
+    const channel = supabase
+      .channel(`camp-exec-${id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "campaign_eco_allocations", filter: `campaign_id=eq.${id}` }, () => loadCampaign())
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "campaigns", filter: `id=eq.${id}` }, () => loadCampaign())
+      .subscribe();
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+      supabase.removeChannel(channel);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
 
   const snapshot = camp?.simulation_snapshot ?? null;
 
