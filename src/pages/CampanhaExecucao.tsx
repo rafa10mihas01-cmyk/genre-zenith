@@ -648,8 +648,8 @@ export default function CampanhaExecucao() {
           ),
 
 
-          playlists: (
-            <Tabs defaultValue="interno" className="space-y-4">
+          playlists: (() => {
+            const tabsRow = (
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <TabsList>
                   <TabsTrigger value="interno">Interno ({allocs.length})</TabsTrigger>
@@ -660,16 +660,17 @@ export default function CampanhaExecucao() {
                   <ReplanButton campaignId={camp.id} onReplanned={loadCampaign} />
                 </div>
               </div>
+            );
+            return (
+            <Tabs defaultValue="interno" className="space-y-4">
               <TabsContent value="interno" className="mt-0 space-y-4">
                 <GenresUsedFromAllocs allocs={allocs} />
-
-
-
                 <InternalEcosystemHeader
                   snapshot={snapshot}
                   allocations={allocs}
                   snaps={snaps}
                 />
+                {tabsRow}
                 <PlaylistsGrid
                   allocations={allocs}
                   snapshots={snaps}
@@ -684,11 +685,12 @@ export default function CampanhaExecucao() {
                 />
                 <OrganicCollectedSection rows={organicRows} />
               </TabsContent>
-              <TabsContent value="externo" className="mt-0">
-                <ExternalPackageEditor campaignId={camp.id} snapshot={snapshot} onChanged={() => setPlanRefreshKey(k => k + 1)} />
+              <TabsContent value="externo" className="mt-0 space-y-4">
+                <ExternalPackageEditor campaignId={camp.id} snapshot={snapshot} onChanged={() => setPlanRefreshKey(k => k + 1)} tabsRow={tabsRow} />
               </TabsContent>
             </Tabs>
-          ),
+            );
+          })(),
           curve: (
             <Tabs defaultValue="diario" className="space-y-4">
               <TabsList>
