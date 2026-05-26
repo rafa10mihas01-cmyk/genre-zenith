@@ -18,7 +18,7 @@ export type GenreNeighbor = {
 export async function getGenreNeighbors(
   sb: SupabaseClient,
   genreId: string,
-  threshold = 0.5,
+  threshold = 0.6,
 ): Promise<GenreNeighbor[]> {
   const { data, error } = await sb
     .from("genre_affinities")
