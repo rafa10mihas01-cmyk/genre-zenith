@@ -3,10 +3,10 @@ import { Button } from "@/components/ui/button";
 import { formatInt, formatBRL } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { cn } from "@/lib/utils";
-import { Music, Camera, TrendingUp, TrendingDown, Minus, ArrowRight, ExternalLink, ChevronDown } from "lucide-react";
+import { Music, Camera, TrendingUp, TrendingDown, Minus, ArrowRight, ExternalLink, ChevronDown, Target, Activity, Gauge, CalendarDays } from "lucide-react";
 import { useState } from "react";
 import type { EcoAllocation } from "../types";
-import { Kpi as UnifiedKpi } from "@/components/ui/kpi";
+import { KpiBig } from "@/components/KpiBig";
 
 type EcoSnap = {
   managed_playlist_id: string;
@@ -128,35 +128,40 @@ export function OverviewTab({
 
   return (
     <div className="space-y-6">
-      {/* KPIs — variante compacta pra caber "3.000.000" no mobile e manter padrão consistente */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 md:gap-3">
-        <UnifiedKpi
-          label="Meta"
-          value={formatInt(snapshot.meta)}
-          hint="streams"
-          variant="compact"
-        />
-        <UnifiedKpi
+      {/* KPIs — padrão Curadores: hero (Entregue) + secundários + quiet (Duração) */}
+      <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <KpiBig
+          tier="hero"
+          icon={Activity}
           label="Entregue"
           value={formatInt(delivered)}
           hint={`${pct}% da meta`}
-          tone="primary"
-          variant="compact"
+          domain="campaigns"
         />
-        <UnifiedKpi
-          label="Aderência ao plano"
+        <KpiBig
+          icon={Target}
+          label="Meta"
+          value={formatInt(snapshot.meta)}
+          hint="streams"
+          domain="deals"
+        />
+        <KpiBig
+          icon={Gauge}
+          label="Aderência"
           value={`${adherence}%`}
           hint={`vs ${formatInt(plannedToDate)} planejados`}
-          tone={adherence >= 85 ? "primary" : "warning"}
-          variant="compact"
+          domain={adherence >= 85 ? "campaigns" : "system"}
         />
-        <UnifiedKpi
+        <KpiBig
+          tier="quiet"
+          icon={CalendarDays}
           label="Duração"
           value={`${snapshot.days}d`}
           hint={snapshot.modo === "simultaneo" ? "simultâneo" : "sequencial"}
-          variant="compact"
+          domain="curators"
         />
-      </div>
+      </section>
+
 
       {/* Plano de entrega — leitura única: meta total, ritmo, split eco/ext, hoje */}
       {!hideDeliveryPlan && (
@@ -462,12 +467,12 @@ export function OverviewTab({
 
 function Kpi({ label, value, sub, tone, compact }: { label: string; value: string; sub?: string; tone?: "primary" | "warning"; compact?: boolean }) {
   return (
-    <UnifiedKpi
-      variant={compact ? "compact" : "default"}
+    <KpiBig
       label={label}
       value={value}
       hint={sub}
       tone={tone}
+      tier={compact ? "quiet" : "default"}
     />
   );
 }
