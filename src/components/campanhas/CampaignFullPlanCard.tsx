@@ -642,6 +642,16 @@ export function CampaignFullPlanCard({
                   >
                     Total {mode === "diario" ? "/ dia" : "acumulado"}
                   </td>
+                  <td className="py-2 px-2 border-t-2 border-border">
+                    <DeliveryCell
+                      delivered={plans.reduce((s, p) => {
+                        const mpl = mplIdByAllocation.get(p.allocationId);
+                        return s + (mpl ? (deliveredByMpl.get(mpl) ?? 0) : 0);
+                      }, 0)}
+                      planned={plans.reduce((s, p) => s + (p.totalStreams ?? 0), 0)}
+                      compact
+                    />
+                  </td>
                   <td className="text-right tabular-nums py-2 px-2 border-t-2 border-border text-primary">
                     {formatInt(dailyTotals.reduce((s, v) => s + v, 0))}
                   </td>
