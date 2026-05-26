@@ -357,7 +357,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
       const playlists = (playlistsRaw ?? []).filter(p => (p.followers ?? 0) >= 100);
 
       const effMeta = songEffectiveMeta(song);
-      const r = calcCampaign({ meta: effMeta, days: song.days, modo: song.modo, perfil: song.perfil, splitEcoPct: song.splitEco }, pricingCosts);
+      const r = calcCampaign({ meta: effMeta, days: song.days, modo: song.modo, perfil: song.perfil, splitEcoPct: song.splitEco, splitOrganicPct: song.splitOrganic, clientProfile: song.clientProfile }, pricingCosts);
 
       const snapshot = buildSnapshot(
         r,
