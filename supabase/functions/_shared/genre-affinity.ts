@@ -44,7 +44,7 @@ export async function getGenreNeighbors(
 export async function expandGenrePool(
   sb: SupabaseClient,
   primaryGenreId: string,
-  threshold = 0.5,
+  threshold = 0.6,
 ): Promise<Array<{ genre_id: string; score: number; tier: "primary" | "neighbor" }>> {
   const neighbors = await getGenreNeighbors(sb, primaryGenreId, threshold);
   return [
