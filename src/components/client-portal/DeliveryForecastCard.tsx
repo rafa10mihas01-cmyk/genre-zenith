@@ -246,34 +246,94 @@ export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
                 />
               )}
               <ReTooltip
-                contentStyle={{
-                  background: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: 12, fontSize: 12,
-                }}
-                labelStyle={{ color: "hsl(var(--muted-foreground))" }}
-                formatter={(value: number, name: string, item: any) => {
-                  if (name === "trackPlays") return [`${formatFull(value)} plays`, "Plays/dia da música"];
-                  if (name === "organic") return [`${formatFull(value)} plays/dia`, "Orgânico (Rádio · Autoplay · Mixes)"];
-                  if (name === "delivery") {
-                    const cum = item?.payload?.cumulative;
-                    const node = (
-                      <span>
-                        {formatFull(value)} plays
-                        {Number.isFinite(cum) && (
-                          <>
-                            {" · "}
-                            <span className="text-muted-foreground">Acumulado: {formatPlays(cum)} plays</span>
-                          </>
-                        )}
-                      </span>
-                    );
-                    return [node, "Entrega do dia"];
-                  }
-                  return [`${formatFull(value)} plays`, name];
-                }}
+                cursor={{ stroke: "hsl(var(--border))", strokeWidth: 1 }}
+                content={({ active, payload, label }) => {
+                  if (!active || !payload || payload.length === 0) return null;
+                  const byKey: Record<string, any> = {};
+                  for (const p of payload) byKey[p.dataKey as string] = p;
+                  const delivery = byKey.delivery?.value;
+                  const trackPlays = byKey.trackPlays?.value;
+                  const organic = byKey.organic?.value;
+                  const cum = payload[0]?.payload?.cumulative;
 
+                  const Row = ({
+                    dot, label, value, unit, accent,
+                  }: { dot: string; label: string; value: string; unit?: string; accent?: boolean }) => (
+                    <div className="flex items-baseline justify-between gap-6">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span
+                          className="h-1.5 w-1.5 rounded-full shrink-0"
+                          style={{ background: dot }}
+                        />
+                        <span className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground truncate">
+                          {label}
+                        </span>
+                      </div>
+                      <div className="flex items-baseline gap-1 shrink-0">
+                        <span
+                          className={
+                            "tabular-nums font-semibold leading-none " +
+                            (accent ? "text-primary text-[15px]" : "text-foreground text-[13.5px]")
+                          }
+                        >
+                          {value}
+                        </span>
+                        {unit && (
+                          <span className="text-[10.5px] text-muted-foreground leading-none">
+                            {unit}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+
+                  return (
+                    <div
+                      className="rounded-xl border border-border/80 bg-card/95 backdrop-blur px-3.5 py-3 shadow-2xl shadow-black/40 min-w-[240px]"
+                    >
+                      <div className="text-[10.5px] uppercase tracking-[0.14em] text-muted-foreground/80 font-medium mb-2.5">
+                        Dia {label}
+                      </div>
+                      <div className="space-y-2">
+                        {Number.isFinite(cum) && (
+                          <Row
+                            dot="hsl(var(--muted-foreground))"
+                            label="Acumulado"
+                            value={formatFull(cum)}
+                            unit="plays"
+                          />
+                        )}
+                        {Number.isFinite(delivery) && (
+                          <Row
+                            dot="hsl(var(--primary))"
+                            label="Entrega do dia"
+                            value={formatFull(delivery)}
+                            unit="plays"
+                            accent
+                          />
+                        )}
+                        {Number.isFinite(trackPlays) && (
+                          <Row
+                            dot="hsl(var(--primary) / 0.55)"
+                            label="Plays/dia da música"
+                            value={formatFull(trackPlays)}
+                            unit="plays"
+                          />
+                        )}
+                        {Number.isFinite(organic) && (
+                          <Row
+                            dot="hsl(var(--muted-foreground) / 0.6)"
+                            label="Orgânico"
+                            value={formatFull(organic)}
+                            unit="plays/dia"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  );
+                }}
               />
+
 
 
               {data.target != null && (
