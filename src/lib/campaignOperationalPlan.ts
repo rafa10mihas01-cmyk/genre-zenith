@@ -359,13 +359,17 @@ export function chartTierFromSnapshot(snapshot?: { music?: { top200Position?: nu
 const PRIMARY_RANGES_BY_CHART: Record<ChartTier, Record<PlaylistSizeTier, [number, number]>> = {
   top50:   { large: [1, 1], medium: [1, 1], small: [1, 1] },
   top100:  { large: [1, 2], medium: [2, 4], small: [3, 5] },
-  outside: { large: [1, 1], medium: [1, 1], small: [1, 1] }, // ignorado — usa rank-based
+  outside: { large: [1, 1], medium: [1, 1], small: [1, 1] }, // ignorado — usa ranking [3-7]
 };
 const NEIGHBOR_RANGE_BY_CHART: Record<ChartTier, [number, number]> = {
   top50:   [4, 5],
   top100:  [5, 7],
   outside: [7, 10],
 };
+/** Faixa de posições para primárias quando a música está fora do Top 200.
+ *  Música sem chart precisa de posições FORTES pra entrar — não fracas.
+ *  Range [3-7] distribui por followers (maior → posição mais forte). */
+const OUTSIDE_PRIMARY_RANGE: [number, number] = [3, 7];
 
 function distributeByChartTier(
   allocs: Array<{ id: string; followers: number; genreSource?: "primary" | "affinity" }>,
@@ -378,10 +382,12 @@ function distributeByChartTier(
     .sort((a, b) => b.followers - a.followers);
 
   if (chartTier === "outside") {
-    const N = Math.max(1, primary.length);
-    primary.forEach((a, i) => {
-      const pos = Math.max(1, Math.min(20, Math.round(((i + 1) / N) * 20)));
-      out.set(a.id, pos);
+    // Distribui primárias em [3-7] por followers descendente (já ordenado acima).
+    // Maior playlist recebe pos mais forte (3), menor recebe a mais fraca (7).
+    const [lo, hi] = OUTSIDE_PRIMARY_RANGE;
+    primary.forEach((a, idx) => {
+      const pct = primary.length <= 1 ? 0 : idx / (primary.length - 1);
+      out.set(a.id, lo + Math.round(pct * (hi - lo)));
     });
   } else {
     const byTier: Record<PlaylistSizeTier, typeof primary> = { large: [], medium: [], small: [] };
