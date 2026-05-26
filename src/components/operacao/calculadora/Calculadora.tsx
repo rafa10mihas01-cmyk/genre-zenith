@@ -720,9 +720,11 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                   Cliente
                 </Label>
                 <Select value={clientId || "__none__"} onValueChange={v => setClientId(v === "__none__" ? "" : v)}>
-                  <SelectTrigger><SelectValue placeholder="Sem cliente" /></SelectTrigger>
+                  <SelectTrigger className="text-muted-foreground/80 data-[state=open]:text-foreground [&[data-state=closed]>span]:text-muted-foreground/60">
+                    <SelectValue placeholder="Selecione um cliente" />
+                  </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">— Sem cliente —</SelectItem>
+                    <SelectItem value="__none__">Sem cliente</SelectItem>
                     {clientsList.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -732,9 +734,11 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                   Curador {campaignType !== "ecosystem" && <span className="text-destructive normal-case">*</span>}
                 </Label>
                 <Select value={curatorId || "__none__"} onValueChange={v => setCuratorId(v === "__none__" ? "" : v)}>
-                  <SelectTrigger><SelectValue placeholder="Sem curador" /></SelectTrigger>
+                  <SelectTrigger className="text-muted-foreground/80 data-[state=open]:text-foreground [&[data-state=closed]>span]:text-muted-foreground/60">
+                    <SelectValue placeholder="Selecione um curador" />
+                  </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">— Sem curador (modo legado) —</SelectItem>
+                    <SelectItem value="__none__">Sem curador (modo legado)</SelectItem>
                     {curatorsList.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
