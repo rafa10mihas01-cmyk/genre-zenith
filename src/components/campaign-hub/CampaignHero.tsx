@@ -19,6 +19,7 @@ type Props = {
   daysTotal?: number;
   lastUpdateAt?: string | null;
   extraActions?: ReactNode;
+  hideProgress?: boolean;
 };
 
 const STATUS_LABEL: Record<string, string> = {
