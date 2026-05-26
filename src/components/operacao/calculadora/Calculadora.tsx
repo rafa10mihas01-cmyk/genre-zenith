@@ -193,6 +193,8 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   const setModo = (v: Modo) => patchActive({ modo: v });
   const setPerfil = (v: Perfil) => patchActive({ perfil: v });
   const setSplitEco = (v: number) => patchActive({ splitEco: v });
+  const setSplitOrganic = (v: number) => patchActive({ splitOrganic: Math.max(0, Math.min(50, v)) });
+  const setClientProfile = (v: "gravadora" | "artista") => patchActive({ clientProfile: v });
   const setEngagementMultiplier = (v: number) => patchActive({ engagementMultiplier: Math.max(1, Math.min(200, Math.round(v || 1))) });
   const setStartDate = (d: Date) => patchActive({ startDateISO: startOfDay(d).toISOString().slice(0, 10) });
   const setClientPriceTotal = (v: number) => patchActive({ clientPriceTotal: v });
