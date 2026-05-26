@@ -577,6 +577,12 @@ export function CampaignFullPlanCard({
                       >
                         {pos != null ? `#${pos}` : "—"}
                       </td>
+                      <td className="py-0 px-2 border-b border-border/30 leading-tight">
+                        <DeliveryCell
+                          delivered={mplIdByAllocation.get(p.allocationId) ? (deliveredByMpl.get(mplIdByAllocation.get(p.allocationId)!) ?? 0) : 0}
+                          planned={p.totalStreams}
+                        />
+                      </td>
                       <td className="text-right tabular-nums font-semibold py-0 px-2 border-b border-border/30 leading-tight">
                         {formatInt(p.totalStreams)}
                       </td>
