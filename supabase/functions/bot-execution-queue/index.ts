@@ -138,7 +138,7 @@ Deno.serve(async (req) => {
   // ============= 1b) ADD / REMOVE: executa inline via Web API do Spotify =============
   const { data: mutationJobs } = await supabase
     .from("playlist_execution_jobs")
-    .select("id, job_type, spotify_playlist_id, spotify_track_id, attempts, max_attempts")
+    .select("id, job_type, campaign_id, spotify_playlist_id, spotify_track_id, attempts, max_attempts")
     .eq("status", "pending")
     .in("job_type", ["playlist.track.add", "playlist.track.remove"])
     .lte("scheduled_for", nowIso)
@@ -181,6 +181,58 @@ Deno.serve(async (req) => {
 
       if (j.job_type === "playlist.track.add") {
         await addPlaylistTracks(j.spotify_playlist_id, [trackUri], token);
+
+        // ============= Modo A: reorder pra posição planejada =============
+        try {
+          let plannedPos: number | null = null;
+          if (j.campaign_id) {
+            const { data: eco } = await supabase
+              .from("campaign_eco_allocations")
+              .select("position")
+              .eq("campaign_id", j.campaign_id)
+              .eq("managed_playlist_id", managedId)
+              .maybeSingle();
+            plannedPos = eco?.position ? Number(eco.position) : null;
+          }
+
+          if (plannedPos && plannedPos > 0) {
+            const appToken2 = await getSpotifyToken();
+            const uris = await listPlaylistTrackUris(j.spotify_playlist_id, appToken2);
+            const total = uris.length;
+            // localiza a faixa recém-adicionada (procura do fim pro começo)
+            let from0 = -1;
+            for (let i = uris.length - 1; i >= 0; i--) {
+              if (uris[i] === trackUri) { from0 = i; break; }
+            }
+            const to0 = Math.min(plannedPos - 1, Math.max(0, total - 1));
+            if (from0 < 0) {
+              console.log(JSON.stringify({ evt: "post_add_reorder.skipped", job_id: j.id, reason: "track_not_found", total }));
+            } else if (from0 === to0) {
+              console.log(JSON.stringify({ evt: "post_add_reorder.skipped", job_id: j.id, reason: "already_in_position", position: plannedPos }));
+            } else {
+              const insertBefore = to0 > from0 ? to0 + 1 : to0;
+              await reorderPlaylistTracks(
+                j.spotify_playlist_id,
+                { range_start: from0, insert_before: insertBefore, range_length: 1 },
+                token,
+              );
+              console.log(JSON.stringify({
+                evt: "post_add_reorder.done",
+                job_id: j.id,
+                spotify_playlist_id: j.spotify_playlist_id,
+                from: from0 + 1,
+                to: plannedPos,
+                total,
+              }));
+            }
+          } else {
+            console.log(JSON.stringify({ evt: "post_add_reorder.skipped", job_id: j.id, reason: "no_planned_position" }));
+          }
+        } catch (re) {
+          // Falha no reorder NÃO falha o ADD (música já entrou na playlist)
+          const remsg = (re as Error).message ?? String(re);
+          console.log(JSON.stringify({ evt: "post_add_reorder.error", job_id: j.id, error: remsg }));
+        }
       } else {
         await removePlaylistTracks(j.spotify_playlist_id, [trackUri], token);
 
