@@ -764,8 +764,10 @@ export function buildEcoPlaylistPlan(
 
     const planLen = planDaysOf(snapshot);
     const daily = Array.from({ length: planLen }, () => 0);
-    // Rampa de saída: últimos 20% dos dias da alocação decaem suavemente,
-    // espelhando a rampa de entrada. tailFactor = 1 − 0.5 × ((day − tailStart) / tailDays)^2.
+    // Rampa de saída: últimos 20% dos dias da alocação. A música é rebaixada
+    // em degraus (pos → pos×2 → pos×5 → pos×15 → pos×30) e o decaimento
+    // do output vem naturalmente do POSITION_PCT da nova posição. Sem fator
+    // quadrático artificial — o slot pior já entrega menos por construção.
     const runLen = Math.max(1, planLen - (startDay - 1));
     const tailDays = Math.max(1, Math.round(runLen * 0.2));
     const tailStart = planLen - tailDays + 1;
@@ -788,13 +790,12 @@ export function buildEcoPlaylistPlan(
         d.setDate(d.getDate() + i);
         weekday = WEEKDAY_FLAT_FACTOR[d.getDay()] ?? 1;
       }
-      const dayNum = i + 1;
-      let tail = 1;
-      if (dayNum >= tailStart) {
-        const t = (dayNum - tailStart) / tailDays;
-        tail = 1 - 0.5 * t * t;
-      }
-      daily[i] = Math.max(1, Math.round(baseCap * ramp * growth * tail * weekday));
+      // Cap do dia: usa POSITION_PCT da posição planejada no dia (rebaixada
+      // na fase de saída). No platô, posição = base → dayCap = baseCap.
+      const dayCap = Math.max(1, Math.round(
+        calculateTrackDailyStreams(followers, multiplier, positionByDay[i]),
+      ));
+      daily[i] = Math.max(1, Math.round(dayCap * ramp * growth * weekday));
     }
 
     // Downscale só é acionado se o plano teórico estourar MUITO o planned_streams
