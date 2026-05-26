@@ -156,6 +156,52 @@ export function CampaignFullPlanCard({
     return m;
   }, [allocations]);
 
+  // Extrai spotify_playlist_id da URL pra cruzar com playlist_execution_jobs.
+  const spotifyIdByAllocation = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const a of allocations) {
+      const url = a.managed_playlists?.spotify_url ?? "";
+      const match = url.match(/playlist\/([A-Za-z0-9]+)/);
+      if (match) m.set(a.id, match[1]);
+    }
+    return m;
+  }, [allocations]);
+
+  // Status real dos jobs de ADD por playlist (apenas modo interno, com campaignId).
+  type JobAgg = { done: number; pending: number; failed: number };
+  const [jobStatusBySpid, setJobStatusBySpid] = useState<Map<string, JobAgg>>(new Map());
+  useEffect(() => {
+    if (!campaignId) return;
+    let cancelled = false;
+    const load = async () => {
+      const { data } = await supabase
+        .from("playlist_execution_jobs")
+        .select("spotify_playlist_id, status")
+        .eq("campaign_id", campaignId)
+        .eq("job_type", "playlist.track.add");
+      if (cancelled) return;
+      const m = new Map<string, JobAgg>();
+      for (const j of (data ?? []) as { spotify_playlist_id: string; status: string }[]) {
+        const cur = m.get(j.spotify_playlist_id) ?? { done: 0, pending: 0, failed: 0 };
+        if (j.status === "done") cur.done++;
+        else if (j.status === "failed") cur.failed++;
+        else cur.pending++;
+        m.set(j.spotify_playlist_id, cur);
+      }
+      setJobStatusBySpid(m);
+    };
+    load();
+    const ch = supabase
+      .channel(`cfpc-jobs-${campaignId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "playlist_execution_jobs", filter: `campaign_id=eq.${campaignId}` },
+        () => load(),
+      )
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(ch); };
+  }, [campaignId]);
+
   // Linha "Rádio · Autoplay · Mixes" — só renderiza quando o consumidor
   // (somente página interna) passar `radioGoal` explicitamente. Distribuída
   // na curva da campanha (snapshot.curva.streamsDay). Soma exata = radioTotal.
