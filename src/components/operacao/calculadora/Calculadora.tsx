@@ -1195,15 +1195,24 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                               {sub && <span className="text-[10px] text-muted-foreground/60 truncate">{sub}</span>}
                             </div>
                           );
+                          const totalPerDay = ecoPerDay + extPerDay + (result.streamsOrganic > 0 ? Math.round(result.streamsOrganic / days) : 0);
                           return (
                             <div className="mt-2 space-y-2">
-                              <div className="flex items-baseline justify-between gap-3 px-1">
-                                <span className="text-[12px] text-muted-foreground">Meta</span>
-                                <div className="flex items-baseline gap-2">
-                                  {result.streamsOrganic > 0 && (
-                                    <span className="text-[11px] text-muted-foreground/70">op. {formatCompact(result.metaOperacional)}</span>
-                                  )}
-                                  <span className="text-[16px] font-semibold tabular-nums text-foreground">{formatCompact(result.meta)}</span>
+                              <div className="rounded-md border border-border/40 bg-background/40 px-3 py-2.5">
+                                <div className="flex items-baseline justify-between gap-3">
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Meta contratada</span>
+                                    {result.streamsOrganic > 0 && (
+                                      <span className="text-[10px] text-muted-foreground/70 mt-0.5">
+                                        operacional (eco+externo): <span className="tabular-nums text-muted-foreground">{formatCompact(result.metaOperacional)}</span>
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-[20px] font-semibold tabular-nums text-foreground leading-none">{formatCompact(result.meta)}</span>
+                                </div>
+                                <div className="flex items-baseline justify-between gap-2 pt-2 mt-2 border-t border-border/30 text-[11px]">
+                                  <span className="text-muted-foreground">Ritmo total necessário</span>
+                                  <span className="tabular-nums font-medium text-foreground">{formatCompact(totalPerDay)}/dia · {days}d</span>
                                 </div>
                               </div>
                               <div className={cn(
@@ -1237,6 +1246,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                             </div>
                           );
                         })()}
+
 
 
                         {ecoOverflow && suggestedEcoPct != null && (
