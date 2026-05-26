@@ -81,6 +81,7 @@ export function useEcosystemCapacity(
   engagementMultiplier = 30,
   slotPositions: number[] = [3],
   topPosition: number | null = null,
+  streamsEcoNeeded: number | null = null,
 ): EcosystemCapacity {
   const slotKey = slotPositions.join(",");
   const [state, setState] = useState<EcosystemCapacity>({
@@ -93,6 +94,7 @@ export function useEcosystemCapacity(
     capacityTotal: 0,
     capacityPerDay: 0,
     genreResolved: false,
+    playlistsSelected: null,
   });
 
   useEffect(() => {
