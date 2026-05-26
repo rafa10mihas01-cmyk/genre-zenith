@@ -285,6 +285,3 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
     </div>
   );
 }
-
-// Re-exportar Activity para o card vazio
-import { Activity } from "lucide-react";
