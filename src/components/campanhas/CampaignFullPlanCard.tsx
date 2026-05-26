@@ -513,6 +513,8 @@ export function CampaignFullPlanCard({
                         const isStart = i + 1 === p.startDay;
                         const intensity = p.capDia > 0 ? Math.min(1, dailyV / p.capDia) : 0;
                         const isEmpty = mode === "diario" ? dailyV === 0 : v === 0;
+                        const dayPos = p.positionByDay?.[i] ?? pos ?? null;
+                        const isDemoted = pos != null && dayPos != null && dayPos > pos;
                         return (
                           <td
                             key={i}
@@ -526,9 +528,26 @@ export function CampaignFullPlanCard({
                                 ? { backgroundColor: `hsl(var(--primary) / ${0.06 + intensity * 0.22})` }
                                 : undefined
                             }
-                            title={isStart ? `Entrada D${p.startDay}` : undefined}
+                            title={
+                              isDemoted
+                                ? `Rebaixado para #${dayPos} (desmame)`
+                                : isStart
+                                  ? `Entrada D${p.startDay}`
+                                  : undefined
+                            }
                           >
-                            {v > 0 ? formatInt(v) : "0"}
+                            {v > 0 ? (
+                              <span className="inline-flex items-baseline gap-1 justify-end">
+                                <span>{formatInt(v)}</span>
+                                {isDemoted && mode === "diario" && (
+                                  <span className="text-[9px] font-medium text-warning tabular-nums">
+                                    #{dayPos}
+                                  </span>
+                                )}
+                              </span>
+                            ) : (
+                              "0"
+                            )}
                           </td>
                         );
                       })}
