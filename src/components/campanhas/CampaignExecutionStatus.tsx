@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CheckCircle2, Clock, XCircle, Loader2, ArrowDownUp, Plus, AlertCircle, ChevronDown, ChevronRight } from "lucide-react";
+import {
+  CheckCircle2, Clock, XCircle, Loader2, ArrowDownUp, Plus,
+  AlertCircle, ChevronDown, ChevronRight, Activity,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type JobRow = {
