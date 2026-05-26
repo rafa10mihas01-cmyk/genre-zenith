@@ -343,9 +343,9 @@ export function CampaignFullPlanCard({
               hint={`${formatInt(resumo.necDiaEco)} eco · ${formatInt(resumo.necDiaExt)} ext`}
             />
             <ResumoStat
-              label="Capacidade eco/dia"
+              label="Eco base/dia"
               value={formatInt(resumo.capacidadeEcoDia)}
-              hint={`uso ${resumo.usoCap}% pra bater eco`}
+              hint={`pico ${formatInt(resumo.pico)} com boost · uso ${resumo.usoCap}%`}
               tone={resumo.usoCap > 90 ? "warning" : "primary"}
             />
             <ResumoStat
