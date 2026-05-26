@@ -77,9 +77,14 @@ export function PlaylistsGrid({ allocations, snapshots, proofThumbs = [], positi
   const groupsToRender: Group[] = mode === "client" ? ["active"] : ["active", "pending", "paused"];
 
   if (allocations.length === 0 || (mode === "client" && grouped.active.length === 0)) {
+    const lastCapture = snapshots
+      .map(s => new Date(s.captured_at).getTime())
+      .sort((a, b) => b - a)[0];
+    const nextMs = (lastCapture ?? Date.now()) + 2 * 24 * 60 * 60 * 1000;
+    const nextLabel = new Date(nextMs).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
     return (
       <div className="text-sm text-muted-foreground py-10 text-center">
-        Nenhuma playlist começou a entregar ainda. Assim que os primeiros prints chegarem, elas aparecem aqui.
+        Bot ainda não capturou dados — próxima coleta prevista em {nextLabel}.
       </div>
     );
   }
