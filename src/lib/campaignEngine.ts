@@ -67,23 +67,28 @@ export interface CampaignResult {
   modo: Modo;
   perfil: Perfil;
   splitEcoPct: number;
+  splitOrganicPct: number;
+  clientProfile: ClientProfile;
 
   // Distribuição
+  /** Meta que eco+externo precisam cobrir (depende do clientProfile). */
+  metaOperacional: number;
   streamsEco: number;
   streamsExt: number;
+  streamsOrganic: number;
 
   // Custos
   custoEco: number;          // R$
   custoExt: number;          // R$
   custoTotal: number;        // R$
-  custoPorStream: number;    // R$ médio
+  custoPorStream: number;    // R$ médio (sobre metaOperacional)
 
   // Operação
   picoPorDia: number;        // pico de streams/dia
   mediaPorDia: number;
   inercia: number;
 
-  // Curva (length = effectiveDays)
+  // Curva (length = effectiveDays) — só eco+ext, refletindo metaOperacional
   curva: CurvaPonto[];
 }
 
