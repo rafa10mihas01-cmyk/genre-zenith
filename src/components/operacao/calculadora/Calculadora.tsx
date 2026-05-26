@@ -1305,7 +1305,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                             <div className="space-y-1 text-[11px] text-foreground/85 tabular-nums">
                               <div>
                                 <span className="text-muted-foreground">Ecossistema:</span>{" "}
-                                <strong>{formatCompact(ecoPerDay)}/dia</strong> · {ecoCap.playlistCount} playlists · {genreLabel}
+                                <strong>{formatCompact(ecoPerDay)}/dia</strong> · {ecoCap.playlistsSelected != null ? `${ecoCap.playlistsSelected} de ${ecoCap.playlistCount}` : ecoCap.playlistCount} playlists · {genreLabel}
                                 {ecoRealPct > 0 && <span className="text-muted-foreground/70"> ({ecoRealPct}%)</span>}
                               </div>
                               <div>
