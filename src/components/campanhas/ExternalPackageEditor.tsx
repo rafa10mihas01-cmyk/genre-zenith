@@ -165,12 +165,12 @@ export function ExternalPackageEditor({
 
   return (
     <>
-    <Card>
-      <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
+    <section className="space-y-5">
+      <header className="flex flex-row items-start justify-between gap-3">
         <div>
-          <CardTitle className="text-sm flex items-center gap-2">
+          <h3 className="text-sm font-semibold flex items-center gap-2">
             <Users className="h-4 w-4 text-primary" /> Ecossistema externo
-          </CardTitle>
+          </h3>
           <p className="text-xs text-muted-foreground mt-1">
             Alvo do snapshot: <strong className="text-foreground tabular-nums">{formatInt(snapshot.streamsExt)}</strong> streams · <strong className="text-foreground">{formatBRL(snapshot.custoExt)}</strong>.
             {isDispatched
@@ -217,8 +217,8 @@ export function ExternalPackageEditor({
             </Button>
           )}
         </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
+      </header>
+      <div className="space-y-4">
         {/* KPIs — padrão Curadores (KpiBig) */}
         <section className="grid grid-cols-2 md:grid-cols-6 gap-3">
           <KpiBig
