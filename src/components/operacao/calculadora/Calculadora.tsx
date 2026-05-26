@@ -1149,7 +1149,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                   </div>
 
                   <div>
-                    <Label className="text-xs">Capacidade das playlists</Label>
+                    <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">Capacidade das playlists</Label>
                     <div className="flex flex-wrap items-center gap-2 mt-1.5">
                       {ENGAGEMENT_PRESETS.map(p => (
                         <button
