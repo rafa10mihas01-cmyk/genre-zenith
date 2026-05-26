@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Grid3x3, Link2, Check, ExternalLink, Shuffle, Loader2, Radio, CalendarClock, Activity, Layers, ShoppingCart, TrendingUp } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Grid3x3, Link2, Check, ExternalLink, Shuffle, Loader2, Radio, AudioLines, HelpCircle, CalendarClock, Activity, Layers, ShoppingCart, TrendingUp } from "lucide-react";
 import { formatInt } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { buildEcoPlaylistPlan, distributeEcoPositions, inferEcoPreferredPositions, chartTierFromTopPosition, type DailyPlaylistPlan } from "@/lib/campaignOperationalPlan";
@@ -154,6 +155,52 @@ export function CampaignFullPlanCard({
     for (const a of allocations) m.set(a.id, a.managed_playlists?.spotify_url ?? null);
     return m;
   }, [allocations]);
+
+  // Extrai spotify_playlist_id da URL pra cruzar com playlist_execution_jobs.
+  const spotifyIdByAllocation = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const a of allocations) {
+      const url = a.managed_playlists?.spotify_url ?? "";
+      const match = url.match(/playlist\/([A-Za-z0-9]+)/);
+      if (match) m.set(a.id, match[1]);
+    }
+    return m;
+  }, [allocations]);
+
+  // Status real dos jobs de ADD por playlist (apenas modo interno, com campaignId).
+  type JobAgg = { done: number; pending: number; failed: number };
+  const [jobStatusBySpid, setJobStatusBySpid] = useState<Map<string, JobAgg>>(new Map());
+  useEffect(() => {
+    if (!campaignId) return;
+    let cancelled = false;
+    const load = async () => {
+      const { data } = await supabase
+        .from("playlist_execution_jobs")
+        .select("spotify_playlist_id, status")
+        .eq("campaign_id", campaignId)
+        .eq("job_type", "playlist.track.add");
+      if (cancelled) return;
+      const m = new Map<string, JobAgg>();
+      for (const j of (data ?? []) as { spotify_playlist_id: string; status: string }[]) {
+        const cur = m.get(j.spotify_playlist_id) ?? { done: 0, pending: 0, failed: 0 };
+        if (j.status === "done") cur.done++;
+        else if (j.status === "failed") cur.failed++;
+        else cur.pending++;
+        m.set(j.spotify_playlist_id, cur);
+      }
+      setJobStatusBySpid(m);
+    };
+    load();
+    const ch = supabase
+      .channel(`cfpc-jobs-${campaignId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "playlist_execution_jobs", filter: `campaign_id=eq.${campaignId}` },
+        () => load(),
+      )
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(ch); };
+  }, [campaignId]);
 
   // Linha "Rádio · Autoplay · Mixes" — só renderiza quando o consumidor
   // (somente página interna) passar `radioGoal` explicitamente. Distribuída
@@ -318,10 +365,27 @@ export function CampaignFullPlanCard({
             <table className="text-[11px] border-separate border-spacing-0 min-w-full">
               <thead className="sticky top-0 z-20 bg-card text-muted-foreground">
                 <tr>
-                  <th className="sticky left-0 z-30 bg-card text-left font-medium py-2 px-3 border-b border-r border-border min-w-[180px]">
+                  <th className="sticky left-0 z-30 bg-card text-left font-medium py-2 px-3 border-b border-r border-border min-w-[200px]">
                     Playlist
                   </th>
-                  <th className="text-center font-medium py-2 px-2 border-b border-border w-12">Pos</th>
+                  <th className="text-center font-medium py-2 px-2 border-b border-border w-14">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button className="inline-flex items-center gap-1 hover:text-foreground" aria-label="O que é Pos?">
+                          Pos
+                          <HelpCircle className="h-3 w-3 opacity-60" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent side="bottom" align="center" className="w-72 text-xs leading-relaxed">
+                        <div className="font-semibold mb-1 text-foreground">Posição planejada</div>
+                        <p className="text-muted-foreground">
+                          Sorteada pelo simulador com base em força da playlist + tier do artista.
+                          É <span className="text-foreground font-medium">forçada via REORDER</span> imediatamente após o ADD —
+                          o bot adiciona no fim e move pra esta posição.
+                        </p>
+                      </PopoverContent>
+                    </Popover>
+                  </th>
                   <th className="text-right font-medium py-2 px-2 border-b border-border w-16">Total</th>
                   {Array.from({ length: days }, (_, i) => (
                     <th
@@ -338,15 +402,15 @@ export function CampaignFullPlanCard({
               </thead>
               <tbody>
                 {radioTotal > 0 && (
-                  <tr className="bg-primary/[0.04] hover:bg-primary/10">
-                    <td className="sticky left-0 z-10 py-0 px-3 border-b border-r border-border/30 leading-tight bg-primary/[0.04]">
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 rounded bg-primary/15 grid place-items-center flex-shrink-0">
-                          <Radio className="h-3.5 w-3.5 text-primary" />
+                  <tr className="bg-primary/[0.07] hover:bg-primary/10">
+                    <td className="sticky left-0 z-10 py-2 px-3 border-b border-r border-border/30 border-t-2 border-t-primary/40 leading-tight bg-primary/[0.07]">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-primary/15 grid place-items-center flex-shrink-0">
+                          <AudioLines className="h-5 w-5 text-primary" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="font-medium truncate">Rádio · Autoplay · Mixes</div>
-                          <div className="text-[9px] text-muted-foreground tabular-nums">
+                          <div className="text-[12px] font-semibold truncate text-foreground">Rádio · Autoplay · Mixes</div>
+                          <div className="text-[11px] text-muted-foreground tabular-nums">
                             {radioCollected ? (
                               <>
                                 <span className="text-primary font-medium uppercase tracking-wider">coletado</span>
@@ -362,10 +426,10 @@ export function CampaignFullPlanCard({
                         </div>
                       </div>
                     </td>
-                    <td className="text-center font-semibold py-0 px-2 border-b border-border/30 leading-tight tabular-nums text-primary">
+                    <td className="text-center font-semibold py-0 px-2 border-b border-border/30 border-t-2 border-t-primary/40 leading-tight tabular-nums text-primary">
                       #1
                     </td>
-                    <td className="text-right tabular-nums font-semibold py-0 px-2 border-b border-border/30 leading-tight">
+                    <td className="text-right tabular-nums font-semibold py-0 px-2 border-b border-border/30 border-t-2 border-t-primary/40 leading-tight">
                       {formatInt(radioTotal)}
                     </td>
                     {Array.from({ length: days }, (_, i) => {
@@ -380,7 +444,7 @@ export function CampaignFullPlanCard({
                         <td
                           key={i}
                           className={cn(
-                            "text-right tabular-nums py-0 px-2 border-b border-border/30 leading-tight whitespace-nowrap",
+                            "text-right tabular-nums py-0 px-2 border-b border-border/30 border-t-2 border-t-primary/40 leading-tight whitespace-nowrap",
                             isEmpty && (showZeros ? "text-muted-foreground/40" : "text-transparent select-none"),
                           )}
                           style={
@@ -406,38 +470,51 @@ export function CampaignFullPlanCard({
                       ? "text-foreground"
                       : "text-muted-foreground";
                   const spotifyUrl = spotifyByAllocation.get(p.allocationId);
+                  const spid = spotifyIdByAllocation.get(p.allocationId);
+                  const jobAgg = spid ? jobStatusBySpid.get(spid) : undefined;
+                  const initial = (p.playlistName ?? "?").trim().charAt(0).toUpperCase() || "?";
                   return (
                     <tr key={p.allocationId} className={cn("hover:bg-primary/5", rowIdx % 2 === 1 && "bg-elevated/20")}>
                       <td
                         className={cn(
-                          "sticky left-0 z-10 py-0 px-3 border-b border-r border-border/30 leading-tight",
+                          "sticky left-0 z-10 py-2 px-3 border-b border-r border-border/30 leading-tight",
                           rowIdx % 2 === 1 ? "bg-elevated/40" : "bg-card",
                         )}
                       >
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3">
                           {p.coverUrl ? (
-                            <img src={p.coverUrl} alt="" className="w-4 h-4 rounded object-cover flex-shrink-0" />
+                            <img
+                              src={p.coverUrl}
+                              alt=""
+                              loading="lazy"
+                              className="w-10 h-10 rounded-lg object-cover flex-shrink-0 border border-border/40"
+                            />
                           ) : (
-                            <div className="w-4 h-4 rounded bg-muted flex-shrink-0" />
+                            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 border border-border/40 text-xs font-semibold text-muted-foreground">
+                              {initial}
+                            </div>
                           )}
                           <div className="min-w-0 flex-1">
-                            <div className="font-medium truncate flex items-center gap-1">
-                              {spotifyUrl ? (
-                                <a
-                                  href={spotifyUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="hover:text-primary inline-flex items-center gap-1 truncate"
-                                  title="Abrir playlist no Spotify"
-                                >
-                                  {p.playlistName}
-                                  <ExternalLink className="h-2.5 w-2.5 flex-shrink-0 opacity-60" />
-                                </a>
-                              ) : (
-                                p.playlistName
-                              )}
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <div className="text-[12px] font-medium truncate text-foreground">
+                                {spotifyUrl ? (
+                                  <a
+                                    href={spotifyUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="hover:text-primary inline-flex items-center gap-1 truncate"
+                                    title="Abrir playlist no Spotify"
+                                  >
+                                    <span className="truncate">{p.playlistName}</span>
+                                    <ExternalLink className="h-3 w-3 flex-shrink-0 opacity-60" />
+                                  </a>
+                                ) : (
+                                  p.playlistName
+                                )}
+                              </div>
+                              <PlaylistJobBadge agg={jobAgg} />
                             </div>
-                            <div className="text-[9px] text-muted-foreground tabular-nums">
+                            <div className="text-[11px] text-muted-foreground tabular-nums truncate">
                               {formatInt(p.followers)} saves · cap {formatInt(p.capDia)}/dia
                             </div>
                           </div>
@@ -534,6 +611,29 @@ export function CampaignFullPlanCard({
         </p>
       </CardContent>
     </Card>
+  );
+}
+
+function PlaylistJobBadge({ agg }: { agg?: { done: number; pending: number; failed: number } }) {
+  if (!agg || (agg.done + agg.pending + agg.failed) === 0) return null;
+  if (agg.failed > 0) {
+    return (
+      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border bg-rose-500/15 text-rose-400 border-rose-500/30 flex-shrink-0">
+        Falhou
+      </span>
+    );
+  }
+  if (agg.pending > 0) {
+    return (
+      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border bg-amber-500/15 text-amber-400 border-amber-500/30 flex-shrink-0">
+        Pendente
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border bg-primary/15 text-primary border-primary/30 flex-shrink-0">
+      Adicionada
+    </span>
   );
 }
 
