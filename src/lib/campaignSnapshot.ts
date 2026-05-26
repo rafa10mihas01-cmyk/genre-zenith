@@ -327,6 +327,24 @@ export async function closeCampaignFromCalculator(args: {
     });
     const { error: allocErr } = await supabase.from("campaign_eco_allocations").insert(rows as any);
     if (allocErr) throw allocErr;
+
+    // Realinha snapshot.streamsEco com o que REALMENTE foi gravado (após clamp
+    // pela hardCap). Sem isso, header diz 1.5M e tabela entrega 154K — déficit
+    // fake. Header = tabela = SUM(planned_streams).
+    const realEcoStreams = rows.reduce((s, r) => s + (Number(r.planned_streams) || 0), 0);
+    if (realEcoStreams !== snapshot.streamsEco) {
+      const realignedSnapshot: CampaignSnapshot = {
+        ...enrichedSnapshot,
+        streamsEco: realEcoStreams,
+      };
+      await supabase
+        .from("campaigns")
+        .update({
+          simulation_snapshot: realignedSnapshot as any,
+          total_allocated: realEcoStreams,
+        })
+        .eq("id", campaign.id);
+    }
   }
 
 
