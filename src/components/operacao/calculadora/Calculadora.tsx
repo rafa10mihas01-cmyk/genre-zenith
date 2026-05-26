@@ -767,104 +767,28 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         <div className="space-y-5">
 
 
-          {/* Trilha horizontal de músicas (substitui sidebar) */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
-                <ListMusic className="h-3.5 w-3.5" />
-                Músicas em planejamento
-                <span className="text-foreground font-medium ml-0.5">({songs.length})</span>
-                {readyCount > 0 && (
-                  <span className="ml-1 text-primary">· {readyCount} pronta{readyCount > 1 ? "s" : ""}</span>
-                )}
-              </div>
-              <Button variant="outline" size="sm" onClick={addSong}>
-                <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar música
-              </Button>
-            </div>
+          {/* Régua única: sessão + músicas (substitui a antiga trilha horizontal) */}
+          <SessionChip
+            clientName={clientName}
+            curatorName={curatorName}
+            onEdit={() => setStep(1)}
+            songs={songResults}
+            activeIdx={activeIdx}
+            setActiveIdx={setActiveIdx}
+            addSong={addSong}
+            removeSong={removeSong}
+            songsCount={songs.length}
+            readyCount={readyCount}
+          />
 
-            <div className="flex gap-2 overflow-x-auto nx-scroll pb-1 -mx-1 px-1">
-              {songResults.map((x, idx) => {
-                const isActive = idx === activeIdx;
-                const hasTrack = !!x.song.track?.title;
-                const label = x.song.track?.title ?? "Em preparação";
-                const artist = x.song.track?.artist;
-                return (
-                  <div
-                    key={x.song.uid}
-                    className={cn(
-                      "group relative shrink-0 w-[240px] rounded-xl border bg-card transition-all",
-                      isActive
-                        ? "border-primary/60 ring-1 ring-primary/30 shadow-[0_0_0_1px_hsl(var(--primary)/0.15)]"
-                        : "border-border hover:border-border/80 hover:bg-muted/20",
-                    )}
-                  >
-                    <button
-                      onClick={() => setActiveIdx(idx)}
-                      className="w-full text-left p-2.5 pr-8 flex items-center gap-2.5"
-                    >
-                      {x.song.track?.thumbnail_url ? (
-                        <img src={x.song.track.thumbnail_url} alt="" className="h-10 w-10 rounded-md object-cover shrink-0" />
-                      ) : (
-                        <div className={cn(
-                          "h-10 w-10 rounded-md grid place-items-center shrink-0 border border-dashed",
-                          isActive ? "bg-primary/5 border-primary/30" : "bg-muted/40 border-border/60",
-                        )}>
-                          <Music className={cn("h-4 w-4", isActive ? "text-primary/70" : "text-muted-foreground/60")} />
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          <span className="text-[10px] font-semibold text-muted-foreground tabular-nums">#{idx + 1}</span>
-                          <span className={cn(
-                            "h-1.5 w-1.5 rounded-full shrink-0",
-                            x.ready ? "bg-primary" : "bg-muted-foreground/30",
-                          )} />
-                          <span className="text-[10px] uppercase tracking-wider text-muted-foreground truncate">
-                            {x.ready ? `${formatInt(x.r.meta)} · ${x.r.days}d` : "aguardando"}
-                          </span>
-                        </div>
-                        <div className={cn(
-                          "text-sm font-medium truncate",
-                          isActive ? "text-foreground" : hasTrack ? "text-muted-foreground" : "text-muted-foreground/70 italic",
-                        )}>
-                          {label}
-                        </div>
-                        {artist && (
-                          <div className="text-[11px] text-muted-foreground truncate">{artist}</div>
-                        )}
-                      </div>
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); removeSong(idx); }}
-                      className="absolute right-1.5 top-1.5 h-6 w-6 inline-flex items-center justify-center text-muted-foreground hover:text-foreground rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                      aria-label="Remover música"
-                      title={songs.length === 1 ? "Limpar esta música" : "Remover música"}
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                );
-              })}
-
-              {/* Card "adicionar" inline pra preencher o espaço quando há poucas músicas */}
-              <button
-                onClick={addSong}
-                className="shrink-0 w-[180px] rounded-xl border border-dashed border-border/60 hover:border-primary/40 hover:bg-muted/20 transition-colors flex items-center justify-center gap-2 text-xs text-muted-foreground hover:text-foreground"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Nova música
-              </button>
-            </div>
-          </div>
 
           {/* Formulário vertical único — Música → Meta → Estratégia */}
           <div className="space-y-5">
               {/* KPIs SÓ da música ativa (operação atual). */}
               <CalculadoraKpis r={result} pricePerStreamSell={pricingSettings.price_per_stream_sell} />
 
-              {/* Régua de sessão ativa — entre KPIs e o card de Música */}
-              <SessionChip clientName={clientName} curatorName={curatorName} onEdit={() => setStep(1)} />
+
+
 
 
 
@@ -1321,7 +1245,19 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
       {/* ============== STEP 3 — REVISÃO ============== */}
       {step === 3 && (
         <div className="space-y-5">
-          <SessionChip clientName={clientName} curatorName={curatorName} onEdit={() => setStep(1)} />
+          <SessionChip
+            clientName={clientName}
+            curatorName={curatorName}
+            onEdit={() => setStep(1)}
+            songs={songResults}
+            activeIdx={activeIdx}
+            setActiveIdx={setActiveIdx}
+            addSong={addSong}
+            removeSong={removeSong}
+            songsCount={songs.length}
+            readyCount={readyCount}
+          />
+
 
           {/* KPIs agregados — só desta operação. */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -1453,32 +1389,91 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   );
 }
 
-/** Chip de contexto da sessão — fica no topo dos passos 2 e 3 com botão pra editar. */
-function SessionChip({ clientName, curatorName, onEdit }: { clientName: string; curatorName: string; onEdit: () => void }) {
+/** Régua compacta: sessão (cliente/curador) + chips de músicas + botão "nova música" + editar. */
+function SessionChip({
+  clientName, curatorName, onEdit,
+  songs, activeIdx, setActiveIdx, addSong, removeSong, songsCount, readyCount,
+}: {
+  clientName: string;
+  curatorName: string;
+  onEdit: () => void;
+  songs: Array<{ song: any; ready: boolean; r: any }>;
+  activeIdx: number;
+  setActiveIdx: (i: number) => void;
+  addSong: () => void;
+  removeSong: (idx: number) => void;
+  songsCount: number;
+  readyCount: number;
+}) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-xl border border-border border-l-2 border-l-primary/60 bg-card/60 px-4 py-2.5">
-      <div className="flex items-center gap-4 min-w-0 text-xs">
-        <div className="flex items-center gap-1.5 shrink-0">
+    <div className="flex items-center gap-3 rounded-xl border border-border border-l-2 border-l-primary/60 bg-card/60 px-3 py-2">
+      {/* Bloco sessão (compacto) */}
+      <div className="flex items-center gap-3 shrink-0 text-xs">
+        <div className="flex items-center gap-1.5">
           <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" aria-hidden />
-          <span className="text-[10px] uppercase tracking-[0.14em] font-semibold text-primary">Sessão ativa</span>
+          <span className="text-[10px] uppercase tracking-[0.14em] font-semibold text-primary">Sessão</span>
         </div>
-        <div className="h-8 w-px bg-border shrink-0" />
+        <div className="h-6 w-px bg-border" />
         <div className="min-w-0">
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Cliente</div>
-          <div className="text-sm font-medium truncate text-foreground">{clientName}</div>
+          <div className="text-[9px] uppercase tracking-wider text-muted-foreground leading-none">Cliente</div>
+          <div className="text-xs font-medium truncate text-foreground leading-tight max-w-[120px]">{clientName}</div>
         </div>
-        <div className="h-8 w-px bg-border shrink-0" />
+        <div className="h-6 w-px bg-border" />
         <div className="min-w-0">
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Curador</div>
-          <div className="text-sm font-medium truncate text-foreground">{curatorName}</div>
+          <div className="text-[9px] uppercase tracking-wider text-muted-foreground leading-none">Curador</div>
+          <div className="text-xs font-medium truncate text-foreground leading-tight max-w-[120px]">{curatorName}</div>
         </div>
+        <Button variant="ghost" size="sm" onClick={onEdit} className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground">
+          <Pencil className="h-3 w-3" />
+        </Button>
+        <div className="h-6 w-px bg-border" />
       </div>
-      <Button variant="ghost" size="sm" onClick={onEdit} className="shrink-0 text-muted-foreground hover:text-foreground">
-        <Pencil className="h-3.5 w-3.5" />
-      </Button>
+
+      {/* Chips de músicas + nova */}
+      <div className="flex items-center gap-1.5 flex-1 min-w-0 overflow-x-auto nx-scroll">
+        <span className="text-[9px] uppercase tracking-wider text-muted-foreground shrink-0 mr-1">
+          Músicas <span className="text-foreground font-medium">({songsCount})</span>
+          {readyCount > 0 && <span className="text-primary ml-1">· {readyCount} ok</span>}
+        </span>
+        {songs.map((x, idx) => {
+          const isActive = idx === activeIdx;
+          const label = x.song.track?.title ?? "Em preparação";
+          return (
+            <div
+              key={x.song.uid}
+              className={cn(
+                "group relative shrink-0 inline-flex items-center gap-1.5 rounded-md border pl-2 pr-1.5 py-1 text-xs transition-colors",
+                isActive
+                  ? "border-primary/60 bg-primary/5 text-foreground"
+                  : "border-border bg-card hover:border-border/80 text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <button onClick={() => setActiveIdx(idx)} className="inline-flex items-center gap-1.5">
+                <span className="text-[10px] font-semibold tabular-nums opacity-70">#{idx + 1}</span>
+                <span className={cn("h-1.5 w-1.5 rounded-full", x.ready ? "bg-primary" : "bg-muted-foreground/30")} />
+                <span className="truncate max-w-[140px]">{label}</span>
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); removeSong(idx); }}
+                className="ml-0.5 h-4 w-4 inline-flex items-center justify-center text-muted-foreground/60 hover:text-foreground rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                aria-label="Remover música"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          );
+        })}
+        <button
+          onClick={addSong}
+          className="shrink-0 inline-flex items-center gap-1 rounded-md border border-dashed border-border/60 hover:border-primary/40 hover:bg-muted/20 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Plus className="h-3 w-3" /> Nova
+        </button>
+      </div>
     </div>
   );
 }
+
 
 function ReviewKpi({ icon: Icon, label, value, hint }: { icon: any; label: string; value: string; hint?: string }) {
   return (
