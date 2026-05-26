@@ -25,6 +25,7 @@ import {
   POSITION_PCT,
   selectCoverageMode,
   AFFINITY_RANGE_BY_MODE,
+  chartTierFromTopPosition,
 } from "../_shared/computeEcoPlan.ts";
 import { getGenreNeighbors } from "../_shared/genre-affinity.ts";
 
@@ -193,21 +194,22 @@ Deno.serve(async (req) => {
     });
   }
 
-  // 4) Posições — primário via distributeEcoPositions com modo adaptativo.
-  //    Vizinhos forçados em AFFINITY_RANGE_BY_MODE.
-  const prelimAllocs = freshPrimary.map((p: any) => ({
-    id: p.id,
-    planned_streams: Math.round(Number(p.followers ?? 0) * (mult / 30) * 0.05 * days),
-    followers: Number(p.followers ?? 0),
-  }));
-  const primaryPositions = distributeEcoPositions(prelimAllocs, days, mult, { mode });
+  // 4) Posições — chart-tier determinístico baseado no Top200 da música.
+  //    Primário via PRIMARY_RANGES_BY_CHART; vizinhos via NEIGHBOR_RANGE_BY_CHART.
+  const topPosition = Number(snap?.music?.top200Position ?? snap?.music?.top200Pos ?? 0) || null;
+  const chartTier = chartTierFromTopPosition(topPosition);
 
+  const allFresh = [
+    ...freshPrimary.map((p: any) => ({ id: p.id, planned_streams: 0, followers: Number(p.followers ?? 0), genreSource: "primary" as const })),
+    ...freshNeighbor.map((p: any) => ({ id: p.id, planned_streams: 0, followers: Number(p.followers ?? 0), genreSource: "affinity" as const })),
+  ];
+  const allPositions = distributeEcoPositions(allFresh, days, mult, { chartTier });
+
+  const primaryPositions = new Map<string, number>();
   const neighborPositions = new Map<string, number>();
-  for (const p of freshNeighbor) {
-    const rng = seededRng(`neighbor-pos:${p.id}`);
-    const range = affHi - affLo + 1;
-    neighborPositions.set(p.id, affLo + Math.floor(rng() * range));
-  }
+  for (const p of freshPrimary) primaryPositions.set(p.id, allPositions.get(p.id) ?? 3);
+  for (const p of freshNeighbor) neighborPositions.set(p.id, allPositions.get(p.id) ?? 5);
+
 
   // 5) Monta linhas + soma plays/dia adicionais
   let playsPerDayAdded = 0;
