@@ -692,8 +692,8 @@ export default function CampanhaExecucao() {
             );
           })(),
           curve: (
-            <Tabs defaultValue="diario" className="space-y-4">
-              <TabsList>
+            <Tabs defaultValue="completo" className="space-y-4">
+              <TabsList className="hidden">
                 <TabsTrigger value="diario">Diário</TabsTrigger>
                 <TabsTrigger value="completo">Plano completo</TabsTrigger>
               </TabsList>
