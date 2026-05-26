@@ -830,6 +830,7 @@ export function buildEcoPlaylistPlan(
       daily,
       capDia: baseCap,
       overflow: 0,
+      positionByDay,
     };
   });
 
