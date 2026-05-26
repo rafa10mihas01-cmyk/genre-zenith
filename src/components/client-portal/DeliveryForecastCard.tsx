@@ -356,14 +356,16 @@ export function DeliveryForecastCard({ forecast, organicSummary, spotifyTrackId 
                           const exact = projection.estimatePosition(trackPlays);
                           if (band == null || exact == null) return null;
                           return (
-                            <div className="mt-2 pt-2 border-t border-border/60">
-                              <Row
-                                dot="hsl(var(--primary))"
-                                label="Posição estimada"
-                                value={`~Top ${band}`}
-                                unit={`#${exact}`}
-                                accent
-                              />
+                            <div className="mt-2.5 pt-2.5 border-t border-border/60 flex items-baseline justify-between gap-6">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-primary" />
+                                <span className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground truncate">
+                                  Posição estimada
+                                </span>
+                              </div>
+                              <span className="tabular-nums font-bold leading-none text-primary text-[18px]">
+                                #{exact}
+                              </span>
                             </div>
                           );
                         })()}
