@@ -650,18 +650,20 @@ export default function CampanhaExecucao() {
 
           playlists: (
             <Tabs defaultValue="interno" className="space-y-4">
-              <TabsList>
-                <TabsTrigger value="interno">Interno ({allocs.length})</TabsTrigger>
-                <TabsTrigger value="externo">Externo</TabsTrigger>
-              </TabsList>
-              <TabsContent value="interno" className="mt-0 space-y-4">
-                <div className="flex items-center justify-between gap-3 flex-wrap">
-                  <GenresUsedFromAllocs allocs={allocs} />
-                  <div className="flex items-center gap-2">
-                    <CampaignAccessManager campaignId={camp.id} />
-                    <ReplanButton campaignId={camp.id} onReplanned={loadCampaign} />
-                  </div>
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <TabsList>
+                  <TabsTrigger value="interno">Interno ({allocs.length})</TabsTrigger>
+                  <TabsTrigger value="externo">Externo</TabsTrigger>
+                </TabsList>
+                <div className="flex items-center gap-2">
+                  <CampaignAccessManager campaignId={camp.id} />
+                  <ReplanButton campaignId={camp.id} onReplanned={loadCampaign} />
                 </div>
+              </div>
+              <TabsContent value="interno" className="mt-0 space-y-4">
+                <GenresUsedFromAllocs allocs={allocs} />
+
+
 
                 <InternalEcosystemHeader
                   snapshot={snapshot}
