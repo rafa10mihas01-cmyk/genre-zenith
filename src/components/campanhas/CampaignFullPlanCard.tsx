@@ -388,7 +388,7 @@ export function CampaignFullPlanCard({
                       </PopoverContent>
                     </Popover>
                   </th>
-                  <th className="text-left font-medium py-2 px-2 border-b border-border min-w-[160px]">Entregue</th>
+                  
                   <th className="text-right font-medium py-2 px-2 border-b border-border w-16">Total</th>
                   {Array.from({ length: days }, (_, i) => (
                     <th
@@ -431,9 +431,6 @@ export function CampaignFullPlanCard({
                     </td>
                     <td className="text-center font-semibold py-0 px-2 border-b border-border/30 border-t-2 border-t-primary/40 leading-tight tabular-nums text-primary">
                       #1
-                    </td>
-                    <td className="text-left py-0 px-2 border-b border-border/30 border-t-2 border-t-primary/40 leading-tight text-muted-foreground text-[11px]">
-                      —
                     </td>
                     <td className="text-right tabular-nums font-semibold py-0 px-2 border-b border-border/30 border-t-2 border-t-primary/40 leading-tight">
                       {formatInt(radioTotal)}
@@ -535,12 +532,6 @@ export function CampaignFullPlanCard({
                       >
                         {pos != null ? `#${pos}` : "—"}
                       </td>
-                      <td className="py-0 px-2 border-b border-border/30 leading-tight">
-                        <DeliveryCell
-                          delivered={mplIdByAllocation.get(p.allocationId) ? (deliveredByMpl.get(mplIdByAllocation.get(p.allocationId)!) ?? 0) : 0}
-                          planned={p.totalStreams}
-                        />
-                      </td>
                       <td className="text-right tabular-nums font-semibold py-0 px-2 border-b border-border/30 leading-tight">
                         {formatInt(p.totalStreams)}
                       </td>
@@ -599,16 +590,6 @@ export function CampaignFullPlanCard({
                     colSpan={2}
                   >
                     Total {mode === "diario" ? "/ dia" : "acumulado"}
-                  </td>
-                  <td className="py-2 px-2 border-t-2 border-border">
-                    <DeliveryCell
-                      delivered={plans.reduce((s, p) => {
-                        const mpl = mplIdByAllocation.get(p.allocationId);
-                        return s + (mpl ? (deliveredByMpl.get(mpl) ?? 0) : 0);
-                      }, 0)}
-                      planned={plans.reduce((s, p) => s + (p.totalStreams ?? 0), 0)}
-                      compact
-                    />
                   </td>
                   <td className="text-right tabular-nums py-2 px-2 border-t-2 border-border text-primary">
                     {formatInt(dailyTotals.reduce((s, v) => s + v, 0))}
