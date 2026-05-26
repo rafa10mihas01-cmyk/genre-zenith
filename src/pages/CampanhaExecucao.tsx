@@ -727,42 +727,15 @@ export default function CampanhaExecucao() {
                   />
                 </TabsContent>
                 <TabsContent value="distribuicao" className="mt-0 space-y-4">
-                  <Card className={cn(
-                    "border-2",
-                    camp.eco_dispatched_at ? "border-primary/30 bg-primary/[0.03]" : "border-primary/40",
-                  )}>
-                    <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex items-start gap-3 min-w-0">
-                        {camp.eco_dispatched_at ? (
-                          <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-                        ) : (
-                          <Rocket className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-                        )}
-                        <div className="min-w-0">
-                          <div className="text-sm font-semibold">
-                            {camp.eco_dispatched_at ? "Ecossistema distribuído" : "Distribuir pro ecossistema"}
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {camp.eco_dispatched_at ? (
-                              <>Disparado em {new Date(camp.eco_dispatched_at).toLocaleString("pt-BR")}. Deal criado e playlists na fila de coleta.</>
-                            ) : (
-                              <>Confirma o plano acima e dispara: cria o deal real e manda as playlists do ecossistema pra fila de coleta do Spotify.</>
-                            )}
-                          </p>
-                        </div>
-                      </div>
-                      {!camp.eco_dispatched_at && (
-                        <Button size="sm" variant="solid" onClick={handleDispatchEco} disabled={dispatching}>
-                          {dispatching ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Rocket className="h-4 w-4 mr-1.5" />}
-                          Distribuir agora
-                        </Button>
-                      )}
-                    </CardContent>
-                  </Card>
-                  <TrackActionsPanel
+                  <CampaignDistributionConsole
+                    campaignId={camp.id}
                     spotifyTrackId={camp.spotify_track_id ?? null}
-                    allocations={allocs as unknown as Parameters<typeof TrackActionsPanel>[0]["allocations"]}
-                    targetPositionsByAllocId={ecoPositionByAllocation}
+                    allocations={allocs}
+                    ecoPositionByAllocation={ecoPositionByAllocation}
+                    ecoDispatchedAt={camp.eco_dispatched_at ?? null}
+                    custoTotal={snapshot.custoTotal ?? 0}
+                    dispatching={dispatching}
+                    onDispatch={handleDispatchEco}
                   />
                 </TabsContent>
               </Tabs>
