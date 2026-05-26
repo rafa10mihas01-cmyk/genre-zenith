@@ -57,7 +57,6 @@ import { CampaignAccessGate, accessStorageKey } from "@/components/client-portal
 type EcoSnap = {
   id: string;
   managed_playlist_id: string;
-  plays_24h: number | null;
   plays_7d: number | null;
   plays_28d: number | null;
   captured_at: string;
@@ -70,7 +69,6 @@ type DeliveryProof = {
   playlist_name: string;
   screenshot_url: string | null;
   plays_total: number;
-  plays_24h: number | null;
   position_in_playlist: number | null;
   source: string | null;
   captured_at: string;
