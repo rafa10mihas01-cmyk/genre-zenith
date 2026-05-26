@@ -50,7 +50,7 @@ export type OrganicSummary = {
   by_kind?: Record<string, number>;
 };
 
-type Props = { forecast: ForecastPayload; organicSummary?: OrganicSummary | null };
+type Props = { forecast: ForecastPayload; organicSummary?: OrganicSummary | null; spotifyTrackId?: string | null };
 
 
 function formatPlays(n: number): string {
