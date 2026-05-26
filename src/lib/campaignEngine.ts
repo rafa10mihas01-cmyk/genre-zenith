@@ -81,7 +81,7 @@ export interface CampaignResult {
 export const EFFECTIVE_DAYS_MULTIPLIER = 1.5;
 
 /** Repartição interna fixa da janela efetiva: rampa / platô / saída. */
-export const PHASE_PCT = { ramp: 0.28, plateau: 0.56, outro: 0.16 } as const;
+export const PHASE_PCT = { ramp: 0.22, plateau: 0.62, outro: 0.16 } as const;
 
 /** Calcula a duração real do plano a partir da contratada. */
 export function toEffectiveDays(days: number): number {
