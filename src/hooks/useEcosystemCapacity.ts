@@ -89,8 +89,11 @@ export function useEcosystemCapacity(
 
   useEffect(() => {
     let cancelled = false;
-    void (async () => {
-      setState(s => ({ ...s, loading: true }));
+    // Flip loading imediatamente pra trocar números pelo skeleton no card.
+    setState(s => ({ ...s, loading: true }));
+    // Debounce 300ms: evita disparar query a cada tick do slider.
+    const timer = setTimeout(() => {
+      void (async () => {
       const { data: playlistsRaw } = await supabase
         .from("managed_playlists")
         .select("id, followers, genre_id")
@@ -176,8 +179,10 @@ export function useEcosystemCapacity(
         genreResolved,
       });
 
-    })();
-    return () => { cancelled = true; };
+      })();
+    }, 300);
+    return () => { cancelled = true; clearTimeout(timer); };
+
   }, [genre, days, engagementMultiplier, slotKey, topPosition]);
 
   return state;
