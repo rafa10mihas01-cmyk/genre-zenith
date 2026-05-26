@@ -748,6 +748,9 @@ export function buildEcoPlaylistPlan(
       // Ramp suave nos primeiros dias de entrada na playlist.
       const rampIdx = i - (startDay - 1);
       const ramp = rampIdx < ECO_RAMP.length ? ECO_RAMP[rampIdx] : 1;
+      // Boost algorítmico (compounding +5/-3) após a rampa.
+      const growthIdx = rampIdx - ECO_RAMP.length;
+      const growth = growthIdx >= 0 ? ecoGrowthFactor(growthIdx) : 1;
       // Dia da semana (se conhecido).
       let weekday = 1;
       if (startValid) {
@@ -761,12 +764,14 @@ export function buildEcoPlaylistPlan(
         const t = (dayNum - tailStart) / tailDays;
         tail = 1 - 0.5 * t * t;
       }
-      daily[i] = Math.max(1, Math.round(baseCap * ramp * tail * weekday));
+      daily[i] = Math.max(1, Math.round(baseCap * ramp * growth * tail * weekday));
     }
 
+    // Downscale só é acionado se o plano teórico estourar MUITO o planned_streams
+    // (folga de 5% pra absorver weekday/growth). Isso evita squashing do boost.
     const targetTotal = Math.max(0, Math.round(a.planned_streams || 0));
     const rawTotal = daily.reduce((s, v) => s + v, 0);
-    if (targetTotal > 0 && rawTotal > targetTotal) {
+    if (targetTotal > 0 && rawTotal > targetTotal * 1.05) {
       let allocated = 0;
       for (let i = 0; i < daily.length; i++) {
         if (daily[i] <= 0) continue;
