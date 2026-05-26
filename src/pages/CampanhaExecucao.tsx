@@ -692,76 +692,78 @@ export default function CampanhaExecucao() {
             );
           })(),
           curve: (
-            <Tabs defaultValue="mapa" className="space-y-4">
-              <TabsList>
-                <TabsTrigger value="mapa">Mapa</TabsTrigger>
-                <TabsTrigger value="distribuicao">Distribuição</TabsTrigger>
-              </TabsList>
-              <TabsContent value="mapa" className="mt-0 space-y-4">
-                <CampaignFullPlanSummary
-                  snapshot={snapshot}
-                  startedAt={camp.started_at}
-                  allocations={allocs as unknown as Parameters<typeof CampaignFullPlanSummary>[0]["allocations"]}
-                  engagementMultiplier={camp.engagement_multiplier ?? 30}
-                />
-                <CampaignFullPlanCard
-                  snapshot={snapshot}
-                  startedAt={camp.started_at}
-                  allocations={allocs as unknown as Parameters<typeof CampaignFullPlanCard>[0]["allocations"]}
-                  engagementMultiplier={camp.engagement_multiplier ?? 30}
-                  shareToken={camp.public_plan_token ?? null}
-                  campaignId={camp.id}
-                  onPositionsRedistributed={loadCampaign}
-                  radioGoal={Math.round(snapshot.meta * ((snapshot.splitOrganicPct ?? 15) / 100))}
-                  radioCollectedTotal={radioCollectedTotal}
-                  track={{
-                    name: camp.track_name,
-                    artist: camp.artist,
-                    coverUrl: camp.cover_url,
-                    spotifyUrl: camp.spotify_track_url ?? null,
-                  }}
-                />
-              </TabsContent>
-              <TabsContent value="distribuicao" className="mt-0 space-y-4">
-                <Card className={cn(
-                  "border-2",
-                  camp.eco_dispatched_at ? "border-primary/30 bg-primary/[0.03]" : "border-primary/40",
-                )}>
-                  <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-start gap-3 min-w-0">
-                      {camp.eco_dispatched_at ? (
-                        <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-                      ) : (
-                        <Rocket className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-                      )}
-                      <div className="min-w-0">
-                        <div className="text-sm font-semibold">
-                          {camp.eco_dispatched_at ? "Ecossistema distribuído" : "Distribuir pro ecossistema"}
+            <div className="space-y-4">
+              <CampaignFullPlanSummary
+                snapshot={snapshot}
+                startedAt={camp.started_at}
+                allocations={allocs as unknown as Parameters<typeof CampaignFullPlanSummary>[0]["allocations"]}
+                engagementMultiplier={camp.engagement_multiplier ?? 30}
+              />
+              <Tabs defaultValue="mapa" className="space-y-4">
+                <TabsList>
+                  <TabsTrigger value="mapa">Mapa</TabsTrigger>
+                  <TabsTrigger value="distribuicao">Distribuição</TabsTrigger>
+                </TabsList>
+                <TabsContent value="mapa" className="mt-0 space-y-4">
+                  <CampaignFullPlanCard
+                    snapshot={snapshot}
+                    startedAt={camp.started_at}
+                    allocations={allocs as unknown as Parameters<typeof CampaignFullPlanCard>[0]["allocations"]}
+                    engagementMultiplier={camp.engagement_multiplier ?? 30}
+                    shareToken={camp.public_plan_token ?? null}
+                    campaignId={camp.id}
+                    onPositionsRedistributed={loadCampaign}
+                    radioGoal={Math.round(snapshot.meta * ((snapshot.splitOrganicPct ?? 15) / 100))}
+                    radioCollectedTotal={radioCollectedTotal}
+                    track={{
+                      name: camp.track_name,
+                      artist: camp.artist,
+                      coverUrl: camp.cover_url,
+                      spotifyUrl: camp.spotify_track_url ?? null,
+                    }}
+                  />
+                </TabsContent>
+                <TabsContent value="distribuicao" className="mt-0 space-y-4">
+                  <Card className={cn(
+                    "border-2",
+                    camp.eco_dispatched_at ? "border-primary/30 bg-primary/[0.03]" : "border-primary/40",
+                  )}>
+                    <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-start gap-3 min-w-0">
+                        {camp.eco_dispatched_at ? (
+                          <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                        ) : (
+                          <Rocket className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                        )}
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold">
+                            {camp.eco_dispatched_at ? "Ecossistema distribuído" : "Distribuir pro ecossistema"}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {camp.eco_dispatched_at ? (
+                              <>Disparado em {new Date(camp.eco_dispatched_at).toLocaleString("pt-BR")}. Deal criado e playlists na fila de coleta.</>
+                            ) : (
+                              <>Confirma o plano acima e dispara: cria o deal real e manda as playlists do ecossistema pra fila de coleta do Spotify.</>
+                            )}
+                          </p>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {camp.eco_dispatched_at ? (
-                            <>Disparado em {new Date(camp.eco_dispatched_at).toLocaleString("pt-BR")}. Deal criado e playlists na fila de coleta.</>
-                          ) : (
-                            <>Confirma o plano acima e dispara: cria o deal real e manda as playlists do ecossistema pra fila de coleta do Spotify.</>
-                          )}
-                        </p>
                       </div>
-                    </div>
-                    {!camp.eco_dispatched_at && (
-                      <Button size="sm" variant="solid" onClick={handleDispatchEco} disabled={dispatching}>
-                        {dispatching ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Rocket className="h-4 w-4 mr-1.5" />}
-                        Distribuir agora
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
-                <TrackActionsPanel
-                  spotifyTrackId={camp.spotify_track_id ?? null}
-                  allocations={allocs as unknown as Parameters<typeof TrackActionsPanel>[0]["allocations"]}
-                  targetPositionsByAllocId={ecoPositionByAllocation}
-                />
-              </TabsContent>
-            </Tabs>
+                      {!camp.eco_dispatched_at && (
+                        <Button size="sm" variant="solid" onClick={handleDispatchEco} disabled={dispatching}>
+                          {dispatching ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Rocket className="h-4 w-4 mr-1.5" />}
+                          Distribuir agora
+                        </Button>
+                      )}
+                    </CardContent>
+                  </Card>
+                  <TrackActionsPanel
+                    spotifyTrackId={camp.spotify_track_id ?? null}
+                    allocations={allocs as unknown as Parameters<typeof TrackActionsPanel>[0]["allocations"]}
+                    targetPositionsByAllocId={ecoPositionByAllocation}
+                  />
+                </TabsContent>
+              </Tabs>
+            </div>
           ),
 
           finance: (

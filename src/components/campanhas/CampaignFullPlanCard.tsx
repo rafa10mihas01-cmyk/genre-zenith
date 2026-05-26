@@ -344,15 +344,15 @@ export function CampaignFullPlanCard({
             <table className="text-[11px] border-separate border-spacing-0 min-w-full">
               <thead className="sticky top-0 z-20 bg-card text-muted-foreground">
                 <tr>
-                  <th className="sticky left-0 z-30 bg-card text-left font-medium py-2 px-3 border-b border-r border-border min-w-[240px]">
+                  <th className="sticky left-0 z-30 bg-card text-left font-medium py-2 px-3 border-b border-r border-border min-w-[180px]">
                     Playlist
                   </th>
-                  <th className="text-center font-medium py-2 px-2 border-b border-border w-14">Pos</th>
-                  <th className="text-right font-medium py-2 px-2 border-b border-border w-20">Total</th>
+                  <th className="text-center font-medium py-2 px-2 border-b border-border w-12">Pos</th>
+                  <th className="text-right font-medium py-2 px-2 border-b border-border w-16">Total</th>
                   {Array.from({ length: days }, (_, i) => (
                     <th
                       key={i}
-                      className="text-right font-medium py-2 px-2 border-b border-border whitespace-nowrap min-w-[64px]"
+                      className="text-right font-medium py-2 px-1.5 border-b border-border whitespace-nowrap min-w-[48px]"
                     >
                       <div className="tabular-nums">D{i + 1}</div>
                       <div className="text-[9px] text-muted-foreground/70 font-normal">
