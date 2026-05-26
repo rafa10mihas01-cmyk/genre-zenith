@@ -246,7 +246,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   }, [active.track?.position]);
 
   // Capacidade real do ecossistema filtrada por gênero da música ativa.
-  const ecoCap = useEcosystemCapacity(active.genre, active.days, active.engagementMultiplier ?? 30, preferredSlots, active.track?.position ?? null);
+  const ecoCap = useEcosystemCapacity(active.genre, active.days, active.engagementMultiplier ?? 30, preferredSlots, active.track?.position ?? null, result.streamsEco);
   const ecoNeeded = result.streamsEco;
   const ecoUsagePct = ecoCap.capacityTotal > 0
     ? Math.round((ecoNeeded / ecoCap.capacityTotal) * 100)
