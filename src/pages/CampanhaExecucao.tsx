@@ -609,6 +609,7 @@ export default function CampanhaExecucao() {
                 delivered={delivered}
                 daysElapsed={daysElapsed}
                 showFinance={false}
+                hideKpis
                 allocations={allocs}
                 snapshots={snaps}
                 proofs={proofs.map(p => ({
