@@ -1,0 +1,605 @@
+// CampaignDistributionConsole — console de operação da distribuição da campanha.
+// 5 blocos: KPI strip · Dispatch · Lista de playlists com status · Ações em massa · Saúde do bot.
+// Sem mudar lógica: lê de playlist_execution_jobs + bot_heartbeats em realtime.
+
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  Rocket, CheckCircle2, Clock, XCircle, Loader2, RefreshCw, ArrowDownUp,
+  Bot, ShieldCheck, AlertCircle, ExternalLink, Activity,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { formatBRL } from "@/lib/campaignEngine";
+import { timeAgo } from "@/lib/format";
+import { toast } from "sonner";
+import type { EcoAllocation } from "@/components/campaign-hub/types";
+
+type JobRow = {
+  id: string;
+  job_type: string;
+  status: string;
+  spotify_playlist_id: string;
+  attempts: number;
+  max_attempts: number;
+  scheduled_for: string | null;
+  completed_at: string | null;
+  last_error: string | null;
+  from_position: number | null;
+  to_position: number | null;
+};
+
+type BotHealth = {
+  last_heartbeat: string | null;
+  status: string | null;
+  spotify_valid: boolean;
+};
+
+type Props = {
+  campaignId: string;
+  spotifyTrackId: string | null;
+  allocations: EcoAllocation[];
+  ecoPositionByAllocation: Map<string, number>;
+  ecoDispatchedAt: string | null;
+  custoTotal: number;
+  dispatching: boolean;
+  onDispatch: () => void | Promise<void>;
+};
+
+const fmtTime = (iso: string | null) => {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+};
+
+const fmtDateTime = (iso: string | null) => {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+};
+
+export function CampaignDistributionConsole({
+  campaignId,
+  spotifyTrackId,
+  allocations,
+  ecoPositionByAllocation,
+  ecoDispatchedAt,
+  custoTotal,
+  dispatching,
+  onDispatch,
+}: Props) {
+  const [jobs, setJobs] = useState<JobRow[]>([]);
+  const [loadingJobs, setLoadingJobs] = useState(true);
+  const [bot, setBot] = useState<BotHealth | null>(null);
+  const [retrying, setRetrying] = useState(false);
+  const [forcing, setForcing] = useState(false);
+
+  // --- carrega jobs ---
+  const loadJobs = async () => {
+    const { data } = await supabase
+      .from("playlist_execution_jobs")
+      .select("id, job_type, status, spotify_playlist_id, attempts, max_attempts, scheduled_for, completed_at, last_error, from_position, to_position")
+      .eq("campaign_id", campaignId)
+      .in("job_type", ["playlist.track.add", "playlist.track.reorder"])
+      .order("created_at", { ascending: false })
+      .limit(500);
+    setJobs((data ?? []) as JobRow[]);
+    setLoadingJobs(false);
+  };
+
+  useEffect(() => {
+    setLoadingJobs(true);
+    loadJobs();
+    const channel = supabase
+      .channel(`distrib-jobs-${campaignId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "playlist_execution_jobs", filter: `campaign_id=eq.${campaignId}` },
+        () => loadJobs(),
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campaignId]);
+
+  // --- carrega heartbeat do bot ---
+  const loadBot = async () => {
+    const { data } = await supabase
+      .from("bot_heartbeats")
+      .select("created_at, status, spotify_session_valid")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    setBot({
+      last_heartbeat: data?.created_at ?? null,
+      status: data?.status ?? null,
+      spotify_valid: data?.spotify_session_valid ?? false,
+    });
+  };
+
+  useEffect(() => {
+    loadBot();
+    const t = setInterval(loadBot, 30_000);
+    return () => clearInterval(t);
+  }, []);
+
+  // --- KPIs agregados ---
+  const kpis = useMemo(() => {
+    const now = Date.now();
+    let added = 0, pending = 0, failed = 0, scheduled = 0;
+    for (const j of jobs) {
+      if (j.job_type !== "playlist.track.add") continue;
+      if (j.status === "done") added++;
+      else if (j.status === "failed") failed++;
+      else if (j.status === "pending" || j.status === "claimed") {
+        const sched = j.scheduled_for ? new Date(j.scheduled_for).getTime() : 0;
+        if (sched > now) scheduled++;
+        else pending++;
+      }
+    }
+    return { added, pending, failed, scheduled };
+  }, [jobs]);
+
+  // --- estado por spotify_playlist_id (último job ADD por playlist) ---
+  type PlaylistState = {
+    status: "done" | "pending" | "scheduled" | "failed" | "idle";
+    scheduledFor: string | null;
+    lastError: string | null;
+    jobId: string | null;
+    completedAt: string | null;
+  };
+  const stateBySpid = useMemo(() => {
+    const m = new Map<string, PlaylistState>();
+    const now = Date.now();
+    // ordena por created_at desc já vem do load — pegamos o primeiro add por playlist
+    for (const j of jobs) {
+      if (j.job_type !== "playlist.track.add") continue;
+      if (m.has(j.spotify_playlist_id)) continue;
+      let status: PlaylistState["status"] = "pending";
+      if (j.status === "done") status = "done";
+      else if (j.status === "failed") status = "failed";
+      else if (j.status === "pending" || j.status === "claimed") {
+        const sched = j.scheduled_for ? new Date(j.scheduled_for).getTime() : 0;
+        status = sched > now ? "scheduled" : "pending";
+      }
+      m.set(j.spotify_playlist_id, {
+        status,
+        scheduledFor: j.scheduled_for,
+        lastError: j.last_error,
+        jobId: j.id,
+        completedAt: j.completed_at,
+      });
+    }
+    return m;
+  }, [jobs]);
+
+  // --- linhas de playlist a renderizar (a partir das allocations) ---
+  const rows = useMemo(() => {
+    return allocations
+      .map((a) => {
+        const url = a.managed_playlists?.spotify_url ?? "";
+        const m = typeof url === "string" ? url.match(/playlist\/([A-Za-z0-9]+)/) : null;
+        const spid = m?.[1] ?? null;
+        const state: PlaylistState = spid
+          ? (stateBySpid.get(spid) ?? { status: "idle", scheduledFor: null, lastError: null, jobId: null, completedAt: null })
+          : { status: "idle", scheduledFor: null, lastError: null, jobId: null, completedAt: null };
+        return {
+          allocId: a.id,
+          spid,
+          name: a.managed_playlists?.name ?? "(sem nome)",
+          cover: a.managed_playlists?.cover_url ?? null,
+          spotifyUrl: url || null,
+          plannedPosition: ecoPositionByAllocation.get(a.id) ?? null,
+          state,
+        };
+      })
+      .sort((a, b) => {
+        const rank = (s: PlaylistState["status"]) =>
+          s === "failed" ? 0 : s === "pending" ? 1 : s === "scheduled" ? 2 : s === "done" ? 3 : 4;
+        const r = rank(a.state.status) - rank(b.state.status);
+        if (r !== 0) return r;
+        return a.name.localeCompare(b.name);
+      });
+  }, [allocations, ecoPositionByAllocation, stateBySpid]);
+
+  // --- ações ---
+  const handleRetryOne = async (jobId: string) => {
+    const { error } = await supabase
+      .from("playlist_execution_jobs")
+      .update({ status: "pending", attempts: 0, last_error: null, scheduled_for: new Date().toISOString(), claimed_at: null, claimed_by: null, lease_expires_at: null })
+      .eq("id", jobId);
+    if (error) toast.error("Falha ao reenfileirar", { description: error.message });
+    else toast.success("Job reenfileirado");
+  };
+
+  const handleRetryAllFailed = async () => {
+    setRetrying(true);
+    try {
+      const { error, count } = await supabase
+        .from("playlist_execution_jobs")
+        .update({ status: "pending", attempts: 0, last_error: null, scheduled_for: new Date().toISOString(), claimed_at: null, claimed_by: null, lease_expires_at: null }, { count: "exact" })
+        .eq("campaign_id", campaignId)
+        .eq("status", "failed");
+      if (error) throw error;
+      toast.success(`${count ?? 0} job(s) reenfileirado(s)`);
+    } catch (e: any) {
+      toast.error("Falha ao reenfileirar", { description: e?.message });
+    } finally {
+      setRetrying(false);
+    }
+  };
+
+  const handleForcePositions = async () => {
+    if (!spotifyTrackId) {
+      toast.error("Track sem spotify_track_id");
+      return;
+    }
+    setForcing(true);
+    try {
+      // Para cada playlist onde o ADD já foi feito e há posição planejada, enfileira um reorder novo.
+      const stamp = Date.now();
+      const reorders = rows
+        .filter((r) => r.spid && r.state.status === "done" && r.plannedPosition && r.plannedPosition > 0)
+        .map((r) => ({
+          job_type: "playlist.track.reorder",
+          campaign_id: campaignId,
+          spotify_playlist_id: r.spid!,
+          spotify_track_id: spotifyTrackId,
+          allocation_id: r.allocId,
+          to_position: r.plannedPosition!,
+          status: "pending",
+          scheduled_for: new Date().toISOString(),
+          dedupe_key: `force-reorder:${campaignId}:${r.spid}:${stamp}`,
+          metadata: { source: "manual_force_reorder", forced_at: new Date().toISOString() },
+        }));
+      if (reorders.length === 0) {
+        toast.info("Nenhuma playlist elegível", { description: "Só forço posição em playlists onde o ADD já foi concluído." });
+        return;
+      }
+      const { error } = await supabase.from("playlist_execution_jobs").insert(reorders);
+      if (error) throw error;
+      toast.success(`${reorders.length} reorder(s) enfileirado(s)`);
+    } catch (e: any) {
+      toast.error("Falha ao forçar posições", { description: e?.message });
+    } finally {
+      setForcing(false);
+    }
+  };
+
+  const failedJobsCount = jobs.filter((j) => j.status === "failed").length;
+  const doneAddsCount = jobs.filter((j) => j.job_type === "playlist.track.add" && j.status === "done").length;
+  const playlistsCount = allocations.length;
+
+  // --- bot health ---
+  const hbAge = bot?.last_heartbeat ? Date.now() - new Date(bot.last_heartbeat).getTime() : Infinity;
+  const botOk = hbAge < 5 * 60 * 1000;
+
+  return (
+    <div className="space-y-4">
+      {/* BLOCO 1 — KPI strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <KpiTile
+          icon={CheckCircle2}
+          label="Adicionadas"
+          value={kpis.added}
+          total={playlistsCount}
+          tone="success"
+        />
+        <KpiTile
+          icon={Clock}
+          label="Pendentes"
+          value={kpis.pending}
+          tone="warn"
+          hint="aguardando bot"
+        />
+        <KpiTile
+          icon={Activity}
+          label="Agendadas"
+          value={kpis.scheduled}
+          tone="neutral"
+          hint="no futuro"
+        />
+        <KpiTile
+          icon={XCircle}
+          label="Falharam"
+          value={kpis.failed}
+          tone={kpis.failed > 0 ? "danger" : "neutral"}
+        />
+      </div>
+
+      {/* BLOCO 2 — Dispatch */}
+      <Card className={cn(
+        "border-2",
+        ecoDispatchedAt ? "border-primary/30 bg-primary/[0.03]" : "border-primary/40",
+      )}>
+        <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-start gap-3 min-w-0">
+            {ecoDispatchedAt ? (
+              <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+            ) : (
+              <Rocket className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+            )}
+            <div className="min-w-0">
+              <div className="text-sm font-semibold">
+                {ecoDispatchedAt ? "Ecossistema distribuído" : "Distribuir pro ecossistema"}
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {ecoDispatchedAt ? (
+                  <>Disparado em {fmtDateTime(ecoDispatchedAt)}. Deal criado e playlists na fila do bot.</>
+                ) : (
+                  <>Cria o deal real e enfileira {playlistsCount} ADD(s) nas playlists do ecossistema · custo interno {formatBRL(custoTotal)}.</>
+                )}
+              </p>
+            </div>
+          </div>
+          {!ecoDispatchedAt && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button size="sm" variant="solid" disabled={dispatching}>
+                  {dispatching ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Rocket className="h-4 w-4 mr-1.5" />}
+                  Distribuir agora
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Distribuir campanha?</AlertDialogTitle>
+                  <AlertDialogDescription asChild>
+                    <div className="space-y-2 text-sm">
+                      <div>Isso vai criar o deal real e enfileirar as inserções no Spotify.</div>
+                      <ul className="text-xs space-y-1 mt-2 pl-4 list-disc text-foreground">
+                        <li><span className="font-semibold">{playlistsCount}</span> playlist(s) do ecossistema</li>
+                        <li><span className="font-semibold">{playlistsCount}</span> ADD(s) enfileirados imediatamente</li>
+                        <li>Custo interno: <span className="font-semibold">{formatBRL(custoTotal)}</span></li>
+                        <li>Após ADD, o bot faz REORDER pra posição planejada</li>
+                      </ul>
+                    </div>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => onDispatch()}>Confirmar e distribuir</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* BLOCO 4 — Ações em massa */}
+      {ecoDispatchedAt && (
+        <Card>
+          <CardContent className="p-3 flex flex-wrap items-center gap-2">
+            <div className="text-xs text-muted-foreground mr-auto pl-1">Ações em massa</div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleForcePositions}
+              disabled={forcing || doneAddsCount === 0}
+              title="Enfileira REORDER pra posição planejada em todas as playlists onde o ADD já foi feito"
+            >
+              {forcing ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <ArrowDownUp className="h-3.5 w-3.5 mr-1.5" />}
+              Forçar posições agora
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleRetryAllFailed}
+              disabled={retrying || failedJobsCount === 0}
+            >
+              {retrying ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
+              Retentar falhas ({failedJobsCount})
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* BLOCO 3 — Lista de playlists com status */}
+      <Card>
+        <CardContent className="p-0">
+          <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold">Status por playlist</div>
+              <div className="text-[11px] text-muted-foreground">
+                {playlistsCount} playlist(s) · atualiza em tempo real
+              </div>
+            </div>
+          </div>
+          {loadingJobs ? (
+            <div className="p-4 space-y-2">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="p-8 text-center text-sm text-muted-foreground">
+              Nenhuma playlist no ecossistema desta campanha.
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {rows.map((r) => (
+                <PlaylistRow
+                  key={r.allocId}
+                  row={r}
+                  onRetry={r.state.jobId ? () => handleRetryOne(r.state.jobId!) : undefined}
+                />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* BLOCO 5 — Saúde do bot */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className={cn(
+                "h-9 w-9 rounded-lg border flex items-center justify-center shrink-0",
+                botOk ? "border-success/30 bg-success/10 text-success" : "border-destructive/40 bg-destructive/10 text-destructive",
+              )}>
+                <Bot className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold flex items-center gap-2">
+                  Bot Spotify
+                  <span className={cn(
+                    "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wider font-bold",
+                    botOk ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive",
+                  )}>
+                    {botOk ? "ativo" : "inativo"}
+                  </span>
+                </div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">
+                  Último heartbeat: {bot?.last_heartbeat ? timeAgo(bot.last_heartbeat) : "nunca"}
+                  {bot?.status ? ` · ${bot.status}` : ""}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-[11px]">
+              <span className={cn(
+                "inline-flex items-center gap-1 px-2 py-1 rounded border",
+                bot?.spotify_valid && botOk
+                  ? "border-success/30 bg-success/5 text-success"
+                  : "border-destructive/40 bg-destructive/5 text-destructive",
+              )}>
+                <ShieldCheck className="h-3 w-3" />
+                Sessão Spotify {bot?.spotify_valid ? "válida" : "inválida"}
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ---- KPI tile ----
+function KpiTile({
+  icon: Icon, label, value, total, tone, hint,
+}: {
+  icon: any;
+  label: string;
+  value: number;
+  total?: number;
+  tone: "success" | "warn" | "danger" | "neutral";
+  hint?: string;
+}) {
+  const toneCls: Record<string, string> = {
+    success: "text-success border-success/20",
+    warn: "text-amber-400 border-amber-500/20",
+    danger: "text-destructive border-destructive/30",
+    neutral: "text-foreground border-border",
+  };
+  return (
+    <Card className={cn("border", toneCls[tone])}>
+      <CardContent className="p-3">
+        <div className="flex items-center gap-2 mb-1">
+          <Icon className={cn("h-3.5 w-3.5", toneCls[tone].split(" ")[0])} />
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{label}</span>
+        </div>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-2xl font-semibold leading-none">{value}</span>
+          {typeof total === "number" && (
+            <span className="text-xs text-muted-foreground">/ {total}</span>
+          )}
+        </div>
+        {hint && <div className="text-[10px] text-muted-foreground mt-1">{hint}</div>}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---- Playlist row ----
+type PlaylistRowState = {
+  status: "done" | "pending" | "scheduled" | "failed" | "idle";
+  scheduledFor: string | null;
+  lastError: string | null;
+  jobId: string | null;
+  completedAt: string | null;
+};
+function PlaylistRow({
+  row,
+  onRetry,
+}: {
+  row: {
+    allocId: string;
+    spid: string | null;
+    name: string;
+    cover: string | null;
+    spotifyUrl: string | null;
+    plannedPosition: number | null;
+    state: PlaylistRowState;
+  };
+  onRetry?: () => void | Promise<void>;
+}) {
+  const initial = row.name.charAt(0).toUpperCase();
+  const statusCfg: Record<PlaylistRowState["status"], { label: string; cls: string; icon: typeof Clock }> = {
+    done: { label: "Adicionada", cls: "bg-primary/15 text-primary border-primary/30", icon: CheckCircle2 },
+    pending: { label: "Pendente", cls: "bg-amber-500/15 text-amber-400 border-amber-500/30", icon: Clock },
+    scheduled: { label: "Agendada", cls: "bg-blue-500/15 text-blue-400 border-blue-500/30", icon: Activity },
+    failed: { label: "Falhou", cls: "bg-rose-500/15 text-rose-400 border-rose-500/30", icon: XCircle },
+    idle: { label: "Sem job", cls: "bg-muted text-muted-foreground border-border", icon: AlertCircle },
+  };
+  const cfg = statusCfg[row.state.status];
+  const Icon = cfg.icon;
+
+  return (
+    <div className="flex items-center gap-3 px-4 py-3 hover:bg-muted/20">
+      {/* cover */}
+      <div className="h-8 w-8 rounded-md overflow-hidden shrink-0 bg-muted flex items-center justify-center">
+        {row.cover ? (
+          <img src={row.cover} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <span className="text-xs font-semibold text-muted-foreground">{initial}</span>
+        )}
+      </div>
+
+      {/* nome + meta */}
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-medium truncate flex items-center gap-1.5">
+          {row.spotifyUrl ? (
+            <a href={row.spotifyUrl} target="_blank" rel="noreferrer" className="hover:underline truncate">
+              {row.name}
+            </a>
+          ) : (
+            <span className="truncate">{row.name}</span>
+          )}
+          {row.spotifyUrl && <ExternalLink className="h-3 w-3 text-muted-foreground/60 shrink-0" />}
+        </div>
+        <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
+          <span>
+            Pos. planejada: <span className="text-foreground font-medium">{row.plannedPosition ?? "—"}</span>
+          </span>
+          {row.state.status === "scheduled" && row.state.scheduledFor && (
+            <span>· agendada para {fmtTime(row.state.scheduledFor)}</span>
+          )}
+          {row.state.status === "done" && row.state.completedAt && (
+            <span>· {fmtDateTime(row.state.completedAt)}</span>
+          )}
+          {row.state.status === "failed" && row.state.lastError && (
+            <span className="text-rose-400 truncate" title={row.state.lastError}>· {row.state.lastError}</span>
+          )}
+        </div>
+      </div>
+
+      {/* badge status */}
+      <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] border shrink-0", cfg.cls)}>
+        <Icon className="h-3 w-3" />
+        {cfg.label}
+      </span>
+
+      {/* retry */}
+      {row.state.status === "failed" && onRetry && (
+        <Button size="sm" variant="ghost" onClick={() => onRetry()} className="h-7 px-2 text-[11px] shrink-0">
+          <RefreshCw className="h-3 w-3 mr-1" />
+          Retentar
+        </Button>
+      )}
+    </div>
+  );
+}
