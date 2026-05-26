@@ -109,20 +109,21 @@ export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
     const outroStart = days - outroDays; // índice 0-based inclusivo
 
     // Curva 1: trackPlays/dia.
-    // Subida: baseline + somatório da entrega, com TETO = target (Top 200).
-    // Saída: smoothstep desce do valor atingido ao baseline ao longo do outro.
+    // Sobe = baseline + somatório acumulado da entrega da campanha.
+    // (sem teto: o Top 200 vira só uma referência visual; o valor real
+    // pode ultrapassar, e é justamente isso que o cliente quer ver).
+    // Saída suave: nos últimos `outroDays`, desce smoothstep ao baseline.
     const trackPlays: number[] = new Array(days).fill(0);
     let running = baseline;
     let peakValue = baseline;
     let peakIdx = -1;
     for (let i = 0; i < outroStart; i++) {
       running = running + delivery[i];
-      if (target != null && running >= target) {
-        running = target;
-        if (peakIdx === -1) peakIdx = i;
-      }
       trackPlays[i] = running;
       if (running > peakValue) peakValue = running;
+      if (target != null && peakIdx === -1 && running >= target) {
+        peakIdx = i;
+      }
     }
     const valueAtOutroStart = trackPlays[Math.max(0, outroStart - 1)] ?? baseline;
     for (let j = 0; j < outroDays; j++) {
@@ -131,6 +132,7 @@ export function DeliveryForecastCard({ forecast, organicSummary }: Props) {
       // smoothstep down: de valueAtOutroStart → baseline
       trackPlays[i] = baseline + (valueAtOutroStart - baseline) * (1 - S(t));
     }
+
 
     // Primeiro dia em que a curva 1 cruza o target.
     let markDay: number | null = null;
