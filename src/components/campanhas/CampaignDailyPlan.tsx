@@ -155,60 +155,7 @@ export function CampaignDailyPlan({
         </Button>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Seletor de engajamento: plays/save/mês — reescala o teto das playlists eco */}
-        {(() => {
-          const PRESETS = [18, 30, 50] as const;
-          const isCustom = customMultOpen || !PRESETS.includes(engagementMultiplier as any);
-          const factorPct = (engagementMultiplier / 30 * 100).toFixed(0);
-          return (
-            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-elevated/30 p-2.5">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mr-1">
-                Estratégia · plays por save / mês
-              </div>
-              {PRESETS.map(p => (
-                <button
-                  key={p}
-                  onClick={() => { setEngagementMultiplier(p); setCustomMultOpen(false); }}
-                  className={cn(
-                    "h-7 px-2.5 rounded-md text-xs font-medium tabular-nums border transition-colors",
-                    engagementMultiplier === p && !customMultOpen
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "border-border text-muted-foreground hover:text-foreground hover:bg-elevated/60",
-                  )}
-                >
-                  ×{p}
-                </button>
-              ))}
-              <button
-                onClick={() => setCustomMultOpen(o => !o)}
-                className={cn(
-                  "h-7 px-2.5 rounded-md text-xs font-medium border transition-colors",
-                  isCustom
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "border-border text-muted-foreground hover:text-foreground hover:bg-elevated/60",
-                )}
-              >
-                Custom
-              </button>
-              {customMultOpen && (
-                <Input
-                  type="number"
-                  min={1}
-                  max={200}
-                  value={engagementMultiplier}
-                  onChange={(e) => setEngagementMultiplier(Math.max(1, Math.min(200, Number(e.target.value) || 1)))}
-                  className="h-7 w-20 text-xs tabular-nums"
-                />
-              )}
-              {savingMult && (
-                <span className="text-[10px] text-muted-foreground">salvando…</span>
-              )}
-              <div className="ml-auto text-[10px] text-muted-foreground">
-                cap por playlist = saves × {factorPct}% × % da posição
-              </div>
-            </div>
-          );
-        })()}
+
 
         {(plan.ecoPlans as any).unmetEco > 0 && (
           <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs">
