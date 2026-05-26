@@ -345,7 +345,7 @@ export default function PlanoCampanhaPublico() {
                 <div className="flex gap-2 w-full sm:w-auto shrink-0">
                   <Dialog open={adjustOpen} onOpenChange={setAdjustOpen}>
                     <DialogTrigger asChild>
-                      <Button variant="outline" className="flex-1 sm:flex-none">
+                      <Button variant="outline" className="hidden sm:inline-flex">
                         <MessageSquareWarning className="h-4 w-4 mr-1.5" /> Solicitar ajuste
                       </Button>
                     </DialogTrigger>
