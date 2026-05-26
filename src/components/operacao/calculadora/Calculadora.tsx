@@ -1177,6 +1177,9 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                           const genreLabel = ecoCap.neighborCount > 0
                             ? `${active.genre}+vizinhos`
                             : active.genre;
+                          const genreLabel = ecoCap.neighborCount > 0
+                            ? `${active.genre}+vizinhos`
+                            : active.genre;
                           const Card = ({ label, total, pct, perDay, sub, accent }: {
                             label: string;
                             total: string;
