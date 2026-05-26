@@ -301,13 +301,13 @@ export function ExternalPackageEditor({
               <table className="w-full text-xs border-collapse">
                 <thead className="text-muted-foreground bg-elevated/40">
                   <tr>
-                    <th className="text-left font-medium py-2.5 px-3 border-b border-r border-border">Curador</th>
-                    <th className="text-right font-medium py-2.5 px-3 border-b border-r border-border w-32">Total streams</th>
-                    <th className="text-right font-medium py-2.5 px-3 border-b border-r border-border w-24">Por dia</th>
-                    <th className="text-right font-medium py-2.5 px-3 border-b border-r border-border w-24">Por mês</th>
-                    <th className="text-right font-medium py-2.5 px-3 border-b border-r border-border w-20">R$/stream</th>
-                    <th className="text-right font-medium py-2.5 px-3 border-b border-r border-border w-28">Custo total</th>
-                    <th className="text-right font-medium py-2.5 px-3 border-b border-border w-28">Status</th>
+                    <th className="text-left font-medium py-2.5 px-3 border-b border-r border-border w-[22%]">Curador</th>
+                    <th className="text-right font-medium py-2.5 px-3 border-b border-r border-border w-[16%]">Total streams</th>
+                    <th className="text-right font-medium py-2.5 px-3 border-b border-r border-border w-[12%]">Por dia</th>
+                    <th className="text-right font-medium py-2.5 px-3 border-b border-r border-border w-[13%]">Por mês</th>
+                    <th className="text-right font-medium py-2.5 px-3 border-b border-r border-border w-[11%]">R$/stream</th>
+                    <th className="text-right font-medium py-2.5 px-3 border-b border-r border-border w-[14%]">Custo total</th>
+                    <th className="text-right font-medium py-2.5 px-3 border-b border-border w-[12%]">Status</th>
                     {!isDispatched && <th className="w-10 border-b border-l border-border" />}
                   </tr>
                 </thead>
