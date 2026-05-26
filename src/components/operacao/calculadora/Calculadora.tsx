@@ -1140,7 +1140,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                   </div>
 
                   <div>
-                    <Label className="text-xs">Perfil de audiência</Label>
+                    <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">Perfil de audiência</Label>
                     <div className="grid grid-cols-3 gap-2 mt-1.5">
                       <ModeBtn active={active.perfil === "frio"} onClick={() => setPerfil("frio")} label="Frio" tooltip="Faixa nova, sem tração. Prioriza ecossistema próprio pra garantir entrega controlada e construir histórico. Curva mais lenta e estável." />
                       <ModeBtn active={active.perfil === "mercado"} onClick={() => setPerfil("mercado")} label="Mercado" tooltip="Lançamento em ritmo normal. Split equilibrado (~60% eco / 40% externo) — mistura playlists internas com curadores externos sem perder previsibilidade." />
