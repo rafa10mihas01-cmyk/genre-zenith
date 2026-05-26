@@ -611,45 +611,11 @@ export default function CampanhaExecucao() {
                 campaignStartedAt={camp.started_at}
                 campaignStatus={camp.status}
               />
-              <ProofsTimeline events={proofEvents} />
-              <ClientPriceEditor
-                snapshot={snapshot}
-                value={clientPriceInput}
-                onChange={setClientPriceInput}
-                onSave={handleSaveClientPrice}
-                saving={savingClientPrice}
-                approved={!!camp.client_approved_at}
-                showFinanceKpis={false}
-              />
-              <Card>
-                <CardContent className="p-5 space-y-4">
-                  <div>
-                    <div className="text-sm font-semibold">Resumo financeiro interno</div>
-                    <div className="text-xs text-muted-foreground">Quanto entra, quanto sai e quanto sobra desta campanha.</div>
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <FinKpi label="Cliente paga" value={formatBRL(getClientPriceTotal(snapshot))} sub={`${formatInt(snapshot.meta)} streams`} />
-                    <FinKpi label="Tabela" value={formatBRL(snapshot.meta > 0 ? (getClientPriceTotal(snapshot) / snapshot.meta) * 1_000_000 : 0)} sub="por 1M streams" />
-                    <FinKpi label="Seu custo" value={formatBRL(snapshot.custoTotal)} sub="interno" />
-                    <FinKpi label="Margem" value={formatBRL(getClientPriceTotal(snapshot) - snapshot.custoTotal)} sub={`${getClientPriceTotal(snapshot) > 0 ? Math.round(((getClientPriceTotal(snapshot) - snapshot.custoTotal) / getClientPriceTotal(snapshot)) * 100) : 0}% sobre venda`} />
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           ),
 
 
-          operacao: (
-            <OperacaoTab
-              allocations={allocs}
-              snapshots={snaps}
-              externalItems={externalItems}
-              totalDays={snapshot.days}
-              startedAt={camp.started_at}
-            />
-          ),
 
-          execucao: <CampaignExecutionStatus campaignId={camp.id} />,
 
 
           playlists: (() => {
