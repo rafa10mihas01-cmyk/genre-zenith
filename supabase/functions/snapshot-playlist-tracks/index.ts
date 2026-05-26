@@ -216,10 +216,11 @@ Deno.serve(async (req) => {
         unchanged,
         failed,
         auto_archived,
+        rate_limited_hits: rateLimitedHits,
         pruned_old: pruned ?? 0,
         failed_ids,
       },
-      message: `inserted=${inserted} unchanged=${unchanged} failed=${failed} archived=${auto_archived} pruned=${pruned ?? 0}` +
+      message: `inserted=${inserted} unchanged=${unchanged} failed=${failed} archived=${auto_archived} 429s=${rateLimitedHits} pruned=${pruned ?? 0}` +
         (failed_ids.length ? ` · first_failures=[${failed_ids.slice(0, 3).join(",")}]` : ""),
     });
 
