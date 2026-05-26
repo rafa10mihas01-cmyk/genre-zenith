@@ -114,12 +114,38 @@ Deno.serve(async (req) => {
     let auto_archived = 0;
     const failed_ids: string[] = [];
 
-    for (const t of list) {
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    const THROTTLE_MS = 400; // ~150 req/min, abaixo do limite ~180 do Spotify
+    let rateLimitedHits = 0;
+
+    for (let idx = 0; idx < list.length; idx++) {
+      const t = list[idx];
+      if (idx > 0) await sleep(THROTTLE_MS);
+
+      // Helper: lista refs com 1 retry respeitando Retry-After em caso de 429
+      const fetchRefs = async (): Promise<string[]> => {
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            const refs = await listPlaylistTrackRefs(t.id, token);
+            return refs.map((r) => r.id).filter((x): x is string => !!x).slice(0, 50);
+          } catch (e) {
+            if (e instanceof SpotifyApiError && e.status === 429) {
+              rateLimitedHits++;
+              const waitSec = Math.min(e.retryAfter ?? 5, 60);
+              console.warn(`[snapshot] 429 on ${t.id} — sleeping ${waitSec}s (attempt ${attempt + 1})`);
+              await sleep(waitSec * 1000);
+              if (attempt === 0) continue;
+            }
+            throw e;
+          }
+        }
+        return [];
+      };
+
       try {
         let ids: string[];
         try {
-          const refs = await listPlaylistTrackRefs(t.id, token);
-          ids = refs.map((r) => r.id).filter((x): x is string => !!x).slice(0, 50);
+          ids = await fetchRefs();
         } catch (e) {
           if (e instanceof SpotifyApiError) {
             // Auto-archive 404 em managed → para de poluir o status
