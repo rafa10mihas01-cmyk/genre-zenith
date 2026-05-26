@@ -406,27 +406,27 @@ export default function PlanoCampanhaPublico() {
               </div>
 
               {clientPriceTotal > 0 && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 pt-4 border-t border-primary/15">
-                  <div>
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Valor total da campanha</div>
-                    <div className="text-3xl sm:text-4xl font-semibold tabular-nums tracking-tight text-foreground">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-0 sm:gap-6 pt-4 border-t border-primary/15 divide-y divide-primary/10 sm:divide-y-0">
+                  <div className="pb-5 sm:pb-0">
+                    <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground mb-2">Valor total da campanha</div>
+                    <div className="text-[26px] leading-none sm:text-4xl font-semibold tabular-nums tracking-tight text-foreground">
                       {fmtBRL(clientPriceTotal)}
                     </div>
                     {perStream > 0 && (
-                      <div className="text-[11px] text-muted-foreground mt-1 tabular-nums">
+                      <div className="text-[11px] text-muted-foreground mt-2 tabular-nums">
                         R$ {perStream.toFixed(3).replace(".", ",")} por stream
                       </div>
                     )}
                   </div>
-                  <div className="sm:border-l sm:border-primary/15 sm:pl-6">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Streams contratados</div>
-                    <div className="text-2xl sm:text-3xl font-semibold tabular-nums text-foreground">{fmtInt(snapshot.meta)}</div>
-                    <div className="text-[11px] text-muted-foreground mt-1">meta total entregue</div>
+                  <div className="py-5 sm:py-0 sm:border-l sm:border-primary/15 sm:pl-6">
+                    <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground mb-2">Streams contratados</div>
+                    <div className="text-[22px] leading-none sm:text-3xl font-semibold tabular-nums text-foreground">{fmtInt(snapshot.meta)}</div>
+                    <div className="text-[11px] text-muted-foreground mt-2">meta total entregue</div>
                   </div>
-                  <div className="sm:border-l sm:border-primary/15 sm:pl-6">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Duração</div>
-                    <div className="text-2xl sm:text-3xl font-semibold tabular-nums text-foreground">{snapshot.days}d</div>
-                    <div className="text-[11px] text-muted-foreground mt-1">contratado{snapshot.effectiveDays && snapshot.effectiveDays !== snapshot.days ? ` · plano real: ${snapshot.effectiveDays}d` : ""}</div>
+                  <div className="pt-5 sm:pt-0 sm:border-l sm:border-primary/15 sm:pl-6">
+                    <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground mb-2">Duração</div>
+                    <div className="text-[22px] leading-none sm:text-3xl font-semibold tabular-nums text-foreground">{snapshot.days}d</div>
+                    <div className="text-[11px] text-muted-foreground mt-2">contratado{snapshot.effectiveDays && snapshot.effectiveDays !== snapshot.days ? ` · plano real: ${snapshot.effectiveDays}d` : ""}</div>
                   </div>
                 </div>
               )}
