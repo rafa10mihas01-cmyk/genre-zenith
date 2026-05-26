@@ -1270,6 +1270,14 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                           ({formatInt(ecoCap.capacityPerDay)}/dia · ×{active.engagementMultiplier ?? 30} · {ecoCap.playlistCount} playlists) ·
                           {" "}precisa entregar <strong>{formatInt(ecoNeeded)}</strong> pelo eco
                         </div>
+                        <div className="text-[11px] text-foreground/80 tabular-nums pt-1 border-t border-border/30 mt-1">
+                          Meta operacional: <strong>{formatInt(result.metaOperacional)}</strong>
+                          {result.streamsOrganic > 0 && (
+                            <> · Orgânico estimado: <strong>{formatInt(result.streamsOrganic)}</strong> ({active.splitOrganic}%)
+                              {active.clientProfile === "gravadora" && <span className="text-muted-foreground/70"> · bônus em cima da meta</span>}
+                            </>
+                          )}
+                        </div>
                         <div className="text-[10px] text-muted-foreground tabular-nums">
                           Conta: {formatInt(ecoCap.savesTotal)} saves × {active.engagementMultiplier ?? 30} ÷ 30 × % da posição {ecoCap.slotPositions.map(p => `#${p}`).join("/")} × {active.days} dias
                         </div>
