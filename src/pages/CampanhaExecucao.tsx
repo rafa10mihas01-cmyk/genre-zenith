@@ -672,7 +672,8 @@ export default function CampanhaExecucao() {
               <Tabs defaultValue="mapa" className="space-y-4">
                 <TabsList>
                   <TabsTrigger value="mapa">Mapa</TabsTrigger>
-                  <TabsTrigger value="distribuicao">Distribuição</TabsTrigger>
+                  <TabsTrigger value="console">Console</TabsTrigger>
+                  <TabsTrigger value="status">Status</TabsTrigger>
                 </TabsList>
                 <TabsContent value="mapa" className="mt-0 space-y-4">
                   <CampaignFullPlanCard
@@ -693,7 +694,7 @@ export default function CampanhaExecucao() {
                     }}
                   />
                 </TabsContent>
-                <TabsContent value="distribuicao" className="mt-0 space-y-4">
+                <TabsContent value="console" className="mt-0 space-y-4">
                   <CampaignDistributionConsole
                     campaignId={camp.id}
                     spotifyTrackId={camp.spotify_track_id ?? null}
@@ -704,6 +705,9 @@ export default function CampanhaExecucao() {
                     dispatching={dispatching}
                     onDispatch={handleDispatchEco}
                   />
+                </TabsContent>
+                <TabsContent value="status" className="mt-0 space-y-4">
+                  <CampaignExecutionStatus campaignId={camp.id} />
                 </TabsContent>
               </Tabs>
             </div>
@@ -732,7 +736,12 @@ export default function CampanhaExecucao() {
               </Card>
             </div>
           ),
-          baseline: <BaselineTab dealId={camp.deal_id ?? null} />,
+          proofs: (
+            <div className="space-y-6">
+              <ProofsTimeline events={proofEvents} />
+              <BaselineTab dealId={camp.deal_id ?? null} />
+            </div>
+          ),
           upload: clientToken ? (
             <SpreadsheetUploadCard
               clientToken={clientToken}
@@ -744,13 +753,6 @@ export default function CampanhaExecucao() {
             <Card>
               <CardContent className="p-5 text-sm text-muted-foreground">
                 Gere o link público do cliente pra habilitar a importação de planilhas (snapshot de streams).
-              </CardContent>
-            </Card>
-          ),
-          logs: (
-            <Card>
-              <CardContent className="p-5 text-sm text-muted-foreground">
-                Auditoria detalhada vai aparecer aqui na próxima fase.
               </CardContent>
             </Card>
           ),
