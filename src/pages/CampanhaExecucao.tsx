@@ -635,11 +635,6 @@ export default function CampanhaExecucao() {
             <Tabs defaultValue="interno" className="space-y-4">
               <TabsContent value="interno" className="mt-0 space-y-4">
                 <GenresUsedFromAllocs allocs={allocs} />
-                <InternalEcosystemHeader
-                  snapshot={snapshot}
-                  allocations={allocs}
-                  snaps={snaps}
-                />
                 {tabsRow}
                 <PlaylistsGrid
                   allocations={allocs}
