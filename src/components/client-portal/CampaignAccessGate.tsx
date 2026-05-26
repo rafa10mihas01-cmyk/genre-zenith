@@ -32,9 +32,20 @@ export function CampaignAccessGate({ token, onAuthed }: Props) {
       body: { token, email: email.trim().toLowerCase() },
     });
     setLoading(false);
-    if (error || (data as any)?.error) {
-      const e = (data as any)?.error ?? error?.message;
-      if (e === "rate_limited") toast.error("Limite de 3 códigos por hora. Tente mais tarde.");
+    // Quando edge retorna não-2xx, supabase-js coloca o body em error.context
+    let e: string | undefined = (data as any)?.error;
+    if (!e && error) {
+      try {
+        const ctx: any = (error as any).context;
+        if (ctx && typeof ctx.json === "function") {
+          const body = await ctx.json();
+          e = body?.error;
+        }
+      } catch { /* ignore */ }
+      if (!e) e = error.message;
+    }
+    if (e) {
+      if (e === "rate_limited") toast.error("Limite de 3 códigos por hora. Tente novamente mais tarde.");
       else if (e === "campaign_closed") toast.error("Esta campanha foi encerrada.");
       else toast.error("Não foi possível enviar o código.");
       return;
