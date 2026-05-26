@@ -276,6 +276,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
     r: calcCampaign({
       meta: songEffectiveMeta(s),
       days: s.days, modo: s.modo, perfil: s.perfil, splitEcoPct: s.splitEco,
+      splitOrganicPct: s.splitOrganic, clientProfile: s.clientProfile,
     }, pricingCosts),
   })), [songs, pricingCosts]);
 
