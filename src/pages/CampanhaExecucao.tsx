@@ -23,6 +23,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { cn } from "@/lib/utils";
 import { CampaignHub } from "@/components/campaign-hub/CampaignHub";
 import { OverviewTab } from "@/components/campaign-hub/tabs/OverviewTab";
+import { CampaignKpis } from "@/components/campaign-hub/CampaignKpis";
+import { Lock } from "lucide-react";
 import { OperacaoTab, type ExternalItemRow } from "@/components/campaign-hub/tabs/OperacaoTab";
 import { PlaylistsGrid } from "@/components/campaign-hub/PlaylistsGrid";
 import { InternalEcosystemHeader } from "@/components/campaign-hub/InternalEcosystemHeader";
