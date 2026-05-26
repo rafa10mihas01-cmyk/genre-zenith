@@ -51,7 +51,7 @@ import type { CampaignHubCampaign, CampaignHubTabId, EcoAllocation } from "@/com
 import { EvolutionChart, type EvolutionSeriesPoint } from "@/components/client-portal/EvolutionChart";
 import { DeliveryForecastCard, type ForecastPayload } from "@/components/client-portal/DeliveryForecastCard";
 import { GenresUsedChip, type GenreUsed } from "@/components/campanhas/GenresUsedChip";
-import { CampaignAccessGate, accessStorageKey } from "@/components/client-portal/CampaignAccessGate";
+
 
 
 type EcoSnap = {
@@ -143,64 +143,16 @@ export default function PlanoCampanhaPublico() {
   const [adjustName, setAdjustName] = useState("");
   const [adjusting, setAdjusting] = useState(false);
 
-  // Sessão OTP — JWT 24h no localStorage
-  const [accessJwt, setAccessJwt] = useState<string | null>(() => {
-    if (!token) return null;
-    try {
-      const raw = localStorage.getItem(accessStorageKey(token));
-      if (!raw) return null;
-      const parsed = JSON.parse(raw) as { jwt: string; exp: number };
-      if (!parsed?.jwt || !parsed?.exp || parsed.exp < Date.now()) {
-        localStorage.removeItem(accessStorageKey(token));
-        return null;
-      }
-      return parsed.jwt;
-    } catch { return null; }
-  });
-
-  // Admin bypass: se o usuário logado for admin, troca o JWT do Supabase
-  // por um access JWT da campanha sem precisar de OTP.
-  const [bypassChecked, setBypassChecked] = useState(false);
-  useEffect(() => {
-    if (!token || accessJwt) { setBypassChecked(true); return; }
-    let cancelled = false;
-    (async () => {
-      const { data: sessRes } = await supabase.auth.getSession();
-      const sess = sessRes?.session;
-      if (!sess?.access_token) { if (!cancelled) setBypassChecked(true); return; }
-      const { data, error } = await supabase.functions.invoke("issue-admin-campaign-access", {
-        body: { token },
-      });
-      if (cancelled) return;
-      const payload = data as { ok?: boolean; jwt?: string } | null;
-      if (!error && payload?.ok && payload.jwt) {
-        try {
-          localStorage.setItem(accessStorageKey(token), JSON.stringify({
-            jwt: payload.jwt, email: sess.user.email ?? "admin", exp: Date.now() + 86400_000,
-          }));
-        } catch { /* ignore */ }
-        setAccessJwt(payload.jwt);
-      }
-      setBypassChecked(true);
-    })();
-    return () => { cancelled = true; };
-  }, [token, accessJwt]);
+  // Portal público token-only: quem tem o link entra direto, sem OTP nem admin bypass.
 
   async function load() {
-    if (!token || !accessJwt) return;
+    if (!token) return;
     setLoading(true);
     const { data, error } = await supabase.functions.invoke("get-shared-campaign-plan", {
       body: { token },
-      headers: { Authorization: `Bearer ${accessJwt}` },
     });
     const payload = data as SharedCampaignPlanResponse | null;
     if (error || payload?.error) {
-      if (payload?.error === "auth_required") {
-        try { localStorage.removeItem(accessStorageKey(token)); } catch { /* ignore */ }
-        setAccessJwt(null);
-        setLoading(false);
-        return;
-      }
       setErr(payload?.error ?? error?.message ?? "Erro");
     } else {
       setCamp(payload?.campaign ?? null);
@@ -219,19 +171,9 @@ export default function PlanoCampanhaPublico() {
     setLoading(false);
   }
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [token, accessJwt]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [token]);
 
   if (!token) return null;
-  if (!accessJwt) {
-    if (!bypassChecked) {
-      return (
-        <div className="min-h-screen bg-background flex items-center justify-center">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
-      );
-    }
-    return <CampaignAccessGate token={token} onAuthed={(jwt) => setAccessJwt(jwt)} />;
-  }
 
 
 
