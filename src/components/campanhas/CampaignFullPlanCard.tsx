@@ -250,17 +250,38 @@ export function CampaignFullPlanCard({
 
   return (
     <Card className="mt-4">
-      <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
-        <div>
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Grid3x3 className="h-4 w-4 text-primary" /> Plano completo da campanha
-          </CardTitle>
-          <p className="text-xs text-muted-foreground mt-1">
-            Matriz dia × playlist · {mode === "diario" ? "streams previstos por dia" : "streams acumulados até o dia"}.
-            Coluna <span className="font-medium text-foreground">Pos</span> = posição planejada da música na playlist.
-          </p>
+      <CardHeader className="flex-row items-center justify-between gap-3 space-y-0 py-3">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <Grid3x3 className="h-4 w-4 text-primary shrink-0" />
+          <CardTitle className="text-sm whitespace-nowrap">Plano completo</CardTitle>
+          {track && (
+            <div className="flex items-center gap-2 min-w-0 pl-2 ml-1 border-l border-border">
+              {track.coverUrl ? (
+                <img src={track.coverUrl} alt="" className="w-6 h-6 rounded object-cover flex-shrink-0" />
+              ) : (
+                <div className="w-6 h-6 rounded bg-muted flex-shrink-0" />
+              )}
+              {track.spotifyUrl ? (
+                <a
+                  href={track.spotifyUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-medium truncate hover:text-primary inline-flex items-center gap-1 min-w-0"
+                  title={`${track.name}${track.artist ? " — " + track.artist : ""} · Abrir no Spotify`}
+                >
+                  <span className="truncate">{track.name}</span>
+                  {track.artist && <span className="text-muted-foreground truncate">· {track.artist}</span>}
+                  <ExternalLink className="h-3 w-3 flex-shrink-0 opacity-70" />
+                </a>
+              ) : (
+                <div className="text-xs font-medium truncate">
+                  {track.name}{track.artist && <span className="text-muted-foreground"> · {track.artist}</span>}
+                </div>
+              )}
+            </div>
+          )}
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 shrink-0">
           <div className="inline-flex rounded-md border border-border overflow-hidden">
             <button
               onClick={() => setMode("diario")}
@@ -297,47 +318,19 @@ export function CampaignFullPlanCard({
               ) : (
                 <Shuffle className="h-4 w-4 mr-1.5" />
               )}
-              Redistribuir posições
+              Redistribuir
             </Button>
           )}
           {showShare && (
             <Button size="sm" variant="outline" onClick={copyShareLink}>
               {copied ? <Check className="h-4 w-4 mr-1.5" /> : <Link2 className="h-4 w-4 mr-1.5" />}
-              {copied ? "Copiado" : "Copiar link público"}
+              {copied ? "Copiado" : "Copiar link"}
             </Button>
           )}
         </div>
       </CardHeader>
-      <CardContent>
-        {track && (
-          <div className="mb-3 flex items-center gap-3 rounded-lg border border-border bg-elevated/30 p-2.5">
-            {track.coverUrl ? (
-              <img src={track.coverUrl} alt="" className="w-12 h-12 rounded-md object-cover flex-shrink-0" />
-            ) : (
-              <div className="w-12 h-12 rounded-md bg-muted flex-shrink-0" />
-            )}
-            <div className="min-w-0 flex-1">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Música da campanha</div>
-              {track.spotifyUrl ? (
-                <a
-                  href={track.spotifyUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-semibold text-sm truncate hover:text-primary inline-flex items-center gap-1.5 max-w-full"
-                  title="Abrir música no Spotify"
-                >
-                  <span className="truncate">{track.name}</span>
-                  <ExternalLink className="h-3 w-3 flex-shrink-0 opacity-70" />
-                </a>
-              ) : (
-                <div className="font-semibold text-sm truncate">{track.name}</div>
-              )}
-              {track.artist && (
-                <div className="text-xs text-muted-foreground truncate">{track.artist}</div>
-              )}
-            </div>
-          </div>
-        )}
+      <CardContent className="pt-0">
+
 
         <div className="rounded-lg border border-border overflow-hidden">
           <div className="max-h-[560px] overflow-auto">
