@@ -266,7 +266,7 @@ export function dayLabel(startedAt: string, day: number) {
 }
 
 export function buildEcoPlan(args: {
-  snapshot: { days: number; effectiveDays?: number; modo: "simultaneo" | "sequencial"; curva: Array<{ streamsDay: number }> };
+  snapshot: { days: number; effectiveDays?: number; modo: "simultaneo" | "sequencial"; curva: Array<{ streamsDay: number }>; music?: { top200Position?: number | null; top200Pos?: number | null } | null };
   startedAt: string;
   engagementMultiplier: number;
   allocs: Alloc[];
@@ -279,6 +279,8 @@ export function buildEcoPlan(args: {
 
   // Preferir posições persistidas em campaign_eco_allocations.position.
   const allPersisted = allocs.length > 0 && allocs.every(a => Number.isFinite(a.position as number) && (a.position as number) >= 1);
+  const top = snapshot.music?.top200Position ?? snapshot.music?.top200Pos ?? null;
+  const chartTier = chartTierFromTopPosition(top);
   const positions = allPersisted
     ? new Map<string, number>(allocs.map(a => [a.id, a.position as number]))
     : distributeEcoPositions(
@@ -286,9 +288,11 @@ export function buildEcoPlan(args: {
           id: a.id,
           planned_streams: a.planned_streams,
           followers: Number(a.managed_playlists?.followers ?? 0),
+          genreSource: (a as any).genre_source ?? "primary",
         })),
-        days, mult,
+        days, mult, { chartTier },
       );
+
 
   const ordered = [...allocs].sort((a, b) => b.planned_streams - a.planned_streams);
   const stored = ordered.map(a => Number(a.start_day || 1));
