@@ -709,6 +709,23 @@ export default function CampanhaExecucao() {
                 />
               </TabsContent>
               <TabsContent value="completo" className="mt-0 space-y-4">
+                <CampaignFullPlanCard
+                  snapshot={snapshot}
+                  startedAt={camp.started_at}
+                  allocations={allocs as unknown as Parameters<typeof CampaignFullPlanCard>[0]["allocations"]}
+                  engagementMultiplier={camp.engagement_multiplier ?? 30}
+                  shareToken={camp.public_plan_token ?? null}
+                  campaignId={camp.id}
+                  onPositionsRedistributed={loadCampaign}
+                  radioGoal={Math.round(snapshot.meta * ((snapshot.splitOrganicPct ?? 15) / 100))}
+                  radioCollectedTotal={radioCollectedTotal}
+                  track={{
+                    name: camp.track_name,
+                    artist: camp.artist,
+                    coverUrl: camp.cover_url,
+                    spotifyUrl: camp.spotify_track_url ?? null,
+                  }}
+                />
                 <Card className={cn(
                   "border-2",
                   camp.eco_dispatched_at ? "border-primary/30 bg-primary/[0.03]" : "border-primary/40",
@@ -728,7 +745,7 @@ export default function CampanhaExecucao() {
                           {camp.eco_dispatched_at ? (
                             <>Disparado em {new Date(camp.eco_dispatched_at).toLocaleString("pt-BR")}. Deal criado e playlists na fila de coleta.</>
                           ) : (
-                            <>Confirma o plano abaixo e dispara: cria o deal real e manda as playlists do ecossistema pra fila de coleta do Spotify.</>
+                            <>Confirma o plano acima e dispara: cria o deal real e manda as playlists do ecossistema pra fila de coleta do Spotify.</>
                           )}
                         </p>
                       </div>
@@ -746,25 +763,8 @@ export default function CampanhaExecucao() {
                   allocations={allocs as unknown as Parameters<typeof TrackActionsPanel>[0]["allocations"]}
                   targetPositionsByAllocId={ecoPositionByAllocation}
                 />
-                <CampaignFullPlanCard
-                  snapshot={snapshot}
-                  startedAt={camp.started_at}
-                  allocations={allocs as unknown as Parameters<typeof CampaignFullPlanCard>[0]["allocations"]}
-                  engagementMultiplier={camp.engagement_multiplier ?? 30}
-                  shareToken={camp.public_plan_token ?? null}
-                  campaignId={camp.id}
-                  onPositionsRedistributed={loadCampaign}
-                  radioGoal={Math.round(snapshot.meta * ((snapshot.splitOrganicPct ?? 15) / 100))}
-                  radioCollectedTotal={radioCollectedTotal}
-                  track={{
-                    name: camp.track_name,
-                    artist: camp.artist,
-                    coverUrl: camp.cover_url,
-                    spotifyUrl: camp.spotify_track_url ?? null,
-                  }}
-                />
-
               </TabsContent>
+
 
             </Tabs>
           ),
