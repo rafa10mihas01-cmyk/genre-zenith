@@ -1,31 +1,14 @@
 import { NexEngineLogo } from "@/components/NexEngineLogo";
 
 /**
- * Footer global do app interno (sob o conteúdo das páginas).
- * Estilo: pequeno, centralizado, opacidade reduzida — sensação SaaS premium.
- *
- * Conteúdo: Powered by NexEngine · vX.Y.Z · Suporte
+ * Footer global do app interno — minimal: logo em cima, wordmark embaixo.
  */
-const APP_VERSION = "v1.2.0";
-const SUPPORT_EMAIL = "suporte@nexengine.app";
-
 export function AppFooter() {
   return (
     <footer className="mt-2 pt-3 pb-2 border-t border-border/40">
-      <div className="flex flex-row items-center justify-center gap-3 sm:gap-4 text-[11px] text-muted-foreground/60">
-        <div className="flex items-center gap-2">
-          <NexEngineLogo variant="auto" size={14} />
-          <span>Powered by <span className="text-foreground/70 font-medium">NexEngine</span></span>
-        </div>
-        <span className="opacity-40">·</span>
-        <span className="tabular-nums">{APP_VERSION}</span>
-        <span className="opacity-40">·</span>
-        <a
-          href={`mailto:${SUPPORT_EMAIL}`}
-          className="hover:text-foreground transition-colors"
-        >
-          Suporte
-        </a>
+      <div className="flex flex-col items-center justify-center gap-1 text-muted-foreground/60">
+        <NexEngineLogo variant="mark" size={18} />
+        <span className="text-[11px] text-foreground/70 font-medium tracking-wide">NexEngine</span>
       </div>
     </footer>
   );
