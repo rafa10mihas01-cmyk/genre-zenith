@@ -1208,7 +1208,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     </div>
                   </div>
 
-                  <div>
+                  <div style={{ ["--primary" as string]: "210 90% 60%" } as React.CSSProperties}>
                     <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">
                       Orgânico estimado <span className="text-muted-foreground/60 normal-case tracking-normal">· {active.splitOrganic}%</span>
                     </Label>
