@@ -357,6 +357,21 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
       // Piso de qualidade: ≥ 100 saves
       const playlists = (playlistsRaw ?? []).filter(p => (p.followers ?? 0) >= 100);
 
+      // Reserva de inventário: busca (playlist, posição) já ocupadas por
+      // campanhas ativas OU rascunhos criados nas últimas 48h. Usado depois
+      // pra dropar allocations colidentes (mesma playlist + mesma posição).
+      const reservationCutoffIso = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+      const { data: reservedRows } = await supabase
+        .from("campaign_eco_allocations")
+        .select("managed_playlist_id, position, campaigns!inner(status, created_at)")
+        .or(`status.eq.active,and(status.eq.draft,created_at.gte.${reservationCutoffIso})`, { foreignTable: "campaigns" });
+      const reservedKeys = new Set<string>(
+        ((reservedRows ?? []) as any[])
+          .filter(r => Number.isFinite(r.position))
+          .map(r => `${r.managed_playlist_id}:${r.position}`),
+      );
+
+
       const effMeta = songEffectiveMeta(song);
       const r = calcCampaign({ meta: effMeta, days: song.days, modo: song.modo, perfil: song.perfil, splitEcoPct: song.splitEco, splitOrganicPct: song.splitOrganic, clientProfile: song.clientProfile }, pricingCosts);
 
@@ -485,9 +500,19 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
             song.track?.position ?? null,
           )
         : [];
-      const allocations = [...coreAllocs, ...neighborAllocs];
+      const rawAllocations = [...coreAllocs, ...neighborAllocs];
+      // Dropa allocations cuja (playlist, posição) já está reservada em
+      // campanha ativa ou rascunho recente (< 48h). Evita conflito de slot.
+      const allocations = rawAllocations.filter(a =>
+        !reservedKeys.has(`${a.managed_playlist_id}:${a.position}`)
+      );
+      const droppedCount = rawAllocations.length - allocations.length;
+      if (droppedCount > 0) {
+        console.info(`[Calculadora] Dropped ${droppedCount} allocations já reservadas em campanhas ativas/rascunhos recentes`);
+      }
 
       const startD = startOfDay(new Date(song.startDateISO));
+
       const deadlineISO = addDays(startD, r.days).toISOString().slice(0, 10);
 
       const { campaignId } = await closeCampaignFromCalculator({
