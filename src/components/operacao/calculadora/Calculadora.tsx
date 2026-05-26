@@ -932,13 +932,15 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
 
 
                   <div className="space-y-1.5 pt-1">
-                    <Label className="text-xs flex items-center justify-between">
-                      <span>Streams/dia atuais <span className="text-destructive">*</span></span>
+                    <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium flex items-center justify-between">
+                      <span>
+                        Streams/dia atuais <span className="text-destructive normal-case">*</span>
+                      </span>
                       {active.track?.streamsDay != null && active.baselineStreamsDay !== active.track.streamsDay && (
                         <button
                           type="button"
                           onClick={() => setBaselineStreamsDay(active.track!.streamsDay!)}
-                          className="text-[10px] text-primary hover:underline"
+                          className="text-[10px] text-primary hover:underline normal-case tracking-normal"
                         >
                           usar Top 200 ({formatInt(active.track.streamsDay)})
                         </button>
@@ -948,11 +950,15 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                   </div>
 
                   <div className="space-y-1.5 pt-1">
-                    <Label className="text-xs">Gênero <span className="text-muted-foreground">(filtra playlists na distribuição)</span></Label>
+                    <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">
+                      Gênero <span className="normal-case tracking-normal text-muted-foreground/60 font-normal">(filtra playlists na distribuição)</span>
+                    </Label>
                     <Select value={active.genre || "__none__"} onValueChange={(v) => setGenre(v === "__none__" ? "" : v)}>
-                      <SelectTrigger><SelectValue placeholder="Selecione o gênero" /></SelectTrigger>
+                      <SelectTrigger className="text-muted-foreground/80 [&[data-state=closed]>span]:text-muted-foreground/60">
+                        <SelectValue placeholder="Selecione o gênero" />
+                      </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__none__">— Sem gênero —</SelectItem>
+                        <SelectItem value="__none__">Sem gênero</SelectItem>
                         {GENRE_OPTIONS.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
                       </SelectContent>
                     </Select>
