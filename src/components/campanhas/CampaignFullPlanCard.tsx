@@ -16,6 +16,7 @@ type EcoAlloc = {
   planned_streams: number;
   start_day: number;
   position?: number | null;
+  managed_playlist_id?: string | null;
   managed_playlists?: {
     name: string;
     cover_url: string | null;
@@ -196,6 +197,49 @@ export function CampaignFullPlanCard({
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "playlist_execution_jobs", filter: `campaign_id=eq.${campaignId}` },
+        () => load(),
+      )
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(ch); };
+  }, [campaignId]);
+
+  // ---- Entrega real por playlist (campaign_eco_snapshots) ----
+  // Pega snapshot mais recente por managed_playlist_id desta campanha e usa
+  // plays_28d como proxy de plays entregues.
+  const mplIdByAllocation = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const a of allocations) {
+      const mpl = (a as any).managed_playlist_id as string | null | undefined;
+      if (mpl) m.set(a.id, mpl);
+    }
+    return m;
+  }, [allocations]);
+
+  const [deliveredByMpl, setDeliveredByMpl] = useState<Map<string, number>>(new Map());
+  useEffect(() => {
+    if (!campaignId) return;
+    let cancelled = false;
+    const load = async () => {
+      const { data } = await supabase
+        .from("campaign_eco_snapshots")
+        .select("managed_playlist_id, plays_28d, plays_7d, plays_24h, captured_at")
+        .eq("campaign_id", campaignId)
+        .order("captured_at", { ascending: false });
+      if (cancelled) return;
+      const latest = new Map<string, number>();
+      for (const s of (data ?? []) as Array<{ managed_playlist_id: string; plays_28d: number | null; plays_7d: number | null; plays_24h: number | null }>) {
+        if (latest.has(s.managed_playlist_id)) continue;
+        const v = s.plays_28d ?? s.plays_7d ?? s.plays_24h ?? 0;
+        latest.set(s.managed_playlist_id, Math.max(0, Math.round(Number(v) || 0)));
+      }
+      setDeliveredByMpl(latest);
+    };
+    load();
+    const ch = supabase
+      .channel(`cfpc-eco-snaps-${campaignId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "campaign_eco_snapshots", filter: `campaign_id=eq.${campaignId}` },
         () => load(),
       )
       .subscribe();
@@ -386,6 +430,7 @@ export function CampaignFullPlanCard({
                       </PopoverContent>
                     </Popover>
                   </th>
+                  <th className="text-left font-medium py-2 px-2 border-b border-border min-w-[160px]">Entregue</th>
                   <th className="text-right font-medium py-2 px-2 border-b border-border w-16">Total</th>
                   {Array.from({ length: days }, (_, i) => (
                     <th
@@ -428,6 +473,9 @@ export function CampaignFullPlanCard({
                     </td>
                     <td className="text-center font-semibold py-0 px-2 border-b border-border/30 border-t-2 border-t-primary/40 leading-tight tabular-nums text-primary">
                       #1
+                    </td>
+                    <td className="text-left py-0 px-2 border-b border-border/30 border-t-2 border-t-primary/40 leading-tight text-muted-foreground text-[11px]">
+                      —
                     </td>
                     <td className="text-right tabular-nums font-semibold py-0 px-2 border-b border-border/30 border-t-2 border-t-primary/40 leading-tight">
                       {formatInt(radioTotal)}
@@ -529,6 +577,12 @@ export function CampaignFullPlanCard({
                       >
                         {pos != null ? `#${pos}` : "—"}
                       </td>
+                      <td className="py-0 px-2 border-b border-border/30 leading-tight">
+                        <DeliveryCell
+                          delivered={mplIdByAllocation.get(p.allocationId) ? (deliveredByMpl.get(mplIdByAllocation.get(p.allocationId)!) ?? 0) : 0}
+                          planned={p.totalStreams}
+                        />
+                      </td>
                       <td className="text-right tabular-nums font-semibold py-0 px-2 border-b border-border/30 leading-tight">
                         {formatInt(p.totalStreams)}
                       </td>
@@ -587,6 +641,16 @@ export function CampaignFullPlanCard({
                     colSpan={2}
                   >
                     Total {mode === "diario" ? "/ dia" : "acumulado"}
+                  </td>
+                  <td className="py-2 px-2 border-t-2 border-border">
+                    <DeliveryCell
+                      delivered={plans.reduce((s, p) => {
+                        const mpl = mplIdByAllocation.get(p.allocationId);
+                        return s + (mpl ? (deliveredByMpl.get(mpl) ?? 0) : 0);
+                      }, 0)}
+                      planned={plans.reduce((s, p) => s + (p.totalStreams ?? 0), 0)}
+                      compact
+                    />
                   </td>
                   <td className="text-right tabular-nums py-2 px-2 border-t-2 border-border text-primary">
                     {formatInt(dailyTotals.reduce((s, v) => s + v, 0))}
@@ -747,6 +811,47 @@ export function CampaignFullPlanSummary({
         hint={`${resumo.qtdPlaylists} playlists`}
         domain="clients"
       />
+    </div>
+  );
+}
+
+function DeliveryCell({ delivered, planned, compact = false }: { delivered: number; planned: number; compact?: boolean }) {
+  const pct = planned > 0 ? Math.min(100, (delivered / planned) * 100) : 0;
+  // Verde >= 80%, amarelo 40-80%, vermelho < 40%. Se planned=0, neutro.
+  const tone =
+    planned <= 0
+      ? "muted"
+      : pct >= 80
+      ? "success"
+      : pct >= 40
+      ? "warning"
+      : "danger";
+  const barColor =
+    tone === "success"
+      ? "bg-success"
+      : tone === "warning"
+      ? "bg-warning"
+      : tone === "danger"
+      ? "bg-destructive"
+      : "bg-muted-foreground/40";
+  const textColor =
+    tone === "success"
+      ? "text-success"
+      : tone === "warning"
+      ? "text-warning"
+      : tone === "danger"
+      ? "text-destructive"
+      : "text-muted-foreground";
+  return (
+    <div className="flex flex-col gap-1 min-w-[140px]">
+      <div className={cn("flex items-baseline justify-between gap-2 tabular-nums leading-none", compact ? "text-[11px]" : "text-[11px]")}>
+        <span className={cn("font-semibold", textColor)}>{formatInt(delivered)}</span>
+        <span className="text-muted-foreground">/ {formatInt(planned)}</span>
+        <span className={cn("text-[10px] font-medium", textColor)}>{planned > 0 ? `${Math.round(pct)}%` : "—"}</span>
+      </div>
+      <div className="h-1 w-full rounded-full bg-muted/40 overflow-hidden">
+        <div className={cn("h-full transition-all", barColor)} style={{ width: `${pct}%` }} />
+      </div>
     </div>
   );
 }
