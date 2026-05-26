@@ -59,37 +59,65 @@ export function AlgorithmicImpactCard({
           </span>
         </div>
 
-        {/* Mobile: 3 linhas idênticas (label esq · número dir alinhado tabular)
-            Desktop: grid 3 colunas */}
-        <div className="hidden sm:grid sm:grid-cols-3 gap-3 sm:items-end">
-          <div>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+        {/* Desktop: equação visual — Garantido + Orgânico = Potencial total */}
+        <div className="hidden sm:flex sm:items-start sm:gap-4 lg:gap-6">
+          {/* Garantido */}
+          <div className="flex-1 min-w-0">
+            <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-medium mb-2">
               Garantido
             </div>
-            <div className="text-lg font-semibold tabular-nums text-foreground leading-none">
+            <div className="text-2xl font-semibold tabular-nums text-foreground leading-none">
               {fmtInt(garantido)}
             </div>
-            <div className="text-[10px] text-muted-foreground mt-1">streams</div>
+            <div className="text-[10px] text-muted-foreground mt-1.5">streams contratados</div>
           </div>
-          <div>
-            <div className="text-[10px] uppercase tracking-wider mb-1" style={{ color: ORG }}>
-              + Orgânico estimado
+
+          {/* Operador + */}
+          <div
+            className="hidden md:flex items-center text-2xl font-light leading-none select-none pt-5"
+            style={{ color: "hsl(var(--muted-foreground) / 0.4)" }}
+            aria-hidden
+          >
+            +
+          </div>
+
+          {/* Orgânico estimado */}
+          <div className="flex-1 min-w-0">
+            <div
+              className="text-[10px] uppercase tracking-[0.14em] font-medium mb-2"
+              style={{ color: ORG }}
+            >
+              Orgânico estimado
             </div>
-            <div className="text-lg font-semibold tabular-nums leading-none" style={{ color: ORG }}>
+            <div
+              className="text-2xl font-semibold tabular-nums leading-none"
+              style={{ color: ORG }}
+            >
               +{fmtInt(expansao)}
             </div>
-            <div className="text-[10px] text-muted-foreground mt-1">
+            <div className="text-[10px] text-muted-foreground mt-1.5">
               Radio · Autoplay · Mixes
             </div>
           </div>
-          <div className="text-right">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+
+          {/* Operador = */}
+          <div
+            className="hidden md:flex items-center text-2xl font-light leading-none select-none pt-5"
+            style={{ color: "hsl(var(--muted-foreground) / 0.4)" }}
+            aria-hidden
+          >
+            =
+          </div>
+
+          {/* Potencial total — destaque hero */}
+          <div className="flex-1 min-w-0 text-right pl-3 border-l border-border/60">
+            <div className="text-[10px] uppercase tracking-[0.14em] text-primary/80 font-semibold mb-2">
               Potencial total
             </div>
-            <div className="text-xl font-bold tabular-nums text-primary leading-none">
+            <div className="text-3xl font-bold tabular-nums text-primary leading-none">
               {fmtInt(potencialTotal)}
             </div>
-            <div className="text-[10px] text-muted-foreground mt-1">streams</div>
+            <div className="text-[10px] text-muted-foreground mt-1.5">streams</div>
           </div>
         </div>
 
