@@ -542,7 +542,7 @@ export default function CampanhaExecucao() {
         daysElapsed={daysElapsed}
         daysTotal={snapshot.days}
         lastUpdateAt={lastUpdateAt}
-        hiddenTabs={["upload"]}
+        hiddenTabs={["upload", "logs"]}
         heroExtraActions={
           <>
             <CampaignAccessManager campaignId={camp.id} />
@@ -578,7 +578,7 @@ export default function CampanhaExecucao() {
                     capturedAt={baseline.created_at}
                     totalStreams={baseline.total_streams}
                     playlistsDetected={baseline.rows_imported}
-                    onClick={() => setTab("baseline")}
+                    onClick={() => setTab("proofs")}
                   />
                 ) : null;
               })()}
@@ -611,45 +611,11 @@ export default function CampanhaExecucao() {
                 campaignStartedAt={camp.started_at}
                 campaignStatus={camp.status}
               />
-              <ProofsTimeline events={proofEvents} />
-              <ClientPriceEditor
-                snapshot={snapshot}
-                value={clientPriceInput}
-                onChange={setClientPriceInput}
-                onSave={handleSaveClientPrice}
-                saving={savingClientPrice}
-                approved={!!camp.client_approved_at}
-                showFinanceKpis={false}
-              />
-              <Card>
-                <CardContent className="p-5 space-y-4">
-                  <div>
-                    <div className="text-sm font-semibold">Resumo financeiro interno</div>
-                    <div className="text-xs text-muted-foreground">Quanto entra, quanto sai e quanto sobra desta campanha.</div>
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <FinKpi label="Cliente paga" value={formatBRL(getClientPriceTotal(snapshot))} sub={`${formatInt(snapshot.meta)} streams`} />
-                    <FinKpi label="Tabela" value={formatBRL(snapshot.meta > 0 ? (getClientPriceTotal(snapshot) / snapshot.meta) * 1_000_000 : 0)} sub="por 1M streams" />
-                    <FinKpi label="Seu custo" value={formatBRL(snapshot.custoTotal)} sub="interno" />
-                    <FinKpi label="Margem" value={formatBRL(getClientPriceTotal(snapshot) - snapshot.custoTotal)} sub={`${getClientPriceTotal(snapshot) > 0 ? Math.round(((getClientPriceTotal(snapshot) - snapshot.custoTotal) / getClientPriceTotal(snapshot)) * 100) : 0}% sobre venda`} />
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           ),
 
 
-          operacao: (
-            <OperacaoTab
-              allocations={allocs}
-              snapshots={snaps}
-              externalItems={externalItems}
-              totalDays={snapshot.days}
-              startedAt={camp.started_at}
-            />
-          ),
 
-          execucao: <CampaignExecutionStatus campaignId={camp.id} />,
 
 
           playlists: (() => {
@@ -706,7 +672,8 @@ export default function CampanhaExecucao() {
               <Tabs defaultValue="mapa" className="space-y-4">
                 <TabsList>
                   <TabsTrigger value="mapa">Mapa</TabsTrigger>
-                  <TabsTrigger value="distribuicao">Distribuição</TabsTrigger>
+                  <TabsTrigger value="console">Console</TabsTrigger>
+                  <TabsTrigger value="status">Status</TabsTrigger>
                 </TabsList>
                 <TabsContent value="mapa" className="mt-0 space-y-4">
                   <CampaignFullPlanCard
@@ -727,7 +694,7 @@ export default function CampanhaExecucao() {
                     }}
                   />
                 </TabsContent>
-                <TabsContent value="distribuicao" className="mt-0 space-y-4">
+                <TabsContent value="console" className="mt-0 space-y-4">
                   <CampaignDistributionConsole
                     campaignId={camp.id}
                     spotifyTrackId={camp.spotify_track_id ?? null}
@@ -738,6 +705,9 @@ export default function CampanhaExecucao() {
                     dispatching={dispatching}
                     onDispatch={handleDispatchEco}
                   />
+                </TabsContent>
+                <TabsContent value="status" className="mt-0 space-y-4">
+                  <CampaignExecutionStatus campaignId={camp.id} />
                 </TabsContent>
               </Tabs>
             </div>
@@ -766,7 +736,12 @@ export default function CampanhaExecucao() {
               </Card>
             </div>
           ),
-          baseline: <BaselineTab dealId={camp.deal_id ?? null} />,
+          proofs: (
+            <div className="space-y-6">
+              <ProofsTimeline events={proofEvents} />
+              <BaselineTab dealId={camp.deal_id ?? null} />
+            </div>
+          ),
           upload: clientToken ? (
             <SpreadsheetUploadCard
               clientToken={clientToken}
@@ -778,13 +753,6 @@ export default function CampanhaExecucao() {
             <Card>
               <CardContent className="p-5 text-sm text-muted-foreground">
                 Gere o link público do cliente pra habilitar a importação de planilhas (snapshot de streams).
-              </CardContent>
-            </Card>
-          ),
-          logs: (
-            <Card>
-              <CardContent className="p-5 text-sm text-muted-foreground">
-                Auditoria detalhada vai aparecer aqui na próxima fase.
               </CardContent>
             </Card>
           ),
