@@ -670,42 +670,9 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
       {/* ============== STEP 1 — SESSÃO ============== */}
       {step === 1 && (
         <div className="space-y-5">
-          {/* Tipo de campanha — define como o plano vai ser executado */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Tipo da campanha</CardTitle>
-              <CardDescription className="text-xs">
-                Define de onde vêm as playlists. Externa exige curador.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                {([
-                  { id: "ecosystem", title: "Ecossistema", desc: "Playlists internas da casa. Sem curador externo." },
-                  { id: "external",  title: "Externa",    desc: "Curadores externos contratados pra essa campanha." },
-                  { id: "hybrid",    title: "Híbrida",    desc: "Ecossistema interno + curadores externos juntos." },
-                ] as const).map(opt => {
-                  const active = campaignType === opt.id;
-                  return (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setCampaignType(opt.id)}
-                      className={cn(
-                        "text-left rounded-lg border px-3 py-2 transition-colors",
-                        active
-                          ? "border-primary/60 bg-primary/5 ring-1 ring-primary/40"
-                          : "border-border hover:border-foreground/30 hover:bg-accent/30",
-                      )}
-                    >
-                      <div className="text-sm font-semibold leading-tight">{opt.title}</div>
-                      <div className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{opt.desc}</div>
-                    </button>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
+          {/* Tipo da campanha: fixado em "ecosystem" — externa/híbrida desativadas por enquanto */}
+
+
 
           {/* Fonte de coleta — Spotify (bot) vs Excel (planilha). Evita gastar crédito do bot quando não temos acesso. */}
           <Card>
