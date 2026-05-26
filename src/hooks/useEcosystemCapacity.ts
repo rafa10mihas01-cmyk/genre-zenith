@@ -221,7 +221,7 @@ export function useEcosystemCapacity(
     }, 300);
     return () => { cancelled = true; clearTimeout(timer); };
 
-  }, [genre, days, engagementMultiplier, slotKey, topPosition]);
+  }, [genre, days, engagementMultiplier, slotKey, topPosition, streamsEcoNeeded]);
 
   return state;
 }
