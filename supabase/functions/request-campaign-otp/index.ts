@@ -78,15 +78,16 @@ Deno.serve(async (req) => {
 
   // Enfileira e-mail via send-transactional-email (que enfileira no pgmq)
   try {
-    await supabase.functions.invoke("send-transactional-email", {
+    const { error: invErr } = await supabase.functions.invoke("send-transactional-email", {
       body: {
         template_name: "campaign-access-otp",
-        to: emailRaw,
+        recipient_email: emailRaw,
         purpose: "transactional",
         idempotency_key: `campaign-otp:${camp.id}:${emailRaw}:${code}`,
-        data: { code, track_name: camp.track_name, artist: camp.artist },
+        templateData: { code, track_name: camp.track_name, artist: camp.artist },
       },
     });
+    if (invErr) console.error("send-transactional-email invoke error", invErr);
   } catch (e) {
     console.error("Failed to enqueue OTP email", e);
     // Não revela falha pro cliente — log no servidor.
