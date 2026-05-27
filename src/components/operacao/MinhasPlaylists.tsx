@@ -927,46 +927,41 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         </div>
       )}
 
-      {/* Abas por fase (lifecycle_phase) — só na visão ativa */}
+      {/* Abas por fase — padrão underline+ícone (igual /financeiro) */}
       {!showArchived && !showCapacity && (
-        <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0 sm:overflow-visible sm:flex-wrap">
+        <div className="flex items-center gap-1 border-b border-border overflow-x-auto scrollbar-none -mx-4 px-4 lg:mx-0 lg:px-0">
           {([
-            { key: "all", label: "Todas", count: faseCounts.all },
-            { key: "prontas", label: "Prontas", count: faseCounts.prontas },
-            { key: "crescendo", label: "Crescendo", count: faseCounts.crescendo },
-            { key: "novas", label: "Novas", count: faseCounts.novas },
-            { key: "atencao", label: "Atenção", count: faseCounts.atencao },
-          ] as const).map((tab) => {
-            const active = filterFase === tab.key;
-            const isAtencao = tab.key === "atencao" && tab.count > 0;
+            { key: "all",       label: "Todas",     count: faseCounts.all,       icon: ListMusic,    tip: "Todas as playlists ativas" },
+            { key: "prontas",   label: "Prontas",   count: faseCounts.prontas,   icon: CheckCircle2, tip: "≥100 seguidores · com gênero · maturidade ou crescimento" },
+            { key: "crescendo", label: "Crescendo", count: faseCounts.crescendo, icon: TrendingUp,   tip: "10–99 seguidores ou em fase inicial" },
+            { key: "novas",     label: "Novas",     count: faseCounts.novas,     icon: Sparkles,     tip: "<10 seguidores" },
+            { key: "atencao",   label: "Atenção",   count: faseCounts.atencao,   icon: AlertCircle,  tip: "Saturadas ou em declínio" },
+          ] as const).map((t) => {
+            const Icon = t.icon;
+            const active = filterFase === t.key;
             return (
               <button
-                key={tab.key}
+                key={t.key}
                 type="button"
-                onClick={() => setFilterFase(tab.key)}
+                onClick={() => setFilterFase(t.key)}
+                title={t.tip}
                 className={cn(
-                  "h-9 px-3 rounded-full text-[12px] font-medium border transition-colors tabular-nums shrink-0 inline-flex items-center gap-1.5",
+                  "px-3 lg:px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap shrink-0",
                   active
-                    ? "bg-primary/15 border-primary/40 text-primary"
-                    : isAtencao
-                      ? "bg-elevated border-warning/30 text-warning hover:bg-warning/10"
-                      : "bg-elevated border-border text-muted-foreground hover:text-foreground",
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground",
                 )}
-                title={
-                  tab.key === "prontas" ? "≥100 seguidores · com gênero · maturidade ou crescimento"
-                  : tab.key === "crescendo" ? "10–99 seguidores ou em fase inicial"
-                  : tab.key === "novas" ? "<10 seguidores"
-                  : tab.key === "atencao" ? "Saturadas ou em declínio"
-                  : "Todas as playlists ativas"
-                }
               >
-                <span>{tab.label}</span>
-                <span className="text-[10.5px] opacity-80">({tab.count})</span>
+                <Icon className="h-3.5 w-3.5" />
+                {t.label}
+                <span className="text-[11px] tabular-nums opacity-70">({t.count})</span>
               </button>
             );
           })}
         </div>
       )}
+
+
 
       {/* Toolbar — 1 linha no mobile (textos só no desktop) */}
       <div className="flex flex-nowrap sm:flex-wrap items-center gap-1.5 sm:gap-2 overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0 sm:overflow-visible">
