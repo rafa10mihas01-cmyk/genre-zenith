@@ -121,7 +121,7 @@ export function CampaignCuratorDeals({ campaignId }: Props) {
             <CardContent className="p-4 space-y-3">
               {/* Header em uma linha — avatar + nome + chip da música + status */}
               <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-md bg-curators/15 border border-curators/25 flex items-center justify-center text-[11px] font-bold text-curators shrink-0">
+                <div className="h-8 w-8 rounded-md bg-domain-curators/15 border border-domain-curators/25 flex items-center justify-center text-[11px] font-bold text-domain-curators shrink-0">
                   {initial}
                 </div>
                 <div className="min-w-0 flex-1 flex items-center gap-2 flex-wrap">
