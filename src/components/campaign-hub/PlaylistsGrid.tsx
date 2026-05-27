@@ -29,7 +29,11 @@ type Props = {
   positions?: Map<string, number>;
   mode: "internal" | "client";
   flat?: boolean;
+  campaignId?: string;
+  snapshotLocked?: boolean;
+  onSwapped?: () => void;
 };
+
 
 type Group = "active" | "pending" | "paused";
 
