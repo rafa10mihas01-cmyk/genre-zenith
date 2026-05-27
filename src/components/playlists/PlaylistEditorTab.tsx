@@ -303,6 +303,7 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
     const from = oldIndex + 1;
     const to = newIndex + 1;
     setBusyTrack(String(active.id));
+    inFlight.current = true;
     try {
       const { data, error } = await supabase.functions.invoke("enqueue-playlist-job", {
         body: {
