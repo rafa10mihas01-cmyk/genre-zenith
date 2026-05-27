@@ -1,0 +1,275 @@
+/**
+ * Traduz títulos/mensagens técnicas de notificações para linguagem simples.
+ * Aplicado em tempo de exibição (presentation only) — não altera o banco
+ * nem a lógica das edge functions que disparam o alerta.
+ *
+ * Estratégia:
+ * 1. Tenta casar por `metadata.kind` (chave estável).
+ * 2. Cai em regex sobre o título original (compatibilidade com alertas antigos).
+ * 3. Se nada bater, devolve o texto original.
+ */
+import type { NotificationRow } from "@/hooks/useNotifications";
+
+export type FriendlyTone = "critical" | "warning" | "info" | "success";
+
+interface FriendlyCopy {
+  title: string;
+  message?: string;
+  tone?: FriendlyTone;
+}
+
+type Rewriter = (n: NotificationRow) => FriendlyCopy;
+
+const BY_KIND: Record<string, Rewriter> = {
+  bot_silent: (n) => {
+    const hours = (n.metadata as any)?.hours_silent;
+    return {
+      title: hours
+        ? `Sistema de coleta sem atividade há ${hours}h`
+        : "Sistema de coleta sem atividade",
+      message: "A coleta automática de dados está ligada mas parou de receber informações novas. Verifique a saúde do sistema.",
+      tone: "warning",
+    };
+  },
+  ops_bot_events_silent: () => ({
+    title: "Coleta automática sem atividade",
+    message: "A coleta de dados está sem registrar eventos novos.",
+    tone: "warning",
+  }),
+  ops_heartbeat_missing: () => ({
+    title: "Sistema de coleta parado",
+    message: "O sistema de coleta deixou de enviar sinais de vida. Pode estar offline.",
+    tone: "critical",
+  }),
+  spotify_token_invalid: () => ({
+    title: "Conta Spotify precisa ser reconectada",
+    message: "Uma das contas conectadas perdeu a autorização. Reconecte em Configurações.",
+    tone: "critical",
+  }),
+  spotify_token_refresh_failed: () => ({
+    title: "Conta Spotify precisa ser reconectada",
+    message: "Não foi possível renovar o acesso de uma conta Spotify. Reconecte em Configurações.",
+    tone: "critical",
+  }),
+  snapshot_suspicious: () => ({
+    title: "Dados inconsistentes em uma playlist",
+    message: "Um registro recente parece fora do padrão e foi marcado para revisão manual.",
+    tone: "warning",
+  }),
+  playlist_not_matched: () => ({
+    title: "Playlist não identificada em um deal",
+    message: "Recebemos dados de uma playlist que não está vinculada a nenhum deal ativo.",
+    tone: "warning",
+  }),
+  curator_no_playlists: () => ({
+    title: "Curador sem playlists cadastradas",
+    message: "Um curador foi consultado mas não tem playlists registradas para coleta.",
+    tone: "info",
+  }),
+  algorithmic_in: () => ({
+    title: "Música entrou em playlist algorítmica",
+    message: "O Spotify adicionou uma faixa de campanha em uma playlist algorítmica.",
+    tone: "success",
+  }),
+  algorithmic_out: () => ({
+    title: "Música saiu de playlist algorítmica",
+    message: "Uma faixa que estava em playlist algorítmica foi removida.",
+    tone: "warning",
+  }),
+  meta_batida: () => ({
+    title: "Meta de streams batida",
+    message: "Um deal atingiu a meta combinada com o curador.",
+    tone: "success",
+  }),
+  deal_overdue: () => ({
+    title: "Deal atrasado",
+    message: "Um deal passou do prazo combinado sem entregar a meta.",
+    tone: "critical",
+  }),
+  deal_created: () => ({
+    title: "Novo deal criado",
+    message: "Uma campanha foi aprovada e gerou um deal novo.",
+    tone: "info",
+  }),
+  campaign_expired: () => ({
+    title: "Rascunho de campanha expirou",
+    message: "Uma campanha em rascunho passou de 48h sem ser aprovada e foi cancelada. O inventário foi liberado.",
+    tone: "info",
+  }),
+  playlist_published: () => ({
+    title: "Playlist publicada no Spotify",
+    message: "Uma playlist nova foi criada e está disponível no Spotify.",
+    tone: "success",
+  }),
+  apify_blocked: () => ({
+    title: "Serviço de enriquecimento bloqueado",
+    message: "O serviço externo usado para buscar dados extras de playlists está bloqueado.",
+    tone: "warning",
+  }),
+  metrics_collection_failed: () => ({
+    title: "Falha na coleta de métricas",
+    message: "A coleta automática de métricas de playlists falhou de forma sistêmica.",
+    tone: "critical",
+  }),
+  performance_high: () => ({
+    title: "Playlists com alta performance",
+    message: "Uma ou mais playlists estão entregando acima do esperado.",
+    tone: "success",
+  }),
+  performance_low: () => ({
+    title: "Playlists com baixa performance",
+    message: "Uma ou mais playlists estão entregando abaixo do esperado.",
+    tone: "warning",
+  }),
+  template_hot: () => ({
+    title: "Novo modelo de alta performance",
+    message: "Um padrão de playlist foi identificado como modelo replicável.",
+    tone: "success",
+  }),
+  autopilot_no_data: () => ({
+    title: "Análise automática sem dados recentes",
+    message: "A análise automática não encontrou dados suficientes para rodar.",
+    tone: "info",
+  }),
+  autopilot_started: () => ({
+    title: "Análise automática iniciada",
+    message: "Uma rodada de análise automática começou.",
+    tone: "info",
+  }),
+  autopilot_collection_failed: () => ({
+    title: "Análise automática: coleta falhou",
+    message: "A coleta de dados para a análise automática não conseguiu rodar.",
+    tone: "warning",
+  }),
+  autopilot_collection_partial: () => ({
+    title: "Análise automática: coleta parcial",
+    message: "A coleta rodou parcialmente — análise feita com dados incompletos.",
+    tone: "info",
+  }),
+  autopilot_collection_blocked: () => ({
+    title: "Análise automática: coleta bloqueada",
+    message: "A análise automática parou para evitar repetição de coleta.",
+    tone: "warning",
+  }),
+  autopilot_no_templates: () => ({
+    title: "Análise automática: nenhum modelo aprovado",
+    message: "A rodada terminou sem encontrar modelos replicáveis.",
+    tone: "info",
+  }),
+};
+
+// Padrões para alertas antigos sem `kind` setado.
+const TITLE_PATTERNS: Array<{ re: RegExp; copy: FriendlyCopy }> = [
+  {
+    re: /heartbeat/i,
+    copy: { title: "Sistema de coleta sem sinal", message: "O sistema de coleta parou de enviar sinais de vida.", tone: "warning" },
+  },
+  {
+    re: /bot online mas sem coletar/i,
+    copy: { title: "Coleta ligada mas sem atividade", message: "O sistema está ligado mas não está coletando dados novos.", tone: "warning" },
+  },
+  {
+    re: /reautenticar|token/i,
+    copy: { title: "Conta Spotify precisa ser reconectada", message: "Uma conta Spotify perdeu o acesso. Reconecte em Configurações.", tone: "critical" },
+  },
+  {
+    re: /snapshot/i,
+    copy: { title: "Dados inconsistentes em uma playlist", message: "Um registro recente parece fora do padrão.", tone: "warning" },
+  },
+  {
+    re: /apify/i,
+    copy: { title: "Serviço de enriquecimento bloqueado", message: "O serviço externo de dados extras está bloqueado.", tone: "warning" },
+  },
+  {
+    re: /algorítmica|algoritmica/i,
+    copy: { title: "Atualização em playlist algorítmica", tone: "info" },
+  },
+  {
+    re: /autopilot/i,
+    copy: { title: "Análise automática", message: "Atualização da rotina de análise automática.", tone: "info" },
+  },
+  {
+    re: /ocr/i,
+    copy: { title: "Leitura de imagem com problema", message: "A leitura automática de uma imagem (print) precisa de revisão.", tone: "warning" },
+  },
+];
+
+/** Termos técnicos que devem ser ofuscados se aparecerem cru. */
+const TECH_WORDS = /\b(bot|heartbeat|cron|snapshot|ocr|webhook|payload|token|api|rpc)\b/gi;
+
+function softenTechnicalText(s: string): string {
+  return s.replace(TECH_WORDS, (m) => {
+    const lower = m.toLowerCase();
+    if (lower === "bot") return "sistema de coleta";
+    if (lower === "heartbeat") return "sinal de vida";
+    if (lower === "cron") return "rotina automática";
+    if (lower === "snapshot") return "registro";
+    if (lower === "ocr") return "leitura de imagem";
+    if (lower === "webhook") return "integração";
+    if (lower === "payload") return "dados recebidos";
+    if (lower === "token") return "acesso";
+    if (lower === "api") return "serviço";
+    if (lower === "rpc") return "chamada interna";
+    return m;
+  });
+}
+
+export function friendlyNotification(n: NotificationRow): FriendlyCopy {
+  const kind = (n.metadata as any)?.kind as string | undefined;
+  if (kind && BY_KIND[kind]) return BY_KIND[kind](n);
+
+  // Casa pelo dedupe_key prefixado (ex: bot_silent:nome:1h)
+  const dedupe = (n.metadata as any)?.dedupe_key as string | undefined;
+  if (dedupe) {
+    const prefix = dedupe.split(":")[0];
+    if (BY_KIND[prefix]) return BY_KIND[prefix](n);
+  }
+
+  for (const { re, copy } of TITLE_PATTERNS) {
+    if (re.test(n.title) || (n.message && re.test(n.message))) return copy;
+  }
+
+  return {
+    title: softenTechnicalText(n.title),
+    message: softenTechnicalText(n.message),
+  };
+}
+
+/** Detecta se a notificação representa um sucesso/positivo (vinculado a meta atingida etc). */
+export function notificationTone(n: NotificationRow): FriendlyTone {
+  const copy = friendlyNotification(n);
+  if (copy.tone) return copy.tone;
+  if (n.type === "critical") return "critical";
+  if (n.type === "warning") return "warning";
+  return "info";
+}
+
+/** Agrupa notificações por bucket de data relativa. */
+export type DateBucket = "today" | "yesterday" | "thisWeek" | "older";
+
+export const DATE_BUCKET_LABEL: Record<DateBucket, string> = {
+  today: "Hoje",
+  yesterday: "Ontem",
+  thisWeek: "Esta semana",
+  older: "Mais antigo",
+};
+
+export function bucketOf(iso: string): DateBucket {
+  const d = new Date(iso);
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const startOfYesterday = startOfToday - 24 * 60 * 60 * 1000;
+  const startOfWeek = startOfToday - 7 * 24 * 60 * 60 * 1000;
+  const t = d.getTime();
+  if (t >= startOfToday) return "today";
+  if (t >= startOfYesterday) return "yesterday";
+  if (t >= startOfWeek) return "thisWeek";
+  return "older";
+}
+
+export function groupByBucket<T extends { created_at: string }>(items: T[]): Array<{ bucket: DateBucket; items: T[] }> {
+  const groups: Record<DateBucket, T[]> = { today: [], yesterday: [], thisWeek: [], older: [] };
+  for (const it of items) groups[bucketOf(it.created_at)].push(it);
+  const order: DateBucket[] = ["today", "yesterday", "thisWeek", "older"];
+  return order.filter((b) => groups[b].length > 0).map((b) => ({ bucket: b, items: groups[b] }));
+}
