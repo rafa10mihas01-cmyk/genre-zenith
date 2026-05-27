@@ -902,8 +902,75 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         </Collapsible>
       )}
 
+      {/* Banner: playlists sem gênero — atalho para classificar */}
+      {!showArchived && !showCapacity && missingGenreCount > 0 && !filterMissingGenre && (
+        <div className="nx-card !p-3 flex items-center gap-3 border-warning/40 bg-warning/10">
+          <div className="h-8 w-8 rounded-full bg-warning/20 flex items-center justify-center shrink-0">
+            <AlertCircle className="h-4 w-4 text-warning" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[13px] font-semibold text-foreground">
+              {missingGenreCount} {missingGenreCount === 1 ? "playlist sem gênero" : "playlists sem gênero"}
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              Classifique agora para liberar match com clientes e relatórios por gênero.
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 border-warning/40 text-warning hover:bg-warning/15 hover:text-warning shrink-0"
+            onClick={() => { setFilterFase("all"); setFilterMissingGenre(true); }}
+          >
+            Classificar agora
+          </Button>
+        </div>
+      )}
+
+      {/* Abas por fase (lifecycle_phase) — só na visão ativa */}
+      {!showArchived && !showCapacity && (
+        <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0 sm:overflow-visible sm:flex-wrap">
+          {([
+            { key: "all", label: "Todas", count: faseCounts.all },
+            { key: "prontas", label: "Prontas", count: faseCounts.prontas },
+            { key: "crescendo", label: "Crescendo", count: faseCounts.crescendo },
+            { key: "novas", label: "Novas", count: faseCounts.novas },
+            { key: "atencao", label: "Atenção", count: faseCounts.atencao },
+          ] as const).map((tab) => {
+            const active = filterFase === tab.key;
+            const isAtencao = tab.key === "atencao" && tab.count > 0;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setFilterFase(tab.key)}
+                className={cn(
+                  "h-9 px-3 rounded-full text-[12px] font-medium border transition-colors tabular-nums shrink-0 inline-flex items-center gap-1.5",
+                  active
+                    ? "bg-primary/15 border-primary/40 text-primary"
+                    : isAtencao
+                      ? "bg-elevated border-warning/30 text-warning hover:bg-warning/10"
+                      : "bg-elevated border-border text-muted-foreground hover:text-foreground",
+                )}
+                title={
+                  tab.key === "prontas" ? "≥100 seguidores · com gênero · maturidade ou crescimento"
+                  : tab.key === "crescendo" ? "10–99 seguidores ou em fase inicial"
+                  : tab.key === "novas" ? "<10 seguidores"
+                  : tab.key === "atencao" ? "Saturadas ou em declínio"
+                  : "Todas as playlists ativas"
+                }
+              >
+                <span>{tab.label}</span>
+                <span className="text-[10.5px] opacity-80">({tab.count})</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Toolbar — 1 linha no mobile (textos só no desktop) */}
       <div className="flex flex-nowrap sm:flex-wrap items-center gap-1.5 sm:gap-2 overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0 sm:overflow-visible">
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button size="sm" className="gap-1 h-9 px-2.5 sm:px-3 shrink-0" disabled={bulkImporting}>
