@@ -96,29 +96,181 @@ Deno.serve(async (req) => {
         }, 400);
       }
     } else {
-      // Modo global
-      const { data } = await supabase
-        .from("search_results")
-        .select("nome_playlist,imagem_url,seguidores")
+      // ============ MODO GLOBAL — fonte visual orientada às TRACKS dominantes ============
+      // 1) PRIMÁRIA: capas das tracks com maior score no nicho agora.
+      //    Score = recorrência no nicho + boost Top 200 BR (x1.5) + boost recência ≤14d (x1.3).
+      //    O Gemini continua recebendo as imagens e extraindo dna_visual igual antes —
+      //    só muda a fonte (capa de música > capa de playlist).
+      const RECENCY_CUTOFF = new Date(Date.now() - 14 * 86400_000).toISOString();
+      const POOL_CUTOFF = new Date(Date.now() - 90 * 86400_000).toISOString();
+
+      const { data: stPool } = await supabase
+        .from("search_tracks")
+        .select("spotify_track_id, nome_musica, artista, cover_url, coletado_em, album")
         .eq("genre_id", body.genre_id)
-        .not("imagem_url", "is", null)
-        .order("seguidores", { ascending: false, nullsFirst: false })
-        .limit(TOP_N);
-      results = data ?? [];
+        .not("spotify_track_id", "is", null)
+        .gte("coletado_em", POOL_CUTOFF)
+        .order("coletado_em", { ascending: false })
+        .limit(5000);
+
+      type TrackAgg = {
+        spotify_track_id: string;
+        nome_musica: string | null;
+        artista: string | null;
+        cover_url: string | null;
+        album: string | null;
+        count: number;
+        lastSeen: number;
+        recent: boolean;
+      };
+      const agg = new Map<string, TrackAgg>();
+      for (const r of (stPool ?? []) as any[]) {
+        const id = r.spotify_track_id as string;
+        if (!id) continue;
+        const ts = r.coletado_em ? new Date(r.coletado_em).getTime() : 0;
+        const cur = agg.get(id);
+        if (!cur) {
+          agg.set(id, {
+            spotify_track_id: id,
+            nome_musica: r.nome_musica ?? null,
+            artista: r.artista ?? null,
+            cover_url: r.cover_url ?? null,
+            album: r.album ?? null,
+            count: 1,
+            lastSeen: ts,
+            recent: r.coletado_em ? r.coletado_em >= RECENCY_CUTOFF : false,
+          });
+        } else {
+          cur.count += 1;
+          if (ts > cur.lastSeen) {
+            cur.lastSeen = ts;
+            cur.cover_url = cur.cover_url ?? r.cover_url ?? null;
+          }
+          if (r.coletado_em && r.coletado_em >= RECENCY_CUTOFF) cur.recent = true;
+        }
+      }
+
+      // Sinal Top 200 BR: presença nos últimos 14 dias do chart
+      const candidateIds = Array.from(agg.keys());
+      const top200Set = new Set<string>();
+      if (candidateIds.length > 0) {
+        const { data: chartHits } = await supabase
+          .from("raw_chart_daily")
+          .select("spotify_track_id")
+          .eq("chart_name", "top200_br")
+          .gte("chart_date", RECENCY_CUTOFF.slice(0, 10))
+          .in("spotify_track_id", candidateIds);
+        for (const r of (chartHits ?? []) as any[]) {
+          if (r.spotify_track_id) top200Set.add(r.spotify_track_id);
+        }
+      }
+
+      // Ranking final + dedupe por álbum (evita 3 faixas do mesmo álbum = mesma capa)
+      const ranked = Array.from(agg.values())
+        .map((t) => {
+          let score = t.count;
+          if (top200Set.has(t.spotify_track_id)) score *= 1.5;
+          if (t.recent) score *= 1.3;
+          return { ...t, score };
+        })
+        .filter((t) => t.cover_url && !t.cover_url.includes("mosaic.scdn.co"))
+        .sort((a, b) => b.score - a.score);
+
+      const seenAlbum = new Set<string>();
+      const seenCover = new Set<string>();
+      const trackPicks: typeof ranked = [];
+      for (const t of ranked) {
+        const albumKey = (t.album ?? t.cover_url ?? "").toLowerCase();
+        if (albumKey && seenAlbum.has(albumKey)) continue;
+        if (t.cover_url && seenCover.has(t.cover_url)) continue;
+        seenAlbum.add(albumKey);
+        if (t.cover_url) seenCover.add(t.cover_url);
+        trackPicks.push(t);
+        if (trackPicks.length >= 12) break;
+      }
+
+      results = trackPicks.map((t) => ({
+        nome_playlist: `${t.artista ?? "?"} — ${t.nome_musica ?? "?"}`,
+        imagem_url: t.cover_url!,
+        seguidores: Math.round(t.score),
+      }));
+
+      console.log(`[visual-dna] track-covers candidatos=${trackPicks.length} (top200=${top200Set.size}, pool=${candidateIds.length})`);
+
+      // 2) FALLBACK 1: playlists líderes do nicho (comportamento atual)
+      if (results.length < 5) {
+        const { data: leaderCovers } = await supabase
+          .from("search_results")
+          .select("nome_playlist,imagem_url,seguidores")
+          .eq("genre_id", body.genre_id)
+          .not("imagem_url", "is", null)
+          .order("seguidores", { ascending: false, nullsFirst: false })
+          .limit(TOP_N);
+        const existing = new Set(results.map((r) => r.imagem_url));
+        for (const c of (leaderCovers ?? []) as any[]) {
+          if (!c.imagem_url || existing.has(c.imagem_url)) continue;
+          if (c.imagem_url.includes("mosaic.scdn.co")) continue;
+          results.push({ nome_playlist: `[playlist] ${c.nome_playlist}`, imagem_url: c.imagem_url, seguidores: c.seguidores });
+          existing.add(c.imagem_url);
+          if (results.length >= TOP_N) break;
+        }
+        console.log(`[visual-dna] fallback playlists líderes aplicado → ${results.length} capas`);
+      }
+
+      // 3) FALLBACK SECUNDÁRIO: imagens de artistas dominantes via Spotify /v1/artists
+      if (results.length < MIN_COVERS) {
+        try {
+          // top artistas pela contagem no pool
+          const artistCount = new Map<string, number>();
+          for (const t of agg.values()) {
+            if (!t.artista) continue;
+            artistCount.set(t.artista, (artistCount.get(t.artista) ?? 0) + t.count);
+          }
+          const topArtistNames = Array.from(artistCount.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10)
+            .map(([n]) => n);
+
+          // resolve spotify_artist_id via raw_chart_daily (já temos esse mapeamento)
+          const { data: artistRows } = await supabase
+            .from("raw_chart_daily")
+            .select("artist, spotify_artist_id")
+            .in("artist", topArtistNames)
+            .not("spotify_artist_id", "is", null)
+            .limit(200);
+          const artistIdMap = new Map<string, string>();
+          for (const r of (artistRows ?? []) as any[]) {
+            if (r.artist && r.spotify_artist_id && !artistIdMap.has(r.artist)) {
+              artistIdMap.set(r.artist, r.spotify_artist_id);
+            }
+          }
+          const ids = Array.from(artistIdMap.values()).slice(0, 10);
+          if (ids.length > 0) {
+            const token = await getSpotifyToken();
+            const r = await fetch(`https://api.spotify.com/v1/artists?ids=${ids.join(",")}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (r.ok) {
+              const aj = await r.json();
+              const existing = new Set(results.map((x) => x.imagem_url));
+              for (const a of (aj?.artists ?? []) as any[]) {
+                const img = a?.images?.[0]?.url ?? null;
+                if (!img || existing.has(img)) continue;
+                results.push({ nome_playlist: `[artista] ${a.name}`, imagem_url: img, seguidores: a.followers?.total ?? 0 });
+                existing.add(img);
+                if (results.length >= TOP_N) break;
+              }
+              console.log(`[visual-dna] fallback artistas aplicado → ${results.length} capas`);
+            }
+          }
+        } catch (e) {
+          console.warn("[visual-dna] fallback artistas falhou:", (e as Error).message);
+        }
+      }
+
+      results = results.slice(0, TOP_N);
     }
 
-    if (!results || results.length === 0) {
-      return j({ ok: false, error: "Sem capas pra analisar" }, 400);
-    }
-
-    // Filtra só URLs single-image (mosaic.scdn.co são compostas, atrapalham análise visual)
-    const validCovers = results.filter(r =>
-      r.imagem_url && !r.imagem_url.includes("mosaic.scdn.co")
-    ).slice(0, 6);
-
-    if (validCovers.length < MIN_COVERS) {
-      return j({ ok: false, error: `Capas insuficientes (precisa de ≥${MIN_COVERS} single-image)` }, 400);
-    }
 
     // ============ PROMPT ============
     const escopo = subgeneroSlug
