@@ -571,17 +571,6 @@ export default function CampanhaExecucao() {
         slots={{
           overview: (
             <div className="space-y-6">
-              {(() => {
-                const baseline = recentUploads.find((u) => u.is_baseline);
-                return baseline ? (
-                  <BaselineCard
-                    capturedAt={baseline.created_at}
-                    totalStreams={baseline.total_streams}
-                    playlistsDetected={baseline.rows_imported}
-                    onClick={() => setTab("proofs")}
-                  />
-                ) : null;
-              })()}
               <OverviewTab
                 snapshot={snapshot}
                 delivered={delivered}
@@ -605,12 +594,25 @@ export default function CampanhaExecucao() {
                 onLockSplit={handleLockSplit}
                 onUnlockSplit={handleUnlockSplit}
                 curveSlot={
-                  <CampaignMonitoring
-                    campaignId={camp.id}
-                    snapshot={snapshot}
-                    campaignStartedAt={camp.started_at}
-                    campaignStatus={camp.status}
-                  />
+                  <div className="space-y-4">
+                    {(() => {
+                      const baseline = recentUploads.find((u) => u.is_baseline);
+                      return baseline ? (
+                        <BaselineCard
+                          capturedAt={baseline.created_at}
+                          totalStreams={baseline.total_streams}
+                          playlistsDetected={baseline.rows_imported}
+                          onClick={() => setTab("proofs")}
+                        />
+                      ) : null;
+                    })()}
+                    <CampaignMonitoring
+                      campaignId={camp.id}
+                      snapshot={snapshot}
+                      campaignStartedAt={camp.started_at}
+                      campaignStatus={camp.status}
+                    />
+                  </div>
                 }
               />
             </div>
