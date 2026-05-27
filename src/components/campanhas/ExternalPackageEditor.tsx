@@ -164,6 +164,8 @@ export function ExternalPackageEditor({
   const isDispatched = pkg?.status !== "draft";
   const noCapacity = items.length === 0;
   const underCovered = coverage < 95;
+  // Janela REAL do plano (rampa + platô + saída) — fallback p/ snapshots antigos.
+  const effDays = Math.max(1, snapshot.effectiveDays || snapshot.days || 1);
 
   const actionButtons = !isDispatched ? (
     <>
@@ -219,8 +221,8 @@ export function ExternalPackageEditor({
         <KpiBig
           icon={CalendarClock}
           label="Diário necessário"
-          value={formatInt(Math.round((snapshot.streamsExt || 0) / Math.max(1, snapshot.days || 1)))}
-          hint={`pacote atual: ${formatInt(Math.round(totalStreams / Math.max(1, snapshot.days || 1)))}/dia em ${snapshot.days || 1}d`}
+          value={formatInt(Math.round((snapshot.streamsExt || 0) / effDays))}
+          hint={`pacote atual: ${formatInt(Math.round(totalStreams / effDays))}/dia em ${effDays}d`}
           domain="deals"
         />
 
@@ -291,7 +293,7 @@ export function ExternalPackageEditor({
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Users className="h-3.5 w-3.5 text-primary" />
                 <span>
-                  Distribuição sobre <strong className="text-foreground">{snapshot.days} dias</strong> ·
+                  Distribuição sobre <strong className="text-foreground">{effDays} dias</strong> ·
                   Alvo <strong className="text-foreground tabular-nums">{formatInt(snapshot.streamsExt)}</strong> streams ·
                   <strong className="text-foreground"> {formatBRL(snapshot.custoExt)}</strong>
                   {isDispatched && pkg?.confirmed_at && (
@@ -316,7 +318,7 @@ export function ExternalPackageEditor({
                 </thead>
                 <tbody>
                   {items.map((it, i) => {
-                    const days = Math.max(1, snapshot.days || 1);
+                    const days = effDays;
                     const perDay = Math.round(it.assigned_streams / days);
                     const totalStr = totalDrafts[it.id] ?? (it.assigned_streams > 0 ? String(it.assigned_streams) : "");
                     const perDayStr = perDayDrafts[it.id] ?? (perDay > 0 ? String(perDay) : "");
@@ -410,7 +412,7 @@ export function ExternalPackageEditor({
                     <td className="py-2.5 px-3 text-center text-[10px] uppercase tracking-wider border-r border-border">Total externo</td>
                     <td className="py-2.5 px-3 text-center tabular-nums font-semibold text-foreground border-r border-border">{formatInt(totalStreams)}</td>
                     <td className="py-2.5 px-3 text-center tabular-nums font-semibold text-foreground border-r border-border">
-                      {formatInt(Math.round(totalStreams / Math.max(1, snapshot.days || 1)))}
+                      {formatInt(Math.round(totalStreams / effDays))}
                       <span className="text-[10px] text-muted-foreground ml-1">/dia</span>
                     </td>
                     <td className="py-2.5 px-3 border-r border-border" />
