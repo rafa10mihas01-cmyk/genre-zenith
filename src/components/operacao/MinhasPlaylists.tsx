@@ -122,6 +122,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const filterMissingGenre = searchParams.get("sem_genero") === "1";
   const filterGenreId = searchParams.get("genero");
   const filterSize = (searchParams.get("tamanho") as "all" | "pequena" | "media" | "grande" | "top") || "all";
+  const filterFase = (searchParams.get("fase") as "all" | "prontas" | "crescendo" | "novas" | "atencao") || "all";
   const showArchived = searchParams.get("arquivadas") === "1";
   const showCapacity = searchParams.get("aba") === "capacidade";
   const sortBy = (searchParams.get("sort") as "recent" | "valuation") || "recent";
@@ -141,6 +142,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   };
   const setFilterGenreId = (v: string | null) => updateParam("genero", v);
   const setFilterSize = (v: "all" | "pequena" | "media" | "grande" | "top") => updateParam("tamanho", v);
+  const setFilterFase = (v: "all" | "prontas" | "crescendo" | "novas" | "atencao") => updateParam("fase", v);
   const setShowArchived = (v: boolean) => {
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
@@ -164,34 +166,51 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   // loadedCount cresce, e os updates locais (setItems) seguem o key atual.
   const [loadedCount, setLoadedCount] = useState(PAGE_SIZE);
 
+  // Reset paginação ao trocar de aba — evita carregar 500 itens de "all"
+  // e mostrar só os que sobrarem ao filtrar uma fase.
+  useEffect(() => {
+    setLoadedCount(PAGE_SIZE);
+  }, [filterFase, showArchived]);
+
   const itemsQuery = useQuery({
-    queryKey: ["managed-playlists", loadedCount],
+    queryKey: ["managed-playlists", loadedCount, filterFase, showArchived],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("managed_playlists")
         .select("*")
-        .order("imported_at", { ascending: false })
-        .range(0, loadedCount - 1);
+        .order("imported_at", { ascending: false });
+      // Arquivadas vs ativas server-side (combina com o filtro client em `visible`)
+      if (showArchived) q = q.not("archived_at", "is", null);
+      else q = q.is("archived_at", null);
+      // Fase server-side — usa lifecycle_phase + followers
+      if (filterFase === "prontas") {
+        q = q.gte("followers", 100).not("genre_id", "is", null).in("lifecycle_phase", ["mature", "growth"]);
+      } else if (filterFase === "crescendo") {
+        q = q.or("and(followers.gte.10,followers.lt.100),lifecycle_phase.eq.seed");
+      } else if (filterFase === "novas") {
+        q = q.lt("followers", 10);
+      } else if (filterFase === "atencao") {
+        q = q.in("lifecycle_phase", ["bloated", "decline"]);
+      }
+      const { data, error } = await q.range(0, loadedCount - 1);
       if (error) throw error;
       return (data ?? []) as ManagedPlaylist[];
     },
-    placeholderData: (prev) => prev, // evita flash de skeleton ao paginar
+    placeholderData: (prev) => prev,
   });
   const items = itemsQuery.data ?? [];
   const loading = itemsQuery.isPending;
   const setItems = useCallback(
     (updater: ManagedPlaylist[] | ((prev: ManagedPlaylist[]) => ManagedPlaylist[])) => {
-      queryClient.setQueryData<ManagedPlaylist[]>(["managed-playlists", loadedCount], (prev) => {
+      queryClient.setQueryData<ManagedPlaylist[]>(["managed-playlists", loadedCount, filterFase, showArchived], (prev) => {
         const base = prev ?? [];
         return typeof updater === "function" ? (updater as (p: ManagedPlaylist[]) => ManagedPlaylist[])(base) : updater;
       });
     },
-    [queryClient, loadedCount],
+    [queryClient, loadedCount, filterFase, showArchived],
   );
 
-  // Contagens reais do catálogo inteiro (4 colunas, payload mínimo).
-  // Alimenta chips "Ativas/Lixeira", banner de sem-gênero, contadores de aba
-  // e o total no "Carregar mais (X de Y)".
+  // Contagens reais do catálogo inteiro (5 colunas, payload mínimo).
   const countsQuery = useQuery({
     queryKey: ["managed-playlists-counts"],
     queryFn: async () => {
@@ -207,10 +226,32 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const countRows = countsQuery.data ?? [];
   const totalActiveCount = countRows.filter((r) => !r.archived_at).length;
   const totalArchivedCount = countRows.filter((r) => r.archived_at).length;
-  const totalLoadedTarget = showArchived ? totalArchivedCount : totalActiveCount;
+
+  // Contagens por fase (catálogo ativo inteiro).
+  const activeRows = useMemo(() => countRows.filter((r) => !r.archived_at), [countRows]);
+  const faseCounts = useMemo(() => {
+    const inPhase = (r: CountRow, phases: string[]) => !!r.lifecycle_phase && phases.includes(r.lifecycle_phase);
+    return {
+      all: activeRows.length,
+      prontas: activeRows.filter((r) => (r.followers ?? 0) >= 100 && r.genre_id && inPhase(r, ["mature", "growth"])).length,
+      crescendo: activeRows.filter((r) => {
+        const f = r.followers ?? 0;
+        return (f >= 10 && f < 100) || r.lifecycle_phase === "seed";
+      }).length,
+      novas: activeRows.filter((r) => (r.followers ?? 0) < 10).length,
+      atencao: activeRows.filter((r) => inPhase(r, ["bloated", "decline"])).length,
+    };
+  }, [activeRows]);
+
+  const totalLoadedTarget = showArchived
+    ? totalArchivedCount
+    : filterFase === "all"
+      ? totalActiveCount
+      : faseCounts[filterFase];
   const canLoadMore = items.length < loadedCount
     ? false // ainda chegando do servidor
     : items.length < totalLoadedTarget;
+
 
   const [scores, setScores] = useState<Record<string, PlaylistScoreRow>>({});
   const [valuations, setValuations] = useState<Record<string, Valuation>>({});
@@ -861,8 +902,75 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         </Collapsible>
       )}
 
+      {/* Banner: playlists sem gênero — atalho para classificar */}
+      {!showArchived && !showCapacity && missingGenreCount > 0 && !filterMissingGenre && (
+        <div className="nx-card !p-3 flex items-center gap-3 border-warning/40 bg-warning/10">
+          <div className="h-8 w-8 rounded-full bg-warning/20 flex items-center justify-center shrink-0">
+            <AlertCircle className="h-4 w-4 text-warning" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[13px] font-semibold text-foreground">
+              {missingGenreCount} {missingGenreCount === 1 ? "playlist sem gênero" : "playlists sem gênero"}
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              Classifique agora para liberar match com clientes e relatórios por gênero.
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 border-warning/40 text-warning hover:bg-warning/15 hover:text-warning shrink-0"
+            onClick={() => { setFilterFase("all"); setFilterMissingGenre(true); }}
+          >
+            Classificar agora
+          </Button>
+        </div>
+      )}
+
+      {/* Abas por fase (lifecycle_phase) — só na visão ativa */}
+      {!showArchived && !showCapacity && (
+        <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0 sm:overflow-visible sm:flex-wrap">
+          {([
+            { key: "all", label: "Todas", count: faseCounts.all },
+            { key: "prontas", label: "Prontas", count: faseCounts.prontas },
+            { key: "crescendo", label: "Crescendo", count: faseCounts.crescendo },
+            { key: "novas", label: "Novas", count: faseCounts.novas },
+            { key: "atencao", label: "Atenção", count: faseCounts.atencao },
+          ] as const).map((tab) => {
+            const active = filterFase === tab.key;
+            const isAtencao = tab.key === "atencao" && tab.count > 0;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setFilterFase(tab.key)}
+                className={cn(
+                  "h-9 px-3 rounded-full text-[12px] font-medium border transition-colors tabular-nums shrink-0 inline-flex items-center gap-1.5",
+                  active
+                    ? "bg-primary/15 border-primary/40 text-primary"
+                    : isAtencao
+                      ? "bg-elevated border-warning/30 text-warning hover:bg-warning/10"
+                      : "bg-elevated border-border text-muted-foreground hover:text-foreground",
+                )}
+                title={
+                  tab.key === "prontas" ? "≥100 seguidores · com gênero · maturidade ou crescimento"
+                  : tab.key === "crescendo" ? "10–99 seguidores ou em fase inicial"
+                  : tab.key === "novas" ? "<10 seguidores"
+                  : tab.key === "atencao" ? "Saturadas ou em declínio"
+                  : "Todas as playlists ativas"
+                }
+              >
+                <span>{tab.label}</span>
+                <span className="text-[10.5px] opacity-80">({tab.count})</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Toolbar — 1 linha no mobile (textos só no desktop) */}
       <div className="flex flex-nowrap sm:flex-wrap items-center gap-1.5 sm:gap-2 overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0 sm:overflow-visible">
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button size="sm" className="gap-1 h-9 px-2.5 sm:px-3 shrink-0" disabled={bulkImporting}>
@@ -1190,6 +1298,15 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                 <div className="flex items-start gap-1.5">
                   <h4 className="flex-1 text-[12.5px] font-semibold leading-tight line-clamp-1" title={p.name}>{p.name}</h4>
                 </div>
+                {(p.followers ?? 0) >= 100 && p.genre_id && (
+                  <div
+                    className="inline-flex items-center gap-1 self-start rounded-full border border-success/40 bg-success/10 px-1.5 py-0.5 text-[10px] font-medium text-success"
+                    title="Tem público mínimo e gênero classificado — pode entrar em campanha"
+                  >
+                    <CheckCircle2 className="h-2.5 w-2.5" />
+                    Pronta para campanha
+                  </div>
+                )}
                 <div className="flex items-center justify-between text-[11px] tabular-nums text-muted-foreground">
                   <span><span className="font-semibold text-foreground">{formatNumber(p.followers)}</span> seg.</span>
                   <span><span className="font-semibold text-foreground">{p.tracks_count || "—"}</span> fx</span>
