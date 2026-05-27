@@ -198,9 +198,33 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
   // Tick por segundo enquanto houver countdown ativo
   useEffect(() => {
     if (!rateLimitUntil) return;
-    const id = setInterval(() => setNowTick(Date.now()), 1000);
+    const id = setInterval(() => {
+      const now = Date.now();
+      setNowTick(now);
+      if (now >= rateLimitUntil) {
+        clearInterval(id);
+        setRateLimitUntil(null);
+        loadTracks(); // auto-retry quando o countdown zera
+      }
+    }, 1000);
     return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rateLimitUntil]);
+
+  const rateLimitSecLeft = rateLimitUntil
+    ? Math.max(0, Math.ceil((rateLimitUntil - nowTick) / 1000))
+    : 0;
+
+  function handleRefreshClick() {
+    const now = Date.now();
+    if (rateLimitUntil && now < rateLimitUntil) return;
+    if (now - lastRefreshAt.current < REFRESH_COOLDOWN_MS) return;
+    lastRefreshAt.current = now;
+    loadTracks();
+    loadJobs();
+    loadMeta();
+  }
+
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
