@@ -66,11 +66,17 @@ const sections: NavSection[] = [
         matchPaths: ["/prospeccao"],
         accent: "domain-curators",
       },
+      {
+        title: "Comunidade",
+        url: "/comunidade-admin",
+        icon: Users,
+        adminOnly: true,
+        matchPaths: ["/comunidade", "/comunidade/campanhas", "/comunidade/pontos", "/comunidade/conta"],
+        accent: "domain-community",
+      },
       { title: "Campanhas", url: "/campanhas", icon: Target, accent: "domain-campaigns" },
       { title: "Financeiro", url: "/financeiro", icon: Wallet, accent: "domain-deals" },
-      // Deals e Comunidade ocultos do sidebar a pedido do usuário —
-      // já acessíveis via Curadores (prospecção/comunidade) e Campanhas (aprovação/deals).
-      // Rotas continuam ativas; manter aqui apenas como referência.
+      // Deals oculto do sidebar — acessível via Campanhas (aprovação/deals).
       // {
       //   title: "Deals",
       //   url: "/deals",
@@ -78,13 +84,7 @@ const sections: NavSection[] = [
       //   matchPaths: ["/playlist-deals", "/deals/comparar"],
       //   accent: "domain-deals",
       // },
-      // {
-      //   title: "Comunidade",
-      //   url: "/comunidade",
-      //   icon: Users,
-      //   matchPaths: ["/comunidade-admin", "/comunidade/campanhas", "/comunidade/pontos", "/comunidade/conta"],
-      //   accent: "domain-community",
-      // },
+
 
       {
         title: "Playlists",

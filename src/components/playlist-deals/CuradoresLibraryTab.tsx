@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search,
@@ -14,7 +14,17 @@ import {
   Trash2,
   Pause,
   Play,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -105,11 +115,23 @@ export function CuradoresLibraryTab({
   const [showArchived, setShowArchived] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ curator: Curator; hasDeals: boolean } | null>(null);
 
+  // Filtros
+  const [statusFilter, setStatusFilter] = useState<"all" | "ativo" | "pausado" | "sem_deals" | "estourado">("all");
+  const [cppFilter, setCppFilter] = useState<"all" | "lt001" | "001-005" | "gt005">("all");
+  const [activityFilter, setActivityFilter] = useState<"all" | "7d" | "30d" | "90d">("all");
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 50;
+
 
   const archivedCount = curators.filter((c) => !!c.archived_at).length;
 
-  const rows = useMemo(() => {
+  const allRows = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const now = Date.now();
+    const activityMs =
+      activityFilter === "7d" ? 7 * 86400_000 :
+      activityFilter === "30d" ? 30 * 86400_000 :
+      activityFilter === "90d" ? 90 * 86400_000 : null;
     return curators
       .filter((c) => (showArchived ? !!c.archived_at : !c.archived_at))
       .filter(
@@ -124,7 +146,6 @@ export function CuradoresLibraryTab({
         const activeDeals = curatorDeals.filter((d) => !d.closed_at).length;
         const closedDeals = curatorDeals.filter((d) => !!d.closed_at).length;
 
-        // Última atividade = deal mais recente (started_at ou closed_at)
         const lastTs = curatorDeals.reduce<number>((acc, d) => {
           const t = new Date(d.closed_at ?? d.started_at).getTime();
           return Number.isFinite(t) && t > acc ? t : acc;
@@ -136,38 +157,54 @@ export function CuradoresLibraryTab({
         const remaining = Number(balance?.remaining_plays ?? 0) || 0;
         const overbooked = Number(balance?.overbooked_plays ?? 0) > 0;
         const consumedPct =
-          purchased > 0
-            ? Math.min(100, Math.round((consumed / purchased) * 100))
-            : 0;
+          purchased > 0 ? Math.min(100, Math.round((consumed / purchased) * 100)) : 0;
         const cpp = consumed > 0 && totalCost > 0 ? totalCost / consumed : null;
 
         return {
-          curator: c,
-          balance,
-          activeDeals,
-          closedDeals,
+          curator: c, balance, activeDeals, closedDeals,
           totalDeals: curatorDeals.length,
-          lastTs,
-          totalCost,
-          purchased,
-          consumed,
-          remaining,
-          overbooked,
-          consumedPct,
-          cpp,
+          lastTs, totalCost, purchased, consumed, remaining, overbooked, consumedPct, cpp,
         };
       })
+      .filter((r) => {
+        if (statusFilter === "ativo" && !(r.activeDeals > 0 && !r.curator.paused_at && !r.overbooked)) return false;
+        if (statusFilter === "pausado" && !r.curator.paused_at) return false;
+        if (statusFilter === "estourado" && !r.overbooked) return false;
+        if (statusFilter === "sem_deals" && r.totalDeals > 0) return false;
+        if (cppFilter !== "all") {
+          if (r.cpp === null) return false;
+          if (cppFilter === "lt001" && !(r.cpp < 0.01)) return false;
+          if (cppFilter === "001-005" && !(r.cpp >= 0.01 && r.cpp <= 0.05)) return false;
+          if (cppFilter === "gt005" && !(r.cpp > 0.05)) return false;
+        }
+        if (activityMs !== null) {
+          if (r.lastTs === 0 || now - r.lastTs > activityMs) return false;
+        }
+        return true;
+      })
       .sort((a, b) => {
-        // ativos primeiro, depois por última atividade
         if (a.activeDeals !== b.activeDeals) return b.activeDeals - a.activeDeals;
         return b.lastTs - a.lastTs;
       });
-  }, [curators, balances, deals, query, showArchived]);
+  }, [curators, balances, deals, query, showArchived, statusFilter, cppFilter, activityFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(allRows.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const rows = useMemo(
+    () => allRows.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE),
+    [allRows, safePage],
+  );
+
+  // reset page quando filtros mudam
+  const filterKey = `${query}|${showArchived}|${statusFilter}|${cppFilter}|${activityFilter}`;
+  useEffect(() => { setPage(0); }, [filterKey]);
+
+  const hasFilters = statusFilter !== "all" || cppFilter !== "all" || activityFilter !== "all";
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 max-w-md">
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             value={query}
@@ -176,11 +213,54 @@ export function CuradoresLibraryTab({
             className="pl-9"
           />
         </div>
+
+        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
+          <SelectTrigger className="h-9 w-[140px]"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos status</SelectItem>
+            <SelectItem value="ativo">Ativos</SelectItem>
+            <SelectItem value="pausado">Pausados</SelectItem>
+            <SelectItem value="estourado">Saldo estourado</SelectItem>
+            <SelectItem value="sem_deals">Sem deals</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={cppFilter} onValueChange={(v) => setCppFilter(v as typeof cppFilter)}>
+          <SelectTrigger className="h-9 w-[140px]"><SelectValue placeholder="CPP" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Qualquer CPP</SelectItem>
+            <SelectItem value="lt001">&lt; R$ 0,01</SelectItem>
+            <SelectItem value="001-005">R$ 0,01–0,05</SelectItem>
+            <SelectItem value="gt005">&gt; R$ 0,05</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={activityFilter} onValueChange={(v) => setActivityFilter(v as typeof activityFilter)}>
+          <SelectTrigger className="h-9 w-[160px]"><SelectValue placeholder="Atividade" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Qualquer período</SelectItem>
+            <SelectItem value="7d">Últimos 7 dias</SelectItem>
+            <SelectItem value="30d">Últimos 30 dias</SelectItem>
+            <SelectItem value="90d">Últimos 90 dias</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {hasFilters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 text-muted-foreground"
+            onClick={() => { setStatusFilter("all"); setCppFilter("all"); setActivityFilter("all"); }}
+          >
+            Limpar filtros
+          </Button>
+        )}
+
         {(archivedCount > 0 || showArchived) && (
           <Button
             variant={showArchived ? "default" : "outline"}
             size="sm"
-            className="h-9 gap-1.5"
+            className="h-9 gap-1.5 ml-auto"
             onClick={() => setShowArchived((v) => !v)}
           >
             <Archive className="h-3.5 w-3.5" />
@@ -188,6 +268,40 @@ export function CuradoresLibraryTab({
           </Button>
         )}
       </div>
+
+      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+        <span>
+          {allRows.length === 0
+            ? "Nenhum resultado"
+            : `${safePage * PAGE_SIZE + 1}–${Math.min((safePage + 1) * PAGE_SIZE, allRows.length)} de ${allRows.length}`}
+        </span>
+        {totalPages > 1 && (
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              disabled={safePage === 0}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              aria-label="Página anterior"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+            <span className="px-2 tabular-nums">{safePage + 1} / {totalPages}</span>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              disabled={safePage >= totalPages - 1}
+              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              aria-label="Próxima página"
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
+      </div>
+
 
       {loading && curators.length === 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
