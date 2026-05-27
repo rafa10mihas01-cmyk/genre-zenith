@@ -64,7 +64,8 @@ Deno.serve(async (req) => {
         .order("created_at", { ascending: false })
         .limit(limit);
       if (error) return json({ ok: false, reason: error.message }, 500);
-      return json({ ok: true, notifications: data ?? [] });
+      // Devolve user_id pro frontend conseguir abrir canal Realtime filtrado.
+      return json({ ok: true, user_id: userId, notifications: data ?? [] });
     }
 
     if (body.action === "mark_read") {
