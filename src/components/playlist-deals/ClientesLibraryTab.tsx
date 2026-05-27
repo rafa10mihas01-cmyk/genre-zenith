@@ -282,14 +282,16 @@ export function ClientesLibraryTab({ deals, songs, loading, financeByClient }: P
                     <div className="text-[14px] font-semibold text-foreground truncate leading-tight">
                       {client.name}
                     </div>
-                    <div className="text-[11.5px] text-muted-foreground truncate mt-0.5">
-                      <span>Cliente</span>
-                      {client.contact && (
-                        <>
-                          <span className="mx-1.5 opacity-50">·</span>
-                          <span>{client.contact}</span>
-                        </>
-                      )}
+                    <div className="text-[11.5px] text-muted-foreground truncate mt-0.5 tabular-nums">
+                      <span className="text-foreground/80 font-medium">{formatBRLShort(invested)}</span>
+                      <span className="mx-1.5 opacity-50">·</span>
+                      <span>
+                        {pending > 0 ? (
+                          <span className="text-warning">{formatBRLShort(pending)} pendente</span>
+                        ) : (
+                          <span>sem pendência</span>
+                        )}
+                      </span>
                     </div>
                     <div className="mt-2">
                       <StatusDot variant={status.variant} label={status.label} />
