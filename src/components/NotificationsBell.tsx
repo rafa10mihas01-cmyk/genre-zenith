@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Bell, AlertTriangle, AlertCircle, Info, CheckCheck, BellRing, BellOff, Settings2 } from "lucide-react";
+import { Bell, AlertTriangle, Info, CheckCircle2, CheckCheck, BellRing, BellOff, Settings2, Trash2 } from "lucide-react";
 import { AlertPreferencesDialog } from "@/components/AlertPreferencesDialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,18 +18,25 @@ import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { enablePush, disablePush, pushEnabled, pushSupport } from "@/lib/browserPush";
 import { toast } from "sonner";
+import {
+  friendlyNotification,
+  notificationTone,
+  groupByBucket,
+  DATE_BUCKET_LABEL,
+  type FriendlyTone,
+} from "@/lib/notificationCopy";
 
 type Tab = "all" | "critical" | "bot" | "curator" | "system";
 
 const DOMAIN_LABEL: Record<string, string> = {
-  bot: "Robô",
-  ocr: "OCR",
+  bot: "Coleta",
+  ocr: "Imagens",
   queue: "Fila",
   curator: "Curadoria",
   system: "Sistema",
   financeiro: "Financeiro",
   security: "Segurança",
-  ai: "IA",
+  ai: "Análise",
   geral: "Geral",
 };
 
@@ -37,31 +44,38 @@ function getDomain(n: NotificationRow): NotificationDomain {
   return (n.metadata?.domain as NotificationDomain) ?? "geral";
 }
 
-function typeStyles(type: NotificationRow["type"]) {
-  if (type === "critical")
+function toneStyles(tone: FriendlyTone) {
+  if (tone === "critical")
     return {
-      icon: AlertCircle,
+      icon: Bell,
       bar: "bg-destructive",
       iconColor: "text-destructive",
       bg: "bg-destructive/5",
     };
-  if (type === "warning")
+  if (tone === "warning")
     return {
       icon: AlertTriangle,
       bar: "bg-amber-500",
       iconColor: "text-amber-500",
       bg: "bg-amber-500/5",
     };
+  if (tone === "success")
+    return {
+      icon: CheckCircle2,
+      bar: "bg-emerald-500",
+      iconColor: "text-emerald-500",
+      bg: "bg-emerald-500/5",
+    };
   return {
     icon: Info,
-    bar: "bg-primary",
-    iconColor: "text-primary",
-    bg: "bg-primary/5",
+    bar: "bg-sky-500",
+    iconColor: "text-sky-500",
+    bg: "bg-sky-500/5",
   };
 }
 
 export function NotificationsBell() {
-  const { items, unreadCount, markRead, markAllRead } = useNotifications();
+  const { items, unreadCount, markRead, markAllRead, clearRead } = useNotifications();
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("all");
   const [pushOn, setPushOn] = useState(false);
