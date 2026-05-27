@@ -795,8 +795,15 @@ export function PlaylistCockpit({
                 onApplyAll={() => applyPlan("add")}
               />
 
-              {/* Memória de impacto — histórico dos ajustes anteriores */}
-              <AdjustmentTimeline playlistId={managedId} />
+              {/* Memória de impacto — histórico colapsado por default */}
+              <Collapsible>
+                <CollapsibleTrigger className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5 px-2 py-1.5 rounded border border-border hover:border-primary/40">
+                  <ChevronDown className="h-3 w-3" /> Ver histórico de ajustes
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-3">
+                  <AdjustmentTimeline playlistId={managedId} />
+                </CollapsibleContent>
+              </Collapsible>
             </TabsContent>
 
             {/* ============ IDENTIDADE ============ */}
