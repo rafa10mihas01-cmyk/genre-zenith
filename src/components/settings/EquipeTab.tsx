@@ -6,14 +6,14 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Users, Shield, UserCog, Loader2, Trash2, Crown } from "lucide-react";
+import { Users, Shield, UserCog, Loader2, Trash2, Crown, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-type AppRole = "admin" | "curador";
+type AppRole = "admin" | "curador" | "operador";
 
 interface Member {
   user_id: string;
@@ -24,20 +24,23 @@ interface Member {
 const ROLE_LABEL: Record<AppRole, string> = {
   admin: "Admin",
   curador: "Curador",
+  operador: "Operador",
 };
 
 const ROLE_DESCRIPTION: Record<AppRole, string> = {
   admin: "Acesso total: pode mexer em configurações, conexões e gerenciar a equipe.",
   curador: "Trabalha em Cérebro, Criação, Operação e Performance. Não acessa Configurações.",
+  operador: "Acessa o catálogo de playlists e edita posições/capas. Não mexe em campanhas, financeiro nem configurações.",
 };
 
 export function EquipeTab() {
   const { user } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<AppRole>("curador");
-  const [inviting, setInviting] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newRole, setNewRole] = useState<AppRole>("operador");
+  const [creating, setCreating] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<{ userId: string; role: AppRole; email: string } | null>(null);
 
   async function loadMembers() {
@@ -53,7 +56,6 @@ export function EquipeTab() {
       return;
     }
 
-    // Agrupa papéis por usuário
     const grouped = new Map<string, AppRole[]>();
     (roles ?? []).forEach((r) => {
       const list = grouped.get(r.user_id) ?? [];
@@ -61,7 +63,6 @@ export function EquipeTab() {
       grouped.set(r.user_id, list);
     });
 
-    // Tenta buscar emails via edge function (admin API). Se falhar, exibe só o ID.
     let emailMap = new Map<string, string>();
     try {
       const { data: emailData } = await supabase.functions.invoke("list-team-emails");
@@ -82,33 +83,37 @@ export function EquipeTab() {
 
   useEffect(() => { void loadMembers(); }, []);
 
-  async function inviteMember() {
-    const email = inviteEmail.trim().toLowerCase();
+  async function createAccess() {
+    const email = newEmail.trim().toLowerCase();
+    const password = newPassword;
     if (!email) {
-      toast.error("Informe o email do convidado");
+      toast.error("Informe o email");
       return;
     }
-    setInviting(true);
+    if (!password || password.length < 8) {
+      toast.error("Senha precisa ter no mínimo 8 caracteres");
+      return;
+    }
+    setCreating(true);
     try {
       const { data, error } = await supabase.functions.invoke("invite-team-member", {
-        body: { email, role: inviteRole },
+        body: { email, password, role: newRole },
       });
-      // Quando o edge function retorna 4xx/5xx, supabase-js seta `error` E `data` vem com o JSON do erro.
-      // Tentamos extrair a mensagem real do backend antes de cair no fallback genérico do "Edge Function...".
       const backendError = (data as any)?.error;
       if (backendError || (error && !data?.ok)) {
-        throw new Error(backendError ?? error?.message ?? "Falha ao convidar");
+        throw new Error(backendError ?? error?.message ?? "Falha ao criar acesso");
       }
-      toast.success("Convite enviado", {
-        description: `${email} receberá um email para criar a senha. Papel: ${ROLE_LABEL[inviteRole]}.`,
+      toast.success("Acesso criado", {
+        description: `${email} já pode entrar em /login com a senha definida. Papel: ${ROLE_LABEL[newRole]}.`,
       });
-      setInviteEmail("");
+      setNewEmail("");
+      setNewPassword("");
       await loadMembers();
     } catch (e: any) {
       console.error("[invite-team-member] erro:", e);
-      toast.error("Não foi possível convidar", { description: e?.message ?? String(e) });
+      toast.error("Não foi possível criar acesso", { description: e?.message ?? String(e) });
     } finally {
-      setInviting(false);
+      setCreating(false);
     }
   }
 
@@ -131,16 +136,15 @@ export function EquipeTab() {
 
   return (
     <div className="space-y-6">
-      {/* Resumo dos papéis */}
       <section className="nx-card p-5">
         <div className="flex items-center gap-2 mb-1">
           <Shield className="h-5 w-5 text-accent" />
           <h2 className="font-semibold">Níveis de acesso</h2>
         </div>
         <p className="text-sm text-muted-foreground mb-4">
-          Existem 2 papéis no sistema. Defina o nível certo na hora de convidar alguém.
+          Existem 3 papéis no sistema. Defina o nível certo na hora de criar o acesso.
         </p>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-lg border border-border bg-elevated/40 p-4">
             <div className="flex items-center gap-2 mb-1">
               <Crown className="h-4 w-4 text-primary" />
@@ -155,53 +159,71 @@ export function EquipeTab() {
             </div>
             <p className="text-xs text-muted-foreground">{ROLE_DESCRIPTION.curador}</p>
           </div>
+          <div className="rounded-lg border border-border bg-elevated/40 p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Wrench className="h-4 w-4 text-muted-foreground" />
+              <span className="font-semibold text-sm">Operador</span>
+            </div>
+            <p className="text-xs text-muted-foreground">{ROLE_DESCRIPTION.operador}</p>
+          </div>
         </div>
       </section>
 
-      {/* Convidar */}
       <section className="nx-card p-5">
         <div className="flex items-center gap-2 mb-1">
           <Users className="h-5 w-5 text-accent" />
-          <h2 className="font-semibold">Convidar pessoa</h2>
+          <h2 className="font-semibold">Criar acesso</h2>
         </div>
         <p className="text-sm text-muted-foreground mb-4">
-          A pessoa receberá um email para criar a senha e entrar na equipe com o papel definido.
+          Cria a conta na hora com email e senha. Sem email de confirmação — acesso imediato em <span className="font-mono">/login</span>.
         </p>
-        <div className="grid gap-3 sm:grid-cols-[1fr,200px,auto]">
+        <div className="grid gap-3 sm:grid-cols-[1fr,1fr,180px,auto]">
           <div className="space-y-1.5">
-            <Label htmlFor="invite-email" className="text-xs">Email</Label>
+            <Label htmlFor="new-email" className="text-xs">Email</Label>
             <Input
-              id="invite-email"
+              id="new-email"
               type="email"
               placeholder="email@exemplo.com"
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              disabled={inviting}
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              disabled={creating}
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="invite-role" className="text-xs">Papel</Label>
-            <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as AppRole)} disabled={inviting}>
-              <SelectTrigger id="invite-role"><SelectValue /></SelectTrigger>
+            <Label htmlFor="new-password" className="text-xs">Senha (mín. 8 caracteres)</Label>
+            <Input
+              id="new-password"
+              type="text"
+              placeholder="senha inicial"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              disabled={creating}
+              autoComplete="new-password"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="new-role" className="text-xs">Papel</Label>
+            <Select value={newRole} onValueChange={(v) => setNewRole(v as AppRole)} disabled={creating}>
+              <SelectTrigger id="new-role"><SelectValue /></SelectTrigger>
               <SelectContent>
+                <SelectItem value="operador">Operador</SelectItem>
                 <SelectItem value="curador">Curador</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="flex items-end">
-            <Button onClick={inviteMember} disabled={inviting} className="w-full sm:w-auto">
-              {inviting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Users className="h-4 w-4" />}
-              Enviar convite
+            <Button onClick={createAccess} disabled={creating} className="w-full sm:w-auto">
+              {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Users className="h-4 w-4" />}
+              Criar acesso
             </Button>
           </div>
         </div>
         <p className="text-[11px] text-muted-foreground mt-2">
-          Dica: se o convite por email não estiver disponível, peça para a pessoa criar conta em <span className="font-mono">/login</span> e depois atribua o papel aqui.
+          A pessoa entra direto com email e senha. Compartilhe a senha com segurança — ela pode trocar depois nas configurações da conta.
         </p>
       </section>
 
-      {/* Lista de membros */}
       <section className="nx-card p-5">
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -218,7 +240,7 @@ export function EquipeTab() {
           </div>
         ) : members.length === 0 ? (
           <div className="text-center py-8 text-sm text-muted-foreground">
-            Nenhum membro ainda. Convide alguém acima.
+            Nenhum membro ainda. Crie um acesso acima.
           </div>
         ) : (
           <div className="space-y-2">
@@ -243,11 +265,17 @@ export function EquipeTab() {
                         <Badge
                           key={r}
                           variant="outline"
-                          className={r === "admin"
-                            ? "border-primary/40 text-primary bg-primary/10"
-                            : "border-accent/40 text-accent bg-accent/10"}
+                          className={
+                            r === "admin"
+                              ? "border-primary/40 text-primary bg-primary/10"
+                              : r === "curador"
+                              ? "border-accent/40 text-accent bg-accent/10"
+                              : "border-muted-foreground/40 text-muted-foreground bg-muted/20"
+                          }
                         >
-                          {r === "admin" ? <Crown className="h-3 w-3 mr-1" /> : <UserCog className="h-3 w-3 mr-1" />}
+                          {r === "admin" ? <Crown className="h-3 w-3 mr-1" />
+                            : r === "curador" ? <UserCog className="h-3 w-3 mr-1" />
+                            : <Wrench className="h-3 w-3 mr-1" />}
                           {ROLE_LABEL[r]}
                         </Badge>
                       ))}

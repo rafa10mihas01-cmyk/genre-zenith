@@ -8132,6 +8132,7 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
+      is_operador_or_above: { Args: never; Returns: boolean }
       is_playlist_action_blocked: {
         Args: {
           _action: Database["public"]["Enums"]["curatorial_action_type"]
@@ -8329,7 +8330,7 @@ export type Database = {
       unaccent: { Args: { "": string }; Returns: string }
     }
     Enums: {
-      app_role: "admin" | "curador"
+      app_role: "admin" | "curador" | "operador"
       curatorial_action_type:
         | "cover"
         | "description"
@@ -8479,7 +8480,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "curador"],
+      app_role: ["admin", "curador", "operador"],
       curatorial_action_type: [
         "cover",
         "description",
