@@ -304,15 +304,15 @@ export function ExternalPackageEditor({
               <table className="w-full text-xs border-collapse">
                 <thead className="text-muted-foreground bg-elevated/40">
                   <tr>
-                    <th className="text-center font-medium py-2.5 px-3 border-b border-r border-border w-[22%]">Curador</th>
-                    <th className="text-center font-medium py-2.5 px-3 border-b border-r border-border w-[16%]">Total streams</th>
-                    <th className="text-center font-medium py-2.5 px-3 border-b border-r border-border w-[12%]">Por dia</th>
-                    <th className="text-center font-medium py-2.5 px-3 border-b border-r border-border w-[13%]">Por mês</th>
-                    <th className="text-center font-medium py-2.5 px-3 border-b border-r border-border w-[11%]">R$/stream</th>
-                    <th className="text-center font-medium py-2.5 px-3 border-b border-r border-border w-[14%]">Custo total</th>
-                    <th className="text-center font-medium py-2.5 px-3 border-b border-border w-[12%]">Status</th>
+                    <th className="text-center font-medium py-2.5 px-3 border-b border-r border-border w-[24%]">Curador</th>
+                    <th className="text-center font-medium py-2.5 px-3 border-b border-r border-border w-[18%]">Total streams</th>
+                    <th className="text-center font-medium py-2.5 px-3 border-b border-r border-border w-[14%]">Por dia</th>
+                    <th className="text-center font-medium py-2.5 px-3 border-b border-r border-border w-[12%]">R$/stream</th>
+                    <th className="text-center font-medium py-2.5 px-3 border-b border-r border-border w-[16%]">Custo total</th>
+                    <th className="text-center font-medium py-2.5 px-3 border-b border-border w-[14%]">Status</th>
                     {!isDispatched && <th className="w-10 border-b border-l border-border" />}
                   </tr>
+
                 </thead>
                 <tbody>
                   {items.map((it, i) => {
