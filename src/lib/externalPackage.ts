@@ -267,7 +267,7 @@ export async function reopenExternalPackage(packageId: string): Promise<{ dealsR
       .from("curator_deals")
       .delete()
       .in("id", dealIds)
-      .eq("status", "proposto")
+      .eq("state", "proposto")
       .select("id");
     if (delErr) throw delErr;
     removed = deleted?.length ?? 0;
