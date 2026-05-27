@@ -210,39 +210,41 @@ export function OverviewTab({
             </div>
           </div>
 
-          {(splitDiverged || isLocked || hitCeiling) && (
+          {(isLocked || lockedDiverged) && (
             <div className={cn(
               "rounded-lg border px-3 py-2 text-xs flex items-start justify-between gap-3 flex-wrap",
-              isLocked ? "border-border/70 bg-muted/20" : "border-amber-500/30 bg-amber-500/5",
+              lockedDiverged ? "border-amber-500/30 bg-amber-500/5" : "border-border/70 bg-muted/20",
             )}>
               <div className="flex-1 min-w-0">
-                {isLocked ? (
-                  <span className="text-muted-foreground">
-                    Split travado em {ecoEffectivePct}% / {extEffectivePct}% (eco {formatInt(ecoTarget)} · ext {formatInt(extTarget)})
+                {lockedDiverged ? (
+                  <span className="text-foreground/90">
+                    Lock divergente da calculadora:{" "}
+                    <span className="font-medium">eco travado em {formatInt(Number(lockedEcoStreams))}</span>{" "}
+                    <span className="text-muted-foreground">— calculadora pediu {formatInt(ecoTarget)} ({ecoEffectivePct}% / {extEffectivePct}%{orgTarget > 0 ? ` + ${orgPctOfMeta}% orgânico` : ""}).</span>
                   </span>
                 ) : (
-                  <span className="text-foreground/90">
-                    Split recalculado: <span className="font-medium">{ecoEffectivePct}% / {extEffectivePct}%</span>{" "}
-                    <span className="text-muted-foreground">(planejado {snapshot.splitEcoPct}% / {100 - snapshot.splitEcoPct}%)</span>
-                    {hitCeiling && <span className="text-muted-foreground"> · eco travou no teto de {maxPct}%</span>}
+                  <span className="text-muted-foreground">
+                    Split travado em {ecoEffectivePct}% / {extEffectivePct}%
+                    {orgTarget > 0 ? ` (+ ${orgPctOfMeta}% orgânico)` : ""}
+                    {" "}(eco {formatInt(ecoTarget)} · ext {formatInt(extTarget)}{orgTarget > 0 ? ` · org ${formatInt(orgTarget)}` : ""})
                   </span>
                 )}
               </div>
               {canManageSplit && (
-                isLocked ? (
-                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={handleUnlock} disabled={savingLock}>
-                    Destravar
+                lockedDiverged ? (
+                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={handleLock} disabled={savingLock}>
+                    Alinhar à calculadora
                   </Button>
                 ) : (
-                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={handleLock} disabled={savingLock}>
-                    Travar split atual
+                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={handleUnlock} disabled={savingLock}>
+                    Destravar
                   </Button>
                 )
               )}
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className={cn("grid grid-cols-1 gap-3", orgTarget > 0 ? "md:grid-cols-3" : "md:grid-cols-2")}>
             <SplitRow
               tone="eco"
               label="Ecossistema"
@@ -259,7 +261,18 @@ export function OverviewTab({
               deliveredTotal={extDelivered}
               perDay={Math.round(Math.max(0, extTarget - extDelivered) / daysRemaining)}
             />
+            {orgTarget > 0 && (
+              <SplitRow
+                tone="org"
+                label="Orgânico"
+                metaTotal={orgTarget}
+                metaPct={orgPctOfMeta}
+                deliveredTotal={0}
+                perDay={Math.round(orgTarget / Math.max(1, snapshot.days))}
+              />
+            )}
           </div>
+
 
           <div className="rounded-lg border border-border/70 bg-muted/20 px-4 py-3">
             <div className="flex items-baseline justify-between gap-3 flex-wrap">
