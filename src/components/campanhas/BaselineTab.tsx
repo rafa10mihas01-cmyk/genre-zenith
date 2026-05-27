@@ -46,6 +46,7 @@ function fmt(n: number | null | undefined) {
 export function BaselineTab({ dealId }: Props) {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hydrating, setHydrating] = useState(false);
   const [capturedAt, setCapturedAt] = useState<string | null>(null);
   const [upload, setUpload] = useState<BaselineUpload | null>(null);
   const [downloading, setDownloading] = useState(false);
@@ -55,6 +56,7 @@ export function BaselineTab({ dealId }: Props) {
       setLoading(false);
       return;
     }
+    let cancelled = false;
     (async () => {
       setLoading(true);
 
@@ -68,7 +70,7 @@ export function BaselineTab({ dealId }: Props) {
         .limit(1)
         .maybeSingle();
 
-      if (!uploadRow) {
+      if (!uploadRow || cancelled) {
         setRows([]);
         setUpload(null);
         setCapturedAt(null);
@@ -76,7 +78,7 @@ export function BaselineTab({ dealId }: Props) {
         return;
       }
 
-      // 2) Lê as linhas brutas da planilha — fonte de verdade da baseline
+      // 2) Lê as linhas brutas da planilha
       const { data: rawRows } = await supabase
         .from("label_spreadsheet_rows")
         .select("id, playlist_name, playlist_url, playlist_spotify_id, owner_name, streams, matched_playlist_id, matched_curator_id, is_internal, position")
@@ -96,17 +98,26 @@ export function BaselineTab({ dealId }: Props) {
         position: number | null;
       }>;
 
-      // 3) Enriquece capa/seguidores/owner_id pelas curator_playlists quando há match
+      // 3) Enriquece via curator_playlists + cache spotify
       const spIds = Array.from(new Set(raw.map((r) => r.playlist_spotify_id).filter(Boolean) as string[]));
-      const { data: cpData } = spIds.length
-        ? await supabase
-            .from("curator_playlists")
-            .select("spotify_playlist_id, image_url, followers, spotify_owner_id, spotify_owner_name, spotify_url")
-            .in("spotify_playlist_id", spIds)
-        : { data: [] as Array<any> };
-      const cpMap = new Map((cpData ?? []).map((p: any) => [p.spotify_playlist_id, p]));
+      const [cpRes, cacheRes] = await Promise.all([
+        spIds.length
+          ? supabase
+              .from("curator_playlists")
+              .select("spotify_playlist_id, image_url, followers, spotify_owner_id, spotify_owner_name, spotify_url")
+              .in("spotify_playlist_id", spIds)
+          : Promise.resolve({ data: [] as Array<any> }),
+        spIds.length
+          ? supabase
+              .from("spotify_playlist_cache")
+              .select("spotify_playlist_id, image_url, followers, owner_name")
+              .in("spotify_playlist_id", spIds)
+          : Promise.resolve({ data: [] as Array<any> }),
+      ]);
+      const cpMap = new Map((cpRes.data ?? []).map((p: any) => [p.spotify_playlist_id, p]));
+      const cacheMap = new Map((cacheRes.data ?? []).map((p: any) => [p.spotify_playlist_id, p]));
 
-      // 4) Marca Engine (playlist própria) + Curador cadastrado
+      // 4) Engine + Curador
       const ownerIds = Array.from(
         new Set(
           raw
@@ -125,30 +136,68 @@ export function BaselineTab({ dealId }: Props) {
       const internalSet = new Set((internalRes.data ?? []).map((p) => p.spotify_playlist_id));
       const curatorMap = new Map((curatorsRes.data ?? []).map((c) => [c.spotify_owner_id, c.name]));
 
-      const enriched: Row[] = raw.map((r) => {
-        const cp = r.playlist_spotify_id ? cpMap.get(r.playlist_spotify_id) : null;
-        const ownerId = cp?.spotify_owner_id ?? null;
-        return {
-          playlist_id: r.id,
-          plays: Number(r.streams ?? 0),
-          captured_at: uploadRow.created_at,
-          playlist_name: r.playlist_name,
-          spotify_url: r.playlist_url ?? cp?.spotify_url ?? null,
-          image_url: cp?.image_url ?? null,
-          followers: cp?.followers ?? null,
-          spotify_owner_name: r.owner_name ?? cp?.spotify_owner_name ?? null,
-          spotify_playlist_id: r.playlist_spotify_id,
-          spotify_owner_id: ownerId,
-          isInternal: r.playlist_spotify_id ? internalSet.has(r.playlist_spotify_id) : false,
-          curatorName: ownerId ? curatorMap.get(ownerId) ?? null : null,
-        };
-      });
+      const buildRows = (cm: Map<string, any>): Row[] =>
+        raw.map((r) => {
+          const cp = r.playlist_spotify_id ? cpMap.get(r.playlist_spotify_id) : null;
+          const cache = r.playlist_spotify_id ? cm.get(r.playlist_spotify_id) : null;
+          const ownerId = cp?.spotify_owner_id ?? null;
+          return {
+            playlist_id: r.id,
+            plays: Number(r.streams ?? 0),
+            captured_at: uploadRow.created_at,
+            playlist_name: r.playlist_name,
+            spotify_url: r.playlist_url ?? cp?.spotify_url ?? null,
+            image_url: cp?.image_url ?? cache?.image_url ?? null,
+            followers: cp?.followers ?? cache?.followers ?? null,
+            spotify_owner_name: r.owner_name ?? cp?.spotify_owner_name ?? cache?.owner_name ?? null,
+            spotify_playlist_id: r.playlist_spotify_id,
+            spotify_owner_id: ownerId,
+            isInternal: r.playlist_spotify_id ? internalSet.has(r.playlist_spotify_id) : false,
+            curatorName: ownerId ? curatorMap.get(ownerId) ?? null : null,
+          };
+        });
 
-      setRows(enriched);
+      if (cancelled) return;
+      setRows(buildRows(cacheMap));
       setCapturedAt(uploadRow.created_at);
       setUpload(uploadRow as BaselineUpload);
       setLoading(false);
+
+      // 5) Hidratação on-demand: IDs sem capa em nenhuma fonte
+      const missing = spIds.filter((id) => {
+        const cp = cpMap.get(id);
+        const cache = cacheMap.get(id);
+        return !cp?.image_url && !cache?.image_url;
+      });
+
+      if (missing.length === 0) return;
+
+      setHydrating(true);
+      try {
+        // Chunks de 50 por chamada
+        const merged = new Map(cacheMap);
+        for (let i = 0; i < missing.length; i += 50) {
+          if (cancelled) return;
+          const chunk = missing.slice(i, i + 50);
+          const { data } = await supabase.functions.invoke("enrich-playlist-covers", {
+            body: { playlist_ids: chunk },
+          });
+          const cached = (data?.cached ?? []) as Array<{
+            spotify_playlist_id: string;
+            image_url: string | null;
+            followers: number | null;
+            owner_name: string | null;
+          }>;
+          cached.forEach((c) => merged.set(c.spotify_playlist_id, c));
+          if (!cancelled) setRows(buildRows(merged));
+        }
+      } finally {
+        if (!cancelled) setHydrating(false);
+      }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [dealId]);
 
 
