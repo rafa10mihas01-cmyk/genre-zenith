@@ -606,7 +606,7 @@ export function PlaylistCockpit({
         </div>
       </header>
 
-      {!scrolled && <OnboardingChecklist managedId={managedId} />}
+      <OnboardingChecklist managedId={managedId} />
 
       {loading ? (
         <Card className="p-10 grid place-items-center">
