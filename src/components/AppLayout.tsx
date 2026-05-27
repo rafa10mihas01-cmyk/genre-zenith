@@ -11,6 +11,7 @@ import { NotificationsBell } from "@/components/NotificationsBell";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { CommandPalette } from "@/components/CommandPalette";
 import { TopProgressBar } from "@/components/TopProgressBar";
+import { cn } from "@/lib/utils";
 // SplashLoader é montado UMA vez em App.tsx (fora do AppLayout) pra cobrir
 // rotas públicas e o boot inteiro. Não duplicar aqui.
 import { AppFooter } from "@/components/AppFooter";
@@ -184,7 +185,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </header>
 
           {/* CONTEÚDO — só ele rola */}
-          <main className="relative flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain nx-scroll max-lg:pb-[calc(64px+env(safe-area-inset-bottom,0px))]">
+          <main className={cn(
+            "relative flex-1 min-h-0 overflow-x-hidden overscroll-contain nx-scroll",
+            fullscreen ? "overflow-hidden" : "overflow-y-auto max-lg:pb-[calc(64px+env(safe-area-inset-bottom,0px))]",
+          )}>
             {/* Gradiente sutil no topo: verde Spotify difuso → transparente */}
             <div
               aria-hidden
