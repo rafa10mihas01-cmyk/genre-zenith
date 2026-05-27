@@ -8329,7 +8329,7 @@ export type Database = {
       unaccent: { Args: { "": string }; Returns: string }
     }
     Enums: {
-      app_role: "admin" | "curador"
+      app_role: "admin" | "curador" | "operador"
       curatorial_action_type:
         | "cover"
         | "description"
@@ -8479,7 +8479,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "curador"],
+      app_role: ["admin", "curador", "operador"],
       curatorial_action_type: [
         "cover",
         "description",
