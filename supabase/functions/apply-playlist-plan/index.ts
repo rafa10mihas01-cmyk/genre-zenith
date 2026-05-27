@@ -389,9 +389,22 @@ Deno.serve(async (req) => {
           sync: syncRes,
           results,
         });
+
+        if (lock.ok) {
+          await finishPlaylistOperation(supabase, lock, {
+            status: fatalError ? "failed" : "success",
+            tracks_before: tracksBefore,
+            tracks_after: currentCount ?? null,
+            tracks_changed: results.filter((r: any) => r.ok !== false && !r.skipped).length,
+            error: fatalError,
+          });
+          await releasePlaylistLock(supabase, lock);
+        }
+
         controller.close();
       },
     });
+
 
     return new Response(body, {
       status: 200,
