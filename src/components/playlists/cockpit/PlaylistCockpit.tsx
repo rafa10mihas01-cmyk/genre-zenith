@@ -1390,7 +1390,7 @@ function BucketReorder({ kind, items, totalTracks, applying, onApplyAll }: {
           >
             {applying ? <Loader2 className="h-3 w-3 animate-spin" /> :
               kind === "promote" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-            {kind === "promote" ? "Promover todas" : "Rebaixar todas"} ({items.length})
+            {kind === "promote" ? "Mover pro topo" : "Mover pra baixo"} ({items.length})
           </Button>
         )
       }
