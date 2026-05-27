@@ -165,7 +165,7 @@ export default function Prospecao() {
           {/* MOBILE — funil único de prospecção */}
           <section className="lg:hidden rounded-2xl border border-border bg-card p-4">
             <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-3">Funil de prospecção</div>
-            <div className="grid grid-cols-4 gap-2 items-end">
+            <div className="grid grid-cols-4 items-stretch divide-x divide-border/60">
               <FunilStep label="Leads" value={formatNumber(outreach.leads)} loading={outreach.loading} />
               <FunilStep label="Contatados" value={formatNumber(outreach.contatados)} loading={outreach.loading} />
               <FunilStep label="Respostas" value={formatNumber(outreach.respondidos)} loading={outreach.loading} hint={`${taxaResposta.toFixed(0)}%`} />
