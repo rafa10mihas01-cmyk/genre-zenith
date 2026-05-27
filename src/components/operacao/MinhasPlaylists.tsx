@@ -173,12 +173,20 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   }, [filterFase, showArchived]);
 
   const itemsQuery = useQuery({
-    queryKey: ["managed-playlists", loadedCount, filterFase, showArchived],
+    queryKey: ["managed-playlists", loadedCount, filterFase, showArchived, sortBy],
     queryFn: async () => {
       let q = supabase
         .from("managed_playlists")
-        .select("*")
-        .order("imported_at", { ascending: false });
+        .select("*");
+      // Ordenação server-side. "followers" é o padrão (maior → menor) em
+      // todas as abas; "recent" usa imported_at; "valuation" mantém ordem
+      // por imported_at no servidor e re-ordena client-side por score (já
+      // que valuation vive em outra tabela e não dá pra ordenar via PostgREST aqui).
+      if (sortBy === "followers") {
+        q = q.order("followers", { ascending: false, nullsFirst: false }).order("imported_at", { ascending: false });
+      } else {
+        q = q.order("imported_at", { ascending: false });
+      }
       // Arquivadas vs ativas server-side (combina com o filtro client em `visible`)
       if (showArchived) q = q.not("archived_at", "is", null);
       else q = q.is("archived_at", null);
