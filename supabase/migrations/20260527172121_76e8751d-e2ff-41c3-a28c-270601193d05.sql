@@ -1,0 +1,2 @@
+ALTER TABLE public.playlist_operation_queue DROP CONSTRAINT IF EXISTS playlist_operation_queue_operation_type_check;
+ALTER TABLE public.playlist_operation_queue ADD CONSTRAINT playlist_operation_queue_operation_type_check CHECK (operation_type IN ('AUTO_SYNC','MANUAL_EDITOR','DIAGNOSE_ENGINE','MAINTENANCE','BACKFILL','BRAIN_CALC'));
