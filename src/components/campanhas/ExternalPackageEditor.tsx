@@ -381,9 +381,7 @@ export function ExternalPackageEditor({
                           {it.cost_per_stream.toFixed(3)}
                         </td>
 
-                        <td className="py-2.5 px-3 text-center tabular-nums text-muted-foreground border-b border-r border-border/40">
-                          {it.cost_per_stream.toFixed(3)}
-                        </td>
+
                         <td className="py-2.5 px-3 text-center tabular-nums font-semibold border-b border-r border-border/40">
                           {formatBRL(it.assigned_cost)}
                         </td>
