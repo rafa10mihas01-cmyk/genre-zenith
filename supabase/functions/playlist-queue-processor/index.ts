@@ -15,7 +15,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { reportCronHealth } from "../_shared/cron-health.ts";
-import { backoffSecondsForAttempt } from "../_shared/playlist-queue.ts";
+import { backoffSecondsForAttempt, enqueuePlaylistJob } from "../_shared/playlist-queue.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -51,6 +51,10 @@ const HANDLERS: Record<string, { fn: string; body: (job: Job) => Record<string, 
   DIAGNOSE_ENGINE: {
     fn: "diagnose-managed-playlist",
     body: (j) => ({ playlist_id: j.playlist_id, skip_ai: true, source: "queue", ...j.payload }),
+  },
+  BRAIN_CALC: {
+    fn: "playlist-brain-calc",
+    body: (j) => ({ playlist_id: j.playlist_id, ...j.payload }),
   },
 };
 
@@ -164,6 +168,17 @@ Deno.serve(async (req) => {
     else if (fin.final === "retry") retried++;
     else if (fin.final === "rescheduled_lock") lockedRescheduled++;
 
+    // Após DIAGNOSE_ENGINE concluído com sucesso, enfileira BRAIN_CALC (dedupe automático).
+    let chained: { op: string; result: typeof brainEnq } | null = null;
+    let brainEnq: Awaited<ReturnType<typeof enqueuePlaylistJob>> | null = null;
+    if (fin.final === "done" && job.operation_type === "DIAGNOSE_ENGINE") {
+      brainEnq = await enqueuePlaylistJob(sb, {
+        playlist_id: job.playlist_id,
+        operation_type: "BRAIN_CALC",
+      });
+      chained = { op: "BRAIN_CALC", result: brainEnq };
+    }
+
     results.push({
       id: job.id,
       playlist_id: job.playlist_id,
@@ -171,6 +186,7 @@ Deno.serve(async (req) => {
       attempt: job.attempts,
       result: fin.final,
       error: outcome.ok ? null : outcome.error,
+      chained,
     });
   }
 

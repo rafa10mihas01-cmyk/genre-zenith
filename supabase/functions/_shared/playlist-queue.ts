@@ -17,7 +17,8 @@ export type QueueOperation =
   | "MANUAL_EDITOR"
   | "DIAGNOSE_ENGINE"
   | "MAINTENANCE"
-  | "BACKFILL";
+  | "BACKFILL"
+  | "BRAIN_CALC";
 
 export type EnqueueInput = {
   playlist_id: string;
@@ -36,6 +37,7 @@ export type EnqueueResult =
 export const PRIORITY_BY_OPERATION: Record<QueueOperation, 1 | 2 | 3> = {
   MANUAL_EDITOR: 1,
   DIAGNOSE_ENGINE: 1,
+  BRAIN_CALC: 2,
   MAINTENANCE: 3,
   AUTO_SYNC: 3,
   BACKFILL: 3,
