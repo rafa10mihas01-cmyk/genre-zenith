@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
       return jr({ ok: false, error: roleErr.message }, 500);
     }
 
-    return jr({ ok: true, invited, user_id: targetUserId });
+    return jr({ ok: true, invited, created, user_id: targetUserId });
   } catch (e) {
     return jr({ ok: false, error: e instanceof Error ? e.message : String(e) }, 500);
   }
