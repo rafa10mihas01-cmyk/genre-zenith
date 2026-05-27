@@ -79,6 +79,11 @@ const Protected = ({ children }: { children: React.ReactNode }) => (
   </ProtectedRoute>
 );
 
+const LegacyDealRedirect = () => {
+  const { dealId } = useParams();
+  return <Navigate to={`/deals/${dealId ?? ""}`} replace />;
+};
+
 // Fallback global de Suspense. Em vez de renderizar skeleton próprio (causa
 // "flash de layout" quando o chunk chega), apenas mantém o SplashLoader global
 // ligado via useBootGate. Resultado: um único loader, sincronizado de verdade
