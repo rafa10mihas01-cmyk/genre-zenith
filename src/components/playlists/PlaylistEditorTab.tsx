@@ -252,7 +252,9 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
         throw new Error(data?.error ?? "Falhou");
       }
       const isCache = data.source === "cache";
-      setRateLimitUntil(isCache && data.retry_after ? Date.now() + Number(data.retry_after) * 1000 : null);
+      // Cache já é um resultado válido: não inicia countdown nem auto-retry,
+      // senão a UI fica em loop visual mesmo com as faixas carregadas.
+      setRateLimitUntil(null);
       setSource(isCache ? "cache" : "spotify");
       setCacheSnapshotAt(isCache ? (data.cache_snapshot_at ?? null) : null);
       setTracks(data.tracks ?? []);
