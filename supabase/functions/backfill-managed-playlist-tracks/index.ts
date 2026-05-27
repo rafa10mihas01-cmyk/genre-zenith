@@ -13,6 +13,7 @@ import { reportCronHealth } from "../_shared/cron-health.ts";
 import {
   acquirePlaylistLock,
   finishPlaylistOperation,
+  formatPlaylistError,
   releasePlaylistLock,
   computeTracksHash,
 } from "../_shared/playlist-lock.ts";
@@ -79,7 +80,7 @@ async function syncOne(sb: any, token: string, pl: { id: string; spotify_playlis
   } catch (e) {
     await finishPlaylistOperation(sb, lock, {
       status: "failed",
-      error: (e as Error).message,
+      error: formatPlaylistError(e),
     });
     throw e;
   } finally {
