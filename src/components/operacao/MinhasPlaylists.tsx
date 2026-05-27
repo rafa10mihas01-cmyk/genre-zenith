@@ -1091,18 +1091,24 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
-              variant={sortBy !== "recent" ? "default" : "outline"}
+              variant={sortBy !== "followers" ? "default" : "outline"}
               size="sm"
               className="gap-1.5 h-9 w-9 sm:w-auto px-0 sm:px-3 shrink-0"
               title="Ordenar"
               aria-label="Ordenar"
             >
               <ArrowUpDown className="h-4 w-4" />
-              <span className="hidden sm:inline">{sortBy === "valuation" ? "Valuation" : "Recente"}</span>
+              <span className="hidden sm:inline">
+                {sortBy === "valuation" ? "Valuation" : sortBy === "recent" ? "Recente" : "Maiores"}
+              </span>
               <ChevronDown className="h-3.5 w-3.5 opacity-70 -mr-0.5 hidden sm:inline" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-48">
+            <DropdownMenuItem onClick={() => setSortBy("followers")} className="gap-2">
+              {sortBy === "followers" ? <Check className="h-4 w-4 text-primary" /> : <span className="w-4" />}
+              <span>Mais seguidores</span>
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setSortBy("recent")} className="gap-2">
               {sortBy === "recent" ? <Check className="h-4 w-4 text-primary" /> : <span className="w-4" />}
               <span>Mais recentes</span>
