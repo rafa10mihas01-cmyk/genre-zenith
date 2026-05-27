@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -79,6 +79,11 @@ const Protected = ({ children }: { children: React.ReactNode }) => (
   </ProtectedRoute>
 );
 
+const LegacyDealRedirect = () => {
+  const { dealId } = useParams();
+  return <Navigate to={`/deals/${dealId ?? ""}`} replace />;
+};
+
 // Fallback global de Suspense. Em vez de renderizar skeleton próprio (causa
 // "flash de layout" quando o chunk chega), apenas mantém o SplashLoader global
 // ligado via useBootGate. Resultado: um único loader, sincronizado de verdade
@@ -130,11 +135,11 @@ const App = () => (
                 <Route path="/playlists" element={<Navigate to="/catalogo" replace />} />
                 <Route path="/playlists/:id" element={<Protected><PlaylistDetail /></Protected>} />
                 <Route path="/performance" element={<Protected><Performance /></Protected>} />
-                <Route path="/playlist-deals" element={<Protected><PlaylistDeals /></Protected>} />
-                <Route path="/playlist-deals/:dealId" element={<Protected><DealDetail /></Protected>} />
-                <Route path="/deals" element={<Protected><PlaylistDeals /></Protected>} />
-                <Route path="/deals/comparar" element={<Protected><CompararCuradores /></Protected>} />
-                <Route path="/deals/:dealId" element={<Protected><DealDetail /></Protected>} />
+               <Route path="/playlist-deals" element={<Navigate to="/deals" replace />} />
+               <Route path="/playlist-deals/:dealId" element={<LegacyDealRedirect />} />
+               <Route path="/deals" element={<Protected><PlaylistDeals /></Protected>} />
+               <Route path="/deals/comparar" element={<Protected><CompararCuradores /></Protected>} />
+               <Route path="/deals/:dealId" element={<Protected><DealDetail /></Protected>} />
                 <Route path="/campanhas" element={<Protected><Campanhas /></Protected>} />
                 <Route path="/campanhas/:id/execucao" element={<Protected><CampanhaExecucao /></Protected>} />
                 <Route path="/campanhas/:id" element={<Protected><CampanhaDetalhe /></Protected>} />
