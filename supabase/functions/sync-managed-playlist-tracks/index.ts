@@ -53,8 +53,11 @@ Deno.serve(async (req) => {
     .select("*", { count: "exact", head: true })
     .eq("playlist_id", pl.id);
 
-  const lock = await acquirePlaylistLock(supabase, pl.id, "AUTO_SYNC", tracksBefore ?? null);
-  if (!lock.ok) return jr(lockedResponseBody(lock), 423);
+  const lock = skipLock
+    ? null
+    : await acquirePlaylistLock(supabase, pl.id, "AUTO_SYNC", tracksBefore ?? null);
+  if (lock && !lock.ok) return jr(lockedResponseBody(lock), 423);
+
 
   try {
     const token = await getSpotifyToken();
