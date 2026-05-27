@@ -683,10 +683,10 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-0">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {([
-                  { id: "bot",         title: "Spotify",  desc: "Bot puxa os dados direto do Spotify for Artists. Atualização diária automática." },
-                  { id: "spreadsheet", title: "Excel",    desc: "Cliente envia a planilha semanal. Indicado quando não temos acesso à conta do artista." },
+                  { id: "bot",         title: "Spotify" },
+                  { id: "spreadsheet", title: "Excel"   },
                 ] as const).map(opt => {
                   const active = collectionMode === opt.id;
                   return (
@@ -695,20 +695,27 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                       type="button"
                       onClick={() => setCollectionMode(opt.id)}
                       className={cn(
-                        "text-left rounded-lg border px-3 py-2 transition-colors",
+                        "group relative overflow-hidden rounded-xl border px-4 py-8 flex items-center justify-center transition-all duration-300",
                         active
                           ? "border-primary/60 bg-primary/5 ring-1 ring-primary/40"
                           : "border-border hover:border-foreground/30 hover:bg-accent/30",
                       )}
                     >
-                      <div className="text-sm font-semibold leading-tight">{opt.title}</div>
-                      <div className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{opt.desc}</div>
+                      <span
+                        className={cn(
+                          "text-2xl font-semibold tracking-tight transition-transform duration-300 group-hover:scale-110",
+                          active ? "text-primary" : "text-foreground",
+                        )}
+                      >
+                        {opt.title}
+                      </span>
                     </button>
                   );
                 })}
               </div>
             </CardContent>
           </Card>
+
 
 
           <Card>
@@ -722,7 +729,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                   Cliente
                 </Label>
                 <Select value={clientId || "__none__"} onValueChange={v => setClientId(v === "__none__" ? "" : v)}>
-                  <SelectTrigger className="text-muted-foreground/80 data-[state=open]:text-foreground [&[data-state=closed]>span]:text-muted-foreground/60">
+                  <SelectTrigger className="text-muted-foreground/80 data-[state=open]:text-foreground [&>span]:flex-1 [&>span]:text-center [&[data-state=closed]>span]:text-muted-foreground/60">
                     <SelectValue placeholder="Selecione um cliente" />
                   </SelectTrigger>
                   <SelectContent>
@@ -736,7 +743,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                   Curador {campaignType !== "ecosystem" && <span className="text-destructive normal-case">*</span>}
                 </Label>
                 <Select value={curatorId || "__none__"} onValueChange={v => setCuratorId(v === "__none__" ? "" : v)}>
-                  <SelectTrigger className="text-muted-foreground/80 data-[state=open]:text-foreground [&[data-state=closed]>span]:text-muted-foreground/60">
+                  <SelectTrigger className="text-muted-foreground/80 data-[state=open]:text-foreground [&>span]:flex-1 [&>span]:text-center [&[data-state=closed]>span]:text-muted-foreground/60">
                     <SelectValue placeholder="Selecione um curador" />
                   </SelectTrigger>
                   <SelectContent>
@@ -748,16 +755,15 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
             </CardContent>
           </Card>
 
-          <div className="flex justify-end">
-            <Button
-              size="lg"
-              variant="solid"
-              onClick={() => setStep(2)}
-              disabled={!canGoStep2 || (campaignType !== "ecosystem" && !curatorId)}
-            >
-              Avançar pra Músicas <ArrowRight className="h-4 w-4 ml-2" />
-            </Button>
-          </div>
+          <Button
+            size="lg"
+            variant="solid"
+            className="w-full"
+            onClick={() => setStep(2)}
+            disabled={!canGoStep2 || (campaignType !== "ecosystem" && !curatorId)}
+          >
+            Avançar pra Músicas <ArrowRight className="h-4 w-4 ml-2" />
+          </Button>
         </div>
       )}
 
