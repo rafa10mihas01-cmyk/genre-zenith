@@ -82,7 +82,7 @@ export function CampaignHub({
         <div className={cn(
           "sticky top-[88px] z-20",
           mode === "internal" && "-mx-2 md:-mx-3 px-4 md:px-6",
-          "border-b border-border bg-background/85 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70",
+          "border-b border-border bg-background",
         )}>
 
           <div className="overflow-x-auto scrollbar-none">
