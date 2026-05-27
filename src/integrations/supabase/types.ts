@@ -4426,6 +4426,7 @@ export type Database = {
           suggestion_confidence: number | null
           suggestion_reason: string | null
           tracks_count: number
+          tracks_hash: string | null
           updated_at: string
         }
         Insert: {
@@ -4469,6 +4470,7 @@ export type Database = {
           suggestion_confidence?: number | null
           suggestion_reason?: string | null
           tracks_count?: number
+          tracks_hash?: string | null
           updated_at?: string
         }
         Update: {
@@ -4512,6 +4514,7 @@ export type Database = {
           suggestion_confidence?: number | null
           suggestion_reason?: string | null
           tracks_count?: number
+          tracks_hash?: string | null
           updated_at?: string
         }
         Relationships: [

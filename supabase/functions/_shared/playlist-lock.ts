@@ -157,3 +157,22 @@ export function lockedResponseBody(failure: LockFailure) {
     locked_at: failure.locked_at,
   };
 }
+
+/**
+ * Hash determinístico da lista ordenada de spotify_track_ids.
+ * Usado em managed_playlists.tracks_hash para detectar se a playlist mudou
+ * sem precisar comparar todas as linhas.
+ *
+ * IMPORTANTE: a ordem importa — reorderings produzem hashes diferentes.
+ * IDs nulos/falsy são ignorados (não deveriam existir, mas defensivo).
+ */
+export async function computeTracksHash(ids: Array<string | null | undefined>): Promise<string> {
+  const clean = ids.filter((x): x is string => typeof x === "string" && x.length > 0);
+  const joined = clean.join(",");
+  const buf = new TextEncoder().encode(joined);
+  const digest = await crypto.subtle.digest("SHA-1", buf);
+  const bytes = new Uint8Array(digest);
+  let hex = "";
+  for (let i = 0; i < bytes.length; i++) hex += bytes[i].toString(16).padStart(2, "0");
+  return hex;
+}
