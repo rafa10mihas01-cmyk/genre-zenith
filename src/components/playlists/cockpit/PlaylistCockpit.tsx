@@ -1518,6 +1518,31 @@ function MarketBlock({
   const benchmarkReady = Array.isArray(idealRange) && idealRange[0] != null && idealRange[1] != null;
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {(market.leader_playlists?.length ?? 0) > 0 && (
+        <Card className="p-4 space-y-2 lg:col-span-3">
+          <div className="flex items-center gap-2">
+            <Crown className="h-4 w-4 text-primary" />
+            <span className="text-sm font-semibold">Playlists líderes do nicho</span>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+            {market.leader_playlists.slice(0, 6).map((p: any) => (
+              <a
+                key={p.spotify_playlist_id}
+                href={`https://open.spotify.com/playlist/${p.spotify_playlist_id}`}
+                target="_blank" rel="noreferrer"
+                className="flex items-center gap-2 p-2 rounded-lg border border-border hover:border-primary/40 transition-colors"
+              >
+                {p.cover_url && <img src={p.cover_url} alt="" className="w-8 h-8 rounded object-cover shrink-0" />}
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-medium truncate">{p.name}</div>
+                  <div className="text-[10px] text-muted-foreground tabular-nums">{fmtNum(p.followers)} seg.</div>
+                </div>
+              </a>
+            ))}
+          </div>
+        </Card>
+      )}
+
       <Card className="p-4 space-y-3">
         <div className="flex items-center gap-2">
           <Target className="h-4 w-4 text-primary" />
@@ -1622,32 +1647,6 @@ function MarketBlock({
           })}
         </ul>
       </Card>
-
-
-      {(market.leader_playlists?.length ?? 0) > 0 && (
-        <Card className="p-4 space-y-2 lg:col-span-3">
-          <div className="flex items-center gap-2">
-            <Crown className="h-4 w-4 text-primary" />
-            <span className="text-sm font-semibold">Playlists líderes do nicho</span>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
-            {market.leader_playlists.slice(0, 6).map((p: any) => (
-              <a
-                key={p.spotify_playlist_id}
-                href={`https://open.spotify.com/playlist/${p.spotify_playlist_id}`}
-                target="_blank" rel="noreferrer"
-                className="flex items-center gap-2 p-2 rounded-lg border border-border hover:border-primary/40 transition-colors"
-              >
-                {p.cover_url && <img src={p.cover_url} alt="" className="w-8 h-8 rounded object-cover shrink-0" />}
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs font-medium truncate">{p.name}</div>
-                  <div className="text-[10px] text-muted-foreground tabular-nums">{fmtNum(p.followers)} seg.</div>
-                </div>
-              </a>
-            ))}
-          </div>
-        </Card>
-      )}
     </div>
   );
 }
