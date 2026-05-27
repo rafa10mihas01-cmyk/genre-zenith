@@ -21,6 +21,7 @@ import { requireTeamAccess } from "../_shared/auth.ts";
 import {
   acquirePlaylistLock,
   finishPlaylistOperation,
+  formatPlaylistError,
   releasePlaylistLock,
   lockedResponseBody,
   computeTracksHash,
@@ -207,14 +208,15 @@ Deno.serve(async (req) => {
       },
     });
   } catch (e) {
+    const errMsg = formatPlaylistError(e);
     if (lock && lock.ok) {
       await finishPlaylistOperation(supabase, lock, {
         status: "failed",
         tracks_before: tracksBefore ?? null,
-        error: (e as Error).message,
+        error: errMsg,
       });
     }
-    return jr({ ok: false, error: (e as Error).message }, 500);
+    return jr({ ok: false, error: errMsg }, 500);
   } finally {
     if (lock && lock.ok) await releasePlaylistLock(supabase, lock);
   }

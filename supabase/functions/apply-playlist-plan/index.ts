@@ -28,6 +28,7 @@ import {
 import {
   acquirePlaylistLock,
   finishPlaylistOperation,
+  formatPlaylistError,
   releasePlaylistLock,
   lockedResponseBody,
 } from "../_shared/playlist-lock.ts";
@@ -423,7 +424,7 @@ Deno.serve(async (req) => {
       const res = await runStep(steps[i], i);
       results.push({ ...steps[i], ...res });
     } catch (e) {
-      const msg = (e as Error).message ?? String(e);
+      const msg = formatPlaylistError(e);
       failedAt = i + 1;
       fatalError = msg;
       results.push({ ...steps[i], ok: false, error: msg });
