@@ -848,13 +848,6 @@ export function PlaylistCockpit({
                   </div>
                 </Card>
               )}
-              <GenreAffinityCard managedId={managedId} />
-              {canonicalPlaylistId && (
-                <LifecycleRoadmapCard
-                  playlistId={canonicalPlaylistId}
-                  currentTracks={liveTracksCount}
-                />
-              )}
             </TabsContent>
 
 
