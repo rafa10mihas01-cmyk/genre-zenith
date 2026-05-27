@@ -64,6 +64,13 @@ import { useClients, type Client } from "@/hooks/useClients";
 import { clientCampaignUrl } from "@/lib/curatorPublicUrl";
 import { cn } from "@/lib/utils";
 import type { CuratorDeal, CuratorDealSong } from "@/lib/curatorDealsUtils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type ClientSongRow = CuratorDealSong & {
   client_id?: string | null;
@@ -71,23 +78,41 @@ type ClientSongRow = CuratorDealSong & {
   smartlink_url?: string | null;
 };
 
+export type ClientFinanceEntry = {
+  cobrado: number;
+  recebido: number;
+  pendente: number;
+  count: number;
+};
+export type ClientFinanceMap = Map<string, ClientFinanceEntry>;
+
+type StatusFilter = "all" | "active" | "idle" | "archived";
+type SortBy = "activity" | "invested" | "revenue" | "alpha";
+
+const EMPTY_FIN: ClientFinanceEntry = { cobrado: 0, recebido: 0, pendente: 0, count: 0 };
+const formatBRLShort = (v: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v);
+
 interface Props {
   deals: CuratorDeal[];
   songs: ClientSongRow[];
   loading: boolean;
+  financeByClient?: ClientFinanceMap;
 }
 
-export function ClientesLibraryTab({ deals, songs, loading }: Props) {
+export function ClientesLibraryTab({ deals, songs, loading, financeByClient }: Props) {
   const navigate = useNavigate();
   const { clients, loading: loadingClients, addClient, updateClient, archiveClient, deleteClient, reload } = useClients();
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<Client | null>(null);
   const [creating, setCreating] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ client: Client; hasLinks: boolean } | null>(null);
-  const [showArchived, setShowArchived] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [sortBy, setSortBy] = useState<SortBy>("activity");
   const [page, setPage] = useState(1);
-  const PAGE_SIZE = 4;
+  const PAGE_SIZE = 24;
   const archivedCount = clients.filter((c) => !!c.archived_at).length;
+  const showArchived = statusFilter === "archived";
 
   useEffect(() => {
     setPage(1);
