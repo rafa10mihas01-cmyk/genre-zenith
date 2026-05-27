@@ -1,8 +1,31 @@
 // FinanceiroTab — landing financeira da operação de curadoria.
 // Lê do ledger curator_purchases via useCuratorFinance.
-import { useMemo } from "react";
-import { Wallet, TrendingUp, TrendingDown, Receipt, Target, Trophy, Medal, Award, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Wallet, TrendingUp, Receipt, Target, Trophy, Medal, Award, ArrowUpRight, ArrowDownRight, Pencil, Trash2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useCuratorFinance } from "@/hooks/useCuratorFinance";
+import type { CuratorPurchase } from "@/hooks/useCuratorFinance";
 import { formatNumber, formatBRLHero } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { CuratorDeal } from "@/lib/curatorDealsUtils";
@@ -16,13 +39,66 @@ const fmtCpp = (v: number | null | undefined) =>
 const initials = (name: string) =>
   name.trim().split(/\s+/).slice(0, 2).map((s) => s[0]?.toUpperCase() ?? "").join("") || "?";
 
+const toDateInput = (iso: string) => new Date(iso).toISOString().slice(0, 10);
+
+const parseBRNumber = (value: string) => Number(value.replace(/\./g, "").replace(",", ".")) || 0;
+
 interface Props {
   deals: CuratorDeal[];
   hideHero?: boolean;
 }
 
 export function FinanceiroTab({ deals, hideHero = false }: Props) {
-  const { byCurator, purchases, totals, loading } = useCuratorFinance();
+  const { byCurator, purchases, totals, loading, updatePurchase, deletePurchase } = useCuratorFinance();
+  const [editingPurchase, setEditingPurchase] = useState<CuratorPurchase | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CuratorPurchase | null>(null);
+  const [editPlays, setEditPlays] = useState("");
+  const [editAmount, setEditAmount] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [editNote, setEditNote] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const openEdit = (purchase: CuratorPurchase) => {
+    setEditingPurchase(purchase);
+    setEditPlays(String(purchase.plays_purchased ?? 0));
+    setEditAmount(String(Number(purchase.amount ?? 0)).replace(".", ","));
+    setEditDate(toDateInput(purchase.purchased_at));
+    setEditNote(purchase.note ?? "");
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingPurchase) return;
+    setSavingEdit(true);
+    try {
+      await updatePurchase(editingPurchase.id, {
+        plays_purchased: parseInt(editPlays.replace(/\D/g, ""), 10) || 0,
+        amount: parseBRNumber(editAmount),
+        purchased_at: editDate ? new Date(`${editDate}T12:00:00`).toISOString() : editingPurchase.purchased_at,
+        note: editNote.trim() || null,
+      });
+      toast.success("Compra atualizada");
+      setEditingPurchase(null);
+    } catch (e) {
+      toast.error("Erro ao editar compra", { description: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await deletePurchase(deleteTarget.id);
+      toast.success("Compra removida");
+      setDeleteTarget(null);
+    } catch (e) {
+      toast.error("Erro ao remover compra", { description: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const committed = useMemo(() => {
     if (!totals.globalCpp) return 0;
@@ -94,6 +170,7 @@ export function FinanceiroTab({ deals, hideHero = false }: Props) {
   const isEmpty = totals.totalPlays === 0;
 
   return (
+    <>
     <div className="space-y-6">
       {/* ============= HERO FINANCEIRO — mesmo padrão do KpiBig hero ============= */}
       {!hideHero && (
@@ -330,7 +407,7 @@ export function FinanceiroTab({ deals, hideHero = false }: Props) {
         <section className="rounded-2xl bg-card border border-border overflow-hidden">
           <header className="px-4 sm:px-5 py-4 border-b border-border">
             <h3 className="text-sm font-semibold text-foreground">Últimas compras</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Histórico imutável do ledger</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Histórico de compras do ledger</p>
           </header>
           {timeline.length === 0 ? (
             <div className="px-5 py-12 text-center text-sm text-muted-foreground">
@@ -363,9 +440,31 @@ export function FinanceiroTab({ deals, hideHero = false }: Props) {
                             <span className="absolute -left-[7px] top-2 h-2 w-2 rounded-full bg-primary/60 ring-2 ring-card" />
                             <div className="flex items-center justify-between gap-3 text-sm">
                               <span className="font-medium text-foreground truncate">{curator?.name ?? "—"}</span>
-                              <span className="text-xs text-muted-foreground tabular-nums shrink-0">
-                                {fmtBRL(p.amount)}
-                              </span>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <span className="text-xs text-muted-foreground tabular-nums">
+                                  {fmtBRL(p.amount)}
+                                </span>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                  title="Editar compra"
+                                  onClick={() => openEdit(p)}
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                  title="Remover compra"
+                                  onClick={() => setDeleteTarget(p)}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
                             </div>
                             <div className="text-[11px] text-muted-foreground tabular-nums mt-0.5">
                               {formatNumber(p.plays_purchased)} plays · {fmtCpp(p.cpp)}
@@ -383,6 +482,59 @@ export function FinanceiroTab({ deals, hideHero = false }: Props) {
         </section>
       </div>
     </div>
+
+    <Dialog open={!!editingPurchase} onOpenChange={(open) => !open && setEditingPurchase(null)}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Editar compra</DialogTitle>
+          <DialogDescription>Altere o valor, plays, data ou observação deste lançamento.</DialogDescription>
+        </DialogHeader>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="edit-purchase-amount">Valor</Label>
+            <Input id="edit-purchase-amount" inputMode="decimal" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} placeholder="62000" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="edit-purchase-plays">Plays comprados</Label>
+            <Input id="edit-purchase-plays" inputMode="numeric" value={editPlays} onChange={(e) => setEditPlays(e.target.value)} placeholder="0" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="edit-purchase-date">Data</Label>
+            <Input id="edit-purchase-date" type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="edit-purchase-note">Observação</Label>
+            <Input id="edit-purchase-note" value={editNote} onChange={(e) => setEditNote(e.target.value)} placeholder="Opcional" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setEditingPurchase(null)} disabled={savingEdit}>Cancelar</Button>
+          <Button onClick={handleSaveEdit} disabled={savingEdit}>
+            {savingEdit && <Loader2 className="h-4 w-4 animate-spin" />}
+            Salvar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Remover compra?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Este lançamento será removido do histórico e o saldo do curador será recalculado.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Remover
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
 

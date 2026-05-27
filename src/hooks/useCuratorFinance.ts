@@ -98,5 +98,44 @@ export function useCuratorFinance() {
     [user, load],
   );
 
-  return { purchases, byCurator, totals, loading, reload: load, addPurchase };
+  const updatePurchase = useCallback(
+    async (
+      id: string,
+      patch: {
+        plays_purchased: number;
+        amount: number;
+        note?: string | null;
+        purchased_at?: string;
+      },
+    ) => {
+      if (!user) throw new Error("Usuário não autenticado");
+      const { data, error } = await supabase
+        .from("curator_purchases")
+        .update({
+          plays_purchased: Math.max(0, Math.round(patch.plays_purchased)),
+          amount: Math.max(0, Number(patch.amount.toFixed(2))),
+          note: patch.note ?? null,
+          purchased_at: patch.purchased_at,
+        })
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      await load();
+      return data as CuratorPurchase;
+    },
+    [user, load],
+  );
+
+  const deletePurchase = useCallback(
+    async (id: string) => {
+      if (!user) throw new Error("Usuário não autenticado");
+      const { error } = await supabase.from("curator_purchases").delete().eq("id", id);
+      if (error) throw error;
+      await load();
+    },
+    [user, load],
+  );
+
+  return { purchases, byCurator, totals, loading, reload: load, addPurchase, updatePurchase, deletePurchase };
 }
