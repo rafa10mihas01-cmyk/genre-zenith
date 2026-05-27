@@ -32,6 +32,7 @@ export type DealPayment = {
 export type DealFinanceRow = {
   deal_id: string;
   campaign_id: string | null;
+  curator_id: string | null;
   curator_name: string;
   song_name: string;
   target_plays: number;
