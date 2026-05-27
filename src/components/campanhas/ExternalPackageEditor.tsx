@@ -514,6 +514,25 @@ export function ExternalPackageEditor({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+    <AlertDialog open={reopenOpen} onOpenChange={setReopenOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Reabrir pacote para edição?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Isso vai apagar os {dealsCount} {dealsCount === 1 ? "deal proposto" : "deals propostos"} gerados a partir deste pacote
+            e devolver o pacote para rascunho. Você poderá editar curadores, volumes e custos e confirmar novamente.
+            Deals que já foram aceitos pelo curador não serão removidos. Continuar?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={reopening}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={handleReopen} disabled={reopening}>
+            {reopening ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : null}
+            Reabrir pacote
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </>
   );
 }
