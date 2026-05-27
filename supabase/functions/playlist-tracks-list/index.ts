@@ -67,6 +67,7 @@ Deno.serve(async (req) => {
 
   // Aceita tanto playlists.id (canonical) quanto managed_playlists.id
   let spotifyPlaylistId: string | null = null;
+  let managedPlaylistId: string | null = null;
   const { data: pl, error: plErr } = await supabase
     .from("playlists")
     .select("id, spotify_playlist_id")
@@ -83,6 +84,16 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (mpErr) return jr({ ok: false, error: mpErr.message }, 500);
     spotifyPlaylistId = mp?.spotify_playlist_id ?? null;
+    managedPlaylistId = mp?.id ?? null;
+  }
+  // Mesmo vindo de `playlists`, tenta achar o managed equivalente pelo spotify_playlist_id pra ter cache.
+  if (!managedPlaylistId && spotifyPlaylistId) {
+    const { data: mp2 } = await supabase
+      .from("managed_playlists")
+      .select("id")
+      .eq("spotify_playlist_id", spotifyPlaylistId)
+      .maybeSingle();
+    managedPlaylistId = mp2?.id ?? null;
   }
   if (!spotifyPlaylistId) {
     return jr({
@@ -92,6 +103,26 @@ Deno.serve(async (req) => {
       tracks: [],
       total: 0,
     });
+  }
+
+  async function loadCache(): Promise<{ tracks: any[]; snapshot_at: string | null }> {
+    if (!managedPlaylistId) return { tracks: [], snapshot_at: null };
+    const { data, error } = await supabase
+      .from("managed_playlist_tracks")
+      .select("spotify_track_id, track_name, artist_name, album_cover, duration_ms, added_at, position, snapshot_at")
+      .eq("playlist_id", managedPlaylistId)
+      .order("position", { ascending: true });
+    if (error || !data) return { tracks: [], snapshot_at: null };
+    const tracks = data.map((t: any) => ({
+      spotify_track_id: t.spotify_track_id,
+      name: t.track_name || "Unknown",
+      artists: t.artist_name ?? "",
+      album_cover: t.album_cover ?? null,
+      duration_ms: t.duration_ms ?? 0,
+      added_at: t.added_at,
+    }));
+    const snapshot_at = data[0]?.snapshot_at ?? null;
+    return { tracks, snapshot_at };
   }
 
   try {
@@ -112,13 +143,27 @@ Deno.serve(async (req) => {
         duration_ms: t.duration_ms,
         added_at: t.added_at,
       }));
-    return jr({ ok: true, tracks: out, total: out.length });
+    return jr({ ok: true, source: "spotify", tracks: out, total: out.length });
   } catch (e) {
     const err = e as SpotifyApiError;
     const rateLimited = err?.status === 429 || /429|too many requests/i.test(err?.message ?? "");
     const retryAfter = rateLimited
       ? Math.min(60, Math.max(2, err?.retryAfter ?? 10))
       : null;
+    // Fallback: tenta servir do cache local
+    if (rateLimited) {
+      const cache = await loadCache();
+      if (cache.tracks.length > 0) {
+        return jr({
+          ok: true,
+          source: "cache",
+          cache_snapshot_at: cache.snapshot_at,
+          retry_after: retryAfter,
+          tracks: cache.tracks,
+          total: cache.tracks.length,
+        });
+      }
+    }
     return jr({
       ok: false,
       error: rateLimited ? "RATE_LIMITED" : (err?.message ?? "unknown"),
