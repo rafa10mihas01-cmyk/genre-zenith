@@ -425,7 +425,7 @@ export function CampaignFullPlanCard({
                       </div>
                     </td>
                     <td className="text-center font-semibold py-0 px-2 border-b border-border/30 border-t-2 border-t-primary/40 leading-tight tabular-nums text-primary">
-                      #1
+                      #0
                     </td>
                     <td className="text-right tabular-nums font-semibold py-0 px-2 border-b border-border/30 border-t-2 border-t-primary/40 leading-tight">
                       {formatInt(radioTotal)}
