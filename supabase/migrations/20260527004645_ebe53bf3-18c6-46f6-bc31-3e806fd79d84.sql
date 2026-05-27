@@ -1,0 +1,1 @@
+UPDATE public.spotify_apps SET slug = 'nexengine-04' WHERE id = '5eae32c6-0d89-4d36-9138-29c04fc96994' AND slug = 'nexengine04';
