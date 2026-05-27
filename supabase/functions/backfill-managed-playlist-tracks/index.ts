@@ -10,6 +10,12 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { getSpotifyToken } from "../_shared/spotify.ts";
 import { listPlaylistTracksRich } from "../_shared/spotify-playlist.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
+import {
+  acquirePlaylistLock,
+  finishPlaylistOperation,
+  releasePlaylistLock,
+} from "../_shared/playlist-lock.ts";
+
 // Auth opcional: aceita JWT de team OU header x-backfill-secret = SERVICE_ROLE_KEY.
 // Backfill é idempotente (replace-all por playlist), seguro pra rodar como admin.
 
@@ -24,36 +30,56 @@ function jr(p: unknown, status = 200) {
 }
 
 async function syncOne(sb: any, token: string, pl: { id: string; spotify_playlist_id: string }) {
-  const rich = await listPlaylistTracksRich(pl.spotify_playlist_id, token, {
-    max: 10000,
-    fields: "items(added_at,track(id,name,duration_ms,artists(name),album(images))),next",
-  });
-  const rows = rich
-    .filter((t) => t.spotify_track_id)
-    .map((t) => ({
-      playlist_id: pl.id,
-      spotify_track_id: t.spotify_track_id,
-      track_name: t.name || null,
-      artist_name: t.artists || null,
-      album_cover: t.album_cover,
-      position: t.position - 1,
-      added_at: t.added_at,
-      duration_ms: t.duration_ms,
-    }));
+  const lock = await acquirePlaylistLock(sb, pl.id, "MAINTENANCE", null);
+  if (!lock.ok) throw new Error("playlist_locked");
 
-  // Replace-all
-  await sb.from("managed_playlist_tracks").delete().eq("playlist_id", pl.id);
-  if (rows.length > 0) {
-    for (let i = 0; i < rows.length; i += 500) {
-      const { error } = await sb.from("managed_playlist_tracks").insert(rows.slice(i, i + 500));
-      if (error) throw new Error(`insert: ${error.message}`);
+  try {
+    const rich = await listPlaylistTracksRich(pl.spotify_playlist_id, token, {
+      max: 10000,
+      fields: "items(added_at,track(id,name,duration_ms,artists(name),album(images))),next",
+    });
+    const rows = rich
+      .filter((t) => t.spotify_track_id)
+      .map((t) => ({
+        playlist_id: pl.id,
+        spotify_track_id: t.spotify_track_id,
+        track_name: t.name || null,
+        artist_name: t.artists || null,
+        album_cover: t.album_cover,
+        position: t.position - 1,
+        added_at: t.added_at,
+        duration_ms: t.duration_ms,
+      }));
+
+    await sb.from("managed_playlist_tracks").delete().eq("playlist_id", pl.id);
+    if (rows.length > 0) {
+      for (let i = 0; i < rows.length; i += 500) {
+        const { error } = await sb.from("managed_playlist_tracks").insert(rows.slice(i, i + 500));
+        if (error) throw new Error(`insert: ${error.message}`);
+      }
     }
+    await sb.from("managed_playlists")
+      .update({ tracks_count: rows.length, last_metrics_at: new Date().toISOString() })
+      .eq("id", pl.id);
+
+    await finishPlaylistOperation(sb, lock, {
+      status: "success",
+      tracks_before: 0,
+      tracks_after: rows.length,
+      tracks_changed: rows.length,
+    });
+    return rows.length;
+  } catch (e) {
+    await finishPlaylistOperation(sb, lock, {
+      status: "failed",
+      error: (e as Error).message,
+    });
+    throw e;
+  } finally {
+    await releasePlaylistLock(sb, lock);
   }
-  await sb.from("managed_playlists")
-    .update({ tracks_count: rows.length, last_metrics_at: new Date().toISOString() })
-    .eq("id", pl.id);
-  return rows.length;
 }
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });

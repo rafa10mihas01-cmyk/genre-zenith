@@ -6,6 +6,14 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { getSpotifyToken } from "../_shared/spotify.ts";
 import { listPlaylistTracksRich } from "../_shared/spotify-playlist.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
+import {
+  acquirePlaylistLock,
+  finishPlaylistOperation,
+  releasePlaylistLock,
+  lockedResponseBody,
+} from "../_shared/playlist-lock.ts";
+
+
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -26,7 +34,9 @@ Deno.serve(async (req) => {
   let body: any;
   try { body = await req.json(); } catch { return jr({ ok: false, error: "Invalid JSON" }, 400); }
   const playlist_id = String(body?.playlist_id ?? "").trim();
+  const skipLock = body?.skip_lock === true;
   if (!playlist_id) return jr({ ok: false, error: "playlist_id obrigatório" }, 400);
+
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
   const { data: pl, error: plErr } = await supabase
@@ -36,6 +46,18 @@ Deno.serve(async (req) => {
     .maybeSingle();
   if (plErr) return jr({ ok: false, error: plErr.message }, 500);
   if (!pl?.spotify_playlist_id) return jr({ ok: false, error: "playlist não encontrada" }, 404);
+
+  // Conta atual antes do replace-all (best-effort)
+  const { count: tracksBefore } = await supabase
+    .from("managed_playlist_tracks")
+    .select("*", { count: "exact", head: true })
+    .eq("playlist_id", pl.id);
+
+  const lock = skipLock
+    ? null
+    : await acquirePlaylistLock(supabase, pl.id, "AUTO_SYNC", tracksBefore ?? null);
+  if (lock && !lock.ok) return jr(lockedResponseBody(lock), 423);
+
 
   try {
     const token = await getSpotifyToken();
@@ -64,7 +86,6 @@ Deno.serve(async (req) => {
     if (delErr) throw new Error(`delete: ${delErr.message}`);
 
     if (rows.length > 0) {
-      // Insere em lotes de 500 pra evitar payload gigante
       for (let i = 0; i < rows.length; i += 500) {
         const slice = rows.slice(i, i + 500);
         const { error: insErr } = await supabase
@@ -74,14 +95,32 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Atualiza contagem na própria managed_playlists
     await supabase
       .from("managed_playlists")
       .update({ tracks_count: rows.length, last_metrics_at: new Date().toISOString() })
       .eq("id", pl.id);
 
+    if (lock && lock.ok) {
+      await finishPlaylistOperation(supabase, lock, {
+        status: "success",
+        tracks_before: tracksBefore ?? null,
+        tracks_after: rows.length,
+        tracks_changed: Math.abs((tracksBefore ?? 0) - rows.length),
+      });
+    }
     return jr({ ok: true, total: rows.length });
   } catch (e) {
+    if (lock && lock.ok) {
+      await finishPlaylistOperation(supabase, lock, {
+        status: "failed",
+        tracks_before: tracksBefore ?? null,
+        error: (e as Error).message,
+      });
+    }
     return jr({ ok: false, error: (e as Error).message }, 500);
+  } finally {
+    if (lock && lock.ok) await releasePlaylistLock(supabase, lock);
   }
+
 });
+

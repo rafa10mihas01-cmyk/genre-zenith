@@ -5751,6 +5751,60 @@ export type Database = {
           },
         ]
       }
+      playlist_operation_log: {
+        Row: {
+          conflict_detected: boolean
+          created_at: string
+          divergence_count: number
+          error: string | null
+          finished_at: string | null
+          id: string
+          lock_timeout: boolean
+          operation: string
+          playlist_id: string
+          retries: number
+          started_at: string
+          status: string
+          tracks_after: number | null
+          tracks_before: number | null
+          tracks_changed: number | null
+        }
+        Insert: {
+          conflict_detected?: boolean
+          created_at?: string
+          divergence_count?: number
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          lock_timeout?: boolean
+          operation: string
+          playlist_id: string
+          retries?: number
+          started_at?: string
+          status?: string
+          tracks_after?: number | null
+          tracks_before?: number | null
+          tracks_changed?: number | null
+        }
+        Update: {
+          conflict_detected?: boolean
+          created_at?: string
+          divergence_count?: number
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          lock_timeout?: boolean
+          operation?: string
+          playlist_id?: string
+          retries?: number
+          started_at?: string
+          status?: string
+          tracks_after?: number | null
+          tracks_before?: number | null
+          tracks_changed?: number | null
+        }
+        Relationships: []
+      }
       playlist_scores: {
         Row: {
           activity_score: number

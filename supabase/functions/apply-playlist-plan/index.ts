@@ -25,6 +25,13 @@ import {
   reorderPlaylistTracks,
   type PlaylistTrackRef,
 } from "../_shared/spotify-playlist.ts";
+import {
+  acquirePlaylistLock,
+  finishPlaylistOperation,
+  releasePlaylistLock,
+  lockedResponseBody,
+} from "../_shared/playlist-lock.ts";
+
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -55,7 +62,7 @@ async function syncManagedSnapshot(playlistId: string) {
       Authorization: `Bearer ${SERVICE_KEY}`,
       apikey: SERVICE_KEY,
     },
-    body: JSON.stringify({ playlist_id: playlistId }),
+    body: JSON.stringify({ playlist_id: playlistId, skip_lock: true }),
   });
   const txt = await r.text();
   let body: any = null;
@@ -169,6 +176,12 @@ Deno.serve(async (req) => {
   }
 
   const spId = pl.spotify_playlist_id;
+
+  // Lock operacional: bloqueia escritas concorrentes em managed_playlist_tracks.
+  const tracksBefore = (pl as any).tracks_count ?? null;
+  const lock = await acquirePlaylistLock(supabase, pl.id, "MANUAL_EDITOR", tracksBefore);
+  if (!lock.ok) return jr(lockedResponseBody(lock), 423);
+
 
   // 4) Monta o plano ordenado: removes → promotes (target asc) → demotes (target desc) → adds
   const steps: PlanStep[] = [];
@@ -376,9 +389,22 @@ Deno.serve(async (req) => {
           sync: syncRes,
           results,
         });
+
+        if (lock.ok) {
+          await finishPlaylistOperation(supabase, lock, {
+            status: fatalError ? "failed" : "success",
+            tracks_before: tracksBefore,
+            tracks_after: currentCount ?? null,
+            tracks_changed: results.filter((r: any) => r.ok !== false && !r.skipped).length,
+            error: fatalError,
+          });
+          await releasePlaylistLock(supabase, lock);
+        }
+
         controller.close();
       },
     });
+
 
     return new Response(body, {
       status: 200,
@@ -423,6 +449,17 @@ Deno.serve(async (req) => {
     mensagem: `${spId} (${action}): ${results.length}/${steps.length} executadas${fatalError ? ` — FAILED@${failedAt}: ${fatalError}` : ""}`,
   });
 
+  if (lock.ok) {
+    await finishPlaylistOperation(supabase, lock, {
+      status: fatalError ? "failed" : "success",
+      tracks_before: tracksBefore,
+      tracks_after: currentCount ?? null,
+      tracks_changed: results.filter((r: any) => r.ok !== false && !r.skipped).length,
+      error: fatalError,
+    });
+    await releasePlaylistLock(supabase, lock);
+  }
+
   return jr({
     ok: !fatalError,
     action,
@@ -436,3 +473,4 @@ Deno.serve(async (req) => {
     results,
   });
 });
+
