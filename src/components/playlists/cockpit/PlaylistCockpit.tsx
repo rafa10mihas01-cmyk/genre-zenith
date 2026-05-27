@@ -1271,7 +1271,7 @@ function ActionCard({ kind, count, detected, hrefId }: { kind: keyof typeof ACTI
       <div className="text-3xl font-bold tabular-nums leading-none">{count}</div>
       {hasMore ? (
         <div className="text-[11px] opacity-80 mt-1.5 leading-snug">
-          de {detected} detectadas · cap deste ciclo
+          de {detected} detectadas · limite deste ciclo
         </div>
       ) : (
         <div className="text-[11px] opacity-80 mt-1.5 leading-snug">{m.hint}</div>
