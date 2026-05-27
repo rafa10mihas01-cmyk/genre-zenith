@@ -80,8 +80,9 @@ export interface CampaignResult {
   // Custos
   custoEco: number;          // R$
   custoExt: number;          // R$
-  custoTotal: number;        // R$
-  custoPorStream: number;    // R$ médio (sobre metaOperacional)
+  custoOrganic: number;      // R$ — orgânico custa o mesmo que eco
+  custoTotal: number;        // R$ — eco + ext + organic
+  custoPorStream: number;    // R$ médio (sobre meta total)
 
   // Operação
   picoPorDia: number;        // pico de streams/dia
