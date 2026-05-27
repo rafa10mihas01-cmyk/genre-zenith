@@ -879,7 +879,12 @@ export function PlaylistCockpit({
             </TabsContent>
 
             {/* ============ EDITOR (drag-and-drop) ============ */}
-            <TabsContent value="editor" className="mt-0">
+            <TabsContent value="editor" className="space-y-3 mt-0">
+              <Card className="p-3 border-warning/30 bg-warning/5">
+                <div className="text-xs text-foreground/80">
+                  Use esta aba para editar as faixas diretamente, sem seguir o Plano.
+                </div>
+              </Card>
               <PlaylistEditorTab playlistId={managedId} />
             </TabsContent>
           </Tabs>
