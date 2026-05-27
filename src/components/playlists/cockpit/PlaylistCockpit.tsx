@@ -643,7 +643,7 @@ export function PlaylistCockpit({
                 <Activity className="h-3.5 w-3.5" /> Estratégia
               </TabsTrigger>
               <TabsTrigger value="editor" className="gap-1.5">
-                <ListMusic className="h-3.5 w-3.5" /> Editor
+                <ListMusic className="h-3.5 w-3.5" /> Editar manualmente
               </TabsTrigger>
             </TabsList>
 
