@@ -21,6 +21,20 @@ function formatNumber(n: number) {
   return n.toLocaleString("pt-BR");
 }
 
+function FunilStep({
+  label, value, hint, loading, compact, muted,
+}: { label: string; value: string; hint?: string; loading?: boolean; compact?: boolean; muted?: boolean }) {
+  return (
+    <div className={cn("flex flex-col gap-0.5 min-w-0", muted && "opacity-70")}>
+      <div className={cn("font-semibold tabular-nums truncate", compact ? "text-base" : "text-lg", muted && "text-muted-foreground")}>
+        {loading ? "…" : value}
+      </div>
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground truncate">{label}</div>
+      {hint && <div className="text-[10px] text-primary font-medium tabular-nums">{hint}</div>}
+    </div>
+  );
+}
+
 export default function Prospecao() {
   const [segment, setSegment] = useState<Segment>("ativos");
   const {
