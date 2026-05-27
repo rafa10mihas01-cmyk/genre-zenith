@@ -16,6 +16,7 @@ import {
   releasePlaylistLock,
   computeTracksHash,
 } from "../_shared/playlist-lock.ts";
+import { enqueuePlaylistJob } from "../_shared/playlist-queue.ts";
 
 // Auth opcional: aceita JWT de team OU header x-backfill-secret = SERVICE_ROLE_KEY.
 // Backfill é idempotente (replace-all por playlist), seguro pra rodar como admin.
