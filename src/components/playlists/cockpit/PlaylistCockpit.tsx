@@ -866,32 +866,21 @@ export function PlaylistCockpit({
               </TabsContent>
             )}
 
-            {/* ============ PROJEÇÃO ============ */}
-            <TabsContent value="projecao" className="space-y-3 mt-0">
-              <div className="text-[11px] text-muted-foreground">
-                Estimativa teórica de plays por posição, baseada nos saves dessa playlist. Use pra decidir em qual posição colocar uma faixa.
-              </div>
-              <ProjecaoFaixa
-                playlist={{
-                  id: managedId,
-                  name: playlistName,
-                  cover_url: coverUrl,
-                  followers: followers ?? 0,
-                  tracks_count: liveTracksCount,
-                }}
-              />
+            {/* ============ ESTRATÉGIA ============ */}
+            <TabsContent value="estrategia" className="space-y-4 mt-0">
+              <GenreAffinityCard managedId={managedId} />
+              {canonicalPlaylistId && (
+                <LifecycleRoadmapCard
+                  playlistId={canonicalPlaylistId}
+                  currentTracks={liveTracksCount}
+                />
+              )}
+              <SeoExperimentCard managedId={managedId} />
             </TabsContent>
 
             {/* ============ EDITOR (drag-and-drop) ============ */}
             <TabsContent value="editor" className="mt-0">
               <PlaylistEditorTab playlistId={managedId} />
-            </TabsContent>
-
-            {/* ============ TODAS AS FAIXAS ============ */}
-            <TabsContent value="faixas" className="mt-0">
-              <Card className="p-4">
-                <PlaylistTracksTab playlistId={managedId} />
-              </Card>
             </TabsContent>
           </Tabs>
         </>
