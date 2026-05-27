@@ -193,18 +193,24 @@ function PlaylistGroup({
 }
 
 function PlaylistCard({
-  alloc, snap, thumb, position, mode,
+  alloc, snap, thumb, position, mode, campaignId, snapshotLocked, onSwapped,
 }: {
   alloc: EcoAllocation;
   snap?: EcoSnap;
   thumb?: ProofThumb;
   position?: number;
   mode: "internal" | "client";
+  campaignId?: string;
+  snapshotLocked?: boolean;
+  onSwapped?: () => void;
 }) {
   const pl = alloc.managed_playlists;
   const delivered = snap?.plays_28d ?? snap?.plays_7d ?? 0;
   const pct = alloc.planned_streams > 0 ? Math.min(100, Math.round((Number(delivered) / alloc.planned_streams) * 100)) : 0;
   const delta24 = snap?.plays_24h ?? null;
+  const [swapOpen, setSwapOpen] = useState(false);
+  const canSwap = mode === "internal" && !!snapshotLocked && !!campaignId && !alloc.dispatched_at;
+
 
   return (
     <Card className="p-3 hover:bg-elevated/30 transition-colors">
