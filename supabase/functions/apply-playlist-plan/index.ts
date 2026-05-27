@@ -449,6 +449,17 @@ Deno.serve(async (req) => {
     mensagem: `${spId} (${action}): ${results.length}/${steps.length} executadas${fatalError ? ` — FAILED@${failedAt}: ${fatalError}` : ""}`,
   });
 
+  if (lock.ok) {
+    await finishPlaylistOperation(supabase, lock, {
+      status: fatalError ? "failed" : "success",
+      tracks_before: tracksBefore,
+      tracks_after: currentCount ?? null,
+      tracks_changed: results.filter((r: any) => r.ok !== false && !r.skipped).length,
+      error: fatalError,
+    });
+    await releasePlaylistLock(supabase, lock);
+  }
+
   return jr({
     ok: !fatalError,
     action,
@@ -462,3 +473,4 @@ Deno.serve(async (req) => {
     results,
   });
 });
+
