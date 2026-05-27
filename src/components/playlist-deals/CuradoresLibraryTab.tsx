@@ -297,38 +297,36 @@ export function CuradoresLibraryTab({
         </div>
       )}
 
-      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-        <span>
-          {allRows.length === 0
-            ? "Nenhum resultado"
-            : "\u200B"}
-        </span>
-        {totalPages > 1 && (
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-7 w-7"
-              disabled={safePage === 0}
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-              aria-label="Página anterior"
-            >
-              <ChevronLeft className="h-3.5 w-3.5" />
-            </Button>
-            <span className="px-2 tabular-nums">{safePage + 1} / {totalPages}</span>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-7 w-7"
-              disabled={safePage >= totalPages - 1}
-              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-              aria-label="Próxima página"
-            >
-              <ChevronRight className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        )}
-      </div>
+      {(allRows.length === 0 || totalPages > 1) && (
+        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+          <span>{allRows.length === 0 ? "Nenhum resultado" : ""}</span>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-7 w-7"
+                disabled={safePage === 0}
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                aria-label="Página anterior"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </Button>
+              <span className="px-2 tabular-nums">{safePage + 1} / {totalPages}</span>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-7 w-7"
+                disabled={safePage >= totalPages - 1}
+                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                aria-label="Próxima página"
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
 
 
       {loading && curators.length === 0 ? (
