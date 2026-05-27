@@ -17,7 +17,7 @@ import {
   Flame, Snowflake, Activity, Users, Crown, Target, Check,
   Heart, Eye, RotateCcw, Timer, Zap, ShieldCheck, AlertTriangle, ListMusic,
 } from "lucide-react";
-import { PlaylistTracksTab } from "@/components/playlists/PlaylistTracksTab";
+
 import { PlaylistEditorTab } from "@/components/playlists/PlaylistEditorTab";
 import { KpiBig } from "@/components/KpiBig";
 import { ProjecaoFaixa } from "@/components/operacao/SimuladorEntrega";
