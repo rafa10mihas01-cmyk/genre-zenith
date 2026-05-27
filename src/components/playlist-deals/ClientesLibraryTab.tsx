@@ -110,7 +110,7 @@ export function ClientesLibraryTab({ deals, songs, loading, financeByClient }: P
 
   useEffect(() => {
     setPage(1);
-  }, [query, showArchived]);
+  }, [query, statusFilter, sortBy]);
 
   // Permite abrir o modal "Novo cliente" via evento global (botão + Novo do header)
   useEffect(() => {
@@ -127,7 +127,7 @@ export function ClientesLibraryTab({ deals, songs, loading, financeByClient }: P
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return clients
+    const enriched = clients
       .filter((c) => (showArchived ? !!c.archived_at : !c.archived_at))
       .filter(
         (c) =>
@@ -147,6 +147,8 @@ export function ClientesLibraryTab({ deals, songs, loading, financeByClient }: P
           const t = new Date(s.created_at).getTime();
           return Number.isFinite(t) && t > acc ? t : acc;
         }, 0);
+        const invested = clientDeals.reduce((acc, d) => acc + (Number(d.cost) || 0), 0);
+        const fin = financeByClient?.get(c.id) ?? EMPTY_FIN;
         return {
           client: c,
           songs: clientSongs,
@@ -155,18 +157,32 @@ export function ClientesLibraryTab({ deals, songs, loading, financeByClient }: P
           closedDeals,
           totalDeals: clientDeals.length,
           lastTs,
+          invested,
+          revenue: fin.recebido,
+          pending: fin.pendente,
         };
       })
-      .sort((a, b) => {
-        if (a.activeDeals !== b.activeDeals) return b.activeDeals - a.activeDeals;
-        return b.lastTs - a.lastTs;
+      .filter((row) => {
+        if (statusFilter === "active") return row.activeDeals > 0;
+        if (statusFilter === "idle") return row.activeDeals === 0;
+        return true; // all | archived (já filtrado acima)
       });
-  }, [clients, songs, dealById, query, showArchived]);
+
+    enriched.sort((a, b) => {
+      if (sortBy === "invested") return b.invested - a.invested;
+      if (sortBy === "revenue") return b.revenue - a.revenue;
+      if (sortBy === "alpha") return a.client.name.localeCompare(b.client.name, "pt-BR");
+      // activity default
+      if (a.activeDeals !== b.activeDeals) return b.activeDeals - a.activeDeals;
+      return b.lastTs - a.lastTs;
+    });
+    return enriched;
+  }, [clients, songs, dealById, query, showArchived, statusFilter, sortBy, financeByClient]);
 
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 max-w-md">
+        <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             value={query}
@@ -175,18 +191,30 @@ export function ClientesLibraryTab({ deals, songs, loading, financeByClient }: P
             className="pl-9"
           />
         </div>
-        {(archivedCount > 0 || showArchived) && (
-          <Button
-            variant={showArchived ? "default" : "outline"}
-            size="sm"
-            className="h-9 gap-1.5"
-            onClick={() => setShowArchived((v) => !v)}
-          >
-            <Archive className="h-3.5 w-3.5" />
-            {showArchived ? "Ver ativos" : `Arquivados (${archivedCount})`}
-          </Button>
-        )}
+        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+          <SelectTrigger className="h-9 w-[180px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os ativos</SelectItem>
+            <SelectItem value="active">Com deal ativo</SelectItem>
+            <SelectItem value="idle">Sem atividade</SelectItem>
+            <SelectItem value="archived">Arquivados{archivedCount > 0 ? ` (${archivedCount})` : ""}</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortBy)}>
+          <SelectTrigger className="h-9 w-[170px]">
+            <SelectValue placeholder="Ordenar" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="activity">Mais ativos</SelectItem>
+            <SelectItem value="invested">Maior investido</SelectItem>
+            <SelectItem value="revenue">Maior receita</SelectItem>
+            <SelectItem value="alpha">Alfabético</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
+
 
       {(loading || loadingClients) && rows.length === 0 ? (
         <div className="flex flex-col gap-2">
