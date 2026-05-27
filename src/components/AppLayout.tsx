@@ -11,6 +11,7 @@ import { NotificationsBell } from "@/components/NotificationsBell";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { CommandPalette } from "@/components/CommandPalette";
 import { TopProgressBar } from "@/components/TopProgressBar";
+import { cn } from "@/lib/utils";
 // SplashLoader é montado UMA vez em App.tsx (fora do AppLayout) pra cobrir
 // rotas públicas e o boot inteiro. Não duplicar aqui.
 import { AppFooter } from "@/components/AppFooter";
@@ -34,8 +35,8 @@ function getRouteTitle(pathname: string): string {
 }
 
 // Rotas que rodam em modo fullscreen — sem max-width do nx-page nem padding lateral.
-// O cockpit de playlist é a "sala de operação" e ocupa toda a área útil.
-const FULLSCREEN_ROUTES = [/^\/playlists\/[^/]+$/];
+// Cockpits operacionais ocupam toda a área útil e controlam o próprio scroll.
+const FULLSCREEN_ROUTES = [/^\/playlists\/[^/]+$/, /^\/campanhas\/[^/]+\/execucao$/];
 function isFullscreenRoute(pathname: string): boolean {
   return FULLSCREEN_ROUTES.some((rx) => rx.test(pathname));
 }
@@ -184,7 +185,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </header>
 
           {/* CONTEÚDO — só ele rola */}
-          <main className="relative flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain nx-scroll max-lg:pb-[calc(64px+env(safe-area-inset-bottom,0px))]">
+          <main className={cn(
+            "relative flex-1 min-h-0 overflow-x-hidden overscroll-contain nx-scroll",
+            fullscreen ? "overflow-hidden" : "overflow-y-auto max-lg:pb-[calc(64px+env(safe-area-inset-bottom,0px))]",
+          )}>
             {/* Gradiente sutil no topo: verde Spotify difuso → transparente */}
             <div
               aria-hidden
@@ -194,7 +198,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   "radial-gradient(ellipse 80% 60% at 50% 0%, hsl(141 76% 48% / 0.10) 0%, hsl(141 76% 48% / 0.04) 30%, transparent 70%)",
               }}
             />
-            <div className={fullscreen ? "relative z-10 w-full min-h-full" : "nx-page relative z-10 flex flex-col min-h-full"}>
+            <div className={fullscreen ? "relative z-10 w-full h-full min-h-0" : "nx-page relative z-10 flex flex-col min-h-full"}>
               {children}
               {!fullscreen && <div className="mt-auto"><AppFooter /></div>}
             </div>

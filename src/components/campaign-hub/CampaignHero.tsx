@@ -63,16 +63,9 @@ export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed 
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
   }
 
-  const bleed = mode === "internal";
   return (
     <div className={cn(
-      "sticky top-0 z-30",
-      // Encosta no topo do scroll container cancelando o padding do .nx-page
-      // (8px mobile / 24px md / 32px lg) — assim NÃO sobe ao rolar.
-      bleed && "-mt-2 md:-mt-6 lg:-mt-8 -mx-2 md:-mx-3 px-4 md:px-6",
-      // Fundo SÓLIDO (sem translucidez/blur) para o conteúdo de baixo não
-      // aparecer por trás dando sensação de movimento ao rolar.
-      "border-b border-border bg-background",
+      "sticky top-0 z-40 shrink-0 border-b border-border bg-background px-4 md:px-6",
     )}>
 
       <div className="py-3 md:py-4 flex flex-col md:flex-row md:items-center gap-3 md:gap-4">

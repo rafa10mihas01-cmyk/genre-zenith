@@ -58,7 +58,7 @@ export function CampaignHub({
   const activeTab = visible.some((t) => t.id === tab) ? tab : visible[0]?.id;
 
   return (
-    <div className="campaign-hub">
+    <div className="campaign-hub flex h-full min-h-0 flex-col overflow-hidden bg-background">
       <CampaignHero
         camp={camp}
         mode={mode}
@@ -72,16 +72,15 @@ export function CampaignHub({
       />
 
       {kpis && (
-        <div className="pt-4 pb-2">
+        <div className="shrink-0 px-4 pt-4 pb-2 md:px-6">
           {kpis}
         </div>
       )}
 
 
-      <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as CampaignHubTabId)}>
+      <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as CampaignHubTabId)} className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-contain nx-scroll">
         <div className={cn(
-          "sticky top-[88px] z-20",
-          mode === "internal" && "-mx-2 md:-mx-3 px-4 md:px-6",
+          "sticky top-0 z-30 shrink-0 px-4 md:px-6",
           "border-b border-border bg-background",
         )}>
 
@@ -109,14 +108,14 @@ export function CampaignHub({
         </div>
 
         {progressSection && (
-          <div className="pt-3">
+          <div className="px-4 pt-3 md:px-6">
             {progressSection}
           </div>
         )}
 
 
 
-        <div className="pt-6">
+        <div className="px-4 pt-6 pb-[calc(64px+env(safe-area-inset-bottom)+24px)] md:px-6 lg:pb-8">
           {visible.map((t) => (
             <TabsContent key={t.id} value={t.id} className="mt-0 scroll-mt-32">
               {t.content}
