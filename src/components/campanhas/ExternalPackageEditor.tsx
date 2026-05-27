@@ -67,6 +67,8 @@ export function ExternalPackageEditor({
   const [items, setItems] = useState<ItemRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
+  const [reopenOpen, setReopenOpen] = useState(false);
+  const [reopening, setReopening] = useState(false);
 
   const [candidates, setCandidates] = useState<CuratorCandidate[]>([]);
   const [addOpen, setAddOpen] = useState(false);
