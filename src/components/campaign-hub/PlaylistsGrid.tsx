@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight, Music, TrendingUp, TrendingDown, Minus, ExternalLink, Camera } from "lucide-react";
+import { ChevronDown, ChevronRight, Music, TrendingUp, TrendingDown, Minus, ExternalLink, Camera, Replace } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatInt } from "@/lib/campaignEngine";
 import type { EcoAllocation } from "./types";
+import { SwapPlaylistDialog } from "./SwapPlaylistDialog";
+
 
 type EcoSnap = {
   managed_playlist_id: string;
