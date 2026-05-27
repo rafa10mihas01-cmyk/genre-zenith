@@ -282,7 +282,10 @@ export function NotificationsBell() {
         </div>
 
 
-        <ScrollArea className="h-[440px]">
+        <div
+          className="overflow-y-auto overscroll-contain"
+          style={{ maxHeight: "min(440px, 60vh)", WebkitOverflowScrolling: "touch" }}
+        >
           {filtered.length === 0 ? (
             <div className="px-4 py-10 text-center">
               <Bell className="h-6 w-6 mx-auto text-muted-foreground/40 mb-2" />
@@ -359,7 +362,7 @@ export function NotificationsBell() {
               ))}
             </div>
           )}
-        </ScrollArea>
+        </div>
 
       </PopoverContent>
     </Popover>
