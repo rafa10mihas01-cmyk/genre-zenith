@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Bell, AlertTriangle, AlertCircle, Info, CheckCheck, BellRing, BellOff, Settings2 } from "lucide-react";
+import { Bell, AlertTriangle, Info, CheckCircle2, CheckCheck, BellRing, BellOff, Settings2, Trash2 } from "lucide-react";
 import { AlertPreferencesDialog } from "@/components/AlertPreferencesDialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,18 +18,25 @@ import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { enablePush, disablePush, pushEnabled, pushSupport } from "@/lib/browserPush";
 import { toast } from "sonner";
+import {
+  friendlyNotification,
+  notificationTone,
+  groupByBucket,
+  DATE_BUCKET_LABEL,
+  type FriendlyTone,
+} from "@/lib/notificationCopy";
 
 type Tab = "all" | "critical" | "bot" | "curator" | "system";
 
 const DOMAIN_LABEL: Record<string, string> = {
-  bot: "Robô",
-  ocr: "OCR",
+  bot: "Coleta",
+  ocr: "Imagens",
   queue: "Fila",
   curator: "Curadoria",
   system: "Sistema",
   financeiro: "Financeiro",
   security: "Segurança",
-  ai: "IA",
+  ai: "Análise",
   geral: "Geral",
 };
 
@@ -37,31 +44,38 @@ function getDomain(n: NotificationRow): NotificationDomain {
   return (n.metadata?.domain as NotificationDomain) ?? "geral";
 }
 
-function typeStyles(type: NotificationRow["type"]) {
-  if (type === "critical")
+function toneStyles(tone: FriendlyTone) {
+  if (tone === "critical")
     return {
-      icon: AlertCircle,
+      icon: Bell,
       bar: "bg-destructive",
       iconColor: "text-destructive",
       bg: "bg-destructive/5",
     };
-  if (type === "warning")
+  if (tone === "warning")
     return {
       icon: AlertTriangle,
       bar: "bg-amber-500",
       iconColor: "text-amber-500",
       bg: "bg-amber-500/5",
     };
+  if (tone === "success")
+    return {
+      icon: CheckCircle2,
+      bar: "bg-emerald-500",
+      iconColor: "text-emerald-500",
+      bg: "bg-emerald-500/5",
+    };
   return {
     icon: Info,
-    bar: "bg-primary",
-    iconColor: "text-primary",
-    bg: "bg-primary/5",
+    bar: "bg-sky-500",
+    iconColor: "text-sky-500",
+    bg: "bg-sky-500/5",
   };
 }
 
 export function NotificationsBell() {
-  const { items, unreadCount, markRead, markAllRead } = useNotifications();
+  const { items, unreadCount, markRead, markAllRead, clearRead } = useNotifications();
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("all");
   const [pushOn, setPushOn] = useState(false);
@@ -213,9 +227,22 @@ export function NotificationsBell() {
                   size="sm"
                   className="h-7 text-xs gap-1.5"
                   onClick={() => markAllRead()}
+                  title="Marcar todas como lidas"
                 >
                   <CheckCheck className="h-3.5 w-3.5" />
-                  Marcar todas
+                  <span className="hidden sm:inline">Marcar todas</span>
+                </Button>
+              )}
+              {items.some((i) => i.read) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs gap-1.5 text-muted-foreground"
+                  onClick={() => clearRead()}
+                  title="Remover notificações já lidas"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Limpar lidas</span>
                 </Button>
               )}
             </div>
@@ -223,11 +250,12 @@ export function NotificationsBell() {
           <div className="flex gap-1 overflow-x-auto -mx-1 px-1 scrollbar-none">
             <TabBtn id="all" label="Tudo" />
             <TabBtn id="critical" label="Críticos" count={critical} />
-            <TabBtn id="bot" label="Robô" />
+            <TabBtn id="bot" label="Coleta" />
             <TabBtn id="curator" label="Curadoria" />
             <TabBtn id="system" label="Sistema" />
           </div>
         </div>
+
 
         <ScrollArea className="h-[440px]">
           {filtered.length === 0 ? (
@@ -238,52 +266,76 @@ export function NotificationsBell() {
               </p>
             </div>
           ) : (
-            <ul className="divide-y divide-border">
-              {filtered.map((n) => {
-                const s = typeStyles(n.type);
-                const Icon = s.icon;
-                const domain = getDomain(n);
-                const occ = n.metadata?.occurrences ?? 1;
-                return (
-                  <li key={n.id}>
-                    <button
-                      onClick={() => handleClick(n)}
-                      className={cn(
-                        "w-full text-left flex gap-3 px-4 py-3 transition-colors",
-                        "hover:bg-elevated/60",
-                        !n.read && s.bg
-                      )}
-                    >
-                      <div className={cn("w-1 rounded-full self-stretch shrink-0", s.bar, n.read && "opacity-30")} />
-                      <Icon className={cn("h-4 w-4 mt-0.5 shrink-0", s.iconColor)} />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className={cn("text-sm leading-tight truncate", !n.read ? "font-semibold text-foreground" : "text-muted-foreground")}>
-                            {n.title}
-                          </p>
-                          {!n.read && <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />}
-                          {occ > 1 && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
-                              ×{occ}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.message}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70 font-medium">
-                            {DOMAIN_LABEL[domain] ?? domain}
-                          </span>
-                          <span className="text-muted-foreground/40">·</span>
-                          <span className="text-[11px] text-muted-foreground/70">{timeAgo(n.created_at)}</span>
-                        </div>
-                      </div>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+            <div className="pb-2">
+              {groupByBucket(filtered).map(({ bucket, items: bucketItems }) => (
+                <section key={bucket}>
+                  <div className="sticky top-0 z-10 bg-popover/95 backdrop-blur px-4 py-1.5 border-b border-border/50">
+                    <h4 className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/70">
+                      {DATE_BUCKET_LABEL[bucket]}
+                    </h4>
+                  </div>
+                  <ul className="divide-y divide-border">
+                    {bucketItems.map((n) => {
+                      const tone = notificationTone(n);
+                      const s = toneStyles(tone);
+                      const Icon = s.icon;
+                      const domain = getDomain(n);
+                      const occ = (n.metadata?.occurrences as number | undefined) ?? 1;
+                      const copy = friendlyNotification(n);
+                      return (
+                        <li key={n.id}>
+                          <button
+                            onClick={() => handleClick(n)}
+                            className={cn(
+                              "w-full text-left flex gap-3 px-4 py-3 transition-colors",
+                              "hover:bg-elevated/60",
+                              !n.read && s.bg
+                            )}
+                          >
+                            <div className={cn("w-1 rounded-full self-stretch shrink-0", s.bar, n.read && "opacity-30")} />
+                            <Icon className={cn("h-4 w-4 mt-0.5 shrink-0", s.iconColor)} />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className={cn("text-sm leading-tight truncate", !n.read ? "font-semibold text-foreground" : "text-muted-foreground")}>
+                                  {copy.title}
+                                </p>
+                                {!n.read && <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />}
+                              </div>
+                              {(copy.message ?? n.message) && (
+                                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                                  {copy.message ?? n.message}
+                                </p>
+                              )}
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70 font-medium">
+                                  {DOMAIN_LABEL[domain] ?? domain}
+                                </span>
+                                <span className="text-muted-foreground/40">·</span>
+                                <span className="text-[11px] text-muted-foreground/70">{timeAgo(n.created_at)}</span>
+                                {occ > 1 && (
+                                  <>
+                                    <span className="text-muted-foreground/40">·</span>
+                                    <span
+                                      className="text-[10px] text-muted-foreground/60 tabular-nums"
+                                      title={`Repetida ${occ} vezes`}
+                                    >
+                                      ×{occ}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              ))}
+            </div>
           )}
         </ScrollArea>
+
       </PopoverContent>
     </Popover>
     <AlertPreferencesDialog open={prefsOpen} onOpenChange={setPrefsOpen} />

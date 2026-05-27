@@ -167,5 +167,14 @@ export function useNotifications() {
     await qc.invalidateQueries({ queryKey: QUERY_KEY });
   }, [qc]);
 
-  return { items, loading: query.isLoading, unreadCount, markRead, markAllRead, refresh };
+  const clearRead = useCallback(async () => {
+    const previous = qc.getQueryData<NotificationRow[]>(QUERY_KEY) ?? [];
+    const readIds = previous.filter((i) => i.read).map((i) => i.id);
+    if (readIds.length === 0) return;
+    qc.setQueryData<NotificationRow[]>(QUERY_KEY, (prev) => (prev ?? []).filter((p) => !p.read));
+    const { error } = await supabase.from("notifications").delete().in("id", readIds);
+    if (error) qc.setQueryData(QUERY_KEY, previous);
+  }, [qc]);
+
+  return { items, loading: query.isLoading, unreadCount, markRead, markAllRead, clearRead, refresh };
 }
