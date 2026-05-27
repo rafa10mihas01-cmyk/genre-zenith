@@ -407,7 +407,7 @@ export function FinanceiroTab({ deals, hideHero = false }: Props) {
         <section className="rounded-2xl bg-card border border-border overflow-hidden">
           <header className="px-4 sm:px-5 py-4 border-b border-border">
             <h3 className="text-sm font-semibold text-foreground">Últimas compras</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Histórico imutável do ledger</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Histórico de compras do ledger</p>
           </header>
           {timeline.length === 0 ? (
             <div className="px-5 py-12 text-center text-sm text-muted-foreground">
