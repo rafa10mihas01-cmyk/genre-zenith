@@ -123,13 +123,14 @@ Deno.serve(async (req) => {
             }).then((r) => { if (r.ok) recalculated++; }).catch(() => {});
           }
 
-          // também dispara snapshot das FAIXAS da playlist (fire-and-forget).
+          // também dispara snapshot das FAIXAS da playlist via FILA (AUTO_SYNC).
           // Sem isso, tracks_count atualiza mas managed_playlist_tracks fica defasada.
-          fetch(`${SUPABASE_URL}/functions/v1/sync-managed-playlist-tracks`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
-            body: JSON.stringify({ playlist_id: p.id }),
-          }).catch(() => {});
+          // Dedupe automático: se já existe pending, é skippado.
+          await supabase.from("playlist_operation_queue").insert({
+            playlist_id: p.id,
+            operation_type: "AUTO_SYNC",
+            priority: 3,
+          }).then(() => {}, () => { /* dedupe ou erro transitório — best-effort */ });
         } catch (e) {
           failed++;
           errors.push(`${p.name}: ${(e as Error).message}`);
