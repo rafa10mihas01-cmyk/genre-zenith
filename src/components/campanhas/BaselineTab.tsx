@@ -57,83 +57,100 @@ export function BaselineTab({ dealId }: Props) {
     }
     (async () => {
       setLoading(true);
-      const [snapsRes, uploadRes] = await Promise.all([
-        supabase
-          .from("curator_deal_snapshots")
-          .select("playlist_id, plays, captured_at, curator_playlists(playlist_name, spotify_url, image_url, followers, spotify_owner_name, spotify_playlist_id, spotify_owner_id)")
-          .eq("deal_id", dealId)
-          .eq("is_baseline", true)
-          .order("plays", { ascending: false }),
-        supabase
-          .from("label_spreadsheet_uploads")
-          .select("id, file_name, file_path, created_at, rows_imported")
-          .eq("deal_id", dealId)
-          .eq("is_baseline", true)
-          .order("created_at", { ascending: true })
-          .limit(1)
-          .maybeSingle(),
-      ]);
 
-      const mapped: Row[] = ((snapsRes.data ?? []) as unknown as Array<{
-        playlist_id: string;
-        plays: number;
-        captured_at: string;
-        curator_playlists: {
-          playlist_name: string | null;
-          spotify_url: string | null;
-          image_url: string | null;
-          followers: number | null;
-          spotify_owner_name: string | null;
-          spotify_playlist_id: string | null;
-          spotify_owner_id: string | null;
-        } | null;
-      }>).map((r) => ({
-        playlist_id: r.playlist_id,
-        plays: Number(r.plays ?? 0),
-        captured_at: r.captured_at,
-        playlist_name: r.curator_playlists?.playlist_name ?? null,
-        spotify_url: r.curator_playlists?.spotify_url ?? null,
-        image_url: r.curator_playlists?.image_url ?? null,
-        followers: r.curator_playlists?.followers ?? null,
-        spotify_owner_name: r.curator_playlists?.spotify_owner_name ?? null,
-        spotify_playlist_id: r.curator_playlists?.spotify_playlist_id ?? null,
-        spotify_owner_id: r.curator_playlists?.spotify_owner_id ?? null,
-      }));
+      // 1) Pega o upload baseline mais antigo
+      const { data: uploadRow } = await supabase
+        .from("label_spreadsheet_uploads")
+        .select("id, file_name, file_path, created_at, rows_imported")
+        .eq("deal_id", dealId)
+        .eq("is_baseline", true)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
 
-      // 🏷️ Marca: (1) Engine = playlist está no nosso inventário interno
-      //          (2) Curador = owner é um curador cadastrado
-      const spIds = Array.from(new Set(mapped.map((r) => r.spotify_playlist_id).filter(Boolean) as string[]));
-      const ownerIds = Array.from(new Set(mapped.map((r) => r.spotify_owner_id).filter(Boolean) as string[]));
+      if (!uploadRow) {
+        setRows([]);
+        setUpload(null);
+        setCapturedAt(null);
+        setLoading(false);
+        return;
+      }
 
+      // 2) Lê as linhas brutas da planilha — fonte de verdade da baseline
+      const { data: rawRows } = await supabase
+        .from("label_spreadsheet_rows")
+        .select("id, playlist_name, playlist_url, playlist_spotify_id, owner_name, streams, matched_playlist_id, matched_curator_id, is_internal, position")
+        .eq("upload_id", uploadRow.id)
+        .order("streams", { ascending: false });
+
+      const raw = (rawRows ?? []) as Array<{
+        id: string;
+        playlist_name: string | null;
+        playlist_url: string | null;
+        playlist_spotify_id: string | null;
+        owner_name: string | null;
+        streams: number | null;
+        matched_playlist_id: string | null;
+        matched_curator_id: string | null;
+        is_internal: boolean | null;
+        position: number | null;
+      }>;
+
+      // 3) Enriquece capa/seguidores/owner_id pelas curator_playlists quando há match
+      const spIds = Array.from(new Set(raw.map((r) => r.playlist_spotify_id).filter(Boolean) as string[]));
+      const { data: cpData } = spIds.length
+        ? await supabase
+            .from("curator_playlists")
+            .select("spotify_playlist_id, image_url, followers, spotify_owner_id, spotify_owner_name, spotify_url")
+            .in("spotify_playlist_id", spIds)
+        : { data: [] as Array<any> };
+      const cpMap = new Map((cpData ?? []).map((p: any) => [p.spotify_playlist_id, p]));
+
+      // 4) Marca Engine (playlist própria) + Curador cadastrado
+      const ownerIds = Array.from(
+        new Set(
+          raw
+            .map((r) => cpMap.get(r.playlist_spotify_id ?? "")?.spotify_owner_id as string | undefined)
+            .filter(Boolean) as string[],
+        ),
+      );
       const [internalRes, curatorsRes] = await Promise.all([
         spIds.length
-          ? supabase
-              .from("playlists")
-              .select("spotify_playlist_id")
-              .eq("ownership", "own") // 🎯 Só marca Engine se for REALMENTE nossa
-              .in("spotify_playlist_id", spIds)
+          ? supabase.from("playlists").select("spotify_playlist_id").eq("ownership", "own").in("spotify_playlist_id", spIds)
           : Promise.resolve({ data: [] as Array<{ spotify_playlist_id: string }> }),
         ownerIds.length
           ? supabase.from("curators").select("spotify_owner_id, name").in("spotify_owner_id", ownerIds)
           : Promise.resolve({ data: [] as Array<{ spotify_owner_id: string; name: string }> }),
       ]);
-
-
       const internalSet = new Set((internalRes.data ?? []).map((p) => p.spotify_playlist_id));
       const curatorMap = new Map((curatorsRes.data ?? []).map((c) => [c.spotify_owner_id, c.name]));
 
-      const enriched = mapped.map((r) => ({
-        ...r,
-        isInternal: r.spotify_playlist_id ? internalSet.has(r.spotify_playlist_id) : false,
-        curatorName: r.spotify_owner_id ? curatorMap.get(r.spotify_owner_id) ?? null : null,
-      }));
+      const enriched: Row[] = raw.map((r) => {
+        const cp = r.playlist_spotify_id ? cpMap.get(r.playlist_spotify_id) : null;
+        const ownerId = cp?.spotify_owner_id ?? null;
+        return {
+          playlist_id: r.id,
+          plays: Number(r.streams ?? 0),
+          captured_at: uploadRow.created_at,
+          playlist_name: r.playlist_name,
+          spotify_url: r.playlist_url ?? cp?.spotify_url ?? null,
+          image_url: cp?.image_url ?? null,
+          followers: cp?.followers ?? null,
+          spotify_owner_name: r.owner_name ?? cp?.spotify_owner_name ?? null,
+          spotify_playlist_id: r.playlist_spotify_id,
+          spotify_owner_id: ownerId,
+          isInternal: r.playlist_spotify_id ? internalSet.has(r.playlist_spotify_id) : false,
+          curatorName: ownerId ? curatorMap.get(ownerId) ?? null : null,
+        };
+      });
 
       setRows(enriched);
-      setCapturedAt(enriched[0]?.captured_at ?? null);
-      setUpload((uploadRes.data as BaselineUpload | null) ?? null);
+      setCapturedAt(uploadRow.created_at);
+      setUpload(uploadRow as BaselineUpload);
       setLoading(false);
     })();
   }, [dealId]);
+
 
 
   async function handleDownload() {
