@@ -158,7 +158,6 @@ Deno.serve(async (req) => {
           ok: true,
           source: "cache",
           cache_snapshot_at: cache.snapshot_at,
-          retry_after: retryAfter,
           tracks: cache.tracks,
           total: cache.tracks.length,
         });
