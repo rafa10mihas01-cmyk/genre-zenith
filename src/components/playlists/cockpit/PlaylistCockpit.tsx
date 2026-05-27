@@ -804,6 +804,7 @@ export function PlaylistCockpit({
 
             {/* ============ IDENTIDADE ============ */}
             <TabsContent value="identidade" className="space-y-4 mt-0">
+              <OnboardingChecklist managedId={managedId} />
               <CoverCard
                 managedId={managedId}
                 currentCover={coverUrl}
