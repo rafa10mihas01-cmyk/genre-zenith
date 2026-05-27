@@ -6,7 +6,7 @@
 // Reordenar dispara job 'playlist.track.reorder' (executado server-side em
 // bot-execution-queue chamando Spotify reorderPlaylistTracks).
 // Adicionar/Remover dispara jobs 'playlist.track.add'/'remove' (executados pelo bot VPS).
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -186,6 +186,9 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
   const [addInput, setAddInput] = useState("");
   const [adding, setAdding] = useState(false);
 
+  // Trava cliques duplos sub-200ms — antes do estado React propagar pro disabled
+  const inFlight = useRef(false);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -287,6 +290,7 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
+    if (inFlight.current) return;
     const oldIndex = tracks.findIndex((t) => t.spotify_track_id === active.id);
     const newIndex = tracks.findIndex((t) => t.spotify_track_id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
@@ -299,6 +303,7 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
     const from = oldIndex + 1;
     const to = newIndex + 1;
     setBusyTrack(String(active.id));
+    inFlight.current = true;
     try {
       const { data, error } = await supabase.functions.invoke("enqueue-playlist-job", {
         body: {
@@ -320,10 +325,13 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
       toast({ title: "Não consegui reordenar", description: e.message, variant: "destructive" });
     } finally {
       setBusyTrack(null);
+      inFlight.current = false;
     }
   }
 
   async function handleRemove(spotify_track_id: string) {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setBusyTrack(spotify_track_id);
     try {
       const { data, error } = await supabase.functions.invoke("enqueue-playlist-job", {
@@ -336,6 +344,7 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
       toast({ title: "Erro ao remover", description: e.message, variant: "destructive" });
     } finally {
       setBusyTrack(null);
+      inFlight.current = false;
     }
   }
 
@@ -347,6 +356,8 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
 
   async function handleAddSubmit() {
     if (!addInput.trim()) return;
+    if (inFlight.current) return;
+    inFlight.current = true;
     setAdding(true);
     try {
       // 1) Enfileira add (bot adiciona no topo/fundo conforme implementação)
@@ -365,6 +376,7 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
       toast({ title: "Não consegui adicionar", description: e.message, variant: "destructive" });
     } finally {
       setAdding(false);
+      inFlight.current = false;
     }
   }
 
