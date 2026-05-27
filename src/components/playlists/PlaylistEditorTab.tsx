@@ -177,6 +177,8 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const [rateLimitUntil, setRateLimitUntil] = useState<number | null>(null); // epoch ms
+  const [nowTick, setNowTick] = useState<number>(() => Date.now());
   const [busyTrack, setBusyTrack] = useState<string | null>(null);
   const [meta, setMeta] = useState<PlaylistMeta>({ name: null, cover_url: null });
 
@@ -188,6 +190,17 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
 
   // Trava cliques duplos sub-200ms — antes do estado React propagar pro disabled
   const inFlight = useRef(false);
+
+  // Debounce de 2s no botão Atualizar pra não derrubar limites do Spotify
+  const lastRefreshAt = useRef<number>(0);
+  const REFRESH_COOLDOWN_MS = 2000;
+
+  // Tick por segundo enquanto houver countdown ativo
+  useEffect(() => {
+    if (!rateLimitUntil) return;
+    const id = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [rateLimitUntil]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -204,12 +217,15 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
       if (error) throw new Error(error.message);
       if (!data?.ok) {
         if (data?.code === "rate_limited") {
-          setErr("Spotify limitou as requisições. Tente novamente em alguns segundos.");
+          const retrySec = Number(data?.retry_after) || 15;
+          setRateLimitUntil(Date.now() + retrySec * 1000);
+          setErr(null);
           setTracks([]);
           return;
         }
         throw new Error(data?.error ?? "Falhou");
       }
+      setRateLimitUntil(null);
       setTracks(data.tracks ?? []);
     } catch (e: any) {
       setErr(e.message);
@@ -217,6 +233,7 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
       setLoading(false);
     }
   }
+
 
   async function loadJobs() {
     const { data } = await supabase
