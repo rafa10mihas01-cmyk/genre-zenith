@@ -25,6 +25,13 @@ import {
   reorderPlaylistTracks,
   type PlaylistTrackRef,
 } from "../_shared/spotify-playlist.ts";
+import {
+  acquirePlaylistLock,
+  finishPlaylistOperation,
+  releasePlaylistLock,
+  lockedResponseBody,
+} from "../_shared/playlist-lock.ts";
+
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
