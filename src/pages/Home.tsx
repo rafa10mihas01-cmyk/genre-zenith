@@ -49,29 +49,24 @@ export default function Home() {
   return (
     <>
       <PageHeader title="Hoje" subtitle="Cockpit" manualKey="cockpit" />
-      <PageContainer>
+      <PageContainer className="space-y-4 lg:space-y-6">
         {/* 1 — AÇÃO AGORA (hero) */}
         <ActionNowHero />
 
-        {/* 2 — CURADORIA */}
-        <section className="space-y-3">
-          <h2 className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold px-1">
-            Curadoria
-          </h2>
-          <CuradoriaBlock />
-        </section>
+        {/* 2 — CURADORIA — bloco já traz seu próprio título internamente */}
+        <CuradoriaBlock />
 
-        {/* 3 — CATÁLOGO */}
+        {/* 3 — CATÁLOGO — label de seção só no desktop; mobile usa o kicker do próprio card */}
         <section className="space-y-3">
-          <h2 className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold px-1">
+          <h2 className="hidden lg:block text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold px-1">
             Catálogo
           </h2>
           <CatalogHealthCard />
         </section>
 
-        {/* 4 — ALERTAS */}
+        {/* 4 — ALERTAS — idem catálogo */}
         <section className="space-y-3">
-          <h2 className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold px-1">
+          <h2 className="hidden lg:block text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold px-1">
             Alertas
           </h2>
           <AlertsBlock />
