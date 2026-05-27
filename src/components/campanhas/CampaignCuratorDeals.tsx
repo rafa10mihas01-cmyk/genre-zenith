@@ -97,56 +97,96 @@ export function CampaignCuratorDeals({ campaignId }: Props) {
 
   return (
     <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-medium">
+          Externos
+        </span>
+        <span className="text-[10px] text-muted-foreground/60 tabular-nums">({deals.length})</span>
+        <div className="flex-1 h-px bg-border/40" />
+      </div>
+
       {deals.map((d) => {
         const pct = d.target_plays > 0 ? Math.min(100, (d.reconciled_total_plays / d.target_plays) * 100) : 0;
         const tone = toneFor(pct);
         const history = historyByDeal.get(d.id) ?? [];
         const nonBaseline = history.filter((h) => !h.is_baseline);
+        const sparkValues = nonBaseline.slice(-7).map((h) => h.total_plays);
+        const initial = (d.curator_name?.trim()?.[0] ?? "C").toUpperCase();
+
         return (
-          <Card key={d.id} className="overflow-hidden">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Users className="h-4 w-4 text-curators" />
-                    <span className="truncate">Curador externo · {d.curator_name}</span>
-                  </CardTitle>
-                  <p className="text-[11px] text-muted-foreground mt-1 truncate">
-                    {d.song_name}
-                  </p>
+          <Card
+            key={d.id}
+            className="overflow-hidden transition-colors hover:border-foreground/20"
+          >
+            <CardContent className="p-4 space-y-3">
+              {/* Header em uma linha — avatar + nome + chip da música + status */}
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-md bg-curators/15 border border-curators/25 flex items-center justify-center text-[11px] font-bold text-curators shrink-0">
+                  {initial}
                 </div>
-                <div className={cn("text-xs px-2 py-1 rounded-md border tabular-nums", tone.bg, tone.text)}>
+                <div className="min-w-0 flex-1 flex items-center gap-2 flex-wrap">
+                  <span className="text-[13px] font-semibold text-foreground truncate">
+                    {d.curator_name}
+                  </span>
+                  <span className="text-muted-foreground/40 text-xs shrink-0">·</span>
+                  <span className="px-1.5 py-0.5 rounded-md bg-elevated border border-border/60 text-[10.5px] text-muted-foreground truncate max-w-[180px]">
+                    {d.song_name}
+                  </span>
+                </div>
+                <div className={cn(
+                  "shrink-0 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10.5px] font-medium tabular-nums",
+                  pct >= 80
+                    ? "border-success/30 text-success bg-success/5"
+                    : pct >= 40
+                    ? "border-warning/30 text-warning bg-warning/5"
+                    : "border-destructive/30 text-destructive bg-destructive/5",
+                )}>
+                  <span className={cn("h-1.5 w-1.5 rounded-full", tone.bar)} />
                   {Math.round(pct)}% · {tone.label}
                 </div>
               </div>
-            </CardHeader>
-            <CardContent className="space-y-4 pt-0">
-              {/* Progresso */}
-              <div className="space-y-1.5">
-                <div className="flex items-baseline justify-between gap-3 text-xs tabular-nums">
-                  <span className={cn("font-semibold text-base", tone.text)}>{formatInt(d.reconciled_total_plays)}</span>
-                  <span className="text-muted-foreground">de {formatInt(d.target_plays)} plays</span>
+
+              {/* Progresso — número grande + sparkline */}
+              <div className="flex items-end gap-4">
+                <div className="flex-1 min-w-0 space-y-1.5">
+                  <div className="flex items-baseline justify-between gap-3 tabular-nums">
+                    <span className={cn("text-[22px] font-semibold leading-none", tone.text)}>
+                      {formatInt(d.reconciled_total_plays)}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">
+                      / {formatInt(d.target_plays)} plays
+                    </span>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-foreground/5 overflow-hidden">
+                    <div
+                      className={cn("h-full transition-[width] duration-500", tone.bar)}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="h-2 w-full rounded-full bg-muted/40 overflow-hidden">
-                  <div className={cn("h-full transition-all", tone.bar)} style={{ width: `${pct}%` }} />
-                </div>
-                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                  <Clock className="h-3 w-3" />
-                  Último update: {timeAgo(d.last_reconciled_at)}
-                </div>
+                {sparkValues.length >= 2 && (
+                  <Sparkline values={sparkValues} colorClass={tone.text} />
+                )}
               </div>
 
-              {/* Histórico */}
-              {nonBaseline.length === 0 ? (
-                <div className="rounded-md border border-dashed border-border bg-elevated/20 px-3 py-4 text-center text-xs text-muted-foreground">
-                  Aguardando primeira entrega do curador
-                </div>
-              ) : (
-                <div className="rounded-md border border-border overflow-hidden">
-                  <div className="bg-elevated/30 px-3 py-1.5 text-[10px] uppercase tracking-wider text-muted-foreground border-b border-border">
+              {/* Linha sutil — último update + estado vazio */}
+              <div className="flex items-center justify-between gap-3 text-[10.5px] text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5">
+                  <Clock className="h-3 w-3" />
+                  Último update: {timeAgo(d.last_reconciled_at)}
+                </span>
+                {nonBaseline.length === 0 && (
+                  <span className="text-muted-foreground/70 italic">Aguardando primeira entrega</span>
+                )}
+              </div>
+
+              {/* Histórico (só quando existe) */}
+              {nonBaseline.length > 0 && (
+                <div className="rounded-md border border-border/60 overflow-hidden">
+                  <div className="bg-elevated/30 px-3 py-1.5 text-[10px] uppercase tracking-wider text-muted-foreground border-b border-border/60">
                     Histórico de capturas ({nonBaseline.length})
                   </div>
-                  <div className="max-h-64 overflow-auto divide-y divide-border/60">
+                  <div className="max-h-64 overflow-auto divide-y divide-border/40">
                     {nonBaseline.map((h, i) => {
                       const prev = nonBaseline[i - 1];
                       const delta = prev ? h.total_plays - prev.total_plays : h.total_plays;
@@ -200,5 +240,20 @@ export function CampaignCuratorDeals({ campaignId }: Props) {
         );
       })}
     </div>
+  );
+}
+
+function Sparkline({ values, colorClass }: { values: number[]; colorClass: string }) {
+  const w = 72, h = 28, pad = 2;
+  const max = Math.max(...values, 1);
+  const min = Math.min(...values, 0);
+  const range = Math.max(1, max - min);
+  const xs = (i: number) => pad + (i / Math.max(values.length - 1, 1)) * (w - pad * 2);
+  const ys = (v: number) => h - pad - ((v - min) / range) * (h - pad * 2);
+  const d = values.map((v, i) => `${i === 0 ? "M" : "L"} ${xs(i)} ${ys(v)}`).join(" ");
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className={cn("h-7 w-[72px] shrink-0", colorClass)} preserveAspectRatio="none">
+      <path d={d} fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" opacity={0.9} />
+    </svg>
   );
 }
