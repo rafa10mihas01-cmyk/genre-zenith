@@ -599,8 +599,6 @@ export function PlaylistCockpit({
         </div>
       </header>
 
-      <OnboardingChecklist managedId={managedId} />
-
       {loading ? (
         <Card className="p-10 grid place-items-center">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -613,8 +611,7 @@ export function PlaylistCockpit({
         </Card>
       ) : (
         <>
-          {/* ============ CICLO CURATORIAL — banner editorial ============ */}
-          <EditorialBanner diag={diag} onRediagnose={runDiagnose} running={running} />
+
 
 
 
@@ -648,6 +645,7 @@ export function PlaylistCockpit({
 
             {/* ============ PLANO DE AÇÃO ============ */}
             <TabsContent value="plano" className="space-y-4 mt-0">
+              <EditorialBanner diag={diag} onRediagnose={runDiagnose} running={running} />
               {(() => {
                 const mode = diag.raw?.recommendation_mode ?? "light";
                 const total = buckets.remove.length + buckets.demote.length + buckets.promote.length + buckets.add.length;
@@ -807,6 +805,7 @@ export function PlaylistCockpit({
 
             {/* ============ IDENTIDADE ============ */}
             <TabsContent value="identidade" className="space-y-4 mt-0">
+              <OnboardingChecklist managedId={managedId} />
               <CoverCard
                 managedId={managedId}
                 currentCover={coverUrl}
