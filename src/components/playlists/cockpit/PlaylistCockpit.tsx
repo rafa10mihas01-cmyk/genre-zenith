@@ -592,19 +592,17 @@ export function PlaylistCockpit({
             tone={brainScore == null ? "default" : brainScore >= 75 ? "success" : brainScore >= 50 ? "primary" : "default"}
             hint={brainScore == null ? "sem análise" : "saúde editorial 0–100"}
           />
-          {!scrolled && (
-            <KpiBig
-              label="Saúde"
-              value={health.label}
-              icon={health.Icon}
-              tier="quiet"
-              tone={
-                (diag?.raw?.health_status ?? "saudavel") === "aquecido" ? "primary"
-                : (diag?.raw?.health_status ?? "saudavel") === "frio" ? "destructive"
-                : "default"
-              }
-            />
-          )}
+          <KpiBig
+            label="Saúde"
+            value={health.label}
+            icon={health.Icon}
+            tier="quiet"
+            tone={
+              (diag?.raw?.health_status ?? "saudavel") === "aquecido" ? "primary"
+              : (diag?.raw?.health_status ?? "saudavel") === "frio" ? "destructive"
+              : "default"
+            }
+          />
         </div>
       </header>
 
