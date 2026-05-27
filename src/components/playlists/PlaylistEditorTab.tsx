@@ -6,7 +6,7 @@
 // Reordenar dispara job 'playlist.track.reorder' (executado server-side em
 // bot-execution-queue chamando Spotify reorderPlaylistTracks).
 // Adicionar/Remover dispara jobs 'playlist.track.add'/'remove' (executados pelo bot VPS).
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
