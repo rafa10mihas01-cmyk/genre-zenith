@@ -588,7 +588,8 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     }
   }
 
-  const missingGenreCount = items.filter(i => !i.archived_at && !i.genre_id).length;
+  // Conta sempre o catálogo inteiro (countsQuery), não apenas a página carregada.
+  const missingGenreCount = countRows.filter((r) => !r.archived_at && !r.genre_id).length;
 
   const visible = items
     .filter((p) => (showArchived ? !!p.archived_at : !p.archived_at))
