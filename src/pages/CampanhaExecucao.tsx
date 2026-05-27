@@ -604,12 +604,14 @@ export default function CampanhaExecucao() {
                 canManageSplit={true}
                 onLockSplit={handleLockSplit}
                 onUnlockSplit={handleUnlockSplit}
-              />
-              <CampaignMonitoring
-                campaignId={camp.id}
-                snapshot={snapshot}
-                campaignStartedAt={camp.started_at}
-                campaignStatus={camp.status}
+                curveSlot={
+                  <CampaignMonitoring
+                    campaignId={camp.id}
+                    snapshot={snapshot}
+                    campaignStartedAt={camp.started_at}
+                    campaignStatus={camp.status}
+                  />
+                }
               />
             </div>
           ),

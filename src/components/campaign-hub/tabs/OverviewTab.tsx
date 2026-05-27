@@ -37,6 +37,9 @@ type Props = {
   snapshots?: EcoSnap[];
   proofs?: ProofPreview[];
   onJumpTab?: (tab: "playlists" | "proofs" | "curve" | "finance") => void;
+  // Slot opcional que substitui o card "Curva de entrega" dentro do grid principal.
+  // Usado pra subir o monitoramento ao lugar da curva planejada.
+  curveSlot?: React.ReactNode;
   // Rebalanceamento eco/ext em runtime
   splitLockedAt?: string | null;
   lockedEcoStreams?: number | null;
@@ -49,9 +52,12 @@ type Props = {
 export function OverviewTab({
   snapshot, delivered, daysElapsed, showFinance, hideDeliveryPlan = false, hideCurveShortcut = false, hideCurveCard = false, hideKpis = false,
   allocations = [], snapshots = [], proofs = [], onJumpTab,
+  curveSlot,
   splitLockedAt = null, lockedEcoStreams = null, ecoMaxPct = 70,
   canManageSplit = false, onLockSplit, onUnlockSplit,
 }: Props) {
+  // Slot externo (ex: monitoramento) tem precedência sobre o card padrão de curva.
+  const showCurveCard = !hideCurveCard && !curveSlot;
   const [planOpen, setPlanOpen] = useState(false);
   const [savingLock, setSavingLock] = useState(false);
   const pct = snapshot.meta > 0 ? Math.min(100, Math.round((delivered / snapshot.meta) * 100)) : 0;
@@ -305,9 +311,11 @@ export function OverviewTab({
 
 
 
-      {/* Grid principal: Curva + Top playlists */}
-      <div className={cn("grid grid-cols-1 gap-4", hideCurveCard ? "" : "lg:grid-cols-3")}>
-        {!hideCurveCard && (
+      {/* Grid principal: Curva (ou slot) + Top playlists */}
+      <div className={cn("grid grid-cols-1 gap-4", (showCurveCard || curveSlot) ? "lg:grid-cols-3" : "")}>
+        {curveSlot ? (
+          <div className="lg:col-span-2">{curveSlot}</div>
+        ) : showCurveCard ? (
         <Card className="lg:col-span-2">
           <CardContent className="p-5">
             <div className="flex items-center justify-between mb-3">
@@ -329,7 +337,7 @@ export function OverviewTab({
             )}
           </CardContent>
         </Card>
-        )}
+        ) : null}
 
         <Card>
           <CardContent className="p-5">
