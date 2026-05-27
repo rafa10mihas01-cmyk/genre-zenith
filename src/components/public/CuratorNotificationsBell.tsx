@@ -185,6 +185,26 @@ export function CuratorNotificationsBell({
 }) {
   const [open, setOpen] = useState(false);
   const [remote, setRemote] = useState<RemoteNotif[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  const mapRow = useCallback((r: RemoteRow): RemoteNotif => {
+    const meta = (r.metadata ?? {}) as { category?: string; deal_id?: string };
+    const severity = mapRemoteSeverity(r.type);
+    const isNewDeal = meta.category === "new_deal";
+    return {
+      source: "remote",
+      id: r.id,
+      severity,
+      icon: iconForCategory(meta.category, severity),
+      title: isNewDeal ? "Novo deal criado" : r.title,
+      description: r.message,
+      createdAt: r.created_at,
+      read: r.read,
+      actionUrl: r.action_url ?? (isNewDeal && meta.deal_id ? `/c/${meta.deal_id}` : null),
+      category: meta.category ?? null,
+      dealId: meta.deal_id ?? null,
+    };
+  }, []);
 
   const fetchRemote = useCallback(async () => {
     if (!publicToken) return;
@@ -193,38 +213,50 @@ export function CuratorNotificationsBell({
         body: { action: "list", public_token: publicToken, limit: 20 },
       });
       if (error) return;
-      const res = data as { ok: boolean; notifications?: RemoteRow[] };
+      const res = data as { ok: boolean; user_id?: string; notifications?: RemoteRow[] };
       if (!res?.ok || !Array.isArray(res.notifications)) return;
-      const mapped: RemoteNotif[] = res.notifications.map((r) => {
-        const meta = (r.metadata ?? {}) as { category?: string; deal_id?: string };
-        const severity = mapRemoteSeverity(r.type);
-        const isNewDeal = meta.category === "new_deal";
-        return {
-          source: "remote",
-          id: r.id,
-          severity,
-          icon: iconForCategory(meta.category, severity),
-          title: isNewDeal ? "Novo deal criado" : r.title,
-          description: r.message,
-          createdAt: r.created_at,
-          read: r.read,
-          actionUrl: r.action_url ?? (isNewDeal && meta.deal_id ? `/c/${meta.deal_id}` : null),
-          category: meta.category ?? null,
-          dealId: meta.deal_id ?? null,
-        };
-      });
-      setRemote(mapped);
+      if (res.user_id) setUserId(res.user_id);
+      setRemote(res.notifications.map(mapRow));
     } catch {
       /* portal silencioso — falha de notificação não bloqueia UX */
     }
-  }, [publicToken]);
+  }, [publicToken, mapRow]);
 
+  // Carga inicial
   useEffect(() => {
     fetchRemote();
-    if (!publicToken) return;
-    const t = setInterval(fetchRemote, 60_000);
-    return () => clearInterval(t);
-  }, [fetchRemote, publicToken]);
+  }, [fetchRemote]);
+
+  // Realtime: substitui polling de 60s por canal postgres_changes filtrado
+  // pelo user_id do curador. INSERT vira nova notificação, UPDATE atualiza
+  // o flag `read` quando outro device marcar como lida.
+  useEffect(() => {
+    if (!userId) return;
+    const channel = supabase
+      .channel(`curator-notif-${userId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
+        (payload) => {
+          const row = payload.new as RemoteRow;
+          setRemote((prev) =>
+            prev.some((n) => n.id === row.id) ? prev : [mapRow(row), ...prev].slice(0, 20),
+          );
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
+        (payload) => {
+          const row = payload.new as RemoteRow;
+          setRemote((prev) => prev.map((n) => (n.id === row.id ? { ...n, read: row.read } : n)));
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId, mapRow]);
 
   const markRead = useCallback(
     async (id: string) => {
