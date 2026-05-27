@@ -72,47 +72,37 @@ Deno.serve(async (req) => {
       if (seen.size <= 1) break;
     }
 
-    const results: Array<{ id: string; ok: boolean; error?: string }> = [];
+    // Em vez de chamar diagnose-managed-playlist diretamente em loop sequencial,
+    // enfileira jobs DIAGNOSE_ENGINE (priority 1). O playlist-queue-processor
+    // executa em paralelo controlado (um por playlist), com retry/backoff.
+    const results: Array<{ id: string; ok: boolean; skipped?: boolean; error?: string }> = [];
     for (const r of rows) {
-      try {
-        const resp = await fetch(`${SUPABASE_URL}/functions/v1/diagnose-managed-playlist`, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${SERVICE_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ playlist_id: r.id, skip_ai: true, source: "batch" }),
-        });
-        const json = await resp.json().catch(() => ({}));
-        results.push({ id: r.id, ok: resp.ok && json?.ok !== false, error: resp.ok ? undefined : (json?.error ?? `http_${resp.status}`) });
-      } catch (e) {
-        results.push({ id: r.id, ok: false, error: (e as Error).message });
+      const enq = await enqueuePlaylistJob(supabase, {
+        playlist_id: r.id,
+        operation_type: "DIAGNOSE_ENGINE",
+        payload: { skip_ai: true, source: "batch" },
+      });
+      if (enq.ok && (enq as any).skipped) {
+        results.push({ id: r.id, ok: true, skipped: true });
+      } else if (enq.ok) {
+        results.push({ id: r.id, ok: true });
+      } else {
+        results.push({ id: r.id, ok: false, error: enq.error });
       }
     }
 
     const ok = results.filter((r) => r.ok).length;
     const failed = results.length - ok;
-
-    // Recalcula o cérebro depois pra refletir o novo last_diagnosis_at
-    try {
-      await fetch(`${SUPABASE_URL}/functions/v1/playlist-brain-calc`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${SERVICE_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ batch: true, limit: 500 }),
-      });
-    } catch (_) { /* ignore */ }
+    const skipped = results.filter((r) => r.skipped).length;
 
     await reportCronHealth(supabase, {
       job_name: "diagnose-managed-playlists-batch",
       status: failed > 0 ? "partial" : "ok",
       startedAt,
-      metrics: { processed: results.length, ok_count: ok, failed },
+      metrics: { enqueued: ok - skipped, skipped_dupe: skipped, failed },
     });
 
-    return jr({ ok: true, processed: results.length, ok_count: ok, failed, results });
+    return jr({ ok: true, enqueued: ok - skipped, skipped_dupe: skipped, failed, results });
   } catch (e) {
     await reportCronHealth(supabase, {
       job_name: "diagnose-managed-playlists-batch",
