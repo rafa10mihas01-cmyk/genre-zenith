@@ -181,6 +181,8 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
   const [nowTick, setNowTick] = useState<number>(() => Date.now());
   const [busyTrack, setBusyTrack] = useState<string | null>(null);
   const [meta, setMeta] = useState<PlaylistMeta>({ name: null, cover_url: null });
+  const [source, setSource] = useState<"spotify" | "cache" | null>(null);
+  const [cacheSnapshotAt, setCacheSnapshotAt] = useState<string | null>(null);
 
   // Dialog "Adicionar na posição X"
   const [addOpen, setAddOpen] = useState(false);
@@ -249,7 +251,10 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
         }
         throw new Error(data?.error ?? "Falhou");
       }
-      setRateLimitUntil(null);
+      const isCache = data.source === "cache";
+      setRateLimitUntil(isCache && data.retry_after ? Date.now() + Number(data.retry_after) * 1000 : null);
+      setSource(isCache ? "cache" : "spotify");
+      setCacheSnapshotAt(isCache ? (data.cache_snapshot_at ?? null) : null);
       setTracks(data.tracks ?? []);
     } catch (e: any) {
       setErr(e.message);
@@ -476,6 +481,15 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
             <Clock className="h-4 w-4 mt-0.5 shrink-0" />
             <span>
               Aguardando liberação do Spotify — tentando novamente em <span className="tabular-nums font-semibold">{rateLimitSecLeft}s</span>
+            </span>
+          </div>
+        )}
+
+        {source === "cache" && (
+          <div className="flex items-start gap-2 text-sm p-3 rounded-md border border-warning/40 bg-warning/5 text-warning">
+            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>
+              Mostrando faixas salvas{cacheSnapshotAt ? ` (snapshot de ${new Date(cacheSnapshotAt).toLocaleString("pt-BR")})` : ""} — Spotify temporariamente indisponível.
             </span>
           </div>
         )}
