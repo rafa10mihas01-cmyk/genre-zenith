@@ -59,8 +59,13 @@ async function syncOne(sb: any, token: string, pl: { id: string; spotify_playlis
         if (error) throw new Error(`insert: ${error.message}`);
       }
     }
+    const tracksHash = await computeTracksHash(rows.map((r) => r.spotify_track_id as string));
     await sb.from("managed_playlists")
-      .update({ tracks_count: rows.length, last_metrics_at: new Date().toISOString() })
+      .update({
+        tracks_count: rows.length,
+        tracks_hash: tracksHash,
+        last_metrics_at: new Date().toISOString(),
+      })
       .eq("id", pl.id);
 
     await finishPlaylistOperation(sb, lock, {
