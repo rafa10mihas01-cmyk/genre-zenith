@@ -1514,10 +1514,11 @@ function MarketBlock({
               <span className="text-xs text-muted-foreground ml-1 font-normal">faixas</span>
             </div>
             <div className="text-[11px] text-muted-foreground">
-              Saturação média do nicho: <strong className="text-foreground">{market.avg_saturation_pct ?? "—"}%</strong>
+              Saturação do nicho: <strong className="text-foreground">{market.avg_saturation_pct ?? "—"}%</strong>
+              <span className="block text-[10px] text-muted-foreground/80">quanto o nicho repete as mesmas faixas</span>
             </div>
             <div className="text-[11px] text-muted-foreground">
-              Baseado em <strong className="text-foreground">{sampleSize}</strong> playlists varridas
+              Baseado em <strong className="text-foreground">{sampleSize}</strong> playlists analisadas
             </div>
           </>
         ) : (
@@ -1527,7 +1528,7 @@ function MarketBlock({
             </div>
             <div className="text-[11px] text-muted-foreground">
               {sampleSize > 0
-                ? `${sampleSize} playlists varridas · próximo recálculo automático às 03:00`
+                ? `${sampleSize} playlists analisadas · próximo recálculo automático às 03:00`
                 : "Cron diário roda às 03:00 — inclua concorrentes monitorados neste nicho"}
             </div>
           </div>
