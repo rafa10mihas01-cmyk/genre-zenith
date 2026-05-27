@@ -62,7 +62,7 @@ async function syncManagedSnapshot(playlistId: string) {
       Authorization: `Bearer ${SERVICE_KEY}`,
       apikey: SERVICE_KEY,
     },
-    body: JSON.stringify({ playlist_id: playlistId }),
+    body: JSON.stringify({ playlist_id: playlistId, skip_lock: true }),
   });
   const txt = await r.text();
   let body: any = null;
