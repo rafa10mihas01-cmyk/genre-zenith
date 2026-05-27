@@ -55,11 +55,23 @@ type ManagedPlaylist = {
   max_change_pct?: number | null;
   recommended_change_count?: number | null;
   lifecycle_stage?: "onboarding" | "testing" | "mature" | null;
+  lifecycle_phase?: string | null;
   suggested_genre_id?: string | null;
   suggestion_confidence?: number | null;
   suggestion_reason?: string | null;
   suggested_at?: string | null;
 };
+
+// Slim row usado nas queries de contagem (catálogo inteiro) — sem payload pesado.
+type CountRow = {
+  id: string;
+  followers: number | null;
+  genre_id: string | null;
+  archived_at: string | null;
+  lifecycle_phase: string | null;
+};
+
+const PAGE_SIZE = 50;
 
 type SpotifyAccountLite = { id: string; spotify_user_id: string | null; display_name: string | null; email: string | null; is_default: boolean | null };
 
@@ -147,29 +159,58 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   };
   const setSortBy = (v: "recent" | "valuation") => updateParam("sort", v);
 
-  // items via React Query — cache global (staleTime 60s), navegação não refetcha.
+  // Paginação server-side: começa com 50, "Carregar mais" cresce em +50.
+  // Mantém uma fonte só (sem useInfiniteQuery) — queryKey muda quando
+  // loadedCount cresce, e os updates locais (setItems) seguem o key atual.
+  const [loadedCount, setLoadedCount] = useState(PAGE_SIZE);
+
   const itemsQuery = useQuery({
-    queryKey: ["managed-playlists"],
+    queryKey: ["managed-playlists", loadedCount],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("managed_playlists")
         .select("*")
-        .order("imported_at", { ascending: false });
+        .order("imported_at", { ascending: false })
+        .range(0, loadedCount - 1);
       if (error) throw error;
       return (data ?? []) as ManagedPlaylist[];
     },
+    placeholderData: (prev) => prev, // evita flash de skeleton ao paginar
   });
   const items = itemsQuery.data ?? [];
   const loading = itemsQuery.isPending;
   const setItems = useCallback(
     (updater: ManagedPlaylist[] | ((prev: ManagedPlaylist[]) => ManagedPlaylist[])) => {
-      queryClient.setQueryData<ManagedPlaylist[]>(["managed-playlists"], (prev) => {
+      queryClient.setQueryData<ManagedPlaylist[]>(["managed-playlists", loadedCount], (prev) => {
         const base = prev ?? [];
         return typeof updater === "function" ? (updater as (p: ManagedPlaylist[]) => ManagedPlaylist[])(base) : updater;
       });
     },
-    [queryClient],
+    [queryClient, loadedCount],
   );
+
+  // Contagens reais do catálogo inteiro (4 colunas, payload mínimo).
+  // Alimenta chips "Ativas/Lixeira", banner de sem-gênero, contadores de aba
+  // e o total no "Carregar mais (X de Y)".
+  const countsQuery = useQuery({
+    queryKey: ["managed-playlists-counts"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("managed_playlists")
+        .select("id, followers, genre_id, archived_at, lifecycle_phase")
+        .limit(5000);
+      if (error) throw error;
+      return (data ?? []) as CountRow[];
+    },
+    staleTime: 60_000,
+  });
+  const countRows = countsQuery.data ?? [];
+  const totalActiveCount = countRows.filter((r) => !r.archived_at).length;
+  const totalArchivedCount = countRows.filter((r) => r.archived_at).length;
+  const totalLoadedTarget = showArchived ? totalArchivedCount : totalActiveCount;
+  const canLoadMore = items.length < loadedCount
+    ? false // ainda chegando do servidor
+    : items.length < totalLoadedTarget;
 
   const [scores, setScores] = useState<Record<string, PlaylistScoreRow>>({});
   const [valuations, setValuations] = useState<Record<string, Valuation>>({});
@@ -547,7 +588,8 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     }
   }
 
-  const missingGenreCount = items.filter(i => !i.archived_at && !i.genre_id).length;
+  // Conta sempre o catálogo inteiro (countsQuery), não apenas a página carregada.
+  const missingGenreCount = countRows.filter((r) => !r.archived_at && !r.genre_id).length;
 
   const visible = items
     .filter((p) => (showArchived ? !!p.archived_at : !p.archived_at))
@@ -1047,7 +1089,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                 ? "bg-primary/15 border-primary/40 text-primary"
                 : "bg-elevated border-border text-muted-foreground hover:text-foreground",
             )}
-          >Ativas ({items.filter(i => !i.archived_at).length})</Link>
+          >Ativas ({totalActiveCount})</Link>
           <Link
             to="/catalogo?arquivadas=1"
             replace
@@ -1057,7 +1099,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                 ? "bg-primary/15 border-primary/40 text-primary"
                 : "bg-elevated border-border text-muted-foreground hover:text-foreground",
             )}
-          >Lixeira ({items.filter(i => i.archived_at).length})</Link>
+          >Lixeira ({totalArchivedCount})</Link>
           <Link
             to="/catalogo?aba=capacidade"
             replace
@@ -1338,6 +1380,35 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
               </div>
             </Link>
           ))}
+        </div>
+      )}
+
+      {/* Rodapé: Carregar mais — só aparece fora da matriz de capacidade e quando há mais no servidor */}
+      {!showCapacity && !loading && items.length > 0 && (
+        <div className="flex flex-col items-center gap-2 pt-2">
+          <p className="text-[11px] text-muted-foreground tabular-nums">
+            Exibindo <span className="font-semibold text-foreground">{items.length}</span> de{" "}
+            <span className="font-semibold text-foreground">{totalLoadedTarget}</span>{" "}
+            {showArchived ? "arquivadas" : "ativas"}
+          </p>
+          {canLoadMore && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setLoadedCount((n) => n + PAGE_SIZE)}
+              disabled={itemsQuery.isFetching}
+              className="gap-2 h-9"
+            >
+              {itemsQuery.isFetching ? (
+                <>
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                  Carregando…
+                </>
+              ) : (
+                <>Carregar mais {PAGE_SIZE}</>
+              )}
+            </Button>
+          )}
         </div>
       )}
 
