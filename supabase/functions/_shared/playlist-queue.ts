@@ -17,7 +17,8 @@ export type QueueOperation =
   | "MANUAL_EDITOR"
   | "DIAGNOSE_ENGINE"
   | "MAINTENANCE"
-  | "BACKFILL";
+  | "BACKFILL"
+  | "BRAIN_CALC";
 
 export type EnqueueInput = {
   playlist_id: string;
