@@ -49,7 +49,56 @@ interface Props {
 }
 
 export function FinanceiroTab({ deals, hideHero = false }: Props) {
-  const { byCurator, purchases, totals, loading } = useCuratorFinance();
+  const { byCurator, purchases, totals, loading, updatePurchase, deletePurchase } = useCuratorFinance();
+  const [editingPurchase, setEditingPurchase] = useState<CuratorPurchase | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CuratorPurchase | null>(null);
+  const [editPlays, setEditPlays] = useState("");
+  const [editAmount, setEditAmount] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [editNote, setEditNote] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const openEdit = (purchase: CuratorPurchase) => {
+    setEditingPurchase(purchase);
+    setEditPlays(String(purchase.plays_purchased ?? 0));
+    setEditAmount(String(Number(purchase.amount ?? 0)).replace(".", ","));
+    setEditDate(toDateInput(purchase.purchased_at));
+    setEditNote(purchase.note ?? "");
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingPurchase) return;
+    setSavingEdit(true);
+    try {
+      await updatePurchase(editingPurchase.id, {
+        plays_purchased: parseInt(editPlays.replace(/\D/g, ""), 10) || 0,
+        amount: parseBRNumber(editAmount),
+        purchased_at: editDate ? new Date(`${editDate}T12:00:00`).toISOString() : editingPurchase.purchased_at,
+        note: editNote.trim() || null,
+      });
+      toast.success("Compra atualizada");
+      setEditingPurchase(null);
+    } catch (e) {
+      toast.error("Erro ao editar compra", { description: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await deletePurchase(deleteTarget.id);
+      toast.success("Compra removida");
+      setDeleteTarget(null);
+    } catch (e) {
+      toast.error("Erro ao remover compra", { description: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const committed = useMemo(() => {
     if (!totals.globalCpp) return 0;
