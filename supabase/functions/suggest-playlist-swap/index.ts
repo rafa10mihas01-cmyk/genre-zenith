@@ -128,7 +128,8 @@ Deno.serve(async (req) => {
 
     const candidates: Candidate[] = filtered
       .map(p => {
-        const nominalCap = Math.max(0, Math.round(Number(p.followers ?? 0) * 0.4));
+        const followers = Number(p.followers ?? 0);
+        const nominalCap = Math.max(0, Math.round(followers * capFactor));
         const used = usedByPl.get(p.id) ?? 0;
         const free = Math.max(0, nominalCap - used);
         const g = p.genre_id ? scoreByGenre.get(p.genre_id) : undefined;
@@ -136,15 +137,16 @@ Deno.serve(async (req) => {
           managed_playlist_id: p.id,
           name: p.name,
           cover_url: p.cover_url,
-          followers: Number(p.followers ?? 0),
+          followers,
           genre_id: p.genre_id ?? null,
           free_capacity: free,
           affinity_score: g?.score ?? 0.5,
           tier: g?.tier ?? "neighbor",
         };
       })
-      // só vale quem tem alguma capacidade
+      // só vale quem tem alguma capacidade real
       .filter(c => c.free_capacity > 0);
+
 
     // 7) Singles que cobrem a meta sozinhos — ordenados
     const singles = candidates
