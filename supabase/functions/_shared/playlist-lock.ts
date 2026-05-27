@@ -17,6 +17,24 @@
 
 const LOCK_TTL_SECONDS = 30;
 
+/**
+ * Formata uma exceção pra gravar no campo `error` do playlist_operation_log.
+ * Quando for SpotifyApiError com Retry-After, inclui `retry_after=Xs` pra
+ * sabermos quanto esperar antes de retry.
+ */
+export function formatPlaylistError(e: unknown): string {
+  const err = e as any;
+  const base = err?.message ?? String(e);
+  if (err?.name === "SpotifyApiError" && err?.status === 429) {
+    const ra = err.retryAfter != null ? `${err.retryAfter}s` : "unknown";
+    return `Spotify 429: retry_after=${ra}`;
+  }
+  if (err?.name === "SpotifyApiError" && err?.retryAfter != null) {
+    return `${base} | retry_after=${err.retryAfter}s`;
+  }
+  return base;
+}
+
 export type LockedBy =
   | "MANUAL_EDITOR"
   | "AUTO_SYNC"
