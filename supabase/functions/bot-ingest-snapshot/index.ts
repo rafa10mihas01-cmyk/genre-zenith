@@ -4,7 +4,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { assertDealOperable } from "../_shared/deal-access.ts";
 import { recordMetric } from "../_shared/ops-metrics.ts";
-import { classifyPlaylistKind, isAlgorithmic } from "../_shared/algorithmic-classifier.ts";
+import { classifyPlaylistKind } from "../_shared/algorithmic-classifier.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -231,14 +231,17 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Se não encontrou: NÃO cria nova playlist. Antes de descartar, checa
-    // se é superfície ALGORÍTMICA do Spotify (Rádio, Mixes, Daily Mix,
-    // Discover Weekly, Smart Shuffle...) e grava em organic_plays_snapshots
-    // pra preservar a tração algorítmica em vez de jogar fora.
+    // Se não encontrou: NÃO cria nova playlist no deal. Antes de descartar,
+    // classifica a playlist e grava em organic_plays_snapshots quando há
+    // spotify_playlist_id válido — preserva tração de:
+    //  - 'algorithmic' (Rádio, Daily Mix, Discover Weekly, Smart Shuffle...)
+    //  - 'editorial'   (made_by Spotify com id real, ex.: "This Is X")
+    //  - 'organic'     (playlists de terceiros fora do ecossistema)
+    // Sem sId real → não dá pra deduplicar nem enriquecer depois → vira no_match.
     if (!playlistId) {
       const madeBy = (snap as any).made_by ?? null;
-      if (isAlgorithmic(sName, madeBy, sId)) {
-        const kind = classifyPlaylistKind(sName, madeBy, sId);
+      const kind = classifyPlaylistKind(sName, madeBy, sId);
+      if (kind && sId) {
         await supabase.from("organic_plays_snapshots").insert({
           deal_id,
           song_id,
