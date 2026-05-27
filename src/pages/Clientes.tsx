@@ -1,20 +1,53 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { RefreshCw, Plus, Users, Activity, Music2, Handshake } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageContainer } from "@/components/PageContainer";
 import { PageHeader } from "@/components/PageHeader";
 import { KpiBig } from "@/components/KpiBig";
-import { ClientesLibraryTab } from "@/components/playlist-deals/ClientesLibraryTab";
+import { ClientesLibraryTab, type ClientFinanceMap } from "@/components/playlist-deals/ClientesLibraryTab";
 import { useCuratorDeals } from "@/hooks/useCuratorDeals";
 import { useClients } from "@/hooks/useClients";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 function formatNumber(n: number) {
   return n.toLocaleString("pt-BR");
 }
 
 export default function Clientes() {
+  const { user } = useAuth();
   const { deals, songs, loading, reload } = useCuratorDeals();
   const { clients } = useClients();
+  const [financeByClient, setFinanceByClient] = useState<ClientFinanceMap>(new Map());
+
+  // Busca financeiro agregado por cliente a partir de campaigns
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("campaigns")
+        .select("client_id, valor_cobrado, valor_recebido")
+        .not("client_id", "is", null);
+      if (cancelled || error || !data) return;
+      const m: ClientFinanceMap = new Map();
+      for (const c of data as Array<{ client_id: string; valor_cobrado: number | null; valor_recebido: number | null }>) {
+        const id = c.client_id;
+        const prev = m.get(id) ?? { cobrado: 0, recebido: 0, pendente: 0, count: 0 };
+        const cobrado = Number(c.valor_cobrado) || 0;
+        const recebido = Number(c.valor_recebido) || 0;
+        prev.cobrado += cobrado;
+        prev.recebido += recebido;
+        prev.pendente += Math.max(0, cobrado - recebido);
+        prev.count += 1;
+        m.set(id, prev);
+      }
+      setFinanceByClient(m);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, deals.length, songs.length]);
 
   const kpis = useMemo(() => {
     const ativos = clients.filter((c) => !c.archived_at);
@@ -107,7 +140,7 @@ export default function Clientes() {
       </section>
 
 
-        <ClientesLibraryTab deals={deals} songs={songs} loading={loading} />
+        <ClientesLibraryTab deals={deals} songs={songs} loading={loading} financeByClient={financeByClient} />
       </PageContainer>
     </>
   );
