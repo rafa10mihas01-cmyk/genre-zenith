@@ -132,6 +132,7 @@ Entre direto pelo link acima. Você pode trocar a senha depois nas configuraçõ
       toast.success("Acesso criado", {
         description: `${email} já pode entrar em /login com a senha definida. Papel: ${ROLE_LABEL[newRole]}.`,
       });
+      setLastCreated({ email, password, role: newRole });
       setNewEmail("");
       setNewPassword("");
       await loadMembers();
