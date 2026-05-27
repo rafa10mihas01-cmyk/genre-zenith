@@ -318,9 +318,9 @@ export function ExternalPackageEditor({
                   {items.map((it, i) => {
                     const days = Math.max(1, snapshot.days || 1);
                     const perDay = Math.round(it.assigned_streams / days);
-                    const perMonth = Math.round(perDay * 30);
                     const totalStr = totalDrafts[it.id] ?? (it.assigned_streams > 0 ? String(it.assigned_streams) : "");
                     const perDayStr = perDayDrafts[it.id] ?? (perDay > 0 ? String(perDay) : "");
+
                     return (
                       <tr key={it.id} className={cn("hover:bg-elevated/60 transition-colors", i % 2 === 1 && "bg-elevated/20")}>
                         <td className="py-2.5 px-3 text-center border-b border-r border-border/40">
