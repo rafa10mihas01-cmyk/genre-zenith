@@ -35,26 +35,31 @@ export function BaselineCard({ capturedAt, totalStreams, playlistsDetected, onCl
         }
       }}
     >
-      <CardContent className="p-3.5 flex items-center gap-3">
-        <Flag className="h-3.5 w-3.5 text-primary shrink-0" />
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-sm font-medium text-foreground">Baseline</span>
-          <span className="text-[10px] uppercase tracking-wide border border-primary/40 text-primary rounded px-1 py-px font-medium">
+      <CardContent className="p-4 flex items-stretch gap-0">
+        {/* Bloco 1 — Identidade */}
+        <div className="flex items-center gap-2.5 pr-4 min-w-0">
+          <Flag className="h-4 w-4 text-primary shrink-0" />
+          <span className="text-sm font-semibold text-foreground">Baseline</span>
+          <span className="text-[9px] uppercase tracking-wider border border-primary/40 text-primary rounded px-1.5 py-0.5 font-semibold leading-none">
             Ref
           </span>
         </div>
-        <div className="text-xs text-muted-foreground hidden sm:block">·</div>
-        <div className="text-xs text-muted-foreground truncate hidden sm:block">{dateLabel}</div>
-        <div className="ml-auto flex items-center gap-4 shrink-0">
-          <div className="text-right">
-            <div className="text-sm font-semibold tabular-nums text-foreground leading-tight">{fmt(playlistsDetected)}</div>
-            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">playlists</div>
+
+        {/* Divisor + KPIs */}
+        <div className="flex items-center ml-auto shrink-0 divide-x divide-border/60">
+          <div className="px-4 text-center">
+            <div className="text-base font-semibold tabular-nums text-foreground leading-none">{fmt(playlistsDetected)}</div>
+            <div className="text-[9px] uppercase tracking-wider text-muted-foreground mt-1">Playlists</div>
           </div>
-          <div className="text-right">
-            <div className="text-sm font-semibold tabular-nums text-foreground leading-tight">{fmt(totalStreams)}</div>
-            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">streams</div>
+          <div className="px-4 text-center">
+            <div className="text-base font-semibold tabular-nums text-foreground leading-none">{fmt(totalStreams)}</div>
+            <div className="text-[9px] uppercase tracking-wider text-muted-foreground mt-1">Streams</div>
           </div>
-          {onClick && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+          {onClick && (
+            <div className="pl-3 flex items-center">
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
