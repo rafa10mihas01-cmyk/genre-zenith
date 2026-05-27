@@ -124,14 +124,12 @@ Deno.serve(async (req) => {
             }).then((r) => { if (r.ok) recalculated++; }).catch(() => {});
           }
 
-          // também dispara snapshot das FAIXAS da playlist via FILA (AUTO_SYNC).
-          // Sem isso, tracks_count atualiza mas managed_playlist_tracks fica defasada.
-          // Dedupe automático: se já existe pending, é skippado.
-          await supabase.from("playlist_operation_queue").insert({
+          // Enfileira AUTO_SYNC da playlist (dedupe ativo: skippa se já pending).
+          // Antes era um fetch direto fire-and-forget — agora vai pela fila central.
+          await enqueuePlaylistJob(supabase, {
             playlist_id: p.id,
             operation_type: "AUTO_SYNC",
-            priority: 3,
-          }).then(() => {}, () => { /* dedupe ou erro transitório — best-effort */ });
+          }).catch(() => { /* best-effort */ });
         } catch (e) {
           failed++;
           errors.push(`${p.name}: ${(e as Error).message}`);
