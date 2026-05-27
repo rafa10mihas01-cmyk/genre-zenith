@@ -412,7 +412,7 @@ export function ExternalPackageEditor({
                     <td className="py-2.5 px-3 text-center text-[10px] uppercase tracking-wider border-r border-border">Total externo</td>
                     <td className="py-2.5 px-3 text-center tabular-nums font-semibold text-foreground border-r border-border">{formatInt(totalStreams)}</td>
                     <td className="py-2.5 px-3 text-center tabular-nums font-semibold text-foreground border-r border-border">
-                      {formatInt(Math.round(totalStreams / Math.max(1, snapshot.days || 1)))}
+                      {formatInt(Math.round(totalStreams / effDays))}
                       <span className="text-[10px] text-muted-foreground ml-1">/dia</span>
                     </td>
                     <td className="py-2.5 px-3 border-r border-border" />
