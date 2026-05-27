@@ -321,7 +321,7 @@ export default function ClienteDetalhe() {
           value={formatBRLHero(kpis.saldoPendente)}
           icon={FileText}
           hint="Cobrado e não recebido"
-          tone={kpis.saldoPendente > 0 ? "warning" : "muted"}
+          tone={kpis.saldoPendente > 0 ? "warning" : undefined}
           domain="campaigns"
         />
         <KpiBig label="Investido" value={formatBRLHero(kpis.investido)} icon={CreditCard} hint={`Custo em ${kpis.deals} deal${kpis.deals === 1 ? "" : "s"}`} domain="deals" />
