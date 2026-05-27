@@ -177,6 +177,12 @@ Deno.serve(async (req) => {
 
   const spId = pl.spotify_playlist_id;
 
+  // Lock operacional: bloqueia escritas concorrentes em managed_playlist_tracks.
+  const tracksBefore = (pl as any).tracks_count ?? null;
+  const lock = await acquirePlaylistLock(supabase, pl.id, "MANUAL_EDITOR", tracksBefore);
+  if (!lock.ok) return jr(lockedResponseBody(lock), 423);
+
+
   // 4) Monta o plano ordenado: removes → promotes (target asc) → demotes (target desc) → adds
   const steps: PlanStep[] = [];
 
