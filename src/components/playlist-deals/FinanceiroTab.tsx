@@ -439,9 +439,31 @@ export function FinanceiroTab({ deals, hideHero = false }: Props) {
                             <span className="absolute -left-[7px] top-2 h-2 w-2 rounded-full bg-primary/60 ring-2 ring-card" />
                             <div className="flex items-center justify-between gap-3 text-sm">
                               <span className="font-medium text-foreground truncate">{curator?.name ?? "—"}</span>
-                              <span className="text-xs text-muted-foreground tabular-nums shrink-0">
-                                {fmtBRL(p.amount)}
-                              </span>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <span className="text-xs text-muted-foreground tabular-nums">
+                                  {fmtBRL(p.amount)}
+                                </span>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                  title="Editar compra"
+                                  onClick={() => openEdit(p)}
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                  title="Remover compra"
+                                  onClick={() => setDeleteTarget(p)}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
                             </div>
                             <div className="text-[11px] text-muted-foreground tabular-nums mt-0.5">
                               {formatNumber(p.plays_purchased)} plays · {fmtCpp(p.cpp)}
