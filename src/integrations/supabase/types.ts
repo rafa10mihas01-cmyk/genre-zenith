@@ -5808,6 +5808,72 @@ export type Database = {
         }
         Relationships: []
       }
+      playlist_operation_queue: {
+        Row: {
+          attempts: number
+          claimed_at: string | null
+          claimed_by: string | null
+          completed_at: string | null
+          created_at: string
+          error: string | null
+          id: string
+          max_attempts: number
+          operation_type: string
+          payload: Json
+          playlist_id: string
+          priority: number
+          scheduled_for: string
+          status: string
+        }
+        Insert: {
+          attempts?: number
+          claimed_at?: string | null
+          claimed_by?: string | null
+          completed_at?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          max_attempts?: number
+          operation_type: string
+          payload?: Json
+          playlist_id: string
+          priority?: number
+          scheduled_for?: string
+          status?: string
+        }
+        Update: {
+          attempts?: number
+          claimed_at?: string | null
+          claimed_by?: string | null
+          completed_at?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          max_attempts?: number
+          operation_type?: string
+          payload?: Json
+          playlist_id?: string
+          priority?: number
+          scheduled_for?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "playlist_operation_queue_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "managed_playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_operation_queue_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_playlist_vps_assignment"
+            referencedColumns: ["managed_playlist_id"]
+          },
+        ]
+      }
       playlist_scores: {
         Row: {
           activity_score: number
@@ -7861,6 +7927,31 @@ export type Database = {
         Args: { p_key: string; p_limit?: number; p_window_seconds?: number }
         Returns: Json
       }
+      claim_next_playlist_job: {
+        Args: { _claimed_by: string }
+        Returns: {
+          attempts: number
+          claimed_at: string | null
+          claimed_by: string | null
+          completed_at: string | null
+          created_at: string
+          error: string | null
+          id: string
+          max_attempts: number
+          operation_type: string
+          payload: Json
+          playlist_id: string
+          priority: number
+          scheduled_for: string
+          status: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "playlist_operation_queue"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       cleanup_old_bot_prints: { Args: never; Returns: Json }
       cleanup_old_logs: { Args: never; Returns: Json }
       cleanup_old_logs_and_snapshots: {
@@ -8306,6 +8397,7 @@ export type Database = {
           read_ct: number
         }[]
       }
+      reap_zombie_playlist_jobs: { Args: never; Returns: number }
       recalc_campaign_progress: {
         Args: { p_campaign_id?: string }
         Returns: number

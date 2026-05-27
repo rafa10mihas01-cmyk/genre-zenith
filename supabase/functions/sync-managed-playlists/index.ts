@@ -10,6 +10,7 @@ import { requireTeamAccess } from "../_shared/auth.ts";
 import { getSpotifyToken } from "../_shared/spotify.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 import { getPlaylistMeta } from "../_shared/spotify-playlist.ts";
+import { enqueuePlaylistJob } from "../_shared/playlist-queue.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -123,13 +124,12 @@ Deno.serve(async (req) => {
             }).then((r) => { if (r.ok) recalculated++; }).catch(() => {});
           }
 
-          // também dispara snapshot das FAIXAS da playlist (fire-and-forget).
-          // Sem isso, tracks_count atualiza mas managed_playlist_tracks fica defasada.
-          fetch(`${SUPABASE_URL}/functions/v1/sync-managed-playlist-tracks`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
-            body: JSON.stringify({ playlist_id: p.id }),
-          }).catch(() => {});
+          // Enfileira AUTO_SYNC da playlist (dedupe ativo: skippa se já pending).
+          // Antes era um fetch direto fire-and-forget — agora vai pela fila central.
+          await enqueuePlaylistJob(supabase, {
+            playlist_id: p.id,
+            operation_type: "AUTO_SYNC",
+          }).catch(() => { /* best-effort */ });
         } catch (e) {
           failed++;
           errors.push(`${p.name}: ${(e as Error).message}`);
