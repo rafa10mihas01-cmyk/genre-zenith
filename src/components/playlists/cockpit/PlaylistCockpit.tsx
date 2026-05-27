@@ -1473,7 +1473,10 @@ function BucketAdd({ items, applying, onApplyAll }: {
             <NewTrackTarget zone={t._zone} pos={t.suggested_position} />
             <div className="flex-1 min-w-0">
               <div className="text-sm font-medium truncate">{t.nome || "—"}</div>
-              <div className="text-xs text-muted-foreground truncate">
+              <div
+                className="text-xs text-muted-foreground truncate cursor-help"
+                title="Fachada = posições 1-2 · Premium = 3-5 · Sustentação = 6-10 · Cauda = 11+"
+              >
                 {t.artista || "—"} · {editorial}
               </div>
             </div>
