@@ -56,7 +56,7 @@ export function DealsPendingCard() {
           </span>
         </div>
         <Link
-          to="/playlist-deals"
+          to="/deals"
           className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1"
         >
           ver tudo <ArrowRight className="h-3 w-3" />

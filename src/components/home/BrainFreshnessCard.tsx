@@ -29,7 +29,7 @@ export function BrainFreshnessCard() {
   const barTone = pct >= 70 ? "bg-success" : pct >= 40 ? "bg-warning" : "bg-destructive";
 
   return (
-    <Link to="/cerebro" className="nx-card-hover p-5 flex flex-col gap-4 group h-full">
+    <Link to="/analytics" className="nx-card-hover p-5 flex flex-col gap-4 group h-full">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Brain className="h-4 w-4 text-primary" />
