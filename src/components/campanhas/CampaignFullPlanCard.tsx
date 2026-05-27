@@ -561,12 +561,13 @@ export function CampaignFullPlanCard({
                             }
                           >
                             {v > 0 ? (
-                              <span className="inline-flex items-baseline gap-1 justify-end">
+                              <span className="inline-flex items-center gap-1 justify-end">
                                 <span>{formatInt(v)}</span>
                                 {isDemoted && mode === "diario" && (
-                                  <span className="text-[9px] font-medium text-warning tabular-nums">
-                                    #{dayPos}
-                                  </span>
+                                  <span
+                                    aria-label={`Rebaixado para #${dayPos}`}
+                                    className="inline-block h-2 w-2 rounded-[2px] bg-warning shrink-0"
+                                  />
                                 )}
                               </span>
                             ) : (
@@ -606,7 +607,7 @@ export function CampaignFullPlanCard({
         <p className="text-[10px] text-muted-foreground mt-2">
           Dica: clique no nome da playlist pra abrir no Spotify. A coluna com borda verde marca o dia de entrada (D1 da playlist).
           Posições <span className="text-primary font-medium">#3–5</span> são as mais fortes; #6–12 médias; #13+ cauda.
-          Badge <span className="text-warning font-medium">#N</span> no fim do plano indica desmame: a música é rebaixada gradualmente nos últimos 20% dos dias (pos → ×2 → ×5 → ×15 → ×30) antes de sair da playlist.
+          Badge <span className="inline-block h-2 w-2 rounded-[2px] bg-warning align-middle" /> amarelo na célula indica desmame: a música está sendo rebaixada gradualmente nos últimos 20% dos dias (pos → ×2 → ×5 → ×15 → ×30) antes de sair da playlist. O primeiro quadradinho marca onde o rebaixamento começa.
         </p>
       </CardContent>
     </Card>
