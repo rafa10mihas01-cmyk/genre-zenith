@@ -159,29 +159,58 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   };
   const setSortBy = (v: "recent" | "valuation") => updateParam("sort", v);
 
-  // items via React Query — cache global (staleTime 60s), navegação não refetcha.
+  // Paginação server-side: começa com 50, "Carregar mais" cresce em +50.
+  // Mantém uma fonte só (sem useInfiniteQuery) — queryKey muda quando
+  // loadedCount cresce, e os updates locais (setItems) seguem o key atual.
+  const [loadedCount, setLoadedCount] = useState(PAGE_SIZE);
+
   const itemsQuery = useQuery({
-    queryKey: ["managed-playlists"],
+    queryKey: ["managed-playlists", loadedCount],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("managed_playlists")
         .select("*")
-        .order("imported_at", { ascending: false });
+        .order("imported_at", { ascending: false })
+        .range(0, loadedCount - 1);
       if (error) throw error;
       return (data ?? []) as ManagedPlaylist[];
     },
+    placeholderData: (prev) => prev, // evita flash de skeleton ao paginar
   });
   const items = itemsQuery.data ?? [];
   const loading = itemsQuery.isPending;
   const setItems = useCallback(
     (updater: ManagedPlaylist[] | ((prev: ManagedPlaylist[]) => ManagedPlaylist[])) => {
-      queryClient.setQueryData<ManagedPlaylist[]>(["managed-playlists"], (prev) => {
+      queryClient.setQueryData<ManagedPlaylist[]>(["managed-playlists", loadedCount], (prev) => {
         const base = prev ?? [];
         return typeof updater === "function" ? (updater as (p: ManagedPlaylist[]) => ManagedPlaylist[])(base) : updater;
       });
     },
-    [queryClient],
+    [queryClient, loadedCount],
   );
+
+  // Contagens reais do catálogo inteiro (4 colunas, payload mínimo).
+  // Alimenta chips "Ativas/Lixeira", banner de sem-gênero, contadores de aba
+  // e o total no "Carregar mais (X de Y)".
+  const countsQuery = useQuery({
+    queryKey: ["managed-playlists-counts"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("managed_playlists")
+        .select("id, followers, genre_id, archived_at, lifecycle_phase")
+        .limit(5000);
+      if (error) throw error;
+      return (data ?? []) as CountRow[];
+    },
+    staleTime: 60_000,
+  });
+  const countRows = countsQuery.data ?? [];
+  const totalActiveCount = countRows.filter((r) => !r.archived_at).length;
+  const totalArchivedCount = countRows.filter((r) => r.archived_at).length;
+  const totalLoadedTarget = showArchived ? totalArchivedCount : totalActiveCount;
+  const canLoadMore = items.length < loadedCount
+    ? false // ainda chegando do servidor
+    : items.length < totalLoadedTarget;
 
   const [scores, setScores] = useState<Record<string, PlaylistScoreRow>>({});
   const [valuations, setValuations] = useState<Record<string, Valuation>>({});
