@@ -42,6 +42,8 @@ export interface CampaignSnapshot {
   streamsExt: number;
   custoEco: number;
   custoExt: number;
+  /** Custo do orgânico — mesma tarifa do eco (costs.eco). Opcional p/ retrocompat. */
+  custoOrganic?: number;
   custoTotal: number;
   custoPorStream: number;
   picoPorDia: number;
