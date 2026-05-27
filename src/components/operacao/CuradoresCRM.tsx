@@ -761,23 +761,17 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
         </Card>
       ) : (
         <>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-[11px] text-muted-foreground px-1">
-            <span className="truncate">
-              Mostrando <span className="text-foreground font-medium">{pageStart + 1}–{pageEnd}</span> de <span className="text-foreground font-medium">{filtered.length}</span>
-              {filtered.length !== rows.length && <span className="opacity-60"> · {rows.length} no total</span>}
-            </span>
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="mr-1">Por página</span>
-              {[25, 50, 100, 200].map((n) => (
-                <button
-                  key={n}
-                  onClick={() => setPageSize(n)}
-                  className={`min-w-[32px] px-2 py-1 rounded-md text-[11px] tabular-nums transition-colors ${pageSize === n ? "bg-primary/15 text-primary font-medium" : "hover:bg-elevated text-muted-foreground"}`}
-                >
-                  {n}
-                </button>
-              ))}
-            </div>
+          <div className="flex items-center justify-end gap-1.5 flex-wrap text-[11px] text-muted-foreground px-1">
+            <span className="mr-1">Por página</span>
+            {[25, 50, 100, 200].map((n) => (
+              <button
+                key={n}
+                onClick={() => setPageSize(n)}
+                className={`min-w-[32px] px-2 py-1 rounded-md text-[11px] tabular-nums transition-colors ${pageSize === n ? "bg-primary/15 text-primary font-medium" : "hover:bg-elevated text-muted-foreground"}`}
+              >
+                {n}
+              </button>
+            ))}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {pageRows.map((r) => (
