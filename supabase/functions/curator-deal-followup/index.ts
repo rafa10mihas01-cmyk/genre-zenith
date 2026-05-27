@@ -126,6 +126,115 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ============================================================
+    // PASSO 2: Lembretes de prazo (D-5, D-3, D-1, vencido)
+    // Para todo deal ativo com ends_at, cria notificação no sino do
+    // curador em milestones de prazo. Dedup por (kind + deal_id) — uma
+    // notificação por milestone, sem repetição.
+    // ============================================================
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    type DeadlineKind =
+      | "deadline_d_minus_5"
+      | "deadline_d_minus_3"
+      | "deadline_d_minus_1"
+      | "deadline_overdue";
+    type DeadlineSpec = { kind: DeadlineKind; title: string; message: (song: string, ends: Date) => string; type: "info" | "warning" | "critical" };
+    const SPECS: Record<DeadlineKind, DeadlineSpec> = {
+      deadline_d_minus_5: {
+        kind: "deadline_d_minus_5",
+        title: "Lembrete de entrega",
+        type: "info",
+        message: (song, ends) =>
+          `Faltam 5 dias para o prazo de "${song}" (até ${ends.toLocaleDateString("pt-BR")}). Mantenha o ritmo de envios.`,
+      },
+      deadline_d_minus_3: {
+        kind: "deadline_d_minus_3",
+        title: "Prazo se aproximando",
+        type: "warning",
+        message: (song, ends) =>
+          `Faltam 3 dias para o prazo de "${song}" (até ${ends.toLocaleDateString("pt-BR")}). Acompanhe o progresso no portal.`,
+      },
+      deadline_d_minus_1: {
+        kind: "deadline_d_minus_1",
+        title: "Prazo vencido amanhã",
+        type: "warning",
+        message: (song, ends) =>
+          `"${song}" encerra amanhã (${ends.toLocaleDateString("pt-BR")}). Última chance de subir entregas dentro do prazo.`,
+      },
+      deadline_overdue: {
+        kind: "deadline_overdue",
+        title: "Deal encerrado",
+        type: "critical",
+        message: (song, ends) =>
+          `O prazo de "${song}" venceu em ${ends.toLocaleDateString("pt-BR")}. Acesse o portal para ver o resultado final.`,
+      },
+    };
+
+    let deadlineNotified = 0;
+    let deadlineSkipped = 0;
+
+    const { data: dealsWithEnd } = await sb
+      .from("curator_deals")
+      .select("id, curator_id, public_token, song_name, ends_at")
+      .is("closed_at", null)
+      .not("curator_id", "is", null)
+      .not("public_token", "is", null)
+      .not("ends_at", "is", null);
+
+    for (const deal of dealsWithEnd ?? []) {
+      if (!deal.ends_at) continue;
+      const ends = new Date(deal.ends_at);
+      const diffDays = Math.ceil((ends.getTime() - now.getTime()) / DAY_MS);
+
+      let spec: DeadlineSpec | null = null;
+      if (diffDays < 0) spec = SPECS.deadline_overdue;
+      else if (diffDays === 1) spec = SPECS.deadline_d_minus_1;
+      else if (diffDays === 3) spec = SPECS.deadline_d_minus_3;
+      else if (diffDays === 5) spec = SPECS.deadline_d_minus_5;
+      if (!spec) continue;
+
+      // user_id do curador
+      const { data: curator } = await sb
+        .from("curators")
+        .select("user_id")
+        .eq("id", deal.curator_id)
+        .maybeSingle();
+      if (!curator?.user_id) {
+        deadlineSkipped++;
+        continue;
+      }
+
+      // Dedup: já existe notificação desse kind pra esse deal?
+      const { count: exists } = await sb
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", curator.user_id)
+        .contains("metadata", { kind: spec.kind, deal_id: deal.id });
+
+      if ((exists ?? 0) > 0) {
+        deadlineSkipped++;
+        continue;
+      }
+
+      const { error: insErr } = await sb.from("notifications").insert({
+        user_id: curator.user_id,
+        type: spec.type,
+        title: spec.title,
+        message: spec.message(deal.song_name ?? "deal", ends),
+        action_url: `/curador/${deal.public_token}`,
+        read: false,
+        metadata: {
+          kind: spec.kind,
+          deal_id: deal.id,
+          song_name: deal.song_name,
+          ends_at: deal.ends_at,
+          days_to_deadline: diffDays,
+        },
+      });
+      if (insErr) failed++;
+      else deadlineNotified++;
+    }
+
     const metrics = {
       candidates: candidates.length,
       notified,
@@ -133,6 +242,8 @@ Deno.serve(async (req) => {
       skipped_already_notified: skippedAlreadyNotified,
       skipped_no_user: skippedNoUser,
       failed,
+      deadline_notified: deadlineNotified,
+      deadline_skipped: deadlineSkipped,
     };
 
     await reportCronHealth(sb, {
