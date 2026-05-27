@@ -172,7 +172,37 @@ export function OverviewTab({
       )}
 
 
-      {/* Plano de entrega — leitura única: meta total, ritmo, split eco/ext, hoje */}
+      {/* Split eco/ext/org — extraído do Plano de entrega pra leitura imediata */}
+      <section className={cn("grid grid-cols-1 gap-3", orgTarget > 0 ? "md:grid-cols-3" : "md:grid-cols-2")}>
+        <SplitRow
+          tone="eco"
+          label="Ecossistema"
+          metaTotal={ecoTarget}
+          metaPct={ecoEffectivePct}
+          deliveredTotal={ecoDelivered}
+          perDay={Math.round(Math.max(0, ecoTarget - ecoDelivered) / daysRemaining)}
+        />
+        <SplitRow
+          tone="ext"
+          label="Externo"
+          metaTotal={extTarget}
+          metaPct={extEffectivePct}
+          deliveredTotal={extDelivered}
+          perDay={Math.round(Math.max(0, extTarget - extDelivered) / daysRemaining)}
+        />
+        {orgTarget > 0 && (
+          <SplitRow
+            tone="org"
+            label="Orgânico"
+            metaTotal={orgTarget}
+            metaPct={orgPctOfMeta}
+            deliveredTotal={0}
+            perDay={Math.round(orgTarget / Math.max(1, snapshot.days))}
+          />
+        )}
+      </section>
+
+      {/* Plano de entrega — leitura única: meta total, ritmo, hoje */}
       {!hideDeliveryPlan && (
       <Card>
         <button
@@ -186,7 +216,7 @@ export function OverviewTab({
               <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", planOpen && "rotate-180")} />
             </div>
             <div className="text-xs text-muted-foreground mt-0.5 leading-snug">
-              Quanto falta, em quanto tempo, e como se divide entre ecossistema, externo{orgTarget > 0 ? " e orgânico" : ""}
+              Quanto falta e em quanto tempo
             </div>
 
           </div>
@@ -250,34 +280,6 @@ export function OverviewTab({
             </div>
           )}
 
-          <div className={cn("grid grid-cols-1 gap-3", orgTarget > 0 ? "md:grid-cols-3" : "md:grid-cols-2")}>
-            <SplitRow
-              tone="eco"
-              label="Ecossistema"
-              metaTotal={ecoTarget}
-              metaPct={ecoEffectivePct}
-              deliveredTotal={ecoDelivered}
-              perDay={Math.round(Math.max(0, ecoTarget - ecoDelivered) / daysRemaining)}
-            />
-            <SplitRow
-              tone="ext"
-              label="Externo"
-              metaTotal={extTarget}
-              metaPct={extEffectivePct}
-              deliveredTotal={extDelivered}
-              perDay={Math.round(Math.max(0, extTarget - extDelivered) / daysRemaining)}
-            />
-            {orgTarget > 0 && (
-              <SplitRow
-                tone="org"
-                label="Orgânico"
-                metaTotal={orgTarget}
-                metaPct={orgPctOfMeta}
-                deliveredTotal={0}
-                perDay={Math.round(orgTarget / Math.max(1, snapshot.days))}
-              />
-            )}
-          </div>
 
 
           <div className="rounded-lg border border-border/70 bg-muted/20 px-4 py-3">
