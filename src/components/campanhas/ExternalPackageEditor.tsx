@@ -232,47 +232,86 @@ export function ExternalPackageEditor({
   return (
     <>
     <section className="space-y-6">
-      {/* KPIs — padrão Curadores (KpiBig) */}
-      <section className="grid grid-cols-2 md:grid-cols-6 gap-3">
-        <KpiBig
-          tier="hero"
-          icon={BarChart3}
-          label="Streams totais"
-          value={formatInt(totalStreams)}
-          hint={Math.abs(deltaStreams) > 1 ? `${deltaStreams > 0 ? "+" : ""}${formatInt(deltaStreams)} vs snapshot` : "alinhado ao snapshot"}
-          domain="campaigns"
-        />
-        <KpiBig
-          icon={CalendarClock}
-          label="Diário necessário"
-          value={formatInt(Math.round((snapshot.streamsExt || 0) / effDays))}
-          hint={`pacote atual: ${formatInt(Math.round(totalStreams / effDays))}/dia em ${effDays}d`}
-          domain="deals"
-        />
-
-        <KpiBig
-          icon={DollarSign}
-          label="Custo"
-          value={formatBRL(totalCost)}
-          hint={Math.abs(deltaCost) > 0.5 ? `${deltaCost > 0 ? "+" : ""}${formatBRL(deltaCost)} vs snapshot` : "alinhado ao snapshot"}
-          domain="clients"
-        />
-        <KpiBig
-          icon={Target}
-          label="Cobertura"
-          value={`${coverage.toFixed(0)}%`}
-          hint="do alvo externo"
-          domain="curators"
-        />
-        <KpiBig
-          tier="quiet"
-          icon={Users}
-          label="Curadores"
-          value={String(items.length)}
-          hint="no pacote"
-          domain="community"
-        />
-      </section>
+      {isDispatched ? (
+        <div className="rounded-2xl border border-primary/40 bg-primary/10 px-5 py-4">
+          <div className="flex items-start gap-3">
+            <div className="rounded-full bg-primary/20 p-2 mt-0.5">
+              <Lock className="h-4 w-4 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-semibold text-foreground">Pacote confirmado</span>
+                <span className="text-xs text-muted-foreground">·</span>
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {dealsCount} {dealsCount === 1 ? "deal criado" : "deals criados"}
+                </span>
+                {pkg?.confirmed_at && (
+                  <>
+                    <span className="text-xs text-muted-foreground">·</span>
+                    <span className="text-xs text-muted-foreground">
+                      confirmado em {new Date(pkg.confirmed_at).toLocaleDateString("pt-BR")}
+                    </span>
+                  </>
+                )}
+              </div>
+              <div className="mt-2 flex items-center gap-2 text-xs text-foreground/85 flex-wrap">
+                <span className="tabular-nums">{items.length} {items.length === 1 ? "curador" : "curadores"}</span>
+                <span className="text-muted-foreground">·</span>
+                <span className="tabular-nums">{formatInt(totalStreams)} streams</span>
+                <span className="text-muted-foreground">·</span>
+                <span className="tabular-nums font-medium">{formatBRL(totalCost)}</span>
+                <span className="text-muted-foreground">·</span>
+                <Link
+                  to={`/deals?campaign=${campaignId}`}
+                  className="inline-flex items-center gap-1 text-primary hover:underline font-medium"
+                >
+                  Ver deals <ExternalLink className="h-3 w-3" />
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <section className="grid grid-cols-2 md:grid-cols-6 gap-3">
+          <KpiBig
+            tier="hero"
+            icon={BarChart3}
+            label="Streams totais"
+            value={formatInt(totalStreams)}
+            hint={Math.abs(deltaStreams) > 1 ? `${deltaStreams > 0 ? "+" : ""}${formatInt(deltaStreams)} vs snapshot` : "alinhado ao snapshot"}
+            domain="campaigns"
+          />
+          <KpiBig
+            icon={CalendarClock}
+            label="Diário necessário"
+            value={formatInt(Math.round((snapshot.streamsExt || 0) / effDays))}
+            hint={`pacote atual: ${formatInt(Math.round(totalStreams / effDays))}/dia em ${effDays}d`}
+            domain="deals"
+          />
+          <KpiBig
+            icon={DollarSign}
+            label="Custo"
+            value={formatBRL(totalCost)}
+            hint={Math.abs(deltaCost) > 0.5 ? `${deltaCost > 0 ? "+" : ""}${formatBRL(deltaCost)} vs snapshot` : "alinhado ao snapshot"}
+            domain="clients"
+          />
+          <KpiBig
+            icon={Target}
+            label="Cobertura"
+            value={`${coverage.toFixed(0)}%`}
+            hint="do alvo externo"
+            domain="curators"
+          />
+          <KpiBig
+            tier="quiet"
+            icon={Users}
+            label="Curadores"
+            value={String(items.length)}
+            hint="no pacote"
+            domain="community"
+          />
+        </section>
+      )}
 
       {renderTabsRow?.(actionButtons)}
 
