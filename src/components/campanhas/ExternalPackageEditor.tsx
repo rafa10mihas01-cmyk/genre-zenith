@@ -293,7 +293,7 @@ export function ExternalPackageEditor({
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Users className="h-3.5 w-3.5 text-primary" />
                 <span>
-                  Distribuição sobre <strong className="text-foreground">{snapshot.days} dias</strong> ·
+                  Distribuição sobre <strong className="text-foreground">{effDays} dias</strong> ·
                   Alvo <strong className="text-foreground tabular-nums">{formatInt(snapshot.streamsExt)}</strong> streams ·
                   <strong className="text-foreground"> {formatBRL(snapshot.custoExt)}</strong>
                   {isDispatched && pkg?.confirmed_at && (
