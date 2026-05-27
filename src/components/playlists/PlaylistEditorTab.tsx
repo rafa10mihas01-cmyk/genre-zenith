@@ -181,6 +181,8 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
   const [nowTick, setNowTick] = useState<number>(() => Date.now());
   const [busyTrack, setBusyTrack] = useState<string | null>(null);
   const [meta, setMeta] = useState<PlaylistMeta>({ name: null, cover_url: null });
+  const [source, setSource] = useState<"spotify" | "cache" | null>(null);
+  const [cacheSnapshotAt, setCacheSnapshotAt] = useState<string | null>(null);
 
   // Dialog "Adicionar na posição X"
   const [addOpen, setAddOpen] = useState(false);
@@ -249,7 +251,10 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
         }
         throw new Error(data?.error ?? "Falhou");
       }
-      setRateLimitUntil(null);
+      const isCache = data.source === "cache";
+      setRateLimitUntil(isCache && data.retry_after ? Date.now() + Number(data.retry_after) * 1000 : null);
+      setSource(isCache ? "cache" : "spotify");
+      setCacheSnapshotAt(isCache ? (data.cache_snapshot_at ?? null) : null);
       setTracks(data.tracks ?? []);
     } catch (e: any) {
       setErr(e.message);
