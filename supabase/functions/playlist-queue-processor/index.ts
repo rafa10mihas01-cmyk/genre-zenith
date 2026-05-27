@@ -168,6 +168,17 @@ Deno.serve(async (req) => {
     else if (fin.final === "retry") retried++;
     else if (fin.final === "rescheduled_lock") lockedRescheduled++;
 
+    // Após DIAGNOSE_ENGINE concluído com sucesso, enfileira BRAIN_CALC (dedupe automático).
+    let chained: { op: string; result: typeof brainEnq } | null = null;
+    let brainEnq: Awaited<ReturnType<typeof enqueuePlaylistJob>> | null = null;
+    if (fin.final === "done" && job.operation_type === "DIAGNOSE_ENGINE") {
+      brainEnq = await enqueuePlaylistJob(sb, {
+        playlist_id: job.playlist_id,
+        operation_type: "BRAIN_CALC",
+      });
+      chained = { op: "BRAIN_CALC", result: brainEnq };
+    }
+
     results.push({
       id: job.id,
       playlist_id: job.playlist_id,
