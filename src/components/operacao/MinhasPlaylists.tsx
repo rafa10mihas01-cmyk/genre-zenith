@@ -125,12 +125,12 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const filterFase = (searchParams.get("fase") as "all" | "prontas" | "crescendo" | "novas" | "atencao") || "all";
   const showArchived = searchParams.get("arquivadas") === "1";
   const showCapacity = searchParams.get("aba") === "capacidade";
-  const sortBy = (searchParams.get("sort") as "recent" | "valuation") || "recent";
+  const sortBy = (searchParams.get("sort") as "followers" | "recent" | "valuation") || "followers";
 
   const updateParam = useCallback((key: string, val: string | null) => {
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
-      if (val == null || val === "" || val === "all" || val === "recent") next.delete(key);
+      if (val == null || val === "" || val === "all" || val === "followers") next.delete(key);
       else next.set(key, val);
       return next;
     }, { replace: true });
@@ -159,7 +159,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       return next;
     }, { replace: true });
   };
-  const setSortBy = (v: "recent" | "valuation") => updateParam("sort", v);
+  const setSortBy = (v: "followers" | "recent" | "valuation") => updateParam("sort", v);
 
   // Paginação server-side: começa com 50, "Carregar mais" cresce em +50.
   // Mantém uma fonte só (sem useInfiniteQuery) — queryKey muda quando
@@ -173,12 +173,20 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   }, [filterFase, showArchived]);
 
   const itemsQuery = useQuery({
-    queryKey: ["managed-playlists", loadedCount, filterFase, showArchived],
+    queryKey: ["managed-playlists", loadedCount, filterFase, showArchived, sortBy],
     queryFn: async () => {
       let q = supabase
         .from("managed_playlists")
-        .select("*")
-        .order("imported_at", { ascending: false });
+        .select("*");
+      // Ordenação server-side. "followers" é o padrão (maior → menor) em
+      // todas as abas; "recent" usa imported_at; "valuation" mantém ordem
+      // por imported_at no servidor e re-ordena client-side por score (já
+      // que valuation vive em outra tabela e não dá pra ordenar via PostgREST aqui).
+      if (sortBy === "followers") {
+        q = q.order("followers", { ascending: false, nullsFirst: false }).order("imported_at", { ascending: false });
+      } else {
+        q = q.order("imported_at", { ascending: false });
+      }
       // Arquivadas vs ativas server-side (combina com o filtro client em `visible`)
       if (showArchived) q = q.not("archived_at", "is", null);
       else q = q.is("archived_at", null);
@@ -202,12 +210,12 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const loading = itemsQuery.isPending;
   const setItems = useCallback(
     (updater: ManagedPlaylist[] | ((prev: ManagedPlaylist[]) => ManagedPlaylist[])) => {
-      queryClient.setQueryData<ManagedPlaylist[]>(["managed-playlists", loadedCount, filterFase, showArchived], (prev) => {
+      queryClient.setQueryData<ManagedPlaylist[]>(["managed-playlists", loadedCount, filterFase, showArchived, sortBy], (prev) => {
         const base = prev ?? [];
         return typeof updater === "function" ? (updater as (p: ManagedPlaylist[]) => ManagedPlaylist[])(base) : updater;
       });
     },
-    [queryClient, loadedCount, filterFase, showArchived],
+    [queryClient, loadedCount, filterFase, showArchived, sortBy],
   );
 
   // Contagens reais do catálogo inteiro (5 colunas, payload mínimo).
@@ -1083,18 +1091,24 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
-              variant={sortBy !== "recent" ? "default" : "outline"}
+              variant={sortBy !== "followers" ? "default" : "outline"}
               size="sm"
               className="gap-1.5 h-9 w-9 sm:w-auto px-0 sm:px-3 shrink-0"
               title="Ordenar"
               aria-label="Ordenar"
             >
               <ArrowUpDown className="h-4 w-4" />
-              <span className="hidden sm:inline">{sortBy === "valuation" ? "Valuation" : "Recente"}</span>
+              <span className="hidden sm:inline">
+                {sortBy === "valuation" ? "Valuation" : sortBy === "recent" ? "Recente" : "Maiores"}
+              </span>
               <ChevronDown className="h-3.5 w-3.5 opacity-70 -mr-0.5 hidden sm:inline" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-48">
+            <DropdownMenuItem onClick={() => setSortBy("followers")} className="gap-2">
+              {sortBy === "followers" ? <Check className="h-4 w-4 text-primary" /> : <span className="w-4" />}
+              <span>Mais seguidores</span>
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setSortBy("recent")} className="gap-2">
               {sortBy === "recent" ? <Check className="h-4 w-4 text-primary" /> : <span className="w-4" />}
               <span>Mais recentes</span>
