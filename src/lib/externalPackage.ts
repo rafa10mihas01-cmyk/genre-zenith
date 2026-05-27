@@ -103,13 +103,17 @@ export async function ensureExternalPackageDraft(
   campaignId: string,
   snapshot: CampaignSnapshot,
 ): Promise<{ packageId: string; created: boolean }> {
-  // 1) Tenta reutilizar draft existente
-  const { data: existing } = await supabase
+  // 1) Tenta reutilizar pacote existente (draft OU dispatched).
+  // Se já confirmou, queremos mostrar o confirmado, não criar um draft novo do zero.
+  const { data: existingList } = await supabase
     .from("campaign_external_packages")
-    .select("id")
+    .select("id, status, confirmed_at, created_at")
     .eq("campaign_id", campaignId)
-    .eq("status", "draft")
-    .maybeSingle();
+    .in("status", ["draft", "dispatched"])
+    .order("confirmed_at", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .limit(1);
+  const existing = existingList?.[0];
   if (existing?.id) return { packageId: existing.id, created: false };
 
   // 2) Tenta criar — se constraint disparar, busca de novo (race / RLS de leitura)
