@@ -180,8 +180,9 @@ export function OverviewTab({
               <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", planOpen && "rotate-180")} />
             </div>
             <div className="text-xs text-muted-foreground mt-0.5 leading-snug">
-              Quanto falta, em quanto tempo, e como se divide entre ecossistema e externo
+              Quanto falta, em quanto tempo, e como se divide entre ecossistema, externo{orgTarget > 0 ? " e orgânico" : ""}
             </div>
+
           </div>
           <div className="md:text-right shrink-0">
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Ritmo necessário</div>
