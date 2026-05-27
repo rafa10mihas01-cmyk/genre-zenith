@@ -100,22 +100,27 @@ Deno.serve(async (req) => {
       .update({ tracks_count: rows.length, last_metrics_at: new Date().toISOString() })
       .eq("id", pl.id);
 
-    await finishPlaylistOperation(supabase, lock, {
-      status: "success",
-      tracks_before: tracksBefore ?? null,
-      tracks_after: rows.length,
-      tracks_changed: Math.abs((tracksBefore ?? 0) - rows.length),
-    });
+    if (lock && lock.ok) {
+      await finishPlaylistOperation(supabase, lock, {
+        status: "success",
+        tracks_before: tracksBefore ?? null,
+        tracks_after: rows.length,
+        tracks_changed: Math.abs((tracksBefore ?? 0) - rows.length),
+      });
+    }
     return jr({ ok: true, total: rows.length });
   } catch (e) {
-    await finishPlaylistOperation(supabase, lock, {
-      status: "failed",
-      tracks_before: tracksBefore ?? null,
-      error: (e as Error).message,
-    });
+    if (lock && lock.ok) {
+      await finishPlaylistOperation(supabase, lock, {
+        status: "failed",
+        tracks_before: tracksBefore ?? null,
+        error: (e as Error).message,
+      });
+    }
     return jr({ ok: false, error: (e as Error).message }, 500);
   } finally {
-    await releasePlaylistLock(supabase, lock);
+    if (lock && lock.ok) await releasePlaylistLock(supabase, lock);
   }
+
 });
 
