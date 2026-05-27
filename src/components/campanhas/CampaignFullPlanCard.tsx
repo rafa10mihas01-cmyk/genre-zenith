@@ -331,26 +331,7 @@ export function CampaignFullPlanCard({
           )}
         </div>
         <div className="flex flex-wrap gap-2 shrink-0">
-          <div className="inline-flex rounded-md border border-border overflow-hidden">
-            <button
-              onClick={() => setMode("diario")}
-              className={cn(
-                "px-2.5 h-8 text-xs",
-                mode === "diario" ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              Diário
-            </button>
-            <button
-              onClick={() => setMode("acumulado")}
-              className={cn(
-                "px-2.5 h-8 text-xs border-l border-border",
-                mode === "acumulado" ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              Acumulado
-            </button>
-          </div>
+          {/* Toggle Diário/Acumulado oculto — modo fixo em "diario" */}
           {showShare && (
             <Button size="sm" variant="outline" onClick={copyShareLink}>
               {copied ? <Check className="h-4 w-4 mr-1.5" /> : <Link2 className="h-4 w-4 mr-1.5" />}
