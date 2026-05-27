@@ -456,7 +456,8 @@ export function CampaignFullPlanCard({
                       );
                     })}
                   </tr>
-                )}
+                  );
+                })()}
                 {plans.map((p, rowIdx) => {
                   const pos = positionByAllocation.get(p.allocationId) ?? null;
                   const posClass =
