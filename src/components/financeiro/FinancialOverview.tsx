@@ -198,7 +198,7 @@ export function FinancialOverview() {
                                       variant="soft"
                                       onClick={(e) => { e.stopPropagation(); setDialogDeal(d); }}
                                     >
-                                      <Plus className="h-3 w-3" /> Pagamento
+                                      <Plus className="h-3 w-3" /> Compra
                                     </Button>
                                   </div>
                                 );
