@@ -164,6 +164,8 @@ export function ExternalPackageEditor({
   const isDispatched = pkg?.status !== "draft";
   const noCapacity = items.length === 0;
   const underCovered = coverage < 95;
+  // Janela REAL do plano (rampa + platô + saída) — fallback p/ snapshots antigos.
+  const effDays = Math.max(1, snapshot.effectiveDays || snapshot.days || 1);
 
   const actionButtons = !isDispatched ? (
     <>
