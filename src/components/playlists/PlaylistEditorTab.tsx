@@ -344,6 +344,7 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
       toast({ title: "Erro ao remover", description: e.message, variant: "destructive" });
     } finally {
       setBusyTrack(null);
+      inFlight.current = false;
     }
   }
 
@@ -355,6 +356,8 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
 
   async function handleAddSubmit() {
     if (!addInput.trim()) return;
+    if (inFlight.current) return;
+    inFlight.current = true;
     setAdding(true);
     try {
       // 1) Enfileira add (bot adiciona no topo/fundo conforme implementação)
@@ -373,6 +376,7 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
       toast({ title: "Não consegui adicionar", description: e.message, variant: "destructive" });
     } finally {
       setAdding(false);
+      inFlight.current = false;
     }
   }
 
