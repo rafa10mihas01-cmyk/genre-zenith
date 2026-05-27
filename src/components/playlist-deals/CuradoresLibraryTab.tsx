@@ -197,7 +197,7 @@ export function CuradoresLibraryTab({
 
   // reset page quando filtros mudam
   const filterKey = `${query}|${showArchived}|${statusFilter}|${cppFilter}|${activityFilter}`;
-  useMemo(() => { setPage(0); return null; }, [filterKey]);
+  useEffect(() => { setPage(0); }, [filterKey]);
 
   const hasFilters = statusFilter !== "all" || cppFilter !== "all" || activityFilter !== "all";
 
