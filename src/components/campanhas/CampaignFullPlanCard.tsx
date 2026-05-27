@@ -383,7 +383,14 @@ export function CampaignFullPlanCard({
                 </tr>
               </thead>
               <tbody>
-                {radioTotal > 0 && (
+                {radioTotal > 0 && (() => {
+                  const trackIdMatch = track?.spotifyUrl?.match(/track\/([a-zA-Z0-9]+)/);
+                  const radioUrl = trackIdMatch ? `https://open.spotify.com/station/track/${trackIdMatch[1]}` : null;
+                  const TitleEl: any = radioUrl ? "a" : "div";
+                  const titleProps = radioUrl
+                    ? { href: radioUrl, target: "_blank", rel: "noopener noreferrer", title: "Abrir rádio no Spotify" }
+                    : {};
+                  return (
                   <tr className="bg-primary/[0.07] hover:bg-primary/10">
                     <td className="sticky left-0 z-10 py-2 px-3 border-b border-r border-border/30 border-t-2 border-t-primary/40 leading-tight bg-primary/[0.07]">
                       <div className="flex items-center gap-3">
@@ -391,7 +398,16 @@ export function CampaignFullPlanCard({
                           <AudioLines className="h-5 w-5 text-primary" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="text-[12px] font-semibold truncate text-foreground">Rádio · Autoplay · Mixes</div>
+                          <TitleEl
+                            {...titleProps}
+                            className={cn(
+                              "text-[12px] font-semibold truncate text-foreground inline-flex items-center gap-1",
+                              radioUrl && "hover:text-primary",
+                            )}
+                          >
+                            <span className="truncate">Rádio · Autoplay · Mixes</span>
+                            {radioUrl && <ExternalLink className="h-3 w-3 flex-shrink-0 opacity-70" />}
+                          </TitleEl>
                           <div className="text-[11px] text-muted-foreground tabular-nums">
                             {radioCollected ? (
                               <>
