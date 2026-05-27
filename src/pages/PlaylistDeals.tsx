@@ -1,6 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { ListMusic, Plus, CheckCircle2, Layers, Activity, Target, Users, Receipt, User, ChevronDown, Briefcase, Filter, Check, Play, Hourglass, List } from "lucide-react";
+import {
+  ListMusic,
+  Plus,
+  CheckCircle2,
+  Activity,
+  Target,
+  ChevronDown,
+  Filter,
+  Check,
+  List,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
@@ -13,7 +26,6 @@ import { useSetSidebarKpis } from "@/contexts/SidebarContext";
 import { useCuratorDeals } from "@/hooks/useCuratorDeals";
 import { computeCuratorStats, type CuratorDeal } from "@/lib/curatorDealsUtils";
 import { formatNumber } from "@/lib/format";
-import { CuratorDealCard } from "@/components/playlist-deals/CuratorDealCard";
 import { DealRow } from "@/components/playlist-deals/DealRow";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { NewDealDialog } from "@/components/playlist-deals/NewDealDialog";
@@ -21,39 +33,39 @@ import { DuplicateDealDialog } from "@/components/playlist-deals/DuplicateDealDi
 import { LogPrintDialog } from "@/components/playlist-deals/LogPrintDialog";
 import { DealHistorySheet } from "@/components/playlist-deals/DealHistorySheet";
 import { CloseDealDialog } from "@/components/playlist-deals/CloseDealDialog";
-import { FinanceiroTab } from "@/components/playlist-deals/FinanceiroTab";
 
-
-type DealsTab = "active" | "running" | "waiting" | "done" | "ledger" | "all";
+type DealsTab = "active" | "done" | "all";
+type OriginFilter = "all" | "manual" | "campaign";
 
 const TABS = [
-  { id: "active" as const, label: "Ativos",      icon: Activity },
-  { id: "done"   as const, label: "Concluídos",  icon: CheckCircle2 },
-  { id: "all"    as const, label: "Todos",       icon: List },
+  { id: "active" as const, label: "Ativos", icon: Activity },
+  { id: "done" as const, label: "Concluídos", icon: CheckCircle2 },
+  { id: "all" as const, label: "Todos", icon: List },
 ];
 
-function filterByTab(
-  deals: CuratorDeal[],
-  tab: DealsTab,
-  withBaseline: Set<string>,
-): CuratorDeal[] {
+const PAGE_SIZE = 24;
+
+function filterByTab(deals: CuratorDeal[], tab: DealsTab): CuratorDeal[] {
   switch (tab) {
-    case "done":    return deals.filter((d) => !!d.closed_at);
-    case "active":  return deals.filter((d) => !d.closed_at);
-    case "running": return deals.filter((d) => !d.closed_at && withBaseline.has(d.id));
-    case "waiting": return deals.filter((d) => !d.closed_at && !withBaseline.has(d.id));
+    case "done":
+      return deals.filter((d) => !!d.closed_at);
+    case "active":
+      return deals.filter((d) => !d.closed_at);
     case "all":
-    case "ledger":
-    default:        return deals;
+    default:
+      return deals;
   }
 }
 
 export default function PlaylistDeals() {
-  const [tabRaw, setTab] = useScreenField<DealsTab>("/playlist-deals", "tab", "active");
-  // Abas "ledger", "running" e "waiting" foram consolidadas em "active". Mantém aliases pra deep-links antigos.
-  const tab: DealsTab = (tabRaw === "ledger" || tabRaw === "running" || tabRaw === "waiting") ? "active" : tabRaw;
+  const [tabRaw, setTab] = useScreenField<DealsTab>("/deals", "tab", "active");
+  const tab: DealsTab = tabRaw === "active" || tabRaw === "done" || tabRaw === "all" ? tabRaw : "active";
 
-  const [artistFilter, setArtistFilter] = useScreenField<string>("/playlist-deals", "artist", "");
+  const [artistFilter, setArtistFilter] = useScreenField<string>("/deals", "artist", "");
+  const [originFilter, setOriginFilter] = useScreenField<OriginFilter>("/deals", "origin", "all");
+  const [search, setSearch] = useScreenField<string>("/deals", "q", "");
+  const [page, setPage] = useState(1);
+
   const [newOpen, setNewOpen] = useState(false);
   const [logDeal, setLogDeal] = useState<CuratorDeal | null>(null);
   const [detailDeal, setDetailDeal] = useState<CuratorDeal | null>(null);
@@ -66,10 +78,9 @@ export default function PlaylistDeals() {
   const [prefillCuratorId, setPrefillCuratorId] = useState<string | null>(null);
   const [sourceFitId, setSourceFitId] = useState<string | null>(null);
 
-  const { deals, logs, playlists, songs, alerts, curators, balances, progressByDeal, loading, deleteDeal, addLog, addBaseline, insertSnapshots, closeDeal, reopenDeal, forceCollectNow, updateCurator, addCuratorPurchase, archiveCurator, deleteCurator, pauseCurator, reload } = useCuratorDeals();
-  
+  const { deals, logs, playlists, songs, progressByDeal, loading, deleteDeal, closeDeal, reopenDeal, forceCollectNow, reload } = useCuratorDeals();
+
   const [searchParams, setSearchParams] = useSearchParams();
-  const useLegacyCards = searchParams.get("legacy") === "1";
   const navigate = useNavigate();
 
   // Resolve curador a partir do link da playlist e abre o NewDealDialog
@@ -128,15 +139,13 @@ export default function PlaylistDeals() {
         .update({ deal_id: deal.id } as any)
         .eq("fit_id", sourceFitId);
     } catch (e) {
-      console.error("[PlaylistDeals] feedback.deal_id update failed", e);
+      console.error("[Deals] feedback.deal_id update failed", e);
     }
   };
-  const openDetail = (deal: CuratorDeal) => {
-    if (useLegacyCards) setDetailDeal(deal);
-    else navigate(`/playlist-deals/${deal.id}`);
-  };
 
-  // KPIs do topo — derivados dos deals + logs + playlists
+  const openDetail = (deal: CuratorDeal) => navigate(`/deals/${deal.id}`);
+
+  // KPIs do topo
   const kpi = useMemo(() => {
     let active = 0;
     let done = 0;
@@ -147,31 +156,21 @@ export default function PlaylistDeals() {
       const target = Number(d.target_plays ?? 0);
       totalEarned += earned;
       totalTarget += target;
-      // "Concluído" agora = fechado manualmente; "Ativo" = sem closed_at
       if (d.closed_at) done++;
       else active++;
     }
     const pct = totalTarget > 0 ? Math.round((totalEarned / totalTarget) * 100) : 0;
     const fromCampaign = deals.filter((d) => d.origin === "campaign").length;
     const campaignPct = deals.length > 0 ? Math.round((fromCampaign / deals.length) * 100) : 0;
-    return {
-      total: deals.length,
-      active,
-      done,
-      earned: totalEarned,
-      pct,
-      fromCampaign,
-      campaignPct,
-    };
+    return { total: deals.length, active, done, earned: totalEarned, pct, fromCampaign, campaignPct };
   }, [deals, logs, playlists, progressByDeal]);
 
-  // Sidebar KPIs — ativos / concluídos / total
   useSetSidebarKpis(
     deals.length > 0
       ? [
-          { label: "Ativos",     value: kpi.active, intent: "primary" },
-          { label: "Concluídos", value: kpi.done,   intent: "success" },
-          { label: "Total",      value: kpi.total,  intent: "default" },
+          { label: "Ativos", value: kpi.active, intent: "primary" },
+          { label: "Concluídos", value: kpi.done, intent: "success" },
+          { label: "Total", value: kpi.total, intent: "default" },
         ]
       : [],
   );
@@ -181,20 +180,9 @@ export default function PlaylistDeals() {
     [logs],
   );
 
-  const activeCounts = useMemo(() => {
-    const actives = deals.filter((d) => !d.closed_at);
-    let running = 0;
-    let waiting = 0;
-    for (const d of actives) {
-      if (dealsWithBaseline.has(d.id)) running++;
-      else waiting++;
-    }
-    return { all: actives.length, running, waiting };
-  }, [deals, dealsWithBaseline]);
-
-  // Artistas disponíveis na aba atual (antes do filtro por artista)
+  // Artistas/Músicas disponíveis na aba atual (antes do filtro por música)
   const artistsAvailable = useMemo(() => {
-    const base = filterByTab(deals, tab, dealsWithBaseline);
+    const base = filterByTab(deals, tab);
     const set = new Map<string, number>();
     for (const d of base) {
       const a = (d.song_name ?? "").trim();
@@ -204,9 +192,8 @@ export default function PlaylistDeals() {
     return Array.from(set.entries())
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
-  }, [deals, tab, dealsWithBaseline]);
+  }, [deals, tab]);
 
-  // Se o artista filtrado não existe mais na aba, reseta
   useEffect(() => {
     if (artistFilter && !artistsAvailable.some((a) => a.name === artistFilter)) {
       setArtistFilter("");
@@ -214,21 +201,33 @@ export default function PlaylistDeals() {
   }, [artistFilter, artistsAvailable, setArtistFilter]);
 
   const filtered = useMemo(() => {
-    let base = filterByTab(deals, tab, dealsWithBaseline);
-
+    let base = filterByTab(deals, tab);
 
     if (artistFilter) {
       base = base.filter((d) => (d.song_name ?? "").trim() === artistFilter);
     }
-    // Agrupa por CAMPANHA (mesmo nome de música fica junto), independente de curador.
-    // Dentro de cada campanha: ativos com baseline > ativos sem baseline > encerrados.
-    // Ordem das campanhas: a primeira campanha que tiver um deal "mais ativo" aparece antes.
+
+    if (originFilter !== "all") {
+      base = base.filter((d) => (d.origin ?? "manual") === originFilter);
+    }
+
+    const q = search.trim().toLowerCase();
+    if (q) {
+      base = base.filter((d) => {
+        const hay = [d.song_name, d.song_artist, d.curator_name]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return hay.includes(q);
+      });
+    }
+
+    // Ordem: ativos com baseline > ativos sem baseline > encerrados, agrupados por campanha.
     const rank = (d: typeof deals[number]) =>
       d.closed_at ? 2 : dealsWithBaseline.has(d.id) ? 0 : 1;
     const campaignKey = (d: typeof deals[number]) =>
       (d.song_name ?? "").trim().toLowerCase() || `__deal_${d.id}`;
 
-    // Menor rank por campanha define a ordem das campanhas.
     const bestRankByCampaign = new Map<string, number>();
     for (const d of base) {
       const k = campaignKey(d);
@@ -236,7 +235,6 @@ export default function PlaylistDeals() {
       const prev = bestRankByCampaign.get(k);
       if (prev === undefined || r < prev) bestRankByCampaign.set(k, r);
     }
-    // Ordem de primeira aparição (estabilidade) dentro do mesmo bestRank.
     const campaignOrder = new Map<string, number>();
     let idx = 0;
     [...base]
@@ -254,10 +252,21 @@ export default function PlaylistDeals() {
         if (br !== 0) return br;
         return (campaignOrder.get(ka) ?? 0) - (campaignOrder.get(kb) ?? 0);
       }
-      // mesma campanha: ativos primeiro
       return rank(a) - rank(b);
     });
-  }, [deals, dealsWithBaseline, tab, artistFilter]);
+  }, [deals, dealsWithBaseline, tab, artistFilter, originFilter, search]);
+
+  // Reset paginação ao mudar filtros
+  useEffect(() => {
+    setPage(1);
+  }, [tab, artistFilter, originFilter, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paged = useMemo(
+    () => filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [filtered, safePage],
+  );
 
   const handleNew = () => setNewOpen(true);
 
@@ -266,7 +275,7 @@ export default function PlaylistDeals() {
     try {
       await deleteDeal(id);
     } catch (e) {
-      console.error("[PlaylistDeals] delete error", e);
+      console.error("[Deals] delete error", e);
     }
   };
 
@@ -276,7 +285,7 @@ export default function PlaylistDeals() {
       await reopenDeal(deal.id);
       toast.success("Deal reaberto");
     } catch (e) {
-      console.error("[PlaylistDeals] reopen error", e);
+      console.error("[Deals] reopen error", e);
       toast.error("Erro ao reabrir deal");
     }
   };
@@ -284,54 +293,29 @@ export default function PlaylistDeals() {
   const tabCount = (id: DealsTab) => {
     if (id === "all") return kpi.total;
     if (id === "done") return kpi.done;
-    if (id === "running") return activeCounts.running;
-    if (id === "waiting") return activeCounts.waiting;
     return kpi.active;
+  };
+
+  const originLabel: Record<OriginFilter, string> = {
+    all: "Todas as origens",
+    manual: "Manual",
+    campaign: "Campanha",
   };
 
   return (
     <PageContainer>
       <PageHeader
-        title="Negociações"
-        subtitle="Transações ativas"
+        title="Deals"
         domain="deals"
         manualKey="deals"
-
         actions={
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button className="rounded-full h-9 gap-1.5 max-w-full" aria-label="Criar novo">
-                <Plus className="h-4 w-4" /> <span className="truncate">Novo</span>
-                <ChevronDown className="h-3.5 w-3.5 opacity-80" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 rounded-xl p-1.5">
-              <DropdownMenuItem
-                className="gap-2 rounded-lg items-start py-2"
-                onClick={handleNew}
-              >
-                <Briefcase className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium leading-tight">Novo Deal</span>
-                  <span className="text-[11px] text-muted-foreground leading-tight">Curador + músicas + meta</span>
-                </div>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="gap-2 rounded-lg items-start py-2"
-                onClick={() => navigate("/clientes")}
-              >
-                <User className="h-4 w-4 mt-0.5 shrink-0" />
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium leading-tight">Novo cliente</span>
-                  <span className="text-[11px] text-muted-foreground leading-tight">Artista ou label contratante</span>
-                </div>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Button onClick={handleNew} className="rounded-full h-9 gap-1.5" aria-label="Novo deal">
+            <Plus className="h-4 w-4" /> <span className="truncate">Novo Deal</span>
+          </Button>
         }
       />
 
-      {/* KPIs — hierarquia cockpit: hero (Plays entregues) + secundários + quiet (histórico) */}
+      {/* KPIs */}
       <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <KpiBig
           tier="hero"
@@ -373,8 +357,7 @@ export default function PlaylistDeals() {
         />
       </section>
 
-
-      {/* TABS — Rodando e Aguardando promovidos a tabs; Música fica no canto direito */}
+      {/* TABS */}
       <div className="sticky top-0 z-30 -mt-px bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border -mx-4 md:-mx-6">
         <div className="nx-tab-rail items-center gap-1 px-4 md:px-6 flex">
           <div className="flex items-center gap-1 flex-1 min-w-0 overflow-x-auto scrollbar-none">
@@ -397,9 +380,7 @@ export default function PlaylistDeals() {
                   <span
                     className={cn(
                       "ml-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold tabular-nums",
-                      active
-                        ? "bg-primary/15 text-primary"
-                        : "bg-muted text-muted-foreground",
+                      active ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
                     )}
                   >
                     {tabCount(t.id)}
@@ -408,22 +389,61 @@ export default function PlaylistDeals() {
               );
             })}
           </div>
+        </div>
+      </div>
+
+      {/* Busca + filtros */}
+      <div className="flex flex-col md:flex-row md:items-center gap-2">
+        <div className="relative flex-1 min-w-0">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por música, artista ou curador…"
+            className="w-full h-9 pl-9 pr-3 rounded-full bg-card border border-border text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-foreground/30"
+          />
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={cn(
+                  "h-9 px-3 inline-flex items-center gap-1.5 rounded-full text-[12px] font-medium border transition-colors",
+                  originFilter !== "all"
+                    ? "bg-primary/15 text-primary border-primary/30"
+                    : "bg-transparent text-muted-foreground border-border hover:text-foreground hover:bg-muted/40",
+                )}
+              >
+                <Filter className="h-3.5 w-3.5" />
+                <span className="max-w-[140px] truncate">{originLabel[originFilter]}</span>
+                <ChevronDown className="h-3 w-3 opacity-70" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              {(["all", "manual", "campaign"] as OriginFilter[]).map((o) => (
+                <DropdownMenuItem key={o} onClick={() => setOriginFilter(o)} className="gap-2">
+                  {originFilter === o ? <Check className="h-4 w-4 text-primary" /> : <span className="w-4" />}
+                  <span>{originLabel[o]}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {artistsAvailable.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   className={cn(
-                    "ml-auto shrink-0 h-8 px-3 inline-flex items-center gap-1.5 rounded-full text-[12px] font-medium border transition-colors",
+                    "h-9 px-3 inline-flex items-center gap-1.5 rounded-full text-[12px] font-medium border transition-colors",
                     artistFilter
                       ? "bg-primary/15 text-primary border-primary/30"
                       : "bg-transparent text-muted-foreground border-border hover:text-foreground hover:bg-muted/40",
                   )}
                 >
                   <Filter className="h-3.5 w-3.5" />
-                  <span className="max-w-[140px] truncate">
-                    {artistFilter || "Música"}
-                  </span>
+                  <span className="max-w-[140px] truncate">{artistFilter || "Música"}</span>
                   <ChevronDown className="h-3 w-3 opacity-70" />
                 </button>
               </DropdownMenuTrigger>
@@ -433,11 +453,7 @@ export default function PlaylistDeals() {
                   <span>Todas as músicas</span>
                 </DropdownMenuItem>
                 {artistsAvailable.map((a) => (
-                  <DropdownMenuItem
-                    key={a.name}
-                    onClick={() => setArtistFilter(a.name)}
-                    className="gap-2"
-                  >
+                  <DropdownMenuItem key={a.name} onClick={() => setArtistFilter(a.name)} className="gap-2">
                     {artistFilter === a.name ? <Check className="h-4 w-4 text-primary" /> : <span className="w-4" />}
                     <span className="truncate flex-1">{a.name}</span>
                     <span className="text-[10px] tabular-nums text-muted-foreground">{a.count}</span>
@@ -449,8 +465,7 @@ export default function PlaylistDeals() {
         </div>
       </div>
 
-
-      {/* Conteúdo — altura mínima estável evita layout shift entre abas */}
+      {/* Conteúdo */}
       <div className="min-h-[480px] animate-tab-in">
         {loading && deals.length === 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
@@ -471,7 +486,7 @@ export default function PlaylistDeals() {
                 <div className="text-[13px] text-muted-foreground leading-relaxed">
                   {deals.length === 0
                     ? "Crie seu primeiro deal para começar a acompanhar curadores, metas e plays entregues."
-                    : "Tente outra aba ou crie um novo deal."}
+                    : "Tente outra aba ou ajuste os filtros."}
                 </div>
               </div>
               {deals.length === 0 && (
@@ -481,48 +496,60 @@ export default function PlaylistDeals() {
               )}
             </div>
           </div>
-        ) : useLegacyCards ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
-            {filtered.map((d) => (
-              <CuratorDealCard
-                key={d.id}
-                deal={d}
-                logs={logs}
-                playlists={playlists}
-                progress={progressByDeal[d.id]}
-                songs={songs.filter((s) => s.deal_id === d.id)}
-                onLog={(deal) => setLogDeal(deal)}
-                onDetail={openDetail}
-                onDelete={(deal) => handleDelete(deal.id)}
-                onEdit={(deal) => setEditDeal(deal)}
-                onDuplicate={(deal) => setDuplicateDeal(deal)}
-                onClose={(deal) => setCloseDealOpen(deal)}
-                onReopen={handleReopen}
-                onForceCollect={(deal) => forceCollectNow(deal.id)}
-              />
-            ))}
-          </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
-            {filtered.map((d) => (
-              <DealRow
-                key={d.id}
-                deal={d}
-                logs={logs}
-                playlists={playlists}
-                progress={progressByDeal[d.id]}
-                songs={songs.filter((s) => s.deal_id === d.id)}
-                onLog={(deal) => setLogDeal(deal)}
-                onDetail={openDetail}
-                onDelete={(deal) => handleDelete(deal.id)}
-                onEdit={(deal) => setEditDeal(deal)}
-                onDuplicate={(deal) => setDuplicateDeal(deal)}
-                onClose={(deal) => setCloseDealOpen(deal)}
-                onReopen={handleReopen}
-                onForceCollect={(deal) => forceCollectNow(deal.id)}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
+              {paged.map((d) => (
+                <DealRow
+                  key={d.id}
+                  deal={d}
+                  logs={logs}
+                  playlists={playlists}
+                  progress={progressByDeal[d.id]}
+                  songs={songs.filter((s) => s.deal_id === d.id)}
+                  onLog={(deal) => setLogDeal(deal)}
+                  onDetail={openDetail}
+                  onDelete={(deal) => handleDelete(deal.id)}
+                  onEdit={(deal) => setEditDeal(deal)}
+                  onDuplicate={(deal) => setDuplicateDeal(deal)}
+                  onClose={(deal) => setCloseDealOpen(deal)}
+                  onReopen={handleReopen}
+                  onForceCollect={(deal) => forceCollectNow(deal.id)}
+                />
+              ))}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-6 px-1">
+                <div className="text-[12px] text-muted-foreground tabular-nums">
+                  {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filtered.length)} de {filtered.length}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2.5 gap-1"
+                    disabled={safePage <= 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" /> Anterior
+                  </Button>
+                  <span className="text-[12px] text-muted-foreground tabular-nums px-2">
+                    {safePage} / {totalPages}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2.5 gap-1"
+                    disabled={safePage >= totalPages}
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  >
+                    Próxima <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
