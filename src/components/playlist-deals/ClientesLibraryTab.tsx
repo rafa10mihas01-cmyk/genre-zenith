@@ -64,13 +64,7 @@ import { useClients, type Client } from "@/hooks/useClients";
 import { clientCampaignUrl } from "@/lib/curatorPublicUrl";
 import { cn } from "@/lib/utils";
 import type { CuratorDeal, CuratorDealSong } from "@/lib/curatorDealsUtils";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+// Select já importado abaixo
 
 type ClientSongRow = CuratorDealSong & {
   client_id?: string | null;
