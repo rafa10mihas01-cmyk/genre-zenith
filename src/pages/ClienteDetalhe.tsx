@@ -112,8 +112,36 @@ export default function ClienteDetalhe() {
   const { deals, songs, loading: loadingDeals } = useCuratorDeals();
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [clientCampaigns, setClientCampaigns] = useState<Array<{
+    id: string;
+    track_name: string;
+    artist: string | null;
+    status: string;
+    campaign_type: string | null;
+    created_at: string;
+    valor_cobrado: number | null;
+    valor_recebido: number | null;
+    recebido_em: string | null;
+    deadline: string | null;
+  }>>([]);
 
   const client = useMemo(() => clients.find((c) => c.id === id), [clients, id]);
+
+  // Carrega campanhas vinculadas a este cliente (campaigns.client_id)
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("campaigns")
+        .select("id, track_name, artist, status, campaign_type, created_at, valor_cobrado, valor_recebido, recebido_em, deadline")
+        .eq("client_id", id)
+        .order("created_at", { ascending: false });
+      if (cancelled || error || !data) return;
+      setClientCampaigns(data as any);
+    })();
+    return () => { cancelled = true; };
+  }, [id]);
 
   const clientSongs = useMemo(
     () => songs.filter((s: any) => s.client_id === id),
@@ -139,7 +167,13 @@ export default function ClienteDetalhe() {
     const ativos = clientDeals.filter((d) => !d.closed_at).length;
     const concluidos = clientDeals.filter((d) => d.closed_status === "completed").length;
     const cancelados = clientDeals.filter((d) => d.closed_status === "cancelled").length;
-    const investido = clientDeals.reduce((acc, d) => acc + (d.cost ?? 0), 0);
+    const investido = clientDeals.reduce((acc, d) => acc + (Number(d.cost) || 0), 0);
+    const receita = clientCampaigns.reduce((acc, c) => acc + (Number(c.valor_recebido) || 0), 0);
+    const saldoPendente = clientCampaigns.reduce(
+      (acc, c) => acc + Math.max(0, (Number(c.valor_cobrado) || 0) - (Number(c.valor_recebido) || 0)),
+      0,
+    );
+    const margem = receita - investido;
     return {
       musicas: clientSongs.length,
       deals: clientDeals.length,
@@ -147,8 +181,12 @@ export default function ClienteDetalhe() {
       concluidos,
       cancelados,
       investido,
+      receita,
+      margem,
+      saldoPendente,
+      campanhas: clientCampaigns.length,
     };
-  }, [clientDeals, clientSongs]);
+  }, [clientDeals, clientSongs, clientCampaigns]);
 
   if (loadingClients && !client) {
     return (
