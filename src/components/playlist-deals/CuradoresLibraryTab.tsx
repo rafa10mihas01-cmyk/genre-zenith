@@ -16,7 +16,9 @@ import {
   Play,
   ChevronLeft,
   ChevronRight,
+  SlidersHorizontal,
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -225,25 +227,48 @@ export function CuradoresLibraryTab({
           </SelectContent>
         </Select>
 
-        <Select value={cppFilter} onValueChange={(v) => setCppFilter(v as typeof cppFilter)}>
-          <SelectTrigger className="h-9 w-[140px]"><SelectValue placeholder="CPP" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Qualquer CPP</SelectItem>
-            <SelectItem value="lt001">&lt; R$ 0,01</SelectItem>
-            <SelectItem value="001-005">R$ 0,01–0,05</SelectItem>
-            <SelectItem value="gt005">&gt; R$ 0,05</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={activityFilter} onValueChange={(v) => setActivityFilter(v as typeof activityFilter)}>
-          <SelectTrigger className="h-9 w-[160px]"><SelectValue placeholder="Atividade" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Qualquer período</SelectItem>
-            <SelectItem value="7d">Últimos 7 dias</SelectItem>
-            <SelectItem value="30d">Últimos 30 dias</SelectItem>
-            <SelectItem value="90d">Últimos 90 dias</SelectItem>
-          </SelectContent>
-        </Select>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className={cn("h-9 w-9 shrink-0 relative", (cppFilter !== "all" || activityFilter !== "all") && "border-primary text-primary")}
+              aria-label="Mais filtros"
+              title="Mais filtros"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              {(cppFilter !== "all" || activityFilter !== "all") && (
+                <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-primary" />
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-64 space-y-3">
+            <div className="space-y-1.5">
+              <label className="text-[11px] uppercase tracking-wide text-muted-foreground">CPP</label>
+              <Select value={cppFilter} onValueChange={(v) => setCppFilter(v as typeof cppFilter)}>
+                <SelectTrigger className="h-9 w-full"><SelectValue placeholder="CPP" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Qualquer CPP</SelectItem>
+                  <SelectItem value="lt001">&lt; R$ 0,01</SelectItem>
+                  <SelectItem value="001-005">R$ 0,01–0,05</SelectItem>
+                  <SelectItem value="gt005">&gt; R$ 0,05</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Atividade</label>
+              <Select value={activityFilter} onValueChange={(v) => setActivityFilter(v as typeof activityFilter)}>
+                <SelectTrigger className="h-9 w-full"><SelectValue placeholder="Atividade" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Qualquer período</SelectItem>
+                  <SelectItem value="7d">Últimos 7 dias</SelectItem>
+                  <SelectItem value="30d">Últimos 30 dias</SelectItem>
+                  <SelectItem value="90d">Últimos 90 dias</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </PopoverContent>
+        </Popover>
 
         {hasFilters && (
           <Button
