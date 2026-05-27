@@ -2,7 +2,7 @@
 // Single source of truth for processing playsMap snapshots from the VPS bot.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { assertDealOperable } from "./deal-access.ts";
-import { classifyPlaylistKind, isAlgorithmic } from "./algorithmic-classifier.ts";
+import { classifyPlaylistKind } from "./algorithmic-classifier.ts";
 
 export type DomItem = {
   deal_id: string;
