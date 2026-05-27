@@ -4409,6 +4409,8 @@ export type Database = {
           lifecycle_phase: string
           lifecycle_phase_updated_at: string | null
           lifecycle_stage: string
+          locked_at: string | null
+          locked_by: string | null
           max_change_pct: number
           metadata: Json
           name: string
@@ -4450,6 +4452,8 @@ export type Database = {
           lifecycle_phase?: string
           lifecycle_phase_updated_at?: string | null
           lifecycle_stage?: string
+          locked_at?: string | null
+          locked_by?: string | null
           max_change_pct?: number
           metadata?: Json
           name: string
@@ -4491,6 +4495,8 @@ export type Database = {
           lifecycle_phase?: string
           lifecycle_phase_updated_at?: string | null
           lifecycle_stage?: string
+          locked_at?: string | null
+          locked_by?: string | null
           max_change_pct?: number
           metadata?: Json
           name?: string
