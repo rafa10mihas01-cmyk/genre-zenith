@@ -485,6 +485,15 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
           </div>
         )}
 
+        {source === "cache" && (
+          <div className="flex items-start gap-2 text-sm p-3 rounded-md border border-warning/40 bg-warning/5 text-warning">
+            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>
+              Mostrando faixas salvas{cacheSnapshotAt ? ` (snapshot de ${new Date(cacheSnapshotAt).toLocaleString("pt-BR")})` : ""} — Spotify temporariamente indisponível.
+            </span>
+          </div>
+        )}
+
         {err && rateLimitSecLeft === 0 && (
           <div className="flex items-start gap-2 text-sm text-destructive p-3 rounded-md border border-destructive/30 bg-destructive/5">
             <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
