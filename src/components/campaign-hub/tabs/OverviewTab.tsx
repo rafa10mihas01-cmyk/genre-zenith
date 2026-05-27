@@ -37,6 +37,9 @@ type Props = {
   snapshots?: EcoSnap[];
   proofs?: ProofPreview[];
   onJumpTab?: (tab: "playlists" | "proofs" | "curve" | "finance") => void;
+  // Slot opcional que substitui o card "Curva de entrega" dentro do grid principal.
+  // Usado pra subir o monitoramento ao lugar da curva planejada.
+  curveSlot?: React.ReactNode;
   // Rebalanceamento eco/ext em runtime
   splitLockedAt?: string | null;
   lockedEcoStreams?: number | null;
@@ -49,9 +52,12 @@ type Props = {
 export function OverviewTab({
   snapshot, delivered, daysElapsed, showFinance, hideDeliveryPlan = false, hideCurveShortcut = false, hideCurveCard = false, hideKpis = false,
   allocations = [], snapshots = [], proofs = [], onJumpTab,
+  curveSlot,
   splitLockedAt = null, lockedEcoStreams = null, ecoMaxPct = 70,
   canManageSplit = false, onLockSplit, onUnlockSplit,
 }: Props) {
+  // Slot externo (ex: monitoramento) tem precedência sobre o card padrão de curva.
+  const showCurveCard = !hideCurveCard && !curveSlot;
   const [planOpen, setPlanOpen] = useState(false);
   const [savingLock, setSavingLock] = useState(false);
   const pct = snapshot.meta > 0 ? Math.min(100, Math.round((delivered / snapshot.meta) * 100)) : 0;
