@@ -1383,6 +1383,35 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         </div>
       )}
 
+      {/* Rodapé: Carregar mais — só aparece fora da matriz de capacidade e quando há mais no servidor */}
+      {!showCapacity && !loading && items.length > 0 && (
+        <div className="flex flex-col items-center gap-2 pt-2">
+          <p className="text-[11px] text-muted-foreground tabular-nums">
+            Exibindo <span className="font-semibold text-foreground">{items.length}</span> de{" "}
+            <span className="font-semibold text-foreground">{totalLoadedTarget}</span>{" "}
+            {showArchived ? "arquivadas" : "ativas"}
+          </p>
+          {canLoadMore && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setLoadedCount((n) => n + PAGE_SIZE)}
+              disabled={itemsQuery.isFetching}
+              className="gap-2 h-9"
+            >
+              {itemsQuery.isFetching ? (
+                <>
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                  Carregando…
+                </>
+              ) : (
+                <>Carregar mais {PAGE_SIZE}</>
+              )}
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* Import dialog */}
       <Dialog open={importOpen} onOpenChange={setImportOpen}>
         <DialogContent>
