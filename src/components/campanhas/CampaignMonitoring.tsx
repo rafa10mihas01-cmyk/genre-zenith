@@ -156,16 +156,33 @@ export function CampaignMonitoring({ campaignId, snapshot, campaignStartedAt, ca
         )}
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* KPIs */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-          <KPI label="Dia" value={`${metrics.elapsedDays}/${metrics.totalDays}`} hint={`${metrics.daysLeft}d restantes`} />
-          <KPI label="Planejado até hoje" value={formatInt(metrics.plannedToDate)} />
-          <KPI label={metrics.hasRealData ? "Entregue real" : "Entregue (estim.)"} value={formatInt(metrics.delivered)} hint={`Eco ${formatInt(metrics.ecoDelivered)} · Ext ${formatInt(metrics.extDelivered)}${metrics.hasRealData ? " · bot" : ""}`} />
-          <KPI
-            label="Aderência"
-            value={`${metrics.adherence.toFixed(0)}%`}
-            tone={metrics.deviating ? "warning" : "primary"}
-          />
+        {/* KPIs — régua única, sem caixas individuais */}
+        <div className="rounded-xl border border-border bg-elevated/30 overflow-hidden">
+          <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-border/60">
+            <KPICell
+              label="Dia"
+              value={`${metrics.elapsedDays}/${metrics.totalDays}`}
+              hint={`${metrics.daysLeft}d restantes`}
+              progress={metrics.totalDays > 0 ? (metrics.elapsedDays / metrics.totalDays) * 100 : 0}
+              progressTone="neutral"
+            />
+            <KPICell
+              label="Planejado até hoje"
+              value={formatInt(metrics.plannedToDate)}
+            />
+            <KPICell
+              label={metrics.hasRealData ? "Entregue real" : "Entregue (estim.)"}
+              value={formatInt(metrics.delivered)}
+              hint={`Eco ${formatInt(metrics.ecoDelivered)} · Ext ${formatInt(metrics.extDelivered)}${metrics.hasRealData ? " · bot" : ""}`}
+            />
+            <KPICell
+              label="Aderência"
+              value={`${metrics.adherence.toFixed(0)}%`}
+              tone={metrics.adherence >= 80 ? "primary" : metrics.adherence >= 60 ? "warning" : "danger"}
+              progress={Math.min(100, metrics.adherence)}
+              progressTone={metrics.adherence >= 80 ? "primary" : metrics.adherence >= 60 ? "warning" : "danger"}
+            />
+          </div>
         </div>
 
         {/* Alerta de desvio */}
@@ -184,6 +201,7 @@ export function CampaignMonitoring({ campaignId, snapshot, campaignStartedAt, ca
 
         {/* Entrega por fonte (curadores externos) — sobe pra cima do gráfico */}
         <CampaignCuratorDeals campaignId={campaignId} />
+
 
         {/* Gráfico planejado x real */}
         <div className="rounded-lg border border-border bg-elevated/30 p-3">
@@ -217,19 +235,48 @@ export function CampaignMonitoring({ campaignId, snapshot, campaignStartedAt, ca
   );
 }
 
-function KPI({ label, value, hint, tone }: { label: string; value: string; hint?: string; tone?: "primary" | "warning" }) {
+function KPICell({
+  label,
+  value,
+  hint,
+  tone,
+  progress,
+  progressTone = "neutral",
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  tone?: "primary" | "warning" | "danger";
+  progress?: number;
+  progressTone?: "primary" | "warning" | "danger" | "neutral";
+}) {
+  const barColor =
+    progressTone === "primary" ? "bg-primary" :
+    progressTone === "warning" ? "bg-warning" :
+    progressTone === "danger"  ? "bg-destructive" :
+    "bg-foreground/30";
   return (
-    <div className="rounded-lg border border-border bg-elevated/30 p-2.5">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+    <div className="px-4 py-3 flex flex-col gap-1.5 min-w-0">
+      <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-medium">{label}</div>
       <div className={cn(
-        "text-base font-semibold tabular-nums mt-0.5",
+        "text-2xl font-semibold tabular-nums leading-none",
         tone === "warning" && "text-warning",
         tone === "primary" && "text-primary",
+        tone === "danger"  && "text-destructive",
       )}>{value}</div>
-      {hint && <div className="text-[10px] text-muted-foreground mt-0.5">{hint}</div>}
+      {typeof progress === "number" && (
+        <div className="h-[3px] w-full rounded-full bg-foreground/5 overflow-hidden mt-1">
+          <div
+            className={cn("h-full rounded-full transition-[width] duration-500", barColor)}
+            style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
+          />
+        </div>
+      )}
+      {hint && <div className="text-[10.5px] text-muted-foreground truncate">{hint}</div>}
     </div>
   );
 }
+
 
 function CurvaReal({ curva, elapsedDays, delivered }: { curva: { day: number; streamsDay: number; cumulative: number }[]; elapsedDays: number; delivered: number }) {
   if (curva.length === 0) return null;
