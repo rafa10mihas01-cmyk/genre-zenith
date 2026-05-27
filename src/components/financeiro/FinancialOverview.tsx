@@ -63,12 +63,23 @@ export function FinancialOverview() {
       {/* ===== Cards de resumo ===== */}
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <SummaryCard icon={DollarSign} label="Recebido de clientes" value={fmtBRL(totals.recebido)} tone="primary" />
-        <SummaryCard icon={Wallet} label="Pago a curadores" value={fmtBRL(totals.pago)} tone="muted" />
+        <SummaryCard
+          icon={Wallet}
+          label="Investido em curadoria"
+          value={fmtBRL(totals.custoTotalCaixa)}
+          tone="muted"
+          hint={
+            totals.custoNaoAlocado > 0
+              ? `${fmtBRL(totals.custoNaoAlocado)} sem deal vinculado`
+              : undefined
+          }
+        />
         <SummaryCard
           icon={totals.margem >= 0 ? TrendingUp : TrendingDown}
           label="Margem bruta"
           value={fmtBRL(totals.margem)}
           tone={totals.margem >= 0 ? "primary" : "warn"}
+          hint={totals.custoNaoAlocado > 0 ? "Exclui custo não alocado" : undefined}
         />
         <SummaryCard
           icon={TrendingUp}
@@ -77,6 +88,22 @@ export function FinancialOverview() {
           tone={totals.margemPct != null && totals.margemPct >= 30 ? "primary" : "muted"}
         />
       </section>
+
+      {/* ===== Aviso de custo não alocado ===== */}
+      {totals.custoNaoAlocado > 0 && (
+        <section className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 flex items-start gap-3">
+          <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+          <div className="text-sm">
+            <div className="font-semibold text-amber-300">
+              {fmtBRL(totals.custoNaoAlocado)} em compras sem deal vinculado
+            </div>
+            <p className="text-xs text-amber-200/80 mt-0.5">
+              {totals.numComprasNaoAlocadas} compra{totals.numComprasNaoAlocadas === 1 ? "" : "s"} de curadoria entram no caixa total mas não somam em nenhuma campanha.
+              Para aparecer na margem por campanha, vincule a compra a um deal ao registrar.
+            </p>
+          </div>
+        </section>
+      )}
 
       {/* ===== Alertas ===== */}
       {alerts.length > 0 && (
@@ -171,7 +198,7 @@ export function FinancialOverview() {
                                       variant="soft"
                                       onClick={(e) => { e.stopPropagation(); setDialogDeal(d); }}
                                     >
-                                      <Plus className="h-3 w-3" /> Pagamento
+                                      <Plus className="h-3 w-3" /> Compra
                                     </Button>
                                   </div>
                                 );
@@ -194,8 +221,10 @@ export function FinancialOverview() {
           open={!!dialogDeal}
           onOpenChange={(v) => !v && setDialogDeal(null)}
           dealId={dialogDeal.deal_id}
+          curatorId={dialogDeal.curator_id}
           dealLabel={`${dialogDeal.song_name} — ${dialogDeal.curator_name}`}
           remainingHint={Math.max(0, dialogDeal.cost - dialogDeal.total_paid)}
+          remainingPlaysHint={Math.max(0, dialogDeal.target_plays - dialogDeal.reconciled_total_plays)}
           onSubmit={registerPayment}
         />
       )}
@@ -208,11 +237,13 @@ function SummaryCard({
   label,
   value,
   tone,
+  hint,
 }: {
   icon: any;
   label: string;
   value: string;
   tone: "primary" | "warn" | "muted";
+  hint?: string;
 }) {
   const accent =
     tone === "primary" ? "text-primary bg-primary/10"
@@ -227,6 +258,7 @@ function SummaryCard({
         {label}
       </div>
       <div className="mt-2 text-xl font-bold tabular-nums text-foreground">{value}</div>
+      {hint && <div className="mt-1 text-[11px] text-muted-foreground">{hint}</div>}
     </div>
   );
 }

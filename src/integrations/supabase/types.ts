@@ -7720,6 +7720,13 @@ export type Database = {
         }
         Relationships: []
       }
+      v_financial_unallocated_cost: {
+        Row: {
+          num_compras: number | null
+          total_nao_alocado: number | null
+        }
+        Relationships: []
+      }
       v_playlist_delivery_history: {
         Row: {
           avg_daily_delivery: number | null

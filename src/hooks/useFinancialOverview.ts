@@ -32,6 +32,7 @@ export type DealPayment = {
 export type DealFinanceRow = {
   deal_id: string;
   campaign_id: string | null;
+  curator_id: string | null;
   curator_name: string;
   song_name: string;
   target_plays: number;
@@ -60,19 +61,45 @@ export function useFinancialOverview() {
     },
   });
 
-  const paymentsQuery = useQuery({
-    queryKey: ["deal-payments"],
+  const unallocatedQuery = useQuery({
+    queryKey: ["financial-unallocated"],
     enabled: !!user,
     staleTime: 30_000,
     placeholderData: keepPreviousData,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("curator_deal_payments")
+        .from("v_financial_unallocated_cost")
         .select("*")
-        .order("payment_date", { ascending: false })
-        .limit(500);
+        .maybeSingle();
       if (error) throw error;
-      return (data ?? []) as DealPayment[];
+      return (data ?? { total_nao_alocado: 0, num_compras: 0 }) as {
+        total_nao_alocado: number;
+        num_compras: number;
+      };
+    },
+  });
+
+  const purchasesQuery = useQuery({
+    queryKey: ["financial-purchases"],
+    enabled: !!user,
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("curator_purchases")
+        .select("id, deal_id, curator_id, amount, plays_purchased, purchased_at, note")
+        .order("purchased_at", { ascending: false })
+        .limit(1000);
+      if (error) throw error;
+      return (data ?? []) as Array<{
+        id: string;
+        deal_id: string | null;
+        curator_id: string;
+        amount: number;
+        plays_purchased: number;
+        purchased_at: string;
+        note: string | null;
+      }>;
     },
   });
 
@@ -85,7 +112,7 @@ export function useFinancialOverview() {
       const { data, error } = await supabase
         .from("curator_deals")
         .select(
-          "id, campaign_id, curator_name, song_name, target_plays, cost, reconciled_total_plays, started_at, closed_at",
+          "id, campaign_id, curator_id, curator_name, song_name, target_plays, cost, reconciled_total_plays, started_at, closed_at",
         )
         .order("started_at", { ascending: false })
         .limit(500);
@@ -94,16 +121,17 @@ export function useFinancialOverview() {
     },
   });
 
-  // Realtime: pagamentos atualizam summary + payments
+  // Realtime: compras de curadoria atualizam summary + purchases + unallocated
   useEffect(() => {
     if (!user) return;
     const channel = supabase
       .channel(`financial-live-${user.id}-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "curator_deal_payments" },
+        { event: "*", schema: "public", table: "curator_purchases" },
         () => {
-          qc.invalidateQueries({ queryKey: ["deal-payments"] });
+          qc.invalidateQueries({ queryKey: ["financial-purchases"] });
+          qc.invalidateQueries({ queryKey: ["financial-unallocated"] });
           qc.invalidateQueries({ queryKey: ["financial-summary"] });
         },
       )
@@ -122,12 +150,14 @@ export function useFinancialOverview() {
   }, [user, qc]);
 
   const summary = summaryQuery.data ?? [];
-  const payments = paymentsQuery.data ?? [];
+  const purchases = purchasesQuery.data ?? [];
+  const unallocated = unallocatedQuery.data ?? { total_nao_alocado: 0, num_compras: 0 };
   const dealsRaw = dealsQuery.data ?? [];
 
   const dealsFinance = useMemo<DealFinanceRow[]>(() => {
     const paid = new Map<string, number>();
-    for (const p of payments) {
+    for (const p of purchases) {
+      if (!p.deal_id) continue;
       paid.set(p.deal_id, (paid.get(p.deal_id) ?? 0) + Number(p.amount));
     }
     return dealsRaw.map((d) => {
@@ -138,6 +168,7 @@ export function useFinancialOverview() {
       return {
         deal_id: d.id,
         campaign_id: d.campaign_id,
+        curator_id: d.curator_id ?? null,
         curator_name: d.curator_name,
         song_name: d.song_name,
         target_plays: target,
@@ -150,7 +181,7 @@ export function useFinancialOverview() {
         days_open: days,
       };
     });
-  }, [dealsRaw, payments]);
+  }, [dealsRaw, purchases]);
 
   const totals = useMemo(() => {
     let recebido = 0;
@@ -162,66 +193,72 @@ export function useFinancialOverview() {
       pago += Number(s.total_pago_curadores ?? 0);
     }
     const margem = recebido - pago;
+    const custoTotalCaixa = purchases.reduce((acc, p) => acc + Number(p.amount ?? 0), 0);
     return {
       cobrado,
       recebido,
       pago,
       margem,
       margemPct: recebido > 0 ? (margem / recebido) * 100 : null,
+      custoTotalCaixa,
+      custoNaoAlocado: Number(unallocated.total_nao_alocado ?? 0),
+      numComprasNaoAlocadas: Number(unallocated.num_compras ?? 0),
     };
-  }, [summary]);
+  }, [summary, purchases, unallocated]);
 
   const reload = useCallback(async () => {
     await Promise.all([
       qc.invalidateQueries({ queryKey: ["financial-summary"] }),
-      qc.invalidateQueries({ queryKey: ["deal-payments"] }),
+      qc.invalidateQueries({ queryKey: ["financial-purchases"] }),
+      qc.invalidateQueries({ queryKey: ["financial-unallocated"] }),
       qc.invalidateQueries({ queryKey: ["financial-deals"] }),
     ]);
   }, [qc]);
 
+  // registerPayment agora cria uma curator_purchase vinculada ao deal (Opção A).
   const registerPayment = useCallback(
     async (input: {
       deal_id: string;
+      curator_id: string;
       amount: number;
-      payment_date?: string;
+      plays_purchased: number;
+      payment_date?: string; // mantido por compat — vira purchased_at
       method?: string;
       notes?: string;
     }) => {
-      const optimistic: DealPayment = {
-        id: `tmp-${crypto.randomUUID()}`,
+      if (!user?.id) throw new Error("Sessão expirada");
+      const purchasedAt = input.payment_date
+        ? new Date(`${input.payment_date}T12:00:00`).toISOString()
+        : new Date().toISOString();
+      const noteParts = [input.method, input.notes].filter(Boolean);
+      const { error } = await supabase.from("curator_purchases").insert({
+        user_id: user.id,
+        curator_id: input.curator_id,
         deal_id: input.deal_id,
         amount: Number(input.amount.toFixed(2)),
-        payment_date: input.payment_date ?? new Date().toISOString().slice(0, 10),
-        method: input.method ?? null,
-        notes: input.notes ?? null,
-        created_at: new Date().toISOString(),
-      };
-      await qc.cancelQueries({ queryKey: ["deal-payments"] });
-      const previous = qc.getQueryData<DealPayment[]>(["deal-payments"]);
-      qc.setQueryData<DealPayment[]>(["deal-payments"], (old) => [optimistic, ...(old ?? [])]);
-
-      const { error } = await supabase.from("curator_deal_payments").insert({
-        deal_id: input.deal_id,
-        amount: optimistic.amount,
-        payment_date: optimistic.payment_date,
-        method: optimistic.method,
-        notes: optimistic.notes,
-        created_by: user?.id ?? null,
+        plays_purchased: Math.max(0, Math.round(input.plays_purchased)),
+        purchased_at: purchasedAt,
+        note: noteParts.length > 0 ? noteParts.join(" · ") : null,
       });
-      if (error) {
-        qc.setQueryData(["deal-payments"], previous);
-        throw error;
-      }
+      if (error) throw error;
       await reload();
     },
     [user, qc, reload],
   );
 
   const loading =
-    (summaryQuery.isLoading || paymentsQuery.isLoading || dealsQuery.isLoading) &&
+    (summaryQuery.isLoading || purchasesQuery.isLoading || dealsQuery.isLoading) &&
     summary.length === 0 &&
-    payments.length === 0 &&
+    purchases.length === 0 &&
     dealsRaw.length === 0;
 
-  return { summary, payments, dealsFinance, totals, loading, reload, registerPayment };
+  return {
+    summary,
+    purchases,
+    dealsFinance,
+    totals,
+    loading,
+    reload,
+    registerPayment,
+  };
 }
