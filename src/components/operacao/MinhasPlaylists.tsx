@@ -916,14 +916,41 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
               Classifique agora para liberar match com clientes e relatórios por gênero.
             </div>
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8 border-warning/40 text-warning hover:bg-warning/15 hover:text-warning shrink-0"
-            onClick={() => { setFilterFase("all"); setFilterMissingGenre(true); }}
-          >
-            Classificar agora
-          </Button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {pendingSuggestionCount > 0 ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 border-primary/40 text-primary hover:bg-primary/15 hover:text-primary"
+                onClick={() => { setFilterFase("all"); setFilterGenreId(null); setFilterMissingGenre(true); }}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Revisar sugestões ({pendingSuggestionCount})
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8"
+                onClick={() => runGenreSuggest()}
+                disabled={suggesting}
+                title="Sugerir gêneros via IA"
+              >
+                <Sparkles className={cn("h-3.5 w-3.5", suggesting && "animate-pulse")} />
+                {suggesting
+                  ? (suggestProgress ? `Sugerindo… ${suggestProgress.done}/${suggestProgress.total}` : "Sugerindo…")
+                  : "Sugerir com IA"}
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 border-warning/40 text-warning hover:bg-warning/15 hover:text-warning"
+              onClick={() => { setFilterFase("all"); setFilterMissingGenre(true); }}
+            >
+              Classificar agora
+            </Button>
+          </div>
         </div>
       )}
 
