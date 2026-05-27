@@ -186,6 +186,7 @@ Deno.serve(async (req) => {
       attempt: job.attempts,
       result: fin.final,
       error: outcome.ok ? null : outcome.error,
+      chained,
     });
   }
 
