@@ -130,11 +130,11 @@ const App = () => (
                 <Route path="/playlists" element={<Navigate to="/catalogo" replace />} />
                 <Route path="/playlists/:id" element={<Protected><PlaylistDetail /></Protected>} />
                 <Route path="/performance" element={<Protected><Performance /></Protected>} />
-                <Route path="/playlist-deals" element={<Protected><PlaylistDeals /></Protected>} />
-                <Route path="/playlist-deals/:dealId" element={<Protected><DealDetail /></Protected>} />
-                <Route path="/deals" element={<Protected><PlaylistDeals /></Protected>} />
-                <Route path="/deals/comparar" element={<Protected><CompararCuradores /></Protected>} />
-                <Route path="/deals/:dealId" element={<Protected><DealDetail /></Protected>} />
+               <Route path="/playlist-deals" element={<Navigate to="/deals" replace />} />
+               <Route path="/playlist-deals/:dealId" element={<LegacyDealRedirect />} />
+               <Route path="/deals" element={<Protected><PlaylistDeals /></Protected>} />
+               <Route path="/deals/comparar" element={<Protected><CompararCuradores /></Protected>} />
+               <Route path="/deals/:dealId" element={<Protected><DealDetail /></Protected>} />
                 <Route path="/campanhas" element={<Protected><Campanhas /></Protected>} />
                 <Route path="/campanhas/:id/execucao" element={<Protected><CampanhaExecucao /></Protected>} />
                 <Route path="/campanhas/:id" element={<Protected><CampanhaDetalhe /></Protected>} />
