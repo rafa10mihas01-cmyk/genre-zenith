@@ -377,7 +377,7 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
   const [contactFilter, setContactFilter] = useState<"todos" | "nao_contatado" | "enviado" | "aguardando" | "respondeu">("todos");
   const [favOnly, setFavOnly] = useState(false);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(50);
+  const [pageSize] = useState<number>(25);
   type ExpandedFilter = "status" | "score" | "tamanho" | "contato" | null;
   const [expandedFilter, setExpandedFilter] = useState<ExpandedFilter>(null);
   const [emailTarget, setEmailTarget] = useState<{ externalCuratorId: string; recipientEmail: string; curatorName: string; playlistName: string | null; followupNumber?: 1 | 2 } | null>(null);
@@ -761,18 +761,6 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
         </Card>
       ) : (
         <>
-          <div className="flex items-center justify-end gap-1.5 flex-wrap text-[11px] text-muted-foreground px-1">
-            <span className="mr-1">Por página</span>
-            {[25, 50, 100, 200].map((n) => (
-              <button
-                key={n}
-                onClick={() => setPageSize(n)}
-                className={`min-w-[32px] px-2 py-1 rounded-md text-[11px] tabular-nums transition-colors ${pageSize === n ? "bg-primary/15 text-primary font-medium" : "hover:bg-elevated text-muted-foreground"}`}
-              >
-                {n}
-              </button>
-            ))}
-          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {pageRows.map((r) => (
               <CuradorRowCard
