@@ -185,6 +185,7 @@ export function ExternalPackageEditor({
   const underCovered = coverage < 95;
   // Janela REAL do plano (rampa + platô + saída) — fallback p/ snapshots antigos.
   const effDays = Math.max(1, snapshot.effectiveDays || snapshot.days || 1);
+  const dealsCount = items.filter(i => !!i.curator_deal_id).length;
 
   const actionButtons = !isDispatched ? (
     <>
