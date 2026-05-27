@@ -7270,6 +7270,36 @@ export type Database = {
           },
         ]
       }
+      spotify_playlist_cache: {
+        Row: {
+          cached_at: string
+          created_at: string
+          followers: number | null
+          id: string
+          image_url: string | null
+          owner_name: string | null
+          spotify_playlist_id: string
+        }
+        Insert: {
+          cached_at?: string
+          created_at?: string
+          followers?: number | null
+          id?: string
+          image_url?: string | null
+          owner_name?: string | null
+          spotify_playlist_id: string
+        }
+        Update: {
+          cached_at?: string
+          created_at?: string
+          followers?: number | null
+          id?: string
+          image_url?: string | null
+          owner_name?: string | null
+          spotify_playlist_id?: string
+        }
+        Relationships: []
+      }
       spotify_tokens: {
         Row: {
           access_token: string
