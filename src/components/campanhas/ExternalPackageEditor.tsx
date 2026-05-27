@@ -318,7 +318,7 @@ export function ExternalPackageEditor({
                 </thead>
                 <tbody>
                   {items.map((it, i) => {
-                    const days = Math.max(1, snapshot.days || 1);
+                    const days = effDays;
                     const perDay = Math.round(it.assigned_streams / days);
                     const totalStr = totalDrafts[it.id] ?? (it.assigned_streams > 0 ? String(it.assigned_streams) : "");
                     const perDayStr = perDayDrafts[it.id] ?? (perDay > 0 ? String(perDay) : "");
