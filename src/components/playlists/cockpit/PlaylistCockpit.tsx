@@ -488,8 +488,8 @@ export function PlaylistCockpit({
 
   return (
     <div className="mx-auto w-full max-w-[1600px] px-4 md:px-8 py-4 md:py-5 space-y-4">
-      {/* ============ 1. HEADER (sticky + colapsável no scroll) ============ */}
-      <header className={cn("space-y-3 sticky top-0 z-30 -mx-4 md:-mx-8 px-4 md:px-8 pt-2 pb-3 transition-all", scrolled && "bg-background/95 backdrop-blur border-b border-border")}>
+      {/* ============ 1. HEADER ============ */}
+      <header className="space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0 flex-1">
             {onBack && (
@@ -569,7 +569,7 @@ export function PlaylistCockpit({
 
 
         {/* KPI row — esconde Faixas e Saúde quando rolar; mantém Seguidores + Score curatorial */}
-        <div className={cn("grid gap-2 transition-all", scrolled ? "grid-cols-2" : "grid-cols-2 md:grid-cols-5")}>
+        <div className="grid gap-2 grid-cols-2 md:grid-cols-5">
           <KpiBig
             label="Seguidores"
             value={fmtNum(followers)}
@@ -578,15 +578,13 @@ export function PlaylistCockpit({
             tone="primary"
             domain="playlists"
           />
-          {!scrolled && (
-            <KpiBig
-              label="Faixas"
-              value={fmtNum(liveTracksCount)}
-              icon={Music2}
-              domain="playlists"
-              hint={idealRange ? `ideal ${idealRange[0]}–${idealRange[1]}` : undefined}
-            />
-          )}
+          <KpiBig
+            label="Faixas"
+            value={fmtNum(liveTracksCount)}
+            icon={Music2}
+            domain="playlists"
+            hint={idealRange ? `ideal ${idealRange[0]}–${idealRange[1]}` : undefined}
+          />
           <KpiBig
             label="Score curatorial"
             value={brainScore != null ? `${brainScore}` : "—"}
@@ -594,23 +592,21 @@ export function PlaylistCockpit({
             tone={brainScore == null ? "default" : brainScore >= 75 ? "success" : brainScore >= 50 ? "primary" : "default"}
             hint={brainScore == null ? "sem análise" : "saúde editorial 0–100"}
           />
-          {!scrolled && (
-            <KpiBig
-              label="Saúde"
-              value={health.label}
-              icon={health.Icon}
-              tier="quiet"
-              tone={
-                (diag?.raw?.health_status ?? "saudavel") === "aquecido" ? "primary"
-                : (diag?.raw?.health_status ?? "saudavel") === "frio" ? "destructive"
-                : "default"
-              }
-            />
-          )}
+          <KpiBig
+            label="Saúde"
+            value={health.label}
+            icon={health.Icon}
+            tier="quiet"
+            tone={
+              (diag?.raw?.health_status ?? "saudavel") === "aquecido" ? "primary"
+              : (diag?.raw?.health_status ?? "saudavel") === "frio" ? "destructive"
+              : "default"
+            }
+          />
         </div>
       </header>
 
-      {!scrolled && <OnboardingChecklist managedId={managedId} />}
+      <OnboardingChecklist managedId={managedId} />
 
       {loading ? (
         <Card className="p-10 grid place-items-center">
