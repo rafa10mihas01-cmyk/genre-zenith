@@ -568,8 +568,8 @@ export function PlaylistCockpit({
         </div>
 
 
-        {/* KPI row — mesma régua do DealDetail/Cliente/Curador */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+        {/* KPI row — esconde Faixas e Saúde quando rolar; mantém Seguidores + Score curatorial */}
+        <div className={cn("grid gap-2 transition-all", scrolled ? "grid-cols-2" : "grid-cols-2 md:grid-cols-5")}>
           <KpiBig
             label="Seguidores"
             value={fmtNum(followers)}
@@ -578,13 +578,15 @@ export function PlaylistCockpit({
             tone="primary"
             domain="playlists"
           />
-          <KpiBig
-            label="Faixas"
-            value={fmtNum(liveTracksCount)}
-            icon={Music2}
-            domain="playlists"
-            hint={idealRange ? `ideal ${idealRange[0]}–${idealRange[1]}` : undefined}
-          />
+          {!scrolled && (
+            <KpiBig
+              label="Faixas"
+              value={fmtNum(liveTracksCount)}
+              icon={Music2}
+              domain="playlists"
+              hint={idealRange ? `ideal ${idealRange[0]}–${idealRange[1]}` : undefined}
+            />
+          )}
           <KpiBig
             label="Score curatorial"
             value={brainScore != null ? `${brainScore}` : "—"}
@@ -592,23 +594,23 @@ export function PlaylistCockpit({
             tone={brainScore == null ? "default" : brainScore >= 75 ? "success" : brainScore >= 50 ? "primary" : "default"}
             hint={brainScore == null ? "sem análise" : "saúde editorial 0–100"}
           />
-
-
-          <KpiBig
-            label="Saúde"
-            value={health.label}
-            icon={health.Icon}
-            tier="quiet"
-            tone={
-              (diag?.raw?.health_status ?? "saudavel") === "aquecido" ? "primary"
-              : (diag?.raw?.health_status ?? "saudavel") === "frio" ? "destructive"
-              : "default"
-            }
-          />
+          {!scrolled && (
+            <KpiBig
+              label="Saúde"
+              value={health.label}
+              icon={health.Icon}
+              tier="quiet"
+              tone={
+                (diag?.raw?.health_status ?? "saudavel") === "aquecido" ? "primary"
+                : (diag?.raw?.health_status ?? "saudavel") === "frio" ? "destructive"
+                : "default"
+              }
+            />
+          )}
         </div>
       </header>
 
-      <OnboardingChecklist managedId={managedId} />
+      {!scrolled && <OnboardingChecklist managedId={managedId} />}
 
       {loading ? (
         <Card className="p-10 grid place-items-center">
