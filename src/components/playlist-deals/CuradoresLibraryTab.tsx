@@ -268,31 +268,33 @@ export function CuradoresLibraryTab({
               </Select>
             </div>
           </PopoverContent>
-        </Popover>
-
-        {hasFilters && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-9 text-muted-foreground"
-            onClick={() => { setStatusFilter("all"); setCppFilter("all"); setActivityFilter("all"); }}
-          >
-            Limpar filtros
-          </Button>
-        )}
-
-        {(archivedCount > 0 || showArchived) && (
-          <Button
-            variant={showArchived ? "default" : "outline"}
-            size="sm"
-            className="h-9 gap-1.5 ml-auto"
-            onClick={() => setShowArchived((v) => !v)}
-          >
-            <Archive className="h-3.5 w-3.5" />
-            {showArchived ? "Ver ativos" : `Arquivados (${archivedCount})`}
-          </Button>
-        )}
       </div>
+
+      {(hasFilters || archivedCount > 0 || showArchived) && (
+        <div className="flex items-center gap-2 flex-wrap">
+          {hasFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 text-muted-foreground"
+              onClick={() => { setStatusFilter("all"); setCppFilter("all"); setActivityFilter("all"); }}
+            >
+              Limpar filtros
+            </Button>
+          )}
+          {(archivedCount > 0 || showArchived) && (
+            <Button
+              variant={showArchived ? "default" : "outline"}
+              size="sm"
+              className="h-8 gap-1.5 ml-auto"
+              onClick={() => setShowArchived((v) => !v)}
+            >
+              <Archive className="h-3.5 w-3.5" />
+              {showArchived ? "Ver ativos" : `Arquivados (${archivedCount})`}
+            </Button>
+          )}
+        </div>
+      )}
 
       <div className="flex items-center justify-between text-[11px] text-muted-foreground">
         <span>
