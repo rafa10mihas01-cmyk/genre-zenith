@@ -59,24 +59,38 @@ export function AdjustmentTimeline({ playlistId }: { playlistId: string }) {
     return () => { active = false; };
   }, [playlistId]);
 
-  if (items === null) return null;
-  if (items.length === 0) return null;
+  if (items === null) {
+    return (
+      <Card className="p-4 text-xs text-muted-foreground">Carregando histórico…</Card>
+    );
+  }
+  if (items.length === 0) {
+    return (
+      <Card className="p-4">
+        <div className="flex items-start gap-3">
+          <History className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+          <div className="space-y-1 min-w-0">
+            <div className="text-sm font-medium">Nenhum ajuste registrado ainda</div>
+            <div className="text-xs text-muted-foreground leading-relaxed">
+              Quando você aprovar mudanças (capa, descrição, faixas), o NexEngine observa o resultado por uma janela e registra aqui o impacto editorial.
+            </div>
+          </div>
+        </div>
+      </Card>
+    );
+  }
 
   return (
-    <details className="rounded-xl border border-border bg-card/40 group">
-      <summary className="flex items-center justify-between gap-2 px-3 py-2 cursor-pointer list-none hover:bg-elevated/40 rounded-xl">
-        <div className="flex items-center gap-2 min-w-0">
-          <History className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-          <h3 className="text-xs font-semibold truncate">Histórico de impacto editorial</h3>
-          <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
-            · {items.length} {items.length === 1 ? "mudança" : "mudanças"}
-          </span>
-        </div>
-        <span className="text-[10px] text-muted-foreground group-open:hidden">expandir</span>
-        <span className="text-[10px] text-muted-foreground hidden group-open:inline">recolher</span>
-      </summary>
+    <Card className="p-3 space-y-2">
+      <div className="flex items-center gap-2 px-1">
+        <History className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        <h3 className="text-xs font-semibold">Histórico de impacto editorial</h3>
+        <span className="text-[11px] text-muted-foreground tabular-nums">
+          · {items.length} {items.length === 1 ? "mudança" : "mudanças"}
+        </span>
+      </div>
 
-      <div className="px-3 pb-3 space-y-2">
+      <div className="space-y-2">
         {items.map((it) => {
           const meta = verdictMeta[it.verdict];
           const Icon = meta.icon;
@@ -124,9 +138,10 @@ export function AdjustmentTimeline({ playlistId }: { playlistId: string }) {
         })}
       </div>
 
-      <p className="px-3 pb-3 text-[10px] text-muted-foreground/70 leading-snug">
+      <p className="px-1 pt-1 text-[10px] text-muted-foreground/70 leading-snug">
         O NexEngine observa cada mudança por uma janela definida e registra o resultado antes de recomendar a próxima.
       </p>
-    </details>
+    </Card>
   );
 }
+

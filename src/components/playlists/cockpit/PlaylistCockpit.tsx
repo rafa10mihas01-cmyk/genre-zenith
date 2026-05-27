@@ -644,163 +644,178 @@ export function PlaylistCockpit({
             </TabsList>
 
             {/* ============ PLANO DE AÇÃO ============ */}
-            <TabsContent value="plano" className="space-y-4 mt-0">
-              <EditorialBanner diag={diag} onRediagnose={runDiagnose} running={running} />
-              {(() => {
-                const mode = diag.raw?.recommendation_mode ?? "light";
-                const total = buckets.remove.length + buckets.demote.length + buckets.promote.length + buckets.add.length;
-                const detectedTotal = buckets.detected.remove + buckets.detected.demote + buckets.detected.promote + buckets.detected.add;
-                if (mode === "hold") {
-                  return (
-                    <Card className="p-5 border-primary/30 bg-primary/5">
-                      <div className="flex items-start gap-3">
-                        <ShieldCheck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                        <div className="space-y-1 min-w-0">
-                          <div className="text-sm font-semibold">Não mexer agora</div>
-                          <div className="text-xs text-muted-foreground leading-relaxed">
-                            O cérebro analisou essa playlist e decidiu que ela está performando bem — qualquer mexida agora atrapalha mais do que ajuda.
-                            {detectedTotal > 0 && <> Existem <span className="text-foreground font-semibold">{detectedTotal}</span> ajustes possíveis, mas estão segurados nesse ciclo.</>}
-                            {" "}Volte depois de 7 dias ou clique em <strong className="text-foreground">Reavaliar</strong> se algo mudou.
+            <TabsContent value="plano" className="space-y-6 mt-0">
+              {/* ===== 1. DIAGNÓSTICO ===== */}
+              <section className="space-y-3">
+                <SectionTitle>Diagnóstico</SectionTitle>
+                <EditorialBanner diag={diag} onRediagnose={runDiagnose} running={running} />
+                {(() => {
+                  const mode = diag.raw?.recommendation_mode ?? "light";
+                  const total = buckets.remove.length + buckets.demote.length + buckets.promote.length + buckets.add.length;
+                  const detectedTotal = buckets.detected.remove + buckets.detected.demote + buckets.detected.promote + buckets.detected.add;
+                  if (mode === "hold") {
+                    return (
+                      <Card className="p-5 border-primary/30 bg-primary/5">
+                        <div className="flex items-start gap-3">
+                          <ShieldCheck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                          <div className="space-y-1 min-w-0">
+                            <div className="text-sm font-semibold">Não mexer agora</div>
+                            <div className="text-xs text-muted-foreground leading-relaxed">
+                              O cérebro analisou essa playlist e decidiu que ela está performando bem — qualquer mexida agora atrapalha mais do que ajuda.
+                              {detectedTotal > 0 && <> Existem <span className="text-foreground font-semibold">{detectedTotal}</span> ajustes possíveis, mas estão segurados nesse ciclo.</>}
+                              {" "}Volte depois de 7 dias ou clique em <strong className="text-foreground">Reavaliar</strong> se algo mudou.
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </Card>
-                  );
-                }
-                if (total === 0 && detectedTotal === 0) {
-                  return (
-                    <Card className="p-5">
-                      <div className="flex items-start gap-3">
-                        <ShieldCheck className="h-5 w-5 text-success shrink-0 mt-0.5" />
-                        <div className="space-y-1 min-w-0">
-                          <div className="text-sm font-semibold">Nada a fazer</div>
-                          <div className="text-xs text-muted-foreground">Nenhuma faixa fora do padrão nem sugestão pra adicionar agora.</div>
-                        </div>
-                      </div>
-                    </Card>
-                  );
-                }
-                return null;
-              })()}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <ActionCard kind="remove" count={buckets.remove.length} detected={buckets.detected.remove} hrefId="bucket-remove" />
-                <ActionCard kind="demote" count={buckets.demote.length} detected={buckets.detected.demote} hrefId="bucket-demote" />
-                <ActionCard kind="promote" count={buckets.promote.length} detected={buckets.detected.promote} hrefId="bucket-promote" />
-                <ActionCard kind="add" count={buckets.add.length} detected={buckets.detected.add} hrefId="bucket-add" />
-              </div>
-
-              {(buckets.remove.length + buckets.demote.length + buckets.promote.length + buckets.add.length) > 0 && (
-                <Card className="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-primary/5 border-primary/30">
-                  <div className="space-y-0.5">
-                    <div className="text-sm font-semibold">Executar plano completo</div>
-                    <div className="text-xs text-muted-foreground">
-                      Ordem: remover → rebaixar → promover → adicionar. Tudo via API, sem abrir o Spotify.
-                    </div>
-                  </div>
-                  <Button onClick={() => applyPlan("all")} disabled={applying !== null} className="gap-1.5 shrink-0">
-                    {applying === "all" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                    Aprovar e executar tudo
-                  </Button>
-                </Card>
-              )}
-
-              {applyProgress && (
-                <Card className={cn(
-                  "p-4 space-y-2 border",
-                  applyProgress.status === "failed"
-                    ? "bg-destructive/5 border-destructive/40"
-                    : "bg-primary/5 border-primary/30",
-                )}>
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 min-w-0">
-                      {applyProgress.status === "failed" ? (
-                        <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
-                      ) : applyProgress.status === "done" || applyProgress.status === "skipped" ? (
-                        <Check className="h-4 w-4 text-primary shrink-0" />
-                      ) : (
-                        <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
-                      )}
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium truncate">
-                          {applyProgress.description}
-                        </div>
-                        {applyProgress.error && (
-                          <div className="text-xs text-destructive mt-0.5 truncate">
-                            {applyProgress.error}
+                      </Card>
+                    );
+                  }
+                  if (total === 0 && detectedTotal === 0) {
+                    return (
+                      <Card className="p-5">
+                        <div className="flex items-start gap-3">
+                          <ShieldCheck className="h-5 w-5 text-success shrink-0 mt-0.5" />
+                          <div className="space-y-1 min-w-0">
+                            <div className="text-sm font-semibold">Nada a fazer</div>
+                            <div className="text-xs text-muted-foreground">Nenhuma faixa fora do padrão nem sugestão pra adicionar agora.</div>
                           </div>
-                        )}
+                        </div>
+                      </Card>
+                    );
+                  }
+                  return null;
+                })()}
+              </section>
+
+              {/* ===== 2. VISÃO GERAL ===== */}
+              <section className="space-y-3">
+                <SectionTitle>Visão geral</SectionTitle>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  <ActionCard kind="remove" count={buckets.remove.length} detected={buckets.detected.remove} hrefId="bucket-remove" />
+                  <ActionCard kind="demote" count={buckets.demote.length} detected={buckets.detected.demote} hrefId="bucket-demote" />
+                  <ActionCard kind="promote" count={buckets.promote.length} detected={buckets.detected.promote} hrefId="bucket-promote" />
+                  <ActionCard kind="add" count={buckets.add.length} detected={buckets.detected.add} hrefId="bucket-add" />
+                </div>
+
+                {(buckets.remove.length + buckets.demote.length + buckets.promote.length + buckets.add.length) > 0 && (
+                  <Card className="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-primary/5 border-primary/30">
+                    <div className="space-y-0.5">
+                      <div className="text-sm font-semibold">Executar plano completo</div>
+                      <div className="text-xs text-muted-foreground">
+                        Ordem: remover → rebaixar → promover → adicionar. Tudo via API, sem abrir o Spotify.
                       </div>
                     </div>
-                    <div className="text-xs font-mono text-muted-foreground shrink-0">
-                      {applyProgress.index} / {applyProgress.total}
-                    </div>
-                  </div>
-                  {applyProgress.total > 0 && (
-                    <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                      <div
-                        className={cn(
-                          "h-full transition-all duration-300",
-                          applyProgress.status === "failed" ? "bg-destructive" : "bg-primary",
+                    <Button onClick={() => applyPlan("all")} disabled={applying !== null} className="gap-1.5 shrink-0">
+                      {applying === "all" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                      Aprovar e executar tudo
+                    </Button>
+                  </Card>
+                )}
+
+                {applyProgress && (
+                  <Card className={cn(
+                    "p-4 space-y-2 border",
+                    applyProgress.status === "failed"
+                      ? "bg-destructive/5 border-destructive/40"
+                      : "bg-primary/5 border-primary/30",
+                  )}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {applyProgress.status === "failed" ? (
+                          <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+                        ) : applyProgress.status === "done" || applyProgress.status === "skipped" ? (
+                          <Check className="h-4 w-4 text-primary shrink-0" />
+                        ) : (
+                          <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
                         )}
-                        style={{ width: `${Math.min(100, (applyProgress.index / applyProgress.total) * 100)}%` }}
-                      />
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium truncate">
+                            {applyProgress.description}
+                          </div>
+                          {applyProgress.error && (
+                            <div className="text-xs text-destructive mt-0.5 truncate">
+                              {applyProgress.error}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-xs font-mono text-muted-foreground shrink-0">
+                        {applyProgress.index} / {applyProgress.total}
+                      </div>
                     </div>
-                  )}
-                </Card>
-              )}
+                    {applyProgress.total > 0 && (
+                      <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                        <div
+                          className={cn(
+                            "h-full transition-all duration-300",
+                            applyProgress.status === "failed" ? "bg-destructive" : "bg-primary",
+                          )}
+                          style={{ width: `${Math.min(100, (applyProgress.index / applyProgress.total) * 100)}%` }}
+                        />
+                      </div>
+                    )}
+                  </Card>
+                )}
+              </section>
 
-              <BucketRemove
-                items={buckets.remove}
-                applying={applying === "remove" || applying === "all"}
-                onApplyAll={() => applyPlan("remove")}
-              />
-              <BucketReorder
-                kind="demote"
-                items={buckets.demote}
-                totalTracks={liveTracksCount}
-                applying={applying === "demote" || applying === "all"}
-                onApplyAll={() => applyPlan("demote")}
-              />
-              <BucketReorder
-                kind="promote"
-                items={buckets.promote}
-                totalTracks={liveTracksCount}
-                applying={applying === "promote" || applying === "all"}
-                onApplyAll={() => applyPlan("promote")}
-              />
-              {/* Projeção de plays por posição — contexto pra decidir onde adicionar */}
-              {buckets.add.length > 0 && (
-                <Card className="p-4 space-y-2">
-                  <div className="text-xs font-semibold">Projeção de plays por posição</div>
-                  <div className="text-[11px] text-muted-foreground">
-                    Estimativa teórica baseada nos saves desta playlist. Use pra escolher a posição de cada faixa nova.
-                  </div>
-                  <ProjecaoFaixa
-                    playlist={{
-                      id: managedId,
-                      name: playlistName,
-                      cover_url: coverUrl,
-                      followers: followers ?? 0,
-                      tracks_count: liveTracksCount,
-                    }}
-                  />
-                </Card>
-              )}
-              <BucketAdd
-                items={buckets.add}
-                applying={applying === "add" || applying === "all"}
-                onApplyAll={() => applyPlan("add")}
-              />
+              {/* ===== 3. AÇÕES (sequência canônica) ===== */}
+              <section className="space-y-3">
+                <SectionTitle>Ações na ordem</SectionTitle>
+                <BucketRemove
+                  items={buckets.remove}
+                  applying={applying === "remove" || applying === "all"}
+                  onApplyAll={() => applyPlan("remove")}
+                />
+                <BucketReorder
+                  kind="demote"
+                  items={buckets.demote}
+                  totalTracks={liveTracksCount}
+                  applying={applying === "demote" || applying === "all"}
+                  onApplyAll={() => applyPlan("demote")}
+                />
+                <BucketReorder
+                  kind="promote"
+                  items={buckets.promote}
+                  totalTracks={liveTracksCount}
+                  applying={applying === "promote" || applying === "all"}
+                  onApplyAll={() => applyPlan("promote")}
+                />
+                {/* Projeção de plays — contexto pra decidir posição das novas faixas. Colapsado. */}
+                {buckets.add.length > 0 && (
+                  <Collapsible>
+                    <CollapsibleTrigger className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5 px-2 py-1.5 rounded border border-border hover:border-primary/40">
+                      <ChevronDown className="h-3 w-3" /> Ver projeção de plays por posição
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-2">
+                      <Card className="p-4 space-y-2">
+                        <div className="text-[11px] text-muted-foreground">
+                          Estimativa teórica baseada nos saves desta playlist. Use pra escolher a posição de cada faixa nova.
+                        </div>
+                        <ProjecaoFaixa
+                          playlist={{
+                            id: managedId,
+                            name: playlistName,
+                            cover_url: coverUrl,
+                            followers: followers ?? 0,
+                            tracks_count: liveTracksCount,
+                          }}
+                        />
+                      </Card>
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
+                <BucketAdd
+                  items={buckets.add}
+                  applying={applying === "add" || applying === "all"}
+                  onApplyAll={() => applyPlan("add")}
+                />
+              </section>
 
-              {/* Memória de impacto — histórico colapsado por default */}
-              <Collapsible>
-                <CollapsibleTrigger className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5 px-2 py-1.5 rounded border border-border hover:border-primary/40">
-                  <ChevronDown className="h-3 w-3" /> Ver histórico de ajustes
-                </CollapsibleTrigger>
-                <CollapsibleContent className="mt-3">
-                  <AdjustmentTimeline playlistId={managedId} />
-                </CollapsibleContent>
-              </Collapsible>
+              {/* ===== 4. HISTÓRICO ===== */}
+              <section className="space-y-3">
+                <SectionTitle>Histórico</SectionTitle>
+                <AdjustmentTimeline playlistId={managedId} />
+              </section>
             </TabsContent>
 
             {/* ============ IDENTIDADE ============ */}
