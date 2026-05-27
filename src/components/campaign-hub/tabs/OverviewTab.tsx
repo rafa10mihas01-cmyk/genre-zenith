@@ -507,7 +507,7 @@ function Kpi({ label, value, sub, tone, compact }: { label: string; value: strin
 function SplitRow({
   tone, label, metaTotal, metaPct, deliveredTotal, perDay,
 }: {
-  tone: "eco" | "ext";
+  tone: "eco" | "ext" | "org";
   label: string;
   metaTotal: number;
   metaPct: number;
@@ -515,8 +515,9 @@ function SplitRow({
   perDay: number;
 }) {
   const pct = metaTotal > 0 ? Math.min(100, Math.round((deliveredTotal / metaTotal) * 100)) : 0;
-  const dotClass = tone === "eco" ? "bg-primary" : "bg-[hsl(265_60%_60%)]";
-  const barClass = tone === "eco" ? "bg-primary" : "bg-[hsl(265_60%_60%)]";
+  const dotClass = tone === "eco" ? "bg-primary" : tone === "ext" ? "bg-[hsl(265_60%_60%)]" : "bg-[hsl(330_70%_60%)]";
+  const barClass = dotClass;
+
   return (
     <div className="rounded-lg border border-border/70 px-4 py-3">
       <div className="flex items-center justify-between mb-2">
