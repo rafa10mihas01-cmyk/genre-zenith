@@ -248,7 +248,7 @@ export function ClientesLibraryTab({ deals, songs, loading, financeByClient }: P
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {pageRows.map((row) => {
-            const { client, totalSongs, activeDeals, closedDeals, totalDeals, lastTs } = row;
+            const { client, totalSongs, activeDeals, closedDeals, totalDeals, lastTs, invested, pending } = row;
             const initials = client.name
               .split(/\s+/)
               .filter(Boolean)
