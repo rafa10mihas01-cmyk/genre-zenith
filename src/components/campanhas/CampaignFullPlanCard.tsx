@@ -301,10 +301,8 @@ export function CampaignFullPlanCard({
     <Card className="mt-4">
       <CardHeader className="flex-row items-center justify-between gap-3 space-y-0 py-3">
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <Grid3x3 className="h-4 w-4 text-primary shrink-0" />
-          <CardTitle className="text-sm whitespace-nowrap">Plano completo</CardTitle>
           {track && (
-            <div className="flex items-center gap-2 min-w-0 pl-2 ml-1 border-l border-border">
+            <div className="flex items-center gap-2 min-w-0">
               {track.coverUrl ? (
                 <img src={track.coverUrl} alt="" className="w-6 h-6 rounded object-cover flex-shrink-0" />
               ) : (
