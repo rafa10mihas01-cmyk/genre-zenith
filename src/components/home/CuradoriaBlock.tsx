@@ -102,7 +102,7 @@ function DealsActiveCard({ valor, count, loading }: { valor: number; count: numb
             Deals ativos
           </span>
         </div>
-        <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+        <ArrowRight className="h-4 w-4 text-muted-foreground opacity-60 lg:opacity-0 transition-opacity group-hover:opacity-100 lg:group-hover:opacity-100" />
       </div>
       {loading ? (
         <div className="h-12 rounded-md bg-muted/40 animate-pulse" />
@@ -131,7 +131,7 @@ function DeliveryCard({ d, loading }: { d: Data | null; loading: boolean }) {
             Entrega global
           </span>
         </div>
-        <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+        <ArrowRight className="h-4 w-4 text-muted-foreground opacity-60 lg:opacity-0 transition-opacity group-hover:opacity-100 lg:group-hover:opacity-100" />
       </div>
       {loading ? (
         <div className="h-20 rounded-md bg-muted/40 animate-pulse" />
@@ -184,7 +184,7 @@ function ConcentrationCard({ d, loading }: { d: Data | null; loading: boolean })
             Concentração
           </span>
         </div>
-        <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+        <ArrowRight className="h-4 w-4 text-muted-foreground opacity-60 lg:opacity-0 transition-opacity group-hover:opacity-100 lg:group-hover:opacity-100" />
       </div>
       {loading ? (
         <div className="h-20 rounded-md bg-muted/40 animate-pulse" />

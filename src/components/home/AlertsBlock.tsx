@@ -44,7 +44,7 @@ export function AlertsBlock() {
               Notificações
             </span>
           </div>
-          <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+          <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-60 lg:opacity-0 group-hover:opacity-100 transition-opacity lg:group-hover:opacity-100" />
         </div>
         <div className={cn("text-4xl font-bold tabular-nums", has ? "text-warning" : "text-muted-foreground")}>
           {unread === null ? "—" : formatNumber(unread)}
