@@ -4,7 +4,12 @@
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getSpotifyToken } from "../_shared/spotify.ts";
-import { listPlaylistTracksRich } from "../_shared/spotify-playlist.ts";
+import {
+  listPlaylistTracksRich,
+  SpotifyApiError,
+  defaultSpotifyFetch,
+  type SpotifyFetch,
+} from "../_shared/spotify-playlist.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -15,6 +20,36 @@ function jr(p: unknown, status = 200) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Fetcher com throttle entre páginas (150ms) e retry automático em 429 / 5xx
+ * usando Retry-After (cap em 8s, máx 3 tentativas).
+ */
+function makeThrottledFetcher(): SpotifyFetch {
+  let lastCallAt = 0;
+  const minGapMs = 150;
+  return async (url, init, token) => {
+    const wait = Math.max(0, minGapMs - (Date.now() - lastCallAt));
+    if (wait > 0) await sleep(wait);
+    let attempt = 0;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      try {
+        lastCallAt = Date.now();
+        return await defaultSpotifyFetch(url, init, token);
+      } catch (e) {
+        const err = e as SpotifyApiError;
+        const isRetryable = err?.status === 429 || (err?.status >= 500 && err?.status < 600);
+        if (!isRetryable || attempt >= 2) throw err;
+        const retryAfterSec = Math.min(8, Math.max(1, err.retryAfter ?? Math.pow(2, attempt)));
+        await sleep(retryAfterSec * 1000);
+        attempt++;
+      }
+    }
+  };
 }
 
 Deno.serve(async (req) => {
@@ -61,9 +96,11 @@ Deno.serve(async (req) => {
 
   try {
     const token = await getSpotifyToken();
+    const fetcher = makeThrottledFetcher();
     const rich = await listPlaylistTracksRich(spotifyPlaylistId, token, {
       max: 10000,
       fields: "items(added_at,track(id,name,duration_ms,artists(name),album(images))),next",
+      fetcher,
     });
     const out = rich
       .filter((t) => t.spotify_track_id)
@@ -77,12 +114,16 @@ Deno.serve(async (req) => {
       }));
     return jr({ ok: true, tracks: out, total: out.length });
   } catch (e) {
-    const msg = (e as Error).message || "unknown";
-    const rateLimited = /429|too many requests/i.test(msg);
+    const err = e as SpotifyApiError;
+    const rateLimited = err?.status === 429 || /429|too many requests/i.test(err?.message ?? "");
+    const retryAfter = rateLimited
+      ? Math.min(60, Math.max(2, err?.retryAfter ?? 10))
+      : null;
     return jr({
       ok: false,
-      error: rateLimited ? "RATE_LIMITED" : msg,
+      error: rateLimited ? "RATE_LIMITED" : (err?.message ?? "unknown"),
       code: rateLimited ? "rate_limited" : "spotify_error",
+      retry_after: retryAfter,
       fallback: true,
       tracks: [],
       total: 0,

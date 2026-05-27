@@ -177,6 +177,8 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const [rateLimitUntil, setRateLimitUntil] = useState<number | null>(null); // epoch ms
+  const [nowTick, setNowTick] = useState<number>(() => Date.now());
   const [busyTrack, setBusyTrack] = useState<string | null>(null);
   const [meta, setMeta] = useState<PlaylistMeta>({ name: null, cover_url: null });
 
@@ -188,6 +190,41 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
 
   // Trava cliques duplos sub-200ms — antes do estado React propagar pro disabled
   const inFlight = useRef(false);
+
+  // Debounce de 2s no botão Atualizar pra não derrubar limites do Spotify
+  const lastRefreshAt = useRef<number>(0);
+  const REFRESH_COOLDOWN_MS = 2000;
+
+  // Tick por segundo enquanto houver countdown ativo
+  useEffect(() => {
+    if (!rateLimitUntil) return;
+    const id = setInterval(() => {
+      const now = Date.now();
+      setNowTick(now);
+      if (now >= rateLimitUntil) {
+        clearInterval(id);
+        setRateLimitUntil(null);
+        loadTracks(); // auto-retry quando o countdown zera
+      }
+    }, 1000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rateLimitUntil]);
+
+  const rateLimitSecLeft = rateLimitUntil
+    ? Math.max(0, Math.ceil((rateLimitUntil - nowTick) / 1000))
+    : 0;
+
+  function handleRefreshClick() {
+    const now = Date.now();
+    if (rateLimitUntil && now < rateLimitUntil) return;
+    if (now - lastRefreshAt.current < REFRESH_COOLDOWN_MS) return;
+    lastRefreshAt.current = now;
+    loadTracks();
+    loadJobs();
+    loadMeta();
+  }
+
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -204,12 +241,15 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
       if (error) throw new Error(error.message);
       if (!data?.ok) {
         if (data?.code === "rate_limited") {
-          setErr("Spotify limitou as requisições. Tente novamente em alguns segundos.");
+          const retrySec = Number(data?.retry_after) || 15;
+          setRateLimitUntil(Date.now() + retrySec * 1000);
+          setErr(null);
           setTracks([]);
           return;
         }
         throw new Error(data?.error ?? "Falhou");
       }
+      setRateLimitUntil(null);
       setTracks(data.tracks ?? []);
     } catch (e: any) {
       setErr(e.message);
@@ -217,6 +257,7 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
       setLoading(false);
     }
   }
+
 
   async function loadJobs() {
     const { data } = await supabase
@@ -412,12 +453,15 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => { loadTracks(); loadJobs(); loadMeta(); }}
-            disabled={loading}
+            onClick={handleRefreshClick}
+            disabled={loading || rateLimitSecLeft > 0}
             className="nx-pill"
+            title={rateLimitSecLeft > 0 ? `Aguarde ${rateLimitSecLeft}s` : "Atualizar"}
           >
             <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
-            <span className="ml-1.5">Atualizar</span>
+            <span className="ml-1.5">
+              {rateLimitSecLeft > 0 ? `Aguarde ${rateLimitSecLeft}s` : "Atualizar"}
+            </span>
           </Button>
         </div>
 
@@ -427,7 +471,16 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
         </p>
 
 
-        {err && (
+        {rateLimitSecLeft > 0 && (
+          <div className="flex items-start gap-2 text-sm p-3 rounded-md border border-warning/40 bg-warning/5 text-warning">
+            <Clock className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>
+              Aguardando liberação do Spotify — tentando novamente em <span className="tabular-nums font-semibold">{rateLimitSecLeft}s</span>
+            </span>
+          </div>
+        )}
+
+        {err && rateLimitSecLeft === 0 && (
           <div className="flex items-start gap-2 text-sm text-destructive p-3 rounded-md border border-destructive/30 bg-destructive/5">
             <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
             <span>{err}</span>
