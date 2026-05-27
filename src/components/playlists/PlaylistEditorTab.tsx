@@ -290,6 +290,7 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
+    if (inFlight.current) return;
     const oldIndex = tracks.findIndex((t) => t.spotify_track_id === active.id);
     const newIndex = tracks.findIndex((t) => t.spotify_track_id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
