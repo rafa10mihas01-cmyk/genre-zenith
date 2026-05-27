@@ -77,6 +77,15 @@ Deno.serve(async (req) => {
       }));
     return jr({ ok: true, tracks: out, total: out.length });
   } catch (e) {
-    return jr({ ok: false, error: (e as Error).message }, 500);
+    const msg = (e as Error).message || "unknown";
+    const rateLimited = /429|too many requests/i.test(msg);
+    return jr({
+      ok: false,
+      error: rateLimited ? "RATE_LIMITED" : msg,
+      code: rateLimited ? "rate_limited" : "spotify_error",
+      fallback: true,
+      tracks: [],
+      total: 0,
+    });
   }
 });
