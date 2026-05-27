@@ -70,6 +70,8 @@ export function ExternalPackageEditor({
   const [candidates, setCandidates] = useState<CuratorCandidate[]>([]);
   const [addOpen, setAddOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<ItemRow | null>(null);
+  const [totalDrafts, setTotalDrafts] = useState<Record<string, string>>({});
+  const [perDayDrafts, setPerDayDrafts] = useState<Record<string, string>>({});
 
   async function load() {
     setLoading(true);
@@ -316,6 +318,8 @@ export function ExternalPackageEditor({
                     const days = Math.max(1, snapshot.days || 1);
                     const perDay = Math.round(it.assigned_streams / days);
                     const perMonth = Math.round(perDay * 30);
+                    const totalStr = totalDrafts[it.id] ?? (it.assigned_streams > 0 ? String(it.assigned_streams) : "");
+                    const perDayStr = perDayDrafts[it.id] ?? (perDay > 0 ? String(perDay) : "");
                     return (
                       <tr key={it.id} className={cn("hover:bg-elevated/60 transition-colors", i % 2 === 1 && "bg-elevated/20")}>
                         <td className="py-2.5 px-3 text-center border-b border-r border-border/40">
@@ -328,15 +332,49 @@ export function ExternalPackageEditor({
                           ) : (
                             <Input
                               type="number"
-                              value={it.assigned_streams}
-                              onChange={(e) => handleStreamsChange(it, Math.max(0, parseInt(e.target.value || "0", 10)))}
+                              inputMode="numeric"
+                              placeholder="0"
+                              value={totalStr}
+                              onFocus={(e) => e.target.select()}
+                              onChange={(e) => {
+                                const raw = e.target.value;
+                                setTotalDrafts((p) => ({ ...p, [it.id]: raw }));
+                                setPerDayDrafts((p) => { const n = { ...p }; delete n[it.id]; return n; });
+                                const v = Math.max(0, parseInt(raw || "0", 10) || 0);
+                                handleStreamsChange(it, v);
+                              }}
+                              onBlur={() => setTotalDrafts((p) => { const n = { ...p }; delete n[it.id]; return n; })}
                               className="h-7 text-center tabular-nums w-28 mx-auto"
                             />
                           )}
                         </td>
-                        <td className="py-2.5 px-3 text-center tabular-nums border-b border-r border-border/40">
-                          <span className="font-medium">{formatInt(perDay)}</span>
-                          <span className="text-[10px] text-muted-foreground ml-1">/dia</span>
+                        <td className="py-2.5 px-3 text-center border-b border-r border-border/40">
+                          {isDispatched ? (
+                            <>
+                              <span className="font-medium tabular-nums">{formatInt(perDay)}</span>
+                              <span className="text-[10px] text-muted-foreground ml-1">/dia</span>
+                            </>
+                          ) : (
+                            <div className="flex items-center justify-center gap-1">
+                              <Input
+                                type="number"
+                                inputMode="numeric"
+                                placeholder="0"
+                                value={perDayStr}
+                                onFocus={(e) => e.target.select()}
+                                onChange={(e) => {
+                                  const raw = e.target.value;
+                                  setPerDayDrafts((p) => ({ ...p, [it.id]: raw }));
+                                  setTotalDrafts((p) => { const n = { ...p }; delete n[it.id]; return n; });
+                                  const pd = Math.max(0, parseInt(raw || "0", 10) || 0);
+                                  handleStreamsChange(it, pd * days);
+                                }}
+                                onBlur={() => setPerDayDrafts((p) => { const n = { ...p }; delete n[it.id]; return n; })}
+                                className="h-7 text-center tabular-nums w-20"
+                              />
+                              <span className="text-[10px] text-muted-foreground">/dia</span>
+                            </div>
+                          )}
                         </td>
                         <td className="py-2.5 px-3 text-center tabular-nums border-b border-r border-border/40">
                           <span className="font-medium">{formatInt(perMonth)}</span>
