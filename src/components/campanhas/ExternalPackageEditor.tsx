@@ -223,7 +223,11 @@ export function ExternalPackageEditor({
         Confirmar pacote
       </Button>
     </>
-  ) : null;
+  ) : (
+    <Button size="sm" variant="outline" onClick={() => setReopenOpen(true)}>
+      <Pencil className="h-4 w-4 mr-1.5" /> Editar pacote
+    </Button>
+  );
 
   return (
     <>
