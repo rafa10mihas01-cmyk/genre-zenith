@@ -180,7 +180,8 @@ export function OverviewTab({
           metaTotal={ecoTarget}
           metaPct={ecoEffectivePct}
           deliveredTotal={ecoDelivered}
-          perDay={Math.round(Math.max(0, ecoTarget - ecoDelivered) / daysRemaining)}
+          perDayContract={Math.round(Math.max(0, ecoTarget - ecoDelivered) / daysRemaining)}
+          perDayReal={Math.round(ecoTarget / Math.max(1, snapshot.effectiveDays ?? snapshot.days))}
         />
         <SplitRow
           tone="ext"
@@ -188,7 +189,8 @@ export function OverviewTab({
           metaTotal={extTarget}
           metaPct={extEffectivePct}
           deliveredTotal={extDelivered}
-          perDay={Math.round(Math.max(0, extTarget - extDelivered) / daysRemaining)}
+          perDayContract={Math.round(Math.max(0, extTarget - extDelivered) / daysRemaining)}
+          perDayReal={Math.round(extTarget / Math.max(1, snapshot.effectiveDays ?? snapshot.days))}
         />
         {orgTarget > 0 && (
           <SplitRow
@@ -197,37 +199,50 @@ export function OverviewTab({
             metaTotal={orgTarget}
             metaPct={orgPctOfMeta}
             deliveredTotal={0}
-            perDay={Math.round(orgTarget / Math.max(1, snapshot.days))}
+            perDayContract={Math.round(orgTarget / Math.max(1, snapshot.days))}
+            perDayReal={Math.round(orgTarget / Math.max(1, snapshot.effectiveDays ?? snapshot.days))}
           />
         )}
       </section>
 
-      {/* Plano de entrega — leitura única: meta total, ritmo, hoje */}
+      {/* Plano de entrega — 2 cards: contratado vs real (diluído no effectiveDays) */}
+      {!hideDeliveryPlan && (() => {
+        const effDays = Math.max(1, snapshot.effectiveDays ?? snapshot.days);
+        const realPerDay = Math.round(snapshot.meta / effDays);
+        return (
+          <section className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <RitmoCard
+              tone="contract"
+              label="Ritmo contratado"
+              hint={`${daysRemaining}d restantes · ${formatInt(restante)} a entregar`}
+              value={ritmoNecessario}
+              footer={`Meta ${formatInt(snapshot.meta)} em ${snapshot.days}d`}
+            />
+            <RitmoCard
+              tone="real"
+              label="Ritmo real (plano)"
+              hint={`Diluído em ${effDays}d de execução (com buffer)`}
+              value={realPerDay}
+              footer={`Média do plano · pico ${formatInt(snapshot.picoPorDia)}/dia`}
+            />
+          </section>
+        );
+      })()}
+
+      {/* Detalhes do plano — acordeão opcional com progresso, lock e meta de hoje */}
       {!hideDeliveryPlan && (
       <Card>
         <button
           type="button"
           onClick={() => setPlanOpen(o => !o)}
-          className="w-full text-left p-4 md:p-5 flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-4 hover:bg-muted/20 transition-colors rounded-[inherit]"
+          className="w-full text-left p-4 md:p-5 flex items-center justify-between gap-3 hover:bg-muted/20 transition-colors rounded-[inherit]"
         >
-          <div className="min-w-0">
-            <div className="text-sm font-semibold flex items-center gap-2">
-              Plano de entrega
-              <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", planOpen && "rotate-180")} />
-            </div>
-            <div className="text-xs text-muted-foreground mt-0.5 leading-snug">
-              Quanto falta e em quanto tempo
-            </div>
-
+          <div className="text-sm font-semibold flex items-center gap-2">
+            Detalhes do plano
+            <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", planOpen && "rotate-180")} />
           </div>
-          <div className="md:text-right shrink-0">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Ritmo necessário</div>
-            <div className="text-2xl font-semibold tabular-nums leading-none mt-1">
-              {formatInt(ritmoNecessario)}<span className="text-xs text-muted-foreground font-normal">/dia</span>
-            </div>
-            <div className="text-[10px] text-muted-foreground tabular-nums mt-1">
-              {daysRemaining}d restantes · {formatInt(restante)} a entregar
-            </div>
+          <div className="text-[11px] text-muted-foreground tabular-nums">
+            entregue {formatInt(delivered)} · {pct}% da meta
           </div>
         </button>
 
@@ -280,8 +295,6 @@ export function OverviewTab({
             </div>
           )}
 
-
-
           <div className="rounded-lg border border-border/70 bg-muted/20 px-4 py-3">
             <div className="flex items-baseline justify-between gap-3 flex-wrap">
               <div>
@@ -310,6 +323,7 @@ export function OverviewTab({
         )}
       </Card>
       )}
+
 
 
 
