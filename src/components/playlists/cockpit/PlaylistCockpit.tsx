@@ -599,8 +599,6 @@ export function PlaylistCockpit({
         </div>
       </header>
 
-      <OnboardingChecklist managedId={managedId} />
-
       {loading ? (
         <Card className="p-10 grid place-items-center">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -613,8 +611,7 @@ export function PlaylistCockpit({
         </Card>
       ) : (
         <>
-          {/* ============ CICLO CURATORIAL — banner editorial ============ */}
-          <EditorialBanner diag={diag} onRediagnose={runDiagnose} running={running} />
+
 
 
 
