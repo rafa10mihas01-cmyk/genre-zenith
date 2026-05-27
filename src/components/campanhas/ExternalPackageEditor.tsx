@@ -9,6 +9,7 @@ import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import {
   ensureExternalPackageDraft,
   confirmExternalPackage,
+  reopenExternalPackage,
   updatePackageItem,
   removePackageItem,
   addPackageItem,
@@ -17,7 +18,7 @@ import {
 } from "@/lib/externalPackage";
 import { Link } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Trash2, Users, AlertTriangle, CheckCircle2, Plus, Search, BarChart3, CalendarClock, DollarSign, Target } from "lucide-react";
+import { Loader2, Trash2, Users, AlertTriangle, CheckCircle2, Plus, Search, BarChart3, CalendarClock, DollarSign, Target, Lock, ExternalLink, Pencil } from "lucide-react";
 import { KpiBig } from "@/components/KpiBig";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -66,6 +67,8 @@ export function ExternalPackageEditor({
   const [items, setItems] = useState<ItemRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
+  const [reopenOpen, setReopenOpen] = useState(false);
+  const [reopening, setReopening] = useState(false);
 
   const [candidates, setCandidates] = useState<CuratorCandidate[]>([]);
   const [addOpen, setAddOpen] = useState(false);
@@ -151,6 +154,22 @@ export function ExternalPackageEditor({
       setConfirming(false);
     }
   }
+  async function handleReopen() {
+    if (!pkg) return;
+    setReopening(true);
+    try {
+      const { dealsRemoved } = await reopenExternalPackage(pkg.id);
+      toast({ title: "Pacote reaberto", description: `${dealsRemoved} deals propostos removidos. Edite e confirme novamente.` });
+      setReopenOpen(false);
+      await load();
+      onChanged?.();
+    } catch (e: any) {
+      toast({ title: "Erro ao reabrir", description: e.message ?? String(e), variant: "destructive" });
+    } finally {
+      setReopening(false);
+    }
+  }
+
 
   if (loading) {
     return <Skeleton className="h-64" />;
@@ -166,6 +185,7 @@ export function ExternalPackageEditor({
   const underCovered = coverage < 95;
   // Janela REAL do plano (rampa + platô + saída) — fallback p/ snapshots antigos.
   const effDays = Math.max(1, snapshot.effectiveDays || snapshot.days || 1);
+  const dealsCount = items.filter(i => !!i.curator_deal_id).length;
 
   const actionButtons = !isDispatched ? (
     <>
@@ -203,52 +223,95 @@ export function ExternalPackageEditor({
         Confirmar pacote
       </Button>
     </>
-  ) : null;
+  ) : (
+    <Button size="sm" variant="outline" onClick={() => setReopenOpen(true)}>
+      <Pencil className="h-4 w-4 mr-1.5" /> Editar pacote
+    </Button>
+  );
 
   return (
     <>
     <section className="space-y-6">
-      {/* KPIs — padrão Curadores (KpiBig) */}
-      <section className="grid grid-cols-2 md:grid-cols-6 gap-3">
-        <KpiBig
-          tier="hero"
-          icon={BarChart3}
-          label="Streams totais"
-          value={formatInt(totalStreams)}
-          hint={Math.abs(deltaStreams) > 1 ? `${deltaStreams > 0 ? "+" : ""}${formatInt(deltaStreams)} vs snapshot` : "alinhado ao snapshot"}
-          domain="campaigns"
-        />
-        <KpiBig
-          icon={CalendarClock}
-          label="Diário necessário"
-          value={formatInt(Math.round((snapshot.streamsExt || 0) / effDays))}
-          hint={`pacote atual: ${formatInt(Math.round(totalStreams / effDays))}/dia em ${effDays}d`}
-          domain="deals"
-        />
-
-        <KpiBig
-          icon={DollarSign}
-          label="Custo"
-          value={formatBRL(totalCost)}
-          hint={Math.abs(deltaCost) > 0.5 ? `${deltaCost > 0 ? "+" : ""}${formatBRL(deltaCost)} vs snapshot` : "alinhado ao snapshot"}
-          domain="clients"
-        />
-        <KpiBig
-          icon={Target}
-          label="Cobertura"
-          value={`${coverage.toFixed(0)}%`}
-          hint="do alvo externo"
-          domain="curators"
-        />
-        <KpiBig
-          tier="quiet"
-          icon={Users}
-          label="Curadores"
-          value={String(items.length)}
-          hint="no pacote"
-          domain="community"
-        />
-      </section>
+      {isDispatched ? (
+        <div className="rounded-2xl border border-primary/40 bg-primary/10 px-5 py-4">
+          <div className="flex items-start gap-3">
+            <div className="rounded-full bg-primary/20 p-2 mt-0.5">
+              <Lock className="h-4 w-4 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-semibold text-foreground">Pacote confirmado</span>
+                <span className="text-xs text-muted-foreground">·</span>
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {dealsCount} {dealsCount === 1 ? "deal criado" : "deals criados"}
+                </span>
+                {pkg?.confirmed_at && (
+                  <>
+                    <span className="text-xs text-muted-foreground">·</span>
+                    <span className="text-xs text-muted-foreground">
+                      confirmado em {new Date(pkg.confirmed_at).toLocaleDateString("pt-BR")}
+                    </span>
+                  </>
+                )}
+              </div>
+              <div className="mt-2 flex items-center gap-2 text-xs text-foreground/85 flex-wrap">
+                <span className="tabular-nums">{items.length} {items.length === 1 ? "curador" : "curadores"}</span>
+                <span className="text-muted-foreground">·</span>
+                <span className="tabular-nums">{formatInt(totalStreams)} streams</span>
+                <span className="text-muted-foreground">·</span>
+                <span className="tabular-nums font-medium">{formatBRL(totalCost)}</span>
+                <span className="text-muted-foreground">·</span>
+                <Link
+                  to={`/deals?campaign=${campaignId}`}
+                  className="inline-flex items-center gap-1 text-primary hover:underline font-medium"
+                >
+                  Ver deals <ExternalLink className="h-3 w-3" />
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <section className="grid grid-cols-2 md:grid-cols-6 gap-3">
+          <KpiBig
+            tier="hero"
+            icon={BarChart3}
+            label="Streams totais"
+            value={formatInt(totalStreams)}
+            hint={Math.abs(deltaStreams) > 1 ? `${deltaStreams > 0 ? "+" : ""}${formatInt(deltaStreams)} vs snapshot` : "alinhado ao snapshot"}
+            domain="campaigns"
+          />
+          <KpiBig
+            icon={CalendarClock}
+            label="Diário necessário"
+            value={formatInt(Math.round((snapshot.streamsExt || 0) / effDays))}
+            hint={`pacote atual: ${formatInt(Math.round(totalStreams / effDays))}/dia em ${effDays}d`}
+            domain="deals"
+          />
+          <KpiBig
+            icon={DollarSign}
+            label="Custo"
+            value={formatBRL(totalCost)}
+            hint={Math.abs(deltaCost) > 0.5 ? `${deltaCost > 0 ? "+" : ""}${formatBRL(deltaCost)} vs snapshot` : "alinhado ao snapshot"}
+            domain="clients"
+          />
+          <KpiBig
+            icon={Target}
+            label="Cobertura"
+            value={`${coverage.toFixed(0)}%`}
+            hint="do alvo externo"
+            domain="curators"
+          />
+          <KpiBig
+            tier="quiet"
+            icon={Users}
+            label="Curadores"
+            value={String(items.length)}
+            hint="no pacote"
+            domain="community"
+          />
+        </section>
+      )}
 
       {renderTabsRow?.(actionButtons)}
 
@@ -447,6 +510,25 @@ export function ExternalPackageEditor({
             }}
           >
             Remover
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    <AlertDialog open={reopenOpen} onOpenChange={setReopenOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Reabrir pacote para edição?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Isso vai apagar os {dealsCount} {dealsCount === 1 ? "deal proposto" : "deals propostos"} gerados a partir deste pacote
+            e devolver o pacote para rascunho. Você poderá editar curadores, volumes e custos e confirmar novamente.
+            Deals que já foram aceitos pelo curador não serão removidos. Continuar?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={reopening}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={handleReopen} disabled={reopening}>
+            {reopening ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : null}
+            Reabrir pacote
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

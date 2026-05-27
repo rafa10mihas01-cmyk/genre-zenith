@@ -247,3 +247,43 @@ export async function removePackageItem(itemId: string) {
   const { error } = await supabase.from("campaign_external_package_items").delete().eq("id", itemId);
   if (error) throw error;
 }
+
+/**
+ * Reabre um pacote já confirmado: apaga os curator_deals que ainda estão em
+ * status 'proposto' (segurança — não toca em deals já aceitos/em execução),
+ * limpa curator_deal_id dos items e devolve o pacote para 'draft'.
+ */
+export async function reopenExternalPackage(packageId: string): Promise<{ dealsRemoved: number }> {
+  const { data: items, error: itemsErr } = await supabase
+    .from("campaign_external_package_items")
+    .select("id, curator_deal_id")
+    .eq("package_id", packageId);
+  if (itemsErr) throw itemsErr;
+
+  const dealIds = (items ?? []).map(i => i.curator_deal_id).filter(Boolean) as string[];
+  let removed = 0;
+  if (dealIds.length > 0) {
+    const { data: deleted, error: delErr } = await supabase
+      .from("curator_deals")
+      .delete()
+      .in("id", dealIds)
+      .eq("state", "proposto")
+      .select("id");
+    if (delErr) throw delErr;
+    removed = deleted?.length ?? 0;
+  }
+
+  await supabase
+    .from("campaign_external_package_items")
+    .update({ curator_deal_id: null })
+    .eq("package_id", packageId);
+
+  const { error: pkgErr } = await supabase
+    .from("campaign_external_packages")
+    .update({ status: "draft", confirmed_at: null })
+    .eq("id", packageId);
+  if (pkgErr) throw pkgErr;
+
+  return { dealsRemoved: removed };
+}
+
