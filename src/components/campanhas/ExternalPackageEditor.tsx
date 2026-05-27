@@ -377,10 +377,10 @@ export function ExternalPackageEditor({
                             </div>
                           )}
                         </td>
-                        <td className="py-2.5 px-3 text-center tabular-nums border-b border-r border-border/40">
-                          <span className="font-medium">{formatInt(perMonth)}</span>
-                          <span className="text-[10px] text-muted-foreground ml-1">/mês</span>
+                        <td className="py-2.5 px-3 text-center tabular-nums text-muted-foreground border-b border-r border-border/40">
+                          {it.cost_per_stream.toFixed(3)}
                         </td>
+
                         <td className="py-2.5 px-3 text-center tabular-nums text-muted-foreground border-b border-r border-border/40">
                           {it.cost_per_stream.toFixed(3)}
                         </td>
