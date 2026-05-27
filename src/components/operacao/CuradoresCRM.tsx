@@ -600,7 +600,7 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar playlist, owner ou email…"
+            placeholder="Buscar"
             className="pl-9 h-10 rounded-lg bg-elevated border-border"
           />
         </div>
