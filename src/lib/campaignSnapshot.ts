@@ -80,6 +80,7 @@ export function buildSnapshot(
     streamsExt: result.streamsExt,
     custoEco: result.custoEco,
     custoExt: result.custoExt,
+    custoOrganic: result.custoOrganic,
     custoTotal: result.custoTotal,
     custoPorStream: result.custoPorStream,
     picoPorDia: result.picoPorDia,
