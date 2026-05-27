@@ -1550,7 +1550,9 @@ function MarketBlock({
                   {present ? (
                     <Check className="h-3 w-3 text-primary shrink-0" />
                   ) : (
-                    <span className="text-destructive/70 text-[10px] font-bold shrink-0">✗</span>
+                    <span className="text-[9px] uppercase tracking-wider text-muted-foreground/70 bg-muted/40 px-1 py-0.5 rounded shrink-0">
+                      fora
+                    </span>
                   )}
                   <span className="truncate">{a.name}</span>
                 </span>
