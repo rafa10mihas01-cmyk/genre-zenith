@@ -59,7 +59,7 @@ export function LifecycleRoadmapCard({ playlistId, currentTracks }: Props) {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-[15px] font-semibold leading-none">Roadmap editorial</h3>
+              <h3 className="text-[15px] font-semibold leading-none">Plano de crescimento</h3>
               <Badge variant={meta.badgeVariant} className="text-[10px]">{meta.label}</Badge>
             </div>
             <p className="text-xs text-muted-foreground mt-1">{meta.description}</p>

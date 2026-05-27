@@ -206,8 +206,16 @@ export function PlaylistCockpit({
   }>(null);
   const [activeTab, setActiveTab] = useState<string>("identidade");
   const [archiving, setArchiving] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  // Header colapsa após scrollar mais que 120px
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 120);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   async function handleArchive() {
     if (!confirm(`Mover "${playlistName}" para a lixeira?`)) return;
@@ -480,8 +488,8 @@ export function PlaylistCockpit({
 
   return (
     <div className="mx-auto w-full max-w-[1600px] px-4 md:px-8 py-4 md:py-5 space-y-4">
-      {/* ============ 1. HEADER (slim, padrão cockpit) ============ */}
-      <header className="space-y-3">
+      {/* ============ 1. HEADER (sticky + colapsável no scroll) ============ */}
+      <header className={cn("space-y-3 sticky top-0 z-30 -mx-4 md:-mx-8 px-4 md:px-8 pt-2 pb-3 transition-all", scrolled && "bg-background/95 backdrop-blur border-b border-border")}>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0 flex-1">
             {onBack && (
@@ -560,8 +568,8 @@ export function PlaylistCockpit({
         </div>
 
 
-        {/* KPI row — mesma régua do DealDetail/Cliente/Curador */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+        {/* KPI row — esconde Faixas e Saúde quando rolar; mantém Seguidores + Score curatorial */}
+        <div className={cn("grid gap-2 transition-all", scrolled ? "grid-cols-2" : "grid-cols-2 md:grid-cols-5")}>
           <KpiBig
             label="Seguidores"
             value={fmtNum(followers)}
@@ -570,13 +578,15 @@ export function PlaylistCockpit({
             tone="primary"
             domain="playlists"
           />
-          <KpiBig
-            label="Faixas"
-            value={fmtNum(liveTracksCount)}
-            icon={Music2}
-            domain="playlists"
-            hint={idealRange ? `ideal ${idealRange[0]}–${idealRange[1]}` : undefined}
-          />
+          {!scrolled && (
+            <KpiBig
+              label="Faixas"
+              value={fmtNum(liveTracksCount)}
+              icon={Music2}
+              domain="playlists"
+              hint={idealRange ? `ideal ${idealRange[0]}–${idealRange[1]}` : undefined}
+            />
+          )}
           <KpiBig
             label="Score curatorial"
             value={brainScore != null ? `${brainScore}` : "—"}
@@ -584,23 +594,23 @@ export function PlaylistCockpit({
             tone={brainScore == null ? "default" : brainScore >= 75 ? "success" : brainScore >= 50 ? "primary" : "default"}
             hint={brainScore == null ? "sem análise" : "saúde editorial 0–100"}
           />
-
-
-          <KpiBig
-            label="Saúde"
-            value={health.label}
-            icon={health.Icon}
-            tier="quiet"
-            tone={
-              (diag?.raw?.health_status ?? "saudavel") === "aquecido" ? "primary"
-              : (diag?.raw?.health_status ?? "saudavel") === "frio" ? "destructive"
-              : "default"
-            }
-          />
+          {!scrolled && (
+            <KpiBig
+              label="Saúde"
+              value={health.label}
+              icon={health.Icon}
+              tier="quiet"
+              tone={
+                (diag?.raw?.health_status ?? "saudavel") === "aquecido" ? "primary"
+                : (diag?.raw?.health_status ?? "saudavel") === "frio" ? "destructive"
+                : "default"
+              }
+            />
+          )}
         </div>
       </header>
 
-      <OnboardingChecklist managedId={managedId} />
+      {!scrolled && <OnboardingChecklist managedId={managedId} />}
 
       {loading ? (
         <Card className="p-10 grid place-items-center">
@@ -643,7 +653,7 @@ export function PlaylistCockpit({
                 <Activity className="h-3.5 w-3.5" /> Estratégia
               </TabsTrigger>
               <TabsTrigger value="editor" className="gap-1.5">
-                <ListMusic className="h-3.5 w-3.5" /> Editor
+                <ListMusic className="h-3.5 w-3.5" /> Editar manualmente
               </TabsTrigger>
             </TabsList>
 
@@ -795,8 +805,15 @@ export function PlaylistCockpit({
                 onApplyAll={() => applyPlan("add")}
               />
 
-              {/* Memória de impacto — histórico dos ajustes anteriores */}
-              <AdjustmentTimeline playlistId={managedId} />
+              {/* Memória de impacto — histórico colapsado por default */}
+              <Collapsible>
+                <CollapsibleTrigger className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5 px-2 py-1.5 rounded border border-border hover:border-primary/40">
+                  <ChevronDown className="h-3 w-3" /> Ver histórico de ajustes
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-3">
+                  <AdjustmentTimeline playlistId={managedId} />
+                </CollapsibleContent>
+              </Collapsible>
             </TabsContent>
 
             {/* ============ IDENTIDADE ============ */}
@@ -868,18 +885,23 @@ export function PlaylistCockpit({
 
             {/* ============ ESTRATÉGIA ============ */}
             <TabsContent value="estrategia" className="space-y-4 mt-0">
-              <GenreAffinityCard managedId={managedId} />
               {canonicalPlaylistId && (
                 <LifecycleRoadmapCard
                   playlistId={canonicalPlaylistId}
                   currentTracks={liveTracksCount}
                 />
               )}
+              <GenreAffinityCard managedId={managedId} />
               <SeoExperimentCard managedId={managedId} />
             </TabsContent>
 
             {/* ============ EDITOR (drag-and-drop) ============ */}
-            <TabsContent value="editor" className="mt-0">
+            <TabsContent value="editor" className="space-y-3 mt-0">
+              <Card className="p-3 border-warning/30 bg-warning/5">
+                <div className="text-xs text-foreground/80">
+                  Use esta aba para editar as faixas diretamente, sem seguir o Plano.
+                </div>
+              </Card>
               <PlaylistEditorTab playlistId={managedId} />
             </TabsContent>
           </Tabs>
@@ -964,10 +986,13 @@ function IdentityField({ label, field, managedId, current, suggestion, score, on
       <div className="flex items-center justify-between">
         <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">{label}</span>
         {score != null && (
-          <span className={cn(
-            "text-xs font-semibold tabular-nums",
-            score >= 60 ? "text-primary" : score >= 30 ? "text-warning" : "text-destructive",
-          )}>{score}/100</span>
+          <span
+            title="SEO — quanto o nome combina com termos do nicho"
+            className={cn(
+              "text-xs font-semibold tabular-nums cursor-help",
+              score >= 60 ? "text-primary" : score >= 30 ? "text-warning" : "text-destructive",
+            )}
+          >{score}/100</span>
         )}
       </div>
       <div className="space-y-2">
@@ -1241,8 +1266,8 @@ function CoverCard({ managedId, currentCover, references, spotifyPlaylistId }: {
 
 const ACTION_META = {
   remove: { label: "Remover", Icon: Trash2, tone: "border-destructive/40 bg-destructive/10 text-destructive", hint: "Faixas sem tração ou saturadas" },
-  demote: { label: "Rebaixar", Icon: ArrowDown, tone: "border-warning/40 bg-warning/10 text-warning", hint: "Na vitrine sem performance" },
-  promote: { label: "Promover", Icon: ArrowUp, tone: "border-primary/40 bg-primary/10 text-primary", hint: "Mercado já reconheceu" },
+  demote: { label: "Mover pra baixo", Icon: ArrowDown, tone: "border-warning/40 bg-warning/10 text-warning", hint: "Na vitrine sem performance" },
+  promote: { label: "Mover pro topo", Icon: ArrowUp, tone: "border-primary/40 bg-primary/10 text-primary", hint: "Mercado já reconheceu" },
   add: { label: "Adicionar", Icon: Plus, tone: "border-primary/50 bg-primary/15 text-primary", hint: "Faixas dominando o nicho" },
 } as const;
 
@@ -1271,7 +1296,7 @@ function ActionCard({ kind, count, detected, hrefId }: { kind: keyof typeof ACTI
       <div className="text-3xl font-bold tabular-nums leading-none">{count}</div>
       {hasMore ? (
         <div className="text-[11px] opacity-80 mt-1.5 leading-snug">
-          de {detected} detectadas · cap deste ciclo
+          de {detected} detectadas · limite deste ciclo
         </div>
       ) : (
         <div className="text-[11px] opacity-80 mt-1.5 leading-snug">{m.hint}</div>
@@ -1390,7 +1415,7 @@ function BucketReorder({ kind, items, totalTracks, applying, onApplyAll }: {
           >
             {applying ? <Loader2 className="h-3 w-3 animate-spin" /> :
               kind === "promote" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-            {kind === "promote" ? "Promover todas" : "Rebaixar todas"} ({items.length})
+            {kind === "promote" ? "Mover pro topo" : "Mover pra baixo"} ({items.length})
           </Button>
         )
       }
@@ -1408,7 +1433,7 @@ function BucketReorder({ kind, items, totalTracks, applying, onApplyAll }: {
             reason={shortReason(t, kind)}
             action={
               <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                {kind === "promote" ? "Promover" : "Rebaixar"}
+                {kind === "promote" ? "Topo" : "Baixo"}
               </span>
             }
           />
@@ -1470,7 +1495,10 @@ function BucketAdd({ items, applying, onApplyAll }: {
             <NewTrackTarget zone={t._zone} pos={t.suggested_position} />
             <div className="flex-1 min-w-0">
               <div className="text-sm font-medium truncate">{t.nome || "—"}</div>
-              <div className="text-xs text-muted-foreground truncate">
+              <div
+                className="text-xs text-muted-foreground truncate cursor-help"
+                title="Fachada = posições 1-2 · Premium = 3-5 · Sustentação = 6-10 · Cauda = 11+"
+              >
                 {t.artista || "—"} · {editorial}
               </div>
             </div>
@@ -1514,10 +1542,11 @@ function MarketBlock({
               <span className="text-xs text-muted-foreground ml-1 font-normal">faixas</span>
             </div>
             <div className="text-[11px] text-muted-foreground">
-              Saturação média do nicho: <strong className="text-foreground">{market.avg_saturation_pct ?? "—"}%</strong>
+              Saturação do nicho: <strong className="text-foreground">{market.avg_saturation_pct ?? "—"}%</strong>
+              <span className="block text-[10px] text-muted-foreground/80">quanto o nicho repete as mesmas faixas</span>
             </div>
             <div className="text-[11px] text-muted-foreground">
-              Baseado em <strong className="text-foreground">{sampleSize}</strong> playlists varridas
+              Baseado em <strong className="text-foreground">{sampleSize}</strong> playlists analisadas
             </div>
           </>
         ) : (
@@ -1527,7 +1556,7 @@ function MarketBlock({
             </div>
             <div className="text-[11px] text-muted-foreground">
               {sampleSize > 0
-                ? `${sampleSize} playlists varridas · próximo recálculo automático às 03:00`
+                ? `${sampleSize} playlists analisadas · próximo recálculo automático às 03:00`
                 : "Cron diário roda às 03:00 — inclua concorrentes monitorados neste nicho"}
             </div>
           </div>
@@ -1549,7 +1578,9 @@ function MarketBlock({
                   {present ? (
                     <Check className="h-3 w-3 text-primary shrink-0" />
                   ) : (
-                    <span className="text-destructive/70 text-[10px] font-bold shrink-0">✗</span>
+                    <span className="text-[9px] uppercase tracking-wider text-muted-foreground/70 bg-muted/40 px-1 py-0.5 rounded shrink-0">
+                      fora
+                    </span>
                   )}
                   <span className="truncate">{a.name}</span>
                 </span>
