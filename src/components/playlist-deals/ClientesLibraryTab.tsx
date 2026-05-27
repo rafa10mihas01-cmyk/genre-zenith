@@ -64,6 +64,7 @@ import { useClients, type Client } from "@/hooks/useClients";
 import { clientCampaignUrl } from "@/lib/curatorPublicUrl";
 import { cn } from "@/lib/utils";
 import type { CuratorDeal, CuratorDealSong } from "@/lib/curatorDealsUtils";
+// Select já importado abaixo
 
 type ClientSongRow = CuratorDealSong & {
   client_id?: string | null;
@@ -71,27 +72,45 @@ type ClientSongRow = CuratorDealSong & {
   smartlink_url?: string | null;
 };
 
+export type ClientFinanceEntry = {
+  cobrado: number;
+  recebido: number;
+  pendente: number;
+  count: number;
+};
+export type ClientFinanceMap = Map<string, ClientFinanceEntry>;
+
+type StatusFilter = "all" | "active" | "idle" | "archived";
+type SortBy = "activity" | "invested" | "revenue" | "alpha";
+
+const EMPTY_FIN: ClientFinanceEntry = { cobrado: 0, recebido: 0, pendente: 0, count: 0 };
+const formatBRLShort = (v: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v);
+
 interface Props {
   deals: CuratorDeal[];
   songs: ClientSongRow[];
   loading: boolean;
+  financeByClient?: ClientFinanceMap;
 }
 
-export function ClientesLibraryTab({ deals, songs, loading }: Props) {
+export function ClientesLibraryTab({ deals, songs, loading, financeByClient }: Props) {
   const navigate = useNavigate();
   const { clients, loading: loadingClients, addClient, updateClient, archiveClient, deleteClient, reload } = useClients();
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<Client | null>(null);
   const [creating, setCreating] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ client: Client; hasLinks: boolean } | null>(null);
-  const [showArchived, setShowArchived] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [sortBy, setSortBy] = useState<SortBy>("activity");
   const [page, setPage] = useState(1);
-  const PAGE_SIZE = 4;
+  const PAGE_SIZE = 24;
   const archivedCount = clients.filter((c) => !!c.archived_at).length;
+  const showArchived = statusFilter === "archived";
 
   useEffect(() => {
     setPage(1);
-  }, [query, showArchived]);
+  }, [query, statusFilter, sortBy]);
 
   // Permite abrir o modal "Novo cliente" via evento global (botão + Novo do header)
   useEffect(() => {
@@ -108,7 +127,7 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return clients
+    const enriched = clients
       .filter((c) => (showArchived ? !!c.archived_at : !c.archived_at))
       .filter(
         (c) =>
@@ -128,6 +147,8 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
           const t = new Date(s.created_at).getTime();
           return Number.isFinite(t) && t > acc ? t : acc;
         }, 0);
+        const invested = clientDeals.reduce((acc, d) => acc + (Number(d.cost) || 0), 0);
+        const fin = financeByClient?.get(c.id) ?? EMPTY_FIN;
         return {
           client: c,
           songs: clientSongs,
@@ -136,18 +157,32 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
           closedDeals,
           totalDeals: clientDeals.length,
           lastTs,
+          invested,
+          revenue: fin.recebido,
+          pending: fin.pendente,
         };
       })
-      .sort((a, b) => {
-        if (a.activeDeals !== b.activeDeals) return b.activeDeals - a.activeDeals;
-        return b.lastTs - a.lastTs;
+      .filter((row) => {
+        if (statusFilter === "active") return row.activeDeals > 0;
+        if (statusFilter === "idle") return row.activeDeals === 0;
+        return true; // all | archived (já filtrado acima)
       });
-  }, [clients, songs, dealById, query, showArchived]);
+
+    enriched.sort((a, b) => {
+      if (sortBy === "invested") return b.invested - a.invested;
+      if (sortBy === "revenue") return b.revenue - a.revenue;
+      if (sortBy === "alpha") return a.client.name.localeCompare(b.client.name, "pt-BR");
+      // activity default
+      if (a.activeDeals !== b.activeDeals) return b.activeDeals - a.activeDeals;
+      return b.lastTs - a.lastTs;
+    });
+    return enriched;
+  }, [clients, songs, dealById, query, showArchived, statusFilter, sortBy, financeByClient]);
 
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 max-w-md">
+        <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             value={query}
@@ -156,18 +191,30 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
             className="pl-9"
           />
         </div>
-        {(archivedCount > 0 || showArchived) && (
-          <Button
-            variant={showArchived ? "default" : "outline"}
-            size="sm"
-            className="h-9 gap-1.5"
-            onClick={() => setShowArchived((v) => !v)}
-          >
-            <Archive className="h-3.5 w-3.5" />
-            {showArchived ? "Ver ativos" : `Arquivados (${archivedCount})`}
-          </Button>
-        )}
+        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+          <SelectTrigger className="h-9 w-[180px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os ativos</SelectItem>
+            <SelectItem value="active">Com deal ativo</SelectItem>
+            <SelectItem value="idle">Sem atividade</SelectItem>
+            <SelectItem value="archived">Arquivados{archivedCount > 0 ? ` (${archivedCount})` : ""}</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortBy)}>
+          <SelectTrigger className="h-9 w-[170px]">
+            <SelectValue placeholder="Ordenar" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="activity">Mais ativos</SelectItem>
+            <SelectItem value="invested">Maior investido</SelectItem>
+            <SelectItem value="revenue">Maior receita</SelectItem>
+            <SelectItem value="alpha">Alfabético</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
+
 
       {(loading || loadingClients) && rows.length === 0 ? (
         <div className="flex flex-col gap-2">
@@ -201,7 +248,7 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {pageRows.map((row) => {
-            const { client, totalSongs, activeDeals, closedDeals, totalDeals, lastTs } = row;
+            const { client, totalSongs, activeDeals, closedDeals, totalDeals, lastTs, invested, pending } = row;
             const initials = client.name
               .split(/\s+/)
               .filter(Boolean)
@@ -235,14 +282,16 @@ export function ClientesLibraryTab({ deals, songs, loading }: Props) {
                     <div className="text-[14px] font-semibold text-foreground truncate leading-tight">
                       {client.name}
                     </div>
-                    <div className="text-[11.5px] text-muted-foreground truncate mt-0.5">
-                      <span>Cliente</span>
-                      {client.contact && (
-                        <>
-                          <span className="mx-1.5 opacity-50">·</span>
-                          <span>{client.contact}</span>
-                        </>
-                      )}
+                    <div className="text-[11.5px] text-muted-foreground truncate mt-0.5 tabular-nums">
+                      <span className="text-foreground/80 font-medium">{formatBRLShort(invested)}</span>
+                      <span className="mx-1.5 opacity-50">·</span>
+                      <span>
+                        {pending > 0 ? (
+                          <span className="text-warning">{formatBRLShort(pending)} pendente</span>
+                        ) : (
+                          <span>sem pendência</span>
+                        )}
+                      </span>
                     </div>
                     <div className="mt-2">
                       <StatusDot variant={status.variant} label={status.label} />

@@ -1,6 +1,7 @@
 // ClienteDetalhe — página dedicada do cliente. Substitui o antigo drawer lateral.
 // Mostra ficha completa + extrato (músicas, deals, financeiro, observações).
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -111,8 +112,36 @@ export default function ClienteDetalhe() {
   const { deals, songs, loading: loadingDeals } = useCuratorDeals();
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [clientCampaigns, setClientCampaigns] = useState<Array<{
+    id: string;
+    track_name: string;
+    artist: string | null;
+    status: string;
+    campaign_type: string | null;
+    created_at: string;
+    valor_cobrado: number | null;
+    valor_recebido: number | null;
+    recebido_em: string | null;
+    deadline: string | null;
+  }>>([]);
 
   const client = useMemo(() => clients.find((c) => c.id === id), [clients, id]);
+
+  // Carrega campanhas vinculadas a este cliente (campaigns.client_id)
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("campaigns")
+        .select("id, track_name, artist, status, campaign_type, created_at, valor_cobrado, valor_recebido, recebido_em, deadline")
+        .eq("client_id", id)
+        .order("created_at", { ascending: false });
+      if (cancelled || error || !data) return;
+      setClientCampaigns(data as any);
+    })();
+    return () => { cancelled = true; };
+  }, [id]);
 
   const clientSongs = useMemo(
     () => songs.filter((s: any) => s.client_id === id),
@@ -138,7 +167,13 @@ export default function ClienteDetalhe() {
     const ativos = clientDeals.filter((d) => !d.closed_at).length;
     const concluidos = clientDeals.filter((d) => d.closed_status === "completed").length;
     const cancelados = clientDeals.filter((d) => d.closed_status === "cancelled").length;
-    const investido = clientDeals.reduce((acc, d) => acc + (d.cost ?? 0), 0);
+    const investido = clientDeals.reduce((acc, d) => acc + (Number(d.cost) || 0), 0);
+    const receita = clientCampaigns.reduce((acc, c) => acc + (Number(c.valor_recebido) || 0), 0);
+    const saldoPendente = clientCampaigns.reduce(
+      (acc, c) => acc + Math.max(0, (Number(c.valor_cobrado) || 0) - (Number(c.valor_recebido) || 0)),
+      0,
+    );
+    const margem = receita - investido;
     return {
       musicas: clientSongs.length,
       deals: clientDeals.length,
@@ -146,8 +181,12 @@ export default function ClienteDetalhe() {
       concluidos,
       cancelados,
       investido,
+      receita,
+      margem,
+      saldoPendente,
+      campanhas: clientCampaigns.length,
     };
-  }, [clientDeals, clientSongs]);
+  }, [clientDeals, clientSongs, clientCampaigns]);
 
   if (loadingClients && !client) {
     return (
@@ -259,19 +298,35 @@ export default function ClienteDetalhe() {
 
 
 
-      {/* KPIs — hierarquia cockpit (mesmo padrão de Início / Campanhas / Catálogo) */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-2 pt-4 mb-6">
+      {/* KPIs — hierarquia cockpit. Receita (hero) · Margem · Saldo em aberto · operacionais */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2 pt-4 mb-6">
         <KpiBig
-          label="Investido"
-          value={formatBRLHero(kpis.investido)}
+          label="Receita"
+          value={formatBRLHero(kpis.receita)}
           icon={CreditCard}
-          hint={kpis.deals > 0 ? `Em ${kpis.deals} deal${kpis.deals === 1 ? "" : "s"}` : "Sem deals"}
+          hint="Pago pelo cliente"
           tier="hero"
           domain="clients"
         />
-        <KpiBig label="Negociações" value={kpis.deals} icon={FileText} hint="Total fechados" domain="deals" />
-        <KpiBig label="Ativos" value={kpis.ativos} icon={CheckCircle2} hint="Em andamento" tone="primary" domain="deals" />
-        <KpiBig label="Músicas" value={kpis.musicas} icon={Music2} hint="No catálogo do cliente" domain="clients" />
+        <KpiBig
+          label="Margem"
+          value={formatBRLHero(kpis.margem)}
+          icon={CheckCircle2}
+          hint="Receita − custo de deals"
+          tone={kpis.margem >= 0 ? "primary" : "warning"}
+          domain="campaigns"
+        />
+        <KpiBig
+          label="Saldo em aberto"
+          value={formatBRLHero(kpis.saldoPendente)}
+          icon={FileText}
+          hint="Cobrado e não recebido"
+          tone={kpis.saldoPendente > 0 ? "warning" : undefined}
+          domain="campaigns"
+        />
+        <KpiBig label="Investido" value={formatBRLHero(kpis.investido)} icon={CreditCard} hint={`Custo em ${kpis.deals} deal${kpis.deals === 1 ? "" : "s"}`} domain="deals" />
+        <KpiBig label="Ativos" value={kpis.ativos} icon={CheckCircle2} hint="Deals em andamento" tone="primary" domain="deals" />
+        <KpiBig label="Músicas" value={kpis.musicas} icon={Music2} hint="No catálogo" domain="clients" />
         <KpiBig label="Concluídos" value={kpis.concluidos} icon={CheckCircle2} hint="Entregues" tier="quiet" />
       </div>
 
@@ -281,6 +336,7 @@ export default function ClienteDetalhe() {
           <TabsTrigger value="visao">Visão geral</TabsTrigger>
           <TabsTrigger value="musicas">Músicas <span className="ml-1.5 text-muted-foreground">{kpis.musicas}</span></TabsTrigger>
           <TabsTrigger value="deals">Deals <span className="ml-1.5 text-muted-foreground">{kpis.deals}</span></TabsTrigger>
+          <TabsTrigger value="campanhas">Campanhas <span className="ml-1.5 text-muted-foreground">{kpis.campanhas}</span></TabsTrigger>
           <TabsTrigger value="notas">Notas</TabsTrigger>
         </TabsList>
 
@@ -432,6 +488,59 @@ export default function ClienteDetalhe() {
             </div>
           )}
         </TabsContent>
+
+        {/* ----- Campanhas ----- */}
+        <TabsContent value="campanhas">
+          {clientCampaigns.length === 0 ? (
+            <Card>
+              <CardContent className="p-10 text-center">
+                <p className="text-sm text-muted-foreground">Sem campanhas vinculadas a este cliente.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-2.5">
+              {clientCampaigns.map((c) => {
+                const cobrado = Number(c.valor_cobrado) || 0;
+                const recebido = Number(c.valor_recebido) || 0;
+                const pendente = Math.max(0, cobrado - recebido);
+                const statusLabel = c.status === "active" ? "Ativa"
+                  : c.status === "completed" ? "Concluída"
+                  : c.status === "paused" ? "Pausada"
+                  : c.status === "cancelled" ? "Cancelada"
+                  : c.status === "draft" ? "Rascunho"
+                  : c.status;
+                const statusCls = c.status === "active" ? "text-primary"
+                  : c.status === "completed" ? "text-emerald-400"
+                  : c.status === "cancelled" ? "text-muted-foreground"
+                  : "text-foreground/70";
+                return (
+                  <Link key={c.id} to={`/campanhas/${c.id}`}>
+                    <Card className="hover:border-foreground/20 transition-colors">
+                      <CardContent className="p-4 flex items-center gap-3 min-w-0">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-semibold truncate">{c.track_name}</div>
+                          <div className="text-[11px] text-muted-foreground truncate">
+                            {c.artist || "—"}
+                            {c.campaign_type && <> · {c.campaign_type}</>}
+                            <> · iniciada {formatDistanceToNow(new Date(c.created_at), { addSuffix: true, locale: ptBR })}</>
+                          </div>
+                          <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
+                            Cobrado {formatBRL(cobrado)} · Recebido <span className="text-foreground/80">{formatBRL(recebido)}</span>
+                            {pendente > 0 && <> · <span className="text-warning">{formatBRL(pendente)} pendente</span></>}
+                          </div>
+                        </div>
+                        <div className={cn("inline-flex items-center gap-1.5 text-[11px] font-medium shrink-0", statusCls)}>
+                          {statusLabel}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+
 
         {/* ----- Notas ----- */}
         <TabsContent value="notas">
