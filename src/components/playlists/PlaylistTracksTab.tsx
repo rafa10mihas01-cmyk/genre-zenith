@@ -107,6 +107,11 @@ export function PlaylistTracksTab({ playlistId }: { playlistId: string }) {
         setErr("Playlist não encontrada no banco (pode ter sido removida).");
         return;
       }
+      if (data?.code === "rate_limited") {
+        setErr("Spotify limitou as requisições. Tente novamente em alguns segundos.");
+        setTracks([]);
+        return;
+      }
       if (error || !data?.ok) throw new Error(serverError ?? error?.message ?? data?.error ?? "Falhou");
       setTracks(data.tracks ?? []);
     } catch (e: any) {
