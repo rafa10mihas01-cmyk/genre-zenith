@@ -49,16 +49,21 @@ export default function Prospecao() {
       setOutreach((s) => ({ ...s, loading: true }));
       const [extRes, logsRes] = await Promise.all([
         supabase.from("external_curators").select("id, pipeline_status"),
-        supabase.from("curator_outreach_log").select("curator_id, event_type"),
+        supabase.from("curator_outreach_log").select("external_curator_id, event_type"),
       ]);
       if (cancelled) return;
       const ext = (extRes.data ?? []) as { id: string; pipeline_status: string }[];
-      const logs = (logsRes.data ?? []) as { curator_id: string; event_type: string }[];
+      const logs = (logsRes.data ?? []) as { external_curator_id: string | null; event_type: string }[];
       const leads = ext.length;
       const contatadosSet = new Set(
-        logs.filter((l) => l.event_type === "sent" || l.event_type.startsWith("followup")).map((l) => l.curator_id),
+        logs
+          .filter((l) => l.external_curator_id && (l.event_type === "sent" || l.event_type.startsWith("followup")))
+          .map((l) => l.external_curator_id as string),
       );
-      const respondidosSet = new Set(logs.filter((l) => l.event_type === "replied").map((l) => l.curator_id));
+      const respondidosSet = new Set(
+        logs.filter((l) => l.external_curator_id && l.event_type === "replied").map((l) => l.external_curator_id as string),
+      );
+
       const convertidos = ext.filter((c) => c.pipeline_status === "fechado").length;
       setOutreach({
         leads,
