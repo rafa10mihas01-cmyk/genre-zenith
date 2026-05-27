@@ -94,27 +94,38 @@ export function CuradoriaBlock() {
 
 function DealsActiveCard({ valor, count, loading }: { valor: number; count: number; loading: boolean }) {
   return (
-    <Link to="/deals" className="nx-card-hover p-4 lg:p-5 flex flex-col gap-3 group h-full">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Handshake className="h-4 w-4 text-primary" />
-          <span className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold">
-            Deals ativos
-          </span>
+    <Link to="/deals" className="nx-card-hover p-4 lg:p-5 group h-full flex flex-row lg:flex-col items-stretch gap-4 lg:gap-3">
+      <div className="flex-1 flex flex-col gap-3 min-w-0">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Handshake className="h-4 w-4 text-primary" />
+            <span className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold">
+              Deals ativos
+            </span>
+          </div>
+          <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity lg:group-hover:opacity-100 hidden lg:inline-flex" />
         </div>
-        <ArrowRight className="h-4 w-4 text-muted-foreground opacity-60 lg:opacity-0 transition-opacity group-hover:opacity-100 lg:group-hover:opacity-100" />
+        {loading ? (
+          <div className="h-12 rounded-md bg-muted/40 animate-pulse" />
+        ) : (
+          <>
+            <div className="text-3xl font-semibold tabular-nums tracking-tight text-foreground leading-none">
+              R$ {formatNumber(valor)}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {count} {count === 1 ? "negociação aberta" : "negociações abertas"}
+            </div>
+          </>
+        )}
       </div>
-      {loading ? (
-        <div className="h-12 rounded-md bg-muted/40 animate-pulse" />
-      ) : (
-        <>
-          <div className="text-3xl font-semibold tabular-nums tracking-tight text-foreground leading-none">
-            R$ {formatNumber(valor)}
+      {/* Âncora visual mobile: count em destaque à direita */}
+      {!loading && (
+        <div className="lg:hidden flex flex-col items-center justify-center shrink-0 border-l border-border/40 pl-4 min-w-[68px]">
+          <div className="text-3xl font-semibold tabular-nums text-foreground leading-none">{count}</div>
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1.5">
+            {count === 1 ? "deal" : "deals"}
           </div>
-          <div className="text-xs text-muted-foreground">
-            {count} {count === 1 ? "negociação aberta" : "negociações abertas"}
-          </div>
-        </>
+        </div>
       )}
     </Link>
   );
@@ -175,39 +186,57 @@ function ConcentrationCard({ d, loading }: { d: Data | null; loading: boolean })
   const top = d?.topCurator;
   const share = d?.topShare ?? 0;
   const risk = share > 50;
+  const ringColor = risk ? "hsl(var(--destructive))" : "hsl(var(--primary))";
+  const circumference = 2 * Math.PI * 22; // r=22
+  const dash = (Math.min(100, share) / 100) * circumference;
   return (
-    <Link to="/curadores" className="nx-card-hover p-4 lg:p-5 flex flex-col gap-3 group h-full">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Users className="h-4 w-4 text-muted-foreground" />
-          <span className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold">
-            Concentração
-          </span>
-        </div>
-        <ArrowRight className="h-4 w-4 text-muted-foreground opacity-60 lg:opacity-0 transition-opacity group-hover:opacity-100 lg:group-hover:opacity-100" />
-      </div>
-      {loading ? (
-        <div className="h-20 rounded-md bg-muted/40 animate-pulse" />
-      ) : !top ? (
-        <div className="text-xs text-muted-foreground py-4">Sem negociações abertas.</div>
-      ) : (
-        <>
-          <div className="flex items-baseline gap-2">
-            <span className={cn("text-3xl font-semibold tabular-nums tracking-tight leading-none", risk ? "text-destructive" : "text-foreground")}>
-              {share.toFixed(0)}%
+    <Link to="/curadores" className="nx-card-hover p-4 lg:p-5 group h-full flex flex-row lg:flex-col items-stretch gap-4 lg:gap-3">
+      <div className="flex-1 flex flex-col gap-3 min-w-0">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-muted-foreground" />
+            <span className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold">
+              Concentração
             </span>
-            <span className="text-xs text-muted-foreground">do total</span>
           </div>
-          <div className="text-xs text-muted-foreground truncate">
-            <span className="font-semibold text-foreground">{top.name}</span> · R$ {formatNumber(top.valor)}
-          </div>
-          {risk && (
-            <div className="text-[11px] text-destructive flex items-center gap-1.5">
-              <AlertTriangle className="h-3 w-3" />
-              <span>Risco — diversifique a base</span>
+          <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity lg:group-hover:opacity-100 hidden lg:inline-flex" />
+        </div>
+        {loading ? (
+          <div className="h-20 rounded-md bg-muted/40 animate-pulse" />
+        ) : !top ? (
+          <div className="text-xs text-muted-foreground py-4">Sem negociações abertas.</div>
+        ) : (
+          <>
+            <div className="flex items-baseline gap-2">
+              <span className={cn("text-3xl font-semibold tabular-nums tracking-tight leading-none", risk ? "text-destructive" : "text-foreground")}>
+                {share.toFixed(0)}%
+              </span>
+              <span className="text-xs text-muted-foreground">do total</span>
             </div>
-          )}
-        </>
+            <div className="text-xs text-muted-foreground truncate">
+              <span className="font-semibold text-foreground">{top.name}</span> · R$ {formatNumber(top.valor)}
+            </div>
+            {risk && (
+              <div className="text-[11px] text-destructive flex items-center gap-1.5">
+                <AlertTriangle className="h-3 w-3" />
+                <span>Risco — diversifique a base</span>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+      {/* Âncora visual mobile: donut ring com share% */}
+      {!loading && top && (
+        <div className="lg:hidden flex items-center justify-center shrink-0">
+          <svg width="56" height="56" viewBox="0 0 56 56" className="-rotate-90">
+            <circle cx="28" cy="28" r="22" fill="none" stroke="hsl(var(--border))" strokeWidth="4" opacity="0.4" />
+            <circle
+              cx="28" cy="28" r="22" fill="none"
+              stroke={ringColor} strokeWidth="4" strokeLinecap="round"
+              strokeDasharray={`${dash} ${circumference}`}
+            />
+          </svg>
+        </div>
       )}
     </Link>
   );
