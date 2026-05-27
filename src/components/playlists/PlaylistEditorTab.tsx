@@ -325,10 +325,13 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
       toast({ title: "Não consegui reordenar", description: e.message, variant: "destructive" });
     } finally {
       setBusyTrack(null);
+      inFlight.current = false;
     }
   }
 
   async function handleRemove(spotify_track_id: string) {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setBusyTrack(spotify_track_id);
     try {
       const { data, error } = await supabase.functions.invoke("enqueue-playlist-job", {
