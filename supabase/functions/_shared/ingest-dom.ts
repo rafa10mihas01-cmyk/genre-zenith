@@ -166,13 +166,16 @@ export async function processDomItem(
     }
 
     if (!playlistId) {
-      // NÃO cria nova playlist automaticamente. Antes de descartar, checa
-      // se é superfície ALGORÍTMICA do Spotify (Rádio, Mixes, Daily Mix,
-      // Discover Weekly, etc.) — se for, grava em organic_plays_snapshots
-      // pra preservar a tração algorítmica em vez de jogar fora.
+      // NÃO cria nova playlist no deal automaticamente. Antes de descartar,
+      // classifica e grava em organic_plays_snapshots quando há
+      // spotify_playlist_id válido — preserva tração de:
+      //  - 'algorithmic' (Rádio, Daily Mix, Discover Weekly, Smart Shuffle...)
+      //  - 'editorial'   (made_by Spotify com id real, ex.: "This Is X")
+      //  - 'organic'     (playlists de terceiros fora do ecossistema)
+      // Sem sId real → não dá pra deduplicar nem enriquecer depois → vira no_match.
       const madeBy = (p as any).made_by ?? null;
-      if (isAlgorithmic(sName, madeBy, sId)) {
-        const kind = classifyPlaylistKind(sName, madeBy, sId);
+      const kind = classifyPlaylistKind(sName, madeBy, sId);
+      if (kind && sId) {
         await supabase.from("organic_plays_snapshots").insert({
           deal_id,
           song_id,
