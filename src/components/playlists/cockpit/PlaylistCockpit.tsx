@@ -645,6 +645,7 @@ export function PlaylistCockpit({
 
             {/* ============ PLANO DE AÇÃO ============ */}
             <TabsContent value="plano" className="space-y-4 mt-0">
+              <EditorialBanner diag={diag} onRediagnose={runDiagnose} running={running} />
               {(() => {
                 const mode = diag.raw?.recommendation_mode ?? "light";
                 const total = buckets.remove.length + buckets.demote.length + buckets.promote.length + buckets.add.length;
