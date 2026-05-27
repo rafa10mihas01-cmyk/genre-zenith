@@ -229,9 +229,10 @@ export function OverviewTab({
         );
       })()}
 
-      {/* Detalhes do plano — acordeão opcional com progresso, lock e meta de hoje */}
-      {!hideDeliveryPlan && (
+      {/* Detalhes do plano — ocultado: informações já cobertas pelos KPIs + cards eco/ext/org */}
+      {false && !hideDeliveryPlan && (
       <Card>
+
         <button
           type="button"
           onClick={() => setPlanOpen(o => !o)}
