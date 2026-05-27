@@ -170,6 +170,7 @@ export function FinanceiroTab({ deals, hideHero = false }: Props) {
   const isEmpty = totals.totalPlays === 0;
 
   return (
+    <>
     <div className="space-y-6">
       {/* ============= HERO FINANCEIRO — mesmo padrão do KpiBig hero ============= */}
       {!hideHero && (
@@ -481,6 +482,59 @@ export function FinanceiroTab({ deals, hideHero = false }: Props) {
         </section>
       </div>
     </div>
+
+    <Dialog open={!!editingPurchase} onOpenChange={(open) => !open && setEditingPurchase(null)}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Editar compra</DialogTitle>
+          <DialogDescription>Altere o valor, plays, data ou observação deste lançamento.</DialogDescription>
+        </DialogHeader>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="edit-purchase-amount">Valor</Label>
+            <Input id="edit-purchase-amount" inputMode="decimal" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} placeholder="62000" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="edit-purchase-plays">Plays comprados</Label>
+            <Input id="edit-purchase-plays" inputMode="numeric" value={editPlays} onChange={(e) => setEditPlays(e.target.value)} placeholder="0" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="edit-purchase-date">Data</Label>
+            <Input id="edit-purchase-date" type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="edit-purchase-note">Observação</Label>
+            <Input id="edit-purchase-note" value={editNote} onChange={(e) => setEditNote(e.target.value)} placeholder="Opcional" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setEditingPurchase(null)} disabled={savingEdit}>Cancelar</Button>
+          <Button onClick={handleSaveEdit} disabled={savingEdit}>
+            {savingEdit && <Loader2 className="h-4 w-4 animate-spin" />}
+            Salvar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Remover compra?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Este lançamento será removido do histórico e o saldo do curador será recalculado.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Remover
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
 
