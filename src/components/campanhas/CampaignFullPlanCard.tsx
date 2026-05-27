@@ -561,12 +561,13 @@ export function CampaignFullPlanCard({
                             }
                           >
                             {v > 0 ? (
-                              <span className="inline-flex items-baseline gap-1 justify-end">
+                              <span className="inline-flex items-center gap-1 justify-end">
                                 <span>{formatInt(v)}</span>
                                 {isDemoted && mode === "diario" && (
-                                  <span className="text-[9px] font-medium text-warning tabular-nums">
-                                    #{dayPos}
-                                  </span>
+                                  <span
+                                    aria-label={`Rebaixado para #${dayPos}`}
+                                    className="inline-block h-2 w-2 rounded-[2px] bg-warning shrink-0"
+                                  />
                                 )}
                               </span>
                             ) : (
