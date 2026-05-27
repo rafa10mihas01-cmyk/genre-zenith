@@ -34,7 +34,9 @@ Deno.serve(async (req) => {
   let body: any;
   try { body = await req.json(); } catch { return jr({ ok: false, error: "Invalid JSON" }, 400); }
   const playlist_id = String(body?.playlist_id ?? "").trim();
+  const skipLock = body?.skip_lock === true;
   if (!playlist_id) return jr({ ok: false, error: "playlist_id obrigatório" }, 400);
+
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
   const { data: pl, error: plErr } = await supabase
