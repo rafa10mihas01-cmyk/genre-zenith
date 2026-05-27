@@ -1,6 +1,7 @@
 // ClienteDetalhe — página dedicada do cliente. Substitui o antigo drawer lateral.
 // Mostra ficha completa + extrato (músicas, deals, financeiro, observações).
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
