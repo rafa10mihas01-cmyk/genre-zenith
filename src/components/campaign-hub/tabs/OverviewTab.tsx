@@ -61,7 +61,8 @@ export function OverviewTab({
   const plannedToDate = curva.slice(0, daysElapsed).reduce((s, p) => s + p.streamsDay, 0);
   const adherence = plannedToDate > 0 ? Math.round((delivered / plannedToDate) * 100) : 0;
 
-  // ---- Plano de entrega: meta · eco vs externo · hoje ----
+  // ---- Plano de entrega: SNAPSHOT da calculadora é a fonte da verdade ----
+  // Tudo abaixo respeita splitEcoPct / splitOrganicPct fechados na calculadora.
   const daysRemaining = Math.max(1, snapshot.days - daysElapsed);
   const restante = Math.max(0, snapshot.meta - delivered);
   const ritmoNecessario = Math.round(restante / daysRemaining);
@@ -75,31 +76,30 @@ export function OverviewTab({
   const ecoDelivered = Math.min(ecoDeliveredRaw, delivered);
   const extDelivered = Math.max(0, delivered - ecoDelivered);
 
-  // ---- Split EFETIVO (live ou travado) ----
+  // Valores fechados pela calculadora — única fonte da verdade.
+  const ecoTarget = Math.max(0, Math.round(snapshot.streamsEco ?? 0));
+  const extTarget = Math.max(0, Math.round(snapshot.streamsExt ?? 0));
+  const orgTarget = Math.max(0, Math.round(snapshot.streamsOrganic ?? 0));
+  const paidTotal = ecoTarget + extTarget; // o que eco+ext cobrem (sem orgânico)
+  const ecoEffectivePct = paidTotal > 0 ? Math.round((ecoTarget / paidTotal) * 100) : 0;
+  const extEffectivePct = paidTotal > 0 ? 100 - ecoEffectivePct : 0;
+  const orgPctOfMeta = snapshot.meta > 0 ? Math.round((orgTarget / snapshot.meta) * 100) : 0;
+
+  // Lock — mantém UI de travar/destravar, mas só sinaliza divergência se alguém
+  // travou em valor diferente do snapshot (e oferece "alinhar à calculadora").
   const isLocked = !!splitLockedAt;
-  const maxPct = Math.max(0, Math.min(100, ecoMaxPct ?? 70));
-  const ecoCeiling = Math.floor(snapshot.meta * (maxPct / 100));
-
-  // Capacidade ECO restante = soma(followers) × dias restantes (proxy plays/dia = followers)
-  const ecoCapacityPerDay = allocations
-    .filter(a => a.status === "active" || a.status === "dispatched" || a.status === "pending" || a.status === "done")
-    .reduce((s, a) => s + (a.managed_playlists?.followers ?? 0), 0);
-  const ecoCapacityRemaining = ecoCapacityPerDay * daysRemaining;
-  const ecoTargetLive = Math.min(ecoCeiling, ecoDelivered + ecoCapacityRemaining);
-
-  const ecoTarget = isLocked
-    ? Math.max(0, Math.min(snapshot.meta, lockedEcoStreams ?? snapshot.streamsEco))
-    : ecoTargetLive;
-  const extTarget = Math.max(0, snapshot.meta - ecoTarget);
-  const ecoEffectivePct = snapshot.meta > 0 ? Math.round((ecoTarget / snapshot.meta) * 100) : 0;
-  const extEffectivePct = 100 - ecoEffectivePct;
-  const splitDiverged = Math.abs(ecoTarget - snapshot.streamsEco) > Math.max(1000, snapshot.meta * 0.005);
-  const hitCeiling = !isLocked && ecoTargetLive >= ecoCeiling && ecoCapacityRemaining + ecoDelivered > ecoCeiling;
+  const lockedDiverged =
+    isLocked &&
+    lockedEcoStreams !== null &&
+    lockedEcoStreams !== undefined &&
+    Math.abs(Number(lockedEcoStreams) - ecoTarget) > Math.max(1000, ecoTarget * 0.01);
 
   const today = curva.length > 0 ? curva[Math.max(0, Math.min(curva.length - 1, daysElapsed - 1))] : undefined;
   const todayTotal = today?.streamsDay ?? 0;
-  const todayEco = Math.round(todayTotal * (ecoEffectivePct / 100));
-  const todayExt = Math.max(0, todayTotal - todayEco);
+  // Usa proporções da própria curva (já fechadas pela calculadora 50/50/etc).
+  const todayEco = today?.streamsEcoDay ?? Math.round(todayTotal * (ecoEffectivePct / 100));
+  const todayExt = today?.streamsExtDay ?? Math.max(0, todayTotal - todayEco);
+
 
   const handleLock = async () => {
     if (!onLockSplit) return;
