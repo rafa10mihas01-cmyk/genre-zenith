@@ -617,11 +617,8 @@ export function PlaylistCockpit({
           {/* ============ CICLO CURATORIAL — banner editorial ============ */}
           <EditorialBanner diag={diag} onRediagnose={runDiagnose} running={running} />
 
-          {/* ============ MEMÓRIA DE IMPACTO ============ */}
-          <AdjustmentTimeline playlistId={managedId} />
 
-          {/* ============ EXPERIMENTOS SEO (Fase 2) ============ */}
-          <SeoExperimentCard managedId={managedId} />
+
 
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
