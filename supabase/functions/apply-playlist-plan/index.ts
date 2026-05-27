@@ -338,7 +338,7 @@ Deno.serve(async (req) => {
               detail: res,
             });
           } catch (e) {
-            const msg = (e as Error).message ?? String(e);
+            const msg = formatPlaylistError(e);
             failedAt = i + 1;
             fatalError = msg;
             results.push({ ...step, ok: false, error: msg });
