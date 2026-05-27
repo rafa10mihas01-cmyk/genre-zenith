@@ -964,10 +964,13 @@ function IdentityField({ label, field, managedId, current, suggestion, score, on
       <div className="flex items-center justify-between">
         <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">{label}</span>
         {score != null && (
-          <span className={cn(
-            "text-xs font-semibold tabular-nums",
-            score >= 60 ? "text-primary" : score >= 30 ? "text-warning" : "text-destructive",
-          )}>{score}/100</span>
+          <span
+            title="SEO — quanto o nome combina com termos do nicho"
+            className={cn(
+              "text-xs font-semibold tabular-nums cursor-help",
+              score >= 60 ? "text-primary" : score >= 30 ? "text-warning" : "text-destructive",
+            )}
+          >{score}/100</span>
         )}
       </div>
       <div className="space-y-2">
