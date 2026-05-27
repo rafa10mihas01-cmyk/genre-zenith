@@ -193,66 +193,72 @@ export function useFinancialOverview() {
       pago += Number(s.total_pago_curadores ?? 0);
     }
     const margem = recebido - pago;
+    const custoTotalCaixa = purchases.reduce((acc, p) => acc + Number(p.amount ?? 0), 0);
     return {
       cobrado,
       recebido,
       pago,
       margem,
       margemPct: recebido > 0 ? (margem / recebido) * 100 : null,
+      custoTotalCaixa,
+      custoNaoAlocado: Number(unallocated.total_nao_alocado ?? 0),
+      numComprasNaoAlocadas: Number(unallocated.num_compras ?? 0),
     };
-  }, [summary]);
+  }, [summary, purchases, unallocated]);
 
   const reload = useCallback(async () => {
     await Promise.all([
       qc.invalidateQueries({ queryKey: ["financial-summary"] }),
-      qc.invalidateQueries({ queryKey: ["deal-payments"] }),
+      qc.invalidateQueries({ queryKey: ["financial-purchases"] }),
+      qc.invalidateQueries({ queryKey: ["financial-unallocated"] }),
       qc.invalidateQueries({ queryKey: ["financial-deals"] }),
     ]);
   }, [qc]);
 
+  // registerPayment agora cria uma curator_purchase vinculada ao deal (Opção A).
   const registerPayment = useCallback(
     async (input: {
       deal_id: string;
+      curator_id: string;
       amount: number;
-      payment_date?: string;
+      plays_purchased: number;
+      payment_date?: string; // mantido por compat — vira purchased_at
       method?: string;
       notes?: string;
     }) => {
-      const optimistic: DealPayment = {
-        id: `tmp-${crypto.randomUUID()}`,
+      if (!user?.id) throw new Error("Sessão expirada");
+      const purchasedAt = input.payment_date
+        ? new Date(`${input.payment_date}T12:00:00`).toISOString()
+        : new Date().toISOString();
+      const noteParts = [input.method, input.notes].filter(Boolean);
+      const { error } = await supabase.from("curator_purchases").insert({
+        user_id: user.id,
+        curator_id: input.curator_id,
         deal_id: input.deal_id,
         amount: Number(input.amount.toFixed(2)),
-        payment_date: input.payment_date ?? new Date().toISOString().slice(0, 10),
-        method: input.method ?? null,
-        notes: input.notes ?? null,
-        created_at: new Date().toISOString(),
-      };
-      await qc.cancelQueries({ queryKey: ["deal-payments"] });
-      const previous = qc.getQueryData<DealPayment[]>(["deal-payments"]);
-      qc.setQueryData<DealPayment[]>(["deal-payments"], (old) => [optimistic, ...(old ?? [])]);
-
-      const { error } = await supabase.from("curator_deal_payments").insert({
-        deal_id: input.deal_id,
-        amount: optimistic.amount,
-        payment_date: optimistic.payment_date,
-        method: optimistic.method,
-        notes: optimistic.notes,
-        created_by: user?.id ?? null,
+        plays_purchased: Math.max(0, Math.round(input.plays_purchased)),
+        purchased_at: purchasedAt,
+        note: noteParts.length > 0 ? noteParts.join(" · ") : null,
       });
-      if (error) {
-        qc.setQueryData(["deal-payments"], previous);
-        throw error;
-      }
+      if (error) throw error;
       await reload();
     },
     [user, qc, reload],
   );
 
   const loading =
-    (summaryQuery.isLoading || paymentsQuery.isLoading || dealsQuery.isLoading) &&
+    (summaryQuery.isLoading || purchasesQuery.isLoading || dealsQuery.isLoading) &&
     summary.length === 0 &&
-    payments.length === 0 &&
+    purchases.length === 0 &&
     dealsRaw.length === 0;
 
-  return { summary, payments, dealsFinance, totals, loading, reload, registerPayment };
+  return {
+    summary,
+    purchases,
+    dealsFinance,
+    totals,
+    loading,
+    reload,
+    registerPayment,
+  };
 }
