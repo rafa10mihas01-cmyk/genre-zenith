@@ -33,7 +33,7 @@ export function AlertsBlock() {
       <Link
         to="/sistema?tab=alertas"
         className={cn(
-          "nx-card-hover p-5 flex flex-col gap-3 h-full group",
+          "nx-card-hover p-4 lg:p-5 flex flex-col gap-3 h-full group",
           has && "border-warning/40",
         )}
       >
