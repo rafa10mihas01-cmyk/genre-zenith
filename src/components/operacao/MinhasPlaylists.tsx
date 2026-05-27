@@ -159,7 +159,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       return next;
     }, { replace: true });
   };
-  const setSortBy = (v: "recent" | "valuation") => updateParam("sort", v);
+  const setSortBy = (v: "followers" | "recent" | "valuation") => updateParam("sort", v);
 
   // Paginação server-side: começa com 50, "Carregar mais" cresce em +50.
   // Mantém uma fonte só (sem useInfiniteQuery) — queryKey muda quando
