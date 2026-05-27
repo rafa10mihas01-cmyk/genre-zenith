@@ -187,6 +187,17 @@ export function DealRow(props: DealRowProps) {
           </div>
         </button>
         <div className="flex items-center gap-1.5 shrink-0">
+          <span
+            className={cn(
+              "inline-flex items-center h-5 px-2 rounded-full text-[10px] font-semibold uppercase tracking-wide border",
+              deal.origin === "campaign"
+                ? "bg-primary/10 text-primary border-primary/30"
+                : "bg-muted text-muted-foreground border-border",
+            )}
+            title={deal.origin === "campaign" ? "Deal criado via aprovação de campanha" : "Deal criado manualmente"}
+          >
+            {deal.origin === "campaign" ? "Campanha" : "Manual"}
+          </span>
           <DealDeliveryBadge row={deliveryMap[deal.id]} />
           <StatusDot
             variant={status.variant}
