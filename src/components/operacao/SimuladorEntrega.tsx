@@ -249,51 +249,53 @@ function SimDetail({ playlist, onBack, embedded }: { playlist: SimPlaylist; onBa
       )}
 
       {/* Seletor de multiplicador plays/save/mês */}
-      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-elevated/30 p-2.5">
-        <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mr-1">
-          Plays por save / mês
-        </div>
-        {PRESETS.map(p => (
+      <div className="rounded-lg border border-border bg-elevated/30 p-3 space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mr-1 shrink-0">
+            Plays por save / mês
+          </div>
+          {PRESETS.map(p => (
+            <button
+              key={p}
+              onClick={() => { setMultiplier(p); setCustomOpen(false); }}
+              className={cn(
+                "h-7 px-2.5 rounded-md text-xs font-medium tabular-nums border transition-colors",
+                multiplier === p && !customOpen
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "border-border text-muted-foreground hover:text-foreground hover:bg-elevated/60",
+              )}
+            >
+              ×{p}
+            </button>
+          ))}
           <button
-            key={p}
-            onClick={() => { setMultiplier(p); setCustomOpen(false); }}
+            onClick={() => setCustomOpen(o => !o)}
             className={cn(
-              "h-7 px-2.5 rounded-md text-xs font-medium tabular-nums border transition-colors",
-              multiplier === p && !customOpen
+              "h-7 px-2.5 rounded-md text-xs font-medium border transition-colors",
+              customOpen || !PRESETS.includes(multiplier as any)
                 ? "bg-primary text-primary-foreground border-primary"
                 : "border-border text-muted-foreground hover:text-foreground hover:bg-elevated/60",
             )}
           >
-            ×{p}
+            Custom
           </button>
-        ))}
-        <button
-          onClick={() => setCustomOpen(o => !o)}
-          className={cn(
-            "h-7 px-2.5 rounded-md text-xs font-medium border transition-colors",
-            customOpen || !PRESETS.includes(multiplier as any)
-              ? "bg-primary text-primary-foreground border-primary"
-              : "border-border text-muted-foreground hover:text-foreground hover:bg-elevated/60",
+          {customOpen && (
+            <Input
+              type="number"
+              min={1}
+              max={200}
+              value={multiplier}
+              onChange={(e) => setMultiplier(Math.max(1, Math.min(200, Number(e.target.value) || 1)))}
+              className="h-7 w-20 text-xs tabular-nums"
+            />
           )}
-        >
-          Custom
-        </button>
-        {customOpen && (
-          <Input
-            type="number"
-            min={1}
-            max={200}
-            value={multiplier}
-            onChange={(e) => setMultiplier(Math.max(1, Math.min(200, Number(e.target.value) || 1)))}
-            className="h-7 w-20 text-xs tabular-nums"
-          />
-        )}
-        <div className="ml-auto text-[10px] text-muted-foreground">
+        </div>
+        <div className="text-[10px] text-muted-foreground">
           18 = conservador · 30 = mercado · 50 = altamente engajado
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <SimKpi label="Saves da playlist" value={formatNumber(playlist.followers)} hint="dados reais" />
         <SimKpi label="Plays teóricos / mês" value={formatNumber(monthly)} hint={`${formatNumber(playlist.followers)} × ${multiplier}`} />
         <SimKpi label="Plays teóricos / dia" value={formatNumber(daily)} hint="média mensal ÷ 30" />
@@ -303,6 +305,7 @@ function SimDetail({ playlist, onBack, embedded }: { playlist: SimPlaylist; onBa
           hint={`${Math.round(topShare * 100)}% do tráfego · pico #1: ${formatNumber(peakDaily)}/dia`}
         />
       </div>
+
 
 
       <div className="nx-card !p-0 overflow-hidden">
