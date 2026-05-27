@@ -569,7 +569,7 @@ export function PlaylistCockpit({
 
 
         {/* KPI row — esconde Faixas e Saúde quando rolar; mantém Seguidores + Score curatorial */}
-        <div className={cn("grid gap-2 transition-all", scrolled ? "grid-cols-2" : "grid-cols-2 md:grid-cols-5")}>
+        <div className="grid gap-2 grid-cols-2 md:grid-cols-5">
           <KpiBig
             label="Seguidores"
             value={fmtNum(followers)}
