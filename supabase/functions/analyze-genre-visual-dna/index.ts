@@ -271,6 +271,21 @@ Deno.serve(async (req) => {
       results = results.slice(0, TOP_N);
     }
 
+    if (!results || results.length === 0) {
+      return j({ ok: false, error: "Sem capas pra analisar" }, 400);
+    }
+
+    // Filtra só URLs single-image (mosaic.scdn.co são compostas, atrapalham análise visual)
+    const validCovers = results.filter((r) =>
+      r.imagem_url && !r.imagem_url.includes("mosaic.scdn.co")
+    ).slice(0, 6);
+
+    if (validCovers.length < MIN_COVERS) {
+      return j({ ok: false, error: `Capas insuficientes (precisa de ≥${MIN_COVERS} single-image)` }, 400);
+    }
+
+
+
 
     // ============ PROMPT ============
     const escopo = subgeneroSlug
