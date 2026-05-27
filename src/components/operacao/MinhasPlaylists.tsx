@@ -229,20 +229,20 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     loadLogs();
   }
 
-  async function handleBulkImport() {
+  async function handleBulkImport(spotifyUserId?: string, accountLabel?: string) {
     setBulkImporting(true);
     try {
       const { data, error } = await supabase.functions.invoke("import-account-playlists", {
-        body: {},
+        body: spotifyUserId ? { spotify_user_id: spotifyUserId } : {},
       });
       if (error || !data?.ok) throw new Error(error?.message ?? data?.error ?? "Falhou");
       toast({
         title: "Importação concluída",
-        description: `${data.imported} playlists da conta (${data.others_count} ignoradas por não serem suas)`,
+        description: `${data.imported} playlists${accountLabel ? ` de ${accountLabel}` : ""} (${data.others_count} ignoradas por não serem dessa conta)`,
       });
       load();
     } catch (e: any) {
-      toast({ title: "Erro na importação em massa", description: e.message, variant: "destructive" });
+      toast({ title: "Erro na importação", description: e.message, variant: "destructive" });
     } finally {
       setBulkImporting(false);
     }
