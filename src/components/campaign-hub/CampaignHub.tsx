@@ -57,8 +57,6 @@ export function CampaignHub({
   });
   const activeTab = visible.some((t) => t.id === tab) ? tab : visible[0]?.id;
 
-  const tabsTop = mode === "internal" ? (goal && goal > 0 ? "top-[157px]" : "top-[89px]") : "top-[65px]";
-
   return (
     <div className="campaign-hub flex h-full min-h-0 flex-col overflow-hidden bg-background">
       <CampaignHero
@@ -82,8 +80,7 @@ export function CampaignHub({
 
       <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as CampaignHubTabId)} className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-contain nx-scroll">
         <div className={cn(
-          "sticky z-30 shrink-0 px-4 md:px-6",
-          tabsTop,
+          "sticky top-0 z-30 shrink-0 px-4 md:px-6",
           "border-b border-border bg-background",
         )}>
 
