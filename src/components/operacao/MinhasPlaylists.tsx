@@ -829,26 +829,68 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
               <ChevronDown className="h-3.5 w-3.5 opacity-70 -mr-0.5" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-60">
-            <DropdownMenuItem onClick={() => setImportOpen(true)} className="gap-2">
-              <Plus className="h-4 w-4" />
+          <DropdownMenuContent align="start" className="w-72">
+            <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              Importar do Spotify
+            </DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => setImportOpen(true)} className="gap-2 items-start py-2">
+              <Plus className="h-4 w-4 mt-0.5" />
               <div className="flex flex-col">
-                <span>Importar uma playlist</span>
-                <span className="text-[11px] text-muted-foreground">Por URL ou ID do Spotify</span>
+                <span>Uma playlist específica</span>
+                <span className="text-[11px] text-muted-foreground">Cola a URL ou ID — importa só aquela</span>
               </div>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleBulkImport} disabled={bulkImporting} className="gap-2">
-              <RefreshCw className={cn("h-4 w-4", bulkImporting && "animate-spin")} />
+
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="gap-2 items-start py-2">
+                <RefreshCw className={cn("h-4 w-4 mt-0.5", bulkImporting && "animate-spin")} />
+                <div className="flex flex-col">
+                  <span>Todas as playlists de uma conta</span>
+                  <span className="text-[11px] text-muted-foreground">Escolhe qual conta varrer</span>
+                </div>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="w-64 max-h-80 overflow-y-auto">
+                {accounts.length === 0 ? (
+                  <DropdownMenuItem disabled className="text-[11px]">
+                    Nenhuma conta Spotify conectada
+                  </DropdownMenuItem>
+                ) : (
+                  accounts.map((acc) => (
+                    <DropdownMenuItem
+                      key={acc.id}
+                      disabled={bulkImporting || !acc.spotify_user_id}
+                      onClick={() =>
+                        handleBulkImport(
+                          acc.spotify_user_id ?? undefined,
+                          acc.display_name ?? acc.email ?? "conta",
+                        )
+                      }
+                      className="gap-2 items-start py-2"
+                    >
+                      <div className="flex flex-col">
+                        <span>{acc.display_name ?? acc.email ?? "Conta sem nome"}</span>
+                        {acc.email && acc.display_name && (
+                          <span className="text-[11px] text-muted-foreground">{acc.email}</span>
+                        )}
+                      </div>
+                    </DropdownMenuItem>
+                  ))
+                )}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => handleBulkImportAllAccounts()}
+              disabled={bulkImporting}
+              className="gap-2 items-start py-2"
+            >
+              <RefreshCw className={cn("h-4 w-4 mt-0.5", bulkImporting && "animate-spin")} />
               <div className="flex flex-col">
-                <span>Importar tudo da conta</span>
-                <span className="text-[11px] text-muted-foreground">Varre todas as playlists do Spotify</span>
-              </div>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleBulkImportAllAccounts} disabled={bulkImporting} className="gap-2">
-              <RefreshCw className={cn("h-4 w-4", bulkImporting && "animate-spin")} />
-              <div className="flex flex-col">
-                <span>Sincronizar todas as contas</span>
-                <span className="text-[11px] text-muted-foreground">Puxa playlists de todas as contas conectadas (exceto Top Hits Brasil)</span>
+                <span>Todas as contas de uma vez</span>
+                <span className="text-[11px] text-muted-foreground">
+                  Varre todas as contas conectadas (exceto Top Hits Brasil)
+                </span>
               </div>
             </DropdownMenuItem>
           </DropdownMenuContent>
