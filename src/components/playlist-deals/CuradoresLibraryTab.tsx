@@ -301,7 +301,7 @@ export function CuradoresLibraryTab({
         <span>
           {allRows.length === 0
             ? "Nenhum resultado"
-            : `${safePage * PAGE_SIZE + 1}–${Math.min((safePage + 1) * PAGE_SIZE, allRows.length)} de ${allRows.length}`}
+            : "\u200B"}
         </span>
         {totalPages > 1 && (
           <div className="flex items-center gap-1">

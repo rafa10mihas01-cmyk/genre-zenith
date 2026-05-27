@@ -784,7 +784,7 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
               <Button variant="outline" size="sm" className="rounded-full h-8" disabled={safePage === 1} onClick={() => setPage(1)}>«</Button>
               <Button variant="outline" size="sm" className="rounded-full h-8" disabled={safePage === 1} onClick={() => setPage(safePage - 1)}>‹</Button>
               <span className="text-xs text-muted-foreground px-3">
-                Página <span className="text-foreground font-medium">{safePage}</span> de <span className="text-foreground font-medium">{totalPages}</span>
+                {"\u200B"}
               </span>
               <Button variant="outline" size="sm" className="rounded-full h-8" disabled={safePage === totalPages} onClick={() => setPage(safePage + 1)}>›</Button>
               <Button variant="outline" size="sm" className="rounded-full h-8" disabled={safePage === totalPages} onClick={() => setPage(totalPages)}>»</Button>
