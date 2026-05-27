@@ -22,15 +22,15 @@ function formatNumber(n: number) {
 }
 
 function FunilStep({
-  label, value, hint, loading, compact, muted,
-}: { label: string; value: string; hint?: string; loading?: boolean; compact?: boolean; muted?: boolean }) {
+  label, value, hint, loading, muted,
+}: { label: string; value: string; hint?: string; loading?: boolean; muted?: boolean }) {
   return (
-    <div className={cn("flex flex-col gap-0.5 min-w-0", muted && "opacity-70")}>
-      <div className={cn("font-semibold tabular-nums truncate", compact ? "text-base" : "text-lg", muted && "text-muted-foreground")}>
+    <div className={cn("flex flex-col items-center text-center gap-1 min-w-0 px-1", muted && "opacity-60")}>
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground truncate w-full">{label}</div>
+      <div className={cn("text-xl font-semibold tabular-nums truncate w-full leading-none", muted && "text-muted-foreground")}>
         {loading ? "…" : value}
       </div>
-      <div className="text-[10px] uppercase tracking-wide text-muted-foreground truncate">{label}</div>
-      {hint && <div className="text-[10px] text-primary font-medium tabular-nums">{hint}</div>}
+      <div className="text-[10px] text-primary font-medium tabular-nums h-3 leading-none">{hint ?? "\u00A0"}</div>
     </div>
   );
 }
@@ -165,7 +165,7 @@ export default function Prospecao() {
           {/* MOBILE — funil único de prospecção */}
           <section className="lg:hidden rounded-2xl border border-border bg-card p-4">
             <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-3">Funil de prospecção</div>
-            <div className="grid grid-cols-4 gap-2 items-end">
+            <div className="grid grid-cols-4 items-stretch divide-x divide-border/60">
               <FunilStep label="Leads" value={formatNumber(outreach.leads)} loading={outreach.loading} />
               <FunilStep label="Contatados" value={formatNumber(outreach.contatados)} loading={outreach.loading} />
               <FunilStep label="Respostas" value={formatNumber(outreach.respondidos)} loading={outreach.loading} hint={`${taxaResposta.toFixed(0)}%`} />
