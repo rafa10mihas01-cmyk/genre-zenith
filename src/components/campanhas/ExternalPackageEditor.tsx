@@ -413,10 +413,8 @@ export function ExternalPackageEditor({
                       {formatInt(Math.round(totalStreams / Math.max(1, snapshot.days || 1)))}
                       <span className="text-[10px] text-muted-foreground ml-1">/dia</span>
                     </td>
-                    <td className="py-2.5 px-3 text-center tabular-nums font-semibold text-foreground border-r border-border">
-                      {formatInt(Math.round((totalStreams / Math.max(1, snapshot.days || 1)) * 30))}
-                      <span className="text-[10px] text-muted-foreground ml-1">/mês</span>
-                    </td>
+                    <td className="py-2.5 px-3 border-r border-border" />
+
                     <td className="py-2.5 px-3 border-r border-border" />
                     <td className="py-2.5 px-3 text-center tabular-nums font-semibold text-foreground border-r border-border">{formatBRL(totalCost)}</td>
                     <td className="py-2.5 px-3" />
