@@ -14,6 +14,7 @@ import {
   acquirePlaylistLock,
   finishPlaylistOperation,
   releasePlaylistLock,
+  computeTracksHash,
 } from "../_shared/playlist-lock.ts";
 
 // Auth opcional: aceita JWT de team OU header x-backfill-secret = SERVICE_ROLE_KEY.
