@@ -249,6 +249,81 @@ Entre direto pelo link acima. Você pode trocar a senha depois nas configuraçõ
         <p className="text-[11px] text-muted-foreground mt-2">
           A pessoa entra direto com email e senha. Compartilhe a senha com segurança — ela pode trocar depois nas configurações da conta.
         </p>
+
+        {lastCreated && (
+          <div className="mt-4 rounded-lg border border-primary/40 bg-primary/5 p-4 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Link2 className="h-4 w-4 text-primary" />
+                <div>
+                  <div className="text-sm font-semibold">Acesso pronto pra enviar</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {lastCreated.email} · {ROLE_LABEL[lastCreated.role]}
+                  </div>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground"
+                onClick={() => setLastCreated(null)}
+                title="Fechar"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-[1fr,auto]">
+              <div className="rounded-md border border-border bg-background/60 px-3 py-2 font-mono text-xs truncate" title={loginUrl}>
+                {loginUrl}
+              </div>
+              <Button variant="outline" size="sm" onClick={() => copyToClipboard(loginUrl, "url")}>
+                {copiedField === "url" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                Copiar link
+              </Button>
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="flex items-center gap-2">
+                <div className="flex-1 rounded-md border border-border bg-background/60 px-3 py-2 font-mono text-xs truncate" title={lastCreated.email}>
+                  {lastCreated.email}
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => copyToClipboard(lastCreated.email, "email")}>
+                  {copiedField === "email" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                </Button>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 rounded-md border border-border bg-background/60 px-3 py-2 font-mono text-xs truncate" title={lastCreated.password}>
+                  {lastCreated.password}
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => copyToClipboard(lastCreated.password, "password")}>
+                  {copiedField === "password" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2 pt-1">
+              <Button
+                size="sm"
+                onClick={() => copyToClipboard(buildShareMessage(lastCreated), "message")}
+              >
+                {copiedField === "message" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                Copiar mensagem pronta
+              </Button>
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(buildShareMessage(lastCreated))}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Button size="sm" variant="outline">Abrir no WhatsApp</Button>
+              </a>
+            </div>
+
+            <p className="text-[11px] text-muted-foreground">
+              Esses dados só ficam visíveis aqui agora — depois que você fechar, a senha não pode ser recuperada (só redefinida).
+            </p>
+          </div>
+        )}
       </section>
 
       <section className="nx-card p-5">
