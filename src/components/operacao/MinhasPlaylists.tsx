@@ -916,14 +916,41 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
               Classifique agora para liberar match com clientes e relatórios por gênero.
             </div>
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8 border-warning/40 text-warning hover:bg-warning/15 hover:text-warning shrink-0"
-            onClick={() => { setFilterFase("all"); setFilterMissingGenre(true); }}
-          >
-            Classificar agora
-          </Button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {pendingSuggestionCount > 0 ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 border-primary/40 text-primary hover:bg-primary/15 hover:text-primary"
+                onClick={() => { setFilterFase("all"); setFilterGenreId(null); setFilterMissingGenre(true); }}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Revisar sugestões ({pendingSuggestionCount})
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8"
+                onClick={() => runGenreSuggest()}
+                disabled={suggesting}
+                title="Sugerir gêneros via IA"
+              >
+                <Sparkles className={cn("h-3.5 w-3.5", suggesting && "animate-pulse")} />
+                {suggesting
+                  ? (suggestProgress ? `Sugerindo… ${suggestProgress.done}/${suggestProgress.total}` : "Sugerindo…")
+                  : "Sugerir com IA"}
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 border-warning/40 text-warning hover:bg-warning/15 hover:text-warning"
+              onClick={() => { setFilterFase("all"); setFilterMissingGenre(true); }}
+            >
+              Classificar agora
+            </Button>
+          </div>
         </div>
       )}
 
@@ -1040,17 +1067,44 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        {/* Manutenção: ação (não filtro) ao lado de Importar */}
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setSortBy(sortBy === "valuation" ? "recent" : "valuation")}
+          onClick={() => setCalendarOpen(true)}
           className="gap-1.5 h-9 w-9 sm:w-auto px-0 sm:px-3 shrink-0"
-          title={sortBy === "valuation" ? "Ordem: valuation" : "Ordem: recente"}
-          aria-label="Ordenação"
+          title="Calendário de manutenção"
+          aria-label="Calendário de manutenção"
         >
-          <ArrowUpDown className="h-4 w-4" />
-          <span className="hidden sm:inline">{sortBy === "valuation" ? "Valuation" : "Recente"}</span>
+          <CalendarDays className="h-4 w-4" />
+          <span className="hidden sm:inline">Manutenção</span>
         </Button>
+        {/* Ordenar — agrupa as opções num dropdown só */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant={sortBy !== "recent" ? "default" : "outline"}
+              size="sm"
+              className="gap-1.5 h-9 w-9 sm:w-auto px-0 sm:px-3 shrink-0"
+              title="Ordenar"
+              aria-label="Ordenar"
+            >
+              <ArrowUpDown className="h-4 w-4" />
+              <span className="hidden sm:inline">{sortBy === "valuation" ? "Valuation" : "Recente"}</span>
+              <ChevronDown className="h-3.5 w-3.5 opacity-70 -mr-0.5 hidden sm:inline" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-48">
+            <DropdownMenuItem onClick={() => setSortBy("recent")} className="gap-2">
+              {sortBy === "recent" ? <Check className="h-4 w-4 text-primary" /> : <span className="w-4" />}
+              <span>Mais recentes</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setSortBy("valuation")} className="gap-2">
+              {sortBy === "valuation" ? <Check className="h-4 w-4 text-primary" /> : <span className="w-4" />}
+              <span>Maior valuation</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -1086,102 +1140,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant={filterSize !== "all" ? "default" : "outline"}
-              size="sm"
-              className="gap-1.5 h-9 w-9 sm:w-auto px-0 sm:px-3 shrink-0"
-              title="Filtrar por tamanho"
-              aria-label="Filtrar por tamanho"
-            >
-              <Filter className="h-4 w-4" />
-              <span className="hidden sm:inline max-w-[120px] truncate">
-                {filterSize === "all" ? "Tamanho"
-                  : filterSize === "pequena" ? "Pequenas"
-                  : filterSize === "media" ? "Médias"
-                  : filterSize === "grande" ? "Grandes" : "Top"}
-              </span>
-              <ChevronDown className="h-3.5 w-3.5 opacity-70 -mr-0.5 hidden sm:inline" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
-            <DropdownMenuItem onClick={() => setFilterSize("all")} className="gap-2">
-              {filterSize === "all" ? <Check className="h-4 w-4 text-primary" /> : <span className="w-4" />}
-              <span>Todos os tamanhos</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setFilterSize("pequena")} className="gap-2">
-              {filterSize === "pequena" ? <Check className="h-4 w-4 text-primary" /> : <span className="w-4" />}
-              <span>Pequenas (&lt; 1K)</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setFilterSize("media")} className="gap-2">
-              {filterSize === "media" ? <Check className="h-4 w-4 text-primary" /> : <span className="w-4" />}
-              <span>Médias (1K–10K)</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setFilterSize("grande")} className="gap-2">
-              {filterSize === "grande" ? <Check className="h-4 w-4 text-primary" /> : <span className="w-4" />}
-              <span>Grandes (10K–100K)</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setFilterSize("top")} className="gap-2">
-              {filterSize === "top" ? <Check className="h-4 w-4 text-primary" /> : <span className="w-4" />}
-              <span>Top (100K+)</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setCalendarOpen(true)}
-          className="gap-1.5 h-9 w-9 sm:w-auto px-0 sm:px-3 shrink-0"
-          title="Calendário de manutenção"
-          aria-label="Calendário de manutenção"
-        >
-          <CalendarDays className="h-4 w-4" />
-          <span className="hidden sm:inline">Manutenção</span>
-        </Button>
-        {missingGenreCount > 0 && (
-          <Button
-            variant={filterMissingGenre ? "default" : "outline"}
-            size="sm"
-            onClick={() => setFilterMissingGenre(v => !v)}
-            className="gap-1.5 h-9 px-2 sm:px-3 shrink-0"
-            title={`Sem gênero (${missingGenreCount})${pendingSuggestionCount ? ` · ${pendingSuggestionCount} com sugestão` : ""}`}
-            aria-label="Filtrar sem gênero"
-          >
-            <AlertCircle className="h-4 w-4" />
-            <span className="hidden sm:inline">
-              Sem gênero ({missingGenreCount}{pendingSuggestionCount ? ` · ${pendingSuggestionCount} sugeridas` : ""})
-            </span>
-            <span className="sm:hidden tabular-nums text-[11px]">{missingGenreCount}</span>
-          </Button>
-        )}
-        {missingGenreCount > 0 && (
-          <Button
-            variant={pendingSuggestionCount ? "default" : "outline"}
-            size="sm"
-            onClick={() => {
-              if (pendingSuggestionCount && !suggesting) {
-                setFilterGenreId(null);
-                setFilterMissingGenre(true);
-                return;
-              }
-              runGenreSuggest();
-            }}
-            disabled={suggesting}
-            className="gap-1.5 h-9 px-2 sm:px-3 shrink-0"
-            title={pendingSuggestionCount ? "Revisar sugestões pendentes" : "Sugerir gêneros via IA"}
-            aria-label={pendingSuggestionCount ? "Revisar sugestões pendentes" : "Sugerir gêneros via IA"}
-          >
-            <Sparkles className={cn("h-4 w-4", suggesting && "animate-pulse")} />
-            <span className="hidden sm:inline">
-              {suggesting
-                ? (suggestProgress ? `Sugerindo… ${suggestProgress.done}/${suggestProgress.total}` : "Sugerindo…")
-                : pendingSuggestionCount
-                  ? `Revisar sugestões (${pendingSuggestionCount})`
-                  : `Sugerir gêneros (${missingGenreCount})`}
-            </span>
-          </Button>
-        )}
+        {/* Estado: Ativas / Lixeira (à direita). Capacidade vira botão separado. */}
         <div className="sm:ml-auto flex items-center gap-1.5 shrink-0">
           <Link
             to="/catalogo"
@@ -1203,19 +1162,23 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                 : "bg-elevated border-border text-muted-foreground hover:text-foreground",
             )}
           >Lixeira ({totalArchivedCount})</Link>
+
+          {/* Capacidade — view alternativa, separada visualmente dos chips de estado */}
+          <span className="h-5 w-px bg-border mx-1 hidden sm:inline-block" aria-hidden />
           <Link
-            to="/catalogo?aba=capacidade"
+            to={showCapacity ? "/catalogo" : "/catalogo?aba=capacidade"}
             replace
             className={cn(
-              "h-9 px-3 rounded-full text-[11px] sm:text-xs font-medium border transition-colors shrink-0 inline-flex items-center",
+              "h-9 px-2.5 rounded-md text-[11px] sm:text-xs font-medium transition-colors shrink-0 inline-flex items-center gap-1.5",
               showCapacity
-                ? "bg-primary/15 border-primary/40 text-primary"
-                : "bg-elevated border-border text-muted-foreground hover:text-foreground",
+                ? "text-primary"
+                : "text-muted-foreground hover:text-foreground",
             )}
-          >Capacidade</Link>
-
-
-
+            title="Matriz de capacidade — quanto cabe em cada playlist"
+          >
+            <Activity className="h-3.5 w-3.5" />
+            Capacidade
+          </Link>
 
           {showArchived && items.filter(i => i.archived_at).length > 0 && (
             <Button
@@ -1229,6 +1192,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
           )}
         </div>
       </div>
+
 
       {/* Grid ou Matriz de Capacidade */}
       {showCapacity ? (
