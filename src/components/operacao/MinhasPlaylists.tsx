@@ -125,7 +125,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const filterFase = (searchParams.get("fase") as "all" | "prontas" | "crescendo" | "novas" | "atencao") || "all";
   const showArchived = searchParams.get("arquivadas") === "1";
   const showCapacity = searchParams.get("aba") === "capacidade";
-  const sortBy = (searchParams.get("sort") as "recent" | "valuation") || "recent";
+  const sortBy = (searchParams.get("sort") as "followers" | "recent" | "valuation") || "followers";
 
   const updateParam = useCallback((key: string, val: string | null) => {
     setSearchParams(prev => {
