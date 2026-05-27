@@ -50,6 +50,22 @@ Deno.serve(async (req) => {
     if (oldAlloc.campaign_id !== campaign_id) return json({ error: "campaign mismatch" }, 400);
     const target = Number(oldAlloc.planned_streams);
 
+    // 1b) Janela da campanha (pra estimar capacidade compatível com o planner)
+    const { data: camp } = await sb
+      .from("campaigns")
+      .select("started_at, deadline")
+      .eq("id", campaign_id)
+      .single();
+    let planDays = 30;
+    if (camp?.started_at && camp?.deadline) {
+      const ms = new Date(camp.deadline as string).getTime() - new Date(camp.started_at as string).getTime();
+      const d = Math.round(ms / 86400000);
+      if (d > 0) planDays = d;
+    }
+    // Capacidade por playlist ~ followers * 4 streams a cada 30 dias (curva do planner em posições altas).
+    const CAP_PER_FOLLOWER_PER_30D = 4;
+    const capFactor = (planDays / 30) * CAP_PER_FOLLOWER_PER_30D;
+
     // 2) Gênero da playlist antiga
     const { data: oldPl } = await sb
       .from("managed_playlists")
@@ -57,6 +73,7 @@ Deno.serve(async (req) => {
       .eq("id", oldAlloc.managed_playlist_id)
       .single();
     const primaryGenre = oldPl?.genre_id as string | null;
+
 
     // 3) Pool de gêneros (primário + vizinhos)
     const genrePool: { genre_id: string; score: number; tier: "primary" | "neighbor" }[] = [];
