@@ -227,9 +227,22 @@ export function NotificationsBell() {
                   size="sm"
                   className="h-7 text-xs gap-1.5"
                   onClick={() => markAllRead()}
+                  title="Marcar todas como lidas"
                 >
                   <CheckCheck className="h-3.5 w-3.5" />
-                  Marcar todas
+                  <span className="hidden sm:inline">Marcar todas</span>
+                </Button>
+              )}
+              {items.some((i) => i.read) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs gap-1.5 text-muted-foreground"
+                  onClick={() => clearRead()}
+                  title="Remover notificações já lidas"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Limpar lidas</span>
                 </Button>
               )}
             </div>
@@ -237,11 +250,12 @@ export function NotificationsBell() {
           <div className="flex gap-1 overflow-x-auto -mx-1 px-1 scrollbar-none">
             <TabBtn id="all" label="Tudo" />
             <TabBtn id="critical" label="Críticos" count={critical} />
-            <TabBtn id="bot" label="Robô" />
+            <TabBtn id="bot" label="Coleta" />
             <TabBtn id="curator" label="Curadoria" />
             <TabBtn id="system" label="Sistema" />
           </div>
         </div>
+
 
         <ScrollArea className="h-[440px]">
           {filtered.length === 0 ? (
