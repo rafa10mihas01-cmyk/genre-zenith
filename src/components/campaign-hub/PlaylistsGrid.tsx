@@ -265,8 +265,27 @@ function PlaylistCard({
               <ExternalLink className="h-3 w-3" />
             </a>
           )}
+          {canSwap && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 px-2 text-[11px] ml-1"
+              onClick={() => setSwapOpen(true)}
+            >
+              <Replace className="h-3 w-3 mr-1" /> Substituir
+            </Button>
+          )}
         </div>
       </div>
+      {canSwap && campaignId && (
+        <SwapPlaylistDialog
+          open={swapOpen}
+          onOpenChange={setSwapOpen}
+          campaignId={campaignId}
+          allocation={alloc}
+          onSwapped={() => onSwapped?.()}
+        />
+      )}
     </Card>
   );
 }
