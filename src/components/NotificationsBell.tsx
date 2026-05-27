@@ -266,52 +266,76 @@ export function NotificationsBell() {
               </p>
             </div>
           ) : (
-            <ul className="divide-y divide-border">
-              {filtered.map((n) => {
-                const s = typeStyles(n.type);
-                const Icon = s.icon;
-                const domain = getDomain(n);
-                const occ = n.metadata?.occurrences ?? 1;
-                return (
-                  <li key={n.id}>
-                    <button
-                      onClick={() => handleClick(n)}
-                      className={cn(
-                        "w-full text-left flex gap-3 px-4 py-3 transition-colors",
-                        "hover:bg-elevated/60",
-                        !n.read && s.bg
-                      )}
-                    >
-                      <div className={cn("w-1 rounded-full self-stretch shrink-0", s.bar, n.read && "opacity-30")} />
-                      <Icon className={cn("h-4 w-4 mt-0.5 shrink-0", s.iconColor)} />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className={cn("text-sm leading-tight truncate", !n.read ? "font-semibold text-foreground" : "text-muted-foreground")}>
-                            {n.title}
-                          </p>
-                          {!n.read && <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />}
-                          {occ > 1 && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
-                              ×{occ}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.message}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70 font-medium">
-                            {DOMAIN_LABEL[domain] ?? domain}
-                          </span>
-                          <span className="text-muted-foreground/40">·</span>
-                          <span className="text-[11px] text-muted-foreground/70">{timeAgo(n.created_at)}</span>
-                        </div>
-                      </div>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+            <div className="pb-2">
+              {groupByBucket(filtered).map(({ bucket, items: bucketItems }) => (
+                <section key={bucket}>
+                  <div className="sticky top-0 z-10 bg-popover/95 backdrop-blur px-4 py-1.5 border-b border-border/50">
+                    <h4 className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/70">
+                      {DATE_BUCKET_LABEL[bucket]}
+                    </h4>
+                  </div>
+                  <ul className="divide-y divide-border">
+                    {bucketItems.map((n) => {
+                      const tone = notificationTone(n);
+                      const s = toneStyles(tone);
+                      const Icon = s.icon;
+                      const domain = getDomain(n);
+                      const occ = (n.metadata?.occurrences as number | undefined) ?? 1;
+                      const copy = friendlyNotification(n);
+                      return (
+                        <li key={n.id}>
+                          <button
+                            onClick={() => handleClick(n)}
+                            className={cn(
+                              "w-full text-left flex gap-3 px-4 py-3 transition-colors",
+                              "hover:bg-elevated/60",
+                              !n.read && s.bg
+                            )}
+                          >
+                            <div className={cn("w-1 rounded-full self-stretch shrink-0", s.bar, n.read && "opacity-30")} />
+                            <Icon className={cn("h-4 w-4 mt-0.5 shrink-0", s.iconColor)} />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className={cn("text-sm leading-tight truncate", !n.read ? "font-semibold text-foreground" : "text-muted-foreground")}>
+                                  {copy.title}
+                                </p>
+                                {!n.read && <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />}
+                              </div>
+                              {(copy.message ?? n.message) && (
+                                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                                  {copy.message ?? n.message}
+                                </p>
+                              )}
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70 font-medium">
+                                  {DOMAIN_LABEL[domain] ?? domain}
+                                </span>
+                                <span className="text-muted-foreground/40">·</span>
+                                <span className="text-[11px] text-muted-foreground/70">{timeAgo(n.created_at)}</span>
+                                {occ > 1 && (
+                                  <>
+                                    <span className="text-muted-foreground/40">·</span>
+                                    <span
+                                      className="text-[10px] text-muted-foreground/60 tabular-nums"
+                                      title={`Repetida ${occ} vezes`}
+                                    >
+                                      ×{occ}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              ))}
+            </div>
           )}
         </ScrollArea>
+
       </PopoverContent>
     </Popover>
     <AlertPreferencesDialog open={prefsOpen} onOpenChange={setPrefsOpen} />
