@@ -130,7 +130,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const updateParam = useCallback((key: string, val: string | null) => {
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
-      if (val == null || val === "" || val === "all" || val === "recent") next.delete(key);
+      if (val == null || val === "" || val === "all" || val === "followers") next.delete(key);
       else next.set(key, val);
       return next;
     }, { replace: true });
