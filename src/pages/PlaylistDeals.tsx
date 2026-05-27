@@ -306,6 +306,7 @@ export default function PlaylistDeals() {
     <PageContainer>
       <PageHeader
         title="Deals"
+        subtitle="Curador, música e meta"
         domain="deals"
         manualKey="deals"
         actions={
