@@ -180,7 +180,8 @@ export function OverviewTab({
           metaTotal={ecoTarget}
           metaPct={ecoEffectivePct}
           deliveredTotal={ecoDelivered}
-          perDay={Math.round(Math.max(0, ecoTarget - ecoDelivered) / daysRemaining)}
+          perDayContract={Math.round(Math.max(0, ecoTarget - ecoDelivered) / daysRemaining)}
+          perDayReal={Math.round(ecoTarget / Math.max(1, snapshot.effectiveDays ?? snapshot.days))}
         />
         <SplitRow
           tone="ext"
@@ -188,7 +189,8 @@ export function OverviewTab({
           metaTotal={extTarget}
           metaPct={extEffectivePct}
           deliveredTotal={extDelivered}
-          perDay={Math.round(Math.max(0, extTarget - extDelivered) / daysRemaining)}
+          perDayContract={Math.round(Math.max(0, extTarget - extDelivered) / daysRemaining)}
+          perDayReal={Math.round(extTarget / Math.max(1, snapshot.effectiveDays ?? snapshot.days))}
         />
         {orgTarget > 0 && (
           <SplitRow
@@ -197,37 +199,50 @@ export function OverviewTab({
             metaTotal={orgTarget}
             metaPct={orgPctOfMeta}
             deliveredTotal={0}
-            perDay={Math.round(orgTarget / Math.max(1, snapshot.days))}
+            perDayContract={Math.round(orgTarget / Math.max(1, snapshot.days))}
+            perDayReal={Math.round(orgTarget / Math.max(1, snapshot.effectiveDays ?? snapshot.days))}
           />
         )}
       </section>
 
-      {/* Plano de entrega — leitura única: meta total, ritmo, hoje */}
+      {/* Plano de entrega — 2 cards: contratado vs real (diluído no effectiveDays) */}
+      {!hideDeliveryPlan && (() => {
+        const effDays = Math.max(1, snapshot.effectiveDays ?? snapshot.days);
+        const realPerDay = Math.round(snapshot.meta / effDays);
+        return (
+          <section className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <RitmoCard
+              tone="contract"
+              label="Ritmo contratado"
+              hint={`${daysRemaining}d restantes · ${formatInt(restante)} a entregar`}
+              value={ritmoNecessario}
+              footer={`Meta ${formatInt(snapshot.meta)} em ${snapshot.days}d`}
+            />
+            <RitmoCard
+              tone="real"
+              label="Ritmo real (plano)"
+              hint={`Diluído em ${effDays}d de execução (com buffer)`}
+              value={realPerDay}
+              footer={`Média do plano · pico ${formatInt(snapshot.picoPorDia)}/dia`}
+            />
+          </section>
+        );
+      })()}
+
+      {/* Detalhes do plano — acordeão opcional com progresso, lock e meta de hoje */}
       {!hideDeliveryPlan && (
       <Card>
         <button
           type="button"
           onClick={() => setPlanOpen(o => !o)}
-          className="w-full text-left p-4 md:p-5 flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-4 hover:bg-muted/20 transition-colors rounded-[inherit]"
+          className="w-full text-left p-4 md:p-5 flex items-center justify-between gap-3 hover:bg-muted/20 transition-colors rounded-[inherit]"
         >
-          <div className="min-w-0">
-            <div className="text-sm font-semibold flex items-center gap-2">
-              Plano de entrega
-              <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", planOpen && "rotate-180")} />
-            </div>
-            <div className="text-xs text-muted-foreground mt-0.5 leading-snug">
-              Quanto falta e em quanto tempo
-            </div>
-
+          <div className="text-sm font-semibold flex items-center gap-2">
+            Detalhes do plano
+            <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", planOpen && "rotate-180")} />
           </div>
-          <div className="md:text-right shrink-0">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Ritmo necessário</div>
-            <div className="text-2xl font-semibold tabular-nums leading-none mt-1">
-              {formatInt(ritmoNecessario)}<span className="text-xs text-muted-foreground font-normal">/dia</span>
-            </div>
-            <div className="text-[10px] text-muted-foreground tabular-nums mt-1">
-              {daysRemaining}d restantes · {formatInt(restante)} a entregar
-            </div>
+          <div className="text-[11px] text-muted-foreground tabular-nums">
+            entregue {formatInt(delivered)} · {pct}% da meta
           </div>
         </button>
 
@@ -280,8 +295,6 @@ export function OverviewTab({
             </div>
           )}
 
-
-
           <div className="rounded-lg border border-border/70 bg-muted/20 px-4 py-3">
             <div className="flex items-baseline justify-between gap-3 flex-wrap">
               <div>
@@ -310,6 +323,7 @@ export function OverviewTab({
         )}
       </Card>
       )}
+
 
 
 
@@ -515,30 +529,49 @@ function Kpi({ label, value, sub, tone, compact }: { label: string; value: strin
 
 
 function SplitRow({
-  tone, label, metaTotal, metaPct, deliveredTotal, perDay,
+  tone, label, metaTotal, metaPct, deliveredTotal, perDayContract, perDayReal,
 }: {
   tone: "eco" | "ext" | "org";
   label: string;
   metaTotal: number;
   metaPct: number;
   deliveredTotal: number;
-  perDay: number;
+  perDayContract: number;
+  perDayReal: number;
 }) {
   const pct = metaTotal > 0 ? Math.min(100, Math.round((deliveredTotal / metaTotal) * 100)) : 0;
   const dotClass = tone === "eco" ? "bg-primary" : tone === "ext" ? "bg-[hsl(265_60%_60%)]" : "bg-[hsl(330_70%_60%)]";
   const barClass = dotClass;
+  // Degradê sutil tonal pra diferenciar do fundo sem virar bloco colorido.
+  const gradientStyle: React.CSSProperties =
+    tone === "eco"
+      ? { backgroundImage: "linear-gradient(135deg, hsl(141 76% 36% / 0.10), hsl(141 76% 36% / 0.02) 60%, transparent)" }
+      : tone === "ext"
+      ? { backgroundImage: "linear-gradient(135deg, hsl(265 60% 60% / 0.12), hsl(265 60% 60% / 0.03) 60%, transparent)" }
+      : { backgroundImage: "linear-gradient(135deg, hsl(330 70% 60% / 0.10), hsl(330 70% 60% / 0.02) 60%, transparent)" };
+  const borderClass =
+    tone === "eco"
+      ? "border-[hsl(141_76%_36%/0.25)]"
+      : tone === "ext"
+      ? "border-[hsl(265_60%_60%/0.28)]"
+      : "border-[hsl(330_70%_60%/0.25)]";
 
   return (
-    <div className="rounded-lg border border-border/70 px-4 py-3">
+    <div className={cn("rounded-lg border px-4 py-3", borderClass)} style={gradientStyle}>
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <span className={cn("h-2 w-2 rounded-full", dotClass)} />
           <span className="text-xs font-medium">{label}</span>
           <span className="text-[10px] text-muted-foreground tabular-nums">{metaPct}%</span>
         </div>
-        <span className="text-[11px] text-muted-foreground tabular-nums">
-          {formatInt(perDay)}/dia
-        </span>
+        <div className="text-right">
+          <div className="text-[11px] text-foreground font-medium tabular-nums leading-none">
+            {formatInt(perDayReal)}<span className="text-muted-foreground font-normal">/dia real</span>
+          </div>
+          <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
+            {formatInt(perDayContract)}/dia contratado
+          </div>
+        </div>
       </div>
       <div className="h-1.5 rounded-full bg-muted overflow-hidden">
         <div className={cn("h-full", barClass)} style={{ width: `${pct}%` }} />
@@ -553,6 +586,47 @@ function SplitRow({
     </div>
   );
 }
+
+function RitmoCard({
+  tone, label, hint, value, footer,
+}: {
+  tone: "contract" | "real";
+  label: string;
+  hint: string;
+  value: number;
+  footer: string;
+}) {
+  const gradientStyle: React.CSSProperties =
+    tone === "contract"
+      ? { backgroundImage: "linear-gradient(135deg, hsl(210 80% 55% / 0.10), hsl(210 80% 55% / 0.02) 60%, transparent)" }
+      : { backgroundImage: "linear-gradient(135deg, hsl(40 90% 55% / 0.10), hsl(40 90% 55% / 0.02) 60%, transparent)" };
+  const borderClass =
+    tone === "contract"
+      ? "border-[hsl(210_80%_55%/0.25)]"
+      : "border-[hsl(40_90%_55%/0.25)]";
+  const dotClass = tone === "contract" ? "bg-[hsl(210_80%_55%)]" : "bg-[hsl(40_90%_55%)]";
+
+  return (
+    <div className={cn("rounded-lg border px-4 py-4", borderClass)} style={gradientStyle}>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className={cn("h-2 w-2 rounded-full", dotClass)} />
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{label}</span>
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-1 leading-snug">{hint}</div>
+        </div>
+        <div className="text-right shrink-0">
+          <div className="text-2xl font-semibold tabular-nums leading-none">
+            {formatInt(value)}<span className="text-xs text-muted-foreground font-normal">/dia</span>
+          </div>
+          <div className="text-[10px] text-muted-foreground tabular-nums mt-1">{footer}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 function DeltaInline({ value }: { value: number | null }) {
   if (value == null || value === 0) {
