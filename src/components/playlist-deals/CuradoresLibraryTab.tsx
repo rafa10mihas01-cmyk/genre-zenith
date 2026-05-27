@@ -268,6 +268,7 @@ export function CuradoresLibraryTab({
               </Select>
             </div>
           </PopoverContent>
+        </Popover>
       </div>
 
       {(hasFilters || archivedCount > 0 || showArchived) && (
