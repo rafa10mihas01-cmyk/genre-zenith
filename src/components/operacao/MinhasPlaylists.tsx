@@ -166,34 +166,51 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   // loadedCount cresce, e os updates locais (setItems) seguem o key atual.
   const [loadedCount, setLoadedCount] = useState(PAGE_SIZE);
 
+  // Reset paginação ao trocar de aba — evita carregar 500 itens de "all"
+  // e mostrar só os que sobrarem ao filtrar uma fase.
+  useEffect(() => {
+    setLoadedCount(PAGE_SIZE);
+  }, [filterFase, showArchived]);
+
   const itemsQuery = useQuery({
-    queryKey: ["managed-playlists", loadedCount],
+    queryKey: ["managed-playlists", loadedCount, filterFase, showArchived],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("managed_playlists")
         .select("*")
-        .order("imported_at", { ascending: false })
-        .range(0, loadedCount - 1);
+        .order("imported_at", { ascending: false });
+      // Arquivadas vs ativas server-side (combina com o filtro client em `visible`)
+      if (showArchived) q = q.not("archived_at", "is", null);
+      else q = q.is("archived_at", null);
+      // Fase server-side — usa lifecycle_phase + followers
+      if (filterFase === "prontas") {
+        q = q.gte("followers", 100).not("genre_id", "is", null).in("lifecycle_phase", ["mature", "growth"]);
+      } else if (filterFase === "crescendo") {
+        q = q.or("and(followers.gte.10,followers.lt.100),lifecycle_phase.eq.seed");
+      } else if (filterFase === "novas") {
+        q = q.lt("followers", 10);
+      } else if (filterFase === "atencao") {
+        q = q.in("lifecycle_phase", ["bloated", "decline"]);
+      }
+      const { data, error } = await q.range(0, loadedCount - 1);
       if (error) throw error;
       return (data ?? []) as ManagedPlaylist[];
     },
-    placeholderData: (prev) => prev, // evita flash de skeleton ao paginar
+    placeholderData: (prev) => prev,
   });
   const items = itemsQuery.data ?? [];
   const loading = itemsQuery.isPending;
   const setItems = useCallback(
     (updater: ManagedPlaylist[] | ((prev: ManagedPlaylist[]) => ManagedPlaylist[])) => {
-      queryClient.setQueryData<ManagedPlaylist[]>(["managed-playlists", loadedCount], (prev) => {
+      queryClient.setQueryData<ManagedPlaylist[]>(["managed-playlists", loadedCount, filterFase, showArchived], (prev) => {
         const base = prev ?? [];
         return typeof updater === "function" ? (updater as (p: ManagedPlaylist[]) => ManagedPlaylist[])(base) : updater;
       });
     },
-    [queryClient, loadedCount],
+    [queryClient, loadedCount, filterFase, showArchived],
   );
 
-  // Contagens reais do catálogo inteiro (4 colunas, payload mínimo).
-  // Alimenta chips "Ativas/Lixeira", banner de sem-gênero, contadores de aba
-  // e o total no "Carregar mais (X de Y)".
+  // Contagens reais do catálogo inteiro (5 colunas, payload mínimo).
   const countsQuery = useQuery({
     queryKey: ["managed-playlists-counts"],
     queryFn: async () => {
@@ -209,10 +226,32 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const countRows = countsQuery.data ?? [];
   const totalActiveCount = countRows.filter((r) => !r.archived_at).length;
   const totalArchivedCount = countRows.filter((r) => r.archived_at).length;
-  const totalLoadedTarget = showArchived ? totalArchivedCount : totalActiveCount;
+
+  // Contagens por fase (catálogo ativo inteiro).
+  const activeRows = useMemo(() => countRows.filter((r) => !r.archived_at), [countRows]);
+  const faseCounts = useMemo(() => {
+    const inPhase = (r: CountRow, phases: string[]) => !!r.lifecycle_phase && phases.includes(r.lifecycle_phase);
+    return {
+      all: activeRows.length,
+      prontas: activeRows.filter((r) => (r.followers ?? 0) >= 100 && r.genre_id && inPhase(r, ["mature", "growth"])).length,
+      crescendo: activeRows.filter((r) => {
+        const f = r.followers ?? 0;
+        return (f >= 10 && f < 100) || r.lifecycle_phase === "seed";
+      }).length,
+      novas: activeRows.filter((r) => (r.followers ?? 0) < 10).length,
+      atencao: activeRows.filter((r) => inPhase(r, ["bloated", "decline"])).length,
+    };
+  }, [activeRows]);
+
+  const totalLoadedTarget = showArchived
+    ? totalArchivedCount
+    : filterFase === "all"
+      ? totalActiveCount
+      : faseCounts[filterFase];
   const canLoadMore = items.length < loadedCount
     ? false // ainda chegando do servidor
     : items.length < totalLoadedTarget;
+
 
   const [scores, setScores] = useState<Record<string, PlaylistScoreRow>>({});
   const [valuations, setValuations] = useState<Record<string, Valuation>>({});
