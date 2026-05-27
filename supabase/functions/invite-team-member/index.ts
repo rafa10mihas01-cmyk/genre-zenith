@@ -44,17 +44,21 @@ Deno.serve(async (req) => {
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const authHeader = req.headers.get("Authorization") ?? "";
 
-    let payload: { email?: string; role?: string };
+    let payload: { email?: string; role?: string; password?: string };
     try { payload = await req.json(); } catch { return jr({ ok: false, error: "invalid json" }, 400); }
     const email = String(payload.email ?? "").trim().toLowerCase();
     const role = String(payload.role ?? "").trim();
+    const password = typeof payload.password === "string" ? payload.password : "";
 
     // Validação simples (Audit #12)
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 255) {
       return jr({ ok: false, error: "email inválido" }, 400);
     }
-    if (!["admin", "curador"].includes(role)) {
-      return jr({ ok: false, error: "role inválido (admin|curador)" }, 400);
+    if (!["admin", "curador", "operador"].includes(role)) {
+      return jr({ ok: false, error: "role inválido (admin|curador|operador)" }, 400);
+    }
+    if (password && (password.length < 8 || password.length > 72)) {
+      return jr({ ok: false, error: "senha deve ter entre 8 e 72 caracteres" }, 400);
     }
 
     // Apenas admin pode convidar (curador não)
