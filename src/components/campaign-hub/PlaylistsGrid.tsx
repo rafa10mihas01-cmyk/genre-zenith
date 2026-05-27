@@ -43,7 +43,7 @@ const GROUP_LABEL: Record<Group, string> = {
   paused: "Pausadas",
 };
 
-export function PlaylistsGrid({ allocations, snapshots, proofThumbs = [], positions, mode, flat = false }: Props) {
+export function PlaylistsGrid({ allocations, snapshots, proofThumbs = [], positions, mode, flat = false, campaignId, snapshotLocked = false, onSwapped }: Props) {
   const latestSnap = useMemo(() => {
     const m = new Map<string, EcoSnap>();
     for (const s of snapshots) {
