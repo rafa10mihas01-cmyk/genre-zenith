@@ -131,6 +131,9 @@ export function PlaylistsGrid({ allocations, snapshots, proofThumbs = [], positi
           latestThumb={latestThumb}
           positions={positions}
           mode={mode}
+          campaignId={campaignId}
+          snapshotLocked={snapshotLocked}
+          onSwapped={onSwapped}
         />
       ))}
     </div>
@@ -138,7 +141,7 @@ export function PlaylistsGrid({ allocations, snapshots, proofThumbs = [], positi
 }
 
 function PlaylistGroup({
-  group, allocations, latestSnap, latestThumb, positions, mode,
+  group, allocations, latestSnap, latestThumb, positions, mode, campaignId, snapshotLocked, onSwapped,
 }: {
   group: Group;
   allocations: EcoAllocation[];
@@ -146,6 +149,9 @@ function PlaylistGroup({
   latestThumb: Map<string, ProofThumb>;
   positions?: Map<string, number>;
   mode: "internal" | "client";
+  campaignId?: string;
+  snapshotLocked?: boolean;
+  onSwapped?: () => void;
 }) {
   const defaultOpen = group === "active" || allocations.length <= 5;
   const [open, setOpen] = useState(defaultOpen);
@@ -175,6 +181,9 @@ function PlaylistGroup({
               thumb={latestThumb.get(a.managed_playlist_id)}
               position={positions?.get(a.id)}
               mode={mode}
+              campaignId={campaignId}
+              snapshotLocked={snapshotLocked}
+              onSwapped={onSwapped}
             />
           ))}
         </div>
