@@ -61,7 +61,8 @@ export function OverviewTab({
   const plannedToDate = curva.slice(0, daysElapsed).reduce((s, p) => s + p.streamsDay, 0);
   const adherence = plannedToDate > 0 ? Math.round((delivered / plannedToDate) * 100) : 0;
 
-  // ---- Plano de entrega: meta · eco vs externo · hoje ----
+  // ---- Plano de entrega: SNAPSHOT da calculadora é a fonte da verdade ----
+  // Tudo abaixo respeita splitEcoPct / splitOrganicPct fechados na calculadora.
   const daysRemaining = Math.max(1, snapshot.days - daysElapsed);
   const restante = Math.max(0, snapshot.meta - delivered);
   const ritmoNecessario = Math.round(restante / daysRemaining);
@@ -75,31 +76,30 @@ export function OverviewTab({
   const ecoDelivered = Math.min(ecoDeliveredRaw, delivered);
   const extDelivered = Math.max(0, delivered - ecoDelivered);
 
-  // ---- Split EFETIVO (live ou travado) ----
+  // Valores fechados pela calculadora — única fonte da verdade.
+  const ecoTarget = Math.max(0, Math.round(snapshot.streamsEco ?? 0));
+  const extTarget = Math.max(0, Math.round(snapshot.streamsExt ?? 0));
+  const orgTarget = Math.max(0, Math.round(snapshot.streamsOrganic ?? 0));
+  const paidTotal = ecoTarget + extTarget; // o que eco+ext cobrem (sem orgânico)
+  const ecoEffectivePct = paidTotal > 0 ? Math.round((ecoTarget / paidTotal) * 100) : 0;
+  const extEffectivePct = paidTotal > 0 ? 100 - ecoEffectivePct : 0;
+  const orgPctOfMeta = snapshot.meta > 0 ? Math.round((orgTarget / snapshot.meta) * 100) : 0;
+
+  // Lock — mantém UI de travar/destravar, mas só sinaliza divergência se alguém
+  // travou em valor diferente do snapshot (e oferece "alinhar à calculadora").
   const isLocked = !!splitLockedAt;
-  const maxPct = Math.max(0, Math.min(100, ecoMaxPct ?? 70));
-  const ecoCeiling = Math.floor(snapshot.meta * (maxPct / 100));
-
-  // Capacidade ECO restante = soma(followers) × dias restantes (proxy plays/dia = followers)
-  const ecoCapacityPerDay = allocations
-    .filter(a => a.status === "active" || a.status === "dispatched" || a.status === "pending" || a.status === "done")
-    .reduce((s, a) => s + (a.managed_playlists?.followers ?? 0), 0);
-  const ecoCapacityRemaining = ecoCapacityPerDay * daysRemaining;
-  const ecoTargetLive = Math.min(ecoCeiling, ecoDelivered + ecoCapacityRemaining);
-
-  const ecoTarget = isLocked
-    ? Math.max(0, Math.min(snapshot.meta, lockedEcoStreams ?? snapshot.streamsEco))
-    : ecoTargetLive;
-  const extTarget = Math.max(0, snapshot.meta - ecoTarget);
-  const ecoEffectivePct = snapshot.meta > 0 ? Math.round((ecoTarget / snapshot.meta) * 100) : 0;
-  const extEffectivePct = 100 - ecoEffectivePct;
-  const splitDiverged = Math.abs(ecoTarget - snapshot.streamsEco) > Math.max(1000, snapshot.meta * 0.005);
-  const hitCeiling = !isLocked && ecoTargetLive >= ecoCeiling && ecoCapacityRemaining + ecoDelivered > ecoCeiling;
+  const lockedDiverged =
+    isLocked &&
+    lockedEcoStreams !== null &&
+    lockedEcoStreams !== undefined &&
+    Math.abs(Number(lockedEcoStreams) - ecoTarget) > Math.max(1000, ecoTarget * 0.01);
 
   const today = curva.length > 0 ? curva[Math.max(0, Math.min(curva.length - 1, daysElapsed - 1))] : undefined;
   const todayTotal = today?.streamsDay ?? 0;
-  const todayEco = Math.round(todayTotal * (ecoEffectivePct / 100));
-  const todayExt = Math.max(0, todayTotal - todayEco);
+  // Usa proporções da própria curva (já fechadas pela calculadora 50/50/etc).
+  const todayEco = today?.streamsEcoDay ?? Math.round(todayTotal * (ecoEffectivePct / 100));
+  const todayExt = today?.streamsExtDay ?? Math.max(0, todayTotal - todayEco);
+
 
   const handleLock = async () => {
     if (!onLockSplit) return;
@@ -180,8 +180,9 @@ export function OverviewTab({
               <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", planOpen && "rotate-180")} />
             </div>
             <div className="text-xs text-muted-foreground mt-0.5 leading-snug">
-              Quanto falta, em quanto tempo, e como se divide entre ecossistema e externo
+              Quanto falta, em quanto tempo, e como se divide entre ecossistema, externo{orgTarget > 0 ? " e orgânico" : ""}
             </div>
+
           </div>
           <div className="md:text-right shrink-0">
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Ritmo necessário</div>
@@ -209,39 +210,41 @@ export function OverviewTab({
             </div>
           </div>
 
-          {(splitDiverged || isLocked || hitCeiling) && (
+          {(isLocked || lockedDiverged) && (
             <div className={cn(
               "rounded-lg border px-3 py-2 text-xs flex items-start justify-between gap-3 flex-wrap",
-              isLocked ? "border-border/70 bg-muted/20" : "border-amber-500/30 bg-amber-500/5",
+              lockedDiverged ? "border-amber-500/30 bg-amber-500/5" : "border-border/70 bg-muted/20",
             )}>
               <div className="flex-1 min-w-0">
-                {isLocked ? (
-                  <span className="text-muted-foreground">
-                    Split travado em {ecoEffectivePct}% / {extEffectivePct}% (eco {formatInt(ecoTarget)} · ext {formatInt(extTarget)})
+                {lockedDiverged ? (
+                  <span className="text-foreground/90">
+                    Lock divergente da calculadora:{" "}
+                    <span className="font-medium">eco travado em {formatInt(Number(lockedEcoStreams))}</span>{" "}
+                    <span className="text-muted-foreground">— calculadora pediu {formatInt(ecoTarget)} ({ecoEffectivePct}% / {extEffectivePct}%{orgTarget > 0 ? ` + ${orgPctOfMeta}% orgânico` : ""}).</span>
                   </span>
                 ) : (
-                  <span className="text-foreground/90">
-                    Split recalculado: <span className="font-medium">{ecoEffectivePct}% / {extEffectivePct}%</span>{" "}
-                    <span className="text-muted-foreground">(planejado {snapshot.splitEcoPct}% / {100 - snapshot.splitEcoPct}%)</span>
-                    {hitCeiling && <span className="text-muted-foreground"> · eco travou no teto de {maxPct}%</span>}
+                  <span className="text-muted-foreground">
+                    Split travado em {ecoEffectivePct}% / {extEffectivePct}%
+                    {orgTarget > 0 ? ` (+ ${orgPctOfMeta}% orgânico)` : ""}
+                    {" "}(eco {formatInt(ecoTarget)} · ext {formatInt(extTarget)}{orgTarget > 0 ? ` · org ${formatInt(orgTarget)}` : ""})
                   </span>
                 )}
               </div>
               {canManageSplit && (
-                isLocked ? (
-                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={handleUnlock} disabled={savingLock}>
-                    Destravar
+                lockedDiverged ? (
+                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={handleLock} disabled={savingLock}>
+                    Alinhar à calculadora
                   </Button>
                 ) : (
-                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={handleLock} disabled={savingLock}>
-                    Travar split atual
+                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={handleUnlock} disabled={savingLock}>
+                    Destravar
                   </Button>
                 )
               )}
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className={cn("grid grid-cols-1 gap-3", orgTarget > 0 ? "md:grid-cols-3" : "md:grid-cols-2")}>
             <SplitRow
               tone="eco"
               label="Ecossistema"
@@ -258,7 +261,18 @@ export function OverviewTab({
               deliveredTotal={extDelivered}
               perDay={Math.round(Math.max(0, extTarget - extDelivered) / daysRemaining)}
             />
+            {orgTarget > 0 && (
+              <SplitRow
+                tone="org"
+                label="Orgânico"
+                metaTotal={orgTarget}
+                metaPct={orgPctOfMeta}
+                deliveredTotal={0}
+                perDay={Math.round(orgTarget / Math.max(1, snapshot.days))}
+              />
+            )}
           </div>
+
 
           <div className="rounded-lg border border-border/70 bg-muted/20 px-4 py-3">
             <div className="flex items-baseline justify-between gap-3 flex-wrap">
@@ -493,7 +507,7 @@ function Kpi({ label, value, sub, tone, compact }: { label: string; value: strin
 function SplitRow({
   tone, label, metaTotal, metaPct, deliveredTotal, perDay,
 }: {
-  tone: "eco" | "ext";
+  tone: "eco" | "ext" | "org";
   label: string;
   metaTotal: number;
   metaPct: number;
@@ -501,8 +515,9 @@ function SplitRow({
   perDay: number;
 }) {
   const pct = metaTotal > 0 ? Math.min(100, Math.round((deliveredTotal / metaTotal) * 100)) : 0;
-  const dotClass = tone === "eco" ? "bg-primary" : "bg-[hsl(265_60%_60%)]";
-  const barClass = tone === "eco" ? "bg-primary" : "bg-[hsl(265_60%_60%)]";
+  const dotClass = tone === "eco" ? "bg-primary" : tone === "ext" ? "bg-[hsl(265_60%_60%)]" : "bg-[hsl(330_70%_60%)]";
+  const barClass = dotClass;
+
   return (
     <div className="rounded-lg border border-border/70 px-4 py-3">
       <div className="flex items-center justify-between mb-2">
