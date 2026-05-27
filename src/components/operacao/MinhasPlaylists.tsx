@@ -122,6 +122,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const filterMissingGenre = searchParams.get("sem_genero") === "1";
   const filterGenreId = searchParams.get("genero");
   const filterSize = (searchParams.get("tamanho") as "all" | "pequena" | "media" | "grande" | "top") || "all";
+  const filterFase = (searchParams.get("fase") as "all" | "prontas" | "crescendo" | "novas" | "atencao") || "all";
   const showArchived = searchParams.get("arquivadas") === "1";
   const showCapacity = searchParams.get("aba") === "capacidade";
   const sortBy = (searchParams.get("sort") as "recent" | "valuation") || "recent";
@@ -141,6 +142,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   };
   const setFilterGenreId = (v: string | null) => updateParam("genero", v);
   const setFilterSize = (v: "all" | "pequena" | "media" | "grande" | "top") => updateParam("tamanho", v);
+  const setFilterFase = (v: "all" | "prontas" | "crescendo" | "novas" | "atencao") => updateParam("fase", v);
   const setShowArchived = (v: boolean) => {
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
