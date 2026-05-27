@@ -110,11 +110,15 @@ export function PlaylistsGrid({ allocations, snapshots, proofThumbs = [], positi
             thumb={latestThumb.get(a.managed_playlist_id)}
             position={positions?.get(a.id)}
             mode={mode}
+            campaignId={campaignId}
+            snapshotLocked={snapshotLocked}
+            onSwapped={onSwapped}
           />
         ))}
       </div>
     );
   }
+
 
   return (
     <div className="space-y-6">
