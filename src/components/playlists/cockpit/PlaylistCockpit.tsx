@@ -771,11 +771,32 @@ export function PlaylistCockpit({
                 applying={applying === "promote" || applying === "all"}
                 onApplyAll={() => applyPlan("promote")}
               />
+              {/* Projeção de plays por posição — contexto pra decidir onde adicionar */}
+              {buckets.add.length > 0 && (
+                <Card className="p-4 space-y-2">
+                  <div className="text-xs font-semibold">Projeção de plays por posição</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Estimativa teórica baseada nos saves desta playlist. Use pra escolher a posição de cada faixa nova.
+                  </div>
+                  <ProjecaoFaixa
+                    playlist={{
+                      id: managedId,
+                      name: playlistName,
+                      cover_url: coverUrl,
+                      followers: followers ?? 0,
+                      tracks_count: liveTracksCount,
+                    }}
+                  />
+                </Card>
+              )}
               <BucketAdd
                 items={buckets.add}
                 applying={applying === "add" || applying === "all"}
                 onApplyAll={() => applyPlan("add")}
               />
+
+              {/* Memória de impacto — histórico dos ajustes anteriores */}
+              <AdjustmentTimeline playlistId={managedId} />
             </TabsContent>
 
             {/* ============ IDENTIDADE ============ */}
