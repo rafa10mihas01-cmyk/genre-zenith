@@ -868,13 +868,13 @@ export function PlaylistCockpit({
 
             {/* ============ ESTRATÉGIA ============ */}
             <TabsContent value="estrategia" className="space-y-4 mt-0">
-              <GenreAffinityCard managedId={managedId} />
               {canonicalPlaylistId && (
                 <LifecycleRoadmapCard
                   playlistId={canonicalPlaylistId}
                   currentTracks={liveTracksCount}
                 />
               )}
+              <GenreAffinityCard managedId={managedId} />
               <SeoExperimentCard managedId={managedId} />
             </TabsContent>
 
