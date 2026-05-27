@@ -530,7 +530,7 @@ export default function CampanhaExecucao() {
 
 
   return (
-    <PageContainer>
+    <PageContainer className="h-full min-h-0">
       <CampaignHub
         camp={camp}
         mode="internal"
