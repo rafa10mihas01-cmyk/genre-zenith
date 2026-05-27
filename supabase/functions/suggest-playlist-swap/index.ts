@@ -158,31 +158,34 @@ Deno.serve(async (req) => {
       )
       .slice(0, 15);
 
-    // 8) Combos 2-3 que cobrem (greedy a partir das mais afins)
+    // 8) Combos 2-3 que cobrem (greedy a partir das mais afins / maiores capacidades)
     const combos: { items: Candidate[]; total_capacity: number; split: { managed_playlist_id: string; planned_streams: number }[] }[] = [];
     if (singles.length === 0) {
-      const sortedByAffinity = [...candidates].sort((a, b) =>
-        b.affinity_score - a.affinity_score || b.free_capacity - a.free_capacity,
+      // ordenamos por capacidade desc (mais provável de cobrir) com afinidade como tiebreaker
+      const sortedByCap = [...candidates].sort((a, b) =>
+        b.free_capacity - a.free_capacity || b.affinity_score - a.affinity_score,
       );
+      const POOL_PAIR = Math.min(sortedByCap.length, 25);
+      const POOL_TRIO = Math.min(sortedByCap.length, 20);
       // pares
-      for (let i = 0; i < Math.min(sortedByAffinity.length, 12); i++) {
-        for (let j = i + 1; j < Math.min(sortedByAffinity.length, 12); j++) {
-          const a = sortedByAffinity[i], b = sortedByAffinity[j];
+      outerPair: for (let i = 0; i < POOL_PAIR; i++) {
+        for (let j = i + 1; j < POOL_PAIR; j++) {
+          const a = sortedByCap[i], b = sortedByCap[j];
           if (a.free_capacity + b.free_capacity >= target) {
             combos.push(buildCombo([a, b], target));
-            if (combos.length >= 5) break;
+            if (combos.length >= 5) break outerPair;
           }
         }
-        if (combos.length >= 5) break;
       }
       // trios se ainda faltar
       if (combos.length < 3) {
-        for (let i = 0; i < Math.min(sortedByAffinity.length, 8) && combos.length < 5; i++) {
-          for (let j = i + 1; j < Math.min(sortedByAffinity.length, 8) && combos.length < 5; j++) {
-            for (let k = j + 1; k < Math.min(sortedByAffinity.length, 8) && combos.length < 5; k++) {
-              const a = sortedByAffinity[i], b = sortedByAffinity[j], c = sortedByAffinity[k];
+        outerTrio: for (let i = 0; i < POOL_TRIO; i++) {
+          for (let j = i + 1; j < POOL_TRIO; j++) {
+            for (let k = j + 1; k < POOL_TRIO; k++) {
+              const a = sortedByCap[i], b = sortedByCap[j], c = sortedByCap[k];
               if (a.free_capacity + b.free_capacity + c.free_capacity >= target) {
                 combos.push(buildCombo([a, b, c], target));
+                if (combos.length >= 5) break outerTrio;
               }
             }
           }
@@ -193,11 +196,16 @@ Deno.serve(async (req) => {
     return json({
       target,
       old_playlist_id: oldAlloc.managed_playlist_id,
+      plan_days: planDays,
+      genre_pool: genrePool,
+      pool_size: filtered.length,
+      candidates_with_capacity: candidates.length,
       singles,
       combos,
     });
   } catch (e) {
     return json({ error: String((e as Error)?.message ?? e) }, 500);
+
   }
 });
 
