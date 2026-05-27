@@ -453,12 +453,15 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => { loadTracks(); loadJobs(); loadMeta(); }}
-            disabled={loading}
+            onClick={handleRefreshClick}
+            disabled={loading || rateLimitSecLeft > 0}
             className="nx-pill"
+            title={rateLimitSecLeft > 0 ? `Aguarde ${rateLimitSecLeft}s` : "Atualizar"}
           >
             <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
-            <span className="ml-1.5">Atualizar</span>
+            <span className="ml-1.5">
+              {rateLimitSecLeft > 0 ? `Aguarde ${rateLimitSecLeft}s` : "Atualizar"}
+            </span>
           </Button>
         </div>
 
@@ -468,7 +471,16 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
         </p>
 
 
-        {err && (
+        {rateLimitSecLeft > 0 && (
+          <div className="flex items-start gap-2 text-sm p-3 rounded-md border border-warning/40 bg-warning/5 text-warning">
+            <Clock className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>
+              Aguardando liberação do Spotify — tentando novamente em <span className="tabular-nums font-semibold">{rateLimitSecLeft}s</span>
+            </span>
+          </div>
+        )}
+
+        {err && rateLimitSecLeft === 0 && (
           <div className="flex items-start gap-2 text-sm text-destructive p-3 rounded-md border border-destructive/30 bg-destructive/5">
             <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
             <span>{err}</span>
