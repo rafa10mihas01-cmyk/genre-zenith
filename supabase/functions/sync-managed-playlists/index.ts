@@ -10,6 +10,7 @@ import { requireTeamAccess } from "../_shared/auth.ts";
 import { getSpotifyToken } from "../_shared/spotify.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 import { getPlaylistMeta } from "../_shared/spotify-playlist.ts";
+import { enqueuePlaylistJob } from "../_shared/playlist-queue.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
