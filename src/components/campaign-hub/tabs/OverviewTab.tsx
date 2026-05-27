@@ -311,9 +311,11 @@ export function OverviewTab({
 
 
 
-      {/* Grid principal: Curva + Top playlists */}
-      <div className={cn("grid grid-cols-1 gap-4", hideCurveCard ? "" : "lg:grid-cols-3")}>
-        {!hideCurveCard && (
+      {/* Grid principal: Curva (ou slot) + Top playlists */}
+      <div className={cn("grid grid-cols-1 gap-4", (showCurveCard || curveSlot) ? "lg:grid-cols-3" : "")}>
+        {curveSlot ? (
+          <div className="lg:col-span-2">{curveSlot}</div>
+        ) : showCurveCard ? (
         <Card className="lg:col-span-2">
           <CardContent className="p-5">
             <div className="flex items-center justify-between mb-3">
@@ -335,7 +337,7 @@ export function OverviewTab({
             )}
           </CardContent>
         </Card>
-        )}
+        ) : null}
 
         <Card>
           <CardContent className="p-5">
