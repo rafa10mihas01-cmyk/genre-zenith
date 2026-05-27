@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
   const errorSamples: any[] = [];
 
   try {
-    const limit = Math.min(body.limit ?? 50, 200);
+    const limit = Math.min(body.limit ?? 30, 100);
     // 💰 Fase 1: tracks via Apify DESLIGADO por padrão (custo ~70% do enrich).
     // Tracks reais agora vêm via fetch-tracks-spotify (on-demand, custo zero Apify).
     // Mantido como opt-in pra compatibilidade, mas NÃO recomendado.
@@ -255,7 +255,8 @@ Deno.serve(async (req) => {
 
     let token = await getSpotifyToken();
     let enriched = 0, tracksSaved = 0, errors = 0, skipped = 0, phase2Flagged = 0, phase2Cleared = 0;
-    const CONCURRENCY = 5;
+    const CONCURRENCY = 3;
+    const BATCH_DELAY_MS = 200;
     let zombiesMarked = 0;
 
     // Helper: registra tentativa (attempted_at + attempts++); se atingir teto, marca como zumbi.
@@ -432,10 +433,11 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Roda em batches paralelos de CONCURRENCY playlists
+    // Roda em batches paralelos de CONCURRENCY playlists, com throttle entre lotes
     for (let i = 0; i < pending.length; i += CONCURRENCY) {
       const batch = pending.slice(i, i + CONCURRENCY);
       await Promise.all(batch.map(processOne));
+      if (i + CONCURRENCY < pending.length) await sleep(BATCH_DELAY_MS);
     }
 
     // Atualiza totais do gênero processado
