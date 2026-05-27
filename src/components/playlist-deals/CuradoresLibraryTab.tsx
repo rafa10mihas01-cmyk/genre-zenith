@@ -205,19 +205,19 @@ export function CuradoresLibraryTab({
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <div className="flex items-center gap-2 flex-wrap">
-        <div className="relative flex-1 min-w-[200px] max-w-md">
+      <div className="flex items-center gap-2 flex-nowrap">
+        <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={showArchived ? "Buscar arquivados…" : "Buscar curador…"}
+            placeholder={showArchived ? "Buscar…" : "Buscar curador…"}
             className="pl-9"
           />
         </div>
 
         <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
-          <SelectTrigger className="h-9 w-[140px]"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectTrigger className="h-9 w-[130px] shrink-0"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos status</SelectItem>
             <SelectItem value="ativo">Ativos</SelectItem>
