@@ -1408,7 +1408,7 @@ function BucketReorder({ kind, items, totalTracks, applying, onApplyAll }: {
             reason={shortReason(t, kind)}
             action={
               <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                {kind === "promote" ? "Promover" : "Rebaixar"}
+                {kind === "promote" ? "Topo" : "Baixo"}
               </span>
             }
           />
