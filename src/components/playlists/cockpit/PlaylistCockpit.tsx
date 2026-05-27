@@ -639,13 +639,12 @@ export function PlaylistCockpit({
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="projecao" className="gap-1.5">
-                <Activity className="h-3.5 w-3.5" /> Projeção
+              <TabsTrigger value="estrategia" className="gap-1.5">
+                <Activity className="h-3.5 w-3.5" /> Estratégia
               </TabsTrigger>
               <TabsTrigger value="editor" className="gap-1.5">
                 <ListMusic className="h-3.5 w-3.5" /> Editor
               </TabsTrigger>
-              {/* Aba "Faixas" ocultada — endpoint instável. Manter código pra reativar depois. */}
             </TabsList>
 
             {/* ============ PLANO DE AÇÃO ============ */}
