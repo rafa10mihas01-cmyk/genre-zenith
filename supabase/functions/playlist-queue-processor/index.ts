@@ -52,6 +52,10 @@ const HANDLERS: Record<string, { fn: string; body: (job: Job) => Record<string, 
     fn: "diagnose-managed-playlist",
     body: (j) => ({ playlist_id: j.playlist_id, skip_ai: true, source: "queue", ...j.payload }),
   },
+  BRAIN_CALC: {
+    fn: "playlist-brain-calc",
+    body: (j) => ({ playlist_id: j.playlist_id, ...j.payload }),
+  },
 };
 
 async function invokeHandler(job: Job): Promise<{ ok: boolean; error?: string }> {
