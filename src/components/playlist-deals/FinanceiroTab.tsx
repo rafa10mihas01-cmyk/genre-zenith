@@ -1,8 +1,31 @@
 // FinanceiroTab — landing financeira da operação de curadoria.
 // Lê do ledger curator_purchases via useCuratorFinance.
-import { useMemo } from "react";
-import { Wallet, TrendingUp, TrendingDown, Receipt, Target, Trophy, Medal, Award, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Wallet, TrendingUp, Receipt, Target, Trophy, Medal, Award, ArrowUpRight, ArrowDownRight, Pencil, Trash2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useCuratorFinance } from "@/hooks/useCuratorFinance";
+import type { CuratorPurchase } from "@/hooks/useCuratorFinance";
 import { formatNumber, formatBRLHero } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { CuratorDeal } from "@/lib/curatorDealsUtils";
@@ -15,6 +38,10 @@ const fmtCpp = (v: number | null | undefined) =>
 
 const initials = (name: string) =>
   name.trim().split(/\s+/).slice(0, 2).map((s) => s[0]?.toUpperCase() ?? "").join("") || "?";
+
+const toDateInput = (iso: string) => new Date(iso).toISOString().slice(0, 10);
+
+const parseBRNumber = (value: string) => Number(value.replace(/\./g, "").replace(",", ".")) || 0;
 
 interface Props {
   deals: CuratorDeal[];
