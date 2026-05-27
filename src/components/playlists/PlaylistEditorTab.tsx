@@ -186,6 +186,9 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
   const [addInput, setAddInput] = useState("");
   const [adding, setAdding] = useState(false);
 
+  // Trava cliques duplos sub-200ms — antes do estado React propagar pro disabled
+  const inFlight = useRef(false);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
