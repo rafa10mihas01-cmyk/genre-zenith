@@ -578,12 +578,13 @@ export function PlaylistCockpit({
             hint={idealRange ? `ideal ${idealRange[0]}–${idealRange[1]}` : undefined}
           />
           <KpiBig
-            label="Nota"
+            label="Score curatorial"
             value={brainScore != null ? `${brainScore}` : "—"}
             icon={ShieldCheck}
             tone={brainScore == null ? "default" : brainScore >= 75 ? "success" : brainScore >= 50 ? "primary" : "default"}
-            hint={brainScore == null ? "sem análise" : undefined}
+            hint={brainScore == null ? "sem análise" : "saúde editorial 0–100"}
           />
+
 
           <KpiBig
             label="Saúde"
