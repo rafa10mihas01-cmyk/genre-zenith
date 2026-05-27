@@ -154,6 +154,22 @@ export function ExternalPackageEditor({
       setConfirming(false);
     }
   }
+  async function handleReopen() {
+    if (!pkg) return;
+    setReopening(true);
+    try {
+      const { dealsRemoved } = await reopenExternalPackage(pkg.id);
+      toast({ title: "Pacote reaberto", description: `${dealsRemoved} deals propostos removidos. Edite e confirme novamente.` });
+      setReopenOpen(false);
+      await load();
+      onChanged?.();
+    } catch (e: any) {
+      toast({ title: "Erro ao reabrir", description: e.message ?? String(e), variant: "destructive" });
+    } finally {
+      setReopening(false);
+    }
+  }
+
 
   if (loading) {
     return <Skeleton className="h-64" />;
