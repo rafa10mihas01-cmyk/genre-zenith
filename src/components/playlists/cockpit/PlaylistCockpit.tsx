@@ -206,16 +206,9 @@ export function PlaylistCockpit({
   }>(null);
   const [activeTab, setActiveTab] = useState<string>("identidade");
   const [archiving, setArchiving] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  // Header colapsa após scrollar mais que 120px
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 120);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   async function handleArchive() {
     if (!confirm(`Mover "${playlistName}" para a lixeira?`)) return;
