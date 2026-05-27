@@ -578,15 +578,13 @@ export function PlaylistCockpit({
             tone="primary"
             domain="playlists"
           />
-          {!scrolled && (
-            <KpiBig
-              label="Faixas"
-              value={fmtNum(liveTracksCount)}
-              icon={Music2}
-              domain="playlists"
-              hint={idealRange ? `ideal ${idealRange[0]}–${idealRange[1]}` : undefined}
-            />
-          )}
+          <KpiBig
+            label="Faixas"
+            value={fmtNum(liveTracksCount)}
+            icon={Music2}
+            domain="playlists"
+            hint={idealRange ? `ideal ${idealRange[0]}–${idealRange[1]}` : undefined}
+          />
           <KpiBig
             label="Score curatorial"
             value={brainScore != null ? `${brainScore}` : "—"}
