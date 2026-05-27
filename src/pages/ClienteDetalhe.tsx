@@ -298,19 +298,35 @@ export default function ClienteDetalhe() {
 
 
 
-      {/* KPIs — hierarquia cockpit (mesmo padrão de Início / Campanhas / Catálogo) */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-2 pt-4 mb-6">
+      {/* KPIs — hierarquia cockpit. Receita (hero) · Margem · Saldo em aberto · operacionais */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2 pt-4 mb-6">
         <KpiBig
-          label="Investido"
-          value={formatBRLHero(kpis.investido)}
+          label="Receita"
+          value={formatBRLHero(kpis.receita)}
           icon={CreditCard}
-          hint={kpis.deals > 0 ? `Em ${kpis.deals} deal${kpis.deals === 1 ? "" : "s"}` : "Sem deals"}
+          hint="Pago pelo cliente"
           tier="hero"
           domain="clients"
         />
-        <KpiBig label="Negociações" value={kpis.deals} icon={FileText} hint="Total fechados" domain="deals" />
-        <KpiBig label="Ativos" value={kpis.ativos} icon={CheckCircle2} hint="Em andamento" tone="primary" domain="deals" />
-        <KpiBig label="Músicas" value={kpis.musicas} icon={Music2} hint="No catálogo do cliente" domain="clients" />
+        <KpiBig
+          label="Margem"
+          value={formatBRLHero(kpis.margem)}
+          icon={CheckCircle2}
+          hint="Receita − custo de deals"
+          tone={kpis.margem >= 0 ? "primary" : "warning"}
+          domain="campaigns"
+        />
+        <KpiBig
+          label="Saldo em aberto"
+          value={formatBRLHero(kpis.saldoPendente)}
+          icon={FileText}
+          hint="Cobrado e não recebido"
+          tone={kpis.saldoPendente > 0 ? "warning" : "muted"}
+          domain="campaigns"
+        />
+        <KpiBig label="Investido" value={formatBRLHero(kpis.investido)} icon={CreditCard} hint={`Custo em ${kpis.deals} deal${kpis.deals === 1 ? "" : "s"}`} domain="deals" />
+        <KpiBig label="Ativos" value={kpis.ativos} icon={CheckCircle2} hint="Deals em andamento" tone="primary" domain="deals" />
+        <KpiBig label="Músicas" value={kpis.musicas} icon={Music2} hint="No catálogo" domain="clients" />
         <KpiBig label="Concluídos" value={kpis.concluidos} icon={CheckCircle2} hint="Entregues" tier="quiet" />
       </div>
 
@@ -320,6 +336,7 @@ export default function ClienteDetalhe() {
           <TabsTrigger value="visao">Visão geral</TabsTrigger>
           <TabsTrigger value="musicas">Músicas <span className="ml-1.5 text-muted-foreground">{kpis.musicas}</span></TabsTrigger>
           <TabsTrigger value="deals">Deals <span className="ml-1.5 text-muted-foreground">{kpis.deals}</span></TabsTrigger>
+          <TabsTrigger value="campanhas">Campanhas <span className="ml-1.5 text-muted-foreground">{kpis.campanhas}</span></TabsTrigger>
           <TabsTrigger value="notas">Notas</TabsTrigger>
         </TabsList>
 
