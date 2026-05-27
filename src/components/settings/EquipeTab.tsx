@@ -6,7 +6,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Users, Shield, UserCog, Loader2, Trash2, Crown, Wrench } from "lucide-react";
+import { Users, Shield, UserCog, Loader2, Trash2, Crown, Wrench, Copy, Link2, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
