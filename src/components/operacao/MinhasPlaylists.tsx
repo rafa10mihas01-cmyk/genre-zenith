@@ -1298,6 +1298,15 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                 <div className="flex items-start gap-1.5">
                   <h4 className="flex-1 text-[12.5px] font-semibold leading-tight line-clamp-1" title={p.name}>{p.name}</h4>
                 </div>
+                {(p.followers ?? 0) >= 100 && p.genre_id && (
+                  <div
+                    className="inline-flex items-center gap-1 self-start rounded-full border border-success/40 bg-success/10 px-1.5 py-0.5 text-[10px] font-medium text-success"
+                    title="Tem público mínimo e gênero classificado — pode entrar em campanha"
+                  >
+                    <CheckCircle2 className="h-2.5 w-2.5" />
+                    Pronta para campanha
+                  </div>
+                )}
                 <div className="flex items-center justify-between text-[11px] tabular-nums text-muted-foreground">
                   <span><span className="font-semibold text-foreground">{formatNumber(p.followers)}</span> seg.</span>
                   <span><span className="font-semibold text-foreground">{p.tracks_count || "—"}</span> fx</span>
