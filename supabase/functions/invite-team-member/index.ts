@@ -85,9 +85,22 @@ Deno.serve(async (req) => {
 
     let targetUserId: string;
     let invited = false;
+    let created = false;
 
     if (targetUser) {
       targetUserId = targetUser.id;
+    } else if (password) {
+      // Criação direta com senha — acesso imediato, sem email
+      const { data: createRes, error: createErr } = await admin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+      });
+      if (createErr || !createRes?.user) {
+        return jr({ ok: false, error: `Não foi possível criar usuário: ${createErr?.message ?? "erro desconhecido"}` }, 400);
+      }
+      targetUserId = createRes.user.id;
+      created = true;
     } else {
       const siteUrl = req.headers.get("origin") ?? "https://engine.nexcreatorx.com";
       const { data: invite, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email, {
