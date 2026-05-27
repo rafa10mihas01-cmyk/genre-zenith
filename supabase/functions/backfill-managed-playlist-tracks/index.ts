@@ -10,6 +10,12 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { getSpotifyToken } from "../_shared/spotify.ts";
 import { listPlaylistTracksRich } from "../_shared/spotify-playlist.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
+import {
+  acquirePlaylistLock,
+  finishPlaylistOperation,
+  releasePlaylistLock,
+} from "../_shared/playlist-lock.ts";
+
 // Auth opcional: aceita JWT de team OU header x-backfill-secret = SERVICE_ROLE_KEY.
 // Backfill é idempotente (replace-all por playlist), seguro pra rodar como admin.
 
