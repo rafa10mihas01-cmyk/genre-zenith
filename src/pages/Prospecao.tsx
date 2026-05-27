@@ -152,27 +152,14 @@ export default function Prospecao() {
         </div>
       </div>
 
-      {/* Mobile: Funil único compacto. Desktop: KPI grid completo. */}
+      {/* Ativos: KPI grid original (mobile + desktop). Prospecção: funil único no mobile. */}
       {segment === "ativos" ? (
-        <>
-          {/* MOBILE — funil único */}
-          <section className="lg:hidden rounded-2xl border border-border bg-card p-4">
-            <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-3">Visão geral</div>
-            <div className="grid grid-cols-4 gap-2 items-end">
-              <FunilStep label="Curadores" value={formatNumber(kpisAtivos.curadores)} loading={loading} />
-              <FunilStep label="Deals" value={formatNumber(kpisAtivos.dealsAtivos)} loading={loading} />
-              <FunilStep label="Receita" value={formatBRL(kpisAtivos.receita)} loading={loading} compact />
-              <FunilStep label="Ticket" value={formatBRL(kpisAtivos.ticket)} loading={loading} compact muted />
-            </div>
-          </section>
-          {/* DESKTOP — KPIs completos */}
-          <section className="hidden lg:grid grid-cols-2 md:grid-cols-5 gap-3">
-            <KpiBig tier="hero" icon={Users} label="Curadores" value={formatNumber(kpisAtivos.curadores)} hint="Ativos na biblioteca" domain="curators" loading={loading} />
-            <KpiBig icon={Activity} label="Deals ativos" value={formatNumber(kpisAtivos.dealsAtivos)} hint="Negociações em andamento" domain="campaigns" loading={loading} />
-            <KpiBig icon={DollarSign} label="Receita" value={formatBRL(kpisAtivos.receita)} hint="Total investido em curadoria" domain="deals" loading={loading} />
-            <KpiBig tier="quiet" icon={TrendingUp} label="Ticket médio" value={formatBRL(kpisAtivos.ticket)} hint={`Base ${formatNumber(deals.length)} deals`} domain="deals" loading={loading} />
-          </section>
-        </>
+        <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <KpiBig tier="hero" icon={Users} label="Curadores" value={formatNumber(kpisAtivos.curadores)} hint="Ativos na biblioteca" domain="curators" loading={loading} />
+          <KpiBig icon={Activity} label="Deals ativos" value={formatNumber(kpisAtivos.dealsAtivos)} hint="Negociações em andamento" domain="campaigns" loading={loading} />
+          <KpiBig icon={DollarSign} label="Receita" value={formatBRL(kpisAtivos.receita)} hint="Total investido em curadoria" domain="deals" loading={loading} />
+          <KpiBig tier="quiet" icon={TrendingUp} label="Ticket médio" value={formatBRL(kpisAtivos.ticket)} hint={`Base ${formatNumber(deals.length)} deals`} domain="deals" loading={loading} />
+        </section>
       ) : (
         <>
           {/* MOBILE — funil único de prospecção */}
