@@ -117,12 +117,37 @@ export function NotificationsBell() {
   }, [items]);
 
   const filtered = useMemo(() => {
-    if (tab === "all") return items;
-    if (tab === "critical") return items.filter((n) => n.type === "critical");
-    if (tab === "bot") return items.filter((n) => ["bot", "ocr", "queue"].includes(getDomain(n)));
-    if (tab === "curator") return items.filter((n) => ["curator", "financeiro"].includes(getDomain(n)));
-    if (tab === "system") return items.filter((n) => ["system", "security", "ai"].includes(getDomain(n)));
-    return items;
+    let list = items;
+    if (tab === "critical") list = items.filter((n) => n.type === "critical");
+    else if (tab === "bot") list = items.filter((n) => ["bot", "ocr", "queue"].includes(getDomain(n)));
+    else if (tab === "curator") list = items.filter((n) => ["curator", "financeiro"].includes(getDomain(n)));
+    else if (tab === "system") list = items.filter((n) => ["system", "security", "ai"].includes(getDomain(n)));
+
+    // Dedupe visual: agrupa por dedupe_key/kind ou (domain+title), soma ocorrências,
+    // mantém o mais recente. Evita o ruído de 4x "Sistema de coleta parado".
+    const map = new Map<string, NotificationRow>();
+    for (const n of list) {
+      const key =
+        (n.metadata?.dedupe_key as string | undefined) ??
+        (n.metadata?.kind as string | undefined) ??
+        `${getDomain(n)}::${n.title}`;
+      const prev = map.get(key);
+      if (!prev) {
+        map.set(key, { ...n, metadata: { ...(n.metadata ?? {}), occurrences: (n.metadata?.occurrences as number | undefined) ?? 1 } });
+      } else {
+        const prevOcc = (prev.metadata?.occurrences as number | undefined) ?? 1;
+        const curOcc = (n.metadata?.occurrences as number | undefined) ?? 1;
+        const newer = new Date(n.created_at) > new Date(prev.created_at) ? n : prev;
+        map.set(key, {
+          ...newer,
+          read: prev.read && n.read,
+          metadata: { ...(newer.metadata ?? {}), occurrences: prevOcc + curOcc },
+        });
+      }
+    }
+    return Array.from(map.values()).sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
   }, [items, tab]);
 
   const handleClick = async (n: NotificationRow) => {
