@@ -348,6 +348,8 @@ export function BaselineTab({ dealId }: Props) {
                       className="h-10 w-10 rounded object-cover shrink-0 border border-border/60"
                       loading="lazy"
                     />
+                  ) : hydrating && r.spotify_playlist_id ? (
+                    <Skeleton className="h-10 w-10 rounded shrink-0" />
                   ) : (
                     <div className="h-10 w-10 rounded bg-muted flex items-center justify-center shrink-0 border border-border/60">
                       <Music2 className="h-4 w-4 text-muted-foreground" />
