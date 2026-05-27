@@ -148,44 +148,42 @@ Deno.serve(async (req) => {
 
   if (batch.length === 0) return jr({ ok: true, processed: 0, ok_count: 0, failed: 0, remaining, details: [] });
 
-  const token = await getSpotifyToken();
+  // Em vez de rodar syncOne em loop (caro, lock próprio, risco de timeout),
+  // enfileira BACKFILL jobs. O playlist-queue-processor executa em background
+  // com retry/backoff. syncOne acima continua exportada caso seja chamada manualmente.
   const details: any[] = [];
-  let okCount = 0, failed = 0;
-
+  let enqueued = 0, skipped = 0, errors = 0;
   for (const pl of batch) {
-    try {
-      const n = await syncOne(sb, token, pl as any);
-      okCount++;
-      details.push({ id: pl.id, ok: true, tracks: n });
-    } catch (e) {
-      failed++;
-      const msg = (e as Error).message.slice(0, 200);
-      details.push({ id: pl.id, ok: false, error: msg });
-      // Auto-arquiva playlists removidas do Spotify pra não voltarem ao backlog
-      if (/spotify 404/i.test(msg)) {
-        await sb.from("managed_playlists").update({ archived_at: new Date().toISOString() }).eq("id", pl.id);
-      }
+    const enq = await enqueuePlaylistJob(sb, {
+      playlist_id: pl.id,
+      operation_type: "BACKFILL",
+    });
+    if (enq.ok && (enq as any).skipped) {
+      skipped++;
+      details.push({ id: pl.id, ok: true, skipped: true });
+    } else if (enq.ok) {
+      enqueued++;
+      details.push({ id: pl.id, ok: true, enqueued: true });
+    } else {
+      errors++;
+      details.push({ id: pl.id, ok: false, error: enq.error });
     }
-  }
-
-  let auto_archived = 0;
-  for (const d of details) {
-    if (!d.ok && typeof d.error === "string" && /spotify 404/i.test(d.error)) auto_archived++;
   }
 
   await reportCronHealth(sb, {
     job_name: "backfill-managed-playlist-tracks",
-    status: failed > 0 ? (okCount === 0 ? "error" : "partial") : "ok",
+    status: errors > 0 ? (enqueued === 0 ? "error" : "partial") : "ok",
     startedAt,
-    metrics: { processed: batch.length, ok: okCount, failed, remaining, auto_archived },
-    message: `processed=${batch.length} ok=${okCount} failed=${failed} remaining=${remaining} archived=${auto_archived}`,
+    metrics: { processed: batch.length, enqueued, skipped_dupe: skipped, errors, remaining },
+    message: `enqueued=${enqueued} skipped=${skipped} errors=${errors} remaining=${remaining}`,
   });
 
   return jr({
     ok: true,
     processed: batch.length,
-    ok_count: okCount,
-    failed,
+    enqueued,
+    skipped_dupe: skipped,
+    errors,
     remaining,
     details,
   });
