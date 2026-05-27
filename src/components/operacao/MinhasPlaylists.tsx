@@ -1067,17 +1067,44 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        {/* Manutenção: ação (não filtro) ao lado de Importar */}
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setSortBy(sortBy === "valuation" ? "recent" : "valuation")}
+          onClick={() => setCalendarOpen(true)}
           className="gap-1.5 h-9 w-9 sm:w-auto px-0 sm:px-3 shrink-0"
-          title={sortBy === "valuation" ? "Ordem: valuation" : "Ordem: recente"}
-          aria-label="Ordenação"
+          title="Calendário de manutenção"
+          aria-label="Calendário de manutenção"
         >
-          <ArrowUpDown className="h-4 w-4" />
-          <span className="hidden sm:inline">{sortBy === "valuation" ? "Valuation" : "Recente"}</span>
+          <CalendarDays className="h-4 w-4" />
+          <span className="hidden sm:inline">Manutenção</span>
         </Button>
+        {/* Ordenar — agrupa as opções num dropdown só */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant={sortBy !== "recent" ? "default" : "outline"}
+              size="sm"
+              className="gap-1.5 h-9 w-9 sm:w-auto px-0 sm:px-3 shrink-0"
+              title="Ordenar"
+              aria-label="Ordenar"
+            >
+              <ArrowUpDown className="h-4 w-4" />
+              <span className="hidden sm:inline">{sortBy === "valuation" ? "Valuation" : "Recente"}</span>
+              <ChevronDown className="h-3.5 w-3.5 opacity-70 -mr-0.5 hidden sm:inline" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-48">
+            <DropdownMenuItem onClick={() => setSortBy("recent")} className="gap-2">
+              {sortBy === "recent" ? <Check className="h-4 w-4 text-primary" /> : <span className="w-4" />}
+              <span>Mais recentes</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setSortBy("valuation")} className="gap-2">
+              {sortBy === "valuation" ? <Check className="h-4 w-4 text-primary" /> : <span className="w-4" />}
+              <span>Maior valuation</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
