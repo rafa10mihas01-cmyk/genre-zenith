@@ -386,6 +386,24 @@ Entre direto pelo link acima. Você pode trocar a senha depois nas configuraçõ
                 </div>
 
                 <div className="flex items-center gap-1 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground hover:text-primary"
+                    title="Copiar link de login para enviar"
+                    onClick={() =>
+                      copyToClipboard(
+                        `Olá! Acesse o NexEngine em ${loginUrl} com seu email: ${m.email}`,
+                        `link-${m.user_id}`
+                      )
+                    }
+                  >
+                    {copiedField === `link-${m.user_id}` ? (
+                      <Check className="h-3.5 w-3.5" />
+                    ) : (
+                      <Link2 className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
                   {m.roles.map((r) => (
                     <Button
                       key={r}
