@@ -488,8 +488,8 @@ export function PlaylistCockpit({
 
   return (
     <div className="mx-auto w-full max-w-[1600px] px-4 md:px-8 py-4 md:py-5 space-y-4">
-      {/* ============ 1. HEADER (sticky + colapsável no scroll) ============ */}
-      <header className={cn("space-y-3 sticky top-0 z-30 -mx-4 md:-mx-8 px-4 md:px-8 pt-2 pb-3 transition-all", scrolled && "bg-background/95 backdrop-blur border-b border-border")}>
+      {/* ============ 1. HEADER ============ */}
+      <header className="space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0 flex-1">
             {onBack && (
