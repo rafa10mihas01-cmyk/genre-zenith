@@ -786,21 +786,16 @@ export function PlaylistCockpit({
                     <CollapsibleTrigger className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5 px-2 py-1.5 rounded border border-border hover:border-primary/40">
                       <ChevronDown className="h-3 w-3" /> Ver projeção de plays por posição
                     </CollapsibleTrigger>
-                    <CollapsibleContent className="mt-2">
-                      <Card className="p-4 space-y-2">
-                        <div className="text-[11px] text-muted-foreground">
-                          Estimativa teórica baseada nos saves desta playlist. Use pra escolher a posição de cada faixa nova.
-                        </div>
-                        <ProjecaoFaixa
-                          playlist={{
-                            id: managedId,
-                            name: playlistName,
-                            cover_url: coverUrl,
-                            followers: followers ?? 0,
-                            tracks_count: liveTracksCount,
-                          }}
-                        />
-                      </Card>
+                    <CollapsibleContent className="mt-3">
+                      <ProjecaoFaixa
+                        playlist={{
+                          id: managedId,
+                          name: playlistName,
+                          cover_url: coverUrl,
+                          followers: followers ?? 0,
+                          tracks_count: liveTracksCount,
+                        }}
+                      />
                     </CollapsibleContent>
                   </Collapsible>
                 )}
