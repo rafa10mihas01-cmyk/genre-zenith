@@ -529,30 +529,49 @@ function Kpi({ label, value, sub, tone, compact }: { label: string; value: strin
 
 
 function SplitRow({
-  tone, label, metaTotal, metaPct, deliveredTotal, perDay,
+  tone, label, metaTotal, metaPct, deliveredTotal, perDayContract, perDayReal,
 }: {
   tone: "eco" | "ext" | "org";
   label: string;
   metaTotal: number;
   metaPct: number;
   deliveredTotal: number;
-  perDay: number;
+  perDayContract: number;
+  perDayReal: number;
 }) {
   const pct = metaTotal > 0 ? Math.min(100, Math.round((deliveredTotal / metaTotal) * 100)) : 0;
   const dotClass = tone === "eco" ? "bg-primary" : tone === "ext" ? "bg-[hsl(265_60%_60%)]" : "bg-[hsl(330_70%_60%)]";
   const barClass = dotClass;
+  // Degradê sutil tonal pra diferenciar do fundo sem virar bloco colorido.
+  const gradientStyle: React.CSSProperties =
+    tone === "eco"
+      ? { backgroundImage: "linear-gradient(135deg, hsl(141 76% 36% / 0.10), hsl(141 76% 36% / 0.02) 60%, transparent)" }
+      : tone === "ext"
+      ? { backgroundImage: "linear-gradient(135deg, hsl(265 60% 60% / 0.12), hsl(265 60% 60% / 0.03) 60%, transparent)" }
+      : { backgroundImage: "linear-gradient(135deg, hsl(330 70% 60% / 0.10), hsl(330 70% 60% / 0.02) 60%, transparent)" };
+  const borderClass =
+    tone === "eco"
+      ? "border-[hsl(141_76%_36%/0.25)]"
+      : tone === "ext"
+      ? "border-[hsl(265_60%_60%/0.28)]"
+      : "border-[hsl(330_70%_60%/0.25)]";
 
   return (
-    <div className="rounded-lg border border-border/70 px-4 py-3">
+    <div className={cn("rounded-lg border px-4 py-3", borderClass)} style={gradientStyle}>
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <span className={cn("h-2 w-2 rounded-full", dotClass)} />
           <span className="text-xs font-medium">{label}</span>
           <span className="text-[10px] text-muted-foreground tabular-nums">{metaPct}%</span>
         </div>
-        <span className="text-[11px] text-muted-foreground tabular-nums">
-          {formatInt(perDay)}/dia
-        </span>
+        <div className="text-right">
+          <div className="text-[11px] text-foreground font-medium tabular-nums leading-none">
+            {formatInt(perDayReal)}<span className="text-muted-foreground font-normal">/dia real</span>
+          </div>
+          <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
+            {formatInt(perDayContract)}/dia contratado
+          </div>
+        </div>
       </div>
       <div className="h-1.5 rounded-full bg-muted overflow-hidden">
         <div className={cn("h-full", barClass)} style={{ width: `${pct}%` }} />
@@ -567,6 +586,47 @@ function SplitRow({
     </div>
   );
 }
+
+function RitmoCard({
+  tone, label, hint, value, footer,
+}: {
+  tone: "contract" | "real";
+  label: string;
+  hint: string;
+  value: number;
+  footer: string;
+}) {
+  const gradientStyle: React.CSSProperties =
+    tone === "contract"
+      ? { backgroundImage: "linear-gradient(135deg, hsl(210 80% 55% / 0.10), hsl(210 80% 55% / 0.02) 60%, transparent)" }
+      : { backgroundImage: "linear-gradient(135deg, hsl(40 90% 55% / 0.10), hsl(40 90% 55% / 0.02) 60%, transparent)" };
+  const borderClass =
+    tone === "contract"
+      ? "border-[hsl(210_80%_55%/0.25)]"
+      : "border-[hsl(40_90%_55%/0.25)]";
+  const dotClass = tone === "contract" ? "bg-[hsl(210_80%_55%)]" : "bg-[hsl(40_90%_55%)]";
+
+  return (
+    <div className={cn("rounded-lg border px-4 py-4", borderClass)} style={gradientStyle}>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className={cn("h-2 w-2 rounded-full", dotClass)} />
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{label}</span>
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-1 leading-snug">{hint}</div>
+        </div>
+        <div className="text-right shrink-0">
+          <div className="text-2xl font-semibold tabular-nums leading-none">
+            {formatInt(value)}<span className="text-xs text-muted-foreground font-normal">/dia</span>
+          </div>
+          <div className="text-[10px] text-muted-foreground tabular-nums mt-1">{footer}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 function DeltaInline({ value }: { value: number | null }) {
   if (value == null || value === 0) {
