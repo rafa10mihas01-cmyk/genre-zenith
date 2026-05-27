@@ -42,6 +42,32 @@ export function EquipeTab() {
   const [newRole, setNewRole] = useState<AppRole>("operador");
   const [creating, setCreating] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<{ userId: string; role: AppRole; email: string } | null>(null);
+  const [lastCreated, setLastCreated] = useState<{ email: string; password: string; role: AppRole } | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  const loginUrl = `${window.location.origin}/login`;
+
+  async function copyToClipboard(text: string, field: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(field);
+      toast.success("Copiado");
+      setTimeout(() => setCopiedField((f) => (f === field ? null : f)), 1500);
+    } catch {
+      toast.error("Não foi possível copiar");
+    }
+  }
+
+  function buildShareMessage(c: { email: string; password: string; role: AppRole }) {
+    return `Olá! Seu acesso ao NexEngine está pronto.
+
+Link: ${loginUrl}
+Email: ${c.email}
+Senha: ${c.password}
+Papel: ${ROLE_LABEL[c.role]}
+
+Entre direto pelo link acima. Você pode trocar a senha depois nas configurações da conta.`;
+  }
 
   async function loadMembers() {
     setLoading(true);
