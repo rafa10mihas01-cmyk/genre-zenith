@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight, Music, TrendingUp, TrendingDown, Minus, ExternalLink, Camera } from "lucide-react";
+import { ChevronDown, ChevronRight, Music, TrendingUp, TrendingDown, Minus, ExternalLink, Camera, Replace } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatInt } from "@/lib/campaignEngine";
 import type { EcoAllocation } from "./types";
+import { SwapPlaylistDialog } from "./SwapPlaylistDialog";
+
 
 type EcoSnap = {
   managed_playlist_id: string;
@@ -27,7 +29,11 @@ type Props = {
   positions?: Map<string, number>;
   mode: "internal" | "client";
   flat?: boolean;
+  campaignId?: string;
+  snapshotLocked?: boolean;
+  onSwapped?: () => void;
 };
+
 
 type Group = "active" | "pending" | "paused";
 
@@ -37,7 +43,7 @@ const GROUP_LABEL: Record<Group, string> = {
   paused: "Pausadas",
 };
 
-export function PlaylistsGrid({ allocations, snapshots, proofThumbs = [], positions, mode, flat = false }: Props) {
+export function PlaylistsGrid({ allocations, snapshots, proofThumbs = [], positions, mode, flat = false, campaignId, snapshotLocked = false, onSwapped }: Props) {
   const latestSnap = useMemo(() => {
     const m = new Map<string, EcoSnap>();
     for (const s of snapshots) {
@@ -104,11 +110,15 @@ export function PlaylistsGrid({ allocations, snapshots, proofThumbs = [], positi
             thumb={latestThumb.get(a.managed_playlist_id)}
             position={positions?.get(a.id)}
             mode={mode}
+            campaignId={campaignId}
+            snapshotLocked={snapshotLocked}
+            onSwapped={onSwapped}
           />
         ))}
       </div>
     );
   }
+
 
   return (
     <div className="space-y-6">
@@ -121,6 +131,9 @@ export function PlaylistsGrid({ allocations, snapshots, proofThumbs = [], positi
           latestThumb={latestThumb}
           positions={positions}
           mode={mode}
+          campaignId={campaignId}
+          snapshotLocked={snapshotLocked}
+          onSwapped={onSwapped}
         />
       ))}
     </div>
@@ -128,7 +141,7 @@ export function PlaylistsGrid({ allocations, snapshots, proofThumbs = [], positi
 }
 
 function PlaylistGroup({
-  group, allocations, latestSnap, latestThumb, positions, mode,
+  group, allocations, latestSnap, latestThumb, positions, mode, campaignId, snapshotLocked, onSwapped,
 }: {
   group: Group;
   allocations: EcoAllocation[];
@@ -136,6 +149,9 @@ function PlaylistGroup({
   latestThumb: Map<string, ProofThumb>;
   positions?: Map<string, number>;
   mode: "internal" | "client";
+  campaignId?: string;
+  snapshotLocked?: boolean;
+  onSwapped?: () => void;
 }) {
   const defaultOpen = group === "active" || allocations.length <= 5;
   const [open, setOpen] = useState(defaultOpen);
@@ -165,6 +181,9 @@ function PlaylistGroup({
               thumb={latestThumb.get(a.managed_playlist_id)}
               position={positions?.get(a.id)}
               mode={mode}
+              campaignId={campaignId}
+              snapshotLocked={snapshotLocked}
+              onSwapped={onSwapped}
             />
           ))}
         </div>
@@ -174,18 +193,24 @@ function PlaylistGroup({
 }
 
 function PlaylistCard({
-  alloc, snap, thumb, position, mode,
+  alloc, snap, thumb, position, mode, campaignId, snapshotLocked, onSwapped,
 }: {
   alloc: EcoAllocation;
   snap?: EcoSnap;
   thumb?: ProofThumb;
   position?: number;
   mode: "internal" | "client";
+  campaignId?: string;
+  snapshotLocked?: boolean;
+  onSwapped?: () => void;
 }) {
   const pl = alloc.managed_playlists;
   const delivered = snap?.plays_28d ?? snap?.plays_7d ?? 0;
   const pct = alloc.planned_streams > 0 ? Math.min(100, Math.round((Number(delivered) / alloc.planned_streams) * 100)) : 0;
   const delta24 = snap?.plays_24h ?? null;
+  const [swapOpen, setSwapOpen] = useState(false);
+  const canSwap = mode === "internal" && !!snapshotLocked && !!campaignId && !alloc.dispatched_at;
+
 
   return (
     <Card className="p-3 hover:bg-elevated/30 transition-colors">
@@ -240,8 +265,27 @@ function PlaylistCard({
               <ExternalLink className="h-3 w-3" />
             </a>
           )}
+          {canSwap && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 px-2 text-[11px] ml-1"
+              onClick={() => setSwapOpen(true)}
+            >
+              <Replace className="h-3 w-3 mr-1" /> Substituir
+            </Button>
+          )}
         </div>
       </div>
+      {canSwap && campaignId && (
+        <SwapPlaylistDialog
+          open={swapOpen}
+          onOpenChange={setSwapOpen}
+          campaignId={campaignId}
+          allocation={alloc}
+          onSwapped={() => onSwapped?.()}
+        />
+      )}
     </Card>
   );
 }

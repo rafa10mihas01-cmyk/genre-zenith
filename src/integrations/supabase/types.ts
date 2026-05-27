@@ -940,6 +940,64 @@ export type Database = {
           },
         ]
       }
+      campaign_plan_history: {
+        Row: {
+          acted_by: string | null
+          action: string
+          campaign_id: string
+          created_at: string
+          id: string
+          meta: Json | null
+          new_playlist_ids: string[] | null
+          old_playlist_id: string | null
+          reason: string | null
+        }
+        Insert: {
+          acted_by?: string | null
+          action: string
+          campaign_id: string
+          created_at?: string
+          id?: string
+          meta?: Json | null
+          new_playlist_ids?: string[] | null
+          old_playlist_id?: string | null
+          reason?: string | null
+        }
+        Update: {
+          acted_by?: string | null
+          action?: string
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          meta?: Json | null
+          new_playlist_ids?: string[] | null
+          old_playlist_id?: string | null
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_plan_history_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_plan_history_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_campaign_velocity"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "campaign_plan_history_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_financial_summary"
+            referencedColumns: ["campaign_id"]
+          },
+        ]
+      }
       campaigns: {
         Row: {
           artist: string | null

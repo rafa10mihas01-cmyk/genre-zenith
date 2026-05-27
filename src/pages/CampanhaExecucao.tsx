@@ -648,7 +648,11 @@ export default function CampanhaExecucao() {
                   positions={ecoPositionByAllocation}
                   mode="internal"
                   flat
+                  campaignId={camp.id}
+                  snapshotLocked={!!camp.snapshot_locked_at}
+                  onSwapped={() => setPlanRefreshKey(k => k + 1)}
                 />
+
                 <OrganicCollectedSection rows={organicRows} />
               </TabsContent>
               <TabsContent value="externo" className="mt-0 space-y-4">
