@@ -489,6 +489,59 @@ export default function ClienteDetalhe() {
           )}
         </TabsContent>
 
+        {/* ----- Campanhas ----- */}
+        <TabsContent value="campanhas">
+          {clientCampaigns.length === 0 ? (
+            <Card>
+              <CardContent className="p-10 text-center">
+                <p className="text-sm text-muted-foreground">Sem campanhas vinculadas a este cliente.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-2.5">
+              {clientCampaigns.map((c) => {
+                const cobrado = Number(c.valor_cobrado) || 0;
+                const recebido = Number(c.valor_recebido) || 0;
+                const pendente = Math.max(0, cobrado - recebido);
+                const statusLabel = c.status === "active" ? "Ativa"
+                  : c.status === "completed" ? "Concluída"
+                  : c.status === "paused" ? "Pausada"
+                  : c.status === "cancelled" ? "Cancelada"
+                  : c.status === "draft" ? "Rascunho"
+                  : c.status;
+                const statusCls = c.status === "active" ? "text-primary"
+                  : c.status === "completed" ? "text-emerald-400"
+                  : c.status === "cancelled" ? "text-muted-foreground"
+                  : "text-foreground/70";
+                return (
+                  <Link key={c.id} to={`/campanhas/${c.id}`}>
+                    <Card className="hover:border-foreground/20 transition-colors">
+                      <CardContent className="p-4 flex items-center gap-3 min-w-0">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-semibold truncate">{c.track_name}</div>
+                          <div className="text-[11px] text-muted-foreground truncate">
+                            {c.artist || "—"}
+                            {c.campaign_type && <> · {c.campaign_type}</>}
+                            <> · iniciada {formatDistanceToNow(new Date(c.created_at), { addSuffix: true, locale: ptBR })}</>
+                          </div>
+                          <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
+                            Cobrado {formatBRL(cobrado)} · Recebido <span className="text-foreground/80">{formatBRL(recebido)}</span>
+                            {pendente > 0 && <> · <span className="text-warning">{formatBRL(pendente)} pendente</span></>}
+                          </div>
+                        </div>
+                        <div className={cn("inline-flex items-center gap-1.5 text-[11px] font-medium shrink-0", statusCls)}>
+                          {statusLabel}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+
+
         {/* ----- Notas ----- */}
         <TabsContent value="notas">
           <Card>
