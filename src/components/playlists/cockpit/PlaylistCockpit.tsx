@@ -17,7 +17,7 @@ import {
   Flame, Snowflake, Activity, Users, Crown, Target, Check,
   Heart, Eye, RotateCcw, Timer, Zap, ShieldCheck, AlertTriangle, ListMusic,
 } from "lucide-react";
-import { PlaylistTracksTab } from "@/components/playlists/PlaylistTracksTab";
+
 import { PlaylistEditorTab } from "@/components/playlists/PlaylistEditorTab";
 import { KpiBig } from "@/components/KpiBig";
 import { ProjecaoFaixa } from "@/components/operacao/SimuladorEntrega";
@@ -578,12 +578,13 @@ export function PlaylistCockpit({
             hint={idealRange ? `ideal ${idealRange[0]}–${idealRange[1]}` : undefined}
           />
           <KpiBig
-            label="Nota"
+            label="Score curatorial"
             value={brainScore != null ? `${brainScore}` : "—"}
             icon={ShieldCheck}
             tone={brainScore == null ? "default" : brainScore >= 75 ? "success" : brainScore >= 50 ? "primary" : "default"}
-            hint={brainScore == null ? "sem análise" : undefined}
+            hint={brainScore == null ? "sem análise" : "saúde editorial 0–100"}
           />
+
 
           <KpiBig
             label="Saúde"
@@ -616,11 +617,8 @@ export function PlaylistCockpit({
           {/* ============ CICLO CURATORIAL — banner editorial ============ */}
           <EditorialBanner diag={diag} onRediagnose={runDiagnose} running={running} />
 
-          {/* ============ MEMÓRIA DE IMPACTO ============ */}
-          <AdjustmentTimeline playlistId={managedId} />
 
-          {/* ============ EXPERIMENTOS SEO (Fase 2) ============ */}
-          <SeoExperimentCard managedId={managedId} />
+
 
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
@@ -641,13 +639,12 @@ export function PlaylistCockpit({
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="projecao" className="gap-1.5">
-                <Activity className="h-3.5 w-3.5" /> Projeção
+              <TabsTrigger value="estrategia" className="gap-1.5">
+                <Activity className="h-3.5 w-3.5" /> Estratégia
               </TabsTrigger>
               <TabsTrigger value="editor" className="gap-1.5">
                 <ListMusic className="h-3.5 w-3.5" /> Editor
               </TabsTrigger>
-              {/* Aba "Faixas" ocultada — endpoint instável. Manter código pra reativar depois. */}
             </TabsList>
 
             {/* ============ PLANO DE AÇÃO ============ */}
@@ -774,11 +771,32 @@ export function PlaylistCockpit({
                 applying={applying === "promote" || applying === "all"}
                 onApplyAll={() => applyPlan("promote")}
               />
+              {/* Projeção de plays por posição — contexto pra decidir onde adicionar */}
+              {buckets.add.length > 0 && (
+                <Card className="p-4 space-y-2">
+                  <div className="text-xs font-semibold">Projeção de plays por posição</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Estimativa teórica baseada nos saves desta playlist. Use pra escolher a posição de cada faixa nova.
+                  </div>
+                  <ProjecaoFaixa
+                    playlist={{
+                      id: managedId,
+                      name: playlistName,
+                      cover_url: coverUrl,
+                      followers: followers ?? 0,
+                      tracks_count: liveTracksCount,
+                    }}
+                  />
+                </Card>
+              )}
               <BucketAdd
                 items={buckets.add}
                 applying={applying === "add" || applying === "all"}
                 onApplyAll={() => applyPlan("add")}
               />
+
+              {/* Memória de impacto — histórico dos ajustes anteriores */}
+              <AdjustmentTimeline playlistId={managedId} />
             </TabsContent>
 
             {/* ============ IDENTIDADE ============ */}
@@ -830,13 +848,6 @@ export function PlaylistCockpit({
                   </div>
                 </Card>
               )}
-              <GenreAffinityCard managedId={managedId} />
-              {canonicalPlaylistId && (
-                <LifecycleRoadmapCard
-                  playlistId={canonicalPlaylistId}
-                  currentTracks={liveTracksCount}
-                />
-              )}
             </TabsContent>
 
 
@@ -855,32 +866,21 @@ export function PlaylistCockpit({
               </TabsContent>
             )}
 
-            {/* ============ PROJEÇÃO ============ */}
-            <TabsContent value="projecao" className="space-y-3 mt-0">
-              <div className="text-[11px] text-muted-foreground">
-                Estimativa teórica de plays por posição, baseada nos saves dessa playlist. Use pra decidir em qual posição colocar uma faixa.
-              </div>
-              <ProjecaoFaixa
-                playlist={{
-                  id: managedId,
-                  name: playlistName,
-                  cover_url: coverUrl,
-                  followers: followers ?? 0,
-                  tracks_count: liveTracksCount,
-                }}
-              />
+            {/* ============ ESTRATÉGIA ============ */}
+            <TabsContent value="estrategia" className="space-y-4 mt-0">
+              <GenreAffinityCard managedId={managedId} />
+              {canonicalPlaylistId && (
+                <LifecycleRoadmapCard
+                  playlistId={canonicalPlaylistId}
+                  currentTracks={liveTracksCount}
+                />
+              )}
+              <SeoExperimentCard managedId={managedId} />
             </TabsContent>
 
             {/* ============ EDITOR (drag-and-drop) ============ */}
             <TabsContent value="editor" className="mt-0">
               <PlaylistEditorTab playlistId={managedId} />
-            </TabsContent>
-
-            {/* ============ TODAS AS FAIXAS ============ */}
-            <TabsContent value="faixas" className="mt-0">
-              <Card className="p-4">
-                <PlaylistTracksTab playlistId={managedId} />
-              </Card>
             </TabsContent>
           </Tabs>
         </>
