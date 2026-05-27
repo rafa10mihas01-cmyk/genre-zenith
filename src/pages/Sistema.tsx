@@ -1,19 +1,19 @@
-// Sistema — cockpit de observabilidade reorganizado em 4 abas:
-//  - Visão Geral: Fluxo + Saúde + Ao Vivo + Alertas (cockpit único)
-//  - Motores: Robô · Coleta · Execução (sub-abas internas)
-//  - Avançado: Aprendizado · SEO · Infraestrutura (admin)
-//  - Configurações: conexões + equipe + conta
+// Sistema — cockpit de observabilidade reorganizado:
+//   Saúde · Aprendizado · Alertas · Motores · Configurações · Dev (admin)
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import {
   Activity, Workflow, Music2, HeartPulse, Bot, Bell, ListPlus,
-  Settings as SettingsIcon, Server, Brain, FlaskConical, LayoutDashboard, Cpu, Wrench, Flag,
+  Settings as SettingsIcon, Server, Brain, FlaskConical, Wrench, Flag,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { useScreenField } from "@/lib/screen-state";
 import { useUserRole } from "@/hooks/useUserRole";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { timeAgo } from "@/lib/format";
+
 import { AoVivoPainel } from "@/components/sistema/AoVivoPainel";
 import { FluxoVisual } from "@/components/sistema/fluxo/FluxoVisual";
 import { ColetaPanel } from "@/components/sistema/ColetaPanel";
@@ -28,45 +28,51 @@ import { SeoLessonsPanel } from "@/components/sistema/SeoLessonsPanel";
 import { SpotifyReconnectBanner } from "@/components/sistema/SpotifyReconnectBanner";
 import { SystemKpis } from "@/components/sistema/SystemKpis";
 import { FeatureFlagsPanel } from "@/components/sistema/FeatureFlagsPanel";
+import { OperationalHealthCard } from "@/components/home/OperationalHealthCard";
+import { BrainFreshnessCard } from "@/components/home/BrainFreshnessCard";
+import { EngineHealthGrid } from "@/components/cockpit/EngineHealthGrid";
 
-type SistemaTab = "visao-geral" | "motores" | "avancado" | "configuracoes";
-type MotorSub = "robo" | "coleta" | "execucao";
-type AvancadoSub = "aprendizado" | "seo" | "infra" | "flags";
+type SistemaTab = "saude" | "aprendizado" | "alertas" | "motores" | "configuracoes" | "dev";
+type MotorSub = "robo" | "coleta" | "execucao" | "fluxo" | "ao-vivo";
+type DevSub = "infra" | "flags" | "seo";
 
 type TabDef = { id: SistemaTab; label: string; icon: typeof Activity; adminOnly?: boolean };
 
 const TABS: TabDef[] = [
-  { id: "visao-geral", label: "Visão Geral", icon: LayoutDashboard },
-  { id: "motores", label: "Motores", icon: Cpu },
-  { id: "avancado", label: "Avançado", icon: Wrench, adminOnly: true },
+  { id: "saude", label: "Saúde", icon: HeartPulse },
+  { id: "aprendizado", label: "Aprendizado", icon: Brain },
+  { id: "alertas", label: "Alertas", icon: Bell },
+  { id: "motores", label: "Motores", icon: Bot },
   { id: "configuracoes", label: "Configurações", icon: SettingsIcon },
+  { id: "dev", label: "Dev", icon: Wrench, adminOnly: true },
 ];
 
-// Mapeamento dos antigos tab ids (deep-links legados) para o novo layout.
-const LEGACY_TAB_MAP: Record<string, { tab: SistemaTab; motor?: MotorSub; avancado?: AvancadoSub; section?: string }> = {
-  "fluxo": { tab: "visao-geral", section: "fluxo" },
-  "ao-vivo": { tab: "visao-geral", section: "ao-vivo" },
-  "saude": { tab: "visao-geral", section: "saude" },
-  "alertas": { tab: "visao-geral", section: "alertas" },
+// Legacy deep-links → novo layout.
+const LEGACY_TAB_MAP: Record<string, { tab: SistemaTab; motor?: MotorSub; dev?: DevSub }> = {
+  "visao-geral": { tab: "saude" },
+  "fluxo": { tab: "motores", motor: "fluxo" },
+  "ao-vivo": { tab: "motores", motor: "ao-vivo" },
+  "saude": { tab: "saude" },
+  "alertas": { tab: "alertas" },
   "robo": { tab: "motores", motor: "robo" },
   "coleta": { tab: "motores", motor: "coleta" },
   "execucao": { tab: "motores", motor: "execucao" },
-  "aprendizado": { tab: "avancado", avancado: "aprendizado" },
-  "seo": { tab: "avancado", avancado: "seo" },
-  "infra": { tab: "avancado", avancado: "infra" },
-  "flags": { tab: "avancado", avancado: "flags" },
+  "aprendizado": { tab: "aprendizado" },
+  "avancado": { tab: "dev" },
+  "seo": { tab: "dev", dev: "seo" },
+  "infra": { tab: "dev", dev: "infra" },
+  "flags": { tab: "dev", dev: "flags" },
   "configuracoes": { tab: "configuracoes" },
 };
 
 export default function Sistema() {
-  const [tab, setTab] = useScreenField<SistemaTab>("/sistema", "tab", "visao-geral");
+  const [tab, setTab] = useScreenField<SistemaTab>("/sistema", "tab", "saude");
   const [motorSub, setMotorSub] = useState<MotorSub>("robo");
-  const [avancadoSub, setAvancadoSub] = useState<AvancadoSub>("aprendizado");
+  const [devSub, setDevSub] = useState<DevSub>("infra");
   const { isAdmin } = useUserRole();
   const visibleTabs = TABS.filter((t) => !t.adminOnly || isAdmin);
   const location = useLocation();
 
-  // Deep-link: aceita tanto os novos ids quanto os antigos.
   useEffect(() => {
     const sp = new URLSearchParams(location.search);
     const raw = sp.get("tab");
@@ -79,19 +85,13 @@ export default function Sistema() {
     if (legacy) {
       setTab(legacy.tab);
       if (legacy.motor) setMotorSub(legacy.motor);
-      if (legacy.avancado) setAvancadoSub(legacy.avancado);
-      if (legacy.section) {
-        // rola até a seção dentro de Visão Geral
-        setTimeout(() => {
-          document.getElementById(`section-${legacy.section}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
-        }, 200);
-      }
+      if (legacy.dev) setDevSub(legacy.dev);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search]);
 
   const currentAllowed = visibleTabs.some((t) => t.id === tab);
-  const activeTab = currentAllowed ? tab : "visao-geral";
+  const activeTab = currentAllowed ? tab : "saude";
 
   return (
     <PageContainer>
@@ -122,27 +122,34 @@ export default function Sistema() {
       </div>
 
       <div className="min-h-[480px] animate-tab-in">
-        {activeTab === "visao-geral" && (
+        {activeTab === "saude" && (
           <div className="space-y-8">
             <SystemKpis />
-            <section id="section-fluxo">
-              <SectionHeader icon={Workflow} title="Fluxo do sistema" subtitle="Pipeline em tempo real" />
-              <FluxoVisual />
-            </section>
-            <section id="section-alertas">
-              <SectionHeader icon={Bell} title="Alertas" subtitle="Eventos críticos recentes" />
-              <AlertasHistorico />
-            </section>
-            <section id="section-saude">
-              <SectionHeader icon={HeartPulse} title="Saúde geral" subtitle="KPIs agregados" />
+            <section>
+              <SectionHeader icon={HeartPulse} title="Saúde geral" subtitle="KPIs agregados do sistema" />
               <SaudeSistema />
             </section>
-            <section id="section-ao-vivo">
-              <SectionHeader icon={Activity} title="Ao vivo" subtitle="Feed de eventos do agora" />
-              <AoVivoPainel />
+            <section>
+              <SectionHeader icon={Activity} title="Saúde operacional" subtitle="Status dos motores principais" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <OperationalHealthCard />
+                <BrainFreshnessCard />
+              </div>
+            </section>
+            <section>
+              <SectionHeader icon={Workflow} title="Motor editorial" subtitle="Saúde do pipeline de curadoria" />
+              <EngineHealthGrid />
+            </section>
+            <section>
+              <SectionHeader icon={Activity} title="Atividade recente" subtitle="Últimos eventos da coleta" />
+              <AtividadeRecente />
             </section>
           </div>
         )}
+
+        {activeTab === "aprendizado" && <AdminAprendizado embedded />}
+
+        {activeTab === "alertas" && <AlertasHistorico />}
 
         {activeTab === "motores" && (
           <div className="space-y-4">
@@ -153,34 +160,36 @@ export default function Sistema() {
                 { id: "robo", label: "Robô", icon: Bot },
                 { id: "coleta", label: "Coleta", icon: Music2 },
                 { id: "execucao", label: "Execução", icon: ListPlus },
+                { id: "fluxo", label: "Fluxo", icon: Workflow },
+                { id: "ao-vivo", label: "Ao vivo", icon: Activity },
               ]}
             />
             {motorSub === "robo" && <RoboAoVivo />}
             {motorSub === "coleta" && <ColetaPanel />}
             {motorSub === "execucao" && <ExecucaoPanel />}
-          </div>
-        )}
-
-        {activeTab === "avancado" && isAdmin && (
-          <div className="space-y-4">
-            <SubTabs<AvancadoSub>
-              value={avancadoSub}
-              onChange={setAvancadoSub}
-              options={[
-                { id: "aprendizado", label: "Aprendizado", icon: Brain },
-                { id: "seo", label: "SEO", icon: FlaskConical },
-                { id: "infra", label: "Infraestrutura", icon: Server },
-                { id: "flags", label: "Feature flags", icon: Flag },
-              ]}
-            />
-            {avancadoSub === "aprendizado" && <AdminAprendizado embedded />}
-            {avancadoSub === "seo" && <SeoLessonsPanel />}
-            {avancadoSub === "infra" && <Infraestrutura embedded />}
-            {avancadoSub === "flags" && <FeatureFlagsPanel />}
+            {motorSub === "fluxo" && <FluxoVisual />}
+            {motorSub === "ao-vivo" && <AoVivoPainel />}
           </div>
         )}
 
         {activeTab === "configuracoes" && <Settings embedded />}
+
+        {activeTab === "dev" && isAdmin && (
+          <div className="space-y-4">
+            <SubTabs<DevSub>
+              value={devSub}
+              onChange={setDevSub}
+              options={[
+                { id: "infra", label: "Infraestrutura", icon: Server },
+                { id: "flags", label: "Feature flags", icon: Flag },
+                { id: "seo", label: "SEO", icon: FlaskConical },
+              ]}
+            />
+            {devSub === "infra" && <Infraestrutura embedded />}
+            {devSub === "flags" && <FeatureFlagsPanel />}
+            {devSub === "seo" && <SeoLessonsPanel />}
+          </div>
+        )}
       </div>
     </PageContainer>
   );
@@ -225,6 +234,58 @@ function SubTabs<T extends string>(props: {
           </button>
         );
       })}
+    </div>
+  );
+}
+
+type LogRow = { id: string; acao: string; status: string; mensagem: string | null; created_at: string };
+
+function AtividadeRecente() {
+  const [rows, setRows] = useState<LogRow[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const { data } = await supabase
+        .from("collection_logs")
+        .select("id,acao,status,mensagem,created_at")
+        .order("created_at", { ascending: false })
+        .limit(15);
+      if (!cancelled) setRows((data ?? []) as LogRow[]);
+    }
+    load();
+    const i = setInterval(load, 30000);
+    return () => { cancelled = true; clearInterval(i); };
+  }, []);
+
+  if (rows === null) return <div className="nx-card p-6 text-center text-xs text-muted-foreground">Carregando…</div>;
+  if (rows.length === 0) return <div className="nx-card p-6 text-center text-xs text-muted-foreground">Sem atividade registrada.</div>;
+
+  return (
+    <div className="nx-card overflow-hidden">
+      <ul className="divide-y divide-border">
+        {rows.map(l => {
+          const tone =
+            l.status === "sucesso" ? "text-primary bg-primary/10"
+            : l.status === "erro" ? "text-destructive bg-destructive/10"
+            : "text-warning bg-warning/10";
+          return (
+            <li key={l.id} className="flex items-center gap-3 px-4 py-3">
+              <span className={cn("h-7 w-7 rounded-full flex items-center justify-center shrink-0", tone)}>
+                <Activity className="h-3.5 w-3.5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold leading-tight truncate">{l.acao}</div>
+                {l.mensagem && (
+                  <div className="text-[11px] text-muted-foreground truncate mt-0.5">{l.mensagem}</div>
+                )}
+              </div>
+              <span className="text-[11px] text-muted-foreground shrink-0 tabular-nums">
+                {timeAgo(l.created_at)}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
