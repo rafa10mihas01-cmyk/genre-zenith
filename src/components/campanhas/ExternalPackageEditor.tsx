@@ -219,10 +219,11 @@ export function ExternalPackageEditor({
         <KpiBig
           icon={CalendarClock}
           label="Diário necessário"
-          value={formatInt(Math.round(totalStreams / Math.max(1, snapshot.days || 1)))}
-          hint={`em ${snapshot.days || 1} dias`}
+          value={formatInt(Math.round((snapshot.streamsExt || 0) / Math.max(1, snapshot.days || 1)))}
+          hint={`pacote atual: ${formatInt(Math.round(totalStreams / Math.max(1, snapshot.days || 1)))}/dia em ${snapshot.days || 1}d`}
           domain="deals"
         />
+
         <KpiBig
           icon={DollarSign}
           label="Custo"
@@ -303,23 +304,23 @@ export function ExternalPackageEditor({
               <table className="w-full text-xs border-collapse">
                 <thead className="text-muted-foreground bg-elevated/40">
                   <tr>
-                    <th className="text-center font-medium py-2.5 px-3 border-b border-r border-border w-[22%]">Curador</th>
-                    <th className="text-center font-medium py-2.5 px-3 border-b border-r border-border w-[16%]">Total streams</th>
-                    <th className="text-center font-medium py-2.5 px-3 border-b border-r border-border w-[12%]">Por dia</th>
-                    <th className="text-center font-medium py-2.5 px-3 border-b border-r border-border w-[13%]">Por mês</th>
-                    <th className="text-center font-medium py-2.5 px-3 border-b border-r border-border w-[11%]">R$/stream</th>
-                    <th className="text-center font-medium py-2.5 px-3 border-b border-r border-border w-[14%]">Custo total</th>
-                    <th className="text-center font-medium py-2.5 px-3 border-b border-border w-[12%]">Status</th>
+                    <th className="text-center font-medium py-2.5 px-3 border-b border-r border-border w-[24%]">Curador</th>
+                    <th className="text-center font-medium py-2.5 px-3 border-b border-r border-border w-[18%]">Total streams</th>
+                    <th className="text-center font-medium py-2.5 px-3 border-b border-r border-border w-[14%]">Por dia</th>
+                    <th className="text-center font-medium py-2.5 px-3 border-b border-r border-border w-[12%]">R$/stream</th>
+                    <th className="text-center font-medium py-2.5 px-3 border-b border-r border-border w-[16%]">Custo total</th>
+                    <th className="text-center font-medium py-2.5 px-3 border-b border-border w-[14%]">Status</th>
                     {!isDispatched && <th className="w-10 border-b border-l border-border" />}
                   </tr>
+
                 </thead>
                 <tbody>
                   {items.map((it, i) => {
                     const days = Math.max(1, snapshot.days || 1);
                     const perDay = Math.round(it.assigned_streams / days);
-                    const perMonth = Math.round(perDay * 30);
                     const totalStr = totalDrafts[it.id] ?? (it.assigned_streams > 0 ? String(it.assigned_streams) : "");
                     const perDayStr = perDayDrafts[it.id] ?? (perDay > 0 ? String(perDay) : "");
+
                     return (
                       <tr key={it.id} className={cn("hover:bg-elevated/60 transition-colors", i % 2 === 1 && "bg-elevated/20")}>
                         <td className="py-2.5 px-3 text-center border-b border-r border-border/40">
@@ -376,13 +377,11 @@ export function ExternalPackageEditor({
                             </div>
                           )}
                         </td>
-                        <td className="py-2.5 px-3 text-center tabular-nums border-b border-r border-border/40">
-                          <span className="font-medium">{formatInt(perMonth)}</span>
-                          <span className="text-[10px] text-muted-foreground ml-1">/mês</span>
-                        </td>
                         <td className="py-2.5 px-3 text-center tabular-nums text-muted-foreground border-b border-r border-border/40">
                           {it.cost_per_stream.toFixed(3)}
                         </td>
+
+
                         <td className="py-2.5 px-3 text-center tabular-nums font-semibold border-b border-r border-border/40">
                           {formatBRL(it.assigned_cost)}
                         </td>
@@ -414,10 +413,8 @@ export function ExternalPackageEditor({
                       {formatInt(Math.round(totalStreams / Math.max(1, snapshot.days || 1)))}
                       <span className="text-[10px] text-muted-foreground ml-1">/dia</span>
                     </td>
-                    <td className="py-2.5 px-3 text-center tabular-nums font-semibold text-foreground border-r border-border">
-                      {formatInt(Math.round((totalStreams / Math.max(1, snapshot.days || 1)) * 30))}
-                      <span className="text-[10px] text-muted-foreground ml-1">/mês</span>
-                    </td>
+                    <td className="py-2.5 px-3 border-r border-border" />
+
                     <td className="py-2.5 px-3 border-r border-border" />
                     <td className="py-2.5 px-3 text-center tabular-nums font-semibold text-foreground border-r border-border">{formatBRL(totalCost)}</td>
                     <td className="py-2.5 px-3" />
