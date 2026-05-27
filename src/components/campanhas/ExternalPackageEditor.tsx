@@ -221,8 +221,8 @@ export function ExternalPackageEditor({
         <KpiBig
           icon={CalendarClock}
           label="Diário necessário"
-          value={formatInt(Math.round((snapshot.streamsExt || 0) / Math.max(1, snapshot.days || 1)))}
-          hint={`pacote atual: ${formatInt(Math.round(totalStreams / Math.max(1, snapshot.days || 1)))}/dia em ${snapshot.days || 1}d`}
+          value={formatInt(Math.round((snapshot.streamsExt || 0) / effDays))}
+          hint={`pacote atual: ${formatInt(Math.round(totalStreams / effDays))}/dia em ${effDays}d`}
           domain="deals"
         />
 
