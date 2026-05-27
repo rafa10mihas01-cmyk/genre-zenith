@@ -198,7 +198,15 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
       const { data, error } = await supabase.functions.invoke("playlist-tracks-list", {
         body: { playlist_id: playlistId },
       });
-      if (error || !data?.ok) throw new Error(error?.message ?? data?.error ?? "Falhou");
+      if (error) throw new Error(error.message);
+      if (!data?.ok) {
+        if (data?.code === "rate_limited") {
+          setErr("Spotify limitou as requisições. Tente novamente em alguns segundos.");
+          setTracks([]);
+          return;
+        }
+        throw new Error(data?.error ?? "Falhou");
+      }
       setTracks(data.tracks ?? []);
     } catch (e: any) {
       setErr(e.message);
