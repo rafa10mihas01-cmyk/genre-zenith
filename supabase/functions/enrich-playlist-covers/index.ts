@@ -66,6 +66,8 @@ Deno.serve(async (req) => {
               { headers: { Authorization: `Bearer ${token}` } },
             );
             if (!r.ok) {
+              const errText = await r.text().catch(() => "");
+              console.warn(`spotify ${id} -> ${r.status}: ${errText.slice(0, 200)}`);
               return {
                 spotify_playlist_id: id,
                 image_url: null,
@@ -82,7 +84,8 @@ Deno.serve(async (req) => {
               owner_name: j?.owner?.display_name ?? null,
               cached_at: new Date().toISOString(),
             };
-          } catch {
+          } catch (err) {
+            console.error(`spotify ${id} threw:`, err);
             return {
               spotify_playlist_id: id,
               image_url: null,
