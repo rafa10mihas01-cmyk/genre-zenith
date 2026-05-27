@@ -1089,7 +1089,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                 ? "bg-primary/15 border-primary/40 text-primary"
                 : "bg-elevated border-border text-muted-foreground hover:text-foreground",
             )}
-          >Ativas ({items.filter(i => !i.archived_at).length})</Link>
+          >Ativas ({totalActiveCount})</Link>
           <Link
             to="/catalogo?arquivadas=1"
             replace
@@ -1099,7 +1099,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                 ? "bg-primary/15 border-primary/40 text-primary"
                 : "bg-elevated border-border text-muted-foreground hover:text-foreground",
             )}
-          >Lixeira ({items.filter(i => i.archived_at).length})</Link>
+          >Lixeira ({totalArchivedCount})</Link>
           <Link
             to="/catalogo?aba=capacidade"
             replace
