@@ -101,25 +101,7 @@ export default function Prospecao() {
 
       <PageContainer>
 
-      {/* KPIs contextuais por segmento */}
-      {segment === "ativos" ? (
-        <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <KpiBig tier="hero" icon={Users} label="Curadores" value={formatNumber(kpisAtivos.curadores)} hint="Ativos na biblioteca" domain="curators" loading={loading} />
-          <KpiBig icon={Activity} label="Deals ativos" value={formatNumber(kpisAtivos.dealsAtivos)} hint="Negociações em andamento" domain="campaigns" loading={loading} />
-          <KpiBig icon={DollarSign} label="Receita" value={formatBRL(kpisAtivos.receita)} hint="Total investido em curadoria" domain="deals" loading={loading} />
-          <KpiBig tier="quiet" icon={TrendingUp} label="Ticket médio" value={formatBRL(kpisAtivos.ticket)} hint={`Base ${formatNumber(deals.length)} deals`} domain="deals" loading={loading} />
-        </section>
-      ) : (
-        <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <KpiBig tier="hero" icon={UserSearch} label="Leads" value={formatNumber(outreach.leads)} hint="Curadores na base de prospecção" domain="curators" loading={outreach.loading} />
-          <KpiBig icon={Send} label="Contatados" value={formatNumber(outreach.contatados)} hint="Curadores que receberam abordagem" domain="campaigns" loading={outreach.loading} />
-          <KpiBig icon={Mail} label="Taxa de resposta" value={`${taxaResposta.toFixed(0)}%`} hint={`${formatNumber(outreach.respondidos)} respostas`} domain="campaigns" loading={outreach.loading} />
-          <KpiBig tier="quiet" icon={CheckCircle2} label="Convertidos" value={formatNumber(outreach.convertidos)} hint="Fechados como curador ativo" domain="deals" loading={outreach.loading} />
-        </section>
-      )}
-
-
-      {/* Segmento de alto nível */}
+      {/* Segmento de alto nível — TOPO (antes dos KPIs no mobile) */}
       <div className="sticky top-0 z-30 -mt-px bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border -mx-4 md:-mx-6">
         <div className="nx-tab-rail items-center gap-1 px-4 md:px-6">
           {([
@@ -156,6 +138,49 @@ export default function Prospecao() {
         </div>
       </div>
 
+      {/* Mobile: Funil único compacto. Desktop: KPI grid completo. */}
+      {segment === "ativos" ? (
+        <>
+          {/* MOBILE — funil único */}
+          <section className="lg:hidden rounded-2xl border border-border bg-card p-4">
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-3">Visão geral</div>
+            <div className="grid grid-cols-4 gap-2 items-end">
+              <FunilStep label="Curadores" value={formatNumber(kpisAtivos.curadores)} loading={loading} />
+              <FunilStep label="Deals" value={formatNumber(kpisAtivos.dealsAtivos)} loading={loading} />
+              <FunilStep label="Receita" value={formatBRL(kpisAtivos.receita)} loading={loading} compact />
+              <FunilStep label="Ticket" value={formatBRL(kpisAtivos.ticket)} loading={loading} compact muted />
+            </div>
+          </section>
+          {/* DESKTOP — KPIs completos */}
+          <section className="hidden lg:grid grid-cols-2 md:grid-cols-5 gap-3">
+            <KpiBig tier="hero" icon={Users} label="Curadores" value={formatNumber(kpisAtivos.curadores)} hint="Ativos na biblioteca" domain="curators" loading={loading} />
+            <KpiBig icon={Activity} label="Deals ativos" value={formatNumber(kpisAtivos.dealsAtivos)} hint="Negociações em andamento" domain="campaigns" loading={loading} />
+            <KpiBig icon={DollarSign} label="Receita" value={formatBRL(kpisAtivos.receita)} hint="Total investido em curadoria" domain="deals" loading={loading} />
+            <KpiBig tier="quiet" icon={TrendingUp} label="Ticket médio" value={formatBRL(kpisAtivos.ticket)} hint={`Base ${formatNumber(deals.length)} deals`} domain="deals" loading={loading} />
+          </section>
+        </>
+      ) : (
+        <>
+          {/* MOBILE — funil único de prospecção */}
+          <section className="lg:hidden rounded-2xl border border-border bg-card p-4">
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-3">Funil de prospecção</div>
+            <div className="grid grid-cols-4 gap-2 items-end">
+              <FunilStep label="Leads" value={formatNumber(outreach.leads)} loading={outreach.loading} />
+              <FunilStep label="Contatados" value={formatNumber(outreach.contatados)} loading={outreach.loading} />
+              <FunilStep label="Respostas" value={formatNumber(outreach.respondidos)} loading={outreach.loading} hint={`${taxaResposta.toFixed(0)}%`} />
+              <FunilStep label="Convertidos" value={formatNumber(outreach.convertidos)} loading={outreach.loading} muted />
+            </div>
+          </section>
+          {/* DESKTOP — KPIs completos */}
+          <section className="hidden lg:grid grid-cols-2 md:grid-cols-5 gap-3">
+            <KpiBig tier="hero" icon={UserSearch} label="Leads" value={formatNumber(outreach.leads)} hint="Curadores na base de prospecção" domain="curators" loading={outreach.loading} />
+            <KpiBig icon={Send} label="Contatados" value={formatNumber(outreach.contatados)} hint="Curadores que receberam abordagem" domain="campaigns" loading={outreach.loading} />
+            <KpiBig icon={Mail} label="Taxa de resposta" value={`${taxaResposta.toFixed(0)}%`} hint={`${formatNumber(outreach.respondidos)} respostas`} domain="campaigns" loading={outreach.loading} />
+            <KpiBig tier="quiet" icon={CheckCircle2} label="Convertidos" value={formatNumber(outreach.convertidos)} hint="Fechados como curador ativo" domain="deals" loading={outreach.loading} />
+          </section>
+        </>
+      )}
+
       <section className="space-y-4 animate-tab-in" key={segment}>
         {segment === "ativos" ? (
           <CuradoresLibraryTab
@@ -171,7 +196,10 @@ export default function Prospecao() {
           />
         ) : (
           <>
-            <OutreachDashboard />
+            {/* OutreachDashboard só no desktop — no mobile o funil único já cobre */}
+            <div className="hidden lg:block">
+              <OutreachDashboard />
+            </div>
             <CuradoresCRM segment="prospeccao" />
           </>
         )}
