@@ -221,8 +221,10 @@ export function FinancialOverview() {
           open={!!dialogDeal}
           onOpenChange={(v) => !v && setDialogDeal(null)}
           dealId={dialogDeal.deal_id}
+          curatorId={dialogDeal.curator_id}
           dealLabel={`${dialogDeal.song_name} — ${dialogDeal.curator_name}`}
           remainingHint={Math.max(0, dialogDeal.cost - dialogDeal.total_paid)}
+          remainingPlaysHint={Math.max(0, dialogDeal.target_plays - dialogDeal.reconciled_total_plays)}
           onSubmit={registerPayment}
         />
       )}
@@ -235,11 +237,13 @@ function SummaryCard({
   label,
   value,
   tone,
+  hint,
 }: {
   icon: any;
   label: string;
   value: string;
   tone: "primary" | "warn" | "muted";
+  hint?: string;
 }) {
   const accent =
     tone === "primary" ? "text-primary bg-primary/10"
@@ -254,6 +258,7 @@ function SummaryCard({
         {label}
       </div>
       <div className="mt-2 text-xl font-bold tabular-nums text-foreground">{value}</div>
+      {hint && <div className="mt-1 text-[11px] text-muted-foreground">{hint}</div>}
     </div>
   );
 }
