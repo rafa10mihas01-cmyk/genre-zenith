@@ -88,11 +88,20 @@ export function CalculadoraResultado({ r }: { r: CampaignResult }) {
           />
           <SplitBar
             label="Ecossistema externo"
-            pct={100 - r.splitEcoPct}
+            pct={r.metaOperacional > 0 ? Math.round((r.streamsExt / r.metaOperacional) * 100) : 0}
             streams={r.streamsExt}
             custo={r.custoExt}
             tone="muted"
           />
+          {r.streamsOrganic > 0 && (
+            <SplitBar
+              label="Orgânico"
+              pct={r.splitOrganicPct}
+              streams={r.streamsOrganic}
+              custo={r.custoOrganic}
+              tone="muted"
+            />
+          )}
         </CardContent>
       </Card>
 

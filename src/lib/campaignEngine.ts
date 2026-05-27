@@ -80,8 +80,9 @@ export interface CampaignResult {
   // Custos
   custoEco: number;          // R$
   custoExt: number;          // R$
-  custoTotal: number;        // R$
-  custoPorStream: number;    // R$ médio (sobre metaOperacional)
+  custoOrganic: number;      // R$ — orgânico custa o mesmo que eco
+  custoTotal: number;        // R$ — eco + ext + organic
+  custoPorStream: number;    // R$ médio (sobre meta total)
 
   // Operação
   picoPorDia: number;        // pico de streams/dia
@@ -218,8 +219,9 @@ export function calcCampaign(input: CampaignInput, costs: CostPerStream = COST_P
 
   const custoEco = streamsEco * costs.eco;
   const custoExt = streamsExt * costs.ext;
-  const custoTotal = custoEco + custoExt;
-  const custoPorStream = metaOperacional > 0 ? custoTotal / metaOperacional : 0;
+  const custoOrganic = streamsOrganic * costs.eco;
+  const custoTotal = custoEco + custoExt + custoOrganic;
+  const custoPorStream = meta > 0 ? custoTotal / meta : 0;
 
   const curva = buildCurve(metaOperacional, effectiveDays, input.modo, inercia, splitEcoPct);
   const picoPorDia = curva.reduce((m, p) => Math.max(m, p.streamsDay), 0);
@@ -229,7 +231,7 @@ export function calcCampaign(input: CampaignInput, costs: CostPerStream = COST_P
     meta, days, effectiveDays, modo: input.modo, perfil: input.perfil, splitEcoPct,
     splitOrganicPct, clientProfile,
     metaOperacional, streamsEco, streamsExt, streamsOrganic,
-    custoEco, custoExt, custoTotal, custoPorStream,
+    custoEco, custoExt, custoOrganic, custoTotal, custoPorStream,
     picoPorDia, mediaPorDia, inercia, curva,
   };
 }

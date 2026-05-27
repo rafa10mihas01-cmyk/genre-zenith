@@ -457,7 +457,16 @@ export function OverviewTab({
                   tone={margem > 0 ? "primary" : "warning"}
                   compact
                 />
-                <Kpi label="Split eco / ext" value={`${snapshot.splitEcoPct}% / ${100 - snapshot.splitEcoPct}%`} sub={`${formatInt(snapshot.streamsEco)} eco`} compact />
+                {(snapshot.streamsOrganic ?? 0) > 0 ? (
+                  <Kpi
+                    label="Orgânico"
+                    value={`${formatInt(snapshot.streamsOrganic ?? 0)}`}
+                    sub={`${snapshot.splitOrganicPct ?? 0}% · ${formatBRL(snapshot.custoOrganic ?? 0)}`}
+                    compact
+                  />
+                ) : (
+                  <Kpi label="Split eco / ext" value={`${snapshot.splitEcoPct}% / ${100 - snapshot.splitEcoPct}%`} sub={`${formatInt(snapshot.streamsEco)} eco`} compact />
+                )}
               </div>
             </CardContent>
           </Card>
