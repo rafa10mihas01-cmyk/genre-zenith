@@ -88,11 +88,11 @@ export function CatalogHealthCard() {
   }, []);
 
   if (!d) {
-    return <div className="nx-card p-5 h-64 animate-pulse bg-muted/20" />;
+    return <div className="nx-card p-4 lg:p-5 h-64 animate-pulse bg-muted/20" />;
   }
 
   return (
-    <div className="nx-card p-5 flex flex-col gap-4">
+    <div className="nx-card p-4 lg:p-5 flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <ListMusic className="h-4 w-4 text-muted-foreground" />

@@ -83,7 +83,7 @@ export function CuradoriaBlock() {
       <h2 className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold px-1">
         Curadoria
       </h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 lg:gap-4">
         <DealsActiveCard valor={d?.dealsValor ?? 0} count={d?.dealsActive ?? 0} loading={loading} />
         <DeliveryCard d={d} loading={loading} />
         <ConcentrationCard d={d} loading={loading} />
@@ -94,7 +94,7 @@ export function CuradoriaBlock() {
 
 function DealsActiveCard({ valor, count, loading }: { valor: number; count: number; loading: boolean }) {
   return (
-    <Link to="/deals" className="nx-card-hover p-5 flex flex-col gap-3 group h-full">
+    <Link to="/deals" className="nx-card-hover p-4 lg:p-5 flex flex-col gap-3 group h-full">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Handshake className="h-4 w-4 text-primary" />
@@ -123,7 +123,7 @@ function DealsActiveCard({ valor, count, loading }: { valor: number; count: numb
 function DeliveryCard({ d, loading }: { d: Data | null; loading: boolean }) {
   const pct = d && d.dealsTarget > 0 ? (d.dealsEntregue / d.dealsTarget) * 100 : 0;
   return (
-    <Link to="/deals" className="nx-card-hover p-5 flex flex-col gap-3 group h-full">
+    <Link to="/deals" className="nx-card-hover p-4 lg:p-5 flex flex-col gap-3 group h-full">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -176,7 +176,7 @@ function ConcentrationCard({ d, loading }: { d: Data | null; loading: boolean })
   const share = d?.topShare ?? 0;
   const risk = share > 50;
   return (
-    <Link to="/curadores" className="nx-card-hover p-5 flex flex-col gap-3 group h-full">
+    <Link to="/curadores" className="nx-card-hover p-4 lg:p-5 flex flex-col gap-3 group h-full">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Users className="h-4 w-4 text-muted-foreground" />
