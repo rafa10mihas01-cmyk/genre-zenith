@@ -394,7 +394,7 @@ export default function PlaylistDeals() {
       </div>
 
       {/* Busca + filtros */}
-      <div className="flex flex-col md:flex-row md:items-center gap-2">
+      <div className="flex flex-row items-center gap-2">
         <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
           <input
