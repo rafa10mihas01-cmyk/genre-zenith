@@ -24,8 +24,8 @@ import {
   formatPlaylistError,
   releasePlaylistLock,
   lockedResponseBody,
-  computeTracksHash,
 } from "../_shared/playlist-lock.ts";
+import { matchTracks, computeIdentityHash, type TrackIdentity } from "../_shared/track-matching.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
