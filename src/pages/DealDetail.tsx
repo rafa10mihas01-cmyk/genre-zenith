@@ -95,77 +95,100 @@ export default function DealDetail() {
         </div>
       ) : (
         <>
-          {/* KPIs — hierarquia cockpit, mesmo padrão do Cliente e Curador */}
-          {stats && (
-            <div className="grid grid-cols-2 md:grid-cols-7 gap-2 pt-4 mb-6">
-              <KpiBig
-                label="Entrega"
-                value={`${stats.pct}%`}
-                icon={Target}
-                hint={
-                  deal.target_plays
-                    ? `${fmtPlays(stats.earned)} de ${fmtPlays(Number(deal.target_plays))}`
-                    : `${fmtPlays(stats.earned)} entregues`
-                }
-                tier="hero"
-                domain="deals"
-                tone={stats.pct >= 100 ? "success" : "primary"}
-              />
-              <KpiBig
-                label="Velocidade"
-                value={stats.vel ? `${fmtPlays(stats.vel)}/dia` : "—"}
-                icon={Activity}
-                hint="média desde o início"
-                domain="deals"
-              />
-              <KpiBig
-                label="Previsão"
-                value={
-                  stats.eta === null
-                    ? "—"
-                    : stats.eta === 0
-                    ? "Concluído"
-                    : `${Math.round(stats.eta)}d`
-                }
-                icon={Clock}
-                hint={stats.eta === 0 ? "meta batida" : "para bater meta"}
-                domain="deals"
-              />
-              <KpiBig
-                label="Score"
-                value={`${stats.score}/100`}
-                icon={ShieldCheck}
-                hint={`${Math.round(stats.legitShare * 100)}% legítimo`}
-                tone={stats.score >= 75 ? "success" : stats.score >= 50 ? "primary" : "default"}
-                domain="curators"
-              />
-              <KpiBig
-                label="Investido"
-                value={deal.cost != null ? fmtBRL(Number(deal.cost)) : "—"}
-                icon={CreditCard}
-                hint={deal.closed_at ? "deal fechado" : "em andamento"}
-                tier="quiet"
-              />
-              <KpiBig
-                label="Status"
-                value={
-                  deal.closed_at
-                    ? deal.closed_status === "completed"
-                      ? "Concluído"
-                      : "Cancelado"
-                    : "Ativo"
-                }
-                icon={CheckCircle2}
-                hint={
-                  deal.closed_at
-                    ? format(new Date(deal.closed_at), "dd MMM yyyy", { locale: ptBR })
-                    : "em coleta"
-                }
-                tier="quiet"
-                tone={deal.closed_at ? "default" : "primary"}
-              />
-            </div>
-          )}
+          {/* Hero do deal — entrega dominante + chips de apoio */}
+          {stats && (() => {
+            const pct = Math.max(0, Math.min(100, stats.pct));
+            const target = Number(deal.target_plays || 0);
+            const remaining = Math.max(0, target - stats.earned);
+            const isClosed = !!deal.closed_at;
+            const statusLabel = isClosed
+              ? deal.closed_status === "completed" ? "Concluído" : "Cancelado"
+              : "Ativo";
+            const statusTone = isClosed
+              ? deal.closed_status === "completed"
+                ? "bg-success/15 text-success border-success/30"
+                : "bg-muted text-muted-foreground border-border"
+              : "bg-primary/15 text-primary border-primary/30";
+
+            return (
+              <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 mb-6 mt-4 space-y-4">
+                {/* Cabeçalho: label + status */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
+                    <Target className="h-3.5 w-3.5 text-primary" />
+                    Entrega
+                  </div>
+                  <span className={`inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full text-[11px] font-semibold border ${statusTone}`}>
+                    <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                    {statusLabel}
+                  </span>
+                </div>
+
+                {/* % dominante */}
+                <div className="flex items-baseline gap-3 flex-wrap">
+                  <div className={`text-4xl sm:text-5xl font-semibold tabular-nums leading-none ${pct >= 100 ? "text-success" : "text-foreground"}`}>
+                    {pct}%
+                  </div>
+                  <div className="text-[12px] text-muted-foreground tabular-nums">
+                    {fmtPlays(stats.earned)}
+                    {target > 0 && <> de {fmtPlays(target)}</>}
+                    {target > 0 && remaining > 0 && <> · faltam {fmtPlays(remaining)}</>}
+                  </div>
+                </div>
+
+                {/* Barra de progresso */}
+                <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${pct >= 100 ? "bg-success" : "bg-primary"}`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+
+                {/* Linha de apoio — velocidade · ETA · investido */}
+                <div className="flex items-center gap-x-4 gap-y-1.5 flex-wrap text-[12px] text-foreground-body tabular-nums">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Activity className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="font-semibold text-foreground">
+                      {stats.vel ? `${fmtPlays(stats.vel)}/dia` : "—"}
+                    </span>
+                  </span>
+                  <span className="text-muted-foreground/40">·</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="font-semibold text-foreground">
+                      {stats.eta === null ? "—" : stats.eta === 0 ? "meta batida" : `${Math.round(stats.eta)}d`}
+                    </span>
+                    {stats.eta !== null && stats.eta > 0 && (
+                      <span className="text-muted-foreground">p/ meta</span>
+                    )}
+                  </span>
+                  <span className="text-muted-foreground/40">·</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="font-semibold text-foreground">
+                      {deal.cost != null ? fmtBRL(Number(deal.cost)) : "—"}
+                    </span>
+                  </span>
+                </div>
+
+                {/* Score */}
+                <div className="flex items-center gap-2 pt-3 border-t border-border/60 text-[12px]">
+                  <ShieldCheck className={`h-3.5 w-3.5 ${stats.score >= 75 ? "text-success" : stats.score >= 50 ? "text-primary" : "text-muted-foreground"}`} />
+                  <span className="text-muted-foreground">Score</span>
+                  <span className={`font-semibold tabular-nums ${stats.score >= 75 ? "text-success" : "text-foreground"}`}>
+                    {stats.score}/100
+                  </span>
+                  <span className="text-muted-foreground">· {Math.round(stats.legitShare * 100)}% legítimo</span>
+                </div>
+
+                {isClosed && deal.closed_at && (
+                  <div className="text-[11px] text-muted-foreground pt-1">
+                    Fechado em {format(new Date(deal.closed_at), "dd MMM yyyy", { locale: ptBR })}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           <DealHistorySheet
             asPage
