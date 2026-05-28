@@ -201,7 +201,7 @@ type BreakdownRowData = {
 function BreakdownRow({ r, kind }: { r: BreakdownRowData; kind: "curator" | "algo" }) {
   const AlgoIcon = algoIconFor(r.playlist_name);
   return (
-    <li className="min-w-[520px] sm:min-w-0 px-5 py-3 flex items-center gap-3 hover:bg-[hsl(var(--elevated))] transition-colors">
+    <li className="min-w-0 px-4 sm:px-5 py-3 flex items-center gap-3 hover:bg-[hsl(var(--elevated))] transition-colors">
       {/* capa / ícone padrão */}
       <div className="h-10 w-10 shrink-0 rounded-md overflow-hidden bg-[hsl(var(--elevated))] border border-white/[0.04] flex items-center justify-center">
         {r.image_url ? (
@@ -1002,7 +1002,7 @@ export function DealHistorySheet({
                       Nenhum resultado pra essa busca.
                     </div>
                   ) : (
-                    <div className="rounded-2xl border border-border bg-card overflow-x-auto overflow-y-auto overscroll-x-contain max-h-[680px]">
+                    <div className="rounded-2xl border border-border bg-card overflow-y-auto overflow-x-hidden max-h-[680px]">
                       <ul className="divide-y divide-border">
                         {curatorPlaylists.map((p) => (
                           <BreakdownRow key={p.id} r={toBreakdownRowData(p)} kind="curator" />
@@ -1110,7 +1110,7 @@ export function DealHistorySheet({
                       Nenhum resultado pra esse filtro.
                     </div>
                   ) : (
-                    <div className="rounded-2xl border border-border bg-card overflow-x-auto overflow-y-auto overscroll-x-contain max-h-[680px]">
+                    <div className="rounded-2xl border border-border bg-card overflow-y-auto overflow-x-hidden max-h-[680px]">
                       <ul className="divide-y divide-border">
                         {algoPlaylists.map((p) => (
                           <BreakdownRow key={p.id} r={toBreakdownRowData(p)} kind="algo" />
@@ -1304,7 +1304,7 @@ export function DealHistorySheet({
                                     Nenhuma playlist vinculada a este registro.
                                   </div>
                                 ) : (
-                                  <ul className="rounded-2xl border border-border bg-card divide-y divide-border overflow-x-auto overflow-y-hidden overscroll-x-contain">
+                                  <ul className="rounded-2xl border border-border bg-card divide-y divide-border overflow-hidden">
                                     {linked.map((p) => (
                                       <PlaylistRow
                                         key={p.id}
