@@ -16,7 +16,7 @@
 // Todos respeitam o limite de 100 URIs por chamada do Spotify.
 // =====================================================================
 
-import { assertSpotifyCircuitClosed, openSpotifyCircuitBreaker } from "./spotify.ts";
+import { guardedSpotifyFetch, openSpotifyCircuitBreaker } from "./spotify.ts";
 
 export type SpotifyFetch = (
   url: string,
@@ -44,8 +44,7 @@ export class SpotifyApiError extends Error {
 
 /** Fetch wrapper padrão — joga SpotifyApiError com status + body + retryAfter. */
 export const defaultSpotifyFetch: SpotifyFetch = async (url, init, token) => {
-  await assertSpotifyCircuitClosed();
-  const r = await fetch(url, {
+  const r = await guardedSpotifyFetch(url, {
     ...init,
     headers: {
       Authorization: `Bearer ${token}`,
@@ -311,7 +310,6 @@ export async function uploadPlaylistCover(
   jpeg: string | Uint8Array,
   token: string,
 ): Promise<void> {
-  await assertSpotifyCircuitClosed();
   let base64: string;
   if (typeof jpeg === "string") {
     base64 = jpeg.replace(/^data:image\/\w+;base64,/, "");
@@ -320,7 +318,7 @@ export async function uploadPlaylistCover(
     for (let i = 0; i < jpeg.length; i++) bin += String.fromCharCode(jpeg[i]);
     base64 = btoa(bin);
   }
-  const r = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/images`, {
+  const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/playlists/${playlistId}/images`, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -330,8 +328,6 @@ export async function uploadPlaylistCover(
   });
   if (!r.ok) {
     const t = await r.text();
-    const ra = Number(r.headers.get("Retry-After") ?? "");
-    if (r.status === 429) await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : null);
     throw new Error(`Spotify ${r.status} (upload cover): ${t.slice(0, 400)}`);
   }
 }
