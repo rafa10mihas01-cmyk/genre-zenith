@@ -624,13 +624,14 @@ export default function CampanhaExecucao() {
 
           playlists: (() => {
             const renderTabsRow = (extra?: React.ReactNode) => (
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <TabsList>
+              <div className="flex items-center gap-2 flex-nowrap">
+                <TabsList className="shrink-0">
                   <TabsTrigger value="interno">Interno ({allocs.length})</TabsTrigger>
                   <TabsTrigger value="externo">Externo</TabsTrigger>
                 </TabsList>
+                <GenresUsedFromAllocs allocs={allocs} compact />
                 {extra && (
-                  <div className="flex items-center gap-2">
+                  <div className="ml-auto flex items-center gap-2 shrink-0">
                     {extra}
                   </div>
                 )}
@@ -639,7 +640,6 @@ export default function CampanhaExecucao() {
             return (
             <Tabs defaultValue="interno" className="space-y-4">
               <TabsContent value="interno" className="mt-0 space-y-4">
-                <GenresUsedFromAllocs allocs={allocs} />
                 {renderTabsRow()}
                 <PlaylistsGrid
                   allocations={allocs}
