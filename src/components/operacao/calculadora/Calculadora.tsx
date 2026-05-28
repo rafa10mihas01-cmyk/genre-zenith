@@ -1593,6 +1593,7 @@ function NumberInput({
         onChange(digits ? parseInt(digits, 10) : 0);
       }}
       onFocus={(e) => e.target.select()}
+      className="placeholder:text-muted-foreground/40 placeholder:font-normal placeholder:tracking-normal tabular-nums"
     />
   );
 }
