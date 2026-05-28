@@ -44,7 +44,7 @@ function db() {
 
 export async function assertSpotifyCircuitClosed(appId = "global"): Promise<void> {
   const supabase = db();
-  await supabase.rpc("close_expired_spotify_circuit_breakers").catch(() => null);
+  try { await supabase.rpc("close_expired_spotify_circuit_breakers"); } catch { /* noop */ }
   const { data, error } = await supabase
     .from("spotify_circuit_breaker")
     .select("status, blocked_until, retry_after_sec")
