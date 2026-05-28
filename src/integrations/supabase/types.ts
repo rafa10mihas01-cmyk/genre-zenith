@@ -8381,6 +8381,7 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
+      is_internal_operator: { Args: never; Returns: boolean }
       is_operador_or_above: { Args: never; Returns: boolean }
       is_playlist_action_blocked: {
         Args: {
