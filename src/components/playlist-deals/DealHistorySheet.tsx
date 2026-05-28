@@ -756,26 +756,29 @@ export function DealHistorySheet({
                     </SectionCard>
                   )}
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <Kpi
-                      label="Plays entregues"
-                      value={fmtCompact(stats.earned)}
-                      hint={target > 0 ? `de ${fmtCompact(target)} contratados` : "sem meta definida"}
-                      tone={stats.pct >= 100 ? "success" : "primary"}
-                    />
-                    <Kpi
-                      label="Velocidade"
-                      value={stats.vel !== null ? `${fmtCompact(stats.vel)}/dia` : "—"}
-                      hint={stats.vel !== null ? "média desde o início" : "aguardando 2º registro"}
-                    />
-                    <Kpi label="Previsão" value={previsao} hint="para bater a meta" />
-                    <Kpi
-                      label="Score de qualidade"
-                      value={`${stats.score}`}
-                      hint={`${Math.round(stats.legitShare * 100)}% legítimo`}
-                      tone={stats.score >= 75 ? "success" : stats.score >= 50 ? "primary" : "warning"}
-                    />
-                  </div>
+                  {/* KPIs duplicados — só renderiza no drawer; na página dedicada o hero do topo já mostra. */}
+                  {!asPage && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <Kpi
+                        label="Plays entregues"
+                        value={fmtCompact(stats.earned)}
+                        hint={target > 0 ? `de ${fmtCompact(target)} contratados` : "sem meta definida"}
+                        tone={stats.pct >= 100 ? "success" : "primary"}
+                      />
+                      <Kpi
+                        label="Velocidade"
+                        value={stats.vel !== null ? `${fmtCompact(stats.vel)}/dia` : "—"}
+                        hint={stats.vel !== null ? "média desde o início" : "aguardando 2º registro"}
+                      />
+                      <Kpi label="Previsão" value={previsao} hint="para bater a meta" />
+                      <Kpi
+                        label="Score de qualidade"
+                        value={`${stats.score}`}
+                        hint={`${Math.round(stats.legitShare * 100)}% legítimo`}
+                        tone={stats.score >= 75 ? "success" : stats.score >= 50 ? "primary" : "warning"}
+                      />
+                    </div>
+                  )}
 
                   {/* Estado da coleta */}
                   <SectionCard title="Estado da coleta">
