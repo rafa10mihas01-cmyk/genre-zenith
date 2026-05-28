@@ -1002,7 +1002,7 @@ export function DealHistorySheet({
                       Nenhum resultado pra essa busca.
                     </div>
                   ) : (
-                    <div className="rounded-2xl border border-border bg-card overflow-y-auto overflow-x-hidden max-h-[680px]">
+                    <div className="rounded-2xl border border-border bg-card overflow-y-auto overflow-x-hidden max-h-[680px] scrollbar-none">
                       <ul className="divide-y divide-border">
                         {curatorPlaylists.map((p) => (
                           <BreakdownRow key={p.id} r={toBreakdownRowData(p)} kind="curator" />
@@ -1110,7 +1110,7 @@ export function DealHistorySheet({
                       Nenhum resultado pra esse filtro.
                     </div>
                   ) : (
-                    <div className="rounded-2xl border border-border bg-card overflow-y-auto overflow-x-hidden max-h-[680px]">
+                    <div className="rounded-2xl border border-border bg-card overflow-y-auto overflow-x-hidden max-h-[680px] scrollbar-none">
                       <ul className="divide-y divide-border">
                         {algoPlaylists.map((p) => (
                           <BreakdownRow key={p.id} r={toBreakdownRowData(p)} kind="algo" />
@@ -1133,7 +1133,7 @@ export function DealHistorySheet({
                       </div>
                     </div>
                   ) : (
-                    <div className="space-y-3 max-h-[680px] overflow-y-auto pr-1">
+                    <div className="space-y-3 max-h-[680px] overflow-y-auto pr-1 scrollbar-none">
                     {reversedLogs.map((log, idx) => {
                       const prev = reversedLogs[idx + 1];
                       const isFirst = !prev;
