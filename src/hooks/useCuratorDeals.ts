@@ -635,9 +635,12 @@ export function useCuratorDeals() {
         throw err;
       }
 
-      // Se o deal foi criado a partir de uma campanha, vincula o campaign_id.
-      // A RPC create_curator_deal_atomic não aceita campaign_id, então fazemos
-      // um UPDATE pós-inserção (idempotente — só seta quando vier no input).
+      // Se o deal foi criado a partir de uma campanha, vincula o campaign_id
+      // E garante que o bot consiga coletar:
+      //  (a) ativa auto_collect=true em todas as songs do deal (default da
+      //      tabela é false → sem isso, bot-collect-queue ignora o deal);
+      //  (b) garante que exista pelo menos uma song com o spotify_track_id
+      //      da campanha — sem song casando, snapshots não vinculam.
       if (input.campaign_id && result.deal_id) {
         const { error: linkErr } = await supabase
           .from("curator_deals")
@@ -646,7 +649,57 @@ export function useCuratorDeals() {
         if (linkErr) {
           console.error("[addDeal] failed to link campaign_id", linkErr);
         }
+
+        // Liga todas as songs deste deal à fila do bot
+        const { error: ensureErr } = await supabase
+          .from("curator_deal_songs")
+          .update({
+            auto_collect: true,
+            auto_collect_status: "idle",
+            next_auto_collect_at: new Date().toISOString(),
+          } as any)
+          .eq("deal_id", result.deal_id);
+        if (ensureErr) {
+          console.error("[addDeal] failed to enable auto_collect", ensureErr);
+        }
+
+        // Garante a song da campanha
+        try {
+          const { data: camp } = await supabase
+            .from("campaigns")
+            .select(
+              "spotify_track_id, spotify_track_url, track_name, artist, cover_url, client_id",
+            )
+            .eq("id", input.campaign_id)
+            .maybeSingle();
+          const campTrackId = (camp as any)?.spotify_track_id ?? null;
+          if (campTrackId) {
+            const { data: existing } = await supabase
+              .from("curator_deal_songs")
+              .select("id")
+              .eq("deal_id", result.deal_id)
+              .eq("spotify_track_id", campTrackId)
+              .limit(1);
+            if (!existing || existing.length === 0) {
+              await supabase.from("curator_deal_songs").insert({
+                deal_id: result.deal_id,
+                spotify_track_id: campTrackId,
+                song_spotify_url: (camp as any).spotify_track_url ?? null,
+                song_name: (camp as any).track_name ?? "Música",
+                song_artist: (camp as any).artist ?? null,
+                song_cover_url: (camp as any).cover_url ?? null,
+                client_id: (camp as any).client_id ?? input.client_id ?? null,
+                auto_collect: true,
+                auto_collect_status: "idle",
+                next_auto_collect_at: new Date().toISOString(),
+              } as any);
+            }
+          }
+        } catch (campErr) {
+          console.error("[addDeal] failed to ensure campaign song", campErr);
+        }
       }
+
 
       const { data: createdData, error: createdErr } = await supabase
         .from("curator_deals")
