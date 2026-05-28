@@ -154,7 +154,7 @@ export default function HeatmapEntregas({ embedded = false }: { embedded?: boole
       </div>
 
       {/* === GRID === */}
-      <Card className="p-5 overflow-x-auto">
+      <Card className="p-4 overflow-x-auto overscroll-x-contain scrollbar-none sm:p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-muted-foreground" />
