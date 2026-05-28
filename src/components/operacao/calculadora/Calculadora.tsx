@@ -805,22 +805,19 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                   <CardDescription>Cole o link do Spotify da faixa.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <Music className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Cole o link do Spotify"
-                        value={active.trackUrl}
-                        onChange={e => { setTrackUrl(e.target.value); setTrack(null); }}
-                        onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); buscarMusica(); } }}
-                        className="pl-9 text-center placeholder:text-muted-foreground/40 placeholder:font-normal"
-                      />
+                  <Input
+                    placeholder="Cole o link do Spotify"
+                    value={active.trackUrl}
+                    onChange={e => { setTrackUrl(e.target.value); setTrack(null); }}
+                    onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); buscarMusica(); } }}
+                    onBlur={() => { if (active.trackUrl.trim() && !active.track && !trackLoading) buscarMusica(); }}
+                    className="text-center placeholder:text-muted-foreground/40 placeholder:font-normal"
+                  />
+                  {trackLoading && (
+                    <div className="flex items-center justify-center gap-2 text-[11px] text-muted-foreground">
+                      <Loader2 className="h-3 w-3 animate-spin" /> Buscando faixa…
                     </div>
-                    <Button onClick={buscarMusica} disabled={trackLoading || !active.trackUrl.trim()} variant="outline">
-                      {trackLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                      <span className="ml-1.5 hidden sm:inline">Buscar</span>
-                    </Button>
-                  </div>
+                  )}
 
                   {active.track && (
                     <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3">
