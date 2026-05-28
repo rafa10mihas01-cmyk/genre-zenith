@@ -1453,27 +1453,28 @@ function SessionChip({
   readyCount: number;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-border border-l-2 border-l-primary/60 bg-card/60 px-3 py-2">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-border border-l-2 border-l-primary/60 bg-card/60 px-3 py-2.5">
       {/* Bloco sessão (compacto) */}
       <div className="flex items-center gap-3 shrink-0 text-xs">
         <div className="flex items-center gap-1.5">
           <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" aria-hidden />
           <span className="text-[10px] uppercase tracking-[0.14em] font-semibold text-primary">Sessão</span>
         </div>
-        <div className="h-6 w-px bg-border" />
+        <div className="h-8 w-px bg-border" />
         <div className="min-w-0">
-          <div className="text-[9px] uppercase tracking-wider text-muted-foreground leading-none">Cliente</div>
+          <div className="text-[9px] uppercase tracking-wider text-muted-foreground leading-none mb-1">Cliente</div>
           <div className="text-xs font-medium truncate text-foreground leading-tight max-w-[120px]">{clientName}</div>
         </div>
-        <div className="h-6 w-px bg-border" />
+        <div className="h-8 w-px bg-border" />
         <div className="min-w-0">
-          <div className="text-[9px] uppercase tracking-wider text-muted-foreground leading-none">Curador</div>
+          <div className="text-[9px] uppercase tracking-wider text-muted-foreground leading-none mb-1">Curador</div>
           <div className="text-xs font-medium truncate text-foreground leading-tight max-w-[120px]">{curatorName}</div>
         </div>
         <Button variant="ghost" size="sm" onClick={onEdit} className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground">
           <Pencil className="h-3 w-3" />
         </Button>
       </div>
+
 
       {/* Chips de músicas + nova */}
       <div className="flex items-center gap-1.5 flex-1 min-w-full sm:min-w-0 basis-full sm:basis-auto overflow-x-auto nx-scroll sm:border-l sm:border-border sm:pl-3">
