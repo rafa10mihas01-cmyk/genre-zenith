@@ -1,0 +1,1 @@
+UPDATE public.playlist_execution_jobs SET status='cancelled', updated_at = now() WHERE status='pending' AND created_at < now() - interval '7 days';
