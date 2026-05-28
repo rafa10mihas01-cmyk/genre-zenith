@@ -124,18 +124,17 @@ function SplitBar({
   label, pct, streams, custo, tone,
 }: { label: string; pct: number; streams: number; custo: number; tone: "primary" | "muted" }) {
   return (
-    <div>
-      <div className="flex items-center justify-between text-sm mb-1.5">
-        <span className="font-medium">{label}</span>
-        <span className="tabular-nums text-muted-foreground">
-          {pct}% · {formatInt(streams)} streams · <span className="text-foreground font-semibold">{formatBRL(custo)}</span>
-        </span>
-      </div>
+    <div className="space-y-2">
+      <div className="text-sm font-medium">{label}</div>
       <div className="h-2 rounded-full bg-muted overflow-hidden">
         <div
           className={tone === "primary" ? "h-full bg-primary" : "h-full bg-muted-foreground/40"}
           style={{ width: `${pct}%` }}
         />
+      </div>
+      <div className="flex items-center justify-between text-[11px] tabular-nums text-muted-foreground">
+        <span>{pct}% · {formatInt(streams)} streams</span>
+        <span className="text-foreground font-semibold">{formatBRL(custo)}</span>
       </div>
     </div>
   );
