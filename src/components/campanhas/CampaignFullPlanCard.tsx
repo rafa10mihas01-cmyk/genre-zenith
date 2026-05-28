@@ -346,8 +346,8 @@ export function CampaignFullPlanCard({
             <table className="text-[11px] border-separate border-spacing-0 min-w-full">
               <thead className="sticky top-0 z-20 bg-card text-muted-foreground">
                 <tr>
-                  <th className="sticky left-0 z-30 bg-card text-left font-medium py-2 px-3 border-b border-r border-border min-w-[200px]">
-                    Playlist
+                  <th className="sticky left-0 z-30 bg-card text-left font-medium py-2 px-3 border-b border-r border-border w-14 md:w-auto md:min-w-[200px]">
+                    <span className="hidden md:inline">Playlist</span>
                   </th>
                   <th className="text-center font-medium py-2 px-2 border-b border-border w-14">
                     <Popover>
@@ -392,12 +392,12 @@ export function CampaignFullPlanCard({
                     : {};
                   return (
                   <tr className="bg-primary/[0.07] hover:bg-primary/10">
-                    <td className="sticky left-0 z-10 py-2 px-3 border-b border-r border-border/30 border-t-2 border-t-primary/40 leading-tight bg-primary/[0.07]">
+                    <td className="sticky left-0 z-10 py-2 px-2 md:px-3 border-b border-r border-border/30 border-t-2 border-t-primary/40 leading-tight bg-primary/[0.07] w-14 md:w-auto">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-primary/15 grid place-items-center flex-shrink-0">
                           <AudioLines className="h-5 w-5 text-primary" />
                         </div>
-                        <div className="min-w-0 flex-1">
+                        <div className="hidden md:block min-w-0 flex-1">
                           <TitleEl
                             {...titleProps}
                             className={cn(
@@ -476,8 +476,8 @@ export function CampaignFullPlanCard({
                     <tr key={p.allocationId} className={cn("hover:bg-primary/5", rowIdx % 2 === 1 && "bg-elevated/20")}>
                       <td
                         className={cn(
-                          "sticky left-0 z-10 py-2 px-3 border-b border-r border-border/30 leading-tight",
-                          rowIdx % 2 === 1 ? "bg-elevated/40" : "bg-card",
+                          "sticky left-0 z-10 py-2 px-2 md:px-3 border-b border-r border-border/30 leading-tight w-14 md:w-auto",
+                          rowIdx % 2 === 1 ? "bg-elevated" : "bg-card",
                         )}
                       >
                         <div className="flex items-center gap-3">
@@ -493,7 +493,7 @@ export function CampaignFullPlanCard({
                               {initial}
                             </div>
                           )}
-                          <div className="min-w-0 flex-1">
+                          <div className="hidden md:block min-w-0 flex-1">
                             <div className="flex items-center gap-1.5 min-w-0">
                               <div className="text-[12px] font-medium truncate text-foreground">
                                 {spotifyUrl ? (
