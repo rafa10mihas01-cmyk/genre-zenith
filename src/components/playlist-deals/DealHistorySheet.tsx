@@ -201,7 +201,7 @@ type BreakdownRowData = {
 function BreakdownRow({ r, kind }: { r: BreakdownRowData; kind: "curator" | "algo" }) {
   const AlgoIcon = algoIconFor(r.playlist_name);
   return (
-    <li className="min-w-[520px] sm:min-w-0 px-5 py-3 flex items-center gap-3 hover:bg-[hsl(var(--elevated))] transition-colors">
+    <li className="min-w-0 px-4 sm:px-5 py-3 flex items-center gap-3 hover:bg-[hsl(var(--elevated))] transition-colors">
       {/* capa / ícone padrão */}
       <div className="h-10 w-10 shrink-0 rounded-md overflow-hidden bg-[hsl(var(--elevated))] border border-white/[0.04] flex items-center justify-center">
         {r.image_url ? (
