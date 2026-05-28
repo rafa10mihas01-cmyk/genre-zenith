@@ -174,31 +174,49 @@ export default function Analytics() {
             />
           ) : (
             <div className="grid gap-2">
-              {paceRows.map((r) => (
-                <div key={r.deal.id} className="rounded-2xl border border-border bg-card p-4 flex items-center gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate">
-                      {r.deal.song_artist ?? "—"} <span className="text-muted-foreground">·</span> {r.deal.song_name ?? "—"}
-                    </div>
-                    <div className="text-xs text-muted-foreground tabular-nums">
-                      {r.delivered.toLocaleString("pt-BR")} / {r.target.toLocaleString("pt-BR")} plays
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xs text-muted-foreground">Plays/dia</div>
-                    <div className="font-semibold tabular-nums">{Math.round(r.plays_per_day).toLocaleString("pt-BR")}</div>
-                  </div>
-                  <div className="w-28 text-right">
-                    <StatusDot variant={r.tone as any} label={r.label} />
-                    {r.pace_ratio != null && (
-                      <div className="text-xs text-muted-foreground tabular-nums mt-1">
-                        {Math.round(r.pace_ratio * 100)}%
-                      </div>
+              {paceRows.map((r) => {
+                const tone = String(r.tone);
+                const borderL =
+                  tone === "destructive" || tone === "danger" || tone === "critical"
+                    ? "border-l-destructive"
+                    : tone === "warning" || tone === "warn"
+                      ? "border-l-amber-500"
+                      : tone === "success"
+                        ? "border-l-primary"
+                        : "border-l-border";
+                return (
+                  <div
+                    key={r.deal.id}
+                    className={cn(
+                      "rounded-2xl border border-border border-l-2 bg-card p-4 flex items-center gap-4 hover:bg-elevated/40 transition-colors",
+                      borderL,
                     )}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">
+                        {r.deal.song_artist ?? "—"} <span className="text-muted-foreground">·</span> {r.deal.song_name ?? "—"}
+                      </div>
+                      <div className="text-xs text-muted-foreground tabular-nums">
+                        {r.delivered.toLocaleString("pt-BR")} / {r.target.toLocaleString("pt-BR")} plays
+                      </div>
+                    </div>
+                    <div className="hidden sm:block text-right">
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Plays/dia</div>
+                      <div className="font-semibold tabular-nums">{Math.round(r.plays_per_day).toLocaleString("pt-BR")}</div>
+                    </div>
+                    <div className="w-28 text-right">
+                      <StatusDot variant={r.tone as any} label={r.label} />
+                      {r.pace_ratio != null && (
+                        <div className="text-xs text-muted-foreground tabular-nums mt-1">
+                          {Math.round(r.pace_ratio * 100)}%
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
+
           )}
         </Section>
 
