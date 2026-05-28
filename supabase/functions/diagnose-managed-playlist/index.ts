@@ -408,7 +408,7 @@ Deno.serve(async (req) => {
     // 3) Faixas atuais da playlist gerenciada
     const { data: currentTracks } = await supabase
       .from("managed_playlist_tracks")
-      .select("spotify_track_id, track_name, artist_name, position, added_at")
+      .select("spotify_track_id, track_name, artist_name, position, added_at, isrc, duration_ms")
       .eq("playlist_id", pl.id)
       .order("position", { ascending: true });
 

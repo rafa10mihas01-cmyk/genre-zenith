@@ -4393,6 +4393,7 @@ export type Database = {
           created_at: string
           duration_ms: number | null
           id: string
+          isrc: string | null
           playlist_id: string
           position: number
           snapshot_at: string
@@ -4406,6 +4407,7 @@ export type Database = {
           created_at?: string
           duration_ms?: number | null
           id?: string
+          isrc?: string | null
           playlist_id: string
           position: number
           snapshot_at?: string
@@ -4419,6 +4421,7 @@ export type Database = {
           created_at?: string
           duration_ms?: number | null
           id?: string
+          isrc?: string | null
           playlist_id?: string
           position?: number
           snapshot_at?: string
