@@ -101,7 +101,7 @@ function ReceitaView() {
                   return (
                     <tr key={s.campaign_id} className="hover:bg-elevated/40">
                       <td className="px-4 py-2.5 font-medium text-foreground truncate max-w-[260px]">{s.track_name ?? "—"}</td>
-                      <td className="px-4 py-2.5 text-muted-foreground">{s.artist ?? "—"}</td>
+                      <td className="hidden sm:table-cell px-4 py-2.5 text-muted-foreground">{s.artist ?? "—"}</td>
                       <td className="px-4 py-2.5 text-right tabular-nums">{fmtBRL(s.valor_cobrado)}</td>
                       <td className="px-4 py-2.5 text-right tabular-nums text-primary font-semibold">{fmtBRL(s.valor_recebido)}</td>
                       <td className={cn("px-4 py-2.5 text-right tabular-nums", pend > 0 ? "text-amber-500" : "text-muted-foreground")}>
