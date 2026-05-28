@@ -929,6 +929,17 @@ export function DealHistorySheet({
                           Catálogo
                         </Button>
                       )}
+                      {deal.curator_id && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-border/60 hover:bg-[hsl(var(--elevated))] shrink-0"
+                          onClick={() => setPasteOpen(true)}
+                        >
+                          <ClipboardPaste className="h-3.5 w-3.5" />
+                          Colar URLs
+                        </Button>
+                      )}
                     </div>
                   )}
 
