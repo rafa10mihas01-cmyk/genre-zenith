@@ -225,7 +225,7 @@ export function ExternalPackageEditor({
     </>
   ) : (
     <Button size="sm" variant="outline" onClick={() => setReopenOpen(true)}>
-      <Pencil className="h-4 w-4 mr-1.5" /> Editar pacote
+      <Pencil className="h-4 w-4 mr-1.5" /> Pacote
     </Button>
   );
 
