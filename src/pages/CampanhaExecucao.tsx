@@ -1073,3 +1073,121 @@ function FinKpi({ label, value, sub }: { label: string; value: string; sub?: str
   return <Kpi variant="compact" label={label} value={value} hint={sub} />;
 }
 
+// ─────────────────────────────────────────────────────────────
+// AuditCampaignButton — chama audit-campaign-flow e mostra as 7 etapas
+// num dialog com badge ok/failed/skipped por linha. Read-only.
+// ─────────────────────────────────────────────────────────────
+type AuditStepRow = {
+  step: string;
+  label: string;
+  status: "ok" | "failed" | "skipped";
+  detail: string;
+};
+type AuditReport = { ok: boolean; campaign_id: string; steps: AuditStepRow[] };
+
+function AuditCampaignButton({ campaignId }: { campaignId: string }) {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [report, setReport] = useState<AuditReport | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const runAudit = async () => {
+    setLoading(true);
+    setError(null);
+    setReport(null);
+    try {
+      const { data, error: invErr } = await supabase.functions.invoke("audit-campaign-flow", {
+        body: { campaign_id: campaignId },
+      });
+      if (invErr) throw invErr;
+      setReport(data as AuditReport);
+    } catch (e) {
+      setError((e as Error).message ?? "Erro ao auditar");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOpen = (next: boolean) => {
+    setOpen(next);
+    if (next && !report && !loading) void runAudit();
+  };
+
+  const statusStyles: Record<AuditStepRow["status"], string> = {
+    ok: "bg-primary/10 text-primary border-primary/30",
+    failed: "bg-destructive/15 text-destructive border-destructive/40",
+    skipped: "bg-muted text-muted-foreground border-border",
+  };
+  const statusLabel: Record<AuditStepRow["status"], string> = {
+    ok: "OK",
+    failed: "FALHOU",
+    skipped: "PULADO",
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="h-9 gap-1.5" title="Auditar campanha">
+          <CheckCircle2 className="h-4 w-4" />
+          Auditar
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Auditoria da campanha</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">
+              Verifica as 7 invariantes do fluxo. Read-only — não escreve nada.
+            </p>
+            <Button variant="outline" size="sm" onClick={runAudit} disabled={loading}>
+              {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
+              Reexecutar
+            </Button>
+          </div>
+
+          {loading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground py-8 justify-center">
+              <Loader2 className="h-4 w-4 animate-spin" /> Auditando…
+            </div>
+          )}
+
+          {error && (
+            <div className="text-sm text-destructive border border-destructive/40 bg-destructive/10 rounded-lg p-3">
+              {error}
+            </div>
+          )}
+
+          {report && (
+            <>
+              <div className={cn(
+                "text-sm font-semibold rounded-lg px-3 py-2 border",
+                report.ok ? "bg-primary/10 text-primary border-primary/30" : "bg-destructive/15 text-destructive border-destructive/40",
+              )}>
+                {report.ok ? "Todas as 7 etapas OK — campanha pronta pra operar" : "Há falhas — veja abaixo"}
+              </div>
+              <ul className="space-y-2">
+                {report.steps.map((s) => (
+                  <li key={s.step} className="border border-border rounded-lg p-3">
+                    <div className="flex items-start gap-2">
+                      <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider border shrink-0 mt-0.5", statusStyles[s.status])}>
+                        {statusLabel[s.status]}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium text-foreground">{s.label}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">{s.detail}</div>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
