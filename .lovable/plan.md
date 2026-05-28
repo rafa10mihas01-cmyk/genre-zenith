@@ -1,62 +1,27 @@
-## Diagnóstico
+# Adicionar botão "Aprovar e distribuir" no header
 
-Olhei a página `/deals/:id` (DealDetail + DealHistorySheet) no mobile e tem 4 problemas claros que tiram o ar premium:
+Sim — exatamente esse header onde ficam Compartilhar, Auditar e Upload. Vou colocar o botão **"Aprovar e distribuir"** ali, ao lado do Auditar.
 
-1. **Valores cortados nos KPIs do topo** — "R$ 62.3…", "317 di…", "82/100" estourando. O grid usa `grid-cols-2` no mobile com fonte hero, mas o card é estreito demais pra esse tamanho.
-2. **Duplicação de dados** — os 6 KPIs do topo (Entrega · Velocidade · Previsão · Score · Investido · Status) repetem quase tudo que aparece logo abaixo no card "Performance na janela" + "Plays entregues · Velocidade · Previsão · Score de qualidade". O usuário lê a mesma informação 2x.
-3. **Hierarquia visual sem comando** — todos os 6 KPIs no topo têm o mesmo peso, então o olho não sabe pra onde ir. Falta um KPI dominante (entrega %) e os outros como apoio.
-4. **Tabs com contador inline** ("Curador 18", "Algoritmo 95") competem com o nome da aba, ficam tortas no mobile.
+## O que muda
 
-## Plano
+**Arquivo:** `src/components/campaign-hub/CampaignHero.tsx` (header da campanha — onde o Auditar foi adicionado).
 
-### 1. Hero do topo (DealDetail.tsx)
+**Novo botão "Aprovar e distribuir":**
+- Aparece quando: `eco_dispatched_at IS NULL` (campanha ainda não foi distribuída internamente)
+- Estilo: botão verde primário (destaque — é a ação principal pendente)
+- Posição: à esquerda do Auditar, pra ser a primeira coisa que chama atenção
+- Ação: mesma RPC que o botão "Distribuir agora" do Console já chama (`approve_campaign`), com toast de sucesso/erro
+- Quando `client_approved_at` é null → toast de aviso: "Cliente ainda não aprovou o plano"
+- Após sucesso: refetch da campanha → botão some sozinho (eco_dispatched_at preenchido)
 
-Trocar o grid de 6 KPIs por um **bloco hero + chips de apoio**:
+**O que NÃO muda:**
+- Botão "Distribuir agora" do `CampaignDistributionConsole` continua existindo (não remove nada)
+- Nenhuma lógica de negócio nova — só reutiliza a RPC `approve_campaign` que já existe
+- Sem mudança de DB, sem edge function nova
 
-```text
-┌─────────────────────────────────────────┐
-│  ENTREGA                  ●  Ativo      │
-│  2%   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
-│  26.4k de 1.2M · faltam 1.17M           │
-│                                         │
-│  3.7k/dia · 317d p/ meta · R$ 62.300   │
-│  Score 82/100 · 100% legítimo           │
-└─────────────────────────────────────────┘
-```
+## Resultado
 
-- 1 número grande (entrega %) + barra de progresso visível
-- Linha 1 de meta: subtítulo com fração + restante
-- Linha 2: velocidade · ETA · investido como texto inline tabular
-- Linha 3: score + legitimidade
-- Status (Ativo / Concluído) vira chip no canto superior direito
+No header da campanha você passa a ver, na ordem:
+**[Aprovar e distribuir] · [Compartilhar] · [Escudo] · [Auditar] · [Upload]**
 
-Resultado: zero truncamento, hierarquia clara, ocupa menos altura.
-
-### 2. Performance na janela (DealHistorySheet → aba Resumo)
-
-Esse card permanece, mas:
-- Remover a duplicação de "Plays entregues / Velocidade / Previsão / Score" que repete o hero — passa a mostrar **só o que muda por janela** (7d/28d): Total · Curador · Algoritmo · Δ hoje
-- Aumentar contraste do toggle 7d/28d (pílula segmented control)
-
-### 3. Tabs (Resumo · Curador · Algoritmo · Histórico)
-
-- Contador vira **bolinha discreta** após o nome (mesmo padrão das tabs de /deals que acabamos de ajustar)
-- No mobile, `flex-1` distribuindo igual, ícone + label, número como pill pequeno
-
-### 4. Polimento geral
-
-- Padding interno dos cards: 16px no mobile, 20px no desktop (hoje tá 20px fixo, fica apertado)
-- Tipografia tabular pra todos os números
-- Remover bordas duplicadas (card dentro de card no Resumo)
-
-## Arquivos que vou tocar
-
-- `src/pages/DealDetail.tsx` — substituir o grid de 6 KPIs pelo hero bloco
-- `src/components/playlist-deals/DealHistorySheet.tsx` — limpar duplicação no Resumo + tabs mobile
-
-## Fora de escopo
-
-- Lógica de cálculo (Score, ETA, velocidade) fica intacta
-- Aba Curador/Algoritmo/Histórico só recebem o ajuste das pills nas tabs, conteúdo não muda agora
-
-Posso começar pelo hero do topo (que é onde tá o pior estrago visual) e seguir nessa ordem. Confirma que pode tocar?
+Quando a campanha já estiver distribuída, o botão verde some e fica só o resto.
