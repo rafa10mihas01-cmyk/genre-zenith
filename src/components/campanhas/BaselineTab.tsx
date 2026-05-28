@@ -234,181 +234,158 @@ export function BaselineTab({ dealId }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Header resumo */}
+      {/* Card único: baseline + planilha + lista (accordion) */}
       <Card className="border-border/60 bg-card">
-        <CardContent className="p-5">
+        <CardContent className="p-5 space-y-4">
+          {/* Header com flag + chip + stats inline */}
           <div className="flex items-start justify-between gap-3 flex-wrap">
-            <div className="flex items-start gap-2.5">
-              <Flag className="h-4 w-4 text-primary mt-0.5" />
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-base font-semibold text-foreground">Baseline da campanha</h2>
+            <div className="flex items-start gap-2.5 min-w-0">
+              <Flag className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-base font-semibold text-foreground">Baseline</h2>
                   <span className="text-[10px] uppercase tracking-wide border border-primary/40 text-primary rounded px-1.5 py-0.5 font-medium">
                     Referência
                   </span>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1 max-w-xl">
-                  Ponto de partida. Os streams entregues são calculados subtraindo estes valores
-                  dos números atuais. Tudo que já existia antes não conta como entrega.
+                <p className="text-xs text-muted-foreground mt-1">
+                  Marco zero. Tudo abaixo já existia antes da campanha e não conta como entrega.
                 </p>
               </div>
             </div>
-            <div className="flex gap-4 text-right">
+            <div className="flex gap-4 text-right shrink-0">
               <div>
-                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Playlists</div>
-                <div className="text-lg font-semibold text-foreground tabular-nums">{rows.length}</div>
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Playlists</div>
+                <div className="text-base font-semibold text-foreground tabular-nums">{rows.length}</div>
               </div>
               <div>
-                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Streams iniciais</div>
-                <div className="text-lg font-semibold text-foreground tabular-nums">{fmt(totalStreams)}</div>
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Streams</div>
+                <div className="text-base font-semibold text-foreground tabular-nums">{fmt(totalStreams)}</div>
               </div>
               {capturedAt && (
                 <div>
-                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Capturada</div>
-                  <div className="text-sm font-medium text-foreground">
-                    {new Date(capturedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
+                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Data</div>
+                  <div className="text-sm font-medium text-foreground tabular-nums">
+                    {new Date(capturedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
                   </div>
                 </div>
               )}
             </div>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Planilha original importada */}
-      {upload && (
-        <Card className="border-border/60 bg-card">
-          <CardContent className="p-4 flex items-center gap-3 flex-wrap">
-            <div className="h-10 w-10 rounded bg-muted flex items-center justify-center shrink-0 border border-border/60">
-              <FileSpreadsheet className="h-5 w-5 text-primary" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-sm font-medium text-foreground truncate">
-                {upload.file_name ?? "planilha.xlsx"}
-              </div>
-              <div className="text-[11px] text-muted-foreground">
-                Importada em{" "}
-                {new Date(upload.created_at).toLocaleString("pt-BR", {
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
+          {/* Planilha original — linha compacta */}
+          {upload && (
+            <div className="flex items-center gap-2.5 pt-3 border-t border-border/60 min-w-0">
+              <FileSpreadsheet className="h-4 w-4 text-primary shrink-0" />
+              <div className="text-xs text-muted-foreground min-w-0 flex-1 truncate">
+                <span className="text-foreground font-medium">{upload.file_name ?? "planilha.xlsx"}</span>
                 {upload.rows_imported != null && <> · {fmt(upload.rows_imported)} linhas</>}
               </div>
+              <Button
+                size="icon"
+                variant="outline"
+                onClick={handleDownload}
+                disabled={downloading || !upload.file_path}
+                className="h-8 w-8 shrink-0"
+                title="Baixar planilha"
+                aria-label="Baixar planilha"
+              >
+                <Download className="h-3.5 w-3.5" />
+              </Button>
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleDownload}
-              disabled={downloading || !upload.file_path}
-              className="shrink-0"
-            >
-              <Download className="h-3.5 w-3.5 mr-1.5" />
-              {downloading ? "Gerando..." : "Baixar planilha"}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+          )}
 
-
-
-      {/* Lista de playlists */}
-      {loading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full rounded-lg" />
-          ))}
-        </div>
-      ) : rows.length === 0 ? (
-        <Card>
-          <CardContent className="p-6 text-sm text-muted-foreground text-center">
-            Nenhuma baseline registrada ainda. Importe a primeira planilha pra capturar o ponto de partida.
-          </CardContent>
-        </Card>
-      ) : (
-        <Card className="border-border/60 bg-card">
-          <CardContent className="p-0">
-            {/* ~15 linhas visíveis (~56px cada) e scroll pro resto */}
-            <ul className="divide-y divide-border/60 max-h-[840px] overflow-y-auto">
-
-              {rows.map((r, idx) => (
-                <li
-                  key={r.playlist_id}
-                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/30 transition-colors"
-                >
-                  <div className="text-[11px] tabular-nums text-muted-foreground w-6 text-right shrink-0">
-                    {idx + 1}
-                  </div>
-                  {r.image_url ? (
-                    <img
-                      src={r.image_url}
-                      alt=""
-                      className="h-10 w-10 rounded object-cover shrink-0 border border-border/60"
-                      loading="lazy"
-                    />
-                  ) : hydrating && r.spotify_playlist_id ? (
-                    <Skeleton className="h-10 w-10 rounded shrink-0" />
-                  ) : (
-                    <div className="h-10 w-10 rounded bg-muted flex items-center justify-center shrink-0 border border-border/60">
-                      <Music2 className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-sm font-medium text-foreground truncate">
-                        {r.playlist_name ?? "Playlist sem nome"}
-                      </span>
-                      {r.isInternal && (
-                        <span
-                          className="text-[9px] uppercase tracking-wide bg-primary/15 text-primary border border-primary/40 rounded px-1.5 py-0.5 font-semibold shrink-0"
-                          title="Playlist do nosso inventário interno"
-                        >
-                          Engine
-                        </span>
-                      )}
-                      {!r.isInternal && r.curatorName && (
-                        <span
-                          className="text-[9px] uppercase tracking-wide bg-purple-500/15 text-purple-400 border border-purple-500/40 rounded px-1.5 py-0.5 font-semibold shrink-0"
-                          title={`Curador cadastrado: ${r.curatorName}`}
-                        >
-                          Curador
-                        </span>
-                      )}
-
-                      {r.spotify_url && (
-                        <a
-                          href={r.spotify_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-muted-foreground hover:text-primary shrink-0"
-                          title="Abrir no Spotify"
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
-                      )}
-                    </div>
-                    <div className="text-[11px] text-muted-foreground truncate flex items-center gap-2">
-                      {r.spotify_owner_name && <span>{r.spotify_owner_name}</span>}
-                      {r.followers != null && (
-                        <span className="flex items-center gap-0.5">
-                          <Users className="h-2.5 w-2.5" />
-                          {fmt(r.followers)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-sm font-semibold tabular-nums text-foreground">{fmt(r.plays)}</div>
-                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">streams</div>
-                  </div>
-                </li>
+          {/* Lista de playlists — accordion fechado por padrão */}
+          {loading ? (
+            <div className="space-y-2 pt-3 border-t border-border/60">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full rounded-lg" />
               ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
+            </div>
+          ) : rows.length === 0 ? null : (
+            <details className="group pt-3 border-t border-border/60">
+              <summary className="cursor-pointer list-none flex items-center justify-between text-xs text-muted-foreground hover:text-foreground transition-colors select-none">
+                <span>Ver as {rows.length} playlists capturadas</span>
+                <span className="text-[10px] group-open:hidden">▾</span>
+                <span className="text-[10px] hidden group-open:inline">▴</span>
+              </summary>
+              <ul className="divide-y divide-border/60 mt-3 -mx-5">
+                {rows.map((r, idx) => (
+                  <li
+                    key={r.playlist_id}
+                    className="flex items-center gap-3 px-5 py-2.5 hover:bg-muted/30 transition-colors min-w-0"
+                  >
+                    <div className="text-[11px] tabular-nums text-muted-foreground w-6 text-right shrink-0">
+                      {idx + 1}
+                    </div>
+                    {r.image_url ? (
+                      <img
+                        src={r.image_url}
+                        alt=""
+                        className="h-10 w-10 rounded object-cover shrink-0 border border-border/60"
+                        loading="lazy"
+                      />
+                    ) : hydrating && r.spotify_playlist_id ? (
+                      <Skeleton className="h-10 w-10 rounded shrink-0" />
+                    ) : (
+                      <div className="h-10 w-10 rounded bg-muted flex items-center justify-center shrink-0 border border-border/60">
+                        <Music2 className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-sm font-medium text-foreground truncate">
+                          {r.playlist_name ?? "Playlist sem nome"}
+                        </span>
+                        {r.isInternal && (
+                          <span
+                            className="text-[9px] uppercase tracking-wide bg-primary/15 text-primary border border-primary/40 rounded px-1.5 py-0.5 font-semibold shrink-0"
+                            title="Playlist do nosso inventário interno"
+                          >
+                            Engine
+                          </span>
+                        )}
+                        {!r.isInternal && r.curatorName && (
+                          <span
+                            className="text-[9px] uppercase tracking-wide bg-purple-500/15 text-purple-400 border border-purple-500/40 rounded px-1.5 py-0.5 font-semibold shrink-0"
+                            title={`Curador cadastrado: ${r.curatorName}`}
+                          >
+                            Curador
+                          </span>
+                        )}
+                        {r.spotify_url && (
+                          <a
+                            href={r.spotify_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-muted-foreground hover:text-primary shrink-0"
+                            title="Abrir no Spotify"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground truncate flex items-center gap-2">
+                        {r.spotify_owner_name && <span className="truncate">{r.spotify_owner_name}</span>}
+                        {r.followers != null && (
+                          <span className="flex items-center gap-0.5 shrink-0">
+                            <Users className="h-2.5 w-2.5" />
+                            {fmt(r.followers)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-sm font-semibold tabular-nums text-foreground">{fmt(r.plays)}</div>
+                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">streams</div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

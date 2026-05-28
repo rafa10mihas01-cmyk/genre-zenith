@@ -157,12 +157,11 @@ function EmptyState({ campaignStartedAt }: { campaignStartedAt?: string | null }
   }, [campaignStartedAt]);
 
   return (
-    <div className="rounded-lg border border-dashed border-border bg-elevated/20 px-6 py-10 text-center space-y-2">
-      <Camera className="h-6 w-6 text-muted-foreground mx-auto" />
-      <p className="text-sm font-medium text-foreground">Nenhuma prova ainda</p>
-      <p className="text-xs text-muted-foreground">
-        O bot coleta a cada 2 dias. Primeira captura prevista para <strong className="text-foreground">{nextLabel}</strong>.
-      </p>
+    <div className="flex items-center gap-2 px-3 py-2.5 rounded-md border border-dashed border-border bg-elevated/20 text-xs text-muted-foreground">
+      <Camera className="h-3.5 w-3.5 shrink-0" />
+      <span className="min-w-0 truncate">
+        Aguardando primeira captura · prevista <strong className="text-foreground">{nextLabel}</strong>
+      </span>
     </div>
   );
 }
