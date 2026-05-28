@@ -331,9 +331,15 @@ export function CampaignFullPlanCard({
         <div className="flex flex-wrap gap-2 shrink-0">
           {/* Toggle Diário/Acumulado oculto — modo fixo em "diario" */}
           {showShare && (
-            <Button size="sm" variant="outline" onClick={copyShareLink}>
-              {copied ? <Check className="h-4 w-4 mr-1.5" /> : <Link2 className="h-4 w-4 mr-1.5" />}
-              {copied ? "Copiado" : "Copiar link"}
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={copyShareLink}
+              aria-label={copied ? "Link copiado" : "Copiar link"}
+              title={copied ? "Link copiado" : "Copiar link"}
+              className="h-10 w-10 rounded-full"
+            >
+              {copied ? <Check className="h-[18px] w-[18px]" /> : <Link2 className="h-[18px] w-[18px]" />}
             </Button>
           )}
         </div>
