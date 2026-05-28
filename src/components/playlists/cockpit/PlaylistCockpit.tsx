@@ -1327,13 +1327,13 @@ function BucketShell({
   if (count === 0) return null;
   return (
     <Card id={id} className="overflow-hidden scroll-mt-20">
-      <div className={cn("flex items-center justify-between px-4 py-3 border-b", m.tone, "bg-opacity-40")}>
-        <div className="flex items-center gap-2">
-          <m.Icon className="h-4 w-4" />
-          <span className="text-sm font-bold uppercase tracking-wider">{m.label}</span>
-          <span className="text-xs opacity-70">· {count} {count === 1 ? "faixa" : "faixas"}</span>
+      <div className={cn("flex items-center justify-between gap-2 px-3 py-2.5 border-b min-w-0", m.tone, "bg-opacity-40")}>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <m.Icon className="h-3.5 w-3.5 shrink-0" />
+          <span className="text-[11px] font-bold uppercase tracking-wider truncate">{m.label}</span>
+          <span className="text-[11px] opacity-70 tabular-nums shrink-0">· {count}</span>
         </div>
-        {headerRight}
+        <div className="shrink-0">{headerRight}</div>
       </div>
       <div className="divide-y divide-border/40 max-h-[440px] overflow-y-auto">{children}</div>
     </Card>
