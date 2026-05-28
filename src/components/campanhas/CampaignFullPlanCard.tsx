@@ -346,8 +346,8 @@ export function CampaignFullPlanCard({
             <table className="text-[11px] border-separate border-spacing-0 min-w-full">
               <thead className="sticky top-0 z-20 bg-card text-muted-foreground">
                 <tr>
-                  <th className="sticky left-0 z-30 bg-card text-left font-medium py-2 px-3 border-b border-r border-border min-w-[200px]">
-                    Playlist
+                  <th className="sticky left-0 z-30 bg-card text-left font-medium py-2 px-3 border-b border-r border-border w-14 md:w-auto md:min-w-[200px]">
+                    <span className="hidden md:inline">Playlist</span>
                   </th>
                   <th className="text-center font-medium py-2 px-2 border-b border-border w-14">
                     <Popover>
