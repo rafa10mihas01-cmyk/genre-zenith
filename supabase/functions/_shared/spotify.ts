@@ -9,6 +9,18 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ENV_CLIENT_ID = Deno.env.get("SPOTIFY_CLIENT_ID");
 const ENV_CLIENT_SECRET = Deno.env.get("SPOTIFY_CLIENT_SECRET");
+const spotifyOriginalFetch = globalThis.fetch.bind(globalThis);
+
+export class SpotifyCircuitOpenError extends Error {
+  blockedUntil: string | null;
+  retryAfterSec: number;
+  constructor(blockedUntil: string | null, retryAfterSec: number) {
+    super(`SPOTIFY_CIRCUIT_OPEN: blocked_until=${blockedUntil ?? "unknown"} retry_after=${retryAfterSec}s`);
+    this.name = "SpotifyCircuitOpenError";
+    this.blockedUntil = blockedUntil;
+    this.retryAfterSec = retryAfterSec;
+  }
+}
 
 // Escopos necessários pra operação completa da NexEngine:
 //   - modify-public/private → adicionar/remover faixas, reordenar, mudar nome/descrição
@@ -29,6 +41,64 @@ export const SPOTIFY_USER_SCOPES = SPOTIFY_USER_SCOPES_LIST.join(" ");
 function db() {
   return createClient(SUPABASE_URL, SERVICE_KEY);
 }
+
+export async function assertSpotifyCircuitClosed(appId = "global"): Promise<void> {
+  const supabase = db();
+  await supabase.rpc("close_expired_spotify_circuit_breakers").catch(() => null);
+  const { data, error } = await supabase
+    .from("spotify_circuit_breaker")
+    .select("status, blocked_until, retry_after_sec")
+    .eq("app_id", appId)
+    .maybeSingle();
+  if (error) throw new Error(`spotify_circuit_breaker: ${error.message}`);
+  if (data?.status === "open" && data.blocked_until && new Date(data.blocked_until).getTime() > Date.now()) {
+    throw new SpotifyCircuitOpenError(data.blocked_until, data.retry_after_sec ?? 0);
+  }
+}
+
+export async function openSpotifyCircuitBreaker(retryAfterSec?: number | null, appId = "global"): Promise<void> {
+  const safeRetry = Math.max(2, Math.min(Number(retryAfterSec ?? 60), 86_400));
+  const blockedUntil = new Date(Date.now() + safeRetry * 1000).toISOString();
+  await db().from("spotify_circuit_breaker").upsert({
+    app_id: appId,
+    status: "open",
+    blocked_until: blockedUntil,
+    last_429_at: new Date().toISOString(),
+    retry_after_sec: safeRetry,
+  }, { onConflict: "app_id" });
+}
+
+export async function guardedSpotifyFetch(url: string, init: RequestInit = {}, appId = "global"): Promise<Response> {
+  await assertSpotifyCircuitClosed(appId);
+  const r = await spotifyOriginalFetch(url, init);
+  if (r.status === 429) {
+    const ra = Number(r.headers.get("Retry-After") ?? r.headers.get("retry-after") ?? "");
+    await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60, appId);
+  }
+  return r;
+}
+
+function installSpotifyCircuitFetchGuard() {
+  const g = globalThis as typeof globalThis & { __spotifyCircuitFetchGuardInstalled?: boolean };
+  if (g.__spotifyCircuitFetchGuardInstalled) return;
+  g.__spotifyCircuitFetchGuardInstalled = true;
+  g.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const rawUrl = typeof input === "string" || input instanceof URL ? input.toString() : input.url;
+    let host = "";
+    try { host = new URL(rawUrl).hostname; } catch { /* ignore */ }
+    const isSpotify = host === "api.spotify.com" || host === "accounts.spotify.com" || host.endsWith(".spotify.com");
+    if (!isSpotify) return spotifyOriginalFetch(input, init);
+    await assertSpotifyCircuitClosed();
+    const r = await spotifyOriginalFetch(input, init);
+    if (r.status === 429) {
+      const ra = Number(r.headers.get("Retry-After") ?? r.headers.get("retry-after") ?? "");
+      await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60);
+    }
+    return r;
+  };
+}
+
+installSpotifyCircuitFetchGuard();
 
 export type SpotifyAppCreds = {
   app_id: string | null;
@@ -97,6 +167,8 @@ export async function getAppCredentials(appId?: string | null): Promise<SpotifyA
 export async function getSpotifyToken(forceRefresh = false): Promise<string> {
   const supabase = db();
 
+  await assertSpotifyCircuitClosed();
+
   if (!forceRefresh) {
     const { data } = await supabase
       .from("spotify_tokens")
@@ -120,6 +192,10 @@ export async function getSpotifyToken(forceRefresh = false): Promise<string> {
   });
   if (!resp.ok) {
     const t = await resp.text();
+    if (resp.status === 429) {
+      const ra = Number(resp.headers.get("Retry-After") ?? "");
+      await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60);
+    }
     throw new Error(`Spotify token ${resp.status}: ${t.slice(0, 200)}`);
   }
   const json = await resp.json();
@@ -150,6 +226,7 @@ export type SpotifyUserToken = {
 /** Faz refresh do token de usuário usando o app correto e persiste. */
 async function refreshUserToken(row: SpotifyUserToken): Promise<string> {
   const creds = await getAppCredentials(row.app_id);
+  await assertSpotifyCircuitClosed(row.app_id ?? "global");
   const basic = btoa(`${creds.client_id}:${creds.client_secret}`);
   const resp = await fetch("https://accounts.spotify.com/api/token", {
     method: "POST",
@@ -164,6 +241,10 @@ async function refreshUserToken(row: SpotifyUserToken): Promise<string> {
   });
   if (!resp.ok) {
     const t = await resp.text();
+    if (resp.status === 429) {
+      const ra = Number(resp.headers.get("Retry-After") ?? "");
+      await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60, row.app_id ?? "global");
+    }
     throw new Error(`Spotify refresh ${resp.status} (app=${creds.name}): ${t.slice(0, 200)}`);
   }
   const j = await resp.json();
@@ -190,6 +271,7 @@ export async function getUserAccessToken(userId?: string): Promise<{ token: stri
   if (!data) throw new Error("Nenhuma conta Spotify conectada. Conecte em Configurações primeiro.");
 
   const row = data as SpotifyUserToken;
+  await assertSpotifyCircuitClosed(row.app_id ?? "global");
   const expiresMs = new Date(row.expires_at).getTime();
   if (expiresMs > Date.now() + 60_000) return { token: row.access_token, row };
   const fresh = await refreshUserToken(row);

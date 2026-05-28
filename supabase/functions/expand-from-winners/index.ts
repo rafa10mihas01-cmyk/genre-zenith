@@ -14,26 +14,10 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { loadGateContext, scoreAndGate } from "../_shared/discovery-scoring.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
+import { getSpotifyToken } from "../_shared/spotify.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const SPOTIFY_ID = Deno.env.get("SPOTIFY_CLIENT_ID")!;
-const SPOTIFY_SECRET = Deno.env.get("SPOTIFY_CLIENT_SECRET")!;
-
-let cachedToken: { value: string; expiresAt: number } | null = null;
-async function getSpotifyToken(): Promise<string> {
-  if (cachedToken && cachedToken.expiresAt > Date.now() + 30_000) return cachedToken.value;
-  const basic = btoa(`${SPOTIFY_ID}:${SPOTIFY_SECRET}`);
-  const r = await fetch("https://accounts.spotify.com/api/token", {
-    method: "POST",
-    headers: { Authorization: `Basic ${basic}`, "Content-Type": "application/x-www-form-urlencoded" },
-    body: "grant_type=client_credentials",
-  });
-  if (!r.ok) throw new Error(`spotify token failed: ${r.status}`);
-  const j = await r.json();
-  cachedToken = { value: j.access_token, expiresAt: Date.now() + (j.expires_in ?? 3600) * 1000 };
-  return cachedToken.value;
-}
 
 async function fetchUserPlaylists(token: string, ownerId: string, limit = 50): Promise<any[]> {
   // Spotify só expõe playlists públicas de usuários comuns.
@@ -42,8 +26,7 @@ async function fetchUserPlaylists(token: string, ownerId: string, limit = 50): P
   const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (r.status === 404 || r.status === 403) return [];
   if (r.status === 401) {
-    cachedToken = null;
-    const t2 = await getSpotifyToken();
+    const t2 = await getSpotifyToken(true);
     const r2 = await fetch(url, { headers: { Authorization: `Bearer ${t2}` } });
     if (!r2.ok) return [];
     const j2 = await r2.json();

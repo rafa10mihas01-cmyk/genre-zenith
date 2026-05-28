@@ -7170,6 +7170,36 @@ export type Database = {
         }
         Relationships: []
       }
+      spotify_circuit_breaker: {
+        Row: {
+          app_id: string
+          blocked_until: string | null
+          created_at: string
+          last_429_at: string | null
+          retry_after_sec: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          app_id?: string
+          blocked_until?: string | null
+          created_at?: string
+          last_429_at?: string | null
+          retry_after_sec?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          app_id?: string
+          blocked_until?: string | null
+          created_at?: string
+          last_429_at?: string | null
+          retry_after_sec?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       spotify_email_allowlist: {
         Row: {
           created_at: string
@@ -8064,6 +8094,7 @@ export type Database = {
         Args: { p_message: string; p_requester_name?: string; p_token: string }
         Returns: string
       }
+      close_expired_spotify_circuit_breakers: { Args: never; Returns: number }
       community_accept_campaign: {
         Args: { p_campaign_id: string }
         Returns: Json

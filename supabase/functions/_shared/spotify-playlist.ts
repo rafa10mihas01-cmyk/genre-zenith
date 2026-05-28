@@ -16,6 +16,8 @@
 // Todos respeitam o limite de 100 URIs por chamada do Spotify.
 // =====================================================================
 
+import { guardedSpotifyFetch, openSpotifyCircuitBreaker } from "./spotify.ts";
+
 export type SpotifyFetch = (
   url: string,
   init: RequestInit,
@@ -42,7 +44,7 @@ export class SpotifyApiError extends Error {
 
 /** Fetch wrapper padrão — joga SpotifyApiError com status + body + retryAfter. */
 export const defaultSpotifyFetch: SpotifyFetch = async (url, init, token) => {
-  const r = await fetch(url, {
+  const r = await guardedSpotifyFetch(url, {
     ...init,
     headers: {
       Authorization: `Bearer ${token}`,
@@ -53,7 +55,9 @@ export const defaultSpotifyFetch: SpotifyFetch = async (url, init, token) => {
   if (!r.ok) {
     const t = await r.text();
     const ra = Number(r.headers.get("Retry-After") ?? "");
-    throw new SpotifyApiError(r.status, t, Number.isFinite(ra) && ra > 0 ? ra : null);
+    const retryAfter = Number.isFinite(ra) && ra > 0 ? ra : null;
+    if (r.status === 429) await openSpotifyCircuitBreaker(retryAfter);
+    throw new SpotifyApiError(r.status, t, retryAfter);
   }
   // DELETE/PUT podem voltar 200 sem body útil
   const txt = await r.text();
@@ -314,7 +318,7 @@ export async function uploadPlaylistCover(
     for (let i = 0; i < jpeg.length; i++) bin += String.fromCharCode(jpeg[i]);
     base64 = btoa(bin);
   }
-  const r = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/images`, {
+  const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/playlists/${playlistId}/images`, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${token}`,
