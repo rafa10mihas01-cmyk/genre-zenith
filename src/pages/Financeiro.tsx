@@ -65,7 +65,8 @@ function ReceitaView() {
   if (loading) return <div className="h-40 rounded-2xl bg-card border border-border animate-pulse" />;
   return (
     <div className="space-y-6">
-      <section className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+      <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+
         <MiniKpi icon={DollarSign} label="Recebido" value={fmtBRL(totals.recebido)} tone="primary" />
         <MiniKpi icon={Receipt} label="Cobrado" value={fmtBRL(totals.cobrado)} />
         <MiniKpi
@@ -88,7 +89,7 @@ function ReceitaView() {
               <thead className="bg-elevated/30 text-xs uppercase tracking-wider text-muted-foreground">
                 <tr>
                   <th className="text-left px-4 py-2 font-medium">Campanha</th>
-                  <th className="text-left px-4 py-2 font-medium">Artista</th>
+                  <th className="hidden sm:table-cell text-left px-4 py-2 font-medium">Artista</th>
                   <th className="text-right px-4 py-2 font-medium">Cobrado</th>
                   <th className="text-right px-4 py-2 font-medium">Recebido</th>
                   <th className="text-right px-4 py-2 font-medium">Pendente</th>
@@ -100,7 +101,7 @@ function ReceitaView() {
                   return (
                     <tr key={s.campaign_id} className="hover:bg-elevated/40">
                       <td className="px-4 py-2.5 font-medium text-foreground truncate max-w-[260px]">{s.track_name ?? "—"}</td>
-                      <td className="px-4 py-2.5 text-muted-foreground">{s.artist ?? "—"}</td>
+                      <td className="hidden sm:table-cell px-4 py-2.5 text-muted-foreground">{s.artist ?? "—"}</td>
                       <td className="px-4 py-2.5 text-right tabular-nums">{fmtBRL(s.valor_cobrado)}</td>
                       <td className="px-4 py-2.5 text-right tabular-nums text-primary font-semibold">{fmtBRL(s.valor_recebido)}</td>
                       <td className={cn("px-4 py-2.5 text-right tabular-nums", pend > 0 ? "text-amber-500" : "text-muted-foreground")}>
@@ -127,7 +128,7 @@ function MargemView() {
   if (loading) return <div className="h-40 rounded-2xl bg-card border border-border animate-pulse" />;
   return (
     <div className="space-y-6">
-      <section className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+      <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <MiniKpi
           icon={totals.margem >= 0 ? TrendingUp : TrendingDown}
           label="Margem bruta"
@@ -158,7 +159,7 @@ function MargemView() {
                   <th className="text-right px-4 py-2 font-medium">Recebido</th>
                   <th className="text-right px-4 py-2 font-medium">Pago</th>
                   <th className="text-right px-4 py-2 font-medium">Margem R$</th>
-                  <th className="text-right px-4 py-2 font-medium">Margem %</th>
+                  <th className="hidden sm:table-cell text-right px-4 py-2 font-medium">Margem %</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -170,9 +171,10 @@ function MargemView() {
                     <td className={cn("px-4 py-2.5 text-right tabular-nums font-semibold", s.margem_bruta >= 0 ? "text-primary" : "text-amber-500")}>
                       {fmtBRL(s.margem_bruta)}
                     </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">
+                    <td className="hidden sm:table-cell px-4 py-2.5 text-right tabular-nums text-muted-foreground">
                       {s.margem_pct == null ? "—" : `${s.margem_pct}%`}
                     </td>
+
                   </tr>
                 ))}
               </tbody>

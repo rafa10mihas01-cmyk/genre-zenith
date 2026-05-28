@@ -132,11 +132,12 @@ export function FinancialOverview() {
               <thead className="bg-elevated/30 text-xs uppercase tracking-wider text-muted-foreground">
                 <tr>
                   <th className="text-left px-4 py-2 font-medium">Campanha</th>
-                  <th className="text-left px-4 py-2 font-medium">Artista</th>
+                  <th className="hidden sm:table-cell text-left px-4 py-2 font-medium">Artista</th>
                   <th className="text-right px-4 py-2 font-medium">Recebido</th>
-                  <th className="text-right px-4 py-2 font-medium">Pago</th>
+                  <th className="hidden sm:table-cell text-right px-4 py-2 font-medium">Pago</th>
                   <th className="text-right px-4 py-2 font-medium">Margem</th>
-                  <th className="text-right px-4 py-2 font-medium">Entrega</th>
+                  <th className="hidden sm:table-cell text-right px-4 py-2 font-medium">Entrega</th>
+
                   <th className="w-8" />
                 </tr>
               </thead>
@@ -159,16 +160,17 @@ export function FinancialOverview() {
                             <span className="truncate max-w-[220px]">{s.track_name ?? "—"}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-2.5 text-muted-foreground">{s.artist ?? "—"}</td>
+                        <td className="hidden sm:table-cell px-4 py-2.5 text-muted-foreground">{s.artist ?? "—"}</td>
                         <td className="px-4 py-2.5 text-right tabular-nums">{fmtBRL(s.valor_recebido)}</td>
-                        <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">{fmtBRL(s.total_pago_curadores)}</td>
+                        <td className="hidden sm:table-cell px-4 py-2.5 text-right tabular-nums text-muted-foreground">{fmtBRL(s.total_pago_curadores)}</td>
                         <td className={cn("px-4 py-2.5 text-right tabular-nums font-semibold", s.margem_bruta >= 0 ? "text-primary" : "text-amber-500")}>
                           {fmtBRL(s.margem_bruta)}
                           {s.margem_pct != null && <span className="ml-1 text-xs text-muted-foreground">({s.margem_pct}%)</span>}
                         </td>
-                        <td className="px-4 py-2.5 text-right">
+                        <td className="hidden sm:table-cell px-4 py-2.5 text-right">
                           {deals.length > 0 ? <StatusBadge pct={avgDelivery} /> : <span className="text-xs text-muted-foreground">—</span>}
                         </td>
+
                         <td />
                       </tr>
                       {isOpen && deals.length > 0 && (
