@@ -302,7 +302,7 @@ export default function Operacao() {
           })()}
           <KpiBig icon={Gauge}         label="Saúde média"  value={String(playlistStats.avgHealth)} hint={`${playlistStats.topPerf} ${playlistStats.topPerf === 1 ? "destaque" : "destaques"}`} loading={loading && playlistsAll.length === 0} />
           <KpiBig icon={ShieldAlert}   label="Em risco / inativas" value={`${playlistStats.atRisk} / ${playlistStats.inactive}`} tone={(playlistStats.atRisk + playlistStats.inactive) > 0 ? "destructive" : "default"} hint="Risco ≥ 60 · Atividade < 30" loading={loading && playlistsAll.length === 0} />
-          <KpiBig tier="quiet" icon={AlertCircle} label="Precisa atenção" value={formatNumber(kpi.atencao)} tone={kpi.atencao > 0 ? "destructive" : "default"} hint="Auto em queda" loading={loading && playlistsAll.length === 0} />
+          {/* KPI "Precisa atenção" ocultado a pedido. */}
 
         </section>
 
