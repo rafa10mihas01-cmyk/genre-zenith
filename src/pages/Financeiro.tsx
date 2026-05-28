@@ -65,7 +65,8 @@ function ReceitaView() {
   if (loading) return <div className="h-40 rounded-2xl bg-card border border-border animate-pulse" />;
   return (
     <div className="space-y-6">
-      <section className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+      <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+
         <MiniKpi icon={DollarSign} label="Recebido" value={fmtBRL(totals.recebido)} tone="primary" />
         <MiniKpi icon={Receipt} label="Cobrado" value={fmtBRL(totals.cobrado)} />
         <MiniKpi
