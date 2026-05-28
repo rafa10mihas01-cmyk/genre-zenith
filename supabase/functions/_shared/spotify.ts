@@ -67,6 +67,16 @@ export async function openSpotifyCircuitBreaker(retryAfterSec?: number | null, a
   }, { onConflict: "app_id" });
 }
 
+export async function guardedSpotifyFetch(url: string, init: RequestInit = {}, appId = "global"): Promise<Response> {
+  await assertSpotifyCircuitClosed(appId);
+  const r = await fetch(url, init);
+  if (r.status === 429) {
+    const ra = Number(r.headers.get("Retry-After") ?? r.headers.get("retry-after") ?? "");
+    await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60, appId);
+  }
+  return r;
+}
+
 export type SpotifyAppCreds = {
   app_id: string | null;
   client_id: string;
