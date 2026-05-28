@@ -23,8 +23,8 @@ const TABS = [
 export function AnalyticsTabs() {
   const { pathname } = useLocation();
   return (
-    <div className="border-b border-border -mt-2 mb-6">
-      <nav className="flex items-center gap-1 overflow-x-auto -mb-px [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+    <div className="min-w-0 overflow-hidden border-b border-border -mt-2 mb-6">
+      <nav className="nx-tab-rail min-w-0 items-center gap-1 -mb-px px-0">
         {TABS.map((t) => {
           const Icon = t.icon;
           const matches = t.match ?? [t.to];
@@ -37,7 +37,7 @@ export function AnalyticsTabs() {
               to={t.to}
               end={t.end}
               className={cn(
-                "px-3 h-9 inline-flex items-center gap-2 text-[13px] font-medium border-b-2 transition-colors whitespace-nowrap",
+                "px-2.5 sm:px-3 h-9 inline-flex items-center gap-2 text-[13px] font-medium border-b-2 transition-colors whitespace-nowrap",
                 active
                   ? "border-primary text-foreground"
                   : "border-transparent text-muted-foreground hover:text-foreground hover:border-border",
