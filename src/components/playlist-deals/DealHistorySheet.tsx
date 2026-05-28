@@ -1216,25 +1216,23 @@ export function DealHistorySheet({
                                   </Badge>
                                 )}
                               </div>
-                              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-0.5">
-                                <span>
+                              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-muted-foreground mt-0.5">
+                                <span className="whitespace-nowrap">
                                   {format(new Date(log.created_at), "dd MMM, HH:mm", { locale: ptBR })}
                                 </span>
                                 {linked.length > 0 && (
                                   <>
                                     <span>·</span>
-                                    <span>
-                                      {linked.length} playlist
-                                      {linked.length > 1 ? "s" : ""}
+                                    <span className="whitespace-nowrap">
+                                      {linked.length} playlist{linked.length > 1 ? "s" : ""}
                                     </span>
                                   </>
                                 )}
                                 {log.print_urls && log.print_urls.length > 0 && (
                                   <>
                                     <span>·</span>
-                                    <span>
-                                      {log.print_urls.length} print
-                                      {log.print_urls.length > 1 ? "s" : ""}
+                                    <span className="whitespace-nowrap">
+                                      {log.print_urls.length} print{log.print_urls.length > 1 ? "s" : ""}
                                     </span>
                                   </>
                                 )}
