@@ -476,8 +476,8 @@ export function CampaignFullPlanCard({
                     <tr key={p.allocationId} className={cn("hover:bg-primary/5", rowIdx % 2 === 1 && "bg-elevated/20")}>
                       <td
                         className={cn(
-                          "sticky left-0 z-10 py-2 px-3 border-b border-r border-border/30 leading-tight",
-                          rowIdx % 2 === 1 ? "bg-elevated/40" : "bg-card",
+                          "sticky left-0 z-10 py-2 px-2 md:px-3 border-b border-r border-border/30 leading-tight w-14 md:w-auto",
+                          rowIdx % 2 === 1 ? "bg-elevated" : "bg-card",
                         )}
                       >
                         <div className="flex items-center gap-3">
@@ -493,7 +493,7 @@ export function CampaignFullPlanCard({
                               {initial}
                             </div>
                           )}
-                          <div className="min-w-0 flex-1">
+                          <div className="hidden md:block min-w-0 flex-1">
                             <div className="flex items-center gap-1.5 min-w-0">
                               <div className="text-[12px] font-medium truncate text-foreground">
                                 {spotifyUrl ? (
