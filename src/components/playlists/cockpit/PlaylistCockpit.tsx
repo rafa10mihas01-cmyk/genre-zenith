@@ -653,7 +653,18 @@ export function PlaylistCockpit({
 
             {/* ============ PLANO DE AÇÃO ============ */}
             <TabsContent value="plano" className="space-y-6 mt-0">
-              {/* ===== 1. DIAGNÓSTICO ===== */}
+              {/* ===== 1. VISÃO GERAL ===== */}
+              <section className="space-y-3">
+                <SectionTitle>Visão geral</SectionTitle>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  <ActionCard kind="remove" count={buckets.remove.length} detected={buckets.detected.remove} hrefId="bucket-remove" />
+                  <ActionCard kind="demote" count={buckets.demote.length} detected={buckets.detected.demote} hrefId="bucket-demote" />
+                  <ActionCard kind="promote" count={buckets.promote.length} detected={buckets.detected.promote} hrefId="bucket-promote" />
+                  <ActionCard kind="add" count={buckets.add.length} detected={buckets.detected.add} hrefId="bucket-add" />
+                </div>
+              </section>
+
+              {/* ===== 2. DIAGNÓSTICO ===== */}
               <section className="space-y-3">
                 <SectionTitle>Diagnóstico</SectionTitle>
                 <EditorialBanner diag={diag} onRediagnose={runDiagnose} running={running} />
@@ -695,7 +706,7 @@ export function PlaylistCockpit({
                 })()}
               </section>
 
-              {/* ===== 2. EXECUTAR PLANO ===== */}
+              {/* ===== 3. EXECUTAR PLANO ===== */}
               {(buckets.remove.length + buckets.demote.length + buckets.promote.length + buckets.add.length) > 0 && (
                 <Card className="p-4 md:p-5 bg-primary/5 border-primary/30 flex flex-col items-center text-center gap-3 md:flex-row md:items-center md:text-left md:justify-between">
                   <div className="space-y-0.5 min-w-0">
@@ -716,15 +727,8 @@ export function PlaylistCockpit({
                 </Card>
               )}
 
-              {/* ===== 3. VISÃO GERAL ===== */}
               <section className="space-y-3">
-                <SectionTitle>Visão geral</SectionTitle>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <ActionCard kind="remove" count={buckets.remove.length} detected={buckets.detected.remove} hrefId="bucket-remove" />
-                  <ActionCard kind="demote" count={buckets.demote.length} detected={buckets.detected.demote} hrefId="bucket-demote" />
-                  <ActionCard kind="promote" count={buckets.promote.length} detected={buckets.detected.promote} hrefId="bucket-promote" />
-                  <ActionCard kind="add" count={buckets.add.length} detected={buckets.detected.add} hrefId="bucket-add" />
-                </div>
+                <SectionTitle className="sr-only">Progresso</SectionTitle>
 
                 {applyProgress && (
                   <Card className={cn(
