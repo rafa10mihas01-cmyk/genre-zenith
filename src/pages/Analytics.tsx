@@ -110,7 +110,7 @@ export default function Analytics() {
         kicker="Inteligência"
         icon={LineIcon}
         title="Analytics"
-        subtitle="Motor de deals — entrega real"
+        subtitle="Motor de deals · Crescimento · Mercado"
         manualKey="analytics"
         actions={
           <Button variant="outline" onClick={load} disabled={loading}>
@@ -123,9 +123,9 @@ export default function Analytics() {
         <AnalyticsTabs />
 
         {/* KPIs reais */}
-        <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-          <KpiBig
-            tier="hero"
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <Kpi
+            variant="hero"
             className="md:col-span-1"
             icon={Activity}
             label="Deals ativos"
@@ -134,8 +134,7 @@ export default function Analytics() {
             domain="deals"
             loading={loading}
           />
-
-          <KpiBig
+          <Kpi
             icon={Zap}
             label="Plays entregues (7d)"
             value={plays7d.toLocaleString("pt-BR")}
@@ -143,7 +142,7 @@ export default function Analytics() {
             domain="campaigns"
             loading={loading}
           />
-          <KpiBig
+          <Kpi
             icon={TrendingUp}
             label="Média diária (30d)"
             value={dailyAvg30d.toLocaleString("pt-BR")}
@@ -151,7 +150,7 @@ export default function Analytics() {
             domain="playlists"
             loading={loading}
           />
-          <KpiBig
+          <Kpi
             icon={DollarSign}
             label="Custo por play"
             value={cpp != null ? `R$ ${cpp.toFixed(4)}` : "—"}
@@ -160,6 +159,7 @@ export default function Analytics() {
             loading={loading}
           />
         </section>
+
 
 
         {/* Ritmo dos deals ativos */}
