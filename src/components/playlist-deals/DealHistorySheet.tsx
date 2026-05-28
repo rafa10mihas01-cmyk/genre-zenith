@@ -830,33 +830,33 @@ export function DealHistorySheet({
                   {breakdown && (
                     <SectionCard
                       title="Entrega vs Ecossistema"
-                      right={<span className="text-[10px] text-muted-foreground">plays únicos por playlist</span>}
+                      right={<span className="hidden sm:inline text-[10px] text-muted-foreground">plays únicos por playlist</span>}
                     >
-                      <div className="grid grid-cols-3 gap-3 text-[12px]">
-                        <div>
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Curador</div>
-                          <div className="text-base font-semibold tabular-nums text-success leading-tight mt-0.5">
+                      <div className="grid grid-cols-3 divide-x divide-border/60 -mx-1">
+                        <div className="px-2 min-w-0">
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground truncate">Curador</div>
+                          <div className="text-base sm:text-lg font-semibold tabular-nums text-success leading-tight mt-1">
                             {fmtCompact(breakdown.curator.plays)}
                           </div>
-                          <div className="text-[10px] text-muted-foreground tabular-nums">
+                          <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
                             {breakdown.curator.playlists} playlists
                           </div>
                         </div>
-                        <div>
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Ecossistema</div>
-                          <div className="text-base font-semibold tabular-nums text-primary leading-tight mt-0.5">
+                        <div className="px-2 min-w-0">
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground truncate">Ecossistema</div>
+                          <div className="text-base sm:text-lg font-semibold tabular-nums text-primary leading-tight mt-1">
                             {fmtCompact(eco.plays)}
                           </div>
-                          <div className="text-[10px] text-muted-foreground tabular-nums">
+                          <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
                             {eco.playlists} playlists
                           </div>
                         </div>
-                        <div>
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total bruto</div>
-                          <div className="text-base font-semibold tabular-nums text-foreground leading-tight mt-0.5">
+                        <div className="px-2 min-w-0">
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground truncate">Total</div>
+                          <div className="text-base sm:text-lg font-semibold tabular-nums text-foreground leading-tight mt-1">
                             {fmtCompact(breakdown.total.plays)}
                           </div>
-                          <div className="text-[10px] text-muted-foreground tabular-nums">
+                          <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
                             {breakdown.total.playlists} playlists
                           </div>
                         </div>
@@ -891,8 +891,8 @@ export function DealHistorySheet({
 
                   {deal.song_spotify_url && (
                     <Button
-                      variant="outline"
-                      className="w-full h-10 gap-2 text-sm"
+                      variant="ghost"
+                      className="w-full h-10 gap-2 text-sm text-muted-foreground hover:text-foreground border border-border/60 hover:bg-[hsl(var(--elevated))]"
                       onClick={() => window.open(deal.song_spotify_url!, "_blank")}
                     >
                       <ExternalLink className="h-3.5 w-3.5" />
