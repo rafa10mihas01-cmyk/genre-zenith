@@ -296,8 +296,8 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   const clientName = clientsList.find(c => c.id === clientId)?.name ?? "Sem cliente";
   const curatorName = curatorsList.find(c => c.id === curatorId)?.name ?? "Sem curador";
 
-  async function buscarMusica() {
-    const url = active.trackUrl.trim();
+  async function buscarMusica(overrideUrl?: string) {
+    const url = (overrideUrl ?? active.trackUrl).trim();
     if (!url) { toast({ title: "Cole o link do Spotify primeiro" }); return; }
     setTrackLoading(true);
     try {
