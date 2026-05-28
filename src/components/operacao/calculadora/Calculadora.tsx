@@ -813,7 +813,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                         value={active.trackUrl}
                         onChange={e => { setTrackUrl(e.target.value); setTrack(null); }}
                         onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); buscarMusica(); } }}
-                        className="pl-9 placeholder:text-muted-foreground/40 placeholder:font-normal"
+                        className="pl-9 text-center placeholder:text-muted-foreground/40 placeholder:font-normal"
                       />
                     </div>
                     <Button onClick={buscarMusica} disabled={trackLoading || !active.trackUrl.trim()} variant="outline">
@@ -886,7 +886,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                       Gênero <span className="normal-case tracking-normal text-muted-foreground/60 font-normal">(filtra playlists na distribuição)</span>
                     </Label>
                     <Select value={active.genre || "__none__"} onValueChange={(v) => setGenre(v === "__none__" ? "" : v)}>
-                      <SelectTrigger className="text-muted-foreground/80 [&[data-state=closed]>span]:text-muted-foreground/60">
+                      <SelectTrigger className="text-muted-foreground/80 [&>span]:flex-1 [&>span]:text-center [&[data-state=closed]>span]:text-muted-foreground/60">
                         <SelectValue placeholder="Selecione o gênero" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1593,7 +1593,7 @@ function NumberInput({
         onChange(digits ? parseInt(digits, 10) : 0);
       }}
       onFocus={(e) => e.target.select()}
-      className="placeholder:text-muted-foreground/40 placeholder:font-normal placeholder:tracking-normal tabular-nums"
+      className="text-center placeholder:text-muted-foreground/40 placeholder:font-normal placeholder:tracking-normal tabular-nums"
     />
   );
 }
