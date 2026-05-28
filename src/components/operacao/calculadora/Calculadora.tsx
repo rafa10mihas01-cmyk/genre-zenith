@@ -1453,7 +1453,7 @@ function SessionChip({
   readyCount: number;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-border border-l-2 border-l-primary/60 bg-card/60 px-3 py-2">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-border border-l-2 border-l-primary/60 bg-card/60 px-3 py-2">
       {/* Bloco sessão (compacto) */}
       <div className="flex items-center gap-3 shrink-0 text-xs">
         <div className="flex items-center gap-1.5">
@@ -1473,11 +1473,10 @@ function SessionChip({
         <Button variant="ghost" size="sm" onClick={onEdit} className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground">
           <Pencil className="h-3 w-3" />
         </Button>
-        <div className="h-6 w-px bg-border" />
       </div>
 
       {/* Chips de músicas + nova */}
-      <div className="flex items-center gap-1.5 flex-1 min-w-0 overflow-x-auto nx-scroll">
+      <div className="flex items-center gap-1.5 flex-1 min-w-full sm:min-w-0 basis-full sm:basis-auto overflow-x-auto nx-scroll sm:border-l sm:border-border sm:pl-3">
         <span className="text-[9px] uppercase tracking-wider text-muted-foreground shrink-0 mr-1">
           Músicas <span className="text-foreground font-medium">({songsCount})</span>
           {readyCount > 0 && <span className="text-primary ml-1">· {readyCount} ok</span>}
