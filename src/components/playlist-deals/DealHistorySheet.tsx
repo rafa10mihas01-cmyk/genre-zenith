@@ -293,14 +293,16 @@ function PlaylistRow({
   const position = typeof p.position_in_paste === "number" ? p.position_in_paste : null;
 
   return (
-    <li className="group grid min-w-[600px] grid-cols-[28px_40px_minmax(220px,1fr)_96px_24px] items-center gap-3 px-4 py-3 min-h-[64px] hover:bg-[hsl(var(--elevated))] transition-colors">
-      {/* posição */}
-      <div className="text-right text-[11px] font-semibold tabular-nums text-muted-foreground">
-        {position !== null ? `#${position}` : "—"}
-      </div>
+    <li className="group flex items-center gap-3 px-3 sm:px-4 py-3 min-h-[60px] hover:bg-[hsl(var(--elevated))] transition-colors min-w-0">
+      {/* posição (esconde no mobile) */}
+      {position !== null && (
+        <div className="hidden sm:block w-7 text-right text-[11px] font-semibold tabular-nums text-muted-foreground shrink-0">
+          #{position}
+        </div>
+      )}
 
       {/* cover */}
-      <div className="h-10 w-10 rounded-md overflow-hidden bg-[hsl(var(--elevated))] border border-border flex items-center justify-center">
+      <div className="h-10 w-10 shrink-0 rounded-md overflow-hidden bg-[hsl(var(--elevated))] border border-border flex items-center justify-center">
         {p.image_url ? (
           <img src={p.image_url} alt="" className="h-full w-full object-cover" />
         ) : (
@@ -309,8 +311,8 @@ function PlaylistRow({
       </div>
 
       {/* nome + meta */}
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 min-w-0">
           <span
             className={cn("h-1.5 w-1.5 rounded-full shrink-0", STATUS_DOT[status])}
             title={STATUS_LABEL[status]}
@@ -319,8 +321,8 @@ function PlaylistRow({
             {p.playlist_name || "Playlist sem nome"}
           </span>
           {p.song_names && p.song_names.length > 0 && (
-            <span className="flex items-center gap-1 shrink-0">
-              {p.song_names.slice(0, 3).map((n) => (
+            <span className="hidden sm:flex items-center gap-1 shrink-0">
+              {p.song_names.slice(0, 2).map((n) => (
                 <span
                   key={n}
                   className="text-[9.5px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-muted/40 text-muted-foreground truncate max-w-[120px]"
@@ -329,8 +331,8 @@ function PlaylistRow({
                   ♪ {n}
                 </span>
               ))}
-              {p.song_names.length > 3 && (
-                <span className="text-[9.5px] text-muted-foreground">+{p.song_names.length - 3}</span>
+              {p.song_names.length > 2 && (
+                <span className="text-[9.5px] text-muted-foreground">+{p.song_names.length - 2}</span>
               )}
             </span>
           )}
@@ -342,29 +344,27 @@ function PlaylistRow({
         )}
       </div>
 
-      {/* tag + link */}
+      {/* tag (só desktop) + link */}
       <span
         className={cn(
-          "text-[10px] font-semibold px-2 h-5 rounded-full inline-flex items-center justify-center w-24 justify-self-start",
+          "hidden sm:inline-flex text-[10px] font-semibold px-2 h-5 rounded-full items-center justify-center w-24 shrink-0",
           STATUS_CHIP[status],
         )}
       >
         {STATUS_LABEL[status]}
       </span>
-      <div className="flex items-center justify-center">
-        {p.spotify_url ? (
-            <a
-              href={p.spotify_url}
-              target="_blank"
-              rel="noreferrer"
-              className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-opacity"
-              onClick={(e) => e.stopPropagation()}
-              aria-label="Abrir no Spotify"
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-            </a>
-          ) : null}
-      </div>
+      {p.spotify_url && (
+        <a
+          href={p.spotify_url}
+          target="_blank"
+          rel="noreferrer"
+          className="text-muted-foreground/70 hover:text-foreground transition-colors shrink-0"
+          onClick={(e) => e.stopPropagation()}
+          aria-label="Abrir no Spotify"
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+        </a>
+      )}
     </li>
   );
 }
@@ -1216,25 +1216,23 @@ export function DealHistorySheet({
                                   </Badge>
                                 )}
                               </div>
-                              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-0.5">
-                                <span>
+                              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-muted-foreground mt-0.5">
+                                <span className="whitespace-nowrap">
                                   {format(new Date(log.created_at), "dd MMM, HH:mm", { locale: ptBR })}
                                 </span>
                                 {linked.length > 0 && (
                                   <>
                                     <span>·</span>
-                                    <span>
-                                      {linked.length} playlist
-                                      {linked.length > 1 ? "s" : ""}
+                                    <span className="whitespace-nowrap">
+                                      {linked.length} playlist{linked.length > 1 ? "s" : ""}
                                     </span>
                                   </>
                                 )}
                                 {log.print_urls && log.print_urls.length > 0 && (
                                   <>
                                     <span>·</span>
-                                    <span>
-                                      {log.print_urls.length} print
-                                      {log.print_urls.length > 1 ? "s" : ""}
+                                    <span className="whitespace-nowrap">
+                                      {log.print_urls.length} print{log.print_urls.length > 1 ? "s" : ""}
                                     </span>
                                   </>
                                 )}
