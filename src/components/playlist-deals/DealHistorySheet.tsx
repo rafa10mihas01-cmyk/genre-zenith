@@ -692,7 +692,7 @@ export function DealHistorySheet({
                   {/* Performance na janela (24h/7d/28d) */}
                   {todayBreakdown && todayBreakdown.rows.length > 0 && (
                     <SectionCard
-                      title="Performance na janela"
+                      title="Performance"
                       right={
                         <div className="inline-flex rounded-lg border border-border bg-[hsl(var(--elevated))] p-0.5">
                           {(["7d", "28d"] as const).map((w) => (
@@ -712,10 +712,10 @@ export function DealHistorySheet({
                         </div>
                       }
                     >
-                      <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                        <div className="min-w-0">
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total</div>
-                          <div className="text-lg sm:text-2xl font-semibold text-primary tabular-nums leading-tight mt-1 whitespace-nowrap overflow-hidden text-ellipsis">
+                      <div className="grid grid-cols-3 divide-x divide-border/60 -mx-1">
+                        <div className="px-2 min-w-0">
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground truncate">Total</div>
+                          <div className="text-lg sm:text-2xl font-semibold text-primary tabular-nums leading-tight mt-1 truncate">
                             {(() => {
                               const v =
                                 perfWindow === "7d"
@@ -724,24 +724,24 @@ export function DealHistorySheet({
                               return v == null ? "—" : fmtCompact(v);
                             })()}
                           </div>
-                          <div className="text-[10px] text-muted-foreground mt-0.5">janela {perfWindow}</div>
+                          <div className="text-[10px] text-muted-foreground mt-1">janela {perfWindow}</div>
                         </div>
-                        <div className="min-w-0">
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Curador</div>
-                          <div className="text-lg sm:text-2xl font-semibold text-success tabular-nums leading-tight mt-1 whitespace-nowrap overflow-hidden text-ellipsis">
+                        <div className="px-2 min-w-0">
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground truncate">Curador</div>
+                          <div className="text-lg sm:text-2xl font-semibold text-success tabular-nums leading-tight mt-1 truncate">
                             {fmtCompact(curatorWindowTotal)}
                           </div>
-                          <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
-                          {curatorBreakdownRows.length} detectada{curatorBreakdownRows.length === 1 ? "" : "s"} · {curatorTotal} cadastrada{curatorTotal === 1 ? "" : "s"}
+                          <div className="text-[10px] text-muted-foreground tabular-nums mt-1">
+                            {curatorBreakdownRows.length}/{curatorTotal} playlists
                           </div>
                         </div>
-                        <div className="min-w-0">
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Algoritmo</div>
-                          <div className="text-lg sm:text-2xl font-semibold text-foreground tabular-nums leading-tight mt-1 whitespace-nowrap overflow-hidden text-ellipsis">
+                        <div className="px-2 min-w-0">
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground truncate">Algoritmo</div>
+                          <div className="text-lg sm:text-2xl font-semibold text-foreground tabular-nums leading-tight mt-1 truncate">
                             {fmtCompact(algoWindowTotal)}
                           </div>
-                          <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
-                            {algoBreakdownRows.length} playlist{algoBreakdownRows.length === 1 ? "" : "s"}
+                          <div className="text-[10px] text-muted-foreground tabular-nums mt-1">
+                            {algoBreakdownRows.length} playlists
                           </div>
                         </div>
                       </div>
