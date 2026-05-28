@@ -480,7 +480,8 @@ export function PlaylistCockpit({
   }, [buckets.add]);
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] px-4 md:px-8 py-4 md:py-5 space-y-4">
+    <div className="h-full min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain nx-scroll">
+      <div className="mx-auto w-full max-w-[1600px] px-4 md:px-8 pt-4 md:pt-5 pb-[calc(88px+env(safe-area-inset-bottom,0px))] md:pb-8 space-y-4">
       {/* ============ 1. HEADER ============ */}
       <header className="space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -536,14 +537,14 @@ export function PlaylistCockpit({
               </div>
             </div>
           </div>
-          <div className="flex gap-2 shrink-0 w-full sm:w-auto">
-            <Button onClick={runDiagnose} disabled={running} size="sm" className="gap-1.5 h-8 flex-1 sm:flex-initial">
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:flex gap-2 shrink-0 w-full sm:w-auto min-w-0">
+            <Button onClick={runDiagnose} disabled={running} size="sm" className="gap-1.5 h-8 min-w-0 px-2 sm:px-3">
               {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-              {diag ? "Rodar nova análise" : "Rodar análise"}
+              <span className="truncate">{diag ? "Rodar análise" : "Rodar análise"}</span>
             </Button>
-            <Button variant="outline" size="sm" asChild className="h-8 flex-1 sm:flex-initial">
-              <a href={spotifyUrl} target="_blank" rel="noreferrer" className="gap-1.5 justify-center">
-                <ExternalLink className="h-3.5 w-3.5" /> <span className="sm:inline">Abrir no Spotify</span>
+            <Button variant="outline" size="sm" asChild className="h-8 min-w-0 px-2 sm:px-3">
+              <a href={spotifyUrl} target="_blank" rel="noreferrer" className="gap-1.5 justify-center min-w-0">
+                <ExternalLink className="h-3.5 w-3.5 shrink-0" /> <span className="truncate">Spotify</span>
               </a>
             </Button>
             <Button
@@ -551,8 +552,9 @@ export function PlaylistCockpit({
               size="sm"
               onClick={handleArchive}
               disabled={archiving}
-              className="h-8 gap-1.5 text-muted-foreground hover:text-destructive hover:border-destructive/40"
+              className="h-8 w-8 px-0 gap-1.5 text-muted-foreground hover:text-destructive hover:border-destructive/40"
               title="Mover para lixeira"
+              aria-label="Mover para lixeira"
             >
               {archiving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
               <span className="hidden sm:inline">Lixeira</span>
@@ -618,16 +620,17 @@ export function PlaylistCockpit({
 
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-            <TabsList className="bg-elevated/60 flex-wrap h-auto">
+            <div className="sticky top-0 z-30 -mx-4 md:-mx-8 px-4 md:px-8 py-3 bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border">
+            <TabsList className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-center gap-1.5 h-auto rounded-2xl bg-elevated/80 p-1.5 text-muted-foreground">
               {market && (
-                <TabsTrigger value="mercado" className="gap-1.5">
+                <TabsTrigger value="mercado" className="h-9 gap-1.5 rounded-xl px-3 text-sm data-[state=active]:bg-background">
                   <TrendingUp className="h-3.5 w-3.5" /> Mercado
                 </TabsTrigger>
               )}
-              <TabsTrigger value="identidade" className="gap-1.5">
+              <TabsTrigger value="identidade" className="h-9 gap-1.5 rounded-xl px-3 text-sm data-[state=active]:bg-background">
                 <Eye className="h-3.5 w-3.5" /> Identidade
               </TabsTrigger>
-              <TabsTrigger value="plano" className="gap-1.5">
+              <TabsTrigger value="plano" className="h-9 gap-1.5 rounded-xl px-3 text-sm data-[state=active]:bg-background">
                 <Sparkles className="h-3.5 w-3.5" /> Plano de ação
                 {(buckets.remove.length + buckets.demote.length + buckets.promote.length + buckets.add.length) > 0 && (
                   <Badge variant="outline" className="ml-1 h-4 px-1 text-[10px] tabular-nums">
@@ -635,13 +638,14 @@ export function PlaylistCockpit({
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="estrategia" className="gap-1.5">
+              <TabsTrigger value="estrategia" className="h-9 gap-1.5 rounded-xl px-3 text-sm data-[state=active]:bg-background">
                 <Activity className="h-3.5 w-3.5" /> Estratégia
               </TabsTrigger>
-              <TabsTrigger value="editor" className="gap-1.5">
+              <TabsTrigger value="editor" className="h-9 gap-1.5 rounded-xl px-3 text-sm data-[state=active]:bg-background">
                 <ListMusic className="h-3.5 w-3.5" /> Editar manualmente
               </TabsTrigger>
             </TabsList>
+            </div>
 
             {/* ============ PLANO DE AÇÃO ============ */}
             <TabsContent value="plano" className="space-y-6 mt-0">
@@ -905,6 +909,7 @@ export function PlaylistCockpit({
           </Tabs>
         </>
       )}
+      </div>
     </div>
   );
 }
