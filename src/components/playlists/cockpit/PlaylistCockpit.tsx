@@ -695,7 +695,28 @@ export function PlaylistCockpit({
                 })()}
               </section>
 
-              {/* ===== 2. VISÃO GERAL ===== */}
+              {/* ===== 2. EXECUTAR PLANO ===== */}
+              {(buckets.remove.length + buckets.demote.length + buckets.promote.length + buckets.add.length) > 0 && (
+                <Card className="p-4 md:p-5 bg-primary/5 border-primary/30 flex flex-col items-center text-center gap-3 md:flex-row md:items-center md:text-left md:justify-between">
+                  <div className="space-y-0.5 min-w-0">
+                    <div className="text-sm font-semibold">Executar plano</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      Aplica tudo via API.
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => applyPlan("all")}
+                    disabled={applying !== null}
+                    size="sm"
+                    className="gap-1.5 h-9 px-5 rounded-full text-sm font-medium shrink-0"
+                  >
+                    {applying === "all" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                    Aprovar e executar
+                  </Button>
+                </Card>
+              )}
+
+              {/* ===== 3. VISÃO GERAL ===== */}
               <section className="space-y-3">
                 <SectionTitle>Visão geral</SectionTitle>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -704,21 +725,6 @@ export function PlaylistCockpit({
                   <ActionCard kind="promote" count={buckets.promote.length} detected={buckets.detected.promote} hrefId="bucket-promote" />
                   <ActionCard kind="add" count={buckets.add.length} detected={buckets.detected.add} hrefId="bucket-add" />
                 </div>
-
-                {(buckets.remove.length + buckets.demote.length + buckets.promote.length + buckets.add.length) > 0 && (
-                  <Card className="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-primary/5 border-primary/30">
-                    <div className="space-y-0.5">
-                      <div className="text-sm font-semibold">Executar plano completo</div>
-                      <div className="text-xs text-muted-foreground">
-                        Ordem: remover → rebaixar → promover → adicionar. Tudo via API, sem abrir o Spotify.
-                      </div>
-                    </div>
-                    <Button onClick={() => applyPlan("all")} disabled={applying !== null} className="gap-1.5 shrink-0">
-                      {applying === "all" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                      Aprovar e executar tudo
-                    </Button>
-                  </Card>
-                )}
 
                 {applyProgress && (
                   <Card className={cn(
