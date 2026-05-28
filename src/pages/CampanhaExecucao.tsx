@@ -20,8 +20,9 @@ import { CampaignFullPlanCard, CampaignFullPlanSummary } from "@/components/camp
 import { CampaignExecutionStatus } from "@/components/campanhas/CampaignExecutionStatus";
 import { CampaignDistributionConsole } from "@/components/campanhas/CampaignDistributionConsole";
 import { TrackActionsPanel } from "@/components/campanhas/TrackActionsPanel";
-import { ArrowLeft, Loader2, Save, Upload, Rocket, CheckCircle2, RefreshCw } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Upload, Rocket, CheckCircle2, RefreshCw, Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { NewDealDialog } from "@/components/playlist-deals/NewDealDialog";
 import { cn } from "@/lib/utils";
 import { CampaignHub } from "@/components/campaign-hub/CampaignHub";
 import { OverviewTab } from "@/components/campaign-hub/tabs/OverviewTab";
@@ -93,6 +94,7 @@ export default function CampanhaExecucao() {
   const [lastSpreadsheetUploadAt, setLastSpreadsheetUploadAt] = useState<string | null>(null);
   const [recentUploads, setRecentUploads] = useState<SpreadsheetUpload[]>([]);
   const [externalItems, setExternalItems] = useState<ExternalItemRow[]>([]);
+  const [newDealOpen, setNewDealOpen] = useState(false);
   const [organicRows, setOrganicRows] = useState<OrganicRow[]>([]);
   const [dispatching, setDispatching] = useState(false);
 
@@ -660,7 +662,24 @@ export default function CampanhaExecucao() {
                 <OrganicCollectedSection rows={organicRows} />
               </TabsContent>
               <TabsContent value="externo" className="mt-0 space-y-4">
-                <ExternalPackageEditor campaignId={camp.id} snapshot={snapshot} onChanged={() => setPlanRefreshKey(k => k + 1)} renderTabsRow={renderTabsRow} />
+                <ExternalPackageEditor
+                  campaignId={camp.id}
+                  snapshot={snapshot}
+                  onChanged={() => setPlanRefreshKey(k => k + 1)}
+                  renderTabsRow={(extra) => renderTabsRow(
+                    <>
+                      <Button
+                        size="sm"
+                        onClick={() => setNewDealOpen(true)}
+                        className="gap-1.5"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Novo deal
+                      </Button>
+                      {extra}
+                    </>,
+                  )}
+                />
               </TabsContent>
             </Tabs>
             );
