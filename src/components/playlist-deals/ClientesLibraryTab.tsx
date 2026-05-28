@@ -181,8 +181,8 @@ export function ClientesLibraryTab({ deals, songs, loading, financeByClient }: P
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-[200px] max-w-md">
+      <div className="flex items-center gap-2 lg:gap-3 flex-nowrap lg:flex-wrap">
+        <div className="relative flex-1 min-w-0 lg:min-w-[200px] lg:max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             value={query}
@@ -192,7 +192,7 @@ export function ClientesLibraryTab({ deals, songs, loading, financeByClient }: P
           />
         </div>
         <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-          <SelectTrigger className="h-9 w-[180px]">
+          <SelectTrigger className="h-9 flex-1 min-w-0 lg:flex-none lg:w-[180px]">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -203,7 +203,7 @@ export function ClientesLibraryTab({ deals, songs, loading, financeByClient }: P
           </SelectContent>
         </Select>
         <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortBy)}>
-          <SelectTrigger className="h-9 w-[170px]">
+          <SelectTrigger className="h-9 flex-1 min-w-0 lg:flex-none lg:w-[170px]">
             <SelectValue placeholder="Ordenar" />
           </SelectTrigger>
           <SelectContent>
