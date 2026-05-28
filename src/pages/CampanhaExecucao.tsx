@@ -784,6 +784,13 @@ export default function CampanhaExecucao() {
         campaignTitle={camp.track_name}
         engagementMultiplier={camp.engagement_multiplier ?? 30}
       />
+
+      <NewDealDialog
+        open={newDealOpen}
+        onOpenChange={setNewDealOpen}
+        campaignId={camp.id}
+        onSaved={() => setPlanRefreshKey(k => k + 1)}
+      />
     </PageContainer>
   );
 }
