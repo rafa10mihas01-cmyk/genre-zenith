@@ -609,19 +609,19 @@ function RitmoCard({
 
   return (
     <div className={cn("rounded-lg border px-4 py-4", borderClass)} style={gradientStyle}>
-      <div className="flex items-center justify-between gap-3 flex-wrap">
+      <div className="flex flex-col gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className={cn("h-2 w-2 rounded-full", dotClass)} />
+            <span className={cn("h-2 w-2 rounded-full shrink-0", dotClass)} />
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{label}</span>
           </div>
           <div className="text-[11px] text-muted-foreground mt-1 leading-snug">{hint}</div>
         </div>
-        <div className="text-right shrink-0">
+        <div>
           <div className="text-2xl font-semibold tabular-nums leading-none">
             {formatInt(value)}<span className="text-xs text-muted-foreground font-normal">/dia</span>
           </div>
-          <div className="text-[10px] text-muted-foreground tabular-nums mt-1">{footer}</div>
+          <div className="text-[10px] text-muted-foreground tabular-nums mt-1.5">{footer}</div>
         </div>
       </div>
     </div>
