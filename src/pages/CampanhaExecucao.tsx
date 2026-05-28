@@ -160,48 +160,72 @@ export default function CampanhaExecucao() {
 
     let dealId = (c as { deal_id?: string | null } | null)?.deal_id ?? null;
     if (!dealId && c?.spotify_track_id) {
-      const { data: auth } = await supabase.auth.getUser();
-      const userId = c.created_by ?? auth.user?.id ?? null;
-      if (userId) {
-        const goal = Number(c.goal_plays ?? snapshot?.meta ?? 0);
-        const { data: newDeal } = await supabase
-          .from("curator_deals")
-          .insert({
-            user_id: userId,
-            curator_name: "Campanha",
-            song_spotify_url: c.spotify_track_url || `spotify:track:${c.spotify_track_id}`,
-            song_name: c.track_name,
-            song_artist: c.artist,
-            song_cover_url: c.cover_url,
-            target_plays: goal,
-            baseline_plays: 0,
-            cost: 0,
-            started_at: c.started_at,
-            ends_at: c.deadline ? `${c.deadline}T23:59:59.000Z` : null,
-            state: "active",
-            source: "campaign_internal",
-            origin: "campaign",
-            campaign_id: c.id,
-          })
-          .select("id")
-          .single();
-        if (newDeal?.id) {
-          dealId = newDeal.id;
-          await supabase.from("curator_deal_songs").insert({
-            deal_id: dealId,
-            spotify_track_id: c.spotify_track_id,
-            song_spotify_url: c.spotify_track_url || `spotify:track:${c.spotify_track_id}`,
-            song_name: c.track_name,
-            song_artist: c.artist,
-            song_cover_url: c.cover_url,
-            target_plays: goal,
-            baseline_plays: 0,
-            position: 1,
-            started_at: c.started_at,
-            ends_at: c.deadline ? `${c.deadline}T23:59:59.000Z` : null,
-          });
+      // Antes de criar um shadow deal, verifica se já existe QUALQUER deal vinculado
+      // à campanha (ex.: deals reais de curadores via pacote externo). Se existir,
+      // apenas linka o primeiro encontrado em vez de criar lixo.
+      const { data: existingDeals } = await supabase
+        .from("curator_deals")
+        .select("id, curator_id, source, created_at")
+        .eq("campaign_id", c.id)
+        .order("created_at", { ascending: true });
+      const realDeal = (existingDeals ?? []).find((d: any) => d.curator_id != null);
+      const anyDeal = (existingDeals ?? [])[0];
+      if (realDeal?.id) {
+        dealId = realDeal.id;
+        if (c.deal_id !== dealId) {
           await supabase.from("campaigns").update({ deal_id: dealId }).eq("id", c.id);
-          setCamp({ ...(c as unknown as CampaignHubCampaign), deal_id: dealId });
+        }
+        setCamp({ ...(c as unknown as CampaignHubCampaign), deal_id: dealId });
+      } else if (anyDeal?.id) {
+        dealId = anyDeal.id;
+        if (c.deal_id !== dealId) {
+          await supabase.from("campaigns").update({ deal_id: dealId }).eq("id", c.id);
+        }
+        setCamp({ ...(c as unknown as CampaignHubCampaign), deal_id: dealId });
+      } else {
+        const { data: auth } = await supabase.auth.getUser();
+        const userId = c.created_by ?? auth.user?.id ?? null;
+        if (userId) {
+          const goal = Number(c.goal_plays ?? snapshot?.meta ?? 0);
+          const { data: newDeal } = await supabase
+            .from("curator_deals")
+            .insert({
+              user_id: userId,
+              curator_name: "Campanha",
+              song_spotify_url: c.spotify_track_url || `spotify:track:${c.spotify_track_id}`,
+              song_name: c.track_name,
+              song_artist: c.artist,
+              song_cover_url: c.cover_url,
+              target_plays: goal,
+              baseline_plays: 0,
+              cost: 0,
+              started_at: c.started_at,
+              ends_at: c.deadline ? `${c.deadline}T23:59:59.000Z` : null,
+              state: "active",
+              source: "campaign_internal",
+              origin: "campaign",
+              campaign_id: c.id,
+            })
+            .select("id")
+            .single();
+          if (newDeal?.id) {
+            dealId = newDeal.id;
+            await supabase.from("curator_deal_songs").insert({
+              deal_id: dealId,
+              spotify_track_id: c.spotify_track_id,
+              song_spotify_url: c.spotify_track_url || `spotify:track:${c.spotify_track_id}`,
+              song_name: c.track_name,
+              song_artist: c.artist,
+              song_cover_url: c.cover_url,
+              target_plays: goal,
+              baseline_plays: 0,
+              position: 1,
+              started_at: c.started_at,
+              ends_at: c.deadline ? `${c.deadline}T23:59:59.000Z` : null,
+            });
+            await supabase.from("campaigns").update({ deal_id: dealId }).eq("id", c.id);
+            setCamp({ ...(c as unknown as CampaignHubCampaign), deal_id: dealId });
+          }
         }
       }
     }
