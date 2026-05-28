@@ -913,51 +913,53 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
 
       {/* Banner: playlists sem gênero — atalho para classificar */}
       {!showArchived && !showCapacity && missingGenreCount > 0 && !filterMissingGenre && (
-        <div className="nx-card !p-3 flex items-center gap-3 border-warning/40 bg-warning/10">
-          <div className="h-8 w-8 rounded-full bg-warning/20 flex items-center justify-center shrink-0">
-            <AlertCircle className="h-4 w-4 text-warning" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-[13px] font-semibold text-foreground">
-              {missingGenreCount} {missingGenreCount === 1 ? "playlist sem gênero" : "playlists sem gênero"}
+        <div className="nx-card !p-3 sm:!p-4 flex flex-col sm:flex-row sm:items-center gap-3 border-warning/40 bg-warning/10">
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            <div className="h-8 w-8 rounded-full bg-warning/20 flex items-center justify-center shrink-0">
+              <AlertCircle className="h-4 w-4 text-warning" />
             </div>
-            <div className="text-[11px] text-muted-foreground">
-              Classifique agora para liberar match com clientes e relatórios por gênero.
+            <div className="flex-1 min-w-0">
+              <div className="text-[13px] font-semibold text-foreground">
+                {missingGenreCount} {missingGenreCount === 1 ? "playlist sem gênero" : "playlists sem gênero"}
+              </div>
+              <div className="text-[11px] text-muted-foreground leading-snug">
+                Classifique para liberar match e relatórios.
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap sm:shrink-0">
             {pendingSuggestionCount > 0 ? (
               <Button
                 size="sm"
                 variant="outline"
-                className="h-8 border-primary/40 text-primary hover:bg-primary/15 hover:text-primary"
+                className="h-8 flex-1 sm:flex-none border-primary/40 text-primary hover:bg-primary/15 hover:text-primary"
                 onClick={() => { setFilterFase("all"); setFilterGenreId(null); setFilterMissingGenre(true); }}
               >
                 <Sparkles className="h-3.5 w-3.5" />
-                Revisar sugestões ({pendingSuggestionCount})
+                Revisar ({pendingSuggestionCount})
               </Button>
             ) : (
               <Button
                 size="sm"
                 variant="outline"
-                className="h-8"
+                className="h-8 flex-1 sm:flex-none"
                 onClick={() => runGenreSuggest()}
                 disabled={suggesting}
                 title="Sugerir gêneros via IA"
               >
                 <Sparkles className={cn("h-3.5 w-3.5", suggesting && "animate-pulse")} />
                 {suggesting
-                  ? (suggestProgress ? `Sugerindo… ${suggestProgress.done}/${suggestProgress.total}` : "Sugerindo…")
-                  : "Sugerir com IA"}
+                  ? (suggestProgress ? `${suggestProgress.done}/${suggestProgress.total}` : "Sugerindo…")
+                  : "Sugerir IA"}
               </Button>
             )}
             <Button
               size="sm"
               variant="outline"
-              className="h-8 border-warning/40 text-warning hover:bg-warning/15 hover:text-warning"
+              className="h-8 flex-1 sm:flex-none border-warning/40 text-warning hover:bg-warning/15 hover:text-warning"
               onClick={() => { setFilterFase("all"); setFilterMissingGenre(true); }}
             >
-              Classificar agora
+              Classificar
             </Button>
           </div>
         </div>
