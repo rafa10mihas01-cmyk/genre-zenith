@@ -10,14 +10,12 @@ import {
   Target,
   ShieldCheck,
   Clock,
-  CheckCircle2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 import { PageContainer } from "@/components/PageContainer";
 import { PageHeader } from "@/components/PageHeader";
-import { KpiBig } from "@/components/KpiBig";
 import { Button } from "@/components/ui/button";
 import { useCuratorDealDetail } from "@/hooks/useCuratorDealDetail";
 import { DealHistorySheet } from "@/components/playlist-deals/DealHistorySheet";
