@@ -782,46 +782,48 @@ export function DealHistorySheet({
 
                   {/* Estado da coleta */}
                   <SectionCard title="Estado da coleta">
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-[13px]">
-                      <div className="text-muted-foreground">Baseline</div>
-                      <div className="text-right tabular-nums font-medium">
-                        {baseline > 0 ? fmt(baseline) : "—"}
-                      </div>
-                      <div className="text-muted-foreground">Última leitura</div>
-                      <div className="text-right tabular-nums font-medium">
-                        {fmt(stats.latestPlays)}
-                      </div>
-                      <div className="text-muted-foreground">Última coleta</div>
-                      <div className="text-right text-foreground/80">
-                        {lastLog
-                          ? format(new Date(lastLog.created_at), "dd MMM, HH:mm", { locale: ptBR })
-                          : "—"}
-                      </div>
-                      <div className="text-muted-foreground">Investido</div>
-                      <div className="text-right font-medium">{investido}</div>
-                    </div>
+                    <ul className="divide-y divide-border/60 -my-2">
+                      {[
+                        { label: "Baseline", value: baseline > 0 ? fmt(baseline) : "—" },
+                        { label: "Última leitura", value: fmt(stats.latestPlays) },
+                        {
+                          label: "Última coleta",
+                          value: lastLog
+                            ? format(new Date(lastLog.created_at), "dd MMM, HH:mm", { locale: ptBR })
+                            : "—",
+                        },
+                        { label: "Investido", value: investido },
+                      ].map((r) => (
+                        <li key={r.label} className="flex items-center justify-between gap-3 py-2.5 text-[13px]">
+                          <span className="text-muted-foreground">{r.label}</span>
+                          <span className="text-right tabular-nums font-medium text-foreground truncate">
+                            {r.value}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
                   </SectionCard>
 
                   {/* Origem das playlists */}
                   <SectionCard title="Origem das playlists">
-                    <div className="space-y-2.5">
+                    <ul className="divide-y divide-border/60 -my-2">
                       {(["curator", "editorial", "organic", "suspicious", "baseline"] as CuratorMatchStatus[])
                         .filter((s) => counts[s] > 0)
                         .map((s) => (
-                          <div key={s} className="flex items-center gap-2 text-[13px]">
-                            <span className={cn("h-1.5 w-1.5 rounded-full", STATUS_DOT[s])} />
-                            <span className="text-foreground">{STATUS_LABEL[s]}</span>
-                            <span className="ml-auto tabular-nums font-semibold text-muted-foreground">
+                          <li key={s} className="flex items-center gap-2 py-2.5 text-[13px]">
+                            <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", STATUS_DOT[s])} />
+                            <span className="text-foreground truncate">{STATUS_LABEL[s]}</span>
+                            <span className="ml-auto tabular-nums font-semibold text-muted-foreground shrink-0">
                               {counts[s]}
                             </span>
-                          </div>
+                          </li>
                         ))}
                       {dealPlaylists.length === 0 && (
-                        <div className="text-[13px] text-muted-foreground">
+                        <li className="py-2.5 text-[13px] text-muted-foreground">
                           Nenhuma playlist registrada ainda.
-                        </div>
+                        </li>
                       )}
-                    </div>
+                    </ul>
                   </SectionCard>
 
                   {/* Curador vs Ecossistema (RPC breakdown) */}
