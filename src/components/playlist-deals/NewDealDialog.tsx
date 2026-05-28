@@ -92,6 +92,8 @@ export interface NewDealDialogProps {
   sourceFitId?: string | null;
   /** Disparado após criar o deal, recebe o deal criado (id). */
   onCreated?: (deal: CuratorDeal) => void | Promise<void>;
+  /** Quando o dialog é aberto a partir de uma campanha, vincula o deal a ela. */
+  campaignId?: string | null;
 }
 
 // ============================================================
@@ -457,7 +459,7 @@ function ClientPicker({
 // ============================================================
 // Componente
 // ============================================================
-export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved, prefillSongUrl, prefillCuratorId, sourceFitId, onCreated }: NewDealDialogProps) {
+export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved, prefillSongUrl, prefillCuratorId, sourceFitId, onCreated, campaignId }: NewDealDialogProps) {
   const { addDeal, updateDeal, addCurator, updateCurator, curators, balances } = useCuratorDeals();
   const { clients, addClient } = useClients();
   const { addPurchase } = useCuratorFinance();
@@ -1081,6 +1083,8 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
         billing_model: billingModel,
         monthly_amount: billingModel === "monthly_retainer" ? monthlyAmountVal : null,
         cycle_months: billingModel === "monthly_retainer" ? cycleMonthsVal : null,
+        // Vínculo opcional com a campanha de origem
+        campaign_id: campaignId ?? null,
       };
 
       // Garante coerência: payload.target_plays é a soma. Se primary tiver target=0 (edge), usa total.
