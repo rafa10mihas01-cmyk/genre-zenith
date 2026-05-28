@@ -1327,13 +1327,13 @@ function BucketShell({
   if (count === 0) return null;
   return (
     <Card id={id} className="overflow-hidden scroll-mt-20">
-      <div className={cn("flex items-center justify-between px-4 py-3 border-b", m.tone, "bg-opacity-40")}>
-        <div className="flex items-center gap-2">
-          <m.Icon className="h-4 w-4" />
-          <span className="text-sm font-bold uppercase tracking-wider">{m.label}</span>
-          <span className="text-xs opacity-70">· {count} {count === 1 ? "faixa" : "faixas"}</span>
+      <div className={cn("flex items-center justify-between gap-2 px-3 py-2.5 border-b min-w-0", m.tone, "bg-opacity-40")}>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <m.Icon className="h-3.5 w-3.5 shrink-0" />
+          <span className="text-[11px] font-bold uppercase tracking-wider truncate">{m.label}</span>
+          <span className="text-[11px] opacity-70 tabular-nums shrink-0">· {count}</span>
         </div>
-        {headerRight}
+        <div className="shrink-0">{headerRight}</div>
       </div>
       <div className="divide-y divide-border/40 max-h-[440px] overflow-y-auto">{children}</div>
     </Card>
@@ -1356,11 +1356,11 @@ function TrackLine({
   position, target, title, artist, reason, action,
 }: { position: number; target: number | null; title: string; artist: string; reason: string; action: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-3 px-4 py-2.5 hover:bg-elevated/40 transition-colors">
+    <div className="flex items-center gap-2 px-3 py-2 hover:bg-elevated/40 transition-colors">
       <PositionBadge from={position} to={target} />
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium truncate">{title}</div>
-        <div className="text-xs text-muted-foreground truncate">{artist} · {reason}</div>
+        <div className="text-xs font-medium truncate">{title}</div>
+        <div className="text-[11px] text-muted-foreground truncate">{artist} · {reason}</div>
       </div>
       <div className="shrink-0">{action}</div>
     </div>
@@ -1385,7 +1385,7 @@ function BucketRemove({ items, applying, onApplyAll }: {
             className="h-7 text-xs gap-1"
           >
             {applying ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
-            Remover todas ({items.length})
+            Aplicar ({items.length})
           </Button>
         )
       }
@@ -1428,7 +1428,7 @@ function BucketReorder({ kind, items, totalTracks, applying, onApplyAll }: {
           >
             {applying ? <Loader2 className="h-3 w-3 animate-spin" /> :
               kind === "promote" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-            {kind === "promote" ? "Mover pro topo" : "Mover pra baixo"} ({items.length})
+            Aplicar ({items.length})
           </Button>
         )
       }
@@ -1487,7 +1487,7 @@ function BucketAdd({ items, applying, onApplyAll }: {
             className="h-7 text-xs gap-1"
           >
             {applying ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
-            Adicionar todas ({items.length})
+            Aplicar ({items.length})
           </Button>
         )
       }

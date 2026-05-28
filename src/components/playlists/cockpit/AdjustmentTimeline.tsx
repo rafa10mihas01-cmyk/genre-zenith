@@ -67,13 +67,11 @@ export function AdjustmentTimeline({ playlistId }: { playlistId: string }) {
   if (items.length === 0) {
     return (
       <Card className="p-4">
-        <div className="flex items-start gap-3">
-          <History className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-          <div className="space-y-1 min-w-0">
-            <div className="text-sm font-medium">Nenhum ajuste registrado ainda</div>
-            <div className="text-xs text-muted-foreground leading-relaxed">
-              Quando você aprovar mudanças (capa, descrição, faixas), o NexEngine observa o resultado por uma janela e registra aqui o impacto editorial.
-            </div>
+        <div className="flex items-center gap-3">
+          <History className="h-4 w-4 text-muted-foreground shrink-0" />
+          <div className="min-w-0">
+            <div className="text-sm font-medium">Sem ajustes ainda</div>
+            <div className="text-xs text-muted-foreground">Suas mudanças aparecem aqui.</div>
           </div>
         </div>
       </Card>
