@@ -792,39 +792,48 @@ function ClientPriceEditor({
     ? new Date(approvedAt).toLocaleString("pt-BR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
     : null;
 
+  const ecoPctOfCost = snapshot.custoTotal > 0 ? (snapshot.custoEco / snapshot.custoTotal) * 100 : 0;
+  const extPctOfCost = snapshot.custoTotal > 0 ? (snapshot.custoExt / snapshot.custoTotal) * 100 : 0;
+  const costPctOfRevenue = effectiveTotal > 0 ? Math.min(100, (snapshot.custoTotal / effectiveTotal) * 100) : 0;
+  const marginPctOfRevenue = Math.max(0, 100 - costPctOfRevenue);
+
   return (
-    <Card className="border-primary/30">
-      <CardContent className="p-5 space-y-4">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <div className="text-sm font-semibold">Preço do cliente</div>
-            <div className="text-xs text-muted-foreground">
-              Este é o valor total que aparece no portal para o cliente aprovar.
+    <Card className="border-border/60 overflow-hidden">
+      {/* Hero — valor do cliente */}
+      <div className="px-5 pt-5 pb-4 border-b border-border/60">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="min-w-0">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Cliente paga</div>
+            <div className="text-3xl sm:text-4xl font-semibold tabular-nums text-foreground mt-1">
+              {formatBRL(effectiveTotal)}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1 tabular-nums">
+              {formatInt(snapshot.meta)} streams · {formatBRL(perMillion)}/1M
             </div>
           </div>
-          {approved && <div className="text-[10px] uppercase tracking-wide text-primary font-semibold">Cliente já aprovou</div>}
+          {approved && (
+            <span className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-primary font-semibold border border-primary/40 bg-primary/10 rounded-full px-2.5 py-1 shrink-0">
+              <CheckCircle2 className="h-3 w-3" /> Aprovado
+            </span>
+          )}
         </div>
 
-        {locked && (
-          <div className="flex items-start gap-2 rounded-md border border-primary/30 bg-primary/10 px-3 py-2.5 text-xs">
-            <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-            <div>
-              <div className="font-medium text-primary">Orçamento travado</div>
-              <p className="text-muted-foreground mt-0.5">
-                Cliente já aprovou este orçamento{approvedLabel ? <> em <strong className="text-foreground">{approvedLabel}</strong></> : null}.
-                Para alterar, contate o cliente.
-              </p>
-            </div>
-          </div>
+        {locked && approvedLabel && (
+          <p className="text-[11px] text-muted-foreground mt-3">
+            Travado em <strong className="text-foreground">{approvedLabel}</strong>. Para alterar, contate o cliente.
+          </p>
         )}
+      </div>
 
+      {/* Editor */}
+      <div className="px-5 py-4 border-b border-border/60">
         {(() => {
           const isDirty = !locked && Number.isFinite(typedTotal) && typedTotal > 0 && Math.abs(typedTotal - currentTotal) > 0.005;
           const isSaved = !isDirty && currentTotal > 0;
           return (
-            <div className="grid grid-cols-1 lg:grid-cols-[minmax(220px,1fr)_auto] gap-3 lg:items-end">
-              <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wide text-muted-foreground">Valor fechado da campanha</Label>
+            <div className="space-y-2">
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Valor fechado</Label>
+              <div className="flex gap-2">
                 <Input
                   value={value}
                   onChange={(e) => onChange(e.target.value)}
@@ -832,49 +841,84 @@ function ClientPriceEditor({
                   placeholder="Ex.: 50.000,00"
                   disabled={locked}
                   className={cn(
-                    "text-lg font-semibold tabular-nums transition-colors",
+                    "text-base font-semibold tabular-nums transition-colors flex-1",
                     isSaved && "text-muted-foreground/70",
                     locked && "opacity-60 cursor-not-allowed",
                   )}
                 />
+                <Button
+                  onClick={onSave}
+                  disabled={saving || !isDirty || locked}
+                  variant={isDirty ? "default" : "outline"}
+                  size="icon"
+                  className="shrink-0 h-10 w-10"
+                  title={isSaved ? "Orçamento salvo" : "Salvar"}
+                  aria-label={isSaved ? "Orçamento salvo" : "Salvar"}
+                >
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : isSaved ? <CheckCircle2 className="h-4 w-4" /> : <Save className="h-4 w-4" />}
+                </Button>
               </div>
-              <Button
-                onClick={onSave}
-                disabled={saving || !isDirty || locked}
-                variant={isDirty ? "default" : "outline"}
-                className="w-full lg:w-auto"
-              >
-                {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                {isSaved ? "Orçamento salvo" : "Salvar orçamento"}
-              </Button>
             </div>
           );
         })()}
+      </div>
 
-        {showFinanceKpis && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <FinKpi label="Cliente paga" value={formatBRL(effectiveTotal)} sub={`${formatInt(snapshot.meta)} streams`} />
-            <FinKpi label="Tabela" value={formatBRL(perMillion)} sub="por 1M streams" />
-            <FinKpi label="Seu custo" value={formatBRL(snapshot.custoTotal)} sub="interno" />
-            <FinKpi label="Margem" value={formatBRL(margin)} sub={`${marginPct}% sobre venda`} />
+      {showFinanceKpis && (
+        <>
+          {/* P&L visual: Receita → Custo + Margem */}
+          <div className="px-5 py-4 border-b border-border/60 space-y-3">
+            <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-muted-foreground">
+              <span>Margem da campanha</span>
+              <span className="tabular-nums text-foreground font-semibold">{marginPct}%</span>
+            </div>
+            <div className="h-2 w-full rounded-full bg-elevated/40 overflow-hidden flex">
+              <div className="h-full bg-muted-foreground/40" style={{ width: `${costPctOfRevenue}%` }} title={`Custo ${formatBRL(snapshot.custoTotal)}`} />
+              <div className="h-full bg-primary" style={{ width: `${marginPctOfRevenue}%` }} title={`Margem ${formatBRL(margin)}`} />
+            </div>
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <div>
+                <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60" />
+                  Seu custo
+                </div>
+                <div className="text-base font-semibold tabular-nums text-foreground mt-0.5">{formatBRL(snapshot.custoTotal)}</div>
+              </div>
+              <div className="text-right">
+                <div className="flex items-center justify-end gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Margem
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                </div>
+                <div className="text-base font-semibold tabular-nums text-primary mt-0.5">{formatBRL(margin)}</div>
+              </div>
+            </div>
           </div>
-        )}
 
-        {/* Breakdown do custo Eco vs Externo */}
-        <div className="rounded-md border border-border bg-elevated/20 px-3 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs tabular-nums">
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Composição do custo</span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-            Eco <strong className="text-foreground">{formatBRL(snapshot.custoEco)}</strong>
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-curators" />
-            Externo <strong className="text-foreground">{formatBRL(snapshot.custoExt)}</strong>
-          </span>
-          <span className="text-muted-foreground">·</span>
-          <span>Total <strong className="text-foreground">{formatBRL(snapshot.custoTotal)}</strong></span>
-        </div>
-      </CardContent>
+          {/* Composição do custo: Eco vs Externo */}
+          <div className="px-5 py-4 space-y-3">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Composição do custo</div>
+            <div className="h-2 w-full rounded-full bg-elevated/40 overflow-hidden flex">
+              <div className="h-full bg-primary" style={{ width: `${ecoPctOfCost}%` }} title={`Eco ${formatBRL(snapshot.custoEco)}`} />
+              <div className="h-full bg-curators" style={{ width: `${extPctOfCost}%` }} title={`Externo ${formatBRL(snapshot.custoExt)}`} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="w-2 h-2 rounded-full bg-primary shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Eco</div>
+                  <div className="text-sm font-semibold tabular-nums text-foreground">{formatBRL(snapshot.custoEco)}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 min-w-0 justify-end text-right">
+                <div className="min-w-0">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Externo</div>
+                  <div className="text-sm font-semibold tabular-nums text-foreground">{formatBRL(snapshot.custoExt)}</div>
+                </div>
+                <span className="w-2 h-2 rounded-full bg-curators shrink-0" />
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </Card>
   );
 }
