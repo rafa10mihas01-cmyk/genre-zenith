@@ -3,9 +3,12 @@
 // faixa naquela posição, lixeira por linha pra remover, badge "pendente" por linha
 // quando há job na fila pra aquela faixa.
 //
-// Reordenar dispara job 'playlist.track.reorder' (executado server-side em
-// bot-execution-queue chamando Spotify reorderPlaylistTracks).
-// Adicionar/Remover dispara jobs 'playlist.track.add'/'remove' (executados pelo bot VPS).
+// Proteções operacionais:
+//  - Lock: respeita managed_playlists.locked_at (banner + desabilita ações se < 30s).
+//  - Batching: drags consecutivos são acumulados por 1.5s e enviados como 1 job
+//    com o movimento líquido (from inicial → to final da última faixa tocada).
+//  - inFlight forte: enquanto houver job pending/claimed na fila desta playlist,
+//    todos os botões ficam desabilitados; libera automaticamente via realtime.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -17,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import {
-  Loader2, Trash2, Plus, RefreshCw, GripVertical, ListMusic, AlertCircle, Clock,
+  Loader2, Trash2, Plus, RefreshCw, GripVertical, ListMusic, AlertCircle, Clock, Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -48,6 +51,10 @@ type Job = {
   to_position: number | null;
 };
 
+const LOCK_WINDOW_MS = 30_000;     // lock considerado ativo se locked_at > now()-30s
+const LOCK_REVALIDATE_MS = 5_000;  // revalida lock a cada 5s
+const REORDER_DEBOUNCE_MS = 1_500; // acumula drags por 1.5s
+
 function fmtDuration(ms: number | null) {
   if (!ms) return "—";
   const total = Math.round(ms / 1000);
@@ -65,10 +72,12 @@ function fmtTotalDuration(ms: number) {
 type PlaylistMeta = {
   name: string | null;
   cover_url: string | null;
+  locked_at: string | null;
+  locked_by: string | null;
 };
 
 function SortableRow({
-  track, position, pendingJob, onRemove, onAddAt, busy,
+  track, position, pendingJob, onRemove, onAddAt, busy, disabled,
 }: {
   track: Track;
   position: number;
@@ -76,9 +85,10 @@ function SortableRow({
   onRemove: (id: string) => void;
   onAddAt: (position: number) => void;
   busy: boolean;
+  disabled: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: track.spotify_track_id });
+    useSortable({ id: track.spotify_track_id, disabled });
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -99,7 +109,8 @@ function SortableRow({
       <button
         type="button"
         onClick={() => onAddAt(position)}
-        className="absolute -top-1.5 left-1/2 -translate-x-1/2 z-20 h-5 w-5 rounded-full bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground border border-primary/30 opacity-0 group-hover/row:opacity-100 transition-opacity grid place-items-center"
+        disabled={disabled}
+        className="absolute -top-1.5 left-1/2 -translate-x-1/2 z-20 h-5 w-5 rounded-full bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground border border-primary/30 opacity-0 group-hover/row:opacity-100 transition-opacity grid place-items-center disabled:cursor-not-allowed disabled:opacity-0"
         title={`Adicionar na posição ${position}`}
       >
         <Plus className="h-3 w-3" />
@@ -108,18 +119,23 @@ function SortableRow({
       <div className="flex items-center gap-3 py-1.5 px-2 rounded-md hover:bg-muted/40 transition-colors">
         {/* Posição / drag handle no hover */}
         <div className="w-8 shrink-0 grid place-items-center">
-          <span className="tabular-nums text-sm text-muted-foreground group-hover/row:hidden">
+          <span className={cn(
+            "tabular-nums text-sm text-muted-foreground",
+            !disabled && "group-hover/row:hidden",
+          )}>
             {position}
           </span>
-          <button
-            type="button"
-            {...attributes}
-            {...listeners}
-            className="hidden group-hover/row:grid place-items-center cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
-            aria-label="Arrastar"
-          >
-            <GripVertical className="h-4 w-4" />
-          </button>
+          {!disabled && (
+            <button
+              type="button"
+              {...attributes}
+              {...listeners}
+              className="hidden group-hover/row:grid place-items-center cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
+              aria-label="Arrastar"
+            >
+              <GripVertical className="h-4 w-4" />
+            </button>
+          )}
         </div>
 
         {/* Capa */}
@@ -161,7 +177,7 @@ function SortableRow({
           variant="ghost"
           size="icon"
           className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover/row:opacity-100 transition-opacity"
-          disabled={busy || !!pendingJob}
+          disabled={busy || disabled || !!pendingJob}
           onClick={() => onRemove(track.spotify_track_id)}
           title="Remover faixa"
         >
@@ -177,12 +193,15 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
-  const [rateLimitUntil, setRateLimitUntil] = useState<number | null>(null); // epoch ms
+  const [rateLimitUntil, setRateLimitUntil] = useState<number | null>(null);
   const [nowTick, setNowTick] = useState<number>(() => Date.now());
   const [busyTrack, setBusyTrack] = useState<string | null>(null);
-  const [meta, setMeta] = useState<PlaylistMeta>({ name: null, cover_url: null });
+  const [meta, setMeta] = useState<PlaylistMeta>({
+    name: null, cover_url: null, locked_at: null, locked_by: null,
+  });
   const [source, setSource] = useState<"spotify" | "cache" | null>(null);
   const [cacheSnapshotAt, setCacheSnapshotAt] = useState<string | null>(null);
+  const [lockTick, setLockTick] = useState<number>(() => Date.now());
 
   // Dialog "Adicionar na posição X"
   const [addOpen, setAddOpen] = useState(false);
@@ -197,6 +216,40 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
   const lastRefreshAt = useRef<number>(0);
   const REFRESH_COOLDOWN_MS = 2000;
 
+  // Batching de reorders — guarda o id da faixa movida e a posição original
+  // ANTES do primeiro drag do batch (pra calcular o movimento líquido).
+  const reorderBatch = useRef<{
+    trackId: string;
+    fromPosition: number; // posição 1-indexada original (antes do 1º drag)
+  } | null>(null);
+  const reorderTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ===== Lock operacional =====
+  const isLocked = useMemo(() => {
+    if (!meta.locked_at) return false;
+    const lockedMs = new Date(meta.locked_at).getTime();
+    return Number.isFinite(lockedMs) && lockedMs > lockTick - LOCK_WINDOW_MS;
+  }, [meta.locked_at, lockTick]);
+
+  // ===== Jobs ativos da playlist =====
+  const hasActiveJobs = useMemo(
+    () => jobs.some((j) => j.status === "pending" || j.status === "claimed"),
+    [jobs],
+  );
+
+  // ===== Busy global (qualquer ação fica bloqueada) =====
+  const isBusy = isLocked || hasActiveJobs;
+
+  // Revalida lock a cada 5s (recarrega meta + reavalia tick)
+  useEffect(() => {
+    const id = setInterval(() => {
+      setLockTick(Date.now());
+      loadMeta();
+    }, LOCK_REVALIDATE_MS);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playlistId]);
+
   // Tick por segundo enquanto houver countdown ativo
   useEffect(() => {
     if (!rateLimitUntil) return;
@@ -206,7 +259,7 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
       if (now >= rateLimitUntil) {
         clearInterval(id);
         setRateLimitUntil(null);
-        loadTracks(); // auto-retry quando o countdown zera
+        loadTracks();
       }
     }, 1000);
     return () => clearInterval(id);
@@ -226,7 +279,6 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
     loadJobs();
     loadMeta();
   }
-
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -252,8 +304,6 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
         throw new Error(data?.error ?? "Falhou");
       }
       const isCache = data.source === "cache";
-      // Cache já é um resultado válido: não inicia countdown nem auto-retry,
-      // senão a UI fica em loop visual mesmo com as faixas carregadas.
       setRateLimitUntil(null);
       setSource(isCache ? "cache" : "spotify");
       setCacheSnapshotAt(isCache ? (data.cache_snapshot_at ?? null) : null);
@@ -264,7 +314,6 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
       setLoading(false);
     }
   }
-
 
   async function loadJobs() {
     const { data } = await supabase
@@ -280,10 +329,17 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
   async function loadMeta() {
     const { data } = await supabase
       .from("managed_playlists")
-      .select("name, cover_url")
+      .select("name, cover_url, locked_at, locked_by")
       .eq("id", playlistId)
       .maybeSingle();
-    if (data) setMeta({ name: data.name ?? null, cover_url: (data as any).cover_url ?? null });
+    if (data) {
+      setMeta({
+        name: data.name ?? null,
+        cover_url: (data as any).cover_url ?? null,
+        locked_at: (data as any).locked_at ?? null,
+        locked_by: (data as any).locked_by ?? null,
+      });
+    }
   }
 
   useEffect(() => {
@@ -314,13 +370,20 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
               });
             }
           } else if (row.job_type === "playlist.track.add") {
-            // Refetch pra obter metadata rica (nome, capa, duração) da nova faixa
             loadTracks();
           }
         },
       )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      supabase.removeChannel(channel);
+      // Cancela timer pendente ao desmontar
+      if (reorderTimer.current) {
+        clearTimeout(reorderTimer.current);
+        reorderTimer.current = null;
+        reorderBatch.current = null;
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playlistId]);
 
@@ -335,50 +398,91 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
     [tracks],
   );
 
-  async function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    if (inFlight.current) return;
-    const oldIndex = tracks.findIndex((t) => t.spotify_track_id === active.id);
-    const newIndex = tracks.findIndex((t) => t.spotify_track_id === over.id);
-    if (oldIndex === -1 || newIndex === -1) return;
+  // ===== Dispara o job de reorder consolidado (chamado pelo debounce) =====
+  async function flushReorderBatch() {
+    const batch = reorderBatch.current;
+    reorderBatch.current = null;
+    reorderTimer.current = null;
+    if (!batch) return;
 
-    // Otimista: reordena localmente
-    const previous = tracks;
-    setTracks((prev) => arrayMove(prev, oldIndex, newIndex));
+    // Posição final da faixa no estado atual (1-indexado)
+    const finalIdx = tracks.findIndex((t) => t.spotify_track_id === batch.trackId);
+    if (finalIdx === -1) return;
+    const toPosition = finalIdx + 1;
+    if (toPosition === batch.fromPosition) return; // movimento líquido = 0
 
-    // Posições 1-indexadas para o backend
-    const from = oldIndex + 1;
-    const to = newIndex + 1;
-    setBusyTrack(String(active.id));
     inFlight.current = true;
+    setBusyTrack(batch.trackId);
     try {
       const { data, error } = await supabase.functions.invoke("enqueue-playlist-job", {
         body: {
           playlist_id: playlistId,
-          spotify_track_id: String(active.id),
+          spotify_track_id: batch.trackId,
           action: "reorder",
-          from_position: from,
-          to_position: to,
+          from_position: batch.fromPosition,
+          to_position: toPosition,
         },
       });
       if (error || !data?.ok) throw new Error(error?.message ?? data?.error ?? "Falhou");
       toast({
         title: "Reordenação enfileirada",
-        description: `Posição ${from} → ${to}. Processada nos próximos segundos.`,
+        description: `Posição ${batch.fromPosition} → ${toPosition}.`,
       });
       loadJobs();
     } catch (e: any) {
-      setTracks(previous); // rollback
       toast({ title: "Não consegui reordenar", description: e.message, variant: "destructive" });
+      loadTracks(); // rollback via refetch
     } finally {
       setBusyTrack(null);
       inFlight.current = false;
     }
   }
 
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    if (isBusy || inFlight.current) return;
+
+    const trackId = String(active.id);
+    const oldIndex = tracks.findIndex((t) => t.spotify_track_id === trackId);
+    const newIndex = tracks.findIndex((t) => t.spotify_track_id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    // Otimista: reordena localmente
+    setTracks((prev) => arrayMove(prev, oldIndex, newIndex));
+
+    // Inicia ou estende o batch:
+    //  - Se já existe batch da mesma faixa, mantém fromPosition original.
+    //  - Se é faixa diferente, dá flush no batch anterior antes (caso especial raro).
+    if (reorderBatch.current && reorderBatch.current.trackId !== trackId) {
+      // Faixa diferente: cancela timer anterior e dispara agora (síncrono via setTimeout 0)
+      if (reorderTimer.current) clearTimeout(reorderTimer.current);
+      const prev = reorderBatch.current;
+      reorderBatch.current = null;
+      reorderTimer.current = null;
+      // Reabre batch com a posição final atual da faixa anterior
+      const prevIdx = tracks.findIndex((t) => t.spotify_track_id === prev.trackId);
+      if (prevIdx !== -1 && prevIdx + 1 !== prev.fromPosition) {
+        // Dispara o anterior imediatamente
+        reorderBatch.current = prev;
+        await flushReorderBatch();
+      }
+    }
+
+    if (!reorderBatch.current) {
+      reorderBatch.current = {
+        trackId,
+        fromPosition: oldIndex + 1, // posição ORIGINAL antes do 1º drag
+      };
+    }
+
+    // Reset do timer — cada drag adia o flush em 1.5s
+    if (reorderTimer.current) clearTimeout(reorderTimer.current);
+    reorderTimer.current = setTimeout(flushReorderBatch, REORDER_DEBOUNCE_MS);
+  }
+
   async function handleRemove(spotify_track_id: string) {
-    if (inFlight.current) return;
+    if (isBusy || inFlight.current) return;
     inFlight.current = true;
     setBusyTrack(spotify_track_id);
     try {
@@ -397,6 +501,7 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
   }
 
   function openAddAt(position: number) {
+    if (isBusy) return;
     setAddPosition(position);
     setAddInput("");
     setAddOpen(true);
@@ -404,11 +509,10 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
 
   async function handleAddSubmit() {
     if (!addInput.trim()) return;
-    if (inFlight.current) return;
+    if (isBusy || inFlight.current) return;
     inFlight.current = true;
     setAdding(true);
     try {
-      // 1) Enfileira add (bot adiciona no topo/fundo conforme implementação)
       const { data, error } = await supabase.functions.invoke("enqueue-playlist-job", {
         body: { playlist_id: playlistId, spotify_track_id: addInput.trim(), action: "add" },
       });
@@ -428,17 +532,19 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
     }
   }
 
+  // Quantos jobs ativos pra mensagem de status
+  const activeJobsCount = useMemo(
+    () => jobs.filter((j) => j.status === "pending" || j.status === "claimed").length,
+    [jobs],
+  );
+
   return (
     <div className="space-y-4">
       <Card className="p-5 space-y-4">
-        {/* Cabeçalho Spotify-style */}
+        {/* Cabeçalho */}
         <div className="flex items-center gap-4">
           {meta.cover_url ? (
-            <img
-              src={meta.cover_url}
-              alt=""
-              className="h-20 w-20 rounded-md object-cover shrink-0 shadow-md"
-            />
+            <img src={meta.cover_url} alt="" className="h-20 w-20 rounded-md object-cover shrink-0 shadow-md" />
           ) : (
             <div className="h-20 w-20 rounded-md bg-muted shrink-0 grid place-items-center">
               <ListMusic className="h-8 w-8 text-muted-foreground" />
@@ -474,9 +580,26 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
 
         <p className="text-[11px] text-muted-foreground">
           Arraste pela alça para reordenar · Passe o mouse entre faixas para revelar o botão <Plus className="inline h-3 w-3" /> · Use a lixeira para remover.
-          Ações entram numa fila e o badge mostra o estado.
+          Reordenações consecutivas são agrupadas e enviadas após 1,5s.
         </p>
 
+        {/* Banner: lock operacional */}
+        {isLocked && (
+          <div className="flex items-start gap-2 text-sm p-3 rounded-md border border-warning/40 bg-warning/5 text-warning">
+            <Lock className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>Playlist sendo sincronizada — aguarde…</span>
+          </div>
+        )}
+
+        {/* Banner: jobs ativos na fila */}
+        {!isLocked && hasActiveJobs && (
+          <div className="flex items-start gap-2 text-sm p-3 rounded-md border border-warning/40 bg-warning/5 text-warning">
+            <Clock className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>
+              {activeJobsCount} {activeJobsCount === 1 ? "ação" : "ações"} na fila — aguardando o bot processar antes de permitir novas edições.
+            </span>
+          </div>
+        )}
 
         {rateLimitSecLeft > 0 && (
           <div className="flex items-start gap-2 text-sm p-3 rounded-md border border-warning/40 bg-warning/5 text-warning">
@@ -517,7 +640,7 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
               items={tracks.map((t) => t.spotify_track_id)}
               strategy={verticalListSortingStrategy}
             >
-              <ul className="space-y-0.5">
+              <ul className={cn("space-y-0.5", isBusy && "opacity-60 pointer-events-none")}>
                 {tracks.map((t, i) => (
                   <SortableRow
                     key={t.spotify_track_id}
@@ -527,6 +650,7 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
                     onRemove={handleRemove}
                     onAddAt={openAddAt}
                     busy={busyTrack === t.spotify_track_id}
+                    disabled={isBusy}
                   />
                 ))}
                 {/* + final pra adicionar no fim */}
@@ -535,6 +659,7 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
                     variant="outline"
                     size="sm"
                     onClick={() => openAddAt(tracks.length + 1)}
+                    disabled={isBusy}
                     className="w-full nx-pill border-dashed"
                   >
                     <Plus className="h-3.5 w-3.5 mr-1.5" />
