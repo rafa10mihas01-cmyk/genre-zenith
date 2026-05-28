@@ -695,7 +695,28 @@ export function PlaylistCockpit({
                 })()}
               </section>
 
-              {/* ===== 2. VISÃO GERAL ===== */}
+              {/* ===== 2. EXECUTAR PLANO ===== */}
+              {(buckets.remove.length + buckets.demote.length + buckets.promote.length + buckets.add.length) > 0 && (
+                <Card className="p-4 md:p-5 bg-primary/5 border-primary/30 flex flex-col items-center text-center gap-3 md:flex-row md:items-center md:text-left md:justify-between">
+                  <div className="space-y-0.5 min-w-0">
+                    <div className="text-sm font-semibold">Executar plano</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      Aplica tudo via API.
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => applyPlan("all")}
+                    disabled={applying !== null}
+                    size="sm"
+                    className="gap-1.5 h-9 px-5 rounded-full text-sm font-medium shrink-0"
+                  >
+                    {applying === "all" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                    Aprovar e executar
+                  </Button>
+                </Card>
+              )}
+
+              {/* ===== 3. VISÃO GERAL ===== */}
               <section className="space-y-3">
                 <SectionTitle>Visão geral</SectionTitle>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -704,21 +725,6 @@ export function PlaylistCockpit({
                   <ActionCard kind="promote" count={buckets.promote.length} detected={buckets.detected.promote} hrefId="bucket-promote" />
                   <ActionCard kind="add" count={buckets.add.length} detected={buckets.detected.add} hrefId="bucket-add" />
                 </div>
-
-                {(buckets.remove.length + buckets.demote.length + buckets.promote.length + buckets.add.length) > 0 && (
-                  <Card className="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-primary/5 border-primary/30">
-                    <div className="space-y-0.5">
-                      <div className="text-sm font-semibold">Executar plano completo</div>
-                      <div className="text-xs text-muted-foreground">
-                        Ordem: remover → rebaixar → promover → adicionar. Tudo via API, sem abrir o Spotify.
-                      </div>
-                    </div>
-                    <Button onClick={() => applyPlan("all")} disabled={applying !== null} className="gap-1.5 shrink-0">
-                      {applying === "all" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                      Aprovar e executar tudo
-                    </Button>
-                  </Card>
-                )}
 
                 {applyProgress && (
                   <Card className={cn(
@@ -1699,21 +1705,32 @@ function EditorialBanner({
   const Icon = meta.Icon;
 
   return (
-    <div className={cn("rounded-xl border px-3 py-2 flex items-center gap-3 flex-wrap", meta.tone)}>
-      <div className={cn("h-6 w-6 rounded-md border grid place-items-center shrink-0", meta.tone)}>
+    <div className={cn(
+      "rounded-xl border px-3 py-2.5",
+      "flex flex-col items-center text-center gap-2",
+      "md:flex-row md:items-center md:text-left md:gap-3",
+      meta.tone,
+    )}>
+      <div className={cn("h-7 w-7 rounded-full border grid place-items-center shrink-0", meta.tone)}>
         <Icon className="h-3.5 w-3.5" />
       </div>
-      <div className="flex items-center gap-2 flex-1 min-w-0 flex-wrap">
-        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Modo</span>
-        <span className="text-xs font-semibold leading-none">{meta.label}</span>
-        {state && <CuratorialStateBadge state={state} compact />}
-        {caps && mode !== "hold" && (
-          <span className="text-[11px] text-muted-foreground tabular-nums">
-            · limite <span className="text-foreground font-semibold">{caps.max_changes}</span> ({caps.max_change_pct}%)
-          </span>
+      <div className="flex flex-col md:flex-row md:items-center md:gap-2 flex-1 min-w-0 gap-1">
+        <div className="flex items-center justify-center md:justify-start gap-2 flex-wrap">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Modo</span>
+          <span className="text-xs font-semibold leading-none">{meta.label}</span>
+        </div>
+        {(state || (caps && mode !== "hold")) && (
+          <div className="flex items-center justify-center md:justify-start gap-2 flex-wrap">
+            {state && <CuratorialStateBadge state={state} compact />}
+            {caps && mode !== "hold" && (
+              <span className="text-[11px] text-muted-foreground tabular-nums">
+                limite <span className="text-foreground font-semibold">{caps.max_changes}</span> ({caps.max_change_pct}%)
+              </span>
+            )}
+          </div>
         )}
         {cooldowns.length > 0 && (
-          <div className="flex flex-wrap gap-1 ml-auto md:ml-0">
+          <div className="flex flex-wrap justify-center md:justify-start gap-1">
             {cooldowns.map((c) => (
               <CooldownChip key={c.action_type} action={c.action_type} daysRemaining={c.days_remaining} />
             ))}
@@ -1725,7 +1742,7 @@ function EditorialBanner({
         variant="ghost"
         onClick={onRediagnose}
         disabled={running}
-        className="gap-1 h-7 px-2 text-xs shrink-0"
+        className="gap-1 h-7 px-2.5 rounded-full text-[11px] font-medium shrink-0"
         title={justification || "Reavaliar"}
       >
         {running ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
