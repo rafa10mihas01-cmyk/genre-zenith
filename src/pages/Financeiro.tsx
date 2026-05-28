@@ -99,21 +99,22 @@ function MargemView() {
   if (loading) return <div className="h-40 rounded-2xl bg-card border border-border animate-pulse" />;
   return (
     <div className="space-y-6">
-      <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <MiniKpi
+      <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Kpi
           icon={totals.margem >= 0 ? TrendingUp : TrendingDown}
           label="Margem bruta"
           value={fmtBRL(totals.margem)}
-          tone={totals.margem >= 0 ? "primary" : "warn"}
+          tone={toneMap(totals.margem >= 0 ? "primary" : "warn")}
         />
-        <MiniKpi
+        <Kpi
           icon={TrendingUp}
           label="Margem %"
           value={totals.margemPct == null ? "—" : `${totals.margemPct.toFixed(1)}%`}
-          tone={totals.margemPct != null && totals.margemPct >= 30 ? "primary" : "muted"}
+          tone={toneMap(totals.margemPct != null && totals.margemPct >= 30 ? "primary" : "muted")}
         />
-        <MiniKpi icon={Wallet} label="Resultado líquido" value={fmtBRL(totals.recebido - totals.pago)} />
+        <Kpi icon={Wallet} label="Resultado líquido" value={fmtBRL(totals.recebido - totals.pago)} />
       </section>
+
       <section className="rounded-2xl bg-card border border-border overflow-hidden">
         <header className="px-5 py-4 border-b border-border">
           <h3 className="text-sm font-semibold text-foreground">Margem por campanha</h3>
