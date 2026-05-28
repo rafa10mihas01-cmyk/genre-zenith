@@ -299,7 +299,7 @@ export function BaselineTab({ dealId }: Props) {
             ))}
           </div>
         ) : rows.length === 0 ? null : (
-          <details className="group" open>
+          <details className="group">
             <summary className="cursor-pointer list-none flex items-center justify-between px-5 py-3 text-[11px] uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors select-none">
               <span>{rows.length} playlists capturadas</span>
               <span className="text-sm group-open:hidden">▾</span>
