@@ -1,5 +1,5 @@
 // Financeiro — abas: Visão · Receita · Custo · Margem · Configuração
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Wallet,
@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
-// (Tabs shadcn removidos — padronizado pro padrão underline+ícone das outras telas)
+import { Kpi, type KpiTone } from "@/components/ui/kpi";
 import { FinanceiroTab } from "@/components/playlist-deals/FinanceiroTab";
 import { FinancialOverview } from "@/components/financeiro/FinancialOverview";
 import { PricingSettingsPanel } from "@/components/financeiro/PricingSettingsPanel";
@@ -23,38 +23,9 @@ import { cn } from "@/lib/utils";
 const fmtBRL = (v: number | null | undefined) =>
   v == null ? "—" : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-function MiniKpi({
-  icon: Icon,
-  label,
-  value,
-  tone = "muted",
-  hint,
-}: {
-  icon: any;
-  label: string;
-  value: string;
-  tone?: "primary" | "warn" | "muted";
-  hint?: string;
-}) {
-  const accent =
-    tone === "primary"
-      ? "text-primary bg-primary/10"
-      : tone === "warn"
-        ? "text-amber-500 bg-amber-500/10"
-        : "text-muted-foreground bg-elevated/60";
-  return (
-    <div className="rounded-2xl border border-border bg-card p-4">
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
-        <span className={cn("h-6 w-6 rounded-md flex items-center justify-center", accent)}>
-          <Icon className="h-3.5 w-3.5" />
-        </span>
-        {label}
-      </div>
-      <div className="mt-2 text-xl font-bold tabular-nums text-foreground">{value}</div>
-      {hint && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}
-    </div>
-  );
-}
+const toneMap = (t: "primary" | "warn" | "muted"): KpiTone =>
+  t === "primary" ? "primary" : t === "warn" ? "warning" : "default";
+
 
 function ReceitaView() {
   const { summary, totals, loading } = useFinancialOverview();
