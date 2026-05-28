@@ -611,7 +611,7 @@ export function DealHistorySheet({
                 <TabsList
                   className={cn(
                     asPage
-                      ? "w-full grid grid-cols-4 bg-[hsl(var(--elevated))] p-1 h-auto rounded-xl"
+                      ? "w-full grid grid-cols-4 bg-[hsl(var(--elevated))] p-1 h-auto rounded-xl gap-1"
                       : "bg-transparent p-0 h-auto gap-0 grid grid-cols-4 w-full sm:w-full",
                   )}
                 >
@@ -619,56 +619,52 @@ export function DealHistorySheet({
                     value="resumo"
                     aria-label="Resumo"
                     className={cn(
-                      "gap-1.5",
                       asPage
-                        ? "rounded-lg data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground h-9 px-2"
-                        : "bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row",
+                        ? "flex items-center justify-center gap-1.5 rounded-lg data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground h-9 px-1 min-w-0"
+                        : "gap-1.5 bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row",
                     )}
                   >
                     <BarChart3 className="h-3.5 w-3.5 shrink-0" />
-                    <span className={cn(asPage ? "text-[12px] sm:text-sm" : "hidden sm:inline text-sm")}>Resumo</span>
+                    <span className={cn(asPage ? "text-[12px] sm:text-sm truncate" : "hidden sm:inline text-sm")}>Resumo</span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="playlists"
                     aria-label="Curador"
                     className={cn(
-                      "gap-1.5",
                       asPage
-                        ? "rounded-lg data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground h-9 px-2"
-                        : "bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border",
+                        ? "flex items-center justify-center gap-1.5 rounded-lg data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground h-9 px-1 min-w-0"
+                        : "gap-1.5 bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border",
                     )}
                   >
                     <ListMusic className="h-3.5 w-3.5 shrink-0" />
-                    <span className={cn(asPage ? "text-[12px] sm:text-sm" : "hidden sm:inline text-sm")}>Curador</span>
-                    <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-muted text-muted-foreground text-[10px] font-bold tabular-nums shrink-0">{curatorTotal}</span>
+                    <span className={cn(asPage ? "text-[12px] sm:text-sm truncate" : "hidden sm:inline text-sm")}>Curador</span>
+                    <span className="hidden sm:inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-muted text-muted-foreground text-[10px] font-bold tabular-nums shrink-0">{curatorTotal}</span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="algoritmo"
                     aria-label="Algoritmo"
                     className={cn(
-                      "gap-1.5",
                       asPage
-                        ? "rounded-lg data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground h-9 px-2"
-                        : "bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border",
+                        ? "flex items-center justify-center gap-1.5 rounded-lg data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground h-9 px-1 min-w-0"
+                        : "gap-1.5 bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border",
                     )}
                   >
                     <Sparkles className="h-3.5 w-3.5 shrink-0" />
-                    <span className={cn(asPage ? "text-[12px] sm:text-sm" : "hidden sm:inline text-sm")}>Algoritmo</span>
-                    <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-muted text-muted-foreground text-[10px] font-bold tabular-nums shrink-0">{algoTotal}</span>
+                    <span className={cn(asPage ? "text-[12px] sm:text-sm truncate" : "hidden sm:inline text-sm")}>Algoritmo</span>
+                    <span className="hidden sm:inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-muted text-muted-foreground text-[10px] font-bold tabular-nums shrink-0">{algoTotal}</span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="historico"
                     aria-label="Histórico"
                     className={cn(
-                      "gap-1.5",
                       asPage
-                        ? "rounded-lg data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground h-9 px-2"
-                        : "bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border",
+                        ? "flex items-center justify-center gap-1.5 rounded-lg data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground h-9 px-1 min-w-0"
+                        : "gap-1.5 bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border",
                     )}
                   >
                     <Clock className="h-3.5 w-3.5 shrink-0" />
-                    <span className={cn(asPage ? "text-[12px] sm:text-sm hidden xs:inline" : "hidden sm:inline text-sm")}>Histórico</span>
-                    <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-muted text-muted-foreground text-[10px] font-bold tabular-nums shrink-0">{reversedLogs.length}</span>
+                    <span className={cn(asPage ? "text-[12px] sm:text-sm truncate" : "hidden sm:inline text-sm")}>Histórico</span>
+                    <span className="hidden sm:inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-muted text-muted-foreground text-[10px] font-bold tabular-nums shrink-0">{reversedLogs.length}</span>
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -786,79 +782,81 @@ export function DealHistorySheet({
 
                   {/* Estado da coleta */}
                   <SectionCard title="Estado da coleta">
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-[13px]">
-                      <div className="text-muted-foreground">Baseline</div>
-                      <div className="text-right tabular-nums font-medium">
-                        {baseline > 0 ? fmt(baseline) : "—"}
-                      </div>
-                      <div className="text-muted-foreground">Última leitura</div>
-                      <div className="text-right tabular-nums font-medium">
-                        {fmt(stats.latestPlays)}
-                      </div>
-                      <div className="text-muted-foreground">Última coleta</div>
-                      <div className="text-right text-foreground/80">
-                        {lastLog
-                          ? format(new Date(lastLog.created_at), "dd MMM, HH:mm", { locale: ptBR })
-                          : "—"}
-                      </div>
-                      <div className="text-muted-foreground">Investido</div>
-                      <div className="text-right font-medium">{investido}</div>
-                    </div>
+                    <ul className="divide-y divide-border/60 -my-2">
+                      {[
+                        { label: "Baseline", value: baseline > 0 ? fmt(baseline) : "—" },
+                        { label: "Última leitura", value: fmt(stats.latestPlays) },
+                        {
+                          label: "Última coleta",
+                          value: lastLog
+                            ? format(new Date(lastLog.created_at), "dd MMM, HH:mm", { locale: ptBR })
+                            : "—",
+                        },
+                        { label: "Investido", value: investido },
+                      ].map((r) => (
+                        <li key={r.label} className="flex items-center justify-between gap-3 py-2.5 text-[13px]">
+                          <span className="text-muted-foreground">{r.label}</span>
+                          <span className="text-right tabular-nums font-medium text-foreground truncate">
+                            {r.value}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
                   </SectionCard>
 
                   {/* Origem das playlists */}
                   <SectionCard title="Origem das playlists">
-                    <div className="space-y-2.5">
+                    <ul className="divide-y divide-border/60 -my-2">
                       {(["curator", "editorial", "organic", "suspicious", "baseline"] as CuratorMatchStatus[])
                         .filter((s) => counts[s] > 0)
                         .map((s) => (
-                          <div key={s} className="flex items-center gap-2 text-[13px]">
-                            <span className={cn("h-1.5 w-1.5 rounded-full", STATUS_DOT[s])} />
-                            <span className="text-foreground">{STATUS_LABEL[s]}</span>
-                            <span className="ml-auto tabular-nums font-semibold text-muted-foreground">
+                          <li key={s} className="flex items-center gap-2 py-2.5 text-[13px]">
+                            <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", STATUS_DOT[s])} />
+                            <span className="text-foreground truncate">{STATUS_LABEL[s]}</span>
+                            <span className="ml-auto tabular-nums font-semibold text-muted-foreground shrink-0">
                               {counts[s]}
                             </span>
-                          </div>
+                          </li>
                         ))}
                       {dealPlaylists.length === 0 && (
-                        <div className="text-[13px] text-muted-foreground">
+                        <li className="py-2.5 text-[13px] text-muted-foreground">
                           Nenhuma playlist registrada ainda.
-                        </div>
+                        </li>
                       )}
-                    </div>
+                    </ul>
                   </SectionCard>
 
                   {/* Curador vs Ecossistema (RPC breakdown) */}
                   {breakdown && (
                     <SectionCard
                       title="Entrega vs Ecossistema"
-                      right={<span className="text-[10px] text-muted-foreground">plays únicos por playlist</span>}
+                      right={<span className="hidden sm:inline text-[10px] text-muted-foreground">plays únicos por playlist</span>}
                     >
-                      <div className="grid grid-cols-3 gap-3 text-[12px]">
-                        <div>
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Curador</div>
-                          <div className="text-base font-semibold tabular-nums text-success leading-tight mt-0.5">
+                      <div className="grid grid-cols-3 divide-x divide-border/60 -mx-1">
+                        <div className="px-2 min-w-0">
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground truncate">Curador</div>
+                          <div className="text-base sm:text-lg font-semibold tabular-nums text-success leading-tight mt-1">
                             {fmtCompact(breakdown.curator.plays)}
                           </div>
-                          <div className="text-[10px] text-muted-foreground tabular-nums">
+                          <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
                             {breakdown.curator.playlists} playlists
                           </div>
                         </div>
-                        <div>
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Ecossistema</div>
-                          <div className="text-base font-semibold tabular-nums text-primary leading-tight mt-0.5">
+                        <div className="px-2 min-w-0">
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground truncate">Ecossistema</div>
+                          <div className="text-base sm:text-lg font-semibold tabular-nums text-primary leading-tight mt-1">
                             {fmtCompact(eco.plays)}
                           </div>
-                          <div className="text-[10px] text-muted-foreground tabular-nums">
+                          <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
                             {eco.playlists} playlists
                           </div>
                         </div>
-                        <div>
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total bruto</div>
-                          <div className="text-base font-semibold tabular-nums text-foreground leading-tight mt-0.5">
+                        <div className="px-2 min-w-0">
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground truncate">Total</div>
+                          <div className="text-base sm:text-lg font-semibold tabular-nums text-foreground leading-tight mt-1">
                             {fmtCompact(breakdown.total.plays)}
                           </div>
-                          <div className="text-[10px] text-muted-foreground tabular-nums">
+                          <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
                             {breakdown.total.playlists} playlists
                           </div>
                         </div>
@@ -893,8 +891,8 @@ export function DealHistorySheet({
 
                   {deal.song_spotify_url && (
                     <Button
-                      variant="outline"
-                      className="w-full h-10 gap-2 text-sm"
+                      variant="ghost"
+                      className="w-full h-10 gap-2 text-sm text-muted-foreground hover:text-foreground border border-border/60 hover:bg-[hsl(var(--elevated))]"
                       onClick={() => window.open(deal.song_spotify_url!, "_blank")}
                     >
                       <ExternalLink className="h-3.5 w-3.5" />

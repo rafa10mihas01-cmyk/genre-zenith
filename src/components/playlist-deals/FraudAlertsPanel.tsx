@@ -118,8 +118,8 @@ export function FraudAlertsPanel({
         </div>
         <Button
           size="sm"
-          variant="outline"
-          className="h-7 gap-1.5 text-xs"
+          variant="ghost"
+          className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-[hsl(var(--elevated))]"
           onClick={reconcile}
           disabled={reconciling}
         >
