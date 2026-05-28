@@ -903,9 +903,38 @@ export function DealHistorySheet({
 
                 {/* === CURADOR (whitelist) === */}
                 <TabsContent value="playlists" className={cn("m-0 space-y-4", asPage ? "rounded-2xl border border-border bg-card p-5" : "px-6 py-5")}>
-                  <div className="rounded-lg border border-white/[0.04] bg-[hsl(var(--elevated))]/40 px-3 py-2 text-[11px] text-muted-foreground leading-relaxed">
+                  {/* Search + ação inline */}
+                  {(curatorTotal > 0 || deal.curator_id) && (
+                    <div className="flex items-center gap-2">
+                      {curatorTotal > 0 && (
+                        <Input
+                          value={plQuery}
+                          onChange={(e) => setPlQuery(e.target.value)}
+                          placeholder="Buscar playlist ou owner…"
+                          className="h-9 text-sm flex-1"
+                        />
+                      )}
+                      {deal.curator_id && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-border/60 hover:bg-[hsl(var(--elevated))] shrink-0"
+                          onClick={() => {
+                            const firstSongId = curatorSongFilter !== "all" ? curatorSongFilter : (songs[0]?.id ?? "all");
+                            setCuratorSongFilter(firstSongId);
+                            setImportOpen(true);
+                          }}
+                        >
+                          <Library className="h-3.5 w-3.5" />
+                          Catálogo
+                        </Button>
+                      )}
+                    </div>
+                  )}
+
+                  <p className="text-[11px] text-muted-foreground leading-relaxed px-1">
                     Playlists cadastradas pelo curador — é o que conta como entrega contratada.
-                  </div>
+                  </p>
 
                   {curatorTotal > 0 && curatorWindowTotal === 0 && (
                     <div className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-[11px] text-foreground leading-relaxed">
@@ -915,34 +944,6 @@ export function DealHistorySheet({
                         Plays de orgânicas/editoriais aparecem na aba <span className="text-foreground font-medium">Algoritmo</span> e não contam para a meta.
                       </div>
                     </div>
-                  )}
-
-                  {/* ações */}
-                  {deal.curator_id && (
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-9 gap-1.5 text-xs"
-                        onClick={() => {
-                          const firstSongId = curatorSongFilter !== "all" ? curatorSongFilter : (songs[0]?.id ?? "all");
-                          setCuratorSongFilter(firstSongId);
-                          setImportOpen(true);
-                        }}
-                      >
-                        <Library className="h-3.5 w-3.5" />
-                        Catálogo do curador
-                      </Button>
-                    </div>
-                  )}
-
-                  {curatorTotal > 0 && (
-                    <Input
-                      value={plQuery}
-                      onChange={(e) => setPlQuery(e.target.value)}
-                      placeholder="Buscar playlist ou owner…"
-                      className="h-9 text-sm"
-                    />
                   )}
 
                   {curatorTotal > 0 && songs.length > 1 && (
