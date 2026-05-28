@@ -1,0 +1,1 @@
+SELECT cron.alter_job(109, schedule := '*/2 * * * *', active := true);
