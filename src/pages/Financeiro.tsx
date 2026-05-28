@@ -36,17 +36,17 @@ function ReceitaView() {
   if (loading) return <div className="h-40 rounded-2xl bg-card border border-border animate-pulse" />;
   return (
     <div className="space-y-6">
-      <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-
-        <MiniKpi icon={DollarSign} label="Recebido" value={fmtBRL(totals.recebido)} tone="primary" />
-        <MiniKpi icon={Receipt} label="Cobrado" value={fmtBRL(totals.cobrado)} />
-        <MiniKpi
+      <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Kpi icon={DollarSign} label="Recebido" value={fmtBRL(totals.recebido)} tone="primary" />
+        <Kpi icon={Receipt} label="Cobrado" value={fmtBRL(totals.cobrado)} />
+        <Kpi
           icon={AlertTriangle}
           label="Pendente"
           value={fmtBRL(Math.max(0, totals.cobrado - totals.recebido))}
-          tone={totals.cobrado - totals.recebido > 0 ? "warn" : "muted"}
+          tone={toneMap(totals.cobrado - totals.recebido > 0 ? "warn" : "muted")}
         />
       </section>
+
       <section className="rounded-2xl bg-card border border-border overflow-hidden">
         <header className="px-5 py-4 border-b border-border">
           <h3 className="text-sm font-semibold text-foreground">Receita por campanha</h3>
