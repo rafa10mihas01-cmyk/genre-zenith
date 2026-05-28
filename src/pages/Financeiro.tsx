@@ -159,7 +159,7 @@ function MargemView() {
                   <th className="text-right px-4 py-2 font-medium">Recebido</th>
                   <th className="text-right px-4 py-2 font-medium">Pago</th>
                   <th className="text-right px-4 py-2 font-medium">Margem R$</th>
-                  <th className="text-right px-4 py-2 font-medium">Margem %</th>
+                  <th className="hidden sm:table-cell text-right px-4 py-2 font-medium">Margem %</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
