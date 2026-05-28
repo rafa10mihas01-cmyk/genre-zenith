@@ -387,7 +387,7 @@ export async function listPlaylistTracksRich(
 ): Promise<RichTrack[]> {
   const fetcher = opts.fetcher ?? defaultSpotifyFetch;
   const max = Math.max(1, opts.max ?? 1000);
-  const fields = opts.fields ?? "items(added_at,track(id,uri,name,duration_ms,popularity,artists(name),album(name,release_date,images))),next";
+  const fields = opts.fields ?? "items(added_at,track(id,uri,name,duration_ms,popularity,external_ids,artists(name),album(name,release_date,images))),next";
   const out: RichTrack[] = [];
   let url: string | null =
     `https://api.spotify.com/v1/playlists/${playlistId}/items?fields=${encodeURIComponent(fields)}&limit=100`;
@@ -408,6 +408,7 @@ export async function listPlaylistTracksRich(
             height: typeof im?.height === "number" ? im.height : null,
           })).filter((im: SpotifyImage) => im.url)
         : [];
+      const rawIsrc = tr.external_ids?.isrc;
       out.push({
         spotify_track_id: tr.id ?? null,
         uri: tr.uri ?? null,
@@ -420,6 +421,7 @@ export async function listPlaylistTracksRich(
         release_date: typeof tr.album?.release_date === "string" ? tr.album.release_date : null,
         duration_ms: typeof tr.duration_ms === "number" ? tr.duration_ms : null,
         popularity: typeof tr.popularity === "number" ? tr.popularity : null,
+        isrc: typeof rawIsrc === "string" && rawIsrc.length > 0 ? rawIsrc.toUpperCase() : null,
         added_at: typeof it?.added_at === "string" ? it.added_at : null,
         position: pos,
       });
