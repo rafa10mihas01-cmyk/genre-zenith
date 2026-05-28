@@ -369,6 +369,7 @@ export type RichTrack = {
   release_date: string | null;
   duration_ms: number | null;
   popularity: number | null;
+  isrc: string | null;
   added_at: string | null;
   position: number;
 };
