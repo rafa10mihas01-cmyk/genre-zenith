@@ -16,6 +16,8 @@
 // Todos respeitam o limite de 100 URIs por chamada do Spotify.
 // =====================================================================
 
+import { assertSpotifyCircuitClosed, openSpotifyCircuitBreaker } from "./spotify.ts";
+
 export type SpotifyFetch = (
   url: string,
   init: RequestInit,
@@ -42,6 +44,7 @@ export class SpotifyApiError extends Error {
 
 /** Fetch wrapper padrão — joga SpotifyApiError com status + body + retryAfter. */
 export const defaultSpotifyFetch: SpotifyFetch = async (url, init, token) => {
+  await assertSpotifyCircuitClosed();
   const r = await fetch(url, {
     ...init,
     headers: {
@@ -53,7 +56,9 @@ export const defaultSpotifyFetch: SpotifyFetch = async (url, init, token) => {
   if (!r.ok) {
     const t = await r.text();
     const ra = Number(r.headers.get("Retry-After") ?? "");
-    throw new SpotifyApiError(r.status, t, Number.isFinite(ra) && ra > 0 ? ra : null);
+    const retryAfter = Number.isFinite(ra) && ra > 0 ? ra : null;
+    if (r.status === 429) await openSpotifyCircuitBreaker(retryAfter);
+    throw new SpotifyApiError(r.status, t, retryAfter);
   }
   // DELETE/PUT podem voltar 200 sem body útil
   const txt = await r.text();
@@ -306,6 +311,7 @@ export async function uploadPlaylistCover(
   jpeg: string | Uint8Array,
   token: string,
 ): Promise<void> {
+  await assertSpotifyCircuitClosed();
   let base64: string;
   if (typeof jpeg === "string") {
     base64 = jpeg.replace(/^data:image\/\w+;base64,/, "");
@@ -324,6 +330,8 @@ export async function uploadPlaylistCover(
   });
   if (!r.ok) {
     const t = await r.text();
+    const ra = Number(r.headers.get("Retry-After") ?? "");
+    if (r.status === 429) await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : null);
     throw new Error(`Spotify ${r.status} (upload cover): ${t.slice(0, 400)}`);
   }
 }
