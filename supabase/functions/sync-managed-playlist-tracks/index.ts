@@ -46,6 +46,7 @@ type SpotifyRow = {
   position: number;
   added_at: string | null;
   duration_ms: number | null;
+  isrc: string | null;
 };
 
 Deno.serve(async (req) => {
@@ -81,11 +82,11 @@ Deno.serve(async (req) => {
   if (lock && !lock.ok) return jr(lockedResponseBody(lock), 423);
 
   try {
-    // 1) Fonte da verdade: Spotify
+    // 1) Fonte da verdade: Spotify (com ISRC via external_ids — fields default do helper já inclui)
     const token = await getSpotifyToken();
     const rich = await listPlaylistTracksRich(pl.spotify_playlist_id, token, {
       max: 10000,
-      fields: "items(added_at,track(id,name,duration_ms,artists(name),album(images))),next",
+      fields: "items(added_at,track(id,name,duration_ms,external_ids,artists(name),album(images))),next",
     });
     const spotifyRows: SpotifyRow[] = rich
       .filter((t) => t.spotify_track_id)
@@ -98,12 +99,13 @@ Deno.serve(async (req) => {
         position: t.position - 1, // listPlaylistTracksRich é 1-based; tabela é 0-based
         added_at: t.added_at,
         duration_ms: t.duration_ms,
+        isrc: t.isrc,
       }));
 
-    const orderedIds = spotifyRows.map((r) => r.spotify_track_id);
-    const newHash = await computeTracksHash(orderedIds);
+    // 2) Hash de identidade (ISRC preferido, fallback spotify_track_id) — estável entre re-uploads
+    const newHash = await computeIdentityHash(spotifyRows);
 
-    // 2) Short-circuit por hash — economia massiva quando nada mudou.
+    // 3) Short-circuit por hash — economia massiva quando nada mudou.
     if (!force && pl.tracks_hash && pl.tracks_hash === newHash) {
       if (lock && lock.ok) {
         await finishPlaylistOperation(supabase, lock, {
@@ -122,42 +124,78 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 3) Snapshot atual do banco
+    // 4) Snapshot atual do banco — agora com isrc + nome/artista/duração pra fuzzy
     const { data: dbRowsRaw, error: dbErr } = await supabase
       .from("managed_playlist_tracks")
-      .select("spotify_track_id, position")
+      .select("spotify_track_id, position, isrc, track_name, artist_name, duration_ms")
       .eq("playlist_id", pl.id);
     if (dbErr) throw new Error(`load snapshot: ${dbErr.message}`);
 
-    const dbMap = new Map<string, number>(); // track_id -> position
-    for (const r of (dbRowsRaw ?? []) as Array<{ spotify_track_id: string; position: number }>) {
-      if (r.spotify_track_id) dbMap.set(r.spotify_track_id, r.position);
-    }
+    type DbRow = {
+      spotify_track_id: string;
+      position: number;
+      isrc: string | null;
+      track_name: string | null;
+      artist_name: string | null;
+      duration_ms: number | null;
+    };
+    const dbRows: DbRow[] = ((dbRowsRaw ?? []) as any[]).filter((r) => r.spotify_track_id);
 
-    // 4) Calcula delta
-    const spotifyIdSet = new Set(orderedIds);
-    const toInsert: SpotifyRow[] = [];
-    const toUpdate: SpotifyRow[] = []; // mudou de posição (ou faltou metadata)
-    for (const row of spotifyRows) {
-      if (!dbMap.has(row.spotify_track_id)) {
-        toInsert.push(row);
-      } else if (dbMap.get(row.spotify_track_id) !== row.position) {
-        toUpdate.push(row);
+    // 5) Resolve identidade em camadas (spotify_id → isrc → fuzzy+duration)
+    const dbIdents: TrackIdentity[] = dbRows.map((r) => ({
+      spotify_track_id: r.spotify_track_id,
+      isrc: r.isrc,
+      name: r.track_name,
+      artist: r.artist_name,
+      duration_ms: r.duration_ms,
+    }));
+    const spIdents: TrackIdentity[] = spotifyRows.map((r) => ({
+      spotify_track_id: r.spotify_track_id,
+      isrc: r.isrc,
+      name: r.track_name,
+      artist: r.artist_name,
+      duration_ms: r.duration_ms,
+    }));
+    const { matched, unmatchedDb, unmatchedSp } = matchTracks(dbIdents, spIdents);
+
+    // 6) Classifica ações
+    const toInsert: SpotifyRow[] = unmatchedSp.map((j) => spotifyRows[j]);
+    const toDeleteIds: string[] = unmatchedDb.map((i) => dbRows[i].spotify_track_id);
+
+    // matched: pra cada par, se o spotify_track_id mudou (camada isrc/fuzzy), precisa
+    // trocar o ID na linha. Se só mudou posição/metadata, basta upsert por chave nova.
+    const toUpdateInPlace: SpotifyRow[] = []; // mesmo spotify_track_id, novo metadata/position
+    const toRekey: { oldId: string; row: SpotifyRow; via: string; score: number }[] = []; // id mudou
+    let matchedIsrc = 0, matchedFuzzy = 0;
+    for (const m of matched) {
+      const dbRow = dbRows[m.dbIndex];
+      const spRow = spotifyRows[m.spotifyIndex];
+      if (m.via === "isrc") matchedIsrc++;
+      if (m.via === "fuzzy") matchedFuzzy++;
+      if (dbRow.spotify_track_id === spRow.spotify_track_id) {
+        // pode ter mudado posição, isrc novo (backfill) ou metadata
+        if (
+          dbRow.position !== spRow.position ||
+          dbRow.isrc !== spRow.isrc ||
+          dbRow.track_name !== spRow.track_name ||
+          dbRow.artist_name !== spRow.artist_name
+        ) {
+          toUpdateInPlace.push(spRow);
+        }
+      } else {
+        toRekey.push({ oldId: dbRow.spotify_track_id, row: spRow, via: m.via, score: m.score });
       }
     }
-    const toDelete: string[] = [];
-    for (const id of dbMap.keys()) {
-      if (!spotifyIdSet.has(id)) toDelete.push(id);
-    }
 
-    const tracksChanged = toInsert.length + toUpdate.length + toDelete.length;
+    const tracksChanged = toInsert.length + toDeleteIds.length + toUpdateInPlace.length + toRekey.length;
 
-    // 5) Aplica delta. UPDATE de position pode colidir com UNIQUE durante shuffle, então usamos
-    //    upsert por (playlist_id, spotify_track_id), que é a chave única, e a position vira coluna livre.
-    //    Como não há UNIQUE em position, isso é seguro.
-    if (toDelete.length > 0) {
-      for (let i = 0; i < toDelete.length; i += 500) {
-        const slice = toDelete.slice(i, i + 500);
+    // 7) Aplica delta — ordem importa pra não colidir com UNIQUE(playlist_id, spotify_track_id):
+    //    a) deletes puros (saíram de verdade)
+    //    b) rekeys: UPDATE spotify_track_id (+metadata) onde id antigo casa
+    //    c) upserts (inserts + updates in-place)
+    if (toDeleteIds.length > 0) {
+      for (let i = 0; i < toDeleteIds.length; i += 500) {
+        const slice = toDeleteIds.slice(i, i + 500);
         const { error } = await supabase
           .from("managed_playlist_tracks")
           .delete()
@@ -167,8 +205,32 @@ Deno.serve(async (req) => {
       }
     }
 
-    // INSERT + UPDATE via upsert único (mesmo conjunto de colunas).
-    const upsertRows = [...toInsert, ...toUpdate];
+    for (const rk of toRekey) {
+      // Se o novo spotify_track_id já existe na playlist (deveria ser raro pós-deletes),
+      // remove a linha duplicada antes do UPDATE pra não violar UNIQUE.
+      await supabase
+        .from("managed_playlist_tracks")
+        .delete()
+        .eq("playlist_id", pl.id)
+        .eq("spotify_track_id", rk.row.spotify_track_id);
+      const { error } = await supabase
+        .from("managed_playlist_tracks")
+        .update({
+          spotify_track_id: rk.row.spotify_track_id,
+          track_name: rk.row.track_name,
+          artist_name: rk.row.artist_name,
+          album_cover: rk.row.album_cover,
+          position: rk.row.position,
+          added_at: rk.row.added_at,
+          duration_ms: rk.row.duration_ms,
+          isrc: rk.row.isrc,
+        })
+        .eq("playlist_id", pl.id)
+        .eq("spotify_track_id", rk.oldId);
+      if (error) throw new Error(`rekey ${rk.oldId}→${rk.row.spotify_track_id}: ${error.message}`);
+    }
+
+    const upsertRows = [...toInsert, ...toUpdateInPlace];
     if (upsertRows.length > 0) {
       for (let i = 0; i < upsertRows.length; i += 500) {
         const slice = upsertRows.slice(i, i + 500);
@@ -179,7 +241,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 6) Atualiza metadata da playlist (hash + count)
+    // 8) Atualiza metadata da playlist (hash + count)
     await supabase
       .from("managed_playlists")
       .update({
@@ -203,8 +265,11 @@ Deno.serve(async (req) => {
       tracks_changed: tracksChanged,
       delta: {
         inserted: toInsert.length,
-        deleted: toDelete.length,
-        repositioned: toUpdate.length,
+        deleted: toDeleteIds.length,
+        repositioned: toUpdateInPlace.length,
+        rekeyed: toRekey.length,
+        matched_by_isrc: matchedIsrc,
+        matched_by_fuzzy: matchedFuzzy,
       },
     });
   } catch (e) {
