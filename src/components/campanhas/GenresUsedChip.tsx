@@ -5,6 +5,7 @@ export type GenreUsed = { name: string; score: number };
 interface Props {
   genres: GenreUsed[] | null | undefined;
   className?: string;
+  compact?: boolean;
 }
 
 /**
@@ -13,13 +14,27 @@ interface Props {
  *
  * Ex.: "Gêneros: Funk · Trap (afinidade 0.85)"
  */
-export function GenresUsedChip({ genres, className }: Props) {
+export function GenresUsedChip({ genres, className, compact }: Props) {
   if (!genres || genres.length === 0) return null;
   const top = genres.slice(0, 3);
   const names = top.map(g => g.name).join(" · ");
   const maxScore = top.reduce((m, g) => Math.max(m, g.score), 0);
-  const scoreLabel = maxScore > 0 ? ` (afinidade ${maxScore.toFixed(2)})` : "";
 
+  if (compact) {
+    const scoreLabel = maxScore > 0 ? ` ${maxScore.toFixed(2)}` : "";
+    return (
+      <div
+        title={`Gêneros: ${names}${maxScore > 0 ? ` (afinidade ${maxScore.toFixed(2)})` : ""}`}
+        className={`inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-[10px] leading-none text-foreground-body max-w-full ${className ?? ""}`}
+      >
+        <Sparkles className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <span className="truncate font-medium text-foreground">{names}</span>
+        {scoreLabel && <span className="shrink-0 tabular-nums text-muted-foreground">{scoreLabel}</span>}
+      </div>
+    );
+  }
+
+  const scoreLabel = maxScore > 0 ? ` (afinidade ${maxScore.toFixed(2)})` : "";
   return (
     <div
       className={`inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground-body ${className ?? ""}`}
