@@ -80,7 +80,7 @@ export function CampaignHub({
 
       <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as CampaignHubTabId)} className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-contain nx-scroll">
         <div className={cn(
-          "sticky top-0 z-30 shrink-0 px-4 md:px-6",
+          "shrink-0 px-4 md:px-6",
           "border-b border-border bg-background",
         )}>
 
