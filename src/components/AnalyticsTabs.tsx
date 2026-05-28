@@ -24,7 +24,7 @@ export function AnalyticsTabs() {
   const { pathname } = useLocation();
   return (
     <div className="border-b border-border -mt-2 mb-6">
-      <nav className="flex items-center gap-1 overflow-x-auto -mb-px">
+      <nav className="flex items-center gap-1 overflow-x-auto -mb-px [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         {TABS.map((t) => {
           const Icon = t.icon;
           const matches = t.match ?? [t.to];
