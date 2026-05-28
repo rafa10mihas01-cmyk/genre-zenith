@@ -604,11 +604,19 @@ export function CampaignFullPlanCard({
             </table>
           </div>
         </div>
-        <p className="text-[10px] text-muted-foreground mt-2">
-          Dica: clique no nome da playlist pra abrir no Spotify. A coluna com borda verde marca o dia de entrada (D1 da playlist).
-          Posições <span className="text-primary font-medium">#3–5</span> são as mais fortes; #6–12 médias; #13+ cauda.
-          Badge <span className="inline-block h-2 w-2 rounded-[2px] bg-warning align-middle" /> amarelo na célula indica desmame: a música está sendo rebaixada gradualmente nos últimos 20% dos dias (pos → ×2 → ×5 → ×15 → ×30) antes de sair da playlist. O primeiro quadradinho marca onde o rebaixamento começa.
-        </p>
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-block h-2.5 w-2.5 rounded-sm border-l-2 border-primary bg-primary/15" />
+            D1 da playlist
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="text-primary font-medium">#3–5</span> fortes · #6–12 médias · #13+ cauda
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-block h-2 w-2 rounded-[2px] bg-warning" />
+            desmame (saindo da playlist)
+          </span>
+        </div>
       </CardContent>
     </Card>
   );
