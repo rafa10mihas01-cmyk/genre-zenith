@@ -15,8 +15,8 @@ import {
   finishPlaylistOperation,
   formatPlaylistError,
   releasePlaylistLock,
-  computeTracksHash,
 } from "../_shared/playlist-lock.ts";
+import { computeIdentityHash } from "../_shared/track-matching.ts";
 import { enqueuePlaylistJob } from "../_shared/playlist-queue.ts";
 
 // Auth opcional: aceita JWT de team OU header x-backfill-secret = SERVICE_ROLE_KEY.
