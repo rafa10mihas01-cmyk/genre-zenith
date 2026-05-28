@@ -22,10 +22,11 @@ export function PageContainer({
   return (
     <div
       className={cn(
-        "w-full space-y-6",
+        "w-full min-w-0 overflow-x-clip space-y-6",
         className,
       )}
     >
+
       {children}
     </div>
   );
