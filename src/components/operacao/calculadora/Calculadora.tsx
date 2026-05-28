@@ -997,67 +997,67 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                 <CardHeader>
                   <CardTitle className="text-sm">Estratégia</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-6">
                   <div>
                     <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">Janela da campanha</Label>
-                    <div className="grid grid-cols-2 gap-2 mt-1.5">
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button variant="outline" className="justify-start text-left font-normal h-10">
-                            <CalendarIcon className="h-3.5 w-3.5 mr-2 opacity-70" />
-                            <div className="flex flex-col items-start leading-tight">
-                              <span className="text-[10px] uppercase text-muted-foreground">Início</span>
-                              <span className="text-xs">{format(startDate, "dd MMM yyyy", { locale: ptBR })}</span>
-                            </div>
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={startDate}
-                            onSelect={(d) => d && setStartDate(d)}
-                            initialFocus
-                            locale={ptBR}
-                            className={cn("p-3 pointer-events-auto")}
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button variant="outline" className="justify-start text-left font-normal h-10">
-                            <CalendarIcon className="h-3.5 w-3.5 mr-2 opacity-70" />
-                            <div className="flex flex-col items-start leading-tight">
-                              <span className="text-[10px] uppercase text-muted-foreground">Fim</span>
-                              <span className="text-xs">{format(endDate, "dd MMM yyyy", { locale: ptBR })}</span>
-                            </div>
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={endDate}
-                            onSelect={(d) => {
-                              if (!d) return;
-                              const diff = differenceInCalendarDays(startOfDay(d), startDate);
-                              const clamped = Math.min(180, Math.max(15, diff));
-                              setDays(clamped);
-                            }}
-                            disabled={(d) => differenceInCalendarDays(d, startDate) < 15}
-                            initialFocus
-                            locale={ptBR}
-                            className={cn("p-3 pointer-events-auto")}
-                          />
-                        </PopoverContent>
-                      </Popover>
+                    <div className="grid grid-cols-2 gap-3 mt-2">
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70 pl-1">Início</span>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" className="w-full justify-center text-center font-normal h-10 text-sm">
+                              <CalendarIcon className="h-3.5 w-3.5 mr-2 opacity-60" />
+                              {format(startDate, "dd MMM yyyy", { locale: ptBR })}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={startDate}
+                              onSelect={(d) => d && setStartDate(d)}
+                              initialFocus
+                              locale={ptBR}
+                              className={cn("p-3 pointer-events-auto")}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70 pl-1">Fim</span>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" className="w-full justify-center text-center font-normal h-10 text-sm">
+                              <CalendarIcon className="h-3.5 w-3.5 mr-2 opacity-60" />
+                              {format(endDate, "dd MMM yyyy", { locale: ptBR })}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={endDate}
+                              onSelect={(d) => {
+                                if (!d) return;
+                                const diff = differenceInCalendarDays(startOfDay(d), startDate);
+                                const clamped = Math.min(180, Math.max(15, diff));
+                                setDays(clamped);
+                              }}
+                              disabled={(d) => differenceInCalendarDays(d, startDate) < 15}
+                              initialFocus
+                              locale={ptBR}
+                              className={cn("p-3 pointer-events-auto")}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
                     </div>
-                    <p className="text-[11px] text-muted-foreground mt-1.5">
+                    <p className="text-[11px] text-muted-foreground mt-2">
                       {active.days} dias · começa {format(startDate, "dd/MM", { locale: ptBR })} · termina {format(endDate, "dd/MM", { locale: ptBR })}
                     </p>
                   </div>
 
                   <div>
                     <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">Duração <span className="text-muted-foreground/60 normal-case tracking-normal">· {active.days} dias</span></Label>
-                    <Slider value={[active.days]} onValueChange={([v]) => setDays(v)} min={15} max={180} step={5} className="mt-2" />
+                    <Slider value={[active.days]} onValueChange={([v]) => setDays(v)} min={15} max={180} step={5} className="mt-3" />
                   </div>
 
                   {/* Modo (sempre simultâneo) e Perfil (sempre mercado) — fixados como default no automático */}
@@ -1065,14 +1065,14 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
 
                   <div>
                     <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">Capacidade das playlists</Label>
-                    <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
                       {ENGAGEMENT_PRESETS.map(p => (
                         <button
                           key={p}
                           type="button"
                           onClick={() => setEngagementMultiplier(p)}
                           className={cn(
-                            "h-8 px-3 rounded-md text-xs font-medium tabular-nums border transition-colors",
+                            "h-9 px-3.5 rounded-md text-xs font-medium tabular-nums border transition-colors",
                             (active.engagementMultiplier ?? 30) === p
                               ? "bg-primary text-primary-foreground border-primary"
                               : "border-border text-muted-foreground hover:text-foreground hover:bg-elevated/60",
@@ -1087,13 +1087,11 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                         max={200}
                         value={active.engagementMultiplier ?? 30}
                         onChange={(e) => setEngagementMultiplier(Number(e.target.value))}
-                        className="h-8 w-20 text-xs tabular-nums"
+                        className="h-9 w-20 text-xs tabular-nums text-center"
                       />
                     </div>
-                    <p className="text-[11px] text-muted-foreground mt-1.5">
-                      Ex.: 1.000 saves × {active.engagementMultiplier ?? 30} = {formatInt(1000 * (active.engagementMultiplier ?? 30))} streams/mês.
-                    </p>
                   </div>
+
 
                   <div>
                     <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">Perfil do cliente</Label>
