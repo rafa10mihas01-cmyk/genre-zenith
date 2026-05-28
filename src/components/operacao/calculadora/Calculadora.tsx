@@ -809,11 +809,11 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     <div className="relative flex-1">
                       <Music className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
-                        placeholder="https://open.spotify.com/track/..."
+                        placeholder="Cole o link do Spotify"
                         value={active.trackUrl}
                         onChange={e => { setTrackUrl(e.target.value); setTrack(null); }}
                         onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); buscarMusica(); } }}
-                        className="pl-9"
+                        className="pl-9 placeholder:text-muted-foreground/40 placeholder:font-normal"
                       />
                     </div>
                     <Button onClick={buscarMusica} disabled={trackLoading || !active.trackUrl.trim()} variant="outline">
