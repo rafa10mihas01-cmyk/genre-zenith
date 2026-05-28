@@ -886,7 +886,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                       Gênero <span className="normal-case tracking-normal text-muted-foreground/60 font-normal">(filtra playlists na distribuição)</span>
                     </Label>
                     <Select value={active.genre || "__none__"} onValueChange={(v) => setGenre(v === "__none__" ? "" : v)}>
-                      <SelectTrigger className="text-muted-foreground/80 [&[data-state=closed]>span]:text-muted-foreground/60">
+                      <SelectTrigger className="text-muted-foreground/80 [&>span]:flex-1 [&>span]:text-center [&[data-state=closed]>span]:text-muted-foreground/60">
                         <SelectValue placeholder="Selecione o gênero" />
                       </SelectTrigger>
                       <SelectContent>
