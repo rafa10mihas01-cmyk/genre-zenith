@@ -174,7 +174,7 @@ export default function Analytics() {
               sub="Quando você abrir um deal em /playlist-deals, o ritmo aparece aqui."
             />
           ) : (
-            <div className="grid gap-2">
+            <div className="grid gap-2 min-w-0">
               {paceRows.map((r) => {
                 const tone = String(r.tone);
                 const borderL =
@@ -189,7 +189,7 @@ export default function Analytics() {
                   <div
                     key={r.deal.id}
                     className={cn(
-                      "rounded-2xl border border-border border-l-2 bg-card p-4 flex items-center gap-4 hover:bg-elevated/40 transition-colors",
+                      "min-w-0 rounded-2xl border border-border border-l-2 bg-card p-4 flex flex-col gap-3 hover:bg-elevated/40 transition-colors sm:flex-row sm:items-center sm:gap-4",
                       borderL,
                     )}
                   >
@@ -201,14 +201,14 @@ export default function Analytics() {
                         {r.delivered.toLocaleString("pt-BR")} / {r.target.toLocaleString("pt-BR")} plays
                       </div>
                     </div>
-                    <div className="hidden sm:block text-right">
+                    <div className="hidden sm:block shrink-0 text-right">
                       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Plays/dia</div>
                       <div className="font-semibold tabular-nums">{Math.round(r.plays_per_day).toLocaleString("pt-BR")}</div>
                     </div>
-                    <div className="w-28 text-right">
-                      <StatusDot variant={r.tone as any} label={r.label} />
+                    <div className="flex w-full min-w-0 items-center justify-between gap-3 sm:block sm:w-28 sm:shrink-0 sm:text-right">
+                      <StatusDot variant={r.tone as any} label={r.label} className="min-w-0" />
                       {r.pace_ratio != null && (
-                        <div className="text-xs text-muted-foreground tabular-nums mt-1">
+                        <div className="shrink-0 text-xs text-muted-foreground tabular-nums sm:mt-1">
                           {Math.round(r.pace_ratio * 100)}%
                         </div>
                       )}
