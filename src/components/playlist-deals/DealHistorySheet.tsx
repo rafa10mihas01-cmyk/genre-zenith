@@ -611,7 +611,7 @@ export function DealHistorySheet({
                 <TabsList
                   className={cn(
                     asPage
-                      ? "w-full grid grid-cols-4 bg-[hsl(var(--elevated))] p-1 h-auto rounded-xl"
+                      ? "w-full grid grid-cols-4 bg-[hsl(var(--elevated))] p-1 h-auto rounded-xl gap-1"
                       : "bg-transparent p-0 h-auto gap-0 grid grid-cols-4 w-full sm:w-full",
                   )}
                 >
@@ -619,56 +619,52 @@ export function DealHistorySheet({
                     value="resumo"
                     aria-label="Resumo"
                     className={cn(
-                      "gap-1.5",
                       asPage
-                        ? "rounded-lg data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground h-9 px-2"
-                        : "bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row",
+                        ? "flex items-center justify-center gap-1.5 rounded-lg data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground h-9 px-1 min-w-0"
+                        : "gap-1.5 bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row",
                     )}
                   >
                     <BarChart3 className="h-3.5 w-3.5 shrink-0" />
-                    <span className={cn(asPage ? "text-[12px] sm:text-sm" : "hidden sm:inline text-sm")}>Resumo</span>
+                    <span className={cn(asPage ? "text-[12px] sm:text-sm truncate" : "hidden sm:inline text-sm")}>Resumo</span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="playlists"
                     aria-label="Curador"
                     className={cn(
-                      "gap-1.5",
                       asPage
-                        ? "rounded-lg data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground h-9 px-2"
-                        : "bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border",
+                        ? "flex items-center justify-center gap-1.5 rounded-lg data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground h-9 px-1 min-w-0"
+                        : "gap-1.5 bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border",
                     )}
                   >
                     <ListMusic className="h-3.5 w-3.5 shrink-0" />
-                    <span className={cn(asPage ? "text-[12px] sm:text-sm" : "hidden sm:inline text-sm")}>Curador</span>
-                    <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-muted text-muted-foreground text-[10px] font-bold tabular-nums shrink-0">{curatorTotal}</span>
+                    <span className={cn(asPage ? "text-[12px] sm:text-sm truncate" : "hidden sm:inline text-sm")}>Curador</span>
+                    <span className="hidden sm:inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-muted text-muted-foreground text-[10px] font-bold tabular-nums shrink-0">{curatorTotal}</span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="algoritmo"
                     aria-label="Algoritmo"
                     className={cn(
-                      "gap-1.5",
                       asPage
-                        ? "rounded-lg data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground h-9 px-2"
-                        : "bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border",
+                        ? "flex items-center justify-center gap-1.5 rounded-lg data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground h-9 px-1 min-w-0"
+                        : "gap-1.5 bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border",
                     )}
                   >
                     <Sparkles className="h-3.5 w-3.5 shrink-0" />
-                    <span className={cn(asPage ? "text-[12px] sm:text-sm" : "hidden sm:inline text-sm")}>Algoritmo</span>
-                    <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-muted text-muted-foreground text-[10px] font-bold tabular-nums shrink-0">{algoTotal}</span>
+                    <span className={cn(asPage ? "text-[12px] sm:text-sm truncate" : "hidden sm:inline text-sm")}>Algoritmo</span>
+                    <span className="hidden sm:inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-muted text-muted-foreground text-[10px] font-bold tabular-nums shrink-0">{algoTotal}</span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="historico"
                     aria-label="Histórico"
                     className={cn(
-                      "gap-1.5",
                       asPage
-                        ? "rounded-lg data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground h-9 px-2"
-                        : "bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border",
+                        ? "flex items-center justify-center gap-1.5 rounded-lg data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground h-9 px-1 min-w-0"
+                        : "gap-1.5 bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border",
                     )}
                   >
                     <Clock className="h-3.5 w-3.5 shrink-0" />
-                    <span className={cn(asPage ? "text-[12px] sm:text-sm hidden xs:inline" : "hidden sm:inline text-sm")}>Histórico</span>
-                    <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-muted text-muted-foreground text-[10px] font-bold tabular-nums shrink-0">{reversedLogs.length}</span>
+                    <span className={cn(asPage ? "text-[12px] sm:text-sm truncate" : "hidden sm:inline text-sm")}>Histórico</span>
+                    <span className="hidden sm:inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-muted text-muted-foreground text-[10px] font-bold tabular-nums shrink-0">{reversedLogs.length}</span>
                   </TabsTrigger>
                 </TabsList>
               </div>
