@@ -1458,13 +1458,10 @@ function BucketReorder({ kind, items, totalTracks, applying, onApplyAll }: {
 
 function NewTrackTarget({ zone, pos }: { zone: Zone; pos: number }) {
   return (
-    <div className="flex items-center gap-1.5 shrink-0 w-32">
-      <span className="text-[9px] uppercase tracking-wider font-bold text-primary bg-primary/15 px-1.5 py-0.5 rounded">
-        NOVA
-      </span>
-      <span className="text-muted-foreground/50 text-[11px]">→</span>
-      <span className="text-foreground text-[11px] font-semibold tabular-nums truncate">
-        {ZONE_LABELS[zone]} #{pos + 1}
+    <div className="flex items-center gap-1 shrink-0 w-20" title={`Nova faixa · ${ZONE_LABELS[zone]} #${pos + 1}`}>
+      <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" aria-label="nova" />
+      <span className="text-[11px] font-mono tabular-nums font-semibold text-primary truncate">
+        {ZONE_LABELS[zone].slice(0, 3)}#{pos + 1}
       </span>
     </div>
   );
