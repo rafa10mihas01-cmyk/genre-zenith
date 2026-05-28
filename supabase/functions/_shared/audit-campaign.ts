@@ -81,12 +81,18 @@ export async function auditCampaignFlow(
 
   // ── 4) Baseline importada com playlist_spotify_id
   // Baseline é por deal. Carrega deals da campanha primeiro.
-  const { data: deals } = await admin
+  const { data: dealsRaw } = await admin
     .from("curator_deals")
-    .select("id, curator_id, curator_name, state, started_at, campaign_id")
+    .select("id, curator_id, curator_name, state, started_at, campaign_id, source")
     .eq("campaign_id", campaignId);
 
-  const dealIds = (deals ?? []).map((d: any) => d.id);
+  // Se existem deals reais de curador, ignora "shadow deals" internos (source=campaign_internal, sem curator_id)
+  const allDeals = dealsRaw ?? [];
+  const realDeals = allDeals.filter((d: any) => d.curator_id != null);
+  const deals = realDeals.length > 0
+    ? allDeals.filter((d: any) => !(d.source === "campaign_internal" && d.curator_id == null))
+    : allDeals;
+  const dealIds = deals.map((d: any) => d.id);
 
   if (dealIds.length === 0) {
     skip("4_baseline", "Baseline importada com playlist_spotify_id", "Sem deals vinculados — etapa 5 também vai falhar");
