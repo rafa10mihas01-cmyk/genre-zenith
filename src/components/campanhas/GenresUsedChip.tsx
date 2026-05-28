@@ -21,15 +21,14 @@ export function GenresUsedChip({ genres, className, compact }: Props) {
   const maxScore = top.reduce((m, g) => Math.max(m, g.score), 0);
 
   if (compact) {
-    const scoreLabel = maxScore > 0 ? ` ${maxScore.toFixed(2)}` : "";
+    const tooltip = `Gêneros: ${names}${maxScore > 0 ? ` (afinidade ${maxScore.toFixed(2)})` : ""}`;
     return (
       <div
-        title={`Gêneros: ${names}${maxScore > 0 ? ` (afinidade ${maxScore.toFixed(2)})` : ""}`}
-        className={`inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-[10px] leading-none text-foreground-body max-w-full ${className ?? ""}`}
+        title={tooltip}
+        aria-label={tooltip}
+        className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground ${className ?? ""}`}
       >
-        <Sparkles className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden="true" />
-        <span className="truncate font-medium text-foreground">{names}</span>
-        {scoreLabel && <span className="shrink-0 tabular-nums text-muted-foreground">{scoreLabel}</span>}
+        <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
       </div>
     );
   }
