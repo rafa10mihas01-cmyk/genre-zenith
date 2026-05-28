@@ -10,7 +10,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { StatusDot } from "@/components/ui/status-dot";
 import { LineChart as LineIcon, RefreshCw, Handshake, Activity, Zap, TrendingUp, DollarSign } from "lucide-react";
-import { KpiBig } from "@/components/KpiBig";
+import { Kpi } from "@/components/ui/kpi";
+import { cn } from "@/lib/utils";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
@@ -110,7 +111,7 @@ export default function Analytics() {
         kicker="Inteligência"
         icon={LineIcon}
         title="Analytics"
-        subtitle="Motor de deals — entrega real"
+        subtitle="Motor de deals · Crescimento · Mercado"
         manualKey="analytics"
         actions={
           <Button variant="outline" onClick={load} disabled={loading}>
@@ -123,9 +124,9 @@ export default function Analytics() {
         <AnalyticsTabs />
 
         {/* KPIs reais */}
-        <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-          <KpiBig
-            tier="hero"
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <Kpi
+            variant="hero"
             className="md:col-span-1"
             icon={Activity}
             label="Deals ativos"
@@ -134,8 +135,7 @@ export default function Analytics() {
             domain="deals"
             loading={loading}
           />
-
-          <KpiBig
+          <Kpi
             icon={Zap}
             label="Plays entregues (7d)"
             value={plays7d.toLocaleString("pt-BR")}
@@ -143,7 +143,7 @@ export default function Analytics() {
             domain="campaigns"
             loading={loading}
           />
-          <KpiBig
+          <Kpi
             icon={TrendingUp}
             label="Média diária (30d)"
             value={dailyAvg30d.toLocaleString("pt-BR")}
@@ -151,7 +151,7 @@ export default function Analytics() {
             domain="playlists"
             loading={loading}
           />
-          <KpiBig
+          <Kpi
             icon={DollarSign}
             label="Custo por play"
             value={cpp != null ? `R$ ${cpp.toFixed(4)}` : "—"}
@@ -160,6 +160,7 @@ export default function Analytics() {
             loading={loading}
           />
         </section>
+
 
 
         {/* Ritmo dos deals ativos */}
@@ -174,31 +175,49 @@ export default function Analytics() {
             />
           ) : (
             <div className="grid gap-2">
-              {paceRows.map((r) => (
-                <div key={r.deal.id} className="rounded-2xl border border-border bg-card p-4 flex items-center gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate">
-                      {r.deal.song_artist ?? "—"} <span className="text-muted-foreground">·</span> {r.deal.song_name ?? "—"}
-                    </div>
-                    <div className="text-xs text-muted-foreground tabular-nums">
-                      {r.delivered.toLocaleString("pt-BR")} / {r.target.toLocaleString("pt-BR")} plays
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xs text-muted-foreground">Plays/dia</div>
-                    <div className="font-semibold tabular-nums">{Math.round(r.plays_per_day).toLocaleString("pt-BR")}</div>
-                  </div>
-                  <div className="w-28 text-right">
-                    <StatusDot variant={r.tone as any} label={r.label} />
-                    {r.pace_ratio != null && (
-                      <div className="text-xs text-muted-foreground tabular-nums mt-1">
-                        {Math.round(r.pace_ratio * 100)}%
-                      </div>
+              {paceRows.map((r) => {
+                const tone = String(r.tone);
+                const borderL =
+                  tone === "destructive" || tone === "danger" || tone === "critical"
+                    ? "border-l-destructive"
+                    : tone === "warning" || tone === "warn"
+                      ? "border-l-amber-500"
+                      : tone === "success"
+                        ? "border-l-primary"
+                        : "border-l-border";
+                return (
+                  <div
+                    key={r.deal.id}
+                    className={cn(
+                      "rounded-2xl border border-border border-l-2 bg-card p-4 flex items-center gap-4 hover:bg-elevated/40 transition-colors",
+                      borderL,
                     )}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">
+                        {r.deal.song_artist ?? "—"} <span className="text-muted-foreground">·</span> {r.deal.song_name ?? "—"}
+                      </div>
+                      <div className="text-xs text-muted-foreground tabular-nums">
+                        {r.delivered.toLocaleString("pt-BR")} / {r.target.toLocaleString("pt-BR")} plays
+                      </div>
+                    </div>
+                    <div className="hidden sm:block text-right">
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Plays/dia</div>
+                      <div className="font-semibold tabular-nums">{Math.round(r.plays_per_day).toLocaleString("pt-BR")}</div>
+                    </div>
+                    <div className="w-28 text-right">
+                      <StatusDot variant={r.tone as any} label={r.label} />
+                      {r.pace_ratio != null && (
+                        <div className="text-xs text-muted-foreground tabular-nums mt-1">
+                          {Math.round(r.pace_ratio * 100)}%
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
+
           )}
         </Section>
 
@@ -233,16 +252,16 @@ export default function Analytics() {
         <Section title="Top playlists entregando (30d)">
           <div className="border border-border rounded-2xl overflow-hidden bg-card">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[640px]">
-                <thead className="bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
+              <table className="w-full text-sm">
+                <thead className="bg-elevated/30 text-[10px] uppercase tracking-wider text-muted-foreground">
                   <tr>
-                    <th className="px-4 py-3 text-left">Playlist</th>
-                    <th className="px-4 py-3 text-right">Deals</th>
-                    <th className="px-4 py-3 text-right">Plays entregues</th>
-                    <th className="px-4 py-3 text-right">Último snapshot</th>
+                    <th className="px-4 py-2.5 text-left font-medium">Playlist</th>
+                    <th className="hidden sm:table-cell px-4 py-2.5 text-right font-medium">Deals</th>
+                    <th className="px-4 py-2.5 text-right font-medium">Plays entregues</th>
+                    <th className="hidden sm:table-cell px-4 py-2.5 text-right font-medium">Último snapshot</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-border">
                   {loading ? (
                     <tr><td colSpan={4} className="p-4"><Skeleton className="h-12" /></td></tr>
                   ) : topPlaylists.length === 0 ? (
@@ -252,17 +271,17 @@ export default function Analytics() {
                       </td>
                     </tr>
                   ) : topPlaylists.map((p) => (
-                    <tr key={p.playlist_id} className="border-t border-border">
-                      <td className="px-4 py-3">
-                        <div className="font-medium truncate max-w-[320px]">
+                    <tr key={p.playlist_id} className="hover:bg-elevated/40 transition-colors">
+                      <td className="px-4 py-2.5">
+                        <div className="font-medium truncate max-w-[260px] sm:max-w-[320px]">
                           {playlistsMeta[p.playlist_id] ?? p.playlist_id.slice(0, 8)}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-right tabular-nums">{p.deals_count}</td>
-                      <td className="px-4 py-3 text-right tabular-nums font-medium">
+                      <td className="hidden sm:table-cell px-4 py-2.5 text-right tabular-nums">{p.deals_count}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums font-medium">
                         {p.plays_delivered.toLocaleString("pt-BR")}
                       </td>
-                      <td className="px-4 py-3 text-right tabular-nums text-xs text-muted-foreground">
+                      <td className="hidden sm:table-cell px-4 py-2.5 text-right tabular-nums text-xs text-muted-foreground">
                         {new Date(p.last_captured_at).toLocaleDateString("pt-BR")}
                       </td>
                     </tr>
@@ -271,6 +290,7 @@ export default function Analytics() {
               </table>
             </div>
           </div>
+
         </Section>
 
         {/* Heatmap — vivo, lê curator_deal_logs */}
