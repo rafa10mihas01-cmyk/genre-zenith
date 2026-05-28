@@ -858,16 +858,27 @@ export function PlaylistCockpit({
                 />
               </div>
               {(diag.raw?.missing_keywords?.length ?? 0) > 0 && (
-                <Card className="p-4">
-                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
-                    Palavras fortes do nicho que faltam
+                <Card className="p-5">
+                  <div className="flex items-center justify-between mb-3 pb-3 border-b border-border/60">
+                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+                      Palavras fortes do nicho que faltam
+                    </div>
+                    <Badge variant="outline" className="h-5 px-1.5 text-[10px] tabular-nums text-muted-foreground">
+                      {diag.raw!.missing_keywords!.length}
+                    </Badge>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
-                    {diag.raw!.missing_keywords!.map((k) => (
-                      <Badge key={k} variant="outline" className="text-[11px] border-warning/40 text-warning bg-warning/5">
-                        {k}
-                      </Badge>
-                    ))}
+                    {[...diag.raw!.missing_keywords!]
+                      .sort((a, b) => a.localeCompare(b, "pt-BR"))
+                      .map((k) => (
+                        <Badge
+                          key={k}
+                          variant="outline"
+                          className="h-6 px-2.5 rounded-full text-[11px] font-medium border-warning/40 text-warning bg-warning/5 hover:bg-warning/10 transition-colors"
+                        >
+                          {k}
+                        </Badge>
+                      ))}
                   </div>
                 </Card>
               )}
