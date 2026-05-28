@@ -78,7 +78,7 @@ export function CalculadoraResultado({ r }: { r: CampaignResult }) {
         <CardHeader>
           <CardTitle className="text-sm">Distribuição do investimento</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-5">
           <SplitBar
             label="Ecossistema próprio"
             pct={r.splitEcoPct}
