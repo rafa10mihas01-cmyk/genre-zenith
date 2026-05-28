@@ -813,7 +813,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                         value={active.trackUrl}
                         onChange={e => { setTrackUrl(e.target.value); setTrack(null); }}
                         onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); buscarMusica(); } }}
-                        className="pl-9 placeholder:text-muted-foreground/40 placeholder:font-normal"
+                        className="pl-9 text-center placeholder:text-muted-foreground/40 placeholder:font-normal"
                       />
                     </div>
                     <Button onClick={buscarMusica} disabled={trackLoading || !active.trackUrl.trim()} variant="outline">
