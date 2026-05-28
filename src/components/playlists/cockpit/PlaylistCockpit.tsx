@@ -483,17 +483,19 @@ export function PlaylistCockpit({
     <div className="h-full min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain nx-scroll">
       <div className="mx-auto w-full max-w-[1600px] px-4 md:px-8 pt-4 md:pt-5 pb-[calc(88px+env(safe-area-inset-bottom,0px))] md:pb-8 space-y-4">
       {/* ============ 1. HEADER ============ */}
-      <header className="space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <header className="space-y-4 md:space-y-5 pt-1">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0 flex-1">
             {onBack && (
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon"
                 onClick={onBack}
-                className="h-7 -ml-2 text-muted-foreground hover:text-foreground gap-1 text-xs shrink-0"
+                aria-label="Voltar"
+                title="Voltar"
+                className="h-9 w-9 -ml-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-elevated shrink-0"
               >
-                <ArrowLeft className="h-3 w-3" /> Voltar
+                <ArrowLeft className="h-4 w-4" />
               </Button>
             )}
             {coverUrl ? (
