@@ -151,7 +151,7 @@ export function DealRow(props: DealRowProps) {
       )}
     >
       {/* Linha 1 — identidade */}
-      <div className="flex items-center gap-3 px-4 pt-3.5 pb-2.5 min-w-0">
+      <div className="flex items-start gap-3 px-4 pt-3.5 pb-2.5 min-w-0">
         {cover ? (
           <img
             src={cover}
@@ -167,44 +167,50 @@ export function DealRow(props: DealRowProps) {
           className="min-w-0 flex-1 text-left"
           aria-label={`Abrir detalhes de ${songLabel}`}
         >
-          <div className="text-[14px] font-semibold text-foreground truncate leading-tight">
-            {deal.curator_name}
+          <div className="flex items-start gap-2 min-w-0">
+            <div className="min-w-0 flex-1">
+              <div className="text-[14px] font-semibold text-foreground truncate leading-tight">
+                {deal.curator_name}
+              </div>
+              <div className="text-[11.5px] text-muted-foreground truncate mt-0.5">
+                <span>{songLabel}</span>
+                {artistLabel && artistLabel !== deal.curator_name && (
+                  <>
+                    <span className="mx-1.5 opacity-50">·</span>
+                    <span>{artistLabel}</span>
+                  </>
+                )}
+                {curatorCount > 0 && (
+                  <>
+                    <span className="mx-1.5 opacity-50">·</span>
+                    <span>{curatorCount} playlists</span>
+                  </>
+                )}
+              </div>
+            </div>
+            <StatusDot
+              variant={status.variant}
+              label={status.label}
+              pulse={status.pulse}
+              className="shrink-0 mt-1"
+            />
           </div>
-          <div className="text-[11.5px] text-muted-foreground truncate mt-0.5">
-            <span>{songLabel}</span>
-            {artistLabel && artistLabel !== deal.curator_name && (
-              <>
-                <span className="mx-1.5 opacity-50">·</span>
-                <span>{artistLabel}</span>
-              </>
-            )}
-            {curatorCount > 0 && (
-              <>
-                <span className="mx-1.5 opacity-50">·</span>
-                <span>{curatorCount} playlists</span>
-              </>
-            )}
+          {/* Linha de chips — abaixo do nome pra não comer espaço */}
+          <div className="flex items-center gap-1.5 flex-wrap mt-2">
+            <span
+              className={cn(
+                "inline-flex items-center h-5 px-2 rounded-full text-[10px] font-semibold uppercase tracking-wide border",
+                deal.origin === "campaign"
+                  ? "bg-primary/10 text-primary border-primary/30"
+                  : "bg-muted text-muted-foreground border-border",
+              )}
+              title={deal.origin === "campaign" ? "Deal criado via aprovação de campanha" : "Deal criado manualmente"}
+            >
+              {deal.origin === "campaign" ? "Campanha" : "Manual"}
+            </span>
+            <DealDeliveryBadge row={deliveryMap[deal.id]} />
           </div>
         </button>
-        <div className="flex items-center gap-1.5 shrink-0">
-          <span
-            className={cn(
-              "inline-flex items-center h-5 px-2 rounded-full text-[10px] font-semibold uppercase tracking-wide border",
-              deal.origin === "campaign"
-                ? "bg-primary/10 text-primary border-primary/30"
-                : "bg-muted text-muted-foreground border-border",
-            )}
-            title={deal.origin === "campaign" ? "Deal criado via aprovação de campanha" : "Deal criado manualmente"}
-          >
-            {deal.origin === "campaign" ? "Campanha" : "Manual"}
-          </span>
-          <DealDeliveryBadge row={deliveryMap[deal.id]} />
-          <StatusDot
-            variant={status.variant}
-            label={status.label}
-            pulse={status.pulse}
-          />
-        </div>
       </div>
 
 
