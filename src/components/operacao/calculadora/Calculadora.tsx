@@ -1376,15 +1376,15 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
           )}
 
           {/* Ações de fechamento */}
-          <div className="flex items-center justify-between gap-3 pt-1">
-            <Button variant="ghost" onClick={() => setStep(2)}>
+          <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-center sm:justify-between">
+            <Button variant="ghost" onClick={() => setStep(2)} className="self-start sm:self-auto">
               <ArrowLeft className="h-4 w-4 mr-2" /> Voltar pra músicas
             </Button>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               {onContinue ? (
                 <Button
                   size="lg"
-                  className="w-full"
+                  className="w-full sm:w-auto"
                   variant="solid"
                   onClick={() => onContinue({ result, trackUrl: active.trackUrl, track: active.track, fonte: active.fonte })}
                 >
@@ -1398,6 +1398,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     variant="outline"
                     onClick={salvarRascunhoAtiva}
                     disabled={closing || !active.track?.id}
+                    className="w-full sm:w-auto"
                   >
                     {closing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
                     Salvar só ativa
@@ -1407,6 +1408,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     variant="solid"
                     onClick={fecharTodas}
                     disabled={closing || readyCount === 0}
+                    className="w-full sm:w-auto"
                   >
                     {closing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
                     Fechar campanhas ({readyCount})
