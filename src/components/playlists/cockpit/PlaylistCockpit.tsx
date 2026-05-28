@@ -1487,7 +1487,7 @@ function BucketAdd({ items, applying, onApplyAll }: {
             className="h-7 text-xs gap-1"
           >
             {applying ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
-            Adicionar todas ({items.length})
+            Aplicar ({items.length})
           </Button>
         )
       }
