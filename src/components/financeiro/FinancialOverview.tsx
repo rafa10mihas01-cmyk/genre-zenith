@@ -61,33 +61,33 @@ export function FinancialOverview() {
   return (
     <div className="space-y-6">
       {/* ===== Cards de resumo ===== */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <SummaryCard icon={DollarSign} label="Recebido de clientes" value={fmtBRL(totals.recebido)} tone="primary" />
-        <SummaryCard
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Kpi icon={DollarSign} label="Recebido de clientes" value={fmtBRL(totals.recebido)} tone="primary" />
+        <Kpi
           icon={Wallet}
           label="Investido em curadoria"
           value={fmtBRL(totals.custoTotalCaixa)}
-          tone="muted"
           hint={
             totals.custoNaoAlocado > 0
               ? `${fmtBRL(totals.custoNaoAlocado)} sem deal vinculado`
               : undefined
           }
         />
-        <SummaryCard
+        <Kpi
           icon={totals.margem >= 0 ? TrendingUp : TrendingDown}
           label="Margem bruta"
           value={fmtBRL(totals.margem)}
-          tone={totals.margem >= 0 ? "primary" : "warn"}
+          tone={totals.margem >= 0 ? "primary" : "warning"}
           hint={totals.custoNaoAlocado > 0 ? "Exclui custo não alocado" : undefined}
         />
-        <SummaryCard
+        <Kpi
           icon={TrendingUp}
           label="Margem %"
           value={totals.margemPct == null ? "—" : `${totals.margemPct.toFixed(1)}%`}
-          tone={totals.margemPct != null && totals.margemPct >= 30 ? "primary" : "muted"}
+          tone={totals.margemPct != null && totals.margemPct >= 30 ? "primary" : "default"}
         />
       </section>
+
 
       {/* ===== Aviso de custo não alocado ===== */}
       {totals.custoNaoAlocado > 0 && (
