@@ -392,12 +392,12 @@ export function CampaignFullPlanCard({
                     : {};
                   return (
                   <tr className="bg-primary/[0.07] hover:bg-primary/10">
-                    <td className="sticky left-0 z-10 py-2 px-3 border-b border-r border-border/30 border-t-2 border-t-primary/40 leading-tight bg-primary/[0.07]">
+                    <td className="sticky left-0 z-10 py-2 px-2 md:px-3 border-b border-r border-border/30 border-t-2 border-t-primary/40 leading-tight bg-primary/[0.07] w-14 md:w-auto">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-primary/15 grid place-items-center flex-shrink-0">
                           <AudioLines className="h-5 w-5 text-primary" />
                         </div>
-                        <div className="min-w-0 flex-1">
+                        <div className="hidden md:block min-w-0 flex-1">
                           <TitleEl
                             {...titleProps}
                             className={cn(
