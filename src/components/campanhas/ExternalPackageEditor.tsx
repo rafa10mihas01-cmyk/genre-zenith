@@ -528,6 +528,7 @@ export function ExternalPackageEditor({
                 </tfoot>
               </table>
             </div>
+            )}
           </>
         )}
       </div>
