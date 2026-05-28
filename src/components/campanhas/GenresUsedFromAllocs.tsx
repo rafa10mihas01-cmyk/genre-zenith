@@ -42,5 +42,5 @@ export function GenresUsedFromAllocs({ allocs, compact }: { allocs: EcoAllocatio
     return () => { cancel = true; };
   }, [allocs]);
 
-  return <GenresUsedChip genres={genres} />;
+  return <GenresUsedChip genres={genres} compact={compact} />;
 }
