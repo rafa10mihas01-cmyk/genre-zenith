@@ -1014,10 +1014,10 @@ export function DealHistorySheet({
 
                 {/* === ALGORITMO (editorial / orgânica / suspeita) === */}
                 <TabsContent value="algoritmo" className={cn("m-0 space-y-4", asPage ? "rounded-2xl border border-border bg-card p-5" : "px-6 py-5")}>
-                  <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-[11px] text-muted-foreground leading-relaxed">
+                  <p className="text-[11px] text-muted-foreground leading-relaxed px-1">
                     <span className="text-foreground font-medium">Visualização apenas.</span>{" "}
                     Playlists detectadas pelo algoritmo do Spotify ou orgânicas — não contam na entrega do curador.
-                  </div>
+                  </p>
 
                   {algoTotal > 0 && (
                     <>
