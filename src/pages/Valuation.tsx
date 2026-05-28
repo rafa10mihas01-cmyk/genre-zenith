@@ -91,22 +91,28 @@ export default function Valuation() {
         <AnalyticsTabs />
         {/* Input */}
         <div className="nx-card space-y-3">
-          <label className="text-sm font-medium">Link da playlist no Spotify</label>
-          <div className="flex gap-2">
-            <Input
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://open.spotify.com/playlist/..."
-              onKeyDown={(e) => e.key === "Enter" && evaluate()}
-            />
-            <Button onClick={evaluate} disabled={loading || !url.trim()} className="gap-1.5 shrink-0">
-              <Search className="h-4 w-4" /> {loading ? "Avaliando..." : "Avaliar"}
-            </Button>
-          </div>
+          <label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            Link da playlist no Spotify
+          </label>
+          <Input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://open.spotify.com/playlist/..."
+            onKeyDown={(e) => e.key === "Enter" && evaluate()}
+            className="h-11 text-center"
+          />
+          <Button
+            onClick={evaluate}
+            disabled={loading || !url.trim()}
+            className="w-full gap-1.5"
+          >
+            <Search className="h-4 w-4" /> {loading ? "Avaliando..." : "Avaliar"}
+          </Button>
           <p className="text-xs text-muted-foreground">
             Funciona com playlists já presentes no sistema (Minhas Playlists ou biblioteca de curadores).
           </p>
         </div>
+
 
         {loading && (
           <div className="nx-card space-y-3">
