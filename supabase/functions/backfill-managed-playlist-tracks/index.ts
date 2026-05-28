@@ -39,7 +39,7 @@ async function syncOne(sb: any, token: string, pl: { id: string; spotify_playlis
   try {
     const rich = await listPlaylistTracksRich(pl.spotify_playlist_id, token, {
       max: 10000,
-      fields: "items(added_at,track(id,name,duration_ms,artists(name),album(images))),next",
+      fields: "items(added_at,track(id,name,duration_ms,external_ids,artists(name),album(images))),next",
     });
     const rows = rich
       .filter((t) => t.spotify_track_id)
@@ -52,6 +52,7 @@ async function syncOne(sb: any, token: string, pl: { id: string; spotify_playlis
         position: t.position - 1,
         added_at: t.added_at,
         duration_ms: t.duration_ms,
+        isrc: t.isrc,
       }));
 
     await sb.from("managed_playlist_tracks").delete().eq("playlist_id", pl.id);
@@ -61,7 +62,9 @@ async function syncOne(sb: any, token: string, pl: { id: string; spotify_playlis
         if (error) throw new Error(`insert: ${error.message}`);
       }
     }
-    const tracksHash = await computeTracksHash(rows.map((r) => r.spotify_track_id as string));
+    const tracksHash = await computeIdentityHash(
+      rows.map((r) => ({ isrc: r.isrc, spotify_track_id: r.spotify_track_id as string })),
+    );
     await sb.from("managed_playlists")
       .update({
         tracks_count: rows.length,
