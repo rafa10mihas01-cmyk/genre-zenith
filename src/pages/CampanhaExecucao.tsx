@@ -548,6 +548,7 @@ export default function CampanhaExecucao() {
         heroExtraActions={
           <>
             <CampaignAccessManager campaignId={camp.id} />
+            <AuditCampaignButton campaignId={camp.id} />
             {clientToken ? (
               <Dialog>
                 <DialogTrigger asChild>
