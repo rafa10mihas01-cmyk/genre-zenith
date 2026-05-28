@@ -361,7 +361,7 @@ export default function PlaylistDeals() {
       {/* TABS */}
       <div className="sticky top-0 z-30 -mt-px bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border -mx-4 md:-mx-6">
         <div className="nx-tab-rail items-center gap-1 px-4 md:px-6 flex">
-          <div className="flex items-center gap-1 flex-1 min-w-0 overflow-x-auto scrollbar-none">
+          <div className="flex items-center gap-1 flex-1 min-w-0 sm:overflow-x-auto sm:scrollbar-none">
             {TABS.map((t) => {
               const Icon = t.icon;
               const active = tab === t.id;
@@ -370,17 +370,17 @@ export default function PlaylistDeals() {
                   key={t.id}
                   onClick={() => setTab(t.id)}
                   className={cn(
-                    "px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 transition-colors -mb-px shrink-0 whitespace-nowrap",
+                    "flex-1 sm:flex-none px-2 sm:px-4 h-10 inline-flex items-center justify-center gap-1.5 sm:gap-2 text-[13px] sm:text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap min-w-0",
                     active
                       ? "border-primary text-foreground"
                       : "border-transparent text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  <Icon className="h-3.5 w-3.5" />
-                  {t.label}
+                  <Icon className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{t.label}</span>
                   <span
                     className={cn(
-                      "ml-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold tabular-nums",
+                      "inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold tabular-nums shrink-0",
                       active ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
                     )}
                   >
