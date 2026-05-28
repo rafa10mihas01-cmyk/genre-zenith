@@ -52,31 +52,39 @@ export function LifecycleRoadmapCard({ playlistId, currentTracks }: Props) {
 
   return (
     <Card className="p-5 space-y-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className={cn("h-9 w-9 rounded-full grid place-items-center bg-muted", meta.toneClass)}>
-            <Icon className="h-4 w-4" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-[15px] font-semibold leading-none">Plano de crescimento</h3>
-              <Badge variant={meta.badgeVariant} className="text-[10px]">{meta.label}</Badge>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">{meta.description}</p>
-          </div>
+      {/* Header: título + badge à esquerda, ícone */}
+      <div className="flex items-start gap-3">
+        <div className={cn("h-9 w-9 shrink-0 rounded-full grid place-items-center bg-muted", meta.toneClass)}>
+          <Icon className="h-4 w-4" />
         </div>
-        {benchmark != null && current != null && (
-          <div className="text-right text-xs text-muted-foreground tabular-nums">
-            <div className="font-medium text-foreground">{current} faixas</div>
-            <div>benchmark {benchmark}{ratio != null ? ` · ${(ratio * 100).toFixed(0)}%` : ""}</div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-[15px] font-semibold leading-none">Plano de crescimento</h3>
+            <Badge variant={meta.badgeVariant} className="text-[10px]">{meta.label}</Badge>
           </div>
-        )}
+          <p className="text-xs text-muted-foreground mt-1.5 leading-snug">{meta.description}</p>
+        </div>
       </div>
 
+      {/* Progresso até o benchmark — barra única, rotulada */}
       {benchmark != null && current != null && (
-        <div className="space-y-1">
-          <Progress value={progressPct} className="h-2" />
-          <div className={cn("h-2 -mt-2 rounded-full transition-all", progressColor)} style={{ width: `${progressPct}%` }} />
+        <div className="space-y-1.5">
+          <div className="flex items-baseline justify-between gap-2 text-[11px] text-muted-foreground">
+            <span>
+              Progresso até o benchmark
+            </span>
+            <span className="tabular-nums">
+              <span className="text-foreground font-medium">{current}</span>
+              <span> / {benchmark} faixas</span>
+              {ratio != null && <span> · {(ratio * 100).toFixed(0)}%</span>}
+            </span>
+          </div>
+          <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+            <div
+              className={cn("h-full rounded-full transition-all", progressColor)}
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
         </div>
       )}
 
