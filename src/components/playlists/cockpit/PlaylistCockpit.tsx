@@ -728,7 +728,6 @@ export function PlaylistCockpit({
               )}
 
               <section className="space-y-3">
-                <SectionTitle className="sr-only">Progresso</SectionTitle>
 
                 {applyProgress && (
                   <Card className={cn(
