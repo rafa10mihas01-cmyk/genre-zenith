@@ -48,9 +48,9 @@ const TONE_CLS: Record<KpiTone, string> = {
 };
 
 const VALUE_SIZE: Record<KpiVariant, string> = {
-  hero:    "text-4xl font-semibold tracking-tight",
-  default: "text-3xl font-semibold",
-  compact: "text-xl font-semibold",
+  hero:    "text-lg sm:text-3xl md:text-4xl font-semibold tracking-tight",
+  default: "text-base sm:text-2xl md:text-3xl font-semibold",
+  compact: "text-sm sm:text-lg md:text-xl font-semibold",
 };
 
 const PADDING: Record<KpiVariant, string> = {

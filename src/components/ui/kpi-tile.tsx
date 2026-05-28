@@ -54,7 +54,7 @@ export function KpiTile({
         </span>
         {Icon && <Icon className={cn("h-4 w-4 shrink-0", toneIcon[tone])} />}
       </div>
-      <div className="text-[28px] font-semibold tabular-nums text-foreground leading-none tracking-tight">
+      <div className="text-lg sm:text-[28px] font-semibold tabular-nums text-foreground leading-none tracking-tight">
         {value}
       </div>
       {(hint || typeof delta === "number") && (
