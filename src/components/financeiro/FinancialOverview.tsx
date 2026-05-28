@@ -4,6 +4,8 @@ import { ChevronDown, ChevronRight, AlertTriangle, Plus, TrendingUp, TrendingDow
 import { useFinancialOverview, type DealFinanceRow } from "@/hooks/useFinancialOverview";
 import { DealPaymentDialog } from "./DealPaymentDialog";
 import { Button } from "@/components/ui/button";
+import { Kpi } from "@/components/ui/kpi";
+
 import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/format";
 
