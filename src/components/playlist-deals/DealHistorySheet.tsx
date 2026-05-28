@@ -605,13 +605,13 @@ export function DealHistorySheet({
             <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className={cn("flex-1 flex flex-col min-h-0", asPage && "space-y-4")}>
               <div className={cn(
                 asPage
-                  ? "-mx-1 px-1 overflow-x-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]"
+                  ? "-mx-1 px-1"
                   : "px-3 sm:px-6 pt-3 border-b border-border shrink-0"
               )}>
                 <TabsList
                   className={cn(
                     asPage
-                      ? "inline-flex w-max"
+                      ? "w-full grid grid-cols-4 bg-[hsl(var(--elevated))] p-1 h-auto rounded-xl"
                       : "bg-transparent p-0 h-auto gap-0 grid grid-cols-4 w-full sm:w-full",
                   )}
                 >
@@ -620,51 +620,55 @@ export function DealHistorySheet({
                     aria-label="Resumo"
                     className={cn(
                       "gap-1.5",
-                      !asPage &&
-                        "bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row",
+                      asPage
+                        ? "rounded-lg data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground h-9 px-2"
+                        : "bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row",
                     )}
                   >
                     <BarChart3 className="h-3.5 w-3.5 shrink-0" />
-                    <span className={cn(asPage ? "" : "hidden sm:inline", "text-sm")}>Resumo</span>
+                    <span className={cn(asPage ? "text-[12px] sm:text-sm" : "hidden sm:inline text-sm")}>Resumo</span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="playlists"
                     aria-label="Curador"
                     className={cn(
                       "gap-1.5",
-                      !asPage &&
-                        "bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border",
+                      asPage
+                        ? "rounded-lg data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground h-9 px-2"
+                        : "bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border",
                     )}
                   >
                     <ListMusic className="h-3.5 w-3.5 shrink-0" />
-                    <span className={cn(asPage ? "" : "hidden sm:inline", "text-sm")}>Curador</span>
-                    <span className="ml-1 text-xs text-muted-foreground tabular-nums">{curatorTotal}</span>
+                    <span className={cn(asPage ? "text-[12px] sm:text-sm" : "hidden sm:inline text-sm")}>Curador</span>
+                    <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-muted text-muted-foreground text-[10px] font-bold tabular-nums shrink-0">{curatorTotal}</span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="algoritmo"
                     aria-label="Algoritmo"
                     className={cn(
                       "gap-1.5",
-                      !asPage &&
-                        "bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border",
+                      asPage
+                        ? "rounded-lg data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground h-9 px-2"
+                        : "bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border",
                     )}
                   >
                     <Sparkles className="h-3.5 w-3.5 shrink-0" />
-                    <span className={cn(asPage ? "" : "hidden sm:inline", "text-sm")}>Algoritmo</span>
-                    <span className="ml-1 text-xs text-muted-foreground tabular-nums">{algoTotal}</span>
+                    <span className={cn(asPage ? "text-[12px] sm:text-sm" : "hidden sm:inline text-sm")}>Algoritmo</span>
+                    <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-muted text-muted-foreground text-[10px] font-bold tabular-nums shrink-0">{algoTotal}</span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="historico"
                     aria-label="Histórico"
                     className={cn(
                       "gap-1.5",
-                      !asPage &&
-                        "bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border",
+                      asPage
+                        ? "rounded-lg data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground h-9 px-2"
+                        : "bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border",
                     )}
                   >
                     <Clock className="h-3.5 w-3.5 shrink-0" />
-                    <span className={cn(asPage ? "" : "hidden sm:inline", "text-sm")}>Histórico</span>
-                    <span className="ml-1 text-xs text-muted-foreground tabular-nums">{reversedLogs.length}</span>
+                    <span className={cn(asPage ? "text-[12px] sm:text-sm hidden xs:inline" : "hidden sm:inline text-sm")}>Histórico</span>
+                    <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-muted text-muted-foreground text-[10px] font-bold tabular-nums shrink-0">{reversedLogs.length}</span>
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -756,26 +760,29 @@ export function DealHistorySheet({
                     </SectionCard>
                   )}
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <Kpi
-                      label="Plays entregues"
-                      value={fmtCompact(stats.earned)}
-                      hint={target > 0 ? `de ${fmtCompact(target)} contratados` : "sem meta definida"}
-                      tone={stats.pct >= 100 ? "success" : "primary"}
-                    />
-                    <Kpi
-                      label="Velocidade"
-                      value={stats.vel !== null ? `${fmtCompact(stats.vel)}/dia` : "—"}
-                      hint={stats.vel !== null ? "média desde o início" : "aguardando 2º registro"}
-                    />
-                    <Kpi label="Previsão" value={previsao} hint="para bater a meta" />
-                    <Kpi
-                      label="Score de qualidade"
-                      value={`${stats.score}`}
-                      hint={`${Math.round(stats.legitShare * 100)}% legítimo`}
-                      tone={stats.score >= 75 ? "success" : stats.score >= 50 ? "primary" : "warning"}
-                    />
-                  </div>
+                  {/* KPIs duplicados — só renderiza no drawer; na página dedicada o hero do topo já mostra. */}
+                  {!asPage && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <Kpi
+                        label="Plays entregues"
+                        value={fmtCompact(stats.earned)}
+                        hint={target > 0 ? `de ${fmtCompact(target)} contratados` : "sem meta definida"}
+                        tone={stats.pct >= 100 ? "success" : "primary"}
+                      />
+                      <Kpi
+                        label="Velocidade"
+                        value={stats.vel !== null ? `${fmtCompact(stats.vel)}/dia` : "—"}
+                        hint={stats.vel !== null ? "média desde o início" : "aguardando 2º registro"}
+                      />
+                      <Kpi label="Previsão" value={previsao} hint="para bater a meta" />
+                      <Kpi
+                        label="Score de qualidade"
+                        value={`${stats.score}`}
+                        hint={`${Math.round(stats.legitShare * 100)}% legítimo`}
+                        tone={stats.score >= 75 ? "success" : stats.score >= 50 ? "primary" : "warning"}
+                      />
+                    </div>
+                  )}
 
                   {/* Estado da coleta */}
                   <SectionCard title="Estado da coleta">

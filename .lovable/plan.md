@@ -1,121 +1,62 @@
-## Refator: Central Viva da Campanha
+## Diagnóstico
 
-O usuário quer transformar **dois ambientes** que hoje vivem separados em uma experiência única, premium e modular:
+Olhei a página `/deals/:id` (DealDetail + DealHistorySheet) no mobile e tem 4 problemas claros que tiram o ar premium:
 
-- **Interno** → `/campanhas/:id/execucao` (CampanhaExecucao.tsx)
-- **Cliente** → `/p/plano/:token` (PlanoCampanhaPublico.tsx)
+1. **Valores cortados nos KPIs do topo** — "R$ 62.3…", "317 di…", "82/100" estourando. O grid usa `grid-cols-2` no mobile com fonte hero, mas o card é estreito demais pra esse tamanho.
+2. **Duplicação de dados** — os 6 KPIs do topo (Entrega · Velocidade · Previsão · Score · Investido · Status) repetem quase tudo que aparece logo abaixo no card "Performance na janela" + "Plays entregues · Velocidade · Previsão · Score de qualidade". O usuário lê a mesma informação 2x.
+3. **Hierarquia visual sem comando** — todos os 6 KPIs no topo têm o mesmo peso, então o olho não sabe pra onde ir. Falta um KPI dominante (entrega %) e os outros como apoio.
+4. **Tabs com contador inline** ("Curador 18", "Algoritmo 95") competem com o nome da aba, ficam tortas no mobile.
 
-Mesma arquitetura visual, mesmos componentes, **filtros de dados diferentes**. Cliente nunca vê custo/margem/CPP/eco real.
+## Plano
 
----
+### 1. Hero do topo (DealDetail.tsx)
 
-### Arquitetura (sem quebrar nada)
-
-Tudo novo vai em `src/components/campaign-hub/`. As páginas atuais viram **cascas finas** que montam os blocos. Nada de lógica de negócio nova — só remontagem visual sobre os dados que já existem (`campaigns`, `campaign_eco_allocations`, `campaign_print_logs`, `campaign_daily_progress`).
-
-```text
-src/components/campaign-hub/
-├── CampaignHub.tsx              ← shell: hero sticky + tabs sticky + outlet
-├── CampaignHero.tsx             ← capa + faixa + artista + progresso + status + CTA
-│                                  modo="internal" mostra "Compartilhar/Abrir portal"
-│                                  modo="client"   mostra "Aprovar" (se pendente)
-├── tabs/
-│   ├── OverviewTab.tsx          ← KPIs grandes + curva grande + últimas provas
-│   ├── PlaylistsTab.tsx         ← grid operacional: Ativas | Pendentes | Pausadas
-│   ├── ProofsTab.tsx            ← timeline visual de prints (preview grande, delta, posição)
-│   ├── CurveTab.tsx             ← curva como protagonista (full width)
-│   ├── FinanceTab.tsx           ← SÓ interno (custo, margem, CPP, eco)
-│   └── LogsTab.tsx              ← SÓ interno (auditoria)
-├── PlaylistCard.tsx             ← card operacional (posição, plays, crescimento, último print)
-├── ProofTimelineItem.tsx        ← item premium da timeline de provas
-└── types.ts                     ← CampaignHubData + modo "internal" | "client"
-```
-
-### Hero sticky (topo)
+Trocar o grid de 6 KPIs por um **bloco hero + chips de apoio**:
 
 ```text
-┌──────────────────────────────────────────────────────────────┐
-│ [capa] Faixa — Artista                    [Compartilhar] [↗] │
-│         ●● Ativa · D7 de 21 · faltam 14d                     │
-│         ▓▓▓▓▓▓▓▓▓░░░░░░░  43%   12.400 / 28.500 streams      │
-│         última atualização há 2h                             │
-└──────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│  ENTREGA                  ●  Ativo      │
+│  2%   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│  26.4k de 1.2M · faltam 1.17M           │
+│                                         │
+│  3.7k/dia · 317d p/ meta · R$ 62.300   │
+│  Score 82/100 · 100% legítimo           │
+└─────────────────────────────────────────┘
 ```
 
-Sticky no scroll (`sticky top-0 z-20 backdrop-blur`), encolhe quando rola (altura 140→64px). No modo cliente, **antes da aprovação** mostra investimento + botão "Aprovar plano"; **depois** vira hero live com progresso.
+- 1 número grande (entrega %) + barra de progresso visível
+- Linha 1 de meta: subtítulo com fração + restante
+- Linha 2: velocidade · ETA · investido como texto inline tabular
+- Linha 3: score + legitimidade
+- Status (Ativo / Concluído) vira chip no canto superior direito
 
-### Tabs sticky (logo abaixo do hero)
+Resultado: zero truncamento, hierarquia clara, ocupa menos altura.
 
-Interno: Visão Geral · Playlists · Provas · Curva · Financeiro · Logs
-Cliente: Visão Geral · Playlists · Provas · Curva (sem Financeiro/Logs)
+### 2. Performance na janela (DealHistorySheet → aba Resumo)
 
-Mesmo componente `<CampaignHub mode="internal" | "client" />`, controla quais tabs renderiza.
+Esse card permanece, mas:
+- Remover a duplicação de "Plays entregues / Velocidade / Previsão / Score" que repete o hero — passa a mostrar **só o que muda por janela** (7d/28d): Total · Curador · Algoritmo · Δ hoje
+- Aumentar contraste do toggle 7d/28d (pílula segmented control)
 
-### Playlists (grid operacional)
+### 3. Tabs (Resumo · Curador · Algoritmo · Histórico)
 
-Substitui a tabela atual por **grid de cards** agrupado por status:
+- Contador vira **bolinha discreta** após o nome (mesmo padrão das tabs de /deals que acabamos de ajustar)
+- No mobile, `flex-1` distribuindo igual, ícone + label, número como pill pequeno
 
-- **Ativas** (no ar) — destaque, ordenadas por plays entregues
-- **Pendentes** (aguardando) — colapsada por padrão se >5
-- **Pausadas** — colapsada por padrão
+### 4. Polimento geral
 
-Cada card mostra: capa, nome, **posição atual** (#3), plays entregues / planejado com barra, **delta de crescimento 24h**, thumb do último print clicável, dot de status. Esconde ruído de "aguardando primeiro print" — agrupa em "+12 ainda não dispararam".
+- Padding interno dos cards: 16px no mobile, 20px no desktop (hoje tá 20px fixo, fica apertado)
+- Tipografia tabular pra todos os números
+- Remover bordas duplicadas (card dentro de card no Resumo)
 
-Cliente vê o mesmo grid **sem** posição interna, sem distinção próprio/externo (só "Playlists da campanha").
+## Arquivos que vou tocar
 
-### Provas (timeline premium)
+- `src/pages/DealDetail.tsx` — substituir o grid de 6 KPIs pelo hero bloco
+- `src/components/playlist-deals/DealHistorySheet.tsx` — limpar duplicação no Resumo + tabs mobile
 
-Hoje prints estão enterrados dentro de `CampaignMonitoring`. Vira **timeline vertical full-width**, cada entrada parece um "post" da campanha:
+## Fora de escopo
 
-```text
-○─ há 2h · Playlist X
-│   ┌────────────────────────────────┐
-│   │  [preview grande do print]      │
-│   └────────────────────────────────┘
-│   +420 plays  ·  posição #4 → #2  ·  3 playlists afetadas
-│
-○─ ontem 18:30 · ...
-```
+- Lógica de cálculo (Score, ETA, velocidade) fica intacta
+- Aba Curador/Algoritmo/Histórico só recebem o ajuste das pills nas tabs, conteúdo não muda agora
 
-Sem cara de tabela. Preview do print em destaque (clique → lightbox).
-
-### Curva (protagonista)
-
-Sobe pra largura total, eixos legíveis, marca onde estamos hoje (linha vertical), zona de "abaixo do plano" / "acima". Tooltip rico. Reusa dados de `snapshot.curva` + `campaign_daily_progress`.
-
-### Fluxo do cliente
-
-Mesmo link `/p/plano/:token` antes e depois da aprovação:
-
-- **Antes**: Hero mostra "Plano da campanha" + investimento (sem 70/30) + botão **Aprovar/Solicitar ajuste**. Tabs limitadas (Visão Geral + Curva). Já é o `<CampaignHub mode="client" stage="approval" />`.
-- **Depois**: mesmo componente, `stage="live"`. Card de aprovação some, Hero vira live, tabs completas do cliente (+ Playlists + Provas).
-
-Detecta stage por `client_approved_at != null`. Não precisa redirect — a página detecta sozinha.
-
-### Separação visão interna × cliente (regra dura)
-
-Tudo passa por um `filterForClient(data)` no hub. Cliente **nunca** recebe: `custoTotal`, `custoPorStream`, `splitEcoPct`, `streamsEco`, `streamsExt`, margem, CPP, nome de playlist própria vs externa. Já existe `ClientInvestmentCard` — reaproveitar.
-
----
-
-### Detalhes técnicos
-
-- **Sticky correto**: hero + tabs num wrapper `sticky top-0`, conteúdo das tabs com `scroll-margin-top` pra âncoras não ficarem atrás.
-- **Sem quebrar rotas**: `/campanhas/:id/execucao` continua existindo, só troca o conteúdo. `/p/plano/:token` idem.
-- **Reuso**: `CampaignDailyPlan`, `CampaignMonitoring`, `CampaignFullPlanCard`, `ExternalPackageEditor` continuam existindo — viram **filhos** das novas tabs (Curve usa o gráfico de DailyPlan, Logs usa Monitoring, etc). Nada é deletado nessa primeira passada.
-- **Dados**: nenhum schema novo. Só leitura. Edge function `get-shared-campaign-plan` já devolve o que precisa; só adicionar prints/progresso se faltarem (a edge já é a fonte do cliente).
-- **Design tokens**: tudo via tokens existentes (`--background`, `--card`, `--primary`, domain `campaigns`). Sem cor crua.
-
-### Entregas faseadas (pra eu não quebrar nada de uma vez)
-
-1. **Fase 1** — `CampaignHub` shell + `CampaignHero` sticky + tabs sticky, plugando os componentes que já existem dentro de cada tab. Visualmente já vira premium, código existente intacto.
-2. **Fase 2** — `PlaylistsTab` grid + `ProofsTab` timeline (novos componentes substituindo a tabela + bloco de prints atual).
-3. **Fase 3** — Modo `client` no mesmo hub, `PlanoCampanhaPublico` passa a renderizar `<CampaignHub mode="client" />` com filtro de dados.
-
-Cada fase é um deploy seguro e testável.
-
-### Fora de escopo
-
-- Não toco em `Campanhas.tsx` (lista) nem em `CampanhaDetalhe.tsx` (detalhe operacional antigo).
-- Não mexo em business logic (engine, snapshot, eco dispatch).
-- Não crio tabela nova nem migration.
+Posso começar pelo hero do topo (que é onde tá o pior estrago visual) e seguir nessa ordem. Confirma que pode tocar?
