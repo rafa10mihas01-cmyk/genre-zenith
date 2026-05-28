@@ -732,25 +732,9 @@ export default function CampanhaExecucao() {
           ),
 
           proofs: (
-            <div className="space-y-6">
+            <div className="space-y-4">
+              {camp.deal_id && <BaselineTab dealId={camp.deal_id} />}
               <ProofsTimeline events={proofEvents} campaignStartedAt={camp.started_at} />
-              {camp.deal_id && (
-                <details className="rounded-lg border border-border bg-card group">
-                  <summary className="cursor-pointer list-none px-4 py-3 flex items-center justify-between gap-3 select-none">
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium">Snapshot inicial do deal</div>
-                      <div className="text-[11px] text-muted-foreground mt-0.5">
-                        Playlists capturadas na baseline — base de comparação, não é prova de entrega
-                      </div>
-                    </div>
-                    <span className="text-[11px] text-muted-foreground group-open:hidden">Expandir</span>
-                    <span className="text-[11px] text-muted-foreground hidden group-open:inline">Recolher</span>
-                  </summary>
-                  <div className="border-t border-border p-4">
-                    <BaselineTab dealId={camp.deal_id} />
-                  </div>
-                </details>
-              )}
             </div>
           ),
 
