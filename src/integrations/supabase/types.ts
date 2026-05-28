@@ -8045,14 +8045,7 @@ export type Database = {
       }
       cleanup_old_bot_prints: { Args: never; Returns: Json }
       cleanup_old_logs: { Args: never; Returns: Json }
-      cleanup_old_logs_and_snapshots: {
-        Args: never
-        Returns: {
-          logs_deleted: number
-          snapshots_deleted: number
-          tracks_deleted: number
-        }[]
-      }
+      cleanup_old_logs_and_snapshots: { Args: never; Returns: Json }
       cleanup_operational_logs: { Args: never; Returns: Json }
       cleanup_rate_limits_and_ai_cache: { Args: never; Returns: Json }
       cleanup_stale_autopilot_runs: {
