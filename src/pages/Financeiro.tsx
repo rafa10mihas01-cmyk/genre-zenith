@@ -89,7 +89,7 @@ function ReceitaView() {
               <thead className="bg-elevated/30 text-xs uppercase tracking-wider text-muted-foreground">
                 <tr>
                   <th className="text-left px-4 py-2 font-medium">Campanha</th>
-                  <th className="text-left px-4 py-2 font-medium">Artista</th>
+                  <th className="hidden sm:table-cell text-left px-4 py-2 font-medium">Artista</th>
                   <th className="text-right px-4 py-2 font-medium">Cobrado</th>
                   <th className="text-right px-4 py-2 font-medium">Recebido</th>
                   <th className="text-right px-4 py-2 font-medium">Pendente</th>
