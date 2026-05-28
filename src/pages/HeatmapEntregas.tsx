@@ -80,7 +80,7 @@ export default function HeatmapEntregas({ embedded = false }: { embedded?: boole
 
       {/* === DESTAQUE: PICO === */}
       <Card className="p-5 border-primary/30 bg-primary/5">
-        <div className="flex items-start gap-4">
+        <div className="flex min-w-0 items-start gap-4">
           <div className="h-10 w-10 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
             <Flame className="h-5 w-5 text-primary" />
           </div>
@@ -112,7 +112,7 @@ export default function HeatmapEntregas({ embedded = false }: { embedded?: boole
 
       {/* === CONTROLES === */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+        <div className="flex min-w-0 flex-wrap items-center gap-3 text-xs text-muted-foreground">
           <div className="flex items-center gap-1.5">
             <Activity className="h-3.5 w-3.5" />
             <span className="tabular-nums"><strong className="text-foreground">{formatNumber(totals.count)}</strong> logs</span>
@@ -123,7 +123,7 @@ export default function HeatmapEntregas({ embedded = false }: { embedded?: boole
             <span className="tabular-nums"><strong className="text-foreground">{formatNumber(totals.plays)}</strong> plays</span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
           <div className="flex items-center gap-1 p-1 bg-card rounded-lg border border-border">
             {(["plays", "count"] as Mode[]).map((m) => (
               <Button
