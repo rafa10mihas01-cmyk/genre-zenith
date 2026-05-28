@@ -127,6 +127,8 @@ export type NewCuratorDealInput = {
   billing_model?: "per_streams" | "monthly_retainer";
   monthly_amount?: number | null;
   cycle_months?: number | null;
+  // Vínculo com a campanha de origem (quando o deal é criado a partir de uma campanha)
+  campaign_id?: string | null;
 };
 
 export type NewCuratorLogInput = {
@@ -631,6 +633,19 @@ export function useCuratorDeals() {
         const err = new Error("DUPLICATE_DEAL") as Error & { matches?: any[] };
         err.matches = result.matches ?? [];
         throw err;
+      }
+
+      // Se o deal foi criado a partir de uma campanha, vincula o campaign_id.
+      // A RPC create_curator_deal_atomic não aceita campaign_id, então fazemos
+      // um UPDATE pós-inserção (idempotente — só seta quando vier no input).
+      if (input.campaign_id && result.deal_id) {
+        const { error: linkErr } = await supabase
+          .from("curator_deals")
+          .update({ campaign_id: input.campaign_id } as any)
+          .eq("id", result.deal_id);
+        if (linkErr) {
+          console.error("[addDeal] failed to link campaign_id", linkErr);
+        }
       }
 
       const { data: createdData, error: createdErr } = await supabase

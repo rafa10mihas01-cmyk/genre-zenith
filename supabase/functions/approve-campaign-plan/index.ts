@@ -397,12 +397,20 @@ Deno.serve(async (req) => {
 
   const newDealId = (rpcRes as { deal_id?: string })?.deal_id ?? null;
 
-  // 8) Liga deal à campanha
+  // 8) Liga deal à campanha (bidirecional: campaigns.deal_id ↔ curator_deals.campaign_id)
   if (newDealId) {
     await admin
       .from("campaigns")
       .update({ deal_id: newDealId, auto_deal_created: true })
       .eq("id", campaignId);
+
+    // 8.0) Grava o vínculo reverso no deal — sem isso o deal fica órfão da
+    // campanha e queries por campaign_id (relatórios, financeiro, execução)
+    // não acham o deal recém-criado.
+    await admin
+      .from("curator_deals")
+      .update({ campaign_id: campaignId })
+      .eq("id", newDealId);
 
     // 8.1) Marca songs shadow como auto_collect=true pra entrar na fila do bot.
     // Sem isso, bot-collect-queue filtra `.eq("auto_collect", true)` e nunca
