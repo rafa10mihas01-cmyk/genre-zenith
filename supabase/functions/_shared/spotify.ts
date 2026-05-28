@@ -86,7 +86,7 @@ function installSpotifyCircuitFetchGuard() {
     const rawUrl = typeof input === "string" || input instanceof URL ? input.toString() : input.url;
     let host = "";
     try { host = new URL(rawUrl).hostname; } catch { /* ignore */ }
-    const isSpotify = host === "api.spotify.com" || host === "accounts.spotify.com";
+    const isSpotify = host === "api.spotify.com" || host === "accounts.spotify.com" || host.endsWith(".spotify.com");
     if (!isSpotify) return spotifyOriginalFetch(input, init);
     await assertSpotifyCircuitClosed();
     const r = await spotifyOriginalFetch(input, init);
