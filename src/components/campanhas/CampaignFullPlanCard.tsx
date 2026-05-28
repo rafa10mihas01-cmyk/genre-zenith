@@ -695,15 +695,18 @@ export function CampaignFullPlanSummary({
     const ecoCobertoTotal = plans.reduce((s, p) => s + (p.totalStreams ?? 0), 0);
     const metaEco = snapshot.streamsEco ?? 0;
     const metaExt = snapshot.streamsExt ?? Math.max(0, snapshot.meta - metaEco);
+    const metaOrg = Math.max(0, Math.round(snapshot.streamsOrganic ?? 0));
+    const orgPct = Math.round(snapshot.splitOrganicPct ?? 0);
     const necDiaTotal = Math.round(snapshot.meta / Math.max(1, days));
     const necDiaEco = Math.round(metaEco / Math.max(1, days));
     const necDiaExt = Math.round(metaExt / Math.max(1, days));
+    const necDiaOrg = Math.round(metaOrg / Math.max(1, days));
     const pico = dailyTotals.length ? Math.max(...dailyTotals) : 0;
     const planDays = snapshot.effectiveDays ?? days;
     const mediaDiaReal = planDays > 0 ? Math.round(ecoCobertoTotal / planDays) : 0;
     const usoCap = mediaDiaReal > 0 ? Math.round((necDiaEco / mediaDiaReal) * 100) : 0;
     const deficitEco = Math.max(0, metaEco - ecoCobertoTotal);
-    return { capacidadeEcoDia, mediaDiaReal, ecoCobertoTotal, metaEco, metaExt, necDiaTotal, necDiaEco, necDiaExt, pico, usoCap, deficitEco, qtdPlaylists: plans.length };
+    return { capacidadeEcoDia, mediaDiaReal, ecoCobertoTotal, metaEco, metaExt, metaOrg, orgPct, necDiaTotal, necDiaEco, necDiaExt, necDiaOrg, pico, usoCap, deficitEco, qtdPlaylists: plans.length };
   }, [plans, dailyTotals, snapshot, days]);
 
   if (plans.length === 0) return null;
@@ -746,6 +749,13 @@ export function CampaignFullPlanSummary({
         value={formatInt(resumo.pico)}
         hint={`${resumo.qtdPlaylists} playlists`}
         domain="clients"
+      />
+      <KpiBig
+        icon={Radio}
+        label="Mix do dia"
+        value={formatInt(resumo.necDiaEco + resumo.necDiaExt + resumo.necDiaOrg)}
+        hint={`${formatInt(resumo.necDiaEco)} eco · ${formatInt(resumo.necDiaExt)} ext · ${resumo.orgPct}% org`}
+        domain="community"
       />
     </div>
   );
