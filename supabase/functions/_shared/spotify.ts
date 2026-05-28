@@ -9,6 +9,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ENV_CLIENT_ID = Deno.env.get("SPOTIFY_CLIENT_ID");
 const ENV_CLIENT_SECRET = Deno.env.get("SPOTIFY_CLIENT_SECRET");
+const spotifyOriginalFetch = globalThis.fetch.bind(globalThis);
 
 export class SpotifyCircuitOpenError extends Error {
   blockedUntil: string | null;
@@ -69,13 +70,35 @@ export async function openSpotifyCircuitBreaker(retryAfterSec?: number | null, a
 
 export async function guardedSpotifyFetch(url: string, init: RequestInit = {}, appId = "global"): Promise<Response> {
   await assertSpotifyCircuitClosed(appId);
-  const r = await fetch(url, init);
+  const r = await spotifyOriginalFetch(url, init);
   if (r.status === 429) {
     const ra = Number(r.headers.get("Retry-After") ?? r.headers.get("retry-after") ?? "");
     await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60, appId);
   }
   return r;
 }
+
+function installSpotifyCircuitFetchGuard() {
+  const g = globalThis as typeof globalThis & { __spotifyCircuitFetchGuardInstalled?: boolean };
+  if (g.__spotifyCircuitFetchGuardInstalled) return;
+  g.__spotifyCircuitFetchGuardInstalled = true;
+  g.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const rawUrl = typeof input === "string" || input instanceof URL ? input.toString() : input.url;
+    let host = "";
+    try { host = new URL(rawUrl).hostname; } catch { /* ignore */ }
+    const isSpotify = host === "api.spotify.com" || host === "accounts.spotify.com";
+    if (!isSpotify) return spotifyOriginalFetch(input, init);
+    await assertSpotifyCircuitClosed();
+    const r = await spotifyOriginalFetch(input, init);
+    if (r.status === 429) {
+      const ra = Number(r.headers.get("Retry-After") ?? r.headers.get("retry-after") ?? "");
+      await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60);
+    }
+    return r;
+  };
+}
+
+installSpotifyCircuitFetchGuard();
 
 export type SpotifyAppCreds = {
   app_id: string | null;
