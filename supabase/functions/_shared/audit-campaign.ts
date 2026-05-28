@@ -114,15 +114,25 @@ export async function auditCampaignFlow(
       withPlaylistId = (rows ?? []).filter((r: any) => !!r.playlist_spotify_id).length;
     }
 
-    if (totalRows === 0) {
+    // Fonte alternativa de baseline: playlists registradas via portal do curador
+    const { data: portalPls } = await admin
+      .from("curator_playlists")
+      .select("id, spotify_playlist_id, deal_id")
+      .in("deal_id", dealIds);
+    const portalCount = (portalPls ?? []).filter((p: any) => !!p.spotify_playlist_id).length;
+
+    if (totalRows === 0 && portalCount === 0) {
       fail("4_baseline", "Baseline importada com playlist_spotify_id",
-        `Nenhuma planilha importada nos ${dealIds.length} deal(s) da campanha`);
-    } else if (withPlaylistId === 0) {
+        `Sem planilha e sem playlists no portal nos ${dealIds.length} deal(s)`);
+    } else if (totalRows > 0 && withPlaylistId === 0) {
       fail("4_baseline", "Baseline importada com playlist_spotify_id",
         `${totalRows} linhas importadas mas nenhuma com playlist_spotify_id`);
+    } else if (totalRows > 0) {
+      ok("4_baseline", "Baseline importada com playlist_spotify_id",
+        `${totalRows} linhas (${withPlaylistId} com playlist_spotify_id) + ${portalCount} playlist(s) via portal`);
     } else {
       ok("4_baseline", "Baseline importada com playlist_spotify_id",
-        `${totalRows} linhas, ${withPlaylistId} com playlist_spotify_id`);
+        `${portalCount} playlist(s) registrada(s) via portal do curador`);
     }
   }
 
