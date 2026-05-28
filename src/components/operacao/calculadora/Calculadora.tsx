@@ -1327,7 +1327,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
           <Card>
             <CardHeader>
               <CardTitle className="text-sm">Músicas desta operação</CardTitle>
-              <CardDescription>Cada linha vira 1 campanha + 1 deal independente. Clique pra voltar à música no passo anterior.</CardDescription>
+              <CardDescription className="text-xs">Toque numa linha pra editar a música.</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               {songResults.map((x, idx) => (
