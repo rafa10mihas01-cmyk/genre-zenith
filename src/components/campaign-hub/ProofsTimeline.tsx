@@ -160,7 +160,7 @@ function EmptyState({ campaignStartedAt }: { campaignStartedAt?: string | null }
     <div className="flex items-center gap-2 px-3 py-2.5 rounded-md border border-dashed border-border bg-elevated/20 text-xs text-muted-foreground">
       <Camera className="h-3.5 w-3.5 shrink-0" />
       <span className="min-w-0 truncate">
-        Aguardando primeira captura · prevista <strong className="text-foreground">{nextLabel}</strong>
+        Aguardando coleta · prevista <strong className="text-foreground">{nextLabel}</strong>
       </span>
     </div>
   );
