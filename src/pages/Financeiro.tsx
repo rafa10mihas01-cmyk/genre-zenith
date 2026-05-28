@@ -1,5 +1,5 @@
 // Financeiro — abas: Visão · Receita · Custo · Margem · Configuração
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Wallet,
@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
-// (Tabs shadcn removidos — padronizado pro padrão underline+ícone das outras telas)
+import { Kpi, type KpiTone } from "@/components/ui/kpi";
 import { FinanceiroTab } from "@/components/playlist-deals/FinanceiroTab";
 import { FinancialOverview } from "@/components/financeiro/FinancialOverview";
 import { PricingSettingsPanel } from "@/components/financeiro/PricingSettingsPanel";
@@ -23,38 +23,9 @@ import { cn } from "@/lib/utils";
 const fmtBRL = (v: number | null | undefined) =>
   v == null ? "—" : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-function MiniKpi({
-  icon: Icon,
-  label,
-  value,
-  tone = "muted",
-  hint,
-}: {
-  icon: any;
-  label: string;
-  value: string;
-  tone?: "primary" | "warn" | "muted";
-  hint?: string;
-}) {
-  const accent =
-    tone === "primary"
-      ? "text-primary bg-primary/10"
-      : tone === "warn"
-        ? "text-amber-500 bg-amber-500/10"
-        : "text-muted-foreground bg-elevated/60";
-  return (
-    <div className="rounded-2xl border border-border bg-card p-4">
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
-        <span className={cn("h-6 w-6 rounded-md flex items-center justify-center", accent)}>
-          <Icon className="h-3.5 w-3.5" />
-        </span>
-        {label}
-      </div>
-      <div className="mt-2 text-xl font-bold tabular-nums text-foreground">{value}</div>
-      {hint && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}
-    </div>
-  );
-}
+const toneMap = (t: "primary" | "warn" | "muted"): KpiTone =>
+  t === "primary" ? "primary" : t === "warn" ? "warning" : "default";
+
 
 function ReceitaView() {
   const { summary, totals, loading } = useFinancialOverview();
@@ -65,17 +36,17 @@ function ReceitaView() {
   if (loading) return <div className="h-40 rounded-2xl bg-card border border-border animate-pulse" />;
   return (
     <div className="space-y-6">
-      <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-
-        <MiniKpi icon={DollarSign} label="Recebido" value={fmtBRL(totals.recebido)} tone="primary" />
-        <MiniKpi icon={Receipt} label="Cobrado" value={fmtBRL(totals.cobrado)} />
-        <MiniKpi
+      <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Kpi icon={DollarSign} label="Recebido" value={fmtBRL(totals.recebido)} tone="primary" />
+        <Kpi icon={Receipt} label="Cobrado" value={fmtBRL(totals.cobrado)} />
+        <Kpi
           icon={AlertTriangle}
           label="Pendente"
           value={fmtBRL(Math.max(0, totals.cobrado - totals.recebido))}
-          tone={totals.cobrado - totals.recebido > 0 ? "warn" : "muted"}
+          tone={toneMap(totals.cobrado - totals.recebido > 0 ? "warn" : "muted")}
         />
       </section>
+
       <section className="rounded-2xl bg-card border border-border overflow-hidden">
         <header className="px-5 py-4 border-b border-border">
           <h3 className="text-sm font-semibold text-foreground">Receita por campanha</h3>
@@ -128,21 +99,22 @@ function MargemView() {
   if (loading) return <div className="h-40 rounded-2xl bg-card border border-border animate-pulse" />;
   return (
     <div className="space-y-6">
-      <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <MiniKpi
+      <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Kpi
           icon={totals.margem >= 0 ? TrendingUp : TrendingDown}
           label="Margem bruta"
           value={fmtBRL(totals.margem)}
-          tone={totals.margem >= 0 ? "primary" : "warn"}
+          tone={toneMap(totals.margem >= 0 ? "primary" : "warn")}
         />
-        <MiniKpi
+        <Kpi
           icon={TrendingUp}
           label="Margem %"
           value={totals.margemPct == null ? "—" : `${totals.margemPct.toFixed(1)}%`}
-          tone={totals.margemPct != null && totals.margemPct >= 30 ? "primary" : "muted"}
+          tone={toneMap(totals.margemPct != null && totals.margemPct >= 30 ? "primary" : "muted")}
         />
-        <MiniKpi icon={Wallet} label="Resultado líquido" value={fmtBRL(totals.recebido - totals.pago)} />
+        <Kpi icon={Wallet} label="Resultado líquido" value={fmtBRL(totals.recebido - totals.pago)} />
       </section>
+
       <section className="rounded-2xl bg-card border border-border overflow-hidden">
         <header className="px-5 py-4 border-b border-border">
           <h3 className="text-sm font-semibold text-foreground">Margem por campanha</h3>
