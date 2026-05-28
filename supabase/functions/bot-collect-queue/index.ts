@@ -122,17 +122,35 @@ Deno.serve(async (req) => {
   });
   const dealIds = Array.from(new Set(candidates.map((s: any) => s.deal_id)));
   const dealsWithWhitelist = new Set<string>();
+  const whitelistsByDeal = new Map<string, any[]>();
   if (dealIds.length) {
     const { data: wl } = await supabase
       .from("curator_playlists")
-      .select("deal_id")
+      .select("id, deal_id, song_id, playlist_name, spotify_url, spotify_playlist_id")
       .in("deal_id", dealIds)
       .in("match_status", ["curator", "baseline"]) // baseline = seed de campanha (managed playlists)
       .not("spotify_playlist_id", "is", null);
-    for (const r of wl ?? []) dealsWithWhitelist.add((r as any).deal_id);
+    for (const r of wl ?? []) {
+      const row = r as any;
+      if (row.song_id && !candidates.some((s: any) => s.id === row.song_id)) continue;
+      dealsWithWhitelist.add(row.deal_id);
+      const arr = whitelistsByDeal.get(row.deal_id) ?? [];
+      arr.push(row);
+      whitelistsByDeal.set(row.deal_id, arr);
+    }
   }
 
   const eligible = candidates.filter((s: any) => dealsWithWhitelist.has(s.deal_id));
+  for (const s of eligible as any[]) {
+    const rows = whitelistsByDeal.get(s.deal_id) ?? [];
+    const scoped = rows.filter((p: any) => !p.song_id || p.song_id === s.id);
+    s.curator_playlists = scoped.map((p: any) => ({
+      id: p.id,
+      playlist_name: p.playlist_name,
+      spotify_url: p.spotify_url,
+      spotify_playlist_id: p.spotify_playlist_id,
+    }));
+  }
   const blocked = candidates.filter((s: any) => !dealsWithWhitelist.has(s.deal_id));
 
   // Marca songs sem whitelist com status informativo (não polui logs nem fica 'idle' eterno)

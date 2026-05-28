@@ -107,6 +107,18 @@ type ProcessedItem = {
   error?: string;
 };
 
+function fallbackPlaylistMeta(playlistId: string): SpotifyPlaylistMeta {
+  return {
+    id: playlistId,
+    name: `Playlist Spotify ${playlistId}`,
+    owner_id: "",
+    owner_name: "",
+    followers: 0,
+    image_url: null,
+    total_tracks: 0,
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -202,20 +214,38 @@ Deno.serve(async (req) => {
       return jr({ ok: false, error: gate.error, code: gate.code }, gate.status);
     }
 
+    let effectiveSongId = songIdInput;
     let trackIdToCheck = extractTrackId(deal.song_spotify_url ?? "");
     if (songIdInput) {
       const { data: songRow } = await admin
         .from("curator_deal_songs")
-        .select("spotify_track_id, song_spotify_url")
+        .select("id, spotify_track_id, song_spotify_url")
         .eq("id", songIdInput)
         .eq("deal_id", deal.id)
         .maybeSingle();
+      if (!songRow) {
+        return jr({ ok: false, error: "Música não encontrada neste deal." }, 400);
+      }
       trackIdToCheck = songRow?.spotify_track_id || extractTrackId(songRow?.song_spotify_url ?? "") || trackIdToCheck;
+    } else {
+      const { data: dealSongs, error: songsErr } = await admin
+        .from("curator_deal_songs")
+        .select("id, spotify_track_id, song_spotify_url, position, created_at")
+        .eq("deal_id", deal.id)
+        .order("position", { ascending: true })
+        .order("created_at", { ascending: true })
+        .limit(2);
+      if (songsErr) return jr({ ok: false, error: songsErr.message }, 200);
+      if ((dealSongs ?? []).length === 1) {
+        const onlySong = dealSongs![0];
+        effectiveSongId = onlySong.id;
+        trackIdToCheck = onlySong.spotify_track_id || extractTrackId(onlySong.song_spotify_url ?? "") || trackIdToCheck;
+      }
     }
 
     // ------- Lock de importação (clique duplo / abas duplicadas) -------
     // Não trava preview (read-only).
-    const lockKey = `${deal.id}|${songIdInput ?? "no-song"}`;
+    const lockKey = `${deal.id}|${effectiveSongId ?? "no-song"}`;
     if (!preview) {
       if (!tryAcquireLock(lockKey)) {
         return jr(
@@ -237,7 +267,7 @@ Deno.serve(async (req) => {
       // só não pode repetir dentro da MESMA música.
       const existingIds = new Set(
         (existing ?? [])
-          .filter((r: any) => (r.song_id ?? null) === (songIdInput ?? null))
+          .filter((r: any) => (r.song_id ?? null) === (effectiveSongId ?? null))
           .map((r: any) => r.spotify_playlist_id)
           .filter((v: unknown): v is string => typeof v === "string" && v.length > 0),
       );
@@ -248,7 +278,7 @@ Deno.serve(async (req) => {
       const baselineIds = new Set(
         (existing ?? [])
           .filter((r: any) =>
-            (r.song_id ?? null) === (songIdInput ?? null) &&
+            (r.song_id ?? null) === (effectiveSongId ?? null) &&
             r.is_baseline === true
           )
           .map((r: any) => r.spotify_playlist_id)
@@ -313,7 +343,18 @@ Deno.serve(async (req) => {
           slice.map(async (item) => {
             const pid = item.playlist_id!;
             try {
-              const meta = await withTimeout(fetchPlaylistMeta(pid), ITEM_TIMEOUT_MS, "spotify_timeout");
+              let meta: SpotifyPlaylistMeta | null = null;
+              try {
+                meta = await withTimeout(fetchPlaylistMeta(pid), ITEM_TIMEOUT_MS, "spotify_timeout");
+              } catch (e) {
+                if (publicToken && !requireTrackPresent) {
+                  const msg = e instanceof Error ? e.message : String(e);
+                  meta = fallbackPlaylistMeta(pid);
+                  item.error = `Metadados do Spotify indisponíveis no cadastro: ${msg}`;
+                } else {
+                  throw e;
+                }
+              }
               if (!meta) {
                 item.status = "not_found";
                 return;
@@ -334,11 +375,17 @@ Deno.serve(async (req) => {
                 item.match_status = cls.match_status;
                 item.match_reason = cls.match_reason;
               }
-              item.track_presence = await withTimeout(
-                checkTrackInPlaylist(pid, trackIdToCheck),
-                ITEM_TIMEOUT_MS,
-                "spotify_timeout",
-              );
+              try {
+                item.track_presence = await withTimeout(
+                  checkTrackInPlaylist(pid, trackIdToCheck),
+                  ITEM_TIMEOUT_MS,
+                  "spotify_timeout",
+                );
+              } catch (e) {
+                if (requireTrackPresent) throw e;
+                const msg = e instanceof Error ? e.message : String(e);
+                item.error = item.error ?? `Não foi possível verificar presença da faixa no Spotify: ${msg}`;
+              }
               if (requireTrackPresent) {
                 // Botão "+" na música: curador disse "já adicionei" → exige presença real.
                 if (!item.track_presence.found) {
@@ -367,7 +414,7 @@ Deno.serve(async (req) => {
         .filter((it) => it.status === "ok" && it.meta && it.match_status)
         .map((it) => ({
           deal_id: deal!.id,
-          song_id: songIdInput,
+          song_id: effectiveSongId,
           spotify_url: `https://open.spotify.com/playlist/${it.playlist_id}`,
           spotify_playlist_id: it.playlist_id!,
           playlist_name: it.meta!.name,
@@ -429,7 +476,7 @@ Deno.serve(async (req) => {
         status: "success",
         duration_ms: Date.now() - t0,
         deal_id: deal.id,
-        song_id: songIdInput,
+        song_id: effectiveSongId,
         metadata: { ...summary, mode: publicToken ? "public" : "admin", preview },
       });
 
