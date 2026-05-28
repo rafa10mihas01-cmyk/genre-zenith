@@ -1385,7 +1385,7 @@ function BucketRemove({ items, applying, onApplyAll }: {
             className="h-7 text-xs gap-1"
           >
             {applying ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
-            Remover todas ({items.length})
+            Aplicar ({items.length})
           </Button>
         )
       }
