@@ -128,7 +128,7 @@ export default function Campanhas() {
         </section>
 
 
-        <div className="flex items-center gap-1 border-b border-border mb-6 overflow-x-auto scrollbar-none -mx-4 px-4 lg:mx-0 lg:px-0">
+        <div className="flex items-center gap-1 border-b border-border mb-6 overflow-x-auto overflow-y-hidden scrollbar-none -mx-4 px-4 lg:mx-0 lg:px-0 overscroll-x-contain overscroll-y-none touch-pan-x [-webkit-overflow-scrolling:auto]">
           {([
             { id: "financeiro", label: "Planejamento", labelLong: "Planejamento", icon: Calculator },
             { id: "lista", label: "Aprovação", labelLong: "Aprovação", icon: ListChecks },
