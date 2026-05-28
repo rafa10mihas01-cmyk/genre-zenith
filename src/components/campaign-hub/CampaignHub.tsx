@@ -84,8 +84,8 @@ export function CampaignHub({
           "border-b border-border bg-background",
         )}>
 
-          <div className="overflow-x-auto scrollbar-none">
-            <TabsList className="h-11 bg-transparent gap-1 p-0 rounded-none w-max min-w-full justify-start">
+          <div className="h-11 overflow-x-auto overflow-y-hidden overscroll-x-contain overscroll-y-none scrollbar-none [touch-action:pan-x]">
+            <TabsList className="h-11 min-h-11 items-stretch bg-transparent gap-1 p-0 rounded-none w-max min-w-full justify-start">
               {visible.map((t) => {
                 const Icon = t.icon;
                 return (
@@ -93,9 +93,9 @@ export function CampaignHub({
                     key={t.id}
                     value={t.id}
                     className={cn(
-                      "gap-1.5 px-3 h-11 rounded-none border-b-2 border-transparent bg-transparent shrink-0 whitespace-nowrap",
+                      "m-0 h-11 min-h-11 max-h-11 gap-1.5 rounded-none border-b-2 border-transparent bg-transparent px-3 py-0 leading-none shrink-0 whitespace-nowrap box-border",
                       "data-[state=active]:bg-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none",
-                      "text-muted-foreground hover:text-foreground",
+                      "text-muted-foreground transition-colors hover:text-foreground hover:[transform:none] active:[transform:none] focus-visible:[transform:none]",
                     )}
                   >
                     <Icon className="h-3.5 w-3.5" />
