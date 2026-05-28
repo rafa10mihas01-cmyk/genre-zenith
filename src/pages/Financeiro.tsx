@@ -171,9 +171,10 @@ function MargemView() {
                     <td className={cn("px-4 py-2.5 text-right tabular-nums font-semibold", s.margem_bruta >= 0 ? "text-primary" : "text-amber-500")}>
                       {fmtBRL(s.margem_bruta)}
                     </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">
+                    <td className="hidden sm:table-cell px-4 py-2.5 text-right tabular-nums text-muted-foreground">
                       {s.margem_pct == null ? "—" : `${s.margem_pct}%`}
                     </td>
+
                   </tr>
                 ))}
               </tbody>
