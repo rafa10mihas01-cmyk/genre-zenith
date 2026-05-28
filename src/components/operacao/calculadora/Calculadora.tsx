@@ -809,6 +809,15 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     placeholder="Cole o link do Spotify"
                     value={active.trackUrl}
                     onChange={e => { setTrackUrl(e.target.value); setTrack(null); }}
+                    onPaste={e => {
+                      const pasted = e.clipboardData.getData("text").trim();
+                      if (pasted.includes("open.spotify.com")) {
+                        e.preventDefault();
+                        setTrackUrl(pasted);
+                        setTrack(null);
+                        setTimeout(() => buscarMusica(pasted), 0);
+                      }
+                    }}
                     onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); buscarMusica(); } }}
                     onBlur={() => { if (active.trackUrl.trim() && !active.track && !trackLoading) buscarMusica(); }}
                     className="text-center placeholder:text-muted-foreground/40 placeholder:font-normal"
