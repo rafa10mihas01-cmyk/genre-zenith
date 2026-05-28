@@ -278,36 +278,13 @@ export function FinanceiroTab({ deals, hideHero = false }: Props) {
 
       {/* ============= KPIs compactos quando hero está oculto (aba Custo) ============= */}
       {hideHero && !isEmpty && (
-        <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="rounded-2xl border border-border bg-card p-4">
-            <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
-              <span className="h-6 w-6 rounded-md flex items-center justify-center text-primary bg-primary/10">
-                <Wallet className="h-3.5 w-3.5" />
-              </span>
-              Total investido
-            </div>
-            <div className="mt-2 text-base sm:text-xl font-bold tabular-nums text-foreground">{fmtBRL(totals.totalSpent)}</div>
-          </div>
-          <div className="rounded-2xl border border-border bg-card p-4">
-            <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
-              <span className="h-6 w-6 rounded-md flex items-center justify-center text-muted-foreground bg-elevated/60">
-                <Receipt className="h-3.5 w-3.5" />
-              </span>
-              CPP médio
-            </div>
-            <div className="mt-2 text-base sm:text-xl font-bold tabular-nums text-foreground">{fmtCpp(totals.globalCpp)}</div>
-          </div>
-          <div className="rounded-2xl border border-border bg-card p-4">
-            <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
-              <span className="h-6 w-6 rounded-md flex items-center justify-center text-muted-foreground bg-elevated/60">
-                <Trophy className="h-3.5 w-3.5" />
-              </span>
-              Curadores ativos
-            </div>
-            <div className="mt-2 text-base sm:text-xl font-bold tabular-nums text-foreground">{totals.curatorsCount}</div>
-          </div>
+        <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Kpi icon={Wallet} label="Total investido" value={fmtBRL(totals.totalSpent)} tone="primary" />
+          <Kpi icon={Receipt} label="CPP médio" value={fmtCpp(totals.globalCpp)} />
+          <Kpi icon={Trophy} label="Curadores ativos" value={String(totals.curatorsCount)} />
         </section>
       )}
+
 
 
 
