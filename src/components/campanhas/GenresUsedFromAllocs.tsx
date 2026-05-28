@@ -8,7 +8,7 @@ import type { EcoAllocation } from "@/components/campaign-hub/types";
  * dos gêneros vizinhos usados (genre_source='affinity') e renderiza o chip.
  * Esconde se nenhum vizinho foi usado.
  */
-export function GenresUsedFromAllocs({ allocs }: { allocs: EcoAllocation[] }) {
+export function GenresUsedFromAllocs({ allocs, compact }: { allocs: EcoAllocation[]; compact?: boolean }) {
   const [genres, setGenres] = useState<GenreUsed[]>([]);
 
   useEffect(() => {
