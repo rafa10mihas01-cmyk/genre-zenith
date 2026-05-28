@@ -233,41 +233,42 @@ export function ExternalPackageEditor({
     <>
     <section className="space-y-6">
       {isDispatched ? (
-        <div className="rounded-2xl border border-primary/40 bg-primary/10 px-5 py-4">
-          <div className="flex items-start gap-3">
-            <div className="rounded-full bg-primary/20 p-2 mt-0.5">
+        <div className="rounded-2xl border border-primary/30 bg-card overflow-hidden">
+          <div className="px-5 pt-4 pb-3 flex items-start gap-3 border-b border-border/60">
+            <div className="rounded-full bg-primary/15 p-2 shrink-0">
               <Lock className="h-4 w-4 text-primary" />
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm font-semibold text-foreground">Pacote confirmado</span>
-                <span className="text-xs text-muted-foreground">·</span>
-                <span className="text-xs text-muted-foreground tabular-nums">
-                  {dealsCount} {dealsCount === 1 ? "deal criado" : "deals criados"}
+                <span className="text-[10px] uppercase tracking-wide border border-primary/40 text-primary rounded px-1.5 py-0.5 font-medium">
+                  Travado
                 </span>
-                {pkg?.confirmed_at && (
-                  <>
-                    <span className="text-xs text-muted-foreground">·</span>
-                    <span className="text-xs text-muted-foreground">
-                      confirmado em {new Date(pkg.confirmed_at).toLocaleDateString("pt-BR")}
-                    </span>
-                  </>
-                )}
               </div>
-              <div className="mt-2 flex items-center gap-2 text-xs text-foreground/85 flex-wrap">
-                <span className="tabular-nums">{items.length} {items.length === 1 ? "curador" : "curadores"}</span>
-                <span className="text-muted-foreground">·</span>
-                <span className="tabular-nums">{formatInt(totalStreams)} streams</span>
-                <span className="text-muted-foreground">·</span>
-                <span className="tabular-nums font-medium">{formatBRL(totalCost)}</span>
-                <span className="text-muted-foreground">·</span>
-                <Link
-                  to={`/deals?campaign=${campaignId}`}
-                  className="inline-flex items-center gap-1 text-primary hover:underline font-medium"
-                >
-                  Ver deals <ExternalLink className="h-3 w-3" />
-                </Link>
-              </div>
+              {pkg?.confirmed_at && (
+                <div className="text-[11px] text-muted-foreground mt-0.5">
+                  Em {new Date(pkg.confirmed_at).toLocaleDateString("pt-BR")} · {dealsCount} {dealsCount === 1 ? "deal criado" : "deals criados"}
+                </div>
+              )}
+            </div>
+            <Button asChild size="sm" variant="outline" className="shrink-0">
+              <Link to={`/deals?campaign=${campaignId}`}>
+                Ver deals <ExternalLink className="h-3 w-3 ml-1.5" />
+              </Link>
+            </Button>
+          </div>
+          <div className="grid grid-cols-3 divide-x divide-border/60">
+            <div className="px-4 py-3 text-center">
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Curadores</div>
+              <div className="text-base font-semibold text-foreground tabular-nums mt-0.5">{items.length}</div>
+            </div>
+            <div className="px-4 py-3 text-center">
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Streams</div>
+              <div className="text-base font-semibold text-foreground tabular-nums mt-0.5">{formatInt(totalStreams)}</div>
+            </div>
+            <div className="px-4 py-3 text-center">
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Custo</div>
+              <div className="text-base font-semibold text-foreground tabular-nums mt-0.5">{formatBRL(totalCost)}</div>
             </div>
           </div>
         </div>
