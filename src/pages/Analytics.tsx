@@ -252,16 +252,16 @@ export default function Analytics() {
         <Section title="Top playlists entregando (30d)">
           <div className="border border-border rounded-2xl overflow-hidden bg-card">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[640px]">
-                <thead className="bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
+              <table className="w-full text-sm">
+                <thead className="bg-elevated/30 text-[10px] uppercase tracking-wider text-muted-foreground">
                   <tr>
-                    <th className="px-4 py-3 text-left">Playlist</th>
-                    <th className="px-4 py-3 text-right">Deals</th>
-                    <th className="px-4 py-3 text-right">Plays entregues</th>
-                    <th className="px-4 py-3 text-right">Último snapshot</th>
+                    <th className="px-4 py-2.5 text-left font-medium">Playlist</th>
+                    <th className="hidden sm:table-cell px-4 py-2.5 text-right font-medium">Deals</th>
+                    <th className="px-4 py-2.5 text-right font-medium">Plays entregues</th>
+                    <th className="hidden sm:table-cell px-4 py-2.5 text-right font-medium">Último snapshot</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-border">
                   {loading ? (
                     <tr><td colSpan={4} className="p-4"><Skeleton className="h-12" /></td></tr>
                   ) : topPlaylists.length === 0 ? (
@@ -271,17 +271,17 @@ export default function Analytics() {
                       </td>
                     </tr>
                   ) : topPlaylists.map((p) => (
-                    <tr key={p.playlist_id} className="border-t border-border">
-                      <td className="px-4 py-3">
-                        <div className="font-medium truncate max-w-[320px]">
+                    <tr key={p.playlist_id} className="hover:bg-elevated/40 transition-colors">
+                      <td className="px-4 py-2.5">
+                        <div className="font-medium truncate max-w-[260px] sm:max-w-[320px]">
                           {playlistsMeta[p.playlist_id] ?? p.playlist_id.slice(0, 8)}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-right tabular-nums">{p.deals_count}</td>
-                      <td className="px-4 py-3 text-right tabular-nums font-medium">
+                      <td className="hidden sm:table-cell px-4 py-2.5 text-right tabular-nums">{p.deals_count}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums font-medium">
                         {p.plays_delivered.toLocaleString("pt-BR")}
                       </td>
-                      <td className="px-4 py-3 text-right tabular-nums text-xs text-muted-foreground">
+                      <td className="hidden sm:table-cell px-4 py-2.5 text-right tabular-nums text-xs text-muted-foreground">
                         {new Date(p.last_captured_at).toLocaleDateString("pt-BR")}
                       </td>
                     </tr>
@@ -290,6 +290,7 @@ export default function Analytics() {
               </table>
             </div>
           </div>
+
         </Section>
 
         {/* Heatmap — vivo, lê curator_deal_logs */}
