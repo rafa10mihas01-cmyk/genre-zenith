@@ -107,6 +107,18 @@ type ProcessedItem = {
   error?: string;
 };
 
+function fallbackPlaylistMeta(playlistId: string): SpotifyPlaylistMeta {
+  return {
+    id: playlistId,
+    name: `Playlist Spotify ${playlistId}`,
+    owner_id: "",
+    owner_name: "",
+    followers: 0,
+    image_url: null,
+    total_tracks: 0,
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -331,7 +343,18 @@ Deno.serve(async (req) => {
           slice.map(async (item) => {
             const pid = item.playlist_id!;
             try {
-              const meta = await withTimeout(fetchPlaylistMeta(pid), ITEM_TIMEOUT_MS, "spotify_timeout");
+              let meta: SpotifyPlaylistMeta | null = null;
+              try {
+                meta = await withTimeout(fetchPlaylistMeta(pid), ITEM_TIMEOUT_MS, "spotify_timeout");
+              } catch (e) {
+                if (publicToken && !requireTrackPresent) {
+                  const msg = e instanceof Error ? e.message : String(e);
+                  meta = fallbackPlaylistMeta(pid);
+                  item.error = `Metadados do Spotify indisponíveis no cadastro: ${msg}`;
+                } else {
+                  throw e;
+                }
+              }
               if (!meta) {
                 item.status = "not_found";
                 return;
@@ -352,11 +375,17 @@ Deno.serve(async (req) => {
                 item.match_status = cls.match_status;
                 item.match_reason = cls.match_reason;
               }
-              item.track_presence = await withTimeout(
-                checkTrackInPlaylist(pid, trackIdToCheck),
-                ITEM_TIMEOUT_MS,
-                "spotify_timeout",
-              );
+              try {
+                item.track_presence = await withTimeout(
+                  checkTrackInPlaylist(pid, trackIdToCheck),
+                  ITEM_TIMEOUT_MS,
+                  "spotify_timeout",
+                );
+              } catch (e) {
+                if (requireTrackPresent) throw e;
+                const msg = e instanceof Error ? e.message : String(e);
+                item.error = item.error ?? `Não foi possível verificar presença da faixa no Spotify: ${msg}`;
+              }
               if (requireTrackPresent) {
                 // Botão "+" na música: curador disse "já adicionei" → exige presença real.
                 if (!item.track_presence.found) {
