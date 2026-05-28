@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { StatusDot } from "@/components/ui/status-dot";
 import { LineChart as LineIcon, RefreshCw, Handshake, Activity, Zap, TrendingUp, DollarSign } from "lucide-react";
 import { Kpi } from "@/components/ui/kpi";
+import { cn } from "@/lib/utils";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
