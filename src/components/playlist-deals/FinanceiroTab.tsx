@@ -28,6 +28,7 @@ import { useCuratorFinance } from "@/hooks/useCuratorFinance";
 import type { CuratorPurchase } from "@/hooks/useCuratorFinance";
 import { formatNumber, formatBRLHero } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { Kpi } from "@/components/ui/kpi";
 import type { CuratorDeal } from "@/lib/curatorDealsUtils";
 
 const fmtBRL = (v: number | null | undefined) =>
