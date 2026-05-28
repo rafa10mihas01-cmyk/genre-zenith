@@ -202,20 +202,38 @@ Deno.serve(async (req) => {
       return jr({ ok: false, error: gate.error, code: gate.code }, gate.status);
     }
 
+    let effectiveSongId = songIdInput;
     let trackIdToCheck = extractTrackId(deal.song_spotify_url ?? "");
     if (songIdInput) {
       const { data: songRow } = await admin
         .from("curator_deal_songs")
-        .select("spotify_track_id, song_spotify_url")
+        .select("id, spotify_track_id, song_spotify_url")
         .eq("id", songIdInput)
         .eq("deal_id", deal.id)
         .maybeSingle();
+      if (!songRow) {
+        return jr({ ok: false, error: "Música não encontrada neste deal." }, 400);
+      }
       trackIdToCheck = songRow?.spotify_track_id || extractTrackId(songRow?.song_spotify_url ?? "") || trackIdToCheck;
+    } else {
+      const { data: dealSongs, error: songsErr } = await admin
+        .from("curator_deal_songs")
+        .select("id, spotify_track_id, song_spotify_url, position, created_at")
+        .eq("deal_id", deal.id)
+        .order("position", { ascending: true })
+        .order("created_at", { ascending: true })
+        .limit(2);
+      if (songsErr) return jr({ ok: false, error: songsErr.message }, 200);
+      if ((dealSongs ?? []).length === 1) {
+        const onlySong = dealSongs![0];
+        effectiveSongId = onlySong.id;
+        trackIdToCheck = onlySong.spotify_track_id || extractTrackId(onlySong.song_spotify_url ?? "") || trackIdToCheck;
+      }
     }
 
     // ------- Lock de importação (clique duplo / abas duplicadas) -------
     // Não trava preview (read-only).
-    const lockKey = `${deal.id}|${songIdInput ?? "no-song"}`;
+    const lockKey = `${deal.id}|${effectiveSongId ?? "no-song"}`;
     if (!preview) {
       if (!tryAcquireLock(lockKey)) {
         return jr(
@@ -237,7 +255,7 @@ Deno.serve(async (req) => {
       // só não pode repetir dentro da MESMA música.
       const existingIds = new Set(
         (existing ?? [])
-          .filter((r: any) => (r.song_id ?? null) === (songIdInput ?? null))
+          .filter((r: any) => (r.song_id ?? null) === (effectiveSongId ?? null))
           .map((r: any) => r.spotify_playlist_id)
           .filter((v: unknown): v is string => typeof v === "string" && v.length > 0),
       );
@@ -248,7 +266,7 @@ Deno.serve(async (req) => {
       const baselineIds = new Set(
         (existing ?? [])
           .filter((r: any) =>
-            (r.song_id ?? null) === (songIdInput ?? null) &&
+            (r.song_id ?? null) === (effectiveSongId ?? null) &&
             r.is_baseline === true
           )
           .map((r: any) => r.spotify_playlist_id)
@@ -367,7 +385,7 @@ Deno.serve(async (req) => {
         .filter((it) => it.status === "ok" && it.meta && it.match_status)
         .map((it) => ({
           deal_id: deal!.id,
-          song_id: songIdInput,
+          song_id: effectiveSongId,
           spotify_url: `https://open.spotify.com/playlist/${it.playlist_id}`,
           spotify_playlist_id: it.playlist_id!,
           playlist_name: it.meta!.name,
@@ -429,7 +447,7 @@ Deno.serve(async (req) => {
         status: "success",
         duration_ms: Date.now() - t0,
         deal_id: deal.id,
-        song_id: songIdInput,
+        song_id: effectiveSongId,
         metadata: { ...summary, mode: publicToken ? "public" : "admin", preview },
       });
 
