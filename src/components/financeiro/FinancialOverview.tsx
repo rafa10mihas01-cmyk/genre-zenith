@@ -261,7 +261,7 @@ function SummaryCard({
         </span>
         {label}
       </div>
-      <div className="mt-2 text-xl font-bold tabular-nums text-foreground">{value}</div>
+      <div className="mt-2 text-base sm:text-xl font-bold tabular-nums text-foreground">{value}</div>
       {hint && <div className="mt-1 text-[11px] text-muted-foreground">{hint}</div>}
     </div>
   );
