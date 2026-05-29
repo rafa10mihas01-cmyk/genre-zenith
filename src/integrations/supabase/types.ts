@@ -8194,6 +8194,16 @@ export type Database = {
             }
             Returns: Json
           }
+        | {
+            Args: {
+              p_deal: Json
+              p_external_curator_id?: string
+              p_force?: boolean
+              p_new_curator?: Json
+              p_songs: Json
+            }
+            Returns: Json
+          }
       create_notification:
         | {
             Args: {

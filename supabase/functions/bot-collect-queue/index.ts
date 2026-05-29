@@ -46,6 +46,28 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
+  // Gap 4 — Circuit breaker: se o Spotify está em backoff, devolve vazio sem
+  // tocar em nada. Log discreto, sem health report (não polui cron_health).
+  const { data: cb } = await supabase
+    .from("spotify_circuit_breaker")
+    .select("status, blocked_until")
+    .eq("app_id", "global")
+    .maybeSingle();
+  if (
+    cb?.status === "open" &&
+    cb.blocked_until &&
+    new Date(cb.blocked_until).getTime() > Date.now()
+  ) {
+    console.log(`[bot-collect-queue] CB open, skipping collection (until ${cb.blocked_until})`);
+    return jr({
+      ok: true,
+      count: 0,
+      skipped: "circuit_breaker_open",
+      blocked_until: cb.blocked_until,
+      queue: [],
+    });
+  }
+
   // Recovery de handoff: se a música ficou "queued" por mais de 5 min sem o bot
   // devolver print/snapshot, assumimos que a entrega se perdeu (bot reiniciou,
   // crash, queda de rede). Reseta para 'idle' pra reentrega imediata sem
