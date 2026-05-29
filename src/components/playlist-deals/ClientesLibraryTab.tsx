@@ -705,6 +705,8 @@ export function ClientFormDialog({
     setPaymentTerms(c?.payment_terms ?? "");
     setTagsText((c?.tags ?? []).join(", "));
     setNotes(c?.notes ?? "");
+    setLogoUrl(c?.logo_url ?? "");
+    setBrandColor(c?.brand_color ?? "");
   }, [open, client]);
 
   const submit = async () => {
