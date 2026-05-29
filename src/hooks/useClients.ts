@@ -99,6 +99,17 @@ export function useClients() {
     load();
   }, [load]);
 
+  // Gap 5: enriquecimento opcional via /v1/artists/{id} a partir da spotify_artist_url.
+  const enrichSpotifyIfPossible = useCallback(async (clientId: string, url: string | null | undefined) => {
+    if (!url || !/artist\/[A-Za-z0-9]{22}/.test(url)) return;
+    try {
+      await supabase.functions.invoke("enrich-client-spotify", { body: { client_id: clientId } });
+    } catch (e) {
+      // Enrichment é best-effort — falha não interrompe o fluxo do cliente.
+      console.warn("[useClients] enrich-client-spotify falhou:", e);
+    }
+  }, []);
+
   const addClient = useCallback(
     async (input: NewClientInput) => {
       if (!user) throw new Error("Usuário não autenticado");
@@ -113,10 +124,12 @@ export function useClients() {
         .select()
         .single();
       if (err) throw err;
+      const created = data as Client;
+      await enrichSpotifyIfPossible(created.id, input.spotify_artist_url);
       await load();
-      return data as Client;
+      return created;
     },
-    [user, load],
+    [user, load, enrichSpotifyIfPossible],
   );
 
   const updateClient = useCallback(
@@ -126,9 +139,12 @@ export function useClients() {
         .update(buildUpdatePayload(input) as any)
         .eq("id", id);
       if (err) throw err;
+      if (input.spotify_artist_url !== undefined) {
+        await enrichSpotifyIfPossible(id, input.spotify_artist_url);
+      }
       await load();
     },
-    [load],
+    [load, enrichSpotifyIfPossible],
   );
 
   const archiveClient = useCallback(
