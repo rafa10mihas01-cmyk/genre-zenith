@@ -70,6 +70,7 @@ export default function Home() {
           <h2 className="hidden lg:block text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold px-1">
             Alertas
           </h2>
+          <OperationalAlertsCard />
           <AlertsBlock />
         </section>
       </PageContainer>
