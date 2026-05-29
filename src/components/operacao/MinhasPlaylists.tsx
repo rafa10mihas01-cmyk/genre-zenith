@@ -1349,6 +1349,15 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                     Pronta para campanha
                   </div>
                 )}
+                {(p.followers ?? 0) >= 100 && !p.genre_id && (
+                  <div
+                    className="inline-flex items-center gap-1 self-start rounded-full border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium text-warning"
+                    title="Tem público mínimo, mas precisa de gênero classificado para entrar em campanhas"
+                  >
+                    <AlertCircle className="h-2.5 w-2.5" />
+                    Sem gênero
+                  </div>
+                )}
                 <div className="flex items-center justify-between text-[11px] tabular-nums text-muted-foreground">
                   <span><span className="font-semibold text-foreground">{formatNumber(p.followers)}</span> seg.</span>
                   <span><span className="font-semibold text-foreground">{p.tracks_count || "—"}</span> fx</span>
