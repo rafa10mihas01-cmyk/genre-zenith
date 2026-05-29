@@ -78,8 +78,18 @@ Deno.serve(async (req) => {
 
   if (campErr) return json({ ok: false, error: campErr.message }, 500);
   if (!campaign) return json({ ok: false, error: "campaign_not_found" }, 404);
+  // Autorização: dono da campanha OU membro do time (admin/curador).
+  // Campanhas legadas podem ter created_by NULL — nesse caso liberamos só pro time.
   if (campaign.created_by !== userId) {
-    return json({ ok: false, error: "forbidden" }, 403);
+    const { data: hasAccess, error: accessErr } = await userClient.rpc("has_team_access");
+    if (accessErr || !hasAccess) {
+      return json({ ok: false, error: "forbidden" }, 403);
+    }
+    // Backfill leve: se created_by estava NULL, registra o aprovador como dono.
+    if (!campaign.created_by) {
+      await admin.from("campaigns").update({ created_by: userId }).eq("id", campaignId);
+      (campaign as any).created_by = userId;
+    }
   }
 
   // Idempotência: já aprovado
