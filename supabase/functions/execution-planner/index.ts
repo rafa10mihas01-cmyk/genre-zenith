@@ -181,10 +181,18 @@ Deno.serve(async (req) => {
     }
   }
 
+  // Helper local: avança o streak quando a execução não enfileirou ADDs.
+  const nextEmpty = () => {
+    const streak = backoff.empty_streak + 1;
+    const cooldown = streak >= EMPTY_STREAK_LIMIT ? COOLDOWN_SKIPS : 0;
+    return { empty_streak: cooldown > 0 ? 0 : streak, cooldown_remaining: cooldown };
+  };
+
   if (candidates.length === 0) {
     const r = await runEcoReorderPass(supabase, new Date(now));
-    await reportCronHealth(supabase, { job_name: "execution-planner", status: "ok", startedAt: cronT0, metrics: { enqueued: 0, considered: 0, reorder_enqueued: r.enqueued }, message: "no candidates" });
-    return jr({ ok: true, enqueued: 0, considered: 0, reorder: r });
+    const bo = nextEmpty();
+    await reportCronHealth(supabase, { job_name: "execution-planner", status: "ok", startedAt: cronT0, metrics: { enqueued: 0, considered: 0, reorder_enqueued: r.enqueued, ...bo }, message: `no candidates (streak ${bo.empty_streak}, cooldown ${bo.cooldown_remaining})` });
+    return jr({ ok: true, enqueued: 0, considered: 0, reorder: r, backoff: bo });
   }
 
   // 2. Filtra os que já têm job aberto/feito
