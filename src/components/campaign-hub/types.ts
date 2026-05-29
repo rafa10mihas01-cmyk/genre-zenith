@@ -36,6 +36,7 @@ export type CampaignHubCampaign = {
   split_locked_at?: string | null;
   locked_eco_streams?: number | null;
   eco_max_pct?: number | null;
+  plan_approved_at?: string | null;
 };
 
 export type CampaignHubTabId =

@@ -44,6 +44,7 @@ import { Kpi } from "@/components/ui/kpi";
 import { toast } from "sonner";
 import type { Json } from "@/integrations/supabase/types";
 import { PlanHistoryTab } from "@/components/campaign-hub/tabs/PlanHistoryTab";
+import { CampaignGatesCard } from "@/components/campanhas/CampaignGatesCard";
 
 type EcoSnap = {
   id: string;
@@ -98,6 +99,30 @@ export default function CampanhaExecucao() {
   const [newDealOpen, setNewDealOpen] = useState(false);
   const [organicRows, setOrganicRows] = useState<OrganicRow[]>([]);
   const [dispatching, setDispatching] = useState(false);
+  const [approvingPlan, setApprovingPlan] = useState(false);
+
+  async function handleApprovePlan() {
+    if (!camp) return;
+    setApprovingPlan(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("approve-campaign-plan", { body: { campaign_id: camp.id } });
+      if (error) throw error;
+      const res = data as { ok?: boolean; reason?: string; already_approved?: boolean; deal_created?: boolean };
+      if (!res?.ok) {
+        toast.error("Não foi possível aprovar o plano", { description: res?.reason ?? "" });
+        return;
+      }
+      toast.success(res.already_approved ? "Plano já estava aprovado" : "Plano interno aprovado", {
+        description: res.deal_created ? "Deal criado automaticamente." : undefined,
+      });
+      setCamp((c) => c ? ({ ...c, plan_approved_at: new Date().toISOString() } as CampaignHubCampaign) : c);
+      loadCampaign();
+    } catch (e: any) {
+      toast.error("Erro ao aprovar plano", { description: e?.message ?? String(e) });
+    } finally {
+      setApprovingPlan(false);
+    }
+  }
 
   async function handleDispatchEco() {
     if (!camp) return;
@@ -135,7 +160,7 @@ export default function CampanhaExecucao() {
     const [{ data: c }, { data: a }, { data: s }, { data: pkg }] = await Promise.all([
       supabase
         .from("campaigns")
-        .select("id, deal_id, track_name, artist, cover_url, status, deadline, started_at, simulation_snapshot, snapshot_locked_at, eco_dispatched_at, engagement_multiplier, public_plan_token, spotify_track_id, spotify_track_url, goal_plays, created_by, total_delivered, client_approved_at, split_locked_at, locked_eco_streams, eco_max_pct")
+        .select("id, deal_id, track_name, artist, cover_url, status, deadline, started_at, simulation_snapshot, snapshot_locked_at, eco_dispatched_at, engagement_multiplier, public_plan_token, spotify_track_id, spotify_track_url, goal_plays, created_by, total_delivered, client_approved_at, split_locked_at, locked_eco_streams, eco_max_pct, plan_approved_at")
         .eq("id", id)
         .maybeSingle(),
       supabase
@@ -572,18 +597,6 @@ export default function CampanhaExecucao() {
         hiddenTabs={["upload", "logs"]}
         heroExtraActions={
           <>
-            {!camp.eco_dispatched_at && (
-              <Button
-                size="sm"
-                className="h-9 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
-                onClick={handleDispatchEco}
-                disabled={dispatching}
-                title={camp.client_approved_at ? "Aprovar campanha e distribuir pro ecossistema" : "Cliente ainda não aprovou o plano"}
-              >
-                {dispatching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
-                Aprovar e distribuir
-              </Button>
-            )}
             <CampaignAccessManager campaignId={camp.id} />
             <AuditCampaignButton campaignId={camp.id} />
             {clientToken ? (
@@ -611,6 +624,15 @@ export default function CampanhaExecucao() {
         slots={{
           overview: (
             <div className="space-y-6">
+              <CampaignGatesCard
+                clientApprovedAt={camp.client_approved_at ?? null}
+                planApprovedAt={(camp as any).plan_approved_at ?? null}
+                ecoDispatchedAt={camp.eco_dispatched_at ?? null}
+                onApprovePlan={handleApprovePlan}
+                onDispatch={handleDispatchEco}
+                approvingPlan={approvingPlan}
+                dispatching={dispatching}
+              />
               <OverviewTab
                 snapshot={snapshot}
                 delivered={delivered}
