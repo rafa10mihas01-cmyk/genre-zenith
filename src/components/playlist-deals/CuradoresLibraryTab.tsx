@@ -599,6 +599,7 @@ export function CuradoresLibraryTab({
           open={editing !== null}
           onOpenChange={(v) => !v && setEditing(null)}
           onSave={onUpdateCurator}
+          onAddPurchase={onAddPurchase}
         />
       )}
 
