@@ -34,6 +34,24 @@ const STATUS_LABEL: Record<string, string> = {
   active: "Ativa", draft: "Rascunho", paused: "Pausada", completed: "Concluída", cancelled: "Cancelada",
 };
 
+/**
+ * Status efetivo (display-only) — corrige duas distorções do banco:
+ *  1) NewCampaignDialog grava status='active' direto pelo toggle do form, antes dos portões.
+ *     Enquanto plan_approved_at for null, a campanha ainda é rascunho operacional.
+ *  2) Nenhum job fecha a campanha quando total_delivered >= goal_plays.
+ *     Tratamos como Concluída pra não poluir a aba Ativas.
+ * Não muta o banco — apenas como filtramos/rotulamos.
+ */
+function effectiveStatus(c: { status: string; total_delivered: number | null; goal_plays: number | null; client_approved_at: string | null; plan_approved_at: string | null; }): string {
+  if (c.status === "cancelled" || c.status === "paused" || c.status === "completed") return c.status;
+  const delivered = Number(c.total_delivered || 0);
+  const goal = Number(c.goal_plays || 0);
+  if (goal > 0 && delivered >= goal) return "completed";
+  // Ainda em rascunho enquanto os portões internos não fecharam.
+  if (!c.client_approved_at || !c.plan_approved_at) return "draft";
+  return "active";
+}
+
 export default function Campanhas() {
   const navigate = useNavigate();
   const { items, loading, recalcAll } = useCampaigns();
@@ -41,12 +59,12 @@ export default function Campanhas() {
   const [tab, setTab] = useState<"lista" | "financeiro">("financeiro");
 
   const filtered = useMemo(
-    () => filter === "all" ? items : items.filter(i => i.status === filter),
+    () => filter === "all" ? items : items.filter(i => effectiveStatus(i) === filter),
     [items, filter]
   );
 
   const kpis = useMemo(() => {
-    const active = items.filter(i => i.status === "active");
+    const active = items.filter(i => effectiveStatus(i) === "active");
     const goal = active.reduce((s, i) => s + Number(i.goal_plays || 0), 0);
     const delivered = active.reduce((s, i) => s + Number(i.total_delivered || 0), 0);
     const allocated = active.reduce((s, i) => s + Number(i.total_allocated || 0), 0);
@@ -298,8 +316,15 @@ function CampaignRow({ c }: { c: Campaign }) {
       >
         <div className="min-w-0 pr-8">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <StatusDot variant={STATUS_TONE[c.status]} />
-            <span className="text-xs uppercase tracking-wider text-muted-foreground">{STATUS_LABEL[c.status]}</span>
+            {(() => {
+              const eff = effectiveStatus(c as any);
+              return (
+                <>
+                  <StatusDot variant={STATUS_TONE[eff]} />
+                  <span className="text-xs uppercase tracking-wider text-muted-foreground">{STATUS_LABEL[eff]}</span>
+                </>
+              );
+            })()}
             <CollectionSourceBadge collectionMode={(c as any).collection_mode} />
             {c.plan_approved_at && (
               <span className="text-[10px] uppercase tracking-wider rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-primary">
