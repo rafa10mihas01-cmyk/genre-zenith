@@ -193,9 +193,21 @@ Deno.serve(async (req) => {
           .map(r => ({ id: r.id, position: positions.get(r.id) ?? 3 }));
       }
     }
-  } catch (_e) {
-    // Best-effort — se falhar, RPC só aprova sem backfill.
+  } catch (e) {
+    const msg = (e as Error)?.message ?? String(e);
+    console.error("[approve-campaign-plan] position backfill calc failed:", msg);
+    return json(
+      {
+        ok: false,
+        error: "position_backfill_failed",
+        message:
+          "Falha ao calcular posições do plano. Aprovação abortada para não gravar alocações sem position. Detalhe: " +
+          msg,
+      },
+      500,
+    );
   }
+
 
   // 2b) Calcula expansão de afinidade (safety net se cobertura < 80%)
   try {
