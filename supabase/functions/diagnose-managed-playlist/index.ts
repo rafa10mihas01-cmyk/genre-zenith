@@ -32,8 +32,7 @@ function jr(p: unknown, status = 200) {
 // ---------- helpers ----------
 
 async function syncTracks(authHeader: string, playlistId: string) {
-  // Chama a função pública sync-managed-playlist-tracks com a mesma auth
-  // (replace-all snapshot em public.managed_playlist_tracks).
+  // Chama sync-managed-playlist-tracks com skip_lock=true (já seguramos o lock DIAGNOSE_ENGINE).
   const r = await fetch(`${SUPABASE_URL}/functions/v1/sync-managed-playlist-tracks`, {
     method: "POST",
     headers: {
@@ -41,7 +40,7 @@ async function syncTracks(authHeader: string, playlistId: string) {
       Authorization: authHeader,
       apikey: SERVICE_KEY,
     },
-    body: JSON.stringify({ playlist_id: playlistId }),
+    body: JSON.stringify({ playlist_id: playlistId, skip_lock: true }),
   });
   const txt = await r.text();
   let j: any = {};
