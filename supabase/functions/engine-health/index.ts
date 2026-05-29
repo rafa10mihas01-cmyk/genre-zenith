@@ -10,7 +10,7 @@
 
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getSpotifyToken } from "../_shared/spotify.ts";
+import { getSpotifyToken, guardedSpotifyFetch } from "../_shared/spotify.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -140,7 +140,7 @@ async function buildHealth(supabase: any, genreId: string) {
       const token = await getSpotifyToken();
       for (let i = 0; i < top40Ids.length; i += 50) {
         const slice = top40Ids.slice(i, i + 50);
-        const r = await fetch(
+        const r = await guardedSpotifyFetch(
           `https://api.spotify.com/v1/tracks?ids=${slice.join(",")}`,
           { headers: { Authorization: `Bearer ${token}` } },
         );
@@ -213,7 +213,7 @@ async function buildHealth(supabase: any, genreId: string) {
           const token = await getSpotifyToken();
           for (let i = 0; i < missing.length; i += 50) {
             const slice = missing.slice(i, i + 50);
-            const r = await fetch(
+            const r = await guardedSpotifyFetch(
               `https://api.spotify.com/v1/tracks?ids=${slice.join(",")}`,
               { headers: { Authorization: `Bearer ${token}` } },
             );

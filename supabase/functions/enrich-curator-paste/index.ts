@@ -148,10 +148,10 @@ async function searchSpotifyPlaylist(
   name: string,
   creator: string | null,
 ): Promise<string | null> {
-  const { getSpotifyToken } = await import("../_shared/spotify.ts");
+  const { getSpotifyToken, guardedSpotifyFetch } = await import("../_shared/spotify.ts");
   const token = await getSpotifyToken();
   const q = encodeURIComponent(name);
-  const res = await fetch(
+  const res = await guardedSpotifyFetch(
     `https://api.spotify.com/v1/search?type=playlist&limit=10&q=${q}`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
