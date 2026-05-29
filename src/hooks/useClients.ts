@@ -29,6 +29,8 @@ export type Client = {
   document: string | null;
   payment_terms: string | null;
   tags: string[];
+  logo_url: string | null;
+  brand_color: string | null;
 };
 
 export type NewClientInput = {
@@ -48,6 +50,8 @@ export type NewClientInput = {
   document?: string | null;
   payment_terms?: string | null;
   tags?: string[];
+  logo_url?: string | null;
+  brand_color?: string | null;
 };
 
 // Helper: monta o payload de update apenas com chaves presentes em `input`.
