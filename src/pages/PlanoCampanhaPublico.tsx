@@ -242,21 +242,6 @@ export default function PlanoCampanhaPublico() {
   // Só carrega dados depois que o gate liberou.
   useEffect(() => { if (gateAuthed) load(); /* eslint-disable-next-line */ }, [token, gateAuthed]);
 
-  if (!token) return null;
-
-  // Gate UI — exibido antes de qualquer fetch de dados sensíveis.
-  if (gateChecked && gateRequired && !gateAuthed) {
-    return (
-      <CampaignAccessGate
-        token={token}
-        onAuthed={() => setGateAuthed(true)}
-      />
-    );
-  }
-
-
-
-
   // Após termos o client_token (resolvido pela edge get-shared-campaign-plan),
   // buscamos o payload público sanitizado para alimentar as listas de
   // "Playlists monitoradas" e "Histórico de prints" — mesma UI da página
@@ -335,6 +320,18 @@ export default function PlanoCampanhaPublico() {
     });
     return [...ext, ...eco].sort((a, b) => new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime());
   }, [proofs, snaps, allocs]);
+
+  if (!token) return null;
+
+  // Gate UI — exibido antes de qualquer fetch de dados sensíveis.
+  if (gateChecked && gateRequired && !gateAuthed) {
+    return (
+      <CampaignAccessGate
+        token={token}
+        onAuthed={() => setGateAuthed(true)}
+      />
+    );
+  }
 
   if (loading) {
     return (
