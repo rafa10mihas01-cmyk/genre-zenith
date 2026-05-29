@@ -89,7 +89,7 @@ export async function guardedSpotifyFetch(url: string, init: RequestInit = {}, a
   return r;
 }
 
-function installSpotifyCircuitFetchGuard() {
+export function installSpotifyCircuitFetchGuard() {
   const g = globalThis as typeof globalThis & { __spotifyCircuitFetchGuardInstalled?: boolean };
   if (g.__spotifyCircuitFetchGuardInstalled) return;
   g.__spotifyCircuitFetchGuardInstalled = true;

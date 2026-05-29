@@ -6,7 +6,13 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 import { reorderPlaylistTracks, listPlaylistTrackUris, addPlaylistTracks, removePlaylistTracks } from "../_shared/spotify-playlist.ts";
-import { getSpotifyToken, getUserAccessToken } from "../_shared/spotify.ts";
+import { getSpotifyToken, getUserAccessToken, installSpotifyCircuitFetchGuard } from "../_shared/spotify.ts";
+
+// Defesa em profundidade: garante que o guard global de fetch p/ Spotify
+// esteja instalado antes de qualquer chamada (add/remove/reorder no Spotify).
+// O guard intercepta 429 e abre o circuit breaker — sem ele, rajadas durante
+// rate-limit podem queimar tokens OAuth e corromper playlists.
+installSpotifyCircuitFetchGuard();
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
