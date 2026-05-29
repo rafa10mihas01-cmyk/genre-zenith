@@ -309,7 +309,7 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
       target_plays: i.target_override,
       weight: Number(i.suggested_weight ?? 1),
       position: idx,
-      status: activate ? "approved" : "suggested",
+      status: "suggested",
     }));
     const { error: allocErr } = await supabase.from("campaign_allocations").insert(rows);
     setBusy(false);
