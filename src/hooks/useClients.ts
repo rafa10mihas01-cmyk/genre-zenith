@@ -192,5 +192,5 @@ export function useClients() {
     [load],
   );
 
-  return { clients, loading, error, addClient, updateClient, archiveClient, deleteClient, reload: load };
+  return { clients, loading, error, addClient, updateClient, archiveClient, deleteClient, reload: load, isEnriching };
 }
