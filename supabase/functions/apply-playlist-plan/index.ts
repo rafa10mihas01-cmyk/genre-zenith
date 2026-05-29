@@ -413,6 +413,28 @@ Deno.serve(async (req) => {
           } catch { /* */ }
         }
 
+        // Bug B audit: registra remoções em playlist_adjustments (fase bloated) para
+        // que o cap max_per_day seja respeitado em chamadas subsequentes no mesmo dia.
+        const removedExecuted = results.filter((r: any) => r.kind === "remove" && r.ok !== false && !r.skipped).length;
+        if (phase === "bloated" && removedExecuted > 0) {
+          await supabase.from("playlist_adjustments").insert({
+            template_id: pl.id,
+            spotify_playlist_id: spId,
+            action_type: `apply_remove_${removedExecuted}`,
+            status: fatalError ? "failed" : "success",
+            before: { tracks_count: tracksBefore },
+            after: { tracks_count: currentCount },
+            details: {
+              source: "apply-playlist-plan",
+              removed_count: removedExecuted,
+              max_per_day: bloatedMaxPerDay,
+              removed_today_before: bloatedRemovedToday,
+              skipped_due_to_cap: bloatedSkippedRemoves,
+            },
+            triggered_by: "manual",
+          });
+        }
+
         await supabase.from("collection_logs").insert({
           acao: "apply-playlist-plan",
           status: fatalError ? "erro" : "sucesso",
