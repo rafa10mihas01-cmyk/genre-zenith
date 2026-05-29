@@ -9,6 +9,13 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
 import { getUserAccessToken, getSpotifyToken } from "../_shared/spotify.ts";
 import { addPlaylistTracks, getPlaylistMeta, SpotifyApiError } from "../_shared/spotify-playlist.ts";
+import {
+  acquirePlaylistLock,
+  releasePlaylistLock,
+  finishPlaylistOperation,
+  formatPlaylistError,
+  lockedResponseBody,
+} from "../_shared/playlist-lock.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
