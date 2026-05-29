@@ -48,17 +48,17 @@ function defaultTerms(slug: string, nome: string): string[] {
 }
 
 async function spotifyFetch(token: string, url: string): Promise<any> {
-  // NOTE: o guard global em _shared/spotify.ts já trata circuit breaker.
+  // Passa pelo circuit breaker explicitamente (guardedSpotifyFetch).
   // Se breaker estiver aberto, lança SpotifyCircuitOpenError — propagamos sem retry.
   let r: Response;
   try {
-    r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    r = await guardedSpotifyFetch(url, { headers: { Authorization: `Bearer ${token}` } });
   } catch (e) {
-    if (e instanceof SpotifyCircuitOpenError) throw e; // abort imediato
+    if (e instanceof SpotifyCircuitOpenError) throw e;
     throw e;
   }
   if (r.status === 429) {
-    // Não fazemos retry local — o guard já abriu o breaker; chamadas seguintes vão abortar.
+    // guard já abriu o breaker — chamadas seguintes vão abortar.
     const txt = await r.text().catch(() => "");
     throw new Error(`spotify 429 (breaker aberto): ${txt.slice(0, 180)}`);
   }
