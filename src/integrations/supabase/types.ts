@@ -7276,6 +7276,39 @@ export type Database = {
         }
         Relationships: []
       }
+      spotify_circuit_breaker_log: {
+        Row: {
+          app_id: string
+          blocked_until: string
+          caused_by: string | null
+          created_at: string
+          id: string
+          opened_at: string
+          retry_after_sec: number
+          source_function: string | null
+        }
+        Insert: {
+          app_id?: string
+          blocked_until: string
+          caused_by?: string | null
+          created_at?: string
+          id?: string
+          opened_at?: string
+          retry_after_sec?: number
+          source_function?: string | null
+        }
+        Update: {
+          app_id?: string
+          blocked_until?: string
+          caused_by?: string | null
+          created_at?: string
+          id?: string
+          opened_at?: string
+          retry_after_sec?: number
+          source_function?: string | null
+        }
+        Relationships: []
+      }
       spotify_email_allowlist: {
         Row: {
           created_at: string
