@@ -21,6 +21,31 @@ Deno.serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
   const results: Array<{ table: string; ts_column: string; days: number | null; deleted: number | null; error?: string }> = [];
 
+  // Gap 13: curator_deal_snapshots — TTL 90d, preserva is_baseline=true e o snapshot mais recente por deal
+  try {
+    const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: latestRows } = await supabase
+      .from("curator_deal_snapshots")
+      .select("deal_id, id, captured_at")
+      .order("captured_at", { ascending: false });
+    const latestIdByDeal = new Map<string, string>();
+    for (const r of (latestRows ?? []) as any[]) {
+      if (!latestIdByDeal.has(r.deal_id)) latestIdByDeal.set(r.deal_id, r.id);
+    }
+    const keepIds = Array.from(latestIdByDeal.values());
+    let q = supabase
+      .from("curator_deal_snapshots")
+      .delete({ count: "estimated" })
+      .lt("captured_at", cutoff)
+      .or("is_baseline.is.null,is_baseline.eq.false");
+    if (keepIds.length) q = q.not("id", "in", `(${keepIds.join(",")})`);
+    const { error: delErr, count } = await q;
+    if (delErr) throw delErr;
+    results.push({ table: "curator_deal_snapshots", ts_column: "captured_at", days: 90, deleted: count ?? 0 });
+  } catch (err) {
+    results.push({ table: "curator_deal_snapshots", ts_column: "captured_at", days: 90, deleted: null, error: (err as Error).message });
+  }
+
   for (const p of SNAPSHOT_TTL_POLICIES) {
     if (p.days == null) {
       results.push({ table: p.table, ts_column: p.ts_column, days: null, deleted: 0 });

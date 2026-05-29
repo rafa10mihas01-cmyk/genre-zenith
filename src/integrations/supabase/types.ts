@@ -998,6 +998,67 @@ export type Database = {
           },
         ]
       }
+      campaign_plan_versions: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          goal_plays: number | null
+          id: string
+          requested_by: string | null
+          requested_message: string | null
+          snapshot: Json
+          total_allocated: number | null
+          valor_cobrado: number | null
+          version: number
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          goal_plays?: number | null
+          id?: string
+          requested_by?: string | null
+          requested_message?: string | null
+          snapshot?: Json
+          total_allocated?: number | null
+          valor_cobrado?: number | null
+          version: number
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          goal_plays?: number | null
+          id?: string
+          requested_by?: string | null
+          requested_message?: string | null
+          snapshot?: Json
+          total_allocated?: number | null
+          valor_cobrado?: number | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_plan_versions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_plan_versions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_campaign_velocity"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "campaign_plan_versions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_financial_summary"
+            referencedColumns: ["campaign_id"]
+          },
+        ]
+      }
       campaigns: {
         Row: {
           artist: string | null
@@ -2795,6 +2856,8 @@ export type Database = {
           name: string
           notes: string | null
           paused_at: string | null
+          performance_score: number | null
+          performance_score_updated_at: string | null
           purchased_plays: number
           spotify_owner_id: string | null
           spotify_owner_url: string | null
@@ -2815,6 +2878,8 @@ export type Database = {
           name: string
           notes?: string | null
           paused_at?: string | null
+          performance_score?: number | null
+          performance_score_updated_at?: string | null
           purchased_plays?: number
           spotify_owner_id?: string | null
           spotify_owner_url?: string | null
@@ -2835,6 +2900,8 @@ export type Database = {
           name?: string
           notes?: string | null
           paused_at?: string | null
+          performance_score?: number | null
+          performance_score_updated_at?: string | null
           purchased_plays?: number
           spotify_owner_id?: string | null
           spotify_owner_url?: string | null
@@ -7209,6 +7276,39 @@ export type Database = {
         }
         Relationships: []
       }
+      spotify_circuit_breaker_log: {
+        Row: {
+          app_id: string
+          blocked_until: string
+          caused_by: string | null
+          created_at: string
+          id: string
+          opened_at: string
+          retry_after_sec: number
+          source_function: string | null
+        }
+        Insert: {
+          app_id?: string
+          blocked_until: string
+          caused_by?: string | null
+          created_at?: string
+          id?: string
+          opened_at?: string
+          retry_after_sec?: number
+          source_function?: string | null
+        }
+        Update: {
+          app_id?: string
+          blocked_until?: string
+          caused_by?: string | null
+          created_at?: string
+          id?: string
+          opened_at?: string
+          retry_after_sec?: number
+          source_function?: string | null
+        }
+        Relationships: []
+      }
       spotify_email_allowlist: {
         Row: {
           created_at: string
@@ -8459,6 +8559,20 @@ export type Database = {
             }
             Returns: boolean
           }
+      list_campaign_plan_versions_by_token: {
+        Args: { p_token: string }
+        Returns: {
+          created_at: string
+          goal_plays: number
+          id: string
+          requested_by: string
+          requested_message: string
+          snapshot: Json
+          total_allocated: number
+          valor_cobrado: number
+          version: number
+        }[]
+      }
       log_ai_usage: {
         Args: {
           p_duration_ms?: number
@@ -8546,6 +8660,14 @@ export type Database = {
       recalc_campaign_progress: {
         Args: { p_campaign_id?: string }
         Returns: number
+      }
+      recalc_curator_performance_scores: {
+        Args: never
+        Returns: {
+          curator_id: string
+          deals_count: number
+          score: number
+        }[]
       }
       recalc_playlist_scores: { Args: never; Returns: number }
       recompute_campaign_total_delivered: {

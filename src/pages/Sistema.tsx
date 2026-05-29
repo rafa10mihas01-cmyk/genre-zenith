@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import {
   Activity, Workflow, Music2, HeartPulse, Bot, Bell, ListPlus,
-  Settings as SettingsIcon, Server, Brain, FlaskConical, Wrench, Flag,
+  Settings as SettingsIcon, Server, Brain, FlaskConical, Wrench, Flag, ShieldAlert,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
@@ -29,6 +29,7 @@ import { SpotifyReconnectBanner } from "@/components/sistema/SpotifyReconnectBan
 import { SystemKpis } from "@/components/sistema/SystemKpis";
 import { FeatureFlagsPanel } from "@/components/sistema/FeatureFlagsPanel";
 import { OperationalHealthCard } from "@/components/home/OperationalHealthCard";
+import { CircuitBreakerHistoryCard } from "@/components/sistema/CircuitBreakerHistoryCard";
 import { BrainFreshnessCard } from "@/components/home/BrainFreshnessCard";
 import { EngineHealthGrid } from "@/components/cockpit/EngineHealthGrid";
 
@@ -135,6 +136,10 @@ export default function Sistema() {
                 <OperationalHealthCard />
                 <BrainFreshnessCard />
               </div>
+            </section>
+            <section>
+              <SectionHeader icon={ShieldAlert} title="Circuit breaker" subtitle="Aberturas do CB do Spotify nos últimos 30 dias" />
+              <CircuitBreakerHistoryCard />
             </section>
             <section>
               <SectionHeader icon={Workflow} title="Motor editorial" subtitle="Saúde do pipeline de curadoria" />
