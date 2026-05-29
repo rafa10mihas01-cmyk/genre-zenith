@@ -2216,8 +2216,43 @@ Deno.serve(async (req) => {
         .eq("id", pl.id);
     }
 
+    if (lockHandle) {
+      await finishPlaylistOperation(supabase, lockHandle, {
+        status: dErr ? "failed" : "success",
+        error: dErr?.message ?? null,
+      });
+    }
+
     return jr({ ok: true, diagnosis: diag, error: dErr?.message, sync: syncRes });
   } catch (e) {
+    // Circuit breaker aberto: aborta com erro claro em vez de degradar.
+    if (e instanceof SpotifyCircuitOpenError) {
+      const retryAfter = Math.max(1, Math.ceil((e.blockedUntil.getTime() - Date.now()) / 1000));
+      if (lockHandle && supabaseRef) {
+        await finishPlaylistOperation(supabaseRef, lockHandle, {
+          status: "aborted",
+          error: `SPOTIFY_CIRCUIT_OPEN retry_after=${retryAfter}s`,
+        });
+      }
+      return jr({
+        ok: false,
+        error: "SPOTIFY_CIRCUIT_OPEN",
+        code: "spotify_circuit_open",
+        message: "Diagnóstico abortado: Spotify API bloqueada pelo circuit breaker.",
+        blocked_until: e.blockedUntil.toISOString(),
+        retry_after: retryAfter,
+      }, 503);
+    }
+    if (lockHandle && supabaseRef) {
+      await finishPlaylistOperation(supabaseRef, lockHandle, {
+        status: "failed",
+        error: formatPlaylistError(e),
+      });
+    }
     return jr({ ok: false, error: (e as Error).message }, 500);
+  } finally {
+    if (lockHandle && supabaseRef) {
+      await releasePlaylistLock(supabaseRef, lockHandle);
+    }
   }
 });
