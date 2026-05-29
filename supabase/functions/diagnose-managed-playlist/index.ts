@@ -8,7 +8,15 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
-import { getSpotifyToken } from "../_shared/spotify.ts";
+import { getSpotifyToken, guardedSpotifyFetch, SpotifyCircuitOpenError } from "../_shared/spotify.ts";
+import {
+  acquirePlaylistLock,
+  releasePlaylistLock,
+  finishPlaylistOperation,
+  lockedResponseBody,
+  formatPlaylistError,
+  type LockHandle,
+} from "../_shared/playlist-lock.ts";
 import { buildRoadmap, derivePhase, bloatedRemovalBudget } from "../_shared/lifecycle.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -24,8 +32,7 @@ function jr(p: unknown, status = 200) {
 // ---------- helpers ----------
 
 async function syncTracks(authHeader: string, playlistId: string) {
-  // Chama a função pública sync-managed-playlist-tracks com a mesma auth
-  // (replace-all snapshot em public.managed_playlist_tracks).
+  // Chama sync-managed-playlist-tracks com skip_lock=true (já seguramos o lock DIAGNOSE_ENGINE).
   const r = await fetch(`${SUPABASE_URL}/functions/v1/sync-managed-playlist-tracks`, {
     method: "POST",
     headers: {
@@ -33,7 +40,7 @@ async function syncTracks(authHeader: string, playlistId: string) {
       Authorization: authHeader,
       apikey: SERVICE_KEY,
     },
-    body: JSON.stringify({ playlist_id: playlistId }),
+    body: JSON.stringify({ playlist_id: playlistId, skip_lock: true }),
   });
   const txt = await r.text();
   let j: any = {};
@@ -264,6 +271,9 @@ Deno.serve(async (req) => {
   const guard = await requireTeamAccess(req);
   if (!guard.ok) return guard.resp;
 
+  let lockHandle: LockHandle | null = null;
+  let supabaseRef: any = null;
+
   try {
     const body = await req.json().catch(() => ({}));
     const playlistId: string = body?.playlist_id;
@@ -271,6 +281,7 @@ Deno.serve(async (req) => {
     if (!playlistId) return jr({ ok: false, error: "playlist_id obrigatório" }, 400);
 
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+    supabaseRef = supabase;
     const { data: pl, error: plErr } = await supabase
       .from("managed_playlists")
       .select("*")
@@ -278,7 +289,14 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (plErr || !pl) return jr({ ok: false, error: plErr?.message ?? "playlist não encontrada" }, 404);
 
+    // Lock operacional: impede race com apply-playlist-plan / sync-managed-playlist-tracks.
+    // TTL de 30s; liberado no finally.
+    const lockResult = await acquirePlaylistLock(supabase, pl.id, "DIAGNOSE_ENGINE", pl.tracks_count ?? null);
+    if (!lockResult.ok) return jr(lockedResponseBody(lockResult), 423);
+    lockHandle = lockResult;
+
     // 1) Snapshot fresco das faixas atuais (best-effort — se falhar, segue com cache)
+    // Passa skip_lock=true porque já seguramos o lock DIAGNOSE_ENGINE.
     const authHeader = req.headers.get("Authorization") ?? `Bearer ${SERVICE_KEY}`;
     const syncRes = await syncTracks(authHeader, pl.id).catch((e) => ({ ok: false, error: String(e) }));
 
@@ -471,7 +489,7 @@ Deno.serve(async (req) => {
         // /v1/tracks?ids= (até 50)
         for (let i = 0; i < trackIds.length; i += 50) {
           const ids = trackIds.slice(i, i + 50);
-          const r = await fetch(`https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`, {
+          const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (!r.ok) continue;
@@ -491,7 +509,7 @@ Deno.serve(async (req) => {
         );
         for (let i = 0; i < artistIds.length; i += 50) {
           const ids = artistIds.slice(i, i + 50);
-          const r = await fetch(`https://api.spotify.com/v1/artists?ids=${ids.join(",")}`, {
+          const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/artists?ids=${ids.join(",")}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (!r.ok) continue;
@@ -505,8 +523,10 @@ Deno.serve(async (req) => {
             });
           }
         }
-      } catch (_e) {
-        // segue sem metadados — classificador degrada gracefully
+      } catch (e) {
+        // Circuit breaker aberto: aborta o diagnóstico — propaga pro handler.
+        if (e instanceof SpotifyCircuitOpenError) throw e;
+        // Outras falhas: segue sem metadados (classificador degrada gracefully).
       }
     }
 
@@ -968,7 +988,7 @@ Deno.serve(async (req) => {
         const candArtistIds = new Map<string, string>(); // trackId → artistId
         for (let i = 0; i < rawCandidates.length; i += 50) {
           const ids = rawCandidates.slice(i, i + 50).map((c) => c.id);
-          const r = await fetch(`https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`, {
+          const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (!r.ok) continue;
@@ -990,7 +1010,7 @@ Deno.serve(async (req) => {
         const artistPopMap = new Map<string, number | null>();
         for (let i = 0; i < uniqueArtistIds.length; i += 50) {
           const ids = uniqueArtistIds.slice(i, i + 50);
-          const r = await fetch(`https://api.spotify.com/v1/artists?ids=${ids.join(",")}`, {
+          const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/artists?ids=${ids.join(",")}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (!r.ok) continue;
@@ -1004,7 +1024,10 @@ Deno.serve(async (req) => {
           const cur = candMeta.get(tid);
           if (cur) cur.artistPop = artistPopMap.get(aid) ?? null;
         }
-      } catch (_e) { /* degrade gracefully */ }
+      } catch (e) {
+        if (e instanceof SpotifyCircuitOpenError) throw e;
+        // outras falhas: degrade gracefully
+      }
     }
 
     // 7.c) Calcula scores por zona pra cada candidato (mesma fórmula da camada 2)
@@ -1582,7 +1605,7 @@ Deno.serve(async (req) => {
           const token = await getSpotifyToken();
           for (let i = 0; i < candidateIds.length; i += 50) {
             const slice = candidateIds.slice(i, i + 50);
-            const r = await fetch(`https://api.spotify.com/v1/tracks?ids=${slice.join(",")}`, {
+            const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/tracks?ids=${slice.join(",")}`, {
               headers: { Authorization: `Bearer ${token}` },
             });
             if (!r.ok) continue;
@@ -1596,7 +1619,10 @@ Deno.serve(async (req) => {
               if (cover) coverMap.set(tr.id, cover);
             }
           }
-        } catch { /* segue sem metadata extra */ }
+        } catch (e) {
+          if (e instanceof SpotifyCircuitOpenError) throw e;
+          /* segue sem metadata extra */
+        }
       }
 
 
@@ -2189,8 +2215,43 @@ Deno.serve(async (req) => {
         .eq("id", pl.id);
     }
 
+    if (lockHandle) {
+      await finishPlaylistOperation(supabase, lockHandle, {
+        status: dErr ? "failed" : "success",
+        error: dErr?.message ?? null,
+      });
+    }
+
     return jr({ ok: true, diagnosis: diag, error: dErr?.message, sync: syncRes });
   } catch (e) {
+    // Circuit breaker aberto: aborta com erro claro em vez de degradar.
+    if (e instanceof SpotifyCircuitOpenError) {
+      const retryAfter = Math.max(1, Math.ceil((e.blockedUntil.getTime() - Date.now()) / 1000));
+      if (lockHandle && supabaseRef) {
+        await finishPlaylistOperation(supabaseRef, lockHandle, {
+          status: "aborted",
+          error: `SPOTIFY_CIRCUIT_OPEN retry_after=${retryAfter}s`,
+        });
+      }
+      return jr({
+        ok: false,
+        error: "SPOTIFY_CIRCUIT_OPEN",
+        code: "spotify_circuit_open",
+        message: "Diagnóstico abortado: Spotify API bloqueada pelo circuit breaker.",
+        blocked_until: e.blockedUntil.toISOString(),
+        retry_after: retryAfter,
+      }, 503);
+    }
+    if (lockHandle && supabaseRef) {
+      await finishPlaylistOperation(supabaseRef, lockHandle, {
+        status: "failed",
+        error: formatPlaylistError(e),
+      });
+    }
     return jr({ ok: false, error: (e as Error).message }, 500);
+  } finally {
+    if (lockHandle && supabaseRef) {
+      await releasePlaylistLock(supabaseRef, lockHandle);
+    }
   }
 });
