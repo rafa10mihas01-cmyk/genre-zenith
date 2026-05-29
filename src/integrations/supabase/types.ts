@@ -998,6 +998,67 @@ export type Database = {
           },
         ]
       }
+      campaign_plan_versions: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          goal_plays: number | null
+          id: string
+          requested_by: string | null
+          requested_message: string | null
+          snapshot: Json
+          total_allocated: number | null
+          valor_cobrado: number | null
+          version: number
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          goal_plays?: number | null
+          id?: string
+          requested_by?: string | null
+          requested_message?: string | null
+          snapshot?: Json
+          total_allocated?: number | null
+          valor_cobrado?: number | null
+          version: number
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          goal_plays?: number | null
+          id?: string
+          requested_by?: string | null
+          requested_message?: string | null
+          snapshot?: Json
+          total_allocated?: number | null
+          valor_cobrado?: number | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_plan_versions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_plan_versions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_campaign_velocity"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "campaign_plan_versions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_financial_summary"
+            referencedColumns: ["campaign_id"]
+          },
+        ]
+      }
       campaigns: {
         Row: {
           artist: string | null
@@ -8459,6 +8520,20 @@ export type Database = {
             }
             Returns: boolean
           }
+      list_campaign_plan_versions_by_token: {
+        Args: { p_token: string }
+        Returns: {
+          created_at: string
+          goal_plays: number
+          id: string
+          requested_by: string
+          requested_message: string
+          snapshot: Json
+          total_allocated: number
+          valor_cobrado: number
+          version: number
+        }[]
+      }
       log_ai_usage: {
         Args: {
           p_duration_ms?: number
