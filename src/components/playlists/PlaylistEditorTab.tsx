@@ -513,13 +513,26 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
     inFlight.current = true;
     setAdding(true);
     try {
+      const positionToSend =
+        Number.isInteger(addPosition) && addPosition >= 1 ? addPosition : null;
       const { data, error } = await supabase.functions.invoke("enqueue-playlist-job", {
-        body: { playlist_id: playlistId, spotify_track_id: addInput.trim(), action: "add" },
+        body: {
+          playlist_id: playlistId,
+          spotify_track_id: addInput.trim(),
+          action: "add",
+          ...(positionToSend ? { to_position: positionToSend } : {}),
+        },
       });
       if (error || !data?.ok) throw new Error(error?.message ?? data?.error ?? "Falhou");
+      const confirmedPos =
+        Number.isInteger(data?.job?.to_position) && data.job.to_position >= 1
+          ? data.job.to_position
+          : null;
       toast({
-        title: "Faixa enfileirada",
-        description: `Adicionada na posição ${addPosition} após o bot processar. Reordene depois se necessário.`,
+        title: data?.deduped ? "Já estava na fila" : "Faixa enfileirada",
+        description: confirmedPos
+          ? `Bot vai inserir na posição ${confirmedPos}.`
+          : "Bot vai inserir no fim da playlist.",
       });
       setAddOpen(false);
       setAddInput("");
