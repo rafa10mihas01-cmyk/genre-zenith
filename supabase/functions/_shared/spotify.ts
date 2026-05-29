@@ -44,11 +44,12 @@ function db() {
 
 export async function assertSpotifyCircuitClosed(appId = "global"): Promise<void> {
   const supabase = db();
+  const effectiveAppId = appId === "global" ? (await getDefaultSpotifyAppId()) ?? "global" : appId;
   try { await supabase.rpc("close_expired_spotify_circuit_breakers"); } catch { /* noop */ }
   const { data, error } = await supabase
     .from("spotify_circuit_breaker")
     .select("status, blocked_until, retry_after_sec")
-    .eq("app_id", appId)
+    .eq("app_id", effectiveAppId)
     .maybeSingle();
   if (error) throw new Error(`spotify_circuit_breaker: ${error.message}`);
   if (data?.status === "open" && data.blocked_until && new Date(data.blocked_until).getTime() > Date.now()) {
@@ -57,10 +58,11 @@ export async function assertSpotifyCircuitClosed(appId = "global"): Promise<void
 }
 
 export async function openSpotifyCircuitBreaker(retryAfterSec?: number | null, appId = "global", causedBy?: string): Promise<{ blockedUntil: string; retryAfterSec: number }> {
+  const effectiveAppId = appId === "global" ? (await getDefaultSpotifyAppId()) ?? "global" : appId;
   const safeRetry = Math.max(2, Math.min(Number(retryAfterSec ?? 60), 86_400));
   const blockedUntil = new Date(Date.now() + safeRetry * 1000).toISOString();
   await db().from("spotify_circuit_breaker").upsert({
-    app_id: appId,
+    app_id: effectiveAppId,
     status: "open",
     blocked_until: blockedUntil,
     last_429_at: new Date().toISOString(),
@@ -69,7 +71,7 @@ export async function openSpotifyCircuitBreaker(retryAfterSec?: number | null, a
   // Gap 22: registra histórico de cada abertura.
   try {
     await db().from("spotify_circuit_breaker_log").insert({
-      app_id: appId,
+      app_id: effectiveAppId,
       blocked_until: blockedUntil,
       retry_after_sec: safeRetry,
       caused_by: causedBy ?? null,
