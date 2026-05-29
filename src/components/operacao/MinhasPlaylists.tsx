@@ -184,10 +184,10 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   // e mostrar só os que sobrarem ao filtrar uma fase.
   useEffect(() => {
     setLoadedCount(PAGE_SIZE);
-  }, [filterFase, showArchived, filterMissingGenre, filterGenreId]);
+  }, [filterFase, showArchived, filterMissingGenre, filterGenreId, filterSize]);
 
   const itemsQuery = useQuery({
-    queryKey: ["managed-playlists", loadedCount, filterFase, showArchived, sortBy, filterMissingGenre, filterGenreId],
+    queryKey: ["managed-playlists", loadedCount, filterFase, showArchived, sortBy, filterMissingGenre, filterGenreId, filterSize],
     queryFn: async () => {
       let q = supabase
         .from("managed_playlists")
@@ -219,6 +219,11 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       } else if (filterGenreId) {
         q = q.eq("genre_id", filterGenreId);
       }
+      // Filtro de tamanho server-side (antes era client-side, escondia playlists além do loadedCount)
+      if (filterSize === "pequena") q = q.lt("followers", 1000);
+      else if (filterSize === "media") q = q.gte("followers", 1000).lt("followers", 10000);
+      else if (filterSize === "grande") q = q.gte("followers", 10000).lt("followers", 100000);
+      else if (filterSize === "top") q = q.gte("followers", 100000);
       const { data, error } = await q.range(0, loadedCount - 1);
       if (error) throw error;
       return (data ?? []) as ManagedPlaylist[];
@@ -229,12 +234,12 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const loading = itemsQuery.isPending;
   const setItems = useCallback(
     (updater: ManagedPlaylist[] | ((prev: ManagedPlaylist[]) => ManagedPlaylist[])) => {
-      queryClient.setQueryData<ManagedPlaylist[]>(["managed-playlists", loadedCount, filterFase, showArchived, sortBy, filterMissingGenre, filterGenreId], (prev) => {
+      queryClient.setQueryData<ManagedPlaylist[]>(["managed-playlists", loadedCount, filterFase, showArchived, sortBy, filterMissingGenre, filterGenreId, filterSize], (prev) => {
         const base = prev ?? [];
         return typeof updater === "function" ? (updater as (p: ManagedPlaylist[]) => ManagedPlaylist[])(base) : updater;
       });
     },
-    [queryClient, loadedCount, filterFase, showArchived, sortBy, filterMissingGenre, filterGenreId],
+    [queryClient, loadedCount, filterFase, showArchived, sortBy, filterMissingGenre, filterGenreId, filterSize],
   );
 
   // Contagens reais do catálogo inteiro (5 colunas, payload mínimo).
@@ -287,9 +292,14 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       if (filterFase !== "all" && classifyFase(r) !== filterFase) return false;
       if (filterMissingGenre && r.genre_id) return false;
       if (filterGenreId && r.genre_id !== filterGenreId) return false;
+      const f = r.followers ?? 0;
+      if (filterSize === "pequena" && !(f < 1000)) return false;
+      if (filterSize === "media" && !(f >= 1000 && f < 10000)) return false;
+      if (filterSize === "grande" && !(f >= 10000 && f < 100000)) return false;
+      if (filterSize === "top" && !(f >= 100000)) return false;
       return true;
     }).length;
-  }, [showArchived, totalArchivedCount, activeRows, filterFase, filterMissingGenre, filterGenreId, classifyFase]);
+  }, [showArchived, totalArchivedCount, activeRows, filterFase, filterMissingGenre, filterGenreId, filterSize, classifyFase]);
   const canLoadMore = items.length < loadedCount
     ? false // ainda chegando do servidor
     : items.length < totalLoadedTarget;
@@ -689,10 +699,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     })
     .slice()
     .sort((a, b) => {
-      // Ao filtrar por gênero, ordena pelas maiores (followers desc)
-      if (filterGenreId) {
-        return (b.followers ?? 0) - (a.followers ?? 0);
-      }
+      // Respeita o sort do usuário. followers/recent já vêm ordenados do server.
       if (sortBy !== "valuation") return 0;
       const va = valuations[a.spotify_playlist_id]?.valuation_score ?? -1;
       const vb = valuations[b.spotify_playlist_id]?.valuation_score ?? -1;
