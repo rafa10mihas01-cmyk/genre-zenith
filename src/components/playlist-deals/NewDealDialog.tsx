@@ -793,6 +793,22 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, isEdit, prefillSongUrl, prefillCuratorId]);
 
+  // Gap 9 — Prefill vindo de um prospect (external_curator).
+  // Força modo "new" com nome/contato do prospect e pula direto pro Step 2.
+  // A RPC fará o lookup/criação real do curador via p_external_curator_id.
+  useEffect(() => {
+    if (!open || isEdit) return;
+    if (!externalCuratorId || !externalCuratorPreview) return;
+    setStep(2);
+    setCuratorMode("new");
+    setSelectedCuratorId(null);
+    setNewCuratorName(externalCuratorPreview.name ?? "");
+    setNewCuratorContact(externalCuratorPreview.email ?? "");
+    setNewCuratorPlaysDigits("");
+    setNewCuratorCostDigits("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isEdit, externalCuratorId, externalCuratorPreview?.name]);
+
   // Auto-buscar metadados da música pré-preenchida
   useEffect(() => {
     if (!open || isEdit || !prefillSongUrl) return;
