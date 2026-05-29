@@ -1142,10 +1142,15 @@ function FinKpi({ label, value, sub }: { label: string; value: string; sub?: str
 type AuditStepRow = {
   step: string;
   label: string;
-  status: "ok" | "failed" | "skipped";
+  status: "ok" | "failed" | "pending" | "skipped";
   detail: string;
 };
-type AuditReport = { ok: boolean; campaign_id: string; steps: AuditStepRow[] };
+type AuditReport = {
+  ok: boolean;
+  campaign_id: string;
+  collection_mode: "bot" | "spreadsheet" | null;
+  steps: AuditStepRow[];
+};
 
 function AuditCampaignButton({ campaignId }: { campaignId: string }) {
   const [open, setOpen] = useState(false);
@@ -1178,13 +1183,29 @@ function AuditCampaignButton({ campaignId }: { campaignId: string }) {
   const statusStyles: Record<AuditStepRow["status"], string> = {
     ok: "bg-primary/10 text-primary border-primary/30",
     failed: "bg-destructive/15 text-destructive border-destructive/40",
+    pending: "bg-amber-500/10 text-amber-500 border-amber-500/30",
     skipped: "bg-muted text-muted-foreground border-border",
   };
   const statusLabel: Record<AuditStepRow["status"], string> = {
     ok: "OK",
     failed: "FALHOU",
-    skipped: "PULADO",
+    pending: "PENDENTE",
+    skipped: "N/A",
   };
+
+  const counts = report
+    ? report.steps.reduce(
+        (acc, s) => ({ ...acc, [s.status]: (acc[s.status] ?? 0) + 1 }),
+        { ok: 0, failed: 0, pending: 0, skipped: 0 } as Record<AuditStepRow["status"], number>,
+      )
+    : null;
+
+  const modeLabel =
+    report?.collection_mode === "spreadsheet"
+      ? "Coleta via planilha (cliente envia no portal)"
+      : report?.collection_mode === "bot"
+        ? "Coleta automática via Spotify (bot)"
+        : null;
 
   return (
     <Dialog open={open} onOpenChange={handleOpen}>
@@ -1194,16 +1215,21 @@ function AuditCampaignButton({ campaignId }: { campaignId: string }) {
           Auditar
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-card border-border">
         <DialogHeader>
           <DialogTitle>Auditoria da campanha</DialogTitle>
+          <DialogDescription>
+            Checklist do que falta pra campanha rodar. <span className="text-foreground/70">Não escreve nada no banco.</span>
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-muted-foreground">
-              Verifica as 7 invariantes do fluxo. Read-only — não escreve nada.
-            </p>
-            <Button variant="outline" size="sm" onClick={runAudit} disabled={loading}>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            {modeLabel && (
+              <span className="text-xs uppercase tracking-wider rounded border border-border bg-background/40 px-2 py-1 text-muted-foreground">
+                {modeLabel}
+              </span>
+            )}
+            <Button variant="outline" size="sm" onClick={runAudit} disabled={loading} className="ml-auto">
               {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
               Reexecutar
             </Button>
@@ -1221,17 +1247,32 @@ function AuditCampaignButton({ campaignId }: { campaignId: string }) {
             </div>
           )}
 
-          {report && (
+          {report && counts && (
             <>
+              {/* Banner-resumo: distingue erro real (FALHOU) de etapa só esperando ação (PENDENTE) */}
               <div className={cn(
-                "text-sm font-semibold rounded-lg px-3 py-2 border",
-                report.ok ? "bg-primary/10 text-primary border-primary/30" : "bg-destructive/15 text-destructive border-destructive/40",
+                "text-sm font-semibold rounded-lg px-3 py-2 border flex items-center justify-between gap-3 flex-wrap",
+                counts.failed > 0
+                  ? "bg-destructive/15 text-destructive border-destructive/40"
+                  : counts.pending > 0
+                    ? "bg-amber-500/10 text-amber-500 border-amber-500/30"
+                    : "bg-primary/10 text-primary border-primary/30",
               )}>
-                {report.ok ? "Todas as 7 etapas OK — campanha pronta pra operar" : "Há falhas — veja abaixo"}
+                <span>
+                  {counts.failed > 0
+                    ? `${counts.failed} falha(s) real(is) — precisam de correção`
+                    : counts.pending > 0
+                      ? `${counts.pending} etapa(s) aguardando ação humana`
+                      : "Tudo certo — campanha pronta pra operar"}
+                </span>
+                <span className="text-xs font-normal opacity-80">
+                  {counts.ok} ok · {counts.pending} pendente · {counts.failed} falha · {counts.skipped} N/A
+                </span>
               </div>
+
               <ul className="space-y-2">
                 {report.steps.map((s) => (
-                  <li key={s.step} className="border border-border rounded-lg p-3">
+                  <li key={s.step} className="border border-border bg-background/40 rounded-lg p-3">
                     <div className="flex items-start gap-2">
                       <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider border shrink-0 mt-0.5", statusStyles[s.status])}>
                         {statusLabel[s.status]}
@@ -1244,6 +1285,13 @@ function AuditCampaignButton({ campaignId }: { campaignId: string }) {
                   </li>
                 ))}
               </ul>
+
+              <div className="text-[11px] text-muted-foreground border-t border-border pt-3">
+                <span className="inline-flex items-center gap-1.5 mr-3"><span className="h-1.5 w-1.5 rounded-full bg-primary" /> OK = funcionando</span>
+                <span className="inline-flex items-center gap-1.5 mr-3"><span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Pendente = falta uma ação manual</span>
+                <span className="inline-flex items-center gap-1.5 mr-3"><span className="h-1.5 w-1.5 rounded-full bg-destructive" /> Falhou = problema real</span>
+                <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-muted-foreground" /> N/A = não se aplica neste modo</span>
+              </div>
             </>
           )}
         </div>
