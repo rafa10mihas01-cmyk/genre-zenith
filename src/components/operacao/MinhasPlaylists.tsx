@@ -262,10 +262,12 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     const phase = r.lifecycle_phase ?? null;
     const f = r.followers ?? 0;
     if (phase === "bloated" || phase === "decline") return "atencao";
-    if (f >= 100 && r.genre_id && (phase === "mature" || phase === "growth")) return "prontas";
+    // Prontas: 100+ seguidores. Aceita qualquer fase (inclusive seed) e qualquer estado de gênero.
+    // Quando sem genre_id, recebe badge "Sem gênero" no card (precisa classificar pra entrar em campanha).
+    if (f >= 100) return "prontas";
     if (f >= 10 && f < 100) return "crescendo";
     if (f < 10) return "novas";
-    return null; // ex.: ≥100 sem gênero ou sem fase clara
+    return null;
   }, []);
 
   const faseCounts = useMemo(() => {
