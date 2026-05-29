@@ -133,7 +133,13 @@ Deno.serve(async (req) => {
     if (typeof caps.recommended_demote === "number") demoteItems = demoteItems.slice(0, caps.recommended_demote);
     if (typeof caps.recommended_promote === "number") promoteItems = promoteItems.slice(0, caps.recommended_promote);
   }
-  let addItems = suggestions.filter((s) => s.spotify_track_id).slice(0, limitAdd);
+  // Bug A: capped_suggestions é o teto máximo de adições calculado pelo diagnóstico.
+  // limitAdd do request nunca pode exceder esse cap.
+  let effectiveLimitAdd = limitAdd;
+  if (caps && typeof caps.capped_suggestions === "number") {
+    effectiveLimitAdd = Math.min(limitAdd, caps.capped_suggestions);
+  }
+  let addItems = suggestions.filter((s) => s.spotify_track_id).slice(0, effectiveLimitAdd);
 
   // Net-positive enforcement
   const phase = (pl as any).lifecycle_phase ?? "seed";
@@ -150,6 +156,41 @@ Deno.serve(async (req) => {
     }
     if (phase === "bloated" && (action === "all" || action === "add")) {
       addItems = [];
+    }
+  }
+
+  // Bug B: em fase bloated, respeitar max_per_day de remoções consultando playlist_adjustments.
+  let bloatedRemovedToday = 0;
+  let bloatedMaxPerDay: number | null = null;
+  let bloatedSkippedRemoves = false;
+  if (phase === "bloated" && (action === "all" || action === "remove") && removeItems.length > 0) {
+    const maxPerDay = Number(caps?.max_per_day);
+    if (Number.isFinite(maxPerDay) && maxPerDay > 0) {
+      bloatedMaxPerDay = maxPerDay;
+      const startOfDay = new Date();
+      startOfDay.setUTCHours(0, 0, 0, 0);
+      const { data: todayAdj } = await supabase
+        .from("playlist_adjustments")
+        .select("details, action_type")
+        .eq("spotify_playlist_id", pl.spotify_playlist_id)
+        .gte("created_at", startOfDay.toISOString());
+      bloatedRemovedToday = (todayAdj ?? []).reduce((sum: number, row: any) => {
+        const n = Number(row?.details?.removed_count);
+        return sum + (Number.isFinite(n) ? n : 0);
+      }, 0);
+      const remaining = Math.max(0, maxPerDay - bloatedRemovedToday);
+      if (remaining <= 0) {
+        console.warn(
+          `[apply-playlist-plan] bloated max_per_day atingido (${bloatedRemovedToday}/${maxPerDay}) — pulando remoções para ${pl.spotify_playlist_id}`,
+        );
+        removeItems = [];
+        bloatedSkippedRemoves = true;
+      } else if (removeItems.length > remaining) {
+        console.warn(
+          `[apply-playlist-plan] bloated max_per_day: cortando remoções de ${removeItems.length} para ${remaining} (já removeu ${bloatedRemovedToday}/${maxPerDay} hoje)`,
+        );
+        removeItems = removeItems.slice(0, remaining);
+      }
     }
   }
 
