@@ -13,17 +13,19 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (curatorId: string, input: Partial<NewCuratorInput>) => Promise<void>;
+  onAddPurchase?: (curatorId: string, input: { plays_purchased: number; amount: number; note?: string | null }) => Promise<void>;
 }
 
 type DealType = "avulso" | "mensal";
 
-export function CuratorEditDialog({ curator, open, onOpenChange, onSave }: Props) {
+export function CuratorEditDialog({ curator, open, onOpenChange, onSave, onAddPurchase }: Props) {
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
   const [notes, setNotes] = useState("");
   const [dealType, setDealType] = useState<DealType>("avulso");
-  const [defaultAmount, setDefaultAmount] = useState<string>("");
-  const [defaultPlays, setDefaultPlays] = useState<string>("");
+  const [purchaseAmount, setPurchaseAmount] = useState<string>("");
+  const [purchasePlays, setPurchasePlays] = useState<string>("");
+  const [purchaseNote, setPurchaseNote] = useState<string>("");
   const [monthlyAmount, setMonthlyAmount] = useState<string>("");
   const [billingDay, setBillingDay] = useState<string>("");
   const [saving, setSaving] = useState(false);
@@ -34,8 +36,9 @@ export function CuratorEditDialog({ curator, open, onOpenChange, onSave }: Props
       setContact(curator.contact ?? "");
       setNotes(curator.notes ?? "");
       setDealType((curator.deal_type as DealType) ?? "avulso");
-      setDefaultAmount(curator.default_amount != null ? String(curator.default_amount) : "");
-      setDefaultPlays(curator.default_plays != null ? String(curator.default_plays) : "");
+      setPurchaseAmount("");
+      setPurchasePlays("");
+      setPurchaseNote("");
       setMonthlyAmount(curator.monthly_amount != null ? String(curator.monthly_amount) : "");
       setBillingDay(curator.billing_day != null ? String(curator.billing_day) : "");
     }
@@ -48,7 +51,7 @@ export function CuratorEditDialog({ curator, open, onOpenChange, onSave }: Props
     // Se tem vírgula, assume pt-BR: pontos = milhar, vírgula = decimal
     const normalized = cleaned.includes(",")
       ? cleaned.replace(/\./g, "").replace(",", ".")
-      : cleaned;
+      : cleaned.replace(/\.(?=\d{3}(\D|$))/g, "");
     const n = Number(normalized);
     return Number.isFinite(n) ? n : null;
   };
@@ -80,8 +83,15 @@ export function CuratorEditDialog({ curator, open, onOpenChange, onSave }: Props
       return;
     }
     const day = parseNum(billingDay);
+    const purchaseAmountNumber = parseNum(purchaseAmount) ?? 0;
+    const purchasePlaysNumber = Math.round(parseNum(purchasePlays) ?? 0);
+    const hasPurchase = purchaseAmountNumber > 0 || purchasePlaysNumber > 0;
     if (dealType === "mensal" && day != null && (day < 1 || day > 31)) {
       toast.error("Dia da cobrança deve ser entre 1 e 31");
+      return;
+    }
+    if (hasPurchase && !onAddPurchase) {
+      toast.error("Registro de compra indisponível nesta tela");
       return;
     }
     setSaving(true);
@@ -91,12 +101,17 @@ export function CuratorEditDialog({ curator, open, onOpenChange, onSave }: Props
         contact: contact.trim() || null,
         notes: notes.trim() || null,
         deal_type: dealType,
-        default_amount: parseNum(defaultAmount),
-        default_plays: parseNum(defaultPlays),
         monthly_amount: dealType === "mensal" ? parseNum(monthlyAmount) : null,
         billing_day: dealType === "mensal" ? day : null,
       });
-      toast.success("Curador atualizado");
+      if (hasPurchase && onAddPurchase) {
+        await onAddPurchase(curator.id, {
+          plays_purchased: purchasePlaysNumber,
+          amount: purchaseAmountNumber,
+          note: purchaseNote.trim() || null,
+        });
+      }
+      toast.success(hasPurchase ? "Cadastro salvo e compra registrada" : "Curador atualizado");
       onOpenChange(false);
     } catch (e) {
       console.error(e);
