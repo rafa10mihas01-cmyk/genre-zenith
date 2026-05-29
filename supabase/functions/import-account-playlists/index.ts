@@ -78,9 +78,11 @@ Deno.serve(async (req) => {
       url = j.next ?? null;
     }
 
-    // 4) filtra só as que são DO próprio usuário
-    const owned = collected.filter((p) => p.owner?.id === ownerId);
-    const others = collected.length - owned.length;
+    // 4) filtra só as que são DO próprio usuário + aplica cap por execução
+    const ownedAll = collected.filter((p) => p.owner?.id === ownerId);
+    const owned = ownedAll.slice(0, MAX_PLAYLISTS_PER_RUN);
+    const others = collected.length - ownedAll.length;
+    const deferred = ownedAll.length - owned.length;
 
     if (dryRun) {
       return jr({
@@ -89,17 +91,21 @@ Deno.serve(async (req) => {
         spotify_user_id: ownerId,
         account_id: accountId,
         total_fetched: collected.length,
-        owned_count: owned.length,
+        owned_count: ownedAll.length,
+        will_import_now: owned.length,
+        deferred_count: deferred,
         others_count: others,
         sample: owned.slice(0, 5).map((p) => ({ id: p.id, name: p.name, tracks: p.tracks?.total })),
       });
     }
 
-    // 5) enriquecimento: busca followers de CADA playlist em paralelo (lotes de 8)
+    // 5) enriquecimento followers: concorrência baixa (3) + delay de 500ms entre lotes.
+    // Antes: CONCURRENCY=8 sem delay → 100 playlists = 100 calls em ~1s → causa 429 24h.
     // /v1/me/playlists não retorna followers — só /v1/playlists/{id} retorna.
     const followersMap = new Map<string, number | null>();
-    const CONCURRENCY = 8;
+    const CONCURRENCY = 3;
     for (let i = 0; i < owned.length; i += CONCURRENCY) {
+      if (i > 0) await sleep(SPOTIFY_CALL_DELAY_MS);
       const batch = owned.slice(i, i + CONCURRENCY);
       await Promise.all(batch.map(async (p) => {
         try {
