@@ -71,6 +71,10 @@ Deno.serve(async (req) => {
     return jr({ error: "campaign_closed", message: "Campanha encerrada" }, 404);
   }
 
+  // Gate por PIN — se a campanha tem e-mails autorizados, exige JWT do portal.
+  const gate = await gateCampaignAccess(req, supabase, campRaw.id);
+  if (!gate.ok) return jr({ error: gate.error }, gate.status ?? 401);
+
   // Payload sanitizado — sem custos, sem margens, sem campos internos.
   const camp = {
     id: campRaw.id,
