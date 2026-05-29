@@ -282,7 +282,7 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
         started_at: new Date(startDate).toISOString(),
         deadline: deadline || null,
         notes: notes.trim() || null,
-        status: activate ? "active" : "draft",
+        status: "draft", // toda campanha nasce rascunho; vira "active" só quando o plano interno for aprovado.
         created_by: user?.id ?? null,
         client_id: clientId || null,
         curator_id: curatorId || null,
@@ -309,7 +309,7 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
       target_plays: i.target_override,
       weight: Number(i.suggested_weight ?? 1),
       position: idx,
-      status: activate ? "approved" : "suggested",
+      status: "suggested",
     }));
     const { error: allocErr } = await supabase.from("campaign_allocations").insert(rows);
     setBusy(false);
@@ -687,12 +687,8 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
                 <div><div className="text-muted-foreground text-xs">Término</div><div className="font-medium">{deadline || "—"}</div></div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Checkbox id="act" checked={activate} onCheckedChange={v => setActivate(!!v)} />
-              <Label htmlFor="act" className="cursor-pointer">
-                Ativar campanha imediatamente
-                <span className="text-muted-foreground font-normal"> — caso contrário fica como rascunho para você revisar e aprovar depois.</span>
-              </Label>
+            <div className="rounded-lg border border-border bg-muted/20 p-3 text-xs text-muted-foreground">
+              A campanha será criada como <span className="text-foreground font-medium">rascunho</span>. Ela só vira <span className="text-foreground font-medium">ativa</span> depois que o cliente aprovar o plano público e você aprovar o plano interno na tela de execução.
             </div>
           </div>
         )}
@@ -708,7 +704,7 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
           ) : (
             <Button onClick={submit} disabled={busy}>
               {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {activate ? "Criar e ativar" : "Salvar rascunho"}
+              Salvar rascunho
             </Button>
           )}
         </DialogFooter>
