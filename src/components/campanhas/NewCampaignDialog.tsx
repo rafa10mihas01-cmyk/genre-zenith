@@ -687,12 +687,8 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
                 <div><div className="text-muted-foreground text-xs">Término</div><div className="font-medium">{deadline || "—"}</div></div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Checkbox id="act" checked={activate} onCheckedChange={v => setActivate(!!v)} />
-              <Label htmlFor="act" className="cursor-pointer">
-                Ativar campanha imediatamente
-                <span className="text-muted-foreground font-normal"> — caso contrário fica como rascunho para você revisar e aprovar depois.</span>
-              </Label>
+            <div className="rounded-lg border border-border bg-muted/20 p-3 text-xs text-muted-foreground">
+              A campanha será criada como <span className="text-foreground font-medium">rascunho</span>. Ela só vira <span className="text-foreground font-medium">ativa</span> depois que o cliente aprovar o plano público e você aprovar o plano interno na tela de execução.
             </div>
           </div>
         )}
