@@ -1,6 +1,7 @@
 import { Check, Lock, Rocket, Loader2, CheckCircle2, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { CollectionSourceBadge } from "@/components/campanhas/CollectionSourceBadge";
 
 type GateState = "done" | "current" | "locked";
 
@@ -45,6 +46,7 @@ export type CampaignGatesCardProps = {
   clientApprovedAt: string | null;
   planApprovedAt: string | null;
   ecoDispatchedAt: string | null;
+  campaignType?: string | null;
   onApprovePlan: () => void;
   onDispatch: () => void;
   approvingPlan: boolean;
@@ -58,6 +60,7 @@ export function CampaignGatesCard({
   clientApprovedAt,
   planApprovedAt,
   ecoDispatchedAt,
+  campaignType,
   onApprovePlan,
   onDispatch,
   approvingPlan,
