@@ -5,7 +5,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
-import { getUserAccessToken, getSpotifyToken } from "../_shared/spotify.ts";
+import { getUserAccessToken, getSpotifyToken, guardedSpotifyFetch } from "../_shared/spotify.ts";
 import { getPlaylistMeta } from "../_shared/spotify-playlist.ts";
 import decodePng from "npm:@jsquash/png@3.1.0/decode.js";
 import decodeJpeg from "npm:@jsquash/jpeg@1.5.0/decode.js";
@@ -92,7 +92,7 @@ async function fetchAsCleanJpeg(url: string): Promise<EncodedCover> {
 }
 
 async function fetchSpotifyCoverUrl(spotifyPlaylistId: string, token: string): Promise<string | null> {
-  const r = await fetch(`https://api.spotify.com/v1/playlists/${spotifyPlaylistId}/images`, {
+  const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/playlists/${spotifyPlaylistId}/images`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!r.ok) return null;
@@ -184,7 +184,7 @@ Deno.serve(async (req) => {
     const b64 = uint8ToBase64(jpeg.bytes);
     console.log(`[cover] PUT ${pl.spotify_playlist_id} owner=${ownerId ?? "?"} ${jpeg.width}x${jpeg.height} q=${jpeg.quality} ${jpeg.bytes.byteLength}b base64=${b64.length}c`);
 
-    const resp = await fetch(`https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}/images`, {
+    const resp = await guardedSpotifyFetch(`https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}/images`, {
       method: "PUT",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "image/jpeg" },
       body: b64,

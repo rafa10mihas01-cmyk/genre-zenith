@@ -8,7 +8,7 @@
 // POST { dry_run?: boolean, limit?: number, min_age_hours?: number }
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getUserAccessToken } from "../_shared/spotify.ts";
+import { getUserAccessToken, guardedSpotifyFetch } from "../_shared/spotify.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
 import {
   addPlaylistTracks,
@@ -40,7 +40,7 @@ type Candidate = {
 
 // ─────────── Spotify helpers ───────────
 async function spotifyFetch(token: string, url: string, init?: RequestInit) {
-  const r = await fetch(url, {
+  const r = await guardedSpotifyFetch(url, {
     ...init,
     headers: {
       Authorization: `Bearer ${token}`,
