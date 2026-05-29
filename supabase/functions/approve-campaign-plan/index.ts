@@ -306,7 +306,8 @@ Deno.serve(async (req) => {
     .from("system_flags")
     .select("auto_deal_from_campaign")
     .maybeSingle();
-  const flagOn = !!flagRow?.auto_deal_from_campaign;
+  // Default true quando flag está ausente/null — opt-out explícito (false) é o único jeito de desligar.
+  const flagOn = flagRow?.auto_deal_from_campaign !== false;
 
   // 4) Decide se cria deal automaticamente
   const canAutoCreate =
