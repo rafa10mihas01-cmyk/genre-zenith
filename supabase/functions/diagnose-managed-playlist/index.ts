@@ -1595,7 +1595,7 @@ Deno.serve(async (req) => {
           const token = await getSpotifyToken();
           for (let i = 0; i < candidateIds.length; i += 50) {
             const slice = candidateIds.slice(i, i + 50);
-            const r = await fetch(`https://api.spotify.com/v1/tracks?ids=${slice.join(",")}`, {
+            const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/tracks?ids=${slice.join(",")}`, {
               headers: { Authorization: `Bearer ${token}` },
             });
             if (!r.ok) continue;
@@ -1609,7 +1609,10 @@ Deno.serve(async (req) => {
               if (cover) coverMap.set(tr.id, cover);
             }
           }
-        } catch { /* segue sem metadata extra */ }
+        } catch (e) {
+          if (e instanceof SpotifyCircuitOpenError) throw e;
+          /* segue sem metadata extra */
+        }
       }
 
 
