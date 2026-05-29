@@ -14,6 +14,7 @@ import {
   Trash2,
   Pause,
   Play,
+  Plus,
   ChevronLeft,
   ChevronRight,
   SlidersHorizontal,
@@ -441,6 +442,17 @@ export function CuradoresLibraryTab({
                         >
                           <ListMusic className="h-4 w-4" /> Ver biblioteca
                         </DropdownMenuItem>
+                        {onUpdateCurator && (
+                          <DropdownMenuItem
+                            className="gap-2 rounded-lg"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditing(curator);
+                            }}
+                          >
+                            <Plus className="h-4 w-4" /> Registrar compra
+                          </DropdownMenuItem>
+                        )}
                         {onUpdateCurator && (
                           <DropdownMenuItem
                             className="gap-2 rounded-lg"
