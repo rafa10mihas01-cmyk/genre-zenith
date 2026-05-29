@@ -108,31 +108,32 @@ export function CuratorEditDialog({ curator, open, onOpenChange, onSave }: Props
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md bg-card border border-border text-foreground">
         <DialogHeader>
-          <DialogTitle>Editar curador</DialogTitle>
+          <DialogTitle className="text-foreground">Editar curador</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3 py-2">
+        <div className="space-y-4 py-2">
           <div className="space-y-1.5">
-            <Label htmlFor="cur-name">Nome</Label>
-            <Input id="cur-name" value={name} onChange={(e) => setName(e.target.value)} />
+            <Label htmlFor="cur-name" className="text-foreground">Nome</Label>
+            <Input id="cur-name" value={name} onChange={(e) => setName(e.target.value)} className="bg-background border-border" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="cur-contact">Contato</Label>
+            <Label htmlFor="cur-contact" className="text-foreground">Contato</Label>
             <Input
               id="cur-contact"
               placeholder="WhatsApp, email…"
               value={contact}
               onChange={(e) => setContact(e.target.value)}
+              className="bg-background border-border"
             />
           </div>
 
-          <div className="pt-2 border-t border-border/60" />
+          <div className="pt-2 border-t border-border" />
 
           <div className="space-y-1.5">
-            <Label>Tipo do acerto</Label>
+            <Label className="text-foreground">Tipo do acerto</Label>
             <Select value={dealType} onValueChange={(v) => setDealType(v as DealType)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger className="bg-background border-border"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="avulso">Avulso (por pacote)</SelectItem>
                 <SelectItem value="mensal">Mensal (recorrente)</SelectItem>
@@ -142,59 +143,82 @@ export function CuratorEditDialog({ curator, open, onOpenChange, onSave }: Props
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="cur-amount">Valor pago (R$)</Label>
+              <Label htmlFor="cur-amount" className="text-foreground">Valor pago (R$)</Label>
               <Input
                 id="cur-amount"
                 inputMode="decimal"
                 placeholder="0,00"
                 value={defaultAmount}
-                onChange={(e) => setDefaultAmount(e.target.value)}
+                onChange={handleBRLChange(setDefaultAmount)}
+                onBlur={() => setDefaultAmount(formatBRL(defaultAmount))}
+                className="bg-background border-border font-mono"
               />
+              {parseNum(defaultAmount) != null && (
+                <p className="text-xs text-muted-foreground">
+                  R$ {parseNum(defaultAmount)!.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              )}
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="cur-plays">Plays comprados</Label>
+              <Label htmlFor="cur-plays" className="text-foreground">Plays comprados</Label>
               <Input
                 id="cur-plays"
                 inputMode="numeric"
                 placeholder="0"
                 value={defaultPlays}
-                onChange={(e) => setDefaultPlays(e.target.value)}
+                onChange={handleIntChange(setDefaultPlays)}
+                onBlur={() => setDefaultPlays(formatInt(defaultPlays))}
+                className="bg-background border-border font-mono"
               />
+              {parseNum(defaultPlays) != null && (
+                <p className="text-xs text-muted-foreground">
+                  {Math.round(parseNum(defaultPlays)!).toLocaleString("pt-BR")} plays
+                </p>
+              )}
             </div>
           </div>
 
           {dealType === "mensal" && (
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="cur-monthly">Valor mensal (R$)</Label>
+                <Label htmlFor="cur-monthly" className="text-foreground">Valor mensal (R$)</Label>
                 <Input
                   id="cur-monthly"
                   inputMode="decimal"
                   placeholder="0,00"
                   value={monthlyAmount}
-                  onChange={(e) => setMonthlyAmount(e.target.value)}
+                  onChange={handleBRLChange(setMonthlyAmount)}
+                  onBlur={() => setMonthlyAmount(formatBRL(monthlyAmount))}
+                  className="bg-background border-border font-mono"
                 />
+                {parseNum(monthlyAmount) != null && (
+                  <p className="text-xs text-muted-foreground">
+                    R$ {parseNum(monthlyAmount)!.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mês
+                  </p>
+                )}
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="cur-day">Dia da cobrança</Label>
+                <Label htmlFor="cur-day" className="text-foreground">Dia da cobrança</Label>
                 <Input
                   id="cur-day"
                   inputMode="numeric"
                   placeholder="1–31"
                   value={billingDay}
-                  onChange={(e) => setBillingDay(e.target.value)}
+                  onChange={(e) => setBillingDay(e.target.value.replace(/\D/g, "").slice(0, 2))}
+                  className="bg-background border-border font-mono"
                 />
               </div>
             </div>
           )}
 
           <div className="space-y-1.5 pt-1">
-            <Label htmlFor="cur-notes">Notas</Label>
+            <Label htmlFor="cur-notes" className="text-foreground">Notas</Label>
             <Textarea
               id="cur-notes"
               rows={3}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
+              className="bg-background border-border"
             />
           </div>
         </div>
