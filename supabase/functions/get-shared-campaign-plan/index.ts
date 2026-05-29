@@ -74,8 +74,12 @@ Deno.serve(async (req) => {
     return jr({ error: "campaign_closed", message: "Campanha encerrada" }, 404);
   }
 
-  // Link público do plano é SEMPRE livre — sem PIN, sem senha.
-  // (gate removido a pedido do produto: plano de entrega não pode bloquear)
+  // Gate por PIN — só no portal completo. Modo mapa (?view=mapa) é sempre público.
+  if (!isMapView) {
+    const gate = await gateCampaignAccess(req, supabase, campRaw.id);
+    if (!gate.ok) return jr({ error: gate.error }, gate.status ?? 401);
+  }
+
 
   // Payload sanitizado — sem custos, sem margens, sem campos internos.
   const camp = {
