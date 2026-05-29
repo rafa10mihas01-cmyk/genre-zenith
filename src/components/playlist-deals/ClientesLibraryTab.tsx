@@ -219,7 +219,7 @@ export function ClientesLibraryTab({ deals, songs, loading, financeByClient }: P
       {(loading || loadingClients) && rows.length === 0 ? (
         <div className="flex flex-col gap-2">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="h-[88px] rounded-2xl border border-border/50 bg-card animate-pulse" />
+            <div key={i} className="h-[88px] rounded-2xl border border-border/50 bg-card skeleton-fade" />
           ))}
         </div>
       ) : rows.length === 0 ? (
