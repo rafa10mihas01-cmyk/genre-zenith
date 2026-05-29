@@ -68,10 +68,21 @@ export async function openSpotifyCircuitBreaker(retryAfterSec?: number | null, a
   }, { onConflict: "app_id" });
 }
 
+// Endpoints que NÃO devem ser bloqueados pelo circuit breaker.
+// accounts.spotify.com/api/token = refresh OAuth (quota separada de Web API).
+// Se bloquearmos isso quando breaker abre, tokens expiram e voltamos com 401 em cascata.
+function isCircuitBypassUrl(rawUrl: string): boolean {
+  try {
+    const u = new URL(rawUrl);
+    if (u.hostname === "accounts.spotify.com" && u.pathname === "/api/token") return true;
+  } catch { /* ignore */ }
+  return false;
+}
+
 export async function guardedSpotifyFetch(url: string, init: RequestInit = {}, appId = "global"): Promise<Response> {
-  await assertSpotifyCircuitClosed(appId);
+  if (!isCircuitBypassUrl(url)) await assertSpotifyCircuitClosed(appId);
   const r = await spotifyOriginalFetch(url, init);
-  if (r.status === 429) {
+  if (r.status === 429 && !isCircuitBypassUrl(url)) {
     const ra = Number(r.headers.get("Retry-After") ?? r.headers.get("retry-after") ?? "");
     await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60, appId);
   }
@@ -88,9 +99,11 @@ function installSpotifyCircuitFetchGuard() {
     try { host = new URL(rawUrl).hostname; } catch { /* ignore */ }
     const isSpotify = host === "api.spotify.com" || host === "accounts.spotify.com" || host.endsWith(".spotify.com");
     if (!isSpotify) return spotifyOriginalFetch(input, init);
-    await assertSpotifyCircuitClosed();
+    // Whitelist: refresh de token NUNCA é bloqueado pelo breaker.
+    const bypass = isCircuitBypassUrl(rawUrl);
+    if (!bypass) await assertSpotifyCircuitClosed();
     const r = await spotifyOriginalFetch(input, init);
-    if (r.status === 429) {
+    if (r.status === 429 && !bypass) {
       const ra = Number(r.headers.get("Retry-After") ?? r.headers.get("retry-after") ?? "");
       await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60);
     }
@@ -167,7 +180,8 @@ export async function getAppCredentials(appId?: string | null): Promise<SpotifyA
 export async function getSpotifyToken(forceRefresh = false): Promise<string> {
   const supabase = db();
 
-  await assertSpotifyCircuitClosed();
+  // NOTE: NÃO chamamos assertSpotifyCircuitClosed aqui — refresh de token
+  // usa accounts.spotify.com (quota separada) e deve sempre passar.
 
   if (!forceRefresh) {
     const { data } = await supabase
@@ -226,7 +240,7 @@ export type SpotifyUserToken = {
 /** Faz refresh do token de usuário usando o app correto e persiste. */
 async function refreshUserToken(row: SpotifyUserToken): Promise<string> {
   const creds = await getAppCredentials(row.app_id);
-  await assertSpotifyCircuitClosed(row.app_id ?? "global");
+  // NOTE: NÃO chamamos assertSpotifyCircuitClosed — refresh é em accounts.spotify.com (whitelisted).
   const basic = btoa(`${creds.client_id}:${creds.client_secret}`);
   const resp = await fetch("https://accounts.spotify.com/api/token", {
     method: "POST",
@@ -271,7 +285,9 @@ export async function getUserAccessToken(userId?: string): Promise<{ token: stri
   if (!data) throw new Error("Nenhuma conta Spotify conectada. Conecte em Configurações primeiro.");
 
   const row = data as SpotifyUserToken;
-  await assertSpotifyCircuitClosed(row.app_id ?? "global");
+  // NOTE: NÃO bloqueamos leitura/refresh do token aqui. Se o caller usar o token
+  // para chamar api.spotify.com, o guard global já bloqueia. Refresh em accounts.spotify.com
+  // está na whitelist e deve sempre funcionar (mesmo com breaker open).
   const expiresMs = new Date(row.expires_at).getTime();
   if (expiresMs > Date.now() + 60_000) return { token: row.access_token, row };
   const fresh = await refreshUserToken(row);

@@ -39,6 +39,12 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json().catch(() => ({}));
     const dryRun: boolean = body?.dry_run === true;
+    // Throttle: cap de playlists por execução (default 50) + delays entre calls.
+    // Sem isso, conectar 1 conta com 100+ playlists gera 200+ chamadas em rajada
+    // ao Spotify e dispara o rate limit de 86400s.
+    const MAX_PLAYLISTS_PER_RUN: number = Math.max(1, Math.min(Number(body?.max_playlists ?? 50), 200));
+    const SPOTIFY_CALL_DELAY_MS = 500; // entre chamadas individuais
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
     // 1) token OAuth da conta padrão (Baile Hits Oficial hoje)
     const { token, row } = await getUserAccessToken(body?.spotify_user_id ?? undefined);
@@ -54,12 +60,14 @@ Deno.serve(async (req) => {
       .maybeSingle();
     const accountId: string | null = acc?.id ?? null;
 
-    // 3) paginação /v1/me/playlists
+    // 3) paginação /v1/me/playlists — limit=50 por página + 500ms entre páginas
     const collected: SpotifyPlaylistItem[] = [];
     let url: string | null = "https://api.spotify.com/v1/me/playlists?limit=50";
     let safety = 0;
+    let pageIdx = 0;
     while (url && safety < 20) {
       safety++;
+      if (pageIdx++ > 0) await sleep(SPOTIFY_CALL_DELAY_MS);
       const r: Response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (!r.ok) {
         const t = await r.text();
@@ -70,9 +78,11 @@ Deno.serve(async (req) => {
       url = j.next ?? null;
     }
 
-    // 4) filtra só as que são DO próprio usuário
-    const owned = collected.filter((p) => p.owner?.id === ownerId);
-    const others = collected.length - owned.length;
+    // 4) filtra só as que são DO próprio usuário + aplica cap por execução
+    const ownedAll = collected.filter((p) => p.owner?.id === ownerId);
+    const owned = ownedAll.slice(0, MAX_PLAYLISTS_PER_RUN);
+    const others = collected.length - ownedAll.length;
+    const deferred = ownedAll.length - owned.length;
 
     if (dryRun) {
       return jr({
@@ -81,17 +91,21 @@ Deno.serve(async (req) => {
         spotify_user_id: ownerId,
         account_id: accountId,
         total_fetched: collected.length,
-        owned_count: owned.length,
+        owned_count: ownedAll.length,
+        will_import_now: owned.length,
+        deferred_count: deferred,
         others_count: others,
         sample: owned.slice(0, 5).map((p) => ({ id: p.id, name: p.name, tracks: p.tracks?.total })),
       });
     }
 
-    // 5) enriquecimento: busca followers de CADA playlist em paralelo (lotes de 8)
+    // 5) enriquecimento followers: concorrência baixa (3) + delay de 500ms entre lotes.
+    // Antes: CONCURRENCY=8 sem delay → 100 playlists = 100 calls em ~1s → causa 429 24h.
     // /v1/me/playlists não retorna followers — só /v1/playlists/{id} retorna.
     const followersMap = new Map<string, number | null>();
-    const CONCURRENCY = 8;
+    const CONCURRENCY = 3;
     for (let i = 0; i < owned.length; i += CONCURRENCY) {
+      if (i > 0) await sleep(SPOTIFY_CALL_DELAY_MS);
       const batch = owned.slice(i, i + CONCURRENCY);
       await Promise.all(batch.map(async (p) => {
         try {
@@ -234,7 +248,8 @@ Deno.serve(async (req) => {
         { name: "snapshot-playlist-tracks", bodyKey: "playlist_id", timeoutMs: 60_000 },
         { name: "playlist-brain-calc", bodyKey: "playlist_id", timeoutMs: 45_000 },
       ] as const;
-      const PIPELINE_CONCURRENCY = 4;
+      const PIPELINE_CONCURRENCY = 2; // antes: 4 — reduzido pra não saturar Spotify
+      const PIPELINE_BATCH_DELAY_MS = 500; // delay entre lotes
 
       const callStep = async (step: typeof PIPELINE_STEPS[number], playlistId: string) => {
         const ctrl = new AbortController();
@@ -261,10 +276,12 @@ Deno.serve(async (req) => {
 
       const runPipeline = async () => {
         for (let i = 0; i < importedIds.length; i += PIPELINE_CONCURRENCY) {
+          if (i > 0) await sleep(PIPELINE_BATCH_DELAY_MS);
           const batch = importedIds.slice(i, i + PIPELINE_CONCURRENCY);
           await Promise.all(batch.map(async (pid) => {
             for (const step of PIPELINE_STEPS) {
               await callStep(step, pid);
+              await sleep(SPOTIFY_CALL_DELAY_MS); // 500ms entre steps por playlist
             }
           }));
         }
@@ -286,11 +303,14 @@ Deno.serve(async (req) => {
       spotify_user_id: ownerId,
       account_id: accountId,
       total_fetched: collected.length,
-      owned_count: owned.length,
+      owned_count: ownedAll.length,
+      processed_now: owned.length,
+      deferred_count: deferred,
       others_count: others,
       imported,
       skipped,
       pipeline_dispatched: importedIds.length,
+      throttle: { max_per_run: MAX_PLAYLISTS_PER_RUN, call_delay_ms: SPOTIFY_CALL_DELAY_MS },
     });
   } catch (e) {
     return jr({ ok: false, error: (e as Error).message }, 500);

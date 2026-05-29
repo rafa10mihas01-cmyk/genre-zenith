@@ -100,18 +100,26 @@ Deno.serve(async (req) => {
       if (!r.ok) {
         const txt = await r.text();
         failCount++;
-        await sb.from("collection_logs").insert({
-          acao: "spotify_refresh_failed",
-          status: "erro",
-          mensagem: `${acc.spotify_user_id}: ${r.status} ${txt.slice(0, 200)}`,
-        });
-        await sb.rpc("create_notification", {
-          p_type: "error",
-          p_title: "Spotify token falhou refresh ⚠️",
-          p_message: `Conta ${acc.spotify_user_id} precisa reconectar (HTTP ${r.status}).`,
-          p_action_url: "/configuracoes",
-          p_metadata: { account: acc.spotify_user_id, http: r.status },
-        }).then(() => {}, (e) => console.error("[spotify-token-watchdog] log/op failed:", e?.message ?? e));
+        try {
+          await sb.from("collection_logs").insert({
+            acao: "spotify_refresh_failed",
+            status: "erro",
+            mensagem: `${acc.spotify_user_id}: ${r.status} ${txt.slice(0, 200)}`,
+          });
+        } catch (e) {
+          console.error("[spotify-token-watchdog] log insert failed:", (e as Error)?.message ?? e);
+        }
+        try {
+          await sb.rpc("create_notification", {
+            p_type: "error",
+            p_title: "Spotify token falhou refresh ⚠️",
+            p_message: `Conta ${acc.spotify_user_id} precisa reconectar (HTTP ${r.status}).`,
+            p_action_url: "/configuracoes",
+            p_metadata: { account: acc.spotify_user_id, http: r.status },
+          });
+        } catch (e) {
+          console.error("[spotify-token-watchdog] notification rpc failed:", (e as Error)?.message ?? e);
+        }
         results.push({ account: acc.spotify_user_id, ok: false, status: r.status });
         continue;
       }
@@ -176,12 +184,16 @@ Deno.serve(async (req) => {
 
   // 📊 Heartbeat sempre — prova que o cron rodou
   const dur = Date.now() - startedAt;
-  await sb.from("collection_logs").insert({
-    acao: "spotify_token_watchdog",
-    status: failCount > 0 || appTokenError ? "warning" : "sucesso",
-    duracao_ms: dur,
-    mensagem: `checked=${accounts?.length ?? 0} ok=${okCount} fail=${failCount} app_refreshed=${appTokenRefreshed}${appTokenError ? ` app_err=${appTokenError}` : ""}`,
-  }).then(() => {}, (e) => console.error("[spotify-token-watchdog] log/op failed:", e?.message ?? e));
+  try {
+    await sb.from("collection_logs").insert({
+      acao: "spotify_token_watchdog",
+      status: failCount > 0 || appTokenError ? "warning" : "sucesso",
+      duracao_ms: dur,
+      mensagem: `checked=${accounts?.length ?? 0} ok=${okCount} fail=${failCount} app_refreshed=${appTokenRefreshed}${appTokenError ? ` app_err=${appTokenError}` : ""}`,
+    });
+  } catch (e) {
+    console.error("[spotify-token-watchdog] heartbeat log failed:", (e as Error)?.message ?? e);
+  }
 
   await reportCronHealth(sb, {
     job_name: "spotify-token-watchdog",

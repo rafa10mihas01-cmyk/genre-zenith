@@ -4,7 +4,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
-import { getSpotifyToken } from "../_shared/spotify.ts";
+import { getSpotifyToken, SpotifyCircuitOpenError } from "../_shared/spotify.ts";
 import { listPlaylistTracksRich } from "../_shared/spotify-playlist.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -18,11 +18,17 @@ function jr(p: unknown, status = 200) {
 }
 
 async function spotifyFetch(token: string, url: string): Promise<any> {
-  const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  // NOTE: guard global trata breaker. SpotifyCircuitOpenError → abort imediato, sem retry.
+  let r: Response;
+  try {
+    r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  } catch (e) {
+    if (e instanceof SpotifyCircuitOpenError) throw e;
+    throw e;
+  }
   if (r.status === 429) {
-    const retry = Number(r.headers.get("retry-after") ?? "2");
-    await new Promise((res) => setTimeout(res, (retry + 1) * 1000));
-    return spotifyFetch(token, url);
+    const txt = await r.text().catch(() => "");
+    throw new Error(`Spotify 429 (breaker aberto): ${txt.slice(0, 180)}`);
   }
   if (!r.ok) {
     const txt = await r.text();

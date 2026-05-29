@@ -7,7 +7,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
-import { getSpotifyToken } from "../_shared/spotify.ts";
+import { getSpotifyToken, SpotifyCircuitOpenError } from "../_shared/spotify.ts";
 import { getPlaylistMeta } from "../_shared/spotify-playlist.ts";
 import {
   loadGateContext,
@@ -45,11 +45,19 @@ function defaultTerms(slug: string, nome: string): string[] {
 }
 
 async function spotifyFetch(token: string, url: string): Promise<any> {
-  const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  // NOTE: o guard global em _shared/spotify.ts já trata circuit breaker.
+  // Se breaker estiver aberto, lança SpotifyCircuitOpenError — propagamos sem retry.
+  let r: Response;
+  try {
+    r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  } catch (e) {
+    if (e instanceof SpotifyCircuitOpenError) throw e; // abort imediato
+    throw e;
+  }
   if (r.status === 429) {
-    const retry = Number(r.headers.get("retry-after") ?? "2");
-    await new Promise((res) => setTimeout(res, (retry + 1) * 1000));
-    return spotifyFetch(token, url);
+    // Não fazemos retry local — o guard já abriu o breaker; chamadas seguintes vão abortar.
+    const txt = await r.text().catch(() => "");
+    throw new Error(`spotify 429 (breaker aberto): ${txt.slice(0, 180)}`);
   }
   if (!r.ok) {
     const t = await r.text();
