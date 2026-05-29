@@ -1,5 +1,5 @@
 // monitor-critical-crons
-// Roda a cada hora via pg_cron. Verifica os crons críticos no cron_health:
+// Roda a cada hora via pg_cron. Verifica os crons críticos em cron_health:
 // se a última execução foi há mais de 2 horas (ou nunca aconteceu),
 // dispara notificação warning via RPC create_notification.
 //
@@ -8,9 +8,8 @@
 //   - sync-managed-playlists
 //   - wave1-enrich-batch
 //
-// Idempotência: antes de criar notificação nova, verifica se já existe
-// uma notificação não-lida do mesmo cron nas últimas 6 horas — evita
-// floodar o sino quando o cron fica horas/dias parado.
+// Dedupe: usa p_dedupe_key + p_cooldown_minutes nativos da RPC
+// (cooldown de 6h por cron para não floodar o sino).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -21,7 +20,7 @@ const CRITICAL_CRONS = [
 ] as const;
 
 const STALE_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2h
-const DEDUPE_WINDOW_MS = 6 * 60 * 60 * 1000; // 6h
+const COOLDOWN_MINUTES = 6 * 60; // 6h entre re-notificações
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -41,7 +40,6 @@ Deno.serve(async (req) => {
   });
 
   const now = Date.now();
-  const dedupeCutoff = new Date(now - DEDUPE_WINDOW_MS).toISOString();
   const results: Array<{
     job: string;
     status: "ok" | "stale" | "never_ran";
@@ -50,7 +48,6 @@ Deno.serve(async (req) => {
   }> = [];
 
   for (const job of CRITICAL_CRONS) {
-    // 1) Última execução registrada em cron_health
     const { data: rows, error } = await admin
       .from("cron_health")
       .select("ran_at")
@@ -63,7 +60,7 @@ Deno.serve(async (req) => {
       continue;
     }
 
-    const lastRunIso = rows?.[0]?.ran_at ?? null;
+    const lastRunIso = (rows?.[0]?.ran_at as string | undefined) ?? null;
     const lastRunMs = lastRunIso ? new Date(lastRunIso).getTime() : null;
     const isStale = lastRunMs == null || now - lastRunMs > STALE_THRESHOLD_MS;
     const status: "ok" | "stale" | "never_ran" = !isStale
@@ -77,30 +74,21 @@ Deno.serve(async (req) => {
       continue;
     }
 
-    // 2) Dedupe: já existe notificação não-lida pra esse cron nas últimas 6h?
-    const titleMatch = `Cron crítico inativo: ${job}`;
-    const { count: existing } = await admin
-      .from("notifications")
-      .select("id", { count: "exact", head: true })
-      .eq("title", titleMatch)
-      .eq("read", false)
-      .gte("created_at", dedupeCutoff);
-
-    if ((existing ?? 0) > 0) {
-      results.push({ job, status, last_run: lastRunIso, notified: false });
-      continue;
-    }
-
-    // 3) Cria notificação warning
-    const body = lastRunMs
-      ? `Última execução há ${Math.round((now - lastRunMs) / (60 * 60 * 1000))}h. Verifique o agendamento.`
+    const hoursIdle = lastRunMs
+      ? Math.round((now - lastRunMs) / (60 * 60 * 1000))
+      : null;
+    const message = hoursIdle != null
+      ? `Última execução há ${hoursIdle}h. Verifique o agendamento.`
       : `Sem registros de execução. Verifique se o cron está habilitado.`;
 
     const { error: notifErr } = await admin.rpc("create_notification", {
-      p_title: titleMatch,
-      p_body: body,
-      p_severity: "warning",
-      p_link: "/sistema?tab=saude",
+      p_type: "warning",
+      p_title: `Cron crítico inativo: ${job}`,
+      p_message: message,
+      p_action_url: "/sistema?tab=saude",
+      p_metadata: { job, last_run: lastRunIso, hours_idle: hoursIdle },
+      p_dedupe_key: `cron-stale:${job}`,
+      p_cooldown_minutes: COOLDOWN_MINUTES,
     });
 
     if (notifErr) {
@@ -112,15 +100,20 @@ Deno.serve(async (req) => {
     results.push({ job, status, last_run: lastRunIso, notified: true });
   }
 
-  // Registra a própria execução em cron_health pra observabilidade.
   await admin.from("cron_health").insert({
     job_name: "monitor-critical-crons",
     status: "ok",
-    metrics: { checked: results.length, notified: results.filter((r) => r.notified).length },
+    metrics: {
+      checked: results.length,
+      notified: results.filter((r) => r.notified).length,
+    },
   });
 
-  return new Response(JSON.stringify({ checked_at: new Date().toISOString(), results }), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-    status: 200,
-  });
+  return new Response(
+    JSON.stringify({ checked_at: new Date().toISOString(), results }),
+    {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
+    },
+  );
 });
