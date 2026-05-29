@@ -41,11 +41,36 @@ export function CuratorEditDialog({ curator, open, onOpenChange, onSave }: Props
     }
   }, [curator]);
 
+  // Aceita "R$ 11.700,50", "11.700,50", "11700.50", etc.
   const parseNum = (v: string): number | null => {
-    const cleaned = v.replace(",", ".").trim();
+    const cleaned = v.replace(/[^\d,.-]/g, "").trim();
     if (!cleaned) return null;
-    const n = Number(cleaned);
+    // Se tem vírgula, assume pt-BR: pontos = milhar, vírgula = decimal
+    const normalized = cleaned.includes(",")
+      ? cleaned.replace(/\./g, "").replace(",", ".")
+      : cleaned;
+    const n = Number(normalized);
     return Number.isFinite(n) ? n : null;
+  };
+
+  const formatBRL = (v: string): string => {
+    const n = parseNum(v);
+    if (n == null) return v;
+    return n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  const formatInt = (v: string): string => {
+    const n = parseNum(v);
+    if (n == null) return v;
+    return Math.round(n).toLocaleString("pt-BR");
+  };
+
+  const handleBRLChange = (setter: (v: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Permite digitar livremente; só limita caracteres válidos
+    setter(e.target.value.replace(/[^\d,.-]/g, ""));
+  };
+  const handleIntChange = (setter: (v: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setter(e.target.value.replace(/[^\d.]/g, ""));
   };
 
   const handleSave = async () => {
