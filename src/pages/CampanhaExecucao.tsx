@@ -43,6 +43,7 @@ import type { CampaignHubCampaign, CampaignHubTabId, EcoAllocation } from "@/com
 import { Kpi } from "@/components/ui/kpi";
 import { toast } from "sonner";
 import type { Json } from "@/integrations/supabase/types";
+import { PlanHistoryTab } from "@/components/campaign-hub/tabs/PlanHistoryTab";
 
 type EcoSnap = {
   id: string;
