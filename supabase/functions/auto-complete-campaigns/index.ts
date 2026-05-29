@@ -156,6 +156,8 @@ async function notifyCampaignCompleted(sb: any, campaign: any, delivered: number
     }));
   }
 }
+
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   const sb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
