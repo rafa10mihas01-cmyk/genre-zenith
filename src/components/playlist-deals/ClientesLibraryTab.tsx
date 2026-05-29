@@ -682,6 +682,8 @@ export function ClientFormDialog({
   const [paymentTerms, setPaymentTerms] = useState("");
   const [tagsText, setTagsText] = useState("");
   const [notes, setNotes] = useState("");
+  const [logoUrl, setLogoUrl] = useState("");
+  const [brandColor, setBrandColor] = useState("");
   const [saving, setSaving] = useState(false);
 
   // sincroniza ao abrir
