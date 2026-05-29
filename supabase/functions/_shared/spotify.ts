@@ -68,10 +68,21 @@ export async function openSpotifyCircuitBreaker(retryAfterSec?: number | null, a
   }, { onConflict: "app_id" });
 }
 
+// Endpoints que NÃO devem ser bloqueados pelo circuit breaker.
+// accounts.spotify.com/api/token = refresh OAuth (quota separada de Web API).
+// Se bloquearmos isso quando breaker abre, tokens expiram e voltamos com 401 em cascata.
+function isCircuitBypassUrl(rawUrl: string): boolean {
+  try {
+    const u = new URL(rawUrl);
+    if (u.hostname === "accounts.spotify.com" && u.pathname === "/api/token") return true;
+  } catch { /* ignore */ }
+  return false;
+}
+
 export async function guardedSpotifyFetch(url: string, init: RequestInit = {}, appId = "global"): Promise<Response> {
-  await assertSpotifyCircuitClosed(appId);
+  if (!isCircuitBypassUrl(url)) await assertSpotifyCircuitClosed(appId);
   const r = await spotifyOriginalFetch(url, init);
-  if (r.status === 429) {
+  if (r.status === 429 && !isCircuitBypassUrl(url)) {
     const ra = Number(r.headers.get("Retry-After") ?? r.headers.get("retry-after") ?? "");
     await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60, appId);
   }
@@ -88,9 +99,11 @@ function installSpotifyCircuitFetchGuard() {
     try { host = new URL(rawUrl).hostname; } catch { /* ignore */ }
     const isSpotify = host === "api.spotify.com" || host === "accounts.spotify.com" || host.endsWith(".spotify.com");
     if (!isSpotify) return spotifyOriginalFetch(input, init);
-    await assertSpotifyCircuitClosed();
+    // Whitelist: refresh de token NUNCA é bloqueado pelo breaker.
+    const bypass = isCircuitBypassUrl(rawUrl);
+    if (!bypass) await assertSpotifyCircuitClosed();
     const r = await spotifyOriginalFetch(input, init);
-    if (r.status === 429) {
+    if (r.status === 429 && !bypass) {
       const ra = Number(r.headers.get("Retry-After") ?? r.headers.get("retry-after") ?? "");
       await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60);
     }
