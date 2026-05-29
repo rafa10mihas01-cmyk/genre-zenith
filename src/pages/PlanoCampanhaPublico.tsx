@@ -381,6 +381,7 @@ export default function PlanoCampanhaPublico() {
     setAdjusting(true);
     const { data, error } = await supabase.functions.invoke("client-request-adjustment", {
       body: { token, message: adjustMsg.trim(), requester_name: adjustName.trim() || null },
+      headers: portalHeaders(token),
     });
     setAdjusting(false);
     const errMsg = error?.message || (data && (data as any).ok === false ? (data as any).error : null);
