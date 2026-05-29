@@ -139,9 +139,22 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
 
   const setFilterMissingGenre = (v: boolean | ((prev: boolean) => boolean)) => {
     const next = typeof v === "function" ? (v as any)(filterMissingGenre) : v;
-    updateParam("sem_genero", next ? "1" : null);
+    // Mutuamente exclusivo com filtro de gênero específico
+    setSearchParams(prev => {
+      const np = new URLSearchParams(prev);
+      if (next) { np.set("sem_genero", "1"); np.delete("genero"); }
+      else np.delete("sem_genero");
+      return np;
+    }, { replace: true });
   };
-  const setFilterGenreId = (v: string | null) => updateParam("genero", v);
+  const setFilterGenreId = (v: string | null) => {
+    setSearchParams(prev => {
+      const np = new URLSearchParams(prev);
+      if (v) { np.set("genero", v); np.delete("sem_genero"); }
+      else np.delete("genero");
+      return np;
+    }, { replace: true });
+  };
   const setFilterSize = (v: "all" | "pequena" | "media" | "grande" | "top") => updateParam("tamanho", v);
   const setFilterFase = (v: "all" | "prontas" | "crescendo" | "novas" | "atencao") => updateParam("fase", v);
   const setShowArchived = (v: boolean) => {
