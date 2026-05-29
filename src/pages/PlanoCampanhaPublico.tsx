@@ -165,29 +165,58 @@ export default function PlanoCampanhaPublico() {
   const [adjusting, setAdjusting] = useState(false);
 
   // ─── Gate por e-mail+OTP (opt-in por campanha) ───
-  // Comportamento:
-  //   1) checa via edge se a campanha exige PIN (operador cadastrou e-mails
-  //      em CampaignAccessManager). Se não exige → segue direto, sem fricção.
-  //   2) Se exige, lê JWT salvo em localStorage (chave campaign_access_jwt:<token>).
-  //      Válido por 24h. Sem JWT válido → renderiza <CampaignAccessGate />.
-  //   3) Quem completou OTP nas últimas 24h passa direto.
-  // Plano de entrega é SEMPRE público — nenhum gate, nenhuma senha.
-  const [gateChecked] = useState(true);
-  const [gateRequired] = useState(false);
-  const [gateAuthed] = useState(true);
+  // Plano completo (/p/plano/<token>): pode pedir PIN se o operador
+  // cadastrar e-mails autorizados em CampaignAccessManager.
+  // Mapa (/p/plano/<token>?view=mapa): SEMPRE público, ignora o gate.
+  const isMapView = typeof window !== "undefined"
+    && new URLSearchParams(window.location.search).get("view") === "mapa";
 
+  const [gateChecked, setGateChecked] = useState(isMapView);
+  const [gateRequired, setGateRequired] = useState(false);
+  const [gateAuthed, setGateAuthed] = useState(isMapView);
+
+  useEffect(() => {
+    if (!token || isMapView) return;
+    let cancelled = false;
+    (async () => {
+      // 1) JWT salvo ainda válido? Se sim, libera sem pedir nada.
+      try {
+        const raw = localStorage.getItem(`campaign_access_jwt:${token}`);
+        if (raw) {
+          const parsed = JSON.parse(raw) as { jwt?: string; exp?: number };
+          if (parsed?.jwt && parsed?.exp && parsed.exp > Date.now()) {
+            if (!cancelled) { setGateAuthed(true); setGateChecked(true); }
+            return;
+          }
+        }
+      } catch { /* ignore */ }
+
+      // 2) Pergunta ao backend se essa campanha exige PIN.
+      const { data } = await supabase.functions.invoke("check-campaign-access", {
+        body: { token },
+      });
+      if (cancelled) return;
+      const required = Boolean((data as any)?.required);
+      setGateRequired(required);
+      setGateChecked(true);
+      if (!required) setGateAuthed(true);
+    })();
+    return () => { cancelled = true; };
+  }, [token, isMapView]);
 
   async function load() {
     if (!token) return;
     setLoading(true);
     const { data, error } = await supabase.functions.invoke("get-shared-campaign-plan", {
-      body: { token },
+      body: { token, view: isMapView ? "mapa" : undefined },
       headers: portalHeaders(token),
     });
     const payload = data as SharedCampaignPlanResponse | null;
-    // Sessão expirada/invalida — sem gate agora, apenas mostra erro.
+    // Sessão expirada/inválida → derruba JWT cacheado e força gate de novo.
     if ((payload?.error === "auth_required" || payload?.error === "invalid_session" || payload?.error === "wrong_campaign") && token) {
-      setErr(payload?.error ?? "Erro");
+      try { localStorage.removeItem(accessStorageKey(token)); } catch { /* ignore */ }
+      setGateAuthed(false);
+      setGateRequired(true);
       setLoading(false);
       return;
     }
@@ -210,7 +239,7 @@ export default function PlanoCampanhaPublico() {
     setLoading(false);
   }
 
-  // Só carrega dados depois que o gate liberou.
+  // Só carrega dados depois que o gate liberou (mapa libera de cara).
   useEffect(() => { if (gateAuthed) load(); /* eslint-disable-next-line */ }, [token, gateAuthed]);
 
   // Após termos o client_token (resolvido pela edge get-shared-campaign-plan),
@@ -294,7 +323,16 @@ export default function PlanoCampanhaPublico() {
 
   if (!token) return null;
 
-  // Gate removido — plano é sempre público.
+  // Gate UI — exibido antes de qualquer fetch de dados sensíveis.
+  // Não aparece no modo mapa (isMapView libera de cara).
+  if (gateChecked && gateRequired && !gateAuthed) {
+    return (
+      <CampaignAccessGate
+        token={token}
+        onAuthed={() => setGateAuthed(true)}
+      />
+    );
+  }
 
 
   if (loading) {

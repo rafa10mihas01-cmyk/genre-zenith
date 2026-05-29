@@ -39,14 +39,17 @@ Deno.serve(async (req) => {
 
 
   let token = "";
+  let view = "";
   try {
     const body = await req.json();
     token = String(body?.token ?? "").trim();
+    view = String(body?.view ?? "").trim();
   } catch (_) { /* ignore */ }
 
   if (!token || token.length < 16 || !/^[a-zA-Z0-9_-]+$/.test(token)) {
     return jr({ error: "invalid_token" }, 400);
   }
+  const isMapView = view === "mapa";
 
   // Acesso público token-only: quem tem o link entra direto.
   // Token é unguessable (>=16 chars, base64url) e revogável via rotação em campaigns.public_plan_token.
@@ -71,8 +74,12 @@ Deno.serve(async (req) => {
     return jr({ error: "campaign_closed", message: "Campanha encerrada" }, 404);
   }
 
-  // Link público do plano é SEMPRE livre — sem PIN, sem senha.
-  // (gate removido a pedido do produto: plano de entrega não pode bloquear)
+  // Gate por PIN — só no portal completo. Modo mapa (?view=mapa) é sempre público.
+  if (!isMapView) {
+    const gate = await gateCampaignAccess(req, supabase, campRaw.id);
+    if (!gate.ok) return jr({ error: gate.error }, gate.status ?? 401);
+  }
+
 
   // Payload sanitizado — sem custos, sem margens, sem campos internos.
   const camp = {
