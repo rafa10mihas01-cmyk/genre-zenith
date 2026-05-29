@@ -6,7 +6,7 @@
 // POST body: { limit?: number (default 50), only_zero?: boolean (default true), dry_run?: boolean }
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getSpotifyToken } from "../_shared/spotify.ts";
+import { getSpotifyToken, guardedSpotifyFetch } from "../_shared/spotify.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
       const batch = rows.slice(i, i + CONCURRENCY);
       await Promise.all(batch.map(async (row) => {
         try {
-          const r = await fetch(
+          const r = await guardedSpotifyFetch(
             `https://api.spotify.com/v1/playlists/${row.spotify_playlist_id}?fields=tracks(total)`,
             { headers: { Authorization: `Bearer ${token}` } },
           );
