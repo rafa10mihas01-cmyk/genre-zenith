@@ -66,6 +66,7 @@ import type { CampaignHubCampaign, CampaignHubTabId, EcoAllocation } from "@/com
 import { EvolutionChart, type EvolutionSeriesPoint } from "@/components/client-portal/EvolutionChart";
 import { DeliveryForecastCard, type ForecastPayload } from "@/components/client-portal/DeliveryForecastCard";
 import { GenresUsedChip, type GenreUsed } from "@/components/campanhas/GenresUsedChip";
+import { PlanHistoryTab } from "@/components/campaign-hub/tabs/PlanHistoryTab";
 
 
 
@@ -635,6 +636,7 @@ export default function PlanoCampanhaPublico() {
                 onUploaded={load}
               />
             ) : null,
+            history: token ? <PlanHistoryTab publicToken={token} /> : null,
 
           }}
         />
