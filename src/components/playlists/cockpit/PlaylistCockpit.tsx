@@ -868,6 +868,7 @@ export function PlaylistCockpit({
               <CoverCard
                 managedId={managedId}
                 currentCover={coverUrl}
+                genreName={genreName ?? null}
                 references={(diag.raw?.market_insights?.top_recurring_tracks ?? [])
                   .filter((t: any) => t?.cover_url)
                   .map((t: any) => ({
