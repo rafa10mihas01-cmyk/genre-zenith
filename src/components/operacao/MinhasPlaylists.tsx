@@ -1178,21 +1178,48 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
               <ChevronDown className="h-3.5 w-3.5 opacity-70 -mr-0.5 hidden sm:inline" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56 max-h-80 overflow-y-auto">
-            <DropdownMenuItem onClick={() => setFilterGenreId(null)} className="gap-2">
-              {!filterGenreId ? <Check className="h-4 w-4 text-primary" /> : <span className="w-4" />}
-              <span>Todos os gêneros</span>
+          <DropdownMenuContent align="start" className="w-64 max-h-96 overflow-y-auto p-1">
+            <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold px-2 py-1.5">
+              Filtrar por gênero
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setFilterGenreId(null)} className="gap-2 px-2 py-2 cursor-pointer">
+              {!filterGenreId && !filterMissingGenre ? <Check className="h-3.5 w-3.5 text-primary shrink-0" /> : <span className="w-3.5 shrink-0" />}
+              <span className="flex-1 text-[13px]">Todos os gêneros</span>
+              <span className="text-[11px] tabular-nums text-muted-foreground">{totalActiveCount}</span>
             </DropdownMenuItem>
-            {genres.map((g) => (
-              <DropdownMenuItem
-                key={g.id}
-                onClick={() => setFilterGenreId(g.id)}
-                className="gap-2"
-              >
-                {filterGenreId === g.id ? <Check className="h-4 w-4 text-primary" /> : <span className="w-4" />}
-                <span className="truncate">{g.nome}</span>
+            {missingGenreCount > 0 && (
+              <DropdownMenuItem onClick={() => setFilterMissingGenre(true)} className="gap-2 px-2 py-2 cursor-pointer">
+                {filterMissingGenre ? <Check className="h-3.5 w-3.5 text-primary shrink-0" /> : <span className="w-3.5 shrink-0" />}
+                <span className="flex-1 text-[13px] text-warning">Sem gênero</span>
+                <span className="text-[11px] tabular-nums text-warning">{missingGenreCount}</span>
               </DropdownMenuItem>
-            ))}
+            )}
+            <DropdownMenuSeparator />
+            {(() => {
+              const counts = new Map<string, number>();
+              for (const r of activeRows) {
+                if (r.genre_id) counts.set(r.genre_id, (counts.get(r.genre_id) ?? 0) + 1);
+              }
+              const rows = genres
+                .map((g) => ({ ...g, count: counts.get(g.id) ?? 0 }))
+                .sort((a, b) => b.count - a.count || a.nome.localeCompare(b.nome, "pt-BR"));
+              return rows.map((g) => {
+                const active = filterGenreId === g.id;
+                const empty = g.count === 0;
+                return (
+                  <DropdownMenuItem
+                    key={g.id}
+                    onClick={() => setFilterGenreId(g.id)}
+                    className={cn("gap-2 px-2 py-2 cursor-pointer", empty && "opacity-50")}
+                  >
+                    {active ? <Check className="h-3.5 w-3.5 text-primary shrink-0" /> : <span className="w-3.5 shrink-0" />}
+                    <span className="flex-1 truncate text-[13px] capitalize">{g.nome}</span>
+                    <span className={cn("text-[11px] tabular-nums", active ? "text-primary" : "text-muted-foreground")}>{g.count}</span>
+                  </DropdownMenuItem>
+                );
+              });
+            })()}
           </DropdownMenuContent>
         </DropdownMenu>
         {/* Estado: Ativas / Lixeira (à direita). Capacidade vira botão separado. */}
