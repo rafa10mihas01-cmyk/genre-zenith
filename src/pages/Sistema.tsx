@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import {
   Activity, Workflow, Music2, HeartPulse, Bot, Bell, ListPlus,
-  Settings as SettingsIcon, Server, Brain, FlaskConical, Wrench, Flag,
+  Settings as SettingsIcon, Server, Brain, FlaskConical, Wrench, Flag, ShieldAlert,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
