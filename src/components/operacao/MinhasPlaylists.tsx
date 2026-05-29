@@ -256,43 +256,38 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
 
   // Contagens por fase (catálogo ativo inteiro).
   const activeRows = useMemo(() => countRows.filter((r) => !r.archived_at), [countRows]);
+  // Classificador mutuamente exclusivo — cada playlist cai em UMA aba só.
+  // Hierarquia: Atenção > Prontas > Crescendo > Novas.
+  const classifyFase = useCallback((r: CountRow): "prontas" | "crescendo" | "novas" | "atencao" | null => {
+    const phase = r.lifecycle_phase ?? null;
+    const f = r.followers ?? 0;
+    if (phase === "bloated" || phase === "decline") return "atencao";
+    if (f >= 100 && r.genre_id && (phase === "mature" || phase === "growth")) return "prontas";
+    if (f >= 10 && f < 100) return "crescendo";
+    if (f < 10) return "novas";
+    return null; // ex.: ≥100 sem gênero ou sem fase clara
+  }, []);
+
   const faseCounts = useMemo(() => {
-    const inPhase = (r: CountRow, phases: string[]) => !!r.lifecycle_phase && phases.includes(r.lifecycle_phase);
-    return {
-      all: activeRows.length,
-      prontas: activeRows.filter((r) => (r.followers ?? 0) >= 100 && r.genre_id && inPhase(r, ["mature", "growth"])).length,
-      crescendo: activeRows.filter((r) => {
-        const f = r.followers ?? 0;
-        return (f >= 10 && f < 100) || r.lifecycle_phase === "seed";
-      }).length,
-      novas: activeRows.filter((r) => (r.followers ?? 0) < 10).length,
-      atencao: activeRows.filter((r) => inPhase(r, ["bloated", "decline"])).length,
-    };
-  }, [activeRows]);
+    const acc = { all: activeRows.length, prontas: 0, crescendo: 0, novas: 0, atencao: 0 };
+    for (const r of activeRows) {
+      const k = classifyFase(r);
+      if (k) acc[k]++;
+    }
+    return acc;
+  }, [activeRows, classifyFase]);
 
   // Total real considerando TODOS os filtros server-side (fase + sem_genero + genero).
   // Sem isso, "Carregar mais" desliga antes da hora quando os filtros reduzem o conjunto.
   const totalLoadedTarget = useMemo(() => {
     if (showArchived) return totalArchivedCount;
-    const inPhase = (r: CountRow, phases: string[]) => !!r.lifecycle_phase && phases.includes(r.lifecycle_phase);
     return activeRows.filter((r) => {
-      // fase
-      if (filterFase === "prontas") {
-        if (!((r.followers ?? 0) >= 100 && r.genre_id && inPhase(r, ["mature", "growth"]))) return false;
-      } else if (filterFase === "crescendo") {
-        const f = r.followers ?? 0;
-        if (!((f >= 10 && f < 100) || r.lifecycle_phase === "seed")) return false;
-      } else if (filterFase === "novas") {
-        if ((r.followers ?? 0) >= 10) return false;
-      } else if (filterFase === "atencao") {
-        if (!inPhase(r, ["bloated", "decline"])) return false;
-      }
-      // gênero
+      if (filterFase !== "all" && classifyFase(r) !== filterFase) return false;
       if (filterMissingGenre && r.genre_id) return false;
       if (filterGenreId && r.genre_id !== filterGenreId) return false;
       return true;
     }).length;
-  }, [showArchived, totalArchivedCount, activeRows, filterFase, filterMissingGenre, filterGenreId]);
+  }, [showArchived, totalArchivedCount, activeRows, filterFase, filterMissingGenre, filterGenreId, classifyFase]);
   const canLoadMore = items.length < loadedCount
     ? false // ainda chegando do servidor
     : items.length < totalLoadedTarget;
