@@ -29,6 +29,7 @@ import { SpotifyReconnectBanner } from "@/components/sistema/SpotifyReconnectBan
 import { SystemKpis } from "@/components/sistema/SystemKpis";
 import { FeatureFlagsPanel } from "@/components/sistema/FeatureFlagsPanel";
 import { OperationalHealthCard } from "@/components/home/OperationalHealthCard";
+import { CircuitBreakerHistoryCard } from "@/components/sistema/CircuitBreakerHistoryCard";
 import { BrainFreshnessCard } from "@/components/home/BrainFreshnessCard";
 import { EngineHealthGrid } from "@/components/cockpit/EngineHealthGrid";
 
@@ -135,6 +136,10 @@ export default function Sistema() {
                 <OperationalHealthCard />
                 <BrainFreshnessCard />
               </div>
+            </section>
+            <section>
+              <SectionHeader icon={ShieldAlert} title="Circuit breaker" subtitle="Aberturas do CB do Spotify nos últimos 30 dias" />
+              <CircuitBreakerHistoryCard />
             </section>
             <section>
               <SectionHeader icon={Workflow} title="Motor editorial" subtitle="Saúde do pipeline de curadoria" />
