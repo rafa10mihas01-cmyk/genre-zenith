@@ -294,15 +294,8 @@ export default function PlanoCampanhaPublico() {
 
   if (!token) return null;
 
-  // Gate UI — exibido antes de qualquer fetch de dados sensíveis.
-  if (gateChecked && gateRequired && !gateAuthed) {
-    return (
-      <CampaignAccessGate
-        token={token}
-        onAuthed={() => setGateAuthed(true)}
-      />
-    );
-  }
+  // Gate removido — plano é sempre público.
+
 
   if (loading) {
     return (
