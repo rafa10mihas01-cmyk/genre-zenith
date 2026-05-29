@@ -219,6 +219,11 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       } else if (filterGenreId) {
         q = q.eq("genre_id", filterGenreId);
       }
+      // Filtro de tamanho server-side (antes era client-side, escondia playlists além do loadedCount)
+      if (filterSize === "pequena") q = q.lt("followers", 1000);
+      else if (filterSize === "media") q = q.gte("followers", 1000).lt("followers", 10000);
+      else if (filterSize === "grande") q = q.gte("followers", 10000).lt("followers", 100000);
+      else if (filterSize === "top") q = q.gte("followers", 100000);
       const { data, error } = await q.range(0, loadedCount - 1);
       if (error) throw error;
       return (data ?? []) as ManagedPlaylist[];
