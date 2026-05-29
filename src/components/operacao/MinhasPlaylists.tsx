@@ -266,11 +266,29 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     };
   }, [activeRows]);
 
-  const totalLoadedTarget = showArchived
-    ? totalArchivedCount
-    : filterFase === "all"
-      ? totalActiveCount
-      : faseCounts[filterFase];
+  // Total real considerando TODOS os filtros server-side (fase + sem_genero + genero).
+  // Sem isso, "Carregar mais" desliga antes da hora quando os filtros reduzem o conjunto.
+  const totalLoadedTarget = useMemo(() => {
+    if (showArchived) return totalArchivedCount;
+    const inPhase = (r: CountRow, phases: string[]) => !!r.lifecycle_phase && phases.includes(r.lifecycle_phase);
+    return activeRows.filter((r) => {
+      // fase
+      if (filterFase === "prontas") {
+        if (!((r.followers ?? 0) >= 100 && r.genre_id && inPhase(r, ["mature", "growth"]))) return false;
+      } else if (filterFase === "crescendo") {
+        const f = r.followers ?? 0;
+        if (!((f >= 10 && f < 100) || r.lifecycle_phase === "seed")) return false;
+      } else if (filterFase === "novas") {
+        if ((r.followers ?? 0) >= 10) return false;
+      } else if (filterFase === "atencao") {
+        if (!inPhase(r, ["bloated", "decline"])) return false;
+      }
+      // gênero
+      if (filterMissingGenre && r.genre_id) return false;
+      if (filterGenreId && r.genre_id !== filterGenreId) return false;
+      return true;
+    }).length;
+  }, [showArchived, totalArchivedCount, activeRows, filterFase, filterMissingGenre, filterGenreId]);
   const canLoadMore = items.length < loadedCount
     ? false // ainda chegando do servidor
     : items.length < totalLoadedTarget;
