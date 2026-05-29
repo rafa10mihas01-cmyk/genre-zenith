@@ -444,10 +444,10 @@ export function PlaylistCockpit({
       }
       if (zoneCount[z] >= ZONE_CAPS[z]) continue;
       zoneCount[z]++;
-      // Reescreve posição se desceu de zona, pra UI mostrar a zona real.
-      const pos = z === original
-        ? (s.suggested_position ?? zoneStart(z) + zoneCount[z] - 1)
-        : zoneStart(z) + zoneCount[z] - 1;
+      // Posição sempre derivada do contador da zona — garante slots únicos
+      // no batch (#13, #14, #15... em vez de #14, #14, #15, #15 repetidos).
+      // O `suggested_position` do backend é só uma dica da zona, não do slot.
+      const pos = zoneStart(z) + zoneCount[z] - 1;
       addFinal.push({ ...s, _zone: z, suggested_position: pos });
     }
 
