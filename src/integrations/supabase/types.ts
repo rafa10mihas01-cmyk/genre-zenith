@@ -1278,6 +1278,7 @@ export type Database = {
       clients: {
         Row: {
           archived_at: string | null
+          brand_color: string | null
           city: string | null
           client_type: string
           company: string | null
@@ -1289,6 +1290,7 @@ export type Database = {
           id: string
           image_url: string | null
           instagram: string | null
+          logo_url: string | null
           monthly_listeners: number | null
           name: string
           notes: string | null
@@ -1303,6 +1305,7 @@ export type Database = {
         }
         Insert: {
           archived_at?: string | null
+          brand_color?: string | null
           city?: string | null
           client_type?: string
           company?: string | null
@@ -1314,6 +1317,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           instagram?: string | null
+          logo_url?: string | null
           monthly_listeners?: number | null
           name: string
           notes?: string | null
@@ -1328,6 +1332,7 @@ export type Database = {
         }
         Update: {
           archived_at?: string | null
+          brand_color?: string | null
           city?: string | null
           client_type?: string
           company?: string | null
@@ -1339,6 +1344,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           instagram?: string | null
+          logo_url?: string | null
           monthly_listeners?: number | null
           name?: string
           notes?: string | null

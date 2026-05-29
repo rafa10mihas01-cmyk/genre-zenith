@@ -29,6 +29,8 @@ export type Client = {
   document: string | null;
   payment_terms: string | null;
   tags: string[];
+  logo_url: string | null;
+  brand_color: string | null;
 };
 
 export type NewClientInput = {
@@ -48,6 +50,8 @@ export type NewClientInput = {
   document?: string | null;
   payment_terms?: string | null;
   tags?: string[];
+  logo_url?: string | null;
+  brand_color?: string | null;
 };
 
 // Helper: monta o payload de update apenas com chaves presentes em `input`.
@@ -55,7 +59,7 @@ function buildUpdatePayload(input: Partial<NewClientInput>) {
   const keys: (keyof NewClientInput)[] = [
     "name","contact","notes","client_type","company","email","phone","instagram",
     "spotify_artist_url","city","country","primary_genre","monthly_listeners",
-    "document","payment_terms","tags",
+    "document","payment_terms","tags","logo_url","brand_color",
   ];
   const out: Record<string, unknown> = {};
   for (const k of keys) {
