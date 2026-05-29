@@ -3745,6 +3745,7 @@ export type Database = {
           genre_id: string | null
           id: string
           insights: Json | null
+          min_health_score: number
           musicas_recorrentes: Json | null
           padroes_nome: Json | null
           palavras_chave: Json | null
@@ -3756,6 +3757,7 @@ export type Database = {
           genre_id?: string | null
           id?: string
           insights?: Json | null
+          min_health_score?: number
           musicas_recorrentes?: Json | null
           padroes_nome?: Json | null
           palavras_chave?: Json | null
@@ -3767,6 +3769,7 @@ export type Database = {
           genre_id?: string | null
           id?: string
           insights?: Json | null
+          min_health_score?: number
           musicas_recorrentes?: Json | null
           padroes_nome?: Json | null
           palavras_chave?: Json | null
