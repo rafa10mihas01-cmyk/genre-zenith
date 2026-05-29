@@ -44,6 +44,7 @@ import { CampaignDailyPlan } from "@/components/campanhas/CampaignDailyPlan";
 import { distributeEcoPositions, chartTierFromTopPosition } from "@/lib/campaignOperationalPlan";
 import { ClientHeroCard } from "@/components/campaign-hub/ClientHeroCard";
 import { SpreadsheetUploadCard } from "@/components/client-portal/SpreadsheetUploadCard";
+import { CampaignAccessGate } from "@/components/client-portal/CampaignAccessGate";
 import { MonitoredPlaylistsCard, type MonitoredPlaylist } from "@/components/client-portal/MonitoredPlaylistsCard";
 import { AlgorithmicImpactCard } from "@/components/client-portal/AlgorithmicImpactCard";
 import { PrintsHistoryCard, type PrintsHistoryEntry } from "@/components/client-portal/PrintsHistoryCard";
