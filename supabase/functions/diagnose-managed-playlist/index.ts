@@ -978,7 +978,7 @@ Deno.serve(async (req) => {
         const candArtistIds = new Map<string, string>(); // trackId → artistId
         for (let i = 0; i < rawCandidates.length; i += 50) {
           const ids = rawCandidates.slice(i, i + 50).map((c) => c.id);
-          const r = await fetch(`https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`, {
+          const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (!r.ok) continue;
@@ -1000,7 +1000,7 @@ Deno.serve(async (req) => {
         const artistPopMap = new Map<string, number | null>();
         for (let i = 0; i < uniqueArtistIds.length; i += 50) {
           const ids = uniqueArtistIds.slice(i, i + 50);
-          const r = await fetch(`https://api.spotify.com/v1/artists?ids=${ids.join(",")}`, {
+          const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/artists?ids=${ids.join(",")}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (!r.ok) continue;
@@ -1014,7 +1014,10 @@ Deno.serve(async (req) => {
           const cur = candMeta.get(tid);
           if (cur) cur.artistPop = artistPopMap.get(aid) ?? null;
         }
-      } catch (_e) { /* degrade gracefully */ }
+      } catch (e) {
+        if (e instanceof SpotifyCircuitOpenError) throw e;
+        // outras falhas: degrade gracefully
+      }
     }
 
     // 7.c) Calcula scores por zona pra cada candidato (mesma fórmula da camada 2)
