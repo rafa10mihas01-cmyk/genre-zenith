@@ -1178,7 +1178,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
               <ChevronDown className="h-3.5 w-3.5 opacity-70 -mr-0.5 hidden sm:inline" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-64 max-h-96 overflow-y-auto p-1">
+          <DropdownMenuContent align="start" className="w-64 max-h-96 overflow-y-auto scrollbar-none p-1">
             <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold px-2 py-1.5">
               Filtrar por gênero
             </DropdownMenuLabel>
