@@ -629,6 +629,7 @@ export default function CampanhaExecucao() {
                 planApprovedAt={(camp as any).plan_approved_at ?? null}
                 ecoDispatchedAt={camp.eco_dispatched_at ?? null}
                 collectionMode={(camp as any).collection_mode ?? null}
+                status={camp.status}
                 onApprovePlan={handleApprovePlan}
                 onDispatch={handleDispatchEco}
                 approvingPlan={approvingPlan}
