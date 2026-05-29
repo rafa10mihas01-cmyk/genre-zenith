@@ -44,6 +44,7 @@ import { Kpi } from "@/components/ui/kpi";
 import { toast } from "sonner";
 import type { Json } from "@/integrations/supabase/types";
 import { PlanHistoryTab } from "@/components/campaign-hub/tabs/PlanHistoryTab";
+import { CampaignGatesCard } from "@/components/campanhas/CampaignGatesCard";
 
 type EcoSnap = {
   id: string;
@@ -98,6 +99,7 @@ export default function CampanhaExecucao() {
   const [newDealOpen, setNewDealOpen] = useState(false);
   const [organicRows, setOrganicRows] = useState<OrganicRow[]>([]);
   const [dispatching, setDispatching] = useState(false);
+  const [approvingPlan, setApprovingPlan] = useState(false);
 
   async function handleDispatchEco() {
     if (!camp) return;
@@ -572,18 +574,6 @@ export default function CampanhaExecucao() {
         hiddenTabs={["upload", "logs"]}
         heroExtraActions={
           <>
-            {!camp.eco_dispatched_at && (
-              <Button
-                size="sm"
-                className="h-9 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
-                onClick={handleDispatchEco}
-                disabled={dispatching}
-                title={camp.client_approved_at ? "Aprovar campanha e distribuir pro ecossistema" : "Cliente ainda não aprovou o plano"}
-              >
-                {dispatching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
-                Aprovar e distribuir
-              </Button>
-            )}
             <CampaignAccessManager campaignId={camp.id} />
             <AuditCampaignButton campaignId={camp.id} />
             {clientToken ? (
