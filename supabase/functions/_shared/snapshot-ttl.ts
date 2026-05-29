@@ -11,7 +11,7 @@ export const SNAPSHOT_TTL_POLICIES: SnapshotTtlPolicy[] = [
   { table: "playlist_followers_snapshots", ts_column: "captured_at",  days: 180 },
   { table: "playlist_track_snapshots",     ts_column: "captured_at",  days: 60  },
   { table: "playlist_drift_snapshots",     ts_column: "captured_at",  days: 60  },
-  { table: "curator_deal_snapshots",       ts_column: "captured_at",  days: 365 },
+  // curator_deal_snapshots tratado separadamente em cleanup-snapshots (preserva is_baseline + último por deal, TTL 90d)
   { table: "campaign_eco_snapshots",       ts_column: "captured_at",  days: 365 },
   { table: "learning_snapshots",           ts_column: "snapshot_at",  days: null }, // nunca expira
 ];
