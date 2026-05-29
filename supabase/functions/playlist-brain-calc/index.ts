@@ -266,11 +266,24 @@ async function calcOne(supabase: any, playlistId: string) {
     }
   }
 
-  if (score && score.health_score < 40) {
+  // Threshold de saúde por gênero (default 40 quando não há modelo configurado).
+  let minHealthScore = 40;
+  if (mgd?.genre_id) {
+    const { data: gm } = await supabase
+      .from("genre_models")
+      .select("min_health_score")
+      .eq("genre_id", mgd.genre_id)
+      .maybeSingle();
+    if (gm && typeof gm.min_health_score === "number") {
+      minHealthScore = gm.min_health_score;
+    }
+  }
+
+  if (score && score.health_score < minHealthScore) {
     signals.push({
       code: "saude_baixa",
       severity: "high",
-      message: `Health score ${score.health_score}/100 — abaixo do saudável`,
+      message: `Health score ${score.health_score}/100 — abaixo do mínimo do gênero (${minHealthScore})`,
       detected_at: sigDate,
     });
   }
