@@ -279,8 +279,13 @@ export function ClientesLibraryTab({ deals, songs, loading, financeByClient }: P
                     {initials || <User className="h-4 w-4" />}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="text-[14px] font-semibold text-foreground truncate leading-tight">
-                      {client.name}
+                    <div className="text-[14px] font-semibold text-foreground truncate leading-tight flex items-center gap-1.5">
+                      <span className="truncate">{client.name}</span>
+                      {isEnriching(client.id) && (
+                        <span className="shrink-0 rounded border border-domain-clients/40 bg-domain-clients/10 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-domain-clients animate-pulse">
+                          enriquecendo
+                        </span>
+                      )}
                     </div>
                     <div className="text-[11.5px] text-muted-foreground truncate mt-0.5 tabular-nums">
                       <span className="text-foreground/80 font-medium">{formatBRLShort(invested)}</span>
