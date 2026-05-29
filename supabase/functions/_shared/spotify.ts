@@ -285,7 +285,9 @@ export async function getUserAccessToken(userId?: string): Promise<{ token: stri
   if (!data) throw new Error("Nenhuma conta Spotify conectada. Conecte em Configurações primeiro.");
 
   const row = data as SpotifyUserToken;
-  await assertSpotifyCircuitClosed(row.app_id ?? "global");
+  // NOTE: NÃO bloqueamos leitura/refresh do token aqui. Se o caller usar o token
+  // para chamar api.spotify.com, o guard global já bloqueia. Refresh em accounts.spotify.com
+  // está na whitelist e deve sempre funcionar (mesmo com breaker open).
   const expiresMs = new Date(row.expires_at).getTime();
   if (expiresMs > Date.now() + 60_000) return { token: row.access_token, row };
   const fresh = await refreshUserToken(row);
