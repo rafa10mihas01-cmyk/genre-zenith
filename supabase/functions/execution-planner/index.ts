@@ -84,11 +84,47 @@ function clampToWindow(date: Date): Date {
   return new Date(br.getTime() + BR_OFFSET_MS);
 }
 
+// Gap 15 — backoff adaptativo:
+// • Após 5 execuções consecutivas sem candidatos, pula as próximas 4 execuções
+//   (retorna imediatamente sem trabalho). Na 5ª tenta de novo e reseta se achar.
+// • Estado persistido em cron_health.metrics: { empty_streak, cooldown_remaining }.
+const EMPTY_STREAK_LIMIT = 5;
+const COOLDOWN_SKIPS = 4;
+
+async function readPlannerBackoffState(supabase: any): Promise<{ empty_streak: number; cooldown_remaining: number }> {
+  const { data } = await supabase
+    .from("cron_health")
+    .select("metrics")
+    .eq("job_name", "execution-planner")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const m = (data as any)?.metrics ?? {};
+  return {
+    empty_streak: Number.isFinite(Number(m.empty_streak)) ? Number(m.empty_streak) : 0,
+    cooldown_remaining: Number.isFinite(Number(m.cooldown_remaining)) ? Number(m.cooldown_remaining) : 0,
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   const cronT0 = Date.now();
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+
+  // Backoff adaptativo: se ainda estamos em cooldown, sai imediatamente.
+  const backoff = await readPlannerBackoffState(supabase);
+  if (backoff.cooldown_remaining > 0) {
+    const next = backoff.cooldown_remaining - 1;
+    await reportCronHealth(supabase, {
+      job_name: "execution-planner",
+      status: "ok",
+      startedAt: cronT0,
+      metrics: { skipped: true, empty_streak: backoff.empty_streak, cooldown_remaining: next },
+      message: `cooldown ${next}/${COOLDOWN_SKIPS}`,
+    });
+    return jr({ ok: true, skipped: true, cooldown_remaining: next });
+  }
 
   // 1. Allocations elegíveis
   const { data: allocs, error: aErr } = await supabase
@@ -103,7 +139,13 @@ Deno.serve(async (req) => {
     .order("created_at", { ascending: true });
 
   if (aErr) {
-    await reportCronHealth(supabase, { job_name: "execution-planner", status: "error", startedAt: cronT0, message: aErr.message });
+    await reportCronHealth(supabase, {
+      job_name: "execution-planner",
+      status: "error",
+      startedAt: cronT0,
+      metrics: { empty_streak: backoff.empty_streak, cooldown_remaining: 0 },
+      message: aErr.message,
+    });
     return jr({ error: aErr.message }, 500);
   }
 
@@ -139,10 +181,18 @@ Deno.serve(async (req) => {
     }
   }
 
+  // Helper local: avança o streak quando a execução não enfileirou ADDs.
+  const nextEmpty = () => {
+    const streak = backoff.empty_streak + 1;
+    const cooldown = streak >= EMPTY_STREAK_LIMIT ? COOLDOWN_SKIPS : 0;
+    return { empty_streak: cooldown > 0 ? 0 : streak, cooldown_remaining: cooldown };
+  };
+
   if (candidates.length === 0) {
     const r = await runEcoReorderPass(supabase, new Date(now));
-    await reportCronHealth(supabase, { job_name: "execution-planner", status: "ok", startedAt: cronT0, metrics: { enqueued: 0, considered: 0, reorder_enqueued: r.enqueued }, message: "no candidates" });
-    return jr({ ok: true, enqueued: 0, considered: 0, reorder: r });
+    const bo = nextEmpty();
+    await reportCronHealth(supabase, { job_name: "execution-planner", status: "ok", startedAt: cronT0, metrics: { enqueued: 0, considered: 0, reorder_enqueued: r.enqueued, ...bo }, message: `no candidates (streak ${bo.empty_streak}, cooldown ${bo.cooldown_remaining})` });
+    return jr({ ok: true, enqueued: 0, considered: 0, reorder: r, backoff: bo });
   }
 
   // 2. Filtra os que já têm job aberto/feito
@@ -161,8 +211,9 @@ Deno.serve(async (req) => {
   const fresh = candidates.filter((c) => !skip.has(c.dedupe_key));
   if (fresh.length === 0) {
     const r = await runEcoReorderPass(supabase, new Date(now));
-    await reportCronHealth(supabase, { job_name: "execution-planner", status: "ok", startedAt: cronT0, metrics: { enqueued: 0, considered: candidates.length, dedupe_skipped: candidates.length, reorder_enqueued: r.enqueued } });
-    return jr({ ok: true, enqueued: 0, considered: candidates.length, reorder: r });
+    const bo = nextEmpty();
+    await reportCronHealth(supabase, { job_name: "execution-planner", status: "ok", startedAt: cronT0, metrics: { enqueued: 0, considered: candidates.length, dedupe_skipped: candidates.length, reorder_enqueued: r.enqueued, ...bo } });
+    return jr({ ok: true, enqueued: 0, considered: candidates.length, reorder: r, backoff: bo });
   }
 
   // 3. Pacing: pra cada playlist envolvida, busca histórico recente pra
@@ -251,8 +302,9 @@ Deno.serve(async (req) => {
 
   if (toInsert.length === 0) {
     const r = await runEcoReorderPass(supabase, new Date(now));
-    await reportCronHealth(supabase, { job_name: "execution-planner", status: "ok", startedAt: cronT0, metrics: { enqueued: 0, considered: candidates.length, reorder_enqueued: r.enqueued } });
-    return jr({ ok: true, enqueued: 0, considered: candidates.length, reorder: r });
+    const bo = nextEmpty();
+    await reportCronHealth(supabase, { job_name: "execution-planner", status: "ok", startedAt: cronT0, metrics: { enqueued: 0, considered: candidates.length, reorder_enqueued: r.enqueued, ...bo } });
+    return jr({ ok: true, enqueued: 0, considered: candidates.length, reorder: r, backoff: bo });
   }
 
   const { error: insErr, count } = await supabase
@@ -260,7 +312,7 @@ Deno.serve(async (req) => {
     .insert(toInsert, { count: "exact" });
 
   if (insErr) {
-    await reportCronHealth(supabase, { job_name: "execution-planner", status: "error", startedAt: cronT0, message: insErr.message });
+    await reportCronHealth(supabase, { job_name: "execution-planner", status: "error", startedAt: cronT0, metrics: { empty_streak: backoff.empty_streak, cooldown_remaining: 0 }, message: insErr.message });
     return jr({ error: insErr.message }, 500);
   }
 
@@ -270,6 +322,7 @@ Deno.serve(async (req) => {
   //    transição de posição planejada (eco allocations + simulation_snapshot).
   const reorderResult = await runEcoReorderPass(supabase, new Date(now));
 
+  // Sucesso com ADDs enfileirados — reseta o backoff.
   await reportCronHealth(supabase, {
     job_name: "execution-planner",
     status: "ok",
@@ -279,6 +332,8 @@ Deno.serve(async (req) => {
       considered: candidates.length,
       reorder_enqueued: reorderResult.enqueued,
       reorder_considered: reorderResult.considered,
+      empty_streak: 0,
+      cooldown_remaining: 0,
     },
     message: `enqueued=${enqueued} considered=${candidates.length} reorder=${reorderResult.enqueued}/${reorderResult.considered}`,
   });

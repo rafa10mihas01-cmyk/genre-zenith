@@ -1287,6 +1287,7 @@ export type Database = {
           document: string | null
           email: string | null
           id: string
+          image_url: string | null
           instagram: string | null
           monthly_listeners: number | null
           name: string
@@ -1294,6 +1295,7 @@ export type Database = {
           payment_terms: string | null
           phone: string | null
           primary_genre: string | null
+          spotify_artist_id: string | null
           spotify_artist_url: string | null
           tags: string[]
           updated_at: string
@@ -1310,6 +1312,7 @@ export type Database = {
           document?: string | null
           email?: string | null
           id?: string
+          image_url?: string | null
           instagram?: string | null
           monthly_listeners?: number | null
           name: string
@@ -1317,6 +1320,7 @@ export type Database = {
           payment_terms?: string | null
           phone?: string | null
           primary_genre?: string | null
+          spotify_artist_id?: string | null
           spotify_artist_url?: string | null
           tags?: string[]
           updated_at?: string
@@ -1333,6 +1337,7 @@ export type Database = {
           document?: string | null
           email?: string | null
           id?: string
+          image_url?: string | null
           instagram?: string | null
           monthly_listeners?: number | null
           name?: string
@@ -1340,6 +1345,7 @@ export type Database = {
           payment_terms?: string | null
           phone?: string | null
           primary_genre?: string | null
+          spotify_artist_id?: string | null
           spotify_artist_url?: string | null
           tags?: string[]
           updated_at?: string
