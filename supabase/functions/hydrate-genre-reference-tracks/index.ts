@@ -18,11 +18,17 @@ function jr(p: unknown, status = 200) {
 }
 
 async function spotifyFetch(token: string, url: string): Promise<any> {
-  const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  // NOTE: guard global trata breaker. SpotifyCircuitOpenError → abort imediato, sem retry.
+  let r: Response;
+  try {
+    r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  } catch (e) {
+    if (e instanceof SpotifyCircuitOpenError) throw e;
+    throw e;
+  }
   if (r.status === 429) {
-    const retry = Number(r.headers.get("retry-after") ?? "2");
-    await new Promise((res) => setTimeout(res, (retry + 1) * 1000));
-    return spotifyFetch(token, url);
+    const txt = await r.text().catch(() => "");
+    throw new Error(`Spotify 429 (breaker aberto): ${txt.slice(0, 180)}`);
   }
   if (!r.ok) {
     const txt = await r.text();
