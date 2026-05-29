@@ -7,7 +7,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
-import { getUserAccessToken } from "../_shared/spotify.ts";
+import { getUserAccessToken, guardedSpotifyFetch } from "../_shared/spotify.ts";
 import { getPlaylistMeta } from "../_shared/spotify-playlist.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
     while (url && safety < 20) {
       safety++;
       if (pageIdx++ > 0) await sleep(SPOTIFY_CALL_DELAY_MS);
-      const r: Response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      const r: Response = await guardedSpotifyFetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (!r.ok) {
         const t = await r.text();
         return jr({ ok: false, error: `Spotify ${r.status}: ${t.slice(0, 200)}` }, 500);

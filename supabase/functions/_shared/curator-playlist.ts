@@ -1,6 +1,6 @@
 // _shared/curator-playlist.ts
 // Helpers compartilhados para enriquecer e classificar playlists do curador.
-import { getSpotifyToken } from "./spotify.ts";
+import { getSpotifyToken, guardedSpotifyFetch } from "./spotify.ts";
 
 // ===== fetchWithRetry: backoff + tratamento 429/5xx/timeout =====
 const RETRY_DELAYS_MS = [300, 800, 2000];
@@ -27,7 +27,7 @@ export async function fetchWithRetry(
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
     try {
-      const res = await fetch(url, { ...init, signal: ctrl.signal });
+      const res = await guardedSpotifyFetch(url, { ...init, signal: ctrl.signal });
       clearTimeout(timer);
 
       // Sucesso ou erro de cliente não-retryable (4xx exceto 429) → retorna
