@@ -184,7 +184,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   // e mostrar só os que sobrarem ao filtrar uma fase.
   useEffect(() => {
     setLoadedCount(PAGE_SIZE);
-  }, [filterFase, showArchived, filterMissingGenre, filterGenreId]);
+  }, [filterFase, showArchived, filterMissingGenre, filterGenreId, filterSize]);
 
   const itemsQuery = useQuery({
     queryKey: ["managed-playlists", loadedCount, filterFase, showArchived, sortBy, filterMissingGenre, filterGenreId],
