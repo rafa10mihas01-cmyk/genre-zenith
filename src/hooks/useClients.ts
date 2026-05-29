@@ -20,6 +20,8 @@ export type Client = {
   phone: string | null;
   instagram: string | null;
   spotify_artist_url: string | null;
+  spotify_artist_id: string | null;
+  image_url: string | null;
   city: string | null;
   country: string | null;
   primary_genre: string | null;
