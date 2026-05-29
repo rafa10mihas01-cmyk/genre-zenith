@@ -158,39 +158,50 @@ export function CuratorEditDialog({ curator, open, onOpenChange, onSave, onAddPu
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="cur-amount" className="text-foreground">Valor pago (R$)</Label>
+              <Label htmlFor="cur-amount" className="text-foreground">Valor desta compra (R$)</Label>
               <Input
                 id="cur-amount"
                 inputMode="decimal"
                 placeholder="0,00"
-                value={defaultAmount}
-                onChange={handleBRLChange(setDefaultAmount)}
-                onBlur={() => setDefaultAmount(formatBRL(defaultAmount))}
+                value={purchaseAmount}
+                onChange={handleBRLChange(setPurchaseAmount)}
+                onBlur={() => setPurchaseAmount(formatBRL(purchaseAmount))}
                 className="bg-background border-border font-mono"
               />
-              {parseNum(defaultAmount) != null && (
+              {parseNum(purchaseAmount) != null && (
                 <p className="text-xs text-muted-foreground">
-                  R$ {parseNum(defaultAmount)!.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  R$ {parseNum(purchaseAmount)!.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
               )}
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="cur-plays" className="text-foreground">Plays comprados</Label>
+              <Label htmlFor="cur-plays" className="text-foreground">Plays desta compra</Label>
               <Input
                 id="cur-plays"
                 inputMode="numeric"
                 placeholder="0"
-                value={defaultPlays}
-                onChange={handleIntChange(setDefaultPlays)}
-                onBlur={() => setDefaultPlays(formatInt(defaultPlays))}
+                value={purchasePlays}
+                onChange={handleIntChange(setPurchasePlays)}
+                onBlur={() => setPurchasePlays(formatInt(purchasePlays))}
                 className="bg-background border-border font-mono"
               />
-              {parseNum(defaultPlays) != null && (
+              {parseNum(purchasePlays) != null && (
                 <p className="text-xs text-muted-foreground">
-                  {Math.round(parseNum(defaultPlays)!).toLocaleString("pt-BR")} plays
+                  {Math.round(parseNum(purchasePlays)!).toLocaleString("pt-BR")} plays
                 </p>
               )}
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="cur-purchase-note" className="text-foreground">Nota da compra</Label>
+            <Input
+              id="cur-purchase-note"
+              value={purchaseNote}
+              onChange={(e) => setPurchaseNote(e.target.value)}
+              placeholder="Ex.: Carnívora Mc Jacaré"
+              className="bg-background border-border"
+            />
           </div>
 
           {dealType === "mensal" && (
@@ -227,7 +238,7 @@ export function CuratorEditDialog({ curator, open, onOpenChange, onSave, onAddPu
           )}
 
           <div className="space-y-1.5 pt-1">
-            <Label htmlFor="cur-notes" className="text-foreground">Notas</Label>
+            <Label htmlFor="cur-notes" className="text-foreground">Notas do cadastro</Label>
             <Textarea
               id="cur-notes"
               rows={3}
