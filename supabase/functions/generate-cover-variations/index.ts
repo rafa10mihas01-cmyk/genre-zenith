@@ -867,6 +867,19 @@ Deno.serve(async (req) => {
     .eq("id", tpl.genre_id)
     .maybeSingle();
 
+  // 🎨 DNA visual do gênero (cores dominantes, estilo, atmosfera) — injetado no prompt
+  // pra capa não ignorar o aprendizado do analyze-genre-visual-dna.
+  let dnaVisual: any = null;
+  if (tpl.genre_id) {
+    const { data: gm } = await supabase
+      .from("genre_models")
+      .select("insights")
+      .eq("genre_id", tpl.genre_id)
+      .maybeSingle();
+    dnaVisual = (gm?.insights as any)?.dna_visual ?? null;
+  }
+
+
   // 🛡️ Proteção: NUNCA regenerar capa de playlist já publicada no Spotify.
   // Mesmo com force=true. Quem está no ar fica como está.
   if (body.force && tpl.spotify_playlist_id) {
