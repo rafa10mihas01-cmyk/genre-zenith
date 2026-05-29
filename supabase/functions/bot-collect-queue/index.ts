@@ -4,6 +4,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { recordMetric } from "../_shared/ops-metrics.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
+import { assertSpotifyCircuitClosed, SpotifyCircuitOpenError } from "../_shared/spotify.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -46,24 +47,18 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
-  // Gap 4 — Circuit breaker: se o Spotify está em backoff, devolve vazio sem
-  // tocar em nada. Log discreto, sem health report (não polui cron_health).
-  const { data: cb } = await supabase
-    .from("spotify_circuit_breaker")
-    .select("status, blocked_until")
-    .eq("app_id", "global")
-    .maybeSingle();
-  if (
-    cb?.status === "open" &&
-    cb.blocked_until &&
-    new Date(cb.blocked_until).getTime() > Date.now()
-  ) {
-    console.log(`[bot-collect-queue] CB open, skipping collection (until ${cb.blocked_until})`);
+  // Gap 4 — Circuit breaker por app default: se o Spotify está em backoff,
+  // devolve vazio sem tocar em nada. Log discreto, sem poluir cron_health.
+  try {
+    await assertSpotifyCircuitClosed();
+  } catch (e) {
+    if (!(e instanceof SpotifyCircuitOpenError)) throw e;
+    console.log(`[bot-collect-queue] CB open, skipping collection (until ${e.blockedUntil})`);
     return jr({
       ok: true,
       count: 0,
       skipped: "circuit_breaker_open",
-      blocked_until: cb.blocked_until,
+      blocked_until: e.blockedUntil,
       queue: [],
     });
   }
