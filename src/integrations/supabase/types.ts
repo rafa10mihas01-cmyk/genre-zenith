@@ -1068,6 +1068,7 @@ export type Database = {
           client_approved_at: string | null
           client_approved_by: string | null
           client_approved_ip: string | null
+          client_decision_round: number
           client_id: string | null
           client_rejected_at: string | null
           closed_at: string | null
@@ -1117,6 +1118,7 @@ export type Database = {
           client_approved_at?: string | null
           client_approved_by?: string | null
           client_approved_ip?: string | null
+          client_decision_round?: number
           client_id?: string | null
           client_rejected_at?: string | null
           closed_at?: string | null
@@ -1166,6 +1168,7 @@ export type Database = {
           client_approved_at?: string | null
           client_approved_by?: string | null
           client_approved_ip?: string | null
+          client_decision_round?: number
           client_id?: string | null
           client_rejected_at?: string | null
           closed_at?: string | null
