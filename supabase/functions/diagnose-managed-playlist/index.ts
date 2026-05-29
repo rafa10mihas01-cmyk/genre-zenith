@@ -479,7 +479,7 @@ Deno.serve(async (req) => {
         // /v1/tracks?ids= (até 50)
         for (let i = 0; i < trackIds.length; i += 50) {
           const ids = trackIds.slice(i, i + 50);
-          const r = await fetch(`https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`, {
+          const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (!r.ok) continue;
@@ -499,7 +499,7 @@ Deno.serve(async (req) => {
         );
         for (let i = 0; i < artistIds.length; i += 50) {
           const ids = artistIds.slice(i, i + 50);
-          const r = await fetch(`https://api.spotify.com/v1/artists?ids=${ids.join(",")}`, {
+          const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/artists?ids=${ids.join(",")}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (!r.ok) continue;
@@ -513,8 +513,10 @@ Deno.serve(async (req) => {
             });
           }
         }
-      } catch (_e) {
-        // segue sem metadados — classificador degrada gracefully
+      } catch (e) {
+        // Circuit breaker aberto: aborta o diagnóstico — propaga pro handler.
+        if (e instanceof SpotifyCircuitOpenError) throw e;
+        // Outras falhas: segue sem metadados (classificador degrada gracefully).
       }
     }
 
