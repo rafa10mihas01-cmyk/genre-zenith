@@ -39,6 +39,12 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json().catch(() => ({}));
     const dryRun: boolean = body?.dry_run === true;
+    // Throttle: cap de playlists por execução (default 50) + delays entre calls.
+    // Sem isso, conectar 1 conta com 100+ playlists gera 200+ chamadas em rajada
+    // ao Spotify e dispara o rate limit de 86400s.
+    const MAX_PLAYLISTS_PER_RUN: number = Math.max(1, Math.min(Number(body?.max_playlists ?? 50), 200));
+    const SPOTIFY_CALL_DELAY_MS = 500; // entre chamadas individuais
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
     // 1) token OAuth da conta padrão (Baile Hits Oficial hoje)
     const { token, row } = await getUserAccessToken(body?.spotify_user_id ?? undefined);
@@ -54,12 +60,14 @@ Deno.serve(async (req) => {
       .maybeSingle();
     const accountId: string | null = acc?.id ?? null;
 
-    // 3) paginação /v1/me/playlists
+    // 3) paginação /v1/me/playlists — limit=50 por página + 500ms entre páginas
     const collected: SpotifyPlaylistItem[] = [];
     let url: string | null = "https://api.spotify.com/v1/me/playlists?limit=50";
     let safety = 0;
+    let pageIdx = 0;
     while (url && safety < 20) {
       safety++;
+      if (pageIdx++ > 0) await sleep(SPOTIFY_CALL_DELAY_MS);
       const r: Response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (!r.ok) {
         const t = await r.text();
