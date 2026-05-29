@@ -75,7 +75,9 @@ Deno.serve(async (req) => {
     let enriched = 0;
     let failed = 0;
 
+    let batchIdx = 0;
     for (const batch of chunk(targets, 50)) {
+      if (batchIdx++ > 0) await sleep(THROTTLE_MS);
       const ids = batch.map((b) => b.spotify_track_id!);
       try {
         const tracks = await fetchTracksBatch(ids, token);
