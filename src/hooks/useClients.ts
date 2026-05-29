@@ -59,7 +59,7 @@ function buildUpdatePayload(input: Partial<NewClientInput>) {
   const keys: (keyof NewClientInput)[] = [
     "name","contact","notes","client_type","company","email","phone","instagram",
     "spotify_artist_url","city","country","primary_genre","monthly_listeners",
-    "document","payment_terms","tags",
+    "document","payment_terms","tags","logo_url","brand_color",
   ];
   const out: Record<string, unknown> = {};
   for (const k of keys) {
