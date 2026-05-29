@@ -442,7 +442,7 @@ export function CuradoresLibraryTab({
                         >
                           <ListMusic className="h-4 w-4" /> Ver biblioteca
                         </DropdownMenuItem>
-                        {onUpdateCurator && (
+                        {onUpdateCurator && onAddPurchase && (
                           <DropdownMenuItem
                             className="gap-2 rounded-lg"
                             onClick={(e) => {
