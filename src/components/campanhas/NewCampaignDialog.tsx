@@ -704,7 +704,7 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
           ) : (
             <Button onClick={submit} disabled={busy}>
               {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {activate ? "Criar e ativar" : "Salvar rascunho"}
+              Salvar rascunho
             </Button>
           )}
         </DialogFooter>
