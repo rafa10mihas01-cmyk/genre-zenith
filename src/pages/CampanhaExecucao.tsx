@@ -101,6 +101,29 @@ export default function CampanhaExecucao() {
   const [dispatching, setDispatching] = useState(false);
   const [approvingPlan, setApprovingPlan] = useState(false);
 
+  async function handleApprovePlan() {
+    if (!camp) return;
+    setApprovingPlan(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("approve-campaign-plan", { body: { campaign_id: camp.id } });
+      if (error) throw error;
+      const res = data as { ok?: boolean; reason?: string; already_approved?: boolean; deal_created?: boolean };
+      if (!res?.ok) {
+        toast.error("Não foi possível aprovar o plano", { description: res?.reason ?? "" });
+        return;
+      }
+      toast.success(res.already_approved ? "Plano já estava aprovado" : "Plano interno aprovado", {
+        description: res.deal_created ? "Deal criado automaticamente." : undefined,
+      });
+      setCamp((c) => c ? ({ ...c, plan_approved_at: new Date().toISOString() } as CampaignHubCampaign) : c);
+      loadCampaign();
+    } catch (e: any) {
+      toast.error("Erro ao aprovar plano", { description: e?.message ?? String(e) });
+    } finally {
+      setApprovingPlan(false);
+    }
+  }
+
   async function handleDispatchEco() {
     if (!camp) return;
     setDispatching(true);
@@ -601,6 +624,15 @@ export default function CampanhaExecucao() {
         slots={{
           overview: (
             <div className="space-y-6">
+              <CampaignGatesCard
+                clientApprovedAt={camp.client_approved_at ?? null}
+                planApprovedAt={(camp as any).plan_approved_at ?? null}
+                ecoDispatchedAt={camp.eco_dispatched_at ?? null}
+                onApprovePlan={handleApprovePlan}
+                onDispatch={handleDispatchEco}
+                approvingPlan={approvingPlan}
+                dispatching={dispatching}
+              />
               <OverviewTab
                 snapshot={snapshot}
                 delivered={delivered}
