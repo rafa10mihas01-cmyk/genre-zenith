@@ -527,15 +527,47 @@ export function PlaylistCockpit({
                     <Crown className="h-3 w-3" /> #{diag.raw.niche_rank} de {diag.raw.niche_total}
                   </span>
                 )}
-                {diag && (
-                  <>
-                    <span className="text-muted-foreground/40 text-[10px]">·</span>
-                    <span className="inline-flex items-center gap-1 text-[10px] text-destructive/80 tabular-nums">
-                      <Timer className="h-3 w-3" />
-                      {new Date(diag.created_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
-                    </span>
-                  </>
-                )}
+                {diag && (() => {
+                  const ageMs = Date.now() - new Date(diag.created_at).getTime();
+                  const ageDays = Math.floor(ageMs / 86_400_000);
+                  const stale = ageDays > 30;
+                  const warn = ageDays > 7;
+                  const cls = stale
+                    ? "text-destructive"
+                    : warn
+                      ? "text-amber-500"
+                      : "text-muted-foreground";
+                  const label =
+                    ageDays <= 0
+                      ? "Análise de hoje"
+                      : ageDays === 1
+                        ? "Análise de 1 dia atrás"
+                        : `Análise de ${ageDays} dias atrás`;
+                  return (
+                    <>
+                      <span className="text-muted-foreground/40 text-[10px]">·</span>
+                      <span
+                        className={`inline-flex items-center gap-1 text-[10px] tabular-nums ${cls}`}
+                        title={new Date(diag.created_at).toLocaleString("pt-BR")}
+                      >
+                        <Timer className="h-3 w-3" />
+                        {label}
+                      </span>
+                      {stale && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={runDiagnose}
+                          disabled={running}
+                          className="h-6 px-2 text-[10px] gap-1 border-destructive/40 text-destructive hover:bg-destructive/10"
+                        >
+                          {running ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                          Atualizar análise
+                        </Button>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>
