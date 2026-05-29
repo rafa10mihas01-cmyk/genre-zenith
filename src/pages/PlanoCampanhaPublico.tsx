@@ -261,6 +261,7 @@ export default function PlanoCampanhaPublico() {
     (async () => {
       const { data } = await supabase.functions.invoke("get-client-campaign-public", {
         body: { client_token: clientToken },
+        headers: portalHeaders(token),
       });
       if (cancelled || !data || (data as { ok?: boolean }).ok === false) return;
       const payload = data as { playlists?: MonitoredPlaylist[]; snapshot_history?: PrintsHistoryEntry[]; snapshotHistory?: PrintsHistoryEntry[]; series?: EvolutionSeriesPoint[] };
