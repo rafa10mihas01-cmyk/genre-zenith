@@ -298,14 +298,21 @@ async function refreshUserToken(row: SpotifyUserToken): Promise<string> {
 /** Retorna access_token de usuário válido (faz refresh se necessário). */
 export async function getUserAccessToken(userId?: string): Promise<{ token: string; row: SpotifyUserToken }> {
   const supabase = db();
-  let q = supabase.from("spotify_user_tokens").select("*");
+  const defaultAppId = await getDefaultSpotifyAppId();
+  let q = supabase
+    .from("spotify_user_tokens")
+    .select("*")
+    .order("is_default", { ascending: false })
+    .order("updated_at", { ascending: false });
   if (userId) q = q.eq("spotify_user_id", userId);
-  else q = q.order("is_default", { ascending: false }).order("updated_at", { ascending: false });
-  const { data, error } = await q.limit(1).maybeSingle();
+  const { data, error } = await q.limit(userId ? 25 : 1);
   if (error) throw new Error(error.message);
-  if (!data) throw new Error("Nenhuma conta Spotify conectada. Conecte em Configurações primeiro.");
+  const rows = (data ?? []) as SpotifyUserToken[];
+  if (rows.length === 0) throw new Error("Nenhuma conta Spotify conectada. Conecte em Configurações primeiro.");
 
-  const row = data as SpotifyUserToken;
+  const row = (userId && defaultAppId)
+    ? rows.find((r) => r.app_id === defaultAppId) ?? rows[0]
+    : rows[0];
   // NOTE: NÃO bloqueamos leitura/refresh do token aqui. Se o caller usar o token
   // para chamar api.spotify.com, o guard global já bloqueia. Refresh em accounts.spotify.com
   // está na whitelist e deve sempre funcionar (mesmo com breaker open).
