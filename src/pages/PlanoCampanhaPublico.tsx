@@ -323,7 +323,16 @@ export default function PlanoCampanhaPublico() {
 
   if (!token) return null;
 
-  // Gate removido — plano é sempre público.
+  // Gate UI — exibido antes de qualquer fetch de dados sensíveis.
+  // Não aparece no modo mapa (isMapView libera de cara).
+  if (gateChecked && gateRequired && !gateAuthed) {
+    return (
+      <CampaignAccessGate
+        token={token}
+        onAuthed={() => setGateAuthed(true)}
+      />
+    );
+  }
 
 
   if (loading) {
