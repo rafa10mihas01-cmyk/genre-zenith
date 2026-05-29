@@ -367,6 +367,7 @@ export default function PlanoCampanhaPublico() {
     setApproving(true);
     const { data, error } = await supabase.functions.invoke("client-approve-campaign", {
       body: { token, approver_name: approverName.trim() },
+      headers: portalHeaders(token),
     });
     setApproving(false);
     const errMsg = error?.message || (data && (data as any).ok === false ? (data as any).error : null);
