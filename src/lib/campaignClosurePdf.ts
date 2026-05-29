@@ -2,6 +2,11 @@
 // Funciona pra campanhas de qualquer tipo: ecosystem, external, hybrid.
 // Usado pela UI quando o operador abre uma campanha completed cujo
 // final_report_url ainda não foi gerado.
+//
+// Gap 23 — Nível A: branding por cliente. Quando `clients.logo_url` está
+// preenchido, mostra o logo no header em vez do texto "NexEngine". Quando
+// `clients.brand_color` (hex #RRGGBB) está preenchido, usa essa cor em
+// destaques, bordas e headers de tabela. Vazio = template padrão NexEngine.
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
@@ -14,6 +19,50 @@ const fmtBRL = (n: number | null | undefined): string =>
   n == null || !Number.isFinite(n)
     ? "—"
     : new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n);
+
+type RGB = [number, number, number];
+
+function hexToRgb(hex: string | null | undefined): RGB | null {
+  if (!hex) return null;
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+// Carrega imagem (logo) como dataURL para incorporar no jsPDF.
+// Retorna null se falhar (CORS, 404, formato inválido) — o caller faz fallback.
+async function loadImageAsDataUrl(
+  url: string,
+): Promise<{ dataUrl: string; width: number; height: number; format: "PNG" | "JPEG" } | null> {
+  try {
+    const res = await fetch(url, { mode: "cors" });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    const dataUrl: string = await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(String(r.result));
+      r.onerror = reject;
+      r.readAsDataURL(blob);
+    });
+    const { width, height } = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+      img.onerror = reject;
+      img.src = dataUrl;
+    });
+    const fmt: "PNG" | "JPEG" = blob.type.includes("png") ? "PNG" : "JPEG";
+    return { dataUrl, width, height, format: fmt };
+  } catch {
+    return null;
+  }
+}
+
+export type CampaignClosureBranding = {
+  logoUrl?: string | null;
+  brandColor?: string | null; // hex #RRGGBB
+  clientName?: string | null;
+};
 
 export type CampaignClosureInput = {
   campaign: {
@@ -38,43 +87,76 @@ export type CampaignClosureInput = {
     plays_28d: number | null;
     captured_at: string;
   }>;
+  branding?: CampaignClosureBranding;
 };
 
-export function buildCampaignClosurePdf(input: CampaignClosureInput): Blob {
-  const { campaign: c, ecoAllocs, ecoSnapshots } = input;
+export async function buildCampaignClosurePdf(input: CampaignClosureInput): Promise<Blob> {
+  const { campaign: c, ecoAllocs, ecoSnapshots, branding } = input;
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const margin = 40;
   let y = margin;
 
+  // Branding resolvido (com fallback NexEngine)
+  const brandRgb: RGB = hexToRgb(branding?.brandColor) ?? [5, 5, 5];
+  const accentRgb: RGB = hexToRgb(branding?.brandColor) ?? [29, 185, 84]; // verde Spotify default
+  const titleText = branding?.clientName
+    ? `${branding.clientName} — Relatório de Campanha`
+    : "NexEngine — Relatório de Campanha";
+
   // Header
-  doc.setFillColor(5, 5, 5);
+  doc.setFillColor(brandRgb[0], brandRgb[1], brandRgb[2]);
   doc.rect(0, 0, pageW, 96, "F");
+
+  // Logo do cliente (se disponível)
+  let textOffsetX = margin;
+  if (branding?.logoUrl) {
+    const img = await loadImageAsDataUrl(branding.logoUrl);
+    if (img) {
+      const maxH = 56;
+      const ratio = img.width / Math.max(1, img.height);
+      const h = Math.min(maxH, img.height);
+      const w = h * ratio;
+      try {
+        doc.addImage(img.dataUrl, img.format, margin, 20, w, h);
+        textOffsetX = margin + w + 16;
+      } catch {
+        // formato não suportado — segue com texto
+      }
+    }
+  }
+
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(20);
-  doc.text("NexEngine — Relatório de Campanha", margin, 42);
+  doc.setFontSize(18);
+  doc.text(titleText, textOffsetX, 42);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  doc.setTextColor(180, 180, 180);
+  doc.setTextColor(220, 220, 220);
   doc.text(
     `${c.track_name}${c.artist ? ` — ${c.artist}` : ""}`,
-    margin,
+    textOffsetX,
     62,
   );
   doc.text(
     `Fechamento: ${format(new Date(c.closed_at ?? Date.now()), "dd/MM/yyyy HH:mm", { locale: ptBR })}`,
-    margin,
+    textOffsetX,
     78,
   );
 
-  y = 124;
+  // Faixa de destaque (cor de marca) abaixo do header
+  doc.setFillColor(accentRgb[0], accentRgb[1], accentRgb[2]);
+  doc.rect(0, 96, pageW, 4, "F");
+
+  y = 132;
   doc.setTextColor(20, 20, 20);
 
   // Resumo
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
+  doc.setTextColor(accentRgb[0], accentRgb[1], accentRgb[2]);
   doc.text("Resumo", margin, y);
+  doc.setTextColor(20, 20, 20);
   y += 6;
 
   const delivered = Number(c.total_delivered ?? 0);
@@ -108,7 +190,7 @@ export function buildCampaignClosurePdf(input: CampaignClosureInput): Blob {
           : "—",
       ],
     ],
-    styles: { fontSize: 10, cellPadding: 7 },
+    styles: { fontSize: 10, cellPadding: 7, lineColor: accentRgb, lineWidth: 0.2 },
     columnStyles: {
       0: { cellWidth: 160, fontStyle: "bold", textColor: [60, 60, 60] },
       1: { cellWidth: "auto", textColor: [20, 20, 20] },
@@ -127,7 +209,9 @@ export function buildCampaignClosurePdf(input: CampaignClosureInput): Blob {
     }
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
+    doc.setTextColor(accentRgb[0], accentRgb[1], accentRgb[2]);
     doc.text(`Playlists do ecossistema (${ecoAllocs.length})`, margin, y);
+    doc.setTextColor(20, 20, 20);
 
     // Mais recente snapshot por playlist
     const latestByPl = new Map<string, number>();
@@ -147,7 +231,7 @@ export function buildCampaignClosurePdf(input: CampaignClosureInput): Blob {
         fmt(latestByPl.get((a as any).managed_playlist_id) ?? null),
       ]),
       styles: { fontSize: 9, cellPadding: 6, overflow: "linebreak" },
-      headStyles: { fillColor: [29, 185, 84], textColor: [0, 0, 0], fontStyle: "bold" },
+      headStyles: { fillColor: accentRgb, textColor: [255, 255, 255], fontStyle: "bold" },
       alternateRowStyles: { fillColor: [248, 248, 248] },
       columnStyles: {
         0: { cellWidth: 280 },
@@ -180,7 +264,7 @@ export async function generateAndStoreCampaignReport(campaignId: string): Promis
     supabase
       .from("campaigns")
       .select(
-        "id, track_name, artist, goal_plays, total_delivered, started_at, closed_at, deadline, valor_cobrado, campaign_type",
+        "id, track_name, artist, goal_plays, total_delivered, started_at, closed_at, deadline, valor_cobrado, campaign_type, client_id",
       )
       .eq("id", campaignId)
       .maybeSingle(),
@@ -198,10 +282,29 @@ export async function generateAndStoreCampaignReport(campaignId: string): Promis
 
   if (cRes.error || !cRes.data) throw new Error(cRes.error?.message ?? "campaign_not_found");
 
-  const blob = buildCampaignClosurePdf({
+  // Branding do cliente (opcional)
+  let branding: CampaignClosureBranding | undefined;
+  const clientId = (cRes.data as any).client_id as string | null;
+  if (clientId) {
+    const { data: cli } = await supabase
+      .from("clients")
+      .select("name, logo_url, brand_color")
+      .eq("id", clientId)
+      .maybeSingle();
+    if (cli) {
+      branding = {
+        logoUrl: (cli as any).logo_url ?? null,
+        brandColor: (cli as any).brand_color ?? null,
+        clientName: (cli as any).name ?? null,
+      };
+    }
+  }
+
+  const blob = await buildCampaignClosurePdf({
     campaign: cRes.data as any,
     ecoAllocs: (allocsRes.data as any[]) ?? [],
     ecoSnapshots: (snapsRes.data as any[]) ?? [],
+    branding,
   });
 
   const path = `campaigns/${campaignId}/fechamento-${Date.now()}.pdf`;
