@@ -413,12 +413,18 @@ Deno.serve(async (req) => {
       .update({ deal_id: newDealId, auto_deal_created: true })
       .eq("id", campaignId);
 
-    // 8.0) Grava o vínculo reverso no deal — sem isso o deal fica órfão da
-    // campanha e queries por campaign_id (relatórios, financeiro, execução)
-    // não acham o deal recém-criado.
+    // 8.0) Grava vínculo reverso + marca shadow de campanha interna.
+    // Sem source='campaign_internal' + collection_mode='bot' + state='collecting',
+    // o bot-collect-queue NÃO dispatcha (filtra por state e collection_mode) e
+    // o gate isCampaignShadow em ingest-dom NÃO espelha em campaign_eco_snapshots.
     await admin
       .from("curator_deals")
-      .update({ campaign_id: campaignId })
+      .update({
+        campaign_id: campaignId,
+        source: "campaign_internal",
+        collection_mode: "bot",
+        state: "collecting",
+      })
       .eq("id", newDealId);
 
     // 8.1) Marca songs shadow como auto_collect=true pra entrar na fila do bot.
