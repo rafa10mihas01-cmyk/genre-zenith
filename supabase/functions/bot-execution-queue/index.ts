@@ -185,7 +185,10 @@ Deno.serve(async (req) => {
         // ============= Modo A: reorder pra posição planejada =============
         try {
           let plannedPos: number | null = null;
-          if (j.campaign_id) {
+          // Prioridade: j.to_position (manual UI) > campaign_eco_allocations.position (campanha)
+          if (Number.isInteger(j.to_position) && j.to_position >= 1) {
+            plannedPos = Number(j.to_position);
+          } else if (j.campaign_id) {
             const { data: eco } = await supabase
               .from("campaign_eco_allocations")
               .select("position")
