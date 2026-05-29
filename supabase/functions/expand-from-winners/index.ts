@@ -96,7 +96,9 @@ async function expandGenre(
     .eq("genre_id", genreId);
   const existingIds = new Set((existing ?? []).map((e: any) => e.spotify_playlist_id).filter(Boolean));
 
+  let ownerIdx = 0;
   for (const owner of owners) {
+    if (ownerIdx++ > 0) await sleep(THROTTLE_MS);
     stats.owners_processed++;
     let items: any[] = [];
     try {
