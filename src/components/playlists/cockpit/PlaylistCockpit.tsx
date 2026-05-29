@@ -868,6 +868,7 @@ export function PlaylistCockpit({
               <CoverCard
                 managedId={managedId}
                 currentCover={coverUrl}
+                genreName={genreName ?? null}
                 references={(diag.raw?.market_insights?.top_recurring_tracks ?? [])
                   .filter((t: any) => t?.cover_url)
                   .map((t: any) => ({
@@ -1107,11 +1108,12 @@ type CoverReference = {
   external_url?: string | null;
 };
 
-function CoverCard({ managedId, currentCover, references, spotifyPlaylistId }: {
+function CoverCard({ managedId, currentCover, references, spotifyPlaylistId, genreName }: {
   managedId: string;
   currentCover: string | null;
   references: CoverReference[];
   spotifyPlaylistId: string;
+  genreName: string | null;
 }) {
   const [uploading, setUploading] = useState(false);
   const [applyingLeader, setApplyingLeader] = useState<string | null>(null);
@@ -1119,8 +1121,32 @@ function CoverCard({ managedId, currentCover, references, spotifyPlaylistId }: {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingPreview, setPendingPreview] = useState<string | null>(null);
   const [selectedLeader, setSelectedLeader] = useState<CoverReference | null>(null);
+  const [hasDnaVisual, setHasDnaVisual] = useState(false);
 
   useEffect(() => { setLocalCover(currentCover); }, [currentCover]);
+
+  // Gap 21: verifica se o gênero tem DNA visual analisado (genre_models.insights.ln)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: mp } = await supabase
+        .from("managed_playlists")
+        .select("genre_id")
+        .eq("id", managedId)
+        .maybeSingle();
+      const genreId = (mp as any)?.genre_id;
+      if (!genreId) { if (!cancelled) setHasDnaVisual(false); return; }
+      const { data: gm } = await supabase
+        .from("genre_models")
+        .select("insights")
+        .eq("genre_id", genreId)
+        .maybeSingle();
+      if (cancelled) return;
+      const ln = (gm as any)?.insights?.ln;
+      setHasDnaVisual(Boolean(ln && (ln.estilo_dominante || ln.atmosfera || ln.capas_analisadas?.length)));
+    })();
+    return () => { cancelled = true; };
+  }, [managedId]);
 
   const applyLeaderCover = async (ref: CoverReference) => {
     if (!ref.cover_url) return;
@@ -1311,6 +1337,11 @@ function CoverCard({ managedId, currentCover, references, spotifyPlaylistId }: {
               );
             })}
           </div>
+          {hasDnaVisual && genreName && (
+            <div className="text-[10px] text-subtle-foreground italic">
+              Baseado no DNA visual do gênero {genreName}
+            </div>
+          )}
         </div>
       )}
     </Card>
