@@ -17,6 +17,8 @@ const CRITICAL_CRONS = [
   "playlist-queue-processor",
   "sync-managed-playlists",
   "wave1-enrich-batch",
+  "execution-planner",
+  "reap-zombie-jobs",
 ] as const;
 
 const STALE_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2h
