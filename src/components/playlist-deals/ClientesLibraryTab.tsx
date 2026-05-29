@@ -819,6 +819,47 @@ export function ClientFormDialog({
                   maxLength={300}
                 />
               </div>
+              <div className="space-y-1.5 md:col-span-2">
+                <Label htmlFor="client-logo">URL do logo (usado no PDF de relatório)</Label>
+                <Input
+                  id="client-logo"
+                  type="url"
+                  value={logoUrl}
+                  onChange={(e) => setLogoUrl(e.target.value)}
+                  placeholder="https://exemplo.com/logo.png"
+                  maxLength={500}
+                />
+                {logoUrl.trim() && (
+                  <img
+                    src={logoUrl.trim()}
+                    alt="Preview do logo"
+                    className="mt-2 h-12 w-auto rounded border border-border bg-elevated/40 p-1 object-contain"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                  />
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="client-brand-color">Cor de destaque (hex)</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="client-brand-color-picker"
+                    type="color"
+                    value={/^#[0-9a-fA-F]{6}$/.test(brandColor) ? brandColor : "#1db954"}
+                    onChange={(e) => setBrandColor(e.target.value)}
+                    className="h-10 w-14 p-1 cursor-pointer"
+                  />
+                  <Input
+                    id="client-brand-color"
+                    value={brandColor}
+                    onChange={(e) => setBrandColor(e.target.value)}
+                    placeholder="#2d4a7a"
+                    maxLength={7}
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Usada no cabeçalho e bordas do PDF. Vazio = padrão NexEngine.
+                </p>
+              </div>
             </div>
           </TabsContent>
 
