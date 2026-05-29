@@ -47,6 +47,7 @@ export type CampaignGatesCardProps = {
   planApprovedAt: string | null;
   ecoDispatchedAt: string | null;
   collectionMode?: string | null;
+  status?: string | null;
   onApprovePlan: () => void;
   onDispatch: () => void;
   approvingPlan: boolean;
@@ -61,26 +62,35 @@ export function CampaignGatesCard({
   planApprovedAt,
   ecoDispatchedAt,
   collectionMode,
+  status,
   onApprovePlan,
   onDispatch,
   approvingPlan,
   dispatching,
 }: CampaignGatesCardProps) {
-  const clientDone = !!clientApprovedAt;
-  const planDone = !!planApprovedAt;
-  const dispatchDone = !!ecoDispatchedAt;
+  const isSpreadsheet = collectionMode === "spreadsheet";
+  const isLive = status === "active" || status === "paused";
+  const isClosed = status === "completed" || status === "cancelled";
+
+  const clientDone = !!clientApprovedAt || isLive || isClosed;
+  const planDone = !!planApprovedAt || isLive || isClosed;
+  // Spreadsheet campaigns don't have an eco dispatch — once active the third gate represents "coleta ativa".
+  const dispatchDone = !!ecoDispatchedAt || (isSpreadsheet && (isLive || isClosed)) || status === "completed";
 
   const state1: GateState = clientDone ? "done" : "current";
   const state2: GateState = planDone ? "done" : clientDone ? "current" : "locked";
   const state3: GateState = dispatchDone ? "done" : planDone ? "current" : "locked";
 
-  const nextAction: "plan" | "dispatch" | null = dispatchDone
+  // Once the campaign is live or closed, hide CTAs — gates become a read-only timeline.
+  const nextAction: "plan" | "dispatch" | null = isLive || isClosed
     ? null
-    : planDone
-      ? "dispatch"
-      : clientDone
-        ? "plan"
-        : null;
+    : dispatchDone
+      ? null
+      : planDone
+        ? "dispatch"
+        : clientDone
+          ? "plan"
+          : null;
 
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
@@ -91,18 +101,22 @@ export function CampaignGatesCard({
             {collectionMode && <CollectionSourceBadge collectionMode={collectionMode} />}
           </div>
           <div className="text-xs text-muted-foreground">
-            {dispatchDone
-              ? "Campanha no ar — coleta ativa nas playlists."
-              : nextAction === "dispatch"
-                ? "Tudo pronto. Falta apenas o gatilho final."
-                : nextAction === "plan"
-                  ? "Cliente já aprovou. Confirme o plano internamente para liberar a distribuição."
-                  : "Aguardando o cliente aprovar o plano público."}
+            {isClosed
+              ? "Campanha encerrada."
+              : isLive
+                ? isSpreadsheet
+                  ? "Campanha no ar — coleta via planilha (cliente envia atualizações no portal)."
+                  : "Campanha no ar — coleta ativa nas playlists."
+                : nextAction === "dispatch"
+                  ? "Tudo pronto. Falta apenas o gatilho final."
+                  : nextAction === "plan"
+                    ? "Cliente já aprovou. Confirme o plano internamente para liberar a distribuição."
+                    : "Aguardando o cliente aprovar o plano público."}
           </div>
         </div>
-        {dispatchDone && (
+        {(dispatchDone || isLive) && (
           <div className="hidden sm:flex items-center gap-1.5 text-xs text-primary shrink-0">
-            <CheckCircle2 className="h-3.5 w-3.5" /> Distribuída
+            <CheckCircle2 className="h-3.5 w-3.5" /> {isClosed ? "Encerrada" : "No ar"}
           </div>
         )}
       </div>
@@ -113,7 +127,7 @@ export function CampaignGatesCard({
           state={state1}
           title="Cliente aprovou"
           hint="Aprovação no portal público"
-          meta={clientApprovedAt ? `há ${relTime(clientApprovedAt)} — ${fmt(clientApprovedAt)}` : "Aguardando"}
+          meta={clientApprovedAt ? `há ${relTime(clientApprovedAt)} — ${fmt(clientApprovedAt)}` : isLive ? "Concluído" : "Aguardando"}
         />
         <Connector filled={clientDone} />
         <GateNode
@@ -121,15 +135,23 @@ export function CampaignGatesCard({
           state={state2}
           title="Plano interno aprovado"
           hint="Cria o deal e trava o plano"
-          meta={planApprovedAt ? `há ${relTime(planApprovedAt)} — ${fmt(planApprovedAt)}` : clientDone ? "Pronto pra você aprovar" : "Bloqueado"}
+          meta={planApprovedAt ? `há ${relTime(planApprovedAt)} — ${fmt(planApprovedAt)}` : isLive ? "Concluído" : clientDone ? "Pronto pra você aprovar" : "Bloqueado"}
         />
         <Connector filled={planDone} />
         <GateNode
           index={3}
           state={state3}
-          title="Distribuição iniciada"
-          hint="Bot começa a inserir nas playlists"
-          meta={ecoDispatchedAt ? `há ${relTime(ecoDispatchedAt)} — ${fmt(ecoDispatchedAt)}` : planDone ? "Pronto pra iniciar" : "Bloqueado"}
+          title={isSpreadsheet ? "Coleta ativa" : "Distribuição iniciada"}
+          hint={isSpreadsheet ? "Cliente envia planilhas no portal" : "Bot começa a inserir nas playlists"}
+          meta={
+            ecoDispatchedAt
+              ? `há ${relTime(ecoDispatchedAt)} — ${fmt(ecoDispatchedAt)}`
+              : isSpreadsheet && (isLive || isClosed)
+                ? "Recebendo planilhas"
+                : isLive
+                  ? "Em andamento"
+                  : planDone ? "Pronto pra iniciar" : "Bloqueado"
+          }
         />
       </div>
 
