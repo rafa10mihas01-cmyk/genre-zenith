@@ -203,8 +203,17 @@ export default function PlanoCampanhaPublico() {
     setLoading(true);
     const { data, error } = await supabase.functions.invoke("get-shared-campaign-plan", {
       body: { token },
+      headers: portalHeaders(token),
     });
     const payload = data as SharedCampaignPlanResponse | null;
+    // Sessão expirada/invalida → derruba JWT cacheado e força gate de novo.
+    if ((payload?.error === "auth_required" || payload?.error === "invalid_session" || payload?.error === "wrong_campaign") && token) {
+      try { localStorage.removeItem(accessStorageKey(token)); } catch { /* ignore */ }
+      setGateAuthed(false);
+      setGateRequired(true);
+      setLoading(false);
+      return;
+    }
     if (error || payload?.error) {
       setErr(payload?.error ?? error?.message ?? "Erro");
     } else {
