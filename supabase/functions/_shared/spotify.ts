@@ -240,7 +240,7 @@ export type SpotifyUserToken = {
 /** Faz refresh do token de usuário usando o app correto e persiste. */
 async function refreshUserToken(row: SpotifyUserToken): Promise<string> {
   const creds = await getAppCredentials(row.app_id);
-  await assertSpotifyCircuitClosed(row.app_id ?? "global");
+  // NOTE: NÃO chamamos assertSpotifyCircuitClosed — refresh é em accounts.spotify.com (whitelisted).
   const basic = btoa(`${creds.client_id}:${creds.client_secret}`);
   const resp = await fetch("https://accounts.spotify.com/api/token", {
     method: "POST",
