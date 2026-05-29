@@ -84,11 +84,47 @@ function clampToWindow(date: Date): Date {
   return new Date(br.getTime() + BR_OFFSET_MS);
 }
 
+// Gap 15 — backoff adaptativo:
+// • Após 5 execuções consecutivas sem candidatos, pula as próximas 4 execuções
+//   (retorna imediatamente sem trabalho). Na 5ª tenta de novo e reseta se achar.
+// • Estado persistido em cron_health.metrics: { empty_streak, cooldown_remaining }.
+const EMPTY_STREAK_LIMIT = 5;
+const COOLDOWN_SKIPS = 4;
+
+async function readPlannerBackoffState(supabase: any): Promise<{ empty_streak: number; cooldown_remaining: number }> {
+  const { data } = await supabase
+    .from("cron_health")
+    .select("metrics")
+    .eq("job_name", "execution-planner")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const m = (data as any)?.metrics ?? {};
+  return {
+    empty_streak: Number.isFinite(Number(m.empty_streak)) ? Number(m.empty_streak) : 0,
+    cooldown_remaining: Number.isFinite(Number(m.cooldown_remaining)) ? Number(m.cooldown_remaining) : 0,
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   const cronT0 = Date.now();
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+
+  // Backoff adaptativo: se ainda estamos em cooldown, sai imediatamente.
+  const backoff = await readPlannerBackoffState(supabase);
+  if (backoff.cooldown_remaining > 0) {
+    const next = backoff.cooldown_remaining - 1;
+    await reportCronHealth(supabase, {
+      job_name: "execution-planner",
+      status: "ok",
+      startedAt: cronT0,
+      metrics: { skipped: true, empty_streak: backoff.empty_streak, cooldown_remaining: next },
+      message: `cooldown ${next}/${COOLDOWN_SKIPS}`,
+    });
+    return jr({ ok: true, skipped: true, cooldown_remaining: next });
+  }
 
   // 1. Allocations elegíveis
   const { data: allocs, error: aErr } = await supabase
@@ -103,7 +139,13 @@ Deno.serve(async (req) => {
     .order("created_at", { ascending: true });
 
   if (aErr) {
-    await reportCronHealth(supabase, { job_name: "execution-planner", status: "error", startedAt: cronT0, message: aErr.message });
+    await reportCronHealth(supabase, {
+      job_name: "execution-planner",
+      status: "error",
+      startedAt: cronT0,
+      metrics: { empty_streak: backoff.empty_streak, cooldown_remaining: 0 },
+      message: aErr.message,
+    });
     return jr({ error: aErr.message }, 500);
   }
 
