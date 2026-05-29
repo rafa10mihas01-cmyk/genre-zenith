@@ -507,6 +507,26 @@ Deno.serve(async (req) => {
     } catch { /* */ }
   }
 
+  const removedExecutedJson = results.filter((r: any) => r.kind === "remove" && r.ok !== false && !r.skipped).length;
+  if (phase === "bloated" && removedExecutedJson > 0) {
+    await supabase.from("playlist_adjustments").insert({
+      template_id: pl.id,
+      spotify_playlist_id: spId,
+      action_type: `apply_remove_${removedExecutedJson}`,
+      status: fatalError ? "failed" : "success",
+      before: { tracks_count: tracksBefore },
+      after: { tracks_count: currentCount },
+      details: {
+        source: "apply-playlist-plan",
+        removed_count: removedExecutedJson,
+        max_per_day: bloatedMaxPerDay,
+        removed_today_before: bloatedRemovedToday,
+        skipped_due_to_cap: bloatedSkippedRemoves,
+      },
+      triggered_by: "manual",
+    });
+  }
+
   await supabase.from("collection_logs").insert({
     acao: "apply-playlist-plan",
     status: fatalError ? "erro" : "sucesso",
