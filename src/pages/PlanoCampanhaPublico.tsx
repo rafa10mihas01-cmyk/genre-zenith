@@ -368,6 +368,38 @@ export default function PlanoCampanhaPublico() {
   const delivered = camp.total_delivered ?? 0;
   const lastUpdateAt = proofEvents[0]?.captured_at ?? camp.started_at;
 
+  // View minimalista: só o mapa de distribuição (compartilhado via ?view=mapa)
+  const viewParam = typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search).get("view")
+    : null;
+  if (viewParam === "mapa") {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="max-w-7xl mx-auto p-4 md:p-6">
+          <div className="flex items-center justify-between mb-4 print:hidden">
+            <NexEngineLogo variant="dark" className="h-7 w-auto" />
+            <span className="text-[11px] text-muted-foreground">Mapa de distribuição · somente leitura</span>
+          </div>
+          <CampaignFullPlanCard
+            snapshot={snapshot}
+            startedAt={camp.started_at}
+            allocations={allocs as unknown as Parameters<typeof CampaignFullPlanCard>[0]["allocations"]}
+            engagementMultiplier={camp.engagement_multiplier ?? 30}
+            shareToken={null}
+            showShare={false}
+            radioGoal={Math.round(snapshot.meta * ((snapshot.splitOrganicPct ?? 15) / 100))}
+            track={{
+              name: camp.track_name,
+              artist: camp.artist,
+              coverUrl: camp.cover_url,
+              spotifyUrl: camp.spotify_track_url ?? null,
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   async function handleApprove() {
     if (approverName.trim().length < 2) { toast.error("Informe seu nome"); return; }
     setApproving(true);
