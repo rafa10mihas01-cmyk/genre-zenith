@@ -94,6 +94,9 @@ export interface NewDealDialogProps {
   onCreated?: (deal: CuratorDeal) => void | Promise<void>;
   /** Quando o dialog é aberto a partir de uma campanha, vincula o deal a ela. */
   campaignId?: string | null;
+  /** Gap 9: criação a partir de um prospect (external_curators). RPC promove/cria curador. */
+  externalCuratorId?: string | null;
+  externalCuratorPreview?: { name: string; email?: string | null; spotify_url?: string | null } | null;
 }
 
 // ============================================================
