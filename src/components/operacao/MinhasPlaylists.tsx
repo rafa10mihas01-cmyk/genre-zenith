@@ -199,13 +199,17 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       }
       if (showArchived) q = q.not("archived_at", "is", null);
       else q = q.is("archived_at", null);
-      // Fase server-side — usa lifecycle_phase + followers
+      // Fase server-side — abas mutuamente exclusivas (cada playlist cai em UMA só).
+      // Hierarquia: Atenção > Prontas > Crescendo > Novas.
+      const notAtencao = "or(lifecycle_phase.is.null,lifecycle_phase.not.in.(bloated,decline))";
       if (filterFase === "prontas") {
+        // mature/growth já exclui bloated/decline, então não precisa do notAtencao
         q = q.gte("followers", 100).not("genre_id", "is", null).in("lifecycle_phase", ["mature", "growth"]);
       } else if (filterFase === "crescendo") {
-        q = q.or("and(followers.gte.10,followers.lt.100),lifecycle_phase.eq.seed");
+        // followers 10–99 e fora de Atenção (Prontas exige ≥100, então já não colide)
+        q = q.gte("followers", 10).lt("followers", 100).or(notAtencao.replace(/^or\(|\)$/g, ""));
       } else if (filterFase === "novas") {
-        q = q.lt("followers", 10);
+        q = q.lt("followers", 10).or(notAtencao.replace(/^or\(|\)$/g, ""));
       } else if (filterFase === "atencao") {
         q = q.in("lifecycle_phase", ["bloated", "decline"]);
       }
