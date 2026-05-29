@@ -75,7 +75,87 @@ async function notifyCampaignOverdue(sb: any, campaign: any, delivered: number, 
   }
 }
 
-Deno.serve(async (req) => {
+async function notifyCampaignCompleted(sb: any, campaign: any, delivered: number, goal: number) {
+  const dedupeKey = `campaign_completed:${campaign.id}`;
+  const trackLabel = campaign.track_name ?? "Faixa";
+  const title = `Campanha concluída — ${delivered.toLocaleString("pt-BR")} plays entregues de ${goal.toLocaleString("pt-BR")} meta`;
+  const message = `A campanha "${trackLabel}" atingiu a meta e foi encerrada automaticamente.`;
+
+  // 1) Notificação interna pro operador (created_by). Cliente não tem inbox
+  // no app — acesso é via token público; UI do operador faz o repasse.
+  try {
+    await sb.rpc("create_notification", {
+      p_type: "info",
+      p_title: title,
+      p_message: message,
+      p_action_url: `/campanhas/${campaign.id}/execucao`,
+      p_metadata: {
+        kind: "campaign_completed",
+        domain: "campaigns",
+        campaign_id: campaign.id,
+        deal_id: campaign.deal_id ?? null,
+        client_id: campaign.client_id ?? null,
+        delivered,
+        target: goal,
+        dedupe_key: dedupeKey,
+      },
+      p_dedupe_key: dedupeKey,
+      p_cooldown_minutes: 1440,
+    });
+  } catch (rpcErr) {
+    // Fallback insert direto
+    await sb.from("notifications").insert({
+      user_id: campaign.created_by ?? null,
+      type: "info",
+      title,
+      message,
+      action_url: `/campanhas/${campaign.id}/execucao`,
+      metadata: {
+        kind: "campaign_completed",
+        domain: "campaigns",
+        campaign_id: campaign.id,
+        client_id: campaign.client_id ?? null,
+        delivered,
+        target: goal,
+        dedupe_key: dedupeKey,
+      },
+    });
+  }
+
+  // 2) Email pro cliente se houver clients.email. Fallback silencioso se
+  // Lovable Emails não estiver configurado ou se cliente não tiver email.
+  if (!campaign.client_id) return;
+  try {
+    const { data: client } = await sb
+      .from("clients")
+      .select("email, name")
+      .eq("id", campaign.client_id)
+      .maybeSingle();
+    const clientEmail = (client as any)?.email?.trim();
+    if (!clientEmail) return;
+
+    await sb.functions.invoke("send-transactional-email", {
+      body: {
+        templateName: "campaign-completed",
+        recipientEmail: clientEmail,
+        idempotencyKey: `campaign-completed-${campaign.id}`,
+        templateData: {
+          client_name: (client as any)?.name ?? null,
+          track_name: trackLabel,
+          artist: campaign.artist ?? null,
+          delivered,
+          goal,
+        },
+      },
+    });
+  } catch (emailErr) {
+    console.log(JSON.stringify({
+      evt: "auto-complete.email_client_skipped",
+      campaign_id: campaign.id,
+      error: (emailErr as Error)?.message ?? String(emailErr),
+    }));
+  }
+}
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   const sb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
