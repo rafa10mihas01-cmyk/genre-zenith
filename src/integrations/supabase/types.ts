@@ -8519,6 +8519,10 @@ export type Database = {
         Returns: number
       }
       recalc_playlist_scores: { Args: never; Returns: number }
+      recompute_campaign_total_delivered: {
+        Args: { p_campaign_id: string }
+        Returns: undefined
+      }
       recompute_curator_deal_state: {
         Args: { p_deal_id: string }
         Returns: undefined
