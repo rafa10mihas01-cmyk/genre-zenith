@@ -414,6 +414,22 @@ export function CuradorDetailSheet({
           </TabsContent>
         </Tabs>
       </SheetContent>
+      <NewDealDialog
+        open={dealDialogOpen}
+        onOpenChange={setDealDialogOpen}
+        externalCuratorId={curator.id}
+        externalCuratorPreview={{
+          name: curator.name,
+          email: curator.email,
+          spotify_url: curator.spotify_url,
+        }}
+        onCreated={(deal) => {
+          setDealDialogOpen(false);
+          onOpenChange(false);
+          onChanged();
+          navigate(`/deals/${deal.id}`);
+        }}
+      />
     </Sheet>
   );
 }
