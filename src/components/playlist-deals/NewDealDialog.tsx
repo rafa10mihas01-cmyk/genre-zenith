@@ -1118,16 +1118,20 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
         });
       } else {
         let deal: CuratorDeal;
-        const newCuratorPayload = pendingCurator ?? null;
+        const fromProspect = !!externalCuratorId;
+        const newCuratorPayload = fromProspect ? null : (pendingCurator ?? null);
+        const addOpts = fromProspect
+          ? { external_curator_id: externalCuratorId, new_curator: null as null }
+          : { new_curator: newCuratorPayload };
         try {
-          deal = await addDeal(payload, { new_curator: newCuratorPayload });
+          deal = await addDeal(payload, addOpts);
         } catch (err) {
           if (err instanceof Error && err.message === "DUPLICATE_DEAL") {
             const shouldForce = window.confirm(
               "Já existe um deal ativo com esse curador e essa música nesse período. Criar outro mesmo assim?",
             );
             if (!shouldForce) return;
-            deal = await addDeal(payload, { force: true, new_curator: newCuratorPayload });
+            deal = await addDeal(payload, { ...addOpts, force: true });
           } else {
             throw err;
           }
