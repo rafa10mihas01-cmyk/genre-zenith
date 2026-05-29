@@ -30,6 +30,17 @@ Deno.serve(async (req) => {
     if (approverName.length < 2) return jr({ ok: false, error: "approver_name obrigatório" }, 400);
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+
+    // Gate por PIN — se a campanha tem e-mails autorizados, exige JWT.
+    const { data: camp } = await admin
+      .from("campaigns")
+      .select("id")
+      .eq("public_plan_token", token)
+      .maybeSingle();
+    if (!camp) return jr({ ok: false, error: "not_found" }, 404);
+    const gate = await gateCampaignAccess(req, admin, camp.id);
+    if (!gate.ok) return jr({ ok: false, error: gate.error }, gate.status ?? 401);
+
     const { error } = await admin.rpc("client_approve_campaign", {
       p_token: token,
       p_approver_name: approverName,
