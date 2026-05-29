@@ -74,12 +74,12 @@ export function CampaignFullPlanCard({
 
   function copyShareLink() {
     if (!shareToken) return;
-    const url = `https://engine.nexcreatorx.com/p/plano/${shareToken}?tab=upload`;
+    const url = `https://engine.nexcreatorx.com/p/plano/${shareToken}?view=mapa`;
     navigator.clipboard.writeText(url);
     setCopied(true);
     toast({
-      title: "Link da planilha copiado",
-      description: "Quem abrir cai direto na aba de importar planilha.",
+      title: "Link do mapa copiado",
+      description: "Quem abrir vê só o mapa de distribuição.",
     });
     setTimeout(() => setCopied(false), 2000);
   }
