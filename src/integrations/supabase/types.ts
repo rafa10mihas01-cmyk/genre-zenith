@@ -2856,6 +2856,8 @@ export type Database = {
           name: string
           notes: string | null
           paused_at: string | null
+          performance_score: number | null
+          performance_score_updated_at: string | null
           purchased_plays: number
           spotify_owner_id: string | null
           spotify_owner_url: string | null
@@ -2876,6 +2878,8 @@ export type Database = {
           name: string
           notes?: string | null
           paused_at?: string | null
+          performance_score?: number | null
+          performance_score_updated_at?: string | null
           purchased_plays?: number
           spotify_owner_id?: string | null
           spotify_owner_url?: string | null
@@ -2896,6 +2900,8 @@ export type Database = {
           name?: string
           notes?: string | null
           paused_at?: string | null
+          performance_score?: number | null
+          performance_score_updated_at?: string | null
           purchased_plays?: number
           spotify_owner_id?: string | null
           spotify_owner_url?: string | null
@@ -8621,6 +8627,14 @@ export type Database = {
       recalc_campaign_progress: {
         Args: { p_campaign_id?: string }
         Returns: number
+      }
+      recalc_curator_performance_scores: {
+        Args: never
+        Returns: {
+          curator_id: string
+          deals_count: number
+          score: number
+        }[]
       }
       recalc_playlist_scores: { Args: never; Returns: number }
       recompute_campaign_total_delivered: {
