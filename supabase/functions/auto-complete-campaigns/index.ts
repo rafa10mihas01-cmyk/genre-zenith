@@ -142,7 +142,12 @@ Deno.serve(async (req) => {
 
       const { error: updErr } = await sb
         .from("campaigns")
-        .update({ status: "completed", closed_at: new Date().toISOString(), total_delivered: delivered })
+        .update({
+          status: "completed",
+          closed_at: new Date().toISOString(),
+          total_delivered: delivered,
+          final_report_requested_at: new Date().toISOString(),
+        })
         .eq("id", r.id)
         .in("status", ACTIVE_STATUSES); // guard idempotente
 
@@ -153,6 +158,13 @@ Deno.serve(async (req) => {
         closed++;
         closedIds.push(r.id);
         console.log(JSON.stringify({ evt: "auto-complete.closed", campaign_id: r.id, delivered, goal, effective_days: eff, started_at: r.started_at }));
+
+        // ── Fix Auditoria #3: notifica operador + email pro cliente ──
+        try {
+          await notifyCampaignCompleted(sb, r, delivered, goal);
+        } catch (notifyErr) {
+          console.log(JSON.stringify({ evt: "auto-complete.notify_completed_error", campaign_id: r.id, error: (notifyErr as Error)?.message ?? String(notifyErr) }));
+        }
       }
     }
 
