@@ -1,6 +1,7 @@
 import { Check, Lock, Rocket, Loader2, CheckCircle2, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { CollectionSourceBadge } from "@/components/campanhas/CollectionSourceBadge";
 
 type GateState = "done" | "current" | "locked";
 
@@ -45,6 +46,7 @@ export type CampaignGatesCardProps = {
   clientApprovedAt: string | null;
   planApprovedAt: string | null;
   ecoDispatchedAt: string | null;
+  campaignType?: string | null;
   onApprovePlan: () => void;
   onDispatch: () => void;
   approvingPlan: boolean;
@@ -58,6 +60,7 @@ export function CampaignGatesCard({
   clientApprovedAt,
   planApprovedAt,
   ecoDispatchedAt,
+  campaignType,
   onApprovePlan,
   onDispatch,
   approvingPlan,
@@ -81,12 +84,15 @@ export function CampaignGatesCard({
 
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
-      <div className="flex items-center justify-between gap-3 mb-4">
-        <div>
-          <div className="text-sm font-semibold text-foreground">Portões da campanha</div>
+      <div className="flex items-start justify-between gap-3 mb-4 flex-wrap">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap mb-1">
+            <div className="text-sm font-semibold text-foreground">Portões da campanha</div>
+            {campaignType && <CollectionSourceBadge campaignType={campaignType} />}
+          </div>
           <div className="text-xs text-muted-foreground">
             {dispatchDone
-              ? "Campanha no ar — bot inserindo nas playlists."
+              ? "Campanha no ar — coleta ativa nas playlists."
               : nextAction === "dispatch"
                 ? "Tudo pronto. Falta apenas o gatilho final."
                 : nextAction === "plan"
@@ -95,7 +101,7 @@ export function CampaignGatesCard({
           </div>
         </div>
         {dispatchDone && (
-          <div className="hidden sm:flex items-center gap-1.5 text-xs text-primary">
+          <div className="hidden sm:flex items-center gap-1.5 text-xs text-primary shrink-0">
             <CheckCircle2 className="h-3.5 w-3.5" /> Distribuída
           </div>
         )}

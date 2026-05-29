@@ -19,6 +19,7 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useCampaigns, type Campaign } from "@/hooks/useCampaigns";
+import { CollectionSourceBadge } from "@/components/campanhas/CollectionSourceBadge";
 
 
 const STATUS_TONE: Record<string, "success" | "warning" | "neutral" | "danger"> = {
@@ -299,9 +300,7 @@ function CampaignRow({ c }: { c: Campaign }) {
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <StatusDot variant={STATUS_TONE[c.status]} />
             <span className="text-xs uppercase tracking-wider text-muted-foreground">{STATUS_LABEL[c.status]}</span>
-            <span className="text-[10px] uppercase tracking-wider rounded border border-border px-1.5 py-0.5 text-muted-foreground">
-              {c.campaign_type === "ecosystem" ? "Eco" : c.campaign_type === "external" ? "Ext" : "Híbr"}
-            </span>
+            <CollectionSourceBadge campaignType={c.campaign_type} />
             {c.plan_approved_at && (
               <span className="text-[10px] uppercase tracking-wider rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-primary">
                 Plano aprovado
