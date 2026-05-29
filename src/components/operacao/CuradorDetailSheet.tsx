@@ -103,6 +103,8 @@ export function CuradorDetailSheet({
   const [noteDraft, setNoteDraft] = useState("");
   const [savingNote, setSavingNote] = useState(false);
   const [savingMeta, setSavingMeta] = useState(false);
+  const [dealDialogOpen, setDealDialogOpen] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!curator || !open) return;
