@@ -1337,6 +1337,11 @@ function CoverCard({ managedId, currentCover, references, spotifyPlaylistId, gen
               );
             })}
           </div>
+          {hasDnaVisual && genreName && (
+            <div className="text-[10px] text-subtle-foreground italic">
+              Baseado no DNA visual do gênero {genreName}
+            </div>
+          )}
         </div>
       )}
     </Card>
