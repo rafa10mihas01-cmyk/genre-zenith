@@ -867,6 +867,19 @@ Deno.serve(async (req) => {
     .eq("id", tpl.genre_id)
     .maybeSingle();
 
+  // 🎨 DNA visual do gênero (cores dominantes, estilo, atmosfera) — injetado no prompt
+  // pra capa não ignorar o aprendizado do analyze-genre-visual-dna.
+  let dnaVisual: any = null;
+  if (tpl.genre_id) {
+    const { data: gm } = await supabase
+      .from("genre_models")
+      .select("insights")
+      .eq("genre_id", tpl.genre_id)
+      .maybeSingle();
+    dnaVisual = (gm?.insights as any)?.dna_visual ?? null;
+  }
+
+
   // 🛡️ Proteção: NUNCA regenerar capa de playlist já publicada no Spotify.
   // Mesmo com force=true. Quem está no ar fica como está.
   if (body.force && tpl.spotify_playlist_id) {
@@ -921,7 +934,21 @@ Deno.serve(async (req) => {
     },
     __cover_brief_override: body.force ? null : tpl.cover_brief,
   };
-  const prompt = buildPrompt(promptTemplate, palette, style, 0, body.custom_prompt);
+  let prompt = buildPrompt(promptTemplate, palette, style, 0, body.custom_prompt);
+  // 🎨 Anexa contexto de DNA visual do gênero (referência, NÃO sobrescreve regras do estilo).
+  if (dnaVisual && !body.custom_prompt) {
+    const cores = Array.isArray(dnaVisual.cores_dominantes) ? dnaVisual.cores_dominantes.slice(0, 5).join(", ") : null;
+    const dnaLines = [
+      "",
+      "GENRE VISUAL DNA (reference only — must coexist with the palette and style rules above; do NOT override forbidden items like faces, objects, instruments):",
+      cores ? `- Dominant colors in this genre's covers: ${cores}. Use them ONLY as subtle accents within the chosen palette gradient, never as the main background.` : null,
+      dnaVisual.estilo_dominante ? `- Dominant visual style in this genre: ${dnaVisual.estilo_dominante}. Translate this feeling into the typography energy and gradient mood, NOT into literal imagery.` : null,
+      dnaVisual.atmosfera ? `- Atmosphere of this genre: ${dnaVisual.atmosfera}. Mood must match.` : null,
+      dnaVisual.recomendacao_criacao ? `- Designer recommendation: ${dnaVisual.recomendacao_criacao}` : null,
+      "- The FORBIDDEN list above (no faces, no instruments, no logos, no objects, no textures) still applies and OVERRIDES this DNA reference.",
+    ].filter(Boolean).join("\n");
+    prompt = `${prompt}\n${dnaLines}`;
+  }
   let dataUrl: string;
   try {
     dataUrl = await generateOne(prompt);
