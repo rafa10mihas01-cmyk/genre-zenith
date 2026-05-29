@@ -7,6 +7,7 @@ import { ActionNowHero } from "@/components/home/ActionNowHero";
 import { CuradoriaBlock } from "@/components/home/CuradoriaBlock";
 import { CatalogHealthCard } from "@/components/home/CatalogHealthCard";
 import { AlertsBlock } from "@/components/home/AlertsBlock";
+import { OperationalAlertsCard } from "@/components/home/OperationalAlertsCard";
 
 /**
  * HOJE — Cockpit. 4 blocos: Ação agora · Curadoria · Catálogo · Alertas.
