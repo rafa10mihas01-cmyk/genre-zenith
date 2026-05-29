@@ -185,11 +185,9 @@ export default function PlanoCampanhaPublico() {
       headers: portalHeaders(token),
     });
     const payload = data as SharedCampaignPlanResponse | null;
-    // Sessão expirada/invalida → derruba JWT cacheado e força gate de novo.
+    // Sessão expirada/invalida — sem gate agora, apenas mostra erro.
     if ((payload?.error === "auth_required" || payload?.error === "invalid_session" || payload?.error === "wrong_campaign") && token) {
-      try { localStorage.removeItem(accessStorageKey(token)); } catch { /* ignore */ }
-      setGateAuthed(false);
-      setGateRequired(true);
+      setErr(payload?.error ?? "Erro");
       setLoading(false);
       return;
     }
