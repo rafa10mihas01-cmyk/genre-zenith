@@ -121,6 +121,8 @@ export function CuratorEditDialog({ curator, open, onOpenChange, onSave, onAddPu
     }
   };
 
+  const hasPendingPurchase = (parseNum(purchaseAmount) ?? 0) > 0 || (parseNum(purchasePlays) ?? 0) > 0;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md bg-card border border-border text-foreground">
@@ -144,6 +146,10 @@ export function CuratorEditDialog({ curator, open, onOpenChange, onSave, onAddPu
           </div>
 
           <div className="pt-2 border-t border-border" />
+
+          <div className="space-y-1">
+            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">Registrar compra</div>
+          </div>
 
           <div className="space-y-1.5">
             <Label className="text-foreground">Tipo do acerto</Label>
@@ -253,7 +259,7 @@ export function CuratorEditDialog({ curator, open, onOpenChange, onSave, onAddPu
             Cancelar
           </Button>
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Salvando…" : "Salvar"}
+            {saving ? "Salvando…" : hasPendingPurchase ? "Salvar e registrar" : "Salvar"}
           </Button>
         </DialogFooter>
       </DialogContent>
