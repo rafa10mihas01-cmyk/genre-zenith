@@ -144,7 +144,12 @@ export default function PlanoCampanhaPublico() {
 
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
-  const [tab, setTab] = useState<CampaignHubTabId>("overview");
+  const [tab, setTab] = useState<CampaignHubTabId>(() => {
+    if (typeof window === "undefined") return "overview";
+    const t = new URLSearchParams(window.location.search).get("tab");
+    const allowed: CampaignHubTabId[] = ["overview", "playlists", "proofs", "upload", "history"];
+    return (allowed as string[]).includes(t ?? "") ? (t as CampaignHubTabId) : "overview";
+  });
   const [livePlaylists, setLivePlaylists] = useState<MonitoredPlaylist[]>([]);
   const [snapshotHistory, setSnapshotHistory] = useState<PrintsHistoryEntry[]>([]);
 
