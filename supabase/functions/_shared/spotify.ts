@@ -56,7 +56,7 @@ export async function assertSpotifyCircuitClosed(appId = "global"): Promise<void
   }
 }
 
-export async function openSpotifyCircuitBreaker(retryAfterSec?: number | null, appId = "global", causedBy?: string): Promise<void> {
+export async function openSpotifyCircuitBreaker(retryAfterSec?: number | null, appId = "global", causedBy?: string): Promise<{ blockedUntil: string; retryAfterSec: number }> {
   const safeRetry = Math.max(2, Math.min(Number(retryAfterSec ?? 60), 86_400));
   const blockedUntil = new Date(Date.now() + safeRetry * 1000).toISOString();
   await db().from("spotify_circuit_breaker").upsert({
@@ -76,6 +76,7 @@ export async function openSpotifyCircuitBreaker(retryAfterSec?: number | null, a
       source_function: Deno.env.get("SUPABASE_FUNCTION_NAME") ?? null,
     });
   } catch { /* noop — log opcional */ }
+  return { blockedUntil, retryAfterSec: safeRetry };
 }
 
 
@@ -95,7 +96,8 @@ export async function guardedSpotifyFetch(url: string, init: RequestInit = {}, a
   const r = await spotifyOriginalFetch(url, init);
   if (r.status === 429 && !isCircuitBypassUrl(url)) {
     const ra = Number(r.headers.get("Retry-After") ?? r.headers.get("retry-after") ?? "");
-    await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60, appId, url);
+    const opened = await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60, appId, url);
+    throw new SpotifyCircuitOpenError(opened.blockedUntil, opened.retryAfterSec);
   }
   return r;
 }
@@ -116,7 +118,8 @@ export function installSpotifyCircuitFetchGuard() {
     const r = await spotifyOriginalFetch(input, init);
     if (r.status === 429 && !bypass) {
       const ra = Number(r.headers.get("Retry-After") ?? r.headers.get("retry-after") ?? "");
-      await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60);
+      const opened = await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60, "global", rawUrl);
+      throw new SpotifyCircuitOpenError(opened.blockedUntil, opened.retryAfterSec);
     }
     return r;
   };
@@ -217,10 +220,6 @@ export async function getSpotifyToken(forceRefresh = false): Promise<string> {
   });
   if (!resp.ok) {
     const t = await resp.text();
-    if (resp.status === 429) {
-      const ra = Number(resp.headers.get("Retry-After") ?? "");
-      await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60);
-    }
     throw new Error(`Spotify token ${resp.status}: ${t.slice(0, 200)}`);
   }
   const json = await resp.json();
@@ -266,10 +265,6 @@ async function refreshUserToken(row: SpotifyUserToken): Promise<string> {
   });
   if (!resp.ok) {
     const t = await resp.text();
-    if (resp.status === 429) {
-      const ra = Number(resp.headers.get("Retry-After") ?? "");
-      await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60, row.app_id ?? "global");
-    }
     throw new Error(`Spotify refresh ${resp.status} (app=${creds.name}): ${t.slice(0, 200)}`);
   }
   const j = await resp.json();

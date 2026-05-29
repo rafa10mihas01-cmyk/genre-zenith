@@ -7,7 +7,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
-import { getSpotifyToken } from "../_shared/spotify.ts";
+import { getSpotifyToken, SpotifyCircuitOpenError } from "../_shared/spotify.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 import { getPlaylistMeta } from "../_shared/spotify-playlist.ts";
 import { enqueuePlaylistJob } from "../_shared/playlist-queue.ts";
@@ -65,8 +65,8 @@ Deno.serve(async (req) => {
 
     if (pls && pls.length > 0) {
       const token = await getSpotifyToken();
-      const CONCURRENCY = 10;
-      const BATCH_DELAY_MS = 2000;
+      const CONCURRENCY = 1;
+      const BATCH_DELAY_MS = 5000;
       const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
       const processOne = async (p: typeof pls[number]) => {
@@ -131,6 +131,7 @@ Deno.serve(async (req) => {
             operation_type: "AUTO_SYNC",
           }).catch(() => { /* best-effort */ });
         } catch (e) {
+          if (e instanceof SpotifyCircuitOpenError) throw e;
           failed++;
           errors.push(`${p.name}: ${(e as Error).message}`);
         }
@@ -174,6 +175,15 @@ Deno.serve(async (req) => {
         startedAt,
         message: (e as Error).message,
       });
+    }
+    if (e instanceof SpotifyCircuitOpenError) {
+      return jr({
+        ok: false,
+        error: "SPOTIFY_CIRCUIT_OPEN",
+        code: "spotify_circuit_open",
+        blocked_until: e.blockedUntil,
+        retry_after: e.retryAfterSec,
+      }, 503);
     }
     return jr({ ok: false, error: (e as Error).message }, 500);
   }
