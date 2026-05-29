@@ -184,24 +184,19 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   // e mostrar só os que sobrarem ao filtrar uma fase.
   useEffect(() => {
     setLoadedCount(PAGE_SIZE);
-  }, [filterFase, showArchived]);
+  }, [filterFase, showArchived, filterMissingGenre, filterGenreId]);
 
   const itemsQuery = useQuery({
-    queryKey: ["managed-playlists", loadedCount, filterFase, showArchived, sortBy],
+    queryKey: ["managed-playlists", loadedCount, filterFase, showArchived, sortBy, filterMissingGenre, filterGenreId],
     queryFn: async () => {
       let q = supabase
         .from("managed_playlists")
         .select("*");
-      // Ordenação server-side. "followers" é o padrão (maior → menor) em
-      // todas as abas; "recent" usa imported_at; "valuation" mantém ordem
-      // por imported_at no servidor e re-ordena client-side por score (já
-      // que valuation vive em outra tabela e não dá pra ordenar via PostgREST aqui).
       if (sortBy === "followers") {
         q = q.order("followers", { ascending: false, nullsFirst: false }).order("imported_at", { ascending: false });
       } else {
         q = q.order("imported_at", { ascending: false });
       }
-      // Arquivadas vs ativas server-side (combina com o filtro client em `visible`)
       if (showArchived) q = q.not("archived_at", "is", null);
       else q = q.is("archived_at", null);
       // Fase server-side — usa lifecycle_phase + followers
@@ -214,6 +209,12 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       } else if (filterFase === "atencao") {
         q = q.in("lifecycle_phase", ["bloated", "decline"]);
       }
+      // Filtros de gênero server-side (antes eram client-side, quebrando paginação)
+      if (filterMissingGenre) {
+        q = q.is("genre_id", null);
+      } else if (filterGenreId) {
+        q = q.eq("genre_id", filterGenreId);
+      }
       const { data, error } = await q.range(0, loadedCount - 1);
       if (error) throw error;
       return (data ?? []) as ManagedPlaylist[];
@@ -224,12 +225,12 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const loading = itemsQuery.isPending;
   const setItems = useCallback(
     (updater: ManagedPlaylist[] | ((prev: ManagedPlaylist[]) => ManagedPlaylist[])) => {
-      queryClient.setQueryData<ManagedPlaylist[]>(["managed-playlists", loadedCount, filterFase, showArchived, sortBy], (prev) => {
+      queryClient.setQueryData<ManagedPlaylist[]>(["managed-playlists", loadedCount, filterFase, showArchived, sortBy, filterMissingGenre, filterGenreId], (prev) => {
         const base = prev ?? [];
         return typeof updater === "function" ? (updater as (p: ManagedPlaylist[]) => ManagedPlaylist[])(base) : updater;
       });
     },
-    [queryClient, loadedCount, filterFase, showArchived, sortBy],
+    [queryClient, loadedCount, filterFase, showArchived, sortBy, filterMissingGenre, filterGenreId],
   );
 
   // Contagens reais do catálogo inteiro (5 colunas, payload mínimo).
