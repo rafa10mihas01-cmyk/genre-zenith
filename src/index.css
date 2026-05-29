@@ -616,6 +616,20 @@
   50% { opacity: 0.85; box-shadow: 0 0 0 6px hsl(var(--primary) / 0); }
 }
 
+/* Skeleton: fade-in atrasado + pulse suave.
+   Atrasa 250ms — se os dados chegarem antes, o esqueleto nunca aparece,
+   eliminando o "flash de card vazio" entre splash e conteúdo real. */
+@keyframes nx-skeleton-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.35; }
+}
+.skeleton-fade {
+  opacity: 0;
+  animation:
+    nx-fade-in 200ms ease-out 250ms forwards,
+    nx-skeleton-pulse 1.6s ease-in-out 450ms infinite;
+}
+
 /* ===== FLUXO VISUAL — pipeline animado ===== */
 /* Partículas (dashoffset) correndo nas linhas */
 @keyframes fluxo-flow-h {
