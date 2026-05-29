@@ -76,6 +76,8 @@ export function useClients() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // G-cliente (Onda 1): rastreia quais IDs estão em enrichment ativo pra UI mostrar badge.
+  const [enrichingIds, setEnrichingIds] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     if (!user) {
@@ -105,14 +107,32 @@ export function useClients() {
 
   // Gap 5: enriquecimento opcional via /v1/artists/{id} a partir da spotify_artist_url.
   const enrichSpotifyIfPossible = useCallback(async (clientId: string, url: string | null | undefined) => {
-    if (!url || !/artist\/[A-Za-z0-9]{22}/.test(url)) return;
+    if (!url) return;
+    if (!/artist\/[A-Za-z0-9]{22}/.test(url)) {
+      console.warn("[useClients] URL Spotify inválida pro enrich:", url);
+      return;
+    }
+    setEnrichingIds((prev) => {
+      const next = new Set(prev);
+      next.add(clientId);
+      return next;
+    });
     try {
       await supabase.functions.invoke("enrich-client-spotify", { body: { client_id: clientId } });
     } catch (e) {
       // Enrichment é best-effort — falha não interrompe o fluxo do cliente.
       console.warn("[useClients] enrich-client-spotify falhou:", e);
+    } finally {
+      setEnrichingIds((prev) => {
+        if (!prev.has(clientId)) return prev;
+        const next = new Set(prev);
+        next.delete(clientId);
+        return next;
+      });
     }
   }, []);
+
+  const isEnriching = useCallback((id: string) => enrichingIds.has(id), [enrichingIds]);
 
   const addClient = useCallback(
     async (input: NewClientInput) => {
@@ -172,5 +192,5 @@ export function useClients() {
     [load],
   );
 
-  return { clients, loading, error, addClient, updateClient, archiveClient, deleteClient, reload: load };
+  return { clients, loading, error, addClient, updateClient, archiveClient, deleteClient, reload: load, isEnriching };
 }

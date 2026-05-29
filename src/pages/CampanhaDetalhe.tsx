@@ -30,6 +30,7 @@ type Campaign = {
   deal_id: string | null;
   final_report_url: string | null;
   final_report_requested_at: string | null;
+  client_decision_round: number | null;
 };
 
 type Allocation = {
@@ -319,7 +320,14 @@ function ClientApprovalCard({ camp }: { camp: Campaign }) {
             <Clock className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
           )}
           <div>
-            <div className="text-xs uppercase tracking-wider text-muted-foreground">Aprovação do cliente</div>
+            <div className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+              Aprovação do cliente
+              {(camp.client_decision_round ?? 1) > 1 && (
+                <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-500">
+                  Rodada {camp.client_decision_round}
+                </span>
+              )}
+            </div>
             {isApproved ? (
               <>
                 <div className="font-semibold mt-1">Aprovada por {camp.client_approved_by}</div>

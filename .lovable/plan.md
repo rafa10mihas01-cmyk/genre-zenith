@@ -1,57 +1,113 @@
-# Plano: Desbloquear `campaign_eco_snapshots`
+# Plano de correção dos 10 gaps — sem quebrar nada
 
-Corrigir os 3 bugs estruturais identificados na investigação. Sem isso, nenhum dado de campanha entra na tabela e Gap 17 (lift orgânico) fica sem fundação.
+Princípios:
+- **Tudo additivo.** Nada de rename/drop em coluna existente, nada de mudar contrato de função pública.
+- **Crons novos começam desligados** (schedule criado mas comentado / job `active=false`). Liga 1 por vez, observa 24h.
+- **Cada mudança tem rollback de 1 linha** (`UPDATE … SET active=false` ou remoção do `pg_cron.schedule`).
+- **Zero refactor de domínio.** Só preencher buracos.
+- Respeita o estado atual: crons ainda meio desligados, `nexengine-03` como app padrão. Não religa nada que está pausado de propósito.
 
-## Bug A — Shadow deal sem `source='campaign_internal'`
+---
 
-**Onde:** edge function `approve-campaign-plan` (e qualquer caminho que crie `curator_deals` a partir de allocation de campanha — Carnívoro tem 2 deals com `source=NULL` provando o bug).
+## Onda 1 — Quick wins sem cron novo (risco ~zero)
 
-**Fix:** ao criar o shadow deal de campanha interna, setar explicitamente:
-- `source = 'campaign_internal'`
-- `collection_mode = 'bot'`
-- `state = 'collecting'` (não `awaiting_playlists`)
-- `campaign_id = <id>` (já existe)
+Objetivo: tirar fricção operacional do dia a dia sem tocar em scheduler.
 
-**Backfill:** UPDATE nos 2 deals da Carnívoro + 1 da "Eu Já Era Trap" pra alinhar com o modelo correto. Migration manual via `supabase--insert` (data only, sem schema).
+### G-cliente — Enrich automático no cadastro
+- Em `useClients.addClient`, já existe `enrichSpotifyIfPossible`. Garantir que ele dispara **também quando o operador cola URL depois** (já tem no `updateClient` — confirmar) e logar warning visível no console quando regex falha.
+- Adicionar pequeno badge "enriquecendo…" no card do cliente enquanto `enrich-client-spotify` está em flight (estado local, não persiste).
+- Sem nova tabela, sem nova função. Só UX + garantia de chamada.
 
-## Bug B — Seed de `curator_playlists` como baseline
+### G3 — Notificação interna quando cliente aprova/rejeita plano
+- No mesmo endpoint que hoje grava `client_approved_at` / `client_rejected_at`, **adicionar insert em `notifications`** (tabela já existe) com `type='campaign_plan_decision'` e link pra campanha.
+- Bell do header já consome `notifications`. Zero UI nova.
+- Rollback: remover o insert.
 
-**Onde:** mesma edge function (`approve-campaign-plan` / `simulate-campaign-flow`).
+### G4 — Re-aprovação após ajuste
+- Adicionar coluna `client_decision_round int default 1` em `campaign_plans` (additivo, default seguro).
+- Quando operador editar plano após `client_rejected_at IS NOT NULL`: incrementar round, `UPDATE … SET client_rejected_at=null, client_approved_at=null`.
+- UI: badge "Rodada 2" ao lado do status quando round > 1.
+- Nenhum código antigo quebra — quem não usa round simplesmente ignora.
 
-**Problema:** o gate em `bot-collect-queue` (linha ~158) só dispatcha songs cujo deal tem rows em `curator_playlists` com `match_status IN ('curator','baseline')` e `spotify_playlist_id` real. Allocations existem em `campaign_eco_allocations` mas não viram baseline no deal.
+---
 
-**Fix:** quando aprovar plano de campanha, pra cada `(deal, song)` shadow, fazer upsert das 86 managed_playlists allocadas como rows em `curator_playlists`:
+## Onda 2 — Crons existentes em modo observação (risco baixo)
+
+Objetivo: cobrir os crons órfãos sem ligar carga nova ainda.
+
+### G7 — `reap_zombie_playlist_jobs` agendado
+- Criar schedule `reap-zombies-hourly` rodando **a cada 1h**, mas registrar com `active=false`.
+- Adicionar painel em `/sistema → Saúde` mostrando: última execução, quantos zumbis matou.
+- Ligar manualmente (via UI ou `UPDATE cron.job SET active=true WHERE jobname='reap-zombies-hourly'`) depois de 1 dia observando manualmente.
+
+### G11 — `execution-planner` entra no `monitor-critical-crons`
+- Adicionar `'execution-planner'` no array de crons monitorados.
+- Não muda lógica — só passa a alertar se ele sumir > X minutos.
+- Rollback: remover string do array.
+
+### G10/G6 — Retenção/remoção pós-campanha
+- Criar função `cleanup_finished_campaign_tracks(campaign_id uuid, dry_run bool default true)` — recebe campanha e **retorna** o que removeria (sem executar enquanto `dry_run=true`).
+- Botão "Simular limpeza" na tela da campanha encerrada. Operador roda manual, vê o que sairia.
+- Só depois (Onda 4) viramos pra cron com `dry_run=false`.
+
+---
+
+## Onda 3 — Cobrir cron de onboarding/SEO (risco médio, requer observação)
+
+### G-onboarding/SEO — playlist nova parada
+- Criar edge function `kick-onboarding-pipeline` que:
+  1. Busca playlists com `created_at > now() - 7d` e `onboarding_status IS NULL`.
+  2. Chama o pipeline existente (sem reescrever) — apenas dispara.
+- Schedule **2x/dia** (12h em 12h, não a cada minuto), começa `active=false`.
+- Antes de ligar: rodar manual 3 vezes, conferir logs, confirmar que não bate em 429 Spotify (lembrando do contexto atual de circuit breaker).
+- Ligar só depois que `nexengine-03` estiver estável e demais crons reativados.
+
+### G2 — Relatório final de campanha
+- Já existe `dealClosurePdf.ts` / `campaignClosurePdf.ts`. Criar wrapper `generateCampaignFinalReport(campaign_id)` que monta PDF completo (KPIs + curva de entrega + curadores + investimento) reaproveitando o que tem.
+- Botão "Gerar relatório final" na tela de campanha encerrada — manual primeiro, automático só depois.
+- Email continua igual; o PDF vira **anexo opcional**, não substitui nada.
+
+---
+
+## Onda 4 — Itens estruturais (planejar agora, executar depois)
+
+Esses dependem de decisão de produto. **Não implementar nesta leva** — só preparar terreno.
+
+### G-lifecycle — 5 fases vs 3
+- Auditar: listar onde o brain usa 5 fases e onde o schema/UI usa 3.
+- Entregar documento (`docs/LIFECYCLE_ALIGNMENT.md`) com as 3 opções: (a) brain colapsa pra 3, (b) schema expande pra 5, (c) mapeamento N:1.
+- **Sem código nesta fase.** Decisão do usuário antes de mexer.
+
+### G-ops-agent — comandos pro VPS
+- `ops-agent-poll` hoje é stub. Definir contrato mínimo (3 comandos: restart-bot, sync-now, health-check) em `docs/OPS_AGENT_CONTRACT.md` (já existe — revisar).
+- Implementação fica pra próxima leva; por ora, manter SSH/PM2 como caminho oficial e documentar isso na tela `/sistema`.
+
+---
+
+## Ordem de execução sugerida
+
+```text
+Hoje/amanhã:   Onda 1 (G-cliente, G3, G4)
++2 dias:       Onda 2 itens 1 e 2 (reap zombies + monitor-crons)
++3 dias:       Onda 2 item 3 (cleanup dry-run)
++1 semana:     Onda 3 (depois que crons atuais estabilizarem)
+Pós-decisão:   Onda 4
 ```
-{ deal_id, song_id, spotify_playlist_id, playlist_name, match_status: 'baseline' }
-```
-Com `onConflict: 'deal_id,song_id,spotify_playlist_id', ignoreDuplicates: true`.
 
-**Backfill:** rodar o mesmo seed pros 3 deals existentes via insert tool.
+## O que NÃO faço neste plano
 
-## Bug C — Promoção automática de state
+- Não religo nenhum cron que está hoje desligado de propósito.
+- Não mexo em `nexengine-03` / circuit breaker / fila de 98 jobs.
+- Não renomeio coluna nem dropo nada.
+- Não troco lifecycle de 5↔3 sem você decidir.
+- Não substituo SSH/PM2 por ops-agent automático ainda.
 
-**Onde:** mesma function. Deals de campanha entram em `awaiting_playlists` e ficam travados (bot-collect-queue exclui esse state).
+## Detalhes técnicos (resumo)
 
-**Fix:** após seed do Bug B ter rodado com sucesso (≥1 baseline inserido), promover deal para `state='collecting'` no mesmo fluxo. Idempotente — se já estiver collecting, no-op.
+- Migrações novas: `+client_decision_round` em `campaign_plans`, função `cleanup_finished_campaign_tracks(uuid, bool)`.
+- Edge functions novas: `kick-onboarding-pipeline` (desligada no início).
+- Schedules novos via `pg_cron`: `reap-zombies-hourly`, `kick-onboarding-12h` — ambos `active=false` por padrão.
+- Tabelas tocadas: `campaign_plans` (add column), `notifications` (insert), nenhuma outra alterada.
+- Frontend: badge "Rodada N", badge "enriquecendo…", botão "Simular limpeza", botão "Gerar relatório final". Nada removido.
 
-**Backfill:** UPDATE no deal "Eu Já Era Trap" pra `state='collecting'` após Bug A+B aplicados.
-
-## Ordem de execução
-
-1. Editar `supabase/functions/approve-campaign-plan/index.ts` (e/ou `simulate-campaign-flow`) aplicando A+B+C — deploy automático.
-2. Insert tool: backfill dos 3 deals existentes (UPDATE source/mode/state + INSERT baseline playlists).
-3. Aguardar 1 ciclo do bot (~5min) e validar: `SELECT count(*) FROM campaign_eco_snapshots WHERE created_at > now() - interval '10 min'`.
-
-## Riscos
-
-- Carnívoro tem 86 playlists × N songs = potencialmente centenas de rows novas em `curator_playlists`. Tudo com `match_status='baseline'`, isolado do fluxo de curador manual.
-- Se `approve-campaign-plan` for chamada de novo numa campanha já ativa, o upsert é idempotente — sem duplicação.
-- Não toca em `match_curator_playlist` RPC nem em `ingest-dom.ts` (já estão corretos).
-
-## Fora de escopo
-
-- Gap 17 (lift orgânico) — só faz sentido depois desse fix popular dados.
-- Gap 8 (já tem 86 rows, não estava vazio).
-- Reescrita do modelo curator_deals/campaigns — fix cirúrgico no fluxo de criação.
-
-Confirma pra eu aplicar?
+Me responde qual onda quer que eu execute primeiro (ou se quer começar só por um item específico da Onda 1).
