@@ -1021,6 +1021,8 @@ export type Database = {
           eco_max_pct: number
           engagement_multiplier: number
           expires_at: string | null
+          final_report_requested_at: string | null
+          final_report_url: string | null
           forma_recebimento: string | null
           goal_plays: number
           id: string
@@ -1068,6 +1070,8 @@ export type Database = {
           eco_max_pct?: number
           engagement_multiplier?: number
           expires_at?: string | null
+          final_report_requested_at?: string | null
+          final_report_url?: string | null
           forma_recebimento?: string | null
           goal_plays: number
           id?: string
@@ -1115,6 +1119,8 @@ export type Database = {
           eco_max_pct?: number
           engagement_multiplier?: number
           expires_at?: string | null
+          final_report_requested_at?: string | null
+          final_report_url?: string | null
           forma_recebimento?: string | null
           goal_plays?: number
           id?: string
@@ -8040,6 +8046,16 @@ export type Database = {
         Returns: string
       }
       approve_campaign: { Args: { p_campaign_id: string }; Returns: Json }
+      approve_campaign_plan_atomic: {
+        Args: {
+          p_campaign_id: string
+          p_new_allocs?: Json
+          p_position_updates?: Json
+          p_user_id: string
+          p_valor_cobrado?: number
+        }
+        Returns: Json
+      }
       bump_ai_quota: {
         Args: { p_month_start: string; p_tokens: number; p_user_id: string }
         Returns: Json
