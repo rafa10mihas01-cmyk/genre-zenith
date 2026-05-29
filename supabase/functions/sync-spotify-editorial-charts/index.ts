@@ -15,11 +15,14 @@
 // =====================================================================
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getSpotifyToken } from "../_shared/spotify.ts";
+import { getSpotifyToken, guardedSpotifyFetch } from "../_shared/spotify.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const THROTTLE_MS = 300;
 
 function jr(p: unknown, status = 200) {
   return new Response(JSON.stringify(p), {
@@ -36,7 +39,7 @@ function chunk<T>(arr: T[], size: number): T[][] {
 
 async function fetchTracksBatch(ids: string[], token: string) {
   const url = `https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`;
-  const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const r = await guardedSpotifyFetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (!r.ok) throw new Error(`Spotify ${r.status}: ${(await r.text()).slice(0, 200)}`);
   const j = await r.json();
   return j.tracks ?? [];
@@ -72,7 +75,9 @@ Deno.serve(async (req) => {
     let enriched = 0;
     let failed = 0;
 
+    let batchIdx = 0;
     for (const batch of chunk(targets, 50)) {
+      if (batchIdx++ > 0) await sleep(THROTTLE_MS);
       const ids = batch.map((b) => b.spotify_track_id!);
       try {
         const tracks = await fetchTracksBatch(ids, token);

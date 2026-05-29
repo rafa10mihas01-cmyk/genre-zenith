@@ -9,6 +9,13 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
 import { getUserAccessToken, getSpotifyToken } from "../_shared/spotify.ts";
 import { addPlaylistTracks, getPlaylistMeta, SpotifyApiError } from "../_shared/spotify-playlist.ts";
+import {
+  acquirePlaylistLock,
+  releasePlaylistLock,
+  finishPlaylistOperation,
+  formatPlaylistError,
+  lockedResponseBody,
+} from "../_shared/playlist-lock.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -84,13 +91,27 @@ Deno.serve(async (req) => {
       }, 412);
     }
 
-    // 4) POST /playlists/{id}/items — insere todas em bloco na posição 0 (topo)
+    // 4) Adquire lock + POST /playlists/{id}/items — insere todas em bloco na posição 0 (topo)
     //    Spotify aceita até 100 URIs por chamada; nosso limit é 50.
+    const lock = await acquirePlaylistLock(supabase, pl.id, "MANUAL_EDITOR", null);
+    if (!lock.ok) {
+      return jr(lockedResponseBody(lock), 423);
+    }
+
     let snapshot: string | null = null;
     try {
       const res = await addPlaylistTracks(pl.spotify_playlist_id, uris, token, { position: 0 });
       snapshot = res.snapshot_id ?? null;
+      await finishPlaylistOperation(supabase, lock, {
+        status: "success",
+        tracks_changed: selected.length,
+      });
     } catch (e) {
+      await finishPlaylistOperation(supabase, lock, {
+        status: "failed",
+        error: formatPlaylistError(e),
+      });
+      await releasePlaylistLock(supabase, lock);
       if (e instanceof SpotifyApiError) {
         const hint = e.status === 403
           ? ` — dono da playlist é "${ownerId ?? "?"}"; reconecte essa conta em Configurações com escopos playlist-modify-public/private.`
@@ -99,7 +120,7 @@ Deno.serve(async (req) => {
       }
       throw e;
     }
-
+    await releasePlaylistLock(supabase, lock);
 
     // 5) Log
     await supabase.from("collection_logs").insert({

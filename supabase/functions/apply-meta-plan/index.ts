@@ -25,6 +25,15 @@ import {
   listPlaylistTrackRefs,
   reorderPlaylistTracks,
 } from "../_shared/spotify-playlist.ts";
+import {
+  acquirePlaylistLock,
+  releasePlaylistLock,
+  finishPlaylistOperation,
+  formatPlaylistError,
+} from "../_shared/playlist-lock.ts";
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const THROTTLE_MS = 300;
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -78,7 +87,9 @@ Deno.serve(async (req) => {
     const trackUri = `spotify:track:${trackId}`;
     const results: any[] = [];
 
+    let slotIdx = 0;
     for (const slot of slots) {
+      if (slotIdx++ > 0) await sleep(THROTTLE_MS);
       const pl: any = plById.get(slot.playlist_id);
       if (!pl?.spotify_playlist_id) {
         results.push({ playlist_id: slot.playlist_id, status: "error", message: "playlist não encontrada" });
@@ -86,6 +97,20 @@ Deno.serve(async (req) => {
       }
       const planned1 = Math.max(1, Math.floor(slot.position));
       const targetIdx0 = planned1 - 1; // 1-based → 0-based
+
+      // Adquire lock por playlist antes de qualquer escrita no Spotify.
+      const lock = await acquirePlaylistLock(supabase, pl.id, "MANUAL_EDITOR", null);
+      if (!lock.ok) {
+        results.push({
+          playlist_id: pl.id,
+          name: pl.name,
+          status: "error",
+          message: `playlist em uso por ${lock.locked_by ?? "outra operação"}`,
+          planned_position: planned1,
+        });
+        continue;
+      }
+
       try {
         const { token } = await tokenForOwner(pl.spotify_playlist_id);
 
@@ -110,6 +135,8 @@ Deno.serve(async (req) => {
               message: `já está na posição ${existingIdx + 1}`,
               final_position: existingIdx + 1, planned_position: planned1,
             });
+            await finishPlaylistOperation(supabase, lock, { status: "success", tracks_changed: 0 });
+            await releasePlaylistLock(supabase, lock);
             continue;
           }
           const insertBefore = existingIdx < clampedTarget
@@ -159,6 +186,11 @@ Deno.serve(async (req) => {
           final_position: finalPos,
           fidelity_ok: fidelityOk,
         });
+        await finishPlaylistOperation(supabase, lock, {
+          status: "success",
+          tracks_after: refs.length,
+          tracks_changed: action === "skip" ? 0 : 1,
+        });
       } catch (e) {
         results.push({
           playlist_id: pl.id,
@@ -167,6 +199,12 @@ Deno.serve(async (req) => {
           message: (e as Error).message,
           planned_position: planned1,
         });
+        await finishPlaylistOperation(supabase, lock, {
+          status: "failed",
+          error: formatPlaylistError(e),
+        });
+      } finally {
+        await releasePlaylistLock(supabase, lock);
       }
     }
 
