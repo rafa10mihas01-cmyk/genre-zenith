@@ -44,11 +44,12 @@ function db() {
 
 export async function assertSpotifyCircuitClosed(appId = "global"): Promise<void> {
   const supabase = db();
+  const effectiveAppId = appId === "global" ? (await getDefaultSpotifyAppId()) ?? "global" : appId;
   try { await supabase.rpc("close_expired_spotify_circuit_breakers"); } catch { /* noop */ }
   const { data, error } = await supabase
     .from("spotify_circuit_breaker")
     .select("status, blocked_until, retry_after_sec")
-    .eq("app_id", appId)
+    .eq("app_id", effectiveAppId)
     .maybeSingle();
   if (error) throw new Error(`spotify_circuit_breaker: ${error.message}`);
   if (data?.status === "open" && data.blocked_until && new Date(data.blocked_until).getTime() > Date.now()) {
@@ -57,10 +58,11 @@ export async function assertSpotifyCircuitClosed(appId = "global"): Promise<void
 }
 
 export async function openSpotifyCircuitBreaker(retryAfterSec?: number | null, appId = "global", causedBy?: string): Promise<{ blockedUntil: string; retryAfterSec: number }> {
+  const effectiveAppId = appId === "global" ? (await getDefaultSpotifyAppId()) ?? "global" : appId;
   const safeRetry = Math.max(2, Math.min(Number(retryAfterSec ?? 60), 86_400));
   const blockedUntil = new Date(Date.now() + safeRetry * 1000).toISOString();
   await db().from("spotify_circuit_breaker").upsert({
-    app_id: appId,
+    app_id: effectiveAppId,
     status: "open",
     blocked_until: blockedUntil,
     last_429_at: new Date().toISOString(),
@@ -69,7 +71,7 @@ export async function openSpotifyCircuitBreaker(retryAfterSec?: number | null, a
   // Gap 22: registra histórico de cada abertura.
   try {
     await db().from("spotify_circuit_breaker_log").insert({
-      app_id: appId,
+      app_id: effectiveAppId,
       blocked_until: blockedUntil,
       retry_after_sec: safeRetry,
       caused_by: causedBy ?? null,
@@ -134,6 +136,18 @@ export type SpotifyAppCreds = {
   name: string;
 };
 
+async function getDefaultSpotifyAppId(): Promise<string | null> {
+  const { data } = await db()
+    .from("spotify_apps")
+    .select("id")
+    .eq("status", "active")
+    .order("is_default", { ascending: false })
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  return data?.id ?? null;
+}
+
 /** Busca credenciais do app Spotify.
  *  - appId informado → carrega esse app (erro se não achar).
  *  - sem appId → pega is_default, ou primeiro active, ou cai no env (compat).
@@ -193,6 +207,8 @@ export async function getAppCredentials(appId?: string | null): Promise<SpotifyA
 
 export async function getSpotifyToken(forceRefresh = false): Promise<string> {
   const supabase = db();
+  const creds = await getAppCredentials();
+  const tokenKey = creds.app_id ? `app:${creds.app_id}` : "app";
 
   // NOTE: NÃO chamamos assertSpotifyCircuitClosed aqui — refresh de token
   // usa accounts.spotify.com (quota separada) e deve sempre passar.
@@ -201,14 +217,13 @@ export async function getSpotifyToken(forceRefresh = false): Promise<string> {
     const { data } = await supabase
       .from("spotify_tokens")
       .select("access_token,expires_at")
-      .eq("singleton_key", "app")
+      .eq("singleton_key", tokenKey)
       .maybeSingle();
     if (data && new Date(data.expires_at).getTime() > Date.now() + 60_000) {
       return data.access_token;
     }
   }
 
-  const creds = await getAppCredentials();
   const basic = btoa(`${creds.client_id}:${creds.client_secret}`);
   const resp = await fetch("https://accounts.spotify.com/api/token", {
     method: "POST",
@@ -227,7 +242,7 @@ export async function getSpotifyToken(forceRefresh = false): Promise<string> {
   const expires_at = new Date(Date.now() + (json.expires_in ?? 3600) * 1000).toISOString();
 
   await supabase.from("spotify_tokens").upsert(
-    { singleton_key: "app", access_token, expires_at, app_id: creds.app_id },
+    { singleton_key: tokenKey, access_token, expires_at, app_id: creds.app_id },
     { onConflict: "singleton_key" },
   );
 
@@ -283,14 +298,21 @@ async function refreshUserToken(row: SpotifyUserToken): Promise<string> {
 /** Retorna access_token de usuário válido (faz refresh se necessário). */
 export async function getUserAccessToken(userId?: string): Promise<{ token: string; row: SpotifyUserToken }> {
   const supabase = db();
-  let q = supabase.from("spotify_user_tokens").select("*");
+  const defaultAppId = await getDefaultSpotifyAppId();
+  let q = supabase
+    .from("spotify_user_tokens")
+    .select("*")
+    .order("is_default", { ascending: false })
+    .order("updated_at", { ascending: false });
   if (userId) q = q.eq("spotify_user_id", userId);
-  else q = q.order("is_default", { ascending: false }).order("updated_at", { ascending: false });
-  const { data, error } = await q.limit(1).maybeSingle();
+  const { data, error } = await q.limit(userId ? 25 : 1);
   if (error) throw new Error(error.message);
-  if (!data) throw new Error("Nenhuma conta Spotify conectada. Conecte em Configurações primeiro.");
+  const rows = (data ?? []) as SpotifyUserToken[];
+  if (rows.length === 0) throw new Error("Nenhuma conta Spotify conectada. Conecte em Configurações primeiro.");
 
-  const row = data as SpotifyUserToken;
+  const row = (userId && defaultAppId)
+    ? rows.find((r) => r.app_id === defaultAppId) ?? rows[0]
+    : rows[0];
   // NOTE: NÃO bloqueamos leitura/refresh do token aqui. Se o caller usar o token
   // para chamar api.spotify.com, o guard global já bloqueia. Refresh em accounts.spotify.com
   // está na whitelist e deve sempre funcionar (mesmo com breaker open).
