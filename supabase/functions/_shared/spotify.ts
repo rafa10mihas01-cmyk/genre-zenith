@@ -56,7 +56,7 @@ export async function assertSpotifyCircuitClosed(appId = "global"): Promise<void
   }
 }
 
-export async function openSpotifyCircuitBreaker(retryAfterSec?: number | null, appId = "global"): Promise<void> {
+export async function openSpotifyCircuitBreaker(retryAfterSec?: number | null, appId = "global", causedBy?: string): Promise<void> {
   const safeRetry = Math.max(2, Math.min(Number(retryAfterSec ?? 60), 86_400));
   const blockedUntil = new Date(Date.now() + safeRetry * 1000).toISOString();
   await db().from("spotify_circuit_breaker").upsert({
@@ -66,7 +66,18 @@ export async function openSpotifyCircuitBreaker(retryAfterSec?: number | null, a
     last_429_at: new Date().toISOString(),
     retry_after_sec: safeRetry,
   }, { onConflict: "app_id" });
+  // Gap 22: registra histórico de cada abertura.
+  try {
+    await db().from("spotify_circuit_breaker_log").insert({
+      app_id: appId,
+      blocked_until: blockedUntil,
+      retry_after_sec: safeRetry,
+      caused_by: causedBy ?? null,
+      source_function: Deno.env.get("SUPABASE_FUNCTION_NAME") ?? null,
+    });
+  } catch { /* noop — log opcional */ }
 }
+
 
 // Endpoints que NÃO devem ser bloqueados pelo circuit breaker.
 // accounts.spotify.com/api/token = refresh OAuth (quota separada de Web API).
@@ -84,7 +95,7 @@ export async function guardedSpotifyFetch(url: string, init: RequestInit = {}, a
   const r = await spotifyOriginalFetch(url, init);
   if (r.status === 429 && !isCircuitBypassUrl(url)) {
     const ra = Number(r.headers.get("Retry-After") ?? r.headers.get("retry-after") ?? "");
-    await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60, appId);
+    await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60, appId, url);
   }
   return r;
 }
