@@ -11,6 +11,7 @@ import { ArrowLeft, RefreshCw, Target, Trash2, Copy, CheckCircle2, MessageSquare
 import { toast } from "@/hooks/use-toast";
 import { PUBLIC_DOMAIN } from "@/lib/curatorPublicUrl";
 import { Kpi } from "@/components/ui/kpi";
+import { CampaignClosureReportCard } from "@/components/campanhas/CampaignClosureReportCard";
 
 type Campaign = {
   id: string; track_name: string; artist: string | null;
@@ -27,6 +28,8 @@ type Campaign = {
   plan_approved_by: string | null;
   auto_deal_created: boolean | null;
   deal_id: string | null;
+  final_report_url: string | null;
+  final_report_requested_at: string | null;
 };
 
 type Allocation = {
@@ -204,6 +207,16 @@ export default function CampanhaDetalhe() {
 
         {/* Aprovação do cliente + link compartilhável */}
         <ClientApprovalCard camp={camp} />
+
+        {/* Relatório de fechamento (lazy quando completed) */}
+        <CampaignClosureReportCard
+          campaignId={camp.id}
+          status={camp.status}
+          finalReportUrl={camp.final_report_url}
+          finalReportRequestedAt={camp.final_report_requested_at}
+          onGenerated={(url) => setCamp((c) => (c ? { ...c, final_report_url: url } : c))}
+        />
+
 
 
 

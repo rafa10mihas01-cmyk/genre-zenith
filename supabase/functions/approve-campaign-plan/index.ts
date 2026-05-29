@@ -155,25 +155,17 @@ Deno.serve(async (req) => {
         : null;
 
   const nowIso = new Date().toISOString();
-  const approvePatch: Record<string, unknown> = {
-    plan_approved_at: nowIso,
-    plan_approved_by: userId,
-  };
-  if (campaign.valor_cobrado == null && resolvedValorCobrado != null) {
-    approvePatch.valor_cobrado = resolvedValorCobrado;
-  }
 
-  const { error: updErr } = await admin
-    .from("campaigns")
-    .update(approvePatch)
-    .eq("id", campaignId);
-  if (updErr) return json({ ok: false, error: `approve_failed: ${updErr.message}` }, 500);
+  // ─── ATOMICIDADE (Fix Auditoria #1) ───
+  // Calculamos os payloads em TS (lógica de afinidade, distribuição de
+  // posições) mas o UPDATE de aprovação + backfill de positions + INSERT
+  // de allocs de afinidade roda numa única transação via RPC
+  // `approve_campaign_plan_atomic`. Se qualquer passo falhar, tudo reverte
+  // — sem campanha aprovada com posições NULL ou cobertura quebrada.
+  let positionUpdates: Array<{ id: string; position: number }> = [];
+  let newAffinityAllocs: any[] = [];
 
-  // Refletir no objeto local pra resto do fluxo (cost do deal usa isso).
-  (campaign as any).valor_cobrado = resolvedValorCobrado;
-
-  // Backfill: se a campanha (legada) foi criada sem `position` em campaign_eco_allocations,
-  // materializa agora — idempotente. Só toca em linhas onde position IS NULL.
+  // 2a) Calcula backfill de positions (lê estado atual)
   try {
     const snapDays = Number(snap?.days ?? 0);
     const mult = Math.max(1, Math.round(Number((campaign as any).engagement_multiplier ?? snap?.engagement_multiplier ?? 30)));
@@ -196,26 +188,16 @@ Deno.serve(async (req) => {
           })),
           snapDays, mult, { chartTier },
         );
-        // UPDATE só nas que estão NULL (preserva eventual override manual já gravado).
-        await Promise.all(
-          rows.filter(r => r.position == null).map(r =>
-            admin.from("campaign_eco_allocations")
-              .update({ position: positions.get(r.id) ?? null })
-              .eq("id", r.id),
-          ),
-        );
+        positionUpdates = rows
+          .filter(r => r.position == null)
+          .map(r => ({ id: r.id, position: positions.get(r.id) ?? 3 }));
       }
     }
   } catch (_e) {
-    // Backfill é best-effort — não bloqueia aprovação.
+    // Best-effort — se falhar, RPC só aprova sem backfill.
   }
 
-
-  // Safety net: se a capacidade total das allocs eco for < 80% do goal_plays
-  // E ainda não houver expansão de afinidade gravada, busca gêneros vizinhos
-  // (score ≥ 0.60) e completa com playlists novas até cobrir 100% — limite de
-  // 40% da meta vindo de vizinhos. Idempotente: skip se já existe alloc
-  // com genre_source='affinity'.
+  // 2b) Calcula expansão de afinidade (safety net se cobertura < 80%)
   try {
     const goalPlays = Number((campaign as any).goal_plays ?? 0);
     const snapDays = Number(snap?.days ?? 0);
@@ -232,7 +214,6 @@ Deno.serve(async (req) => {
       const totalPlanned = allocs.reduce((s, a) => s + Number(a.planned_streams ?? 0), 0);
       const coverage = goalPlays > 0 ? totalPlanned / goalPlays : 1;
 
-      // Descobre genre_id primário a partir das allocs existentes (moda)
       const genreCounts = new Map<string, number>();
       for (const a of allocs) {
         const gid = a.managed_playlists?.genre_id;
@@ -256,21 +237,18 @@ Deno.serve(async (req) => {
           const affByGenre = new Map(neighbors.map(n => [n.genre_id, n.score]));
           const fresh = (candidatePls ?? []).filter((p: any) => !usedIds.has(p.id));
 
-          // Limite: vizinhos até 40% do goal, mas só preenchendo o gap.
           const maxNeighborBudget = Math.round(goalPlays * 0.4);
           const gap = Math.max(0, goalPlays - totalPlanned);
           let neighborBudget = Math.min(maxNeighborBudget, gap);
 
           const SLOT_PCT = 0.08;
-          const rows: any[] = [];
           for (const p of fresh) {
             if (neighborBudget <= 0) break;
             const followers = Number(p.followers ?? 0);
             const cap = Math.max(1, Math.round(followers * (mult / 30) * SLOT_PCT * snapDays));
             const planned = Math.min(cap, neighborBudget);
             if (planned <= 0) continue;
-            rows.push({
-              campaign_id: campaignId,
+            newAffinityAllocs.push({
               managed_playlist_id: p.id,
               planned_streams: planned,
               start_day: 1,
@@ -281,16 +259,34 @@ Deno.serve(async (req) => {
             });
             neighborBudget -= planned;
           }
-
-          if (rows.length > 0) {
-            await admin.from("campaign_eco_allocations").insert(rows);
-          }
         }
       }
     }
   } catch (e) {
-    console.warn("[approve-campaign-plan] affinity expansion failed:", (e as Error).message);
+    console.warn("[approve-campaign-plan] affinity expansion calc failed:", (e as Error).message);
   }
+
+  // 2c) Executa atomicamente via RPC. Reverte tudo se qualquer passo falhar.
+  const { data: rpcApprove, error: rpcApproveErr } = await admin.rpc(
+    "approve_campaign_plan_atomic",
+    {
+      p_campaign_id: campaignId,
+      p_user_id: userId,
+      p_valor_cobrado: resolvedValorCobrado,
+      p_position_updates: positionUpdates,
+      p_new_allocs: newAffinityAllocs,
+    },
+  );
+
+  if (rpcApproveErr) {
+    return json({ ok: false, error: `approve_failed: ${rpcApproveErr.message}` }, 500);
+  }
+  if ((rpcApprove as any)?.already_approved) {
+    return json({ ok: true, already_approved: true, deal_id: campaign.deal_id ?? null });
+  }
+
+  // Reflete no objeto local pra resto do fluxo (cost do deal usa isso).
+  (campaign as any).valor_cobrado = resolvedValorCobrado;
 
 
   // 3) Lê feature flag

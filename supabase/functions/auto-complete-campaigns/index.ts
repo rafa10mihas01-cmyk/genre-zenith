@@ -75,6 +75,88 @@ async function notifyCampaignOverdue(sb: any, campaign: any, delivered: number, 
   }
 }
 
+async function notifyCampaignCompleted(sb: any, campaign: any, delivered: number, goal: number) {
+  const dedupeKey = `campaign_completed:${campaign.id}`;
+  const trackLabel = campaign.track_name ?? "Faixa";
+  const title = `Campanha concluída — ${delivered.toLocaleString("pt-BR")} plays entregues de ${goal.toLocaleString("pt-BR")} meta`;
+  const message = `A campanha "${trackLabel}" atingiu a meta e foi encerrada automaticamente.`;
+
+  // 1) Notificação interna pro operador (created_by). Cliente não tem inbox
+  // no app — acesso é via token público; UI do operador faz o repasse.
+  try {
+    await sb.rpc("create_notification", {
+      p_type: "info",
+      p_title: title,
+      p_message: message,
+      p_action_url: `/campanhas/${campaign.id}/execucao`,
+      p_metadata: {
+        kind: "campaign_completed",
+        domain: "campaigns",
+        campaign_id: campaign.id,
+        deal_id: campaign.deal_id ?? null,
+        client_id: campaign.client_id ?? null,
+        delivered,
+        target: goal,
+        dedupe_key: dedupeKey,
+      },
+      p_dedupe_key: dedupeKey,
+      p_cooldown_minutes: 1440,
+    });
+  } catch (rpcErr) {
+    // Fallback insert direto
+    await sb.from("notifications").insert({
+      user_id: campaign.created_by ?? null,
+      type: "info",
+      title,
+      message,
+      action_url: `/campanhas/${campaign.id}/execucao`,
+      metadata: {
+        kind: "campaign_completed",
+        domain: "campaigns",
+        campaign_id: campaign.id,
+        client_id: campaign.client_id ?? null,
+        delivered,
+        target: goal,
+        dedupe_key: dedupeKey,
+      },
+    });
+  }
+
+  // 2) Email pro cliente se houver clients.email. Fallback silencioso se
+  // Lovable Emails não estiver configurado ou se cliente não tiver email.
+  if (!campaign.client_id) return;
+  try {
+    const { data: client } = await sb
+      .from("clients")
+      .select("email, name")
+      .eq("id", campaign.client_id)
+      .maybeSingle();
+    const clientEmail = (client as any)?.email?.trim();
+    if (!clientEmail) return;
+
+    await sb.functions.invoke("send-transactional-email", {
+      body: {
+        templateName: "campaign-completed",
+        recipientEmail: clientEmail,
+        idempotencyKey: `campaign-completed-${campaign.id}`,
+        templateData: {
+          client_name: (client as any)?.name ?? null,
+          track_name: trackLabel,
+          artist: campaign.artist ?? null,
+          delivered,
+          goal,
+        },
+      },
+    });
+  } catch (emailErr) {
+    console.log(JSON.stringify({
+      evt: "auto-complete.email_client_skipped",
+      campaign_id: campaign.id,
+      error: (emailErr as Error)?.message ?? String(emailErr),
+    }));
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -85,7 +167,7 @@ Deno.serve(async (req) => {
   try {
     const { data: rows, error } = await sb
       .from("campaigns")
-      .select("id, status, started_at, simulation_snapshot, track_name, created_by, deal_id, goal_plays, total_delivered")
+      .select("id, status, started_at, simulation_snapshot, track_name, artist, created_by, deal_id, goal_plays, total_delivered, client_id")
       .in("status", ACTIVE_STATUSES)
       .is("closed_at", null)
       .not("started_at", "is", null);
@@ -142,7 +224,12 @@ Deno.serve(async (req) => {
 
       const { error: updErr } = await sb
         .from("campaigns")
-        .update({ status: "completed", closed_at: new Date().toISOString(), total_delivered: delivered })
+        .update({
+          status: "completed",
+          closed_at: new Date().toISOString(),
+          total_delivered: delivered,
+          final_report_requested_at: new Date().toISOString(),
+        })
         .eq("id", r.id)
         .in("status", ACTIVE_STATUSES); // guard idempotente
 
@@ -153,6 +240,13 @@ Deno.serve(async (req) => {
         closed++;
         closedIds.push(r.id);
         console.log(JSON.stringify({ evt: "auto-complete.closed", campaign_id: r.id, delivered, goal, effective_days: eff, started_at: r.started_at }));
+
+        // ── Fix Auditoria #3: notifica operador + email pro cliente ──
+        try {
+          await notifyCampaignCompleted(sb, r, delivered, goal);
+        } catch (notifyErr) {
+          console.log(JSON.stringify({ evt: "auto-complete.notify_completed_error", campaign_id: r.id, error: (notifyErr as Error)?.message ?? String(notifyErr) }));
+        }
       }
     }
 
