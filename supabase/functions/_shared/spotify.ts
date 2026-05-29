@@ -136,6 +136,18 @@ export type SpotifyAppCreds = {
   name: string;
 };
 
+async function getDefaultSpotifyAppId(): Promise<string | null> {
+  const { data } = await db()
+    .from("spotify_apps")
+    .select("id")
+    .eq("status", "active")
+    .order("is_default", { ascending: false })
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  return data?.id ?? null;
+}
+
 /** Busca credenciais do app Spotify.
  *  - appId informado → carrega esse app (erro se não achar).
  *  - sem appId → pega is_default, ou primeiro active, ou cai no env (compat).
@@ -195,6 +207,8 @@ export async function getAppCredentials(appId?: string | null): Promise<SpotifyA
 
 export async function getSpotifyToken(forceRefresh = false): Promise<string> {
   const supabase = db();
+  const creds = await getAppCredentials();
+  const tokenKey = creds.app_id ? `app:${creds.app_id}` : "app";
 
   // NOTE: NÃO chamamos assertSpotifyCircuitClosed aqui — refresh de token
   // usa accounts.spotify.com (quota separada) e deve sempre passar.
@@ -203,14 +217,13 @@ export async function getSpotifyToken(forceRefresh = false): Promise<string> {
     const { data } = await supabase
       .from("spotify_tokens")
       .select("access_token,expires_at")
-      .eq("singleton_key", "app")
+      .eq("singleton_key", tokenKey)
       .maybeSingle();
     if (data && new Date(data.expires_at).getTime() > Date.now() + 60_000) {
       return data.access_token;
     }
   }
 
-  const creds = await getAppCredentials();
   const basic = btoa(`${creds.client_id}:${creds.client_secret}`);
   const resp = await fetch("https://accounts.spotify.com/api/token", {
     method: "POST",
@@ -229,7 +242,7 @@ export async function getSpotifyToken(forceRefresh = false): Promise<string> {
   const expires_at = new Date(Date.now() + (json.expires_in ?? 3600) * 1000).toISOString();
 
   await supabase.from("spotify_tokens").upsert(
-    { singleton_key: "app", access_token, expires_at, app_id: creds.app_id },
+    { singleton_key: tokenKey, access_token, expires_at, app_id: creds.app_id },
     { onConflict: "singleton_key" },
   );
 
