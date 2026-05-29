@@ -808,6 +808,7 @@ export default function CampanhaExecucao() {
               </CardContent>
             </Card>
           ),
+          history: <PlanHistoryTab campaignId={camp.id} />,
         }}
       />
 
