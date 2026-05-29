@@ -743,6 +743,7 @@ export default function CampanhaExecucao() {
                     allocations={allocs as unknown as Parameters<typeof CampaignFullPlanCard>[0]["allocations"]}
                     engagementMultiplier={camp.engagement_multiplier ?? 30}
                     shareToken={camp.public_plan_token ?? null}
+                    showShare={false}
                     campaignId={camp.id}
                     onPositionsRedistributed={loadCampaign}
                     radioGoal={Math.round(snapshot.meta * ((snapshot.splitOrganicPct ?? 15) / 100))}
