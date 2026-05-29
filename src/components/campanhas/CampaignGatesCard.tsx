@@ -47,6 +47,7 @@ export type CampaignGatesCardProps = {
   planApprovedAt: string | null;
   ecoDispatchedAt: string | null;
   collectionMode?: string | null;
+  status?: string | null;
   onApprovePlan: () => void;
   onDispatch: () => void;
   approvingPlan: boolean;
@@ -61,26 +62,35 @@ export function CampaignGatesCard({
   planApprovedAt,
   ecoDispatchedAt,
   collectionMode,
+  status,
   onApprovePlan,
   onDispatch,
   approvingPlan,
   dispatching,
 }: CampaignGatesCardProps) {
-  const clientDone = !!clientApprovedAt;
-  const planDone = !!planApprovedAt;
-  const dispatchDone = !!ecoDispatchedAt;
+  const isSpreadsheet = collectionMode === "spreadsheet";
+  const isLive = status === "active" || status === "paused";
+  const isClosed = status === "completed" || status === "cancelled";
+
+  const clientDone = !!clientApprovedAt || isLive || isClosed;
+  const planDone = !!planApprovedAt || isLive || isClosed;
+  // Spreadsheet campaigns don't have an eco dispatch — once active the third gate represents "coleta ativa".
+  const dispatchDone = !!ecoDispatchedAt || (isSpreadsheet && (isLive || isClosed)) || status === "completed";
 
   const state1: GateState = clientDone ? "done" : "current";
   const state2: GateState = planDone ? "done" : clientDone ? "current" : "locked";
   const state3: GateState = dispatchDone ? "done" : planDone ? "current" : "locked";
 
-  const nextAction: "plan" | "dispatch" | null = dispatchDone
+  // Once the campaign is live or closed, hide CTAs — gates become a read-only timeline.
+  const nextAction: "plan" | "dispatch" | null = isLive || isClosed
     ? null
-    : planDone
-      ? "dispatch"
-      : clientDone
-        ? "plan"
-        : null;
+    : dispatchDone
+      ? null
+      : planDone
+        ? "dispatch"
+        : clientDone
+          ? "plan"
+          : null;
 
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
