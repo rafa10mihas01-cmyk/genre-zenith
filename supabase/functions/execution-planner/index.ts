@@ -211,8 +211,9 @@ Deno.serve(async (req) => {
   const fresh = candidates.filter((c) => !skip.has(c.dedupe_key));
   if (fresh.length === 0) {
     const r = await runEcoReorderPass(supabase, new Date(now));
-    await reportCronHealth(supabase, { job_name: "execution-planner", status: "ok", startedAt: cronT0, metrics: { enqueued: 0, considered: candidates.length, dedupe_skipped: candidates.length, reorder_enqueued: r.enqueued } });
-    return jr({ ok: true, enqueued: 0, considered: candidates.length, reorder: r });
+    const bo = nextEmpty();
+    await reportCronHealth(supabase, { job_name: "execution-planner", status: "ok", startedAt: cronT0, metrics: { enqueued: 0, considered: candidates.length, dedupe_skipped: candidates.length, reorder_enqueued: r.enqueued, ...bo } });
+    return jr({ ok: true, enqueued: 0, considered: candidates.length, reorder: r, backoff: bo });
   }
 
   // 3. Pacing: pra cada playlist envolvida, busca histórico recente pra
