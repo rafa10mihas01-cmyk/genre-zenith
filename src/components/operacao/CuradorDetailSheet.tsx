@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Mail, Instagram, MessageCircle, ExternalLink, Copy, Loader2, Send, StickyNote, Activity, Star } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Mail, Instagram, MessageCircle, ExternalLink, Copy, Loader2, Send, StickyNote, Activity, Star, Handshake } from "lucide-react";
 import { toast } from "sonner";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
@@ -16,6 +17,7 @@ import {
   CommercialScoreEditor, type CommercialScore,
 } from "./CommercialScoreEditor";
 import { openInstagramWithMessage } from "./EmailPreviewDialog";
+import { NewDealDialog } from "@/components/playlist-deals/NewDealDialog";
 
 export const OPERATIONAL_TAGS = [
   "premium","whatsapp","aceita_trap","aceita_funk","caro","confiavel","demora_responder","top_conversao",
