@@ -44,7 +44,21 @@ import { CampaignDailyPlan } from "@/components/campanhas/CampaignDailyPlan";
 import { distributeEcoPositions, chartTierFromTopPosition } from "@/lib/campaignOperationalPlan";
 import { ClientHeroCard } from "@/components/campaign-hub/ClientHeroCard";
 import { SpreadsheetUploadCard } from "@/components/client-portal/SpreadsheetUploadCard";
-import { CampaignAccessGate } from "@/components/client-portal/CampaignAccessGate";
+import { CampaignAccessGate, accessStorageKey } from "@/components/client-portal/CampaignAccessGate";
+
+// Lê JWT salvo do gate e devolve cabeçalho Authorization. Sem JWT → objeto vazio.
+function portalHeaders(token: string | undefined): Record<string, string> {
+  if (!token) return {};
+  try {
+    const raw = localStorage.getItem(`campaign_access_jwt:${token}`);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as { jwt?: string; exp?: number };
+    if (parsed?.jwt && parsed?.exp && parsed.exp > Date.now()) {
+      return { Authorization: `Bearer ${parsed.jwt}` };
+    }
+  } catch { /* ignore */ }
+  return {};
+}
 import { MonitoredPlaylistsCard, type MonitoredPlaylist } from "@/components/client-portal/MonitoredPlaylistsCard";
 import { AlgorithmicImpactCard } from "@/components/client-portal/AlgorithmicImpactCard";
 import { PrintsHistoryCard, type PrintsHistoryEntry } from "@/components/client-portal/PrintsHistoryCard";
@@ -189,8 +203,17 @@ export default function PlanoCampanhaPublico() {
     setLoading(true);
     const { data, error } = await supabase.functions.invoke("get-shared-campaign-plan", {
       body: { token },
+      headers: portalHeaders(token),
     });
     const payload = data as SharedCampaignPlanResponse | null;
+    // Sessão expirada/invalida → derruba JWT cacheado e força gate de novo.
+    if ((payload?.error === "auth_required" || payload?.error === "invalid_session" || payload?.error === "wrong_campaign") && token) {
+      try { localStorage.removeItem(accessStorageKey(token)); } catch { /* ignore */ }
+      setGateAuthed(false);
+      setGateRequired(true);
+      setLoading(false);
+      return;
+    }
     if (error || payload?.error) {
       setErr(payload?.error ?? error?.message ?? "Erro");
     } else {
@@ -238,6 +261,7 @@ export default function PlanoCampanhaPublico() {
     (async () => {
       const { data } = await supabase.functions.invoke("get-client-campaign-public", {
         body: { client_token: clientToken },
+        headers: portalHeaders(token),
       });
       if (cancelled || !data || (data as { ok?: boolean }).ok === false) return;
       const payload = data as { playlists?: MonitoredPlaylist[]; snapshot_history?: PrintsHistoryEntry[]; snapshotHistory?: PrintsHistoryEntry[]; series?: EvolutionSeriesPoint[] };
@@ -343,6 +367,7 @@ export default function PlanoCampanhaPublico() {
     setApproving(true);
     const { data, error } = await supabase.functions.invoke("client-approve-campaign", {
       body: { token, approver_name: approverName.trim() },
+      headers: portalHeaders(token),
     });
     setApproving(false);
     const errMsg = error?.message || (data && (data as any).ok === false ? (data as any).error : null);
@@ -356,6 +381,7 @@ export default function PlanoCampanhaPublico() {
     setAdjusting(true);
     const { data, error } = await supabase.functions.invoke("client-request-adjustment", {
       body: { token, message: adjustMsg.trim(), requester_name: adjustName.trim() || null },
+      headers: portalHeaders(token),
     });
     setAdjusting(false);
     const errMsg = error?.message || (data && (data as any).ok === false ? (data as any).error : null);

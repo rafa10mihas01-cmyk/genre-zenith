@@ -4,7 +4,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkRateLimit, clientIp, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { buildEcoPlan } from "../_shared/computeEcoPlan.ts";
-import { verifyAccessJwt } from "../_shared/campaign-access-jwt.ts";
+import { gateCampaignAccess } from "../_shared/portal-auth.ts";
 
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -70,6 +70,10 @@ Deno.serve(async (req) => {
   if (campRaw.status === "completed" || closedAt) {
     return jr({ error: "campaign_closed", message: "Campanha encerrada" }, 404);
   }
+
+  // Gate por PIN — se a campanha tem e-mails autorizados, exige JWT do portal.
+  const gate = await gateCampaignAccess(req, supabase, campRaw.id);
+  if (!gate.ok) return jr({ error: gate.error }, gate.status ?? 401);
 
   // Payload sanitizado — sem custos, sem margens, sem campos internos.
   const camp = {
