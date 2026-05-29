@@ -145,12 +145,26 @@ Deno.serve(async (req) => {
       }));
     return jr({ ok: true, source: "spotify", tracks: out, total: out.length });
   } catch (e) {
+    // Circuit breaker aberto: erro claro, SEM fallback de cache silencioso.
+    if (e instanceof SpotifyCircuitOpenError) {
+      const retryAfter = Math.max(1, Math.ceil((e.blockedUntil.getTime() - Date.now()) / 1000));
+      return jr({
+        ok: false,
+        error: "SPOTIFY_CIRCUIT_OPEN",
+        code: "spotify_circuit_open",
+        message: "Spotify API temporariamente bloqueada pelo circuit breaker.",
+        blocked_until: e.blockedUntil.toISOString(),
+        retry_after: retryAfter,
+        tracks: [],
+        total: 0,
+      }, 503);
+    }
     const err = e as SpotifyApiError;
     const rateLimited = err?.status === 429 || /429|too many requests/i.test(err?.message ?? "");
     const retryAfter = rateLimited
       ? Math.min(60, Math.max(2, err?.retryAfter ?? 10))
       : null;
-    // Fallback: tenta servir do cache local
+    // Fallback: tenta servir do cache local apenas em 429 direto (não em circuit open).
     if (rateLimited) {
       const cache = await loadCache();
       if (cache.tracks.length > 0) {
