@@ -14,20 +14,23 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { loadGateContext, scoreAndGate } from "../_shared/discovery-scoring.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
-import { getSpotifyToken } from "../_shared/spotify.ts";
+import { getSpotifyToken, guardedSpotifyFetch } from "../_shared/spotify.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const THROTTLE_MS = 300;
 
 async function fetchUserPlaylists(token: string, ownerId: string, limit = 50): Promise<any[]> {
   // Spotify só expõe playlists públicas de usuários comuns.
   // Para owner_type='label' ou ownerId 'spotify', o endpoint pode falhar.
   const url = `https://api.spotify.com/v1/users/${encodeURIComponent(ownerId)}/playlists?limit=${limit}`;
-  const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const r = await guardedSpotifyFetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (r.status === 404 || r.status === 403) return [];
   if (r.status === 401) {
     const t2 = await getSpotifyToken(true);
-    const r2 = await fetch(url, { headers: { Authorization: `Bearer ${t2}` } });
+    const r2 = await guardedSpotifyFetch(url, { headers: { Authorization: `Bearer ${t2}` } });
     if (!r2.ok) return [];
     const j2 = await r2.json();
     return j2.items ?? [];
