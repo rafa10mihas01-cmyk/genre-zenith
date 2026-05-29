@@ -282,7 +282,7 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
         started_at: new Date(startDate).toISOString(),
         deadline: deadline || null,
         notes: notes.trim() || null,
-        status: activate ? "active" : "draft",
+        status: "draft", // toda campanha nasce rascunho; vira "active" só quando o plano interno for aprovado.
         created_by: user?.id ?? null,
         client_id: clientId || null,
         curator_id: curatorId || null,
