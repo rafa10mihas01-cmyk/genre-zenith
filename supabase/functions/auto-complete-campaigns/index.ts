@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
   try {
     const { data: rows, error } = await sb
       .from("campaigns")
-      .select("id, status, started_at, simulation_snapshot, track_name, created_by, deal_id, goal_plays, total_delivered")
+      .select("id, status, started_at, simulation_snapshot, track_name, artist, created_by, deal_id, goal_plays, total_delivered, client_id")
       .in("status", ACTIVE_STATUSES)
       .is("closed_at", null)
       .not("started_at", "is", null);
