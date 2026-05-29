@@ -552,7 +552,11 @@ export function useCuratorDeals() {
   const addDeal = useCallback(
     async (
       input: NewCuratorDealInput,
-      opts?: { force?: boolean; new_curator?: NewCuratorInput | null },
+      opts?: {
+        force?: boolean;
+        new_curator?: NewCuratorInput | null;
+        external_curator_id?: string | null;
+      },
     ) => {
       if (!user) throw new Error("Usuário não autenticado");
 
@@ -579,8 +583,12 @@ export function useCuratorDeals() {
         artist_candidates: s.artist_candidates ?? (s.song_artist ? [s.song_artist] : []),
       }));
 
+      // Gap 9: quando vem de um prospect, RPC promove/cria o curador automaticamente.
+      // p_external_curator_id é mutuamente exclusivo com curator_id e p_new_curator.
+      const isFromProspect = !!opts?.external_curator_id;
+
       const dealPayload = {
-        curator_id: input.curator_id ?? null,
+        curator_id: isFromProspect ? null : (input.curator_id ?? null),
         curator_name: input.curator_name,
         baseline_plays: input.baseline_plays ?? 0,
         cost: input.cost ?? null,
@@ -598,7 +606,9 @@ export function useCuratorDeals() {
           p_deal: dealPayload,
           p_songs: allSongs,
           p_force: opts?.force ?? false,
-          p_new_curator: opts?.new_curator
+          p_new_curator: isFromProspect
+            ? null
+            : opts?.new_curator
             ? {
                 name: opts.new_curator.name,
                 contact: opts.new_curator.contact ?? null,
@@ -609,6 +619,7 @@ export function useCuratorDeals() {
                 total_cost: opts.new_curator.total_cost ?? 0,
               }
             : null,
+          p_external_curator_id: opts?.external_curator_id ?? null,
         },
       );
       if (rpcErr) {

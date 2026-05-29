@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Mail, Instagram, MessageCircle, ExternalLink, Copy, Loader2, Send, StickyNote, Activity, Star } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Mail, Instagram, MessageCircle, ExternalLink, Copy, Loader2, Send, StickyNote, Activity, Star, Handshake } from "lucide-react";
 import { toast } from "sonner";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
@@ -16,6 +17,7 @@ import {
   CommercialScoreEditor, type CommercialScore,
 } from "./CommercialScoreEditor";
 import { openInstagramWithMessage } from "./EmailPreviewDialog";
+import { NewDealDialog } from "@/components/playlist-deals/NewDealDialog";
 
 export const OPERATIONAL_TAGS = [
   "premium","whatsapp","aceita_trap","aceita_funk","caro","confiavel","demora_responder","top_conversao",
@@ -101,6 +103,8 @@ export function CuradorDetailSheet({
   const [noteDraft, setNoteDraft] = useState("");
   const [savingNote, setSavingNote] = useState(false);
   const [savingMeta, setSavingMeta] = useState(false);
+  const [dealDialogOpen, setDealDialogOpen] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!curator || !open) return;
@@ -224,6 +228,14 @@ export function CuradorDetailSheet({
               Marcar como respondeu
             </button>
           </div>
+          <Button
+            size="sm"
+            className="h-8 gap-1.5 w-full sm:w-auto"
+            onClick={() => setDealDialogOpen(true)}
+          >
+            <Handshake className="h-3.5 w-3.5" />
+            Criar deal
+          </Button>
         </SheetHeader>
 
         <Tabs defaultValue="contato" className="mt-4">
@@ -402,6 +414,22 @@ export function CuradorDetailSheet({
           </TabsContent>
         </Tabs>
       </SheetContent>
+      <NewDealDialog
+        open={dealDialogOpen}
+        onOpenChange={setDealDialogOpen}
+        externalCuratorId={curator.id}
+        externalCuratorPreview={{
+          name: curator.name,
+          email: curator.email,
+          spotify_url: curator.spotify_url,
+        }}
+        onCreated={(deal) => {
+          setDealDialogOpen(false);
+          onOpenChange(false);
+          onChanged();
+          navigate(`/deals/${deal.id}`);
+        }}
+      />
     </Sheet>
   );
 }

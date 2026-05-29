@@ -94,6 +94,9 @@ export interface NewDealDialogProps {
   onCreated?: (deal: CuratorDeal) => void | Promise<void>;
   /** Quando o dialog é aberto a partir de uma campanha, vincula o deal a ela. */
   campaignId?: string | null;
+  /** Gap 9: criação a partir de um prospect (external_curators). RPC promove/cria curador. */
+  externalCuratorId?: string | null;
+  externalCuratorPreview?: { name: string; email?: string | null; spotify_url?: string | null } | null;
 }
 
 // ============================================================
@@ -459,7 +462,7 @@ function ClientPicker({
 // ============================================================
 // Componente
 // ============================================================
-export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved, prefillSongUrl, prefillCuratorId, sourceFitId, onCreated, campaignId }: NewDealDialogProps) {
+export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved, prefillSongUrl, prefillCuratorId, sourceFitId, onCreated, campaignId, externalCuratorId, externalCuratorPreview }: NewDealDialogProps) {
   const { addDeal, updateDeal, addCurator, updateCurator, curators, balances } = useCuratorDeals();
   const { clients, addClient } = useClients();
   const { addPurchase } = useCuratorFinance();
@@ -790,6 +793,22 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, isEdit, prefillSongUrl, prefillCuratorId]);
 
+  // Gap 9 — Prefill vindo de um prospect (external_curator).
+  // Força modo "new" com nome/contato do prospect e pula direto pro Step 2.
+  // A RPC fará o lookup/criação real do curador via p_external_curator_id.
+  useEffect(() => {
+    if (!open || isEdit) return;
+    if (!externalCuratorId || !externalCuratorPreview) return;
+    setStep(2);
+    setCuratorMode("new");
+    setSelectedCuratorId(null);
+    setNewCuratorName(externalCuratorPreview.name ?? "");
+    setNewCuratorContact(externalCuratorPreview.email ?? "");
+    setNewCuratorPlaysDigits("");
+    setNewCuratorCostDigits("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isEdit, externalCuratorId, externalCuratorPreview?.name]);
+
   // Auto-buscar metadados da música pré-preenchida
   useEffect(() => {
     if (!open || isEdit || !prefillSongUrl) return;
@@ -1099,16 +1118,20 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
         });
       } else {
         let deal: CuratorDeal;
-        const newCuratorPayload = pendingCurator ?? null;
+        const fromProspect = !!externalCuratorId;
+        const newCuratorPayload = fromProspect ? null : (pendingCurator ?? null);
+        const addOpts = fromProspect
+          ? { external_curator_id: externalCuratorId, new_curator: null as null }
+          : { new_curator: newCuratorPayload };
         try {
-          deal = await addDeal(payload, { new_curator: newCuratorPayload });
+          deal = await addDeal(payload, addOpts);
         } catch (err) {
           if (err instanceof Error && err.message === "DUPLICATE_DEAL") {
             const shouldForce = window.confirm(
               "Já existe um deal ativo com esse curador e essa música nesse período. Criar outro mesmo assim?",
             );
             if (!shouldForce) return;
-            deal = await addDeal(payload, { force: true, new_curator: newCuratorPayload });
+            deal = await addDeal(payload, { ...addOpts, force: true });
           } else {
             throw err;
           }
