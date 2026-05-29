@@ -135,6 +135,19 @@ Deno.serve(async (req) => {
     if (!deal) return jr({ ok: false, error: "not_found" }, 404);
     dealRow = deal as AnyRec;
 
+    // Gate por PIN — busca a campanha desse deal e exige JWT se necessário.
+    const { data: linkedCamp } = await admin
+      .from("campaigns")
+      .select("id")
+      .eq("deal_id", dealId!)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (linkedCamp?.id) {
+      const gate = await gateCampaignAccess(req, admin, linkedCamp.id);
+      if (!gate.ok) return jr({ ok: false, error: gate.error }, gate.status ?? 401);
+    }
+
     // Lista de músicas exibidas no seletor:
     //   - se token é por música com client_id → todas as músicas do deal
     //     que pertencem ao MESMO cliente
