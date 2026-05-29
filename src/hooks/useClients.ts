@@ -163,7 +163,9 @@ export function useClients() {
         .update(buildUpdatePayload(input) as any)
         .eq("id", id);
       if (err) throw err;
-      if (input.spotify_artist_url !== undefined) {
+      // Onda 3: re-enriquece sempre que veio uma spotify_artist_url no update —
+      // cobre tanto mudança de URL quanto retry de enrich que falhou antes.
+      if (input.spotify_artist_url) {
         await enrichSpotifyIfPossible(id, input.spotify_artist_url);
       }
       await load();
