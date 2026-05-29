@@ -742,6 +742,12 @@ export function ClientFormDialog({
         payment_terms: paymentTerms.trim() || null,
         tags: tagsList,
         notes: notes.trim() || null,
+        logo_url: logoUrl.trim() || null,
+        brand_color: (() => {
+          const v = brandColor.trim();
+          if (!v) return null;
+          return /^#[0-9a-fA-F]{6}$/.test(v) ? v.toLowerCase() : null;
+        })(),
       });
       onClose();
     } finally {
