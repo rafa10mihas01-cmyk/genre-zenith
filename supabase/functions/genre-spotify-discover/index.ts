@@ -132,6 +132,7 @@ Deno.serve(async (req) => {
     const seenPlaylistIds = new Set<string>();
 
     for (let ti = 0; ti < termRows.length; ti++) {
+      if (ti > 0) await sleep(THROTTLE_MS);
       const term = termRows[ti];
       try {
         const url = `https://api.spotify.com/v1/search?type=playlist&limit=${maxPlsPerTerm}&q=${encodeURIComponent(term.termo)}`;
