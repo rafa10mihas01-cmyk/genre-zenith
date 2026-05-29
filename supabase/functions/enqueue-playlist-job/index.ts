@@ -59,6 +59,10 @@ Deno.serve(async (req) => {
     if (fp === tp) return jr({ error: "from_position e to_position são iguais" }, 400);
     fromPosition = fp;
     toPosition = tp;
+  } else if (action === "add" && body?.to_position != null) {
+    const tp = Number(body?.to_position);
+    if (!Number.isInteger(tp) || tp < 1) return jr({ error: "to_position inválido (>=1)" }, 400);
+    toPosition = tp;
   }
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
@@ -84,7 +88,6 @@ Deno.serve(async (req) => {
     if (mpErr) return jr({ error: mpErr.message }, 500);
     if (mp?.spotify_playlist_id) {
       spotifyPlaylistId = mp.spotify_playlist_id;
-      // Resolve canonical playlists.id via spotify_playlist_id (FK alvo)
       const { data: canon, error: canonErr } = await supabase
         .from("playlists")
         .select("id")
@@ -101,8 +104,16 @@ Deno.serve(async (req) => {
     : action === "remove" ? "playlist.track.remove"
     : "playlist.track.reorder";
 
-  const posSuffix = action === "reorder" ? `:${fromPosition}->${toPosition}` : "";
-  const dedupe_key = `${action}:${spotifyPlaylistId}:${trackId}${posSuffix}:manual:${Date.now()}`;
+  // Dedupe determinístico: chave estável + bucket de 5s.
+  // Cliques duplicados dentro do mesmo bucket de 5s colapsam via UNIQUE index parcial
+  // (playlist_execution_jobs_dedupe_open). Após 5s, novo bucket permite novo job.
+  const DEDUPE_WINDOW_MS = 5000;
+  const bucket = Math.floor(Date.now() / DEDUPE_WINDOW_MS);
+  const posSuffix =
+    action === "reorder" ? `:${fromPosition}->${toPosition}`
+    : action === "add" && toPosition ? `:pos${toPosition}`
+    : "";
+  const dedupe_key = `${action}:${spotifyPlaylistId}:${trackId}${posSuffix}:manual:b${bucket}`;
 
   const { data: inserted, error: insErr } = await supabase
     .from("playlist_execution_jobs")
@@ -117,9 +128,24 @@ Deno.serve(async (req) => {
       status: "pending",
       metadata: { source: "manual_ui", actor: guard.via === "user" ? guard.userId ?? null : "service_role" },
     })
-    .select("id, job_type, status")
+    .select("id, job_type, status, from_position, to_position")
     .single();
 
-  if (insErr) return jr({ error: insErr.message }, 500);
-  return jr({ ok: true, job: inserted });
+  if (insErr) {
+    // 23505 = unique_violation: clique duplicado dentro da janela de 5s.
+    // Retorna o job já existente (deduped=true) em vez de erro.
+    if ((insErr as any).code === "23505") {
+      const { data: existing } = await supabase
+        .from("playlist_execution_jobs")
+        .select("id, job_type, status, from_position, to_position")
+        .eq("dedupe_key", dedupe_key)
+        .in("status", ["pending", "claimed", "failed"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (existing) return jr({ ok: true, deduped: true, job: existing });
+    }
+    return jr({ error: insErr.message }, 500);
+  }
+  return jr({ ok: true, deduped: false, job: inserted });
 });
