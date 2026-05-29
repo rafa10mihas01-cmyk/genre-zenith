@@ -300,7 +300,7 @@ function CampaignRow({ c }: { c: Campaign }) {
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <StatusDot variant={STATUS_TONE[c.status]} />
             <span className="text-xs uppercase tracking-wider text-muted-foreground">{STATUS_LABEL[c.status]}</span>
-            <CollectionSourceBadge campaignType={c.campaign_type} />
+            <CollectionSourceBadge collectionMode={(c as any).collection_mode} />
             {c.plan_approved_at && (
               <span className="text-[10px] uppercase tracking-wider rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-primary">
                 Plano aprovado

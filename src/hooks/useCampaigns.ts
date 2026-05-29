@@ -22,11 +22,12 @@ export type Campaign = {
   client_approved_by: string | null;
   client_rejected_at: string | null;
   campaign_type: "ecosystem" | "external" | "hybrid" | null;
+  collection_mode: "bot" | "spreadsheet" | string | null;
   plan_approved_at: string | null;
   client_decision_round: number | null;
 };
 
-const SELECT = "id, track_name, artist, goal_plays, deadline, status, total_allocated, total_delivered, created_at, snapshot_locked_at, curator_id, deal_id, public_plan_token, client_approved_at, client_approved_by, client_rejected_at, campaign_type, plan_approved_at, client_decision_round";
+const SELECT = "id, track_name, artist, goal_plays, deadline, status, total_allocated, total_delivered, created_at, snapshot_locked_at, curator_id, deal_id, public_plan_token, client_approved_at, client_approved_by, client_rejected_at, campaign_type, collection_mode, plan_approved_at, client_decision_round";
 const QUERY_KEY = ["campaigns"] as const;
 
 export function useCampaigns() {
