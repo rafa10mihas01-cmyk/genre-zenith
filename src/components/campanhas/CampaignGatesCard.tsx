@@ -46,7 +46,7 @@ export type CampaignGatesCardProps = {
   clientApprovedAt: string | null;
   planApprovedAt: string | null;
   ecoDispatchedAt: string | null;
-  campaignType?: string | null;
+  collectionMode?: string | null;
   onApprovePlan: () => void;
   onDispatch: () => void;
   approvingPlan: boolean;
@@ -60,7 +60,7 @@ export function CampaignGatesCard({
   clientApprovedAt,
   planApprovedAt,
   ecoDispatchedAt,
-  campaignType,
+  collectionMode,
   onApprovePlan,
   onDispatch,
   approvingPlan,
@@ -88,7 +88,7 @@ export function CampaignGatesCard({
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
             <div className="text-sm font-semibold text-foreground">Portões da campanha</div>
-            {campaignType && <CollectionSourceBadge campaignType={campaignType} />}
+            {collectionMode && <CollectionSourceBadge collectionMode={collectionMode} />}
           </div>
           <div className="text-xs text-muted-foreground">
             {dispatchDone
