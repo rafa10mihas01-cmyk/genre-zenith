@@ -15,7 +15,7 @@
 //   - force: ignora o hash match e força recálculo do delta (útil pra backfill / debug).
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getSpotifyToken } from "../_shared/spotify.ts";
+import { getSpotifyToken, SpotifyCircuitOpenError } from "../_shared/spotify.ts";
 import { listPlaylistTracksRich } from "../_shared/spotify-playlist.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
 import {
@@ -273,6 +273,26 @@ Deno.serve(async (req) => {
       },
     });
   } catch (e) {
+    if (e instanceof SpotifyCircuitOpenError) {
+      const blockedUntilMs = e.blockedUntil ? new Date(e.blockedUntil).getTime() : NaN;
+      const retryAfter = Number.isFinite(blockedUntilMs)
+        ? Math.max(1, Math.ceil((blockedUntilMs - Date.now()) / 1000))
+        : Math.max(1, e.retryAfterSec || 60);
+      if (lock && lock.ok) {
+        await finishPlaylistOperation(supabase, lock, {
+          status: "aborted",
+          tracks_before: tracksBefore ?? null,
+          error: `SPOTIFY_CIRCUIT_OPEN retry_after=${retryAfter}s`,
+        });
+      }
+      return jr({
+        ok: false,
+        error: "SPOTIFY_CIRCUIT_OPEN",
+        code: "spotify_circuit_open",
+        blocked_until: e.blockedUntil,
+        retry_after: retryAfter,
+      }, 503);
+    }
     const errMsg = formatPlaylistError(e);
     if (lock && lock.ok) {
       await finishPlaylistOperation(supabase, lock, {

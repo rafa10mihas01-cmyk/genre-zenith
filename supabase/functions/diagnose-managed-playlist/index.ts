@@ -2226,7 +2226,10 @@ Deno.serve(async (req) => {
   } catch (e) {
     // Circuit breaker aberto: aborta com erro claro em vez de degradar.
     if (e instanceof SpotifyCircuitOpenError) {
-      const retryAfter = Math.max(1, Math.ceil((e.blockedUntil.getTime() - Date.now()) / 1000));
+      const blockedUntilMs = e.blockedUntil ? new Date(e.blockedUntil).getTime() : NaN;
+      const retryAfter = Number.isFinite(blockedUntilMs)
+        ? Math.max(1, Math.ceil((blockedUntilMs - Date.now()) / 1000))
+        : Math.max(1, e.retryAfterSec || 60);
       if (lockHandle && supabaseRef) {
         await finishPlaylistOperation(supabaseRef, lockHandle, {
           status: "aborted",
@@ -2238,7 +2241,7 @@ Deno.serve(async (req) => {
         error: "SPOTIFY_CIRCUIT_OPEN",
         code: "spotify_circuit_open",
         message: "Diagnóstico abortado: Spotify API bloqueada pelo circuit breaker.",
-        blocked_until: e.blockedUntil.toISOString(),
+        blocked_until: e.blockedUntil,
         retry_after: retryAfter,
       }, 503);
     }
