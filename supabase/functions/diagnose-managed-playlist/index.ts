@@ -272,6 +272,9 @@ Deno.serve(async (req) => {
   const guard = await requireTeamAccess(req);
   if (!guard.ok) return guard.resp;
 
+  let lockHandle: LockHandle | null = null;
+  let supabaseRef: any = null;
+
   try {
     const body = await req.json().catch(() => ({}));
     const playlistId: string = body?.playlist_id;
@@ -279,6 +282,7 @@ Deno.serve(async (req) => {
     if (!playlistId) return jr({ ok: false, error: "playlist_id obrigatório" }, 400);
 
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+    supabaseRef = supabase;
     const { data: pl, error: plErr } = await supabase
       .from("managed_playlists")
       .select("*")
@@ -286,7 +290,14 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (plErr || !pl) return jr({ ok: false, error: plErr?.message ?? "playlist não encontrada" }, 404);
 
+    // Lock operacional: impede race com apply-playlist-plan / sync-managed-playlist-tracks.
+    // TTL de 30s; liberado no finally.
+    const lockResult = await acquirePlaylistLock(supabase, pl.id, "DIAGNOSE_ENGINE", pl.tracks_count ?? null);
+    if (!lockResult.ok) return jr(lockedResponseBody(lockResult), 423);
+    lockHandle = lockResult;
+
     // 1) Snapshot fresco das faixas atuais (best-effort — se falhar, segue com cache)
+    // Passa skip_lock=true porque já seguramos o lock DIAGNOSE_ENGINE.
     const authHeader = req.headers.get("Authorization") ?? `Bearer ${SERVICE_KEY}`;
     const syncRes = await syncTracks(authHeader, pl.id).catch((e) => ({ ok: false, error: String(e) }));
 
