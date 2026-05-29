@@ -999,7 +999,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
 
       {/* Abas por fase — padrão underline+ícone (igual /financeiro) */}
       {!showArchived && !showCapacity && (
-        <div className="flex items-center gap-1 border-b border-border overflow-x-auto scrollbar-none -mx-4 px-4 lg:mx-0 lg:px-0">
+        <div className="flex items-center gap-1 border-b border-border overflow-x-auto overflow-y-hidden scrollbar-none -mx-4 px-4 lg:mx-0 lg:px-0 touch-pan-x overscroll-x-contain overscroll-y-none">
           {([
             { key: "all",       label: "Todas",     count: faseCounts.all,       icon: ListMusic,    tip: "Todas as playlists ativas do catálogo." },
             { key: "prontas",   label: "Prontas",   count: faseCounts.prontas,   icon: CheckCircle2, tip: "Playlists com 100+ seguidores e gênero definido. Prontas para usar em campanhas." },
