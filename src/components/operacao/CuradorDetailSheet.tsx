@@ -228,6 +228,14 @@ export function CuradorDetailSheet({
               Marcar como respondeu
             </button>
           </div>
+          <Button
+            size="sm"
+            className="h-8 gap-1.5 w-full sm:w-auto"
+            onClick={() => setDealDialogOpen(true)}
+          >
+            <Handshake className="h-3.5 w-3.5" />
+            Criar deal
+          </Button>
         </SheetHeader>
 
         <Tabs defaultValue="contato" className="mt-4">
