@@ -208,6 +208,16 @@ export default function CampanhaDetalhe() {
         {/* Aprovação do cliente + link compartilhável */}
         <ClientApprovalCard camp={camp} />
 
+        {/* Relatório de fechamento (lazy quando completed) */}
+        <CampaignClosureReportCard
+          campaignId={camp.id}
+          status={camp.status}
+          finalReportUrl={camp.final_report_url}
+          finalReportRequestedAt={camp.final_report_requested_at}
+          onGenerated={(url) => setCamp((c) => (c ? { ...c, final_report_url: url } : c))}
+        />
+
+
 
 
         {/* Barra de progresso */}
