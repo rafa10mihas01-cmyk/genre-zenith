@@ -292,9 +292,14 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       if (filterFase !== "all" && classifyFase(r) !== filterFase) return false;
       if (filterMissingGenre && r.genre_id) return false;
       if (filterGenreId && r.genre_id !== filterGenreId) return false;
+      const f = r.followers ?? 0;
+      if (filterSize === "pequena" && !(f < 1000)) return false;
+      if (filterSize === "media" && !(f >= 1000 && f < 10000)) return false;
+      if (filterSize === "grande" && !(f >= 10000 && f < 100000)) return false;
+      if (filterSize === "top" && !(f >= 100000)) return false;
       return true;
     }).length;
-  }, [showArchived, totalArchivedCount, activeRows, filterFase, filterMissingGenre, filterGenreId, classifyFase]);
+  }, [showArchived, totalArchivedCount, activeRows, filterFase, filterMissingGenre, filterGenreId, filterSize, classifyFase]);
   const canLoadMore = items.length < loadedCount
     ? false // ainda chegando do servidor
     : items.length < totalLoadedTarget;
