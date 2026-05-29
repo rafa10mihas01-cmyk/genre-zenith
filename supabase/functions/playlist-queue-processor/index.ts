@@ -175,7 +175,7 @@ Deno.serve(async (req) => {
   } catch { /* */ }
 
   const results: any[] = [];
-  let processed = 0, done = 0, failed = 0, retried = 0, lockedRescheduled = 0;
+  let processed = 0, done = 0, failed = 0, retried = 0, lockedRescheduled = 0, circuitRescheduled = 0;
 
   for (let i = 0; i < BATCH_SIZE; i++) {
     const { data: claimed, error: claimErr } = await sb
@@ -194,6 +194,9 @@ Deno.serve(async (req) => {
     else if (fin.final === "failed") failed++;
     else if (fin.final === "retry") retried++;
     else if (fin.final === "rescheduled_lock") lockedRescheduled++;
+    else if (fin.final === "rescheduled_circuit") circuitRescheduled++;
+
+    if (fin.final === "rescheduled_circuit") break;
 
     // Após DIAGNOSE_ENGINE concluído com sucesso, enfileira BRAIN_CALC (dedupe automático).
     let chained: { op: string; result: typeof brainEnq } | null = null;
@@ -233,10 +236,11 @@ Deno.serve(async (req) => {
       failed,
       retried,
       locked_rescheduled: lockedRescheduled,
+      circuit_rescheduled: circuitRescheduled,
       zombies_reaped: zombies,
       pending_remaining: pendingRemaining ?? 0,
     },
-    message: `processed=${processed} done=${done} failed=${failed} retried=${retried} locked=${lockedRescheduled} pending=${pendingRemaining ?? 0}`,
+    message: `processed=${processed} done=${done} failed=${failed} retried=${retried} locked=${lockedRescheduled} circuit=${circuitRescheduled} pending=${pendingRemaining ?? 0}`,
   });
 
   return jr({
@@ -244,6 +248,7 @@ Deno.serve(async (req) => {
     worker: WORKER_ID,
     processed, done, failed, retried,
     locked_rescheduled: lockedRescheduled,
+    circuit_rescheduled: circuitRescheduled,
     zombies_reaped: zombies,
     pending_remaining: pendingRemaining ?? 0,
     results,
