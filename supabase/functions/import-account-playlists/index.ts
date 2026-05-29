@@ -303,11 +303,14 @@ Deno.serve(async (req) => {
       spotify_user_id: ownerId,
       account_id: accountId,
       total_fetched: collected.length,
-      owned_count: owned.length,
+      owned_count: ownedAll.length,
+      processed_now: owned.length,
+      deferred_count: deferred,
       others_count: others,
       imported,
       skipped,
       pipeline_dispatched: importedIds.length,
+      throttle: { max_per_run: MAX_PLAYLISTS_PER_RUN, call_delay_ms: SPOTIFY_CALL_DELAY_MS },
     });
   } catch (e) {
     return jr({ ok: false, error: (e as Error).message }, 500);
