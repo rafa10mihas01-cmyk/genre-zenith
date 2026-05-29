@@ -302,8 +302,9 @@ Deno.serve(async (req) => {
 
   if (toInsert.length === 0) {
     const r = await runEcoReorderPass(supabase, new Date(now));
-    await reportCronHealth(supabase, { job_name: "execution-planner", status: "ok", startedAt: cronT0, metrics: { enqueued: 0, considered: candidates.length, reorder_enqueued: r.enqueued } });
-    return jr({ ok: true, enqueued: 0, considered: candidates.length, reorder: r });
+    const bo = nextEmpty();
+    await reportCronHealth(supabase, { job_name: "execution-planner", status: "ok", startedAt: cronT0, metrics: { enqueued: 0, considered: candidates.length, reorder_enqueued: r.enqueued, ...bo } });
+    return jr({ ok: true, enqueued: 0, considered: candidates.length, reorder: r, backoff: bo });
   }
 
   const { error: insErr, count } = await supabase
@@ -311,7 +312,7 @@ Deno.serve(async (req) => {
     .insert(toInsert, { count: "exact" });
 
   if (insErr) {
-    await reportCronHealth(supabase, { job_name: "execution-planner", status: "error", startedAt: cronT0, message: insErr.message });
+    await reportCronHealth(supabase, { job_name: "execution-planner", status: "error", startedAt: cronT0, metrics: { empty_streak: backoff.empty_streak, cooldown_remaining: 0 }, message: insErr.message });
     return jr({ error: insErr.message }, 500);
   }
 
@@ -321,6 +322,7 @@ Deno.serve(async (req) => {
   //    transição de posição planejada (eco allocations + simulation_snapshot).
   const reorderResult = await runEcoReorderPass(supabase, new Date(now));
 
+  // Sucesso com ADDs enfileirados — reseta o backoff.
   await reportCronHealth(supabase, {
     job_name: "execution-planner",
     status: "ok",
@@ -330,6 +332,8 @@ Deno.serve(async (req) => {
       considered: candidates.length,
       reorder_enqueued: reorderResult.enqueued,
       reorder_considered: reorderResult.considered,
+      empty_streak: 0,
+      cooldown_remaining: 0,
     },
     message: `enqueued=${enqueued} considered=${candidates.length} reorder=${reorderResult.enqueued}/${reorderResult.considered}`,
   });
