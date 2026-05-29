@@ -171,38 +171,11 @@ export default function PlanoCampanhaPublico() {
   //   2) Se exige, lê JWT salvo em localStorage (chave campaign_access_jwt:<token>).
   //      Válido por 24h. Sem JWT válido → renderiza <CampaignAccessGate />.
   //   3) Quem completou OTP nas últimas 24h passa direto.
-  const [gateChecked, setGateChecked] = useState(false);
-  const [gateRequired, setGateRequired] = useState(false);
-  const [gateAuthed, setGateAuthed] = useState(false);
+  // Plano de entrega é SEMPRE público — nenhum gate, nenhuma senha.
+  const [gateChecked] = useState(true);
+  const [gateRequired] = useState(false);
+  const [gateAuthed] = useState(true);
 
-  useEffect(() => {
-    if (!token) return;
-    let cancelled = false;
-    (async () => {
-      // 1) JWT salvo ainda válido? Se sim, libera sem pedir nada.
-      try {
-        const raw = localStorage.getItem(`campaign_access_jwt:${token}`);
-        if (raw) {
-          const parsed = JSON.parse(raw) as { jwt?: string; exp?: number };
-          if (parsed?.jwt && parsed?.exp && parsed.exp > Date.now()) {
-            if (!cancelled) { setGateAuthed(true); setGateChecked(true); }
-            return;
-          }
-        }
-      } catch { /* ignore */ }
-
-      // 2) Pergunta ao backend se essa campanha exige PIN.
-      const { data } = await supabase.functions.invoke("check-campaign-access", {
-        body: { token },
-      });
-      if (cancelled) return;
-      const required = Boolean((data as any)?.required);
-      setGateRequired(required);
-      setGateChecked(true);
-      if (!required) setGateAuthed(true);
-    })();
-    return () => { cancelled = true; };
-  }, [token]);
 
   async function load() {
     if (!token) return;
