@@ -56,7 +56,6 @@ export const defaultSpotifyFetch: SpotifyFetch = async (url, init, token) => {
     const t = await r.text();
     const ra = Number(r.headers.get("Retry-After") ?? "");
     const retryAfter = Number.isFinite(ra) && ra > 0 ? ra : null;
-    if (r.status === 429) await openSpotifyCircuitBreaker(retryAfter);
     throw new SpotifyApiError(r.status, t, retryAfter);
   }
   // DELETE/PUT podem voltar 200 sem body útil

@@ -38,6 +38,8 @@ type Job = {
   max_attempts: number;
 };
 
+type HandlerOutcome = { ok: boolean; error?: string; code?: string; retry_after?: number; blocked_until?: string | null };
+
 /** Mapa operation_type → edge function que executa o trabalho. */
 const HANDLERS: Record<string, { fn: string; body: (job: Job) => Record<string, unknown> }> = {
   AUTO_SYNC: {
@@ -58,7 +60,7 @@ const HANDLERS: Record<string, { fn: string; body: (job: Job) => Record<string, 
   },
 };
 
-async function invokeHandler(job: Job): Promise<{ ok: boolean; error?: string }> {
+async function invokeHandler(job: Job): Promise<HandlerOutcome> {
   const handler = HANDLERS[job.operation_type];
   if (!handler) return { ok: false, error: `no_handler:${job.operation_type}` };
 
@@ -87,10 +89,16 @@ async function invokeHandler(job: Job): Promise<{ ok: boolean; error?: string }>
 
   const okBody = parsed?.ok !== false;
   if (resp.ok && okBody) return { ok: true };
-  return { ok: false, error: parsed?.error ?? `http_${resp.status}: ${txt.slice(0, 200)}` };
+  return {
+    ok: false,
+    error: parsed?.error ?? `http_${resp.status}: ${txt.slice(0, 200)}`,
+    code: parsed?.code,
+    retry_after: typeof parsed?.retry_after === "number" ? parsed.retry_after : undefined,
+    blocked_until: typeof parsed?.blocked_until === "string" ? parsed.blocked_until : null,
+  };
 }
 
-async function finishJob(sb: any, job: Job, outcome: { ok: boolean; error?: string }) {
+async function finishJob(sb: any, job: Job, outcome: HandlerOutcome) {
   if (outcome.ok) {
     await sb.from("playlist_operation_queue").update({
       status: "done",
@@ -111,6 +119,25 @@ async function finishJob(sb: any, job: Job, outcome: { ok: boolean; error?: stri
       error: "playlist_locked (reagendado)",
     }).eq("id", job.id);
     return { final: "rescheduled_lock" as const };
+  }
+
+  // Spotify em backoff global: não queima tentativa e reagenda para depois do bloqueio.
+  if (outcome.code === "spotify_circuit_open" || outcome.error === "SPOTIFY_CIRCUIT_OPEN") {
+    const untilMs = outcome.blocked_until ? new Date(outcome.blocked_until).getTime() : NaN;
+    const retryMs = Number.isFinite(untilMs)
+      ? Math.max(untilMs + 5 * 60_000, Date.now() + 60_000)
+      : Date.now() + Math.max(outcome.retry_after ?? 60, 60) * 1000;
+    await sb.from("playlist_operation_queue").update({
+      status: "pending",
+      claimed_at: null,
+      claimed_by: null,
+      attempts: Math.max(0, job.attempts - 1),
+      scheduled_for: new Date(retryMs).toISOString(),
+      error: outcome.blocked_until
+        ? `spotify_circuit_open até ${outcome.blocked_until}`
+        : `spotify_circuit_open retry_after=${outcome.retry_after ?? 60}s`,
+    }).eq("id", job.id);
+    return { final: "rescheduled_circuit" as const };
   }
 
   // Falha real
@@ -148,7 +175,7 @@ Deno.serve(async (req) => {
   } catch { /* */ }
 
   const results: any[] = [];
-  let processed = 0, done = 0, failed = 0, retried = 0, lockedRescheduled = 0;
+  let processed = 0, done = 0, failed = 0, retried = 0, lockedRescheduled = 0, circuitRescheduled = 0;
 
   for (let i = 0; i < BATCH_SIZE; i++) {
     const { data: claimed, error: claimErr } = await sb
@@ -167,6 +194,9 @@ Deno.serve(async (req) => {
     else if (fin.final === "failed") failed++;
     else if (fin.final === "retry") retried++;
     else if (fin.final === "rescheduled_lock") lockedRescheduled++;
+    else if (fin.final === "rescheduled_circuit") circuitRescheduled++;
+
+    if (fin.final === "rescheduled_circuit") break;
 
     // Após DIAGNOSE_ENGINE concluído com sucesso, enfileira BRAIN_CALC (dedupe automático).
     let chained: { op: string; result: typeof brainEnq } | null = null;
@@ -206,10 +236,11 @@ Deno.serve(async (req) => {
       failed,
       retried,
       locked_rescheduled: lockedRescheduled,
+      circuit_rescheduled: circuitRescheduled,
       zombies_reaped: zombies,
       pending_remaining: pendingRemaining ?? 0,
     },
-    message: `processed=${processed} done=${done} failed=${failed} retried=${retried} locked=${lockedRescheduled} pending=${pendingRemaining ?? 0}`,
+    message: `processed=${processed} done=${done} failed=${failed} retried=${retried} locked=${lockedRescheduled} circuit=${circuitRescheduled} pending=${pendingRemaining ?? 0}`,
   });
 
   return jr({
@@ -217,6 +248,7 @@ Deno.serve(async (req) => {
     worker: WORKER_ID,
     processed, done, failed, retried,
     locked_rescheduled: lockedRescheduled,
+    circuit_rescheduled: circuitRescheduled,
     zombies_reaped: zombies,
     pending_remaining: pendingRemaining ?? 0,
     results,
