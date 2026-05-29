@@ -1,6 +1,5 @@
 import { sendLovableEmail } from 'npm:@lovable.dev/email-js'
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { reportCronHealth } from '../_shared/cron-health.ts'
 
 const MAX_RETRIES = 5
 const DEFAULT_BATCH_SIZE = 10
@@ -80,7 +79,6 @@ async function moveToDlq(
 }
 
 Deno.serve(async (req) => {
-  const startedAt = Date.now()
   const apiKey = Deno.env.get('LOVABLE_API_KEY')
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
@@ -93,32 +91,23 @@ Deno.serve(async (req) => {
     )
   }
 
-  // Aceita 2 caminhos de auth:
-  //   1. Authorization: Bearer <service_role JWT>  (chamadas internas legadas)
-  //   2. x-cron-secret: <vault secret>             (padrão dos crons NexEngine)
   const authHeader = req.headers.get('Authorization')
-  const cronSecretHeader = req.headers.get('x-cron-secret')?.trim() ?? ''
-
-  let authorized = false
-
-  if (cronSecretHeader) {
-    const probe = createClient(supabaseUrl, supabaseServiceKey)
-    const { data: vaultSecret } = await probe.rpc('get_cron_secret')
-    if (typeof vaultSecret === 'string' && vaultSecret.length > 0 && cronSecretHeader === vaultSecret) {
-      authorized = true
-    }
-  }
-
-  if (!authorized && authHeader?.startsWith('Bearer ')) {
-    const token = authHeader.slice('Bearer '.length).trim()
-    const claims = parseJwtClaims(token)
-    if (claims?.role === 'service_role') authorized = true
-  }
-
-  if (!authorized) {
+  if (!authHeader?.startsWith('Bearer ')) {
     return new Response(
       JSON.stringify({ error: 'Unauthorized' }),
       { status: 401, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+
+  // Defense in depth: verify_jwt=true already requires a valid JWT at the
+  // gateway layer. This adds an explicit role check so only service-role
+  // callers can trigger queue processing.
+  const token = authHeader.slice('Bearer '.length).trim()
+  const claims = parseJwtClaims(token)
+  if (claims?.role !== 'service_role') {
+    return new Response(
+      JSON.stringify({ error: 'Forbidden' }),
+      { status: 403, headers: { 'Content-Type': 'application/json' } }
     )
   }
 
@@ -131,7 +120,6 @@ Deno.serve(async (req) => {
     .single()
 
   if (state?.retry_after_until && new Date(state.retry_after_until) > new Date()) {
-    await reportCronHealth(supabase, { job_name: 'process-email-queue', status: 'ok', startedAt, metrics: { processed: 0, skipped: true }, message: 'rate_limited' })
     return new Response(
       JSON.stringify({ skipped: true, reason: 'rate_limited' }),
       { headers: { 'Content-Type': 'application/json' } }
@@ -330,7 +318,6 @@ Deno.serve(async (req) => {
             .eq('id', 1)
 
           // Stop processing — remaining messages stay in queue (VT expires, retried next cycle)
-          await reportCronHealth(supabase, { job_name: 'process-email-queue', status: 'partial', startedAt, metrics: { processed: totalProcessed }, message: 'stopped: rate_limited' })
           return new Response(
             JSON.stringify({ processed: totalProcessed, stopped: 'rate_limited' }),
             { headers: { 'Content-Type': 'application/json' } }
@@ -341,7 +328,6 @@ Deno.serve(async (req) => {
         // message, so move straight to DLQ and stop processing the rest of the batch.
         if (isForbidden(error)) {
           await moveToDlq(supabase, queue, msg, errorMsg.slice(0, 1000))
-          await reportCronHealth(supabase, { job_name: 'process-email-queue', status: 'partial', startedAt, metrics: { processed: totalProcessed }, message: 'stopped: forbidden' })
           return new Response(
             JSON.stringify({ processed: totalProcessed, stopped: 'forbidden' }),
             { headers: { 'Content-Type': 'application/json' } }
@@ -370,7 +356,6 @@ Deno.serve(async (req) => {
     }
   }
 
-  await reportCronHealth(supabase, { job_name: 'process-email-queue', status: 'ok', startedAt, metrics: { processed: totalProcessed }, message: `processed=${totalProcessed}` })
   return new Response(
     JSON.stringify({ processed: totalProcessed }),
     { headers: { 'Content-Type': 'application/json' } }
