@@ -13,17 +13,19 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (curatorId: string, input: Partial<NewCuratorInput>) => Promise<void>;
+  onAddPurchase?: (curatorId: string, input: { plays_purchased: number; amount: number; note?: string | null }) => Promise<void>;
 }
 
 type DealType = "avulso" | "mensal";
 
-export function CuratorEditDialog({ curator, open, onOpenChange, onSave }: Props) {
+export function CuratorEditDialog({ curator, open, onOpenChange, onSave, onAddPurchase }: Props) {
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
   const [notes, setNotes] = useState("");
   const [dealType, setDealType] = useState<DealType>("avulso");
-  const [defaultAmount, setDefaultAmount] = useState<string>("");
-  const [defaultPlays, setDefaultPlays] = useState<string>("");
+  const [purchaseAmount, setPurchaseAmount] = useState<string>("");
+  const [purchasePlays, setPurchasePlays] = useState<string>("");
+  const [purchaseNote, setPurchaseNote] = useState<string>("");
   const [monthlyAmount, setMonthlyAmount] = useState<string>("");
   const [billingDay, setBillingDay] = useState<string>("");
   const [saving, setSaving] = useState(false);
@@ -34,8 +36,9 @@ export function CuratorEditDialog({ curator, open, onOpenChange, onSave }: Props
       setContact(curator.contact ?? "");
       setNotes(curator.notes ?? "");
       setDealType((curator.deal_type as DealType) ?? "avulso");
-      setDefaultAmount(curator.default_amount != null ? String(curator.default_amount) : "");
-      setDefaultPlays(curator.default_plays != null ? String(curator.default_plays) : "");
+      setPurchaseAmount("");
+      setPurchasePlays("");
+      setPurchaseNote("");
       setMonthlyAmount(curator.monthly_amount != null ? String(curator.monthly_amount) : "");
       setBillingDay(curator.billing_day != null ? String(curator.billing_day) : "");
     }
@@ -48,7 +51,7 @@ export function CuratorEditDialog({ curator, open, onOpenChange, onSave }: Props
     // Se tem vírgula, assume pt-BR: pontos = milhar, vírgula = decimal
     const normalized = cleaned.includes(",")
       ? cleaned.replace(/\./g, "").replace(",", ".")
-      : cleaned;
+      : cleaned.replace(/\.(?=\d{3}(\D|$))/g, "");
     const n = Number(normalized);
     return Number.isFinite(n) ? n : null;
   };
@@ -80,8 +83,15 @@ export function CuratorEditDialog({ curator, open, onOpenChange, onSave }: Props
       return;
     }
     const day = parseNum(billingDay);
+    const purchaseAmountNumber = parseNum(purchaseAmount) ?? 0;
+    const purchasePlaysNumber = Math.round(parseNum(purchasePlays) ?? 0);
+    const hasPurchase = purchaseAmountNumber > 0 || purchasePlaysNumber > 0;
     if (dealType === "mensal" && day != null && (day < 1 || day > 31)) {
       toast.error("Dia da cobrança deve ser entre 1 e 31");
+      return;
+    }
+    if (hasPurchase && !onAddPurchase) {
+      toast.error("Registro de compra indisponível nesta tela");
       return;
     }
     setSaving(true);
@@ -91,12 +101,17 @@ export function CuratorEditDialog({ curator, open, onOpenChange, onSave }: Props
         contact: contact.trim() || null,
         notes: notes.trim() || null,
         deal_type: dealType,
-        default_amount: parseNum(defaultAmount),
-        default_plays: parseNum(defaultPlays),
         monthly_amount: dealType === "mensal" ? parseNum(monthlyAmount) : null,
         billing_day: dealType === "mensal" ? day : null,
       });
-      toast.success("Curador atualizado");
+      if (hasPurchase && onAddPurchase) {
+        await onAddPurchase(curator.id, {
+          plays_purchased: purchasePlaysNumber,
+          amount: purchaseAmountNumber,
+          note: purchaseNote.trim() || null,
+        });
+      }
+      toast.success(hasPurchase ? "Cadastro salvo e compra registrada" : "Curador atualizado");
       onOpenChange(false);
     } catch (e) {
       console.error(e);
@@ -105,6 +120,8 @@ export function CuratorEditDialog({ curator, open, onOpenChange, onSave }: Props
       setSaving(false);
     }
   };
+
+  const hasPendingPurchase = (parseNum(purchaseAmount) ?? 0) > 0 || (parseNum(purchasePlays) ?? 0) > 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -130,6 +147,10 @@ export function CuratorEditDialog({ curator, open, onOpenChange, onSave }: Props
 
           <div className="pt-2 border-t border-border" />
 
+          <div className="space-y-1">
+            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">Registrar compra</div>
+          </div>
+
           <div className="space-y-1.5">
             <Label className="text-foreground">Tipo do acerto</Label>
             <Select value={dealType} onValueChange={(v) => setDealType(v as DealType)}>
@@ -143,39 +164,50 @@ export function CuratorEditDialog({ curator, open, onOpenChange, onSave }: Props
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="cur-amount" className="text-foreground">Valor pago (R$)</Label>
+              <Label htmlFor="cur-amount" className="text-foreground">Valor desta compra (R$)</Label>
               <Input
                 id="cur-amount"
                 inputMode="decimal"
                 placeholder="0,00"
-                value={defaultAmount}
-                onChange={handleBRLChange(setDefaultAmount)}
-                onBlur={() => setDefaultAmount(formatBRL(defaultAmount))}
+                value={purchaseAmount}
+                onChange={handleBRLChange(setPurchaseAmount)}
+                onBlur={() => setPurchaseAmount(formatBRL(purchaseAmount))}
                 className="bg-background border-border font-mono"
               />
-              {parseNum(defaultAmount) != null && (
+              {parseNum(purchaseAmount) != null && (
                 <p className="text-xs text-muted-foreground">
-                  R$ {parseNum(defaultAmount)!.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  R$ {parseNum(purchaseAmount)!.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
               )}
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="cur-plays" className="text-foreground">Plays comprados</Label>
+              <Label htmlFor="cur-plays" className="text-foreground">Plays desta compra</Label>
               <Input
                 id="cur-plays"
                 inputMode="numeric"
                 placeholder="0"
-                value={defaultPlays}
-                onChange={handleIntChange(setDefaultPlays)}
-                onBlur={() => setDefaultPlays(formatInt(defaultPlays))}
+                value={purchasePlays}
+                onChange={handleIntChange(setPurchasePlays)}
+                onBlur={() => setPurchasePlays(formatInt(purchasePlays))}
                 className="bg-background border-border font-mono"
               />
-              {parseNum(defaultPlays) != null && (
+              {parseNum(purchasePlays) != null && (
                 <p className="text-xs text-muted-foreground">
-                  {Math.round(parseNum(defaultPlays)!).toLocaleString("pt-BR")} plays
+                  {Math.round(parseNum(purchasePlays)!).toLocaleString("pt-BR")} plays
                 </p>
               )}
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="cur-purchase-note" className="text-foreground">Nota da compra</Label>
+            <Input
+              id="cur-purchase-note"
+              value={purchaseNote}
+              onChange={(e) => setPurchaseNote(e.target.value)}
+              placeholder="Ex.: Carnívora Mc Jacaré"
+              className="bg-background border-border"
+            />
           </div>
 
           {dealType === "mensal" && (
@@ -212,7 +244,7 @@ export function CuratorEditDialog({ curator, open, onOpenChange, onSave }: Props
           )}
 
           <div className="space-y-1.5 pt-1">
-            <Label htmlFor="cur-notes" className="text-foreground">Notas</Label>
+            <Label htmlFor="cur-notes" className="text-foreground">Notas do cadastro</Label>
             <Textarea
               id="cur-notes"
               rows={3}
@@ -227,7 +259,7 @@ export function CuratorEditDialog({ curator, open, onOpenChange, onSave }: Props
             Cancelar
           </Button>
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Salvando…" : "Salvar"}
+            {saving ? "Salvando…" : hasPendingPurchase ? "Salvar e registrar" : "Salvar"}
           </Button>
         </DialogFooter>
       </DialogContent>
