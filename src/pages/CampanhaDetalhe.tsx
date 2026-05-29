@@ -30,6 +30,7 @@ type Campaign = {
   deal_id: string | null;
   final_report_url: string | null;
   final_report_requested_at: string | null;
+  client_decision_round: number | null;
 };
 
 type Allocation = {
