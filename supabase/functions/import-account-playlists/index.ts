@@ -248,7 +248,8 @@ Deno.serve(async (req) => {
         { name: "snapshot-playlist-tracks", bodyKey: "playlist_id", timeoutMs: 60_000 },
         { name: "playlist-brain-calc", bodyKey: "playlist_id", timeoutMs: 45_000 },
       ] as const;
-      const PIPELINE_CONCURRENCY = 4;
+      const PIPELINE_CONCURRENCY = 2; // antes: 4 — reduzido pra não saturar Spotify
+      const PIPELINE_BATCH_DELAY_MS = 500; // delay entre lotes
 
       const callStep = async (step: typeof PIPELINE_STEPS[number], playlistId: string) => {
         const ctrl = new AbortController();
@@ -275,10 +276,12 @@ Deno.serve(async (req) => {
 
       const runPipeline = async () => {
         for (let i = 0; i < importedIds.length; i += PIPELINE_CONCURRENCY) {
+          if (i > 0) await sleep(PIPELINE_BATCH_DELAY_MS);
           const batch = importedIds.slice(i, i + PIPELINE_CONCURRENCY);
           await Promise.all(batch.map(async (pid) => {
             for (const step of PIPELINE_STEPS) {
               await callStep(step, pid);
+              await sleep(SPOTIFY_CALL_DELAY_MS); // 500ms entre steps por playlist
             }
           }));
         }
