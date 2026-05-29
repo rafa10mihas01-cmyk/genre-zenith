@@ -180,7 +180,8 @@ export async function getAppCredentials(appId?: string | null): Promise<SpotifyA
 export async function getSpotifyToken(forceRefresh = false): Promise<string> {
   const supabase = db();
 
-  await assertSpotifyCircuitClosed();
+  // NOTE: NÃO chamamos assertSpotifyCircuitClosed aqui — refresh de token
+  // usa accounts.spotify.com (quota separada) e deve sempre passar.
 
   if (!forceRefresh) {
     const { data } = await supabase
