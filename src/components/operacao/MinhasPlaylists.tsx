@@ -203,8 +203,8 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       // Hierarquia: Atenção > Prontas > Crescendo > Novas.
       const notAtencao = "or(lifecycle_phase.is.null,lifecycle_phase.not.in.(bloated,decline))";
       if (filterFase === "prontas") {
-        // mature/growth já exclui bloated/decline, então não precisa do notAtencao
-        q = q.gte("followers", 100).not("genre_id", "is", null).in("lifecycle_phase", ["mature", "growth"]);
+        // 100+ seguidores, fora de Atenção. Aceita seed/mature/growth e sem gênero (badge no card).
+        q = q.gte("followers", 100).or("lifecycle_phase.is.null,lifecycle_phase.not.in.(bloated,decline)");
       } else if (filterFase === "crescendo") {
         // followers 10–99 e fora de Atenção (Prontas exige ≥100, então já não colide)
         q = q.gte("followers", 10).lt("followers", 100).or(notAtencao.replace(/^or\(|\)$/g, ""));
