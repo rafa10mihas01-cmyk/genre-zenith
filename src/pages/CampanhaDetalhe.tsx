@@ -27,6 +27,8 @@ type Campaign = {
   plan_approved_by: string | null;
   auto_deal_created: boolean | null;
   deal_id: string | null;
+  final_report_url: string | null;
+  final_report_requested_at: string | null;
 };
 
 type Allocation = {
