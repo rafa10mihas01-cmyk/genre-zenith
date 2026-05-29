@@ -307,6 +307,11 @@ function CampaignRow({ c }: { c: Campaign }) {
                 Plano aprovado
               </span>
             )}
+            {(c.client_decision_round ?? 1) > 1 && (
+              <span className="text-[10px] uppercase tracking-wider rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-amber-500">
+                Rodada {c.client_decision_round}
+              </span>
+            )}
           </div>
           <div className="font-semibold truncate">{c.track_name}</div>
           {c.artist && <div className="text-sm text-muted-foreground truncate">{c.artist}</div>}
