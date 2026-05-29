@@ -203,8 +203,8 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       // Hierarquia: Atenção > Prontas > Crescendo > Novas.
       const notAtencao = "or(lifecycle_phase.is.null,lifecycle_phase.not.in.(bloated,decline))";
       if (filterFase === "prontas") {
-        // mature/growth já exclui bloated/decline, então não precisa do notAtencao
-        q = q.gte("followers", 100).not("genre_id", "is", null).in("lifecycle_phase", ["mature", "growth"]);
+        // 100+ seguidores, fora de Atenção. Aceita seed/mature/growth e sem gênero (badge no card).
+        q = q.gte("followers", 100).or("lifecycle_phase.is.null,lifecycle_phase.not.in.(bloated,decline)");
       } else if (filterFase === "crescendo") {
         // followers 10–99 e fora de Atenção (Prontas exige ≥100, então já não colide)
         q = q.gte("followers", 10).lt("followers", 100).or(notAtencao.replace(/^or\(|\)$/g, ""));
@@ -262,10 +262,12 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     const phase = r.lifecycle_phase ?? null;
     const f = r.followers ?? 0;
     if (phase === "bloated" || phase === "decline") return "atencao";
-    if (f >= 100 && r.genre_id && (phase === "mature" || phase === "growth")) return "prontas";
+    // Prontas: 100+ seguidores. Aceita qualquer fase (inclusive seed) e qualquer estado de gênero.
+    // Quando sem genre_id, recebe badge "Sem gênero" no card (precisa classificar pra entrar em campanha).
+    if (f >= 100) return "prontas";
     if (f >= 10 && f < 100) return "crescendo";
     if (f < 10) return "novas";
-    return null; // ex.: ≥100 sem gênero ou sem fase clara
+    return null;
   }, []);
 
   const faseCounts = useMemo(() => {
@@ -1345,6 +1347,15 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                   >
                     <CheckCircle2 className="h-2.5 w-2.5" />
                     Pronta para campanha
+                  </div>
+                )}
+                {(p.followers ?? 0) >= 100 && !p.genre_id && (
+                  <div
+                    className="inline-flex items-center gap-1 self-start rounded-full border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium text-warning"
+                    title="Tem público mínimo, mas precisa de gênero classificado para entrar em campanhas"
+                  >
+                    <AlertCircle className="h-2.5 w-2.5" />
+                    Sem gênero
                   </div>
                 )}
                 <div className="flex items-center justify-between text-[11px] tabular-nums text-muted-foreground">
