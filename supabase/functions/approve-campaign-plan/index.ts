@@ -448,11 +448,6 @@ Deno.serve(async (req) => {
 
         let seededExisting = 0;
         if (!existingBaselines || existingBaselines === 0) {
-          const { data: ecoAllocs } = await admin
-            .from("campaign_eco_allocations")
-            .select("managed_playlist_id, managed_playlists!inner(spotify_playlist_id,name)")
-            .eq("campaign_id", campaignId);
-
           const { data: dealSongs } = await admin
             .from("curator_deal_songs")
             .select("id")
@@ -460,30 +455,14 @@ Deno.serve(async (req) => {
             .limit(1);
           const songId = (dealSongs?.[0] as any)?.id ?? null;
 
-          const rows = (ecoAllocs ?? [])
-            // deno-lint-ignore no-explicit-any
-            .map((a: any) => {
-              const spId = a.managed_playlists?.spotify_playlist_id;
-              if (!spId) return null;
-              return {
-                deal_id: existingDealId,
-                song_id: songId,
-                spotify_url: `https://open.spotify.com/playlist/${spId}`,
-                spotify_playlist_id: spId,
-                playlist_name: a.managed_playlists?.name ?? "Managed Playlist",
-                is_baseline: true,
-                match_status: "baseline",
-                attribution_method: "campaign_seed",
-                attribution_reason: "Seed from campaign_eco_allocations (auto, existing deal)",
-              };
-            })
-            .filter(Boolean);
-
-          if (rows.length > 0) {
-            // deno-lint-ignore no-explicit-any
-            await admin.from("curator_playlists").insert(rows as any[]);
-            seededExisting = rows.length;
-          }
+          seededExisting = await seedBaselinePlaylists(
+            admin,
+            campaignId,
+            existingDealId,
+            songId,
+            campaign.curator_id ?? null,
+            "Seed from campaign_eco_allocations (auto, existing deal)",
+          );
         }
 
         return json({
@@ -633,11 +612,6 @@ Deno.serve(async (req) => {
   let seeded_playlists = 0;
   if (newDealId) {
     try {
-      const { data: ecoAllocs } = await admin
-        .from("campaign_eco_allocations")
-        .select("managed_playlist_id, managed_playlists!inner(spotify_playlist_id,name)")
-        .eq("campaign_id", campaignId);
-
       const { data: dealSongs } = await admin
         .from("curator_deal_songs")
         .select("id")
@@ -645,33 +619,14 @@ Deno.serve(async (req) => {
         .limit(1);
       const songId = (dealSongs?.[0] as any)?.id ?? null;
 
-      const rows = (ecoAllocs ?? [])
-        // deno-lint-ignore no-explicit-any
-        .map((a: any) => {
-          const spId = a.managed_playlists?.spotify_playlist_id;
-          if (!spId) return null;
-          return {
-            deal_id: newDealId,
-            song_id: songId,
-            spotify_url: `https://open.spotify.com/playlist/${spId}`,
-            spotify_playlist_id: spId,
-            playlist_name: a.managed_playlists?.name ?? "Managed Playlist",
-            is_baseline: true,
-            match_status: "baseline",
-            attribution_method: "campaign_seed",
-            attribution_reason: "Seed from campaign_eco_allocations (auto)",
-          };
-        })
-        .filter(Boolean);
-
-      if (rows.length > 0) {
-        // Plain insert — seed roda uma única vez por criação de deal.
-        // O índice único existente é parcial com COALESCE, então ON CONFLICT
-        // não casa; insert direto é seguro porque não há linhas pré-existentes.
-        // deno-lint-ignore no-explicit-any
-        await admin.from("curator_playlists").insert(rows as any[]);
-        seeded_playlists = rows.length;
-      }
+      seeded_playlists = await seedBaselinePlaylists(
+        admin,
+        campaignId,
+        newDealId,
+        songId,
+        campaign.curator_id ?? null,
+        "Seed from campaign_eco_allocations (auto)",
+      );
     } catch (_e) {
       // Não bloqueia aprovação se seed falhar — log silencioso.
     }
