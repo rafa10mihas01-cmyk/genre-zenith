@@ -210,6 +210,13 @@ Deno.serve(async (req) => {
   // capacidade de rastrear onde a coleta morreu.
   for (const s of eligible as any[]) {
     s.correlation_id = crypto.randomUUID();
+    const client = s?.curator_deals?.campaigns?.clients;
+    s.spotify_artist_id = client?.spotify_artist_id ?? null;
+    s.spotify_artist_url = client?.spotify_artist_url ?? null;
+    // URL S4A no formato novo exigido pelo Spotify (track_id sozinho = 404)
+    s.s4a_song_url = s.spotify_artist_id && s.spotify_track_id
+      ? `https://artists.spotify.com/c/pt/artist/${s.spotify_artist_id}/song/${s.spotify_track_id}/stats`
+      : null;
   }
   if (eligible.length) {
     const events = (eligible as any[]).map((s) => ({
