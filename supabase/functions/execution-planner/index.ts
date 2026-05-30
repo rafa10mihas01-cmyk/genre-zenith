@@ -143,7 +143,7 @@ Deno.serve(async (req) => {
     supabase
       .from("campaign_eco_allocations")
       .select(`
-        id, campaign_id, managed_playlist_id, status, position, created_at,
+        id, campaign_id, managed_playlist_id, status, position, start_day, created_at,
         campaigns!inner ( id, status, spotify_track_id, started_at, plan_approved_at ),
         managed_playlists!inner ( id, spotify_playlist_id )
       `)
@@ -175,6 +175,7 @@ Deno.serve(async (req) => {
       started_at: a.campaigns?.started_at,
       plan_approved_at: a.campaigns?.plan_approved_at,
       position: a.position,
+      start_day: 1,
       created_at: a.created_at,
     })),
     ...((ecoRes.data ?? []) as any[]).map((a) => ({
@@ -188,9 +189,11 @@ Deno.serve(async (req) => {
       started_at: a.campaigns?.started_at,
       plan_approved_at: a.campaigns?.plan_approved_at,
       position: a.position,
+      start_day: Math.max(1, Number(a.start_day ?? 1)),
       created_at: a.created_at,
     })),
   ].filter((a) => !!a.plan_approved_at);
+
 
   // 1b. Ramp-up de aquecimento (motor único, espalha no tempo)
   const now = Date.now();
