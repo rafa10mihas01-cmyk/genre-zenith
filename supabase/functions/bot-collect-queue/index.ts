@@ -13,6 +13,7 @@ async function resolveArtistIdFromTrack(
   trackId: string,
   songArtist: string | null,
   clientId: string | null,
+  songId: string | null = null,
 ): Promise<{ artistId: string | null; artistUrl: string | null }> {
   try {
     const token = await getSpotifyToken();
@@ -35,6 +36,14 @@ async function resolveArtistIdFromTrack(
         .from("clients")
         .update({ spotify_artist_id: chosen.id, spotify_artist_url: artistUrl })
         .eq("id", clientId)
+        .is("spotify_artist_id", null);
+    }
+    // Persiste também na song (cobre deals sem campanha/cliente vinculados)
+    if (songId) {
+      await supabase
+        .from("curator_deal_songs")
+        .update({ spotify_artist_id: chosen.id, spotify_artist_url: artistUrl })
+        .eq("id", songId)
         .is("spotify_artist_id", null);
     }
     return { artistId: chosen.id, artistUrl };
@@ -145,6 +154,7 @@ Deno.serve(async (req) => {
     .from("curator_deal_songs")
     .select(`
       id, deal_id, song_name, song_artist, artist_candidates, song_spotify_url, spotify_track_id,
+      spotify_artist_id, spotify_artist_url,
       auto_collect_status, last_auto_collect_at, next_auto_collect_at,
       auto_collect_interval_minutes, last_print_at,
       curator_deals!inner ( id, curator_name, song_name, user_id, closed_at, state, token_revoked_at, token_expires_at, curator_id, campaign_id, curators ( paused_at ), campaigns!curator_deals_campaign_id_fkey ( client_id, clients ( spotify_artist_id, spotify_artist_url ) ) ),
@@ -263,11 +273,11 @@ Deno.serve(async (req) => {
     s.correlation_id = crypto.randomUUID();
     const client = s?.curator_deals?.campaigns?.clients;
     const clientId = s?.curator_deals?.campaigns?.client_id ?? null;
-    let artistId: string | null = client?.spotify_artist_id ?? null;
-    let artistUrl: string | null = client?.spotify_artist_url ?? null;
-    // Fallback: resolve via Spotify API se cliente não tem cadastrado
+    // Ordem de prioridade: song row → client → resolve via Spotify API
+    let artistId: string | null = s.spotify_artist_id ?? client?.spotify_artist_id ?? null;
+    let artistUrl: string | null = s.spotify_artist_url ?? client?.spotify_artist_url ?? null;
     if (!artistId && s.spotify_track_id) {
-      const resolved = await resolveArtistIdFromTrack(supabase, s.spotify_track_id, s.song_artist, clientId);
+      const resolved = await resolveArtistIdFromTrack(supabase, s.spotify_track_id, s.song_artist, clientId, s.id);
       artistId = resolved.artistId;
       artistUrl = resolved.artistUrl;
     }
