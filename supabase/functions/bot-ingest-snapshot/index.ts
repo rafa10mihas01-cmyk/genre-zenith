@@ -253,6 +253,13 @@ Deno.serve(async (req) => {
     .maybeSingle();
   const trackName = [songInfo?.song_name, songInfo?.song_artist].filter(Boolean).join(" — ") || "unknown";
 
+  const { data: dealInfo } = await supabase
+    .from("curator_deals")
+    .select("campaign_id, source")
+    .eq("id", deal_id)
+    .maybeSingle();
+  const isCampaignShadow = !!(dealInfo as any)?.campaign_id && (dealInfo as any)?.source === "campaign_internal";
+
   // Resolve campanha ativa por spotify_track_id (uma única vez por ingestão).
   // Se existir campanha + a playlist for managed, espelhamos o snapshot em
   // campaign_eco_snapshots pra alimentar o timeline do portal do cliente.
@@ -276,6 +283,46 @@ Deno.serve(async (req) => {
     if (!url) return null;
     const m = url.match(/playlist[/:]([a-zA-Z0-9]{16,})/);
     return m ? m[1] : null;
+  };
+  const ensureObservedPlaylist = async (snap: any, spotifyPlaylistId: string | null) => {
+    const playlistName = String(snap.playlist_name ?? "").trim();
+    if (!spotifyPlaylistId || !playlistName) return null;
+    const { data: existing } = await supabase
+      .from("curator_playlists")
+      .select("id")
+      .eq("deal_id", deal_id)
+      .eq("song_id", song_id)
+      .eq("spotify_playlist_id", spotifyPlaylistId)
+      .maybeSingle();
+    if ((existing as any)?.id) return (existing as any).id as string;
+    const kind = classifyPlaylistKind(playlistName, snap.made_by ?? null, spotifyPlaylistId);
+    const matchStatus = kind === "editorial" ? "editorial" : "organic";
+    const toInt = (v: unknown) => {
+      const n = parseInt(String(v ?? "")) || 0;
+      return n > 0 ? n : 0;
+    };
+    const { data: inserted } = await supabase
+      .from("curator_playlists")
+      .insert({
+        deal_id,
+        song_id,
+        spotify_url: snap.spotify_url ?? `https://open.spotify.com/playlist/${spotifyPlaylistId}`,
+        spotify_playlist_id: spotifyPlaylistId,
+        playlist_name: playlistName,
+        followers: snap.followers ?? null,
+        spotify_owner_name: snap.made_by ?? null,
+        is_baseline: isBaseline,
+        match_status: matchStatus,
+        attribution_method: "s4a_observed",
+        attribution_reason: "Detectada automaticamente na aba Playlists do Spotify for Artists",
+        streams_7d: toInt(snap.plays_7d ?? snap.plays ?? 0),
+        streams_28d: toInt(snap.plays_28d ?? 0),
+        streams_total: toInt(snap.plays_28d ?? snap.plays_7d ?? snap.plays ?? snap.plays_24h ?? 0),
+        last_paste_at: new Date().toISOString(),
+      })
+      .select("id")
+      .maybeSingle();
+    return ((inserted as any)?.id as string | undefined) ?? null;
   };
 
   // Dedupe dentro do lote (bot manda mesma playlist em vários scrolls)
@@ -327,6 +374,7 @@ Deno.serve(async (req) => {
         p_deal_id: deal_id,
         p_spotify_playlist_id: sId,
         p_playlist_name: sName,
+        p_song_id: song_id,
       });
       const row = Array.isArray(matchData) ? matchData[0] : null;
       if (row?.playlist_id) {
@@ -342,6 +390,13 @@ Deno.serve(async (req) => {
     //  - 'editorial'   (made_by Spotify com id real, ex.: "This Is X")
     //  - 'organic'     (playlists de terceiros fora do ecossistema)
     // Sem sId real → não dá pra deduplicar nem enriquecer depois → vira no_match.
+    if (!playlistId) {
+      if (isCampaignShadow) {
+        playlistId = await ensureObservedPlaylist(snap, sId);
+        matchMethod = playlistId ? "s4a_observed" : matchMethod;
+      }
+    }
+
     if (!playlistId) {
       const madeBy = (snap as any).made_by ?? null;
       const kind = classifyPlaylistKind(sName, madeBy, sId);
