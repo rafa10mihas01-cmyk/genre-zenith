@@ -52,6 +52,19 @@ Deno.serve(async (req) => {
   const isAgent = OPS_AGENT_TOKEN && agentToken === OPS_AGENT_TOKEN;
   const isService = authHeader && authHeader === SERVICE_KEY;
   if (!isAgent && !isService) {
+    const mask = (s: string) =>
+      s.length === 0
+        ? "<empty>"
+        : `len=${s.length} prefix=${s.slice(0, 4)} suffix=${s.slice(-4)}`;
+    console.log(
+      JSON.stringify({
+        evt: "auth_fail",
+        sent_agent: mask(agentToken),
+        env_agent: mask(OPS_AGENT_TOKEN),
+        sent_auth: mask(authHeader),
+        env_service_len: SERVICE_KEY.length,
+      }),
+    );
     return jr({ error: "unauthorized" }, 401);
   }
 
