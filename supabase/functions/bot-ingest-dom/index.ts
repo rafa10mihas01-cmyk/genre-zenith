@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
   const t0 = Date.now();
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jr({ error: "method_not_allowed" }, 405);
-  if (req.headers.get("x-bot-key") !== BOT_API_KEY) return jr({ error: "unauthorized" }, 401);
+  if (!isAuthorizedBot(req)) return jr({ error: "unauthorized" }, 401);
 
   let body: any;
   try { body = await req.json(); } catch { return jr({ error: "invalid_json" }, 400); }
