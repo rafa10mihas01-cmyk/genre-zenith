@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   Rocket, CheckCircle2, Clock, XCircle, Loader2, RefreshCw, ArrowDownUp,
-  Bot, ShieldCheck, AlertCircle, ExternalLink, Activity,
+  Bot, ShieldCheck, AlertCircle, ExternalLink, Activity, ArrowDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatBRL } from "@/lib/campaignEngine";
@@ -344,6 +344,48 @@ export function CampaignDistributionConsole({
   const doneAddsCount = jobs.filter((j) => j.job_type === "playlist.track.add" && j.status === "done").length;
   const playlistsCount = allocations.length;
 
+  // --- Rebaixamentos (reorders) — mostra cronograma de desmame por playlist ---
+  const nameBySpid = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const r of rows) {
+      if (r.spid) m.set(r.spid, r.name);
+    }
+    return m;
+  }, [rows]);
+
+  const reorderRows = useMemo(() => {
+    const now = Date.now();
+    return jobs
+      .filter((j) => j.job_type === "playlist.track.reorder")
+      .map((j) => {
+        let status: "done" | "pending" | "scheduled" | "failed" = "pending";
+        if (j.status === "done") status = "done";
+        else if (j.status === "failed") status = "failed";
+        else {
+          const sched = j.scheduled_for ? new Date(j.scheduled_for).getTime() : 0;
+          status = sched > now ? "scheduled" : "pending";
+        }
+        return {
+          id: j.id,
+          name: nameBySpid.get(j.spotify_playlist_id) ?? "(playlist)",
+          from: j.from_position,
+          to: j.to_position,
+          scheduledFor: j.scheduled_for,
+          completedAt: j.completed_at,
+          status,
+        };
+      })
+      .sort((a, b) => {
+        const rank = (s: typeof a.status) =>
+          s === "failed" ? 0 : s === "pending" ? 1 : s === "scheduled" ? 2 : 3;
+        const r = rank(a.status) - rank(b.status);
+        if (r !== 0) return r;
+        const at = a.scheduledFor ? new Date(a.scheduledFor).getTime() : 0;
+        const bt = b.scheduledFor ? new Date(b.scheduledFor).getTime() : 0;
+        return at - bt;
+      });
+  }, [jobs, nameBySpid]);
+
   // --- bot health ---
   const hbAge = bot?.last_heartbeat ? Date.now() - new Date(bot.last_heartbeat).getTime() : Infinity;
   const botOk = hbAge < 5 * 60 * 1000;
@@ -518,6 +560,56 @@ export function CampaignDistributionConsole({
                   row={r}
                   onRetry={r.state.jobId ? () => handleRetryOne(r.state.jobId!) : undefined}
                 />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* BLOCO 4b — Rebaixamentos (desmame por posição) */}
+      <Card>
+        <CardContent className="p-0">
+          <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold flex items-center gap-2">
+                <ArrowDown className="h-3.5 w-3.5 text-muted-foreground" />
+                Rebaixamentos
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                {reorderRows.length === 0
+                  ? "Sem rebaixamentos planejados ainda — o cron enfileira automaticamente conforme o desmame do plano."
+                  : `${reorderRows.length} job(s) de reorder · pos atual → pos do dia`}
+              </div>
+            </div>
+          </div>
+          {reorderRows.length > 0 && (
+            <div className="divide-y divide-border">
+              {reorderRows.map((r) => (
+                <div key={r.id} className="px-4 py-2.5 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[13px] font-medium text-foreground truncate">{r.name}</div>
+                    <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 flex-wrap">
+                      <span className="font-mono">Pos {r.from ?? "—"} → {r.to ?? "—"}</span>
+                      {r.status === "scheduled" && r.scheduledFor && (
+                        <span>· agendado para {fmtDateTime(r.scheduledFor)}</span>
+                      )}
+                      {r.status === "done" && r.completedAt && (
+                        <span>· feito em {fmtDateTime(r.completedAt)}</span>
+                      )}
+                      {r.status === "pending" && <span>· aguardando bot</span>}
+                      {r.status === "failed" && <span className="text-destructive">· falhou</span>}
+                    </div>
+                  </div>
+                  <span className={cn(
+                    "inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-bold border",
+                    r.status === "done" && "border-success/30 bg-success/10 text-success",
+                    r.status === "scheduled" && "border-primary/30 bg-primary/10 text-primary",
+                    r.status === "pending" && "border-warning/30 bg-warning/10 text-warning",
+                    r.status === "failed" && "border-destructive/30 bg-destructive/10 text-destructive",
+                  )}>
+                    {r.status === "done" ? "rebaixada" : r.status === "scheduled" ? "agendada" : r.status === "pending" ? "pendente" : "falhou"}
+                  </span>
+                </div>
               ))}
             </div>
           )}
