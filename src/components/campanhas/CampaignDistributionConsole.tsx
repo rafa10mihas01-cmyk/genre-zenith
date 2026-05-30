@@ -630,7 +630,7 @@ export function CampaignDistributionConsole({
               Nenhuma playlist no ecossistema desta campanha.
             </div>
           ) : (
-            <div className="divide-y divide-border">
+            <div className="max-h-[640px] overflow-y-auto divide-y divide-border">
               {rows.map((r) => (
                 <PlaylistRow
                   key={r.allocId}
