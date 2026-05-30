@@ -51,7 +51,7 @@ type Props = {
 };
 
 export function OverviewTab({
-  snapshot, delivered, daysElapsed, showFinance, hideDeliveryPlan = false, hideCurveShortcut = false, hideCurveCard = false, hideKpis = false,
+  snapshot, delivered, daysElapsed, showFinance, hideDeliveryPlan = false, hideCurveShortcut = false, hideCurveCard = false, hideKpis = false, hideSplitRows = false,
   allocations = [], snapshots = [], proofs = [], onJumpTab,
   curveSlot,
   splitLockedAt = null, lockedEcoStreams = null, ecoMaxPct = 70,
