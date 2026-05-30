@@ -3,7 +3,7 @@
 // Idempotente: sempre recomputa a partir das curator_playlists atuais.
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { buildEcoPlan, type Alloc } from "../_shared/computeEcoPlan.ts";
+import { buildEcoPlan, type Alloc, type EcoPlanRow } from "../_shared/computeEcoPlan.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -22,6 +22,35 @@ function daysBetween(start: string, end: string | null): number {
   const b = new Date(end).getTime();
   if (!Number.isFinite(a) || !Number.isFinite(b) || b <= a) return 30;
   return Math.max(7, Math.round((b - a) / 86400000));
+}
+
+function scalePlanToTarget(plan: EcoPlanRow[], target: number): EcoPlanRow[] {
+  const targetTotal = Math.max(0, Math.round(target));
+  const rawTotal = plan.reduce((sum, row) => sum + row.daily.reduce((s, v) => s + Number(v || 0), 0), 0);
+  if (targetTotal <= 0 || rawTotal <= 0 || rawTotal === targetTotal) return plan;
+
+  const cells: Array<{ rowIndex: number; dayIndex: number; base: number; remainder: number }> = [];
+  let baseTotal = 0;
+  plan.forEach((row, rowIndex) => {
+    row.daily.forEach((value, dayIndex) => {
+      const scaled = (Number(value || 0) * targetTotal) / rawTotal;
+      const base = Math.floor(scaled);
+      baseTotal += base;
+      cells.push({ rowIndex, dayIndex, base, remainder: scaled - base });
+    });
+  });
+
+  cells.sort((a, b) => b.remainder - a.remainder);
+  let remaining = targetTotal - baseTotal;
+  for (let i = 0; i < cells.length && remaining > 0; i++, remaining--) cells[i].base += 1;
+
+  const nextDaily = plan.map((row) => row.daily.map(() => 0));
+  for (const cell of cells) nextDaily[cell.rowIndex][cell.dayIndex] = cell.base;
+
+  return plan.map((row, index) => {
+    const daily = nextDaily[index];
+    return { ...row, daily, total_streams: daily.reduce((sum, value) => sum + value, 0) };
+  });
 }
 
 Deno.serve(async (req) => {
@@ -83,12 +112,12 @@ Deno.serve(async (req) => {
 
     // Curva sintética flat baseada no daily_goal
     const curva = Array.from({ length: days }, () => ({ streamsDay: Math.max(1, dailyGoal) }));
-    const plan = buildEcoPlan({
+    const plan = scalePlanToTarget(buildEcoPlan({
       snapshot: { days, modo: "simultaneo", curva },
       startedAt: deal.started_at,
       engagementMultiplier: DEFAULT_MULT,
       allocs,
-    });
+    }), targetPlays);
 
     // Limpa plano antigo e insere novo
     await admin.from("curator_deal_plan").delete().eq("deal_id", dealId);
