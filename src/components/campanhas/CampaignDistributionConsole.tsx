@@ -77,14 +77,25 @@ const fmtShortDate = (iso: string | null) => {
   return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 };
 
-/** Data prevista = base (started_at OU eco_dispatched_at) + (start_day - 1) dias. */
+// Janela do bot — espelha execution-planner (08h–22h BR).
+const BOT_WINDOW_START_BR = 8;
+const BOT_WINDOW_END_BR = 22;
+
+/**
+ * Data prevista = base (started_at OU eco_dispatched_at) + (startDay - 1) dias,
+ * ancorada no início da janela do bot (08h BR) pra o "previsto" bater com a
+ * realidade de quando o robô vai abrir aquele slot.
+ */
 function plannedDateFor(startDay: number | null | undefined, baseIso: string | null): string | null {
   if (!baseIso || !startDay || startDay < 1) return null;
   const base = new Date(baseIso);
   if (isNaN(base.getTime())) return null;
-  base.setDate(base.getDate() + (startDay - 1));
+  // Soma (startDay - 1) dias preservando o instante; depois força 08h BR (11h UTC).
+  base.setUTCDate(base.getUTCDate() + (startDay - 1));
+  base.setUTCHours(BOT_WINDOW_START_BR + 3, 0, 0, 0); // BR = UTC-3
   return base.toISOString();
 }
+
 
 
 export function CampaignDistributionConsole({
