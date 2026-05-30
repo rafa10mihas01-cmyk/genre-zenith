@@ -143,7 +143,7 @@ Deno.serve(async (req) => {
     supabase
       .from("campaign_eco_allocations")
       .select(`
-        id, campaign_id, managed_playlist_id, status, position, created_at,
+        id, campaign_id, managed_playlist_id, status, position, start_day, created_at,
         campaigns!inner ( id, status, spotify_track_id, started_at, plan_approved_at ),
         managed_playlists!inner ( id, spotify_playlist_id )
       `)
@@ -175,6 +175,7 @@ Deno.serve(async (req) => {
       started_at: a.campaigns?.started_at,
       plan_approved_at: a.campaigns?.plan_approved_at,
       position: a.position,
+      start_day: 1,
       created_at: a.created_at,
     })),
     ...((ecoRes.data ?? []) as any[]).map((a) => ({
@@ -188,9 +189,11 @@ Deno.serve(async (req) => {
       started_at: a.campaigns?.started_at,
       plan_approved_at: a.campaigns?.plan_approved_at,
       position: a.position,
+      start_day: Math.max(1, Number(a.start_day ?? 1)),
       created_at: a.created_at,
     })),
   ].filter((a) => !!a.plan_approved_at);
+
 
   // 1b. Ramp-up de aquecimento (motor único, espalha no tempo)
   const now = Date.now();
@@ -206,13 +209,26 @@ Deno.serve(async (req) => {
     const startedAt = (list[0] as any).started_at;
     const startMs = startedAt ? new Date(startedAt).getTime() : now;
     const daysSinceStart = Math.max(0, Math.floor((now - startMs) / 86_400_000));
+    // Rampa de aquecimento (legacy / fallback): só limita quando alloc não tem start_day próprio.
     const releasedFrac = Math.min(1, (daysSinceStart + 1) / RAMP_DAYS);
     const total = list.length;
     const releasedCount = Math.max(1, Math.ceil(total * releasedFrac));
-    for (const a of list.slice(0, releasedCount)) {
+    // Ordena por start_day asc pra rampa legacy bater com prioridade.
+    const sorted = [...list].sort((a, b) => (a.start_day ?? 1) - (b.start_day ?? 1));
+    sorted.forEach((a, idx) => {
       const trackId = (a as any).spotify_track_id;
       const plId = (a as any).spotify_playlist_id;
-      if (!trackId || !plId) continue;
+      if (!trackId || !plId) return;
+
+      // Gating por start_day: respeita o cronograma do mapa.
+      // Eco SEMPRE tem start_day; legacy default = 1 (não muda comportamento).
+      const startDay = Math.max(1, Number(a.start_day ?? 1));
+      const allocSlotMs = startMs + (startDay - 1) * 86_400_000;
+      if (now < allocSlotMs) return; // ainda não chegou o dia desta playlist
+
+      // Fallback de rampa só pra allocations sem start_day próprio (legacy).
+      if (a.source === "legacy" && idx >= releasedCount) return;
+
       candidates.push({
         allocation_source: a.source,
         allocation_id: a.allocation_id,
@@ -222,9 +238,12 @@ Deno.serve(async (req) => {
         spotify_track_id: trackId,
         to_position: a.position ? Number(a.position) : null,
         dedupe_key: `add:${plId}:${trackId}`,
+        // Floor pro scheduled_for: nunca antes do slot planejado (08h BR daquele dia).
+        slot_floor_ms: allocSlotMs,
       });
-    }
+    });
   }
+
 
   const uniqueCandidates = Array.from(new Map(candidates.map((c) => [c.dedupe_key, c])).values());
   candidates.splice(0, candidates.length, ...uniqueCandidates);
@@ -299,13 +318,14 @@ Deno.serve(async (req) => {
   for (const c of fresh) {
     const hist = histByPl.get(c.spotify_playlist_id) ?? [];
 
-    // Base: max(agora, último job dessa playlist + MIN_SPACING)
-    let base = now;
+    // Base: max(agora, slot_floor do start_day, último job dessa playlist + MIN_SPACING)
+    let base = Math.max(now, Number(c.slot_floor_ms ?? 0));
     if (hist.length > 0) {
       const last = hist[hist.length - 1].getTime();
       base = Math.max(base, last + MIN_SPACING_MIN * 60_000);
     }
     let when = new Date(base);
+
 
     // Janela horária BR
     when = clampToWindow(when);
