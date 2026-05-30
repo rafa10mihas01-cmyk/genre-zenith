@@ -52,16 +52,55 @@ function effectiveStatus(c: { status: string; total_delivered: number | null; go
   return "active";
 }
 
+type PipelineFilter =
+  | "all"
+  | "awaiting_client"
+  | "awaiting_internal"
+  | "awaiting_baseline"
+  | "running"
+  | "completed";
+
+const PIPELINE_LABEL: Record<PipelineFilter, string> = {
+  all: "Todas",
+  awaiting_client: "Aguardando cliente",
+  awaiting_internal: "Aguardando você",
+  awaiting_baseline: "Aguardando baseline",
+  running: "Rodando",
+  completed: "Concluída",
+};
+
+function pipelineStage(c: import("@/hooks/useCampaigns").Campaign): PipelineFilter {
+  const eff = effectiveStatus(c);
+  if (eff === "completed" || eff === "cancelled") return "completed";
+  if (!c.client_approved_at) return "awaiting_client";
+  if (!c.plan_approved_at) return "awaiting_internal";
+  if (c.baseline_pending) return "awaiting_baseline";
+  return "running";
+}
+
 export default function Campanhas() {
   const navigate = useNavigate();
   const { items, loading, recalcAll } = useCampaigns();
-  const [filter, setFilter] = useState<"all" | "active" | "draft" | "completed">("all");
+  const [filter, setFilter] = useState<PipelineFilter>("all");
   const [tab, setTab] = useState<"lista" | "financeiro">("financeiro");
 
   const filtered = useMemo(
-    () => filter === "all" ? items : items.filter(i => effectiveStatus(i) === filter),
+    () => filter === "all" ? items : items.filter(i => pipelineStage(i) === filter),
     [items, filter]
   );
+
+  const stageCounts = useMemo(() => {
+    const counts: Record<PipelineFilter, number> = {
+      all: items.length,
+      awaiting_client: 0,
+      awaiting_internal: 0,
+      awaiting_baseline: 0,
+      running: 0,
+      completed: 0,
+    };
+    for (const c of items) counts[pipelineStage(c)]++;
+    return counts;
+  }, [items]);
 
   const kpis = useMemo(() => {
     const active = items.filter(i => effectiveStatus(i) === "active");
