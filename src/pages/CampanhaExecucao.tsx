@@ -672,6 +672,11 @@ export default function CampanhaExecucao() {
         slots={{
           overview: (
             <div className="space-y-6">
+              <BaselineAwaitingBanner
+                dealState={dealStatus.state}
+                baselineCapturedAt={dealStatus.baselineCapturedAt}
+                dealId={camp.deal_id ?? null}
+              />
               <CampaignGatesCard
                 clientApprovedAt={camp.client_approved_at ?? null}
                 planApprovedAt={(camp as any).plan_approved_at ?? null}
