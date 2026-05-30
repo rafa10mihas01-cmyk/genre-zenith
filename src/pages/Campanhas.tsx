@@ -242,7 +242,7 @@ export default function Campanhas() {
           <>
             {/* Filtros */}
             <div className="flex flex-wrap gap-2 mb-4">
-              {(["all", "awaiting_client", "awaiting_internal", "awaiting_baseline", "running", "completed"] as const).map(f => {
+              {(["all", "awaiting_client", "awaiting_internal", "running", "completed"] as const).map(f => {
                 const count = stageCounts[f];
                 return (
                   <Button
