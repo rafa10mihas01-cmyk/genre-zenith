@@ -321,3 +321,22 @@ export async function getUserAccessToken(userId?: string): Promise<{ token: stri
   const fresh = await refreshUserToken(row);
   return { token: fresh, row: { ...row, access_token: fresh } };
 }
+
+/** Força refresh imediato do token de usuário (ignora expiry cache). Útil em retry após 401. */
+export async function forceRefreshUserAccessToken(userId: string): Promise<{ token: string; row: SpotifyUserToken }> {
+  const supabase = db();
+  const defaultAppId = await getDefaultSpotifyAppId();
+  const { data, error } = await supabase
+    .from("spotify_user_tokens")
+    .select("*")
+    .eq("spotify_user_id", userId)
+    .order("is_default", { ascending: false })
+    .order("updated_at", { ascending: false })
+    .limit(25);
+  if (error) throw new Error(error.message);
+  const rows = (data ?? []) as SpotifyUserToken[];
+  if (rows.length === 0) throw new Error(`Sem token para spotify_user_id=${userId}`);
+  const row = defaultAppId ? rows.find((r) => r.app_id === defaultAppId) ?? rows[0] : rows[0];
+  const fresh = await refreshUserToken(row);
+  return { token: fresh, row: { ...row, access_token: fresh } };
+}
