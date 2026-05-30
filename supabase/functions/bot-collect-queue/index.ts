@@ -157,7 +157,7 @@ Deno.serve(async (req) => {
       spotify_artist_id, spotify_artist_url,
       auto_collect_status, last_auto_collect_at, next_auto_collect_at,
       auto_collect_interval_minutes, last_print_at,
-      curator_deals!inner ( id, curator_name, song_name, user_id, closed_at, state, token_revoked_at, token_expires_at, curator_id, campaign_id, curators ( paused_at ), campaigns!curator_deals_campaign_id_fkey ( client_id, clients ( spotify_artist_id, spotify_artist_url ) ) ),
+      curator_deals!inner ( id, curator_name, song_name, user_id, closed_at, state, source, token_revoked_at, token_expires_at, curator_id, campaign_id, curators ( paused_at ), campaigns!curator_deals_campaign_id_fkey ( client_id, clients ( spotify_artist_id, spotify_artist_url ) ) ),
       curator_playlists ( id, playlist_name, spotify_url, spotify_playlist_id )
     `)
     .eq("auto_collect", true)
