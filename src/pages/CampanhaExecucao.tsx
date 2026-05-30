@@ -100,6 +100,7 @@ export default function CampanhaExecucao() {
   const [organicRows, setOrganicRows] = useState<OrganicRow[]>([]);
   const [dispatching, setDispatching] = useState(false);
   const [approvingPlan, setApprovingPlan] = useState(false);
+  const [baselineGate, setBaselineGate] = useState({ required: 0, collected: 0, capturedAt: null as string | null });
 
   async function handleApprovePlan() {
     if (!camp) return;
@@ -126,6 +127,11 @@ export default function CampanhaExecucao() {
 
   async function handleDispatchEco() {
     if (!camp) return;
+    const baselineReady = baselineGate.required > 0 && baselineGate.collected >= baselineGate.required;
+    if (!baselineReady) {
+      toast.error("Baseline obrigatória", { description: `Coletadas ${baselineGate.collected}/${baselineGate.required || allocs.length} playlist(s). Aguarde o marco zero antes de distribuir.` });
+      return;
+    }
     setDispatching(true);
     try {
       const { error } = await (supabase.rpc as any)("approve_campaign", { p_campaign_id: camp.id });
@@ -143,6 +149,7 @@ export default function CampanhaExecucao() {
       const raw = e?.message ?? String(e);
       const map: Record<string, string> = {
         client_approval_required: "O cliente ainda não aprovou o plano. Mande o link público antes.",
+        baseline_required: "A baseline ainda não foi coletada em todas as playlists. Aguarde o marco zero antes de distribuir.",
         curator_required: "Edite a campanha e selecione o curador dono das playlists.",
         campaign_not_in_approvable_state: "Esta campanha já foi distribuída.",
         campaign_not_found: "Campanha não encontrada.",
@@ -165,7 +172,7 @@ export default function CampanhaExecucao() {
         .maybeSingle(),
       supabase
         .from("campaign_eco_allocations")
-        .select("id, managed_playlist_id, planned_streams, start_day, status, dispatched_at, position, genre_source, genre_affinity_score, managed_playlists(name, cover_url, followers, spotify_url, genre_id)")
+        .select("id, managed_playlist_id, planned_streams, start_day, status, dispatched_at, position, genre_source, genre_affinity_score, managed_playlists(name, cover_url, followers, spotify_url, spotify_playlist_id, genre_id)")
         .eq("campaign_id", id)
         .order("planned_streams", { ascending: false }),
       supabase
@@ -302,6 +309,30 @@ export default function CampanhaExecucao() {
       setClientToken(null);
       setRecentUploads([]);
       setLastSpreadsheetUploadAt(null);
+    }
+
+    const plannedSpotifyIds = Array.from(new Set(((a ?? []) as any[]).map((alloc) => {
+      const direct = alloc.managed_playlists?.spotify_playlist_id as string | null | undefined;
+      if (direct) return direct;
+      const url = alloc.managed_playlists?.spotify_url as string | null | undefined;
+      return url?.match(/playlist\/([A-Za-z0-9]+)/)?.[1] ?? null;
+    }).filter(Boolean) as string[]));
+    if (dealId && plannedSpotifyIds.length > 0) {
+      const { data: baselineSnaps } = await supabase
+        .from("curator_deal_snapshots")
+        .select("captured_at, curator_playlists!inner(spotify_playlist_id)")
+        .eq("deal_id", dealId)
+        .eq("is_baseline", true);
+      const collected = new Set<string>();
+      let capturedAt: string | null = null;
+      for (const snap of (baselineSnaps ?? []) as any[]) {
+        const spid = snap.curator_playlists?.spotify_playlist_id as string | null | undefined;
+        if (spid && plannedSpotifyIds.includes(spid)) collected.add(spid);
+        if (snap.captured_at && (!capturedAt || snap.captured_at > capturedAt)) capturedAt = snap.captured_at;
+      }
+      setBaselineGate({ required: plannedSpotifyIds.length, collected: collected.size, capturedAt });
+    } else {
+      setBaselineGate({ required: plannedSpotifyIds.length, collected: 0, capturedAt: null });
     }
 
     const dealIds = ((pkg ?? []) as PackageItem[]).map((p) => p.curator_deal_id).filter((dealId): dealId is string => !!dealId);
@@ -630,6 +661,9 @@ export default function CampanhaExecucao() {
                 ecoDispatchedAt={camp.eco_dispatched_at ?? null}
                 collectionMode={(camp as any).collection_mode ?? null}
                 status={camp.status}
+                baselineReady={baselineGate.required > 0 && baselineGate.collected >= baselineGate.required}
+                baselineCollected={baselineGate.collected}
+                baselineRequired={baselineGate.required}
                 onApprovePlan={handleApprovePlan}
                 onDispatch={handleDispatchEco}
                 approvingPlan={approvingPlan}
@@ -786,6 +820,10 @@ export default function CampanhaExecucao() {
                     allocations={allocs}
                     ecoPositionByAllocation={ecoPositionByAllocation}
                     ecoDispatchedAt={camp.eco_dispatched_at ?? null}
+                    baselineReady={baselineGate.required > 0 && baselineGate.collected >= baselineGate.required}
+                    baselineCollected={baselineGate.collected}
+                    baselineRequired={baselineGate.required}
+                    baselineCapturedAt={baselineGate.capturedAt}
                     campaignStartedAt={camp.started_at ?? null}
                     snapshot={snapshot}
                     engagementMultiplier={camp.engagement_multiplier ?? 30}

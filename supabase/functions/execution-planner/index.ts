@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
       .from("campaign_allocations")
       .select(`
         id, campaign_id, playlist_id, status, position, created_at,
-        campaigns!inner ( id, status, spotify_track_id, started_at, plan_approved_at ),
+        campaigns!inner ( id, status, spotify_track_id, started_at, plan_approved_at, eco_dispatched_at ),
         playlists!inner ( id, spotify_playlist_id, ownership )
       `)
       .in("status", ["approved", "active"])
@@ -144,7 +144,7 @@ Deno.serve(async (req) => {
       .from("campaign_eco_allocations")
       .select(`
         id, campaign_id, managed_playlist_id, status, position, start_day, created_at,
-        campaigns!inner ( id, status, spotify_track_id, started_at, plan_approved_at ),
+        campaigns!inner ( id, status, spotify_track_id, started_at, plan_approved_at, eco_dispatched_at ),
         managed_playlists!inner ( id, spotify_playlist_id )
       `)
       .in("status", ["pending", "approved", "active", "dispatched"])
@@ -174,6 +174,7 @@ Deno.serve(async (req) => {
       spotify_track_id: a.campaigns?.spotify_track_id,
       started_at: a.campaigns?.started_at,
       plan_approved_at: a.campaigns?.plan_approved_at,
+      eco_dispatched_at: a.campaigns?.eco_dispatched_at,
       position: a.position,
       start_day: 1,
       created_at: a.created_at,
@@ -188,11 +189,12 @@ Deno.serve(async (req) => {
       spotify_track_id: a.campaigns?.spotify_track_id,
       started_at: a.campaigns?.started_at,
       plan_approved_at: a.campaigns?.plan_approved_at,
+      eco_dispatched_at: a.campaigns?.eco_dispatched_at,
       position: a.position,
       start_day: Math.max(1, Number(a.start_day ?? 1)),
       created_at: a.created_at,
     })),
-  ].filter((a) => !!a.plan_approved_at);
+  ].filter((a) => !!a.plan_approved_at && !!a.eco_dispatched_at);
 
 
   // 1b. Ramp-up de aquecimento (motor único, espalha no tempo)
@@ -441,7 +443,7 @@ async function runEcoReorderPass(
     .select(`
       id, campaign_id, position, start_day, status,
       managed_playlists!inner ( spotify_playlist_id ),
-      campaigns!inner ( status, started_at, spotify_track_id, simulation_snapshot )
+      campaigns!inner ( status, started_at, spotify_track_id, simulation_snapshot, eco_dispatched_at )
     `)
     .in("status", ["dispatched", "active"])
     .in("campaigns.status", ["active", "running", "live"]);
@@ -466,8 +468,9 @@ async function runEcoReorderPass(
     const spId = e.managed_playlists?.spotify_playlist_id as string | null;
     const trackId = e.campaigns?.spotify_track_id as string | null;
     const startedAt = e.campaigns?.started_at as string | null;
+    const dispatchedAt = e.campaigns?.eco_dispatched_at as string | null;
     const snap = e.campaigns?.simulation_snapshot as { days?: number; effectiveDays?: number } | null;
-    if (!spId || !trackId || !startedAt || !snap) continue;
+    if (!spId || !trackId || !startedAt || !dispatchedAt || !snap) continue;
     const planDays = Math.max(1, Number(snap.effectiveDays ?? snap.days ?? 0));
     if (planDays <= 0) continue;
 

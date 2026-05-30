@@ -48,6 +48,9 @@ export type CampaignGatesCardProps = {
   ecoDispatchedAt: string | null;
   collectionMode?: string | null;
   status?: string | null;
+  baselineReady?: boolean;
+  baselineCollected?: number;
+  baselineRequired?: number;
   onApprovePlan: () => void;
   onDispatch: () => void;
   approvingPlan: boolean;
@@ -63,6 +66,9 @@ export function CampaignGatesCard({
   ecoDispatchedAt,
   collectionMode,
   status,
+  baselineReady = true,
+  baselineCollected = 0,
+  baselineRequired = 0,
   onApprovePlan,
   onDispatch,
   approvingPlan,
@@ -79,7 +85,7 @@ export function CampaignGatesCard({
 
   const state1: GateState = clientDone ? "done" : "current";
   const state2: GateState = planDone ? "done" : clientDone ? "current" : "locked";
-  const state3: GateState = dispatchDone ? "done" : planDone ? "current" : "locked";
+  const state3: GateState = dispatchDone ? "done" : planDone && (isSpreadsheet || baselineReady) ? "current" : "locked";
 
   // Once the campaign is live or closed, hide CTAs — gates become a read-only timeline.
   const nextAction: "plan" | "dispatch" | null = isLive || isClosed
@@ -87,7 +93,7 @@ export function CampaignGatesCard({
     : dispatchDone
       ? null
       : planDone
-        ? "dispatch"
+        ? (isSpreadsheet || baselineReady ? "dispatch" : null)
         : clientDone
           ? "plan"
           : null;
@@ -108,9 +114,11 @@ export function CampaignGatesCard({
                   ? "Campanha no ar — coleta via planilha (cliente envia atualizações no portal)."
                   : "Campanha no ar — coleta ativa nas playlists."
                 : nextAction === "dispatch"
-                  ? "Tudo pronto. Falta apenas o gatilho final."
+                  ? "Baseline capturada. Falta apenas iniciar a distribuição."
                   : nextAction === "plan"
                     ? "Cliente já aprovou. Confirme o plano internamente para liberar a distribuição."
+                  : planDone && !isSpreadsheet && !baselineReady
+                    ? `Aguardando baseline: ${baselineCollected}/${baselineRequired} playlist(s) coletada(s).`
                     : "Aguardando o cliente aprovar o plano público."}
           </div>
         </div>
@@ -142,7 +150,7 @@ export function CampaignGatesCard({
           index={3}
           state={state3}
           title={isSpreadsheet ? "Coleta ativa" : "Distribuição iniciada"}
-          hint={isSpreadsheet ? "Cliente envia planilhas no portal" : "Bot começa a inserir nas playlists"}
+          hint={isSpreadsheet ? "Cliente envia planilhas no portal" : "Inserção nas playlists"}
           meta={
             ecoDispatchedAt
               ? `há ${relTime(ecoDispatchedAt)} — ${fmt(ecoDispatchedAt)}`
@@ -150,7 +158,7 @@ export function CampaignGatesCard({
                 ? "Recebendo planilhas"
                 : isLive
                   ? "Em andamento"
-                  : planDone ? "Pronto pra iniciar" : "Bloqueado"
+                  : planDone && !isSpreadsheet && !baselineReady ? `${baselineCollected}/${baselineRequired} baseline` : planDone ? "Pronto pra iniciar" : "Bloqueado"
           }
         />
       </div>
@@ -161,7 +169,7 @@ export function CampaignGatesCard({
             <Clock className="h-3.5 w-3.5 shrink-0" />
             <span className="truncate">
               {nextAction === "dispatch"
-                ? "O bot começa a inserir no próximo ciclo (~1min)."
+                ? "A inserção começa no próximo ciclo (~1min)."
                 : "Aprovar plano cria o deal do curador e libera o passo 3."}
             </span>
           </div>
