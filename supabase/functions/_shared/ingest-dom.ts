@@ -41,6 +41,50 @@ const toInt = (v: unknown) => {
   return n > 0 ? n : 0;
 };
 
+async function ensureObservedPlaylist(
+  supabase: ReturnType<typeof createClient>,
+  item: DomItem,
+  playlist: DomItem["playlists"][number],
+  spotifyPlaylistId: string | null,
+  isBaseline: boolean,
+): Promise<string | null> {
+  const playlistName = playlist.playlist_name?.trim() || null;
+  if (!spotifyPlaylistId || !playlistName) return null;
+  const { data: existing } = await supabase
+    .from("curator_playlists")
+    .select("id")
+    .eq("deal_id", item.deal_id)
+    .eq("song_id", item.song_id)
+    .eq("spotify_playlist_id", spotifyPlaylistId)
+    .maybeSingle();
+  if ((existing as any)?.id) return (existing as any).id;
+
+  const kind = classifyPlaylistKind(playlistName, (playlist as any).made_by ?? null, spotifyPlaylistId);
+  const matchStatus = kind === "editorial" ? "editorial" : "organic";
+  const { data: inserted } = await supabase
+    .from("curator_playlists")
+    .insert({
+      deal_id: item.deal_id,
+      song_id: item.song_id,
+      spotify_url: playlist.spotify_url ?? `https://open.spotify.com/playlist/${spotifyPlaylistId}`,
+      spotify_playlist_id: spotifyPlaylistId,
+      playlist_name: playlistName,
+      followers: (playlist as any).followers ?? null,
+      spotify_owner_name: (playlist as any).made_by ?? null,
+      is_baseline: isBaseline,
+      match_status: matchStatus,
+      attribution_method: "s4a_observed",
+      attribution_reason: "Detectada automaticamente na aba Playlists do Spotify for Artists",
+      streams_7d: toInt((playlist as any).plays_7d ?? 0),
+      streams_28d: toInt((playlist as any).plays_28d ?? 0),
+      streams_total: toInt((playlist as any).plays_28d ?? (playlist as any).plays_7d ?? (playlist as any).plays_24h ?? 0),
+      last_paste_at: new Date().toISOString(),
+    })
+    .select("id")
+    .maybeSingle();
+  return ((inserted as any)?.id as string | undefined) ?? null;
+}
+
 export async function processDomItem(
   supabase: ReturnType<typeof createClient>,
   item: DomItem,
@@ -166,15 +210,13 @@ export async function processDomItem(
     }
 
     if (!playlistId) {
-      // NÃO cria nova playlist no deal automaticamente. Antes de descartar,
-      // classifica e grava em organic_plays_snapshots quando há
-      // spotify_playlist_id válido — preserva tração de:
-      //  - 'algorithmic' (Rádio, Daily Mix, Discover Weekly, Smart Shuffle...)
-      //  - 'editorial'   (made_by Spotify com id real, ex.: "This Is X")
-      //  - 'organic'     (playlists de terceiros fora do ecossistema)
-      // Sem sId real → não dá pra deduplicar nem enriquecer depois → vira no_match.
-      const madeBy = (p as any).made_by ?? null;
-      const kind = classifyPlaylistKind(sName, madeBy, sId);
+      if (isCampaignShadow) {
+        playlistId = await ensureObservedPlaylist(supabase, item, p, sId, isBaseline);
+        matchMethod = playlistId ? "s4a_observed" : matchMethod;
+      }
+      if (!playlistId) {
+        const madeBy = (p as any).made_by ?? null;
+        const kind = classifyPlaylistKind(sName, madeBy, sId);
       if (kind && sId) {
         await supabase.from("organic_plays_snapshots").insert({
           deal_id,
@@ -207,6 +249,7 @@ export async function processDomItem(
       });
       skipped++;
       continue;
+      }
     }
 
 
