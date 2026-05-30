@@ -93,10 +93,23 @@ Deno.serve(async (req) => {
       const ownerId = mp?.owner_spotify_user_id ?? null;
       if (!ownerId) throw new Error("owner_spotify_user_id não encontrado em managed_playlists");
 
-      const { token } = await getUserAccessToken(ownerId);
+      let { token } = await getUserAccessToken(ownerId);
 
       // Em playlists privadas/colaborativas, leitura também precisa do token do dono.
-      const uris = await listPlaylistTrackUris(j.spotify_playlist_id, token);
+      // Retry uma vez com refresh forçado em 401 (token pode estar stale no cache).
+      let uris: string[];
+      try {
+        uris = await listPlaylistTrackUris(j.spotify_playlist_id, token);
+      } catch (ge) {
+        if (ge instanceof SpotifyApiError && ge.status === 401) {
+          console.log(JSON.stringify({ evt: "reorder.token_refresh", job_id: j.id }));
+          const refreshed = await forceRefreshUserAccessToken(ownerId);
+          token = refreshed.token;
+          uris = await listPlaylistTrackUris(j.spotify_playlist_id, token);
+        } else {
+          throw ge;
+        }
+      }
       const total = uris.length;
       console.log(JSON.stringify({
         evt: "reorder.attempt",
