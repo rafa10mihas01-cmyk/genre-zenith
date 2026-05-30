@@ -817,6 +817,10 @@ export default function CampanhaExecucao() {
                     allocations={allocs}
                     ecoPositionByAllocation={ecoPositionByAllocation}
                     ecoDispatchedAt={camp.eco_dispatched_at ?? null}
+                    baselineReady={baselineGate.required > 0 && baselineGate.collected >= baselineGate.required}
+                    baselineCollected={baselineGate.collected}
+                    baselineRequired={baselineGate.required}
+                    baselineCapturedAt={baselineGate.capturedAt}
                     campaignStartedAt={camp.started_at ?? null}
                     snapshot={snapshot}
                     engagementMultiplier={camp.engagement_multiplier ?? 30}
