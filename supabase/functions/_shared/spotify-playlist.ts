@@ -103,13 +103,19 @@ export async function listPlaylistTrackRefs(
   fetcher: SpotifyFetch = defaultSpotifyFetch,
 ): Promise<PlaylistTrackRef[]> {
   const refs: PlaylistTrackRef[] = [];
+  // NOTE: Spotify v1 retorna o objeto da faixa em DOIS formatos:
+  //   - legado: items[].track  (playlists antigas / certas contas)
+  //   - novo:   items[].item   (rollout unificado tracks+episodes em 2026)
+  // Pedimos os DOIS campos e aceitamos qualquer um na parsing pra não voltar vazio.
   let url: string | null =
-    `https://api.spotify.com/v1/playlists/${playlistId}/items?fields=items(track(id,uri,linked_from(id,uri))),next&limit=100`;
+    `https://api.spotify.com/v1/playlists/${playlistId}/items?fields=items(track(id,uri,type,linked_from(id,uri)),item(id,uri,type,linked_from(id,uri))),next&limit=100`;
   while (url) {
     const j: any = await fetcher(url, { method: "GET" }, token);
     for (const it of j.items ?? []) {
-      const tr = it?.track;
+      const tr = it?.track ?? it?.item;
       if (!tr?.uri) continue;
+      // Filtra episódios (só queremos tracks)
+      if (tr.type && tr.type !== "track") continue;
       refs.push({
         uri: tr.uri,
         id: tr.id ?? null,
