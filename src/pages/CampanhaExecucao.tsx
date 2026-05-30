@@ -787,10 +787,13 @@ export default function CampanhaExecucao() {
                     ecoPositionByAllocation={ecoPositionByAllocation}
                     ecoDispatchedAt={camp.eco_dispatched_at ?? null}
                     campaignStartedAt={camp.started_at ?? null}
+                    snapshot={snapshot}
+                    engagementMultiplier={camp.engagement_multiplier ?? 30}
                     custoTotal={snapshot.custoTotal ?? 0}
                     dispatching={dispatching}
                     onDispatch={handleDispatchEco}
                   />
+
                 </TabsContent>
                 <TabsContent value="status" className="mt-0 space-y-4">
                   <CampaignExecutionStatus campaignId={camp.id} />
