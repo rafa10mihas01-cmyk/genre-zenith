@@ -172,9 +172,10 @@ Deno.serve(async (req) => {
 
   if (error) return jr({ error: error.message }, 500);
 
-  // 🔒 BLINDAGEM: só coleta se o deal já tem playlists do curador cadastradas
-  // (com spotify_playlist_id e não-algorítmicas). Sem whitelist, não roda.
-  // Pós-filtro: token_expires_at no passado também desqualifica
+  // Coleta de campanha interna: não exige whitelist. O bot precisa abrir a
+  // música no Spotify for Artists e capturar TODAS as playlists onde ela já
+  // aparece; a baseline nasce dessa foto, não das playlists planejadas.
+  // Deals de curador comuns continuam exigindo playlists cadastradas.
   const nowMs = Date.now();
   const candidates = (data ?? []).filter((s: any) => {
     // Curador pausado: bloqueia coleta
@@ -204,7 +205,8 @@ Deno.serve(async (req) => {
     }
   }
 
-  const eligible = candidates.filter((s: any) => dealsWithWhitelist.has(s.deal_id));
+  const isCampaignInternal = (s: any) => s?.curator_deals?.source === "campaign_internal" || !!s?.curator_deals?.campaign_id;
+  const eligible = candidates.filter((s: any) => isCampaignInternal(s) || dealsWithWhitelist.has(s.deal_id));
   for (const s of eligible as any[]) {
     const rows = whitelistsByDeal.get(s.deal_id) ?? [];
     const scoped = rows.filter((p: any) => !p.song_id || p.song_id === s.id);
@@ -215,7 +217,7 @@ Deno.serve(async (req) => {
       spotify_playlist_id: p.spotify_playlist_id,
     }));
   }
-  const blocked = candidates.filter((s: any) => !dealsWithWhitelist.has(s.deal_id));
+  const blocked = candidates.filter((s: any) => !isCampaignInternal(s) && !dealsWithWhitelist.has(s.deal_id));
 
   // Marca songs sem whitelist com status informativo (não polui logs nem fica 'idle' eterno)
   if (blocked.length) {
