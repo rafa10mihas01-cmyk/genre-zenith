@@ -344,6 +344,48 @@ export function CampaignDistributionConsole({
   const doneAddsCount = jobs.filter((j) => j.job_type === "playlist.track.add" && j.status === "done").length;
   const playlistsCount = allocations.length;
 
+  // --- Rebaixamentos (reorders) — mostra cronograma de desmame por playlist ---
+  const nameBySpid = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const r of rows) {
+      if (r.spid) m.set(r.spid, r.name);
+    }
+    return m;
+  }, [rows]);
+
+  const reorderRows = useMemo(() => {
+    const now = Date.now();
+    return jobs
+      .filter((j) => j.job_type === "playlist.track.reorder")
+      .map((j) => {
+        let status: "done" | "pending" | "scheduled" | "failed" = "pending";
+        if (j.status === "done") status = "done";
+        else if (j.status === "failed") status = "failed";
+        else {
+          const sched = j.scheduled_for ? new Date(j.scheduled_for).getTime() : 0;
+          status = sched > now ? "scheduled" : "pending";
+        }
+        return {
+          id: j.id,
+          name: nameBySpid.get(j.spotify_playlist_id) ?? "(playlist)",
+          from: j.from_position,
+          to: j.to_position,
+          scheduledFor: j.scheduled_for,
+          completedAt: j.completed_at,
+          status,
+        };
+      })
+      .sort((a, b) => {
+        const rank = (s: typeof a.status) =>
+          s === "failed" ? 0 : s === "pending" ? 1 : s === "scheduled" ? 2 : 3;
+        const r = rank(a.status) - rank(b.status);
+        if (r !== 0) return r;
+        const at = a.scheduledFor ? new Date(a.scheduledFor).getTime() : 0;
+        const bt = b.scheduledFor ? new Date(b.scheduledFor).getTime() : 0;
+        return at - bt;
+      });
+  }, [jobs, nameBySpid]);
+
   // --- bot health ---
   const hbAge = bot?.last_heartbeat ? Date.now() - new Date(bot.last_heartbeat).getTime() : Infinity;
   const botOk = hbAge < 5 * 60 * 1000;
