@@ -469,36 +469,28 @@ export function CampaignDistributionConsole({
         />
       </div>
 
-      {/* BLOCO 2 — Dispatch */}
-      <Card className={cn(
-        "border-2",
-        ecoDispatchedAt ? "border-primary/30 bg-primary/[0.03]" : "border-primary/40",
-      )}>
-        <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-start gap-3 min-w-0">
-            {ecoDispatchedAt ? (
-              <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-            ) : (
-              <Rocket className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-            )}
-            <div className="min-w-0">
-              <div className="text-sm font-semibold">
-                {ecoDispatchedAt ? "Ecossistema distribuído" : "Distribuir pro ecossistema"}
+      {/* BLOCO 2 — Dispatch (só antes de distribuir; depois vira info inline no header de status) */}
+      {!ecoDispatchedAt && (
+        <Card className="border-2 border-primary/40 bg-gradient-to-br from-primary/[0.08] via-primary/[0.03] to-transparent overflow-hidden relative">
+          <div className="absolute inset-0 pointer-events-none opacity-[0.04]" style={{
+            backgroundImage: "radial-gradient(circle at 20% 20%, hsl(var(--primary)) 0%, transparent 50%)",
+          }} />
+          <CardContent className="p-5 flex flex-wrap items-center justify-between gap-4 relative">
+            <div className="flex items-center gap-4 min-w-0">
+              <div className="h-12 w-12 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center shrink-0">
+                <Rocket className="h-5 w-5 text-primary" />
               </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {ecoDispatchedAt ? (
-                  <>Disparado em {fmtDateTime(ecoDispatchedAt)}. Deal criado e playlists na fila do bot.</>
-                ) : (
-                  <>Cria o deal real e enfileira {playlistsCount} ADD(s) nas playlists do ecossistema · custo interno {formatBRL(custoTotal)}.</>
-                )}
-              </p>
+              <div className="min-w-0">
+                <div className="text-base font-semibold leading-tight">Pronto pra distribuir</div>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  Enfileira <span className="text-foreground font-medium">{playlistsCount} ADD(s)</span> nas playlists do ecossistema · custo interno <span className="text-foreground font-medium">{formatBRL(custoTotal)}</span>
+                </p>
+              </div>
             </div>
-          </div>
-          {!ecoDispatchedAt && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button size="sm" variant="solid" disabled={dispatching}>
-                  {dispatching ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Rocket className="h-4 w-4 mr-1.5" />}
+                <Button size="lg" variant="solid" disabled={dispatching} className="shadow-lg shadow-primary/20">
+                  {dispatching ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Rocket className="h-4 w-4 mr-2" />}
                   Distribuir agora
                 </Button>
               </AlertDialogTrigger>
@@ -545,9 +537,10 @@ export function CampaignDistributionConsole({
               </AlertDialogContent>
 
             </AlertDialog>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
+
 
       {/* BLOCO 4 — Ações em massa */}
       {ecoDispatchedAt && (
