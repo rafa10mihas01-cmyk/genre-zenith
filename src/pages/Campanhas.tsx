@@ -383,7 +383,15 @@ function CampaignRow({ c }: { c: Campaign }) {
       const managedIds = Array.from(new Set((allocs ?? []).map((a: any) => a.managed_playlist_id).filter(Boolean)));
       const { data: managed } = managedIds.length
         ? await supabase.from("managed_playlists").select("id, name, spotify_playlist_id, spotify_url, followers, cover_url").in("id", managedIds)
-        : { data: [] as any[] };
+        : c.curator_id
+          ? await supabase
+            .from("managed_playlists")
+            .select("id, name, spotify_playlist_id, spotify_url, followers, cover_url")
+            .eq("curator_id", c.curator_id)
+            .is("archived_at", null)
+            .order("followers", { ascending: false, nullsFirst: false })
+            .limit(500)
+          : { data: [] as any[] };
       const managedByName = new Map((managed ?? []).map((p: any) => [normalizeText(p.name), p]));
 
       const { data: existing } = await supabase
@@ -419,6 +427,21 @@ function CampaignRow({ c }: { c: Campaign }) {
           if (insertErr) throw insertErr;
           playlistId = inserted.id;
           existingByKey.set(key, playlistId);
+        } else if (managedMatch) {
+          const { error: updatePlaylistErr } = await supabase
+            .from("curator_playlists")
+            .update({
+              spotify_url: managedMatch.spotify_url ?? `https://open.spotify.com/playlist/${managedMatch.spotify_playlist_id}`,
+              playlist_name: managedMatch.name ?? match.playlist_name,
+              followers: managedMatch.followers ?? null,
+              spotify_playlist_id: managedMatch.spotify_playlist_id ?? null,
+              image_url: managedMatch.cover_url ?? null,
+              streams_total: Number(match.plays ?? 0),
+              match_status: "baseline",
+              match_reason: "baseline manual por print",
+            } as any)
+            .eq("id", playlistId);
+          if (updatePlaylistErr) throw updatePlaylistErr;
         }
         snapshotRows.push({
           deal_id: dealId,
@@ -461,8 +484,13 @@ function CampaignRow({ c }: { c: Campaign }) {
       } as any);
       if (logErr) throw logErr;
       await supabase.from("curator_deals").update({ state: "collecting", baseline_captured_at: capturedAt, baseline_plays: total } as any).eq("id", dealId);
+      const { data: planResult, error: planErr } = await supabase.functions.invoke("build-deal-plan", {
+        body: { deal_id: dealId },
+      });
+      if (planErr) throw planErr;
+      if ((planResult as any)?.ok === false) throw new Error((planResult as any)?.error ?? "Falha ao gerar plano de entrega.");
 
-      toast({ title: "Baseline registrada", description: `${uniqueSnapshotRows.length} playlist(s) lida(s) · ${baselineFiles.length} print(s)` });
+      toast({ title: "Baseline registrada", description: `${uniqueSnapshotRows.length} playlist(s) lida(s) · plano gerado` });
       setBaselineOpen(false);
       baselineFiles.forEach((item) => URL.revokeObjectURL(item.url));
       setBaselineFiles([]);
