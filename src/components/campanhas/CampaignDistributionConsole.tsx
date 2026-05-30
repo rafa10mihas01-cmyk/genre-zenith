@@ -52,10 +52,15 @@ type Props = {
   ecoDispatchedAt: string | null;
   /** Base pra calcular a data prevista de cada playlist (start_day → data). */
   campaignStartedAt: string | null;
+  /** Snapshot da campanha — usado pra calcular o primeiro dia REAL com volume por playlist (espelha o mapa). */
+  snapshot: CampaignSnapshot;
+  /** Multiplicador plays/save/mês da campanha (default 30). */
+  engagementMultiplier?: number;
   custoTotal: number;
   dispatching: boolean;
   onDispatch: () => void | Promise<void>;
 };
+
 
 const fmtTime = (iso: string | null) => {
   if (!iso) return "—";
