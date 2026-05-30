@@ -22,13 +22,16 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
   distributeEcoPositions,
+  distributeByDailyNeed,
   POSITION_PCT,
   ecoPlanTotalMultiplier,
   selectCoverageMode,
   AFFINITY_RANGE_BY_MODE,
   chartTierFromTopPosition,
+  ECO_DAILY_TOLERANCE,
 } from "../_shared/computeEcoPlan.ts";
 import { getGenreNeighbors } from "../_shared/genre-affinity.ts";
+
 
 // Pequeno RNG determinístico (mesma família do computeEcoPlan) para
 // distribuir uniformemente posições 5–10 nas playlists de gêneros vizinhos.
