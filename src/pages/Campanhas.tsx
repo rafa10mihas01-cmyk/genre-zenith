@@ -434,8 +434,22 @@ function CampaignRow({ c }: { c: Campaign }) {
         });
       }
 
-      const total = snapshotRows.reduce((sum, row) => sum + Number(row.plays || 0), 0);
-      const { error: snapErr } = await supabase.from("curator_deal_snapshots").insert(snapshotRows);
+      // Dedupe por playlist_id: a IA pode ler a mesma playlist em prints diferentes.
+      // Mantém a linha com mais plays (mais completa) e evita violar
+      // UNIQUE (playlist_id, captured_at).
+      const dedupMap = new Map<string, any>();
+      for (const row of snapshotRows) {
+        const key = String(row.playlist_id);
+        const prev = dedupMap.get(key);
+        if (!prev || Number(row.plays || 0) > Number(prev.plays || 0)) {
+          dedupMap.set(key, row);
+        }
+      }
+      const uniqueSnapshotRows = Array.from(dedupMap.values());
+      const total = uniqueSnapshotRows.reduce((sum, row) => sum + Number(row.plays || 0), 0);
+      const { error: snapErr } = await supabase
+        .from("curator_deal_snapshots")
+        .upsert(uniqueSnapshotRows, { onConflict: "playlist_id,captured_at", ignoreDuplicates: false });
       if (snapErr) throw snapErr;
       const { error: logErr } = await supabase.from("curator_deal_logs").insert({
         deal_id: dealId,
