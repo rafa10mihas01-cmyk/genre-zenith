@@ -344,47 +344,93 @@ export function CampaignDistributionConsole({
   const doneAddsCount = jobs.filter((j) => j.job_type === "playlist.track.add" && j.status === "done").length;
   const playlistsCount = allocations.length;
 
-  // --- Rebaixamentos (reorders) — mostra cronograma de desmame por playlist ---
-  const nameBySpid = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const r of rows) {
-      if (r.spid) m.set(r.spid, r.name);
+  // --- Rebaixamentos (cronograma de desmame por playlist) ---
+  // Fonte de verdade = positionByDay do plano operacional (mesmo mapa).
+  // Mostra TODAS as transições de posição (dia em que cai), e enriquece com o
+  // status do job real (playlist_execution_jobs) quando já existir um.
+  type TransitionStatus = "done" | "scheduled" | "pending" | "failed" | "planned";
+  type Transition = {
+    day: number;
+    dateIso: string | null;
+    from: number;
+    to: number;
+    jobStatus: TransitionStatus;
+    jobCompletedAt: string | null;
+    jobScheduledFor: string | null;
+  };
+  const demotionPlan = useMemo(() => {
+    let plans: ReturnType<typeof buildEcoPlaylistPlan> = [];
+    try {
+      plans = buildEcoPlaylistPlan(snapshot, allocations as any, {
+        engagementMultiplier: engagementMultiplier ?? 30,
+        startedAt: campaignStartedAt ?? undefined,
+        positions: ecoPositionByAllocation,
+      });
+    } catch {
+      return [] as Array<{ allocId: string; spid: string | null; name: string; transitions: Transition[] }>;
     }
-    return m;
-  }, [rows]);
 
-  const reorderRows = useMemo(() => {
+    const spidByAlloc = new Map<string, string | null>();
+    for (const a of allocations) {
+      const url = a.managed_playlists?.spotify_url ?? "";
+      const m = typeof url === "string" ? url.match(/playlist\/([A-Za-z0-9]+)/) : null;
+      spidByAlloc.set(a.id, m?.[1] ?? null);
+    }
+
+    const reorderJobs = jobs.filter((j) => j.job_type === "playlist.track.reorder");
     const now = Date.now();
-    return jobs
-      .filter((j) => j.job_type === "playlist.track.reorder")
-      .map((j) => {
-        let status: "done" | "pending" | "scheduled" | "failed" = "pending";
-        if (j.status === "done") status = "done";
-        else if (j.status === "failed") status = "failed";
-        else {
-          const sched = j.scheduled_for ? new Date(j.scheduled_for).getTime() : 0;
-          status = sched > now ? "scheduled" : "pending";
+
+    return plans
+      .map((p) => {
+        const spid = spidByAlloc.get(p.allocationId) ?? null;
+        const pos = p.positionByDay ?? [];
+        const transitions: Transition[] = [];
+        for (let i = 1; i < pos.length; i++) {
+          const prev = pos[i - 1];
+          const cur = pos[i];
+          if (cur > prev) {
+            const day = i + 1; // 1-indexed
+            transitions.push({
+              day,
+              dateIso: plannedDateFor(day, planBaseIso),
+              from: prev,
+              to: cur,
+              jobStatus: "planned",
+              jobCompletedAt: null,
+              jobScheduledFor: null,
+            });
+          }
+        }
+        if (spid && transitions.length > 0) {
+          const matching = reorderJobs.filter((j) => j.spotify_playlist_id === spid);
+          for (const t of transitions) {
+            const job = matching.find((j) => j.to_position === t.to);
+            if (!job) continue;
+            t.jobCompletedAt = job.completed_at;
+            t.jobScheduledFor = job.scheduled_for;
+            if (job.status === "done") t.jobStatus = "done";
+            else if (job.status === "failed") t.jobStatus = "failed";
+            else {
+              const sched = job.scheduled_for ? new Date(job.scheduled_for).getTime() : 0;
+              t.jobStatus = sched > now ? "scheduled" : "pending";
+            }
+          }
         }
         return {
-          id: j.id,
-          name: nameBySpid.get(j.spotify_playlist_id) ?? "(playlist)",
-          from: j.from_position,
-          to: j.to_position,
-          scheduledFor: j.scheduled_for,
-          completedAt: j.completed_at,
-          status,
+          allocId: p.allocationId,
+          spid,
+          name: p.playlistName,
+          transitions,
         };
       })
-      .sort((a, b) => {
-        const rank = (s: typeof a.status) =>
-          s === "failed" ? 0 : s === "pending" ? 1 : s === "scheduled" ? 2 : 3;
-        const r = rank(a.status) - rank(b.status);
-        if (r !== 0) return r;
-        const at = a.scheduledFor ? new Date(a.scheduledFor).getTime() : 0;
-        const bt = b.scheduledFor ? new Date(b.scheduledFor).getTime() : 0;
-        return at - bt;
-      });
-  }, [jobs, nameBySpid]);
+      .filter((p) => p.transitions.length > 0)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [snapshot, allocations, engagementMultiplier, campaignStartedAt, ecoPositionByAllocation, planBaseIso, jobs]);
+
+  const totalDemotions = useMemo(
+    () => demotionPlan.reduce((acc, p) => acc + p.transitions.length, 0),
+    [demotionPlan],
+  );
 
   // --- bot health ---
   const hbAge = bot?.last_heartbeat ? Date.now() - new Date(bot.last_heartbeat).getTime() : Infinity;
