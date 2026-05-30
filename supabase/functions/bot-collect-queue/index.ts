@@ -283,10 +283,16 @@ Deno.serve(async (req) => {
     }
     s.spotify_artist_id = artistId;
     s.spotify_artist_url = artistUrl;
-    // URL S4A no formato novo exigido pelo Spotify (track_id sozinho = 404)
-    s.s4a_song_url = artistId && s.spotify_track_id
+    // URL S4A no formato novo exigido pelo Spotify (track_id sozinho = 404).
+    // Mantemos aliases no payload para compatibilidade com versões antigas do worker
+    // que ainda leem `url`/`song_spotify_url` em vez de `s4a_song_url`.
+    const s4aSongUrl = artistId && s.spotify_track_id
       ? `https://artists.spotify.com/c/pt/artist/${artistId}/song/${s.spotify_track_id}/stats`
       : null;
+    s.s4a_song_url = s4aSongUrl;
+    s.song_s4a_url = s4aSongUrl;
+    s.url = s4aSongUrl;
+    if (s4aSongUrl) s.song_spotify_url = s4aSongUrl;
   }
   if (eligible.length) {
     const events = (eligible as any[]).map((s) => ({
