@@ -46,9 +46,81 @@ Deno.serve(async (req) => {
   let body: any;
   try { body = await req.json(); } catch { return jr({ error: "invalid_json" }, 400); }
 
+  // ====== Adaptador para payload "agregado" do worker VPS ======
+  // O handler spotifyDealCollect.js (VPS) manda um objeto único com `plays` (total),
+  // sem array `snapshots[]`. Quando isso acontece, gravamos só o total agregado
+  // em curator_deal_logs e atualizamos o agendamento da song — sem tentar bater
+  // por playlist (não há breakdown disponível em /song/{id}/stats).
+  if (body && !Array.isArray(body.snapshots) && (body.plays != null || body.plays_total != null)) {
+    const { deal_id: d_id, song_id: s_id, plays, plays_total, plays_24h, plays_7d, plays_28d, print_url, correlation_id: cid, source } = body;
+    if (!d_id || !s_id) return jr({ error: "deal_id and song_id required" }, 400);
+    const total = Number(plays_total ?? plays ?? 0) || 0;
+    const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+
+    // Gate de ciclo de vida
+    const { data: dealRow } = await supabase
+      .from("curator_deals")
+      .select("id, state, closed_at, token_revoked_at, token_expires_at")
+      .eq("id", d_id)
+      .maybeSingle();
+    const gate = assertDealOperable(dealRow as any);
+    if (!gate.ok) {
+      await supabase.from("curator_deal_songs").update({
+        auto_collect_status: "idle",
+        auto_collect_error: gate.error,
+        next_auto_collect_at: new Date(Date.now() + 60 * 60_000).toISOString(),
+        queued_at: null,
+      }).eq("id", s_id);
+      return jr({ ok: false, error: gate.error, code: gate.code, gated: true }, gate.status);
+    }
+
+    await supabase.from("curator_deal_logs").insert({
+      deal_id: d_id,
+      song_id: s_id,
+      total_plays: Math.max(0, total),
+      note: `[bot/agregado] total=${total} 24h=${plays_24h ?? "-"} 7d=${plays_7d ?? "-"} 28d=${plays_28d ?? "-"}`,
+      print_urls: print_url ? [print_url] : [],
+      is_baseline: false,
+    });
+
+    const { data: songRow } = await supabase
+      .from("curator_deal_songs")
+      .select("auto_collect_interval_minutes")
+      .eq("id", s_id)
+      .single();
+    const intervalMin = songRow?.auto_collect_interval_minutes ?? 1440;
+    const nextAt = new Date(Date.now() + intervalMin * 60_000).toISOString();
+    await supabase.from("curator_deal_songs").update({
+      auto_collect_status: "idle",
+      auto_collect_error: null,
+      last_auto_collect_at: new Date().toISOString(),
+      next_auto_collect_at: nextAt,
+      queued_at: null,
+    }).eq("id", s_id);
+
+    await supabase.from("collection_logs").insert({
+      acao: "bot_collect",
+      status: "ok",
+      mensagem: `song=${s_id} agregado total=${total} (sem breakdown)`,
+    });
+
+    recordMetric(supabase, {
+      scope: "bot",
+      operation: "bot-ingest-snapshot",
+      status: "success",
+      duration_ms: Date.now() - t0,
+      deal_id: d_id,
+      song_id: s_id,
+      metadata: { mode: "aggregate", total, correlation_id: cid ?? null, source: source ?? null },
+    });
+
+    return jr({ ok: true, mode: "aggregate", total_plays: total, next_auto_collect_at: nextAt });
+  }
+
   const { song_id, deal_id, total_plays, snapshots, note, print_urls, print_taken, error: bot_error, correlation_id } = body ?? {};
   if (!deal_id || !song_id) return jr({ error: "deal_id and song_id required" }, 400);
   const screenshotUrl: string | null = Array.isArray(print_urls) && print_urls.length > 0 ? String(print_urls[0]) : null;
+
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
