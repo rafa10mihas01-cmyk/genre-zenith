@@ -30,6 +30,68 @@ const json = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
+async function seedBaselinePlaylists(
+  admin: any,
+  campaignId: string,
+  dealId: string,
+  songId: string | null,
+  curatorId: string | null,
+  attributionReason: string,
+) {
+  const { data: ecoAllocs } = await admin
+    .from("campaign_eco_allocations")
+    .select("managed_playlist_id, managed_playlists!inner(spotify_playlist_id,name)")
+    .eq("campaign_id", campaignId);
+
+  let rows = (ecoAllocs ?? [])
+    .map((a: any) => {
+      const spId = a.managed_playlists?.spotify_playlist_id;
+      if (!spId) return null;
+      return {
+        deal_id: dealId,
+        song_id: songId,
+        spotify_url: `https://open.spotify.com/playlist/${spId}`,
+        spotify_playlist_id: spId,
+        playlist_name: a.managed_playlists?.name ?? "Managed Playlist",
+        is_baseline: true,
+        match_status: "baseline",
+        attribution_method: "campaign_seed",
+        attribution_reason: attributionReason,
+      };
+    })
+    .filter(Boolean);
+
+  // Fallback crítico: campanhas eco/orgânicas podem chegar aprovadas sem
+  // campaign_eco_allocations persistidas. Sem whitelist, o bot bloqueia a
+  // baseline com "Aguardando curador cadastrar playlists".
+  if (rows.length === 0 && curatorId) {
+    const { data: fallbackPlaylists } = await admin
+      .from("managed_playlists")
+      .select("spotify_playlist_id, spotify_url, name")
+      .eq("curator_id", curatorId)
+      .is("archived_at", null)
+      .not("spotify_playlist_id", "is", null)
+      .order("followers", { ascending: false, nullsFirst: false })
+      .limit(20);
+
+    rows = (fallbackPlaylists ?? []).map((p: any) => ({
+      deal_id: dealId,
+      song_id: songId,
+      spotify_url: p.spotify_url ?? `https://open.spotify.com/playlist/${p.spotify_playlist_id}`,
+      spotify_playlist_id: p.spotify_playlist_id,
+      playlist_name: p.name ?? "Managed Playlist",
+      is_baseline: true,
+      match_status: "baseline",
+      attribution_method: "campaign_seed_fallback",
+      attribution_reason: `${attributionReason} (fallback sem alocações persistidas)`,
+    }));
+  }
+
+  if (rows.length === 0) return 0;
+  await admin.from("curator_playlists").insert(rows as any[]);
+  return rows.length;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ ok: false, error: "method_not_allowed" }, 405);
