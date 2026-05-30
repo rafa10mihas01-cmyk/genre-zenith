@@ -335,11 +335,21 @@ export default function CampanhaExecucao() {
       return url?.match(/playlist\/([A-Za-z0-9]+)/)?.[1] ?? null;
     }).filter(Boolean) as string[]));
     if (dealId && plannedSpotifyIds.length > 0) {
-      const { data: baselineSnaps } = await supabase
-        .from("curator_deal_snapshots")
-        .select("captured_at, curator_playlists!inner(spotify_playlist_id)")
-        .eq("deal_id", dealId)
-        .eq("is_baseline", true);
+      const [{ data: baselineSnaps }, { data: baselineLog }] = await Promise.all([
+        supabase
+          .from("curator_deal_snapshots")
+          .select("captured_at, curator_playlists!inner(spotify_playlist_id)")
+          .eq("deal_id", dealId)
+          .eq("is_baseline", true),
+        supabase
+          .from("curator_deal_logs")
+          .select("created_at, total_plays")
+          .eq("deal_id", dealId)
+          .eq("is_baseline", true)
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle(),
+      ]);
       const collected = new Set<string>();
       let capturedAt: string | null = null;
       for (const snap of (baselineSnaps ?? []) as any[]) {
@@ -347,7 +357,11 @@ export default function CampanhaExecucao() {
         if (spid && plannedSpotifyIds.includes(spid)) collected.add(spid);
         if (snap.captured_at && (!capturedAt || snap.captured_at > capturedAt)) capturedAt = snap.captured_at;
       }
-      setBaselineGate({ required: plannedSpotifyIds.length, collected: collected.size, capturedAt });
+      if (collected.size === 0 && baselineLog?.created_at) {
+        setBaselineGate({ required: plannedSpotifyIds.length, collected: plannedSpotifyIds.length, capturedAt: baselineLog.created_at });
+      } else {
+        setBaselineGate({ required: plannedSpotifyIds.length, collected: collected.size, capturedAt });
+      }
     } else {
       setBaselineGate({ required: plannedSpotifyIds.length, collected: 0, capturedAt: null });
     }
