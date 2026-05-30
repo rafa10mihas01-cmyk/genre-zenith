@@ -301,13 +301,22 @@ Deno.serve(async (req) => {
   }
 
 
-  // 2b) Calcula expansão de afinidade (safety net se cobertura < 80%)
+  // 2b) Calcula expansão de afinidade (safety net se cobertura ECO < 80%).
+  // IMPORTANTE: compara contra a meta Eco congelada, não contra a meta total
+  // da campanha. Caso contrário, campanha híbrida de funk puxa trap sem precisar.
   try {
     const goalPlays = Number((campaign as any).goal_plays ?? 0);
-    const snapDays = Number(snap?.days ?? 0);
+    const snapDays = Number(snap?.effectiveDays ?? snap?.days ?? 0);
     const mult = Math.max(1, Math.round(Number((campaign as any).engagement_multiplier ?? 30)));
+    const snapEcoTarget = Number(snap?.streamsEco ?? 0);
+    const splitEcoPct = Number(snap?.splitEcoPct ?? 0);
+    const ecoTarget = snapEcoTarget > 0
+      ? snapEcoTarget
+      : goalPlays > 0 && splitEcoPct > 0
+        ? Math.round(goalPlays * (splitEcoPct / 100))
+        : 0;
 
-    if (goalPlays > 0 && snapDays > 0) {
+    if (ecoTarget > 0 && snapDays > 0) {
       const { data: existingAllocs } = await admin
         .from("campaign_eco_allocations")
         .select("id, planned_streams, managed_playlist_id, genre_source, managed_playlists(genre_id, followers)")
@@ -316,7 +325,7 @@ Deno.serve(async (req) => {
       const allocs = (existingAllocs ?? []) as any[];
       const alreadyExpanded = allocs.some(a => a.genre_source === "affinity");
       const totalPlanned = allocs.reduce((s, a) => s + Number(a.planned_streams ?? 0), 0);
-      const coverage = goalPlays > 0 ? totalPlanned / goalPlays : 1;
+      const coverage = ecoTarget > 0 ? totalPlanned / ecoTarget : 1;
 
       const genreCounts = new Map<string, number>();
       for (const a of allocs) {
@@ -329,6 +338,26 @@ Deno.serve(async (req) => {
         const neighbors = await getGenreNeighbors(admin, primaryGenreId, 0.6);
         if (neighbors.length > 0) {
           const usedIds = new Set(allocs.map(a => a.managed_playlist_id));
+          const { data: primaryCandidates } = await admin
+            .from("managed_playlists")
+            .select("id, followers")
+            .eq("genre_id", primaryGenreId)
+            .is("archived_at", null)
+            .gt("followers", 0)
+            .order("followers", { ascending: false });
+          const remainingPrimaryDaily = ((primaryCandidates ?? []) as any[])
+            .filter((p: any) => !usedIds.has(p.id))
+            .reduce((sum: number, p: any) => sum + Number(p.followers ?? 0) * (mult / 30) * 0.12, 0);
+          const remainingEcoDailyGap = Math.max(0, (ecoTarget - totalPlanned) / snapDays);
+          if (remainingPrimaryDaily >= remainingEcoDailyGap * 0.95) {
+            console.log("[approve] affinity skipped: primary inventory covers eco gap", {
+              ecoTarget,
+              totalPlanned,
+              remainingEcoDailyGap: Math.round(remainingEcoDailyGap),
+              remainingPrimaryDaily: Math.round(remainingPrimaryDaily),
+            });
+            throw new Error("skip_affinity_primary_covers_gap");
+          }
           const neighborGenreIds = neighbors.map(n => n.genre_id);
           const { data: candidatePls } = await admin
             .from("managed_playlists")
@@ -341,8 +370,8 @@ Deno.serve(async (req) => {
           const affByGenre = new Map(neighbors.map(n => [n.genre_id, n.score]));
           const fresh = (candidatePls ?? []).filter((p: any) => !usedIds.has(p.id));
 
-          const maxNeighborBudget = Math.round(goalPlays * 0.4);
-          const gap = Math.max(0, goalPlays - totalPlanned);
+          const maxNeighborBudget = Math.round(ecoTarget * 0.4);
+          const gap = Math.max(0, ecoTarget - totalPlanned);
           let neighborBudget = Math.min(maxNeighborBudget, gap);
 
           const SLOT_PCT = 0.08;
