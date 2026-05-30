@@ -557,10 +557,12 @@ function PlaylistRow({
     cover: string | null;
     spotifyUrl: string | null;
     plannedPosition: number | null;
+    plannedFor: string | null;
     state: PlaylistRowState;
   };
   onRetry?: () => void | Promise<void>;
 }) {
+
   const initial = row.name.charAt(0).toUpperCase();
   const statusCfg: Record<PlaylistRowState["status"], { label: string; cls: string; icon: typeof Clock }> = {
     done: { label: "Adicionada", cls: "bg-primary/15 text-primary border-primary/30", icon: CheckCircle2 },
