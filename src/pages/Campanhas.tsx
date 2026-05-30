@@ -116,13 +116,13 @@ export default function Campanhas() {
       all: items.length,
       awaiting_client: 0,
       awaiting_internal: 0,
-      awaiting_baseline: 0,
       running: 0,
       completed: 0,
     };
     for (const c of items) counts[pipelineStage(c)]++;
     return counts;
   }, [items]);
+
 
   const kpis = useMemo(() => {
     const active = items.filter(i => effectiveStatus(i) === "active");
