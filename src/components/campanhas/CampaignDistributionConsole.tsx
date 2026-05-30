@@ -817,8 +817,8 @@ function PlaylistRow({
           <span>
             Pos. planejada: <span className="text-foreground font-medium">{row.plannedPosition ?? "—"}</span>
           </span>
-          {row.state.status === "scheduled" && row.state.scheduledFor ? (
-            <span>· agendada para {fmtDateTime(row.state.scheduledFor)}</span>
+          {row.state.status === "scheduled" ? (
+            <span>· agendada para {fmtDateTime(row.plannedFor ?? row.state.scheduledFor)}</span>
           ) : row.state.status === "done" && row.state.completedAt ? (
             <span>· {fmtDateTime(row.state.completedAt)}</span>
           ) : row.plannedFor ? (
