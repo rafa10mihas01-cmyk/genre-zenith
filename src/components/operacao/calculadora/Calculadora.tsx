@@ -29,7 +29,7 @@ import { CapacidadeRealCard } from "./CapacidadeRealCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format, addDays, differenceInCalendarDays, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { calculateTrackDailyStreams } from "@/lib/campaignOperationalPlan";
+import { calculateTrackDailyStreams, planRealCapacity } from "@/lib/campaignOperationalPlan";
 import { TrackPresencePanel } from "@/components/campanhas/TrackPresencePanel";
 
 type Fonte = "manual" | "top200" | "concorrente" | "orcamento";
@@ -398,16 +398,12 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         },
       );
 
-      // Seleção por gênero:
-      //   1) coreSlice = playlists do gênero principal
-      //   2) Se capacidade do core < 60% de streamsEco → expande com vizinhos
-      //      (afinidade ≥ 0.60), com TETO de 40% de streamsEco vindo de vizinhos.
-      //   3) Caso core forte (≥ 60%): mantém 100% no core, sem mistura.
+      // Seleção por gênero: gênero principal SEMPRE primeiro.
+      // Vizinhos só podem entrar quando o inventário primário não existir ou
+      // quando a capacidade real primária deixar gap operacional.
       const allPlaylists = playlists as { id: string; followers: number | null; genre_id: string | null }[];
       let coreSlice = allPlaylists;
       let neighborSlice: typeof allPlaylists = [];
-      let neighborBudget = 0;
-      let coreBudget = r.streamsEco;
       let neighborAffinityByPlaylistId: Map<string, number> | undefined;
 
       if (song.genre) {
@@ -452,12 +448,6 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
             coreSlice = neighborSlice;
             neighborSlice = [];
             neighborAffinityByPlaylistId = undefined;
-          } else if (neighborSlice.length > 0) {
-            // Regra unificada: vizinhos SEMPRE entram, com teto de 40% do streamsEco.
-            // Sem gate de "core cobre 60%" — card e plano materializam o mesmo conjunto.
-            const maxNeighbor = Math.round(r.streamsEco * 0.4);
-            neighborBudget = maxNeighbor;
-            coreBudget = Math.max(0, r.streamsEco - neighborBudget);
           }
         }
       }
@@ -481,6 +471,23 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
       // Alocações operam sobre a duração REAL do plano (effectiveDays).
       // Deadline contratual continua usando r.days (linha abaixo).
       const planDays = r.effectiveDays;
+      const dailyNeed = planDays > 0 ? r.streamsEco / planDays : 0;
+      const primaryCapacityPlan = planRealCapacity(
+        coreSlice.map(p => ({ id: p.id, followers: p.followers ?? 0, source: "primary" as const })),
+        dailyNeed,
+        song.engagementMultiplier ?? 30,
+      );
+      const primaryGap = Math.max(0, primaryCapacityPlan.remaining);
+      const neighborGapThreshold = dailyNeed * 0.05;
+      const allowNeighbors = coreSlice.length === 0 || primaryGap > neighborGapThreshold;
+
+      const coreBudget = allowNeighbors
+        ? Math.max(0, r.streamsEco - Math.round(primaryGap * planDays))
+        : r.streamsEco;
+      const neighborBudget = allowNeighbors
+        ? Math.min(Math.round(primaryGap * planDays), Math.round(r.streamsEco * 0.4))
+        : 0;
+
       const coreAllocs = planEcoAllocations(
         coreBudget,
         planDays,
@@ -490,7 +497,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         { source: "primary" },
         song.track?.position ?? null,
       );
-      const neighborAllocs = neighborBudget > 0
+      const neighborAllocs = neighborBudget > 0 && neighborSlice.length > 0
         ? planEcoAllocations(
             neighborBudget,
             planDays,
