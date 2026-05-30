@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
       id, deal_id, song_name, song_artist, artist_candidates, song_spotify_url, spotify_track_id,
       auto_collect_status, last_auto_collect_at, next_auto_collect_at,
       auto_collect_interval_minutes, last_print_at,
-      curator_deals!inner ( id, curator_name, song_name, user_id, closed_at, state, token_revoked_at, token_expires_at, curator_id, curators ( paused_at ) ),
+      curator_deals!inner ( id, curator_name, song_name, user_id, closed_at, state, token_revoked_at, token_expires_at, curator_id, campaign_id, curators ( paused_at ), campaigns ( client_id, clients ( spotify_artist_id, spotify_artist_url ) ) ),
       curator_playlists ( id, playlist_name, spotify_url, spotify_playlist_id )
     `)
     .eq("auto_collect", true)
@@ -210,6 +210,13 @@ Deno.serve(async (req) => {
   // capacidade de rastrear onde a coleta morreu.
   for (const s of eligible as any[]) {
     s.correlation_id = crypto.randomUUID();
+    const client = s?.curator_deals?.campaigns?.clients;
+    s.spotify_artist_id = client?.spotify_artist_id ?? null;
+    s.spotify_artist_url = client?.spotify_artist_url ?? null;
+    // URL S4A no formato novo exigido pelo Spotify (track_id sozinho = 404)
+    s.s4a_song_url = s.spotify_artist_id && s.spotify_track_id
+      ? `https://artists.spotify.com/c/pt/artist/${s.spotify_artist_id}/song/${s.spotify_track_id}/stats`
+      : null;
   }
   if (eligible.length) {
     const events = (eligible as any[]).map((s) => ({
