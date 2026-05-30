@@ -216,8 +216,8 @@ Deno.serve(async (req) => {
     console.log(`[resolve-artist] eligible=${eligible.length} trackIds=${trackIds.length}`);
     const artistByTrack = new Map<string, string>();
     try {
-      const token = await getSpotifyToken();
-      console.log(`[resolve-artist] token ok len=${token?.length ?? 0}`);
+      const { token, row } = await getUserAccessToken();
+      console.log(`[resolve-artist] user token ok (user=${row.spotify_user_id} app=${row.app_id ?? "env"})`);
       for (let i = 0; i < trackIds.length; i += 50) {
         const chunk = trackIds.slice(i, i + 50);
         const r = await guardedSpotifyFetch(
