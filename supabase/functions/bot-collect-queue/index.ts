@@ -214,7 +214,9 @@ Deno.serve(async (req) => {
       (eligible as any[]).map((s) => s.spotify_track_id).filter(Boolean),
     ));
     console.log(`[resolve-artist] eligible=${eligible.length} trackIds=${trackIds.length}`);
-    const artistByTrack = new Map<string, string>();
+    // Map<track_id, Array<{id, name}>> — TODOS os artistas da faixa, em ordem.
+    // O bot vai iterar tentando cada um até achar o que está no S4A logado.
+    const artistsByTrack = new Map<string, Array<{ id: string; name: string }>>();
     try {
       const { token, row } = await getUserAccessToken();
       console.log(`[resolve-artist] user token ok (user=${row.spotify_user_id} app=${row.app_id ?? "env"})`);
@@ -232,15 +234,22 @@ Deno.serve(async (req) => {
         }
         const j = await r.json();
         for (const t of j.tracks ?? []) {
-          if (t?.id && t?.artists?.[0]?.id) artistByTrack.set(t.id, t.artists[0].id);
+          if (!t?.id) continue;
+          const list = (t.artists ?? [])
+            .filter((a: any) => a?.id)
+            .map((a: any) => ({ id: a.id, name: a.name ?? "" }));
+          if (list.length) artistsByTrack.set(t.id, list);
         }
       }
-      console.log(`[resolve-artist] resolved=${artistByTrack.size}/${trackIds.length}`);
+      console.log(`[resolve-artist] resolved=${artistsByTrack.size}/${trackIds.length}`);
     } catch (e) {
       console.log("[resolve-artist] EXCEPTION:", (e as Error).message, (e as Error).stack?.slice(0, 300));
     }
     for (const s of eligible as any[]) {
-      s.spotify_artist_id = artistByTrack.get(s.spotify_track_id) ?? null;
+      const list = artistsByTrack.get(s.spotify_track_id) ?? [];
+      s.spotify_artist_id = list[0]?.id ?? null; // backward compat
+      s.spotify_artist_ids = list.map((a) => a.id); // NOVO: lista pro bot iterar
+      s.spotify_artist_names = list.map((a) => a.name);
     }
   }
 
