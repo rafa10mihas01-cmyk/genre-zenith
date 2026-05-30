@@ -115,7 +115,7 @@ export async function auditCampaignFlow(
   // ── 4) Deals vinculados (curador REAL, não placeholder interno)
   const { data: dealsRaw } = await admin
     .from("curator_deals")
-    .select("id, curator_id, curator_name, state, started_at, campaign_id, source")
+    .select("id, curator_id, curator_name, state, started_at, campaign_id, source, baseline_captured_at")
     .eq("campaign_id", campaignId);
 
   const allDeals = dealsRaw ?? [];
