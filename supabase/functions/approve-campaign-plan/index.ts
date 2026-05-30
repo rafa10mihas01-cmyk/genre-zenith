@@ -419,20 +419,19 @@ Deno.serve(async (req) => {
     if (campaign.deal_id) {
       const existingDealId = campaign.deal_id as string;
       try {
-        // Deal já existia: marca como shadow de campanha e coloca em
-        // "awaiting_baseline" — bot ainda precisa tirar a 1ª foto S4A.
-        // Quando extract-snapshot-from-print rodar com isBaseline=true,
-        // o state vira "collecting" e baseline_captured_at é preenchido.
+        // Deal já existia: marca como shadow de campanha e ATIVA direto.
+        // (Reversão 30/05: removido gate de awaiting_baseline — bot coleta
+        // como antes; a 1ª foto S4A passa a ser captura natural, não bloqueio.)
         await admin
           .from("curator_deals")
           .update({
             campaign_id: campaignId,
             source: "campaign_internal",
             collection_mode: "bot",
-            state: "awaiting_baseline",
-            baseline_captured_at: null,
+            state: "active",
           })
           .eq("id", existingDealId);
+
 
         await admin
           .from("curator_deal_songs")
@@ -582,20 +581,18 @@ Deno.serve(async (req) => {
       .eq("id", campaignId);
 
     // 8.0) Grava vínculo reverso + marca shadow de campanha interna.
-    // Deal entra em "awaiting_baseline" — bot ainda precisa tirar a 1ª foto
-    // S4A. Quando extract-snapshot-from-print rodar com isBaseline=true,
-    // o state vira "collecting" e baseline_captured_at é preenchido,
-    // ativando a campanha de verdade.
+    // (Reversão 30/05: deal nasce ATIVO; sem gate de baseline. Bot coleta como
+    // antes, a 1ª foto S4A vira captura natural via bot-ingest-snapshot.)
     await admin
       .from("curator_deals")
       .update({
         campaign_id: campaignId,
         source: "campaign_internal",
         collection_mode: "bot",
-        state: "awaiting_baseline",
-        baseline_captured_at: null,
+        state: "active",
       })
       .eq("id", newDealId);
+
 
     // 8.1) Marca songs shadow como auto_collect=true pra entrar na fila do bot.
     // Sem isso, bot-collect-queue filtra `.eq("auto_collect", true)` e nunca

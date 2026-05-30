@@ -25,10 +25,11 @@ export type Campaign = {
   collection_mode: "bot" | "spreadsheet" | string | null;
   plan_approved_at: string | null;
   client_decision_round: number | null;
-  /** Derivado: existe pelo menos 1 deal em 'awaiting_baseline' (bot ainda não tirou 1ª foto). */
+  /** @deprecated mantido só pra compat de tipos durante reversão 30/05. Sempre false. */
   baseline_pending?: boolean;
   /** Derivado: timestamp da 1ª baseline capturada (qualquer deal da campanha). */
   baseline_captured_at?: string | null;
+
 };
 
 const SELECT = "id, track_name, artist, goal_plays, deadline, status, total_allocated, total_delivered, created_at, snapshot_locked_at, curator_id, deal_id, public_plan_token, client_approved_at, client_approved_by, client_rejected_at, campaign_type, collection_mode, plan_approved_at, client_decision_round";
@@ -53,32 +54,29 @@ export function useCampaigns() {
       const campaigns = (data ?? []) as Campaign[];
       if (campaigns.length === 0) return campaigns;
 
-      // Enriquece com estado de baseline dos deals (1 query única).
+      // Reversão 30/05: baseline deixou de ser gate. Mantemos só a leitura de
+      // baseline_captured_at (informativo na UI), sem derivar "pending".
       const ids = campaigns.map((c) => c.id);
       const { data: deals } = await supabase
         .from("curator_deals")
-        .select("campaign_id, state, baseline_captured_at")
+        .select("campaign_id, baseline_captured_at")
         .in("campaign_id", ids);
 
-      const byCamp = new Map<string, { pending: boolean; captured: string | null }>();
+      const byCamp = new Map<string, string | null>();
       for (const d of deals ?? []) {
-        const cur = byCamp.get(d.campaign_id as string) ?? { pending: false, captured: null };
-        if (d.state === "awaiting_baseline") cur.pending = true;
-        if (d.baseline_captured_at && (!cur.captured || d.baseline_captured_at < cur.captured)) {
-          cur.captured = d.baseline_captured_at as string;
-        }
-        byCamp.set(d.campaign_id as string, cur);
+        const cap = d.baseline_captured_at as string | null;
+        const cur = byCamp.get(d.campaign_id as string) ?? null;
+        if (cap && (!cur || cap < cur)) byCamp.set(d.campaign_id as string, cap);
+        else if (!byCamp.has(d.campaign_id as string)) byCamp.set(d.campaign_id as string, cur);
       }
-      return campaigns.map((c) => {
-        const meta = byCamp.get(c.id);
-        return {
-          ...c,
-          baseline_pending: meta?.pending ?? false,
-          baseline_captured_at: meta?.captured ?? null,
-        };
-      });
+      return campaigns.map((c) => ({
+        ...c,
+        baseline_pending: false,
+        baseline_captured_at: byCamp.get(c.id) ?? null,
+      }));
     },
   });
+
 
   // Realtime: qualquer mudança em campaigns invalida.
   useEffect(() => {
