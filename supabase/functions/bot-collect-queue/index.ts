@@ -206,6 +206,37 @@ Deno.serve(async (req) => {
     }
   }
 
+  // Resolve spotify_artist_id (artista primário do track) via Spotify API.
+  // O bot precisa desse ID para montar a URL S4A:
+  // artists.spotify.com/c/pt/artist/<ARTIST_ID>/song/<TRACK_ID>/stats
+  if (eligible.length) {
+    try {
+      const token = await getSpotifyToken();
+      const trackIds = Array.from(new Set(
+        (eligible as any[]).map((s) => s.spotify_track_id).filter(Boolean),
+      ));
+      const artistByTrack = new Map<string, string>();
+      for (let i = 0; i < trackIds.length; i += 50) {
+        const chunk = trackIds.slice(i, i + 50);
+        const r = await guardedSpotifyFetch(
+          `https://api.spotify.com/v1/tracks?ids=${chunk.join(",")}`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        if (!r.ok) continue;
+        const j = await r.json();
+        for (const t of j.tracks ?? []) {
+          if (t?.id && t?.artists?.[0]?.id) artistByTrack.set(t.id, t.artists[0].id);
+        }
+      }
+      for (const s of eligible as any[]) {
+        s.spotify_artist_id = artistByTrack.get(s.spotify_track_id) ?? null;
+      }
+    } catch (e) {
+      console.log("[bot-collect-queue] resolve spotify_artist_id falhou:", (e as Error).message);
+      for (const s of eligible as any[]) s.spotify_artist_id = null;
+    }
+  }
+
   // Marca elegíveis como queued para evitar dupla execução
   const ids = eligible.map((s: any) => s.id);
   if (ids.length) {
@@ -218,6 +249,7 @@ Deno.serve(async (req) => {
       })
       .in("id", ids);
   }
+
 
   // ====== Observabilidade Fase A: correlation_id por dispatch ======
   // Cada song dispatchada recebe um correlation_id único. O bot DEVE devolver esse
