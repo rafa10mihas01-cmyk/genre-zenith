@@ -8553,6 +8553,7 @@ export type Database = {
         Args: { p_spotify_user_id: string }
         Returns: number
       }
+      infer_collection_mode: { Args: { p_deal_id: string }; Returns: string }
       is_admin: { Args: never; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
       is_internal_operator: { Args: never; Returns: boolean }
