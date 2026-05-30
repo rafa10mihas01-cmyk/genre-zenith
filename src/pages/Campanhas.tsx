@@ -220,16 +220,21 @@ export default function Campanhas() {
           <>
             {/* Filtros */}
             <div className="flex flex-wrap gap-2 mb-4">
-              {(["all", "active", "draft", "completed"] as const).map(f => (
-                <Button
-                  key={f}
-                  variant={filter === f ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setFilter(f)}
-                >
-                  {f === "all" ? "Todas" : STATUS_LABEL[f]}
-                </Button>
-              ))}
+              {(["all", "awaiting_client", "awaiting_internal", "awaiting_baseline", "running", "completed"] as const).map(f => {
+                const count = stageCounts[f];
+                return (
+                  <Button
+                    key={f}
+                    variant={filter === f ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setFilter(f)}
+                    disabled={f !== "all" && count === 0}
+                  >
+                    {PIPELINE_LABEL[f]}
+                    <span className="ml-1.5 text-xs opacity-60 tabular-nums">{count}</span>
+                  </Button>
+                );
+              })}
             </div>
 
             {/* Lista */}
@@ -239,7 +244,7 @@ export default function Campanhas() {
               </div>
             ) : filtered.length === 0 ? (
               <div className="border border-border rounded-2xl p-12 text-center text-muted-foreground">
-                Sem campanhas {filter !== "all" ? STATUS_LABEL[filter].toLowerCase() : ""}.
+                Sem campanhas {filter !== "all" ? PIPELINE_LABEL[filter].toLowerCase() : ""}.
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
