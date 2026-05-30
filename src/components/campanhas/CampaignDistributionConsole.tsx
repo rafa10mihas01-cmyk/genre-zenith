@@ -601,15 +601,17 @@ function PlaylistRow({
           <span>
             Pos. planejada: <span className="text-foreground font-medium">{row.plannedPosition ?? "—"}</span>
           </span>
-          {row.state.status === "scheduled" && row.state.scheduledFor && (
-            <span>· agendada para {fmtTime(row.state.scheduledFor)}</span>
-          )}
-          {row.state.status === "done" && row.state.completedAt && (
+          {row.state.status === "scheduled" && row.state.scheduledFor ? (
+            <span>· agendada para {fmtDateTime(row.state.scheduledFor)}</span>
+          ) : row.state.status === "done" && row.state.completedAt ? (
             <span>· {fmtDateTime(row.state.completedAt)}</span>
-          )}
+          ) : row.plannedFor ? (
+            <span>· prevista para {fmtShortDate(row.plannedFor)}</span>
+          ) : null}
           {row.state.status === "failed" && row.state.lastError && (
             <span className="text-rose-400 truncate" title={row.state.lastError}>· {row.state.lastError}</span>
           )}
+
         </div>
       </div>
 
