@@ -83,6 +83,110 @@ function maxViablePosition(planned: number, days: number, followers: number, mul
   }
   return best;
 }
+
+/**
+ * Tolerância padrão de "estouro" aceito na seleção por capacidade real.
+ * 0.10 = sistema aceita entregar até 10% acima da necessidade diária por playlist.
+ * Mudança aqui afeta replan-campaign-eco e buildEcoPlan (modo capacity-driven).
+ */
+export const ECO_DAILY_TOLERANCE = 0.10;
+
+/**
+ * Capacidade diária de UMA playlist em UMA posição.
+ * Fórmula canônica do sistema: saves × (mult/30) × % da posição.
+ */
+export function playlistCapAtPosition(followers: number, mult: number, position: number): number {
+  if (followers <= 0 || position < 1) return 0;
+  return Math.max(0, followers) * (Math.max(1, mult) / 30) * getPositionPct(position);
+}
+
+/**
+ * Encontra a MELHOR posição para uma playlist baseada na necessidade diária
+ * restante da campanha.
+ *
+ * Regra: maior cap que NÃO ultrapasse `dailyNeed × (1 + tolerance)`.
+ * Se nenhuma posição couber dentro da tolerância (playlist gigante demais),
+ * devolve a posição com menor cap (mais profunda).
+ * Se a playlist for pequena demais para cobrir `dailyNeed` sozinha, devolve
+ * a posição com maior cap (mais rasa) — vai cobrir o que conseguir.
+ */
+export function selectPositionByDailyNeed(
+  followers: number,
+  mult: number,
+  dailyNeed: number,
+  tolerance = ECO_DAILY_TOLERANCE,
+): { position: number; cap: number; fits: boolean } {
+  if (followers <= 0 || dailyNeed <= 0) {
+    return { position: MIN_CAMPAIGN_POSITION, cap: 0, fits: false };
+  }
+  const ceiling = dailyNeed * (1 + tolerance);
+  let bestPos = -1;
+  let bestCap = -1;
+  // Procura o MAIOR cap que cabe abaixo do teto (cobre mais sem estourar).
+  for (let i = 0; i < POSITION_PCT.length; i++) {
+    const cap = playlistCapAtPosition(followers, mult, i + 1);
+    if (cap <= ceiling && cap > bestCap) {
+      bestCap = cap;
+      bestPos = i + 1;
+    }
+  }
+  if (bestPos > 0) {
+    return { position: bestPos, cap: bestCap, fits: bestCap > 0 };
+  }
+  // Nenhuma posição cabe — playlist forte demais. Usa a mais profunda (menor cap).
+  const deepest = POSITION_PCT.length;
+  return {
+    position: deepest,
+    cap: playlistCapAtPosition(followers, mult, deepest),
+    fits: false,
+  };
+}
+
+/**
+ * Distribui posições por capacidade real para um conjunto de playlists,
+ * respeitando a necessidade diária restante (greedy: cobre o que falta sem
+ * estourar). Retorna mapa id→posição e o total coberto.
+ *
+ * Ordem de consumo: playlists primárias por followers DESC, depois afinidade.
+ */
+export function distributeByDailyNeed(
+  allocs: Array<{ id: string; followers: number; genreSource?: "primary" | "affinity" }>,
+  dailyNeed: number,
+  mult: number,
+  tolerance = ECO_DAILY_TOLERANCE,
+): { positions: Map<string, number>; coveredDaily: number; details: Array<{ id: string; cap: number; fits: boolean }> } {
+  const positions = new Map<string, number>();
+  const details: Array<{ id: string; cap: number; fits: boolean }> = [];
+  if (dailyNeed <= 0 || allocs.length === 0) {
+    return { positions, coveredDaily: 0, details };
+  }
+  // Primárias primeiro (followers desc), depois vizinhos.
+  const primary = allocs.filter(a => (a.genreSource ?? "primary") === "primary")
+    .sort((a, b) => b.followers - a.followers);
+  const neighbor = allocs.filter(a => a.genreSource === "affinity")
+    .sort((a, b) => b.followers - a.followers);
+
+  let remaining = dailyNeed;
+  let covered = 0;
+
+  const consume = (list: typeof primary) => {
+    for (const a of list) {
+      // Se já estourou a meta, joga restantes na posição mais profunda (cap mínimo).
+      const need = remaining > 0 ? remaining : dailyNeed * tolerance;
+      const sel = selectPositionByDailyNeed(a.followers, mult, need, tolerance);
+      positions.set(a.id, sel.position);
+      details.push({ id: a.id, cap: sel.cap, fits: sel.fits });
+      covered += sel.cap;
+      remaining -= sel.cap;
+    }
+  };
+
+  consume(primary);
+  consume(neighbor);
+
+  return { positions, coveredDaily: covered, details };
+}
+
 export type CoverageMode = "normal" | "optimized" | "maximum";
 export function selectCoverageMode(coverageRatio?: number): CoverageMode {
   if (!Number.isFinite(coverageRatio as number)) return "normal";

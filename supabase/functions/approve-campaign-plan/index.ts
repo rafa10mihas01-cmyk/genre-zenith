@@ -14,7 +14,7 @@
 // Header: Authorization: Bearer <jwt do usuário dono da campanha>
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { distributeEcoPositions, chartTierFromTopPosition } from "../_shared/computeEcoPlan.ts";
+import { distributeEcoPositions, distributeByDailyNeed, chartTierFromTopPosition, ECO_DAILY_TOLERANCE } from "../_shared/computeEcoPlan.ts";
 import { getGenreNeighbors } from "../_shared/genre-affinity.ts";
 
 const corsHeaders = {
@@ -189,19 +189,39 @@ Deno.serve(async (req) => {
       const rows = (ecoRows ?? []) as any[];
       const hasNull = rows.some(r => r.position == null);
       if (hasNull && rows.length > 0) {
-        const positions = distributeEcoPositions(
-          rows.map(r => ({
-            id: r.id,
-            planned_streams: Number(r.planned_streams ?? 0),
-            followers: Number(r.managed_playlists?.followers ?? 0),
-            genreSource: (r.genre_source as "primary" | "affinity" | null) ?? "primary",
-          })),
-          snapDays, mult, { chartTier },
-        );
+        // NOVO: posição por capacidade real vs. necessidade diária.
+        // dailyNeed = soma de planned_streams / days (o que o planner alocou).
+        // Fallback para chart-tier se dailyNeed inválido (snapshot incompleto).
+        const totalPlanned = rows.reduce((s, r) => s + Number(r.planned_streams ?? 0), 0);
+        const dailyNeed = snapDays > 0 ? totalPlanned / snapDays : 0;
+
+        const allocsInput = rows.map(r => ({
+          id: r.id,
+          planned_streams: Number(r.planned_streams ?? 0),
+          followers: Number(r.managed_playlists?.followers ?? 0),
+          genreSource: (r.genre_source as "primary" | "affinity" | null) ?? "primary",
+        }));
+
+        let positions: Map<string, number>;
+        if (dailyNeed > 0) {
+          const dist = distributeByDailyNeed(allocsInput, dailyNeed, mult, ECO_DAILY_TOLERANCE);
+          positions = dist.positions;
+          console.log("[approve] positions via daily_need", {
+            dailyNeed: Math.round(dailyNeed),
+            coveredDaily: Math.round(dist.coveredDaily),
+            tolerance: ECO_DAILY_TOLERANCE,
+            playlists: rows.length,
+          });
+        } else {
+          positions = distributeEcoPositions(allocsInput, snapDays, mult, { chartTier });
+          console.log("[approve] positions via chart_tier fallback", { chartTier, playlists: rows.length });
+        }
+
         positionUpdates = rows
           .filter(r => r.position == null)
           .map(r => ({ id: r.id, position: positions.get(r.id) ?? 3 }));
       }
+
     }
   } catch (e) {
     const msg = (e as Error)?.message ?? String(e);
