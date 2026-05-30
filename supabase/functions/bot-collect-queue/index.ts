@@ -210,30 +210,37 @@ Deno.serve(async (req) => {
   // O bot precisa desse ID para montar a URL S4A:
   // artists.spotify.com/c/pt/artist/<ARTIST_ID>/song/<TRACK_ID>/stats
   if (eligible.length) {
+    const trackIds = Array.from(new Set(
+      (eligible as any[]).map((s) => s.spotify_track_id).filter(Boolean),
+    ));
+    console.log(`[resolve-artist] eligible=${eligible.length} trackIds=${trackIds.length}`);
+    const artistByTrack = new Map<string, string>();
     try {
       const token = await getSpotifyToken();
-      const trackIds = Array.from(new Set(
-        (eligible as any[]).map((s) => s.spotify_track_id).filter(Boolean),
-      ));
-      const artistByTrack = new Map<string, string>();
+      console.log(`[resolve-artist] token ok len=${token?.length ?? 0}`);
       for (let i = 0; i < trackIds.length; i += 50) {
         const chunk = trackIds.slice(i, i + 50);
         const r = await guardedSpotifyFetch(
           `https://api.spotify.com/v1/tracks?ids=${chunk.join(",")}`,
           { headers: { Authorization: `Bearer ${token}` } },
         );
-        if (!r.ok) continue;
+        console.log(`[resolve-artist] chunk=${chunk.length} status=${r.status}`);
+        if (!r.ok) {
+          const errTxt = await r.text();
+          console.log(`[resolve-artist] err body=${errTxt.slice(0, 300)}`);
+          continue;
+        }
         const j = await r.json();
         for (const t of j.tracks ?? []) {
           if (t?.id && t?.artists?.[0]?.id) artistByTrack.set(t.id, t.artists[0].id);
         }
       }
-      for (const s of eligible as any[]) {
-        s.spotify_artist_id = artistByTrack.get(s.spotify_track_id) ?? null;
-      }
+      console.log(`[resolve-artist] resolved=${artistByTrack.size}/${trackIds.length}`);
     } catch (e) {
-      console.log("[bot-collect-queue] resolve spotify_artist_id falhou:", (e as Error).message);
-      for (const s of eligible as any[]) s.spotify_artist_id = null;
+      console.log("[resolve-artist] EXCEPTION:", (e as Error).message, (e as Error).stack?.slice(0, 300));
+    }
+    for (const s of eligible as any[]) {
+      s.spotify_artist_id = artistByTrack.get(s.spotify_track_id) ?? null;
     }
   }
 
