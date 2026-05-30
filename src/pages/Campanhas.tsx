@@ -290,7 +290,81 @@ function CampaignRow({ c }: { c: Campaign }) {
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast({ title: "Não consegui copiar", description: clientUrl, variant: "destructive" });
+  }
+
+  async function downloadPlaylistsCsv(e?: React.MouseEvent | Event) {
+    (e as any)?.preventDefault?.();
+    (e as any)?.stopPropagation?.();
+    try {
+      const { data: deals, error: e1 } = await supabase
+        .from("curator_deals")
+        .select("id")
+        .eq("campaign_id", c.id);
+      if (e1) throw e1;
+      const dealIds = (deals ?? []).map((d: any) => d.id);
+      if (dealIds.length === 0) {
+        toast({ title: "Sem deal ainda", description: "Esta campanha não tem deal criado — aprove o plano interno primeiro.", variant: "destructive" });
+        return;
+      }
+      const { data: pls, error: e2 } = await supabase
+        .from("curator_playlists")
+        .select("playlist_name, spotify_url, followers, spotify_playlist_id, streams_total")
+        .in("deal_id", dealIds)
+        .order("followers", { ascending: false });
+      if (e2) throw e2;
+      const rows = pls ?? [];
+      if (rows.length === 0) {
+        toast({ title: "Sem playlists", description: "O deal desta campanha ainda não tem playlists cadastradas.", variant: "destructive" });
+        return;
+      }
+      const esc = (v: any) => {
+        const s = v == null ? "" : String(v);
+        return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      };
+      const header = ["playlist_name", "spotify_url", "followers", "streams_total", "spotify_playlist_id"];
+      const csv = [header.join(","), ...rows.map((r: any) => header.map((h) => esc((r as any)[h])).join(","))].join("\n");
+      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const safeName = (c.track_name || "campanha").replace(/[^a-z0-9-_]+/gi, "_").slice(0, 60);
+      a.href = url;
+      a.download = `playlists_${safeName}_${c.id.slice(0, 8)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast({ title: `${rows.length} playlists baixadas`, description: "Arquivo CSV salvo." });
+    } catch (err) {
+      toast({ title: "Erro ao baixar", description: (err as Error).message, variant: "destructive" });
     }
+  }
+
+  async function copyPlaylistsUrls(e?: React.MouseEvent | Event) {
+    (e as any)?.preventDefault?.();
+    (e as any)?.stopPropagation?.();
+    try {
+      const { data: deals } = await supabase.from("curator_deals").select("id").eq("campaign_id", c.id);
+      const dealIds = (deals ?? []).map((d: any) => d.id);
+      if (dealIds.length === 0) {
+        toast({ title: "Sem deal ainda", variant: "destructive" });
+        return;
+      }
+      const { data: pls } = await supabase
+        .from("curator_playlists")
+        .select("spotify_url")
+        .in("deal_id", dealIds)
+        .not("spotify_url", "is", null);
+      const urls = (pls ?? []).map((p: any) => p.spotify_url).filter(Boolean);
+      if (urls.length === 0) {
+        toast({ title: "Sem URLs", variant: "destructive" });
+        return;
+      }
+      await navigator.clipboard.writeText(urls.join("\n"));
+      toast({ title: `${urls.length} links copiados` });
+    } catch (err) {
+      toast({ title: "Erro", description: (err as Error).message, variant: "destructive" });
+    }
+  }
   }
 
   async function doUpdateStatus(status: Campaign["status"], label: string) {
