@@ -80,7 +80,37 @@ export function BaselineTab({ dealId }: Props) {
       }>;
 
       if (snapList.length === 0) {
+        const { data: aggregateLog } = await supabase
+          .from("curator_deal_logs")
+          .select("id, created_at, total_plays, print_urls")
+          .eq("deal_id", dealId!)
+          .eq("is_baseline", true)
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+
         if (cancelled) return;
+        if (aggregateLog) {
+          setRows([{
+            playlist_id: aggregateLog.id,
+            plays: Number(aggregateLog.total_plays ?? 0),
+            captured_at: aggregateLog.created_at,
+            playlist_name: "Spotify for Artists — total agregado",
+            spotify_url: null,
+            image_url: null,
+            followers: null,
+            spotify_owner_name: "Sem breakdown por playlist",
+            spotify_playlist_id: null,
+            spotify_owner_id: null,
+          }]);
+          setUpload(null);
+          setCapturedAt(aggregateLog.created_at);
+          setPrintUrls(((aggregateLog.print_urls ?? []) as string[]).filter(Boolean));
+          setSource("bot");
+          setLoading(false);
+          return;
+        }
+
         setRows([]);
         setUpload(null);
         setCapturedAt(null);
