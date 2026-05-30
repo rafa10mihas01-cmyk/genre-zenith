@@ -407,39 +407,13 @@ Deno.serve(async (req) => {
           .update({ auto_collect: true, next_auto_collect_at: new Date().toISOString() })
           .eq("deal_id", existingDealId);
 
-        // Seed managed playlists só se ainda não existir nenhuma baseline.
-        const { count: existingBaselines } = await admin
-          .from("curator_playlists")
-          .select("id", { count: "exact", head: true })
-          .eq("deal_id", existingDealId)
-          .eq("is_baseline", true);
-
-        let seededExisting = 0;
-        if (!existingBaselines || existingBaselines === 0) {
-          const { data: dealSongs } = await admin
-            .from("curator_deal_songs")
-            .select("id")
-            .eq("deal_id", existingDealId)
-            .limit(1);
-          const songId = (dealSongs?.[0] as any)?.id ?? null;
-
-          seededExisting = await seedBaselinePlaylists(
-            admin,
-            campaignId,
-            existingDealId,
-            songId,
-            campaign.curator_id ?? null,
-            "Seed from campaign_eco_allocations (auto, existing deal)",
-          );
-        }
-
         return json({
           ok: true,
           already_approved: false,
           deal_created: false,
           deal_id: existingDealId,
           shadow_prepared: true,
-          seeded_playlists: seededExisting,
+          seeded_playlists: 0,
           flag_on: flagOn,
         });
       } catch (e) {
@@ -572,31 +546,10 @@ Deno.serve(async (req) => {
       .eq("deal_id", newDealId);
   }
 
-  // 9) Seed das managed playlists planejadas (campaign_eco_allocations) como
-  // curator_playlists do deal-shadow. Sem isso, o bot DOM coleta e descarta
-  // tudo como "no_match" e campaign_eco_snapshots nunca recebe linha.
-  let seeded_playlists = 0;
-  if (newDealId) {
-    try {
-      const { data: dealSongs } = await admin
-        .from("curator_deal_songs")
-        .select("id")
-        .eq("deal_id", newDealId)
-        .limit(1);
-      const songId = (dealSongs?.[0] as any)?.id ?? null;
-
-      seeded_playlists = await seedBaselinePlaylists(
-        admin,
-        campaignId,
-        newDealId,
-        songId,
-        campaign.curator_id ?? null,
-        "Seed from campaign_eco_allocations (auto)",
-      );
-    } catch (_e) {
-      // Não bloqueia aprovação se seed falhar — log silencioso.
-    }
-  }
+  // 9) Não semeia playlists planejadas como baseline. A baseline correta vem
+  // do Spotify for Artists da música: o bot abre a faixa, lê todas as playlists
+  // onde ela já aparece e só depois as listas próprias são cruzadas pelo ID.
+  const seeded_playlists = 0;
 
   // 10) Notifica o curador (destinatário = curators.user_id). O enum
   // notification_type tem apenas info/warning/critical — a categoria
