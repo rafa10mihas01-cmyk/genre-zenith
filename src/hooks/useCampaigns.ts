@@ -25,10 +25,11 @@ export type Campaign = {
   collection_mode: "bot" | "spreadsheet" | string | null;
   plan_approved_at: string | null;
   client_decision_round: number | null;
-  /** Derivado: existe pelo menos 1 deal em 'awaiting_baseline' (bot ainda não tirou 1ª foto). */
+  /** @deprecated mantido só pra compat de tipos durante reversão 30/05. Sempre false. */
   baseline_pending?: boolean;
   /** Derivado: timestamp da 1ª baseline capturada (qualquer deal da campanha). */
   baseline_captured_at?: string | null;
+
 };
 
 const SELECT = "id, track_name, artist, goal_plays, deadline, status, total_allocated, total_delivered, created_at, snapshot_locked_at, curator_id, deal_id, public_plan_token, client_approved_at, client_approved_by, client_rejected_at, campaign_type, collection_mode, plan_approved_at, client_decision_round";
