@@ -342,7 +342,12 @@ Deno.serve(async (req) => {
       playlist_id: c.playlist_id,
       spotify_playlist_id: c.spotify_playlist_id,
       spotify_track_id: c.spotify_track_id,
+      to_position: c.to_position,
       dedupe_key: c.dedupe_key,
+      metadata: {
+        allocation_source: c.allocation_source,
+        campaign_eco_allocation_id: c.allocation_source === "eco" ? c.allocation_id : null,
+      },
       status: "pending",
       scheduled_for: when.toISOString(),
     });
