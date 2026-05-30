@@ -557,6 +557,13 @@ function CampaignRow({ c }: { c: Campaign }) {
                 <DropdownMenuSeparator />
               </>
             )}
+            <DropdownMenuItem onSelect={(e) => downloadPlaylistsCsv(e)}>
+              <Download className="h-4 w-4 mr-2" /> Baixar playlists (CSV)
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={(e) => copyPlaylistsUrls(e)}>
+              <Copy className="h-4 w-4 mr-2" /> Copiar URLs das playlists
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             {isDraftReady && (
               <>
                 <DropdownMenuItem onSelect={() => approveCampaign()}>
