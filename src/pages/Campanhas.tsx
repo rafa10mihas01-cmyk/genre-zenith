@@ -80,7 +80,6 @@ type PipelineFilter =
   | "all"
   | "awaiting_client"
   | "awaiting_internal"
-  | "awaiting_baseline"
   | "running"
   | "completed";
 
@@ -88,7 +87,6 @@ const PIPELINE_LABEL: Record<PipelineFilter, string> = {
   all: "Todas",
   awaiting_client: "Aguardando cliente",
   awaiting_internal: "Aguardando você",
-  awaiting_baseline: "Aguardando baseline",
   running: "Rodando",
   completed: "Concluída",
 };
@@ -98,9 +96,9 @@ function pipelineStage(c: import("@/hooks/useCampaigns").Campaign): PipelineFilt
   if (eff === "completed" || eff === "cancelled") return "completed";
   if (!c.client_approved_at) return "awaiting_client";
   if (!c.plan_approved_at) return "awaiting_internal";
-  if (c.baseline_pending) return "awaiting_baseline";
   return "running";
 }
+
 
 export default function Campanhas() {
   const navigate = useNavigate();
