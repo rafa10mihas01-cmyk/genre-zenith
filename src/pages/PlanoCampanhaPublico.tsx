@@ -635,6 +635,7 @@ export default function PlanoCampanhaPublico() {
                   hideDeliveryPlan
                   hideCurveShortcut
                   hideCurveCard
+                  hideSplitRows
                   allocations={allocs}
                   snapshots={snaps}
                   proofs={isApproved ? proofs.map(p => ({
