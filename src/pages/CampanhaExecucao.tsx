@@ -101,6 +101,7 @@ export default function CampanhaExecucao() {
   const [dispatching, setDispatching] = useState(false);
   const [approvingPlan, setApprovingPlan] = useState(false);
   const [baselineGate, setBaselineGate] = useState({ required: 0, collected: 0, capturedAt: null as string | null });
+  const [dealStatus, setDealStatus] = useState<{ state: string | null; baselineCapturedAt: string | null }>({ state: null, baselineCapturedAt: null });
 
   async function handleApprovePlan() {
     if (!camp) return;
