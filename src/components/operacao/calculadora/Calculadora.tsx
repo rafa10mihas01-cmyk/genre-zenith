@@ -355,8 +355,8 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         .is("archived_at", null);
       if (error) throw error;
 
-      // Piso de qualidade: ≥ 100 saves
-      const playlists = (playlistsRaw ?? []).filter(p => (p.followers ?? 0) >= 100);
+      // Não descarta playlist pequena: se for do gênero primário, soma capacidade.
+      const playlists = (playlistsRaw ?? []).filter(p => (p.followers ?? 0) > 0);
 
       // Reserva de inventário: busca (playlist, posição) já ocupadas por
       // campanhas ativas OU rascunhos criados nas últimas 48h. Usado depois
