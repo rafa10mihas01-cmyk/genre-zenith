@@ -357,13 +357,18 @@ Deno.serve(async (req) => {
     if (campaign.deal_id) {
       const existingDealId = campaign.deal_id as string;
       try {
+        // Deal já existia: marca como shadow de campanha e coloca em
+        // "awaiting_baseline" — bot ainda precisa tirar a 1ª foto S4A.
+        // Quando extract-snapshot-from-print rodar com isBaseline=true,
+        // o state vira "collecting" e baseline_captured_at é preenchido.
         await admin
           .from("curator_deals")
           .update({
             campaign_id: campaignId,
             source: "campaign_internal",
             collection_mode: "bot",
-            state: "collecting",
+            state: "awaiting_baseline",
+            baseline_captured_at: null,
           })
           .eq("id", existingDealId);
 
