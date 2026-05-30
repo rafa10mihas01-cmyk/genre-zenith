@@ -221,7 +221,7 @@ Deno.serve(async (req) => {
       for (let i = 0; i < trackIds.length; i += 50) {
         const chunk = trackIds.slice(i, i + 50);
         const r = await guardedSpotifyFetch(
-          `https://api.spotify.com/v1/tracks?ids=${chunk.join(",")}`,
+          `https://api.spotify.com/v1/tracks?market=BR&ids=${chunk.join(",")}`,
           { headers: { Authorization: `Bearer ${token}` } },
         );
         console.log(`[resolve-artist] chunk=${chunk.length} status=${r.status}`);
