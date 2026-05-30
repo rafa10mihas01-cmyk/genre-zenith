@@ -288,12 +288,15 @@ export default function Campanhas() {
 
 
 function CampaignRow({ c }: { c: Campaign }) {
-  const { updateStatus, removeCampaign, approve } = useCampaigns();
+  const { updateStatus, removeCampaign, approve, refresh } = useCampaigns();
   const pct = c.goal_plays > 0 ? Math.min(100, Math.round((c.total_delivered / c.goal_plays) * 100)) : 0;
   const daysLeft = Math.ceil((new Date(c.deadline).getTime() - Date.now()) / 86400_000);
   const href = c.snapshot_locked_at ? `/campanhas/${c.id}/execucao` : `/campanhas/${c.id}`;
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [baselineOpen, setBaselineOpen] = useState(false);
+  const [baselineFiles, setBaselineFiles] = useState<Array<{ file: File; url: string }>>([]);
+  const [baselineSaving, setBaselineSaving] = useState(false);
   const busy = updateStatus.isPending || removeCampaign.isPending || approve.isPending;
 
   const clientUrl = c.public_plan_token
@@ -313,81 +316,148 @@ function CampaignRow({ c }: { c: Campaign }) {
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast({ title: "Não consegui copiar", description: clientUrl, variant: "destructive" });
+    }
   }
 
-  async function downloadPlaylistsCsv(e?: React.MouseEvent | Event) {
-    (e as any)?.preventDefault?.();
-    (e as any)?.stopPropagation?.();
+  function addBaselineFiles(fileList: FileList | null) {
+    const files = Array.from(fileList ?? []).filter((file) => file.type.startsWith("image/"));
+    const next = [...baselineFiles, ...files.map((file) => ({ file, url: URL.createObjectURL(file) }))].slice(0, MAX_MANUAL_BASELINE_FILES);
+    setBaselineFiles(next);
+  }
+
+  function removeBaselineFile(index: number) {
+    const current = baselineFiles[index];
+    if (current) URL.revokeObjectURL(current.url);
+    setBaselineFiles((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  async function submitManualBaseline() {
+    if (baselineFiles.length === 0) {
+      toast({ title: "Envie pelo menos um print", variant: "destructive" });
+      return;
+    }
+    setBaselineSaving(true);
     try {
-      const { data: deals, error: e1 } = await supabase
+      const { data: dealRow, error: dealErr } = await supabase
         .from("curator_deals")
         .select("id")
-        .eq("campaign_id", c.id);
-      if (e1) throw e1;
-      const dealIds = (deals ?? []).map((d: any) => d.id);
-      if (dealIds.length === 0) {
-        toast({ title: "Sem deal ainda", description: "Esta campanha não tem deal criado — aprove o plano interno primeiro.", variant: "destructive" });
-        return;
-      }
-      const { data: pls, error: e2 } = await supabase
-        .from("curator_playlists")
-        .select("playlist_name, spotify_url, followers, spotify_playlist_id, streams_total")
-        .in("deal_id", dealIds)
-        .order("followers", { ascending: false });
-      if (e2) throw e2;
-      const rows = pls ?? [];
-      if (rows.length === 0) {
-        toast({ title: "Sem playlists", description: "O deal desta campanha ainda não tem playlists cadastradas.", variant: "destructive" });
-        return;
-      }
-      const esc = (v: any) => {
-        const s = v == null ? "" : String(v);
-        return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-      };
-      const header = ["playlist_name", "spotify_url", "followers", "streams_total", "spotify_playlist_id"];
-      const csv = [header.join(","), ...rows.map((r: any) => header.map((h) => esc((r as any)[h])).join(","))].join("\n");
-      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      const safeName = (c.track_name || "campanha").replace(/[^a-z0-9-_]+/gi, "_").slice(0, 60);
-      a.href = url;
-      a.download = `playlists_${safeName}_${c.id.slice(0, 8)}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      toast({ title: `${rows.length} playlists baixadas`, description: "Arquivo CSV salvo." });
-    } catch (err) {
-      toast({ title: "Erro ao baixar", description: (err as Error).message, variant: "destructive" });
-    }
-  }
+        .eq("campaign_id", c.id)
+        .limit(1)
+        .maybeSingle();
+      if (dealErr) throw dealErr;
+      if (!dealRow?.id) throw new Error("Campanha sem deal criado.");
+      const dealId = dealRow.id as string;
 
-  async function copyPlaylistsUrls(e?: React.MouseEvent | Event) {
-    (e as any)?.preventDefault?.();
-    (e as any)?.stopPropagation?.();
-    try {
-      const { data: deals } = await supabase.from("curator_deals").select("id").eq("campaign_id", c.id);
-      const dealIds = (deals ?? []).map((d: any) => d.id);
-      if (dealIds.length === 0) {
-        toast({ title: "Sem deal ainda", variant: "destructive" });
-        return;
+      const { data: songRow } = await supabase
+        .from("curator_deal_songs")
+        .select("id")
+        .eq("deal_id", dealId)
+        .order("position", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      const songId = (songRow?.id as string | undefined) ?? null;
+
+      const printUrls: string[] = [];
+      for (let i = 0; i < baselineFiles.length; i++) {
+        const item = baselineFiles[i];
+        const ext = (item.file.name.split(".").pop() || "jpg").replace(/[^a-z0-9]/gi, "").toLowerCase() || "jpg";
+        const path = `${dealId}/manual-baseline-${Date.now()}-${i}.${ext}`;
+        const { error: uploadErr } = await supabase.storage.from("deal-prints").upload(path, item.file, {
+          contentType: item.file.type || "image/jpeg",
+          upsert: false,
+        });
+        if (uploadErr) throw uploadErr;
+        const { data } = supabase.storage.from("deal-prints").getPublicUrl(path);
+        printUrls.push(data.publicUrl);
       }
-      const { data: pls } = await supabase
+
+      const images = await Promise.all(baselineFiles.map(async ({ file }) => ({ base64: await fileToBase64(file), mime_type: file.type || "image/jpeg" })));
+      const { data: analyzed, error: analyzeErr } = await supabase.functions.invoke("analyze-deal-prints", {
+        body: { images, playlists: [], mode: "baseline" },
+      });
+      if (analyzeErr) throw analyzeErr;
+      const matches = ((analyzed as any)?.matches ?? []).filter((m: any) => m?.found && m?.plays != null && m?.playlist_name);
+      if (matches.length === 0) throw new Error("Não consegui ler playlists nos prints enviados.");
+
+      const { data: allocs } = await supabase.from("campaign_eco_allocations").select("managed_playlist_id").eq("campaign_id", c.id);
+      const managedIds = Array.from(new Set((allocs ?? []).map((a: any) => a.managed_playlist_id).filter(Boolean)));
+      const { data: managed } = managedIds.length
+        ? await supabase.from("managed_playlists").select("id, name, spotify_playlist_id, spotify_url, followers, cover_url").in("id", managedIds)
+        : { data: [] as any[] };
+      const managedByName = new Map((managed ?? []).map((p: any) => [normalizeText(p.name), p]));
+
+      const { data: existing } = await supabase
         .from("curator_playlists")
-        .select("spotify_url")
-        .in("deal_id", dealIds)
-        .not("spotify_url", "is", null);
-      const urls = (pls ?? []).map((p: any) => p.spotify_url).filter(Boolean);
-      if (urls.length === 0) {
-        toast({ title: "Sem URLs", variant: "destructive" });
-        return;
+        .select("id, playlist_name, spotify_playlist_id")
+        .eq("deal_id", dealId);
+      const existingByKey = new Map((existing ?? []).map((p: any) => [p.spotify_playlist_id ? `id:${p.spotify_playlist_id}` : `name:${normalizeText(p.playlist_name)}`, p.id]));
+      const capturedAt = new Date().toISOString();
+      const snapshotRows: any[] = [];
+
+      for (const match of matches) {
+        const managedMatch = managedByName.get(normalizeText(match.playlist_name));
+        const key = managedMatch?.spotify_playlist_id ? `id:${managedMatch.spotify_playlist_id}` : `name:${normalizeText(match.playlist_name)}`;
+        let playlistId = existingByKey.get(key);
+        if (!playlistId) {
+          const { data: inserted, error: insertErr } = await supabase
+            .from("curator_playlists")
+            .insert({
+              deal_id: dealId,
+              song_id: songId,
+              spotify_url: managedMatch?.spotify_url ?? "",
+              playlist_name: managedMatch?.name ?? match.playlist_name,
+              followers: managedMatch?.followers ?? null,
+              is_baseline: true,
+              spotify_playlist_id: managedMatch?.spotify_playlist_id ?? null,
+              image_url: managedMatch?.cover_url ?? null,
+              streams_total: Number(match.plays ?? 0),
+              match_status: "curator",
+              match_reason: "baseline manual por print",
+            } as any)
+            .select("id")
+            .single();
+          if (insertErr) throw insertErr;
+          playlistId = inserted.id;
+          existingByKey.set(key, playlistId);
+        }
+        snapshotRows.push({
+          deal_id: dealId,
+          song_id: songId,
+          playlist_id: playlistId,
+          plays: Number(match.plays ?? 0),
+          captured_at: capturedAt,
+          print_url: printUrls[Math.max(0, Number(match.source_index ?? 0))] ?? printUrls[0] ?? null,
+          is_baseline: true,
+          source: "manual_print",
+          match_method: managedMatch ? "managed_playlist_name" : "ai_name",
+          ai_raw: match,
+        });
       }
-      await navigator.clipboard.writeText(urls.join("\n"));
-      toast({ title: `${urls.length} links copiados` });
+
+      const total = snapshotRows.reduce((sum, row) => sum + Number(row.plays || 0), 0);
+      const { error: snapErr } = await supabase.from("curator_deal_snapshots").insert(snapshotRows);
+      if (snapErr) throw snapErr;
+      const { error: logErr } = await supabase.from("curator_deal_logs").insert({
+        deal_id: dealId,
+        song_id: songId,
+        total_plays: total,
+        note: "[manual] baseline por prints",
+        is_baseline: true,
+        print_urls: printUrls,
+      } as any);
+      if (logErr) throw logErr;
+      await supabase.from("curator_deals").update({ state: "collecting", baseline_captured_at: capturedAt, baseline_plays: total } as any).eq("id", dealId);
+
+      toast({ title: "Baseline registrada", description: `${snapshotRows.length} playlist(s) lida(s) · ${baselineFiles.length} print(s)` });
+      setBaselineOpen(false);
+      baselineFiles.forEach((item) => URL.revokeObjectURL(item.url));
+      setBaselineFiles([]);
+      await refresh();
     } catch (err) {
-      toast({ title: "Erro", description: (err as Error).message, variant: "destructive" });
+      toast({ title: "Erro ao registrar baseline", description: (err as Error).message, variant: "destructive" });
+    } finally {
+      setBaselineSaving(false);
     }
-  }
   }
 
   async function doUpdateStatus(status: Campaign["status"], label: string) {
