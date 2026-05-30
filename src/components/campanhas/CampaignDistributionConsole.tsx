@@ -48,6 +48,8 @@ type Props = {
   allocations: EcoAllocation[];
   ecoPositionByAllocation: Map<string, number>;
   ecoDispatchedAt: string | null;
+  /** Base pra calcular a data prevista de cada playlist (start_day → data). */
+  campaignStartedAt: string | null;
   custoTotal: number;
   dispatching: boolean;
   onDispatch: () => void | Promise<void>;
@@ -62,6 +64,21 @@ const fmtDateTime = (iso: string | null) => {
   if (!iso) return "—";
   return new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 };
+
+const fmtShortDate = (iso: string | null) => {
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+};
+
+/** Data prevista = base (started_at OU eco_dispatched_at) + (start_day - 1) dias. */
+function plannedDateFor(startDay: number | null | undefined, baseIso: string | null): string | null {
+  if (!baseIso || !startDay || startDay < 1) return null;
+  const base = new Date(baseIso);
+  if (isNaN(base.getTime())) return null;
+  base.setDate(base.getDate() + (startDay - 1));
+  return base.toISOString();
+}
+
 
 export function CampaignDistributionConsole({
   campaignId,
