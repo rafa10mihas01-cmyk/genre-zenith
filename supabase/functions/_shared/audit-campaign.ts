@@ -112,23 +112,29 @@ export async function auditCampaignFlow(
         : "Bloqueado até o cliente aprovar o plano público.");
   }
 
-  // ── 4) Deals vinculados
+  // ── 4) Deals vinculados (curador REAL, não placeholder interno)
   const { data: dealsRaw } = await admin
     .from("curator_deals")
     .select("id, curator_id, curator_name, state, started_at, campaign_id, source")
     .eq("campaign_id", campaignId);
 
   const allDeals = dealsRaw ?? [];
-  const realDeals = allDeals.filter((d: any) => d.curator_id != null);
-  const deals = realDeals.length > 0
-    ? allDeals.filter((d: any) => !(d.source === "campaign_internal" && d.curator_id == null))
-    : allDeals;
+  const realDeals = allDeals.filter(
+    (d: any) => d.curator_id != null && d.source !== "campaign_internal",
+  );
+  const placeholderDeals = allDeals.filter(
+    (d: any) => d.curator_id == null || d.source === "campaign_internal",
+  );
+  const deals = realDeals.length > 0 ? realDeals : allDeals;
   const dealIds = deals.map((d: any) => d.id);
 
-  if (dealIds.length > 0) {
+  if (realDeals.length > 0) {
     push("4_deals_linked", "Deals do curador vinculados", "ok",
-      `${dealIds.length} deal(s) vinculado(s)`,
-      { deals: deals.map((d: any) => ({ id: d.id, curator: d.curator_name, state: d.state })) });
+      `${realDeals.length} deal(s) com curador real vinculado(s)`,
+      { deals: realDeals.map((d: any) => ({ id: d.id, curator: d.curator_name, state: d.state })) });
+  } else if (placeholderDeals.length > 0 && planOk) {
+    push("4_deals_linked", "Deals do curador vinculados", "pending",
+      `${placeholderDeals.length} deal(s) placeholder interno (sem curador real). Falta vincular curador real à campanha.`);
   } else if (planOk) {
     push("4_deals_linked", "Deals do curador vinculados", "failed",
       "Plano aprovado mas nenhum deal vinculado à campanha.");
@@ -142,7 +148,6 @@ export async function auditCampaignFlow(
   // ─────────────────────────────────────────────────────────────
 
   if (mode === "spreadsheet") {
-    // ── 5s) Cliente enviou planilha pelo portal
     const { data: uploads } = await admin
       .from("label_spreadsheet_uploads")
       .select("id, campaign_id, deal_id, rows_imported, status, created_at, is_baseline")
@@ -151,7 +156,7 @@ export async function auditCampaignFlow(
 
     const uploadsArr = uploads ?? [];
     if (uploadsArr.length === 0) {
-      push("5_spreadsheet", "Planilha do cliente recebida", isLive ? "pending" : "pending",
+      push("5_spreadsheet", "Planilha do cliente recebida", "pending",
         "Nenhuma planilha enviada pelo cliente ainda. O cliente sobe a planilha pelo portal.");
     } else {
       const baseline = uploadsArr.find((u: any) => u.is_baseline);
@@ -160,12 +165,10 @@ export async function auditCampaignFlow(
         `${uploadsArr.length} upload(s), ${totalRows} linha(s)${baseline ? " — baseline definida" : ""}.`);
     }
 
-    // ── 6s) Coleta automática via bot — não se aplica
     push("6_collection", "Coleta automática nas playlists", "skipped",
       "Modo planilha — coleta vem do upload do cliente, não do bot.");
   } else {
-    // Modo bot/ecosystem
-    // ── 5b) Baseline (planilha do label OU playlists do portal do curador)
+    // ── 5b) Baseline REAL = snapshots capturados pelo bot (is_baseline=true)
     if (dealIds.length === 0) {
       push("5_baseline", "Baseline de playlists definida", "pending",
         "Aguardando criação do deal pra registrar baseline.");
@@ -193,23 +196,32 @@ export async function auditCampaignFlow(
         .in("deal_id", dealIds);
       const portalCount = (portalPls ?? []).filter((p: any) => !!p.spotify_playlist_id).length;
 
-      if (totalRows === 0 && portalCount === 0) {
+      const { data: baselineSnaps } = await admin
+        .from("curator_deal_snapshots")
+        .select("id, deal_id, captured_at, playlist_id")
+        .in("deal_id", dealIds)
+        .eq("is_baseline", true);
+      const baselineCount = baselineSnaps?.length ?? 0;
+      const firstBaselineAt = (baselineSnaps ?? [])
+        .map((s: any) => s.captured_at)
+        .sort()[0];
+
+      if (totalRows === 0 && portalCount === 0 && baselineCount === 0) {
         push("5_baseline", "Baseline de playlists definida",
           planOk ? "failed" : "pending",
-          `Sem planilha e sem playlists no portal nos ${dealIds.length} deal(s).`);
-      } else if (totalRows > 0 && withPlaylistId === 0) {
-        push("5_baseline", "Baseline de playlists definida", "failed",
-          `${totalRows} linhas importadas mas nenhuma com playlist_spotify_id.`);
-      } else if (totalRows > 0) {
+          `Sem planilha, sem playlists no portal e sem snapshots do bot nos ${dealIds.length} deal(s).`);
+      } else if (baselineCount > 0) {
         push("5_baseline", "Baseline de playlists definida", "ok",
-          `${totalRows} linhas (${withPlaylistId} com Spotify ID) + ${portalCount} playlist(s) via portal.`);
+          `${baselineCount} snapshot(s) baseline capturado(s) pelo bot (1ª foto em ${firstBaselineAt ?? "—"}).`);
       } else {
-        push("5_baseline", "Baseline de playlists definida", "ok",
-          `${portalCount} playlist(s) registrada(s) via portal do curador.`);
+        push("5_baseline", "Baseline de playlists definida", "pending",
+          `${portalCount} playlist(s) declarada(s) no portal + ${totalRows} linha(s) na planilha, ` +
+          `mas o bot ainda NÃO capturou nenhum snapshot baseline (is_baseline=true). ` +
+          `Sem a foto inicial do bot, não dá pra calcular delta de plays.`);
       }
     }
 
-    // ── 6b) Bot vê deals na fila de coleta
+    // ── 6b) Bot ativo = auto_collect + execução real (batches do S4A)
     if (dealIds.length === 0) {
       push("6_collection", "Bot ativo coletando playlists",
         planOk ? "failed" : "pending",
@@ -220,6 +232,21 @@ export async function auditCampaignFlow(
         .select("id, deal_id, auto_collect, auto_collect_status")
         .in("deal_id", dealIds);
       const collecting = (songs ?? []).filter((s: any) => s.auto_collect === true);
+      const songIds = (songs ?? []).map((s: any) => s.id);
+
+      let batchCount = 0;
+      let lastBatchAt: string | null = null;
+      if (songIds.length > 0) {
+        const { data: batches } = await admin
+          .from("bot_print_batches")
+          .select("id, status, created_at")
+          .in("song_id", songIds)
+          .order("created_at", { ascending: false })
+          .limit(5);
+        batchCount = batches?.length ?? 0;
+        lastBatchAt = batches?.[0]?.created_at ?? null;
+      }
+
       if (collecting.length === 0) {
         push("6_collection", "Bot ativo coletando playlists",
           isLive ? "failed" : "pending",
@@ -227,9 +254,12 @@ export async function auditCampaignFlow(
           (isLive
             ? "Bot vai filtrar tudo e não coletar."
             : "Ativa quando aprovar o plano interno e iniciar a distribuição."));
+      } else if (batchCount === 0) {
+        push("6_collection", "Bot ativo coletando playlists", "pending",
+          `${collecting.length} song(s) na fila com auto_collect=true, mas o bot AINDA NÃO executou nenhuma coleta (0 batches em bot_print_batches). Aguardando 1ª execução do robô.`);
       } else {
         push("6_collection", "Bot ativo coletando playlists", "ok",
-          `${collecting.length} song(s) na fila com auto_collect=true.`);
+          `${collecting.length} song(s) na fila · ${batchCount} batch(es) recentes · última coleta em ${lastBatchAt ?? "—"}.`);
       }
     }
   }
