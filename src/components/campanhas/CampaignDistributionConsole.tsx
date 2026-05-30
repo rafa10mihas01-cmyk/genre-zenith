@@ -275,11 +275,14 @@ export function CampaignDistributionConsole({
       })
 
       .sort((a, b) => {
-        const rank = (s: PlaylistState["status"]) =>
-          s === "failed" ? 0 : s === "pending" ? 1 : s === "scheduled" ? 2 : s === "done" ? 3 : 4;
-        const r = rank(a.state.status) - rank(b.state.status);
-        if (r !== 0) return r;
-
+        // Ordena pela data prevista de postagem (mais cedo primeiro).
+        const ta = a.plannedFor ? new Date(a.plannedFor).getTime() : Number.POSITIVE_INFINITY;
+        const tb = b.plannedFor ? new Date(b.plannedFor).getTime() : Number.POSITIVE_INFINITY;
+        if (ta !== tb) return ta - tb;
+        // Empate de data: posição planejada (menor = mais alta) primeiro.
+        const pa = a.plannedPosition ?? 999;
+        const pb = b.plannedPosition ?? 999;
+        if (pa !== pb) return pa - pb;
         return a.name.localeCompare(b.name);
       });
   }, [allocations, ecoPositionByAllocation, stateBySpid]);
@@ -627,7 +630,7 @@ export function CampaignDistributionConsole({
               Nenhuma playlist no ecossistema desta campanha.
             </div>
           ) : (
-            <div className="divide-y divide-border">
+            <div className="max-h-[640px] overflow-y-auto divide-y divide-border">
               {rows.map((r) => (
                 <PlaylistRow
                   key={r.allocId}
