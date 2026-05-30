@@ -612,53 +612,74 @@ export function CampaignDistributionConsole({
       {/* BLOCO 4b — Rebaixamentos (cronograma de desmame por playlist) */}
       <Card>
         <CardContent className="p-0">
-          <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-semibold flex items-center gap-2">
-                <ArrowDown className="h-3.5 w-3.5 text-muted-foreground" />
-                Rebaixamentos
+          <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+                <ArrowDown className="h-4 w-4 text-amber-400" />
               </div>
-              <div className="text-[11px] text-muted-foreground">
-                {totalDemotions === 0
-                  ? "Nenhum rebaixamento planejado — todas as playlists ficam na posição base do início ao fim."
-                  : `${totalDemotions} degrau(s) em ${demotionPlan.length} playlist(s) · cronograma do plano`}
+              <div>
+                <div className="text-sm font-semibold">Rebaixamentos programados</div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">
+                  {totalDemotions === 0
+                    ? "Nenhum rebaixamento planejado — posição estável do início ao fim."
+                    : `${totalDemotions} degrau(s) em ${demotionPlan.length} playlist(s) · executados automaticamente pelo bot`}
+                </div>
               </div>
             </div>
           </div>
           {demotionPlan.length > 0 && (
             <div className="divide-y divide-border">
               {demotionPlan.map((p) => (
-                <div key={p.allocId} className="px-4 py-3">
-                  <div className="text-[13px] font-medium text-foreground truncate mb-2">{p.name}</div>
-                  <div className="space-y-1.5">
+                <div key={p.allocId} className="px-5 py-4">
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <div className="text-sm font-semibold text-foreground truncate">{p.name}</div>
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold shrink-0">
+                      {p.transitions.length} degrau(s)
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                     {p.transitions.map((t, idx) => {
                       const label =
-                        t.jobStatus === "done" ? "rebaixada" :
-                        t.jobStatus === "failed" ? "falhou" :
-                        t.jobStatus === "scheduled" ? "agendada" :
-                        t.jobStatus === "pending" ? "pendente" : "planejada";
-                      const badgeCls =
-                        t.jobStatus === "done" ? "border-success/30 bg-success/10 text-success" :
-                        t.jobStatus === "failed" ? "border-destructive/30 bg-destructive/10 text-destructive" :
-                        t.jobStatus === "scheduled" ? "border-primary/30 bg-primary/10 text-primary" :
-                        t.jobStatus === "pending" ? "border-warning/30 bg-warning/10 text-warning" :
-                        "border-border bg-muted/40 text-muted-foreground";
+                        t.jobStatus === "done" ? "Rebaixada" :
+                        t.jobStatus === "failed" ? "Falhou" :
+                        t.jobStatus === "scheduled" ? "Agendada" :
+                        t.jobStatus === "pending" ? "Pendente" : "Planejada";
+                      const tone =
+                        t.jobStatus === "done" ? { border: "border-success/30", bg: "bg-success/[0.06]", chip: "bg-success/15 text-success border-success/30", dot: "bg-success" } :
+                        t.jobStatus === "failed" ? { border: "border-destructive/30", bg: "bg-destructive/[0.06]", chip: "bg-destructive/15 text-destructive border-destructive/30", dot: "bg-destructive" } :
+                        t.jobStatus === "scheduled" ? { border: "border-blue-500/30", bg: "bg-blue-500/[0.06]", chip: "bg-blue-500/15 text-blue-400 border-blue-500/30", dot: "bg-blue-400" } :
+                        t.jobStatus === "pending" ? { border: "border-amber-500/30", bg: "bg-amber-500/[0.06]", chip: "bg-amber-500/15 text-amber-400 border-amber-500/30", dot: "bg-amber-400" } :
+                        { border: "border-border", bg: "bg-muted/20", chip: "bg-muted text-muted-foreground border-border", dot: "bg-muted-foreground/60" };
                       return (
-                        <div key={idx} className="flex items-center justify-between gap-3 text-[11px]">
-                          <div className="text-muted-foreground flex items-center gap-2 flex-wrap">
-                            <span className="font-mono text-foreground">D{t.day}</span>
-                            {t.dateIso && <span>· {fmtShortDate(t.dateIso)}</span>}
-                            <span className="font-mono">· Pos {t.from} → {t.to}</span>
-                            {t.jobStatus === "done" && t.jobCompletedAt && (
-                              <span>· feito em {fmtDateTime(t.jobCompletedAt)}</span>
-                            )}
+                        <div key={idx} className={cn("rounded-xl border p-3", tone.border, tone.bg)}>
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <div className="flex items-center gap-1.5">
+                              <span className={cn("h-1.5 w-1.5 rounded-full", tone.dot)} />
+                              <span className="text-[10px] font-mono font-bold text-foreground">D{t.day}</span>
+                              {t.dateIso && (
+                                <span className="text-[10px] text-muted-foreground">· {fmtShortDate(t.dateIso)}</span>
+                              )}
+                            </div>
+                            <span className={cn("inline-flex items-center px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider font-bold border", tone.chip)}>
+                              {label}
+                            </span>
                           </div>
-                          <span className={cn(
-                            "inline-flex items-center px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-bold border shrink-0",
-                            badgeCls,
-                          )}>
-                            {label}
-                          </span>
+                          <div className="flex items-center justify-center gap-2 py-1">
+                            <div className="flex flex-col items-center">
+                              <span className="text-[9px] uppercase text-muted-foreground tracking-wider">de</span>
+                              <span className="text-base font-mono font-semibold text-foreground tabular-nums">{t.from}</span>
+                            </div>
+                            <ArrowDown className="h-4 w-4 text-muted-foreground rotate-[-90deg]" />
+                            <div className="flex flex-col items-center">
+                              <span className="text-[9px] uppercase text-muted-foreground tracking-wider">para</span>
+                              <span className="text-base font-mono font-semibold text-foreground tabular-nums">{t.to}</span>
+                            </div>
+                          </div>
+                          {t.jobStatus === "done" && t.jobCompletedAt && (
+                            <div className="text-[10px] text-muted-foreground text-center mt-1.5 pt-1.5 border-t border-border/50">
+                              feito em {fmtDateTime(t.jobCompletedAt)}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -669,6 +690,7 @@ export function CampaignDistributionConsole({
           )}
         </CardContent>
       </Card>
+
 
       {/* BLOCO 5 — Saúde do bot */}
       <Card>
