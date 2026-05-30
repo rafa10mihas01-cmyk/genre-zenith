@@ -344,47 +344,93 @@ export function CampaignDistributionConsole({
   const doneAddsCount = jobs.filter((j) => j.job_type === "playlist.track.add" && j.status === "done").length;
   const playlistsCount = allocations.length;
 
-  // --- Rebaixamentos (reorders) — mostra cronograma de desmame por playlist ---
-  const nameBySpid = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const r of rows) {
-      if (r.spid) m.set(r.spid, r.name);
+  // --- Rebaixamentos (cronograma de desmame por playlist) ---
+  // Fonte de verdade = positionByDay do plano operacional (mesmo mapa).
+  // Mostra TODAS as transições de posição (dia em que cai), e enriquece com o
+  // status do job real (playlist_execution_jobs) quando já existir um.
+  type TransitionStatus = "done" | "scheduled" | "pending" | "failed" | "planned";
+  type Transition = {
+    day: number;
+    dateIso: string | null;
+    from: number;
+    to: number;
+    jobStatus: TransitionStatus;
+    jobCompletedAt: string | null;
+    jobScheduledFor: string | null;
+  };
+  const demotionPlan = useMemo(() => {
+    let plans: ReturnType<typeof buildEcoPlaylistPlan> = [];
+    try {
+      plans = buildEcoPlaylistPlan(snapshot, allocations as any, {
+        engagementMultiplier: engagementMultiplier ?? 30,
+        startedAt: campaignStartedAt ?? undefined,
+        positions: ecoPositionByAllocation,
+      });
+    } catch {
+      return [] as Array<{ allocId: string; spid: string | null; name: string; transitions: Transition[] }>;
     }
-    return m;
-  }, [rows]);
 
-  const reorderRows = useMemo(() => {
+    const spidByAlloc = new Map<string, string | null>();
+    for (const a of allocations) {
+      const url = a.managed_playlists?.spotify_url ?? "";
+      const m = typeof url === "string" ? url.match(/playlist\/([A-Za-z0-9]+)/) : null;
+      spidByAlloc.set(a.id, m?.[1] ?? null);
+    }
+
+    const reorderJobs = jobs.filter((j) => j.job_type === "playlist.track.reorder");
     const now = Date.now();
-    return jobs
-      .filter((j) => j.job_type === "playlist.track.reorder")
-      .map((j) => {
-        let status: "done" | "pending" | "scheduled" | "failed" = "pending";
-        if (j.status === "done") status = "done";
-        else if (j.status === "failed") status = "failed";
-        else {
-          const sched = j.scheduled_for ? new Date(j.scheduled_for).getTime() : 0;
-          status = sched > now ? "scheduled" : "pending";
+
+    return plans
+      .map((p) => {
+        const spid = spidByAlloc.get(p.allocationId) ?? null;
+        const pos = p.positionByDay ?? [];
+        const transitions: Transition[] = [];
+        for (let i = 1; i < pos.length; i++) {
+          const prev = pos[i - 1];
+          const cur = pos[i];
+          if (cur > prev) {
+            const day = i + 1; // 1-indexed
+            transitions.push({
+              day,
+              dateIso: plannedDateFor(day, planBaseIso),
+              from: prev,
+              to: cur,
+              jobStatus: "planned",
+              jobCompletedAt: null,
+              jobScheduledFor: null,
+            });
+          }
+        }
+        if (spid && transitions.length > 0) {
+          const matching = reorderJobs.filter((j) => j.spotify_playlist_id === spid);
+          for (const t of transitions) {
+            const job = matching.find((j) => j.to_position === t.to);
+            if (!job) continue;
+            t.jobCompletedAt = job.completed_at;
+            t.jobScheduledFor = job.scheduled_for;
+            if (job.status === "done") t.jobStatus = "done";
+            else if (job.status === "failed") t.jobStatus = "failed";
+            else {
+              const sched = job.scheduled_for ? new Date(job.scheduled_for).getTime() : 0;
+              t.jobStatus = sched > now ? "scheduled" : "pending";
+            }
+          }
         }
         return {
-          id: j.id,
-          name: nameBySpid.get(j.spotify_playlist_id) ?? "(playlist)",
-          from: j.from_position,
-          to: j.to_position,
-          scheduledFor: j.scheduled_for,
-          completedAt: j.completed_at,
-          status,
+          allocId: p.allocationId,
+          spid,
+          name: p.playlistName,
+          transitions,
         };
       })
-      .sort((a, b) => {
-        const rank = (s: typeof a.status) =>
-          s === "failed" ? 0 : s === "pending" ? 1 : s === "scheduled" ? 2 : 3;
-        const r = rank(a.status) - rank(b.status);
-        if (r !== 0) return r;
-        const at = a.scheduledFor ? new Date(a.scheduledFor).getTime() : 0;
-        const bt = b.scheduledFor ? new Date(b.scheduledFor).getTime() : 0;
-        return at - bt;
-      });
-  }, [jobs, nameBySpid]);
+      .filter((p) => p.transitions.length > 0)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [snapshot, allocations, engagementMultiplier, campaignStartedAt, ecoPositionByAllocation, planBaseIso, jobs]);
+
+  const totalDemotions = useMemo(
+    () => demotionPlan.reduce((acc, p) => acc + p.transitions.length, 0),
+    [demotionPlan],
+  );
 
   // --- bot health ---
   const hbAge = bot?.last_heartbeat ? Date.now() - new Date(bot.last_heartbeat).getTime() : Infinity;
@@ -566,7 +612,7 @@ export function CampaignDistributionConsole({
         </CardContent>
       </Card>
 
-      {/* BLOCO 4b — Rebaixamentos (desmame por posição) */}
+      {/* BLOCO 4b — Rebaixamentos (cronograma de desmame por playlist) */}
       <Card>
         <CardContent className="p-0">
           <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3">
@@ -576,39 +622,50 @@ export function CampaignDistributionConsole({
                 Rebaixamentos
               </div>
               <div className="text-[11px] text-muted-foreground">
-                {reorderRows.length === 0
-                  ? "Sem rebaixamentos planejados ainda — o cron enfileira automaticamente conforme o desmame do plano."
-                  : `${reorderRows.length} job(s) de reorder · pos atual → pos do dia`}
+                {totalDemotions === 0
+                  ? "Nenhum rebaixamento planejado — todas as playlists ficam na posição base do início ao fim."
+                  : `${totalDemotions} degrau(s) em ${demotionPlan.length} playlist(s) · cronograma do plano`}
               </div>
             </div>
           </div>
-          {reorderRows.length > 0 && (
+          {demotionPlan.length > 0 && (
             <div className="divide-y divide-border">
-              {reorderRows.map((r) => (
-                <div key={r.id} className="px-4 py-2.5 flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="text-[13px] font-medium text-foreground truncate">{r.name}</div>
-                    <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 flex-wrap">
-                      <span className="font-mono">Pos {r.from ?? "—"} → {r.to ?? "—"}</span>
-                      {r.status === "scheduled" && r.scheduledFor && (
-                        <span>· agendado para {fmtDateTime(r.scheduledFor)}</span>
-                      )}
-                      {r.status === "done" && r.completedAt && (
-                        <span>· feito em {fmtDateTime(r.completedAt)}</span>
-                      )}
-                      {r.status === "pending" && <span>· aguardando bot</span>}
-                      {r.status === "failed" && <span className="text-destructive">· falhou</span>}
-                    </div>
+              {demotionPlan.map((p) => (
+                <div key={p.allocId} className="px-4 py-3">
+                  <div className="text-[13px] font-medium text-foreground truncate mb-2">{p.name}</div>
+                  <div className="space-y-1.5">
+                    {p.transitions.map((t, idx) => {
+                      const label =
+                        t.jobStatus === "done" ? "rebaixada" :
+                        t.jobStatus === "failed" ? "falhou" :
+                        t.jobStatus === "scheduled" ? "agendada" :
+                        t.jobStatus === "pending" ? "pendente" : "planejada";
+                      const badgeCls =
+                        t.jobStatus === "done" ? "border-success/30 bg-success/10 text-success" :
+                        t.jobStatus === "failed" ? "border-destructive/30 bg-destructive/10 text-destructive" :
+                        t.jobStatus === "scheduled" ? "border-primary/30 bg-primary/10 text-primary" :
+                        t.jobStatus === "pending" ? "border-warning/30 bg-warning/10 text-warning" :
+                        "border-border bg-muted/40 text-muted-foreground";
+                      return (
+                        <div key={idx} className="flex items-center justify-between gap-3 text-[11px]">
+                          <div className="text-muted-foreground flex items-center gap-2 flex-wrap">
+                            <span className="font-mono text-foreground">D{t.day}</span>
+                            {t.dateIso && <span>· {fmtShortDate(t.dateIso)}</span>}
+                            <span className="font-mono">· Pos {t.from} → {t.to}</span>
+                            {t.jobStatus === "done" && t.jobCompletedAt && (
+                              <span>· feito em {fmtDateTime(t.jobCompletedAt)}</span>
+                            )}
+                          </div>
+                          <span className={cn(
+                            "inline-flex items-center px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-bold border shrink-0",
+                            badgeCls,
+                          )}>
+                            {label}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <span className={cn(
-                    "inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-bold border",
-                    r.status === "done" && "border-success/30 bg-success/10 text-success",
-                    r.status === "scheduled" && "border-primary/30 bg-primary/10 text-primary",
-                    r.status === "pending" && "border-warning/30 bg-warning/10 text-warning",
-                    r.status === "failed" && "border-destructive/30 bg-destructive/10 text-destructive",
-                  )}>
-                    {r.status === "done" ? "rebaixada" : r.status === "scheduled" ? "agendada" : r.status === "pending" ? "pendente" : "falhou"}
-                  </span>
                 </div>
               ))}
             </div>
@@ -760,8 +817,8 @@ function PlaylistRow({
           <span>
             Pos. planejada: <span className="text-foreground font-medium">{row.plannedPosition ?? "—"}</span>
           </span>
-          {row.state.status === "scheduled" && row.state.scheduledFor ? (
-            <span>· agendada para {fmtDateTime(row.state.scheduledFor)}</span>
+          {row.state.status === "scheduled" ? (
+            <span>· agendada para {fmtDateTime(row.plannedFor ?? row.state.scheduledFor)}</span>
           ) : row.state.status === "done" && row.state.completedAt ? (
             <span>· {fmtDateTime(row.state.completedAt)}</span>
           ) : row.plannedFor ? (
