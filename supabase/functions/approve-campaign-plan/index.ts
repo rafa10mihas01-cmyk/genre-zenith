@@ -359,13 +359,15 @@ Deno.serve(async (req) => {
             });
           }
           const neighborGenreIds = primaryCoversGap ? [] : neighbors.map(n => n.genre_id);
-          const { data: candidatePls } = await admin
-            .from("managed_playlists")
-            .select("id, followers, genre_id")
-            .in("genre_id", neighborGenreIds)
-            .is("archived_at", null)
-            .gte("followers", 100)
-            .order("followers", { ascending: false });
+          const { data: candidatePls } = neighborGenreIds.length > 0
+            ? await admin
+                .from("managed_playlists")
+                .select("id, followers, genre_id")
+                .in("genre_id", neighborGenreIds)
+                .is("archived_at", null)
+                .gte("followers", 100)
+                .order("followers", { ascending: false })
+            : { data: [] };
 
           const affByGenre = new Map(neighbors.map(n => [n.genre_id, n.score]));
           const fresh = (candidatePls ?? []).filter((p: any) => !usedIds.has(p.id));
