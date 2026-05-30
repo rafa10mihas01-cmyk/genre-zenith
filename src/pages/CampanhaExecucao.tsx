@@ -312,6 +312,21 @@ export default function CampanhaExecucao() {
       setLastSpreadsheetUploadAt(null);
     }
 
+    // Hidrata estado real do deal (awaiting_baseline vs collecting vs active)
+    if (dealId) {
+      const { data: dealRow } = await supabase
+        .from("curator_deals")
+        .select("state, baseline_captured_at")
+        .eq("id", dealId)
+        .maybeSingle();
+      setDealStatus({
+        state: (dealRow as any)?.state ?? null,
+        baselineCapturedAt: (dealRow as any)?.baseline_captured_at ?? null,
+      });
+    } else {
+      setDealStatus({ state: null, baselineCapturedAt: null });
+    }
+
     const plannedSpotifyIds = Array.from(new Set(((a ?? []) as any[]).map((alloc) => {
       const direct = alloc.managed_playlists?.spotify_playlist_id as string | null | undefined;
       if (direct) return direct;
