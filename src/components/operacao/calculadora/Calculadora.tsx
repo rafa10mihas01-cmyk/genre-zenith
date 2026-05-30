@@ -1278,7 +1278,18 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                         )}
                       </div>
                     )}
+
+                    {/* NOVO: capacidade REAL entregável (algoritmo por dailyNeed,
+                        idêntico ao replan-campaign-eco / approve-campaign-plan).
+                        Mostra exatamente o que o sistema vai entregar — operador
+                        pode negociar com o cliente em cima do número real. */}
+                    <CapacidadeRealCard
+                      genre={active.genre}
+                      dailyNeed={result.effectiveDays > 0 ? Math.round(result.streamsEco / result.effectiveDays) : 0}
+                      multiplier={active.engagementMultiplier ?? 30}
+                    />
                   </div>
+
                 </CardContent>
               </Card>
           </div>
