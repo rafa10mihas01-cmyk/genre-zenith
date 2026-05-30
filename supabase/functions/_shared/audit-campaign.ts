@@ -206,18 +206,24 @@ export async function auditCampaignFlow(
         .map((s: any) => s.captured_at)
         .sort()[0];
 
-      if (totalRows === 0 && portalCount === 0 && baselineCount === 0) {
-        push("5_baseline", "Baseline de playlists definida",
+      const awaitingDeals = deals.filter((d: any) => d.state === "awaiting_baseline");
+      const anyBaselineCaptured = deals.some((d: any) => d.baseline_captured_at);
+
+      if (baselineCount > 0 || anyBaselineCaptured) {
+        push("5_baseline", "Baseline capturada pelo bot", "ok",
+          `${baselineCount} snapshot(s) baseline · 1ª foto em ${firstBaselineAt ?? "—"}. Campanha ativada.`);
+      } else if (awaitingDeals.length > 0) {
+        push("5_baseline", "Baseline capturada pelo bot", "pending",
+          `Deal em "awaiting_baseline" — robô na fila pra tirar a 1ª foto no Spotify for Artists. ` +
+          `A campanha só ativa depois que a baseline chegar.`);
+      } else if (totalRows === 0 && portalCount === 0) {
+        push("5_baseline", "Baseline capturada pelo bot",
           planOk ? "failed" : "pending",
           `Sem planilha, sem playlists no portal e sem snapshots do bot nos ${dealIds.length} deal(s).`);
-      } else if (baselineCount > 0) {
-        push("5_baseline", "Baseline de playlists definida", "ok",
-          `${baselineCount} snapshot(s) baseline capturado(s) pelo bot (1ª foto em ${firstBaselineAt ?? "—"}).`);
       } else {
-        push("5_baseline", "Baseline de playlists definida", "pending",
-          `${portalCount} playlist(s) declarada(s) no portal + ${totalRows} linha(s) na planilha, ` +
-          `mas o bot ainda NÃO capturou nenhum snapshot baseline (is_baseline=true). ` +
-          `Sem a foto inicial do bot, não dá pra calcular delta de plays.`);
+        push("5_baseline", "Baseline capturada pelo bot", "pending",
+          `${portalCount} playlist(s) declarada(s) + ${totalRows} linha(s) de planilha, ` +
+          `mas o bot ainda NÃO capturou a foto baseline.`);
       }
     }
 
