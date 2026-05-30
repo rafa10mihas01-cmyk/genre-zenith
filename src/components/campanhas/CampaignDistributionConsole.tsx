@@ -21,6 +21,8 @@ import { formatBRL } from "@/lib/campaignEngine";
 import { timeAgo } from "@/lib/format";
 import { toast } from "sonner";
 import type { EcoAllocation } from "@/components/campaign-hub/types";
+import { buildEcoPlaylistPlan } from "@/lib/campaignOperationalPlan";
+import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 
 type JobRow = {
   id: string;
@@ -50,10 +52,15 @@ type Props = {
   ecoDispatchedAt: string | null;
   /** Base pra calcular a data prevista de cada playlist (start_day → data). */
   campaignStartedAt: string | null;
+  /** Snapshot da campanha — usado pra calcular o primeiro dia REAL com volume por playlist (espelha o mapa). */
+  snapshot: CampaignSnapshot;
+  /** Multiplicador plays/save/mês da campanha (default 30). */
+  engagementMultiplier?: number;
   custoTotal: number;
   dispatching: boolean;
   onDispatch: () => void | Promise<void>;
 };
+
 
 const fmtTime = (iso: string | null) => {
   if (!iso) return "—";
@@ -70,14 +77,25 @@ const fmtShortDate = (iso: string | null) => {
   return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 };
 
-/** Data prevista = base (started_at OU eco_dispatched_at) + (start_day - 1) dias. */
+// Janela do bot — espelha execution-planner (08h–22h BR).
+const BOT_WINDOW_START_BR = 8;
+const BOT_WINDOW_END_BR = 22;
+
+/**
+ * Data prevista = base (started_at OU eco_dispatched_at) + (startDay - 1) dias,
+ * ancorada no início da janela do bot (08h BR) pra o "previsto" bater com a
+ * realidade de quando o robô vai abrir aquele slot.
+ */
 function plannedDateFor(startDay: number | null | undefined, baseIso: string | null): string | null {
   if (!baseIso || !startDay || startDay < 1) return null;
   const base = new Date(baseIso);
   if (isNaN(base.getTime())) return null;
-  base.setDate(base.getDate() + (startDay - 1));
+  // Soma (startDay - 1) dias preservando o instante; depois força 08h BR (11h UTC).
+  base.setUTCDate(base.getUTCDate() + (startDay - 1));
+  base.setUTCHours(BOT_WINDOW_START_BR + 3, 0, 0, 0); // BR = UTC-3
   return base.toISOString();
 }
+
 
 
 export function CampaignDistributionConsole({
@@ -87,10 +105,13 @@ export function CampaignDistributionConsole({
   ecoPositionByAllocation,
   ecoDispatchedAt,
   campaignStartedAt,
+  snapshot,
+  engagementMultiplier,
   custoTotal,
   dispatching,
   onDispatch,
 }: Props) {
+
 
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
@@ -197,6 +218,28 @@ export function CampaignDistributionConsole({
     return m;
   }, [jobs]);
 
+  // --- Plano operacional (espelha o mapa) — usado pra saber o PRIMEIRO DIA REAL
+  // com volume de cada playlist (alguns slots só entram no D7, D8, etc).
+  const realStartByAllocation = useMemo(() => {
+    const m = new Map<string, number>();
+    try {
+      const plans = buildEcoPlaylistPlan(snapshot, allocations as any, {
+        engagementMultiplier: engagementMultiplier ?? 30,
+        startedAt: campaignStartedAt ?? undefined,
+        positions: ecoPositionByAllocation,
+      });
+      for (const p of plans) {
+        // Primeiro dia (1-indexed) com volume > 0; cai pro startDay teórico se nada acumulou.
+        const firstWithVolume = (p.daily ?? []).findIndex((v) => v > 0);
+        const day = firstWithVolume >= 0 ? firstWithVolume + 1 : p.startDay;
+        m.set(p.allocationId, day);
+      }
+    } catch {
+      /* fallback silencioso — usa start_day cru */
+    }
+    return m;
+  }, [snapshot, allocations, engagementMultiplier, campaignStartedAt, ecoPositionByAllocation]);
+
   // --- linhas de playlist a renderizar (a partir das allocations) ---
   // Base pra "data prevista": prioriza eco_dispatched_at (real). Cai pra
   // started_at quando o eco ainda não foi disparado (planejamento).
@@ -210,6 +253,7 @@ export function CampaignDistributionConsole({
         const state: PlaylistState = spid
           ? (stateBySpid.get(spid) ?? { status: "idle", scheduledFor: null, lastError: null, jobId: null, completedAt: null })
           : { status: "idle", scheduledFor: null, lastError: null, jobId: null, completedAt: null };
+        const realStart = realStartByAllocation.get(a.id) ?? a.start_day ?? 1;
         return {
           allocId: a.id,
           spid,
@@ -217,7 +261,7 @@ export function CampaignDistributionConsole({
           cover: a.managed_playlists?.cover_url ?? null,
           spotifyUrl: url || null,
           plannedPosition: ecoPositionByAllocation.get(a.id) ?? null,
-          plannedFor: plannedDateFor(a.start_day, planBaseIso),
+          plannedFor: plannedDateFor(realStart, planBaseIso),
           state,
         };
       })
@@ -227,6 +271,7 @@ export function CampaignDistributionConsole({
           s === "failed" ? 0 : s === "pending" ? 1 : s === "scheduled" ? 2 : s === "done" ? 3 : 4;
         const r = rank(a.state.status) - rank(b.state.status);
         if (r !== 0) return r;
+
         return a.name.localeCompare(b.name);
       });
   }, [allocations, ecoPositionByAllocation, stateBySpid]);
@@ -606,8 +651,9 @@ function PlaylistRow({
           ) : row.state.status === "done" && row.state.completedAt ? (
             <span>· {fmtDateTime(row.state.completedAt)}</span>
           ) : row.plannedFor ? (
-            <span>· prevista para {fmtShortDate(row.plannedFor)}</span>
+            <span>· prevista para {fmtShortDate(row.plannedFor)} · janela 08h–22h</span>
           ) : null}
+
           {row.state.status === "failed" && row.state.lastError && (
             <span className="text-rose-400 truncate" title={row.state.lastError}>· {row.state.lastError}</span>
           )}
