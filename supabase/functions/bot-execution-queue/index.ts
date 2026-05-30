@@ -6,7 +6,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 import { reorderPlaylistTracks, listPlaylistTrackUris, addPlaylistTracks, removePlaylistTracks } from "../_shared/spotify-playlist.ts";
-import { getSpotifyToken, getUserAccessToken, installSpotifyCircuitFetchGuard } from "../_shared/spotify.ts";
+import { getUserAccessToken, installSpotifyCircuitFetchGuard } from "../_shared/spotify.ts";
 
 // Defesa em profundidade: garante que o guard global de fetch p/ Spotify
 // esteja instalado antes de qualquer chamada (add/remove/reorder no Spotify).
@@ -94,9 +94,8 @@ Deno.serve(async (req) => {
 
       const { token } = await getUserAccessToken(ownerId);
 
-      // listing usa app token (read-only, sem filtro de mercado por usuário)
-      const appToken = await getSpotifyToken();
-      const uris = await listPlaylistTrackUris(j.spotify_playlist_id, appToken);
+      // Em playlists privadas/colaborativas, leitura também precisa do token do dono.
+      const uris = await listPlaylistTrackUris(j.spotify_playlist_id, token);
       const total = uris.length;
       console.log(JSON.stringify({
         evt: "reorder.attempt",
@@ -205,8 +204,7 @@ Deno.serve(async (req) => {
           }
 
           if (plannedPos && plannedPos > 0) {
-            const appToken2 = await getSpotifyToken();
-            const uris = await listPlaylistTrackUris(j.spotify_playlist_id, appToken2);
+            const uris = await listPlaylistTrackUris(j.spotify_playlist_id, token);
             const total = uris.length;
             // localiza a faixa recém-adicionada (procura do fim pro começo)
             let from0 = -1;
