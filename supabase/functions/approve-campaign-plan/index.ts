@@ -349,6 +349,98 @@ Deno.serve(async (req) => {
     !!campaign.spotify_track_id;
 
   if (!canAutoCreate) {
+    // Se o deal JÁ existe (criado em outro fluxo, ex.: criação da campanha),
+    // ainda assim precisamos garantir o shadow-prep pra baseline rodar:
+    // state=collecting, source=campaign_internal, auto_collect=true e seed das
+    // managed playlists em curator_playlists. Sem isso, bot-collect-queue não
+    // dispatcha e a baseline fica eternamente "Aguardando coleta".
+    if (campaign.deal_id) {
+      const existingDealId = campaign.deal_id as string;
+      try {
+        await admin
+          .from("curator_deals")
+          .update({
+            campaign_id: campaignId,
+            source: "campaign_internal",
+            collection_mode: "bot",
+            state: "collecting",
+          })
+          .eq("id", existingDealId);
+
+        await admin
+          .from("curator_deal_songs")
+          .update({ auto_collect: true, next_auto_collect_at: new Date().toISOString() })
+          .eq("deal_id", existingDealId);
+
+        // Seed managed playlists só se ainda não existir nenhuma baseline.
+        const { count: existingBaselines } = await admin
+          .from("curator_playlists")
+          .select("id", { count: "exact", head: true })
+          .eq("deal_id", existingDealId)
+          .eq("is_baseline", true);
+
+        let seededExisting = 0;
+        if (!existingBaselines || existingBaselines === 0) {
+          const { data: ecoAllocs } = await admin
+            .from("campaign_eco_allocations")
+            .select("managed_playlist_id, managed_playlists!inner(spotify_playlist_id,name)")
+            .eq("campaign_id", campaignId);
+
+          const { data: dealSongs } = await admin
+            .from("curator_deal_songs")
+            .select("id")
+            .eq("deal_id", existingDealId)
+            .limit(1);
+          const songId = (dealSongs?.[0] as any)?.id ?? null;
+
+          const rows = (ecoAllocs ?? [])
+            // deno-lint-ignore no-explicit-any
+            .map((a: any) => {
+              const spId = a.managed_playlists?.spotify_playlist_id;
+              if (!spId) return null;
+              return {
+                deal_id: existingDealId,
+                song_id: songId,
+                spotify_url: `https://open.spotify.com/playlist/${spId}`,
+                spotify_playlist_id: spId,
+                playlist_name: a.managed_playlists?.name ?? "Managed Playlist",
+                is_baseline: true,
+                match_status: "baseline",
+                attribution_method: "campaign_seed",
+                attribution_reason: "Seed from campaign_eco_allocations (auto, existing deal)",
+              };
+            })
+            .filter(Boolean);
+
+          if (rows.length > 0) {
+            // deno-lint-ignore no-explicit-any
+            await admin.from("curator_playlists").insert(rows as any[]);
+            seededExisting = rows.length;
+          }
+        }
+
+        return json({
+          ok: true,
+          already_approved: false,
+          deal_created: false,
+          deal_id: existingDealId,
+          shadow_prepared: true,
+          seeded_playlists: seededExisting,
+          flag_on: flagOn,
+        });
+      } catch (e) {
+        return json({
+          ok: true,
+          already_approved: false,
+          deal_created: false,
+          deal_id: existingDealId,
+          shadow_prepared: false,
+          error: (e as Error).message,
+          flag_on: flagOn,
+        });
+      }
+    }
+
     return json({
       ok: true,
       already_approved: false,
