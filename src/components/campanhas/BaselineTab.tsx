@@ -5,9 +5,10 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Flag, ExternalLink, Music2, Users, FileSpreadsheet, Download } from "lucide-react";
+import { Flag, ExternalLink, Music2, Users, FileSpreadsheet, Download, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
+import { PrintThumbs } from "@/components/playlist-deals/PrintThumbs";
 
 type Row = {
   playlist_id: string;
@@ -50,6 +51,8 @@ export function BaselineTab({ dealId }: Props) {
   const [capturedAt, setCapturedAt] = useState<string | null>(null);
   const [upload, setUpload] = useState<BaselineUpload | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [printUrls, setPrintUrls] = useState<string[]>([]);
+  const [source, setSource] = useState<"spreadsheet" | "bot" | null>(null);
 
   useEffect(() => {
     if (!dealId) {
@@ -57,10 +60,101 @@ export function BaselineTab({ dealId }: Props) {
       return;
     }
     let cancelled = false;
+
+    async function loadBotBaseline() {
+      // Snapshots baseline coletados pelo robô (Spotify for Artists)
+      const { data: snaps } = await supabase
+        .from("curator_deal_snapshots")
+        .select("id, playlist_id, plays, plays_7d, captured_at, print_url")
+        .eq("deal_id", dealId!)
+        .eq("is_baseline", true)
+        .order("plays", { ascending: false });
+
+      const snapList = (snaps ?? []) as Array<{
+        id: string;
+        playlist_id: string;
+        plays: number | null;
+        plays_7d: number | null;
+        captured_at: string;
+        print_url: string | null;
+      }>;
+
+      if (snapList.length === 0) {
+        if (cancelled) return;
+        setRows([]);
+        setUpload(null);
+        setCapturedAt(null);
+        setPrintUrls([]);
+        setSource(null);
+        setLoading(false);
+        return;
+      }
+
+      const playlistIds = Array.from(new Set(snapList.map((s) => s.playlist_id)));
+      const { data: cps } = await supabase
+        .from("curator_playlists")
+        .select("id, playlist_name, spotify_url, spotify_playlist_id, spotify_owner_id, spotify_owner_name, image_url, followers")
+        .in("id", playlistIds);
+
+      const cpById = new Map((cps ?? []).map((p: any) => [p.id, p]));
+
+      const ownerIds = Array.from(
+        new Set((cps ?? []).map((p: any) => p.spotify_owner_id).filter(Boolean) as string[]),
+      );
+      const spIdsAll = Array.from(
+        new Set((cps ?? []).map((p: any) => p.spotify_playlist_id).filter(Boolean) as string[]),
+      );
+      const [internalRes, curatorsRes] = await Promise.all([
+        spIdsAll.length
+          ? supabase.from("playlists").select("spotify_playlist_id").eq("ownership", "own").in("spotify_playlist_id", spIdsAll)
+          : Promise.resolve({ data: [] as Array<{ spotify_playlist_id: string }> }),
+        ownerIds.length
+          ? supabase.from("curators").select("spotify_owner_id, name").in("spotify_owner_id", ownerIds)
+          : Promise.resolve({ data: [] as Array<{ spotify_owner_id: string; name: string }> }),
+      ]);
+      const internalSet = new Set((internalRes.data ?? []).map((p) => p.spotify_playlist_id));
+      const curatorMap = new Map((curatorsRes.data ?? []).map((c) => [c.spotify_owner_id, c.name]));
+
+      const built: Row[] = snapList.map((s) => {
+        const cp: any = cpById.get(s.playlist_id) ?? null;
+        const ownerId = cp?.spotify_owner_id ?? null;
+        return {
+          playlist_id: s.id,
+          plays: Number(s.plays ?? s.plays_7d ?? 0),
+          captured_at: s.captured_at,
+          playlist_name: cp?.playlist_name ?? "Playlist",
+          spotify_url: cp?.spotify_url ?? null,
+          image_url: cp?.image_url ?? null,
+          followers: cp?.followers ?? null,
+          spotify_owner_name: cp?.spotify_owner_name ?? null,
+          spotify_playlist_id: cp?.spotify_playlist_id ?? null,
+          spotify_owner_id: ownerId,
+          isInternal: cp?.spotify_playlist_id ? internalSet.has(cp.spotify_playlist_id) : false,
+          curatorName: ownerId ? curatorMap.get(ownerId) ?? null : null,
+        };
+      });
+
+      const prints = Array.from(
+        new Set(snapList.map((s) => s.print_url).filter((u): u is string => !!u)),
+      );
+      const earliestCapturedAt = snapList.reduce<string | null>((acc, s) => {
+        if (!acc) return s.captured_at;
+        return new Date(s.captured_at) < new Date(acc) ? s.captured_at : acc;
+      }, null);
+
+      if (cancelled) return;
+      setRows(built);
+      setUpload(null);
+      setCapturedAt(earliestCapturedAt);
+      setPrintUrls(prints);
+      setSource("bot");
+      setLoading(false);
+    }
+
     (async () => {
       setLoading(true);
 
-      // 1) Pega o upload baseline mais antigo
+      // 1) Pega o upload baseline mais antigo (planilha do cliente)
       const { data: uploadRow } = await supabase
         .from("label_spreadsheet_uploads")
         .select("id, file_name, file_path, created_at, rows_imported")
@@ -70,11 +164,10 @@ export function BaselineTab({ dealId }: Props) {
         .limit(1)
         .maybeSingle();
 
-      if (!uploadRow || cancelled) {
-        setRows([]);
-        setUpload(null);
-        setCapturedAt(null);
-        setLoading(false);
+      if (!uploadRow) {
+        // FALLBACK: baseline coletada pelo robô (S4A)
+        if (cancelled) return;
+        await loadBotBaseline();
         return;
       }
 
@@ -98,7 +191,6 @@ export function BaselineTab({ dealId }: Props) {
         position: number | null;
       }>;
 
-      // 3) Enriquece via curator_playlists + cache spotify
       const spIds = Array.from(new Set(raw.map((r) => r.playlist_spotify_id).filter(Boolean) as string[]));
       const [cpRes, cacheRes] = await Promise.all([
         spIds.length
@@ -117,7 +209,6 @@ export function BaselineTab({ dealId }: Props) {
       const cpMap = new Map((cpRes.data ?? []).map((p: any) => [p.spotify_playlist_id, p]));
       const cacheMap = new Map((cacheRes.data ?? []).map((p: any) => [p.spotify_playlist_id, p]));
 
-      // 4) Engine + Curador
       const ownerIds = Array.from(
         new Set(
           raw
@@ -161,9 +252,10 @@ export function BaselineTab({ dealId }: Props) {
       setRows(buildRows(cacheMap));
       setCapturedAt(uploadRow.created_at);
       setUpload(uploadRow as BaselineUpload);
+      setPrintUrls([]);
+      setSource("spreadsheet");
       setLoading(false);
 
-      // 5) Hidratação on-demand: IDs sem capa em nenhuma fonte
       const missing = spIds.filter((id) => {
         const cp = cpMap.get(id);
         const cache = cacheMap.get(id);
@@ -174,7 +266,6 @@ export function BaselineTab({ dealId }: Props) {
 
       setHydrating(true);
       try {
-        // Chunks de 50 por chamada
         const merged = new Map(cacheMap);
         for (let i = 0; i < missing.length; i += 50) {
           if (cancelled) return;
@@ -195,6 +286,7 @@ export function BaselineTab({ dealId }: Props) {
         if (!cancelled) setHydrating(false);
       }
     })();
+
     return () => {
       cancelled = true;
     };
@@ -241,7 +333,7 @@ export function BaselineTab({ dealId }: Props) {
             <Flag className="h-4 w-4 text-primary shrink-0" />
             <h2 className="text-base font-semibold text-foreground">Baseline</h2>
             <span className="text-[10px] uppercase tracking-wide border border-primary/40 text-primary rounded px-1.5 py-0.5 font-medium">
-              Referência
+              {source === "bot" ? "Robô · S4A" : "Referência"}
             </span>
           </div>
           <p className="text-xs text-muted-foreground mt-1.5">
@@ -268,6 +360,19 @@ export function BaselineTab({ dealId }: Props) {
             </div>
           </div>
         </div>
+
+        {/* Prints (quando baseline veio do robô) */}
+        {printUrls.length > 0 && (
+          <div className="px-5 py-3 border-b border-border/60">
+            <div className="flex items-center gap-2 mb-2">
+              <Camera className="h-3.5 w-3.5 text-primary" />
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                Prints ({printUrls.length})
+              </span>
+            </div>
+            <PrintThumbs urls={printUrls} size="md" />
+          </div>
+        )}
 
         {/* Planilha original */}
         {upload && (
@@ -299,7 +404,7 @@ export function BaselineTab({ dealId }: Props) {
             ))}
           </div>
         ) : rows.length === 0 ? null : (
-          <details className="group">
+          <details className="group" open={source === "bot"}>
             <summary className="cursor-pointer list-none flex items-center justify-between px-5 py-3 text-[11px] uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors select-none">
               <span>{rows.length} playlists capturadas</span>
               <span className="text-sm group-open:hidden">▾</span>
