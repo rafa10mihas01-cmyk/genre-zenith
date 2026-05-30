@@ -63,27 +63,27 @@ export async function auditCampaignFlow(
   const isLive = campaign.status === "active" || campaign.status === "paused";
   const isClosed = campaign.status === "completed" || campaign.status === "cancelled";
 
-  // ── 1) Estado da campanha
-  if (isClosed) {
-    push("1_state", "Estado da campanha", "ok",
-      campaign.status === "completed"
-        ? `Concluída — meta atingida (${campaign.total_delivered ?? 0}/${campaign.goal_plays ?? 0})`
-        : "Cancelada");
-  } else if (isLive) {
-    push("1_state", "Estado da campanha", "ok", `Campanha ${campaign.status} — "${campaign.track_name}" / ${campaign.artist ?? "—"}`);
-  } else {
-    // draft
-    if (!clientOk) {
-      push("1_state", "Estado da campanha", "pending",
+  // Estado da campanha é empurrado por último (resultado final do pipeline).
+  const pushFinalState = () => {
+    if (isClosed) {
+      push("9_state", "Estado final da campanha", "ok",
+        campaign.status === "completed"
+          ? `Concluída — meta atingida (${campaign.total_delivered ?? 0}/${campaign.goal_plays ?? 0})`
+          : "Cancelada");
+    } else if (isLive) {
+      push("9_state", "Estado final da campanha", "ok",
+        `Campanha ${campaign.status} — "${campaign.track_name}" / ${campaign.artist ?? "—"}`);
+    } else if (!clientOk) {
+      push("9_state", "Estado final da campanha", "pending",
         "Rascunho — aguardando cliente aprovar o plano público.");
     } else if (!planOk) {
-      push("1_state", "Estado da campanha", "pending",
+      push("9_state", "Estado final da campanha", "pending",
         "Rascunho — cliente aprovou, falta você aprovar o plano interno.");
     } else {
-      push("1_state", "Estado da campanha", "pending",
+      push("9_state", "Estado final da campanha", "pending",
         "Rascunho — pronta pra iniciar distribuição.");
     }
-  }
+  };
 
   // ── 2) Cliente aprovou via portal
   if (clientOk) {
@@ -269,6 +269,9 @@ export async function auditCampaignFlow(
       }
     }
   }
+
+  // Estado final por último — é o resultado do pipeline acima.
+  pushFinalState();
 
   // OK geral só se não houver falha real (pending/skipped não derrubam)
   const hasFailure = steps.some((s) => s.status === "failed");
