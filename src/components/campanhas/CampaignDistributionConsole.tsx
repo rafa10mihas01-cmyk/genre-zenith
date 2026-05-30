@@ -498,33 +498,48 @@ export function CampaignDistributionConsole({
                 <AlertDialogHeader>
                   <AlertDialogTitle>Distribuir campanha?</AlertDialogTitle>
                   <AlertDialogDescription asChild>
-                    <div className="space-y-3 text-sm">
-                      <div className="text-muted-foreground">
-                        Revise abaixo o que o bot vai fazer. <span className="text-foreground font-medium">As inserções NÃO acontecem todas de uma vez</span> — cada playlist entra no dia previsto, dentro da janela 08h–22h BR, respeitando o pacing anti-spam.
+                    <div className="space-y-4 text-sm">
+                      <p className="text-muted-foreground leading-relaxed">
+                        Cada playlist entra no dia previsto, dentro da janela <span className="text-foreground font-medium">08h–22h</span>. Os rebaixamentos rodam automaticamente.
+                      </p>
+
+                      <div className="rounded-lg border border-border bg-background/40 divide-y divide-border">
+                        <div className="px-3 py-2 text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Resumo</div>
+                        <div className="px-3 py-2 flex items-center justify-between"><span className="text-muted-foreground">Playlists</span><span className="font-semibold text-foreground">{playlistsCount}</span></div>
+                        <div className="px-3 py-2 flex items-center justify-between"><span className="text-muted-foreground">Adições agora</span><span className="font-semibold text-foreground">{playlistsCount}</span></div>
+                        <div className="px-3 py-2 flex items-center justify-between"><span className="text-muted-foreground">Rebaixamentos programados</span><span className="font-semibold text-foreground">{totalDemotions}</span></div>
+                        <div className="px-3 py-2 flex items-center justify-between"><span className="text-muted-foreground">Custo interno</span><span className="font-semibold text-foreground">{formatBRL(custoTotal)}</span></div>
                       </div>
-                      <div className="rounded-lg border border-border bg-background/40 p-3 space-y-1.5">
-                        <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold">Resumo</div>
-                        <div className="flex items-center justify-between"><span>Playlists do ecossistema</span><span className="font-semibold text-foreground">{playlistsCount}</span></div>
-                        <div className="flex items-center justify-between"><span>ADD(s) a enfileirar agora</span><span className="font-semibold text-foreground">{playlistsCount}</span></div>
-                        <div className="flex items-center justify-between"><span>Custo interno</span><span className="font-semibold text-foreground">{formatBRL(custoTotal)}</span></div>
-                        <div className="flex items-center justify-between"><span>Reorder pra posição planejada</span><span className="font-semibold text-foreground">automático após ADD</span></div>
-                      </div>
-                      <div className="rounded-lg border border-border bg-background/40 max-h-64 overflow-auto">
-                        <div className="px-3 py-2 text-[11px] uppercase tracking-wider text-muted-foreground font-bold border-b border-border sticky top-0 bg-card">
+
+                      <div className="rounded-lg border border-border bg-background/40 max-h-72 overflow-auto scrollbar-none">
+                        <div className="px-3 py-2 text-[10px] uppercase tracking-wider text-muted-foreground font-bold border-b border-border sticky top-0 bg-card">
                           Cronograma por playlist
                         </div>
                         <div className="divide-y divide-border">
-                          {rows.map((r) => (
-                            <div key={r.allocId} className="px-3 py-2 flex items-center justify-between gap-3">
-                              <div className="min-w-0">
+                          {rows.map((r) => {
+                            const dem = demotionPlan.find((d) => d.allocId === r.allocId);
+                            return (
+                              <div key={r.allocId} className="px-3 py-2.5 space-y-1.5">
                                 <div className="text-foreground text-[13px] font-medium truncate">{r.name}</div>
-                                <div className="text-[11px] text-muted-foreground">
-                                  Pos. {r.plannedPosition ?? "—"}
-                                  {r.plannedFor ? <> · entra em <span className="text-foreground">{fmtShortDate(r.plannedFor)}</span> · janela 08h–22h</> : null}
+                                <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                                  <span className="inline-flex items-center justify-center h-4 px-1.5 rounded bg-primary/15 text-primary text-[9px] font-bold uppercase tracking-wider shrink-0">ADD</span>
+                                  <span>
+                                    pos. <span className="text-foreground font-medium">{r.plannedPosition ?? "—"}</span>
+                                    {r.plannedFor && <> · entra em <span className="text-foreground font-medium">{fmtShortDate(r.plannedFor)}</span></>}
+                                  </span>
                                 </div>
+                                {dem?.transitions.map((t, i) => (
+                                  <div key={i} className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                                    <span className="inline-flex items-center justify-center h-4 px-1.5 rounded bg-amber-500/15 text-amber-400 text-[9px] font-bold uppercase tracking-wider shrink-0">↓</span>
+                                    <span>
+                                      {t.dateIso && <><span className="text-foreground font-medium">{fmtShortDate(t.dateIso)}</span> · </>}
+                                      pos. <span className="text-foreground font-medium">{t.from}</span> → <span className="text-foreground font-medium">{t.to}</span>
+                                    </span>
+                                  </div>
+                                ))}
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     </div>
@@ -535,6 +550,7 @@ export function CampaignDistributionConsole({
                   <AlertDialogAction onClick={() => onDispatch()}>Confirmar e distribuir</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
+
 
             </AlertDialog>
           </CardContent>
