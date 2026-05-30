@@ -185,24 +185,29 @@ Deno.serve(async (req) => {
       }));
 
       if (j.job_type === "playlist.track.add") {
-        await addPlaylistTracks(j.spotify_playlist_id, [trackUri], token);
+        // ============= Modo A: ADD já na posição planejada =============
+        let plannedPos: number | null = null;
+        if (Number.isInteger(j.to_position) && j.to_position >= 1) {
+          plannedPos = Number(j.to_position);
+        } else if (j.campaign_id) {
+          const { data: eco } = await supabase
+            .from("campaign_eco_allocations")
+            .select("position")
+            .eq("campaign_id", j.campaign_id)
+            .eq("managed_playlist_id", managedId)
+            .maybeSingle();
+          plannedPos = eco?.position ? Number(eco.position) : null;
+        }
 
-        // ============= Modo A: reorder pra posição planejada =============
+        await addPlaylistTracks(
+          j.spotify_playlist_id,
+          [trackUri],
+          token,
+          plannedPos && plannedPos > 0 ? { position: Math.max(0, plannedPos - 1) } : {},
+        );
+
+        // ============= Conferência pós-ADD: só corrige se o Spotify não respeitar position =============
         try {
-          let plannedPos: number | null = null;
-          // Prioridade: j.to_position (manual UI) > campaign_eco_allocations.position (campanha)
-          if (Number.isInteger(j.to_position) && j.to_position >= 1) {
-            plannedPos = Number(j.to_position);
-          } else if (j.campaign_id) {
-            const { data: eco } = await supabase
-              .from("campaign_eco_allocations")
-              .select("position")
-              .eq("campaign_id", j.campaign_id)
-              .eq("managed_playlist_id", managedId)
-              .maybeSingle();
-            plannedPos = eco?.position ? Number(eco.position) : null;
-          }
-
           if (plannedPos && plannedPos > 0) {
             const uris = await listPlaylistTrackUris(j.spotify_playlist_id, token);
             const total = uris.length;
