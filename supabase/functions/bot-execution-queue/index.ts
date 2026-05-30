@@ -210,7 +210,22 @@ Deno.serve(async (req) => {
         // ============= Conferência pós-ADD: só corrige se o Spotify não respeitar position =============
         try {
           if (plannedPos && plannedPos > 0) {
-            const uris = await listPlaylistTrackUris(j.spotify_playlist_id, token);
+            let activeToken = token;
+            let uris: string[];
+            try {
+              uris = await listPlaylistTrackUris(j.spotify_playlist_id, activeToken);
+            } catch (ge) {
+              // Token às vezes vira inválido entre POST e GET (cache stale, refresh race).
+              // Faz refresh forçado e tenta UMA vez. Se ainda falhar, propaga.
+              if (ge instanceof SpotifyApiError && ge.status === 401) {
+                console.log(JSON.stringify({ evt: "post_add_reorder.token_refresh", job_id: j.id }));
+                const refreshed = await forceRefreshUserAccessToken(ownerId);
+                activeToken = refreshed.token;
+                uris = await listPlaylistTrackUris(j.spotify_playlist_id, activeToken);
+              } else {
+                throw ge;
+              }
+            }
             const total = uris.length;
             // localiza a faixa recém-adicionada (procura do fim pro começo)
             let from0 = -1;
