@@ -4,7 +4,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { recordMetric } from "../_shared/ops-metrics.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
-import { assertSpotifyCircuitClosed, SpotifyCircuitOpenError, getUserAccessToken, guardedSpotifyFetch } from "../_shared/spotify.ts";
+import { assertSpotifyCircuitClosed, SpotifyCircuitOpenError } from "../_shared/spotify.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -206,52 +206,6 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Resolve spotify_artist_id (artista primário do track) via Spotify API.
-  // O bot precisa desse ID para montar a URL S4A:
-  // artists.spotify.com/c/pt/artist/<ARTIST_ID>/song/<TRACK_ID>/stats
-  if (eligible.length) {
-    const trackIds = Array.from(new Set(
-      (eligible as any[]).map((s) => s.spotify_track_id).filter(Boolean),
-    ));
-    console.log(`[resolve-artist] eligible=${eligible.length} trackIds=${trackIds.length}`);
-    // Map<track_id, Array<{id, name}>> — TODOS os artistas da faixa, em ordem.
-    // O bot vai iterar tentando cada um até achar o que está no S4A logado.
-    const artistsByTrack = new Map<string, Array<{ id: string; name: string }>>();
-    try {
-      const { token, row } = await getUserAccessToken();
-      console.log(`[resolve-artist] user token ok (user=${row.spotify_user_id} app=${row.app_id ?? "env"})`);
-      for (let i = 0; i < trackIds.length; i += 50) {
-        const chunk = trackIds.slice(i, i + 50);
-        const r = await guardedSpotifyFetch(
-          `https://api.spotify.com/v1/tracks?market=BR&ids=${chunk.join(",")}`,
-          { headers: { Authorization: `Bearer ${token}` } },
-        );
-        console.log(`[resolve-artist] chunk=${chunk.length} status=${r.status}`);
-        if (!r.ok) {
-          const errTxt = await r.text();
-          console.log(`[resolve-artist] err body=${errTxt.slice(0, 300)}`);
-          continue;
-        }
-        const j = await r.json();
-        for (const t of j.tracks ?? []) {
-          if (!t?.id) continue;
-          const list = (t.artists ?? [])
-            .filter((a: any) => a?.id)
-            .map((a: any) => ({ id: a.id, name: a.name ?? "" }));
-          if (list.length) artistsByTrack.set(t.id, list);
-        }
-      }
-      console.log(`[resolve-artist] resolved=${artistsByTrack.size}/${trackIds.length}`);
-    } catch (e) {
-      console.log("[resolve-artist] EXCEPTION:", (e as Error).message, (e as Error).stack?.slice(0, 300));
-    }
-    for (const s of eligible as any[]) {
-      const list = artistsByTrack.get(s.spotify_track_id) ?? [];
-      s.spotify_artist_id = list[0]?.id ?? null; // backward compat
-      s.spotify_artist_ids = list.map((a) => a.id); // NOVO: lista pro bot iterar
-      s.spotify_artist_names = list.map((a) => a.name);
-    }
-  }
 
   // Marca elegíveis como queued para evitar dupla execução
   const ids = eligible.map((s: any) => s.id);
@@ -292,9 +246,6 @@ Deno.serve(async (req) => {
       metadata: {
         song_name: s.song_name,
         spotify_track_id: s.spotify_track_id,
-        spotify_artist_id: s.spotify_artist_id ?? null,
-        spotify_artist_ids: s.spotify_artist_ids ?? [],
-        spotify_artist_names: s.spotify_artist_names ?? [],
         interval_minutes: s.auto_collect_interval_minutes,
         user_agent: callerUserAgent,
       },
