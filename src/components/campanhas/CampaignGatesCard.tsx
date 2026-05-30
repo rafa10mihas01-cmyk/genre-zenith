@@ -48,6 +48,9 @@ export type CampaignGatesCardProps = {
   ecoDispatchedAt: string | null;
   collectionMode?: string | null;
   status?: string | null;
+  baselineReady?: boolean;
+  baselineCollected?: number;
+  baselineRequired?: number;
   onApprovePlan: () => void;
   onDispatch: () => void;
   approvingPlan: boolean;
@@ -63,6 +66,9 @@ export function CampaignGatesCard({
   ecoDispatchedAt,
   collectionMode,
   status,
+  baselineReady = true,
+  baselineCollected = 0,
+  baselineRequired = 0,
   onApprovePlan,
   onDispatch,
   approvingPlan,
@@ -79,7 +85,7 @@ export function CampaignGatesCard({
 
   const state1: GateState = clientDone ? "done" : "current";
   const state2: GateState = planDone ? "done" : clientDone ? "current" : "locked";
-  const state3: GateState = dispatchDone ? "done" : planDone ? "current" : "locked";
+  const state3: GateState = dispatchDone ? "done" : planDone && (isSpreadsheet || baselineReady) ? "current" : "locked";
 
   // Once the campaign is live or closed, hide CTAs — gates become a read-only timeline.
   const nextAction: "plan" | "dispatch" | null = isLive || isClosed
@@ -87,7 +93,7 @@ export function CampaignGatesCard({
     : dispatchDone
       ? null
       : planDone
-        ? "dispatch"
+        ? (isSpreadsheet || baselineReady ? "dispatch" : null)
         : clientDone
           ? "plan"
           : null;
