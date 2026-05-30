@@ -33,6 +33,7 @@ type Props = {
   hideCurveShortcut?: boolean;
   hideCurveCard?: boolean;
   hideKpis?: boolean;
+  hideSplitRows?: boolean;
   allocations?: EcoAllocation[];
   snapshots?: EcoSnap[];
   proofs?: ProofPreview[];
@@ -50,7 +51,7 @@ type Props = {
 };
 
 export function OverviewTab({
-  snapshot, delivered, daysElapsed, showFinance, hideDeliveryPlan = false, hideCurveShortcut = false, hideCurveCard = false, hideKpis = false,
+  snapshot, delivered, daysElapsed, showFinance, hideDeliveryPlan = false, hideCurveShortcut = false, hideCurveCard = false, hideKpis = false, hideSplitRows = false,
   allocations = [], snapshots = [], proofs = [], onJumpTab,
   curveSlot,
   splitLockedAt = null, lockedEcoStreams = null, ecoMaxPct = 70,
@@ -173,6 +174,7 @@ export function OverviewTab({
 
 
       {/* Split eco/ext/org — extraído do Plano de entrega pra leitura imediata */}
+      {!hideSplitRows && (
       <section className={cn("grid grid-cols-1 gap-3", orgTarget > 0 ? "md:grid-cols-3" : "md:grid-cols-2")}>
         <SplitRow
           tone="eco"
@@ -204,6 +206,7 @@ export function OverviewTab({
           />
         )}
       </section>
+      )}
 
       {/* Plano de entrega — 2 cards: contratado vs real (diluído no effectiveDays) */}
       {!hideDeliveryPlan && (() => {
