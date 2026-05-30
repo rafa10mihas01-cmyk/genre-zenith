@@ -198,35 +198,65 @@ Deno.serve(async (req) => {
     });
   }
 
-  // 4) Posições — NOVO: capacidade real vs. necessidade diária da campanha.
-  //    Se temos metaEco+days, usa distributeByDailyNeed (respeita projeção,
-  //    tolerância ECO_DAILY_TOLERANCE acima do dailyNeed). Caso contrário,
-  //    fallback para chart-tier (snapshots antigos sem meta/splitEcoPct).
+  // 4) Posições — CASCATA: primário primeiro, vizinho só pra fechar o gap.
+  //    Regra: vizinhos (gêneros afins, ex: trap em campanha de funk) NÃO são
+  //    misturados com primárias quando o primário ainda cobre a meta diária.
+  //    Só entram se sobrar gap acima de NEIGHBOR_GAP_THRESHOLD após primário.
+  const NEIGHBOR_GAP_THRESHOLD = 0.05; // 5% da meta diária
   const topPosition = Number(snap?.music?.top200Position ?? snap?.music?.top200Pos ?? 0) || null;
   const chartTier = chartTierFromTopPosition(topPosition);
 
-  const allFresh = [
-    ...freshPrimary.map((p: any) => ({ id: p.id, planned_streams: 0, followers: Number(p.followers ?? 0), genreSource: "primary" as const })),
-    ...freshNeighbor.map((p: any) => ({ id: p.id, planned_streams: 0, followers: Number(p.followers ?? 0), genreSource: "affinity" as const })),
-  ];
+  const primaryFresh = freshPrimary.map((p: any) => ({ id: p.id, planned_streams: 0, followers: Number(p.followers ?? 0), genreSource: "primary" as const }));
+  const neighborFresh = freshNeighbor.map((p: any) => ({ id: p.id, planned_streams: 0, followers: Number(p.followers ?? 0), genreSource: "affinity" as const }));
 
   // Necessidade diária restante = (metaEco - já planejado) / dias.
   const dailyNeedRemaining = metaEco > 0
     ? Math.max(0, (metaEco - existingTotalPlanned)) / days
     : 0;
 
-  let allPositions: Map<string, number>;
-  let positionStrategy: "daily_need" | "chart_tier";
+  let allPositions: Map<string, number> = new Map();
+  let positionStrategy: "daily_need_primary_only" | "daily_need_with_neighbors" | "chart_tier_primary_only" | "chart_tier_with_neighbors";
   let coveredDailyByNew = 0;
+  let coveredDailyByPrimary = 0;
+  let gapAfterPrimary = 0;
+  let usedNeighbors = false;
+
   if (dailyNeedRemaining > 0) {
-    const dist = distributeByDailyNeed(allFresh, dailyNeedRemaining, mult, ECO_DAILY_TOLERANCE);
-    allPositions = dist.positions;
-    coveredDailyByNew = dist.coveredDaily;
-    positionStrategy = "daily_need";
+    // 1ª fase: distribui SÓ primárias contra a necessidade diária.
+    const primDist = primaryFresh.length > 0
+      ? distributeByDailyNeed(primaryFresh, dailyNeedRemaining, mult, ECO_DAILY_TOLERANCE)
+      : { positions: new Map<string, number>(), coveredDaily: 0, details: [] };
+    coveredDailyByPrimary = primDist.coveredDaily;
+    gapAfterPrimary = Math.max(0, dailyNeedRemaining - coveredDailyByPrimary);
+    const gapPct = dailyNeedRemaining > 0 ? gapAfterPrimary / dailyNeedRemaining : 0;
+
+    for (const [k, v] of primDist.positions) allPositions.set(k, v);
+    coveredDailyByNew = coveredDailyByPrimary;
+
+    // 2ª fase: vizinhos SÓ se sobrou gap relevante.
+    if (gapPct > NEIGHBOR_GAP_THRESHOLD && neighborFresh.length > 0) {
+      const neighDist = distributeByDailyNeed(neighborFresh, gapAfterPrimary, mult, ECO_DAILY_TOLERANCE);
+      for (const [k, v] of neighDist.positions) allPositions.set(k, v);
+      coveredDailyByNew += neighDist.coveredDaily;
+      usedNeighbors = true;
+      positionStrategy = "daily_need_with_neighbors";
+    } else {
+      positionStrategy = "daily_need_primary_only";
+    }
   } else {
-    allPositions = distributeEcoPositions(allFresh, days, mult, { chartTier });
-    positionStrategy = "chart_tier";
+    // Fallback chart-tier (snapshots antigos sem metaEco). Preferir primárias.
+    if (primaryFresh.length > 0) {
+      allPositions = distributeEcoPositions(primaryFresh, days, mult, { chartTier });
+      positionStrategy = "chart_tier_primary_only";
+    } else if (neighborFresh.length > 0) {
+      allPositions = distributeEcoPositions(neighborFresh, days, mult, { chartTier });
+      positionStrategy = "chart_tier_with_neighbors";
+      usedNeighbors = true;
+    } else {
+      positionStrategy = "chart_tier_primary_only";
+    }
   }
+
 
   const primaryPositions = new Map<string, number>();
   const neighborPositions = new Map<string, number>();
