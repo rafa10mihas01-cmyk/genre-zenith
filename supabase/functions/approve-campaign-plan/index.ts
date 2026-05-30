@@ -349,16 +349,16 @@ Deno.serve(async (req) => {
             .filter((p: any) => !usedIds.has(p.id))
             .reduce((sum: number, p: any) => sum + Number(p.followers ?? 0) * (mult / 30) * 0.12, 0);
           const remainingEcoDailyGap = Math.max(0, (ecoTarget - totalPlanned) / snapDays);
-          if (remainingPrimaryDaily >= remainingEcoDailyGap * 0.95) {
+          const primaryCoversGap = remainingPrimaryDaily >= remainingEcoDailyGap * 0.95;
+          if (primaryCoversGap) {
             console.log("[approve] affinity skipped: primary inventory covers eco gap", {
               ecoTarget,
               totalPlanned,
               remainingEcoDailyGap: Math.round(remainingEcoDailyGap),
               remainingPrimaryDaily: Math.round(remainingPrimaryDaily),
             });
-            throw new Error("skip_affinity_primary_covers_gap");
           }
-          const neighborGenreIds = neighbors.map(n => n.genre_id);
+          const neighborGenreIds = primaryCoversGap ? [] : neighbors.map(n => n.genre_id);
           const { data: candidatePls } = await admin
             .from("managed_playlists")
             .select("id, followers, genre_id")
