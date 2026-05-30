@@ -172,7 +172,7 @@ export default function CampanhaExecucao() {
         .maybeSingle(),
       supabase
         .from("campaign_eco_allocations")
-        .select("id, managed_playlist_id, planned_streams, start_day, status, dispatched_at, position, genre_source, genre_affinity_score, managed_playlists(name, cover_url, followers, spotify_url, genre_id)")
+        .select("id, managed_playlist_id, planned_streams, start_day, status, dispatched_at, position, genre_source, genre_affinity_score, managed_playlists(name, cover_url, followers, spotify_url, spotify_playlist_id, genre_id)")
         .eq("campaign_id", id)
         .order("planned_streams", { ascending: false }),
       supabase
@@ -309,6 +309,30 @@ export default function CampanhaExecucao() {
       setClientToken(null);
       setRecentUploads([]);
       setLastSpreadsheetUploadAt(null);
+    }
+
+    const plannedSpotifyIds = Array.from(new Set(((a ?? []) as any[]).map((alloc) => {
+      const direct = alloc.managed_playlists?.spotify_playlist_id as string | null | undefined;
+      if (direct) return direct;
+      const url = alloc.managed_playlists?.spotify_url as string | null | undefined;
+      return url?.match(/playlist\/([A-Za-z0-9]+)/)?.[1] ?? null;
+    }).filter(Boolean) as string[]));
+    if (dealId && plannedSpotifyIds.length > 0) {
+      const { data: baselineSnaps } = await supabase
+        .from("curator_deal_snapshots")
+        .select("captured_at, curator_playlists!inner(spotify_playlist_id)")
+        .eq("deal_id", dealId)
+        .eq("is_baseline", true);
+      const collected = new Set<string>();
+      let capturedAt: string | null = null;
+      for (const snap of (baselineSnaps ?? []) as any[]) {
+        const spid = snap.curator_playlists?.spotify_playlist_id as string | null | undefined;
+        if (spid && plannedSpotifyIds.includes(spid)) collected.add(spid);
+        if (snap.captured_at && (!capturedAt || snap.captured_at > capturedAt)) capturedAt = snap.captured_at;
+      }
+      setBaselineGate({ required: plannedSpotifyIds.length, collected: collected.size, capturedAt });
+    } else {
+      setBaselineGate({ required: plannedSpotifyIds.length, collected: 0, capturedAt: null });
     }
 
     const dealIds = ((pkg ?? []) as PackageItem[]).map((p) => p.curator_deal_id).filter((dealId): dealId is string => !!dealId);
