@@ -1,4 +1,4 @@
-// execution-planner — Compara campaign_allocations com a fila e enfileira ADDs faltantes.
+// execution-planner — Compara alocações de campanha com a fila e enfileira ADDs faltantes.
 // Idempotente via dedupe_key. Roda via pg_cron (1/min).
 //
 // Pacing anti-spam (3 camadas) aplicado no scheduled_for de cada job:
@@ -127,17 +127,32 @@ Deno.serve(async (req) => {
   }
 
   // 1. Allocations elegíveis
-  const { data: allocs, error: aErr } = await supabase
-    .from("campaign_allocations")
-    .select(`
-      id, campaign_id, playlist_id, status, created_at,
-      campaigns!inner ( id, status, spotify_track_id, started_at ),
-      playlists!inner ( id, spotify_playlist_id, ownership )
-    `)
-    .in("status", ["approved", "active"])
-    .in("campaigns.status", ["active", "running", "live"])
-    .order("created_at", { ascending: true });
+  // Fonte antiga: campaign_allocations. Fonte nova/canônica do plano: campaign_eco_allocations.
+  // A campanha só vira execução depois de plan_approved_at, evitando disparo de rascunho.
+  const [legacyRes, ecoRes] = await Promise.all([
+    supabase
+      .from("campaign_allocations")
+      .select(`
+        id, campaign_id, playlist_id, status, position, created_at,
+        campaigns!inner ( id, status, spotify_track_id, started_at, plan_approved_at ),
+        playlists!inner ( id, spotify_playlist_id, ownership )
+      `)
+      .in("status", ["approved", "active"])
+      .in("campaigns.status", ["active", "running", "live"])
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("campaign_eco_allocations")
+      .select(`
+        id, campaign_id, managed_playlist_id, status, position, created_at,
+        campaigns!inner ( id, status, spotify_track_id, started_at, plan_approved_at ),
+        managed_playlists!inner ( id, spotify_playlist_id )
+      `)
+      .in("status", ["pending", "approved", "active", "dispatched"])
+      .in("campaigns.status", ["active", "running", "live"])
+      .order("created_at", { ascending: true }),
+  ]);
 
+  const aErr = legacyRes.error ?? ecoRes.error;
   if (aErr) {
     await reportCronHealth(supabase, {
       job_name: "execution-planner",
@@ -149,10 +164,38 @@ Deno.serve(async (req) => {
     return jr({ error: aErr.message }, 500);
   }
 
+  const allocs = [
+    ...((legacyRes.data ?? []) as any[]).map((a) => ({
+      source: "legacy",
+      allocation_id: a.id,
+      campaign_id: a.campaign_id,
+      playlist_id: a.playlist_id,
+      spotify_playlist_id: a.playlists?.spotify_playlist_id,
+      spotify_track_id: a.campaigns?.spotify_track_id,
+      started_at: a.campaigns?.started_at,
+      plan_approved_at: a.campaigns?.plan_approved_at,
+      position: a.position,
+      created_at: a.created_at,
+    })),
+    ...((ecoRes.data ?? []) as any[]).map((a) => ({
+      source: "eco",
+      allocation_id: a.id,
+      campaign_id: a.campaign_id,
+      playlist_id: null,
+      managed_playlist_id: a.managed_playlist_id,
+      spotify_playlist_id: a.managed_playlists?.spotify_playlist_id,
+      spotify_track_id: a.campaigns?.spotify_track_id,
+      started_at: a.campaigns?.started_at,
+      plan_approved_at: a.campaigns?.plan_approved_at,
+      position: a.position,
+      created_at: a.created_at,
+    })),
+  ].filter((a) => !!a.plan_approved_at);
+
   // 1b. Ramp-up de aquecimento (motor único, espalha no tempo)
   const now = Date.now();
   const byCampaign = new Map<string, any[]>();
-  for (const a of allocs ?? []) {
+  for (const a of allocs) {
     const arr = byCampaign.get(a.campaign_id) ?? [];
     arr.push(a);
     byCampaign.set(a.campaign_id, arr);
@@ -160,26 +203,31 @@ Deno.serve(async (req) => {
 
   const candidates: any[] = [];
   for (const [, list] of byCampaign) {
-    const startedAt = (list[0] as any).campaigns?.started_at;
+    const startedAt = (list[0] as any).started_at;
     const startMs = startedAt ? new Date(startedAt).getTime() : now;
     const daysSinceStart = Math.max(0, Math.floor((now - startMs) / 86_400_000));
     const releasedFrac = Math.min(1, (daysSinceStart + 1) / RAMP_DAYS);
     const total = list.length;
     const releasedCount = Math.max(1, Math.ceil(total * releasedFrac));
     for (const a of list.slice(0, releasedCount)) {
-      const trackId = (a as any).campaigns?.spotify_track_id;
-      const plId = (a as any).playlists?.spotify_playlist_id;
+      const trackId = (a as any).spotify_track_id;
+      const plId = (a as any).spotify_playlist_id;
       if (!trackId || !plId) continue;
       candidates.push({
-        allocation_id: a.id,
+        allocation_source: a.source,
+        allocation_id: a.allocation_id,
         campaign_id: a.campaign_id,
         playlist_id: a.playlist_id,
         spotify_playlist_id: plId,
         spotify_track_id: trackId,
+        to_position: a.position ? Number(a.position) : null,
         dedupe_key: `add:${plId}:${trackId}`,
       });
     }
   }
+
+  const uniqueCandidates = Array.from(new Map(candidates.map((c) => [c.dedupe_key, c])).values());
+  candidates.splice(0, candidates.length, ...uniqueCandidates);
 
   // Helper local: avança o streak quando a execução não enfileirou ADDs.
   const nextEmpty = () => {
