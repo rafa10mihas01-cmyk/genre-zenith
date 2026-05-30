@@ -650,11 +650,8 @@ function CampaignRow({ c }: { c: Campaign }) {
                 <DropdownMenuSeparator />
               </>
             )}
-            <DropdownMenuItem onSelect={(e) => downloadPlaylistsCsv(e)}>
-              <Download className="h-4 w-4 mr-2" /> Baixar playlists (CSV)
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={(e) => copyPlaylistsUrls(e)}>
-              <Copy className="h-4 w-4 mr-2" /> Copiar URLs das playlists
+            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setBaselineOpen(true); }}>
+              <Upload className="h-4 w-4 mr-2" /> Enviar prints da baseline
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             {isDraftReady && (
@@ -694,6 +691,59 @@ function CampaignRow({ c }: { c: Campaign }) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      <Dialog open={baselineOpen} onOpenChange={(open) => !baselineSaving && setBaselineOpen(open)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Enviar prints da baseline</DialogTitle>
+            <DialogDescription>
+              Envie os prints do Spotify for Artists para registrar a baseline manualmente nesta campanha.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <label className="flex min-h-32 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-muted/20 p-4 text-center hover:bg-muted/30 transition-colors">
+              <ImagePlus className="h-6 w-6 text-muted-foreground" />
+              <span className="text-sm font-medium">Selecionar prints</span>
+              <span className="text-xs text-muted-foreground">PNG ou JPG · até {MAX_MANUAL_BASELINE_FILES} arquivos</span>
+              <Input
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                disabled={baselineSaving}
+                onChange={(e) => addBaselineFiles(e.target.files)}
+              />
+            </label>
+
+            {baselineFiles.length > 0 && (
+              <div className="grid grid-cols-3 gap-2">
+                {baselineFiles.map((item, index) => (
+                  <div key={`${item.file.name}-${index}`} className="relative aspect-video overflow-hidden rounded-lg border border-border bg-muted">
+                    <img src={item.url} alt={`Print ${index + 1}`} className="h-full w-full object-cover" />
+                    <button
+                      type="button"
+                      disabled={baselineSaving}
+                      onClick={() => removeBaselineFile(index)}
+                      className="absolute right-1 top-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-background/90 text-foreground hover:bg-background"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" disabled={baselineSaving} onClick={() => setBaselineOpen(false)}>Cancelar</Button>
+            <Button disabled={baselineSaving || baselineFiles.length === 0} onClick={submitManualBaseline}>
+              {baselineSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
+              Registrar baseline
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
