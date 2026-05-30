@@ -677,20 +677,6 @@ export default function CampanhaExecucao() {
                 baselineCapturedAt={dealStatus.baselineCapturedAt}
                 dealId={camp.deal_id ?? null}
               />
-              <CampaignGatesCard
-                clientApprovedAt={camp.client_approved_at ?? null}
-                planApprovedAt={(camp as any).plan_approved_at ?? null}
-                ecoDispatchedAt={camp.eco_dispatched_at ?? null}
-                collectionMode={(camp as any).collection_mode ?? null}
-                status={camp.status}
-                baselineReady={baselineGate.required > 0 && baselineGate.collected >= baselineGate.required}
-                baselineCollected={baselineGate.collected}
-                baselineRequired={baselineGate.required}
-                onApprovePlan={handleApprovePlan}
-                onDispatch={handleDispatchEco}
-                approvingPlan={approvingPlan}
-                dispatching={dispatching}
-              />
               <OverviewTab
                 snapshot={snapshot}
                 delivered={delivered}
@@ -715,6 +701,20 @@ export default function CampanhaExecucao() {
                 onUnlockSplit={handleUnlockSplit}
                 curveSlot={
                   <div className="space-y-4">
+                    <CampaignGatesCard
+                      clientApprovedAt={camp.client_approved_at ?? null}
+                      planApprovedAt={(camp as any).plan_approved_at ?? null}
+                      ecoDispatchedAt={camp.eco_dispatched_at ?? null}
+                      collectionMode={(camp as any).collection_mode ?? null}
+                      status={camp.status}
+                      baselineReady={baselineGate.required > 0 && baselineGate.collected >= baselineGate.required}
+                      baselineCollected={baselineGate.collected}
+                      baselineRequired={baselineGate.required}
+                      onApprovePlan={handleApprovePlan}
+                      onDispatch={handleDispatchEco}
+                      approvingPlan={approvingPlan}
+                      dispatching={dispatching}
+                    />
                     {(() => {
                       const baseline = recentUploads.find((u) => u.is_baseline);
                       return baseline ? (
