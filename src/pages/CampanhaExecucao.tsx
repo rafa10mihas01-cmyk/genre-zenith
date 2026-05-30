@@ -661,6 +661,9 @@ export default function CampanhaExecucao() {
                 ecoDispatchedAt={camp.eco_dispatched_at ?? null}
                 collectionMode={(camp as any).collection_mode ?? null}
                 status={camp.status}
+                baselineReady={baselineGate.required > 0 && baselineGate.collected >= baselineGate.required}
+                baselineCollected={baselineGate.collected}
+                baselineRequired={baselineGate.required}
                 onApprovePlan={handleApprovePlan}
                 onDispatch={handleDispatchEco}
                 approvingPlan={approvingPlan}
