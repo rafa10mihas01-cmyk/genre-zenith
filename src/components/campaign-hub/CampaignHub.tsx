@@ -59,7 +59,10 @@ export function CampaignHub({
   const activeTab = visible.some((t) => t.id === tab) ? tab : visible[0]?.id;
 
   return (
-    <div className="campaign-hub flex h-full min-h-0 flex-col overflow-hidden bg-background">
+    <div className={cn(
+      "campaign-hub flex min-h-0 flex-col bg-background",
+      mode === "internal" ? "h-full overflow-hidden" : "h-auto overflow-visible",
+    )}>
       <CampaignHero
         camp={camp}
         mode={mode}
@@ -78,8 +81,14 @@ export function CampaignHub({
         </div>
       )}
 
-
-      <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as CampaignHubTabId)} className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-contain nx-scroll">
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => onTabChange(v as CampaignHubTabId)}
+        className={cn(
+          "flex min-h-0 flex-1 flex-col nx-scroll",
+          mode === "internal" ? "overflow-y-auto overflow-x-hidden overscroll-contain" : "overflow-visible",
+        )}
+      >
         <div className={cn(
           "shrink-0 px-4 md:px-6",
           "border-b border-border bg-background",
