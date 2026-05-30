@@ -33,6 +33,7 @@ type Props = {
   hideCurveShortcut?: boolean;
   hideCurveCard?: boolean;
   hideKpis?: boolean;
+  hideSplitRows?: boolean;
   allocations?: EcoAllocation[];
   snapshots?: EcoSnap[];
   proofs?: ProofPreview[];
