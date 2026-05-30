@@ -102,7 +102,9 @@ Deno.serve(async (req) => {
 
   // Candidatas: auto_collect=true E (next_auto_collect_at <= now OR next null)
   // E (status idle OU error) — não pega running/queued
-  // E deal não fechado/pausado (state ∈ {collecting, active})
+  // E deal não fechado/pausado (state ∈ {awaiting_baseline, collecting, active})
+  // awaiting_baseline = deal recém-aprovado, bot vai tirar a 1ª foto S4A.
+  // Quando extract-snapshot-from-print processa isBaseline=true, vira collecting.
   // awaiting_playlists fica DE FORA: sem playlist declarada pelo curador, não coleta
   const { data, error } = await supabase
     .from("curator_deal_songs")
@@ -117,7 +119,7 @@ Deno.serve(async (req) => {
     .in("auto_collect_status", ["idle", "error"])
     .is("curator_deals.closed_at", null)
     .is("curator_deals.token_revoked_at", null)
-    .in("curator_deals.state", ["collecting", "active"])
+    .in("curator_deals.state", ["awaiting_baseline", "collecting", "active"])
     .neq("curator_deals.collection_mode", "spreadsheet")
     .or(`next_auto_collect_at.is.null,next_auto_collect_at.lte.${new Date().toISOString()}`)
     .order("next_auto_collect_at", { ascending: true, nullsFirst: true })

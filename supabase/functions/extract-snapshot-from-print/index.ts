@@ -1202,6 +1202,24 @@ Deno.serve(async (req) => {
       if (bErr) console.error("[extract] baseline blacklist upsert error", bErr);
       else console.log(`[extract] baseline blacklist: ${rows.length} playlists registradas para deal=${deal_id}`);
     }
+
+    // 3.9.1) Baseline pronta: ativa o deal. State awaiting_baseline → collecting
+    // e marca baseline_captured_at. Só transiciona se ainda estava esperando.
+    try {
+      const nowIso = new Date().toISOString();
+      const { data: updated, error: stateErr } = await supabase
+        .from("curator_deals")
+        .update({ state: "collecting", baseline_captured_at: nowIso })
+        .eq("id", deal_id)
+        .eq("state", "awaiting_baseline")
+        .is("baseline_captured_at", null)
+        .select("id")
+        .maybeSingle();
+      if (stateErr) console.error("[extract] activate deal error", stateErr);
+      else if (updated) console.log(`[extract] deal ${deal_id} ativado: state=collecting, baseline_captured_at=${nowIso}`);
+    } catch (e) {
+      console.error("[extract] activate deal exception", e);
+    }
   }
 
   // 4. Log

@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatBRL, formatInt } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { ExternalPackageEditor } from "@/components/campanhas/ExternalPackageEditor";
+import { BaselineAwaitingBanner } from "@/components/campanhas/BaselineAwaitingBanner";
 import { CampaignMonitoring } from "@/components/campanhas/CampaignMonitoring";
 import { CampaignDailyPlan } from "@/components/campanhas/CampaignDailyPlan";
 import { PlaylistDailyPlanDialog } from "@/components/campanhas/PlaylistDailyPlanDialog";
@@ -101,6 +102,7 @@ export default function CampanhaExecucao() {
   const [dispatching, setDispatching] = useState(false);
   const [approvingPlan, setApprovingPlan] = useState(false);
   const [baselineGate, setBaselineGate] = useState({ required: 0, collected: 0, capturedAt: null as string | null });
+  const [dealStatus, setDealStatus] = useState<{ state: string | null; baselineCapturedAt: string | null }>({ state: null, baselineCapturedAt: null });
 
   async function handleApprovePlan() {
     if (!camp) return;
@@ -309,6 +311,21 @@ export default function CampanhaExecucao() {
       setClientToken(null);
       setRecentUploads([]);
       setLastSpreadsheetUploadAt(null);
+    }
+
+    // Hidrata estado real do deal (awaiting_baseline vs collecting vs active)
+    if (dealId) {
+      const { data: dealRow } = await supabase
+        .from("curator_deals")
+        .select("state, baseline_captured_at")
+        .eq("id", dealId)
+        .maybeSingle();
+      setDealStatus({
+        state: (dealRow as any)?.state ?? null,
+        baselineCapturedAt: (dealRow as any)?.baseline_captured_at ?? null,
+      });
+    } else {
+      setDealStatus({ state: null, baselineCapturedAt: null });
     }
 
     const plannedSpotifyIds = Array.from(new Set(((a ?? []) as any[]).map((alloc) => {
@@ -655,6 +672,11 @@ export default function CampanhaExecucao() {
         slots={{
           overview: (
             <div className="space-y-6">
+              <BaselineAwaitingBanner
+                dealState={dealStatus.state}
+                baselineCapturedAt={dealStatus.baselineCapturedAt}
+                dealId={camp.deal_id ?? null}
+              />
               <CampaignGatesCard
                 clientApprovedAt={camp.client_approved_at ?? null}
                 planApprovedAt={(camp as any).plan_approved_at ?? null}

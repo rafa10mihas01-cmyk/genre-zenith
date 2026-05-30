@@ -357,13 +357,18 @@ Deno.serve(async (req) => {
     if (campaign.deal_id) {
       const existingDealId = campaign.deal_id as string;
       try {
+        // Deal já existia: marca como shadow de campanha e coloca em
+        // "awaiting_baseline" — bot ainda precisa tirar a 1ª foto S4A.
+        // Quando extract-snapshot-from-print rodar com isBaseline=true,
+        // o state vira "collecting" e baseline_captured_at é preenchido.
         await admin
           .from("curator_deals")
           .update({
             campaign_id: campaignId,
             source: "campaign_internal",
             collection_mode: "bot",
-            state: "collecting",
+            state: "awaiting_baseline",
+            baseline_captured_at: null,
           })
           .eq("id", existingDealId);
 
@@ -536,16 +541,18 @@ Deno.serve(async (req) => {
       .eq("id", campaignId);
 
     // 8.0) Grava vínculo reverso + marca shadow de campanha interna.
-    // Sem source='campaign_internal' + collection_mode='bot' + state='collecting',
-    // o bot-collect-queue NÃO dispatcha (filtra por state e collection_mode) e
-    // o gate isCampaignShadow em ingest-dom NÃO espelha em campaign_eco_snapshots.
+    // Deal entra em "awaiting_baseline" — bot ainda precisa tirar a 1ª foto
+    // S4A. Quando extract-snapshot-from-print rodar com isBaseline=true,
+    // o state vira "collecting" e baseline_captured_at é preenchido,
+    // ativando a campanha de verdade.
     await admin
       .from("curator_deals")
       .update({
         campaign_id: campaignId,
         source: "campaign_internal",
         collection_mode: "bot",
-        state: "collecting",
+        state: "awaiting_baseline",
+        baseline_captured_at: null,
       })
       .eq("id", newDealId);
 
