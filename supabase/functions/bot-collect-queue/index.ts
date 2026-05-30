@@ -13,6 +13,7 @@ async function resolveArtistIdFromTrack(
   trackId: string,
   songArtist: string | null,
   clientId: string | null,
+  songId: string | null = null,
 ): Promise<{ artistId: string | null; artistUrl: string | null }> {
   try {
     const token = await getSpotifyToken();
@@ -35,6 +36,14 @@ async function resolveArtistIdFromTrack(
         .from("clients")
         .update({ spotify_artist_id: chosen.id, spotify_artist_url: artistUrl })
         .eq("id", clientId)
+        .is("spotify_artist_id", null);
+    }
+    // Persiste também na song (cobre deals sem campanha/cliente vinculados)
+    if (songId) {
+      await supabase
+        .from("curator_deal_songs")
+        .update({ spotify_artist_id: chosen.id, spotify_artist_url: artistUrl })
+        .eq("id", songId)
         .is("spotify_artist_id", null);
     }
     return { artistId: chosen.id, artistUrl };
