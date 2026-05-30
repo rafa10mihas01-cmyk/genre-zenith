@@ -20,7 +20,9 @@ const BOT_API_KEY = Deno.env.get("BOT_API_KEY")!;
 const BOT_INGEST_TOKEN = Deno.env.get("BOT_INGEST_TOKEN") ?? "";
 
 function isAuthorizedBotKey(value: string | null) {
-  return Boolean(value) && (value === BOT_API_KEY || value === BOT_INGEST_TOKEN);
+  const normalize = (v: string | null | undefined) => (v ?? "").trim().replace(/^Bearer\s+/i, "").replace(/^['\"]|['\"]$/g, "");
+  const got = normalize(value);
+  return Boolean(got) && (got === normalize(BOT_API_KEY) || got === normalize(BOT_INGEST_TOKEN));
 }
 
 function jr(p: unknown, status = 200) {
@@ -34,7 +36,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const startedAt = Date.now();
   if (req.method !== "POST") return jr({ error: "method_not_allowed" }, 405);
-  if (!isAuthorizedBotKey(req.headers.get("x-bot-key"))) return jr({ error: "unauthorized" }, 401);
+  const authKey = req.headers.get("x-bot-key") ?? req.headers.get("x-bot-token") ?? req.headers.get("authorization");
+  if (!isAuthorizedBotKey(authKey)) return jr({ error: "unauthorized" }, 401);
 
   let body: any = {};
   try { body = await req.json(); } catch { /* allow empty */ }
