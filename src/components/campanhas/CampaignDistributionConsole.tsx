@@ -609,87 +609,94 @@ export function CampaignDistributionConsole({
         </CardContent>
       </Card>
 
-      {/* BLOCO 4b — Rebaixamentos (cronograma de desmame por playlist) */}
+      {/* BLOCO 4b — Rebaixamentos (mesma estrutura do "Status por playlist") */}
       <Card>
         <CardContent className="p-0">
-          <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
-                <ArrowDown className="h-4 w-4 text-amber-400" />
+          <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold flex items-center gap-2">
+                <ArrowDown className="h-3.5 w-3.5 text-muted-foreground" />
+                Rebaixamentos
               </div>
-              <div>
-                <div className="text-sm font-semibold">Rebaixamentos programados</div>
-                <div className="text-[11px] text-muted-foreground mt-0.5">
-                  {totalDemotions === 0
-                    ? "Nenhum rebaixamento planejado — posição estável do início ao fim."
-                    : `${totalDemotions} degrau(s) em ${demotionPlan.length} playlist(s) · executados automaticamente pelo bot`}
-                </div>
+              <div className="text-[11px] text-muted-foreground">
+                {totalDemotions === 0
+                  ? "Nenhum rebaixamento planejado — posição estável do início ao fim."
+                  : `${totalDemotions} degrau(s) em ${demotionPlan.length} playlist(s) · executados automaticamente pelo bot`}
               </div>
             </div>
           </div>
-          {demotionPlan.length > 0 && (
-            <div className="divide-y divide-border">
-              {demotionPlan.map((p) => (
-                <div key={p.allocId} className="px-5 py-4">
-                  <div className="flex items-center justify-between gap-3 mb-3">
-                    <div className="text-sm font-semibold text-foreground truncate">{p.name}</div>
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold shrink-0">
-                      {p.transitions.length} degrau(s)
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {p.transitions.map((t, idx) => {
-                      const label =
-                        t.jobStatus === "done" ? "Rebaixada" :
-                        t.jobStatus === "failed" ? "Falhou" :
-                        t.jobStatus === "scheduled" ? "Agendada" :
-                        t.jobStatus === "pending" ? "Pendente" : "Planejada";
-                      const tone =
-                        t.jobStatus === "done" ? { border: "border-success/30", bg: "bg-success/[0.06]", chip: "bg-success/15 text-success border-success/30", dot: "bg-success" } :
-                        t.jobStatus === "failed" ? { border: "border-destructive/30", bg: "bg-destructive/[0.06]", chip: "bg-destructive/15 text-destructive border-destructive/30", dot: "bg-destructive" } :
-                        t.jobStatus === "scheduled" ? { border: "border-blue-500/30", bg: "bg-blue-500/[0.06]", chip: "bg-blue-500/15 text-blue-400 border-blue-500/30", dot: "bg-blue-400" } :
-                        t.jobStatus === "pending" ? { border: "border-amber-500/30", bg: "bg-amber-500/[0.06]", chip: "bg-amber-500/15 text-amber-400 border-amber-500/30", dot: "bg-amber-400" } :
-                        { border: "border-border", bg: "bg-muted/20", chip: "bg-muted text-muted-foreground border-border", dot: "bg-muted-foreground/60" };
-                      return (
-                        <div key={idx} className={cn("rounded-xl border p-3", tone.border, tone.bg)}>
-                          <div className="flex items-center justify-between gap-2 mb-2">
-                            <div className="flex items-center gap-1.5">
-                              <span className={cn("h-1.5 w-1.5 rounded-full", tone.dot)} />
-                              <span className="text-[10px] font-mono font-bold text-foreground">D{t.day}</span>
-                              {t.dateIso && (
-                                <span className="text-[10px] text-muted-foreground">· {fmtShortDate(t.dateIso)}</span>
-                              )}
-                            </div>
-                            <span className={cn("inline-flex items-center px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider font-bold border", tone.chip)}>
-                              {label}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-center gap-2 py-1">
-                            <div className="flex flex-col items-center">
-                              <span className="text-[9px] uppercase text-muted-foreground tracking-wider">de</span>
-                              <span className="text-base font-mono font-semibold text-foreground tabular-nums">{t.from}</span>
-                            </div>
-                            <ArrowDown className="h-4 w-4 text-muted-foreground rotate-[-90deg]" />
-                            <div className="flex flex-col items-center">
-                              <span className="text-[9px] uppercase text-muted-foreground tracking-wider">para</span>
-                              <span className="text-base font-mono font-semibold text-foreground tabular-nums">{t.to}</span>
-                            </div>
-                          </div>
+          {demotionPlan.length > 0 && (() => {
+            const coverByAlloc = new Map(allocations.map((a) => [a.id, a.managed_playlists?.cover_url ?? null] as const));
+            const urlByAlloc = new Map(allocations.map((a) => [a.id, a.managed_playlists?.spotify_url ?? null] as const));
+            const flat = demotionPlan.flatMap((p) =>
+              p.transitions.map((t, idx) => ({
+                key: `${p.allocId}-${idx}`,
+                name: p.name,
+                cover: coverByAlloc.get(p.allocId) ?? null,
+                url: urlByAlloc.get(p.allocId) ?? null,
+                t,
+              })),
+            );
+            return (
+              <div className="max-h-[420px] overflow-y-auto divide-y divide-border">
+                {flat.map(({ key, name, cover, url, t }) => {
+                  const label =
+                    t.jobStatus === "done" ? "Rebaixada" :
+                    t.jobStatus === "failed" ? "Falhou" :
+                    t.jobStatus === "scheduled" ? "Agendada" :
+                    t.jobStatus === "pending" ? "Pendente" : "Planejada";
+                  const chipCls =
+                    t.jobStatus === "done" ? "bg-primary/15 text-primary border-primary/30" :
+                    t.jobStatus === "failed" ? "bg-rose-500/15 text-rose-400 border-rose-500/30" :
+                    t.jobStatus === "scheduled" ? "bg-blue-500/15 text-blue-400 border-blue-500/30" :
+                    t.jobStatus === "pending" ? "bg-amber-500/15 text-amber-400 border-amber-500/30" :
+                    "bg-muted text-muted-foreground border-border";
+                  const ChipIcon =
+                    t.jobStatus === "done" ? CheckCircle2 :
+                    t.jobStatus === "failed" ? XCircle :
+                    t.jobStatus === "scheduled" ? Activity :
+                    t.jobStatus === "pending" ? Clock : ArrowDown;
+                  const initial = name.charAt(0).toUpperCase();
+                  return (
+                    <div key={key} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/20">
+                      <div className="h-8 w-8 rounded-md overflow-hidden shrink-0 bg-muted flex items-center justify-center">
+                        {cover ? (
+                          <img src={cover} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <span className="text-xs font-semibold text-muted-foreground">{initial}</span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate flex items-center gap-1.5">
+                          {url ? (
+                            <a href={url} target="_blank" rel="noreferrer" className="hover:underline truncate">{name}</a>
+                          ) : (
+                            <span className="truncate">{name}</span>
+                          )}
+                          {url && <ExternalLink className="h-3 w-3 text-muted-foreground/60 shrink-0" />}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
+                          <span className="font-mono text-foreground">D{t.day}</span>
+                          {t.dateIso && <span>· {fmtShortDate(t.dateIso)}</span>}
+                          <span>· rebaixando da <span className="text-foreground font-medium">pos. {t.from}</span> para <span className="text-foreground font-medium">pos. {t.to}</span></span>
                           {t.jobStatus === "done" && t.jobCompletedAt && (
-                            <div className="text-[10px] text-muted-foreground text-center mt-1.5 pt-1.5 border-t border-border/50">
-                              feito em {fmtDateTime(t.jobCompletedAt)}
-                            </div>
+                            <span>· feito em {fmtDateTime(t.jobCompletedAt)}</span>
                           )}
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+                      </div>
+                      <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] border shrink-0", chipCls)}>
+                        <ChipIcon className="h-3 w-3" />
+                        {label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </CardContent>
       </Card>
+
 
 
       {/* BLOCO 5 — Saúde do bot */}
