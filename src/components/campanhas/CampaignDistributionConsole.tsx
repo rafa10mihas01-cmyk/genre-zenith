@@ -651,8 +651,9 @@ function PlaylistRow({
           ) : row.state.status === "done" && row.state.completedAt ? (
             <span>· {fmtDateTime(row.state.completedAt)}</span>
           ) : row.plannedFor ? (
-            <span>· prevista para {fmtShortDate(row.plannedFor)}</span>
+            <span>· prevista para {fmtShortDate(row.plannedFor)} · janela 08h–22h</span>
           ) : null}
+
           {row.state.status === "failed" && row.state.lastError && (
             <span className="text-rose-400 truncate" title={row.state.lastError}>· {row.state.lastError}</span>
           )}
