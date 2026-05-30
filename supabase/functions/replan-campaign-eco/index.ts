@@ -288,7 +288,11 @@ Deno.serve(async (req) => {
     coverage_ratio: coverageRatio,
     mode,
     affinity_range: [affLo, affHi],
+    position_strategy: positionStrategy,
+    daily_need_remaining: Math.round(dailyNeedRemaining),
+    daily_tolerance: ECO_DAILY_TOLERANCE,
   };
+
 
   if (dryRun) {
     return json({ ok: true, dry_run: true, ...summary });
