@@ -2258,6 +2258,7 @@ export type Database = {
       }
       curator_deals: {
         Row: {
+          baseline_captured_at: string | null
           baseline_plays: number
           billing_model: string
           campaign_id: string | null
@@ -2302,6 +2303,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          baseline_captured_at?: string | null
           baseline_plays?: number
           billing_model?: string
           campaign_id?: string | null
@@ -2346,6 +2348,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          baseline_captured_at?: string | null
           baseline_plays?: number
           billing_model?: string
           campaign_id?: string | null
