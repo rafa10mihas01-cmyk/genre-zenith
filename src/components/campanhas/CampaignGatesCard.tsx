@@ -114,9 +114,11 @@ export function CampaignGatesCard({
                   ? "Campanha no ar — coleta via planilha (cliente envia atualizações no portal)."
                   : "Campanha no ar — coleta ativa nas playlists."
                 : nextAction === "dispatch"
-                  ? "Tudo pronto. Falta apenas o gatilho final."
+                  ? "Baseline capturada. Falta apenas iniciar a distribuição."
                   : nextAction === "plan"
                     ? "Cliente já aprovou. Confirme o plano internamente para liberar a distribuição."
+                  : planDone && !isSpreadsheet && !baselineReady
+                    ? `Aguardando baseline: ${baselineCollected}/${baselineRequired} playlist(s) coletada(s).`
                     : "Aguardando o cliente aprovar o plano público."}
           </div>
         </div>
@@ -148,7 +150,7 @@ export function CampaignGatesCard({
           index={3}
           state={state3}
           title={isSpreadsheet ? "Coleta ativa" : "Distribuição iniciada"}
-          hint={isSpreadsheet ? "Cliente envia planilhas no portal" : "Bot começa a inserir nas playlists"}
+          hint={isSpreadsheet ? "Cliente envia planilhas no portal" : "Inserção nas playlists"}
           meta={
             ecoDispatchedAt
               ? `há ${relTime(ecoDispatchedAt)} — ${fmt(ecoDispatchedAt)}`
@@ -156,7 +158,7 @@ export function CampaignGatesCard({
                 ? "Recebendo planilhas"
                 : isLive
                   ? "Em andamento"
-                  : planDone ? "Pronto pra iniciar" : "Bloqueado"
+                  : planDone && !isSpreadsheet && !baselineReady ? `${baselineCollected}/${baselineRequired} baseline` : planDone ? "Pronto pra iniciar" : "Bloqueado"
           }
         />
       </div>
@@ -167,7 +169,7 @@ export function CampaignGatesCard({
             <Clock className="h-3.5 w-3.5 shrink-0" />
             <span className="truncate">
               {nextAction === "dispatch"
-                ? "O bot começa a inserir no próximo ciclo (~1min)."
+                ? "A inserção começa no próximo ciclo (~1min)."
                 : "Aprovar plano cria o deal do curador e libera o passo 3."}
             </span>
           </div>
