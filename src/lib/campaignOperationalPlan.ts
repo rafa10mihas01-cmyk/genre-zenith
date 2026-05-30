@@ -156,6 +156,104 @@ export function calculateTrackDailyStreams(
 }
 
 /**
+ * Tolerância padrão de "estouro" aceito por playlist na seleção por
+ * capacidade real. 0.10 = aceita entregar até 10% acima do daily_need.
+ * Espelha ECO_DAILY_TOLERANCE em _shared/computeEcoPlan.ts.
+ */
+export const ECO_DAILY_TOLERANCE = 0.10;
+
+/**
+ * Para uma playlist, escolhe a posição com MAIOR cap_dia que NÃO ultrapasse
+ * `dailyNeed × (1 + tolerance)`. Espelha selectPositionByDailyNeed da edge.
+ *
+ * - Se nenhuma posição cabe (playlist gigante), devolve a mais profunda (cap mínimo).
+ * - Se a playlist é pequena demais, devolve a posição #1 (cobre o que conseguir).
+ */
+export function selectPositionByDailyNeed(
+  followers: number,
+  multiplier: number,
+  dailyNeed: number,
+  tolerance = ECO_DAILY_TOLERANCE,
+): { position: number; cap: number; fits: boolean } {
+  if (followers <= 0 || dailyNeed <= 0) {
+    return { position: 1, cap: 0, fits: false };
+  }
+  const ceiling = dailyNeed * (1 + tolerance);
+  let bestPos = -1;
+  let bestCap = -1;
+  for (let i = 0; i < POSITION_PCT.length; i++) {
+    const cap = calculateTrackDailyStreams(followers, multiplier, i + 1);
+    if (cap <= ceiling && cap > bestCap) {
+      bestCap = cap;
+      bestPos = i + 1;
+    }
+  }
+  if (bestPos > 0) return { position: bestPos, cap: bestCap, fits: bestCap > 0 };
+  const deepest = POSITION_PCT.length;
+  return {
+    position: deepest,
+    cap: calculateTrackDailyStreams(followers, multiplier, deepest),
+    fits: false,
+  };
+}
+
+/**
+ * Distribui posições greedy por dailyNeed sobre uma lista de playlists.
+ * Primárias por followers desc, depois vizinhos. Para quando cobre o dailyNeed.
+ * Retorna allocations completas com posição e cap_dia escolhidos.
+ */
+export interface RealCapacityAlloc {
+  id: string;
+  name?: string;
+  followers: number;
+  source: "primary" | "neighbor";
+  position: number;
+  cap_dia: number;
+  fits: boolean;
+}
+
+export function planRealCapacity(
+  playlists: Array<{ id: string; name?: string; followers: number; source: "primary" | "neighbor" }>,
+  dailyNeed: number,
+  multiplier: number,
+  tolerance = ECO_DAILY_TOLERANCE,
+): { allocations: RealCapacityAlloc[]; coveredDaily: number; remaining: number } {
+  if (dailyNeed <= 0 || playlists.length === 0) {
+    return { allocations: [], coveredDaily: 0, remaining: dailyNeed };
+  }
+  const primary = playlists.filter(p => p.source === "primary").sort((a, b) => b.followers - a.followers);
+  const neighbor = playlists.filter(p => p.source === "neighbor").sort((a, b) => b.followers - a.followers);
+  const allocations: RealCapacityAlloc[] = [];
+  let remaining = dailyNeed;
+  let covered = 0;
+
+  const consume = (list: typeof primary) => {
+    for (const p of list) {
+      if (remaining <= 0) break;
+      const sel = selectPositionByDailyNeed(p.followers, multiplier, remaining, tolerance);
+      if (sel.cap <= 0) continue;
+      allocations.push({
+        id: p.id,
+        name: p.name,
+        followers: p.followers,
+        source: p.source,
+        position: sel.position,
+        cap_dia: sel.cap,
+        fits: sel.fits,
+      });
+      covered += sel.cap;
+      remaining -= sel.cap;
+    }
+  };
+
+  consume(primary);
+  if (remaining > 0) consume(neighbor);
+
+  return { allocations, coveredDaily: covered, remaining: Math.max(0, remaining) };
+}
+
+
+/**
  * Capacidade restante num slot considerando ocupação atual (lista de faixas
  * concorrentes naquela posição). Cada faixa "consome" o pct daquela posição
  * uma vez; mais de uma faixa no mesmo slot divide o pct entre elas.

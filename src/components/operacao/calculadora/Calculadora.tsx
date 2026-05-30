@@ -25,6 +25,7 @@ import { usePricingSettings } from "@/hooks/usePricingSettings";
 import { formatCompact } from "@/lib/format";
 import { Table2, ArrowRight, ArrowLeft, Target as TargetIcon, Users, Wallet, Music, Search, CheckCircle2, X, Loader2, CalendarIcon, FileText, Plus, ListMusic, Layers, Zap, Pencil, AlertTriangle } from "lucide-react";
 import { useEcosystemCapacity } from "@/hooks/useEcosystemCapacity";
+import { CapacidadeRealCard } from "./CapacidadeRealCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format, addDays, differenceInCalendarDays, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -1277,7 +1278,18 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                         )}
                       </div>
                     )}
+
+                    {/* NOVO: capacidade REAL entregável (algoritmo por dailyNeed,
+                        idêntico ao replan-campaign-eco / approve-campaign-plan).
+                        Mostra exatamente o que o sistema vai entregar — operador
+                        pode negociar com o cliente em cima do número real. */}
+                    <CapacidadeRealCard
+                      genre={active.genre}
+                      dailyNeed={result.effectiveDays > 0 ? Math.round(result.streamsEco / result.effectiveDays) : 0}
+                      multiplier={active.engagementMultiplier ?? 30}
+                    />
                   </div>
+
                 </CardContent>
               </Card>
           </div>
