@@ -414,18 +414,39 @@ export function CampaignDistributionConsole({
                   Distribuir agora
                 </Button>
               </AlertDialogTrigger>
-              <AlertDialogContent>
+              <AlertDialogContent className="bg-card border-border max-w-xl">
                 <AlertDialogHeader>
                   <AlertDialogTitle>Distribuir campanha?</AlertDialogTitle>
                   <AlertDialogDescription asChild>
-                    <div className="space-y-2 text-sm">
-                      <div>Isso vai criar o deal real e enfileirar as inserções no Spotify.</div>
-                      <ul className="text-xs space-y-1 mt-2 pl-4 list-disc text-foreground">
-                        <li><span className="font-semibold">{playlistsCount}</span> playlist(s) do ecossistema</li>
-                        <li><span className="font-semibold">{playlistsCount}</span> ADD(s) enfileirados imediatamente</li>
-                        <li>Custo interno: <span className="font-semibold">{formatBRL(custoTotal)}</span></li>
-                        <li>Após ADD, o bot faz REORDER pra posição planejada</li>
-                      </ul>
+                    <div className="space-y-3 text-sm">
+                      <div className="text-muted-foreground">
+                        Revise abaixo o que o bot vai fazer. <span className="text-foreground font-medium">As inserções NÃO acontecem todas de uma vez</span> — cada playlist entra no dia previsto, dentro da janela 08h–22h BR, respeitando o pacing anti-spam.
+                      </div>
+                      <div className="rounded-lg border border-border bg-background/40 p-3 space-y-1.5">
+                        <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold">Resumo</div>
+                        <div className="flex items-center justify-between"><span>Playlists do ecossistema</span><span className="font-semibold text-foreground">{playlistsCount}</span></div>
+                        <div className="flex items-center justify-between"><span>ADD(s) a enfileirar agora</span><span className="font-semibold text-foreground">{playlistsCount}</span></div>
+                        <div className="flex items-center justify-between"><span>Custo interno</span><span className="font-semibold text-foreground">{formatBRL(custoTotal)}</span></div>
+                        <div className="flex items-center justify-between"><span>Reorder pra posição planejada</span><span className="font-semibold text-foreground">automático após ADD</span></div>
+                      </div>
+                      <div className="rounded-lg border border-border bg-background/40 max-h-64 overflow-auto">
+                        <div className="px-3 py-2 text-[11px] uppercase tracking-wider text-muted-foreground font-bold border-b border-border sticky top-0 bg-card">
+                          Cronograma por playlist
+                        </div>
+                        <div className="divide-y divide-border">
+                          {rows.map((r) => (
+                            <div key={r.allocId} className="px-3 py-2 flex items-center justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="text-foreground text-[13px] font-medium truncate">{r.name}</div>
+                                <div className="text-[11px] text-muted-foreground">
+                                  Pos. {r.plannedPosition ?? "—"}
+                                  {r.plannedFor ? <> · entra em <span className="text-foreground">{fmtShortDate(r.plannedFor)}</span> · janela 08h–22h</> : null}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </AlertDialogDescription>
                 </AlertDialogHeader>
@@ -434,6 +455,7 @@ export function CampaignDistributionConsole({
                   <AlertDialogAction onClick={() => onDispatch()}>Confirmar e distribuir</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
+
             </AlertDialog>
           )}
         </CardContent>
