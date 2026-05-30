@@ -318,13 +318,14 @@ Deno.serve(async (req) => {
   for (const c of fresh) {
     const hist = histByPl.get(c.spotify_playlist_id) ?? [];
 
-    // Base: max(agora, último job dessa playlist + MIN_SPACING)
-    let base = now;
+    // Base: max(agora, slot_floor do start_day, último job dessa playlist + MIN_SPACING)
+    let base = Math.max(now, Number(c.slot_floor_ms ?? 0));
     if (hist.length > 0) {
       const last = hist[hist.length - 1].getTime();
       base = Math.max(base, last + MIN_SPACING_MIN * 60_000);
     }
     let when = new Date(base);
+
 
     // Janela horária BR
     when = clampToWindow(when);
