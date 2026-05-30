@@ -276,6 +276,7 @@ Deno.serve(async (req) => {
       metadata: {
         song_name: s.song_name,
         spotify_track_id: s.spotify_track_id,
+        spotify_artist_id: s.spotify_artist_id ?? null,
         interval_minutes: s.auto_collect_interval_minutes,
         user_agent: callerUserAgent,
       },
