@@ -21,6 +21,8 @@ import { formatBRL } from "@/lib/campaignEngine";
 import { timeAgo } from "@/lib/format";
 import { toast } from "sonner";
 import type { EcoAllocation } from "@/components/campaign-hub/types";
+import { buildEcoPlaylistPlan } from "@/lib/campaignOperationalPlan";
+import type { CampaignSnapshot } from "@/lib/campaignEngine";
 
 type JobRow = {
   id: string;
