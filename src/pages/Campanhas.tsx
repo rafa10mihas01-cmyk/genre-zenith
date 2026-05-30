@@ -578,21 +578,17 @@ function CampaignRow({ c }: { c: Campaign }) {
               );
             })()}
             <CollectionSourceBadge collectionMode={(c as any).collection_mode} />
-            {c.plan_approved_at && !c.baseline_pending && c.baseline_captured_at && (
+            {c.plan_approved_at && c.baseline_captured_at && (
               <span className="text-[10px] uppercase tracking-wider rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-primary">
                 Baseline ok
               </span>
             )}
-            {c.plan_approved_at && c.baseline_pending && (
-              <span className="text-[10px] uppercase tracking-wider rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-amber-500">
-                Aguardando baseline
-              </span>
-            )}
-            {c.plan_approved_at && !c.baseline_pending && !c.baseline_captured_at && (
+            {c.plan_approved_at && !c.baseline_captured_at && (
               <span className="text-[10px] uppercase tracking-wider rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-primary">
                 Plano aprovado
               </span>
             )}
+
             {(c.client_decision_round ?? 1) > 1 && (
               <span className="text-[10px] uppercase tracking-wider rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-amber-500">
                 Rodada {c.client_decision_round}
