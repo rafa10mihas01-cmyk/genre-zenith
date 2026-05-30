@@ -757,8 +757,8 @@ export default function CampanhaExecucao() {
               <Tabs defaultValue="mapa" className="space-y-4">
                 <TabsList>
                   <TabsTrigger value="mapa">Mapa</TabsTrigger>
-                  <TabsTrigger value="console">Console</TabsTrigger>
-                  <TabsTrigger value="status">Status</TabsTrigger>
+                  <TabsTrigger value="console">Distribuição</TabsTrigger>
+                  <TabsTrigger value="status">Acompanhamento</TabsTrigger>
                 </TabsList>
                 <TabsContent value="mapa" className="mt-0 space-y-4">
                   <CampaignFullPlanCard
