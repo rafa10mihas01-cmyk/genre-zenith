@@ -100,6 +100,7 @@ export default function CampanhaExecucao() {
   const [organicRows, setOrganicRows] = useState<OrganicRow[]>([]);
   const [dispatching, setDispatching] = useState(false);
   const [approvingPlan, setApprovingPlan] = useState(false);
+  const [baselineGate, setBaselineGate] = useState({ required: 0, collected: 0, capturedAt: null as string | null });
 
   async function handleApprovePlan() {
     if (!camp) return;
@@ -126,6 +127,11 @@ export default function CampanhaExecucao() {
 
   async function handleDispatchEco() {
     if (!camp) return;
+    const baselineReady = baselineGate.required > 0 && baselineGate.collected >= baselineGate.required;
+    if (!baselineReady) {
+      toast.error("Baseline obrigatória", { description: `Coletadas ${baselineGate.collected}/${baselineGate.required || allocs.length} playlist(s). Aguarde o marco zero antes de distribuir.` });
+      return;
+    }
     setDispatching(true);
     try {
       const { error } = await (supabase.rpc as any)("approve_campaign", { p_campaign_id: camp.id });
@@ -143,6 +149,7 @@ export default function CampanhaExecucao() {
       const raw = e?.message ?? String(e);
       const map: Record<string, string> = {
         client_approval_required: "O cliente ainda não aprovou o plano. Mande o link público antes.",
+        baseline_required: "A baseline ainda não foi coletada em todas as playlists. Aguarde o marco zero antes de distribuir.",
         curator_required: "Edite a campanha e selecione o curador dono das playlists.",
         campaign_not_in_approvable_state: "Esta campanha já foi distribuída.",
         campaign_not_found: "Campanha não encontrada.",
