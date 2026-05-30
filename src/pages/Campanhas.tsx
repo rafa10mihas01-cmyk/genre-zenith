@@ -462,7 +462,7 @@ function CampaignRow({ c }: { c: Campaign }) {
       if (logErr) throw logErr;
       await supabase.from("curator_deals").update({ state: "collecting", baseline_captured_at: capturedAt, baseline_plays: total } as any).eq("id", dealId);
 
-      toast({ title: "Baseline registrada", description: `${snapshotRows.length} playlist(s) lida(s) · ${baselineFiles.length} print(s)` });
+      toast({ title: "Baseline registrada", description: `${uniqueSnapshotRows.length} playlist(s) lida(s) · ${baselineFiles.length} print(s)` });
       setBaselineOpen(false);
       baselineFiles.forEach((item) => URL.revokeObjectURL(item.url));
       setBaselineFiles([]);
