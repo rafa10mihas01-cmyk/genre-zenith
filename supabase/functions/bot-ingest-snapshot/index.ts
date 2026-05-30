@@ -74,13 +74,20 @@ Deno.serve(async (req) => {
       return jr({ ok: false, error: gate.error, code: gate.code, gated: true }, gate.status);
     }
 
+    const { count: existingLogs } = await supabase
+      .from("curator_deal_logs")
+      .select("id", { count: "exact", head: true })
+      .eq("song_id", s_id);
+    const isBaseline = (existingLogs ?? 0) === 0;
+    const capturedAt = new Date().toISOString();
+
     await supabase.from("curator_deal_logs").insert({
       deal_id: d_id,
       song_id: s_id,
       total_plays: Math.max(0, total),
-      note: `[bot/agregado] total=${total} 24h=${plays_24h ?? "-"} 7d=${plays_7d ?? "-"} 28d=${plays_28d ?? "-"}`,
+      note: `[bot/agregado] ${isBaseline ? "baseline" : "coleta"} total=${total} 24h=${plays_24h ?? "-"} 7d=${plays_7d ?? "-"} 28d=${plays_28d ?? "-"}`,
       print_urls: print_url ? [print_url] : [],
-      is_baseline: false,
+      is_baseline: isBaseline,
     });
 
     const { data: songRow } = await supabase
@@ -90,13 +97,27 @@ Deno.serve(async (req) => {
       .single();
     const intervalMin = songRow?.auto_collect_interval_minutes ?? 1440;
     const nextAt = new Date(Date.now() + intervalMin * 60_000).toISOString();
-    await supabase.from("curator_deal_songs").update({
+    const songUpdate: Record<string, unknown> = {
       auto_collect_status: "idle",
       auto_collect_error: null,
-      last_auto_collect_at: new Date().toISOString(),
+      last_auto_collect_at: capturedAt,
       next_auto_collect_at: nextAt,
       queued_at: null,
-    }).eq("id", s_id);
+    };
+    if (isBaseline) songUpdate.baseline_plays = Math.max(0, total);
+    await supabase.from("curator_deal_songs").update(songUpdate).eq("id", s_id);
+
+    if (isBaseline) {
+      await supabase
+        .from("curator_deals")
+        .update({
+          baseline_plays: Math.max(0, total),
+          baseline_captured_at: capturedAt,
+          state: "collecting",
+        })
+        .eq("id", d_id)
+        .eq("state", "awaiting_baseline");
+    }
 
     await supabase.from("collection_logs").insert({
       acao: "bot_collect",
@@ -111,10 +132,10 @@ Deno.serve(async (req) => {
       duration_ms: Date.now() - t0,
       deal_id: d_id,
       song_id: s_id,
-      metadata: { mode: "aggregate", total, correlation_id: cid ?? null, source: source ?? null },
+      metadata: { mode: "aggregate", total, is_baseline: isBaseline, correlation_id: cid ?? null, source: source ?? null },
     });
 
-    return jr({ ok: true, mode: "aggregate", total_plays: total, next_auto_collect_at: nextAt });
+    return jr({ ok: true, mode: "aggregate", total_plays: total, is_baseline: isBaseline, next_auto_collect_at: nextAt });
   }
 
   const { song_id, deal_id, total_plays, snapshots, note, print_urls, print_taken, error: bot_error, correlation_id } = body ?? {};
