@@ -86,10 +86,12 @@ export function CampaignDistributionConsole({
   allocations,
   ecoPositionByAllocation,
   ecoDispatchedAt,
+  campaignStartedAt,
   custoTotal,
   dispatching,
   onDispatch,
 }: Props) {
+
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [bot, setBot] = useState<BotHealth | null>(null);
