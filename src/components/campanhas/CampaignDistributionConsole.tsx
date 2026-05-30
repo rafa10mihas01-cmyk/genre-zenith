@@ -638,7 +638,7 @@ export function CampaignDistributionConsole({
               })),
             );
             return (
-              <div className="max-h-[420px] overflow-y-auto divide-y divide-border">
+              <div className="max-h-[420px] overflow-y-auto scrollbar-none divide-y divide-border">
                 {flat.map(({ key, name, cover, url, t }) => {
                   const label =
                     t.jobStatus === "done" ? "Rebaixada" :
