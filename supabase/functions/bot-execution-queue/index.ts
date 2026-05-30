@@ -6,7 +6,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 import { reorderPlaylistTracks, listPlaylistTrackUris, addPlaylistTracks, removePlaylistTracks } from "../_shared/spotify-playlist.ts";
-import { getUserAccessToken, installSpotifyCircuitFetchGuard } from "../_shared/spotify.ts";
+import { getUserAccessToken, forceRefreshUserAccessToken, installSpotifyCircuitFetchGuard } from "../_shared/spotify.ts";
+import { SpotifyApiError } from "../_shared/spotify-playlist.ts";
 
 // Defesa em profundidade: garante que o guard global de fetch p/ Spotify
 // esteja instalado antes de qualquer chamada (add/remove/reorder no Spotify).
