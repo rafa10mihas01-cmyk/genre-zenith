@@ -14,16 +14,23 @@ import { recordMetric } from "../_shared/ops-metrics.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "content-type, x-bot-key, x-correlation-id, x-dom-playlists, x-worker-id, x-process-id, x-hostname, x-timer-id, x-bot-name, x-bot-session",
+  "Access-Control-Allow-Headers": "content-type, authorization, x-bot-key, x-bot-token, x-correlation-id, x-dom-playlists, x-worker-id, x-process-id, x-hostname, x-timer-id, x-bot-name, x-bot-session",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const BOT_API_KEY = Deno.env.get("BOT_API_KEY")!;
+const BOT_INGEST_TOKEN = Deno.env.get("BOT_INGEST_TOKEN") ?? "";
 const BUCKET = "bot-prints";
 const SIGNED_URL_TTL = 60 * 60 * 24 * 365; // 1 ano
 const MAX_DOM_PLAYLISTS_FOR_SINGLE_PRINT = 30;
+
+function isAuthorizedBotKey(value: string | null) {
+  const normalize = (v: string | null | undefined) => (v ?? "").trim().replace(/^Bearer\s+/i, "").replace(/^[\'"]|[\'"]$/g, "");
+  const got = normalize(value);
+  return Boolean(got) && (got === normalize(BOT_API_KEY) || got === normalize(BOT_INGEST_TOKEN));
+}
 
 function jr(p: unknown, status = 200) {
   return new Response(JSON.stringify(p), {
@@ -50,7 +57,8 @@ function parsePartLabel(label: string): { key: string; part: number; total: numb
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jr({ error: "method_not_allowed" }, 405);
-  if (req.headers.get("x-bot-key") !== BOT_API_KEY) {
+  const authKey = req.headers.get("x-bot-key") ?? req.headers.get("x-bot-token") ?? req.headers.get("authorization");
+  if (!isAuthorizedBotKey(authKey)) {
     return jr({ error: "unauthorized" }, 401);
   }
   const t0 = Date.now();
