@@ -242,7 +242,7 @@ Deno.serve(async (req) => {
               await reorderPlaylistTracks(
                 j.spotify_playlist_id,
                 { range_start: from0, insert_before: insertBefore, range_length: 1 },
-                token,
+                activeToken,
               );
               console.log(JSON.stringify({
                 evt: "post_add_reorder.done",
