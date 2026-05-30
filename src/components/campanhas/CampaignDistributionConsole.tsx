@@ -50,6 +50,10 @@ type Props = {
   allocations: EcoAllocation[];
   ecoPositionByAllocation: Map<string, number>;
   ecoDispatchedAt: string | null;
+  baselineReady: boolean;
+  baselineCollected: number;
+  baselineRequired: number;
+  baselineCapturedAt: string | null;
   /** Base pra calcular a data prevista de cada playlist (start_day → data). */
   campaignStartedAt: string | null;
   /** Snapshot da campanha — usado pra calcular o primeiro dia REAL com volume por playlist (espelha o mapa). */
@@ -104,6 +108,10 @@ export function CampaignDistributionConsole({
   allocations,
   ecoPositionByAllocation,
   ecoDispatchedAt,
+  baselineReady,
+  baselineCollected,
+  baselineRequired,
+  baselineCapturedAt,
   campaignStartedAt,
   snapshot,
   engagementMultiplier,
@@ -481,15 +489,21 @@ export function CampaignDistributionConsole({
                 <Rocket className="h-5 w-5 text-primary" />
               </div>
               <div className="min-w-0">
-                <div className="text-base font-semibold leading-tight">Pronto pra distribuir</div>
+                <div className="text-base font-semibold leading-tight">
+                  {baselineReady ? "Pronto pra distribuir" : "Aguardando baseline"}
+                </div>
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  Enfileira <span className="text-foreground font-medium">{playlistsCount} ADD(s)</span> nas playlists do ecossistema · custo interno <span className="text-foreground font-medium">{formatBRL(custoTotal)}</span>
+                  {baselineReady ? (
+                    <>Baseline capturada{baselineCapturedAt ? <> em <span className="text-foreground font-medium">{fmtDateTime(baselineCapturedAt)}</span></> : null} · enfileira <span className="text-foreground font-medium">{playlistsCount} ADD(s)</span> · custo interno <span className="text-foreground font-medium">{formatBRL(custoTotal)}</span></>
+                  ) : (
+                    <>Coletadas <span className="text-foreground font-medium">{baselineCollected}/{baselineRequired || playlistsCount}</span> playlist(s). A campanha só inicia depois do marco zero.</>
+                  )}
                 </p>
               </div>
             </div>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button size="lg" variant="solid" disabled={dispatching} className="shadow-lg shadow-primary/20">
+                <Button size="lg" variant="solid" disabled={dispatching || !baselineReady} className="shadow-lg shadow-primary/20">
                   {dispatching ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Rocket className="h-4 w-4 mr-2" />}
                   Distribuir agora
                 </Button>
@@ -500,11 +514,12 @@ export function CampaignDistributionConsole({
                   <AlertDialogDescription asChild>
                     <div className="space-y-4 text-sm">
                       <p className="text-muted-foreground leading-relaxed">
-                        Cada playlist entra no dia previsto, dentro da janela <span className="text-foreground font-medium">08h–22h</span>. Os rebaixamentos rodam automaticamente.
+                        A baseline já foi capturada e será usada como ponto zero. Cada playlist entra no dia previsto, dentro da janela <span className="text-foreground font-medium">08h–22h</span>. Os rebaixamentos rodam automaticamente.
                       </p>
 
                       <div className="rounded-lg border border-border bg-background/40 divide-y divide-border">
                         <div className="px-3 py-2 text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Resumo</div>
+                        <div className="px-3 py-2 flex items-center justify-between"><span className="text-muted-foreground">Baseline</span><span className="font-semibold text-foreground">{baselineCollected}/{baselineRequired || playlistsCount}</span></div>
                         <div className="px-3 py-2 flex items-center justify-between"><span className="text-muted-foreground">Playlists</span><span className="font-semibold text-foreground">{playlistsCount}</span></div>
                         <div className="px-3 py-2 flex items-center justify-between"><span className="text-muted-foreground">Adições agora</span><span className="font-semibold text-foreground">{playlistsCount}</span></div>
                         <div className="px-3 py-2 flex items-center justify-between"><span className="text-muted-foreground">Rebaixamentos programados</span><span className="font-semibold text-foreground">{totalDemotions}</span></div>
