@@ -273,11 +273,11 @@ Deno.serve(async (req) => {
     s.correlation_id = crypto.randomUUID();
     const client = s?.curator_deals?.campaigns?.clients;
     const clientId = s?.curator_deals?.campaigns?.client_id ?? null;
-    let artistId: string | null = client?.spotify_artist_id ?? null;
-    let artistUrl: string | null = client?.spotify_artist_url ?? null;
-    // Fallback: resolve via Spotify API se cliente não tem cadastrado
+    // Ordem de prioridade: song row → client → resolve via Spotify API
+    let artistId: string | null = s.spotify_artist_id ?? client?.spotify_artist_id ?? null;
+    let artistUrl: string | null = s.spotify_artist_url ?? client?.spotify_artist_url ?? null;
     if (!artistId && s.spotify_track_id) {
-      const resolved = await resolveArtistIdFromTrack(supabase, s.spotify_track_id, s.song_artist, clientId);
+      const resolved = await resolveArtistIdFromTrack(supabase, s.spotify_track_id, s.song_artist, clientId, s.id);
       artistId = resolved.artistId;
       artistUrl = resolved.artistUrl;
     }
