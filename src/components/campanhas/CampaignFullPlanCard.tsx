@@ -765,6 +765,7 @@ export function CampaignFullPlanSummary({
         domain="clients"
       />
       <KpiBig
+        tier="quiet"
         icon={Radio}
         label="Mix do dia"
         value={formatInt(resumo.necDiaEco + resumo.necDiaExt + resumo.necDiaOrg)}
