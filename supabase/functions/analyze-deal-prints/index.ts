@@ -22,6 +22,7 @@ import { requireTeamAccess } from "../_shared/auth.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
+const supabase = createClient(SUPABASE_URL, ANON_KEY);
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
