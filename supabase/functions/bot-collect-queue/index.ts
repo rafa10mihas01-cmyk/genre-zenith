@@ -4,6 +4,44 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { recordMetric } from "../_shared/ops-metrics.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
+import { getSpotifyToken } from "../_shared/spotify.ts";
+
+// Resolve spotify_artist_id automaticamente via Spotify API quando o cliente
+// não tem cadastrado. Tenta casar pelo nome (song_artist) e cacheia no client.
+async function resolveArtistIdFromTrack(
+  supabase: any,
+  trackId: string,
+  songArtist: string | null,
+  clientId: string | null,
+): Promise<{ artistId: string | null; artistUrl: string | null }> {
+  try {
+    const token = await getSpotifyToken();
+    const res = await fetch(`https://api.spotify.com/v1/tracks/${trackId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return { artistId: null, artistUrl: null };
+    const data = await res.json();
+    const artists: Array<{ id: string; name: string }> = data?.artists ?? [];
+    if (!artists.length) return { artistId: null, artistUrl: null };
+    const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    const match = songArtist
+      ? artists.find((a) => norm(a.name) === norm(songArtist))
+        ?? artists.find((a) => norm(songArtist).includes(norm(a.name)) || norm(a.name).includes(norm(songArtist)))
+      : null;
+    const chosen = match ?? artists[0];
+    const artistUrl = `https://open.spotify.com/artist/${chosen.id}`;
+    if (clientId) {
+      await supabase
+        .from("clients")
+        .update({ spotify_artist_id: chosen.id, spotify_artist_url: artistUrl })
+        .eq("id", clientId)
+        .is("spotify_artist_id", null);
+    }
+    return { artistId: chosen.id, artistUrl };
+  } catch (_) {
+    return { artistId: null, artistUrl: null };
+  }
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
