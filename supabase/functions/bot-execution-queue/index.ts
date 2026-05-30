@@ -6,7 +6,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 import { reorderPlaylistTracks, listPlaylistTrackUris, addPlaylistTracks, removePlaylistTracks } from "../_shared/spotify-playlist.ts";
-import { getUserAccessToken, installSpotifyCircuitFetchGuard } from "../_shared/spotify.ts";
+import { getUserAccessToken, forceRefreshUserAccessToken, installSpotifyCircuitFetchGuard } from "../_shared/spotify.ts";
+import { SpotifyApiError } from "../_shared/spotify-playlist.ts";
 
 // Defesa em profundidade: garante que o guard global de fetch p/ Spotify
 // esteja instalado antes de qualquer chamada (add/remove/reorder no Spotify).
@@ -92,10 +93,23 @@ Deno.serve(async (req) => {
       const ownerId = mp?.owner_spotify_user_id ?? null;
       if (!ownerId) throw new Error("owner_spotify_user_id não encontrado em managed_playlists");
 
-      const { token } = await getUserAccessToken(ownerId);
+      let { token } = await getUserAccessToken(ownerId);
 
       // Em playlists privadas/colaborativas, leitura também precisa do token do dono.
-      const uris = await listPlaylistTrackUris(j.spotify_playlist_id, token);
+      // Retry uma vez com refresh forçado em 401 (token pode estar stale no cache).
+      let uris: string[];
+      try {
+        uris = await listPlaylistTrackUris(j.spotify_playlist_id, token);
+      } catch (ge) {
+        if (ge instanceof SpotifyApiError && ge.status === 401) {
+          console.log(JSON.stringify({ evt: "reorder.token_refresh", job_id: j.id }));
+          const refreshed = await forceRefreshUserAccessToken(ownerId);
+          token = refreshed.token;
+          uris = await listPlaylistTrackUris(j.spotify_playlist_id, token);
+        } else {
+          throw ge;
+        }
+      }
       const total = uris.length;
       console.log(JSON.stringify({
         evt: "reorder.attempt",
@@ -209,7 +223,22 @@ Deno.serve(async (req) => {
         // ============= Conferência pós-ADD: só corrige se o Spotify não respeitar position =============
         try {
           if (plannedPos && plannedPos > 0) {
-            const uris = await listPlaylistTrackUris(j.spotify_playlist_id, token);
+            let activeToken = token;
+            let uris: string[];
+            try {
+              uris = await listPlaylistTrackUris(j.spotify_playlist_id, activeToken);
+            } catch (ge) {
+              // Token às vezes vira inválido entre POST e GET (cache stale, refresh race).
+              // Faz refresh forçado e tenta UMA vez. Se ainda falhar, propaga.
+              if (ge instanceof SpotifyApiError && ge.status === 401) {
+                console.log(JSON.stringify({ evt: "post_add_reorder.token_refresh", job_id: j.id }));
+                const refreshed = await forceRefreshUserAccessToken(ownerId);
+                activeToken = refreshed.token;
+                uris = await listPlaylistTrackUris(j.spotify_playlist_id, activeToken);
+              } else {
+                throw ge;
+              }
+            }
             const total = uris.length;
             // localiza a faixa recém-adicionada (procura do fim pro começo)
             let from0 = -1;
@@ -226,7 +255,7 @@ Deno.serve(async (req) => {
               await reorderPlaylistTracks(
                 j.spotify_playlist_id,
                 { range_start: from0, insert_before: insertBefore, range_length: 1 },
-                token,
+                activeToken,
               );
               console.log(JSON.stringify({
                 evt: "post_add_reorder.done",

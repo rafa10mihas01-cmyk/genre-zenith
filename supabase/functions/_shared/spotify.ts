@@ -263,7 +263,7 @@ export type SpotifyUserToken = {
 };
 
 /** Faz refresh do token de usuário usando o app correto e persiste. */
-async function refreshUserToken(row: SpotifyUserToken): Promise<string> {
+export async function refreshUserToken(row: SpotifyUserToken): Promise<string> {
   const creds = await getAppCredentials(row.app_id);
   // NOTE: NÃO chamamos assertSpotifyCircuitClosed — refresh é em accounts.spotify.com (whitelisted).
   const basic = btoa(`${creds.client_id}:${creds.client_secret}`);
@@ -318,6 +318,25 @@ export async function getUserAccessToken(userId?: string): Promise<{ token: stri
   // está na whitelist e deve sempre funcionar (mesmo com breaker open).
   const expiresMs = new Date(row.expires_at).getTime();
   if (expiresMs > Date.now() + 60_000) return { token: row.access_token, row };
+  const fresh = await refreshUserToken(row);
+  return { token: fresh, row: { ...row, access_token: fresh } };
+}
+
+/** Força refresh imediato do token de usuário (ignora expiry cache). Útil em retry após 401. */
+export async function forceRefreshUserAccessToken(userId: string): Promise<{ token: string; row: SpotifyUserToken }> {
+  const supabase = db();
+  const defaultAppId = await getDefaultSpotifyAppId();
+  const { data, error } = await supabase
+    .from("spotify_user_tokens")
+    .select("*")
+    .eq("spotify_user_id", userId)
+    .order("is_default", { ascending: false })
+    .order("updated_at", { ascending: false })
+    .limit(25);
+  if (error) throw new Error(error.message);
+  const rows = (data ?? []) as SpotifyUserToken[];
+  if (rows.length === 0) throw new Error(`Sem token para spotify_user_id=${userId}`);
+  const row = defaultAppId ? rows.find((r) => r.app_id === defaultAppId) ?? rows[0] : rows[0];
   const fresh = await refreshUserToken(row);
   return { token: fresh, row: { ...row, access_token: fresh } };
 }
