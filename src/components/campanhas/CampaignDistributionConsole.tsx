@@ -94,10 +94,13 @@ export function CampaignDistributionConsole({
   ecoPositionByAllocation,
   ecoDispatchedAt,
   campaignStartedAt,
+  snapshot,
+  engagementMultiplier,
   custoTotal,
   dispatching,
   onDispatch,
 }: Props) {
+
 
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
