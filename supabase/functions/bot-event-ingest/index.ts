@@ -4,17 +4,28 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-bot-token, x-worker-id, x-process-id, x-hostname, x-timer-id, x-bot-name, x-bot-session",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-bot-key, x-bot-token, x-worker-id, x-process-id, x-hostname, x-timer-id, x-bot-name, x-bot-session",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+
+const BOT_INGEST_TOKEN = Deno.env.get("BOT_INGEST_TOKEN") ?? "";
+const BOT_API_KEY = Deno.env.get("BOT_API_KEY") ?? "";
+
+function isAuthorizedBot(req: Request): boolean {
+  const candidates = [
+    req.headers.get("x-bot-token"),
+    req.headers.get("x-bot-key"),
+    (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, ""),
+  ].map((v) => (v ?? "").trim()).filter(Boolean);
+  const allowed = [BOT_INGEST_TOKEN, BOT_API_KEY].filter(Boolean);
+  return candidates.some((c) => allowed.includes(c));
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const expected = Deno.env.get("BOT_INGEST_TOKEN");
-    const got = req.headers.get("x-bot-token");
-    if (!expected || got !== expected) {
+    if (!isAuthorizedBot(req)) {
       return new Response(JSON.stringify({ error: "unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

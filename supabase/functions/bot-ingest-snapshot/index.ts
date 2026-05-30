@@ -8,13 +8,24 @@ import { classifyPlaylistKind } from "../_shared/algorithmic-classifier.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "content-type, x-bot-key",
+  "Access-Control-Allow-Headers": "authorization, content-type, x-bot-key, x-bot-token",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const BOT_API_KEY = Deno.env.get("BOT_API_KEY")!;
+const BOT_API_KEY = Deno.env.get("BOT_API_KEY") ?? "";
+const BOT_INGEST_TOKEN = Deno.env.get("BOT_INGEST_TOKEN") ?? "";
+
+function isAuthorizedBot(req: Request): boolean {
+  const candidates = [
+    req.headers.get("x-bot-key"),
+    req.headers.get("x-bot-token"),
+    (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, ""),
+  ].map((v) => (v ?? "").trim()).filter(Boolean);
+  const allowed = [BOT_API_KEY, BOT_INGEST_TOKEN].filter(Boolean);
+  return candidates.some((c) => allowed.includes(c));
+}
 
 function jr(p: unknown, status = 200) {
   return new Response(JSON.stringify(p), {
@@ -28,7 +39,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jr({ error: "method_not_allowed" }, 405);
 
-  if (req.headers.get("x-bot-key") !== BOT_API_KEY) {
+  if (!isAuthorizedBot(req)) {
     return jr({ error: "unauthorized" }, 401);
   }
 
