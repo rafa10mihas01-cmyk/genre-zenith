@@ -17,6 +17,11 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const BOT_API_KEY = Deno.env.get("BOT_API_KEY")!;
+const BOT_INGEST_TOKEN = Deno.env.get("BOT_INGEST_TOKEN") ?? "";
+
+function isAuthorizedBotKey(value: string | null) {
+  return Boolean(value) && (value === BOT_API_KEY || value === BOT_INGEST_TOKEN);
+}
 
 function jr(p: unknown, status = 200) {
   return new Response(JSON.stringify(p), {
@@ -29,7 +34,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const startedAt = Date.now();
   if (req.method !== "POST") return jr({ error: "method_not_allowed" }, 405);
-  if (req.headers.get("x-bot-key") !== BOT_API_KEY) return jr({ error: "unauthorized" }, 401);
+  if (!isAuthorizedBotKey(req.headers.get("x-bot-key"))) return jr({ error: "unauthorized" }, 401);
 
   let body: any = {};
   try { body = await req.json(); } catch { /* allow empty */ }
