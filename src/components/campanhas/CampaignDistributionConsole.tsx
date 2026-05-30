@@ -48,6 +48,8 @@ type Props = {
   allocations: EcoAllocation[];
   ecoPositionByAllocation: Map<string, number>;
   ecoDispatchedAt: string | null;
+  /** Base pra calcular a data prevista de cada playlist (start_day → data). */
+  campaignStartedAt: string | null;
   custoTotal: number;
   dispatching: boolean;
   onDispatch: () => void | Promise<void>;
@@ -63,16 +65,33 @@ const fmtDateTime = (iso: string | null) => {
   return new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 };
 
+const fmtShortDate = (iso: string | null) => {
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+};
+
+/** Data prevista = base (started_at OU eco_dispatched_at) + (start_day - 1) dias. */
+function plannedDateFor(startDay: number | null | undefined, baseIso: string | null): string | null {
+  if (!baseIso || !startDay || startDay < 1) return null;
+  const base = new Date(baseIso);
+  if (isNaN(base.getTime())) return null;
+  base.setDate(base.getDate() + (startDay - 1));
+  return base.toISOString();
+}
+
+
 export function CampaignDistributionConsole({
   campaignId,
   spotifyTrackId,
   allocations,
   ecoPositionByAllocation,
   ecoDispatchedAt,
+  campaignStartedAt,
   custoTotal,
   dispatching,
   onDispatch,
 }: Props) {
+
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [bot, setBot] = useState<BotHealth | null>(null);
@@ -179,6 +198,9 @@ export function CampaignDistributionConsole({
   }, [jobs]);
 
   // --- linhas de playlist a renderizar (a partir das allocations) ---
+  // Base pra "data prevista": prioriza eco_dispatched_at (real). Cai pra
+  // started_at quando o eco ainda não foi disparado (planejamento).
+  const planBaseIso = ecoDispatchedAt ?? campaignStartedAt;
   const rows = useMemo(() => {
     return allocations
       .map((a) => {
@@ -195,9 +217,11 @@ export function CampaignDistributionConsole({
           cover: a.managed_playlists?.cover_url ?? null,
           spotifyUrl: url || null,
           plannedPosition: ecoPositionByAllocation.get(a.id) ?? null,
+          plannedFor: plannedDateFor(a.start_day, planBaseIso),
           state,
         };
       })
+
       .sort((a, b) => {
         const rank = (s: PlaylistState["status"]) =>
           s === "failed" ? 0 : s === "pending" ? 1 : s === "scheduled" ? 2 : s === "done" ? 3 : 4;
@@ -533,10 +557,12 @@ function PlaylistRow({
     cover: string | null;
     spotifyUrl: string | null;
     plannedPosition: number | null;
+    plannedFor: string | null;
     state: PlaylistRowState;
   };
   onRetry?: () => void | Promise<void>;
 }) {
+
   const initial = row.name.charAt(0).toUpperCase();
   const statusCfg: Record<PlaylistRowState["status"], { label: string; cls: string; icon: typeof Clock }> = {
     done: { label: "Adicionada", cls: "bg-primary/15 text-primary border-primary/30", icon: CheckCircle2 },
@@ -575,15 +601,17 @@ function PlaylistRow({
           <span>
             Pos. planejada: <span className="text-foreground font-medium">{row.plannedPosition ?? "—"}</span>
           </span>
-          {row.state.status === "scheduled" && row.state.scheduledFor && (
-            <span>· agendada para {fmtTime(row.state.scheduledFor)}</span>
-          )}
-          {row.state.status === "done" && row.state.completedAt && (
+          {row.state.status === "scheduled" && row.state.scheduledFor ? (
+            <span>· agendada para {fmtDateTime(row.state.scheduledFor)}</span>
+          ) : row.state.status === "done" && row.state.completedAt ? (
             <span>· {fmtDateTime(row.state.completedAt)}</span>
-          )}
+          ) : row.plannedFor ? (
+            <span>· prevista para {fmtShortDate(row.plannedFor)}</span>
+          ) : null}
           {row.state.status === "failed" && row.state.lastError && (
             <span className="text-rose-400 truncate" title={row.state.lastError}>· {row.state.lastError}</span>
           )}
+
         </div>
       </div>
 

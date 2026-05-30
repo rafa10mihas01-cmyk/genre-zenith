@@ -786,6 +786,7 @@ export default function CampanhaExecucao() {
                     allocations={allocs}
                     ecoPositionByAllocation={ecoPositionByAllocation}
                     ecoDispatchedAt={camp.eco_dispatched_at ?? null}
+                    campaignStartedAt={camp.started_at ?? null}
                     custoTotal={snapshot.custoTotal ?? 0}
                     dispatching={dispatching}
                     onDispatch={handleDispatchEco}
