@@ -566,6 +566,56 @@ export function CampaignDistributionConsole({
         </CardContent>
       </Card>
 
+      {/* BLOCO 4b — Rebaixamentos (desmame por posição) */}
+      <Card>
+        <CardContent className="p-0">
+          <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold flex items-center gap-2">
+                <ArrowDown className="h-3.5 w-3.5 text-muted-foreground" />
+                Rebaixamentos
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                {reorderRows.length === 0
+                  ? "Sem rebaixamentos planejados ainda — o cron enfileira automaticamente conforme o desmame do plano."
+                  : `${reorderRows.length} job(s) de reorder · pos atual → pos do dia`}
+              </div>
+            </div>
+          </div>
+          {reorderRows.length > 0 && (
+            <div className="divide-y divide-border">
+              {reorderRows.map((r) => (
+                <div key={r.id} className="px-4 py-2.5 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[13px] font-medium text-foreground truncate">{r.name}</div>
+                    <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 flex-wrap">
+                      <span className="font-mono">Pos {r.from ?? "—"} → {r.to ?? "—"}</span>
+                      {r.status === "scheduled" && r.scheduledFor && (
+                        <span>· agendado para {fmtDateTime(r.scheduledFor)}</span>
+                      )}
+                      {r.status === "done" && r.completedAt && (
+                        <span>· feito em {fmtDateTime(r.completedAt)}</span>
+                      )}
+                      {r.status === "pending" && <span>· aguardando bot</span>}
+                      {r.status === "failed" && <span className="text-destructive">· falhou</span>}
+                    </div>
+                  </div>
+                  <span className={cn(
+                    "inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-bold border",
+                    r.status === "done" && "border-success/30 bg-success/10 text-success",
+                    r.status === "scheduled" && "border-primary/30 bg-primary/10 text-primary",
+                    r.status === "pending" && "border-warning/30 bg-warning/10 text-warning",
+                    r.status === "failed" && "border-destructive/30 bg-destructive/10 text-destructive",
+                  )}>
+                    {r.status === "done" ? "rebaixada" : r.status === "scheduled" ? "agendada" : r.status === "pending" ? "pendente" : "falhou"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* BLOCO 5 — Saúde do bot */}
       <Card>
         <CardContent className="p-4">
