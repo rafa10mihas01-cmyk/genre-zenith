@@ -578,8 +578,12 @@ export function CampaignDistributionConsole({
               <div className="text-sm font-semibold">Status por playlist</div>
               <div className="text-[11px] text-muted-foreground">
                 {playlistsCount} playlist(s) · atualiza em tempo real
+                {ecoDispatchedAt && (
+                  <> · distribuído em <span className="text-foreground">{fmtDateTime(ecoDispatchedAt)}</span></>
+                )}
               </div>
             </div>
+
           </div>
           {loadingJobs ? (
             <div className="p-4 space-y-2">
