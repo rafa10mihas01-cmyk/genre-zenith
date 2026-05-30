@@ -270,6 +270,9 @@ export async function auditCampaignFlow(
     }
   }
 
+  // Estado final por último — é o resultado do pipeline acima.
+  pushFinalState();
+
   // OK geral só se não houver falha real (pending/skipped não derrubam)
   const hasFailure = steps.some((s) => s.status === "failed");
   return {
