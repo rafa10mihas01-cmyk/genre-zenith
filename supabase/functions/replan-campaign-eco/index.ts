@@ -198,8 +198,10 @@ Deno.serve(async (req) => {
     });
   }
 
-  // 4) Posições — chart-tier determinístico baseado no Top200 da música.
-  //    Primário via PRIMARY_RANGES_BY_CHART; vizinhos via NEIGHBOR_RANGE_BY_CHART.
+  // 4) Posições — NOVO: capacidade real vs. necessidade diária da campanha.
+  //    Se temos metaEco+days, usa distributeByDailyNeed (respeita projeção,
+  //    tolerância ECO_DAILY_TOLERANCE acima do dailyNeed). Caso contrário,
+  //    fallback para chart-tier (snapshots antigos sem meta/splitEcoPct).
   const topPosition = Number(snap?.music?.top200Position ?? snap?.music?.top200Pos ?? 0) || null;
   const chartTier = chartTierFromTopPosition(topPosition);
 
@@ -207,12 +209,39 @@ Deno.serve(async (req) => {
     ...freshPrimary.map((p: any) => ({ id: p.id, planned_streams: 0, followers: Number(p.followers ?? 0), genreSource: "primary" as const })),
     ...freshNeighbor.map((p: any) => ({ id: p.id, planned_streams: 0, followers: Number(p.followers ?? 0), genreSource: "affinity" as const })),
   ];
-  const allPositions = distributeEcoPositions(allFresh, days, mult, { chartTier });
+
+  // Necessidade diária restante = (metaEco - já planejado) / dias.
+  const dailyNeedRemaining = metaEco > 0
+    ? Math.max(0, (metaEco - existingTotalPlanned)) / days
+    : 0;
+
+  let allPositions: Map<string, number>;
+  let positionStrategy: "daily_need" | "chart_tier";
+  let coveredDailyByNew = 0;
+  if (dailyNeedRemaining > 0) {
+    const dist = distributeByDailyNeed(allFresh, dailyNeedRemaining, mult, ECO_DAILY_TOLERANCE);
+    allPositions = dist.positions;
+    coveredDailyByNew = dist.coveredDaily;
+    positionStrategy = "daily_need";
+  } else {
+    allPositions = distributeEcoPositions(allFresh, days, mult, { chartTier });
+    positionStrategy = "chart_tier";
+  }
 
   const primaryPositions = new Map<string, number>();
   const neighborPositions = new Map<string, number>();
   for (const p of freshPrimary) primaryPositions.set(p.id, allPositions.get(p.id) ?? 3);
   for (const p of freshNeighbor) neighborPositions.set(p.id, allPositions.get(p.id) ?? 5);
+
+  console.log("[replan] positions", {
+    strategy: positionStrategy,
+    dailyNeedRemaining,
+    coveredDailyByNew,
+    tolerance: ECO_DAILY_TOLERANCE,
+    chartTier,
+  });
+
+
 
 
   // 5) Monta linhas + soma plays/dia adicionais
