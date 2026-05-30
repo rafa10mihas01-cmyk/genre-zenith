@@ -218,6 +218,28 @@ export function CampaignDistributionConsole({
     return m;
   }, [jobs]);
 
+  // --- Plano operacional (espelha o mapa) — usado pra saber o PRIMEIRO DIA REAL
+  // com volume de cada playlist (alguns slots só entram no D7, D8, etc).
+  const realStartByAllocation = useMemo(() => {
+    const m = new Map<string, number>();
+    try {
+      const plans = buildEcoPlaylistPlan(snapshot, allocations as any, {
+        engagementMultiplier: engagementMultiplier ?? 30,
+        startedAt: campaignStartedAt ?? undefined,
+        positions: ecoPositionByAllocation,
+      });
+      for (const p of plans) {
+        // Primeiro dia (1-indexed) com volume > 0; cai pro startDay teórico se nada acumulou.
+        const firstWithVolume = (p.daily ?? []).findIndex((v) => v > 0);
+        const day = firstWithVolume >= 0 ? firstWithVolume + 1 : p.startDay;
+        m.set(p.allocationId, day);
+      }
+    } catch {
+      /* fallback silencioso — usa start_day cru */
+    }
+    return m;
+  }, [snapshot, allocations, engagementMultiplier, campaignStartedAt, ecoPositionByAllocation]);
+
   // --- linhas de playlist a renderizar (a partir das allocations) ---
   // Base pra "data prevista": prioriza eco_dispatched_at (real). Cai pra
   // started_at quando o eco ainda não foi disparado (planejamento).
@@ -231,6 +253,7 @@ export function CampaignDistributionConsole({
         const state: PlaylistState = spid
           ? (stateBySpid.get(spid) ?? { status: "idle", scheduledFor: null, lastError: null, jobId: null, completedAt: null })
           : { status: "idle", scheduledFor: null, lastError: null, jobId: null, completedAt: null };
+        const realStart = realStartByAllocation.get(a.id) ?? a.start_day ?? 1;
         return {
           allocId: a.id,
           spid,
@@ -238,7 +261,7 @@ export function CampaignDistributionConsole({
           cover: a.managed_playlists?.cover_url ?? null,
           spotifyUrl: url || null,
           plannedPosition: ecoPositionByAllocation.get(a.id) ?? null,
-          plannedFor: plannedDateFor(a.start_day, planBaseIso),
+          plannedFor: plannedDateFor(realStart, planBaseIso),
           state,
         };
       })
@@ -248,6 +271,7 @@ export function CampaignDistributionConsole({
           s === "failed" ? 0 : s === "pending" ? 1 : s === "scheduled" ? 2 : s === "done" ? 3 : 4;
         const r = rank(a.state.status) - rank(b.state.status);
         if (r !== 0) return r;
+
         return a.name.localeCompare(b.name);
       });
   }, [allocations, ecoPositionByAllocation, stateBySpid]);
