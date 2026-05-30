@@ -2177,6 +2177,8 @@ export type Database = {
           song_cover_url: string | null
           song_name: string
           song_spotify_url: string
+          spotify_artist_id: string | null
+          spotify_artist_url: string | null
           spotify_track_id: string | null
           started_at: string | null
           target_plays: number | null
@@ -2209,6 +2211,8 @@ export type Database = {
           song_cover_url?: string | null
           song_name: string
           song_spotify_url: string
+          spotify_artist_id?: string | null
+          spotify_artist_url?: string | null
           spotify_track_id?: string | null
           started_at?: string | null
           target_plays?: number | null
@@ -2241,6 +2245,8 @@ export type Database = {
           song_cover_url?: string | null
           song_name?: string
           song_spotify_url?: string
+          spotify_artist_id?: string | null
+          spotify_artist_url?: string | null
           spotify_track_id?: string | null
           started_at?: string | null
           target_plays?: number | null
