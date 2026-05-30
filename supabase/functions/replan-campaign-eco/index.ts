@@ -266,15 +266,17 @@ Deno.serve(async (req) => {
   console.log("[replan] positions", {
     strategy: positionStrategy,
     dailyNeedRemaining,
+    coveredDailyByPrimary,
     coveredDailyByNew,
+    gapAfterPrimary,
+    usedNeighbors,
+    neighborGapThreshold: NEIGHBOR_GAP_THRESHOLD,
     tolerance: ECO_DAILY_TOLERANCE,
     chartTier,
   });
 
-
-
-
-  // 5) Monta linhas + soma plays/dia adicionais
+  // 5) Monta linhas + soma plays/dia adicionais.
+  //    Vizinhos só entram se `usedNeighbors=true` (gap > threshold após primário).
   let playsPerDayAdded = 0;
   let playsPerDayPrimary = 0;
   let playsPerDayNeighbor = 0;
@@ -300,26 +302,41 @@ Deno.serve(async (req) => {
     });
   };
 
+  // Só insere primárias que receberam posição na cascata.
   for (const p of freshPrimary) {
+    if (!allPositions.has(p.id)) continue;
     buildRow(p, primaryPositions.get(p.id) ?? 3, "primary");
   }
-  for (const p of freshNeighbor) {
-    buildRow(p, neighborPositions.get(p.id) ?? affLo, "affinity");
+  // Vizinhos só entram quando usedNeighbors=true.
+  if (usedNeighbors) {
+    for (const p of freshNeighbor) {
+      if (!allPositions.has(p.id)) continue;
+      buildRow(p, neighborPositions.get(p.id) ?? affLo, "affinity");
+    }
   }
+
+  const addedPrimaryCount = rows.filter(r => r.genre_source === "primary").length;
+  const addedNeighborCount = rows.filter(r => r.genre_source === "affinity").length;
 
   const summary = {
     added: rows.length,
-    added_primary: freshPrimary.length,
-    added_neighbor: freshNeighbor.length,
+    added_primary: addedPrimaryCount,
+    added_neighbor: addedNeighborCount,
+    available_primary: freshPrimary.length,
+    available_neighbor: freshNeighbor.length,
     plays_per_day_added: playsPerDayAdded,
     plays_per_day_primary: playsPerDayPrimary,
     plays_per_day_neighbor: playsPerDayNeighbor,
     neighbor_genres: neighborGenreIds,
+    used_neighbors: usedNeighbors,
     coverage_ratio: coverageRatio,
     mode,
     affinity_range: [affLo, affHi],
     position_strategy: positionStrategy,
     daily_need_remaining: Math.round(dailyNeedRemaining),
+    covered_daily_by_primary: Math.round(coveredDailyByPrimary),
+    gap_after_primary: Math.round(gapAfterPrimary),
+    neighbor_gap_threshold: NEIGHBOR_GAP_THRESHOLD,
     daily_tolerance: ECO_DAILY_TOLERANCE,
   };
 
