@@ -1,0 +1,1 @@
+UPDATE curator_deal_songs SET auto_collect_status='idle', next_auto_collect_at=now(), auto_collect_error=NULL, queued_at=NULL WHERE id IN ('be7e7c45-496a-4b5d-9b79-ade76f3d01ce','7775f576-813b-40b6-8733-173735789ad7');
