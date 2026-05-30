@@ -612,7 +612,7 @@ export function CampaignDistributionConsole({
         </CardContent>
       </Card>
 
-      {/* BLOCO 4b — Rebaixamentos (desmame por posição) */}
+      {/* BLOCO 4b — Rebaixamentos (cronograma de desmame por playlist) */}
       <Card>
         <CardContent className="p-0">
           <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3">
@@ -622,39 +622,50 @@ export function CampaignDistributionConsole({
                 Rebaixamentos
               </div>
               <div className="text-[11px] text-muted-foreground">
-                {reorderRows.length === 0
-                  ? "Sem rebaixamentos planejados ainda — o cron enfileira automaticamente conforme o desmame do plano."
-                  : `${reorderRows.length} job(s) de reorder · pos atual → pos do dia`}
+                {totalDemotions === 0
+                  ? "Nenhum rebaixamento planejado — todas as playlists ficam na posição base do início ao fim."
+                  : `${totalDemotions} degrau(s) em ${demotionPlan.length} playlist(s) · cronograma do plano`}
               </div>
             </div>
           </div>
-          {reorderRows.length > 0 && (
+          {demotionPlan.length > 0 && (
             <div className="divide-y divide-border">
-              {reorderRows.map((r) => (
-                <div key={r.id} className="px-4 py-2.5 flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="text-[13px] font-medium text-foreground truncate">{r.name}</div>
-                    <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 flex-wrap">
-                      <span className="font-mono">Pos {r.from ?? "—"} → {r.to ?? "—"}</span>
-                      {r.status === "scheduled" && r.scheduledFor && (
-                        <span>· agendado para {fmtDateTime(r.scheduledFor)}</span>
-                      )}
-                      {r.status === "done" && r.completedAt && (
-                        <span>· feito em {fmtDateTime(r.completedAt)}</span>
-                      )}
-                      {r.status === "pending" && <span>· aguardando bot</span>}
-                      {r.status === "failed" && <span className="text-destructive">· falhou</span>}
-                    </div>
+              {demotionPlan.map((p) => (
+                <div key={p.allocId} className="px-4 py-3">
+                  <div className="text-[13px] font-medium text-foreground truncate mb-2">{p.name}</div>
+                  <div className="space-y-1.5">
+                    {p.transitions.map((t, idx) => {
+                      const label =
+                        t.jobStatus === "done" ? "rebaixada" :
+                        t.jobStatus === "failed" ? "falhou" :
+                        t.jobStatus === "scheduled" ? "agendada" :
+                        t.jobStatus === "pending" ? "pendente" : "planejada";
+                      const badgeCls =
+                        t.jobStatus === "done" ? "border-success/30 bg-success/10 text-success" :
+                        t.jobStatus === "failed" ? "border-destructive/30 bg-destructive/10 text-destructive" :
+                        t.jobStatus === "scheduled" ? "border-primary/30 bg-primary/10 text-primary" :
+                        t.jobStatus === "pending" ? "border-warning/30 bg-warning/10 text-warning" :
+                        "border-border bg-muted/40 text-muted-foreground";
+                      return (
+                        <div key={idx} className="flex items-center justify-between gap-3 text-[11px]">
+                          <div className="text-muted-foreground flex items-center gap-2 flex-wrap">
+                            <span className="font-mono text-foreground">D{t.day}</span>
+                            {t.dateIso && <span>· {fmtShortDate(t.dateIso)}</span>}
+                            <span className="font-mono">· Pos {t.from} → {t.to}</span>
+                            {t.jobStatus === "done" && t.jobCompletedAt && (
+                              <span>· feito em {fmtDateTime(t.jobCompletedAt)}</span>
+                            )}
+                          </div>
+                          <span className={cn(
+                            "inline-flex items-center px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-bold border shrink-0",
+                            badgeCls,
+                          )}>
+                            {label}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <span className={cn(
-                    "inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-bold border",
-                    r.status === "done" && "border-success/30 bg-success/10 text-success",
-                    r.status === "scheduled" && "border-primary/30 bg-primary/10 text-primary",
-                    r.status === "pending" && "border-warning/30 bg-warning/10 text-warning",
-                    r.status === "failed" && "border-destructive/30 bg-destructive/10 text-destructive",
-                  )}>
-                    {r.status === "done" ? "rebaixada" : r.status === "scheduled" ? "agendada" : r.status === "pending" ? "pendente" : "falhou"}
-                  </span>
                 </div>
               ))}
             </div>
