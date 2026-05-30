@@ -198,6 +198,9 @@ export function CampaignDistributionConsole({
   }, [jobs]);
 
   // --- linhas de playlist a renderizar (a partir das allocations) ---
+  // Base pra "data prevista": prioriza eco_dispatched_at (real). Cai pra
+  // started_at quando o eco ainda não foi disparado (planejamento).
+  const planBaseIso = ecoDispatchedAt ?? campaignStartedAt;
   const rows = useMemo(() => {
     return allocations
       .map((a) => {
@@ -214,9 +217,11 @@ export function CampaignDistributionConsole({
           cover: a.managed_playlists?.cover_url ?? null,
           spotifyUrl: url || null,
           plannedPosition: ecoPositionByAllocation.get(a.id) ?? null,
+          plannedFor: plannedDateFor(a.start_day, planBaseIso),
           state,
         };
       })
+
       .sort((a, b) => {
         const rank = (s: PlaylistState["status"]) =>
           s === "failed" ? 0 : s === "pending" ? 1 : s === "scheduled" ? 2 : s === "done" ? 3 : 4;
