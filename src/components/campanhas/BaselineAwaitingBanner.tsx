@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Clock, RefreshCcw, CheckCircle2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Clock, RefreshCcw, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -10,13 +10,89 @@ type Props = {
   dealId: string | null;
 };
 
-/**
- * Banner exibido na tela de execução enquanto o deal está em "awaiting_baseline".
- * O bot precisa tirar a 1ª foto do Spotify for Artists antes da campanha ativar.
- * Enquanto isso o curador NÃO recebe o link — não tem o que mandar pra ele.
- */
+type SongStatus = {
+  auto_collect_status: string | null;
+  auto_collect_error: string | null;
+  last_auto_collect_at: string | null;
+  next_auto_collect_at: string | null;
+  queued_at: string | null;
+};
+
+type BotPing = { created_at: string; status: string | null } | null;
+
+function fmtAgo(iso: string | null): string {
+  if (!iso) return "—";
+  const ms = Date.now() - new Date(iso).getTime();
+  const s = Math.max(0, Math.round(ms / 1000));
+  if (s < 60) return `há ${s}s`;
+  const m = Math.round(s / 60);
+  if (m < 60) return `há ${m}min`;
+  const h = Math.round(m / 60);
+  return `há ${h}h`;
+}
+
+function fmtIn(iso: string | null): string {
+  if (!iso) return "—";
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 0) return "a qualquer momento";
+  const s = Math.round(ms / 1000);
+  if (s < 60) return `em ${s}s`;
+  const m = Math.round(s / 60);
+  return `em ${m}min`;
+}
+
+const STATUS_LABEL: Record<string, { label: string; tone: "info" | "warn" | "err" }> = {
+  idle: { label: "Aguardando próximo ciclo", tone: "info" },
+  queued: { label: "Na fila do robô", tone: "info" },
+  dispatched: { label: "Enviado pro robô", tone: "info" },
+  running: { label: "Robô coletando agora", tone: "info" },
+  error: { label: "Erro na última tentativa", tone: "err" },
+};
+
 export function BaselineAwaitingBanner({ dealState, baselineCapturedAt, dealId }: Props) {
   const [retrying, setRetrying] = useState(false);
+  const [song, setSong] = useState<SongStatus | null>(null);
+  const [bot, setBot] = useState<BotPing>(null);
+  const [, setTick] = useState(0);
+
+  // Re-render a cada 15s pra atualizar contadores "há Xs / em Xmin"
+  useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), 15_000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Polling de status (10s) enquanto aguardando baseline
+  useEffect(() => {
+    if (!dealId || baselineCapturedAt || dealState !== "awaiting_baseline") return;
+    let cancel = false;
+
+    async function load() {
+      const [{ data: s }, { data: b }] = await Promise.all([
+        supabase
+          .from("curator_deal_songs")
+          .select("auto_collect_status, auto_collect_error, last_auto_collect_at, next_auto_collect_at, queued_at")
+          .eq("deal_id", dealId)
+          .order("position", { ascending: true })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("bot_heartbeats")
+          .select("created_at, status")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
+      if (cancel) return;
+      setSong((s as SongStatus) ?? null);
+      setBot((b as BotPing) ?? null);
+    }
+    load();
+    const t = setInterval(load, 10_000);
+    return () => {
+      cancel = true;
+      clearInterval(t);
+    };
+  }, [dealId, baselineCapturedAt, dealState]);
 
   if (!dealState) return null;
 
@@ -24,7 +100,7 @@ export function BaselineAwaitingBanner({ dealState, baselineCapturedAt, dealId }
   if (baselineCapturedAt) {
     const captured = new Date(baselineCapturedAt);
     const ageMin = (Date.now() - captured.getTime()) / 60_000;
-    if (ageMin > 60) return null; // depois de 1h some, ficou velho
+    if (ageMin > 60) return null;
     return (
       <div className="rounded-2xl border border-primary/30 bg-primary/5 px-5 py-3 flex items-center gap-3">
         <CheckCircle2 className="h-5 w-5 text-primary" />
@@ -56,29 +132,94 @@ export function BaselineAwaitingBanner({ dealState, baselineCapturedAt, dealId }
     }
   }
 
+  const status = (song?.auto_collect_status ?? "idle").toLowerCase();
+  const meta = STATUS_LABEL[status] ?? { label: status, tone: "info" as const };
+  const isError = meta.tone === "err";
+
+  // Bot saudável se heartbeat há menos de 90s
+  const botFresh = bot?.created_at ? Date.now() - new Date(bot.created_at).getTime() < 90_000 : false;
+
   return (
-    <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-5 py-4 flex items-start gap-4">
-      <Clock className="h-5 w-5 text-amber-400 mt-0.5 shrink-0" />
-      <div className="flex-1 space-y-1">
-        <div className="text-sm font-medium text-foreground">
-          Aguardando bot capturar baseline
+    <div
+      className={`rounded-2xl border px-5 py-4 space-y-3 ${
+        isError ? "border-destructive/40 bg-destructive/5" : "border-amber-500/40 bg-amber-500/10"
+      }`}
+    >
+      <div className="flex items-start gap-4">
+        {isError ? (
+          <AlertTriangle className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
+        ) : status === "running" ? (
+          <Loader2 className="h-5 w-5 text-amber-400 mt-0.5 shrink-0 animate-spin" />
+        ) : (
+          <Clock className="h-5 w-5 text-amber-400 mt-0.5 shrink-0" />
+        )}
+        <div className="flex-1 space-y-1">
+          <div className="text-sm font-medium text-foreground flex items-center gap-2">
+            Aguardando bot capturar baseline
+            <span
+              className={`text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded border leading-none ${
+                isError
+                  ? "border-destructive/50 text-destructive"
+                  : "border-amber-500/50 text-amber-300"
+              }`}
+            >
+              {meta.label}
+            </span>
+          </div>
+          <div className="text-xs text-muted-foreground leading-relaxed">
+            O robô abre o Spotify for Artists e tira a foto inicial das playlists que já tocam a música.
+            A campanha ativa sozinha quando a foto chegar — aí libera o link pro curador.
+          </div>
         </div>
-        <div className="text-xs text-muted-foreground leading-relaxed">
-          O robô vai abrir o Spotify for Artists e tirar a foto inicial das playlists que
-          já tocam essa música. A campanha ativa automaticamente quando a foto chegar.
-          Só depois disso você manda o link pro curador.
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={retry}
+          disabled={retrying}
+          className="shrink-0"
+        >
+          <RefreshCcw className={`h-3.5 w-3.5 mr-2 ${retrying ? "animate-spin" : ""}`} />
+          Reexecutar
+        </Button>
+      </div>
+
+      {/* Linha de telemetria */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-[11px] pt-2 border-t border-border/40">
+        <div>
+          <div className="text-muted-foreground uppercase tracking-wider text-[9px]">Na fila</div>
+          <div className="text-foreground font-medium tabular-nums">{fmtAgo(song?.queued_at ?? null)}</div>
+        </div>
+        <div>
+          <div className="text-muted-foreground uppercase tracking-wider text-[9px]">Última tentativa</div>
+          <div className="text-foreground font-medium tabular-nums">
+            {song?.last_auto_collect_at ? fmtAgo(song.last_auto_collect_at) : "nenhuma"}
+          </div>
+        </div>
+        <div>
+          <div className="text-muted-foreground uppercase tracking-wider text-[9px]">Próximo ciclo</div>
+          <div className="text-foreground font-medium tabular-nums">
+            {fmtIn(song?.next_auto_collect_at ?? null)}
+          </div>
+        </div>
+        <div>
+          <div className="text-muted-foreground uppercase tracking-wider text-[9px]">Robô</div>
+          <div className={`font-medium ${botFresh ? "text-primary" : "text-destructive"}`}>
+            {botFresh ? "online" : "offline"}
+            <span className="text-muted-foreground ml-1 font-normal">
+              ({fmtAgo(bot?.created_at ?? null)})
+            </span>
+          </div>
         </div>
       </div>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={retry}
-        disabled={retrying}
-        className="shrink-0"
-      >
-        <RefreshCcw className={`h-3.5 w-3.5 mr-2 ${retrying ? "animate-spin" : ""}`} />
-        Reexecutar
-      </Button>
+
+      {isError && song?.auto_collect_error && (
+        <div className="text-[11px] text-destructive/90 bg-destructive/10 rounded px-2 py-1.5 border border-destructive/30">
+          {song.auto_collect_error}
+        </div>
+      )}
+      {!isError && song?.auto_collect_error && (
+        <div className="text-[11px] text-muted-foreground italic">{song.auto_collect_error}</div>
+      )}
     </div>
   );
 }
