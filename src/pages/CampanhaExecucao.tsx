@@ -678,7 +678,9 @@ export default function CampanhaExecucao() {
                     lastUploadAt={lastSpreadsheetUploadAt}
                     recentUploads={recentUploads}
                     onUploaded={loadCampaign}
+                    approved={!!camp.client_approved_at}
                   />
+
                 </DialogContent>
               </Dialog>
             ) : null}
