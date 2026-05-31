@@ -2,7 +2,7 @@
 // (XLSX da distribuidora OU CSV do Spotify) quando o deal NÃO tem Spotify
 // conectado. Mostra última atualização, preview com matches e histórico curto.
 import { useEffect, useRef, useState } from "react";
-import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2, Download } from "lucide-react";
+import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2, Download, Lock, Target } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
