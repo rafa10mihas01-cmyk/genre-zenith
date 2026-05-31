@@ -188,16 +188,31 @@ export function BotCollectionStatus({ campaignId, dealId }: Props) {
               : "Nenhuma foto capturada ainda — aguardando primeira passada"}
           </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={forceCollect}
-          disabled={retrying || !dealId}
-          className="shrink-0"
-        >
-          <RefreshCcw className={`h-3.5 w-3.5 mr-2 ${retrying ? "animate-spin" : ""}`} />
-          Forçar coleta
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          {dealId && (
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-foreground"
+              title="Abrir página do deal interno (logs, snapshots crus, debug)"
+            >
+              <Link to={`/playlist-deals/${dealId}`}>
+                <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                Debug
+              </Link>
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={forceCollect}
+            disabled={retrying || !dealId}
+          >
+            <RefreshCcw className={`h-3.5 w-3.5 mr-2 ${retrying ? "animate-spin" : ""}`} />
+            Forçar coleta
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-[11px] pt-2 border-t border-border/40">
