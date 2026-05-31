@@ -108,7 +108,7 @@ Deno.serve(async (req) => {
   // 1) Campanha + ownership
   const { data: campaign, error: campErr } = await admin
     .from("campaigns")
-    .select("id, created_by, engagement_multiplier, simulation_snapshot")
+    .select("id, created_by, engagement_multiplier, simulation_snapshot, started_at")
     .eq("id", campaignId)
     .maybeSingle();
   if (campErr) return json({ ok: false, error: campErr.message }, 500);
@@ -123,6 +123,8 @@ Deno.serve(async (req) => {
   const days = Number(snap?.effectiveDays ?? snap?.days ?? 0);
   const mult = Math.max(1, Math.round(Number((campaign as any).engagement_multiplier ?? snap?.engagement_multiplier ?? 30)));
   if (days <= 0) return json({ ok: false, error: "invalid_snapshot_days" }, 400);
+  const campaignStartedAt = (campaign as any).started_at ? new Date((campaign as any).started_at) : new Date();
+  const campaignEndsAt = new Date(campaignStartedAt.getTime() + days * 86400000);
 
   // 2) Allocs existentes — descobre gênero primário, playlists já usadas e capacidade atual
   const { data: existing, error: exErr } = await admin
