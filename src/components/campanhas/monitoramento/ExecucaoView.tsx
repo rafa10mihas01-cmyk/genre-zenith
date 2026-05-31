@@ -34,7 +34,7 @@ type SortKey = "delta" | "current" | "baseline" | "name";
 
 const ROW_H = 64;
 
-export function ExecucaoView({ campaignId }: { campaignId: string }) {
+export function ExecucaoView({ campaignId, onOpenHistory }: { campaignId: string; onOpenHistory?: (playlistId: string) => void }) {
   const [rows, setRows] = useState<GrowthRow[] | null>(null);
   const [curators, setCurators] = useState<Record<string, CuratorMeta>>({});
   const [statuses, setStatuses] = useState<Record<string, string>>({});
