@@ -143,6 +143,8 @@ export default function ClientCampaignPage() {
   const [spreadsheetSource, setSpreadsheetSource] = useState(false);
   const [lastSpreadsheetUploadAt, setLastSpreadsheetUploadAt] = useState<string | null>(null);
   const [recentUploads, setRecentUploads] = useState<any[]>([]);
+  const [campaignApproved, setCampaignApproved] = useState(false);
+
 
   const load = async () => {
     if (!token) return;
@@ -173,7 +175,9 @@ export default function ClientCampaignPage() {
       setSpreadsheetSource(Boolean(data.spreadsheet_source));
       setLastSpreadsheetUploadAt(data.last_spreadsheet_upload_at ?? null);
       setRecentUploads(data.recent_uploads ?? []);
+      setCampaignApproved(Boolean(data.campaign_approved));
       setError(null);
+
     }
     setLoading(false);
   };
@@ -735,8 +739,10 @@ export default function ClientCampaignPage() {
               lastUploadAt={lastSpreadsheetUploadAt}
               recentUploads={recentUploads}
               onUploaded={load}
+              approved={campaignApproved}
             />
           )}
+
 
           {/* Histórico de prints — só leitura, sem links externos pra Spotify */}
           {snapshotHistory.length > 0 && (
