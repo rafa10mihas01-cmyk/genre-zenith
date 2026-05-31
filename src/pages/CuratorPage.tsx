@@ -301,6 +301,19 @@ export default function CuratorPage() {
   const [progress, setProgress] = useState<DealProgress | null>(null);
   const [snapshotHistory, setSnapshotHistory] = useState<SnapshotHistoryEntry[]>([]);
   const [access, setAccess] = useState<{ writable: boolean; code?: string; reason?: string }>({ writable: true });
+  const [campaignContext, setCampaignContext] = useState<{
+    is_campaign_shadow: boolean;
+    campaign_id: string | null;
+    baseline_status: string | null;
+    baseline_captured_at: string | null;
+    baseline_playlist_count: number;
+  }>({
+    is_campaign_shadow: false,
+    campaign_id: null,
+    baseline_status: null,
+    baseline_captured_at: null,
+    baseline_playlist_count: 0,
+  });
   const [url, setUrl] = useState("");
   const [position, setPosition] = useState("");
   const [submitting, setSubmitting] = useState(false);
