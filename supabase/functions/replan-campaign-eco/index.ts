@@ -371,6 +371,8 @@ Deno.serve(async (req) => {
     gap_after_primary: Math.round(gapAfterPrimary),
     neighbor_gap_threshold: NEIGHBOR_GAP_THRESHOLD,
     daily_tolerance: ECO_DAILY_TOLERANCE,
+    eco_budget_enabled: ECO_BUDGET_ENABLED,
+    playlists_dropped_by_budget: droppedByBudget,
   };
 
 
