@@ -642,6 +642,16 @@ export default function CuratorPage() {
         description: "Não conta como entrega do curador.",
       });
       return;
+    } else if (item?.status === "awaiting_baseline") {
+      toast.error("A campanha ainda está aguardando a baseline", {
+        description: "Volte assim que a primeira coleta do Spotify for capturada.",
+      });
+      return;
+    } else if (item?.status === "campaign_baseline_blocked") {
+      toast.error("Essa playlist já estava na foto inicial da campanha", {
+        description: "Playlists da baseline não contam como entrega de curador.",
+      });
+      return;
     } else if (item?.status === "invalid_url") {
       toast.error("Link inválido");
       return;
