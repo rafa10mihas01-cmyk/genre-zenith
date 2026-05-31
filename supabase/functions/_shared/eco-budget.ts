@@ -66,9 +66,12 @@ export async function getReservationsByPlaylist(
   for (const r of (data ?? []) as Array<{
     managed_playlist_id: string | null;
     planned_streams: number | null;
-    campaigns: { status: string | null; started_at: string | null; simulation_snapshot: unknown } | null;
+    campaigns:
+      | { status: string | null; started_at: string | null; simulation_snapshot: unknown }
+      | Array<{ status: string | null; started_at: string | null; simulation_snapshot: unknown }>
+      | null;
   }>) {
-    const camp = r.campaigns;
+    const camp = Array.isArray(r.campaigns) ? r.campaigns[0] : r.campaigns;
     if (!camp || !r.managed_playlist_id) continue;
     if (!ACTIVE_STATUSES.includes(camp.status as typeof ACTIVE_STATUSES[number])) continue;
     const started = camp.started_at ? new Date(camp.started_at).getTime() : NaN;
