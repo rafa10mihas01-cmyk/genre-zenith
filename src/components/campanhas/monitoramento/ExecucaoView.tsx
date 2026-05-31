@@ -34,11 +34,11 @@ export function ExecucaoView({ campaignId }: { campaignId: string }) {
 
   useEffect(() => {
     (async () => {
-      const { data: g } = await supabase
-        .from("vw_campaign_playlist_growth" as any)
+      const { data: g } = await (supabase as any)
+        .from("vw_campaign_playlist_growth")
         .select("*")
         .eq("campaign_id", campaignId);
-      const list = (g ?? []) as GrowthRow[];
+      const list = ((g ?? []) as unknown) as GrowthRow[];
       setRows(list);
 
       const curatorIds = Array.from(new Set(list.map((r) => r.attributed_curator_id).filter(Boolean) as string[]));
