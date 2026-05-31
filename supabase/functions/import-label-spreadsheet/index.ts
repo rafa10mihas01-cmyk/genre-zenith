@@ -363,6 +363,24 @@ Deno.serve(async (req) => {
     const dealId = String(row.deal_id);
     const songId = row.song_id ? String(row.song_id) : null;
 
+    // 🚧 Trava: baseline/coleta só depois que a campanha foi aprovada.
+    // Sem isso, um link vazado ou reenvio poderia gravar uma baseline
+    // antes do marco zero combinado com o cliente.
+    const { data: linkedCamp } = await admin
+      .from("campaigns")
+      .select("id, client_approved_at")
+      .eq("deal_id", dealId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!linkedCamp?.client_approved_at) {
+      return jr({
+        ok: false,
+        error: "Campanha ainda não foi aprovada. Assim que liberarmos, você poderá enviar a primeira planilha.",
+      }, 200);
+    }
+
+
     let buf: Uint8Array;
     try {
       buf = base64ToBytes(fileB64);
