@@ -138,7 +138,7 @@ Deno.serve(async (req) => {
     // Gate por PIN — busca a campanha desse deal e exige JWT se necessário.
     const { data: linkedCamp } = await admin
       .from("campaigns")
-      .select("id")
+      .select("id, client_approved_at")
       .eq("deal_id", dealId!)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -147,6 +147,8 @@ Deno.serve(async (req) => {
       const gate = await gateCampaignAccess(req, admin, linkedCamp.id);
       if (!gate.ok) return jr({ ok: false, error: gate.error }, gate.status ?? 401);
     }
+    const campaignApproved = Boolean(linkedCamp?.client_approved_at);
+
 
     // Lista de músicas exibidas no seletor:
     //   - se token é por música com client_id → todas as músicas do deal
