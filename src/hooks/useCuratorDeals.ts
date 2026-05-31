@@ -146,7 +146,8 @@ export type BaselinePlaylistInput = {
   followers?: number | null;
 };
 
-export function useCuratorDeals() {
+export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
+  const includeInternal = opts?.includeInternal ?? false;
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [deals, setDeals] = useState<CuratorDeal[]>([]);
@@ -180,12 +181,15 @@ export function useCuratorDeals() {
       // Curadores + saldos em paralelo com deals
       // Tetos altos para não cortar dado atual mas impedir crescimento ilimitado.
       const [dealsRes, curatorsRes, balancesRes] = await Promise.all([
-        supabase
-          .from("curator_deals")
-          .select("*")
-          .or("source.is.null,source.neq.campaign_internal")
-          .order("created_at", { ascending: false })
-          .limit(1000),
+        (() => {
+          let q = supabase
+            .from("curator_deals")
+            .select("*");
+          if (!includeInternal) {
+            q = q.or("source.is.null,source.neq.campaign_internal");
+          }
+          return q.order("created_at", { ascending: false }).limit(1000);
+        })(),
         supabase
           .from("curators")
           .select("*")
@@ -260,7 +264,7 @@ export function useCuratorDeals() {
       hasLoadedRef.current = true;
       setLoading(false);
     }
-  }, [user]);
+  }, [user, includeInternal]);
 
   useEffect(() => {
     load();
