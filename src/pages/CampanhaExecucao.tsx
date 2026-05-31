@@ -14,7 +14,7 @@ import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { ExternalPackageEditor } from "@/components/campanhas/ExternalPackageEditor";
 import { BaselineAwaitingBanner } from "@/components/campanhas/BaselineAwaitingBanner";
 import { BotCollectionStatus } from "@/components/campanhas/BotCollectionStatus";
-import { CampaignMonitoring } from "@/components/campanhas/CampaignMonitoring";
+import { MonitoramentoTab } from "@/components/campanhas/monitoramento/MonitoramentoTab";
 import { CampaignDailyPlan } from "@/components/campanhas/CampaignDailyPlan";
 import { PlaylistDailyPlanDialog } from "@/components/campanhas/PlaylistDailyPlanDialog";
 import { buildEcoPlaylistPlan, distributeEcoPositions, chartTierFromTopPosition } from "@/lib/campaignOperationalPlan";
@@ -35,11 +35,11 @@ import { PlaylistsGrid } from "@/components/campaign-hub/PlaylistsGrid";
 
 import { GenresUsedFromAllocs } from "@/components/campanhas/GenresUsedFromAllocs";
 import { CampaignAccessManager } from "@/components/campanhas/CampaignAccessManager";
-import { ProofsTimeline, type ProofEvent } from "@/components/campaign-hub/ProofsTimeline";
+import { type ProofEvent } from "@/components/campaign-hub/ProofsTimeline";
 
 import { SpreadsheetUploadCard } from "@/components/client-portal/SpreadsheetUploadCard";
 import { BaselineCard } from "@/components/campanhas/BaselineCard";
-import { BaselineTab } from "@/components/campanhas/BaselineTab";
+
 import { OrganicCollectedSection, type OrganicRow } from "@/components/campanhas/OrganicCollectedSection";
 import type { CampaignHubCampaign, CampaignHubTabId, EcoAllocation } from "@/components/campaign-hub/types";
 import { Kpi } from "@/components/ui/kpi";
@@ -662,9 +662,6 @@ export default function CampanhaExecucao() {
           <>
             <CampaignAccessManager campaignId={camp.id} />
             <AuditCampaignButton campaignId={camp.id} />
-            <Button asChild variant="outline" size="sm" title="Monitoramento (Baseline / Execução / Histórico)">
-              <Link to={`/campanhas/${camp.id}/monitoramento`}>Monitoramento</Link>
-            </Button>
             {clientToken ? (
               <Dialog>
                 <DialogTrigger asChild>
@@ -744,16 +741,10 @@ export default function CampanhaExecucao() {
                           capturedAt={baseline.created_at}
                           totalStreams={baseline.total_streams}
                           playlistsDetected={baseline.rows_imported}
-                          onClick={() => setTab("proofs")}
+                          onClick={() => setTab("monitoramento")}
                         />
                       ) : null;
                     })()}
-                    <CampaignMonitoring
-                      campaignId={camp.id}
-                      snapshot={snapshot}
-                      campaignStartedAt={camp.started_at}
-                      campaignStatus={camp.status}
-                    />
                   </div>
                 }
               />
@@ -898,12 +889,8 @@ export default function CampanhaExecucao() {
             </div>
           ),
 
-          proofs: (
-            <div className="space-y-4">
-              {camp.deal_id && <BaselineTab dealId={camp.deal_id} />}
-              <ProofsTimeline events={proofEvents} campaignStartedAt={camp.started_at} />
-            </div>
-          ),
+          monitoramento: <MonitoramentoTab campaignId={camp.id} />,
+
 
           upload: clientToken ? (
             <SpreadsheetUploadCard

@@ -1,18 +1,13 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { PageContainer } from "@/components/PageContainer";
-import { PageHeader } from "@/components/PageHeader";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft } from "lucide-react";
-import { ExecucaoView } from "@/components/campanhas/monitoramento/ExecucaoView";
-import { PlaylistHistoryDrawer } from "@/components/campanhas/monitoramento/PlaylistHistoryDrawer";
+import { ExecucaoView } from "./ExecucaoView";
+import { PlaylistHistoryDrawer } from "./PlaylistHistoryDrawer";
 
-export default function CampanhaMonitoramento() {
-  const { id } = useParams<{ id: string }>();
-  const [meta, setMeta] = useState<{ track_name: string | null; artist: string | null } | null>(null);
+type Props = { campaignId: string };
+
+export function MonitoramentoTab({ campaignId }: Props) {
   const [kpis, setKpis] = useState<{ status: string | null; capturedAt: string | null; playlists: number }>({
     status: null,
     capturedAt: null,
@@ -21,39 +16,26 @@ export default function CampanhaMonitoramento() {
   const [drawerPlaylistId, setDrawerPlaylistId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!id) return;
+    if (!campaignId) return;
     (async () => {
       const [{ data: c }, { count }] = await Promise.all([
-        supabase.from("campaigns").select("track_name, artist, baseline_status, baseline_captured_at").eq("id", id).maybeSingle(),
+        supabase.from("campaigns").select("baseline_status, baseline_captured_at").eq("id", campaignId).maybeSingle(),
         supabase
           .from("campaign_playlist_collections")
           .select("playlist_id", { count: "exact", head: true })
-          .eq("campaign_id", id)
+          .eq("campaign_id", campaignId)
           .eq("is_baseline", true),
       ]);
-      setMeta(c as any);
       setKpis({
         status: (c as any)?.baseline_status ?? null,
         capturedAt: (c as any)?.baseline_captured_at ?? null,
         playlists: count ?? 0,
       });
     })();
-  }, [id]);
-
-  if (!id) return null;
+  }, [campaignId]);
 
   return (
-    <PageContainer>
-      <div className="flex items-center gap-3 mb-4">
-        <Button asChild variant="outline" size="sm">
-          <Link to={`/campanhas/${id}/execucao`}><ArrowLeft className="h-4 w-4 mr-1" /> Voltar</Link>
-        </Button>
-      </div>
-      <PageHeader
-        title="Monitoramento da campanha"
-        subtitle={meta ? `${meta.track_name ?? ""} · ${meta.artist ?? ""}` : "Playlists monitoradas, crescimento e provas"}
-      />
-
+    <div className="space-y-6">
       <section className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <Card>
           <CardContent className="p-5">
@@ -77,17 +59,15 @@ export default function CampanhaMonitoramento() {
         </Card>
       </section>
 
-      <div className="mt-6">
-        <ExecucaoView campaignId={id} onOpenHistory={setDrawerPlaylistId} />
-      </div>
+      <ExecucaoView campaignId={campaignId} onOpenHistory={setDrawerPlaylistId} />
 
       <PlaylistHistoryDrawer
-        campaignId={id}
+        campaignId={campaignId}
         playlistId={drawerPlaylistId}
         open={!!drawerPlaylistId}
         onOpenChange={(o) => { if (!o) setDrawerPlaylistId(null); }}
       />
-    </PageContainer>
+    </div>
   );
 }
 
