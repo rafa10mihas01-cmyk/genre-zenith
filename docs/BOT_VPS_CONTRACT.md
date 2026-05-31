@@ -108,6 +108,22 @@ Sequências de erro:
 Estado fora dessa lista é silenciosamente normalizado para `null` pelo endpoint
 (o linter do banco rejeita valores fora do enum).
 
+## 3.2. Baseline de campanha interna — PROIBIDO total agregado
+
+Quando `bot-collect-queue` devolver `requires_playlist_breakdown: true` ou
+`capture_mode: "playlist_breakdown_required"`, o worker NÃO pode enviar o payload
+legado `{ plays: N }` para `bot-ingest-snapshot`.
+
+Esses jobs são baseline/monitoramento de campanha interna e exigem o formato novo:
+
+- abrir a página **Playlists** da música no Spotify for Artists;
+- rolar até capturar todas as linhas;
+- enviar `snapshots[]` por playlist para `bot-ingest-snapshot`, **ou** prints
+  `playlists-part-X-of-Y` via `bot-upload-print` com `dom_playlists`.
+
+Se o worker mandar apenas total agregado nesses jobs, o backend responde
+`422 playlist_breakdown_required` e não grava baseline agregada.
+
 ## 4. Regra crítica: nunca silent return
 
 Se o worker decidir **não processar** um item recebido — por qualquer motivo
