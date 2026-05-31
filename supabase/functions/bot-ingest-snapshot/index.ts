@@ -565,7 +565,78 @@ Deno.serve(async (req) => {
   }
 
 
-  // Se for baseline, persiste blacklist de playlists do deal.
+  // ====== Espelho em campaign_playlist_collections (nova arquitetura) ======
+  // Fatos imutáveis do S4A indexados pela identidade canônica (playlist_id).
+  // Se a campanha está com baseline_status='pending', esta coleta vira a baseline
+  // oficial (intent='baseline'); senão é snapshot. RPC é atômica e idempotente
+  // (rejeita 2ª baseline). Falha silenciosa — nunca bloqueia o fluxo legado.
+  const collectionCampaignId: string | null =
+    ((dealInfo as any)?.campaign_id as string | null) ?? ecoCampaignId;
+  if (collectionCampaignId && dedupedSnapshots.length > 0) {
+    try {
+      const { data: campRow } = await supabase
+        .from("campaigns")
+        .select("baseline_status")
+        .eq("id", collectionCampaignId)
+        .maybeSingle();
+      const intent =
+        (campRow as any)?.baseline_status === "pending" ? "baseline" : "snapshot";
+
+      const capturedAt = new Date().toISOString();
+      const rows = dedupedSnapshots
+        .map((snap: any) => {
+          const pid = extractPlaylistId(snap.spotify_url);
+          if (!pid) return null;
+          const name = String(snap.playlist_name ?? "").trim() || null;
+          const plays7d =
+            snap.plays_7d != null
+              ? Math.max(0, parseInt(String(snap.plays_7d)) || 0)
+              : snap.plays != null
+              ? Math.max(0, parseInt(String(snap.plays)) || 0)
+              : 0;
+          return {
+            playlist_id: pid,
+            playlist_url:
+              snap.spotify_url ?? `https://open.spotify.com/playlist/${pid}`,
+            playlist_name_at_capture: name,
+            plays_7d: plays7d,
+            captured_at: capturedAt,
+            source: "s4a_dom",
+            proof_screenshot_url: screenshotUrl,
+          };
+        })
+        .filter(Boolean);
+
+      if (rows.length > 0) {
+        const { data: ingestRes, error: ingestErr } = await supabase.rpc(
+          "ingest_campaign_collection_batch",
+          {
+            p_campaign_id: collectionCampaignId,
+            p_intent: intent,
+            p_rows: rows,
+          },
+        );
+        if (ingestErr) {
+          console.warn(
+            "[bot-ingest-snapshot] campaign_playlist_collections rpc failed:",
+            ingestErr.message,
+          );
+        } else {
+          console.log(
+            "[bot-ingest-snapshot] campaign_playlist_collections ingested:",
+            JSON.stringify(ingestRes),
+          );
+        }
+      }
+    } catch (e) {
+      console.warn(
+        "[bot-ingest-snapshot] campaign_playlist_collections error:",
+        (e as Error).message,
+      );
+    }
+  }
+
+
   if (isBaseline) {
     const { data: allPls } = await supabase
       .from("curator_playlists")
