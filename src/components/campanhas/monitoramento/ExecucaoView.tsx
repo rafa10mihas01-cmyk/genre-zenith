@@ -265,6 +265,7 @@ export function ExecucaoView({ campaignId, onOpenHistory }: { campaignId: string
               if (sort === k) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
               else { setSort(k); setSortDir("desc"); }
             }}
+            onRowClick={onOpenHistory}
           />
         </CardContent>
       </Card>
@@ -279,6 +280,7 @@ function VirtualTable({
   sort,
   sortDir,
   onSort,
+  onRowClick,
 }: {
   rows: GrowthRow[];
   curators: Record<string, CuratorMeta>;
@@ -286,7 +288,9 @@ function VirtualTable({
   sort: SortKey;
   sortDir: "asc" | "desc";
   onSort: (k: SortKey) => void;
+  onRowClick?: (playlistId: string) => void;
 }) {
+
   const parentRef = useRef<HTMLDivElement>(null);
   const covers = usePlaylistCovers(rows.map((r) => r.playlist_id));
 
