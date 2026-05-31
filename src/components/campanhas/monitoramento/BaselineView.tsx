@@ -4,8 +4,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink, ImageIcon } from "lucide-react";
 import { formatInt } from "@/lib/campaignEngine";
+import { usePlaylistCovers } from "@/hooks/usePlaylistCovers";
+import { PlaylistCell } from "./PlaylistCell";
+import { ProofThumb } from "./ProofThumb";
 
 type Row = {
   playlist_id: string;
