@@ -88,6 +88,3 @@ export function BaselineView({ campaignId }: { campaignId: string }) {
   );
 }
 
-  );
-}
-
