@@ -1731,6 +1731,21 @@ export default function CuratorPage() {
         {activeTab === "cadastro" && (
         <Card className="nx-card nx-card-glow !p-0 border-border">
           <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-5">
+            {campaignContext.is_campaign_shadow && campaignContext.baseline_status === "pending" && (
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-[12.5px] leading-relaxed text-amber-100">
+                <div className="font-semibold mb-1">Aguardando baseline da campanha</div>
+                <p className="text-amber-100/80">
+                  A primeira coleta do Spotify for Artists ainda não foi feita. Cadastros de playlist ficam
+                  bloqueados até a baseline ser capturada — assim garantimos que sua entrega não se confunda
+                  com playlists que já listavam a música antes do início da campanha.
+                </p>
+              </div>
+            )}
+            {campaignContext.is_campaign_shadow && campaignContext.baseline_status === "captured" && campaignContext.baseline_playlist_count > 0 && (
+              <div className="rounded-xl border border-border/60 bg-muted/30 px-4 py-2.5 text-[11.5px] text-muted-foreground">
+                Baseline da campanha capturada: <strong className="text-foreground">{campaignContext.baseline_playlist_count}</strong> {campaignContext.baseline_playlist_count === 1 ? "playlist" : "playlists"} fazem parte da foto inicial e não podem ser cadastradas como entrega.
+              </div>
+            )}
             <div>
               <h2 className="text-[15px] font-semibold tracking-tight">Adicionar playlist</h2>
               <p className="text-[12px] text-muted-foreground mt-1.5 leading-snug">
