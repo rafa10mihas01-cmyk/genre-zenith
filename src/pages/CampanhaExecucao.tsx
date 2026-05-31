@@ -14,7 +14,7 @@ import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { ExternalPackageEditor } from "@/components/campanhas/ExternalPackageEditor";
 import { BaselineAwaitingBanner } from "@/components/campanhas/BaselineAwaitingBanner";
 import { BotCollectionStatus } from "@/components/campanhas/BotCollectionStatus";
-import { CampaignMonitoring } from "@/components/campanhas/CampaignMonitoring";
+import { MonitoramentoTab } from "@/components/campanhas/monitoramento/MonitoramentoTab";
 import { CampaignDailyPlan } from "@/components/campanhas/CampaignDailyPlan";
 import { PlaylistDailyPlanDialog } from "@/components/campanhas/PlaylistDailyPlanDialog";
 import { buildEcoPlaylistPlan, distributeEcoPositions, chartTierFromTopPosition } from "@/lib/campaignOperationalPlan";
