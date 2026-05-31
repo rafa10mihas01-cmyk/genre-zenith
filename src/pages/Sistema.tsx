@@ -154,6 +154,8 @@ export default function Sistema() {
           </div>
         )}
 
+        {activeTab === "capacidade" && <CapacidadePanel />}
+
         {activeTab === "aprendizado" && <AdminAprendizado embedded />}
 
         {activeTab === "alertas" && <AlertasHistorico />}
