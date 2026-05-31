@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import {
   Activity, Workflow, Music2, HeartPulse, Bot, Bell, ListPlus,
-  Settings as SettingsIcon, Server, Brain, FlaskConical, Wrench, Flag, ShieldAlert,
+  Settings as SettingsIcon, Server, Brain, FlaskConical, Wrench, Flag, ShieldAlert, Gauge,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
@@ -32,8 +32,9 @@ import { OperationalHealthCard } from "@/components/home/OperationalHealthCard";
 import { CircuitBreakerHistoryCard } from "@/components/sistema/CircuitBreakerHistoryCard";
 import { BrainFreshnessCard } from "@/components/home/BrainFreshnessCard";
 import { EngineHealthGrid } from "@/components/cockpit/EngineHealthGrid";
+import { CapacidadePanel } from "@/components/sistema/CapacidadePanel";
 
-type SistemaTab = "saude" | "aprendizado" | "alertas" | "motores" | "configuracoes" | "dev";
+type SistemaTab = "saude" | "capacidade" | "aprendizado" | "alertas" | "motores" | "configuracoes" | "dev";
 type MotorSub = "robo" | "coleta" | "execucao" | "fluxo" | "ao-vivo";
 type DevSub = "infra" | "flags" | "seo";
 
@@ -41,6 +42,7 @@ type TabDef = { id: SistemaTab; label: string; icon: typeof Activity; adminOnly?
 
 const TABS: TabDef[] = [
   { id: "saude", label: "Saúde", icon: HeartPulse },
+  { id: "capacidade", label: "Capacidade", icon: Gauge },
   { id: "aprendizado", label: "Aprendizado", icon: Brain },
   { id: "alertas", label: "Alertas", icon: Bell },
   { id: "motores", label: "Motores", icon: Bot },
@@ -151,6 +153,8 @@ export default function Sistema() {
             </section>
           </div>
         )}
+
+        {activeTab === "capacidade" && <CapacidadePanel />}
 
         {activeTab === "aprendizado" && <AdminAprendizado embedded />}
 
