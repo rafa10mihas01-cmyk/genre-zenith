@@ -580,7 +580,7 @@ Deno.serve(async (req) => {
         .eq("id", collectionCampaignId)
         .maybeSingle();
       const intent =
-        (campRow as any)?.baseline_status === "pending" ? "baseline" : "snapshot";
+        (campRow as any)?.baseline_status === "pending" ? "baseline" : "periodic";
 
       const capturedAt = new Date().toISOString();
       const rows = dedupedSnapshots
