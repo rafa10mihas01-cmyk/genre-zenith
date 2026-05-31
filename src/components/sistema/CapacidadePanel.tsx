@@ -12,7 +12,7 @@ import {
 } from "@/lib/ecosystemCapacity";
 import { formatNumber as fmtNum } from "@/lib/format";
 
-const MIN_SAVES_PISO = 100;
+const MIN_SAVES_PISO = 250;
 
 export function CapacidadePanel() {
   const { loading, error, playlists, genres, affinities } = useEcosystemSnapshot();

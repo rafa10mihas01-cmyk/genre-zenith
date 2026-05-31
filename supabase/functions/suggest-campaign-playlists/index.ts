@@ -15,6 +15,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { expandGenrePool } from "../_shared/genre-affinity.ts";
+import { MIN_PLAYLIST_SAVES_FOR_CAMPAIGN } from "../_shared/eco-constants.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -69,6 +70,7 @@ Deno.serve(async (req) => {
       .select("id, name, followers, genre_id, cover_url, spotify_url, spotify_playlist_id, curatorial_state, lifecycle_stage")
       .in("genre_id", allGenreIds)
       .is("archived_at", null)
+      .gte("followers", MIN_PLAYLIST_SAVES_FOR_CAMPAIGN)
       .order("followers", { ascending: false })
       .limit(500);
     if (exclude.length > 0) q = q.not("id", "in", `(${exclude.join(",")})`);
