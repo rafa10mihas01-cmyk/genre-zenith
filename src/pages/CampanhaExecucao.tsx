@@ -889,12 +889,8 @@ export default function CampanhaExecucao() {
             </div>
           ),
 
-          proofs: (
-            <div className="space-y-4">
-              {camp.deal_id && <BaselineTab dealId={camp.deal_id} />}
-              <ProofsTimeline events={proofEvents} campaignStartedAt={camp.started_at} />
-            </div>
-          ),
+          monitoramento: <MonitoramentoTab campaignId={camp.id} />,
+
 
           upload: clientToken ? (
             <SpreadsheetUploadCard
