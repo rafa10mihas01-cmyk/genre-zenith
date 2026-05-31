@@ -1,12 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, Users, Layers, Activity } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TrendingUp, Users, Layers, Activity, Search, Download, ArrowUpDown } from "lucide-react";
 import { formatInt } from "@/lib/campaignEngine";
 import { cn } from "@/lib/utils";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { usePlaylistCovers, type PlaylistMeta } from "@/hooks/usePlaylistCovers";
 import { PlaylistCell } from "./PlaylistCell";
 
@@ -27,12 +30,22 @@ type GrowthRow = {
 };
 
 type CuratorMeta = { id: string; name: string | null };
-type CuratorPlaylistStatus = { playlist_id: string; curator_id: string; status: string };
+type SortKey = "delta" | "current" | "baseline" | "name";
+
+const ROW_H = 64;
 
 export function ExecucaoView({ campaignId }: { campaignId: string }) {
   const [rows, setRows] = useState<GrowthRow[] | null>(null);
   const [curators, setCurators] = useState<Record<string, CuratorMeta>>({});
-  const [statuses, setStatuses] = useState<Record<string, string>>({}); // key: curator_id::playlist_id
+  const [statuses, setStatuses] = useState<Record<string, string>>({});
+
+  // filters
+  const [q, setQ] = useState("");
+  const [scope, setScope] = useState<"all" | "ecosystem" | "curator" | "organic">("all");
+  const [curatorFilter, setCuratorFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [sort, setSort] = useState<SortKey>("delta");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   useEffect(() => {
     (async () => {
@@ -57,7 +70,7 @@ export function ExecucaoView({ campaignId }: { campaignId: string }) {
         for (const c of (cs ?? []) as CuratorMeta[]) cmap[c.id] = c;
         setCurators(cmap);
         const smap: Record<string, string> = {};
-        for (const s of (ccp ?? []) as CuratorPlaylistStatus[]) {
+        for (const s of (ccp ?? []) as any[]) {
           smap[`${s.curator_id}::${s.playlist_id}`] = s.status;
         }
         setStatuses(smap);
@@ -65,77 +78,302 @@ export function ExecucaoView({ campaignId }: { campaignId: string }) {
     })();
   }, [campaignId]);
 
-  const groups = useMemo(() => {
-    const eco: GrowthRow[] = [];
-    const organic: GrowthRow[] = [];
-    const byCurator = new Map<string, GrowthRow[]>();
+  const totals = useMemo(() => {
+    const t = { total: 0, eco: 0, curator: 0, organic: 0, n: rows?.length ?? 0 };
     for (const r of rows ?? []) {
-      if (r.attributed_to === "ecosystem") eco.push(r);
-      else if (r.attributed_to.startsWith("curator:") && r.attributed_curator_id) {
-        const arr = byCurator.get(r.attributed_curator_id) ?? [];
-        arr.push(r);
-        byCurator.set(r.attributed_curator_id, arr);
-      } else organic.push(r);
+      const d = Number(r.delta ?? 0);
+      t.total += d;
+      if (r.attributed_to === "ecosystem") t.eco += d;
+      else if (r.attributed_to.startsWith("curator:")) t.curator += d;
+      else t.organic += d;
     }
-    return { eco, organic, byCurator };
+    return t;
   }, [rows]);
+
+  const filtered = useMemo(() => {
+    if (!rows) return [];
+    const qn = q.trim().toLowerCase();
+    let out = rows.filter((r) => {
+      if (scope === "ecosystem" && r.attributed_to !== "ecosystem") return false;
+      if (scope === "curator" && !r.attributed_to.startsWith("curator:")) return false;
+      if (scope === "organic" && (r.attributed_to === "ecosystem" || r.attributed_to.startsWith("curator:"))) return false;
+      if (curatorFilter !== "all" && r.attributed_curator_id !== curatorFilter) return false;
+      if (statusFilter !== "all") {
+        const st = r.attributed_curator_id ? statuses[`${r.attributed_curator_id}::${r.playlist_id}`] ?? "pending_match" : null;
+        if (st !== statusFilter) return false;
+      }
+      if (qn) {
+        const name = (r.current_name ?? r.baseline_name ?? "").toLowerCase();
+        if (!name.includes(qn) && !r.playlist_id.toLowerCase().includes(qn)) return false;
+      }
+      return true;
+    });
+    const dir = sortDir === "asc" ? 1 : -1;
+    out.sort((a, b) => {
+      const va = sort === "delta" ? Number(a.delta ?? 0)
+        : sort === "current" ? Number(a.current_plays ?? 0)
+        : sort === "baseline" ? Number(a.baseline_plays ?? 0)
+        : (a.current_name ?? a.baseline_name ?? "").toLowerCase();
+      const vb = sort === "delta" ? Number(b.delta ?? 0)
+        : sort === "current" ? Number(b.current_plays ?? 0)
+        : sort === "baseline" ? Number(b.baseline_plays ?? 0)
+        : (b.current_name ?? b.baseline_name ?? "").toLowerCase();
+      if (va < vb) return -1 * dir;
+      if (va > vb) return 1 * dir;
+      return 0;
+    });
+    return out;
+  }, [rows, q, scope, curatorFilter, statusFilter, sort, sortDir, statuses]);
+
+  const filteredTotals = useMemo(() => {
+    return filtered.reduce(
+      (acc, r) => {
+        acc.baseline += Number(r.baseline_plays ?? 0);
+        acc.current += Number(r.current_plays ?? 0);
+        acc.delta += Number(r.delta ?? 0);
+        return acc;
+      },
+      { baseline: 0, current: 0, delta: 0 }
+    );
+  }, [filtered]);
+
+  const curatorOptions = useMemo(
+    () =>
+      Object.values(curators)
+        .map((c) => ({ id: c.id, name: c.name ?? "Curador" }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [curators]
+  );
+
+  const exportCsv = () => {
+    const head = ["playlist_id", "playlist", "atribuicao", "curador", "status", "baseline", "atual", "delta", "first_seen", "ultima_coleta"];
+    const lines = [head.join(",")];
+    for (const r of filtered) {
+      const cur = r.attributed_curator_id ? curators[r.attributed_curator_id]?.name ?? "" : "";
+      const st = r.attributed_curator_id ? statuses[`${r.attributed_curator_id}::${r.playlist_id}`] ?? "" : "";
+      const name = (r.current_name ?? r.baseline_name ?? "").replace(/"/g, '""');
+      lines.push(
+        [
+          r.playlist_id,
+          `"${name}"`,
+          r.attributed_to,
+          `"${cur}"`,
+          st,
+          r.baseline_plays ?? 0,
+          r.current_plays ?? 0,
+          r.delta,
+          r.first_seen_at ?? "",
+          r.last_captured_at ?? "",
+        ].join(",")
+      );
+    }
+    const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `execucao-${campaignId.slice(0, 8)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   if (!rows) return <Skeleton className="h-96 w-full" />;
 
-  const sum = (arr: GrowthRow[], key: "baseline_plays" | "current_plays" | "delta") =>
-    arr.reduce((acc, r) => acc + Number(r[key] ?? 0), 0);
-
-  const totalDelta = sum(rows, "delta");
-  const ecoDelta = sum(groups.eco, "delta");
-  const curatorDelta = Array.from(groups.byCurator.values()).flat().reduce((a, r) => a + Number(r.delta ?? 0), 0);
-  const organicDelta = sum(groups.organic, "delta");
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <KpiCard icon={TrendingUp} label="Crescimento total" value={totalDelta} accent />
-        <KpiCard icon={Layers} label="Ecossistema" value={ecoDelta} />
-        <KpiCard icon={Users} label="Curadores" value={curatorDelta} />
-        <KpiCard icon={Activity} label="Orgânico" value={organicDelta} />
-        <KpiCard icon={Layers} label="Playlists monitoradas" value={rows.length} raw />
+        <KpiCard icon={TrendingUp} label="Crescimento total" value={totals.total} accent />
+        <KpiCard icon={Layers} label="Ecossistema" value={totals.eco} />
+        <KpiCard icon={Users} label="Curadores" value={totals.curator} />
+        <KpiCard icon={Activity} label="Orgânico" value={totals.organic} />
+        <KpiCard icon={Layers} label="Playlists monitoradas" value={totals.n} raw />
       </div>
 
-      <Section title="Ecossistema" count={groups.eco.length}>
-        <GrowthTable rows={groups.eco} />
-        <Subtotal rows={groups.eco} />
-      </Section>
-
-      <Section title="Curadores" count={Array.from(groups.byCurator.values()).flat().length}>
-        {groups.byCurator.size === 0 ? (
-          <EmptyState text="Nenhuma playlist atribuída a curador." />
-        ) : (
-          <div className="space-y-4">
-            {Array.from(groups.byCurator.entries()).map(([curatorId, list]) => (
-              <Card key={curatorId}>
-                <CardContent className="p-0">
-                  <div className="flex items-center justify-between p-4 border-b border-border">
-                    <div>
-                      <div className="font-semibold text-foreground">{curators[curatorId]?.name ?? "Curador"}</div>
-                      <div className="text-xs text-muted-foreground">{list.length} playlist(s)</div>
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      Entregue: <span className="text-foreground font-semibold tabular-nums">{formatInt(sum(list, "delta"))}</span>
-                    </div>
-                  </div>
-                  <GrowthTable rows={list} showStatus statusFor={(r) => statuses[`${curatorId}::${r.playlist_id}`] ?? "pending_match"} />
-                </CardContent>
-              </Card>
-            ))}
+      <Card>
+        <CardContent className="p-3 flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Buscar playlist..."
+              className="pl-8 h-9"
+            />
           </div>
-        )}
-      </Section>
+          <Select value={scope} onValueChange={(v) => setScope(v as any)}>
+            <SelectTrigger className="h-9 w-[160px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas atribuições</SelectItem>
+              <SelectItem value="ecosystem">Ecossistema</SelectItem>
+              <SelectItem value="curator">Curadores</SelectItem>
+              <SelectItem value="organic">Orgânico</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={curatorFilter} onValueChange={setCuratorFilter} disabled={scope === "ecosystem" || scope === "organic"}>
+            <SelectTrigger className="h-9 w-[180px]"><SelectValue placeholder="Curador" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos curadores</SelectItem>
+              {curatorOptions.map((c) => (
+                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-9 w-[160px]"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos status</SelectItem>
+              <SelectItem value="matched">Matched</SelectItem>
+              <SelectItem value="pending_match">Pending</SelectItem>
+              <SelectItem value="not_found_yet">Not found</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="sm" className="h-9" onClick={exportCsv}>
+            <Download className="h-4 w-4 mr-1" /> CSV
+          </Button>
+        </CardContent>
+      </Card>
 
-      <Section title="Orgânico" count={groups.organic.length}>
-        <GrowthTable rows={groups.organic} showFirstSeen />
-        <Subtotal rows={groups.organic} />
-      </Section>
+      <div className="flex items-center justify-between text-sm text-muted-foreground px-1">
+        <span>{filtered.length} de {rows.length} playlist(s)</span>
+        <span className="flex items-center gap-4">
+          <span>Baseline: <span className="text-foreground tabular-nums">{formatInt(filteredTotals.baseline)}</span></span>
+          <span>Atual: <span className="text-foreground tabular-nums">{formatInt(filteredTotals.current)}</span></span>
+          <span>Δ: <span className="text-primary font-semibold tabular-nums">{filteredTotals.delta > 0 ? "+" : ""}{formatInt(filteredTotals.delta)}</span></span>
+        </span>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          <VirtualTable
+            rows={filtered}
+            curators={curators}
+            statuses={statuses}
+            sort={sort}
+            sortDir={sortDir}
+            onSort={(k) => {
+              if (sort === k) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+              else { setSort(k); setSortDir("desc"); }
+            }}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
+}
+
+function VirtualTable({
+  rows,
+  curators,
+  statuses,
+  sort,
+  sortDir,
+  onSort,
+}: {
+  rows: GrowthRow[];
+  curators: Record<string, CuratorMeta>;
+  statuses: Record<string, string>;
+  sort: SortKey;
+  sortDir: "asc" | "desc";
+  onSort: (k: SortKey) => void;
+}) {
+  const parentRef = useRef<HTMLDivElement>(null);
+  const covers = usePlaylistCovers(rows.map((r) => r.playlist_id));
+
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => ROW_H,
+    overscan: 12,
+  });
+
+  if (rows.length === 0) {
+    return <div className="p-8 text-center text-muted-foreground">Sem playlists para os filtros atuais.</div>;
+  }
+
+  return (
+    <div>
+      <div className="grid grid-cols-[minmax(220px,2fr)_120px_110px_110px_120px_140px_150px] gap-3 px-4 py-2.5 text-xs uppercase tracking-wide text-muted-foreground border-b border-border bg-card/40">
+        <SortHeader label="Playlist" k="name" sort={sort} dir={sortDir} onSort={onSort} />
+        <div>Atribuição</div>
+        <SortHeader label="Baseline" k="baseline" sort={sort} dir={sortDir} onSort={onSort} className="text-right justify-end" />
+        <SortHeader label="Atual" k="current" sort={sort} dir={sortDir} onSort={onSort} className="text-right justify-end" />
+        <SortHeader label="Δ" k="delta" sort={sort} dir={sortDir} onSort={onSort} className="text-right justify-end" />
+        <div>Status</div>
+        <div>Última coleta</div>
+      </div>
+
+      <div ref={parentRef} className="overflow-auto" style={{ height: Math.min(640, Math.max(240, rows.length * ROW_H + 8)) }}>
+        <div style={{ height: virtualizer.getTotalSize(), position: "relative", width: "100%" }}>
+          {virtualizer.getVirtualItems().map((vi) => {
+            const r = rows[vi.index];
+            const meta: PlaylistMeta | undefined = covers[r.playlist_id];
+            const curName = r.attributed_curator_id ? curators[r.attributed_curator_id]?.name ?? "Curador" : null;
+            const st = r.attributed_curator_id ? statuses[`${r.attributed_curator_id}::${r.playlist_id}`] ?? "pending_match" : null;
+            return (
+              <div
+                key={vi.key}
+                className="grid grid-cols-[minmax(220px,2fr)_120px_110px_110px_120px_140px_150px] gap-3 items-center px-4 border-b border-border/60 hover:bg-accent/40 transition-colors"
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: vi.size,
+                  transform: `translateY(${vi.start}px)`,
+                }}
+              >
+                <PlaylistCell
+                  playlistId={r.playlist_id}
+                  name={r.current_name ?? r.baseline_name ?? meta?.name ?? null}
+                  url={r.playlist_url}
+                  coverUrl={meta?.cover_url ?? null}
+                  followers={meta?.followers ?? null}
+                />
+                <AttributionBadge attr={r.attributed_to} curatorName={curName} />
+                <div className="text-right tabular-nums text-muted-foreground text-sm">{formatInt(Number(r.baseline_plays ?? 0))}</div>
+                <div className="text-right tabular-nums text-foreground text-sm">{formatInt(Number(r.current_plays ?? 0))}</div>
+                <div className={cn("text-right tabular-nums font-semibold text-sm", Number(r.delta) > 0 ? "text-primary" : "text-muted-foreground")}>
+                  {Number(r.delta) > 0 ? "+" : ""}{formatInt(Number(r.delta ?? 0))}
+                </div>
+                <div>{st ? <MatchStatusBadge status={st} /> : <span className="text-xs text-muted-foreground">—</span>}</div>
+                <div className="text-muted-foreground text-xs">
+                  {r.last_captured_at ? new Date(r.last_captured_at).toLocaleString("pt-BR") : "—"}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SortHeader({
+  label, k, sort, dir, onSort, className,
+}: { label: string; k: SortKey; sort: SortKey; dir: "asc" | "desc"; onSort: (k: SortKey) => void; className?: string }) {
+  const active = sort === k;
+  return (
+    <button
+      onClick={() => onSort(k)}
+      className={cn("flex items-center gap-1 hover:text-foreground transition-colors text-left", active && "text-foreground", className)}
+    >
+      {label}
+      <ArrowUpDown className={cn("h-3 w-3 opacity-50", active && "opacity-100")} />
+      {active && <span className="text-[10px]">{dir === "asc" ? "↑" : "↓"}</span>}
+    </button>
+  );
+}
+
+function AttributionBadge({ attr, curatorName }: { attr: string; curatorName: string | null }) {
+  if (attr === "ecosystem") return <Badge variant="outline" className="border-blue-500/40 text-blue-400">Ecossistema</Badge>;
+  if (attr.startsWith("curator:")) return <Badge variant="outline" className="border-purple-500/40 text-purple-400 truncate max-w-full">{curatorName ?? "Curador"}</Badge>;
+  return <Badge variant="outline" className="border-pink-500/40 text-pink-400">Orgânico</Badge>;
+}
+
+function MatchStatusBadge({ status }: { status: string }) {
+  if (status === "matched") return <Badge className="bg-primary text-primary-foreground">matched</Badge>;
+  if (status === "pending_match") return <Badge variant="outline">pending</Badge>;
+  if (status === "not_found_yet") return <Badge variant="outline" className="border-destructive/40 text-destructive">not found</Badge>;
+  return <Badge variant="outline">{status}</Badge>;
 }
 
 function KpiCard({ icon: Icon, label, value, accent, raw }: { icon: any; label: string; value: number; accent?: boolean; raw?: boolean }) {
@@ -151,109 +389,4 @@ function KpiCard({ icon: Icon, label, value, accent, raw }: { icon: any; label: 
       </CardContent>
     </Card>
   );
-}
-
-function Section({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-3">
-        <h2 className="text-lg font-semibold text-foreground">{title}</h2>
-        <span className="text-xs text-muted-foreground">{count} playlist(s)</span>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function GrowthTable({
-  rows,
-  showStatus,
-  showFirstSeen,
-  statusFor,
-}: {
-  rows: GrowthRow[];
-  showStatus?: boolean;
-  showFirstSeen?: boolean;
-  statusFor?: (r: GrowthRow) => string;
-}) {
-  const covers = usePlaylistCovers(rows.map((r) => r.playlist_id));
-  if (rows.length === 0) return <EmptyState text="Sem playlists neste grupo." />;
-  return (
-    <Card>
-      <CardContent className="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Playlist</TableHead>
-              {showStatus && <TableHead>Status</TableHead>}
-              <TableHead className="text-right">Baseline</TableHead>
-              <TableHead className="text-right">Atual</TableHead>
-              <TableHead className="text-right">Crescimento</TableHead>
-              {showFirstSeen && <TableHead>First seen</TableHead>}
-              <TableHead>Última coleta</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((r) => {
-              const meta: PlaylistMeta | undefined = covers[r.playlist_id];
-              return (
-                <TableRow key={r.playlist_id}>
-                  <TableCell>
-                    <PlaylistCell
-                      playlistId={r.playlist_id}
-                      name={r.current_name ?? r.baseline_name ?? meta?.name ?? null}
-                      url={r.playlist_url}
-                      coverUrl={meta?.cover_url ?? null}
-                      followers={meta?.followers ?? null}
-                    />
-                  </TableCell>
-                  {showStatus && (
-                    <TableCell><MatchStatusBadge status={statusFor!(r)} /></TableCell>
-                  )}
-                  <TableCell className="text-right tabular-nums text-muted-foreground">{formatInt(Number(r.baseline_plays ?? 0))}</TableCell>
-                  <TableCell className="text-right tabular-nums text-foreground">{formatInt(Number(r.current_plays ?? 0))}</TableCell>
-                  <TableCell className={cn("text-right tabular-nums font-semibold", Number(r.delta) > 0 ? "text-primary" : "text-muted-foreground")}>
-                    {Number(r.delta) > 0 ? "+" : ""}{formatInt(Number(r.delta ?? 0))}
-                  </TableCell>
-                  {showFirstSeen && (
-                    <TableCell className="text-muted-foreground text-sm">
-                      {r.first_seen_at ? new Date(r.first_seen_at).toLocaleDateString("pt-BR") : "—"}
-                    </TableCell>
-                  )}
-                  <TableCell className="text-muted-foreground text-sm">
-                    {r.last_captured_at ? new Date(r.last_captured_at).toLocaleString("pt-BR") : "—"}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
-  );
-}
-
-function Subtotal({ rows }: { rows: GrowthRow[] }) {
-  if (rows.length === 0) return null;
-  const b = rows.reduce((a, r) => a + Number(r.baseline_plays ?? 0), 0);
-  const c = rows.reduce((a, r) => a + Number(r.current_plays ?? 0), 0);
-  const d = rows.reduce((a, r) => a + Number(r.delta ?? 0), 0);
-  return (
-    <div className="flex items-center justify-end gap-6 text-sm text-muted-foreground pt-1 pr-2">
-      <span>Baseline: <span className="text-foreground tabular-nums">{formatInt(b)}</span></span>
-      <span>Atual: <span className="text-foreground tabular-nums">{formatInt(c)}</span></span>
-      <span>Δ: <span className="text-primary font-semibold tabular-nums">{d > 0 ? "+" : ""}{formatInt(d)}</span></span>
-    </div>
-  );
-}
-
-function MatchStatusBadge({ status }: { status: string }) {
-  if (status === "matched") return <Badge className="bg-primary text-primary-foreground">matched</Badge>;
-  if (status === "pending_match") return <Badge variant="outline">pending_match</Badge>;
-  if (status === "not_found_yet") return <Badge variant="outline" className="border-destructive/40 text-destructive">not_found_yet</Badge>;
-  return <Badge variant="outline">{status}</Badge>;
-}
-
-function EmptyState({ text }: { text: string }) {
-  return <Card><CardContent className="p-8 text-center text-muted-foreground">{text}</CardContent></Card>;
 }
