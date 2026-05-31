@@ -244,8 +244,35 @@ export function SpreadsheetUploadCard({
           </div>
         </div>
 
+        {!approved && (
+          <div className="rounded-lg border border-border bg-muted/30 px-4 py-5 flex items-start gap-3">
+            <Lock className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+            <div className="space-y-1">
+              <div className="text-sm font-medium text-foreground">
+                Aguardando aprovação da campanha
+              </div>
+              <div className="text-[12px] text-muted-foreground leading-relaxed">
+                Assim que a equipe liberar a campanha, você poderá enviar a primeira planilha — ela servirá como baseline (fotografia do estado atual antes do início).
+              </div>
+            </div>
+          </div>
+        )}
 
-        {stale && (
+        {approved && isFirstUpload && phase === "idle" && (
+          <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 flex items-start gap-3">
+            <Target className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+            <div className="space-y-0.5">
+              <div className="text-sm font-medium text-foreground">
+                Esta será a baseline
+              </div>
+              <div className="text-[12px] text-muted-foreground leading-relaxed">
+                A primeira planilha registra o estado atual antes da campanha começar. As próximas serão usadas para calcular a entrega real.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {approved && stale && (
           <div className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[12px] text-amber-600 dark:text-amber-400 flex items-start gap-2">
             <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
             <span>
@@ -255,7 +282,8 @@ export function SpreadsheetUploadCard({
           </div>
         )}
 
-        {phase === "done" ? (
+        {approved && (phase === "done" ? (
+
           <div className="rounded-lg border border-success/30 bg-success/5 p-6 text-center space-y-2">
             <CheckCircle2 className="h-8 w-8 text-success mx-auto" />
             <div className="text-sm font-medium text-foreground">
