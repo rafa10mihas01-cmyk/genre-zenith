@@ -35,7 +35,7 @@ import { PlaylistsGrid } from "@/components/campaign-hub/PlaylistsGrid";
 
 import { GenresUsedFromAllocs } from "@/components/campanhas/GenresUsedFromAllocs";
 import { CampaignAccessManager } from "@/components/campanhas/CampaignAccessManager";
-import { ProofsTimeline, type ProofEvent } from "@/components/campaign-hub/ProofsTimeline";
+import { type ProofEvent } from "@/components/campaign-hub/ProofsTimeline";
 
 import { SpreadsheetUploadCard } from "@/components/client-portal/SpreadsheetUploadCard";
 import { BaselineCard } from "@/components/campanhas/BaselineCard";
