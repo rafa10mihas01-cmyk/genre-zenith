@@ -433,6 +433,7 @@ export default function CuratorPage() {
       setProgress((data.progress ?? null) as DealProgress | null);
       setSnapshotHistory((data.snapshot_history ?? []) as SnapshotHistoryEntry[]);
       setAccess(data.access ?? { writable: true });
+      if (data.campaign_context) setCampaignContext(data.campaign_context);
       setError(null);
     }
     setLoading(false);
