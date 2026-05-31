@@ -13,6 +13,7 @@ import { formatBRL, formatInt } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { ExternalPackageEditor } from "@/components/campanhas/ExternalPackageEditor";
 import { BaselineAwaitingBanner } from "@/components/campanhas/BaselineAwaitingBanner";
+import { BotCollectionStatus } from "@/components/campanhas/BotCollectionStatus";
 import { CampaignMonitoring } from "@/components/campanhas/CampaignMonitoring";
 import { CampaignDailyPlan } from "@/components/campanhas/CampaignDailyPlan";
 import { PlaylistDailyPlanDialog } from "@/components/campanhas/PlaylistDailyPlanDialog";
@@ -689,6 +690,10 @@ export default function CampanhaExecucao() {
               <BaselineAwaitingBanner
                 dealState={dealStatus.state}
                 baselineCapturedAt={dealStatus.baselineCapturedAt}
+                dealId={camp.deal_id ?? null}
+              />
+              <BotCollectionStatus
+                campaignId={camp.id}
                 dealId={camp.deal_id ?? null}
               />
               <OverviewTab
