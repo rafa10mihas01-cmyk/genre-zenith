@@ -1059,10 +1059,79 @@ export type Database = {
           },
         ]
       }
+      campaign_playlist_collections: {
+        Row: {
+          campaign_id: string
+          captured_at: string
+          created_at: string
+          first_seen_at: string | null
+          id: string
+          is_baseline: boolean
+          playlist_id: string
+          playlist_name_at_capture: string | null
+          playlist_url: string | null
+          plays_7d: number
+          proof_screenshot_url: string | null
+          source: string
+        }
+        Insert: {
+          campaign_id: string
+          captured_at?: string
+          created_at?: string
+          first_seen_at?: string | null
+          id?: string
+          is_baseline?: boolean
+          playlist_id: string
+          playlist_name_at_capture?: string | null
+          playlist_url?: string | null
+          plays_7d?: number
+          proof_screenshot_url?: string | null
+          source?: string
+        }
+        Update: {
+          campaign_id?: string
+          captured_at?: string
+          created_at?: string
+          first_seen_at?: string | null
+          id?: string
+          is_baseline?: boolean
+          playlist_id?: string
+          playlist_name_at_capture?: string | null
+          playlist_url?: string | null
+          plays_7d?: number
+          proof_screenshot_url?: string | null
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_campaign_velocity"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_financial_summary"
+            referencedColumns: ["campaign_id"]
+          },
+        ]
+      }
       campaigns: {
         Row: {
           artist: string | null
           auto_deal_created: boolean
+          baseline_captured_at: string | null
+          baseline_status: string
           campaign_type: string
           client_adjustment_request: string | null
           client_approved_at: string | null
@@ -1113,6 +1182,8 @@ export type Database = {
         Insert: {
           artist?: string | null
           auto_deal_created?: boolean
+          baseline_captured_at?: string | null
+          baseline_status?: string
           campaign_type?: string
           client_adjustment_request?: string | null
           client_approved_at?: string | null
@@ -1163,6 +1234,8 @@ export type Database = {
         Update: {
           artist?: string | null
           auto_deal_created?: boolean
+          baseline_captured_at?: string | null
+          baseline_status?: string
           campaign_type?: string
           client_adjustment_request?: string | null
           client_approved_at?: string | null
@@ -1825,6 +1898,95 @@ export type Database = {
           trust_score?: number | null
         }
         Relationships: []
+      }
+      curator_campaign_playlists: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          curator_id: string
+          deal_id: string | null
+          id: string
+          playlist_id: string
+          playlist_url: string
+          registered_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          curator_id: string
+          deal_id?: string | null
+          id?: string
+          playlist_id: string
+          playlist_url: string
+          registered_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          curator_id?: string
+          deal_id?: string | null
+          id?: string
+          playlist_id?: string
+          playlist_url?: string
+          registered_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curator_campaign_playlists_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curator_campaign_playlists_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_campaign_velocity"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "curator_campaign_playlists_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_financial_summary"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "curator_campaign_playlists_curator_id_fkey"
+            columns: ["curator_id"]
+            isOneToOne: false
+            referencedRelation: "curators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curator_campaign_playlists_curator_id_fkey"
+            columns: ["curator_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_balance"
+            referencedColumns: ["curator_id"]
+          },
+          {
+            foreignKeyName: "curator_campaign_playlists_curator_id_fkey"
+            columns: ["curator_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_finance"
+            referencedColumns: ["curator_id"]
+          },
+          {
+            foreignKeyName: "curator_campaign_playlists_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       curator_deal_baseline_playlists: {
         Row: {
@@ -8241,6 +8403,67 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "playlists"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_campaign_playlist_growth: {
+        Row: {
+          attributed_curator_id: string | null
+          attributed_to: string | null
+          baseline_at: string | null
+          baseline_name: string | null
+          baseline_plays: number | null
+          campaign_id: string | null
+          current_name: string | null
+          current_plays: number | null
+          delta: number | null
+          first_seen_at: string | null
+          last_captured_at: string | null
+          playlist_id: string | null
+          playlist_url: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_campaign_velocity"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_financial_summary"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "curator_campaign_playlists_curator_id_fkey"
+            columns: ["attributed_curator_id"]
+            isOneToOne: false
+            referencedRelation: "curators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curator_campaign_playlists_curator_id_fkey"
+            columns: ["attributed_curator_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_balance"
+            referencedColumns: ["curator_id"]
+          },
+          {
+            foreignKeyName: "curator_campaign_playlists_curator_id_fkey"
+            columns: ["attributed_curator_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_finance"
+            referencedColumns: ["curator_id"]
           },
         ]
       }
