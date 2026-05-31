@@ -89,12 +89,15 @@ type DealRow = {
   closed_at: string | null;
   token_revoked_at: string | null;
   token_expires_at: string | null;
+  campaign_id: string | null;
+  curator_id: string | null;
+  source: string | null;
 };
 
 type ProcessedItem = {
   url: string;
   playlist_id: string | null;
-  status: "ok" | "blocked" | "duplicate" | "duplicate_in_payload" | "baseline_blocked" | "track_already_present" | "track_not_present" | "invalid_url" | "not_found" | "error" | "timeout";
+  status: "ok" | "blocked" | "duplicate" | "duplicate_in_payload" | "baseline_blocked" | "campaign_baseline_blocked" | "awaiting_baseline" | "track_already_present" | "track_not_present" | "invalid_url" | "not_found" | "error" | "timeout";
   match_status?: ClassifyResult["match_status"];
   match_reason?: string;
   meta?: SpotifyPlaylistMeta;
@@ -171,7 +174,7 @@ Deno.serve(async (req) => {
     if (publicToken) {
       const { data, error } = await admin
         .from("curator_deals")
-        .select("id, user_id, spotify_owner_id, song_spotify_url, started_at, state, closed_at, token_revoked_at, token_expires_at")
+        .select("id, user_id, spotify_owner_id, song_spotify_url, started_at, state, closed_at, token_revoked_at, token_expires_at, campaign_id, curator_id, source")
         .eq("public_token", publicToken)
         .maybeSingle();
       if (error) return jr({ ok: false, error: error.message }, 200);
@@ -195,7 +198,7 @@ Deno.serve(async (req) => {
 
       const { data, error } = await admin
         .from("curator_deals")
-        .select("id, user_id, spotify_owner_id, song_spotify_url, started_at, state, closed_at, token_revoked_at, token_expires_at")
+        .select("id, user_id, spotify_owner_id, song_spotify_url, started_at, state, closed_at, token_revoked_at, token_expires_at, campaign_id, curator_id, source")
         .eq("id", dealIdInput)
         .maybeSingle();
       if (error) return jr({ ok: false, error: error.message }, 200);
@@ -297,6 +300,35 @@ Deno.serve(async (req) => {
         .map((r: any) => r.playlist_name)
         .filter((v: unknown): v is string => typeof v === "string" && v.length > 0);
 
+      // ====== Contexto de campanha (Fase 3) ======
+      // Quando o deal é shadow de campanha, aplicamos 2 gates extras sobre o cadastro:
+      // (1) baseline ainda não capturada → bloqueia TODO o cadastro (awaiting_baseline)
+      // (2) playlist_id presente na baseline da campanha → bloqueia individualmente
+      //     (campaign_baseline_blocked). Esses gates rodam ANTES da chamada ao Spotify.
+      const isCampaignShadow =
+        deal!.source === "campaign_internal" && !!deal!.campaign_id;
+      let campaignBaselineStatus: string | null = null;
+      const campaignBaselineIds = new Set<string>();
+      if (isCampaignShadow) {
+        const { data: camp } = await admin
+          .from("campaigns")
+          .select("baseline_status")
+          .eq("id", deal!.campaign_id!)
+          .maybeSingle();
+        campaignBaselineStatus = (camp as any)?.baseline_status ?? null;
+
+        const { data: baseRows } = await admin
+          .from("campaign_playlist_collections")
+          .select("playlist_id")
+          .eq("campaign_id", deal!.campaign_id!)
+          .eq("is_baseline", true);
+        for (const r of (baseRows ?? []) as any[]) {
+          if (typeof r.playlist_id === "string" && r.playlist_id.length > 0) {
+            campaignBaselineIds.add(r.playlist_id);
+          }
+        }
+      }
+
       // ------- Items + dedup intra-payload -------
       const items: ProcessedItem[] = urls.map((u) => ({
         url: typeof u === "string" ? u.trim() : "",
@@ -322,6 +354,16 @@ Deno.serve(async (req) => {
           continue;
         }
         seenInPayload.add(pid);
+        // Gate de campanha: aguardando baseline → bloqueia TODOS os cadastros.
+        if (isCampaignShadow && campaignBaselineStatus === "pending") {
+          item.status = "awaiting_baseline";
+          continue;
+        }
+        // Gate de campanha: playlist já presente na baseline da campanha → bloqueia.
+        if (isCampaignShadow && campaignBaselineIds.has(pid)) {
+          item.status = "campaign_baseline_blocked";
+          continue;
+        }
         if (baselineIds.has(pid)) {
           // Bloqueio forte: estava na baseline, então não é entrega do curador.
           item.status = "baseline_blocked";
@@ -453,6 +495,36 @@ Deno.serve(async (req) => {
           })
           .eq("deal_id", deal.id)
           .eq("auto_collect", true);
+
+        // Mirror em curator_campaign_playlists (Fase 3): identidade canônica
+        // por playlist_id na camada de campanha. Best-effort: a trigger DB
+        // bloqueia anti-baseline mas já pré-filtramos acima.
+        if (isCampaignShadow) {
+          const ccpRows = items
+            .filter((it) => it.status === "ok" && it.playlist_id)
+            .map((it) => ({
+              campaign_id: deal!.campaign_id!,
+              curator_id: deal!.curator_id!,
+              deal_id: deal!.id,
+              playlist_id: it.playlist_id!,
+              playlist_url: `https://open.spotify.com/playlist/${it.playlist_id}`,
+              status: "pending_match" as const,
+            }));
+          if (ccpRows.length > 0 && deal!.curator_id) {
+            const { error: ccpErr } = await admin
+              .from("curator_campaign_playlists")
+              .upsert(ccpRows, {
+                onConflict: "campaign_id,playlist_id",
+                ignoreDuplicates: true,
+              });
+            if (ccpErr) {
+              console.warn(
+                "[register-curator-playlist] curator_campaign_playlists upsert failed:",
+                ccpErr.message,
+              );
+            }
+          }
+        }
       }
 
       const summary = {
@@ -462,6 +534,8 @@ Deno.serve(async (req) => {
         duplicate: items.filter((it) => it.status === "duplicate").length,
         duplicate_in_payload: items.filter((it) => it.status === "duplicate_in_payload").length,
         baseline_blocked: items.filter((it) => it.status === "baseline_blocked").length,
+        campaign_baseline_blocked: items.filter((it) => it.status === "campaign_baseline_blocked").length,
+        awaiting_baseline: items.filter((it) => it.status === "awaiting_baseline").length,
         track_already_present: items.filter((it) => it.status === "track_already_present").length,
         track_not_present: items.filter((it) => it.status === "track_not_present").length,
         invalid: items.filter((it) => it.status === "invalid_url").length,

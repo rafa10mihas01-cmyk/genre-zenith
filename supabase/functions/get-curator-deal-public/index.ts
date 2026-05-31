@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
     let query = admin
       .from("curator_deals")
       .select(
-        "id, curator_name, song_spotify_url, song_name, song_artist, song_cover_url, target_plays, daily_goal, baseline_plays, cost, started_at, ends_at, public_token, slug, created_at, spotify_owner_id, spotify_owner_url, state, closed_at, closed_status, token_revoked_at, token_expires_at",
+        "id, curator_name, song_spotify_url, song_name, song_artist, song_cover_url, target_plays, daily_goal, baseline_plays, cost, started_at, ends_at, public_token, slug, created_at, spotify_owner_id, spotify_owner_url, state, closed_at, closed_status, token_revoked_at, token_expires_at, campaign_id, source",
       );
 
     if (token) {
@@ -124,10 +124,48 @@ Deno.serve(async (req) => {
       ? { writable: true }
       : { writable: false, code: gate.code, reason: gate.error };
 
+    // Campaign shadow context: quando o deal é shadow de uma campanha,
+    // o portal precisa saber se a baseline já foi capturada antes de aceitar
+    // cadastros de playlist (sistema de identidade por playlist_id).
+    let campaign_context: {
+      is_campaign_shadow: boolean;
+      campaign_id: string | null;
+      baseline_status: string | null;
+      baseline_captured_at: string | null;
+      baseline_playlist_count: number;
+    } = {
+      is_campaign_shadow: false,
+      campaign_id: null,
+      baseline_status: null,
+      baseline_captured_at: null,
+      baseline_playlist_count: 0,
+    };
+    if ((deal as any).source === "campaign_internal" && (deal as any).campaign_id) {
+      const campaignId = (deal as any).campaign_id as string;
+      const { data: camp } = await admin
+        .from("campaigns")
+        .select("baseline_status, baseline_captured_at")
+        .eq("id", campaignId)
+        .maybeSingle();
+      const { count: baselineCount } = await admin
+        .from("campaign_playlist_collections")
+        .select("playlist_id", { count: "exact", head: true })
+        .eq("campaign_id", campaignId)
+        .eq("is_baseline", true);
+      campaign_context = {
+        is_campaign_shadow: true,
+        campaign_id: campaignId,
+        baseline_status: (camp as any)?.baseline_status ?? null,
+        baseline_captured_at: (camp as any)?.baseline_captured_at ?? null,
+        baseline_playlist_count: baselineCount ?? 0,
+      };
+    }
+
     return jr({
       ok: true,
       deal,
       access,
+      campaign_context,
       playlists: (playlists ?? []).map((p: any) => ({
         ...p,
         plays_24h: latestByPlaylist[p.id]?.plays_24h ?? null,

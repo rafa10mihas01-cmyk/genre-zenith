@@ -301,6 +301,19 @@ export default function CuratorPage() {
   const [progress, setProgress] = useState<DealProgress | null>(null);
   const [snapshotHistory, setSnapshotHistory] = useState<SnapshotHistoryEntry[]>([]);
   const [access, setAccess] = useState<{ writable: boolean; code?: string; reason?: string }>({ writable: true });
+  const [campaignContext, setCampaignContext] = useState<{
+    is_campaign_shadow: boolean;
+    campaign_id: string | null;
+    baseline_status: string | null;
+    baseline_captured_at: string | null;
+    baseline_playlist_count: number;
+  }>({
+    is_campaign_shadow: false,
+    campaign_id: null,
+    baseline_status: null,
+    baseline_captured_at: null,
+    baseline_playlist_count: 0,
+  });
   const [url, setUrl] = useState("");
   const [position, setPosition] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -420,6 +433,7 @@ export default function CuratorPage() {
       setProgress((data.progress ?? null) as DealProgress | null);
       setSnapshotHistory((data.snapshot_history ?? []) as SnapshotHistoryEntry[]);
       setAccess(data.access ?? { writable: true });
+      if (data.campaign_context) setCampaignContext(data.campaign_context);
       setError(null);
     }
     setLoading(false);
@@ -626,6 +640,16 @@ export default function CuratorPage() {
     } else if (item?.status === "baseline_blocked") {
       toast.error("Essa playlist já existia antes do deal (baseline)", {
         description: "Não conta como entrega do curador.",
+      });
+      return;
+    } else if (item?.status === "awaiting_baseline") {
+      toast.error("A campanha ainda está aguardando a baseline", {
+        description: "Volte assim que a primeira coleta do Spotify for capturada.",
+      });
+      return;
+    } else if (item?.status === "campaign_baseline_blocked") {
+      toast.error("Essa playlist já estava na foto inicial da campanha", {
+        description: "Playlists da baseline não contam como entrega de curador.",
       });
       return;
     } else if (item?.status === "invalid_url") {
@@ -1707,6 +1731,21 @@ export default function CuratorPage() {
         {activeTab === "cadastro" && (
         <Card className="nx-card nx-card-glow !p-0 border-border">
           <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-5">
+            {campaignContext.is_campaign_shadow && campaignContext.baseline_status === "pending" && (
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-[12.5px] leading-relaxed text-amber-100">
+                <div className="font-semibold mb-1">Aguardando baseline da campanha</div>
+                <p className="text-amber-100/80">
+                  A primeira coleta do Spotify for Artists ainda não foi feita. Cadastros de playlist ficam
+                  bloqueados até a baseline ser capturada — assim garantimos que sua entrega não se confunda
+                  com playlists que já listavam a música antes do início da campanha.
+                </p>
+              </div>
+            )}
+            {campaignContext.is_campaign_shadow && campaignContext.baseline_status === "captured" && campaignContext.baseline_playlist_count > 0 && (
+              <div className="rounded-xl border border-border/60 bg-muted/30 px-4 py-2.5 text-[11.5px] text-muted-foreground">
+                Baseline da campanha capturada: <strong className="text-foreground">{campaignContext.baseline_playlist_count}</strong> {campaignContext.baseline_playlist_count === 1 ? "playlist" : "playlists"} fazem parte da foto inicial e não podem ser cadastradas como entrega.
+              </div>
+            )}
             <div>
               <h2 className="text-[15px] font-semibold tracking-tight">Adicionar playlist</h2>
               <p className="text-[12px] text-muted-foreground mt-1.5 leading-snug">
@@ -1801,7 +1840,7 @@ export default function CuratorPage() {
             </div>
             <Button
               onClick={handleAdd}
-              disabled={submitting || importing || !url.trim() || playlistSongRequired || !access.writable}
+              disabled={submitting || importing || !url.trim() || playlistSongRequired || !access.writable || (campaignContext.is_campaign_shadow && campaignContext.baseline_status === "pending")}
               className="w-full h-10 text-[14px] font-semibold rounded-xl"
             >
               {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
