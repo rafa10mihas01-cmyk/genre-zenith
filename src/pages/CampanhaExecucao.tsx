@@ -692,6 +692,10 @@ export default function CampanhaExecucao() {
                 baselineCapturedAt={dealStatus.baselineCapturedAt}
                 dealId={camp.deal_id ?? null}
               />
+              <BotCollectionStatus
+                campaignId={camp.id}
+                dealId={camp.deal_id ?? null}
+              />
               <OverviewTab
                 snapshot={snapshot}
                 delivered={delivered}
