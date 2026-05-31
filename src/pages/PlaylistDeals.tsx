@@ -78,7 +78,8 @@ export default function PlaylistDeals() {
   const [prefillCuratorId, setPrefillCuratorId] = useState<string | null>(null);
   const [sourceFitId, setSourceFitId] = useState<string | null>(null);
 
-  const { deals, logs, playlists, songs, progressByDeal, loading, deleteDeal, closeDeal, reopenDeal, forceCollectNow, reload } = useCuratorDeals();
+  const [includeInternal, setIncludeInternal] = useState(false);
+  const { deals, logs, playlists, songs, progressByDeal, loading, deleteDeal, closeDeal, reopenDeal, forceCollectNow, reload } = useCuratorDeals({ includeInternal });
 
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
