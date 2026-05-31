@@ -29,7 +29,7 @@ export function BaselineView({ campaignId }: { campaignId: string }) {
       const [{ data: r }, { data: c }] = await Promise.all([
         supabase
           .from("campaign_playlist_collections")
-          .select("playlist_id, playlist_url, playlist_name_at_capture, plays_7d, captured_at, proof_screenshot_url")
+          .select("playlist_id, playlist_url, playlist_name_at_capture, plays_7d, captured_at, proof_screenshot_url, proof_screenshot_urls")
           .eq("campaign_id", campaignId)
           .eq("is_baseline", true)
           .order("plays_7d", { ascending: false }),
