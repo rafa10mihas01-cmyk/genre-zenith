@@ -174,7 +174,7 @@ Deno.serve(async (req) => {
     if (publicToken) {
       const { data, error } = await admin
         .from("curator_deals")
-        .select("id, user_id, spotify_owner_id, song_spotify_url, started_at, state, closed_at, token_revoked_at, token_expires_at")
+        .select("id, user_id, spotify_owner_id, song_spotify_url, started_at, state, closed_at, token_revoked_at, token_expires_at, campaign_id, curator_id, source")
         .eq("public_token", publicToken)
         .maybeSingle();
       if (error) return jr({ ok: false, error: error.message }, 200);
@@ -198,7 +198,7 @@ Deno.serve(async (req) => {
 
       const { data, error } = await admin
         .from("curator_deals")
-        .select("id, user_id, spotify_owner_id, song_spotify_url, started_at, state, closed_at, token_revoked_at, token_expires_at")
+        .select("id, user_id, spotify_owner_id, song_spotify_url, started_at, state, closed_at, token_revoked_at, token_expires_at, campaign_id, curator_id, source")
         .eq("id", dealIdInput)
         .maybeSingle();
       if (error) return jr({ ok: false, error: error.message }, 200);
