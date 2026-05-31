@@ -463,22 +463,6 @@ export default function PlaylistDeals() {
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-
-          <button
-            type="button"
-            onClick={() => setIncludeInternal((v) => !v)}
-            className={cn(
-              "h-9 px-3 inline-flex items-center gap-1.5 rounded-full text-[12px] font-medium border transition-colors",
-              includeInternal
-                ? "bg-primary/15 text-primary border-primary/30"
-                : "bg-transparent text-muted-foreground border-border hover:text-foreground hover:bg-muted/40",
-            )}
-            aria-pressed={includeInternal}
-            title="Inclui deals internos criados automaticamente pelas campanhas (ecossistema)"
-          >
-            <span className={cn("h-1.5 w-1.5 rounded-full", includeInternal ? "bg-primary" : "bg-muted-foreground/50")} />
-            <span className="whitespace-nowrap">{includeInternal ? "Internos ON" : "Internos"}</span>
-          </button>
         </div>
       </div>
 
