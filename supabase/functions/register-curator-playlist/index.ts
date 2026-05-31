@@ -94,7 +94,7 @@ type DealRow = {
 type ProcessedItem = {
   url: string;
   playlist_id: string | null;
-  status: "ok" | "blocked" | "duplicate" | "duplicate_in_payload" | "baseline_blocked" | "track_already_present" | "track_not_present" | "invalid_url" | "not_found" | "error" | "timeout";
+  status: "ok" | "blocked" | "duplicate" | "duplicate_in_payload" | "baseline_blocked" | "campaign_baseline_blocked" | "awaiting_baseline" | "track_already_present" | "track_not_present" | "invalid_url" | "not_found" | "error" | "timeout";
   match_status?: ClassifyResult["match_status"];
   match_reason?: string;
   meta?: SpotifyPlaylistMeta;
