@@ -1073,6 +1073,7 @@ export type Database = {
           playlist_url: string | null
           plays_7d: number
           proof_screenshot_url: string | null
+          proof_screenshot_urls: string[]
           source: string
         }
         Insert: {
@@ -1088,6 +1089,7 @@ export type Database = {
           playlist_url?: string | null
           plays_7d?: number
           proof_screenshot_url?: string | null
+          proof_screenshot_urls?: string[]
           source?: string
         }
         Update: {
@@ -1103,6 +1105,7 @@ export type Database = {
           playlist_url?: string | null
           plays_7d?: number
           proof_screenshot_url?: string | null
+          proof_screenshot_urls?: string[]
           source?: string
         }
         Relationships: [

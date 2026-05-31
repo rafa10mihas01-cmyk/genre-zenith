@@ -163,7 +163,8 @@ Deno.serve(async (req) => {
 
   const { song_id, deal_id, total_plays, snapshots, note, print_urls, print_taken, error: bot_error, correlation_id } = body ?? {};
   if (!deal_id || !song_id) return jr({ error: "deal_id and song_id required" }, 400);
-  const screenshotUrl: string | null = Array.isArray(print_urls) && print_urls.length > 0 ? String(print_urls[0]) : null;
+  const screenshotUrls: string[] = Array.isArray(print_urls) ? print_urls.map((u: any) => String(u)).filter(Boolean) : [];
+  const screenshotUrl: string | null = screenshotUrls.length > 0 ? screenshotUrls[0] : null;
 
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
@@ -603,6 +604,7 @@ Deno.serve(async (req) => {
             captured_at: capturedAt,
             source: "s4a_dom",
             proof_screenshot_url: screenshotUrl,
+            proof_screenshot_urls: screenshotUrls,
           };
         })
         .filter(Boolean);
