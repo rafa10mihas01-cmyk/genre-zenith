@@ -188,6 +188,18 @@ export function ExecucaoView({ campaignId }: { campaignId: string }) {
         <KpiCard icon={Layers} label="Playlists monitoradas" value={totals.n} raw />
       </div>
 
+      <CuratorSummary
+        rows={rows}
+        curators={curators}
+        statuses={statuses}
+        onPick={(curatorId) => {
+          setScope("curator");
+          setCuratorFilter(curatorId);
+        }}
+      />
+
+
+
       <Card>
         <CardContent className="p-3 flex flex-wrap items-center gap-2">
           <div className="relative flex-1 min-w-[200px]">
@@ -390,3 +402,77 @@ function KpiCard({ icon: Icon, label, value, accent, raw }: { icon: any; label: 
     </Card>
   );
 }
+
+function CuratorSummary({
+  rows,
+  curators,
+  statuses,
+  onPick,
+}: {
+  rows: GrowthRow[];
+  curators: Record<string, CuratorMeta>;
+  statuses: Record<string, string>;
+  onPick: (curatorId: string) => void;
+}) {
+  const summary = useMemo(() => {
+    const map = new Map<string, { playlists: number; matched: number; pending: number; notFound: number; delta: number }>();
+    for (const r of rows) {
+      if (!r.attributed_curator_id) continue;
+      const cur = r.attributed_curator_id;
+      const agg = map.get(cur) ?? { playlists: 0, matched: 0, pending: 0, notFound: 0, delta: 0 };
+      agg.playlists += 1;
+      agg.delta += Number(r.delta ?? 0);
+      const st = statuses[`${cur}::${r.playlist_id}`] ?? "pending_match";
+      if (st === "matched") agg.matched += 1;
+      else if (st === "not_found_yet") agg.notFound += 1;
+      else agg.pending += 1;
+      map.set(cur, agg);
+    }
+    return Array.from(map.entries())
+      .map(([id, s]) => ({ id, name: curators[id]?.name ?? "Curador", ...s }))
+      .sort((a, b) => b.delta - a.delta);
+  }, [rows, curators, statuses]);
+
+  if (summary.length === 0) return null;
+
+  return (
+    <Card>
+      <CardContent className="p-0">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <div>
+            <div className="text-sm font-semibold text-foreground">Resumo por curador</div>
+            <div className="text-xs text-muted-foreground">{summary.length} curador(es) com playlists atribuídas</div>
+          </div>
+        </div>
+        <div className="grid grid-cols-[1fr_90px_90px_90px_120px_70px] gap-3 px-4 py-2 text-xs uppercase tracking-wide text-muted-foreground border-b border-border/60 bg-card/40">
+          <div>Curador</div>
+          <div className="text-right">Playlists</div>
+          <div className="text-right">Matched</div>
+          <div className="text-right">Pending</div>
+          <div className="text-right">Δ</div>
+          <div />
+        </div>
+        <div className="max-h-[320px] overflow-auto">
+          {summary.map((s) => (
+            <div
+              key={s.id}
+              className="grid grid-cols-[1fr_90px_90px_90px_120px_70px] gap-3 items-center px-4 py-2.5 border-b border-border/40 hover:bg-accent/30"
+            >
+              <div className="font-medium text-foreground text-sm truncate">{s.name}</div>
+              <div className="text-right tabular-nums text-sm text-foreground">{s.playlists}</div>
+              <div className="text-right tabular-nums text-sm text-primary">{s.matched}</div>
+              <div className="text-right tabular-nums text-sm text-muted-foreground">{s.pending}</div>
+              <div className={cn("text-right tabular-nums text-sm font-semibold", s.delta > 0 ? "text-primary" : "text-muted-foreground")}>
+                {s.delta > 0 ? "+" : ""}{formatInt(s.delta)}
+              </div>
+              <div className="text-right">
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => onPick(s.id)}>ver</Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
