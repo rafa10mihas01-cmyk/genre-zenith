@@ -327,7 +327,11 @@ function VirtualTable({
             return (
               <div
                 key={vi.key}
-                className="grid grid-cols-[minmax(220px,2fr)_120px_110px_110px_120px_140px_150px] gap-3 items-center px-4 border-b border-border/60 hover:bg-accent/40 transition-colors"
+                onClick={() => onRowClick?.(r.playlist_id)}
+                className={cn(
+                  "grid grid-cols-[minmax(220px,2fr)_120px_110px_110px_120px_140px_150px] gap-3 items-center px-4 border-b border-border/60 hover:bg-accent/40 transition-colors",
+                  onRowClick && "cursor-pointer"
+                )}
                 style={{
                   position: "absolute",
                   top: 0,
@@ -337,6 +341,7 @@ function VirtualTable({
                   transform: `translateY(${vi.start}px)`,
                 }}
               >
+
                 <PlaylistCell
                   playlistId={r.playlist_id}
                   name={r.current_name ?? r.baseline_name ?? meta?.name ?? null}
