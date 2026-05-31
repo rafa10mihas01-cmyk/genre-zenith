@@ -123,6 +123,7 @@ Deno.serve(async (req) => {
     const rows = playlists.map((p: any, idx: number) => ({
       snapshot_id: snap.id,
       spotify_playlist_id: p.spotify_playlist_id ?? null,
+      spotify_url: p.spotify_url ?? null,
       name: String(p.name).trim(),
       owner: p.owner ?? null,
       plays_7d: toInt(p.plays_7d),
