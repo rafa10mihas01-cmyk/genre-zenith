@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
     // Gate de ciclo de vida
     const { data: dealRow } = await supabase
       .from("curator_deals")
-      .select("id, state, closed_at, token_revoked_at, token_expires_at")
+      .select("id, state, closed_at, token_revoked_at, token_expires_at, source, campaign_id")
       .eq("id", d_id)
       .maybeSingle();
     const gate = assertDealOperable(dealRow as any);
@@ -72,6 +72,28 @@ Deno.serve(async (req) => {
         queued_at: null,
       }).eq("id", s_id);
       return jr({ ok: false, error: gate.error, code: gate.code, gated: true }, gate.status);
+    }
+
+    const requiresPlaylistBreakdown = (dealRow as any)?.source === "campaign_internal" || !!(dealRow as any)?.campaign_id;
+    if (requiresPlaylistBreakdown) {
+      await supabase.from("curator_deal_songs").update({
+        auto_collect_status: "error",
+        auto_collect_error: "Payload agregado recusado: campanha interna exige breakdown por playlist do Spotify for Artists",
+        next_auto_collect_at: new Date(Date.now() + 5 * 60_000).toISOString(),
+        queued_at: null,
+      }).eq("id", s_id);
+
+      await supabase.from("collection_logs").insert({
+        acao: "bot_collect",
+        status: "error",
+        mensagem: `song=${s_id} aggregate payload rejected: playlist breakdown required`,
+      });
+
+      return jr({
+        ok: false,
+        error: "playlist_breakdown_required",
+        message: "Campanhas internas não aceitam total agregado; envie snapshots[] por playlist ou prints playlists-part-X-of-Y com dom_playlists.",
+      }, 422);
     }
 
     const { count: existingLogs } = await supabase
