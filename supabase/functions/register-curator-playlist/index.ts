@@ -89,6 +89,9 @@ type DealRow = {
   closed_at: string | null;
   token_revoked_at: string | null;
   token_expires_at: string | null;
+  campaign_id: string | null;
+  curator_id: string | null;
+  source: string | null;
 };
 
 type ProcessedItem = {
