@@ -207,15 +207,52 @@ Deno.serve(async (req) => {
           genreSource: (r.genre_source as "primary" | "affinity" | null) ?? "primary",
         }));
 
+        // ─── Orçamento de audiência (camada de proteção) ───
+        let maxCapById: Map<string, number> | undefined;
+        let droppedByBudget = 0;
+        if (ECO_BUDGET_ENABLED && (campaign as any).started_at) {
+          const startedAt = new Date((campaign as any).started_at);
+          const endsAt = new Date(startedAt.getTime() + snapDays * 86400000);
+          const playlistIds = rows
+            .map(r => r.managed_playlist_id ?? r.managed_playlists?.id)
+            .filter((v): v is string => typeof v === "string" && v.length > 0);
+          if (playlistIds.length > 0) {
+            const reservations = await getReservationsByPlaylist(admin, {
+              excludeCampaignId: campaignId,
+              playlistIds,
+              windowStart: startedAt.toISOString(),
+              windowEnd: endsAt.toISOString(),
+            });
+            const playlistsInfo = new Map<string, { followers: number }>();
+            for (const r of rows) {
+              const pid = r.managed_playlist_id ?? r.managed_playlists?.id;
+              if (typeof pid === "string") {
+                playlistsInfo.set(pid, { followers: Number(r.managed_playlists?.followers ?? 0) });
+              }
+            }
+            const capByPlaylist = reservationsToDailyCap(reservations, playlistsInfo, mult, snapDays);
+            // Re-mapear playlist_id → alloc_id (distributeByDailyNeed indexa por alloc id).
+            maxCapById = new Map();
+            for (const r of rows) {
+              const pid = r.managed_playlist_id ?? r.managed_playlists?.id;
+              const cap = typeof pid === "string" ? capByPlaylist.get(pid) ?? Infinity : Infinity;
+              maxCapById.set(r.id, cap);
+              if (cap <= 0) droppedByBudget += 1;
+            }
+          }
+        }
+
         let positions: Map<string, number>;
         if (dailyNeed > 0) {
-          const dist = distributeByDailyNeed(allocsInput, dailyNeed, mult, ECO_DAILY_TOLERANCE);
+          const dist = distributeByDailyNeed(allocsInput, dailyNeed, mult, ECO_DAILY_TOLERANCE, { maxCapById });
           positions = dist.positions;
           console.log("[approve] positions via daily_need", {
             dailyNeed: Math.round(dailyNeed),
             coveredDaily: Math.round(dist.coveredDaily),
             tolerance: ECO_DAILY_TOLERANCE,
             playlists: rows.length,
+            ecoBudgetEnabled: ECO_BUDGET_ENABLED,
+            droppedByBudget,
           });
         } else {
           positions = distributeEcoPositions(allocsInput, snapDays, mult, { chartTier });
@@ -224,6 +261,10 @@ Deno.serve(async (req) => {
 
         positionUpdates = rows
           .filter(r => r.position == null)
+          // Se a playlist ficou sem saldo (cap=0), ainda gravamos uma posição
+          // (a mais profunda) — não removemos allocs no backfill pra não
+          // quebrar plano já aprovado pelo cliente. O orçamento só age
+          // efetivamente no replan (que escolhe novas playlists).
           .map(r => ({ id: r.id, position: positions.get(r.id) ?? 3 }));
       }
 
