@@ -36,6 +36,7 @@ import {
   ECO_BUDGET_ENABLED,
 } from "../_shared/eco-budget.ts";
 import { getGenreNeighbors } from "../_shared/genre-affinity.ts";
+import { MIN_PLAYLIST_SAVES_FOR_CAMPAIGN } from "../_shared/eco-constants.ts";
 
 
 // Pequeno RNG determinístico (mesma família do computeEcoPlan) para
@@ -168,7 +169,7 @@ Deno.serve(async (req) => {
     .select("id, followers, genre_id")
     .eq("genre_id", primaryGenreId)
     .is("archived_at", null)
-    .gt("followers", 0)
+    .gte("followers", MIN_PLAYLIST_SAVES_FOR_CAMPAIGN)
     .order("followers", { ascending: false });
   if (cErr) return json({ ok: false, error: cErr.message }, 500);
 
@@ -188,7 +189,7 @@ Deno.serve(async (req) => {
       .select("id, followers, genre_id")
       .in("genre_id", neighborGenreIds)
       .is("archived_at", null)
-      .gt("followers", 0)
+      .gte("followers", MIN_PLAYLIST_SAVES_FOR_CAMPAIGN)
       .order("followers", { ascending: false });
     if (nErr) return json({ ok: false, error: nErr.message }, 500);
     freshNeighbor = (neighborPls ?? []).filter((p: any) => !usedIds.has(p.id));
