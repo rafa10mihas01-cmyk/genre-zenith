@@ -143,6 +143,8 @@ export default function ClientCampaignPage() {
   const [spreadsheetSource, setSpreadsheetSource] = useState(false);
   const [lastSpreadsheetUploadAt, setLastSpreadsheetUploadAt] = useState<string | null>(null);
   const [recentUploads, setRecentUploads] = useState<any[]>([]);
+  const [campaignApproved, setCampaignApproved] = useState(false);
+
 
   const load = async () => {
     if (!token) return;
