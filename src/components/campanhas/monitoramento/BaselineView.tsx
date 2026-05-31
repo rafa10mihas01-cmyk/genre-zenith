@@ -107,7 +107,7 @@ export function BaselineView({ campaignId }: { campaignId: string }) {
                         {new Date(r.captured_at).toLocaleString("pt-BR")}
                       </TableCell>
                       <TableCell>
-                        <ProofThumb url={r.proof_screenshot_url} />
+                        <ProofThumb urls={r.proof_screenshot_urls} url={r.proof_screenshot_url} />
                       </TableCell>
                     </TableRow>
                   );
