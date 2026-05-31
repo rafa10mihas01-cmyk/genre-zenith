@@ -53,6 +53,7 @@ const ComunidadeAdmin = lazy(() => import("./pages/ComunidadeAdmin"));
 const Campanhas = lazy(() => import("./pages/Campanhas"));
 const CampanhaDetalhe = lazy(() => import("./pages/CampanhaDetalhe"));
 const CampanhaExecucao = lazy(() => import("./pages/CampanhaExecucao"));
+const CampanhaMonitoramento = lazy(() => import("./pages/CampanhaMonitoramento"));
 const PlanoCampanhaPublico = lazy(() => import("./pages/PlanoCampanhaPublico"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Valuation = lazy(() => import("./pages/Valuation"));
