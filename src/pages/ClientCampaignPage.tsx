@@ -175,7 +175,9 @@ export default function ClientCampaignPage() {
       setSpreadsheetSource(Boolean(data.spreadsheet_source));
       setLastSpreadsheetUploadAt(data.last_spreadsheet_upload_at ?? null);
       setRecentUploads(data.recent_uploads ?? []);
+      setCampaignApproved(Boolean(data.campaign_approved));
       setError(null);
+
     }
     setLoading(false);
   };
