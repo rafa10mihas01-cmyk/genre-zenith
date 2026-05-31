@@ -49,5 +49,6 @@ export type CampaignHubTabId =
   | "upload"
   | "finance"
   | "execucao"
+  | "monitoramento"
   | "history"
   | "logs";
