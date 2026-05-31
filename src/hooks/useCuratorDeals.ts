@@ -264,7 +264,7 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
       hasLoadedRef.current = true;
       setLoading(false);
     }
-  }, [user]);
+  }, [user, includeInternal]);
 
   useEffect(() => {
     load();
