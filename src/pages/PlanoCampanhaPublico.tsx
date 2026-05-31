@@ -671,7 +671,9 @@ export default function PlanoCampanhaPublico() {
                 lastUploadAt={lastUploadAt}
                 recentUploads={recentUploads}
                 onUploaded={load}
+                approved={!!camp.client_approved_at}
               />
+
             ) : null,
             history: token ? <PlanHistoryTab publicToken={token} /> : null,
 
