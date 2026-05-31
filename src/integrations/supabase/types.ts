@@ -7140,6 +7140,7 @@ export type Database = {
           position: number | null
           snapshot_id: string
           spotify_playlist_id: string | null
+          spotify_url: string | null
         }
         Insert: {
           created_at?: string
@@ -7150,6 +7151,7 @@ export type Database = {
           position?: number | null
           snapshot_id: string
           spotify_playlist_id?: string | null
+          spotify_url?: string | null
         }
         Update: {
           created_at?: string
@@ -7160,6 +7162,7 @@ export type Database = {
           position?: number | null
           snapshot_id?: string
           spotify_playlist_id?: string | null
+          spotify_url?: string | null
         }
         Relationships: [
           {
