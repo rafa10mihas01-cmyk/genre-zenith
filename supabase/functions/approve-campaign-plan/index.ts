@@ -518,9 +518,15 @@ Deno.serve(async (req) => {
 
   // 8) Liga deal à campanha (bidirecional: campaigns.deal_id ↔ curator_deals.campaign_id)
   if (newDealId) {
+    // Marca baseline_status='pending' — a 1ª coleta do S4A vira a baseline oficial
+    // (lida pelo bot-ingest-snapshot e gravada via ingest_campaign_collection_batch).
     await admin
       .from("campaigns")
-      .update({ deal_id: newDealId, auto_deal_created: true })
+      .update({
+        deal_id: newDealId,
+        auto_deal_created: true,
+        baseline_status: "pending",
+      })
       .eq("id", campaignId);
 
     // 8.0) Grava vínculo reverso + marca shadow de campanha interna.
