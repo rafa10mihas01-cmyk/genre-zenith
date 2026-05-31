@@ -4,8 +4,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink, ImageIcon } from "lucide-react";
 import { formatInt } from "@/lib/campaignEngine";
+import { usePlaylistCovers } from "@/hooks/usePlaylistCovers";
+import { PlaylistCell } from "./PlaylistCell";
+import { ProofThumb } from "./ProofThumb";
 
 type Row = {
   playlist_id: string;
@@ -19,6 +21,7 @@ type Row = {
 export function BaselineView({ campaignId }: { campaignId: string }) {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [campMeta, setCampMeta] = useState<{ status: string | null; capturedAt: string | null }>({ status: null, capturedAt: null });
+  const covers = usePlaylistCovers((rows ?? []).map((r) => r.playlist_id));
 
   useEffect(() => {
     (async () => {
@@ -79,39 +82,35 @@ export function BaselineView({ campaignId }: { campaignId: string }) {
               <TableHeader>
                 <TableRow>
                   <TableHead>Playlist</TableHead>
-                  <TableHead>Playlist ID</TableHead>
                   <TableHead className="text-right">Plays 7d (baseline)</TableHead>
                   <TableHead>Capturada em</TableHead>
                   <TableHead>Prova</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.map((r) => (
-                  <TableRow key={r.playlist_id}>
-                    <TableCell>
-                      <div className="font-medium text-foreground">{r.playlist_name_at_capture ?? "—"}</div>
-                      {r.playlist_url && (
-                        <a href={r.playlist_url} target="_blank" rel="noreferrer"
-                           className="text-xs text-muted-foreground inline-flex items-center gap-1 hover:text-primary">
-                          abrir no Spotify <ExternalLink className="h-3 w-3" />
-                        </a>
-                      )}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground">{r.playlist_id}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatInt(Number(r.plays_7d ?? 0))}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {new Date(r.captured_at).toLocaleString("pt-BR")}
-                    </TableCell>
-                    <TableCell>
-                      {r.proof_screenshot_url ? (
-                        <a href={r.proof_screenshot_url} target="_blank" rel="noreferrer"
-                           className="text-primary inline-flex items-center gap-1 text-sm">
-                          <ImageIcon className="h-3 w-3" /> ver
-                        </a>
-                      ) : <span className="text-muted-foreground text-xs">—</span>}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {rows.map((r) => {
+                  const meta = covers[r.playlist_id];
+                  return (
+                    <TableRow key={r.playlist_id}>
+                      <TableCell>
+                        <PlaylistCell
+                          playlistId={r.playlist_id}
+                          name={r.playlist_name_at_capture ?? meta?.name ?? null}
+                          url={r.playlist_url}
+                          coverUrl={meta?.cover_url ?? null}
+                          followers={meta?.followers ?? null}
+                        />
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">{formatInt(Number(r.plays_7d ?? 0))}</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {new Date(r.captured_at).toLocaleString("pt-BR")}
+                      </TableCell>
+                      <TableCell>
+                        <ProofThumb url={r.proof_screenshot_url} />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}

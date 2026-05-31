@@ -3,8 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink } from "lucide-react";
 import { formatInt } from "@/lib/campaignEngine";
+import { usePlaylistCovers } from "@/hooks/usePlaylistCovers";
+import { PlaylistCell } from "./PlaylistCell";
 
 type Coll = {
   playlist_id: string;
@@ -84,28 +85,30 @@ export function HistoricoView({ campaignId }: { campaignId: string }) {
     return out;
   }, [data]);
 
+  const covers = usePlaylistCovers(groups.map((g) => g.playlist_id));
+
   if (!data) return <Skeleton className="h-96 w-full" />;
   if (groups.length === 0)
     return <Card><CardContent className="p-8 text-center text-muted-foreground">Nenhuma coleta registrada ainda.</CardContent></Card>;
 
   return (
     <div className="space-y-4">
-      {groups.map((g) => (
+      {groups.map((g) => {
+        const meta = covers[g.playlist_id];
+        return (
         <Card key={g.playlist_id}>
           <CardContent className="p-5 space-y-4">
             <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="font-semibold text-foreground">{g.current_name ?? "—"}</div>
-                <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                  <span className="font-mono">{g.playlist_id}</span>
-                  {g.playlist_url && (
-                    <a href={g.playlist_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-primary">
-                      abrir <ExternalLink className="h-3 w-3" />
-                    </a>
-                  )}
-                </div>
+              <div className="min-w-0 flex-1">
+                <PlaylistCell
+                  playlistId={g.playlist_id}
+                  name={g.current_name ?? meta?.name ?? null}
+                  url={g.playlist_url}
+                  coverUrl={meta?.cover_url ?? null}
+                  followers={meta?.followers ?? null}
+                />
               </div>
-              <div className="text-right text-xs text-muted-foreground space-y-0.5">
+              <div className="text-right text-xs text-muted-foreground space-y-0.5 shrink-0">
                 <div>First seen: <span className="text-foreground">{new Date(g.first_seen_at).toLocaleDateString("pt-BR")}</span></div>
                 <div>Baseline: <span className="text-foreground">{g.baseline_at ? new Date(g.baseline_at).toLocaleDateString("pt-BR") : "—"}</span></div>
                 <div>Última: <span className="text-foreground">{new Date(g.last_captured_at).toLocaleString("pt-BR")}</span></div>
@@ -146,7 +149,8 @@ export function HistoricoView({ campaignId }: { campaignId: string }) {
             )}
           </CardContent>
         </Card>
-      ))}
+        );
+      })}
     </div>
   );
 }

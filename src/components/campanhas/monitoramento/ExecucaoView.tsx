@@ -4,9 +4,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink, TrendingUp, Users, Layers, Activity } from "lucide-react";
+import { TrendingUp, Users, Layers, Activity } from "lucide-react";
 import { formatInt } from "@/lib/campaignEngine";
 import { cn } from "@/lib/utils";
+import { usePlaylistCovers, type PlaylistMeta } from "@/hooks/usePlaylistCovers";
+import { PlaylistCell } from "./PlaylistCell";
 
 type GrowthRow = {
   campaign_id: string;
@@ -174,6 +176,7 @@ function GrowthTable({
   showFirstSeen?: boolean;
   statusFor?: (r: GrowthRow) => string;
 }) {
+  const covers = usePlaylistCovers(rows.map((r) => r.playlist_id));
   if (rows.length === 0) return <EmptyState text="Sem playlists neste grupo." />;
   return (
     <Card>
@@ -191,37 +194,38 @@ function GrowthTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((r) => (
-              <TableRow key={r.playlist_id}>
-                <TableCell>
-                  <div className="font-medium text-foreground">{r.current_name ?? r.baseline_name ?? "—"}</div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="font-mono">{r.playlist_id.slice(0, 12)}…</span>
-                    {r.playlist_url && (
-                      <a href={r.playlist_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 hover:text-primary">
-                        abrir <ExternalLink className="h-3 w-3" />
-                      </a>
-                    )}
-                  </div>
-                </TableCell>
-                {showStatus && (
-                  <TableCell><MatchStatusBadge status={statusFor!(r)} /></TableCell>
-                )}
-                <TableCell className="text-right tabular-nums text-muted-foreground">{formatInt(Number(r.baseline_plays ?? 0))}</TableCell>
-                <TableCell className="text-right tabular-nums text-foreground">{formatInt(Number(r.current_plays ?? 0))}</TableCell>
-                <TableCell className={cn("text-right tabular-nums font-semibold", Number(r.delta) > 0 ? "text-primary" : "text-muted-foreground")}>
-                  {Number(r.delta) > 0 ? "+" : ""}{formatInt(Number(r.delta ?? 0))}
-                </TableCell>
-                {showFirstSeen && (
-                  <TableCell className="text-muted-foreground text-sm">
-                    {r.first_seen_at ? new Date(r.first_seen_at).toLocaleDateString("pt-BR") : "—"}
+            {rows.map((r) => {
+              const meta: PlaylistMeta | undefined = covers[r.playlist_id];
+              return (
+                <TableRow key={r.playlist_id}>
+                  <TableCell>
+                    <PlaylistCell
+                      playlistId={r.playlist_id}
+                      name={r.current_name ?? r.baseline_name ?? meta?.name ?? null}
+                      url={r.playlist_url}
+                      coverUrl={meta?.cover_url ?? null}
+                      followers={meta?.followers ?? null}
+                    />
                   </TableCell>
-                )}
-                <TableCell className="text-muted-foreground text-sm">
-                  {r.last_captured_at ? new Date(r.last_captured_at).toLocaleString("pt-BR") : "—"}
-                </TableCell>
-              </TableRow>
-            ))}
+                  {showStatus && (
+                    <TableCell><MatchStatusBadge status={statusFor!(r)} /></TableCell>
+                  )}
+                  <TableCell className="text-right tabular-nums text-muted-foreground">{formatInt(Number(r.baseline_plays ?? 0))}</TableCell>
+                  <TableCell className="text-right tabular-nums text-foreground">{formatInt(Number(r.current_plays ?? 0))}</TableCell>
+                  <TableCell className={cn("text-right tabular-nums font-semibold", Number(r.delta) > 0 ? "text-primary" : "text-muted-foreground")}>
+                    {Number(r.delta) > 0 ? "+" : ""}{formatInt(Number(r.delta ?? 0))}
+                  </TableCell>
+                  {showFirstSeen && (
+                    <TableCell className="text-muted-foreground text-sm">
+                      {r.first_seen_at ? new Date(r.first_seen_at).toLocaleDateString("pt-BR") : "—"}
+                    </TableCell>
+                  )}
+                  <TableCell className="text-muted-foreground text-sm">
+                    {r.last_captured_at ? new Date(r.last_captured_at).toLocaleString("pt-BR") : "—"}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </CardContent>
