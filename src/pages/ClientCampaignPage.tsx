@@ -739,8 +739,10 @@ export default function ClientCampaignPage() {
               lastUploadAt={lastSpreadsheetUploadAt}
               recentUploads={recentUploads}
               onUploaded={load}
+              approved={campaignApproved}
             />
           )}
+
 
           {/* Histórico de prints — só leitura, sem links externos pra Spotify */}
           {snapshotHistory.length > 0 && (
