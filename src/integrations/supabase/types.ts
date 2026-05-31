@@ -1908,7 +1908,9 @@ export type Database = {
           created_at: string
           curator_id: string
           deal_id: string | null
+          first_seen_collection_run_id: string | null
           id: string
+          matched_at: string | null
           playlist_id: string
           playlist_url: string
           registered_at: string
@@ -1920,7 +1922,9 @@ export type Database = {
           created_at?: string
           curator_id: string
           deal_id?: string | null
+          first_seen_collection_run_id?: string | null
           id?: string
+          matched_at?: string | null
           playlist_id: string
           playlist_url: string
           registered_at?: string
@@ -1932,7 +1936,9 @@ export type Database = {
           created_at?: string
           curator_id?: string
           deal_id?: string | null
+          first_seen_collection_run_id?: string | null
           id?: string
+          matched_at?: string | null
           playlist_id?: string
           playlist_url?: string
           registered_at?: string
