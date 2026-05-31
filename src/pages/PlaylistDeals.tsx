@@ -462,7 +462,8 @@ export default function PlaylistDeals() {
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
-          </DropdownMenu>
+            </DropdownMenu>
+          )}
 
           <button
             type="button"
@@ -479,7 +480,6 @@ export default function PlaylistDeals() {
             <span className={cn("h-1.5 w-1.5 rounded-full", includeInternal ? "bg-primary" : "bg-muted-foreground/50")} />
             <span className="whitespace-nowrap">{includeInternal ? "Internos ON" : "Internos"}</span>
           </button>
-          )}
         </div>
       </div>
 
