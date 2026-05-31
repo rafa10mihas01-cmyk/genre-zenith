@@ -300,6 +300,35 @@ Deno.serve(async (req) => {
         .map((r: any) => r.playlist_name)
         .filter((v: unknown): v is string => typeof v === "string" && v.length > 0);
 
+      // ====== Contexto de campanha (Fase 3) ======
+      // Quando o deal é shadow de campanha, aplicamos 2 gates extras sobre o cadastro:
+      // (1) baseline ainda não capturada → bloqueia TODO o cadastro (awaiting_baseline)
+      // (2) playlist_id presente na baseline da campanha → bloqueia individualmente
+      //     (campaign_baseline_blocked). Esses gates rodam ANTES da chamada ao Spotify.
+      const isCampaignShadow =
+        deal!.source === "campaign_internal" && !!deal!.campaign_id;
+      let campaignBaselineStatus: string | null = null;
+      const campaignBaselineIds = new Set<string>();
+      if (isCampaignShadow) {
+        const { data: camp } = await admin
+          .from("campaigns")
+          .select("baseline_status")
+          .eq("id", deal!.campaign_id!)
+          .maybeSingle();
+        campaignBaselineStatus = (camp as any)?.baseline_status ?? null;
+
+        const { data: baseRows } = await admin
+          .from("campaign_playlist_collections")
+          .select("playlist_id")
+          .eq("campaign_id", deal!.campaign_id!)
+          .eq("is_baseline", true);
+        for (const r of (baseRows ?? []) as any[]) {
+          if (typeof r.playlist_id === "string" && r.playlist_id.length > 0) {
+            campaignBaselineIds.add(r.playlist_id);
+          }
+        }
+      }
+
       // ------- Items + dedup intra-payload -------
       const items: ProcessedItem[] = urls.map((u) => ({
         url: typeof u === "string" ? u.trim() : "",
@@ -325,6 +354,16 @@ Deno.serve(async (req) => {
           continue;
         }
         seenInPayload.add(pid);
+        // Gate de campanha: aguardando baseline → bloqueia TODOS os cadastros.
+        if (isCampaignShadow && campaignBaselineStatus === "pending") {
+          item.status = "awaiting_baseline";
+          continue;
+        }
+        // Gate de campanha: playlist já presente na baseline da campanha → bloqueia.
+        if (isCampaignShadow && campaignBaselineIds.has(pid)) {
+          item.status = "campaign_baseline_blocked";
+          continue;
+        }
         if (baselineIds.has(pid)) {
           // Bloqueio forte: estava na baseline, então não é entrega do curador.
           item.status = "baseline_blocked";
