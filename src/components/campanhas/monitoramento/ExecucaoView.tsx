@@ -4,9 +4,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink, TrendingUp, Users, Layers, Activity } from "lucide-react";
+import { TrendingUp, Users, Layers, Activity } from "lucide-react";
 import { formatInt } from "@/lib/campaignEngine";
 import { cn } from "@/lib/utils";
+import { usePlaylistCovers, type PlaylistMeta } from "@/hooks/usePlaylistCovers";
+import { PlaylistCell } from "./PlaylistCell";
 
 type GrowthRow = {
   campaign_id: string;
