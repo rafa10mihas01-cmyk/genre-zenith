@@ -474,9 +474,11 @@ Deno.serve(async (req) => {
       playlists: safePlaylists,
       snapshot_history: safeSnapshotHistory,
       spreadsheet_source: !hasSpotify,
+      campaign_approved: campaignApproved,
       last_spreadsheet_upload_at: lastSpreadsheetUploadAt,
       recent_uploads: recentUploads,
     });
+
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return jr({ ok: false, error: msg }, 200);
