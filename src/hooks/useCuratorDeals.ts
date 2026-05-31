@@ -181,12 +181,15 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
       // Curadores + saldos em paralelo com deals
       // Tetos altos para não cortar dado atual mas impedir crescimento ilimitado.
       const [dealsRes, curatorsRes, balancesRes] = await Promise.all([
-        supabase
-          .from("curator_deals")
-          .select("*")
-          .or("source.is.null,source.neq.campaign_internal")
-          .order("created_at", { ascending: false })
-          .limit(1000),
+        (() => {
+          let q = supabase
+            .from("curator_deals")
+            .select("*");
+          if (!includeInternal) {
+            q = q.or("source.is.null,source.neq.campaign_internal");
+          }
+          return q.order("created_at", { ascending: false }).limit(1000);
+        })(),
         supabase
           .from("curators")
           .select("*")
