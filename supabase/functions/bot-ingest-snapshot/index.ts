@@ -637,6 +637,7 @@ Deno.serve(async (req) => {
   }
 
 
+  // Se for baseline, persiste blacklist de playlists do deal.
   if (isBaseline) {
     const { data: allPls } = await supabase
       .from("curator_playlists")
