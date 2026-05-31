@@ -76,14 +76,15 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (songErr || !song) return jr({ error: "song_not_found" }, 404);
 
-    const intervalMin = song.auto_collect_interval_minutes ?? 1440;
+    const isBreakdownContractError = status === "failed" && /playlist_breakdown_required|breakdown por playlist/i.test(String(errorMsg ?? ""));
+    const intervalMin = isBreakdownContractError ? 5 : (song.auto_collect_interval_minutes ?? 1440);
     const nextAt = new Date(Date.now() + intervalMin * 60_000).toISOString();
     const queueAgeMs = song.queued_at ? Date.now() - new Date(song.queued_at).getTime() : null;
 
     await supabase
       .from("curator_deal_songs")
       .update({
-        auto_collect_status: status === "done" ? "idle" : "error",
+        auto_collect_status: status === "done" || isBreakdownContractError ? "idle" : "error",
         auto_collect_error: status === "done" ? null : (errorMsg ?? "bot execution failed"),
         last_auto_collect_at: nowIso,
         next_auto_collect_at: nextAt,
