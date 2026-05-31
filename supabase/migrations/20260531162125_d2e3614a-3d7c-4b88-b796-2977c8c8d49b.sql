@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.ingest_campaign_collection_batch(UUID, TEXT, JSONB) TO PUBLIC;
