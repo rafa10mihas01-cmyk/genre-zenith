@@ -189,7 +189,7 @@ Deno.serve(async (req) => {
     if (snapDays > 0) {
       const { data: ecoRows } = await admin
         .from("campaign_eco_allocations")
-        .select("id, planned_streams, position, genre_source, managed_playlists(followers)")
+        .select("id, planned_streams, position, genre_source, managed_playlist_id, managed_playlists(id, followers)")
         .eq("campaign_id", campaignId);
       const rows = (ecoRows ?? []) as any[];
       const hasNull = rows.some(r => r.position == null);
