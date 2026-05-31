@@ -146,7 +146,8 @@ export type BaselinePlaylistInput = {
   followers?: number | null;
 };
 
-export function useCuratorDeals() {
+export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
+  const includeInternal = opts?.includeInternal ?? false;
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [deals, setDeals] = useState<CuratorDeal[]>([]);
