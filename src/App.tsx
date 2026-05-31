@@ -53,6 +53,7 @@ const ComunidadeAdmin = lazy(() => import("./pages/ComunidadeAdmin"));
 const Campanhas = lazy(() => import("./pages/Campanhas"));
 const CampanhaDetalhe = lazy(() => import("./pages/CampanhaDetalhe"));
 const CampanhaExecucao = lazy(() => import("./pages/CampanhaExecucao"));
+const CampanhaMonitoramento = lazy(() => import("./pages/CampanhaMonitoramento"));
 const PlanoCampanhaPublico = lazy(() => import("./pages/PlanoCampanhaPublico"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Valuation = lazy(() => import("./pages/Valuation"));
@@ -142,6 +143,7 @@ const App = () => (
                <Route path="/deals/:dealId" element={<Protected><DealDetail /></Protected>} />
                 <Route path="/campanhas" element={<Protected><Campanhas /></Protected>} />
                 <Route path="/campanhas/:id/execucao" element={<Protected><CampanhaExecucao /></Protected>} />
+                <Route path="/campanhas/:id/monitoramento" element={<Protected><CampanhaMonitoramento /></Protected>} />
                 <Route path="/campanhas/:id" element={<Protected><CampanhaDetalhe /></Protected>} />
                 <Route path="/analytics" element={<Protected><Analytics /></Protected>} />
                 <Route path="/analytics/performance" element={<Navigate to="/performance" replace />} />
