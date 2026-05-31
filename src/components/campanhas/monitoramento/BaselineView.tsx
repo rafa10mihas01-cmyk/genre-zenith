@@ -88,8 +88,6 @@ export function BaselineView({ campaignId }: { campaignId: string }) {
   );
 }
 
-function BaselineStatusBadge({ status }: { status: string | null }) {
-  if (status === "captured") return <Badge className="bg-primary text-primary-foreground">Capturada</Badge>;
-  if (status === "pending") return <Badge variant="outline">Pendente</Badge>;
-  return <Badge variant="outline">{status ?? "—"}</Badge>;
+  );
 }
+
