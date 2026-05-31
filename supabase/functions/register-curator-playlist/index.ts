@@ -495,6 +495,36 @@ Deno.serve(async (req) => {
           })
           .eq("deal_id", deal.id)
           .eq("auto_collect", true);
+
+        // Mirror em curator_campaign_playlists (Fase 3): identidade canônica
+        // por playlist_id na camada de campanha. Best-effort: a trigger DB
+        // bloqueia anti-baseline mas já pré-filtramos acima.
+        if (isCampaignShadow) {
+          const ccpRows = items
+            .filter((it) => it.status === "ok" && it.playlist_id)
+            .map((it) => ({
+              campaign_id: deal!.campaign_id!,
+              curator_id: deal!.curator_id!,
+              deal_id: deal!.id,
+              playlist_id: it.playlist_id!,
+              playlist_url: `https://open.spotify.com/playlist/${it.playlist_id}`,
+              status: "pending_match" as const,
+            }));
+          if (ccpRows.length > 0 && deal!.curator_id) {
+            const { error: ccpErr } = await admin
+              .from("curator_campaign_playlists")
+              .upsert(ccpRows, {
+                onConflict: "campaign_id,playlist_id",
+                ignoreDuplicates: true,
+              });
+            if (ccpErr) {
+              console.warn(
+                "[register-curator-playlist] curator_campaign_playlists upsert failed:",
+                ccpErr.message,
+              );
+            }
+          }
+        }
       }
 
       const summary = {
@@ -504,6 +534,8 @@ Deno.serve(async (req) => {
         duplicate: items.filter((it) => it.status === "duplicate").length,
         duplicate_in_payload: items.filter((it) => it.status === "duplicate_in_payload").length,
         baseline_blocked: items.filter((it) => it.status === "baseline_blocked").length,
+        campaign_baseline_blocked: items.filter((it) => it.status === "campaign_baseline_blocked").length,
+        awaiting_baseline: items.filter((it) => it.status === "awaiting_baseline").length,
         track_already_present: items.filter((it) => it.status === "track_already_present").length,
         track_not_present: items.filter((it) => it.status === "track_not_present").length,
         invalid: items.filter((it) => it.status === "invalid_url").length,
