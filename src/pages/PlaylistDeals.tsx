@@ -311,25 +311,9 @@ export default function PlaylistDeals() {
         domain="deals"
         manualKey="deals"
         actions={
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setIncludeInternal((v) => !v)}
-              className={cn(
-                "h-9 px-3 rounded-full text-xs font-medium border transition-colors",
-                includeInternal
-                  ? "border-primary/50 bg-primary/10 text-primary"
-                  : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
-              )}
-              aria-pressed={includeInternal}
-              title="Inclui deals internos criados automaticamente pelas campanhas (ecossistema)"
-            >
-              {includeInternal ? "Mostrando internos" : "Mostrar internos"}
-            </button>
-            <Button onClick={handleNew} className="rounded-full h-9 gap-1.5" aria-label="Novo deal">
-              <Plus className="h-4 w-4" /> <span className="truncate">Novo Deal</span>
-            </Button>
-          </div>
+          <Button onClick={handleNew} className="rounded-full h-9 gap-1.5" aria-label="Novo deal">
+            <Plus className="h-4 w-4" /> <span className="truncate">Novo Deal</span>
+          </Button>
         }
       />
 
@@ -480,6 +464,22 @@ export default function PlaylistDeals() {
               </DropdownMenuContent>
             </DropdownMenu>
           )}
+
+          <button
+            type="button"
+            onClick={() => setIncludeInternal((v) => !v)}
+            className={cn(
+              "h-9 px-3 inline-flex items-center gap-1.5 rounded-full text-[12px] font-medium border transition-colors",
+              includeInternal
+                ? "bg-primary/15 text-primary border-primary/30"
+                : "bg-transparent text-muted-foreground border-border hover:text-foreground hover:bg-muted/40",
+            )}
+            aria-pressed={includeInternal}
+            title="Inclui deals internos criados automaticamente pelas campanhas (ecossistema)"
+          >
+            <span className={cn("h-1.5 w-1.5 rounded-full", includeInternal ? "bg-primary" : "bg-muted-foreground/50")} />
+            <span className="whitespace-nowrap">{includeInternal ? "Internos ON" : "Internos"}</span>
+          </button>
         </div>
       </div>
 
