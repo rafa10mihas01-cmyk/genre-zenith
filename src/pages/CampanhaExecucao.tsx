@@ -741,16 +741,10 @@ export default function CampanhaExecucao() {
                           capturedAt={baseline.created_at}
                           totalStreams={baseline.total_streams}
                           playlistsDetected={baseline.rows_imported}
-                          onClick={() => setTab("proofs")}
+                          onClick={() => setTab("monitoramento")}
                         />
                       ) : null;
                     })()}
-                    <CampaignMonitoring
-                      campaignId={camp.id}
-                      snapshot={snapshot}
-                      campaignStartedAt={camp.started_at}
-                      campaignStatus={camp.status}
-                    />
                   </div>
                 }
               />
