@@ -21,6 +21,7 @@ import {
   ECO_BUDGET_ENABLED,
 } from "../_shared/eco-budget.ts";
 import { getGenreNeighbors } from "../_shared/genre-affinity.ts";
+import { MIN_PLAYLIST_SAVES_FOR_CAMPAIGN } from "../_shared/eco-constants.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -327,7 +328,7 @@ Deno.serve(async (req) => {
             .select("id, followers")
             .eq("genre_id", primaryGenreId)
             .is("archived_at", null)
-            .gt("followers", 0)
+            .gte("followers", MIN_PLAYLIST_SAVES_FOR_CAMPAIGN)
             .order("followers", { ascending: false });
           const remainingPrimaryDaily = ((primaryCandidates ?? []) as any[])
             .filter((p: any) => !usedIds.has(p.id))
@@ -349,7 +350,7 @@ Deno.serve(async (req) => {
                 .select("id, followers, genre_id")
                 .in("genre_id", neighborGenreIds)
                 .is("archived_at", null)
-                .gte("followers", 100)
+                .gte("followers", MIN_PLAYLIST_SAVES_FOR_CAMPAIGN)
                 .order("followers", { ascending: false })
             : { data: [] };
 
