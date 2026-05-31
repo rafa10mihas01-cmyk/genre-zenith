@@ -662,9 +662,6 @@ export default function CampanhaExecucao() {
           <>
             <CampaignAccessManager campaignId={camp.id} />
             <AuditCampaignButton campaignId={camp.id} />
-            <Button asChild variant="outline" size="sm" title="Monitoramento (Baseline / Execução / Histórico)">
-              <Link to={`/campanhas/${camp.id}/monitoramento`}>Monitoramento</Link>
-            </Button>
             {clientToken ? (
               <Dialog>
                 <DialogTrigger asChild>
