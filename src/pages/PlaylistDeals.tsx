@@ -311,9 +311,25 @@ export default function PlaylistDeals() {
         domain="deals"
         manualKey="deals"
         actions={
-          <Button onClick={handleNew} className="rounded-full h-9 gap-1.5" aria-label="Novo deal">
-            <Plus className="h-4 w-4" /> <span className="truncate">Novo Deal</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIncludeInternal((v) => !v)}
+              className={cn(
+                "h-9 px-3 rounded-full text-xs font-medium border transition-colors",
+                includeInternal
+                  ? "border-primary/50 bg-primary/10 text-primary"
+                  : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
+              )}
+              aria-pressed={includeInternal}
+              title="Inclui deals internos criados automaticamente pelas campanhas (ecossistema)"
+            >
+              {includeInternal ? "Mostrando internos" : "Mostrar internos"}
+            </button>
+            <Button onClick={handleNew} className="rounded-full h-9 gap-1.5" aria-label="Novo deal">
+              <Plus className="h-4 w-4" /> <span className="truncate">Novo Deal</span>
+            </Button>
+          </div>
         }
       />
 
