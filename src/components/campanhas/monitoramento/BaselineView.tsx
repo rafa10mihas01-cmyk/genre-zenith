@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+
 import { formatInt } from "@/lib/campaignEngine";
 import { usePlaylistCovers } from "@/hooks/usePlaylistCovers";
 import { PlaylistCell } from "./PlaylistCell";
@@ -21,29 +21,17 @@ type Row = {
 
 export function BaselineView({ campaignId }: { campaignId: string }) {
   const [rows, setRows] = useState<Row[] | null>(null);
-  const [campMeta, setCampMeta] = useState<{ status: string | null; capturedAt: string | null }>({ status: null, capturedAt: null });
   const covers = usePlaylistCovers((rows ?? []).map((r) => r.playlist_id));
 
   useEffect(() => {
     (async () => {
-      const [{ data: r }, { data: c }] = await Promise.all([
-        supabase
-          .from("campaign_playlist_collections")
-          .select("playlist_id, playlist_url, playlist_name_at_capture, plays_7d, captured_at, proof_screenshot_url, proof_screenshot_urls")
-          .eq("campaign_id", campaignId)
-          .eq("is_baseline", true)
-          .order("plays_7d", { ascending: false }),
-        supabase
-          .from("campaigns")
-          .select("baseline_status, baseline_captured_at")
-          .eq("id", campaignId)
-          .maybeSingle(),
-      ]);
+      const { data: r } = await supabase
+        .from("campaign_playlist_collections")
+        .select("playlist_id, playlist_url, playlist_name_at_capture, plays_7d, captured_at, proof_screenshot_url, proof_screenshot_urls")
+        .eq("campaign_id", campaignId)
+        .eq("is_baseline", true)
+        .order("plays_7d", { ascending: false });
       setRows((r ?? []) as Row[]);
-      setCampMeta({
-        status: (c as any)?.baseline_status ?? null,
-        capturedAt: (c as any)?.baseline_captured_at ?? null,
-      });
     })();
   }, [campaignId]);
 
@@ -51,28 +39,7 @@ export function BaselineView({ campaignId }: { campaignId: string }) {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-5">
-            <div className="text-xs text-muted-foreground uppercase tracking-wide">Status</div>
-            <div className="mt-2"><BaselineStatusBadge status={campMeta.status} /></div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5">
-            <div className="text-xs text-muted-foreground uppercase tracking-wide">Capturada em</div>
-            <div className="mt-2 text-foreground font-semibold">
-              {campMeta.capturedAt ? new Date(campMeta.capturedAt).toLocaleString("pt-BR") : "—"}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5">
-            <div className="text-xs text-muted-foreground uppercase tracking-wide">Playlists na baseline</div>
-            <div className="mt-2 text-2xl font-semibold text-foreground">{rows.length}</div>
-          </CardContent>
-        </Card>
-      </div>
+
 
       <Card>
         <CardContent className="p-0">
@@ -121,8 +88,3 @@ export function BaselineView({ campaignId }: { campaignId: string }) {
   );
 }
 
-function BaselineStatusBadge({ status }: { status: string | null }) {
-  if (status === "captured") return <Badge className="bg-primary text-primary-foreground">Capturada</Badge>;
-  if (status === "pending") return <Badge variant="outline">Pendente</Badge>;
-  return <Badge variant="outline">{status ?? "—"}</Badge>;
-}
