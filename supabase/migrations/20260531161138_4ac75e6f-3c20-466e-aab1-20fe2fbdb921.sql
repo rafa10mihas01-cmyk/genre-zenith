@@ -1,0 +1,2 @@
+
+ALTER VIEW public.vw_campaign_playlist_growth SET (security_invoker = true);
