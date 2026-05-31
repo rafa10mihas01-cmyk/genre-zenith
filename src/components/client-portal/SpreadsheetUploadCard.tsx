@@ -49,7 +49,10 @@ interface Props {
   lastUploadAt: string | null;
   recentUploads: Upload[];
   onUploaded?: () => void;
+  /** Quando false, o card é bloqueado até a equipe aprovar a campanha. Default: true. */
+  approved?: boolean;
 }
+
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
