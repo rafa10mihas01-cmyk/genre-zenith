@@ -1063,6 +1063,7 @@ export type Database = {
         Row: {
           campaign_id: string
           captured_at: string
+          collection_run_id: string | null
           created_at: string
           first_seen_at: string | null
           id: string
@@ -1077,6 +1078,7 @@ export type Database = {
         Insert: {
           campaign_id: string
           captured_at?: string
+          collection_run_id?: string | null
           created_at?: string
           first_seen_at?: string | null
           id?: string
@@ -1091,6 +1093,7 @@ export type Database = {
         Update: {
           campaign_id?: string
           captured_at?: string
+          collection_run_id?: string | null
           created_at?: string
           first_seen_at?: string | null
           id?: string
@@ -8872,6 +8875,10 @@ export type Database = {
         Returns: number
       }
       infer_collection_mode: { Args: { p_deal_id: string }; Returns: string }
+      ingest_campaign_collection_batch: {
+        Args: { p_campaign_id: string; p_intent: string; p_rows: Json }
+        Returns: Json
+      }
       is_admin: { Args: never; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
       is_internal_operator: { Args: never; Returns: boolean }
