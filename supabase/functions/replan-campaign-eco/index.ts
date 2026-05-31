@@ -30,6 +30,11 @@ import {
   chartTierFromTopPosition,
   ECO_DAILY_TOLERANCE,
 } from "../_shared/computeEcoPlan.ts";
+import {
+  getReservationsByPlaylist,
+  reservationsToDailyCap,
+  ECO_BUDGET_ENABLED,
+} from "../_shared/eco-budget.ts";
 import { getGenreNeighbors } from "../_shared/genre-affinity.ts";
 
 
@@ -103,7 +108,7 @@ Deno.serve(async (req) => {
   // 1) Campanha + ownership
   const { data: campaign, error: campErr } = await admin
     .from("campaigns")
-    .select("id, created_by, engagement_multiplier, simulation_snapshot")
+    .select("id, created_by, engagement_multiplier, simulation_snapshot, started_at")
     .eq("id", campaignId)
     .maybeSingle();
   if (campErr) return json({ ok: false, error: campErr.message }, 500);
@@ -118,6 +123,8 @@ Deno.serve(async (req) => {
   const days = Number(snap?.effectiveDays ?? snap?.days ?? 0);
   const mult = Math.max(1, Math.round(Number((campaign as any).engagement_multiplier ?? snap?.engagement_multiplier ?? 30)));
   if (days <= 0) return json({ ok: false, error: "invalid_snapshot_days" }, 400);
+  const campaignStartedAt = (campaign as any).started_at ? new Date((campaign as any).started_at) : new Date();
+  const campaignEndsAt = new Date(campaignStartedAt.getTime() + days * 86400000);
 
   // 2) Allocs existentes — descobre gênero primário, playlists já usadas e capacidade atual
   const { data: existing, error: exErr } = await admin
@@ -214,6 +221,32 @@ Deno.serve(async (req) => {
     ? Math.max(0, (metaEco - existingTotalPlanned)) / days
     : 0;
 
+  // ─── Orçamento de audiência (camada de proteção) ───
+  // Para cada playlist candidata, descobre quanto da capacidade teórica já
+  // está reservada por OUTRAS campanhas ativas sobrepostas. O resultado é o
+  // teto de cap diário que essa campanha pode consumir nessa playlist.
+  // NÃO altera fórmula nem projeção: só limita a posição escolhida.
+  const candidateIds = [
+    ...primaryFresh.map(p => p.id),
+    ...neighborFresh.map(p => p.id),
+  ];
+  const playlistsInfo = new Map<string, { followers: number }>();
+  for (const p of primaryFresh) playlistsInfo.set(p.id, { followers: p.followers });
+  for (const p of neighborFresh) playlistsInfo.set(p.id, { followers: p.followers });
+
+  let maxCapById: Map<string, number> | undefined;
+  let droppedByBudget = 0;
+  if (ECO_BUDGET_ENABLED && candidateIds.length > 0) {
+    const reservations = await getReservationsByPlaylist(admin, {
+      excludeCampaignId: campaignId,
+      playlistIds: candidateIds,
+      windowStart: campaignStartedAt.toISOString(),
+      windowEnd: campaignEndsAt.toISOString(),
+    });
+    maxCapById = reservationsToDailyCap(reservations, playlistsInfo, mult, days);
+    for (const cap of maxCapById.values()) if (cap <= 0) droppedByBudget += 1;
+  }
+
   let allPositions: Map<string, number> = new Map();
   let positionStrategy: "daily_need_primary_only" | "daily_need_with_neighbors" | "chart_tier_primary_only" | "chart_tier_with_neighbors";
   let coveredDailyByNew = 0;
@@ -222,9 +255,9 @@ Deno.serve(async (req) => {
   let usedNeighbors = false;
 
   if (dailyNeedRemaining > 0) {
-    // 1ª fase: distribui SÓ primárias contra a necessidade diária.
+    // 1ª fase: distribui SÓ primárias contra a necessidade diária (com orçamento).
     const primDist = primaryFresh.length > 0
-      ? distributeByDailyNeed(primaryFresh, dailyNeedRemaining, mult, ECO_DAILY_TOLERANCE)
+      ? distributeByDailyNeed(primaryFresh, dailyNeedRemaining, mult, ECO_DAILY_TOLERANCE, { maxCapById })
       : { positions: new Map<string, number>(), coveredDaily: 0, details: [] };
     coveredDailyByPrimary = primDist.coveredDaily;
     gapAfterPrimary = Math.max(0, dailyNeedRemaining - coveredDailyByPrimary);
@@ -235,7 +268,7 @@ Deno.serve(async (req) => {
 
     // 2ª fase: vizinhos SÓ se sobrou gap relevante.
     if (gapPct > NEIGHBOR_GAP_THRESHOLD && neighborFresh.length > 0) {
-      const neighDist = distributeByDailyNeed(neighborFresh, gapAfterPrimary, mult, ECO_DAILY_TOLERANCE);
+      const neighDist = distributeByDailyNeed(neighborFresh, gapAfterPrimary, mult, ECO_DAILY_TOLERANCE, { maxCapById });
       for (const [k, v] of neighDist.positions) allPositions.set(k, v);
       coveredDailyByNew += neighDist.coveredDaily;
       usedNeighbors = true;
@@ -338,6 +371,8 @@ Deno.serve(async (req) => {
     gap_after_primary: Math.round(gapAfterPrimary),
     neighbor_gap_threshold: NEIGHBOR_GAP_THRESHOLD,
     daily_tolerance: ECO_DAILY_TOLERANCE,
+    eco_budget_enabled: ECO_BUDGET_ENABLED,
+    playlists_dropped_by_budget: droppedByBudget,
   };
 
 

@@ -1,119 +1,76 @@
-# Plano final aprovado: Baseline S4A — identidade por Playlist ID
 
-Princípios consolidados:
-
-1. **`playlist_id`** = identidade canônica (URL é só input/exibição).
-2. **Coleta unificada**: baseline é a primeira coleta marcada `is_baseline=true`.
-3. **Banco guarda só fatos imutáveis**. Sem delta, sem atribuição armazenada.
-4. **Nome histórico** por coleta (`playlist_name_at_capture`).
-5. **`first_seen_at`** registrado na primeira aparição do ID na campanha.
-6. **Atribuição (curador / ecossistema / orgânico)** é classificação de negócio → resolvida em runtime pela view.
-
----
-
-## Fluxo
-
-```
-1. Aprova campanha → baseline_status = 'pending'
-2. Bot abre S4A da música → 1ª coleta = baseline
-3. Toda playlist_id da baseline trava cadastro
-4. Curador cola URL → extraímos playlist_id → valida anti-baseline
-5. Coletas de 2 em 2 dias → mesma tabela, is_baseline=false
-6. View resolve atribuição em runtime cruzando ecossistema + cadastros de curadores
-7. Crescimento = view: latest.plays_7d − baseline.plays_7d
-```
-
-Entre 1 e 2 → portal do curador em "aguardando baseline".
-
----
-
-## Banco (Fase 1)
-
-**`campaign_playlist_collections`** — fatos imutáveis do S4A
-- `campaign_id`
-- `playlist_id` (identidade canônica)
-- `playlist_url` (denormalizado, exibição)
-- `playlist_name_at_capture` (nome no momento exato da coleta)
-- `plays_7d` (fato bruto)
-- `captured_at`
-- `is_baseline` (true só na primeira)
-- `first_seen_at` (primeira aparição do ID na campanha)
-- `source` (`s4a_dom`)
-- `proof_screenshot_url`
-
-Sem `attributed_to`. Sem `delta`.
-
-Índices:
-- `(campaign_id, playlist_id, captured_at)`
-- Parcial UNIQUE: `(campaign_id, playlist_id) WHERE is_baseline = true`
-
-Trigger BEFORE INSERT para `first_seen_at`:
-- Se já existe linha anterior com o mesmo `(campaign_id, playlist_id)` → copia o `first_seen_at` mais antigo.
-- Senão → `first_seen_at = NEW.captured_at`.
-
-**`curator_campaign_playlists`** — cadastros do curador
-- `campaign_id`, `curator_id`, `deal_id` (shadow)
-- `playlist_id` (NOT NULL, extraído da URL no submit)
-- `playlist_url` (input original)
-- `registered_at`
-- `status` (`pending_match` | `matched` | `not_found_yet`)
-
-Trigger anti-duplicata: bloqueia INSERT se `playlist_id` já está em `campaign_playlist_collections` com `is_baseline=true` da mesma campanha.
-
-**Campos novos em `campaigns`:**
-- `baseline_status` (`pending` | `captured` | `failed`)
-- `baseline_captured_at`
-
-**View `vw_campaign_playlist_growth`** (atribuição + delta em runtime):
-
-Resolve `attributed_to` por LEFT JOIN:
-1. Se `playlist_id` ∈ `curator_campaign_playlists` da campanha → `curator:<id>`
-2. Senão se `playlist_id` ∈ playlists do ecossistema (alocações da campanha) → `ecosystem`
-3. Senão → `organic`
-
-Retorna por playlist: nome atual, nome no dia zero, baseline_plays, current_plays, delta, attributed_to, first_seen_at, baseline_at, last_captured_at.
-
-Telas leem da view. Mudou regra de atribuição? Altera só a view, zero migração.
-
-## Bot / Edge Functions (Fase 2)
-
-- **`approve-campaign-plan`** → marca `baseline_status='pending'`, enfileira job urgente.
-- **`bot-collect-queue`** → reconhece `baseline_capture` prioritário.
-- **`bot-ingest-snapshot`** → branch único:
-  - Sempre insere em `campaign_playlist_collections` com `playlist_name_at_capture` do DOM.
-  - Se `baseline_status='pending'`: marca linhas dessa coleta como `is_baseline=true` e vira `captured`.
-  - Senão: `is_baseline=false`.
-- Helper `_shared/spotify-playlist-id.ts`: `extractPlaylistId(url)` aceita `open.spotify.com/playlist/<id>`, `spotify:playlist:<id>`, com/sem query.
-- Plays do DOM do S4A. Print é evidência, não fonte.
-
-## Portal do curador (Fase 3)
-
-- Form: URL obrigatória → extrai `playlist_id` no submit.
-- Campanha `awaiting_baseline` → form desabilitado com aviso.
-- `playlist_id` já na baseline → erro "essa playlist já estava na foto inicial".
-- Lista mostra status por cadastro.
-
-## Telas da campanha (Fase 4)
-
-- **Aba Baseline**: `WHERE is_baseline=true` — foto travada com nome histórico do dia zero.
-- **Aba Execução**: lê da view, agrupa por `attributed_to` → Ecossistema · Curadores (por curador) · Orgânico.
-- **Aba Histórico**: timeline por `playlist_id`, mostra `first_seen_at` e mudanças de nome.
+# Ajuste cirúrgico: Orçamento de audiência + posição inteligente
 
 ## O que NÃO muda
+- Fórmula de projeção (`playlistCapAtPosition`, `calculateTrackDailyStreams`, multiplicadores, curva por posição) — permanece exatamente igual.
+- `buildEcoPlan`, `campaignSnapshot`, relatórios, dashboards, histórico, KPIs, PDFs.
+- Estrutura de `campaigns`, `campaign_eco_allocations`, `managed_playlists`.
+- Fluxo Baseline S4A, bot, scheduler, monitoramento.
 
-- 9 deals legados intactos.
-- Linguagem operacional ("baseline chegou", "curador entregou X").
-- Sidebar, design system, PageHeader.
+A projeção continua sendo a **fonte de verdade**. Estamos adicionando 2 filtros *antes* dela decidir, não substituindo nada.
 
-## Ordem de entrega
+## O que muda (apenas 2 coisas)
 
-1. **Fase 1 — Banco** (2 tabelas + view + triggers + campos em `campaigns`)
-2. **Fase 2 — Bot/Ingest** (extrator de ID + branch baseline + captura de nome)
-3. **Fase 3 — Portal curador** (URL → ID + validação anti-baseline)
-4. **Fase 4 — Telas** (Baseline / Execução / Histórico lendo da view)
+### 1. Orçamento de audiência por playlist (camada de proteção)
 
-Cada fase entregável e testável sozinha.
+Nova função pura `getPlaylistAvailableCapacity(playlist_id, window)` que retorna:
 
----
+```
+saldoDisponível = capacidadeProjetada(playlist, posição_máx, janela)
+                  − Σ planned_streams de allocations ATIVAS de OUTRAS campanhas
+                    que se sobrepõem temporalmente nessa playlist
+```
 
-Aprove para eu começar a Fase 1 (migration do banco).
+Considera ativa: `campaigns.status in ('active','approved')` AND janela `[started_at, started_at + days]` se sobrepõe à janela da campanha sendo planejada.
+
+Onde aplicar (único ponto): no momento em que `buildEcoPlan` (ou `replan-campaign-eco`) **escolhe** quais playlists usar — antes do loop de alocação, filtra/ordena pela capacidade disponível em vez de pela capacidade teórica isolada. Se saldo ≤ 0 → playlist sai do pool dessa campanha. Se saldo < cap projetado → o teto efetivo daquela playlist nessa campanha vira o saldo.
+
+A projeção em si (cap_dia, daily[]) continua calculada pela fórmula atual usando o cap efetivo resultante.
+
+### 2. Posição proporcional à necessidade (substitui o 3-3-3 / 7-7-7)
+
+Hoje `assignPositions` usa buckets fixos por tier (`PRIMARY_RANGES_BY_CHART`). Vamos trocar **apenas dentro do range já permitido pelo tier** a lógica de escolha:
+
+- Calcular `needRatio = dailyNeedRestante / capacidadeTotalDisponívelDoPool`
+- Para cada playlist (na ordem de followers desc), escolher a **posição mais rasa dentro do range do tier** cujo cap ≤ `dailyNeedRestante × (1 + tolerância 10%)`.
+- Se `needRatio` for baixo (campanha pequena num pool grande) → naturalmente cai em posições mais profundas dentro do range → preserva audiência.
+- Se `needRatio` for alto → naturalmente sobe pra posições mais rasas → extrai mais.
+- Decrementa `dailyNeedRestante` após cada alocação.
+
+Esse algoritmo já existe parcialmente como `distributeByDailyNeed` (linhas 152–188 do `computeEcoPlan.ts`) e é só ativá-lo como padrão no `buildEcoPlan` quando não há `position` persistida, **respeitando os ranges do tier atual como limite**.
+
+Nenhuma posição nova é introduzida. Nenhum multiplicador muda. Só a regra de **escolha** dentro do range já existente.
+
+## Arquivos tocados
+
+- `supabase/functions/_shared/computeEcoPlan.ts`
+  - Nova função `getPlaylistAvailableCapacity` (ou recebe via parâmetro).
+  - `buildEcoPlan` recebe novo parâmetro opcional `reservedByPlaylist: Map<string, number>` (default: vazio = comportamento atual).
+  - Quando `reservedByPlaylist` presente, ajusta cap efetivo por playlist antes do loop.
+  - Substitui chamada de `assignPositions` (buckets) pela versão `distributeByDailyNeed` quando não há posição persistida, **clamping** o resultado dentro do range do tier original.
+
+- `supabase/functions/replan-campaign-eco/index.ts` e `supabase/functions/approve-campaign-plan/index.ts`
+  - Antes de chamar `buildEcoPlan`, consultam `campaign_eco_allocations` + `campaigns` pra montar `reservedByPlaylist` (somando `planned_streams` de outras campanhas ativas sobrepostas).
+  - Passam o mapa pro `buildEcoPlan`.
+
+- `src/hooks/useEcoRealCapacity.ts` e `src/hooks/useEcosystemCapacity.ts`
+  - Mesma lógica de saldo, pra UI mostrar capacidade **disponível** (não teórica) durante o planejamento. Opcional nesta fase — pode ficar como follow-up se o usuário preferir.
+
+## Compatibilidade / segurança
+
+- Sem migração de banco. Sem novas tabelas. Sem novas colunas.
+- Campanhas existentes com `position` já persistida em `campaign_eco_allocations` **não são afetadas** (o caminho `allPersisted` continua tendo prioridade — linha 405).
+- Replans manuais antigos continuam funcionando.
+- Feature flag opcional via env `ECO_BUDGET_ENABLED=true` pra permitir rollback instantâneo sem deploy.
+
+## Validação
+
+1. Rodar replan numa campanha pequena num gênero com muitas playlists → conferir que posições caem mais fundo que antes.
+2. Rodar replan numa campanha grande → conferir que posições sobem.
+3. Criar 2 campanhas simultâneas no mesmo gênero → a 2ª deve receber playlists diferentes ou posições mais profundas nas mesmas playlists.
+4. Conferir que campanhas já aprovadas com plano antigo continuam idênticas (snapshot intacto).
+
+## Não incluso (fora de escopo, conforme pedido)
+- UI nova de override manual de posição.
+- Mudança em fórmula, multiplicador, ou curva de posição.
+- Mudança em relatórios, dashboards, ou histórico.

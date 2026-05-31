@@ -154,12 +154,24 @@ export function distributeByDailyNeed(
   dailyNeed: number,
   mult: number,
   tolerance = ECO_DAILY_TOLERANCE,
+  /**
+   * Camada opcional de orçamento de audiência: cap diário MÁXIMO permitido
+   * por playlist nesta campanha (já descontando reservas de outras campanhas
+   * ativas sobrepostas). Quando presente:
+   *   - playlists com cap ≤ 0 ficam de fora do resultado;
+   *   - a posição escolhida sempre respeita esse teto, mesmo que a fórmula
+   *     original quisesse subir mais.
+   * NÃO altera a projeção em si: o cap escolhido continua sendo calculado
+   * por `playlistCapAtPosition` (saves × mult/30 × %posição).
+   */
+  opts?: { maxCapById?: Map<string, number> },
 ): { positions: Map<string, number>; coveredDaily: number; details: Array<{ id: string; cap: number; fits: boolean }> } {
   const positions = new Map<string, number>();
   const details: Array<{ id: string; cap: number; fits: boolean }> = [];
   if (dailyNeed <= 0 || allocs.length === 0) {
     return { positions, coveredDaily: 0, details };
   }
+  const maxCapById = opts?.maxCapById;
   // Primárias primeiro (followers desc), depois vizinhos.
   const primary = allocs.filter(a => (a.genreSource ?? "primary") === "primary")
     .sort((a, b) => b.followers - a.followers);
@@ -169,11 +181,40 @@ export function distributeByDailyNeed(
   let remaining = dailyNeed;
   let covered = 0;
 
+  // Igual a selectPositionByDailyNeed, mas aceita um teto explícito
+  // (= min(necessidade*tol, saldoDisponível)).
+  const pickWithCeiling = (followers: number, ceiling: number): { position: number; cap: number; fits: boolean } => {
+    if (followers <= 0 || ceiling <= 0) {
+      return { position: POSITION_PCT.length, cap: 0, fits: false };
+    }
+    let bestPos = -1;
+    let bestCap = -1;
+    for (let i = 0; i < POSITION_PCT.length; i++) {
+      const cap = playlistCapAtPosition(followers, mult, i + 1);
+      if (cap <= ceiling && cap > bestCap) {
+        bestCap = cap;
+        bestPos = i + 1;
+      }
+    }
+    if (bestPos > 0) return { position: bestPos, cap: bestCap, fits: true };
+    // Nem a posição mais profunda cabe sob o teto — usa a mais profunda.
+    const deepest = POSITION_PCT.length;
+    return { position: deepest, cap: playlistCapAtPosition(followers, mult, deepest), fits: false };
+  };
+
   const consume = (list: typeof primary) => {
     for (const a of list) {
-      // Se já estourou a meta, joga restantes na posição mais profunda (cap mínimo).
+      const budget = maxCapById?.get(a.id);
+      // Sem saldo nessa playlist → não entra no plano dessa campanha.
+      if (maxCapById && (budget == null || budget <= 0)) {
+        details.push({ id: a.id, cap: 0, fits: false });
+        continue;
+      }
       const need = remaining > 0 ? remaining : dailyNeed * tolerance;
-      const sel = selectPositionByDailyNeed(a.followers, mult, need, tolerance);
+      const needCeiling = need * (1 + tolerance);
+      // Teto efetivo = MENOR entre o que a campanha precisa e o saldo da playlist.
+      const ceiling = budget != null ? Math.min(needCeiling, budget) : needCeiling;
+      const sel = pickWithCeiling(a.followers, ceiling);
       positions.set(a.id, sel.position);
       details.push({ id: a.id, cap: sel.cap, fits: sel.fits });
       covered += sel.cap;
