@@ -7130,6 +7130,92 @@ export type Database = {
           },
         ]
       }
+      song_snapshot_playlists: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          owner: string | null
+          plays_7d: number | null
+          position: number | null
+          snapshot_id: string
+          spotify_playlist_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          owner?: string | null
+          plays_7d?: number | null
+          position?: number | null
+          snapshot_id: string
+          spotify_playlist_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          owner?: string | null
+          plays_7d?: number | null
+          position?: number | null
+          snapshot_id?: string
+          spotify_playlist_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "song_snapshot_playlists_snapshot_id_fkey"
+            columns: ["snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "song_snapshots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      song_snapshots: {
+        Row: {
+          bot_metadata: Json | null
+          captured_at: string
+          correlation_id: string | null
+          created_at: string
+          id: string
+          processed_at: string | null
+          processing_error: string | null
+          screenshot_url: string | null
+          song_id: string
+          spotify_song_id: string | null
+          time_window: string
+          total_plays_28d: number | null
+        }
+        Insert: {
+          bot_metadata?: Json | null
+          captured_at?: string
+          correlation_id?: string | null
+          created_at?: string
+          id?: string
+          processed_at?: string | null
+          processing_error?: string | null
+          screenshot_url?: string | null
+          song_id: string
+          spotify_song_id?: string | null
+          time_window?: string
+          total_plays_28d?: number | null
+        }
+        Update: {
+          bot_metadata?: Json | null
+          captured_at?: string
+          correlation_id?: string | null
+          created_at?: string
+          id?: string
+          processed_at?: string | null
+          processing_error?: string | null
+          screenshot_url?: string | null
+          song_id?: string
+          spotify_song_id?: string | null
+          time_window?: string
+          total_plays_28d?: number | null
+        }
+        Relationships: []
+      }
       spotify_accounts: {
         Row: {
           account_id: string
