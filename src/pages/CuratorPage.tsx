@@ -1840,7 +1840,7 @@ export default function CuratorPage() {
             </div>
             <Button
               onClick={handleAdd}
-              disabled={submitting || importing || !url.trim() || playlistSongRequired || !access.writable}
+              disabled={submitting || importing || !url.trim() || playlistSongRequired || !access.writable || (campaignContext.is_campaign_shadow && campaignContext.baseline_status === "pending")}
               className="w-full h-10 text-[14px] font-semibold rounded-xl"
             >
               {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
