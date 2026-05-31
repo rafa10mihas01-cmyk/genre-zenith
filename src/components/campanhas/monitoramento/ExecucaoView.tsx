@@ -188,6 +188,18 @@ export function ExecucaoView({ campaignId }: { campaignId: string }) {
         <KpiCard icon={Layers} label="Playlists monitoradas" value={totals.n} raw />
       </div>
 
+      <CuratorSummary
+        rows={rows}
+        curators={curators}
+        statuses={statuses}
+        onPick={(curatorId) => {
+          setScope("curator");
+          setCuratorFilter(curatorId);
+        }}
+      />
+
+
+
       <Card>
         <CardContent className="p-3 flex flex-wrap items-center gap-2">
           <div className="relative flex-1 min-w-[200px]">
