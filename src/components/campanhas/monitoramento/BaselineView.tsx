@@ -16,6 +16,7 @@ type Row = {
   plays_7d: number | null;
   captured_at: string;
   proof_screenshot_url: string | null;
+  proof_screenshot_urls: string[] | null;
 };
 
 export function BaselineView({ campaignId }: { campaignId: string }) {
