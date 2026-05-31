@@ -39,7 +39,7 @@ import { type ProofEvent } from "@/components/campaign-hub/ProofsTimeline";
 
 import { SpreadsheetUploadCard } from "@/components/client-portal/SpreadsheetUploadCard";
 import { BaselineCard } from "@/components/campanhas/BaselineCard";
-import { BaselineTab } from "@/components/campanhas/BaselineTab";
+
 import { OrganicCollectedSection, type OrganicRow } from "@/components/campanhas/OrganicCollectedSection";
 import type { CampaignHubCampaign, CampaignHubTabId, EcoAllocation } from "@/components/campaign-hub/types";
 import { Kpi } from "@/components/ui/kpi";
