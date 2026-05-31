@@ -10,7 +10,7 @@ import { useEcosystemSnapshot, useEcosystemHistory } from "@/hooks/useEcosystemS
 import {
   SCENARIOS, aggregateCapacity, capacityOf, SAVE_BANDS, bandOf, concentrationTop,
 } from "@/lib/ecosystemCapacity";
-import { fmtNum } from "@/lib/format";
+import { formatNumber as fmtNum } from "@/lib/format";
 
 const MIN_SAVES_PISO = 100;
 
