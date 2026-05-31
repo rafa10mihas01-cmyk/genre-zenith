@@ -295,6 +295,11 @@ Deno.serve(async (req) => {
     s.s4a_song_url = s4aSongUrl;
     s.song_s4a_url = s4aSongUrl;
     s.url = s4aSongUrl;
+    s.requires_playlist_breakdown = isCampaignInternal(s);
+    s.capture_mode = isCampaignInternal(s) ? "playlist_breakdown_required" : "curator_playlist_breakdown";
+    s.ingest_contract = isCampaignInternal(s)
+      ? "send_playlist_rows_not_aggregate"
+      : "send_curator_playlist_rows";
     if (s4aSongUrl) s.song_spotify_url = s4aSongUrl;
   }
   if (eligible.length) {
