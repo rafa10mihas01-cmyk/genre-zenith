@@ -149,7 +149,8 @@ export function HistoricoView({ campaignId }: { campaignId: string }) {
             )}
           </CardContent>
         </Card>
-      ))}
+        );
+      })}
     </div>
   );
 }
