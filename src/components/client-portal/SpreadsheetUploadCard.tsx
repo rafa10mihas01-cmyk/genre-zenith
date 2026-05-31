@@ -81,6 +81,7 @@ export function SpreadsheetUploadCard({
   lastUploadAt,
   recentUploads,
   onUploaded,
+  approved = true,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -93,6 +94,8 @@ export function SpreadsheetUploadCard({
   const days = daysAgo(lastUploadAt);
   const stale = days != null && days >= 2;
   const never = !lastUploadAt;
+  const isFirstUpload = recentUploads.length === 0;
+
 
   const reset = () => {
     setFile(null);
