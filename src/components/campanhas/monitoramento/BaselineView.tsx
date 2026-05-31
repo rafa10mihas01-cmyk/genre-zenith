@@ -21,6 +21,7 @@ type Row = {
 export function BaselineView({ campaignId }: { campaignId: string }) {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [campMeta, setCampMeta] = useState<{ status: string | null; capturedAt: string | null }>({ status: null, capturedAt: null });
+  const covers = usePlaylistCovers((rows ?? []).map((r) => r.playlist_id));
 
   useEffect(() => {
     (async () => {
