@@ -148,8 +148,34 @@ Deno.serve(async (req) => {
     }
   }
 
+  // 3) Bump curator_deal_songs (se song_id corresponde a uma row na fila):
+  //    - sair de queued/error → idle
+  //    - agendar próxima coleta com base no interval da row
+  //    - limpar queued_at pra fila não considerar "stuck"
+  let nextAt: string | null = null;
+  const { data: songRow } = await supabase
+    .from("curator_deal_songs")
+    .select("id, auto_collect_interval_minutes")
+    .eq("id", song_id)
+    .maybeSingle();
+
+  if (songRow) {
+    const intervalMin = (songRow as any).auto_collect_interval_minutes ?? 120;
+    nextAt = new Date(Date.now() + intervalMin * 60_000).toISOString();
+    await supabase
+      .from("curator_deal_songs")
+      .update({
+        auto_collect_status: "idle",
+        auto_collect_error: null,
+        last_auto_collect_at: new Date().toISOString(),
+        next_auto_collect_at: nextAt,
+        queued_at: null,
+      })
+      .eq("id", song_id);
+  }
+
   console.log(
-    `[bot-ingest-song-snapshot] saved snapshot=${snap.id} song=${song_id} playlists=${playlists.length} total_28d=${total_plays_28d ?? "-"}`,
+    `[bot-ingest-song-snapshot] saved snapshot=${snap.id} song=${song_id} playlists=${playlists.length} total_28d=${total_plays_28d ?? "-"} bumped=${!!songRow} next=${nextAt ?? "-"}`,
   );
 
   return jr({
@@ -157,5 +183,7 @@ Deno.serve(async (req) => {
     snapshot_id: snap.id,
     captured_at: snap.captured_at,
     playlists_recorded: playlists.length,
+    next_auto_collect_at: nextAt,
+    deal_song_bumped: !!songRow,
   });
 });
