@@ -54,7 +54,7 @@ export default function CampanhaMonitoramento() {
         subtitle={meta ? `${meta.track_name ?? ""} · ${meta.artist ?? ""}` : "Playlists monitoradas, crescimento e provas"}
       />
 
-      <section className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-6">
+      <section className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <Card>
           <CardContent className="p-5">
             <div className="text-xs text-muted-foreground uppercase tracking-wide">Baseline</div>
