@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
     let query = admin
       .from("curator_deals")
       .select(
-        "id, curator_name, song_spotify_url, song_name, song_artist, song_cover_url, target_plays, daily_goal, baseline_plays, cost, started_at, ends_at, public_token, slug, created_at, spotify_owner_id, spotify_owner_url, state, closed_at, closed_status, token_revoked_at, token_expires_at",
+        "id, curator_name, song_spotify_url, song_name, song_artist, song_cover_url, target_plays, daily_goal, baseline_plays, cost, started_at, ends_at, public_token, slug, created_at, spotify_owner_id, spotify_owner_url, state, closed_at, closed_status, token_revoked_at, token_expires_at, campaign_id, source",
       );
 
     if (token) {
