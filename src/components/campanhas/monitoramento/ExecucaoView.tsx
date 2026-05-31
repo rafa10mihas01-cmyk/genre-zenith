@@ -34,7 +34,7 @@ type SortKey = "delta" | "current" | "baseline" | "name";
 
 const ROW_H = 64;
 
-export function ExecucaoView({ campaignId }: { campaignId: string }) {
+export function ExecucaoView({ campaignId, onOpenHistory }: { campaignId: string; onOpenHistory?: (playlistId: string) => void }) {
   const [rows, setRows] = useState<GrowthRow[] | null>(null);
   const [curators, setCurators] = useState<Record<string, CuratorMeta>>({});
   const [statuses, setStatuses] = useState<Record<string, string>>({});
@@ -265,6 +265,7 @@ export function ExecucaoView({ campaignId }: { campaignId: string }) {
               if (sort === k) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
               else { setSort(k); setSortDir("desc"); }
             }}
+            onRowClick={onOpenHistory}
           />
         </CardContent>
       </Card>
@@ -279,6 +280,7 @@ function VirtualTable({
   sort,
   sortDir,
   onSort,
+  onRowClick,
 }: {
   rows: GrowthRow[];
   curators: Record<string, CuratorMeta>;
@@ -286,7 +288,9 @@ function VirtualTable({
   sort: SortKey;
   sortDir: "asc" | "desc";
   onSort: (k: SortKey) => void;
+  onRowClick?: (playlistId: string) => void;
 }) {
+
   const parentRef = useRef<HTMLDivElement>(null);
   const covers = usePlaylistCovers(rows.map((r) => r.playlist_id));
 
@@ -323,7 +327,11 @@ function VirtualTable({
             return (
               <div
                 key={vi.key}
-                className="grid grid-cols-[minmax(220px,2fr)_120px_110px_110px_120px_140px_150px] gap-3 items-center px-4 border-b border-border/60 hover:bg-accent/40 transition-colors"
+                onClick={() => onRowClick?.(r.playlist_id)}
+                className={cn(
+                  "grid grid-cols-[minmax(220px,2fr)_120px_110px_110px_120px_140px_150px] gap-3 items-center px-4 border-b border-border/60 hover:bg-accent/40 transition-colors",
+                  onRowClick && "cursor-pointer"
+                )}
                 style={{
                   position: "absolute",
                   top: 0,
@@ -333,6 +341,7 @@ function VirtualTable({
                   transform: `translateY(${vi.start}px)`,
                 }}
               >
+
                 <PlaylistCell
                   playlistId={r.playlist_id}
                   name={r.current_name ?? r.baseline_name ?? meta?.name ?? null}

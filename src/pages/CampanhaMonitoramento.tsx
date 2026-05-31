@@ -3,14 +3,12 @@ import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { PageContainer } from "@/components/PageContainer";
 import { PageHeader } from "@/components/PageHeader";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft } from "lucide-react";
-import { BaselineView } from "@/components/campanhas/monitoramento/BaselineView";
 import { ExecucaoView } from "@/components/campanhas/monitoramento/ExecucaoView";
-import { HistoricoView } from "@/components/campanhas/monitoramento/HistoricoView";
+import { PlaylistHistoryDrawer } from "@/components/campanhas/monitoramento/PlaylistHistoryDrawer";
 
 export default function CampanhaMonitoramento() {
   const { id } = useParams<{ id: string }>();
@@ -20,6 +18,7 @@ export default function CampanhaMonitoramento() {
     capturedAt: null,
     playlists: 0,
   });
+  const [drawerPlaylistId, setDrawerPlaylistId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -52,13 +51,13 @@ export default function CampanhaMonitoramento() {
       </div>
       <PageHeader
         title="Monitoramento da campanha"
-        subtitle={meta ? `${meta.track_name ?? ""} · ${meta.artist ?? ""}` : "Baseline, execução e histórico de coletas"}
+        subtitle={meta ? `${meta.track_name ?? ""} · ${meta.artist ?? ""}` : "Playlists monitoradas, crescimento e provas"}
       />
 
       <section className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-6">
         <Card>
           <CardContent className="p-5">
-            <div className="text-xs text-muted-foreground uppercase tracking-wide">Status</div>
+            <div className="text-xs text-muted-foreground uppercase tracking-wide">Baseline</div>
             <div className="mt-2"><BaselineStatusBadge status={kpis.status} /></div>
           </CardContent>
         </Card>
@@ -78,22 +77,16 @@ export default function CampanhaMonitoramento() {
         </Card>
       </section>
 
-      <Tabs defaultValue="baseline" className="mt-6">
-        <TabsList>
-          <TabsTrigger value="baseline">Baseline</TabsTrigger>
-          <TabsTrigger value="execucao">Execução</TabsTrigger>
-          <TabsTrigger value="historico">Histórico</TabsTrigger>
-        </TabsList>
-        <TabsContent value="baseline" className="mt-6">
-          <BaselineView campaignId={id} />
-        </TabsContent>
-        <TabsContent value="execucao" className="mt-6">
-          <ExecucaoView campaignId={id} />
-        </TabsContent>
-        <TabsContent value="historico" className="mt-6">
-          <HistoricoView campaignId={id} />
-        </TabsContent>
-      </Tabs>
+      <div className="mt-6">
+        <ExecucaoView campaignId={id} onOpenHistory={setDrawerPlaylistId} />
+      </div>
+
+      <PlaylistHistoryDrawer
+        campaignId={id}
+        playlistId={drawerPlaylistId}
+        open={!!drawerPlaylistId}
+        onOpenChange={(o) => { if (!o) setDrawerPlaylistId(null); }}
+      />
     </PageContainer>
   );
 }
