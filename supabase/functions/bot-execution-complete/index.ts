@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
   }
 
   const jobId = body?.job_id;
-  const songId = body?.song_id;
+  const explicitSongId = body?.song_id;
   const dealId = body?.deal_id ?? null;
   const status = body?.status;
   const errorMsg = body?.error ?? null;
@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
   const botName = req.headers.get("x-bot-name") || "spotify-artists-bot";
   const session = req.headers.get("x-bot-session") || null;
 
-  if ((!jobId && !songId) || !["done", "failed"].includes(status)) {
+  if ((!jobId && !explicitSongId) || !["done", "failed"].includes(status)) {
     return jr({ error: "invalid_input" }, 400);
   }
 
@@ -67,8 +67,8 @@ Deno.serve(async (req) => {
   const nowIso = new Date().toISOString();
 
   // Novo ciclo de coleta: o bot encerra a song diretamente, não via playlist_execution_jobs.
-  // Isso impede rows de curator_deal_songs ficarem presas em queued quando o bot finaliza sem snapshot.
-  if (songId && !jobId) {
+  // Compat: versões antigas do worker enviavam o id da música em `job_id`.
+  const completeCollectSong = async (songId: string) => {
     const { data: song, error: songErr } = await supabase
       .from("curator_deal_songs")
       .select("id, deal_id, auto_collect_interval_minutes, queued_at")
@@ -106,6 +106,10 @@ Deno.serve(async (req) => {
     });
 
     return jr({ ok: true, status, song_id: songId, next_auto_collect_at: nextAt });
+  };
+
+  if (explicitSongId && !jobId) {
+    return await completeCollectSong(explicitSongId);
   }
 
   const { data: job, error: jobErr } = await supabase
@@ -113,7 +117,13 @@ Deno.serve(async (req) => {
     .select("*")
     .eq("id", jobId)
     .maybeSingle();
-  if (jobErr || !job) return jr({ error: "job_not_found" }, 404);
+  if (jobErr || !job) {
+    const fallbackSongId = explicitSongId ?? jobId;
+    if (fallbackSongId) {
+      return await completeCollectSong(fallbackSongId);
+    }
+    return jr({ error: "job_not_found" }, 404);
+  }
 
   if (status === "done") {
     await supabase
