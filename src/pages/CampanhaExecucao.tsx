@@ -100,6 +100,7 @@ export default function CampanhaExecucao() {
   const [recentUploads, setRecentUploads] = useState<SpreadsheetUpload[]>([]);
   const [externalItems, setExternalItems] = useState<ExternalItemRow[]>([]);
   const [newDealOpen, setNewDealOpen] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
   const [organicRows, setOrganicRows] = useState<OrganicRow[]>([]);
   const [dispatching, setDispatching] = useState(false);
   const [approvingPlan, setApprovingPlan] = useState(false);
