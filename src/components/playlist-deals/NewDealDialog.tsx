@@ -1046,6 +1046,7 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
           song_cover_url: s.meta!.thumbnail_url,
           daily_goal: Number(s.daily_goal),
           duration_days: Number(s.duration_days),
+          target_days: Number(s.duration_days),
           target_plays: songTarget(s),
           position: i + 1,
           started_at: s.started_at ? s.started_at.toISOString() : null,
