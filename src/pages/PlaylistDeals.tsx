@@ -538,6 +538,7 @@ export default function PlaylistDeals() {
                   onClose={(deal) => setCloseDealOpen(deal)}
                   onReopen={handleReopen}
                   onForceCollect={(deal) => forceCollectNow(deal.id)}
+                  campaignCollectionMode={d.campaign_id ? campaignModeById[d.campaign_id] ?? null : null}
                 />
               ))}
             </div>
