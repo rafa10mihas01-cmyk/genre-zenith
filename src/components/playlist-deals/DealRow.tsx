@@ -2,15 +2,10 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   Camera,
-  History,
   Trash2,
   MoreHorizontal,
-  CheckCircle2,
   Lock,
   Pencil,
-  Headphones,
-  User,
-  Copy,
   AlertTriangle,
   Zap,
 } from "lucide-react";
@@ -29,7 +24,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { StatusDot, type StatusVariant } from "@/components/ui/status-dot";
@@ -37,6 +31,7 @@ import { MetricCell } from "@/components/ui/metric-cell";
 import { DealDeliveryBadge } from "@/components/playlist-deals/DealDeliveryBadge";
 import { useDeliveryStatusMap } from "@/hooks/useDeliveryStatus";
 import { cn } from "@/lib/utils";
+
 
 export interface DealRowProps {
   deal: CuratorDeal;
