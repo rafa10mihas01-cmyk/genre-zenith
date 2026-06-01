@@ -463,6 +463,37 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         }
       }
 
+      // ─── Filtro Mandelão ───
+      // Se a música é Funk Mandelão, bloqueia playlists Trap de alto valor
+      // (>30k seguidores) — não casa com letra pesada. Trap menor entra,
+      // mas é empurrada pras posições finais (pos ≥6) no map abaixo.
+      const MANDELAO_TRAP_FOLLOWERS_CAP = 30_000;
+      let mandelaoTrapIds = new Set<string>();
+      let mandelaoBlockedCount = 0;
+      if (song.isMandelao) {
+        const { data: trapRow } = await supabase
+          .from("genres")
+          .select("id")
+          .eq("slug", "trap")
+          .maybeSingle();
+        const trapGenreId = trapRow?.id ?? null;
+        if (trapGenreId) {
+          const beforeCount = neighborSlice.length;
+          neighborSlice = neighborSlice.filter(p => {
+            if (p.genre_id !== trapGenreId) return true;
+            const keep = (p.followers ?? 0) <= MANDELAO_TRAP_FOLLOWERS_CAP;
+            if (keep) mandelaoTrapIds.add(p.id);
+            return keep;
+          });
+          mandelaoBlockedCount = beforeCount - neighborSlice.length;
+          if (mandelaoBlockedCount > 0) {
+            console.info(`[Calculadora] Mandelão: bloqueou ${mandelaoBlockedCount} playlists Trap >30k seguidores`);
+          }
+        }
+      }
+
+
+
 
       // Capacidade total do eco = uma posição diária por playlist, sem repetir a música.
       const compatiblePlaylists = [...coreSlice, ...neighborSlice].sort((a, b) => (b.followers ?? 0) - (a.followers ?? 0));
