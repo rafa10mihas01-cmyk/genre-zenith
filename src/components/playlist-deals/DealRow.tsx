@@ -52,6 +52,8 @@ export interface DealRowProps {
   onClose?: (deal: CuratorDeal) => void;
   onReopen?: (deal: CuratorDeal) => void;
   onForceCollect?: (deal: CuratorDeal) => Promise<void> | void;
+  /** collection_mode da campanha vinculada — 'bot' (Spotify) ou 'spreadsheet' (Excel) */
+  campaignCollectionMode?: string | null;
 }
 
 function formatPlays(n: number): string {
