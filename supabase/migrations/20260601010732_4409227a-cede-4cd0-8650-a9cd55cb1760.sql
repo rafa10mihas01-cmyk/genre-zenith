@@ -1,0 +1,2 @@
+DELETE FROM public.campaign_eco_allocations WHERE campaign_id = '9496f6c7-04c1-492f-8eab-a573bff39f2e';
+UPDATE public.campaigns SET total_allocated = 0, plan_approved_at = NULL, plan_approved_by = NULL, snapshot_locked_at = NULL WHERE id = '9496f6c7-04c1-492f-8eab-a573bff39f2e';

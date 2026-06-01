@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { buildSnapshot, planEcoAllocations, closeCampaignFromCalculator } from "@/lib/campaignSnapshot";
+import { buildSnapshot, closeCampaignFromCalculator } from "@/lib/campaignSnapshot";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,7 +29,14 @@ import { CapacidadeRealCard } from "./CapacidadeRealCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format, addDays, differenceInCalendarDays, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { calculateTrackDailyStreams, planRealCapacity } from "@/lib/campaignOperationalPlan";
+import {
+  calculateTrackDailyStreams,
+  planRealCapacity,
+  POSITION_PCT,
+  ecoPlanTotalMultiplier,
+  MIN_PLAYLIST_SAVES_FOR_CAMPAIGN,
+} from "@/lib/campaignOperationalPlan";
+import type { EcoAllocationPlan } from "@/lib/campaignSnapshot";
 import { TrackPresencePanel } from "@/components/campanhas/TrackPresencePanel";
 
 type Fonte = "manual" | "top200" | "concorrente" | "orcamento";
@@ -472,45 +479,44 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
       // Deadline contratual continua usando r.days (linha abaixo).
       const planDays = r.effectiveDays;
       const dailyNeed = planDays > 0 ? r.streamsEco / planDays : 0;
-      const primaryCapacityPlan = planRealCapacity(
-        coreSlice.map(p => ({ id: p.id, followers: p.followers ?? 0, source: "primary" as const })),
+      // ─── NOVO: aloca via planRealCapacity (early-stop 95%, min saves, vizinho pos 5+, 70/30 gravadora).
+      // O planEcoAllocations antigo não respeitava essas regras e despejava o pool inteiro
+      // (camp Carnívoro: 306 playlists, 148 com <100 saves, todas em #1).
+      // Agora a calculadora gera EXATAMENTE o que a CapacidadeRealCard mostra.
+      const mode = song.clientProfile === "gravadora" ? "balanced" : "cascade";
+      const corePool = coreSlice
+        .filter(p => (p.followers ?? 0) >= MIN_PLAYLIST_SAVES_FOR_CAMPAIGN)
+        .map(p => ({ id: p.id, followers: p.followers ?? 0, source: "primary" as const }));
+      const neighborPool = neighborSlice
+        .filter(p => (p.followers ?? 0) >= MIN_PLAYLIST_SAVES_FOR_CAMPAIGN)
+        .map(p => ({ id: p.id, followers: p.followers ?? 0, source: "neighbor" as const }));
+
+      const realPlan = planRealCapacity(
+        [...corePool, ...neighborPool],
         dailyNeed,
         song.engagementMultiplier ?? 30,
         undefined,
-        { mode: song.clientProfile === "gravadora" ? "balanced" : "cascade" },
+        { mode },
       );
-      const primaryGap = Math.max(0, primaryCapacityPlan.remaining);
-      const neighborGapThreshold = dailyNeed * 0.05;
-      const allowNeighbors = coreSlice.length === 0 || primaryGap > neighborGapThreshold;
 
-      const coreBudget = allowNeighbors
-        ? Math.max(0, r.streamsEco - Math.round(primaryGap * planDays))
-        : r.streamsEco;
-      const neighborBudget = allowNeighbors
-        ? Math.min(Math.round(primaryGap * planDays), Math.round(r.streamsEco * 0.4))
-        : 0;
+      // Converte RealCapacityAlloc → EcoAllocationPlan. planned_streams usa o
+      // multiplicador de plano (rampa) pra bater com o buildEcoPlan do servidor.
+      const planMultiplier = ecoPlanTotalMultiplier(planDays);
+      const totalAllocs = realPlan.allocations.length;
+      const rawAllocations: EcoAllocationPlan[] = realPlan.allocations.map((a, index) => {
+        const score = a.source === "neighbor"
+          ? (neighborAffinityByPlaylistId?.get(a.id) ?? null)
+          : null;
+        return {
+          managed_playlist_id: a.id,
+          planned_streams: Math.max(1, Math.round(a.cap_dia * planMultiplier)),
+          start_day: 1 + Math.floor((index / Math.max(1, totalAllocs - 1)) * Math.max(0, Math.min(planDays - 1, Math.ceil(planDays * (r.modo === "sequencial" ? 0.7 : 0.25)) - 1))),
+          position: a.position,
+          genre_source: a.source === "neighbor" ? "affinity" : "primary",
+          genre_affinity_score: score,
+        };
+      });
 
-      const coreAllocs = planEcoAllocations(
-        coreBudget,
-        planDays,
-        coreSlice.map(p => ({ id: p.id, followers: p.followers ?? 0 })),
-        r.modo,
-        song.engagementMultiplier ?? 30,
-        { source: "primary" },
-        song.track?.position ?? null,
-      );
-      const neighborAllocs = neighborBudget > 0 && neighborSlice.length > 0
-        ? planEcoAllocations(
-            neighborBudget,
-            planDays,
-            neighborSlice.map(p => ({ id: p.id, followers: p.followers ?? 0 })),
-            r.modo,
-            song.engagementMultiplier ?? 30,
-            { source: "affinity", affinityByPlaylistId: neighborAffinityByPlaylistId },
-            song.track?.position ?? null,
-          )
-        : [];
-      const rawAllocations = [...coreAllocs, ...neighborAllocs];
       // Dropa allocations cuja (playlist, posição) já está reservada em
       // campanha ativa ou rascunho recente (< 48h). Evita conflito de slot.
       const allocations = rawAllocations.filter(a =>
@@ -520,6 +526,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
       if (droppedCount > 0) {
         console.info(`[Calculadora] Dropped ${droppedCount} allocations já reservadas em campanhas ativas/rascunhos recentes`);
       }
+      console.info(`[Calculadora] planRealCapacity: ${allocations.length} playlists (modo=${mode}, dailyNeed=${Math.round(dailyNeed)}, coberto=${Math.round(realPlan.coveredDaily)}/dia, primárias=${corePool.length}, vizinhos=${neighborPool.length})`);
 
       const startD = startOfDay(new Date(song.startDateISO));
 

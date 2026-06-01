@@ -207,6 +207,14 @@ export function selectPositionByDailyNeed(
 export const NEIGHBOR_MIN_POSITION = 5;
 
 /**
+ * Piso mínimo de saves pra uma playlist entrar no planner de campanha.
+ * Espelha `supabase/functions/_shared/eco-constants.ts`.
+ * Abaixo de 250 saves a contribuição vira ruído (<20 plays/dia em pos #3)
+ * e polui o plano sem entregar.
+ */
+export const MIN_PLAYLIST_SAVES_FOR_CAMPAIGN = 250;
+
+/**
  * Distribui posições greedy por dailyNeed sobre uma lista de playlists.
  *
  * SELEÇÃO BEST-FIT (eficiência marginal): a cada iteração, escolhe a playlist
