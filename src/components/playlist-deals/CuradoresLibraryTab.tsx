@@ -57,6 +57,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { CuratorLibrarySheet } from "@/components/curators/CuratorLibrarySheet";
 import { CuratorEditDialog } from "@/components/curators/CuratorEditDialog";
+import { NewCuratorDialog } from "@/components/curators/NewCuratorDialog";
 import { cn } from "@/lib/utils";
 import type { Curator, CuratorBalance, NewCuratorInput } from "@/hooks/useCuratorDeals";
 import type { CuratorDeal } from "@/lib/curatorDealsUtils";
@@ -95,6 +96,7 @@ interface Props {
   deals: CuratorDeal[];
   loading: boolean;
   onUpdateCurator?: (curatorId: string, input: Partial<NewCuratorInput>) => Promise<void>;
+  onAddCurator?: (input: NewCuratorInput) => Promise<unknown>;
   onAddPurchase?: (curatorId: string, input: { plays_purchased: number; amount: number; note?: string | null }) => Promise<void>;
   onArchiveCurator?: (curatorId: string, archive?: boolean) => Promise<void>;
   onDeleteCurator?: (curatorId: string) => Promise<void>;
@@ -107,6 +109,7 @@ export function CuradoresLibraryTab({
   deals,
   loading,
   onUpdateCurator,
+  onAddCurator,
   onAddPurchase,
   onArchiveCurator,
   onDeleteCurator,
@@ -115,6 +118,7 @@ export function CuradoresLibraryTab({
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<Curator | null>(null);
+  const [creating, setCreating] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ curator: Curator; hasDeals: boolean } | null>(null);
 
@@ -270,6 +274,17 @@ export function CuradoresLibraryTab({
             </div>
           </PopoverContent>
         </Popover>
+
+        {onAddCurator && (
+          <Button
+            size="sm"
+            className="h-9 gap-1.5 shrink-0"
+            onClick={() => setCreating(true)}
+          >
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">Novo curador</span>
+          </Button>
+        )}
       </div>
 
       {(hasFilters || archivedCount > 0 || showArchived) && (
@@ -650,6 +665,14 @@ export function CuradoresLibraryTab({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {onAddCurator && (
+        <NewCuratorDialog
+          open={creating}
+          onOpenChange={setCreating}
+          onCreate={onAddCurator}
+        />
+      )}
     </div>
   );
 }

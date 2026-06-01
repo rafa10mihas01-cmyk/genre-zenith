@@ -39,7 +39,7 @@ export default function Prospecao() {
   const [segment, setSegment] = useState<Segment>("ativos");
   const {
     curators, balances, deals, loading,
-    updateCurator, addCuratorPurchase, archiveCurator, deleteCurator, pauseCurator,
+    addCurator, updateCurator, addCuratorPurchase, archiveCurator, deleteCurator, pauseCurator,
     reload,
   } = useCuratorDeals();
 
@@ -189,6 +189,7 @@ export default function Prospecao() {
             balances={balances}
             deals={deals}
             loading={loading}
+            onAddCurator={addCurator}
             onUpdateCurator={updateCurator}
             onAddPurchase={addCuratorPurchase}
             onArchiveCurator={archiveCurator}
