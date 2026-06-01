@@ -257,7 +257,8 @@ export function DealRow(props: DealRowProps) {
         ) : (
           <div className="flex items-center gap-2 min-w-0 text-[12px] text-warning">
             <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">Print inicial pendente para liberar baseline</span>
+            <span className="truncate flex-1">Print inicial pendente para liberar baseline</span>
+            {deal.campaign_id && <RecalcBaselineInline dealId={deal.id} />}
           </div>
         )}
 
