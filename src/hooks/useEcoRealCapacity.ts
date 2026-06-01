@@ -53,6 +53,7 @@ export function useEcoRealCapacity(
   dailyNeed: number,
   multiplier = 30,
   tolerance = ECO_DAILY_TOLERANCE,
+  mode: RealCapacityMode = "cascade",
 ): EcoRealCapacity {
   const [state, setState] = useState<EcoRealCapacity>(EMPTY);
 
