@@ -177,13 +177,14 @@ export function distributeByDailyNeed(
   let remaining = dailyNeed;
   let covered = 0;
 
-  const pickWithCeiling = (followers: number, ceiling: number): { position: number; cap: number; fits: boolean } => {
+  const pickWithCeiling = (followers: number, ceiling: number, minPos = 1): { position: number; cap: number; fits: boolean } => {
     if (followers <= 0 || ceiling <= 0) {
       return { position: POSITION_PCT.length, cap: 0, fits: false };
     }
+    const startIdx = Math.max(0, minPos - 1);
     let bestPos = -1;
     let bestCap = -1;
-    for (let i = 0; i < POSITION_PCT.length; i++) {
+    for (let i = startIdx; i < POSITION_PCT.length; i++) {
       const cap = playlistCapAtPosition(followers, mult, i + 1);
       if (cap <= ceiling && cap > bestCap) {
         bestCap = cap;
@@ -200,8 +201,11 @@ export function distributeByDailyNeed(
   const COVERAGE_STOP = 0.95;
   const stopThreshold = dailyNeed * (1 - COVERAGE_STOP); // = 5% de "sobra" tolerada
 
+  // Vizinhos (gêneros afins) nunca em slots fortes — mesma regra do replan-campaign-eco.
+  const NEIGHBOR_MIN_POSITION = 5;
+
   // Best-fit greedy: a cada passo, escolhe a playlist cujo cap melhor fecha o gap.
-  const consume = (list: Array<{ id: string; followers: number; genreSource?: "primary" | "affinity" }>) => {
+  const consume = (list: Array<{ id: string; followers: number; genreSource?: "primary" | "affinity" }>, minPos = 1) => {
     const pool = [...list];
     while (pool.length > 0) {
       // PASSO 2: para de incluir playlists quando a meta já foi coberta.
@@ -218,7 +222,7 @@ export function distributeByDailyNeed(
         const budget = maxCapById?.get(a.id);
         if (maxCapById && (budget == null || budget <= 0)) continue;
         const ceiling = budget != null ? Math.min(needCeiling, budget) : needCeiling;
-        const sel = pickWithCeiling(a.followers, ceiling);
+        const sel = pickWithCeiling(a.followers, ceiling, minPos);
         if (bestSel == null || sel.cap > bestSel.cap) {
           bestSel = sel;
           bestIdx = i;
@@ -242,8 +246,9 @@ export function distributeByDailyNeed(
     }
   };
 
-  consume(primary);
-  consume(neighbor);
+  // Cascata: primárias livres (1–20), vizinhos só pra fechar gap em posições ≥5.
+  consume(primary, 1);
+  consume(neighbor, NEIGHBOR_MIN_POSITION);
 
   return { positions, coveredDaily: covered, details };
 }
