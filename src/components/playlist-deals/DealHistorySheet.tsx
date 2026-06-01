@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
+import { toast } from "sonner";
 import {
   ExternalLink,
   ImageOff,
@@ -18,8 +19,11 @@ import {
   Shuffle,
   Disc3,
   Compass,
+  Headphones,
+  Copy,
   ExternalLink as ExternalLinkIcon,
 } from "lucide-react";
+
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
