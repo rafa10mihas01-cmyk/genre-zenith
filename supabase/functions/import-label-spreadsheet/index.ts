@@ -743,17 +743,28 @@ Deno.serve(async (req) => {
     });
 
     // 5) Primeira importação tira a campanha do limbo automaticamente
+    //    + marca baseline_captured_at em campaigns e no curator_deal,
+    //    pra UI (chip "Baseline coletada" / "Pronto para aprovação")
+    //    refletir em tempo real. Sem isso o card ficava em "Baseline pendente"
+    //    mesmo depois do cliente subir a planilha.
     if (isBaseline) {
+      const baselineAt = capturedAt;
       await admin
         .from("curator_deals")
-        .update({ state: "collecting" })
-        .eq("id", dealId)
-        .in("state", ["awaiting_playlists", "draft", "pending"]);
+        .update({
+          state: "collecting",
+          baseline_captured_at: baselineAt,
+          baseline_plays: totalStreams,
+        })
+        .eq("id", dealId);
       await admin
         .from("campaigns")
-        .update({ status: "active" })
-        .eq("deal_id", dealId)
-        .neq("status", "active");
+        .update({
+          status: "active",
+          baseline_captured_at: baselineAt,
+          baseline_status: "captured",
+        })
+        .eq("deal_id", dealId);
     }
 
 
