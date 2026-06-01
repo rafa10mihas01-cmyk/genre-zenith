@@ -920,6 +920,22 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                         {GENRE_OPTIONS.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
                       </SelectContent>
                     </Select>
+                    {active.genre.toLowerCase().startsWith("funk") && (
+                      <label className="mt-2 flex items-start gap-2 rounded-xl border border-border bg-card/40 px-3 py-2.5 cursor-pointer hover:bg-card/70 transition">
+                        <input
+                          type="checkbox"
+                          checked={active.isMandelao}
+                          onChange={(e) => patchActive({ isMandelao: e.target.checked })}
+                          className="mt-0.5 h-4 w-4 accent-primary cursor-pointer"
+                        />
+                        <span className="text-xs leading-snug">
+                          <span className="font-medium text-foreground">Mandelão</span>
+                          <span className="block text-muted-foreground/80 text-[11px] mt-0.5">
+                            Bloqueia Trap acima de 30k seguidores. Trap menor entra nas posições finais.
+                          </span>
+                        </span>
+                      </label>
+                    )}
                   </div>
                 </CardContent>
               </Card>
