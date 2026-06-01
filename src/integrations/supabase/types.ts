@@ -3146,6 +3146,9 @@ export type Database = {
           deal_type: string
           default_amount: number | null
           default_plays: number | null
+          document: string | null
+          email: string | null
+          full_name: string | null
           id: string
           monthly_amount: number | null
           name: string
@@ -3153,6 +3156,9 @@ export type Database = {
           paused_at: string | null
           performance_score: number | null
           performance_score_updated_at: string | null
+          phone: string | null
+          pix_key: string | null
+          pix_type: string | null
           purchased_plays: number
           spotify_owner_id: string | null
           spotify_owner_url: string | null
@@ -3168,6 +3174,9 @@ export type Database = {
           deal_type?: string
           default_amount?: number | null
           default_plays?: number | null
+          document?: string | null
+          email?: string | null
+          full_name?: string | null
           id?: string
           monthly_amount?: number | null
           name: string
@@ -3175,6 +3184,9 @@ export type Database = {
           paused_at?: string | null
           performance_score?: number | null
           performance_score_updated_at?: string | null
+          phone?: string | null
+          pix_key?: string | null
+          pix_type?: string | null
           purchased_plays?: number
           spotify_owner_id?: string | null
           spotify_owner_url?: string | null
@@ -3190,6 +3202,9 @@ export type Database = {
           deal_type?: string
           default_amount?: number | null
           default_plays?: number | null
+          document?: string | null
+          email?: string | null
+          full_name?: string | null
           id?: string
           monthly_amount?: number | null
           name?: string
@@ -3197,6 +3212,9 @@ export type Database = {
           paused_at?: string | null
           performance_score?: number | null
           performance_score_updated_at?: string | null
+          phone?: string | null
+          pix_key?: string | null
+          pix_type?: string | null
           purchased_plays?: number
           spotify_owner_id?: string | null
           spotify_owner_url?: string | null

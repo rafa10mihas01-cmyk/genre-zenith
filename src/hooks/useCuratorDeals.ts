@@ -57,6 +57,12 @@ export type Curator = {
   default_plays: number | null;
   monthly_amount: number | null;
   billing_day: number | null;
+  phone: string | null;
+  email: string | null;
+  pix_key: string | null;
+  pix_type: string | null;
+  full_name: string | null;
+  document: string | null;
 };
 
 export type CuratorBalance = {
@@ -84,6 +90,12 @@ export type NewCuratorInput = {
   default_plays?: number | null;
   monthly_amount?: number | null;
   billing_day?: number | null;
+  phone?: string | null;
+  email?: string | null;
+  pix_key?: string | null;
+  pix_type?: string | null;
+  full_name?: string | null;
+  document?: string | null;
 };
 
 export type DealSongInput = {
@@ -422,6 +434,12 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
           default_plays: input.default_plays ?? null,
           monthly_amount: input.monthly_amount ?? null,
           billing_day: input.billing_day ?? null,
+          phone: input.phone ?? null,
+          email: input.email ?? null,
+          pix_key: input.pix_key ?? null,
+          pix_type: input.pix_type ?? null,
+          full_name: input.full_name ?? null,
+          document: input.document ?? null,
         })
         .select()
         .single();
@@ -461,6 +479,12 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
           ...(input.default_plays !== undefined && { default_plays: input.default_plays ?? null }),
           ...(input.monthly_amount !== undefined && { monthly_amount: input.monthly_amount ?? null }),
           ...(input.billing_day !== undefined && { billing_day: input.billing_day ?? null }),
+          ...(input.phone !== undefined && { phone: input.phone ?? null }),
+          ...(input.email !== undefined && { email: input.email ?? null }),
+          ...(input.pix_key !== undefined && { pix_key: input.pix_key ?? null }),
+          ...(input.pix_type !== undefined && { pix_type: input.pix_type ?? null }),
+          ...(input.full_name !== undefined && { full_name: input.full_name ?? null }),
+          ...(input.document !== undefined && { document: input.document ?? null }),
         })
         .eq("id", curatorId);
       if (updErr) throw updErr;
