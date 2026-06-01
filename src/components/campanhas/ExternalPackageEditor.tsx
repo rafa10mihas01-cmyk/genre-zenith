@@ -110,11 +110,15 @@ export function ExternalPackageEditor({
     if (!pkg) return;
     setAddOpen(false);
     try {
+      // Pré-preenche com a próxima compra disponível (FIFO).
+      // Se não houver compra registrada, entra zerado e o user ajusta manualmente.
+      const next = curator.next_purchase;
       await addPackageItem({
         packageId: pkg.id,
         curatorId: curator.id,
-        assignedStreams: 0,
-        costPerStream: curator.cost_per_stream,
+        assignedStreams: next?.plays ?? 0,
+        costPerStream: next?.cpp ?? curator.cost_per_stream,
+        purchaseId: next?.id,
       });
       await load();
     } catch (e: any) {
