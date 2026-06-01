@@ -195,11 +195,19 @@ export function distributeByDailyNeed(
     return { position: deepest, cap: playlistCapAtPosition(followers, mult, deepest), fits: false };
   };
 
+  // Early-stop: quando a meta diária estiver coberta com ≥95%, paramos de adicionar
+  // playlists. Resultado: planos enxutos (não enfia 200 playlists pra entregar 5%).
+  const COVERAGE_STOP = 0.95;
+  const stopThreshold = dailyNeed * (1 - COVERAGE_STOP); // = 5% de "sobra" tolerada
+
   // Best-fit greedy: a cada passo, escolhe a playlist cujo cap melhor fecha o gap.
   const consume = (list: Array<{ id: string; followers: number; genreSource?: "primary" | "affinity" }>) => {
     const pool = [...list];
     while (pool.length > 0) {
-      const need = remaining > 0 ? remaining : dailyNeed * tolerance;
+      // PASSO 2: para de incluir playlists quando a meta já foi coberta.
+      if (remaining <= stopThreshold) break;
+
+      const need = remaining;
       const needCeiling = need * (1 + tolerance);
 
       let bestIdx = -1;
