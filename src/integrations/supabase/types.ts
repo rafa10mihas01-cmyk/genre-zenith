@@ -9127,6 +9127,10 @@ export type Database = {
         Args: { p_campaign_id?: string }
         Returns: number
       }
+      recalc_curator_deal_baseline_from_spreadsheet: {
+        Args: { p_deal_id: string }
+        Returns: Json
+      }
       recalc_curator_performance_scores: {
         Args: never
         Returns: {

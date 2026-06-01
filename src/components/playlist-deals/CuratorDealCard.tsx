@@ -328,11 +328,14 @@ export function CuratorDealCard({
 
         {/* Aviso sem baseline */}
         {!hasBaseline && (
-          <div className="rounded-md border border-warning/30 bg-warning/10 px-2.5 py-1.5 flex items-center gap-1.5">
+          <div className="rounded-md border border-warning/30 bg-warning/10 px-2.5 py-1.5 flex items-center gap-2 flex-wrap">
             <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0" />
-            <span className="text-[11px] text-warning font-medium">
+            <span className="text-[11px] text-warning font-medium flex-1 min-w-0">
               Print inicial pendente
             </span>
+            {deal.campaign_id && (
+              <RecalcBaselineButton dealId={deal.id} />
+            )}
           </div>
         )}
 
@@ -638,4 +641,45 @@ function formatRelative(ms: number): string {
   const h = Math.floor(m / 60);
   if (h < 24) return `há ${h}h`;
   return `há ${Math.floor(h / 24)}d`;
+}
+
+function RecalcBaselineButton({ dealId }: { dealId: string }) {
+  const [loading, setLoading] = useState(false);
+  async function handle() {
+    setLoading(true);
+    try {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { data, error } = await (supabase.rpc as any)(
+        "recalc_curator_deal_baseline_from_spreadsheet",
+        { p_deal_id: dealId },
+      );
+      if (error) throw error;
+      if (data?.ok) {
+        toast.success("Baseline recalculada a partir da planilha");
+      } else {
+        const msg =
+          data?.error === "campanha_nao_e_planilha"
+            ? "Campanha não está em modo planilha"
+            : data?.error === "baseline_da_campanha_ausente"
+            ? "Planilha de baseline ainda não foi importada"
+            : data?.error ?? "Não foi possível recalcular";
+        toast.error(msg);
+      }
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      className="h-6 px-2 text-[10.5px] border-warning/40 text-warning hover:bg-warning/15"
+      onClick={handle}
+      disabled={loading}
+    >
+      {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : "Recalcular da planilha"}
+    </Button>
+  );
 }

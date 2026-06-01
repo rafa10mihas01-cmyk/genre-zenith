@@ -791,6 +791,7 @@ Deno.serve(async (req) => {
     //    mesmo depois do cliente subir a planilha.
     if (isBaseline) {
       const baselineAt = capturedAt;
+      // Deal interno (placeholder da campanha): mantém totalStreams como referência agregada.
       await admin
         .from("curator_deals")
         .update({
@@ -807,6 +808,29 @@ Deno.serve(async (req) => {
           baseline_status: "captured",
         })
         .eq("deal_id", dealId);
+
+      // Propaga baseline para curator_deals reais da mesma campanha (collection_mode=spreadsheet).
+      // Como a planilha reporta total por playlist (não por curador), gravamos só o marco temporal:
+      // baseline_plays = null evita inventar número individual que não temos.
+      if (campaignIdForUpdate) {
+        const { data: camp } = await admin
+          .from("campaigns")
+          .select("collection_mode")
+          .eq("id", campaignIdForUpdate)
+          .maybeSingle();
+        if ((camp as any)?.collection_mode === "spreadsheet") {
+          await admin
+            .from("curator_deals")
+            .update({
+              state: "collecting",
+              baseline_captured_at: baselineAt,
+              baseline_plays: null,
+            })
+            .eq("campaign_id", campaignIdForUpdate)
+            .neq("id", dealId)
+            .is("baseline_captured_at", null);
+        }
+      }
     }
 
     // 6) Enriquece curator_playlists novas com capa/nome/seguidores do Spotify
