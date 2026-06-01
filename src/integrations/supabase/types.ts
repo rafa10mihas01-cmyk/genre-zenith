@@ -1249,6 +1249,7 @@ export type Database = {
           plan_approved_by: string | null
           public_plan_token: string
           recebido_em: string | null
+          roadmap_token: string
           simulation_snapshot: Json | null
           snapshot_locked_at: string | null
           split_locked_at: string | null
@@ -1301,6 +1302,7 @@ export type Database = {
           plan_approved_by?: string | null
           public_plan_token?: string
           recebido_em?: string | null
+          roadmap_token?: string
           simulation_snapshot?: Json | null
           snapshot_locked_at?: string | null
           split_locked_at?: string | null
@@ -1353,6 +1355,7 @@ export type Database = {
           plan_approved_by?: string | null
           public_plan_token?: string
           recebido_em?: string | null
+          roadmap_token?: string
           simulation_snapshot?: Json | null
           snapshot_locked_at?: string | null
           split_locked_at?: string | null

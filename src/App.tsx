@@ -55,6 +55,7 @@ const CampanhaDetalhe = lazy(() => import("./pages/CampanhaDetalhe"));
 const CampanhaExecucao = lazy(() => import("./pages/CampanhaExecucao"));
 
 const PlanoCampanhaPublico = lazy(() => import("./pages/PlanoCampanhaPublico"));
+const MapaCampanhaPublico = lazy(() => import("./pages/MapaCampanhaPublico"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Valuation = lazy(() => import("./pages/Valuation"));
 const PlaylistDetail = lazy(() => import("./pages/PlaylistDetail"));
@@ -118,6 +119,7 @@ const App = () => (
                 <Route path="/curador/:token" element={<CuratorPage />} />
                 <Route path="/campanha/:token" element={<LegacyCampaignRedirect />} />
                 <Route path="/p/plano/:token" element={<PlanoCampanhaPublico />} />
+                <Route path="/mapa/:token" element={<MapaCampanhaPublico />} />
                 <Route path="/comunidade/join/:code" element={<JoinInvite />} />
                 <Route path="/comunidade/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
                 <Route path="/comunidade" element={<ProtectedRoute><ComunidadeDashboard /></ProtectedRoute>} />
