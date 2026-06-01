@@ -477,10 +477,12 @@ export default function CuratorPage() {
 
   useEffect(() => {
     markCuratorPublicMode(normalizePublicToken(token));
+    if (!gateChecked) return;
+    if (gateRequired && !gateAuthed) { setLoading(false); return; }
     setLoading(true);
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token, gateChecked, gateRequired, gateAuthed]);
 
   // Fase 6 — realtime: novo snapshot deste deal recarrega dados públicos
   useEffect(() => {
