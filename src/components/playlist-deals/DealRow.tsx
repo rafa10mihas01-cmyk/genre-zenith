@@ -147,11 +147,13 @@ export function DealRow(props: DealRowProps) {
 
   return (
     <div
+      onClick={() => props.onDetail(deal)}
       className={cn(
-        "group relative rounded-2xl border border-border/50 bg-card transition-colors flex flex-col h-full",
+        "group relative rounded-2xl border border-border/50 bg-card transition-colors flex flex-col h-full cursor-pointer",
         "hover:border-foreground/20 hover:bg-[hsl(var(--elevated))]",
       )}
     >
+
       {/* Linha 1 — identidade */}
       <div className="flex items-start gap-3 px-4 pt-3.5 pb-2.5 min-w-0">
         {cover ? (
