@@ -5,7 +5,7 @@
 // Gap 5: disparado pelo frontend após criar/atualizar cliente que tenha spotify_artist_url.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getSpotifyToken, guardedSpotifyFetch } from "../_shared/spotify.ts";
+import { getAppToken, spotifyFetch } from "../_shared/spotify-client.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
