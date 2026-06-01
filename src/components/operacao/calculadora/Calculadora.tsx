@@ -381,6 +381,17 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
           .filter(r => Number.isFinite(r.position))
           .map(r => `${r.managed_playlist_id}:${r.position}`),
       );
+      // Mapa playlist → set de posições já reservadas, pra "descer" posição
+      // em vez de dropar (corrige bug Botadão: Carnívoro ocupa pos #1 das
+      // mesmas 20 Funks → cascade não achava slot e zerava o plano).
+      const reservedByPlaylist = new Map<string, Set<number>>();
+      for (const k of reservedKeys) {
+        const [pid, posStr] = k.split(":");
+        const pos = Number(posStr);
+        if (!pid || !Number.isFinite(pos)) continue;
+        if (!reservedByPlaylist.has(pid)) reservedByPlaylist.set(pid, new Set());
+        reservedByPlaylist.get(pid)!.add(pos);
+      }
 
 
       const effMeta = songEffectiveMeta(song);
@@ -555,14 +566,40 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         };
       });
 
-      // Dropa allocations cuja (playlist, posição) já está reservada em
-      // campanha ativa ou rascunho recente (< 48h). Evita conflito de slot.
-      const allocations = rawAllocations.filter(a =>
-        !reservedKeys.has(`${a.managed_playlist_id}:${a.position}`)
-      );
-      const droppedCount = rawAllocations.length - allocations.length;
+      // Em vez de dropar allocations com (playlist, posição) já reservadas
+      // em campanhas ativas ou rascunhos recentes, DESCE a posição até achar
+      // um slot livre (máx pos 20). Mantém a playlist no plano com cap_dia
+      // menor — mais realista pra múltiplas campanhas simultâneas no mesmo
+      // gênero (ex: 2-4 Funks rodando juntas).
+      const MAX_POSITION = 20;
+      let descendedCount = 0;
+      let droppedCount = 0;
+      const allocations: EcoAllocationPlan[] = [];
+      for (const a of rawAllocations) {
+        const taken = reservedByPlaylist.get(a.managed_playlist_id);
+        let pos = a.position;
+        if (taken) {
+          while (taken.has(pos) && pos < MAX_POSITION) pos += 1;
+          if (taken.has(pos)) { droppedCount += 1; continue; }
+        }
+        if (pos !== a.position) {
+          descendedCount += 1;
+          // Recalcula cap_dia/planned_streams pro novo slot (posição menor = menos %).
+          const followers = compatiblePlaylists.find(p => p.id === a.managed_playlist_id)?.followers ?? 0;
+          const newDaily = calculateTrackDailyStreams(followers, song.engagementMultiplier ?? 30, pos);
+          allocations.push({ ...a, position: pos, planned_streams: Math.max(1, Math.round(newDaily * planMultiplier)) });
+        } else {
+          allocations.push(a);
+        }
+        // Reserva o slot escolhido pra evitar colisão entre allocations desta mesma campanha.
+        if (!reservedByPlaylist.has(a.managed_playlist_id)) reservedByPlaylist.set(a.managed_playlist_id, new Set());
+        reservedByPlaylist.get(a.managed_playlist_id)!.add(pos);
+      }
+      if (descendedCount > 0) {
+        console.info(`[Calculadora] ${descendedCount} allocations desceram posição por conflito com campanhas ativas`);
+      }
       if (droppedCount > 0) {
-        console.info(`[Calculadora] Dropped ${droppedCount} allocations já reservadas em campanhas ativas/rascunhos recentes`);
+        console.info(`[Calculadora] Dropped ${droppedCount} allocations (sem slot livre até pos ${MAX_POSITION})`);
       }
       console.info(`[Calculadora] planRealCapacity: ${allocations.length} playlists (modo=${mode}, dailyNeed=${Math.round(dailyNeed)}, coberto=${Math.round(realPlan.coveredDaily)}/dia, primárias=${corePool.length}, vizinhos=${neighborPool.length})`);
 
