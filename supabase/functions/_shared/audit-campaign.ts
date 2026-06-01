@@ -148,40 +148,49 @@ export async function auditCampaignFlow(
   // ─────────────────────────────────────────────────────────────
 
   if (mode === "spreadsheet") {
-    // Uploads são vinculados via deal_id (não há campaign_id em label_spreadsheet_uploads).
+    // Uploads vinculam-se via deal_id. Considera TODOS os deals da campanha
+    // (inclusive placeholder interno), porque a planilha pode estar no deal interno
+    // antes do curador real ser vinculado.
+    const allDealIds = allDeals.map((d: any) => d.id);
     let uploadsArr: any[] = [];
-    if (dealIds.length > 0) {
+    if (allDealIds.length > 0) {
       const { data: uploads } = await admin
         .from("label_spreadsheet_uploads")
         .select("id, deal_id, rows_imported, status, created_at, is_baseline")
-        .in("deal_id", dealIds)
+        .in("deal_id", allDealIds)
         .order("created_at", { ascending: false });
       uploadsArr = uploads ?? [];
     }
 
-    if (uploadsArr.length === 0) {
-      push("5_spreadsheet", "Planilha do cliente recebida", "pending",
-        dealIds.length === 0
-          ? "Aguardando criação do deal pra vincular a planilha do cliente."
-          : "Nenhuma planilha enviada pelo cliente ainda. O cliente sobe a planilha pelo portal.");
+    const baseline = uploadsArr.find((u: any) => u.is_baseline);
+    const followups = uploadsArr.filter((u: any) => !u.is_baseline);
+
+    // ── 5) Baseline da planilha (1ª foto oficial)
+    if (baseline) {
+      push("5_spreadsheet_baseline", "Baseline da planilha recebida", "ok",
+        `Recebida em ${baseline.created_at} · ${baseline.rows_imported ?? 0} linha(s) importada(s).`,
+        { upload_id: baseline.id, deal_id: baseline.deal_id });
+    } else if (uploadsArr.length > 0) {
+      push("5_spreadsheet_baseline", "Baseline da planilha recebida", "failed",
+        `${uploadsArr.length} upload(s) encontrado(s), mas nenhum marcado como baseline. Marque o primeiro upload como baseline.`);
     } else {
-      const baseline = uploadsArr.find((u: any) => u.is_baseline);
-      const followups = uploadsArr.filter((u: any) => !u.is_baseline);
-      const totalRows = uploadsArr.reduce((s: number, u: any) => s + Number(u.rows_imported ?? 0), 0);
-      const lastAt = uploadsArr[0]?.created_at ?? null;
-      const parts: string[] = [];
-      if (baseline) parts.push(`baseline em ${baseline.created_at} (${baseline.rows_imported ?? 0} linhas)`);
-      else parts.push("sem baseline marcada");
-      if (followups.length > 0) parts.push(`${followups.length} acompanhamento(s)`);
-      parts.push(`último upload em ${lastAt ?? "—"}`);
-      push("5_spreadsheet", "Planilha do cliente recebida",
-        baseline ? "ok" : "pending",
-        `${uploadsArr.length} upload(s) · ${totalRows} linha(s) · ${parts.join(" · ")}.`,
-        { uploads: uploadsArr.map((u: any) => ({ id: u.id, deal_id: u.deal_id, is_baseline: u.is_baseline, rows: u.rows_imported, at: u.created_at })) });
+      push("5_spreadsheet_baseline", "Baseline da planilha recebida", "pending",
+        allDealIds.length === 0
+          ? "Aguardando criação do deal pra vincular a planilha do cliente."
+          : "Cliente ainda não subiu a 1ª planilha (baseline) pelo portal.");
     }
 
-    push("6_collection", "Coleta automática nas playlists", "skipped",
-      "Modo planilha — coleta vem do upload do cliente, não do bot.");
+    // ── 6) Acompanhamentos (uploads seguintes que viram snapshots periódicos)
+    if (followups.length > 0) {
+      const last = followups[0];
+      push("6_spreadsheet_followups", "Acompanhamentos da planilha", "ok",
+        `${followups.length} acompanhamento(s) · último em ${last.created_at} (${last.rows_imported ?? 0} linha(s)).`);
+    } else {
+      push("6_spreadsheet_followups", "Acompanhamentos da planilha", "pending",
+        baseline
+          ? "Baseline ok. Aguardando próximo upload da gravadora pra calcular Δ."
+          : "Disponível após a baseline ser recebida.");
+    }
   } else {
     // ── 5b) Baseline REAL = snapshots capturados pelo bot (is_baseline=true)
     if (dealIds.length === 0) {
