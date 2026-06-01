@@ -3,8 +3,7 @@
 // Idempotente. Roda sob demanda pelo painel.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getSpotifyToken } from "../_shared/spotify.ts";
-import { getPlaylistMeta, SpotifyApiError } from "../_shared/spotify-playlist.ts";
+import { getAppToken, spotifyFetch } from "../_shared/spotify-client.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
