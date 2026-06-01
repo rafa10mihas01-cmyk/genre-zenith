@@ -1092,6 +1092,7 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
         target_plays: songsTotalTarget,
         daily_goal: Number(primary.daily_goal) || 0,
         duration_days: Number(primary.duration_days),
+        target_days: Math.max(1, Math.round((dealEnd.getTime() - dealStart.getTime()) / 86400000)),
         baseline_plays: 0,
         cost: finalCost,
         started_at: dealStart.toISOString(),
