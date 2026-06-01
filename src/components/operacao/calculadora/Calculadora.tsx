@@ -1193,13 +1193,13 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
 
                   <div style={{ ["--primary" as string]: "210 90% 60%" } as React.CSSProperties}>
                     <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">
-                      Orgânico estimado <span className="text-muted-foreground/60 normal-case tracking-normal">· {active.splitOrganic}%</span>
+                      Rádio Spotify <span className="text-muted-foreground/60 normal-case tracking-normal">· {active.splitOrganic}%</span>
                     </Label>
                     <Slider value={[active.splitOrganic]} onValueChange={([v]) => setSplitOrganic(v)} min={0} max={50} step={5} className="mt-2" />
                     <p className="text-[11px] text-muted-foreground mt-1.5">
                       {active.clientProfile === "artista"
-                        ? `Reservamos ${active.splitOrganic}% da meta como entrega orgânica esperada. Eco+externo cobrem ${100 - active.splitOrganic}%.`
-                        : `Estimativa de bônus orgânico ${active.splitOrganic}% em cima da meta paga (não reduz custo).`}
+                        ? `Reservamos ${active.splitOrganic}% da meta como entrega de rádio Spotify esperada. Eco+externo cobrem ${100 - active.splitOrganic}%.`
+                        : `Estimativa de bônus de rádio Spotify ${active.splitOrganic}% em cima da meta paga (não reduz custo).`}
                     </p>
                   </div>
 
