@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
           "id, deal_id, song_id, spotify_url, playlist_name, followers, is_baseline, added_at, spotify_playlist_id, spotify_owner_id, spotify_owner_name, image_url, added_at_spotify, match_status, match_reason, last_paste_at",
         )
         .eq("deal_id", deal.id)
-        .eq("match_status", "curator")
+        .or("match_status.eq.curator,is_baseline.eq.true")
         .order("added_at", { ascending: true }),
       admin
         .from("curator_deal_songs")
