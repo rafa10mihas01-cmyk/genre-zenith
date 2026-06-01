@@ -743,6 +743,36 @@ Deno.serve(async (req) => {
         .eq("id", campaignIdForUpdate);
     }
 
+    // 3c) Espelho em campaign_playlist_collections — fonte de verdade da aba
+    //     Monitoramento (Visão geral → KPIs, lista de playlists, delta). Sem
+    //     este passo, planilha do cliente subia mas a aba ficava em "0 playlists
+    //     na baseline / sem playlists" porque até hoje só o bot escrevia lá.
+    if (campaignIdForUpdate && allPlaylistRows.length > 0) {
+      try {
+        const collectionRows = allPlaylistRows
+          .filter((r) => typeof r.playlist_spotify_id === "string" && r.playlist_spotify_id.length > 0)
+          .map((r) => ({
+            playlist_id: r.playlist_spotify_id,
+            playlist_url: r.playlist_url
+              || `https://open.spotify.com/playlist/${r.playlist_spotify_id}`,
+            playlist_name_at_capture: r.playlist_name ?? null,
+            plays_7d: Math.max(0, Number(r.streams || 0)),
+            source: "label_spreadsheet",
+          }));
+        if (collectionRows.length > 0) {
+          const { error: rpcErr } = await admin.rpc("ingest_campaign_collection_batch", {
+            p_campaign_id: campaignIdForUpdate,
+            p_intent: isBaseline ? "baseline" : "periodic",
+            p_rows: collectionRows,
+          });
+          if (rpcErr) console.error("ingest_campaign_collection_batch error", rpcErr);
+        }
+      } catch (e) {
+        console.error("campaign_playlist_collections mirror error", (e as Error).message);
+      }
+    }
+
+
     // 4) Log agregado
     await admin.from("curator_deal_logs").insert({
       deal_id: dealId,
