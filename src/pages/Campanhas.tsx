@@ -537,6 +537,10 @@ function CampaignRow({ c }: { c: Campaign }) {
           title: "Campanha não encontrada",
           description: "Talvez tenha sido excluída. Recarregue a página.",
         },
+        baseline_required: {
+          title: "Falta a planilha baseline do cliente",
+          description: "Peça pro cliente subir a primeira planilha no portal antes de distribuir — sem baseline o sistema não consegue medir entrega.",
+        },
       };
       const key = Object.keys(map).find((k) => raw.includes(k));
       const t = key ? map[key] : { title: "Erro ao aprovar", description: raw };
