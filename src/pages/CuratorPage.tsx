@@ -810,6 +810,20 @@ export default function CuratorPage() {
     }
   };
 
+  if (!gateChecked) {
+    return <PageLoader />;
+  }
+
+  if (gateRequired && !gateAuthed) {
+    const tok = normalizePublicToken(token);
+    return (
+      <CuratorAccessGate
+        token={tok}
+        onAuthed={() => setGateAuthed(true)}
+      />
+    );
+  }
+
   if (loading) {
     return <PageLoader />;
   }
