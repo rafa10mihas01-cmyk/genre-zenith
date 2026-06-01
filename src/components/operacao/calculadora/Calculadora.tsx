@@ -77,6 +77,8 @@ type Song = {
   startDateISO: string; // yyyy-mm-dd
   clientPriceTotal: number; // R$ que o cliente paga (manual) — 0 = usa tabela
   genre: string; // p/ filtrar playlists na distribuição
+  /** Marca a música como Funk Mandelão — bloqueia Trap de alto valor (>30k seguidores). */
+  isMandelao: boolean;
   // Top 200 picker (controlado pra meta recalcular sozinho quando days muda)
   top200Pos: number | null;
   top200StreamsDay: number | null;
