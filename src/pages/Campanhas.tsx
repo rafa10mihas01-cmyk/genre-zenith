@@ -620,6 +620,15 @@ function CampaignRow({ c }: { c: Campaign }) {
               return null;
             })()}
 
+            {c.status === "draft" && !!c.baseline_captured_at && (
+              <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-primary">
+                <span className="relative inline-flex h-1.5 w-1.5">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-60 animate-ping" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
+                </span>
+                Pronto para aprovação
+              </span>
+            )}
             {(c.client_decision_round ?? 1) > 1 && (
               <span className="text-[10px] uppercase tracking-wider rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-amber-500">
                 Rodada {c.client_decision_round}
@@ -723,8 +732,18 @@ function CampaignRow({ c }: { c: Campaign }) {
             <DropdownMenuSeparator />
             {isDraftReady && (
               <>
-                <DropdownMenuItem onSelect={() => approveCampaign()}>
-                  <CheckCircle2 className="h-4 w-4 mr-2 text-primary" /> Aprovar e disparar
+                <DropdownMenuItem
+                  onSelect={() => approveCampaign()}
+                  className={cn(!!c.baseline_captured_at && "text-primary focus:text-primary focus:bg-primary/10")}
+                >
+                  <CheckCircle2 className={cn("h-4 w-4 mr-2", !!c.baseline_captured_at ? "text-primary" : "text-primary")} />
+                  {!!c.baseline_captured_at && (
+                    <span className="relative inline-flex h-1.5 w-1.5 mr-1.5">
+                      <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-60 animate-ping" />
+                      <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
+                    </span>
+                  )}
+                  Aprovar e disparar
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
               </>
