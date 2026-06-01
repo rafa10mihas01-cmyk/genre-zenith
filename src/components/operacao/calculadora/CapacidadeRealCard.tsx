@@ -42,16 +42,23 @@ export function CapacidadeRealCard({ genre, dailyNeed, multiplier }: Props) {
   }
 
   const coverage = dailyNeed > 0 ? Math.round((cap.coveredDaily / dailyNeed) * 100) : 0;
-  const surplus = cap.coveredDaily - dailyNeed;
-  const surplusPct = dailyNeed > 0 ? Math.round((surplus / dailyNeed) * 100) : 0;
+  const used = cap.allocations.length;
+  const poolUnused = Math.max(0, cap.poolSize - used);
 
-  const status: "ok" | "over" | "under" =
-    cap.remainingDaily > 0 ? "under" : surplusPct > Math.round(cap.tolerance * 100) ? "over" : "ok";
+  // Estados alinhados ao early-stop de 95% do planner.
+  // ≥95% = plano enxuto (esperado); 70-94% = parcial; <70% = insuficiente.
+  const status: "enxuto" | "parcial" | "insuficiente" =
+    coverage >= 95 ? "enxuto" : coverage >= 70 ? "parcial" : "insuficiente";
 
   const statusBorder =
-    status === "ok" ? "border-primary/30 bg-primary/5"
-    : status === "over" ? "border-amber-500/40 bg-amber-500/5"
+    status === "enxuto" ? "border-primary/30 bg-primary/5"
+    : status === "parcial" ? "border-amber-500/40 bg-amber-500/5"
     : "border-destructive/40 bg-destructive/5";
+
+  const statusAccent =
+    status === "enxuto" ? "text-primary"
+    : status === "parcial" ? "text-amber-600 dark:text-amber-400"
+    : "text-destructive";
 
   return (
     <div className={cn("mt-3 rounded-lg border px-3.5 py-3", statusBorder)}>
@@ -60,12 +67,7 @@ export function CapacidadeRealCard({ genre, dailyNeed, multiplier }: Props) {
           <Target className="h-3 w-3" />
           Capacidade real entregável
         </div>
-        <span className={cn(
-          "text-[11px] font-medium tabular-nums",
-          status === "ok" ? "text-primary"
-          : status === "over" ? "text-amber-600 dark:text-amber-400"
-          : "text-destructive",
-        )}>
+        <span className={cn("text-[11px] font-medium tabular-nums", statusAccent)}>
           {coverage}% da meta diária
         </span>
       </div>
@@ -75,32 +77,40 @@ export function CapacidadeRealCard({ genre, dailyNeed, multiplier }: Props) {
         <Box
           label="Sistema entrega"
           value={`${formatInt(Math.round(cap.coveredDaily))}/dia`}
-          accent={status === "ok" ? "text-primary" : status === "over" ? "text-amber-600 dark:text-amber-400" : "text-destructive"}
+          accent={statusAccent}
         />
       </div>
 
-      {status === "under" && (
-        <div className="mt-2 flex items-start gap-1.5 text-[11px] text-destructive">
-          <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+      {status === "enxuto" && (
+        <div className="mt-2 flex items-start gap-1.5 text-[11px] text-primary">
+          <Check className="h-3 w-3 mt-0.5 shrink-0" />
           <span>
-            Faltam <strong className="tabular-nums">{formatInt(cap.remainingDaily)}/dia</strong>.
-            Pool atual ({cap.poolSize} playlists do gênero + vizinhos) não cobre a meta. Reduza a meta ou aumente o split externo.
+            Plano enxuto: usa <strong className="tabular-nums">{used}</strong> de{" "}
+            <strong className="tabular-nums">{cap.poolSize}</strong> playlists do pool.
+            {poolUnused > 0 && (
+              <> As outras <strong className="tabular-nums">{poolUnused}</strong> ficam de fora — entregariam ruído (&lt;5 plays/dia) e poluiriam o plano.</>
+            )}
           </span>
         </div>
       )}
-      {status === "over" && (
+      {status === "parcial" && (
         <div className="mt-2 flex items-start gap-1.5 text-[11px] text-amber-700 dark:text-amber-400">
           <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
           <span>
-            Entregaria <strong className="tabular-nums">+{formatInt(surplus)}/dia</strong> ({surplusPct}% acima).
-            Considere baixar a meta pra esse número ou tirar a última playlist.
+            Pool quase esgotado: <strong className="tabular-nums">{used}</strong> de{" "}
+            <strong className="tabular-nums">{cap.poolSize}</strong> playlists, cobrindo {coverage}%.
+            Considere afrouxar o gênero (mais vizinhos) ou aumentar o split externo.
           </span>
         </div>
       )}
-      {status === "ok" && (
-        <div className="mt-2 flex items-center gap-1.5 text-[11px] text-primary">
-          <Check className="h-3 w-3" />
-          <span>Encaixe dentro da tolerância de {Math.round(cap.tolerance * 100)}%. Posições respeitam a projeção real.</span>
+      {status === "insuficiente" && (
+        <div className="mt-2 flex items-start gap-1.5 text-[11px] text-destructive">
+          <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+          <span>
+            Pool insuficiente: só <strong className="tabular-nums">{coverage}%</strong> da meta com{" "}
+            <strong className="tabular-nums">{cap.poolSize}</strong> playlists do gênero + vizinhos.
+            Reduza a meta ou troque o gênero.
+          </span>
         </div>
       )}
 
