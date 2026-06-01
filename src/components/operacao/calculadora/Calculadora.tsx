@@ -1294,6 +1294,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                       genre={active.genre}
                       dailyNeed={result.effectiveDays > 0 ? Math.round(result.streamsEco / result.effectiveDays) : 0}
                       multiplier={active.engagementMultiplier ?? 30}
+                      clientProfile={active.clientProfile}
                     />
                   </div>
 
