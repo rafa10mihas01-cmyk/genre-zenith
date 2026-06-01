@@ -189,6 +189,7 @@ export default function Prospecao() {
             balances={balances}
             deals={deals}
             loading={loading}
+            onAddCurator={addCurator}
             onUpdateCurator={updateCurator}
             onAddPurchase={addCuratorPurchase}
             onArchiveCurator={archiveCurator}
