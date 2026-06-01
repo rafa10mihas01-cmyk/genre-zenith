@@ -427,7 +427,7 @@ export function SpreadsheetUploadCard({
               </Button>
             </div>
           </>
-        ))}
+        )}
 
 
         {error && (
