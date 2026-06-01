@@ -29,7 +29,14 @@ import { CapacidadeRealCard } from "./CapacidadeRealCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format, addDays, differenceInCalendarDays, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { calculateTrackDailyStreams, planRealCapacity } from "@/lib/campaignOperationalPlan";
+import {
+  calculateTrackDailyStreams,
+  planRealCapacity,
+  POSITION_PCT,
+  ecoPlanTotalMultiplier,
+  MIN_PLAYLIST_SAVES_FOR_CAMPAIGN,
+} from "@/lib/campaignOperationalPlan";
+import type { EcoAllocationPlan } from "@/lib/campaignSnapshot";
 import { TrackPresencePanel } from "@/components/campanhas/TrackPresencePanel";
 
 type Fonte = "manual" | "top200" | "concorrente" | "orcamento";
