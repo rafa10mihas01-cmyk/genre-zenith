@@ -78,17 +78,21 @@ export function useCampaigns() {
   });
 
 
-  // Realtime: qualquer mudança em campaigns invalida.
+  // Realtime: qualquer mudança em campaigns OU curator_deals (baseline) invalida.
   useEffect(() => {
     if (!user) return;
+    const suffix = `${user.id}-${Math.random().toString(36).slice(2)}`;
     const channel = supabase
-      .channel(`campaigns-live-${user.id}-${Math.random().toString(36).slice(2)}`)
+      .channel(`campaigns-live-${suffix}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "campaigns" },
-        () => {
-          qc.invalidateQueries({ queryKey: QUERY_KEY });
-        },
+        () => qc.invalidateQueries({ queryKey: QUERY_KEY }),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "curator_deals" },
+        () => qc.invalidateQueries({ queryKey: QUERY_KEY }),
       )
       .subscribe();
     return () => {
