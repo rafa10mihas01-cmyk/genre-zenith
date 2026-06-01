@@ -223,7 +223,7 @@ export async function confirmExternalPackage(args: {
 
   const { data: items, error: itemsErr } = await supabase
     .from("campaign_external_package_items")
-    .select("id, curator_id, assigned_streams, assigned_cost, cost_per_stream, curator_deal_id, curators(name)")
+    .select("id, curator_id, assigned_streams, assigned_cost, cost_per_stream, curator_deal_id, source_purchase_id, curators(name)")
     .eq("package_id", packageId);
   if (itemsErr) throw itemsErr;
 
@@ -265,6 +265,14 @@ export async function confirmExternalPackage(args: {
       .from("campaign_external_package_items")
       .update({ curator_deal_id: deal.id })
       .eq("id", it.id);
+
+    // Linka a compra de origem ao deal — marca como consumida.
+    if ((it as any).source_purchase_id) {
+      await supabase
+        .from("curator_purchases")
+        .update({ deal_id: deal.id })
+        .eq("id", (it as any).source_purchase_id);
+    }
 
     created++;
   }
