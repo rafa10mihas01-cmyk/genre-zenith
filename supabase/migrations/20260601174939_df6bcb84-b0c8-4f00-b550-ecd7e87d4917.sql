@@ -1,0 +1,1 @@
+ALTER TABLE public.curator_deals ADD COLUMN IF NOT EXISTS target_days integer;

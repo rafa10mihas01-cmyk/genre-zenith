@@ -2564,6 +2564,7 @@ export type Database = {
           spotify_owner_url: string | null
           started_at: string
           state: string
+          target_days: number | null
           target_plays: number
           token_expires_at: string | null
           token_revoked_at: string | null
@@ -2609,6 +2610,7 @@ export type Database = {
           spotify_owner_url?: string | null
           started_at?: string
           state?: string
+          target_days?: number | null
           target_plays: number
           token_expires_at?: string | null
           token_revoked_at?: string | null
@@ -2654,6 +2656,7 @@ export type Database = {
           spotify_owner_url?: string | null
           started_at?: string
           state?: string
+          target_days?: number | null
           target_plays?: number
           token_expires_at?: string | null
           token_revoked_at?: string | null
