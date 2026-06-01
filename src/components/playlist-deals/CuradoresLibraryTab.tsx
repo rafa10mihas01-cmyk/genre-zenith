@@ -109,6 +109,7 @@ export function CuradoresLibraryTab({
   deals,
   loading,
   onUpdateCurator,
+  onAddCurator,
   onAddPurchase,
   onArchiveCurator,
   onDeleteCurator,
@@ -117,6 +118,7 @@ export function CuradoresLibraryTab({
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<Curator | null>(null);
+  const [creating, setCreating] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ curator: Curator; hasDeals: boolean } | null>(null);
 
