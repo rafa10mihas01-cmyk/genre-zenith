@@ -50,12 +50,13 @@ Deno.serve(async (req) => {
 
   // Se já temos o mesmo id salvo, ainda assim refetchamos pra atualizar followers/imagem.
   let token: string;
-  try { token = await getSpotifyToken(); }
+  try { token = await getAppToken(); }
   catch (e) { return jr({ ok: false, error: `spotify token: ${(e as Error).message}` }, 502); }
 
-  const r = await guardedSpotifyFetch(
+  const r = await spotifyFetch(
     `https://api.spotify.com/v1/artists/${artistId}`,
     { headers: { Authorization: `Bearer ${token}` } },
+    { functionName: "enrich-client-spotify", operation: "get_artist", meta: { client_id: clientId, artist_id: artistId } },
   );
   if (!r.ok) {
     const t = await r.text().catch(() => "");
