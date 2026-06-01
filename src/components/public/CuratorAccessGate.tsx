@@ -1,0 +1,174 @@
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
+import { NexEngineLogo } from "@/components/NexEngineLogo";
+import { Loader2, Mail, KeyRound } from "lucide-react";
+import { toast } from "sonner";
+
+interface Props {
+  token: string;
+  onAuthed: (jwt: string, email: string) => void;
+}
+
+const STORAGE_PREFIX = "curator_access_jwt:";
+export const curatorAccessStorageKey = (token: string) => `${STORAGE_PREFIX}${token}`;
+
+export function CuratorAccessGate({ token, onAuthed }: Props) {
+  const [step, setStep] = useState<"email" | "code">("email");
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function readErr(data: any, error: any): Promise<string | undefined> {
+    let e: string | undefined = data?.error;
+    if (!e && error) {
+      try {
+        const ctx: any = (error as any).context;
+        if (ctx && typeof ctx.json === "function") {
+          const body = await ctx.json();
+          e = body?.error;
+        }
+      } catch { /* ignore */ }
+      if (!e) e = error.message;
+    }
+    return e;
+  }
+
+  async function requestCode() {
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
+      toast.error("E-mail inválido");
+      return;
+    }
+    setLoading(true);
+    const { data, error } = await supabase.functions.invoke("request-curator-otp", {
+      body: { token, email: email.trim().toLowerCase() },
+    });
+    setLoading(false);
+    const e = await readErr(data, error);
+    if (e) {
+      if (e === "rate_limited") toast.error("Limite de 3 códigos por hora. Tente mais tarde.");
+      else toast.error("Não foi possível enviar o código.");
+      return;
+    }
+    toast.success("Se o e-mail estiver autorizado, o código foi enviado.");
+    setStep("code");
+  }
+
+  async function verifyCode() {
+    if (!/^\d{6}$/.test(code.trim())) {
+      toast.error("Código deve ter 6 dígitos");
+      return;
+    }
+    setLoading(true);
+    const { data, error } = await supabase.functions.invoke("verify-curator-otp", {
+      body: { token, email: email.trim().toLowerCase(), code: code.trim() },
+    });
+    setLoading(false);
+    const e = await readErr(data, error);
+    if (e) {
+      if (e === "invalid_or_expired") toast.error("Código inválido ou expirado.");
+      else if (e === "too_many_attempts") toast.error("Muitas tentativas. Tente novamente em 1 hora.");
+      else toast.error("Este e-mail não tem acesso a esta página.");
+      return;
+    }
+    const jwt = (data as any)?.jwt as string;
+    if (!jwt) { toast.error("Erro inesperado."); return; }
+    try {
+      localStorage.setItem(curatorAccessStorageKey(token), JSON.stringify({
+        jwt,
+        email: email.trim().toLowerCase(),
+        exp: Date.now() + 86400_000,
+      }));
+    } catch { /* ignore */ }
+    onAuthed(jwt, email.trim().toLowerCase());
+  }
+
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <div className="flex justify-center mb-6">
+          <NexEngineLogo variant="auto" className="h-8 w-auto" />
+        </div>
+        <Card>
+          <CardContent className="p-6 space-y-5">
+            {step === "email" ? (
+              <>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Mail className="h-4 w-4" /> Acesso ao portal do curador
+                </div>
+                <div>
+                  <h1 className="text-xl font-semibold">Digite seu e-mail para acessar</h1>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Você receberá um código de 6 dígitos válido por 10 minutos.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>E-mail</Label>
+                  <Input
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="voce@exemplo.com"
+                    onKeyDown={(e) => e.key === "Enter" && !loading && requestCode()}
+                    autoFocus
+                  />
+                </div>
+                <Button onClick={requestCode} disabled={loading} className="w-full">
+                  {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Enviar código
+                </Button>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <KeyRound className="h-4 w-4" /> Verificação em 2 etapas
+                </div>
+                <div>
+                  <h1 className="text-xl font-semibold">Digite o código enviado para seu e-mail</h1>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Enviado para <span className="text-foreground">{email}</span>. Expira em 10 minutos.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Código de 6 dígitos</Label>
+                  <Input
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                    placeholder="000000"
+                    className="text-center text-2xl tracking-[0.5em] font-mono"
+                    onKeyDown={(e) => e.key === "Enter" && !loading && verifyCode()}
+                    autoFocus
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => { setStep("email"); setCode(""); }} disabled={loading}>
+                    Voltar
+                  </Button>
+                  <Button onClick={verifyCode} disabled={loading} className="flex-1">
+                    {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Entrar
+                  </Button>
+                </div>
+                <button
+                  type="button"
+                  onClick={requestCode}
+                  disabled={loading}
+                  className="text-xs text-muted-foreground hover:text-foreground w-full text-center"
+                >
+                  Não recebeu? Reenviar código
+                </button>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
