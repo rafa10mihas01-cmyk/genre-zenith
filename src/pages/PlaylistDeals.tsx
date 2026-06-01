@@ -227,7 +227,10 @@ export default function PlaylistDeals() {
     }
 
     if (originFilter !== "all") {
-      base = base.filter((d) => (d.origin ?? "manual") === originFilter);
+      base = base.filter((d) => {
+        const effective = d.campaign_id ? "campaign" : (d.origin ?? "manual");
+        return effective === originFilter;
+      });
     }
 
     const q = search.trim().toLowerCase();
