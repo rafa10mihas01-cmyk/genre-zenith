@@ -174,7 +174,11 @@ export function distributeByDailyNeed(
   const primary = allocs.filter(a => (a.genreSource ?? "primary") === "primary");
   const neighbor = allocs.filter(a => a.genreSource === "affinity");
 
-  let remaining = dailyNeed;
+  // Compensa a perda da curva (rampa de entrada + tail de saída). A entrega
+  // simulada dia-a-dia consome ~12% do total teórico, então miramos capacidade
+  // maior pra que, depois da curva, a entrega real bata na meta contratada.
+  const targetDaily = dailyNeed * ECO_CURVE_LOSS_COMPENSATION;
+  let remaining = targetDaily;
   let covered = 0;
 
   const pickWithCeiling = (followers: number, ceiling: number, minPos = 1): { position: number; cap: number; fits: boolean } => {
