@@ -210,6 +210,9 @@ export default function CampanhaDetalhe() {
         {/* Aprovação do cliente + link compartilhável */}
         <ClientApprovalCard camp={camp} />
 
+        {/* Mapa de Entrega público — link separado, sem login (Notion-style) */}
+        <RoadmapShareCard camp={camp} onTokenRotated={(t) => setCamp((c) => c ? { ...c, roadmap_token: t } : c)} />
+
         {/* Relatório de fechamento (lazy quando completed) */}
         <CampaignClosureReportCard
           campaignId={camp.id}
