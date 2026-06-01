@@ -37,7 +37,7 @@ import { SpotifyPilotPanel } from "@/components/sistema/SpotifyPilotPanel";
 
 type SistemaTab = "saude" | "capacidade" | "aprendizado" | "alertas" | "motores" | "configuracoes" | "dev";
 type MotorSub = "robo" | "coleta" | "execucao" | "fluxo" | "ao-vivo";
-type DevSub = "infra" | "flags" | "seo";
+type DevSub = "infra" | "flags" | "seo" | "spotify";
 
 type TabDef = { id: SistemaTab; label: string; icon: typeof Activity; adminOnly?: boolean };
 
