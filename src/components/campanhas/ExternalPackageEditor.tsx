@@ -110,11 +110,15 @@ export function ExternalPackageEditor({
     if (!pkg) return;
     setAddOpen(false);
     try {
+      // Pré-preenche com a próxima compra disponível (FIFO).
+      // Se não houver compra registrada, entra zerado e o user ajusta manualmente.
+      const next = curator.next_purchase;
       await addPackageItem({
         packageId: pkg.id,
         curatorId: curator.id,
-        assignedStreams: 0,
-        costPerStream: curator.cost_per_stream,
+        assignedStreams: next?.plays ?? 0,
+        costPerStream: next?.cpp ?? curator.cost_per_stream,
+        purchaseId: next?.id,
       });
       await load();
     } catch (e: any) {
@@ -203,16 +207,25 @@ export function ExternalPackageEditor({
               <CommandGroup>
                 {candidates
                   .filter(c => !items.some(it => it.curator_id === c.id))
-                  .map(c => (
-                    <CommandItem key={c.id} value={c.name} onSelect={() => handleAdd(c)}>
-                      <div className="flex flex-col">
-                        <span className="text-sm">{c.name}</span>
-                        <span className="text-[10px] text-muted-foreground tabular-nums">
-                          cap. {formatInt(c.purchased_plays)} · R$ {c.cost_per_stream.toFixed(3)}/stream
-                        </span>
-                      </div>
-                    </CommandItem>
-                  ))}
+                  .map(c => {
+                    const next = c.next_purchase;
+                    return (
+                      <CommandItem key={c.id} value={c.name} onSelect={() => handleAdd(c)}>
+                        <div className="flex flex-col">
+                          <span className="text-sm">{c.name}</span>
+                          {next ? (
+                            <span className="text-[10px] text-primary tabular-nums">
+                              {formatInt(next.plays)} disponíveis · R$ {next.cpp.toFixed(3)}/stream{next.note ? ` · ${next.note}` : ""}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground tabular-nums">
+                              sem compra registrada · R$ {c.cost_per_stream.toFixed(3)}/stream (taxa média)
+                            </span>
+                          )}
+                        </div>
+                      </CommandItem>
+                    );
+                  })}
               </CommandGroup>
             </CommandList>
           </Command>

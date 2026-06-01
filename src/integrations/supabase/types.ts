@@ -820,6 +820,7 @@ export type Database = {
           curator_id: string
           id: string
           package_id: string
+          source_purchase_id: string | null
           updated_at: string
         }
         Insert: {
@@ -831,6 +832,7 @@ export type Database = {
           curator_id: string
           id?: string
           package_id: string
+          source_purchase_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -842,6 +844,7 @@ export type Database = {
           curator_id?: string
           id?: string
           package_id?: string
+          source_purchase_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -878,6 +881,13 @@ export type Database = {
             columns: ["package_id"]
             isOneToOne: false
             referencedRelation: "campaign_external_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_external_package_items_source_purchase_id_fkey"
+            columns: ["source_purchase_id"]
+            isOneToOne: false
+            referencedRelation: "curator_purchases"
             referencedColumns: ["id"]
           },
         ]

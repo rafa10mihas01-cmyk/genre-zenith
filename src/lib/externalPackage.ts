@@ -3,14 +3,28 @@ import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 
 const DEFAULT_COST_PER_STREAM = 0.04;
 
+/**
+ * Próxima compra disponível do curador (FIFO).
+ * `deal_id IS NULL` = ainda não foi consumida por nenhum deal.
+ */
+export interface NextPurchase {
+  id: string;
+  plays: number;
+  amount: number;
+  cpp: number;
+  note: string | null;
+}
+
 export interface CuratorCandidate {
   id: string;
   name: string;
   contact: string | null;
   /** Total já entregue historicamente (proxy de capacidade). */
   purchased_plays: number;
-  /** Custo por stream histórico ou padrão. */
+  /** Custo por stream — vem da próxima compra disponível ou média histórica. */
   cost_per_stream: number;
+  /** Próxima compra FIFO não-consumida (se houver). */
+  next_purchase: NextPurchase | null;
   archived_at: string | null;
   paused_at: string | null;
 }
@@ -27,12 +41,6 @@ export interface SuggestedAllocation {
 
 /**
  * Sugere distribuição dos streamsExt entre curadores ativos.
- *
- * Estratégia:
- *  - Filtra curadores sem archived_at e sem paused_at.
- *  - Capacidade = max(purchased_plays, default_plays) — proxy de entrega histórica.
- *  - Distribui proporcional à capacidade até cobrir o alvo.
- *  - Preço usa cost_per_stream do curador (default_amount/default_plays) ou R$ 0,040.
  */
 export function suggestExternalAllocations(
   targetStreams: number,
@@ -55,7 +63,7 @@ export function suggestExternalAllocations(
   const items: SuggestedAllocation[] = ranked.map((c, i) => {
     const share = c.capacity / totalCapacity;
     let assigned = i === ranked.length - 1
-      ? Math.max(0, targetStreams - allocated) // último absorve o resto
+      ? Math.max(0, targetStreams - allocated)
       : Math.round(share * targetStreams);
     allocated += assigned;
     const cps = c.cost_per_stream > 0 ? c.cost_per_stream : DEFAULT_COST_PER_STREAM;
@@ -73,31 +81,59 @@ export function suggestExternalAllocations(
 }
 
 export async function fetchCuratorCandidates(): Promise<CuratorCandidate[]> {
-  const { data, error } = await supabase
+  // 1) Curadores ativos
+  const { data: curatorsData, error } = await supabase
     .from("curators")
     .select("id, name, contact, purchased_plays, total_cost, default_plays, default_amount, archived_at, paused_at")
     .is("archived_at", null)
     .is("paused_at", null);
   if (error) throw error;
-  return (data ?? []).map((c: any) => {
-    // Taxa real do pacote contratado com o curador:
-    //   total_cost / purchased_plays  →  R$ por play efetivamente pago.
-    // Fallback: default_amount/default_plays (preço-tabela), depois DEFAULT.
+
+  const ids = (curatorsData ?? []).map((c: any) => c.id);
+  if (ids.length === 0) return [];
+
+  // 2) Próxima compra não-consumida (deal_id IS NULL) por curador, FIFO (mais antiga)
+  const { data: purchasesData } = await supabase
+    .from("curator_purchases")
+    .select("id, curator_id, plays_purchased, amount, cpp, note, purchased_at")
+    .in("curator_id", ids)
+    .is("deal_id", null)
+    .order("purchased_at", { ascending: true });
+
+  // Pega só a primeira de cada curador (FIFO)
+  const nextByCurator = new Map<string, NextPurchase>();
+  for (const p of (purchasesData ?? []) as any[]) {
+    if (nextByCurator.has(p.curator_id)) continue;
+    nextByCurator.set(p.curator_id, {
+      id: p.id,
+      plays: Number(p.plays_purchased ?? 0),
+      amount: Number(p.amount ?? 0),
+      cpp: Number(p.cpp ?? 0),
+      note: p.note,
+    });
+  }
+
+  return (curatorsData ?? []).map((c: any) => {
+    const next = nextByCurator.get(c.id) ?? null;
+    // Prioridade da taxa: próxima compra > média histórica > preço-tabela > default
     const totalCost = Number(c.total_cost ?? 0);
     const totalPlays = Number(c.purchased_plays ?? 0);
     const defAmount = Number(c.default_amount ?? 0);
     const defPlays = Number(c.default_plays ?? 0);
-    const cps = totalPlays > 0 && totalCost > 0
-      ? totalCost / totalPlays
-      : defPlays > 0
-        ? defAmount / defPlays
-        : DEFAULT_COST_PER_STREAM;
+    const cps = next && next.cpp > 0
+      ? next.cpp
+      : totalPlays > 0 && totalCost > 0
+        ? totalCost / totalPlays
+        : defPlays > 0
+          ? defAmount / defPlays
+          : DEFAULT_COST_PER_STREAM;
     return {
       id: c.id,
       name: c.name,
       contact: c.contact,
       purchased_plays: totalPlays,
       cost_per_stream: cps,
+      next_purchase: next,
       archived_at: c.archived_at,
       paused_at: c.paused_at,
     };
@@ -112,8 +148,6 @@ export async function ensureExternalPackageDraft(
   campaignId: string,
   snapshot: CampaignSnapshot,
 ): Promise<{ packageId: string; created: boolean }> {
-  // 1) Tenta reutilizar pacote existente (draft OU dispatched).
-  // Se já confirmou, queremos mostrar o confirmado, não criar um draft novo do zero.
   const { data: existingList } = await supabase
     .from("campaign_external_packages")
     .select("id, status, confirmed_at, created_at")
@@ -125,7 +159,6 @@ export async function ensureExternalPackageDraft(
   const existing = existingList?.[0];
   if (existing?.id) return { packageId: existing.id, created: false };
 
-  // 2) Tenta criar — se constraint disparar, busca de novo (race / RLS de leitura)
   const { data: pkg, error } = await supabase
     .from("campaign_external_packages")
     .insert({
@@ -138,7 +171,6 @@ export async function ensureExternalPackageDraft(
     .maybeSingle();
 
   if (error) {
-    // 23505 = unique_violation. Draft já existe — busca direto.
     if ((error as any).code === "23505" || /uniq_cep_campaign_draft|duplicate key/i.test(error.message)) {
       const { data: again, error: againErr } = await supabase
         .from("campaign_external_packages")
@@ -153,7 +185,6 @@ export async function ensureExternalPackageDraft(
   }
   if (!pkg) throw new Error("Falha ao criar pacote externo");
 
-  // Não auto-popular itens — o usuário escolhe manualmente quais curadores entram no pacote.
   return { packageId: pkg.id, created: true };
 }
 
@@ -162,6 +193,8 @@ export async function addPackageItem(args: {
   curatorId: string;
   assignedStreams?: number;
   costPerStream?: number;
+  /** Compra origem (curator_purchases.id) que será consumida por este item. */
+  purchaseId?: string;
 }) {
   const cps = args.costPerStream && args.costPerStream > 0 ? args.costPerStream : DEFAULT_COST_PER_STREAM;
   const streams = Math.max(0, args.assignedStreams ?? 0);
@@ -173,6 +206,7 @@ export async function addPackageItem(args: {
       assigned_streams: streams,
       cost_per_stream: cps,
       assigned_cost: +(streams * cps).toFixed(2),
+      source_purchase_id: args.purchaseId ?? null,
     });
   if (error) throw error;
 }
@@ -189,7 +223,7 @@ export async function confirmExternalPackage(args: {
 
   const { data: items, error: itemsErr } = await supabase
     .from("campaign_external_package_items")
-    .select("id, curator_id, assigned_streams, assigned_cost, cost_per_stream, curator_deal_id, curators(name)")
+    .select("id, curator_id, assigned_streams, assigned_cost, cost_per_stream, curator_deal_id, source_purchase_id, curators(name)")
     .eq("package_id", packageId);
   if (itemsErr) throw itemsErr;
 
@@ -231,6 +265,14 @@ export async function confirmExternalPackage(args: {
       .from("campaign_external_package_items")
       .update({ curator_deal_id: deal.id })
       .eq("id", it.id);
+
+    // Linka a compra de origem ao deal — marca como consumida.
+    if ((it as any).source_purchase_id) {
+      await supabase
+        .from("curator_purchases")
+        .update({ deal_id: deal.id })
+        .eq("id", (it as any).source_purchase_id);
+    }
 
     created++;
   }
