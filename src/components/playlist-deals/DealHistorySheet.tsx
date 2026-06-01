@@ -401,7 +401,7 @@ export function DealHistorySheet({
     setAlgoSongFilter("all");
     setCuratorSongFilter("all");
     setSelectedLogId(null);
-    setTab("resumo");
+    setTab("historico");
   }, [deal?.id]);
 
   const stats = deal ? computeCuratorStats(deal, allLogs, allPlaylists, progress ?? null) : null;
