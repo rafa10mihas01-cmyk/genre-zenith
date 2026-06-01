@@ -665,6 +665,14 @@ export function CuradoresLibraryTab({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {onAddCurator && (
+        <NewCuratorDialog
+          open={creating}
+          onOpenChange={setCreating}
+          onCreate={onAddCurator}
+        />
+      )}
     </div>
   );
 }
