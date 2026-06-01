@@ -381,6 +381,17 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
           .filter(r => Number.isFinite(r.position))
           .map(r => `${r.managed_playlist_id}:${r.position}`),
       );
+      // Mapa playlist → set de posições já reservadas, pra "descer" posição
+      // em vez de dropar (corrige bug Botadão: Carnívoro ocupa pos #1 das
+      // mesmas 20 Funks → cascade não achava slot e zerava o plano).
+      const reservedByPlaylist = new Map<string, Set<number>>();
+      for (const k of reservedKeys) {
+        const [pid, posStr] = k.split(":");
+        const pos = Number(posStr);
+        if (!pid || !Number.isFinite(pos)) continue;
+        if (!reservedByPlaylist.has(pid)) reservedByPlaylist.set(pid, new Set());
+        reservedByPlaylist.get(pid)!.add(pos);
+      }
 
 
       const effMeta = songEffectiveMeta(song);
