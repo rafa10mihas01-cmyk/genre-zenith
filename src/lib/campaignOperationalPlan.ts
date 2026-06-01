@@ -261,19 +261,24 @@ export function planRealCapacity(
   const primary = playlists.filter(p => p.source === "primary");
   const neighbor = playlists.filter(p => p.source === "neighbor");
   const allocations: RealCapacityAlloc[] = [];
-  let remaining = dailyNeed;
+
+  // Compensa a perda da curva (rampa entrada + tail saída). A entrega real
+  // dia-a-dia consome ~12% do total teórico — miramos capacidade maior pra
+  // que, depois da curva, a entrega bata na meta contratada.
+  const targetDaily = dailyNeed * ECO_CURVE_LOSS_COMPENSATION;
+  let remaining = targetDaily;
   let covered = 0;
 
-  // Early-stop: para de adicionar quando cobriu ≥95% da meta diária.
+  // Early-stop: para de adicionar quando cobriu ≥95% da meta diária (já compensada).
   const COVERAGE_STOP = 0.95;
-  const stopThreshold = dailyNeed * (1 - COVERAGE_STOP);
+  const stopThreshold = targetDaily * (1 - COVERAGE_STOP);
 
   // Modo balanced (gravadora/label): segura primárias em ~70% da meta pra abrir
   // espaço pra ~30% de vizinhos. Reduz total de playlists usando peso alto dos
   // vizinhos em posições 5+, sem inchar a contagem.
   const PRIMARY_BALANCED_SHARE = 0.70;
   const primaryStopThreshold =
-    mode === "balanced" ? dailyNeed * (1 - PRIMARY_BALANCED_SHARE) : stopThreshold;
+    mode === "balanced" ? targetDaily * (1 - PRIMARY_BALANCED_SHARE) : stopThreshold;
 
   const consume = (list: typeof primary, minPos: number, stopAt: number) => {
     const pool = [...list];
