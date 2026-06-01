@@ -248,6 +248,21 @@ Deno.serve(async (req) => {
     for (const cap of maxCapById.values()) if (cap <= 0) droppedByBudget += 1;
   }
 
+  // PRESENÇA: já está em alguma candidata? Promove em vez de rebaixar, e
+  // ganha empate de cap. Não infla plano — só usa se a playlist couber.
+  const currentPositionById = new Map<string, number>();
+  if ((campaign as any).spotify_track_id && candidateIds.length > 0) {
+    const { data: presence } = await admin
+      .from("managed_playlist_tracks")
+      .select("playlist_id, position")
+      .eq("spotify_track_id", (campaign as any).spotify_track_id)
+      .in("playlist_id", candidateIds);
+    for (const t of (presence ?? []) as any[]) {
+      const pos = Number(t.position);
+      if (Number.isFinite(pos) && pos > 0) currentPositionById.set(t.playlist_id, pos);
+    }
+  }
+
   let allPositions: Map<string, number> = new Map();
   let positionStrategy: "daily_need_primary_only" | "daily_need_with_neighbors" | "chart_tier_primary_only" | "chart_tier_with_neighbors";
   let coveredDailyByNew = 0;
@@ -258,7 +273,7 @@ Deno.serve(async (req) => {
   if (dailyNeedRemaining > 0) {
     // 1ª fase: distribui SÓ primárias contra a necessidade diária (com orçamento).
     const primDist = primaryFresh.length > 0
-      ? distributeByDailyNeed(primaryFresh, dailyNeedRemaining, mult, ECO_DAILY_TOLERANCE, { maxCapById })
+      ? distributeByDailyNeed(primaryFresh, dailyNeedRemaining, mult, ECO_DAILY_TOLERANCE, { maxCapById, currentPositionById })
       : { positions: new Map<string, number>(), coveredDaily: 0, details: [] };
     coveredDailyByPrimary = primDist.coveredDaily;
     gapAfterPrimary = Math.max(0, dailyNeedRemaining - coveredDailyByPrimary);
@@ -269,7 +284,7 @@ Deno.serve(async (req) => {
 
     // 2ª fase: vizinhos SÓ se sobrou gap relevante.
     if (gapPct > NEIGHBOR_GAP_THRESHOLD && neighborFresh.length > 0) {
-      const neighDist = distributeByDailyNeed(neighborFresh, gapAfterPrimary, mult, ECO_DAILY_TOLERANCE, { maxCapById });
+      const neighDist = distributeByDailyNeed(neighborFresh, gapAfterPrimary, mult, ECO_DAILY_TOLERANCE, { maxCapById, currentPositionById });
       for (const [k, v] of neighDist.positions) allPositions.set(k, v);
       coveredDailyByNew += neighDist.coveredDaily;
       usedNeighbors = true;
