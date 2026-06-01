@@ -102,39 +102,8 @@ export function CuratorDealCard({
     ? "Pronto p/ encerrar"
     : "Em progresso";
 
-  const handleCopyCuratorLink = async () => {
-    const { curatorPublicUrl } = await import("@/lib/curatorPublicUrl");
-    const url = curatorPublicUrl({ slug: deal.slug, public_token: deal.public_token });
-    try {
-      await navigator.clipboard.writeText(url);
-      toast.success("Link do curador copiado", { description: url });
-    } catch {
-      toast.error("Não foi possível copiar o link");
-    }
-  };
 
-  const handleCopyClientLink = async (
-    override?: { slug?: string | null; client_token?: string | null } | null,
-  ) => {
-    const { clientCampaignUrl } = await import("@/lib/curatorPublicUrl");
-    const slug = override?.slug ?? null;
-    const token = override?.client_token ?? deal.client_token ?? null;
-    if (!slug && !token) {
-      toast.error("Link do cliente indisponível para esta música");
-      return;
-    }
-    const url = clientCampaignUrl({ slug, client_token: token });
-    try {
-      await navigator.clipboard.writeText(url);
-      toast.success("Link do cliente copiado", { description: url });
-    } catch {
-      toast.error("Não foi possível copiar o link");
-    }
-  };
 
-  // Músicas com link público (por faixa) — slug ou client_token
-  const songsWithClientLink = (songs ?? []).filter((s) => !!s.slug || !!s.client_token);
-  const showPerSongLinks = songsWithClientLink.length > 1;
 
   const handleForceCollect = async () => {
     if (!onForceCollect) return;
