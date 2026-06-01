@@ -560,11 +560,15 @@ function CampaignRow({ c }: { c: Campaign }) {
   }
 
 
-  // Mostra "Aprovar e disparar" sempre que a campanha ainda não foi aprovada
-  // internamente (plan_approved_at vazio), independente de c.status na DB ou
-  // de ter curator_id (campanhas spreadsheet podem não ter curador real). A
-  // validação fina (curador, baseline etc.) acontece dentro de approveCampaign.
-  const isDraftReady = !c.plan_approved_at && c.status !== "cancelled" && c.status !== "completed";
+  // Mostra "Aprovar e disparar" só quando: cliente já aprovou, plano ainda
+  // não foi disparado internamente, e a campanha não está cancelada/encerrada.
+  // Enquanto estiver "Aguardando cliente" o botão fica oculto — não faz
+  // sentido aprovar internamente antes do cliente bater o ok.
+  const isDraftReady =
+    !!c.client_approved_at &&
+    !c.plan_approved_at &&
+    c.status !== "cancelled" &&
+    c.status !== "completed";
 
   const stop = (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); };
 
