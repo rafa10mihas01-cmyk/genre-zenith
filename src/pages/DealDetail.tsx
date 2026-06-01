@@ -22,6 +22,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { useCuratorDealDetail } from "@/hooks/useCuratorDealDetail";
 import { DealHistorySheet } from "@/components/playlist-deals/DealHistorySheet";
+import { CuratorDealAccessManager } from "@/components/playlist-deals/CuratorDealAccessManager";
 import { computeCuratorStats } from "@/lib/curatorDealsUtils";
 
 const fmtPlays = (n: number) => {
