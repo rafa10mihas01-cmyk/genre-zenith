@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -27,7 +27,7 @@ export function CuratorDealAccessManager({ dealId, slug, publicToken }: Props) {
 
   const portalUrl = curatorPublicUrl({ slug: slug ?? null, public_token: publicToken ?? null });
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     const [e, l] = await Promise.all([
       supabase.from("curator_deal_access_emails")
@@ -43,9 +43,9 @@ export function CuratorDealAccessManager({ dealId, slug, publicToken }: Props) {
     setEmails((e.data as AccessEmail[]) ?? []);
     setLogs((l.data as AccessLog[]) ?? []);
     setLoading(false);
-  }
+  }, [dealId]);
 
-  useEffect(() => { if (open) load(); /* eslint-disable-next-line */ }, [open, dealId]);
+  useEffect(() => { if (open) load(); }, [open, load]);
 
   async function add() {
     const em = newEmail.trim().toLowerCase();
