@@ -1317,11 +1317,11 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                                 />
                                 {result.streamsOrganic > 0 && (
                                   <Card
-                                    label="Orgânico"
+                                    label="Rádio"
                                     total={formatCompact(result.streamsOrganic)}
                                     pct={`${organicPct}%`}
                                     perDay={`${formatCompact(Math.round(result.streamsOrganic / days))}/dia`}
-                                    sub={active.clientProfile === "gravadora" ? "natural · bônus" : "natural"}
+                                    sub={active.clientProfile === "gravadora" ? "Spotify · bônus" : "Spotify"}
                                   />
                                 )}
                               </div>
