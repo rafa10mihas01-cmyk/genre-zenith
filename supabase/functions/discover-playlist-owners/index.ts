@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
       results.push({
         playlist: p.name,
         owner_spotify_user_id: ownerId,
-        owner_display: meta.owner_display_name,
+        owner_display: ownerDisplay,
         known_account: isKnown,
       });
     } catch (e) {
