@@ -476,6 +476,8 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         coreSlice.map(p => ({ id: p.id, followers: p.followers ?? 0, source: "primary" as const })),
         dailyNeed,
         song.engagementMultiplier ?? 30,
+        undefined,
+        { mode: song.clientProfile === "gravadora" ? "balanced" : "cascade" },
       );
       const primaryGap = Math.max(0, primaryCapacityPlan.remaining);
       const neighborGapThreshold = dailyNeed * 0.05;
@@ -1294,6 +1296,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                       genre={active.genre}
                       dailyNeed={result.effectiveDays > 0 ? Math.round(result.streamsEco / result.effectiveDays) : 0}
                       multiplier={active.engagementMultiplier ?? 30}
+                      clientProfile={active.clientProfile}
                     />
                   </div>
 

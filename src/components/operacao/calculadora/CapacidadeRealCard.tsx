@@ -8,6 +8,7 @@ interface Props {
   genre: string;
   dailyNeed: number;
   multiplier: number;
+  clientProfile?: "gravadora" | "artista";
 }
 
 /**
@@ -18,9 +19,12 @@ interface Props {
  *
  * Usa exatamente o mesmo algoritmo de `replan-campaign-eco` / `approve-campaign-plan`
  * via `useEcoRealCapacity` — o que aparece aqui é o que vai rodar no servidor.
+ * Quando o cliente é gravadora/label, ativa o modo "balanced" (70% primária /
+ * 30% vizinho) pra reduzir a contagem de playlists.
  */
-export function CapacidadeRealCard({ genre, dailyNeed, multiplier }: Props) {
-  const cap = useEcoRealCapacity(genre, dailyNeed, multiplier);
+export function CapacidadeRealCard({ genre, dailyNeed, multiplier, clientProfile }: Props) {
+  const mode = clientProfile === "gravadora" ? "balanced" : "cascade";
+  const cap = useEcoRealCapacity(genre, dailyNeed, multiplier, undefined, mode);
   const [expanded, setExpanded] = useState(false);
 
   if (!genre?.trim() || dailyNeed <= 0) return null;

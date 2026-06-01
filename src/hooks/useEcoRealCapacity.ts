@@ -4,6 +4,7 @@ import {
   planRealCapacity,
   ECO_DAILY_TOLERANCE,
   type RealCapacityAlloc,
+  type RealCapacityMode,
 } from "@/lib/campaignOperationalPlan";
 
 export interface EcoRealCapacity {
@@ -52,6 +53,7 @@ export function useEcoRealCapacity(
   dailyNeed: number,
   multiplier = 30,
   tolerance = ECO_DAILY_TOLERANCE,
+  mode: RealCapacityMode = "cascade",
 ): EcoRealCapacity {
   const [state, setState] = useState<EcoRealCapacity>(EMPTY);
 
@@ -110,7 +112,7 @@ export function useEcoRealCapacity(
         }));
 
         // 4) Aplica algoritmo greedy idêntico ao da edge
-        const result = planRealCapacity(pool, dailyNeed, multiplier, tolerance);
+        const result = planRealCapacity(pool, dailyNeed, multiplier, tolerance, { mode });
 
         if (cancelled) return;
         setState({
@@ -126,7 +128,7 @@ export function useEcoRealCapacity(
       })();
     }, 300);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [genre, dailyNeed, multiplier, tolerance]);
+  }, [genre, dailyNeed, multiplier, tolerance, mode]);
 
   return state;
 }
