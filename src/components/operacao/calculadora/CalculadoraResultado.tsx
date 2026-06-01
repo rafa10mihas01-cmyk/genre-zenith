@@ -95,7 +95,7 @@ export function CalculadoraResultado({ r }: { r: CampaignResult }) {
           />
           {r.streamsOrganic > 0 && (
             <SplitBar
-              label="Orgânico"
+              label="Rádio"
               pct={r.splitOrganicPct}
               streams={r.streamsOrganic}
               custo={r.custoOrganic}
