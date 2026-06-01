@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
+import { toast } from "sonner";
 import {
   ExternalLink,
   ImageOff,
@@ -18,8 +19,11 @@ import {
   Shuffle,
   Disc3,
   Compass,
+  Headphones,
+  Copy,
   ExternalLink as ExternalLinkIcon,
 } from "lucide-react";
+
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -380,7 +384,8 @@ export function DealHistorySheet({
   onReload,
   asPage = false,
 }: DealHistorySheetProps) {
-  const [tab, setTab] = useState<"resumo" | "playlists" | "algoritmo" | "historico">("resumo");
+  const [tab, setTab] = useState<"resumo" | "playlists" | "algoritmo" | "historico">("historico");
+
   const [perfWindow, setPerfWindow] = useState<"7d" | "28d">("7d");
   const [pasteOpen, setPasteOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -400,7 +405,7 @@ export function DealHistorySheet({
     setAlgoSongFilter("all");
     setCuratorSongFilter("all");
     setSelectedLogId(null);
-    setTab("resumo");
+    setTab("historico");
   }, [deal?.id]);
 
   const stats = deal ? computeCuratorStats(deal, allLogs, allPlaylists, progress ?? null) : null;
@@ -574,14 +579,36 @@ export function DealHistorySheet({
                       Curador: <span className="text-foreground font-medium">{deal.curator_name}</span>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="h-8 w-8 shrink-0 rounded-md flex items-center justify-center text-muted-foreground hover:bg-[hsl(var(--elevated))] hover:text-foreground transition-colors"
-                    aria-label="Fechar"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const { curatorPublicUrl } = await import("@/lib/curatorPublicUrl");
+                        const url = curatorPublicUrl({ slug: deal.slug, public_token: deal.public_token });
+                        try {
+                          await navigator.clipboard.writeText(url);
+                          toast.success("Link do curador copiado", { description: url });
+                        } catch {
+                          toast.error("Não foi possível copiar o link");
+                        }
+                      }}
+                      className="h-8 px-2.5 rounded-md inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:bg-[hsl(var(--elevated))] hover:text-foreground transition-colors"
+                      title="Copiar link do portal do curador"
+                    >
+                      <Headphones className="h-3.5 w-3.5" />
+                      Link do curador
+                      <Copy className="h-3 w-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="h-8 w-8 rounded-md flex items-center justify-center text-muted-foreground hover:bg-[hsl(var(--elevated))] hover:text-foreground transition-colors"
+                      aria-label="Fechar"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+
                 </div>
 
                 {/* progresso linear principal */}
