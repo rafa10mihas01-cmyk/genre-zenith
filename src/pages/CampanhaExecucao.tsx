@@ -153,7 +153,7 @@ export default function CampanhaExecucao() {
       const raw = e?.message ?? String(e);
       const map: Record<string, string> = {
         client_approval_required: "O cliente ainda não aprovou o plano. Mande o link público antes.",
-        baseline_required: "A baseline ainda não foi coletada em todas as playlists. Aguarde o marco zero antes de distribuir.",
+        baseline_required: "Cliente ainda não enviou a primeira planilha (baseline). Peça pra ele subir no portal antes de distribuir.",
         curator_required: "Edite a campanha e selecione o curador dono das playlists.",
         campaign_not_in_approvable_state: "Esta campanha já foi distribuída.",
         campaign_not_found: "Campanha não encontrada.",
