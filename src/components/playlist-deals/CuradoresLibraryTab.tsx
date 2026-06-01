@@ -57,6 +57,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { CuratorLibrarySheet } from "@/components/curators/CuratorLibrarySheet";
 import { CuratorEditDialog } from "@/components/curators/CuratorEditDialog";
+import { NewCuratorDialog } from "@/components/curators/NewCuratorDialog";
 import { cn } from "@/lib/utils";
 import type { Curator, CuratorBalance, NewCuratorInput } from "@/hooks/useCuratorDeals";
 import type { CuratorDeal } from "@/lib/curatorDealsUtils";
