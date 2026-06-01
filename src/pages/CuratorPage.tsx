@@ -1002,13 +1002,41 @@ export default function CuratorPage() {
                           {headerArtist}
                         </p>
                       ) : null}
-                      <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-muted/40 ring-1 ring-border px-2 py-0.5 text-[10px] text-muted-foreground tabular-nums max-w-full">
-                        <CalendarDays className="h-3 w-3 shrink-0 text-muted-foreground/80" />
-                        <span className="uppercase tracking-wider text-muted-foreground/70 text-[9px]">Janela</span>
-                        <span className="text-foreground/90 truncate">
-                          {formatShortDate(stats.cycleStart)} → {formatShortDate(stats.cycleEnd)}
-                        </span>
-                      </div>
+                      {(() => {
+                        // Mostra o prazo REAL do contrato do curador (started_at → ends_at do deal),
+                        // não o ciclo de 7 dias. É o número que ele tem que enxergar pra entregar.
+                        const dealStart = deal?.started_at ? new Date(deal.started_at) : null;
+                        const dealEnd = deal?.ends_at ? new Date(deal.ends_at) : null;
+                        const totalDays = dealStart && dealEnd
+                          ? Math.max(1, Math.round((dealEnd.getTime() - dealStart.getTime()) / 86400000))
+                          : null;
+                        const daysLeft = dealEnd
+                          ? Math.max(0, Math.ceil((dealEnd.getTime() - Date.now()) / 86400000))
+                          : null;
+                        return (
+                          <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-muted/40 ring-1 ring-border px-2 py-0.5 text-[10px] text-muted-foreground tabular-nums max-w-full">
+                            <CalendarDays className="h-3 w-3 shrink-0 text-muted-foreground/80" />
+                            <span className="uppercase tracking-wider text-muted-foreground/70 text-[9px]">Seu prazo</span>
+                            {dealStart && dealEnd ? (
+                              <>
+                                <span className="text-foreground/90 truncate">
+                                  {formatShortDate(dealStart)} → {formatShortDate(dealEnd)}
+                                </span>
+                                {totalDays !== null && (
+                                  <span className="text-muted-foreground/70">· {totalDays}d</span>
+                                )}
+                                {daysLeft !== null && daysLeft > 0 && (
+                                  <span className="text-primary/80 font-medium">· {daysLeft}d restantes</span>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-foreground/90 truncate">
+                                {formatShortDate(stats.cycleStart)} → {formatShortDate(stats.cycleEnd)}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
 
