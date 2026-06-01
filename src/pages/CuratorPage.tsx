@@ -1848,7 +1848,78 @@ export default function CuratorPage() {
                 Baseline da campanha capturada: <strong className="text-foreground">{campaignContext.baseline_playlist_count}</strong> {campaignContext.baseline_playlist_count === 1 ? "playlist" : "playlists"} fazem parte da foto inicial e não podem ser cadastradas como entrega.
               </div>
             )}
+            {baselinePlaylistsForCurator.length > 0 && (
+              <Collapsible open={baselineOpen} onOpenChange={setBaselineOpen}>
+                <CollapsibleTrigger asChild>
+                  <button
+                    type="button"
+                    className="w-full flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/20 hover:bg-muted/30 transition-colors px-4 py-3 text-left"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                      <div className="min-w-0">
+                        <div className="text-[13px] font-semibold text-foreground leading-tight">
+                          Já está nestas playlists
+                          <span className="ml-2 text-[11px] font-normal text-muted-foreground">
+                            ({baselinePlaylistsForCurator.length})
+                          </span>
+                        </div>
+                        <div className="text-[11.5px] text-muted-foreground/90 mt-0.5 leading-snug">
+                          Não cadastre estas — a música já estava aqui antes do deal
+                        </div>
+                      </div>
+                    </div>
+                    <ChevronDown
+                      className={cn(
+                        "h-4 w-4 text-muted-foreground shrink-0 transition-transform",
+                        baselineOpen && "rotate-180",
+                      )}
+                    />
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <ul className="mt-2 space-y-1.5 max-h-[260px] overflow-y-auto pr-1 [scrollbar-width:thin]">
+                    {baselinePlaylistsForCurator.map((p) => {
+                      const href = resolveSpotifyPlaylistUrl(p);
+                      return (
+                        <li
+                          key={p.id}
+                          className="flex items-center gap-2.5 rounded-lg bg-muted/15 hover:bg-muted/25 transition-colors px-3 py-2"
+                        >
+                          {p.image_url ? (
+                            <img
+                              src={p.image_url}
+                              alt=""
+                              className="h-8 w-8 rounded-md object-cover ring-1 ring-border shrink-0"
+                            />
+                          ) : (
+                            <div className="h-8 w-8 rounded-md bg-muted shrink-0 flex items-center justify-center">
+                              <Music2 className="h-3.5 w-3.5 text-muted-foreground" />
+                            </div>
+                          )}
+                          <span className="min-w-0 flex-1 truncate text-[12.5px] text-foreground">
+                            {p.playlist_name || "Playlist"}
+                          </span>
+                          {href && (
+                            <a
+                              href={href}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="shrink-0 inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                              title="Abrir no Spotify"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </CollapsibleContent>
+              </Collapsible>
+            )}
             <div>
+
               <h2 className="text-[15px] font-semibold tracking-tight">Adicionar playlist</h2>
               <p className="text-[12px] text-muted-foreground mt-1.5 leading-snug">
                 {playlistSongRequired
