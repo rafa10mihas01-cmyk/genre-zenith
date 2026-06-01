@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 type Upload = {
   id: string;
   created_at: string;
-  is_baseline: boolean;
+  is_baseline?: boolean;
   file_name?: string | null;
   total_rows?: number | null;
 };
