@@ -284,25 +284,53 @@ Deno.serve(async (req) => {
       delivered: Math.max(0, h.total_plays - baseline),
     }));
 
-    // 5) Playlists — filtra por song_id quando aplicável
-    let playlistsQuery = admin
+    // 5) Playlists do curador — agrega de TODOS os deals "irmãos" da mesma
+    // música/artista (curadores diferentes podem ter deals separados pra
+    // mesma faixa; banco mantém separado, mas o cliente vê unificado).
+    const songNameNorm = String(dealRow.song_name ?? "").trim();
+    const songArtistNorm = String(dealRow.song_artist ?? "").trim();
+    let siblingDealsQuery = admin
+      .from("curator_deals")
+      .select("id, song_name, song_artist");
+    if (songNameNorm) siblingDealsQuery = siblingDealsQuery.ilike("song_name", songNameNorm);
+    if (songArtistNorm) siblingDealsQuery = siblingDealsQuery.ilike("song_artist", songArtistNorm);
+    const { data: siblingDealsRaw } = await siblingDealsQuery;
+    const allDealIds = Array.from(new Set([
+      dealId!,
+      ...((siblingDealsRaw ?? []) as AnyRec[]).map((d) => String(d.id)),
+    ]));
+
+    const { data: playlistsRaw } = await admin
       .from("curator_playlists")
-      .select("id, playlist_name, image_url, added_at, added_at_spotify, is_baseline, song_id")
-      .eq("deal_id", dealId!)
+      .select("id, deal_id, playlist_name, image_url, added_at, added_at_spotify, is_baseline, song_id")
+      .in("deal_id", allDealIds)
       .eq("match_status", "curator")
       .eq("is_baseline", false)
       .order("added_at", { ascending: true });
-    const { data: playlistsRaw } = await playlistsQuery;
     const playlistsFiltered = ((playlistsRaw ?? []) as AnyRec[]).filter((p) => {
+      // Só filtra por song_id quando a playlist pertence ao deal principal
+      // (deals irmãos têm song_ids próprios que não batem com o atual).
       if (!selectedSongId || !activeSong) return true;
+      if (String(p.deal_id) !== dealId) return true;
       const sid = p.song_id as string | null;
       return !sid || sid === selectedSongId;
     });
 
+    // delivered: per_playlist do deal principal + busca progress dos irmãos
     const perPlaylist = ((prog.per_playlist as AnyRec[]) ?? []) as AnyRec[];
     const deliveredByPlaylist = new Map<string, number>();
     for (const p of perPlaylist) {
       deliveredByPlaylist.set(String(p.playlist_id), Number(p.delivered ?? 0));
+    }
+    for (const sibId of allDealIds) {
+      if (sibId === dealId) continue;
+      const { data: sibProg } = await admin.rpc("get_curator_deal_progress", {
+        p_deal_id: sibId,
+      });
+      const sibPer = ((sibProg as AnyRec)?.per_playlist as AnyRec[]) ?? [];
+      for (const p of sibPer) {
+        deliveredByPlaylist.set(String(p.playlist_id), Number(p.delivered ?? 0));
+      }
     }
 
     const safePlaylists: AnyRec[] = playlistsFiltered.map((p) => {
