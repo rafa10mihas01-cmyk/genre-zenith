@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
     .maybeSingle();
   if (!deal) return jr({ error: "not_found" }, 404);
 
-  // Autorização: e-mail bate com o cadastrado do curador
+  // Autorização: e-mail bate com o cadastrado do curador OU está na allowlist do deal
   let authorized = false;
   if (deal.curator_id) {
     const { data: curator } = await supabase
@@ -70,6 +70,15 @@ Deno.serve(async (req) => {
     if (curator?.email && curator.email.trim().toLowerCase() === emailRaw) {
       authorized = true;
     }
+  }
+  if (!authorized) {
+    const { data: allow } = await supabase
+      .from("curator_deal_access_emails")
+      .select("id")
+      .eq("deal_id", deal.id)
+      .eq("email", emailRaw)
+      .maybeSingle();
+    if (allow) authorized = true;
   }
 
   // Resposta neutra quando não autorizado.
