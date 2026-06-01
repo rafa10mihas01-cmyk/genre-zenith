@@ -203,7 +203,7 @@ export function distributeByDailyNeed(
   // Early-stop: quando a meta diária estiver coberta com ≥95%, paramos de adicionar
   // playlists. Resultado: planos enxutos (não enfia 200 playlists pra entregar 5%).
   const COVERAGE_STOP = 0.95;
-  const stopThreshold = dailyNeed * (1 - COVERAGE_STOP); // = 5% de "sobra" tolerada
+  const stopThreshold = targetDaily * (1 - COVERAGE_STOP); // = 5% de "sobra" tolerada
 
   // Vizinhos (gêneros afins) nunca em slots fortes — mesma regra do replan-campaign-eco.
   const NEIGHBOR_MIN_POSITION = 5;
