@@ -163,7 +163,7 @@ export function distributeByDailyNeed(
   dailyNeed: number,
   mult: number,
   tolerance = ECO_DAILY_TOLERANCE,
-  opts?: { maxCapById?: Map<string, number> },
+  opts?: { maxCapById?: Map<string, number>; currentPositionById?: Map<string, number> },
 ): { positions: Map<string, number>; coveredDaily: number; details: Array<{ id: string; cap: number; fits: boolean }> } {
   const positions = new Map<string, number>();
   const details: Array<{ id: string; cap: number; fits: boolean }> = [];
@@ -171,18 +171,16 @@ export function distributeByDailyNeed(
     return { positions, coveredDaily: 0, details };
   }
   const maxCapById = opts?.maxCapById;
+  const currentPosById = opts?.currentPositionById;
 
   const primary = allocs.filter(a => (a.genreSource ?? "primary") === "primary");
   const neighbor = allocs.filter(a => a.genreSource === "affinity");
 
-  // Compensa a perda da curva (rampa de entrada + tail de saída). A entrega
-  // simulada dia-a-dia consome ~12% do total teórico, então miramos capacidade
-  // maior pra que, depois da curva, a entrega real bata na meta contratada.
   const targetDaily = dailyNeed * ECO_CURVE_LOSS_COMPENSATION;
   let remaining = targetDaily;
   let covered = 0;
 
-  const pickWithCeiling = (followers: number, ceiling: number, minPos = 1): { position: number; cap: number; fits: boolean } => {
+  const pickWithCeiling = (id: string, followers: number, ceiling: number, minPos = 1): { position: number; cap: number; fits: boolean } => {
     if (followers <= 0 || ceiling <= 0) {
       return { position: POSITION_PCT.length, cap: 0, fits: false };
     }
@@ -196,41 +194,53 @@ export function distributeByDailyNeed(
         bestPos = i + 1;
       }
     }
-    if (bestPos > 0) return { position: bestPos, cap: bestCap, fits: true };
-    const deepest = POSITION_PCT.length;
-    return { position: deepest, cap: playlistCapAtPosition(followers, mult, deepest), fits: false };
+    let chosenPos = bestPos > 0 ? bestPos : POSITION_PCT.length;
+    let chosenCap = bestPos > 0 ? bestCap : playlistCapAtPosition(followers, mult, chosenPos);
+    let fits = bestPos > 0;
+    // PROMOÇÃO: se a música já está nessa playlist numa posição MELHOR (número
+    // menor) que a escolhida, mantém a atual — nunca rebaixa.
+    const current = currentPosById?.get(id);
+    if (current != null && current >= minPos && current < chosenPos) {
+      chosenPos = current;
+      chosenCap = playlistCapAtPosition(followers, mult, current);
+      fits = chosenCap <= ceiling;
+    }
+    return { position: chosenPos, cap: chosenCap, fits };
   };
 
-  // Early-stop: quando a meta diária estiver coberta com ≥95%, paramos de adicionar
-  // playlists. Resultado: planos enxutos (não enfia 200 playlists pra entregar 5%).
   const COVERAGE_STOP = 0.95;
-  const stopThreshold = targetDaily * (1 - COVERAGE_STOP); // = 5% de "sobra" tolerada
-
-  // Vizinhos (gêneros afins) nunca em slots fortes — mesma regra do replan-campaign-eco.
+  const stopThreshold = targetDaily * (1 - COVERAGE_STOP);
   const NEIGHBOR_MIN_POSITION = 5;
 
-  // Best-fit greedy: a cada passo, escolhe a playlist cujo cap melhor fecha o gap.
+  // Best-fit greedy com VIÉS DE PRESENÇA: em diferença marginal de cap (≤15%),
+  // playlist que já tem a música ganha do empate. Se não fizer sentido pela
+  // capacidade, fica de fora — não inflamos o plano só pra "aproveitar".
   const consume = (list: Array<{ id: string; followers: number; genreSource?: "primary" | "affinity" }>, minPos = 1) => {
     const pool = [...list];
     while (pool.length > 0) {
-      // PASSO 2: para de incluir playlists quando a meta já foi coberta.
       if (remaining <= stopThreshold) break;
-
       const need = remaining;
       const needCeiling = need * (1 + tolerance);
 
       let bestIdx = -1;
       let bestSel: { position: number; cap: number; fits: boolean } | null = null;
+      let bestPresent = false;
 
       for (let i = 0; i < pool.length; i++) {
         const a = pool[i];
         const budget = maxCapById?.get(a.id);
         if (maxCapById && (budget == null || budget <= 0)) continue;
         const ceiling = budget != null ? Math.min(needCeiling, budget) : needCeiling;
-        const sel = pickWithCeiling(a.followers, ceiling, minPos);
-        if (bestSel == null || sel.cap > bestSel.cap) {
-          bestSel = sel;
-          bestIdx = i;
+        const sel = pickWithCeiling(a.id, a.followers, ceiling, minPos);
+        const isPresent = currentPosById?.has(a.id) ?? false;
+        if (bestSel == null) {
+          bestSel = sel; bestIdx = i; bestPresent = isPresent;
+          continue;
+        }
+        const better = sel.cap > bestSel.cap;
+        const close = Math.abs(sel.cap - bestSel.cap) / Math.max(1, bestSel.cap) <= 0.15;
+        if (better || (close && isPresent && !bestPresent)) {
+          bestSel = sel; bestIdx = i; bestPresent = isPresent;
         }
       }
 
@@ -251,7 +261,6 @@ export function distributeByDailyNeed(
     }
   };
 
-  // Cascata: primárias livres (1–20), vizinhos só pra fechar gap em posições ≥5.
   consume(primary, 1);
   consume(neighbor, NEIGHBOR_MIN_POSITION);
 
