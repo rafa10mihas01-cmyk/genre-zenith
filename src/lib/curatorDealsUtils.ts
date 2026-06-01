@@ -11,7 +11,8 @@ export type CuratorDeal = {
   song_cover_url: string | null;
   target_plays: number;
   daily_goal: number;
-  baseline_plays: number;
+  baseline_plays: number | null;
+  baseline_captured_at?: string | null;
   cost: number | null;
   started_at: string;
   ends_at: string | null;
@@ -235,7 +236,7 @@ export function computeCuratorStats(
   const target = Number(deal.target_plays ?? 0);
 
   const nonBaselineLogs = dealLogs.filter((l) => !l.is_baseline);
-  const hasBaseline = dealLogs.some((l) => l.is_baseline);
+  const hasBaseline = !!deal.baseline_captured_at || dealLogs.some((l) => l.is_baseline);
 
   const latestPlays =
     nonBaselineLogs.length > 0
