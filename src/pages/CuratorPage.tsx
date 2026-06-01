@@ -57,6 +57,7 @@ import { CuratorNotificationsBell } from "@/components/public/CuratorNotificatio
 import { markCuratorPublicMode } from "@/lib/publicRouteMode";
 import { PasteUrlsDialog } from "@/components/curators/PasteUrlsDialog";
 import { AddSongToPlaylistDialog } from "@/components/curators/AddSongToPlaylistDialog";
+import { CuratorAccessGate, curatorAccessStorageKey } from "@/components/public/CuratorAccessGate";
 
 type Deal = {
   id: string;
