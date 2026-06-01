@@ -433,6 +433,24 @@ export default function CuratorPage() {
     return Array.from(groups.values());
   }, [curatorPlaylists, playlists, songs]);
 
+  // Baseline (playlists onde a música JÁ está antes do deal começar) — só nome + link,
+  // exibido pro curador num bloco colapsado pra evitar cadastro duplicado.
+  const baselinePlaylistsForCurator = useMemo(() => {
+    const base = playlists.filter((p) => p.is_baseline);
+    const filtered = selectedSongId
+      ? base.filter((p) => p.song_id === selectedSongId || !p.song_id)
+      : base;
+    const seen = new Map<string, Playlist>();
+    for (const p of filtered) {
+      const key = p.spotify_playlist_id || p.spotify_url || p.id;
+      if (!seen.has(key)) seen.set(key, p);
+    }
+    return Array.from(seen.values()).sort((a, b) =>
+      (a.playlist_name || "").localeCompare(b.playlist_name || "", "pt-BR"),
+    );
+  }, [playlists, selectedSongId]);
+  const [baselineOpen, setBaselineOpen] = useState(false);
+
   const curatorModalGroup = useMemo(
     () => curatorGroupedByPlaylist.find((g) => g.key === curatorPlaylistModalKey) ?? null,
     [curatorGroupedByPlaylist, curatorPlaylistModalKey],
