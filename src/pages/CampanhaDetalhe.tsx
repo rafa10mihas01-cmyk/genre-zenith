@@ -363,3 +363,84 @@ function ClientApprovalCard({ camp }: { camp: Campaign }) {
     </div>
   );
 }
+
+function RoadmapShareCard({
+  camp,
+  onTokenRotated,
+}: {
+  camp: Campaign;
+  onTokenRotated: (newToken: string) => void;
+}) {
+  const [rotating, setRotating] = useState(false);
+  const token = camp.roadmap_token;
+  const url = token ? `${PUBLIC_DOMAIN}/mapa/${token}` : null;
+
+  async function copyLink() {
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast({
+        title: "Link do mapa copiado",
+        description: "Quem abrir vê só o cronograma e o plano — sem login.",
+      });
+    } catch {
+      toast({ title: "Não consegui copiar", description: url, variant: "destructive" });
+    }
+  }
+
+  async function rotate() {
+    if (!camp.id) return;
+    if (!confirm("Regerar o link do Mapa? O link atual deixa de funcionar imediatamente. Isso não afeta o portal do cliente.")) return;
+    setRotating(true);
+    const { data, error } = await supabase.functions.invoke("regenerate-campaign-roadmap-token", {
+      body: { campaign_id: camp.id },
+    });
+    setRotating(false);
+    const payload = data as { ok?: boolean; roadmap_token?: string; error?: string } | null;
+    if (error || !payload?.ok || !payload?.roadmap_token) {
+      toast({
+        title: "Falha ao regenerar",
+        description: payload?.error ?? error?.message ?? "tente novamente",
+        variant: "destructive",
+      });
+      return;
+    }
+    onTokenRotated(payload.roadmap_token);
+    toast({ title: "Link regenerado", description: "O link anterior foi invalidado." });
+  }
+
+  return (
+    <div className="mb-8 rounded-2xl border border-border bg-card p-5">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="flex items-start gap-3">
+          <Target className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+          <div>
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">
+              Mapa de Entrega · link público
+            </div>
+            <div className="font-semibold mt-1">Compartilhe com gestor, equipe ou parceiros</div>
+            <div className="text-xs text-muted-foreground mt-1 max-w-xl">
+              Acesso direto, sem login nem código. Mostra só cronograma, plano e evolução —
+              não expõe financeiro, contratos, aprovações ou dados do cliente.
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          {url ? (
+            <>
+              <code className="text-xs bg-muted px-2 py-1.5 rounded truncate max-w-xs flex-1">{url}</code>
+              <Button size="sm" variant="outline" onClick={copyLink}>
+                <Copy className="h-3.5 w-3.5 mr-1.5" /> Copiar
+              </Button>
+              <Button size="sm" variant="ghost" onClick={rotate} disabled={rotating} title="Invalida o link atual e gera um novo">
+                <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${rotating ? "animate-spin" : ""}`} /> Regerar
+              </Button>
+            </>
+          ) : (
+            <span className="text-xs text-muted-foreground">Token ainda não disponível</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
