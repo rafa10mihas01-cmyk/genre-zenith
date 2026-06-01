@@ -542,11 +542,14 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         const score = a.source === "neighbor"
           ? (neighborAffinityByPlaylistId?.get(a.id) ?? null)
           : null;
+        // Mandelão em Trap menor → posição final (mínimo 6) pra não competir com hits do gênero.
+        const isMandelaoTrap = song.isMandelao && mandelaoTrapIds.has(a.id);
+        const finalPosition = isMandelaoTrap ? Math.max(a.position, 6) : a.position;
         return {
           managed_playlist_id: a.id,
           planned_streams: Math.max(1, Math.round(a.cap_dia * planMultiplier)),
           start_day: 1 + Math.floor((index / Math.max(1, totalAllocs - 1)) * Math.max(0, Math.min(planDays - 1, Math.ceil(planDays * (r.modo === "sequencial" ? 0.7 : 0.25)) - 1))),
-          position: a.position,
+          position: finalPosition,
           genre_source: a.source === "neighbor" ? "affinity" : "primary",
           genre_affinity_score: score,
         };
