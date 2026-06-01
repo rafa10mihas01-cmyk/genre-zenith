@@ -1817,7 +1817,8 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
                             type="number"
                             inputMode="numeric"
                             min={0}
-                            placeholder="Plays/dia"
+                            placeholder="Ritmo do curador (plays/dia)"
+                            title="Ritmo combinado COM ESTE CURADOR — não é o ritmo da campanha"
                             value={song.daily_goal}
                             onChange={(e) =>
                               updateSong(idx, { daily_goal: e.target.value })
