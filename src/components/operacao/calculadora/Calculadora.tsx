@@ -126,6 +126,7 @@ function emptySong(): Song {
     startDateISO: startOfDay(new Date()).toISOString().slice(0, 10),
     clientPriceTotal: 0,
     genre: "",
+    isMandelao: false,
     top200Pos: null,
     top200StreamsDay: null,
     top200ChartDate: null,
