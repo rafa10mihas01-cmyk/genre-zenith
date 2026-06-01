@@ -268,7 +268,7 @@ export function SpreadsheetUploadCard({
           </div>
         )}
 
-        {(phase === "done" ? (
+        {phase === "done" ? (
 
           <div className="rounded-lg border border-success/30 bg-success/5 p-6 text-center space-y-2">
             <CheckCircle2 className="h-8 w-8 text-success mx-auto" />
