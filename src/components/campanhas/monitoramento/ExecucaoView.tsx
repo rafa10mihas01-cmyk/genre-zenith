@@ -109,18 +109,24 @@ export function ExecucaoView({ campaignId, onOpenHistory }: { campaignId: string
       return true;
     });
     const dir = sortDir === "asc" ? 1 : -1;
+    const pick = (r: GrowthRow): [number | string, number, number] => {
+      const cur = Number(r.current_plays ?? 0);
+      const base = Number(r.baseline_plays ?? 0);
+      const del = Number(r.delta ?? 0);
+      const primary = sort === "delta" ? del
+        : sort === "current" ? cur
+        : sort === "baseline" ? base
+        : (r.current_name ?? r.baseline_name ?? "").toLowerCase();
+      return [primary, cur, base];
+    };
     out.sort((a, b) => {
-      const va = sort === "delta" ? Number(a.delta ?? 0)
-        : sort === "current" ? Number(a.current_plays ?? 0)
-        : sort === "baseline" ? Number(a.baseline_plays ?? 0)
-        : (a.current_name ?? a.baseline_name ?? "").toLowerCase();
-      const vb = sort === "delta" ? Number(b.delta ?? 0)
-        : sort === "current" ? Number(b.current_plays ?? 0)
-        : sort === "baseline" ? Number(b.baseline_plays ?? 0)
-        : (b.current_name ?? b.baseline_name ?? "").toLowerCase();
-      if (va < vb) return -1 * dir;
-      if (va > vb) return 1 * dir;
-      return 0;
+      const [pa, ca, ba] = pick(a);
+      const [pb, cb, bb] = pick(b);
+      if (pa < pb) return -1 * dir;
+      if (pa > pb) return 1 * dir;
+      // tiebreakers: sempre desc (mais relevante primeiro), independente da direção
+      if (cb !== ca) return cb - ca;
+      return bb - ba;
     });
     return out;
   }, [rows, q, scope, curatorFilter, statusFilter, sort, sortDir, statuses]);
