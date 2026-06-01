@@ -479,6 +479,12 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
           ...(input.default_plays !== undefined && { default_plays: input.default_plays ?? null }),
           ...(input.monthly_amount !== undefined && { monthly_amount: input.monthly_amount ?? null }),
           ...(input.billing_day !== undefined && { billing_day: input.billing_day ?? null }),
+          ...(input.phone !== undefined && { phone: input.phone ?? null }),
+          ...(input.email !== undefined && { email: input.email ?? null }),
+          ...(input.pix_key !== undefined && { pix_key: input.pix_key ?? null }),
+          ...(input.pix_type !== undefined && { pix_type: input.pix_type ?? null }),
+          ...(input.full_name !== undefined && { full_name: input.full_name ?? null }),
+          ...(input.document !== undefined && { document: input.document ?? null }),
         })
         .eq("id", curatorId);
       if (updErr) throw updErr;
