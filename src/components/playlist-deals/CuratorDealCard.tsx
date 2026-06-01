@@ -427,7 +427,10 @@ export function CuratorDealCard({
         )}
 
         {/* Ações */}
-        <div className="flex items-center gap-2 pt-0.5 min-w-0">
+        <div
+          className="flex items-center gap-2 pt-0.5 min-w-0"
+          onClick={(e) => e.stopPropagation()}
+        >
           {!isClosed ? (
             <Button
               size="sm"
@@ -450,15 +453,18 @@ export function CuratorDealCard({
           ) : (
             <div className="flex-1" />
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            className="min-w-0 h-9 gap-1.5 text-[13px] px-3"
-            onClick={() => onDetail(deal)}
-          >
-            <History className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">Histórico</span>
-          </Button>
+          {!isClosed && onEdit && (
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground"
+              aria-label="Editar deal"
+              title="Editar deal"
+              onClick={() => onEdit(deal)}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -471,74 +477,7 @@ export function CuratorDealCard({
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64 rounded-xl border-border bg-popover p-1.5">
-              {!isClosed && onClose && hasBaseline && (
-                <>
-                  <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => onClose(deal)}>
-                    <CheckCircle2 className="h-4 w-4" />
-                    Encerrar deal
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                </>
-              )}
-              <div className="px-2 pt-1.5 pb-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">
-                Compartilhar
-              </div>
-              <DropdownMenuItem className="gap-2 rounded-lg items-start py-2" onClick={handleCopyCuratorLink}>
-                <Headphones className="h-4 w-4 mt-0.5 shrink-0" />
-                <div className="flex flex-col min-w-0 flex-1">
-                  <span className="text-sm leading-tight font-medium">Link do curador</span>
-                  <span className="text-[11px] text-muted-foreground leading-tight mt-0.5">Para curadores adicionarem nas playlists</span>
-                </div>
-                <Copy className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
-              </DropdownMenuItem>
-              {showPerSongLinks ? (
-                <>
-                  <div className="px-2 pt-2 pb-1 text-[11px] text-muted-foreground leading-tight">
-                    Link do cliente — uma URL por música
-                  </div>
-                  {songsWithClientLink.map((s) => (
-                    <DropdownMenuItem
-                      key={s.id}
-                      className="gap-2 rounded-lg items-center py-2"
-                      onClick={() => handleCopyClientLink({ slug: s.slug ?? null, client_token: s.client_token ?? null })}
-                    >
-                      <User className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      <span className="text-sm leading-tight font-medium truncate flex-1" title={s.song_name}>
-                        {s.song_name}
-                      </span>
-                      <Copy className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    </DropdownMenuItem>
-                  ))}
-                </>
-              ) : (
-                <DropdownMenuItem
-                  className="gap-2 rounded-lg items-start py-2"
-                  onClick={() => {
-                    const first = songsWithClientLink[0];
-                    handleCopyClientLink({
-                      slug: first?.slug ?? null,
-                      client_token: first?.client_token ?? deal.client_token ?? null,
-                    });
-                  }}
-                  disabled={!deal.client_token && !songsWithClientLink[0]?.client_token && !songsWithClientLink[0]?.slug}
-                >
-                  <User className="h-4 w-4 mt-0.5 shrink-0" />
-                  <div className="flex flex-col min-w-0 flex-1">
-                    <span className="text-sm leading-tight font-medium">Link do cliente</span>
-                    <span className="text-[11px] text-muted-foreground leading-tight mt-0.5">Painel do artista/cliente</span>
-                  </div>
-                  <Copy className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
-                </DropdownMenuItem>
-              )}
-              {!isClosed && onEdit && <DropdownMenuSeparator />}
-              {!isClosed && onEdit && (
-                <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => onEdit(deal)}>
-                  <Pencil className="h-4 w-4" />
-                  Editar deal
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuSeparator />
+            <DropdownMenuContent align="end" className="w-48 rounded-xl border-border bg-popover p-1.5">
               <DropdownMenuItem className="gap-2 rounded-lg text-destructive focus:text-destructive" onClick={() => onDelete(deal)}>
                 <Trash2 className="h-4 w-4" />
                 Excluir deal
@@ -546,6 +485,7 @@ export function CuratorDealCard({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+
       </CardContent>
     </Card>
   );
