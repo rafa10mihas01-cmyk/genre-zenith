@@ -176,7 +176,7 @@ export async function confirmExternalPackage(args: {
   campaignId: string;
   snapshot: CampaignSnapshot;
 }): Promise<{ dealsCreated: number }> {
-  const { packageId, snapshot } = args;
+  const { packageId, campaignId, snapshot } = args;
 
   const { data: items, error: itemsErr } = await supabase
     .from("campaign_external_package_items")
@@ -201,6 +201,8 @@ export async function confirmExternalPackage(args: {
         user_id: user.id,
         curator_id: it.curator_id,
         curator_name: (it as any).curators?.name ?? "Curador",
+        campaign_id: campaignId,
+        origin: "external_package",
         song_spotify_url: snapshot.music.trackUrl ?? "",
         song_name: snapshot.music.title ?? "Sem título",
         song_artist: snapshot.music.artist,
