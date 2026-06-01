@@ -824,6 +824,9 @@ Deno.serve(async (req) => {
       }).catch(() => {});
     } catch (_) {
       // ignore
+    }
+
+
 
 
 
