@@ -2157,6 +2157,38 @@ export type Database = {
           },
         ]
       }
+      curator_deal_access_emails: {
+        Row: {
+          added_at: string
+          added_by: string | null
+          deal_id: string
+          email: string
+          id: string
+        }
+        Insert: {
+          added_at?: string
+          added_by?: string | null
+          deal_id: string
+          email: string
+          id?: string
+        }
+        Update: {
+          added_at?: string
+          added_by?: string | null
+          deal_id?: string
+          email?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curator_deal_access_emails_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       curator_deal_baseline_playlists: {
         Row: {
           captured_at: string
