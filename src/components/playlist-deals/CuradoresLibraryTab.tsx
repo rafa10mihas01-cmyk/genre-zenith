@@ -274,6 +274,17 @@ export function CuradoresLibraryTab({
             </div>
           </PopoverContent>
         </Popover>
+
+        {onAddCurator && (
+          <Button
+            size="sm"
+            className="h-9 gap-1.5 shrink-0"
+            onClick={() => setCreating(true)}
+          >
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">Novo curador</span>
+          </Button>
+        )}
       </div>
 
       {(hasFilters || archivedCount > 0 || showArchived) && (
