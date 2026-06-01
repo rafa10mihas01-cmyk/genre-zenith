@@ -1817,7 +1817,8 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
                             type="number"
                             inputMode="numeric"
                             min={0}
-                            placeholder="Plays/dia"
+                            placeholder="Ritmo do curador (plays/dia)"
+                            title="Ritmo combinado COM ESTE CURADOR — não é o ritmo da campanha"
                             value={song.daily_goal}
                             onChange={(e) =>
                               updateSong(idx, { daily_goal: e.target.value })
@@ -1852,10 +1853,12 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
                         </div>
                       )}
 
-                      {/* Período (início → fim) + ramp-up */}
+                      {/* Prazo do curador (independente do prazo da campanha) */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div className="flex flex-col gap-1">
-                          <span className="text-xs text-muted-foreground">Período (início → fim)</span>
+                          <span className="text-xs text-muted-foreground">
+                            Prazo do curador (início → fim)
+                          </span>
                           <DealRangePicker
                             startedAt={song.started_at}
                             durationDays={Number(song.duration_days) || 0}
@@ -1866,6 +1869,9 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
                               })
                             }
                           />
+                          <span className="text-[10px] text-muted-foreground/70 leading-snug">
+                            Este é o prazo do <strong>curador</strong>, não da campanha. Use margem extra como segurança — se a campanha é 20 dias, o curador pode ter 30.
+                          </span>
                         </div>
 
                         <div className="flex flex-col gap-1">
