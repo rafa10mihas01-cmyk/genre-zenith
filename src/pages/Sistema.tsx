@@ -193,11 +193,13 @@ export default function Sistema() {
                 { id: "infra", label: "Infraestrutura", icon: Server },
                 { id: "flags", label: "Feature flags", icon: Flag },
                 { id: "seo", label: "SEO", icon: FlaskConical },
+                { id: "spotify", label: "Spotify (piloto)", icon: Music2 },
               ]}
             />
             {devSub === "infra" && <Infraestrutura embedded />}
             {devSub === "flags" && <FeatureFlagsPanel />}
             {devSub === "seo" && <SeoLessonsPanel />}
+            {devSub === "spotify" && <SpotifyPilotPanel />}
           </div>
         )}
       </div>
