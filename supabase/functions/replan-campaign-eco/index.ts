@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
   // 1) Campanha + ownership
   const { data: campaign, error: campErr } = await admin
     .from("campaigns")
-    .select("id, created_by, engagement_multiplier, simulation_snapshot, started_at")
+    .select("id, created_by, engagement_multiplier, simulation_snapshot, started_at, spotify_track_id")
     .eq("id", campaignId)
     .maybeSingle();
   if (campErr) return json({ ok: false, error: campErr.message }, 500);
