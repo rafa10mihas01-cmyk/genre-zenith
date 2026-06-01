@@ -699,6 +699,10 @@ export default function CampanhaExecucao() {
                 campaignId={camp.id}
                 dealId={camp.deal_id ?? null}
               />
+              <RadioCollectedCard
+                campaignId={camp.id}
+                metaPlanned={snapshot.streamsOrganic ?? 0}
+              />
               <OverviewTab
                 snapshot={snapshot}
                 delivered={delivered}
