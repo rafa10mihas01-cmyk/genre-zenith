@@ -277,10 +277,19 @@ export function CuratorNotificationsBell({
 
   const derived = useMemo(() => buildDerived(stats), [stats]);
 
+  // Filtra remotas pra mostrar SOMENTE as do deal atual.
+  // Notificação sem `deal_id` no metadata é considerada global do curador e
+  // não aparece no portal de um deal específico — evita "vazamento" de avisos
+  // de outras campanhas/deals do mesmo curador.
+  const scopedRemote = useMemo(() => {
+    if (!dealId) return remote;
+    return remote.filter((n) => n.dealId === dealId);
+  }, [remote, dealId]);
+
   // Ordem final: remotas (mais recentes primeiro), depois derivadas.
   // Se não houver nada, fallback positivo.
   const notifications: Notif[] = useMemo(() => {
-    const merged: Notif[] = [...remote, ...derived];
+    const merged: Notif[] = [...scopedRemote, ...derived];
     if (merged.length === 0) {
       merged.push({
         source: "derived",
@@ -295,16 +304,16 @@ export function CuratorNotificationsBell({
       });
     }
     return merged;
-  }, [remote, derived, stats.pct]);
+  }, [scopedRemote, derived, stats.pct]);
 
-  // Badge: remotas não lidas + derivadas acionáveis (success/primary/warning)
-  const unreadRemote = remote.filter((r) => !r.read).length;
+  // Badge: remotas (do deal atual) não lidas + derivadas acionáveis
+  const unreadRemote = scopedRemote.filter((r) => !r.read).length;
   const actionableDerived = derived.filter(
     (n) => n.severity === "success" || n.severity === "primary" || n.severity === "warning",
   ).length;
   const badgeCount = unreadRemote + actionableDerived;
   const hasAlert =
-    remote.some((r) => !r.read && r.severity === "warning") ||
+    scopedRemote.some((r) => !r.read && r.severity === "warning") ||
     derived.some((n) => n.severity === "warning");
 
   return (
