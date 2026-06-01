@@ -112,7 +112,7 @@ export function useEcoRealCapacity(
         }));
 
         // 4) Aplica algoritmo greedy idêntico ao da edge
-        const result = planRealCapacity(pool, dailyNeed, multiplier, tolerance);
+        const result = planRealCapacity(pool, dailyNeed, multiplier, tolerance, { mode });
 
         if (cancelled) return;
         setState({
