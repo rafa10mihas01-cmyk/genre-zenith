@@ -33,10 +33,11 @@ import { CircuitBreakerHistoryCard } from "@/components/sistema/CircuitBreakerHi
 import { BrainFreshnessCard } from "@/components/home/BrainFreshnessCard";
 import { EngineHealthGrid } from "@/components/cockpit/EngineHealthGrid";
 import { CapacidadePanel } from "@/components/sistema/CapacidadePanel";
+import { SpotifyPilotPanel } from "@/components/sistema/SpotifyPilotPanel";
 
 type SistemaTab = "saude" | "capacidade" | "aprendizado" | "alertas" | "motores" | "configuracoes" | "dev";
 type MotorSub = "robo" | "coleta" | "execucao" | "fluxo" | "ao-vivo";
-type DevSub = "infra" | "flags" | "seo";
+type DevSub = "infra" | "flags" | "seo" | "spotify";
 
 type TabDef = { id: SistemaTab; label: string; icon: typeof Activity; adminOnly?: boolean };
 
@@ -192,11 +193,13 @@ export default function Sistema() {
                 { id: "infra", label: "Infraestrutura", icon: Server },
                 { id: "flags", label: "Feature flags", icon: Flag },
                 { id: "seo", label: "SEO", icon: FlaskConical },
+                { id: "spotify", label: "Spotify (piloto)", icon: Music2 },
               ]}
             />
             {devSub === "infra" && <Infraestrutura embedded />}
             {devSub === "flags" && <FeatureFlagsPanel />}
             {devSub === "seo" && <SeoLessonsPanel />}
+            {devSub === "spotify" && <SpotifyPilotPanel />}
           </div>
         )}
       </div>
