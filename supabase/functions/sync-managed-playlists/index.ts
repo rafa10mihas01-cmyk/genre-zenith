@@ -202,30 +202,30 @@ Deno.serve(async (req) => {
 
 
     await supabase.from("sync_log").insert({
-      source, synced, failed, recalculated,
+      source, tier, synced, failed, recalculated,
       errors: errors.length ? errors.slice(0, 20) : null,
       duration_ms: Date.now() - startedAt,
     });
 
     if (isCron) {
       await reportCronHealth(supabase, {
-        job_name: "sync-managed-playlists",
+        job_name: `sync-managed-playlists${tier ? `-${tier}` : ""}`,
         status: failed === 0 ? "ok" : (synced === 0 ? "error" : "partial"),
         startedAt,
-        metrics: { synced, failed, recalculated },
+        metrics: { synced, failed, recalculated, tier },
       });
     }
 
-    return jr({ ok: true, synced, failed, recalculated, errors: errors.slice(0, 5) });
+    return jr({ ok: true, tier, synced, failed, recalculated, errors: errors.slice(0, 5) });
   } catch (e) {
     await supabase.from("sync_log").insert({
-      source, synced, failed, recalculated,
+      source, tier, synced, failed, recalculated,
       errors: [(e as Error).message],
       duration_ms: Date.now() - startedAt,
     });
     if (isCron) {
       await reportCronHealth(supabase, {
-        job_name: "sync-managed-playlists",
+        job_name: `sync-managed-playlists${tier ? `-${tier}` : ""}`,
         status: "error",
         startedAt,
         message: (e as Error).message,
