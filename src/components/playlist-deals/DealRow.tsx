@@ -288,7 +288,10 @@ export function DealRow(props: DealRowProps) {
           </div>
         )}
 
-        <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+        <div
+          className="flex items-center gap-1.5 shrink-0 ml-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
           {!isClosed ? (
             <Button
               size="sm"
@@ -311,6 +314,18 @@ export function DealRow(props: DealRowProps) {
               <span className="hidden sm:inline">Reabrir</span>
             </Button>
           ) : null}
+          {!isClosed && props.onEdit && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              aria-label="Editar deal"
+              title="Editar deal"
+              onClick={() => props.onEdit!(deal)}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -322,36 +337,7 @@ export function DealRow(props: DealRowProps) {
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 rounded-xl p-1.5">
-              <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => props.onDetail(deal)}>
-                <History className="h-4 w-4" /> Abrir histórico
-              </DropdownMenuItem>
-              {!isClosed && props.onClose && hasBaseline && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => props.onClose!(deal)}>
-                    <CheckCircle2 className="h-4 w-4" /> Encerrar deal
-                  </DropdownMenuItem>
-                </>
-              )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="gap-2 rounded-lg" onClick={handleCopyCuratorLink}>
-                <Headphones className="h-4 w-4" /> Link do curador
-                <Copy className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
-              </DropdownMenuItem>
-              <DropdownMenuItem className="gap-2 rounded-lg" onClick={handleCopyClientLink}>
-                <User className="h-4 w-4" /> Link do cliente
-                <Copy className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
-              </DropdownMenuItem>
-              {!isClosed && props.onEdit && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => props.onEdit!(deal)}>
-                    <Pencil className="h-4 w-4" /> Editar deal
-                  </DropdownMenuItem>
-                </>
-              )}
-              <DropdownMenuSeparator />
+            <DropdownMenuContent align="end" className="w-48 rounded-xl p-1.5">
               <DropdownMenuItem
                 className="gap-2 rounded-lg text-destructive focus:text-destructive"
                 onClick={() => props.onDelete(deal)}
@@ -361,6 +347,7 @@ export function DealRow(props: DealRowProps) {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+
       </div>
     </div>
   );
