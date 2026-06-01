@@ -207,16 +207,25 @@ export function ExternalPackageEditor({
               <CommandGroup>
                 {candidates
                   .filter(c => !items.some(it => it.curator_id === c.id))
-                  .map(c => (
-                    <CommandItem key={c.id} value={c.name} onSelect={() => handleAdd(c)}>
-                      <div className="flex flex-col">
-                        <span className="text-sm">{c.name}</span>
-                        <span className="text-[10px] text-muted-foreground tabular-nums">
-                          cap. {formatInt(c.purchased_plays)} · R$ {c.cost_per_stream.toFixed(3)}/stream
-                        </span>
-                      </div>
-                    </CommandItem>
-                  ))}
+                  .map(c => {
+                    const next = c.next_purchase;
+                    return (
+                      <CommandItem key={c.id} value={c.name} onSelect={() => handleAdd(c)}>
+                        <div className="flex flex-col">
+                          <span className="text-sm">{c.name}</span>
+                          {next ? (
+                            <span className="text-[10px] text-primary tabular-nums">
+                              {formatInt(next.plays)} disponíveis · R$ {next.cpp.toFixed(3)}/stream{next.note ? ` · ${next.note}` : ""}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground tabular-nums">
+                              sem compra registrada · R$ {c.cost_per_stream.toFixed(3)}/stream (taxa média)
+                            </span>
+                          )}
+                        </div>
+                      </CommandItem>
+                    );
+                  })}
               </CommandGroup>
             </CommandList>
           </Command>
