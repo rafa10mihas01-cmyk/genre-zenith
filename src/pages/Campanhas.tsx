@@ -582,16 +582,43 @@ function CampaignRow({ c }: { c: Campaign }) {
               );
             })()}
             <CollectionSourceBadge collectionMode={(c as any).collection_mode} />
-            {c.plan_approved_at && c.baseline_captured_at && (
-              <span className="text-[10px] uppercase tracking-wider rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-primary">
-                Baseline ok
-              </span>
-            )}
-            {c.plan_approved_at && !c.baseline_captured_at && (
-              <span className="text-[10px] uppercase tracking-wider rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-primary">
-                Plano aprovado
-              </span>
-            )}
+            {(() => {
+              const mode = (c as any).collection_mode as string | undefined;
+              const isSpreadsheet = mode === "spreadsheet";
+              const hasBaseline = !!c.baseline_captured_at;
+              if (isSpreadsheet) {
+                return hasBaseline ? (
+                  <span
+                    className="text-[10px] uppercase tracking-wider rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-primary"
+                    title={`Baseline coletada em ${new Date(c.baseline_captured_at!).toLocaleString("pt-BR")}`}
+                  >
+                    Baseline coletada
+                  </span>
+                ) : (
+                  <span
+                    className="text-[10px] uppercase tracking-wider rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-amber-500"
+                    title="Cliente ainda não enviou a primeira planilha (baseline)."
+                  >
+                    Baseline pendente
+                  </span>
+                );
+              }
+              if (c.plan_approved_at && hasBaseline) {
+                return (
+                  <span className="text-[10px] uppercase tracking-wider rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-primary">
+                    Baseline ok
+                  </span>
+                );
+              }
+              if (c.plan_approved_at && !hasBaseline) {
+                return (
+                  <span className="text-[10px] uppercase tracking-wider rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-primary">
+                    Plano aprovado
+                  </span>
+                );
+              }
+              return null;
+            })()}
 
             {(c.client_decision_round ?? 1) > 1 && (
               <span className="text-[10px] uppercase tracking-wider rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-amber-500">
