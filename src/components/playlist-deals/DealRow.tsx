@@ -52,6 +52,8 @@ export interface DealRowProps {
   onClose?: (deal: CuratorDeal) => void;
   onReopen?: (deal: CuratorDeal) => void;
   onForceCollect?: (deal: CuratorDeal) => Promise<void> | void;
+  /** collection_mode da campanha vinculada — 'bot' (Spotify) ou 'spreadsheet' (Excel) */
+  campaignCollectionMode?: string | null;
 }
 
 function formatPlays(n: number): string {
@@ -197,17 +199,39 @@ export function DealRow(props: DealRowProps) {
           </div>
           {/* Linha de chips — abaixo do nome pra não comer espaço */}
           <div className="flex items-center gap-1.5 flex-wrap mt-2">
-            <span
-              className={cn(
-                "inline-flex items-center h-5 px-2 rounded-full text-[10px] font-semibold uppercase tracking-wide border",
-                deal.origin === "campaign"
-                  ? "bg-primary/10 text-primary border-primary/30"
-                  : "bg-muted text-muted-foreground border-border",
-              )}
-              title={deal.origin === "campaign" ? "Deal criado via aprovação de campanha" : "Deal criado manualmente"}
-            >
-              {deal.origin === "campaign" ? "Campanha" : "Manual"}
-            </span>
+            {(() => {
+              // Verdade: se tem campaign_id, é Campanha (independente do campo `origin`)
+              const fromCampaign = !!deal.campaign_id || deal.origin === "campaign";
+              return (
+                <span
+                  className={cn(
+                    "inline-flex items-center h-5 px-2 rounded-full text-[10px] font-semibold uppercase tracking-wide border",
+                    fromCampaign
+                      ? "bg-primary/10 text-primary border-primary/30"
+                      : "bg-muted text-muted-foreground border-border",
+                  )}
+                  title={fromCampaign ? "Deal criado via aprovação de campanha" : "Deal criado manualmente"}
+                >
+                  {fromCampaign ? "Campanha" : "Manual"}
+                </span>
+              );
+            })()}
+            {props.campaignCollectionMode === "bot" && (
+              <span
+                className="inline-flex items-center h-5 px-2 rounded-full text-[10px] font-semibold uppercase tracking-wide border bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                title="Coleta automática via API do Spotify"
+              >
+                Coleta Spotify
+              </span>
+            )}
+            {props.campaignCollectionMode === "spreadsheet" && (
+              <span
+                className="inline-flex items-center h-5 px-2 rounded-full text-[10px] font-semibold uppercase tracking-wide border bg-amber-500/10 text-amber-400 border-amber-500/30"
+                title="Coleta via importação de planilha Excel"
+              >
+                Coleta Excel
+              </span>
+            )}
             <DealDeliveryBadge row={deliveryMap[deal.id]} />
           </div>
         </button>

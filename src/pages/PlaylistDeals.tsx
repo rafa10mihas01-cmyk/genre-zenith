@@ -80,6 +80,25 @@ export default function PlaylistDeals() {
 
   const { deals, logs, playlists, songs, progressByDeal, loading, deleteDeal, closeDeal, reopenDeal, forceCollectNow, reload } = useCuratorDeals();
 
+  // Mapa id->collection_mode das campanhas vinculadas (pra mostrar "Coleta Spotify/Excel" nos cards)
+  const [campaignModeById, setCampaignModeById] = useState<Record<string, string | null>>({});
+  useEffect(() => {
+    const ids = Array.from(new Set(deals.map((d) => d.campaign_id).filter(Boolean))) as string[];
+    if (ids.length === 0) {
+      setCampaignModeById({});
+      return;
+    }
+    (async () => {
+      const { data } = await supabase
+        .from("campaigns")
+        .select("id, collection_mode")
+        .in("id", ids);
+      const map: Record<string, string | null> = {};
+      for (const c of (data ?? []) as any[]) map[c.id] = c.collection_mode ?? null;
+      setCampaignModeById(map);
+    })();
+  }, [deals]);
+
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
@@ -208,7 +227,10 @@ export default function PlaylistDeals() {
     }
 
     if (originFilter !== "all") {
-      base = base.filter((d) => (d.origin ?? "manual") === originFilter);
+      base = base.filter((d) => {
+        const effective = d.campaign_id ? "campaign" : (d.origin ?? "manual");
+        return effective === originFilter;
+      });
     }
 
     const q = search.trim().toLowerCase();
@@ -516,6 +538,7 @@ export default function PlaylistDeals() {
                   onClose={(deal) => setCloseDealOpen(deal)}
                   onReopen={handleReopen}
                   onForceCollect={(deal) => forceCollectNow(deal.id)}
+                  campaignCollectionMode={d.campaign_id ? campaignModeById[d.campaign_id] ?? null : null}
                 />
               ))}
             </div>
