@@ -620,8 +620,9 @@ function RecalcBaselineButton({ dealId }: { dealId: string }) {
       size="sm"
       variant="outline"
       className="h-6 px-2 text-[10.5px] border-warning/40 text-warning hover:bg-warning/15"
-      onClick={handle}
+      onClick={(e) => { e.stopPropagation(); handle(); }}
       disabled={loading}
+
     >
       {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : "Recalcular da planilha"}
     </Button>
