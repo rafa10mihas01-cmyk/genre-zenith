@@ -243,9 +243,36 @@ Deno.serve(async (req) => {
           }
         }
 
+        // PRESENÇA: se a música já está em alguma managed_playlist do plano,
+        // o planner usa essa posição como teto (promove se for melhorar, nunca
+        // rebaixa) e dá leve preferência a essas playlists em empates de cap.
+        const currentPositionById = new Map<string, number>();
+        if ((campaign as any).spotify_track_id) {
+          const playlistIds = rows
+            .map(r => r.managed_playlist_id ?? r.managed_playlists?.id)
+            .filter((v): v is string => typeof v === "string");
+          if (playlistIds.length > 0) {
+            const { data: presence } = await admin
+              .from("managed_playlist_tracks")
+              .select("playlist_id, position")
+              .eq("spotify_track_id", (campaign as any).spotify_track_id)
+              .in("playlist_id", playlistIds);
+            const posByPlaylist = new Map<string, number>();
+            for (const t of (presence ?? []) as any[]) {
+              const pos = Number(t.position);
+              if (Number.isFinite(pos) && pos > 0) posByPlaylist.set(t.playlist_id, pos);
+            }
+            for (const r of rows) {
+              const pid = r.managed_playlist_id ?? r.managed_playlists?.id;
+              const pos = pid ? posByPlaylist.get(pid) : null;
+              if (pos != null) currentPositionById.set(r.id, pos);
+            }
+          }
+        }
+
         let positions: Map<string, number>;
         if (dailyNeed > 0) {
-          const dist = distributeByDailyNeed(allocsInput, dailyNeed, mult, ECO_DAILY_TOLERANCE, { maxCapById });
+          const dist = distributeByDailyNeed(allocsInput, dailyNeed, mult, ECO_DAILY_TOLERANCE, { maxCapById, currentPositionById });
           positions = dist.positions;
           console.log("[approve] positions via daily_need", {
             dailyNeed: Math.round(dailyNeed),
@@ -254,6 +281,7 @@ Deno.serve(async (req) => {
             playlists: rows.length,
             ecoBudgetEnabled: ECO_BUDGET_ENABLED,
             droppedByBudget,
+            withPresence: currentPositionById.size,
           });
         } else {
           positions = distributeEcoPositions(allocsInput, snapDays, mult, { chartTier });
