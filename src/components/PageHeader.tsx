@@ -104,9 +104,8 @@ export function PageHeader({
         {actions && (
           <div
             className={cn(
-              "flex items-center justify-end gap-2 shrink-0 min-w-0 max-w-[58%] overflow-hidden scrollbar-none",
+              "flex items-center justify-end gap-2 shrink-0 min-w-0 max-w-[58%] overflow-x-auto overflow-y-hidden scrollbar-none",
               "lg:max-w-none lg:overflow-visible lg:flex-wrap lg:flex-nowrap",
-              "max-lg:[&>button:not(:last-child)]:hidden max-lg:[&>div>button:not(:last-child)]:hidden",
               "max-lg:[&_button]:max-w-[56vw] max-lg:[&_button]:overflow-hidden max-lg:[&_button]:text-ellipsis",
               "[&_button]:h-9 [&_button]:px-3 [&_button]:text-[13px] sm:[&_button]:px-4 sm:[&_button]:text-sm [&_button]:shrink-0",
             )}
