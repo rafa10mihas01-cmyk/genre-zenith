@@ -19,6 +19,7 @@ type Campaign = {
   status: "draft" | "active" | "paused" | "completed" | "cancelled";
   total_allocated: number; total_delivered: number; notes: string | null;
   public_plan_token: string | null;
+  roadmap_token: string | null;
   client_approved_at: string | null;
   client_approved_by: string | null;
   client_rejected_at: string | null;
