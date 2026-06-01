@@ -42,22 +42,33 @@ Deno.serve(async (req) => {
   const { data: pls, error: plErr } = await q;
   if (plErr) return jr({ ok: false, error: plErr.message }, 500);
 
-  const token = await getSpotifyToken();
+  const token = await getAppToken();
   const results: any[] = [];
   let matched = 0, unknown = 0, failed = 0;
 
   for (const p of pls ?? []) {
     try {
-      let meta;
+      let ownerId: string | null = null;
+      let ownerDisplay: string | null = null;
       try {
-        meta = await getPlaylistMeta(p.spotify_playlist_id, token, { fields: "owner(id,display_name)" });
+        const r = await spotifyFetch(
+          `https://api.spotify.com/v1/playlists/${p.spotify_playlist_id}?fields=owner(id,display_name)`,
+          { headers: { Authorization: `Bearer ${token}` } },
+          { functionName: "discover-playlist-owners", operation: "get_playlist_owner", meta: { playlist_id: p.spotify_playlist_id } },
+        );
+        if (!r.ok) {
+          failed++;
+          results.push({ playlist: p.name, error: `spotify ${r.status}` });
+          continue;
+        }
+        const j: any = await r.json();
+        ownerId = j?.owner?.id ?? null;
+        ownerDisplay = j?.owner?.display_name ?? null;
       } catch (e) {
         failed++;
-        const status = e instanceof SpotifyApiError ? `spotify ${e.status}` : (e as Error).message;
-        results.push({ playlist: p.name, error: status });
+        results.push({ playlist: p.name, error: (e as Error).message });
         continue;
       }
-      const ownerId = meta.owner_id;
       if (!ownerId) { failed++; results.push({ playlist: p.name, error: "no owner" }); continue; }
 
       const isKnown = knownIds.has(ownerId);
