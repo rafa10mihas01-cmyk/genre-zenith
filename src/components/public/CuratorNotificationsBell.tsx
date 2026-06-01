@@ -179,9 +179,11 @@ const SEVERITY_STYLES: Record<Severity, { dot: string; iconWrap: string; iconCol
 export function CuratorNotificationsBell({
   stats,
   publicToken,
+  dealId,
 }: {
   stats: CuratorNotifInput;
   publicToken?: string | null;
+  dealId?: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const [remote, setRemote] = useState<RemoteNotif[]>([]);
