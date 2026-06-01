@@ -2526,7 +2526,7 @@ export type Database = {
       curator_deals: {
         Row: {
           baseline_captured_at: string | null
-          baseline_plays: number
+          baseline_plays: number | null
           billing_model: string
           campaign_id: string | null
           client_token: string
@@ -2571,7 +2571,7 @@ export type Database = {
         }
         Insert: {
           baseline_captured_at?: string | null
-          baseline_plays?: number
+          baseline_plays?: number | null
           billing_model?: string
           campaign_id?: string | null
           client_token?: string
@@ -2616,7 +2616,7 @@ export type Database = {
         }
         Update: {
           baseline_captured_at?: string | null
-          baseline_plays?: number
+          baseline_plays?: number | null
           billing_model?: string
           campaign_id?: string | null
           client_token?: string
