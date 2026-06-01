@@ -8176,6 +8176,7 @@ export type Database = {
           recalculated: number
           source: string
           synced: number
+          tier: string | null
         }
         Insert: {
           created_at?: string
@@ -8186,6 +8187,7 @@ export type Database = {
           recalculated?: number
           source?: string
           synced?: number
+          tier?: string | null
         }
         Update: {
           created_at?: string
@@ -8196,6 +8198,7 @@ export type Database = {
           recalculated?: number
           source?: string
           synced?: number
+          tier?: string | null
         }
         Relationships: []
       }
