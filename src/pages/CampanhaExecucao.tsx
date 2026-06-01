@@ -757,50 +757,16 @@ export default function CampanhaExecucao() {
 
 
 
-          playlists: (() => {
-            const renderTabsRow = (extra?: React.ReactNode) => (
-              <div className="flex items-center gap-2 flex-wrap">
-                <TabsList className="shrink-0">
-                  <TabsTrigger value="interno">Interno ({allocs.length})</TabsTrigger>
-                  <TabsTrigger value="externo">Externo</TabsTrigger>
-                </TabsList>
-                <GenresUsedFromAllocs allocs={allocs} compact />
-                {extra && (
-                  <div className="ml-auto flex items-center gap-2 flex-wrap">
-                    {extra}
-                  </div>
-                )}
-              </div>
-            );
-            return (
-            <Tabs defaultValue="interno" className="space-y-4">
-              <TabsContent value="interno" className="mt-0 space-y-4">
-                {renderTabsRow()}
-                <PlaylistsGrid
-                  allocations={allocs}
-                  snapshots={snaps}
-                  proofThumbs={proofs.map(p => ({
-                    playlist_id: p.playlist_id,
-                    screenshot_url: p.screenshot_url,
-                    captured_at: p.captured_at,
-                  }))}
-                  positions={ecoPositionByAllocation}
-                  mode="internal"
-                  flat
-                  campaignId={camp.id}
-                  snapshotLocked={!!camp.snapshot_locked_at}
-                  onSwapped={() => setPlanRefreshKey(k => k + 1)}
-                />
-
-                <OrganicCollectedSection rows={organicRows} />
-              </TabsContent>
-              <TabsContent value="externo" className="mt-0 space-y-4">
-                <ExternalPackageEditor
-                  campaignId={camp.id}
-                  snapshot={snapshot}
-                  onChanged={() => setPlanRefreshKey(k => k + 1)}
-                  renderTabsRow={(extra) => renderTabsRow(
-                    <>
+          playlists: (
+            <div className="space-y-4">
+              <ExternalPackageEditor
+                campaignId={camp.id}
+                snapshot={snapshot}
+                onChanged={() => setPlanRefreshKey(k => k + 1)}
+                renderTabsRow={(extra) => (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <GenresUsedFromAllocs allocs={allocs} compact />
+                    <div className="ml-auto flex items-center gap-2 flex-wrap">
                       <Button
                         size="sm"
                         onClick={() => setNewDealOpen(true)}
@@ -810,13 +776,12 @@ export default function CampanhaExecucao() {
                         Novo deal
                       </Button>
                       {extra}
-                    </>,
-                  )}
-                />
-              </TabsContent>
-            </Tabs>
-            );
-          })(),
+                    </div>
+                  </div>
+                )}
+              />
+            </div>
+          ),
           curve: (
             <div className="space-y-4">
               <CampaignFullPlanSummary

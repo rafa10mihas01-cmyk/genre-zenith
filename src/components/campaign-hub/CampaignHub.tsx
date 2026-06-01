@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LayoutDashboard, ListMusic, LineChart, Wallet, ScrollText, Network, Upload, Flag, Activity, History, Radar } from "lucide-react";
+import { LayoutDashboard, Users, LineChart, Wallet, ScrollText, Network, Upload, Flag, Activity, History, Radar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CampaignHero } from "./CampaignHero";
 import type { CampaignHubCampaign, CampaignHubMode, CampaignHubTabId } from "./types";
@@ -37,7 +37,7 @@ export function CampaignHub({
   const clientAllowedTabs: CampaignHubTabId[] = ["overview", "playlists", "monitoramento", "upload", "history"];
   const tabs: TabDef[] = [
     { id: "overview",  label: "Visão geral",  icon: LayoutDashboard, content: slots.overview  ?? null },
-    { id: "playlists", label: "Playlists",    icon: ListMusic,       content: slots.playlists ?? null },
+    { id: "playlists", label: "Externo",      icon: Users,           content: slots.playlists ?? null },
     { id: "curve",     label: "Plano & Entrega", icon: LineChart,    content: slots.curve     ?? null },
     { id: "operacao",  label: "Entregas",     icon: Network,         content: slots.operacao  ?? null },
     { id: "monitoramento", label: "Monitoramento", icon: Radar,      content: slots.monitoramento ?? null },
