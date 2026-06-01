@@ -293,6 +293,41 @@ function isPlaceholderToken(value: string): boolean {
 export default function CuratorPage() {
   const { token } = useParams<{ token: string }>();
   const onExternal = useExternalSplash();
+  // --- Gate de acesso por OTP (espelha portal do cliente) ---
+  const [gateChecked, setGateChecked] = useState(false);
+  const [gateRequired, setGateRequired] = useState(false);
+  const [gateAuthed, setGateAuthed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const tok = normalizePublicToken(token);
+    if (!tok || isPlaceholderToken(tok)) {
+      setGateChecked(true);
+      setGateRequired(false);
+      return;
+    }
+    (async () => {
+      try {
+        const stored = localStorage.getItem(curatorAccessStorageKey(tok));
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed?.jwt && parsed?.exp && parsed.exp > Date.now()) {
+            if (!cancelled) { setGateAuthed(true); setGateRequired(true); setGateChecked(true); return; }
+          } else {
+            localStorage.removeItem(curatorAccessStorageKey(tok));
+          }
+        }
+      } catch { /* ignore */ }
+      const { data } = await supabase.functions.invoke("check-curator-access", { body: { token: tok } });
+      if (cancelled) return;
+      const req = !!(data as any)?.required;
+      setGateRequired(req);
+      setGateAuthed(!req);
+      setGateChecked(true);
+    })();
+    return () => { cancelled = true; };
+  }, [token]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deal, setDeal] = useState<Deal | null>(null);
