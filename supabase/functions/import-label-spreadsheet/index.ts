@@ -595,37 +595,49 @@ Deno.serve(async (req) => {
     if (allPlaylistRows.length > 0) {
       // 3.0) Garante que existe um curator_playlists pra cada (deal, song, spotify_id).
       //      Snapshots e proofs têm FK pra essa tabela — sem ela o insert quebra.
-      const upsertRows = allPlaylistRows.map((r) => ({
-        deal_id: dealId,
-        song_id: songId,
-        spotify_playlist_id: r.playlist_spotify_id as string,
-        spotify_url: r.playlist_url
-          || (r.playlist_spotify_id ? `https://open.spotify.com/playlist/${r.playlist_spotify_id}` : ""),
-        playlist_name: r.playlist_name,
-        spotify_owner_name: r.owner_name ?? null,
-        canonical_playlist_id: (typeof r.matched_playlist_id === "string" && r.matched_playlist_id.length === 36)
-          ? r.matched_playlist_id
-          : null,
-        attribution_method: "label_spreadsheet",
-      }));
-      const { error: cpErr } = await admin
-        .from("curator_playlists")
-        .upsert(upsertRows, {
-          onConflict: "deal_id,song_id,spotify_playlist_id",
-          ignoreDuplicates: false,
-        });
-      if (cpErr) console.error("curator_playlists upsert error", cpErr);
-
-      // 3.0b) Lê de volta os ids (curator_playlists.id) pra usar como playlist_id.
-      const spIds = allPlaylistRows.map((r) => r.playlist_spotify_id as string);
-      const { data: cpRows } = await admin
+      //      ⚠️ Não usar .upsert({ onConflict: "deal_id,song_id,spotify_playlist_id" })
+      //         porque a unicidade real é um índice de EXPRESSÃO (COALESCE no song_id)
+      //         — PostgREST não casa e o upsert falha em silêncio, deixando 0 linhas
+      //         e quebrando snapshots/proofs em cascata. Por isso fazemos
+      //         "select existentes → insert apenas o que falta".
+      const spIds = Array.from(
+        new Set(allPlaylistRows.map((r) => r.playlist_spotify_id as string)),
+      );
+      const { data: existingCp } = await admin
         .from("curator_playlists")
         .select("id, spotify_playlist_id")
         .eq("deal_id", dealId)
         .in("spotify_playlist_id", spIds);
       const cpIdBySpotify = new Map<string, string>(
-        (cpRows ?? []).map((p: any) => [p.spotify_playlist_id as string, p.id as string]),
+        (existingCp ?? []).map((p: any) => [p.spotify_playlist_id as string, p.id as string]),
       );
+      const missingRows = allPlaylistRows.filter(
+        (r) => !cpIdBySpotify.has(r.playlist_spotify_id as string),
+      );
+      if (missingRows.length > 0) {
+        const insertRows = missingRows.map((r) => ({
+          deal_id: dealId,
+          song_id: songId,
+          spotify_playlist_id: r.playlist_spotify_id as string,
+          spotify_url: r.playlist_url
+            || (r.playlist_spotify_id ? `https://open.spotify.com/playlist/${r.playlist_spotify_id}` : ""),
+          playlist_name: r.playlist_name,
+          spotify_owner_name: r.owner_name ?? null,
+          canonical_playlist_id: (typeof r.matched_playlist_id === "string" && r.matched_playlist_id.length === 36)
+            ? r.matched_playlist_id
+            : null,
+          attribution_method: "label_spreadsheet",
+        }));
+        const { data: inserted, error: cpErr } = await admin
+          .from("curator_playlists")
+          .insert(insertRows)
+          .select("id, spotify_playlist_id");
+        if (cpErr) console.error("curator_playlists insert error", cpErr);
+        for (const row of (inserted ?? []) as any[]) {
+          cpIdBySpotify.set(row.spotify_playlist_id as string, row.id as string);
+        }
+      }
+
 
       // Snapshots: TODAS as playlists (internas + orgânicas) — pra baseline ter
       // a foto completa e pra calcular entrega a partir de qualquer playlist.
@@ -730,6 +742,36 @@ Deno.serve(async (req) => {
         .update({ total_delivered: delivered })
         .eq("id", campaignIdForUpdate);
     }
+
+    // 3c) Espelho em campaign_playlist_collections — fonte de verdade da aba
+    //     Monitoramento (Visão geral → KPIs, lista de playlists, delta). Sem
+    //     este passo, planilha do cliente subia mas a aba ficava em "0 playlists
+    //     na baseline / sem playlists" porque até hoje só o bot escrevia lá.
+    if (campaignIdForUpdate && allPlaylistRows.length > 0) {
+      try {
+        const collectionRows = allPlaylistRows
+          .filter((r) => typeof r.playlist_spotify_id === "string" && r.playlist_spotify_id.length > 0)
+          .map((r) => ({
+            playlist_id: r.playlist_spotify_id,
+            playlist_url: r.playlist_url
+              || `https://open.spotify.com/playlist/${r.playlist_spotify_id}`,
+            playlist_name_at_capture: r.playlist_name ?? null,
+            plays_7d: Math.max(0, Number(r.streams || 0)),
+            source: "label_spreadsheet",
+          }));
+        if (collectionRows.length > 0) {
+          const { error: rpcErr } = await admin.rpc("ingest_campaign_collection_batch", {
+            p_campaign_id: campaignIdForUpdate,
+            p_intent: isBaseline ? "baseline" : "periodic",
+            p_rows: collectionRows,
+          });
+          if (rpcErr) console.error("ingest_campaign_collection_batch error", rpcErr);
+        }
+      } catch (e) {
+        console.error("campaign_playlist_collections mirror error", (e as Error).message);
+      }
+    }
+
 
     // 4) Log agregado
     await admin.from("curator_deal_logs").insert({
