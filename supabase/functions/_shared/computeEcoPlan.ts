@@ -144,26 +144,24 @@ export function selectPositionByDailyNeed(
 
 /**
  * Distribui posições por capacidade real para um conjunto de playlists,
- * respeitando a necessidade diária restante (greedy: cobre o que falta sem
- * estourar). Retorna mapa id→posição e o total coberto.
+ * respeitando a necessidade diária restante.
  *
- * Ordem de consumo: playlists primárias por followers DESC, depois afinidade.
+ * SELEÇÃO BEST-FIT (eficiência marginal):
+ * A cada iteração, dentre as playlists restantes, escolhe aquela cujo MELHOR
+ * cap (na melhor posição possível sob o teto atual) mais se aproxima de fechar
+ * a necessidade restante SEM estourar. Isso garante que:
+ *  - playlists grandes que "fitam" exatamente o gap entram em posições rasas;
+ *  - sobras pequenas vão para playlists pequenas (em vez de gigantes empurradas
+ *    para posições profundas inúteis).
+ *
+ * Fórmula de cap (saves × mult/30 × %posição) NÃO MUDA — só a ordem de escolha.
+ * Primárias são consumidas antes de vizinhas (mantém regra de afinidade).
  */
 export function distributeByDailyNeed(
   allocs: Array<{ id: string; followers: number; genreSource?: "primary" | "affinity" }>,
   dailyNeed: number,
   mult: number,
   tolerance = ECO_DAILY_TOLERANCE,
-  /**
-   * Camada opcional de orçamento de audiência: cap diário MÁXIMO permitido
-   * por playlist nesta campanha (já descontando reservas de outras campanhas
-   * ativas sobrepostas). Quando presente:
-   *   - playlists com cap ≤ 0 ficam de fora do resultado;
-   *   - a posição escolhida sempre respeita esse teto, mesmo que a fórmula
-   *     original quisesse subir mais.
-   * NÃO altera a projeção em si: o cap escolhido continua sendo calculado
-   * por `playlistCapAtPosition` (saves × mult/30 × %posição).
-   */
   opts?: { maxCapById?: Map<string, number> },
 ): { positions: Map<string, number>; coveredDaily: number; details: Array<{ id: string; cap: number; fits: boolean }> } {
   const positions = new Map<string, number>();
@@ -172,17 +170,13 @@ export function distributeByDailyNeed(
     return { positions, coveredDaily: 0, details };
   }
   const maxCapById = opts?.maxCapById;
-  // Primárias primeiro (followers desc), depois vizinhos.
-  const primary = allocs.filter(a => (a.genreSource ?? "primary") === "primary")
-    .sort((a, b) => b.followers - a.followers);
-  const neighbor = allocs.filter(a => a.genreSource === "affinity")
-    .sort((a, b) => b.followers - a.followers);
+
+  const primary = allocs.filter(a => (a.genreSource ?? "primary") === "primary");
+  const neighbor = allocs.filter(a => a.genreSource === "affinity");
 
   let remaining = dailyNeed;
   let covered = 0;
 
-  // Igual a selectPositionByDailyNeed, mas aceita um teto explícito
-  // (= min(necessidade*tol, saldoDisponível)).
   const pickWithCeiling = (followers: number, ceiling: number): { position: number; cap: number; fits: boolean } => {
     if (followers <= 0 || ceiling <= 0) {
       return { position: POSITION_PCT.length, cap: 0, fits: false };
@@ -197,28 +191,46 @@ export function distributeByDailyNeed(
       }
     }
     if (bestPos > 0) return { position: bestPos, cap: bestCap, fits: true };
-    // Nem a posição mais profunda cabe sob o teto — usa a mais profunda.
     const deepest = POSITION_PCT.length;
     return { position: deepest, cap: playlistCapAtPosition(followers, mult, deepest), fits: false };
   };
 
-  const consume = (list: typeof primary) => {
-    for (const a of list) {
-      const budget = maxCapById?.get(a.id);
-      // Sem saldo nessa playlist → não entra no plano dessa campanha.
-      if (maxCapById && (budget == null || budget <= 0)) {
-        details.push({ id: a.id, cap: 0, fits: false });
-        continue;
-      }
+  // Best-fit greedy: a cada passo, escolhe a playlist cujo cap melhor fecha o gap.
+  const consume = (list: Array<{ id: string; followers: number; genreSource?: "primary" | "affinity" }>) => {
+    const pool = [...list];
+    while (pool.length > 0) {
       const need = remaining > 0 ? remaining : dailyNeed * tolerance;
       const needCeiling = need * (1 + tolerance);
-      // Teto efetivo = MENOR entre o que a campanha precisa e o saldo da playlist.
-      const ceiling = budget != null ? Math.min(needCeiling, budget) : needCeiling;
-      const sel = pickWithCeiling(a.followers, ceiling);
-      positions.set(a.id, sel.position);
-      details.push({ id: a.id, cap: sel.cap, fits: sel.fits });
-      covered += sel.cap;
-      remaining -= sel.cap;
+
+      let bestIdx = -1;
+      let bestSel: { position: number; cap: number; fits: boolean } | null = null;
+
+      for (let i = 0; i < pool.length; i++) {
+        const a = pool[i];
+        const budget = maxCapById?.get(a.id);
+        if (maxCapById && (budget == null || budget <= 0)) continue;
+        const ceiling = budget != null ? Math.min(needCeiling, budget) : needCeiling;
+        const sel = pickWithCeiling(a.followers, ceiling);
+        if (bestSel == null || sel.cap > bestSel.cap) {
+          bestSel = sel;
+          bestIdx = i;
+        }
+      }
+
+      if (bestIdx < 0 || bestSel == null) {
+        for (const a of pool) {
+          if (maxCapById && (maxCapById.get(a.id) ?? 0) <= 0) {
+            details.push({ id: a.id, cap: 0, fits: false });
+          }
+        }
+        break;
+      }
+
+      const chosen = pool.splice(bestIdx, 1)[0];
+      positions.set(chosen.id, bestSel.position);
+      details.push({ id: chosen.id, cap: bestSel.cap, fits: bestSel.fits });
+      covered += bestSel.cap;
+      remaining -= bestSel.cap;
     }
   };
 
