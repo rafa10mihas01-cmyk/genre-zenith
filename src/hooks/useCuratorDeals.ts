@@ -57,6 +57,12 @@ export type Curator = {
   default_plays: number | null;
   monthly_amount: number | null;
   billing_day: number | null;
+  phone: string | null;
+  email: string | null;
+  pix_key: string | null;
+  pix_type: string | null;
+  full_name: string | null;
+  document: string | null;
 };
 
 export type CuratorBalance = {
@@ -84,6 +90,12 @@ export type NewCuratorInput = {
   default_plays?: number | null;
   monthly_amount?: number | null;
   billing_day?: number | null;
+  phone?: string | null;
+  email?: string | null;
+  pix_key?: string | null;
+  pix_type?: string | null;
+  full_name?: string | null;
+  document?: string | null;
 };
 
 export type DealSongInput = {
