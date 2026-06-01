@@ -33,6 +33,7 @@ import { CircuitBreakerHistoryCard } from "@/components/sistema/CircuitBreakerHi
 import { BrainFreshnessCard } from "@/components/home/BrainFreshnessCard";
 import { EngineHealthGrid } from "@/components/cockpit/EngineHealthGrid";
 import { CapacidadePanel } from "@/components/sistema/CapacidadePanel";
+import { SpotifyPilotPanel } from "@/components/sistema/SpotifyPilotPanel";
 
 type SistemaTab = "saude" | "capacidade" | "aprendizado" | "alertas" | "motores" | "configuracoes" | "dev";
 type MotorSub = "robo" | "coleta" | "execucao" | "fluxo" | "ao-vivo";
