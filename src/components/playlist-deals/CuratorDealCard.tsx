@@ -328,11 +328,14 @@ export function CuratorDealCard({
 
         {/* Aviso sem baseline */}
         {!hasBaseline && (
-          <div className="rounded-md border border-warning/30 bg-warning/10 px-2.5 py-1.5 flex items-center gap-1.5">
+          <div className="rounded-md border border-warning/30 bg-warning/10 px-2.5 py-1.5 flex items-center gap-2 flex-wrap">
             <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0" />
-            <span className="text-[11px] text-warning font-medium">
+            <span className="text-[11px] text-warning font-medium flex-1 min-w-0">
               Print inicial pendente
             </span>
+            {deal.campaign_id && (
+              <RecalcBaselineButton dealId={deal.id} />
+            )}
           </div>
         )}
 
