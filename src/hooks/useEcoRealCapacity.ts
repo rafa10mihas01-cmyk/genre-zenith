@@ -128,7 +128,7 @@ export function useEcoRealCapacity(
       })();
     }, 300);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [genre, dailyNeed, multiplier, tolerance]);
+  }, [genre, dailyNeed, multiplier, tolerance, mode]);
 
   return state;
 }
