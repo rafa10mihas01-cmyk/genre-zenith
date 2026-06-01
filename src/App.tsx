@@ -119,6 +119,7 @@ const App = () => (
                 <Route path="/curador/:token" element={<CuratorPage />} />
                 <Route path="/campanha/:token" element={<LegacyCampaignRedirect />} />
                 <Route path="/p/plano/:token" element={<PlanoCampanhaPublico />} />
+                <Route path="/mapa/:token" element={<MapaCampanhaPublico />} />
                 <Route path="/comunidade/join/:code" element={<JoinInvite />} />
                 <Route path="/comunidade/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
                 <Route path="/comunidade" element={<ProtectedRoute><ComunidadeDashboard /></ProtectedRoute>} />
