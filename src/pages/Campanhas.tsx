@@ -66,13 +66,17 @@ function normalizeText(value: string | null | undefined) {
  *     Tratamos como Concluída pra não poluir a aba Ativas.
  * Não muta o banco — apenas como filtramos/rotulamos.
  */
-function effectiveStatus(c: { status: string; total_delivered: number | null; goal_plays: number | null; client_approved_at: string | null; plan_approved_at: string | null; }): string {
+function effectiveStatus(c: { status: string; total_delivered: number | null; goal_plays: number | null; client_approved_at: string | null; plan_approved_at: string | null; collection_mode?: string | null; }): string {
   if (c.status === "cancelled" || c.status === "paused" || c.status === "completed") return c.status;
   const delivered = Number(c.total_delivered || 0);
   const goal = Number(c.goal_plays || 0);
   if (goal > 0 && delivered >= goal) return "completed";
-  // Ainda em rascunho enquanto os portões internos não fecharam.
-  if (!c.client_approved_at || !c.plan_approved_at) return "draft";
+  // Portão 2 (plano interno) é considerado fechado quando:
+  //  - plan_approved_at != null, OU
+  //  - collection_mode='spreadsheet' E status='active' (modo planilha não grava plan_approved_at;
+  //    o portão fica read-only assim que a campanha vai ao ar).
+  const planGateClosed = !!c.plan_approved_at || (c.collection_mode === "spreadsheet" && c.status === "active");
+  if (!c.client_approved_at || !planGateClosed) return "draft";
   return "active";
 }
 
@@ -95,9 +99,11 @@ function pipelineStage(c: import("@/hooks/useCampaigns").Campaign): PipelineFilt
   const eff = effectiveStatus(c);
   if (eff === "completed" || eff === "cancelled") return "completed";
   if (!c.client_approved_at) return "awaiting_client";
-  if (!c.plan_approved_at) return "awaiting_internal";
+  const planGateClosed = !!c.plan_approved_at || (c.collection_mode === "spreadsheet" && c.status === "active");
+  if (!planGateClosed) return "awaiting_internal";
   return "running";
 }
+
 
 
 export default function Campanhas() {
