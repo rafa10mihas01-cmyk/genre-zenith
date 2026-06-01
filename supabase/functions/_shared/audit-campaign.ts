@@ -148,21 +148,36 @@ export async function auditCampaignFlow(
   // ─────────────────────────────────────────────────────────────
 
   if (mode === "spreadsheet") {
-    const { data: uploads } = await admin
-      .from("label_spreadsheet_uploads")
-      .select("id, campaign_id, deal_id, rows_imported, status, created_at, is_baseline")
-      .eq("campaign_id", campaignId)
-      .order("created_at", { ascending: false });
+    // Uploads são vinculados via deal_id (não há campaign_id em label_spreadsheet_uploads).
+    let uploadsArr: any[] = [];
+    if (dealIds.length > 0) {
+      const { data: uploads } = await admin
+        .from("label_spreadsheet_uploads")
+        .select("id, deal_id, rows_imported, status, created_at, is_baseline")
+        .in("deal_id", dealIds)
+        .order("created_at", { ascending: false });
+      uploadsArr = uploads ?? [];
+    }
 
-    const uploadsArr = uploads ?? [];
     if (uploadsArr.length === 0) {
       push("5_spreadsheet", "Planilha do cliente recebida", "pending",
-        "Nenhuma planilha enviada pelo cliente ainda. O cliente sobe a planilha pelo portal.");
+        dealIds.length === 0
+          ? "Aguardando criação do deal pra vincular a planilha do cliente."
+          : "Nenhuma planilha enviada pelo cliente ainda. O cliente sobe a planilha pelo portal.");
     } else {
       const baseline = uploadsArr.find((u: any) => u.is_baseline);
+      const followups = uploadsArr.filter((u: any) => !u.is_baseline);
       const totalRows = uploadsArr.reduce((s: number, u: any) => s + Number(u.rows_imported ?? 0), 0);
-      push("5_spreadsheet", "Planilha do cliente recebida", "ok",
-        `${uploadsArr.length} upload(s), ${totalRows} linha(s)${baseline ? " — baseline definida" : ""}.`);
+      const lastAt = uploadsArr[0]?.created_at ?? null;
+      const parts: string[] = [];
+      if (baseline) parts.push(`baseline em ${baseline.created_at} (${baseline.rows_imported ?? 0} linhas)`);
+      else parts.push("sem baseline marcada");
+      if (followups.length > 0) parts.push(`${followups.length} acompanhamento(s)`);
+      parts.push(`último upload em ${lastAt ?? "—"}`);
+      push("5_spreadsheet", "Planilha do cliente recebida",
+        baseline ? "ok" : "pending",
+        `${uploadsArr.length} upload(s) · ${totalRows} linha(s) · ${parts.join(" · ")}.`,
+        { uploads: uploadsArr.map((u: any) => ({ id: u.id, deal_id: u.deal_id, is_baseline: u.is_baseline, rows: u.rows_imported, at: u.created_at })) });
     }
 
     push("6_collection", "Coleta automática nas playlists", "skipped",
