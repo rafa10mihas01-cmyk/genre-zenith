@@ -77,6 +77,8 @@ type Song = {
   startDateISO: string; // yyyy-mm-dd
   clientPriceTotal: number; // R$ que o cliente paga (manual) — 0 = usa tabela
   genre: string; // p/ filtrar playlists na distribuição
+  /** Marca a música como Funk Mandelão — bloqueia Trap de alto valor (>30k seguidores). */
+  isMandelao: boolean;
   // Top 200 picker (controlado pra meta recalcular sozinho quando days muda)
   top200Pos: number | null;
   top200StreamsDay: number | null;
@@ -124,6 +126,7 @@ function emptySong(): Song {
     startDateISO: startOfDay(new Date()).toISOString().slice(0, 10),
     clientPriceTotal: 0,
     genre: "",
+    isMandelao: false,
     top200Pos: null,
     top200StreamsDay: null,
     top200ChartDate: null,
@@ -393,6 +396,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
           coverUrl: song.track.thumbnail_url,
           baselineStreamsDay: song.baselineStreamsDay,
           genre: song.genre || null,
+          isMandelao: song.isMandelao || false,
           top200Position: song.top200Pos ?? song.track.position ?? null,
           top200StreamsDay: song.top200StreamsDay ?? song.track.streamsDay ?? null,
           top200ChartDate: song.top200ChartDate ?? song.track.chartDate ?? null,
@@ -459,6 +463,37 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         }
       }
 
+      // ─── Filtro Mandelão ───
+      // Se a música é Funk Mandelão, bloqueia playlists Trap de alto valor
+      // (>30k seguidores) — não casa com letra pesada. Trap menor entra,
+      // mas é empurrada pras posições finais (pos ≥6) no map abaixo.
+      const MANDELAO_TRAP_FOLLOWERS_CAP = 30_000;
+      let mandelaoTrapIds = new Set<string>();
+      let mandelaoBlockedCount = 0;
+      if (song.isMandelao) {
+        const { data: trapRow } = await supabase
+          .from("genres")
+          .select("id")
+          .eq("slug", "trap")
+          .maybeSingle();
+        const trapGenreId = trapRow?.id ?? null;
+        if (trapGenreId) {
+          const beforeCount = neighborSlice.length;
+          neighborSlice = neighborSlice.filter(p => {
+            if (p.genre_id !== trapGenreId) return true;
+            const keep = (p.followers ?? 0) <= MANDELAO_TRAP_FOLLOWERS_CAP;
+            if (keep) mandelaoTrapIds.add(p.id);
+            return keep;
+          });
+          mandelaoBlockedCount = beforeCount - neighborSlice.length;
+          if (mandelaoBlockedCount > 0) {
+            console.info(`[Calculadora] Mandelão: bloqueou ${mandelaoBlockedCount} playlists Trap >30k seguidores`);
+          }
+        }
+      }
+
+
+
 
       // Capacidade total do eco = uma posição diária por playlist, sem repetir a música.
       const compatiblePlaylists = [...coreSlice, ...neighborSlice].sort((a, b) => (b.followers ?? 0) - (a.followers ?? 0));
@@ -507,11 +542,14 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         const score = a.source === "neighbor"
           ? (neighborAffinityByPlaylistId?.get(a.id) ?? null)
           : null;
+        // Mandelão em Trap menor → posição final (mínimo 6) pra não competir com hits do gênero.
+        const isMandelaoTrap = song.isMandelao && mandelaoTrapIds.has(a.id);
+        const finalPosition = isMandelaoTrap ? Math.max(a.position, 6) : a.position;
         return {
           managed_playlist_id: a.id,
           planned_streams: Math.max(1, Math.round(a.cap_dia * planMultiplier)),
           start_day: 1 + Math.floor((index / Math.max(1, totalAllocs - 1)) * Math.max(0, Math.min(planDays - 1, Math.ceil(planDays * (r.modo === "sequencial" ? 0.7 : 0.25)) - 1))),
-          position: a.position,
+          position: finalPosition,
           genre_source: a.source === "neighbor" ? "affinity" : "primary",
           genre_affinity_score: score,
         };
@@ -917,6 +955,22 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                         {GENRE_OPTIONS.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
                       </SelectContent>
                     </Select>
+                    {active.genre.toLowerCase().startsWith("funk") && (
+                      <label className="mt-2 flex items-start gap-2 rounded-xl border border-border bg-card/40 px-3 py-2.5 cursor-pointer hover:bg-card/70 transition">
+                        <input
+                          type="checkbox"
+                          checked={active.isMandelao}
+                          onChange={(e) => patchActive({ isMandelao: e.target.checked })}
+                          className="mt-0.5 h-4 w-4 accent-primary cursor-pointer"
+                        />
+                        <span className="text-xs leading-snug">
+                          <span className="font-medium text-foreground">Mandelão</span>
+                          <span className="block text-muted-foreground/80 text-[11px] mt-0.5">
+                            Bloqueia Trap acima de 30k seguidores. Trap menor entra nas posições finais.
+                          </span>
+                        </span>
+                      </label>
+                    )}
                   </div>
                 </CardContent>
               </Card>

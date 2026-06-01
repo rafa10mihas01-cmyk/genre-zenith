@@ -17,6 +17,8 @@ export interface CampaignSnapshot {
     coverUrl: string | null;
     baselineStreamsDay: number;
     genre?: string | null;
+    /** Marca a música como Funk Mandelão — bloqueia Trap >30k seguidores na distribuição eco. */
+    isMandelao?: boolean;
     top200Position?: number | null;
     top200StreamsDay?: number | null;
     top200ChartDate?: string | null;
