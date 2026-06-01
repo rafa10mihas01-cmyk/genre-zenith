@@ -7750,6 +7750,60 @@ export type Database = {
         }
         Relationships: []
       }
+      spotify_call_log: {
+        Row: {
+          app_id: string | null
+          app_name: string | null
+          attempts: number
+          breaker_open: boolean
+          created_at: string
+          duration_ms: number | null
+          endpoint: string
+          error: string | null
+          function_name: string | null
+          http_status: number | null
+          id: number
+          meta: Json | null
+          method: string
+          retry_after_sec: number | null
+          status: string
+        }
+        Insert: {
+          app_id?: string | null
+          app_name?: string | null
+          attempts?: number
+          breaker_open?: boolean
+          created_at?: string
+          duration_ms?: number | null
+          endpoint: string
+          error?: string | null
+          function_name?: string | null
+          http_status?: number | null
+          id?: number
+          meta?: Json | null
+          method?: string
+          retry_after_sec?: number | null
+          status: string
+        }
+        Update: {
+          app_id?: string | null
+          app_name?: string | null
+          attempts?: number
+          breaker_open?: boolean
+          created_at?: string
+          duration_ms?: number | null
+          endpoint?: string
+          error?: string | null
+          function_name?: string | null
+          http_status?: number | null
+          id?: number
+          meta?: Json | null
+          method?: string
+          retry_after_sec?: number | null
+          status?: string
+        }
+        Relationships: []
+      }
       spotify_circuit_breaker: {
         Row: {
           app_id: string
@@ -8781,6 +8835,7 @@ export type Database = {
       cleanup_old_logs_and_snapshots: { Args: never; Returns: Json }
       cleanup_operational_logs: { Args: never; Returns: Json }
       cleanup_rate_limits_and_ai_cache: { Args: never; Returns: Json }
+      cleanup_spotify_call_log: { Args: never; Returns: undefined }
       cleanup_stale_autopilot_runs: {
         Args: { p_minutes?: number }
         Returns: number
