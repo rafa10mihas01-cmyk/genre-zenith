@@ -434,6 +434,12 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
           default_plays: input.default_plays ?? null,
           monthly_amount: input.monthly_amount ?? null,
           billing_day: input.billing_day ?? null,
+          phone: input.phone ?? null,
+          email: input.email ?? null,
+          pix_key: input.pix_key ?? null,
+          pix_type: input.pix_type ?? null,
+          full_name: input.full_name ?? null,
+          document: input.document ?? null,
         })
         .select()
         .single();
