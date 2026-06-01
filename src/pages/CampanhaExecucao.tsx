@@ -28,6 +28,7 @@ import { NewDealDialog } from "@/components/playlist-deals/NewDealDialog";
 import { cn } from "@/lib/utils";
 import { CampaignHub } from "@/components/campaign-hub/CampaignHub";
 import { OverviewTab } from "@/components/campaign-hub/tabs/OverviewTab";
+import { RadioCollectedCard } from "@/components/campaign-hub/RadioCollectedCard";
 import { CampaignKpis } from "@/components/campaign-hub/CampaignKpis";
 import { Lock } from "lucide-react";
 import { OperacaoTab, type ExternalItemRow } from "@/components/campaign-hub/tabs/OperacaoTab";
@@ -697,6 +698,10 @@ export default function CampanhaExecucao() {
               <BotCollectionStatus
                 campaignId={camp.id}
                 dealId={camp.deal_id ?? null}
+              />
+              <RadioCollectedCard
+                campaignId={camp.id}
+                metaPlanned={snapshot.streamsOrganic ?? 0}
               />
               <OverviewTab
                 snapshot={snapshot}

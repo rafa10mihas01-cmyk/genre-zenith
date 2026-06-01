@@ -448,6 +448,13 @@ export type Database = {
             foreignKeyName: "campaign_access_emails_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
+            referencedRelation: "campaign_radio_collected"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "campaign_access_emails_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
             referencedRelation: "campaigns"
             referencedColumns: ["id"]
           },
@@ -493,6 +500,13 @@ export type Database = {
           user_agent?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "campaign_access_logs_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_radio_collected"
+            referencedColumns: ["campaign_id"]
+          },
           {
             foreignKeyName: "campaign_access_logs_campaign_id_fkey"
             columns: ["campaign_id"]
@@ -545,6 +559,13 @@ export type Database = {
           used_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "campaign_access_otps_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_radio_collected"
+            referencedColumns: ["campaign_id"]
+          },
           {
             foreignKeyName: "campaign_access_otps_campaign_id_fkey"
             columns: ["campaign_id"]
@@ -609,6 +630,13 @@ export type Database = {
           weight?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "campaign_allocations_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_radio_collected"
+            referencedColumns: ["campaign_id"]
+          },
           {
             foreignKeyName: "campaign_allocations_campaign_id_fkey"
             columns: ["campaign_id"]
@@ -699,6 +727,13 @@ export type Database = {
             foreignKeyName: "campaign_eco_allocations_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
+            referencedRelation: "campaign_radio_collected"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "campaign_eco_allocations_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
             referencedRelation: "campaigns"
             referencedColumns: ["id"]
           },
@@ -773,6 +808,13 @@ export type Database = {
           spotify_playlist_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "campaign_eco_snapshots_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_radio_collected"
+            referencedColumns: ["campaign_id"]
+          },
           {
             foreignKeyName: "campaign_eco_snapshots_campaign_id_fkey"
             columns: ["campaign_id"]
@@ -931,6 +973,13 @@ export type Database = {
             foreignKeyName: "campaign_external_packages_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
+            referencedRelation: "campaign_radio_collected"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "campaign_external_packages_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
             referencedRelation: "campaigns"
             referencedColumns: ["id"]
           },
@@ -985,6 +1034,13 @@ export type Database = {
           reason?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "campaign_plan_history_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_radio_collected"
+            referencedColumns: ["campaign_id"]
+          },
           {
             foreignKeyName: "campaign_plan_history_campaign_id_fkey"
             columns: ["campaign_id"]
@@ -1046,6 +1102,13 @@ export type Database = {
           version?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "campaign_plan_versions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_radio_collected"
+            referencedColumns: ["campaign_id"]
+          },
           {
             foreignKeyName: "campaign_plan_versions_campaign_id_fkey"
             columns: ["campaign_id"]
@@ -1119,6 +1182,13 @@ export type Database = {
           source?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_radio_collected"
+            referencedColumns: ["campaign_id"]
+          },
           {
             foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
             columns: ["campaign_id"]
@@ -1963,6 +2033,13 @@ export type Database = {
             foreignKeyName: "curator_campaign_playlists_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
+            referencedRelation: "campaign_radio_collected"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "curator_campaign_playlists_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
             referencedRelation: "campaigns"
             referencedColumns: ["id"]
           },
@@ -2583,6 +2660,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "curator_deals_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_radio_collected"
+            referencedColumns: ["campaign_id"]
+          },
           {
             foreignKeyName: "curator_deals_campaign_id_fkey"
             columns: ["campaign_id"]
@@ -8156,6 +8240,18 @@ export type Database = {
       }
     }
     Views: {
+      campaign_radio_collected: {
+        Row: {
+          campaign_id: string | null
+          current_plays_7d: number | null
+          delta_48h: number | null
+          last_captured_at: string | null
+          prior_captured_at: string | null
+          prior_plays_7d: number | null
+          spotify_track_id: string | null
+        }
+        Relationships: []
+      }
       curator_playlist_library_stats: {
         Row: {
           avg_streams_per_deal: number | null
@@ -8445,6 +8541,13 @@ export type Database = {
           playlist_url: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_radio_collected"
+            referencedColumns: ["campaign_id"]
+          },
           {
             foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
             columns: ["campaign_id"]
