@@ -4,6 +4,7 @@ import {
   planRealCapacity,
   ECO_DAILY_TOLERANCE,
   type RealCapacityAlloc,
+  type RealCapacityMode,
 } from "@/lib/campaignOperationalPlan";
 
 export interface EcoRealCapacity {
