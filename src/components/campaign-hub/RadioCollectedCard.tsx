@@ -34,8 +34,8 @@ export function RadioCollectedCard({ campaignId, metaPlanned = 0 }: Props) {
   useEffect(() => {
     let active = true;
     void (async () => {
-      const { data: rows } = await supabase
-        .from("campaign_radio_collected" as any)
+      const { data: rows } = await (supabase as any)
+        .from("campaign_radio_collected")
         .select("*")
         .eq("campaign_id", campaignId)
         .maybeSingle();
