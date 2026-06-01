@@ -75,19 +75,28 @@ export function suggestExternalAllocations(
 export async function fetchCuratorCandidates(): Promise<CuratorCandidate[]> {
   const { data, error } = await supabase
     .from("curators")
-    .select("id, name, contact, purchased_plays, default_plays, default_amount, archived_at, paused_at")
+    .select("id, name, contact, purchased_plays, total_cost, default_plays, default_amount, archived_at, paused_at")
     .is("archived_at", null)
     .is("paused_at", null);
   if (error) throw error;
   return (data ?? []).map((c: any) => {
+    // Taxa real do pacote contratado com o curador:
+    //   total_cost / purchased_plays  →  R$ por play efetivamente pago.
+    // Fallback: default_amount/default_plays (preço-tabela), depois DEFAULT.
+    const totalCost = Number(c.total_cost ?? 0);
+    const totalPlays = Number(c.purchased_plays ?? 0);
     const defAmount = Number(c.default_amount ?? 0);
     const defPlays = Number(c.default_plays ?? 0);
-    const cps = defPlays > 0 ? defAmount / defPlays : DEFAULT_COST_PER_STREAM;
+    const cps = totalPlays > 0 && totalCost > 0
+      ? totalCost / totalPlays
+      : defPlays > 0
+        ? defAmount / defPlays
+        : DEFAULT_COST_PER_STREAM;
     return {
       id: c.id,
       name: c.name,
       contact: c.contact,
-      purchased_plays: Number(c.purchased_plays ?? 0),
+      purchased_plays: totalPlays,
       cost_per_stream: cps,
       archived_at: c.archived_at,
       paused_at: c.paused_at,
