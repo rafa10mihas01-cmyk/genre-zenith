@@ -809,6 +809,22 @@ Deno.serve(async (req) => {
         .eq("deal_id", dealId);
     }
 
+    // 6) Enriquece curator_playlists novas com capa/nome/seguidores do Spotify
+    //    (best-effort — não bloqueia a resposta se falhar). Sem isso a aba
+    //    Monitoramento mostra capa cinza e nome cru da planilha.
+    try {
+      const enrichUrl = `${SUPABASE_URL}/functions/v1/enrich-curator-playlists-spotify`;
+      fetch(enrichUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${SERVICE_KEY}`,
+        },
+        body: JSON.stringify({ deal_id: dealId }),
+      }).catch(() => {});
+    } catch (_) {
+      // ignore
+
 
 
 
