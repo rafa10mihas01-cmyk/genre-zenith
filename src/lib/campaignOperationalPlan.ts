@@ -225,15 +225,19 @@ export interface RealCapacityAlloc {
   fits: boolean;
 }
 
+export type RealCapacityMode = "cascade" | "balanced";
+
 export function planRealCapacity(
   playlists: Array<{ id: string; name?: string; followers: number; source: "primary" | "neighbor" }>,
   dailyNeed: number,
   multiplier: number,
   tolerance = ECO_DAILY_TOLERANCE,
+  opts: { mode?: RealCapacityMode } = {},
 ): { allocations: RealCapacityAlloc[]; coveredDaily: number; remaining: number } {
   if (dailyNeed <= 0 || playlists.length === 0) {
     return { allocations: [], coveredDaily: 0, remaining: dailyNeed };
   }
+  const mode: RealCapacityMode = opts.mode ?? "cascade";
   const primary = playlists.filter(p => p.source === "primary");
   const neighbor = playlists.filter(p => p.source === "neighbor");
   const allocations: RealCapacityAlloc[] = [];
@@ -244,9 +248,16 @@ export function planRealCapacity(
   const COVERAGE_STOP = 0.95;
   const stopThreshold = dailyNeed * (1 - COVERAGE_STOP);
 
-  const consume = (list: typeof primary, minPos = 1) => {
+  // Modo balanced (gravadora/label): segura primárias em ~70% da meta pra abrir
+  // espaço pra ~30% de vizinhos. Reduz total de playlists usando peso alto dos
+  // vizinhos em posições 5+, sem inchar a contagem.
+  const PRIMARY_BALANCED_SHARE = 0.70;
+  const primaryStopThreshold =
+    mode === "balanced" ? dailyNeed * (1 - PRIMARY_BALANCED_SHARE) : stopThreshold;
+
+  const consume = (list: typeof primary, minPos: number, stopAt: number) => {
     const pool = [...list];
-    while (pool.length > 0 && remaining > stopThreshold) {
+    while (pool.length > 0 && remaining > stopAt) {
       let bestIdx = -1;
       let bestSel: { position: number; cap: number; fits: boolean } | null = null;
       for (let i = 0; i < pool.length; i++) {
@@ -273,9 +284,18 @@ export function planRealCapacity(
     }
   };
 
-  // Cascata: primárias livres (1–20), vizinhos só pra fechar gap em posições ≥5.
-  consume(primary, 1);
-  if (remaining > stopThreshold) consume(neighbor, NEIGHBOR_MIN_POSITION);
+  if (mode === "balanced") {
+    // 1) Primárias até 70% da meta (posições livres 1–20).
+    consume(primary, 1, primaryStopThreshold);
+    // 2) Vizinhos pra fechar o gap até 95% (posições 5+).
+    if (remaining > stopThreshold) consume(neighbor, NEIGHBOR_MIN_POSITION, stopThreshold);
+    // 3) Fallback: se vizinhos esgotaram antes do 95%, volta pra primárias.
+    if (remaining > stopThreshold) consume(primary, 1, stopThreshold);
+  } else {
+    // Cascata padrão: primárias livres, vizinhos só pra fechar gap em pos ≥5.
+    consume(primary, 1, stopThreshold);
+    if (remaining > stopThreshold) consume(neighbor, NEIGHBOR_MIN_POSITION, stopThreshold);
+  }
 
   return { allocations, coveredDaily: covered, remaining: Math.max(0, remaining) };
 }
