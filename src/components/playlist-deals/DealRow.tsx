@@ -339,3 +339,45 @@ export function DealRow(props: DealRowProps) {
     </div>
   );
 }
+
+function RecalcBaselineInline({ dealId }: { dealId: string }) {
+  const [loading, setLoading] = useState(false);
+  async function handle(e: React.MouseEvent) {
+    e.stopPropagation();
+    setLoading(true);
+    try {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { data, error } = await (supabase.rpc as any)(
+        "recalc_curator_deal_baseline_from_spreadsheet",
+        { p_deal_id: dealId },
+      );
+      if (error) throw error;
+      if (data?.ok) {
+        toast.success("Baseline recalculada a partir da planilha");
+      } else {
+        const msg =
+          data?.error === "campanha_nao_e_planilha"
+            ? "Campanha não está em modo planilha"
+            : data?.error === "baseline_da_campanha_ausente"
+            ? "Planilha de baseline ainda não foi importada"
+            : data?.error ?? "Não foi possível recalcular";
+        toast.error(msg);
+      }
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      className="h-6 px-2 text-[10.5px] border-warning/40 text-warning hover:bg-warning/15 shrink-0"
+      onClick={handle}
+      disabled={loading}
+    >
+      {loading ? "..." : "Recalcular da planilha"}
+    </Button>
+  );
+}
