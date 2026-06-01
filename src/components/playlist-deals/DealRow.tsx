@@ -116,34 +116,8 @@ export function DealRow(props: DealRowProps) {
     ? deal.curator_name
     : (songs[0]?.song_artist ?? deal.song_artist ?? deal.curator_name);
 
-  const handleCopyCuratorLink = async () => {
-    const { curatorPublicUrl } = await import("@/lib/curatorPublicUrl");
-    const url = curatorPublicUrl({ slug: deal.slug, public_token: deal.public_token });
-    try {
-      await navigator.clipboard.writeText(url);
-      toast.success("Link do curador copiado");
-    } catch {
-      toast.error("Não foi possível copiar");
-    }
-  };
 
-  const handleCopyClientLink = async () => {
-    const { clientCampaignUrl } = await import("@/lib/curatorPublicUrl");
-    const first = (songs ?? []).find((s) => !!s.slug || !!s.client_token);
-    const slug = first?.slug ?? null;
-    const token = first?.client_token ?? deal.client_token ?? null;
-    if (!slug && !token) {
-      toast.error("Link do cliente indisponível");
-      return;
-    }
-    const url = clientCampaignUrl({ slug, client_token: token });
-    try {
-      await navigator.clipboard.writeText(url);
-      toast.success("Link do cliente copiado");
-    } catch {
-      toast.error("Não foi possível copiar");
-    }
-  };
+
 
   return (
     <div
