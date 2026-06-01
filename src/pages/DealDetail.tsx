@@ -78,41 +78,11 @@ export default function DealDetail() {
         actions={
           <div className="flex items-center gap-2">
             {deal && (deal.slug || deal.public_token) && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-full gap-1.5 h-9"
-                  onClick={async () => {
-                    const { curatorPublicUrl } = await import("@/lib/curatorPublicUrl");
-                    const url = curatorPublicUrl({ slug: deal.slug, public_token: deal.public_token });
-                    window.open(url, "_blank", "noopener,noreferrer");
-                  }}
-                  title="Abrir portal do curador"
-                >
-                  <Headphones className="h-4 w-4" />
-                  Acesso do curador
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="rounded-full h-9 w-9"
-                  onClick={async () => {
-                    const { curatorPublicUrl } = await import("@/lib/curatorPublicUrl");
-                    const url = curatorPublicUrl({ slug: deal.slug, public_token: deal.public_token });
-                    try {
-                      await navigator.clipboard.writeText(url);
-                      toast.success("Link do curador copiado", { description: url });
-                    } catch {
-                      toast.error("Não foi possível copiar o link");
-                    }
-                  }}
-                  title="Copiar link do portal do curador"
-                  aria-label="Copiar link do portal do curador"
-                >
-                  <Copy className="h-4 w-4" />
-                </Button>
-              </>
+              <CuratorDealAccessManager
+                dealId={deal.id}
+                slug={deal.slug}
+                publicToken={deal.public_token}
+              />
             )}
             <Button onClick={back} variant="outline" size="sm" className="rounded-full gap-1 h-9">
               <ChevronLeft className="h-4 w-4" />
