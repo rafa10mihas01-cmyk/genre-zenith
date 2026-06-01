@@ -14,6 +14,7 @@ import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { ExternalPackageEditor } from "@/components/campanhas/ExternalPackageEditor";
 import { BaselineAwaitingBanner } from "@/components/campanhas/BaselineAwaitingBanner";
 import { BotCollectionStatus } from "@/components/campanhas/BotCollectionStatus";
+import { SpreadsheetCollectionStatus } from "@/components/campanhas/SpreadsheetCollectionStatus";
 import { MonitoramentoTab } from "@/components/campanhas/monitoramento/MonitoramentoTab";
 import { CampaignDailyPlan } from "@/components/campanhas/CampaignDailyPlan";
 import { PlaylistDailyPlanDialog } from "@/components/campanhas/PlaylistDailyPlanDialog";
@@ -100,6 +101,7 @@ export default function CampanhaExecucao() {
   const [recentUploads, setRecentUploads] = useState<SpreadsheetUpload[]>([]);
   const [externalItems, setExternalItems] = useState<ExternalItemRow[]>([]);
   const [newDealOpen, setNewDealOpen] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
   const [organicRows, setOrganicRows] = useState<OrganicRow[]>([]);
   const [dispatching, setDispatching] = useState(false);
   const [approvingPlan, setApprovingPlan] = useState(false);
@@ -664,7 +666,7 @@ export default function CampanhaExecucao() {
             <CampaignAccessManager campaignId={camp.id} />
             <AuditCampaignButton campaignId={camp.id} />
             {clientToken ? (
-              <Dialog>
+              <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" size="icon" className="h-9 w-9" title="Importar planilha" aria-label="Importar planilha">
                     <Upload className="h-4 w-4" />
@@ -695,10 +697,18 @@ export default function CampanhaExecucao() {
                 baselineCapturedAt={dealStatus.baselineCapturedAt}
                 dealId={camp.deal_id ?? null}
               />
-              <BotCollectionStatus
-                campaignId={camp.id}
-                dealId={camp.deal_id ?? null}
-              />
+              {(camp as any).collection_mode === "spreadsheet" ? (
+                <SpreadsheetCollectionStatus
+                  lastUploadAt={lastSpreadsheetUploadAt}
+                  recentUploads={recentUploads}
+                  onOpenUpload={clientToken ? () => setUploadOpen(true) : undefined}
+                />
+              ) : (
+                <BotCollectionStatus
+                  campaignId={camp.id}
+                  dealId={camp.deal_id ?? null}
+                />
+              )}
               <RadioCollectedCard
                 campaignId={camp.id}
                 metaPlanned={snapshot.streamsOrganic ?? 0}
