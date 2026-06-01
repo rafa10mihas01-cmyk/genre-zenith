@@ -180,6 +180,9 @@ Deno.serve(async (req) => {
   const candidates = (data ?? []).filter((s: any) => {
     // Curador pausado: bloqueia coleta
     if (s?.curator_deals?.curators?.paused_at) return false;
+    // Campanha em modo planilha: planilha é a única fonte de verdade,
+    // robô não coleta (defesa em profundidade; auto_collect dos songs também é false).
+    if (s?.curator_deals?.campaigns?.collection_mode === "spreadsheet") return false;
     const exp = s?.curator_deals?.token_expires_at;
     if (!exp) return true;
     const t = new Date(exp).getTime();
