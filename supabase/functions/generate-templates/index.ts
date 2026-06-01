@@ -360,8 +360,8 @@ Deno.serve(async (req) => {
   }
   if (missing.size > 0) {
     try {
-      const { getSpotifyToken, guardedSpotifyFetch } = await import("../_shared/spotify.ts");
-      const spToken = await getSpotifyToken();
+      const { getAppToken, spotifyFetch } = await import("../_shared/spotify-client.ts");
+      const spToken = await getAppToken();
       const items = Array.from(missing).slice(0, 200); // hard cap
       const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
       for (let idx = 0; idx < items.length; idx++) {
@@ -370,9 +370,10 @@ Deno.serve(async (req) => {
         const [nome, artista] = k.split("|");
         try {
           const q = `track:${nome} artist:${artista}`;
-          const r = await guardedSpotifyFetch(
+          const r = await spotifyFetch(
             `https://api.spotify.com/v1/search?type=track&limit=1&q=${encodeURIComponent(q)}`,
-            { headers: { Authorization: `Bearer ${spToken}` } }
+            { headers: { Authorization: `Bearer ${spToken}` } },
+            { functionName: "generate-templates", operation: "search_track_fallback", meta: { blueprint_id: blueprintId } },
           );
           if (!r.ok) continue;
           const j = await r.json();
