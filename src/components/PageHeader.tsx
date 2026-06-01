@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { ReactNode } from "react";
+import { ElementType, ReactNode } from "react";
 import { PageManual } from "@/components/PageManual";
 
 
@@ -29,7 +29,7 @@ export interface PageHeaderProps {
   title: string;
   subtitle: string;
   kicker?: string;
-  icon?: any;
+  icon?: ElementType;
   actions?: ReactNode;
   /** Cor de domínio: barra à esquerda do título + ícone do kicker tingido. */
   domain?: PageDomain;
