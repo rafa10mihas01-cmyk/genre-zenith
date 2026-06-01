@@ -231,9 +231,13 @@ export function planRealCapacity(
   let remaining = dailyNeed;
   let covered = 0;
 
+  // Early-stop: para de adicionar quando cobriu ≥95% da meta diária.
+  const COVERAGE_STOP = 0.95;
+  const stopThreshold = dailyNeed * (1 - COVERAGE_STOP);
+
   const consume = (list: typeof primary) => {
     const pool = [...list];
-    while (pool.length > 0 && remaining > 0) {
+    while (pool.length > 0 && remaining > stopThreshold) {
       let bestIdx = -1;
       let bestSel: { position: number; cap: number; fits: boolean } | null = null;
       for (let i = 0; i < pool.length; i++) {
@@ -261,7 +265,7 @@ export function planRealCapacity(
   };
 
   consume(primary);
-  if (remaining > 0) consume(neighbor);
+  if (remaining > stopThreshold) consume(neighbor);
 
   return { allocations, coveredDaily: covered, remaining: Math.max(0, remaining) };
 }
