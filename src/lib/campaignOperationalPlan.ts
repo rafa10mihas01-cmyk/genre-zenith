@@ -174,14 +174,16 @@ export function selectPositionByDailyNeed(
   multiplier: number,
   dailyNeed: number,
   tolerance = ECO_DAILY_TOLERANCE,
+  minPosition = 1,
 ): { position: number; cap: number; fits: boolean } {
   if (followers <= 0 || dailyNeed <= 0) {
-    return { position: 1, cap: 0, fits: false };
+    return { position: Math.max(1, minPosition), cap: 0, fits: false };
   }
   const ceiling = dailyNeed * (1 + tolerance);
+  const startIdx = Math.max(0, minPosition - 1);
   let bestPos = -1;
   let bestCap = -1;
-  for (let i = 0; i < POSITION_PCT.length; i++) {
+  for (let i = startIdx; i < POSITION_PCT.length; i++) {
     const cap = calculateTrackDailyStreams(followers, multiplier, i + 1);
     if (cap <= ceiling && cap > bestCap) {
       bestCap = cap;
@@ -196,6 +198,13 @@ export function selectPositionByDailyNeed(
     fits: false,
   };
 }
+
+/**
+ * Posição mínima para playlists VIZINHAS (gênero por afinidade).
+ * Vizinhos nunca entram nos slots fortes (1–4) — vão de 5 pra baixo, mesma
+ * regra do `replan-campaign-eco`. Mantém a "cara" de campanha de gênero.
+ */
+export const NEIGHBOR_MIN_POSITION = 5;
 
 /**
  * Distribui posições greedy por dailyNeed sobre uma lista de playlists.
@@ -235,13 +244,13 @@ export function planRealCapacity(
   const COVERAGE_STOP = 0.95;
   const stopThreshold = dailyNeed * (1 - COVERAGE_STOP);
 
-  const consume = (list: typeof primary) => {
+  const consume = (list: typeof primary, minPos = 1) => {
     const pool = [...list];
     while (pool.length > 0 && remaining > stopThreshold) {
       let bestIdx = -1;
       let bestSel: { position: number; cap: number; fits: boolean } | null = null;
       for (let i = 0; i < pool.length; i++) {
-        const sel = selectPositionByDailyNeed(pool[i].followers, multiplier, remaining, tolerance);
+        const sel = selectPositionByDailyNeed(pool[i].followers, multiplier, remaining, tolerance, minPos);
         if (sel.cap <= 0) continue;
         if (bestSel == null || sel.cap > bestSel.cap) {
           bestSel = sel;
@@ -264,8 +273,9 @@ export function planRealCapacity(
     }
   };
 
-  consume(primary);
-  if (remaining > stopThreshold) consume(neighbor);
+  // Cascata: primárias livres (1–20), vizinhos só pra fechar gap em posições ≥5.
+  consume(primary, 1);
+  if (remaining > stopThreshold) consume(neighbor, NEIGHBOR_MIN_POSITION);
 
   return { allocations, coveredDaily: covered, remaining: Math.max(0, remaining) };
 }
