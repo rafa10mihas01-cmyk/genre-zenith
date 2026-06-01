@@ -1,5 +1,6 @@
 // Shared eco-plan compute — mirrors src/lib/campaignOperationalPlan.ts.
 // Single source of truth used by edge functions that need the daily matrix.
+import { ECO_CURVE_LOSS_COMPENSATION } from "./eco-constants.ts";
 
 export const POSITION_PCT: number[] = [
   0.12, 0.10, 0.08, 0.07, 0.06,
@@ -174,7 +175,11 @@ export function distributeByDailyNeed(
   const primary = allocs.filter(a => (a.genreSource ?? "primary") === "primary");
   const neighbor = allocs.filter(a => a.genreSource === "affinity");
 
-  let remaining = dailyNeed;
+  // Compensa a perda da curva (rampa de entrada + tail de saída). A entrega
+  // simulada dia-a-dia consome ~12% do total teórico, então miramos capacidade
+  // maior pra que, depois da curva, a entrega real bata na meta contratada.
+  const targetDaily = dailyNeed * ECO_CURVE_LOSS_COMPENSATION;
+  let remaining = targetDaily;
   let covered = 0;
 
   const pickWithCeiling = (followers: number, ceiling: number, minPos = 1): { position: number; cap: number; fits: boolean } => {
@@ -199,7 +204,7 @@ export function distributeByDailyNeed(
   // Early-stop: quando a meta diária estiver coberta com ≥95%, paramos de adicionar
   // playlists. Resultado: planos enxutos (não enfia 200 playlists pra entregar 5%).
   const COVERAGE_STOP = 0.95;
-  const stopThreshold = dailyNeed * (1 - COVERAGE_STOP); // = 5% de "sobra" tolerada
+  const stopThreshold = targetDaily * (1 - COVERAGE_STOP); // = 5% de "sobra" tolerada
 
   // Vizinhos (gêneros afins) nunca em slots fortes — mesma regra do replan-campaign-eco.
   const NEIGHBOR_MIN_POSITION = 5;
