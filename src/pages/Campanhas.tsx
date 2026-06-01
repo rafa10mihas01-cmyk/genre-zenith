@@ -560,7 +560,11 @@ function CampaignRow({ c }: { c: Campaign }) {
   }
 
 
-  const isDraftReady = c.status === "draft" && !!c.curator_id;
+  // Mostra "Aprovar e disparar" sempre que a campanha ainda não foi aprovada
+  // internamente (plan_approved_at vazio), independente de c.status na DB ou
+  // de ter curator_id (campanhas spreadsheet podem não ter curador real). A
+  // validação fina (curador, baseline etc.) acontece dentro de approveCampaign.
+  const isDraftReady = !c.plan_approved_at && c.status !== "cancelled" && c.status !== "completed";
 
   const stop = (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); };
 
