@@ -18,12 +18,41 @@ export function usePlaylistCovers(playlistIds: string[]) {
       return;
     }
     (async () => {
-      const { data } = await supabase
-        .from("playlists")
-        .select("spotify_playlist_id, name, cover_url, followers")
-        .in("spotify_playlist_id", playlistIds);
+      // Busca em paralelo nas duas fontes: playlists (gerenciadas) e
+      // curator_playlists (importadas via planilha / vindas de curadores).
+      const [{ data: managed }, { data: curated }] = await Promise.all([
+        supabase
+          .from("playlists")
+          .select("spotify_playlist_id, name, cover_url, followers")
+          .in("spotify_playlist_id", playlistIds),
+        supabase
+          .from("curator_playlists")
+          .select("spotify_playlist_id, playlist_name, image_url, followers")
+          .in("spotify_playlist_id", playlistIds),
+      ]);
       const next: Record<string, PlaylistMeta> = {};
-      for (const r of (data ?? []) as PlaylistMeta[]) next[r.spotify_playlist_id] = r;
+      // curator_playlists primeiro (fallback)
+      for (const r of (curated ?? []) as any[]) {
+        const id = r.spotify_playlist_id as string;
+        if (!id) continue;
+        next[id] = {
+          spotify_playlist_id: id,
+          name: r.playlist_name ?? null,
+          cover_url: r.image_url ?? null,
+          followers: r.followers ?? null,
+        };
+      }
+      // playlists gerenciadas têm prioridade (sobrescrevem)
+      for (const r of (managed ?? []) as PlaylistMeta[]) {
+        const id = r.spotify_playlist_id;
+        const prev = next[id];
+        next[id] = {
+          spotify_playlist_id: id,
+          name: r.name ?? prev?.name ?? null,
+          cover_url: r.cover_url ?? prev?.cover_url ?? null,
+          followers: r.followers ?? prev?.followers ?? null,
+        };
+      }
       setMap(next);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps

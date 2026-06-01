@@ -109,18 +109,24 @@ export function ExecucaoView({ campaignId, onOpenHistory }: { campaignId: string
       return true;
     });
     const dir = sortDir === "asc" ? 1 : -1;
+    const pick = (r: GrowthRow): [number | string, number, number] => {
+      const cur = Number(r.current_plays ?? 0);
+      const base = Number(r.baseline_plays ?? 0);
+      const del = Number(r.delta ?? 0);
+      const primary = sort === "delta" ? del
+        : sort === "current" ? cur
+        : sort === "baseline" ? base
+        : (r.current_name ?? r.baseline_name ?? "").toLowerCase();
+      return [primary, cur, base];
+    };
     out.sort((a, b) => {
-      const va = sort === "delta" ? Number(a.delta ?? 0)
-        : sort === "current" ? Number(a.current_plays ?? 0)
-        : sort === "baseline" ? Number(a.baseline_plays ?? 0)
-        : (a.current_name ?? a.baseline_name ?? "").toLowerCase();
-      const vb = sort === "delta" ? Number(b.delta ?? 0)
-        : sort === "current" ? Number(b.current_plays ?? 0)
-        : sort === "baseline" ? Number(b.baseline_plays ?? 0)
-        : (b.current_name ?? b.baseline_name ?? "").toLowerCase();
-      if (va < vb) return -1 * dir;
-      if (va > vb) return 1 * dir;
-      return 0;
+      const [pa, ca, ba] = pick(a);
+      const [pb, cb, bb] = pick(b);
+      if (pa < pb) return -1 * dir;
+      if (pa > pb) return 1 * dir;
+      // tiebreakers: sempre desc (mais relevante primeiro), independente da direção
+      if (cb !== ca) return cb - ca;
+      return bb - ba;
     });
     return out;
   }, [rows, q, scope, curatorFilter, statusFilter, sort, sortDir, statuses]);
@@ -307,7 +313,8 @@ function VirtualTable({
 
   return (
     <div>
-      <div className="grid grid-cols-[minmax(220px,2fr)_120px_110px_110px_120px_140px_150px] gap-3 px-4 py-2.5 text-xs uppercase tracking-wide text-muted-foreground border-b border-border bg-card/40">
+      <div className="grid grid-cols-[44px_minmax(220px,2fr)_120px_110px_110px_120px_140px_150px] gap-3 px-4 py-2.5 text-[10px] uppercase tracking-[0.08em] text-muted-foreground border-b border-border bg-card/40">
+        <div className="text-right">#</div>
         <SortHeader label="Playlist" k="name" sort={sort} dir={sortDir} onSort={onSort} />
         <div>Atribuição</div>
         <SortHeader label="Baseline" k="baseline" sort={sort} dir={sortDir} onSort={onSort} className="text-right justify-end" />
@@ -324,12 +331,14 @@ function VirtualTable({
             const meta: PlaylistMeta | undefined = covers[r.playlist_id];
             const curName = r.attributed_curator_id ? curators[r.attributed_curator_id]?.name ?? "Curador" : null;
             const st = r.attributed_curator_id ? statuses[`${r.attributed_curator_id}::${r.playlist_id}`] ?? "pending_match" : null;
+            const isEven = vi.index % 2 === 0;
             return (
               <div
                 key={vi.key}
                 onClick={() => onRowClick?.(r.playlist_id)}
                 className={cn(
-                  "grid grid-cols-[minmax(220px,2fr)_120px_110px_110px_120px_140px_150px] gap-3 items-center px-4 border-b border-border/60 hover:bg-accent/40 transition-colors",
+                  "grid grid-cols-[44px_minmax(220px,2fr)_120px_110px_110px_120px_140px_150px] gap-3 items-center px-4 border-b border-border/40 hover:bg-accent/40 transition-colors",
+                  isEven ? "bg-transparent" : "bg-card/30",
                   onRowClick && "cursor-pointer"
                 )}
                 style={{
@@ -341,6 +350,9 @@ function VirtualTable({
                   transform: `translateY(${vi.start}px)`,
                 }}
               >
+                <div className="text-right tabular-nums text-xs text-muted-foreground font-mono">
+                  {vi.index + 1}
+                </div>
 
                 <PlaylistCell
                   playlistId={r.playlist_id}

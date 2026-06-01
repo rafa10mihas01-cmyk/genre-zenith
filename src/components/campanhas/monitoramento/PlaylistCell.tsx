@@ -1,4 +1,4 @@
-import { ExternalLink, Music2 } from "lucide-react";
+import { Music2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -12,13 +12,20 @@ type Props = {
 };
 
 export function PlaylistCell({ playlistId, name, url, coverUrl, followers, subtle, size = "md" }: Props) {
-  const px = size === "sm" ? "h-9 w-9" : "h-11 w-11";
+  const px = size === "sm" ? "h-10 w-10" : "h-12 w-12";
+  const href = url || `https://open.spotify.com/playlist/${playlistId}`;
   return (
-    <div className="flex items-center gap-3 min-w-0">
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      className="flex items-center gap-3 min-w-0 group"
+    >
       <div
         className={cn(
           px,
-          "shrink-0 rounded-md overflow-hidden bg-muted border border-border flex items-center justify-center"
+          "shrink-0 rounded-md overflow-hidden bg-muted border border-border flex items-center justify-center transition-transform group-hover:scale-[1.03]"
         )}
       >
         {coverUrl ? (
@@ -28,26 +35,15 @@ export function PlaylistCell({ playlistId, name, url, coverUrl, followers, subtl
         )}
       </div>
       <div className="min-w-0">
-        <div className={cn("font-medium truncate", subtle ? "text-foreground/90" : "text-foreground")}>
+        <div className={cn("font-medium truncate group-hover:text-primary transition-colors", subtle ? "text-foreground/90" : "text-foreground")}>
           {name ?? "—"}
         </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span className="font-mono truncate max-w-[140px]">{playlistId}</span>
-          {url && (
-            <a
-              href={url}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-0.5 hover:text-primary"
-            >
-              abrir <ExternalLink className="h-3 w-3" />
-            </a>
-          )}
-          {followers != null && (
-            <span className="tabular-nums">· {Intl.NumberFormat("pt-BR").format(followers)} seguidores</span>
-          )}
-        </div>
+        {followers != null && (
+          <div className="text-xs text-muted-foreground tabular-nums">
+            {Intl.NumberFormat("pt-BR").format(followers)} seguidores
+          </div>
+        )}
       </div>
-    </div>
+    </a>
   );
 }
