@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
     emailRaw = String(body?.email ?? "").trim().toLowerCase();
   } catch { /* ignore */ }
 
-  if (!token || token.length < 8) return jr({ error: "invalid_token" }, 400);
+  if (!token || token.length < 8 || !/^[a-zA-Z0-9_-]+$/.test(token)) return jr({ error: "invalid_token" }, 400);
   if (!emailRaw || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailRaw) || emailRaw.length > 254) {
     return jr({ error: "invalid_email" }, 400);
   }

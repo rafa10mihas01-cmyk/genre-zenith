@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
     token = String(body?.token ?? "").trim();
   } catch { /* ignore */ }
 
-  if (!token || token.length < 8) {
+  if (!token || token.length < 8 || !/^[a-zA-Z0-9_-]+$/.test(token)) {
     return jr({ ok: false, error: "invalid_token" }, 400);
   }
 

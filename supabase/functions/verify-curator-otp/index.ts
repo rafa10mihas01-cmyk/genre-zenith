@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
     code = String(body?.code ?? "").trim();
   } catch { /* ignore */ }
 
-  if (!token || token.length < 8) return jr({ error: "invalid_token" }, 400);
+  if (!token || token.length < 8 || !/^[a-zA-Z0-9_-]+$/.test(token)) return jr({ error: "invalid_token" }, 400);
   if (!emailRaw || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailRaw)) return jr({ error: "invalid_email" }, 400);
   if (!/^\d{6}$/.test(code)) return jr({ error: "invalid_code" }, 400);
 
