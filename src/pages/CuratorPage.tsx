@@ -57,6 +57,7 @@ import { CuratorNotificationsBell } from "@/components/public/CuratorNotificatio
 import { markCuratorPublicMode } from "@/lib/publicRouteMode";
 import { PasteUrlsDialog } from "@/components/curators/PasteUrlsDialog";
 import { AddSongToPlaylistDialog } from "@/components/curators/AddSongToPlaylistDialog";
+import { CuratorAccessGate, curatorAccessStorageKey } from "@/components/public/CuratorAccessGate";
 
 type Deal = {
   id: string;
@@ -293,6 +294,41 @@ function isPlaceholderToken(value: string): boolean {
 export default function CuratorPage() {
   const { token } = useParams<{ token: string }>();
   const onExternal = useExternalSplash();
+  // --- Gate de acesso por OTP (espelha portal do cliente) ---
+  const [gateChecked, setGateChecked] = useState(false);
+  const [gateRequired, setGateRequired] = useState(false);
+  const [gateAuthed, setGateAuthed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const tok = normalizePublicToken(token);
+    if (!tok || isPlaceholderToken(tok)) {
+      setGateChecked(true);
+      setGateRequired(false);
+      return;
+    }
+    (async () => {
+      try {
+        const stored = localStorage.getItem(curatorAccessStorageKey(tok));
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed?.jwt && parsed?.exp && parsed.exp > Date.now()) {
+            if (!cancelled) { setGateAuthed(true); setGateRequired(true); setGateChecked(true); return; }
+          } else {
+            localStorage.removeItem(curatorAccessStorageKey(tok));
+          }
+        }
+      } catch { /* ignore */ }
+      const { data } = await supabase.functions.invoke("check-curator-access", { body: { token: tok } });
+      if (cancelled) return;
+      const req = !!(data as any)?.required;
+      setGateRequired(req);
+      setGateAuthed(!req);
+      setGateChecked(true);
+    })();
+    return () => { cancelled = true; };
+  }, [token]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deal, setDeal] = useState<Deal | null>(null);
@@ -441,10 +477,12 @@ export default function CuratorPage() {
 
   useEffect(() => {
     markCuratorPublicMode(normalizePublicToken(token));
+    if (!gateChecked) return;
+    if (gateRequired && !gateAuthed) { setLoading(false); return; }
     setLoading(true);
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token, gateChecked, gateRequired, gateAuthed]);
 
   // Fase 6 — realtime: novo snapshot deste deal recarrega dados públicos
   useEffect(() => {
@@ -771,6 +809,20 @@ export default function CuratorPage() {
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
+
+  if (!gateChecked) {
+    return <PageLoader />;
+  }
+
+  if (gateRequired && !gateAuthed) {
+    const tok = normalizePublicToken(token);
+    return (
+      <CuratorAccessGate
+        token={tok}
+        onAuthed={() => setGateAuthed(true)}
+      />
+    );
+  }
 
   if (loading) {
     return <PageLoader />;
