@@ -1874,6 +1874,76 @@ export type Database = {
         }
         Relationships: []
       }
+      curator_access_logs: {
+        Row: {
+          created_at: string
+          deal_id: string
+          email: string
+          id: string
+          ip: string | null
+        }
+        Insert: {
+          created_at?: string
+          deal_id: string
+          email: string
+          id?: string
+          ip?: string | null
+        }
+        Update: {
+          created_at?: string
+          deal_id?: string
+          email?: string
+          id?: string
+          ip?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curator_access_logs_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      curator_access_otps: {
+        Row: {
+          code: string
+          created_at: string
+          deal_id: string
+          email: string
+          expires_at: string
+          id: string
+          used_at: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          deal_id: string
+          email: string
+          expires_at?: string
+          id?: string
+          used_at?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          deal_id?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curator_access_otps_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       curator_brain: {
         Row: {
           avg_cpp: number | null
