@@ -199,8 +199,12 @@ export function selectPositionByDailyNeed(
 
 /**
  * Distribui posições greedy por dailyNeed sobre uma lista de playlists.
- * Primárias por followers desc, depois vizinhos. Para quando cobre o dailyNeed.
- * Retorna allocations completas com posição e cap_dia escolhidos.
+ *
+ * SELEÇÃO BEST-FIT (eficiência marginal): a cada iteração, escolhe a playlist
+ * cujo melhor cap mais se aproxima de fechar a necessidade restante sem
+ * estourar. Primárias antes de vizinhos. Para quando cobre o dailyNeed.
+ *
+ * Fórmula de cap (saves × mult/30 × %posição) NÃO MUDA — só a ordem.
  */
 export interface RealCapacityAlloc {
   id: string;
@@ -221,28 +225,38 @@ export function planRealCapacity(
   if (dailyNeed <= 0 || playlists.length === 0) {
     return { allocations: [], coveredDaily: 0, remaining: dailyNeed };
   }
-  const primary = playlists.filter(p => p.source === "primary").sort((a, b) => b.followers - a.followers);
-  const neighbor = playlists.filter(p => p.source === "neighbor").sort((a, b) => b.followers - a.followers);
+  const primary = playlists.filter(p => p.source === "primary");
+  const neighbor = playlists.filter(p => p.source === "neighbor");
   const allocations: RealCapacityAlloc[] = [];
   let remaining = dailyNeed;
   let covered = 0;
 
   const consume = (list: typeof primary) => {
-    for (const p of list) {
-      if (remaining <= 0) break;
-      const sel = selectPositionByDailyNeed(p.followers, multiplier, remaining, tolerance);
-      if (sel.cap <= 0) continue;
+    const pool = [...list];
+    while (pool.length > 0 && remaining > 0) {
+      let bestIdx = -1;
+      let bestSel: { position: number; cap: number; fits: boolean } | null = null;
+      for (let i = 0; i < pool.length; i++) {
+        const sel = selectPositionByDailyNeed(pool[i].followers, multiplier, remaining, tolerance);
+        if (sel.cap <= 0) continue;
+        if (bestSel == null || sel.cap > bestSel.cap) {
+          bestSel = sel;
+          bestIdx = i;
+        }
+      }
+      if (bestIdx < 0 || bestSel == null) break;
+      const p = pool.splice(bestIdx, 1)[0];
       allocations.push({
         id: p.id,
         name: p.name,
         followers: p.followers,
         source: p.source,
-        position: sel.position,
-        cap_dia: sel.cap,
-        fits: sel.fits,
+        position: bestSel.position,
+        cap_dia: bestSel.cap,
+        fits: bestSel.fits,
       });
-      covered += sel.cap;
-      remaining -= sel.cap;
+      covered += bestSel.cap;
+      remaining -= bestSel.cap;
     }
   };
 
