@@ -200,7 +200,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   }, [showArchived]);
 
   const itemsQuery = useQuery({
-    queryKey: ["managed-playlists", loadedCount, filterFase, showArchived, sortBy, filterMissingGenre, filterGenreId, filterSize],
+    queryKey: ["managed-playlists", loadedCount, filterFase, showArchived, sortBy, filterMissingGenre, filterGenreId, filterSize, onlyEligible],
     queryFn: async () => {
       let q = supabase
         .from("managed_playlists")
@@ -210,8 +210,12 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       } else {
         q = q.order("imported_at", { ascending: false });
       }
-      if (showArchived) q = q.not("archived_at", "is", null);
-      else q = q.is("archived_at", null);
+      if (showArchived) {
+        q = q.not("archived_at", "is", null);
+        if (onlyEligible) q = q.not("reactivation_eligible_at", "is", null);
+      } else {
+        q = q.is("archived_at", null);
+      }
       // Fase server-side — abas mutuamente exclusivas (cada playlist cai em UMA só).
       // Hierarquia: Atenção > Prontas > Crescendo > Novas.
       const notAtencao = "or(lifecycle_phase.is.null,lifecycle_phase.not.in.(bloated,decline))";
