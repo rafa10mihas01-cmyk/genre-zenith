@@ -232,7 +232,11 @@ Deno.serve(async (req) => {
         canonical_playlist_id: canonicalId,
         imported_by: guard.via === "user" ? guard.userId : null,
         owner_spotify_user_id: ownerId,
-        metadata: { source: "import-account-playlists", owner_display_name: p.owner?.display_name ?? null },
+        metadata: {
+          source: "import-account-playlists",
+          owner_display_name: p.owner?.display_name ?? null,
+          ...(followersUnknown.has(p.id) ? { followers_unknown_at_import: true } : {}),
+        },
       };
       if (shouldAutoArchive) {
         payload.archived_at = nowIso;
