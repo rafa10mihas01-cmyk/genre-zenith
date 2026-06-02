@@ -348,6 +348,21 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const [logsLoading, setLogsLoading] = useState(false);
   const [accounts, setAccounts] = useState<SpotifyAccountLite[]>([]);
   const [assigningId, setAssigningId] = useState<string | null>(null);
+  const [syncReport, setSyncReport] = useState<{
+    title: string;
+    items: Array<{
+      account: string;
+      found: number;
+      imported: number;
+      active: number;
+      auto_archived: number;
+      deferred: number;
+      spotify_calls: number;
+      rate_429: number;
+      circuit_status: string;
+      circuit_blocked_until: string | null;
+    }>;
+  } | null>(null);
 
   async function loadAccounts() {
     const { data } = await supabase
