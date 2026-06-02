@@ -6,7 +6,6 @@ import {
   AlertCircle, Wrench, ChevronDown, ChevronUp, Server, Sparkles, Heart, Target, Gauge, ShieldAlert,
 } from "lucide-react";
 import { MinhasPlaylists } from "@/components/operacao/MinhasPlaylists";
-import { EcosystemHealthCard } from "@/components/operacao/EcosystemHealthCard";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
