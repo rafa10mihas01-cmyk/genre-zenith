@@ -380,10 +380,36 @@ export default function PlaylistDeals() {
         />
       </section>
 
-      {/* TABS */}
-      <div className="sticky top-0 z-30 -mt-px bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border -mx-4 md:-mx-6">
+      {/* TABS — mobile: grid de cards; desktop: rail clássico */}
+      <div className="grid grid-cols-3 gap-1.5 sm:hidden">
+        {TABS.map((t) => {
+          const Icon = t.icon;
+          const active = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={cn(
+                "rounded-xl border px-1 py-2 flex flex-col items-center justify-center gap-1 transition-colors",
+                active
+                  ? "border-primary/60 bg-primary/10 text-foreground"
+                  : "border-border bg-card text-muted-foreground hover:text-foreground",
+              )}
+              aria-pressed={active}
+            >
+              <Icon className={cn("h-4 w-4", active ? "text-primary" : "")} />
+              <span className="text-[11px] font-medium leading-none">{t.label}</span>
+              <span className={cn("text-[11px] font-bold tabular-nums leading-none", active ? "text-primary" : "text-muted-foreground")}>
+                {tabCount(t.id)}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="hidden sm:block sticky top-0 z-30 -mt-px bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border -mx-4 md:-mx-6">
         <div className="nx-tab-rail items-center gap-1 px-4 md:px-6 flex">
-          <div className="flex items-center gap-1 flex-1 min-w-0 sm:overflow-x-auto sm:scrollbar-none">
+          <div className="flex items-center gap-1 flex-1 min-w-0 overflow-x-auto scrollbar-none">
             {TABS.map((t) => {
               const Icon = t.icon;
               const active = tab === t.id;
@@ -392,7 +418,7 @@ export default function PlaylistDeals() {
                   key={t.id}
                   onClick={() => setTab(t.id)}
                   className={cn(
-                    "flex-1 sm:flex-none px-2 sm:px-4 h-10 inline-flex items-center justify-center gap-1.5 sm:gap-2 text-[13px] sm:text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap min-w-0",
+                    "flex-none px-4 h-10 inline-flex items-center justify-center gap-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap",
                     active
                       ? "border-primary text-foreground"
                       : "border-transparent text-muted-foreground hover:text-foreground",
