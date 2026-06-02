@@ -148,7 +148,7 @@ export function BotCollectionStatus({ campaignId, dealId }: Props) {
 
   return (
     <div className="rounded-2xl border border-border bg-card px-5 py-4 space-y-3">
-      <div className="flex items-start gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
         <div className="shrink-0 mt-0.5">
           {isError ? (
             <AlertTriangle className="h-5 w-5 text-destructive" />
