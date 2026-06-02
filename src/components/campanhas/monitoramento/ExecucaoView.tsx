@@ -292,12 +292,12 @@ export function ExecucaoView({ campaignId, onOpenHistory }: { campaignId: string
 
       <Card>
         <CardContent className="p-0">
-          <div className="flex items-center justify-between px-3 py-2 text-[11px] text-muted-foreground border-b border-border/60 bg-card/40">
-            <span>{filtered.length} de {rows.length} playlist(s)</span>
-            <span className="flex items-center gap-3">
-              <span>Base: <span className="text-foreground tabular-nums">{formatInt(filteredTotals.baseline)}</span></span>
-              <span>Atual: <span className="text-foreground tabular-nums">{formatInt(filteredTotals.current)}</span></span>
-              <span>Δ: <span className="text-primary font-semibold tabular-nums">{filteredTotals.delta > 0 ? "+" : ""}{formatInt(filteredTotals.delta)}</span></span>
+          <div className="flex items-center justify-between gap-2 px-3 py-2 text-[11px] text-muted-foreground border-b border-border/60 bg-card/40">
+            <span className="shrink-0">{filtered.length}/{rows.length}</span>
+            <span className="flex items-center gap-2 md:gap-3 tabular-nums">
+              <span className="hidden xs:inline">Base <span className="text-foreground">{formatInt(filteredTotals.baseline)}</span></span>
+              <span>Atual <span className="text-foreground">{formatInt(filteredTotals.current)}</span></span>
+              <span>Δ <span className={cn("font-semibold", filteredTotals.delta > 0 ? "text-primary" : "text-muted-foreground")}>{filteredTotals.delta > 0 ? "+" : ""}{formatInt(filteredTotals.delta)}</span></span>
             </span>
           </div>
           <VirtualTable
@@ -314,6 +314,7 @@ export function ExecucaoView({ campaignId, onOpenHistory }: { campaignId: string
           />
         </CardContent>
       </Card>
+
     </div>
   );
 }
