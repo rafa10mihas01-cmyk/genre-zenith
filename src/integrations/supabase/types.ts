@@ -4943,6 +4943,8 @@ export type Database = {
         Row: {
           account_id: string | null
           archived_at: string | null
+          archived_followers: number | null
+          archived_reason: string | null
           canonical_playlist_id: string | null
           cover_url: string | null
           created_at: string
@@ -4973,6 +4975,7 @@ export type Database = {
           onboarding_completed_at: string | null
           onboarding_ready_streak: number
           owner_spotify_user_id: string | null
+          reactivation_eligible_at: string | null
           recommended_change_count: number | null
           spotify_playlist_id: string
           spotify_url: string
@@ -4987,6 +4990,8 @@ export type Database = {
         Insert: {
           account_id?: string | null
           archived_at?: string | null
+          archived_followers?: number | null
+          archived_reason?: string | null
           canonical_playlist_id?: string | null
           cover_url?: string | null
           created_at?: string
@@ -5017,6 +5022,7 @@ export type Database = {
           onboarding_completed_at?: string | null
           onboarding_ready_streak?: number
           owner_spotify_user_id?: string | null
+          reactivation_eligible_at?: string | null
           recommended_change_count?: number | null
           spotify_playlist_id: string
           spotify_url: string
@@ -5031,6 +5037,8 @@ export type Database = {
         Update: {
           account_id?: string | null
           archived_at?: string | null
+          archived_followers?: number | null
+          archived_reason?: string | null
           canonical_playlist_id?: string | null
           cover_url?: string | null
           created_at?: string
@@ -5061,6 +5069,7 @@ export type Database = {
           onboarding_completed_at?: string | null
           onboarding_ready_streak?: number
           owner_spotify_user_id?: string | null
+          reactivation_eligible_at?: string | null
           recommended_change_count?: number | null
           spotify_playlist_id?: string
           spotify_url?: string
