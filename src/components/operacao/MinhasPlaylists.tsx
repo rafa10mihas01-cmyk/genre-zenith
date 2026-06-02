@@ -1494,28 +1494,22 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
             })()}
           </DropdownMenuContent>
         </DropdownMenu>
-        {/* Estado: Ativas / Lixeira (à direita). Capacidade vira botão separado. */}
+        {/* Estado: alterna Ativas/Lixeira. Contagens já aparecem nos cards de fase acima — evitar duplicar. */}
         <div className="sm:ml-auto flex items-center gap-1.5 shrink-0">
-          <Link
-            to="/catalogo"
-            replace
-            className={cn(
-              "h-9 px-3 rounded-full text-[11px] sm:text-xs font-medium border transition-colors tabular-nums shrink-0 inline-flex items-center",
-              !showArchived && !showCapacity
-                ? "bg-primary/15 border-primary/40 text-primary"
-                : "bg-elevated border-border text-muted-foreground hover:text-foreground",
-            )}
-          >Ativas ({totalActiveCount})</Link>
-          <Link
-            to="/catalogo?arquivadas=1"
-            replace
-            className={cn(
-              "h-9 px-3 rounded-full text-[11px] sm:text-xs font-medium border transition-colors tabular-nums shrink-0 inline-flex items-center",
-              showArchived
-                ? "bg-primary/15 border-primary/40 text-primary"
-                : "bg-elevated border-border text-muted-foreground hover:text-foreground",
-            )}
-          >Lixeira ({totalArchivedCount})</Link>
+          {showArchived ? (
+            <Link
+              to="/catalogo"
+              replace
+              className="h-9 px-3 rounded-full text-[11px] sm:text-xs font-medium border transition-colors tabular-nums shrink-0 inline-flex items-center bg-elevated border-border text-muted-foreground hover:text-foreground"
+            >Ativas</Link>
+          ) : (
+            <Link
+              to="/catalogo?arquivadas=1"
+              replace
+              className="h-9 px-3 rounded-full text-[11px] sm:text-xs font-medium border transition-colors tabular-nums shrink-0 inline-flex items-center bg-elevated border-border text-muted-foreground hover:text-foreground"
+              title={`Lixeira (${totalArchivedCount})`}
+            >Lixeira ({totalArchivedCount})</Link>
+          )}
 
           {/* Capacidade — view alternativa, separada visualmente dos chips de estado */}
           <span className="h-5 w-px bg-border mx-1 hidden sm:inline-block" aria-hidden />
