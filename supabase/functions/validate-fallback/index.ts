@@ -46,7 +46,7 @@ interface Call {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 let lastCallAt = 0;
-const MIN_GAP_MS = 250;
+const MIN_GAP_MS = 80;
 
 async function spCall(token: string, method: string, url: string, step: string, body?: unknown, keepBody = false): Promise<Call> {
   const wait = Math.max(0, MIN_GAP_MS - (Date.now() - lastCallAt));
