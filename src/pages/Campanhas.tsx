@@ -5,8 +5,9 @@ import { PageContainer } from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusDot } from "@/components/ui/status-dot";
-import { Plus, RefreshCw, Target, ListChecks, Calculator, Megaphone, CheckCircle2, Percent, MoreHorizontal, Pause, Play, Archive, ArchiveRestore, Trash2, Handshake, Link2, Copy, Check, Clock, MessageSquareWarning, Upload, Loader2, ImagePlus, X, Mail, Music2, AtSign } from "lucide-react";
+import { Plus, RefreshCw, Target, ListChecks, Calculator, Megaphone, CheckCircle2, Percent, MoreHorizontal, Pause, Play, Archive, ArchiveRestore, Trash2, Handshake, Link2, Copy, Check, Clock, MessageSquareWarning, Upload, Loader2, ImagePlus, X, Mail, Music2, AtSign, Coins } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { formatBRLDetail } from "@/lib/format";
 import { toast } from "@/hooks/use-toast";
 import { PUBLIC_DOMAIN } from "@/lib/curatorPublicUrl";
 import { Calculadora } from "@/components/operacao/calculadora/Calculadora";
@@ -136,7 +137,16 @@ export default function Campanhas() {
     const delivered = active.reduce((s, i) => s + Number(i.total_delivered || 0), 0);
     const allocated = active.reduce((s, i) => s + Number(i.total_allocated || 0), 0);
     const pct = goal > 0 ? Math.round((delivered / goal) * 100) : 0;
-    return { activeCount: active.length, goal, delivered, allocated, pct };
+    // CPP médio ponderado (só campanhas ativas com valor e entrega > 0)
+    let totalCost = 0;
+    let totalDeliveredCpp = 0;
+    for (const c of active) {
+      const cost = Number(c.valor_cobrado || 0);
+      const d = Number(c.total_delivered || 0);
+      if (cost > 0 && d > 0) { totalCost += cost; totalDeliveredCpp += d; }
+    }
+    const cpp = totalDeliveredCpp > 0 ? totalCost / totalDeliveredCpp : null;
+    return { activeCount: active.length, goal, delivered, allocated, pct, cpp };
   }, [items]);
 
   async function doRecalcAll() {
@@ -202,7 +212,6 @@ export default function Campanhas() {
             loading={loading}
           />
           <KpiBig
-            tier="quiet"
             icon={Percent}
             label="Cumprimento"
             value={`${kpis.pct}%`}
@@ -210,7 +219,14 @@ export default function Campanhas() {
             domain="playlists"
             loading={loading}
           />
-
+          <KpiBig
+            icon={Coins}
+            label="CPP médio"
+            value={kpis.cpp != null ? formatBRLDetail(kpis.cpp) : "—"}
+            hint="Custo por play (ativas)"
+            domain="campaigns"
+            loading={loading}
+          />
         </section>
 
 

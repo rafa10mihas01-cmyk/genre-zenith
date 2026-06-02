@@ -27,6 +27,8 @@ export type Campaign = {
   collection_mode: "bot" | "spreadsheet" | string | null;
   plan_approved_at: string | null;
   client_decision_round: number | null;
+  /** Valor total cobrado do cliente (base pro CPP). */
+  valor_cobrado?: number | null;
   /** @deprecated mantido só pra compat de tipos durante reversão 30/05. Sempre false. */
   baseline_pending?: boolean;
   /** Derivado: timestamp da 1ª baseline capturada (qualquer deal da campanha). */
@@ -37,7 +39,7 @@ export type Campaign = {
   access_emails_count?: number;
 };
 
-const SELECT = "id, track_name, artist, cover_url, goal_plays, deadline, status, total_allocated, total_delivered, created_at, snapshot_locked_at, client_id, curator_id, deal_id, public_plan_token, client_approved_at, client_approved_by, client_rejected_at, campaign_type, collection_mode, plan_approved_at, client_decision_round";
+const SELECT = "id, track_name, artist, cover_url, goal_plays, deadline, status, total_allocated, total_delivered, created_at, snapshot_locked_at, client_id, curator_id, deal_id, public_plan_token, client_approved_at, client_approved_by, client_rejected_at, campaign_type, collection_mode, plan_approved_at, client_decision_round, valor_cobrado";
 
 const QUERY_KEY = ["campaigns"] as const;
 
