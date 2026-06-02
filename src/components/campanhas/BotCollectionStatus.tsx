@@ -148,20 +148,21 @@ export function BotCollectionStatus({ campaignId, dealId }: Props) {
 
   return (
     <div className="rounded-2xl border border-border bg-card px-5 py-4 space-y-3">
-      <div className="flex items-start gap-4">
-        <div className="shrink-0 mt-0.5">
+      <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
+        <div className="flex items-center gap-3 sm:block sm:shrink-0 sm:mt-0.5">
           {isError ? (
-            <AlertTriangle className="h-5 w-5 text-destructive" />
+            <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
           ) : isRunning ? (
-            <Loader2 className="h-5 w-5 text-primary animate-spin" />
+            <Loader2 className="h-5 w-5 text-primary animate-spin shrink-0" />
           ) : snapCount > 0 ? (
-            <CheckCircle2 className="h-5 w-5 text-primary" />
+            <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
           ) : (
-            <Bot className="h-5 w-5 text-muted-foreground" />
+            <Bot className="h-5 w-5 text-muted-foreground shrink-0" />
           )}
+          <div className="sm:hidden text-sm font-medium text-foreground">Coleta do robô</div>
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-foreground flex items-center gap-2 flex-wrap">
+          <div className="text-sm font-medium text-foreground hidden sm:flex items-center gap-2 flex-wrap">
             Coleta do robô
             <span
               className={`text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded border leading-none ${
@@ -182,19 +183,40 @@ export function BotCollectionStatus({ campaignId, dealId }: Props) {
               Robô {botFresh.fresh ? "online" : "offline"}
             </span>
           </div>
-          <div className="text-xs text-muted-foreground mt-0.5">
+          {/* Badges (mobile + desktop) */}
+          <div className="flex sm:hidden items-center gap-1.5 flex-wrap mt-1">
+            <span
+              className={`text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded border leading-none ${
+                isError
+                  ? "border-destructive/50 text-destructive"
+                  : meta.tone === "ok"
+                    ? "border-primary/50 text-primary"
+                    : "border-border text-muted-foreground"
+              }`}
+            >
+              {meta.label}
+            </span>
+            <span
+              className={`text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded border leading-none ${
+                botFresh.fresh ? "border-primary/50 text-primary" : "border-destructive/50 text-destructive"
+              }`}
+            >
+              Robô {botFresh.fresh ? "online" : "offline"}
+            </span>
+          </div>
+          <div className="text-xs text-muted-foreground mt-1">
             {snapCount > 0
               ? `${snapCount} foto${snapCount > 1 ? "s" : ""} já capturada${snapCount > 1 ? "s" : ""} · última ${fmtAgo(lastSnap)}`
               : "Nenhuma foto capturada ainda — aguardando primeira passada"}
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 sm:shrink-0 w-full sm:w-auto">
           {dealId && (
             <Button
               asChild
               variant="ghost"
               size="sm"
-              className="text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground flex-1 sm:flex-none"
               title="Abrir página do deal interno (logs, snapshots crus, debug)"
             >
               <Link to={`/playlist-deals/${dealId}`}>
@@ -208,6 +230,7 @@ export function BotCollectionStatus({ campaignId, dealId }: Props) {
             size="sm"
             onClick={forceCollect}
             disabled={retrying || !dealId}
+            className="flex-1 sm:flex-none"
           >
             <RefreshCcw className={`h-3.5 w-3.5 mr-2 ${retrying ? "animate-spin" : ""}`} />
             Forçar coleta
