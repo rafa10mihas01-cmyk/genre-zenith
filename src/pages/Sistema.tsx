@@ -126,16 +126,22 @@ export default function Sistema() {
         </div>
       </div>
 
-      {/* Mobile: cards na mesma régua (4 por linha) */}
-      <div className="grid grid-cols-4 gap-1.5 sm:hidden mb-4">
+      {/* Mobile: cards na mesma régua (todos numa linha) */}
+      <div
+        className="grid gap-1 sm:hidden mb-4"
+        style={{ gridTemplateColumns: `repeat(${visibleTabs.length}, minmax(0, 1fr))` }}
+      >
         {visibleTabs.map((t) => {
           const Icon = t.icon;
           const active = activeTab === t.id;
           const shortLabel =
-            t.id === "capacidade" ? "Capac." :
-            t.id === "aprendizado" ? "Aprend." :
+            t.id === "saude" ? "Saúde" :
+            t.id === "capacidade" ? "Capac" :
+            t.id === "aprendizado" ? "Aprend" :
+            t.id === "alertas" ? "Alerta" :
+            t.id === "motores" ? "Motor" :
             t.id === "configuracoes" ? "Config" :
-            t.label;
+            "Dev";
           return (
             <button
               key={t.id}
@@ -143,14 +149,14 @@ export default function Sistema() {
               onClick={() => setTab(t.id)}
               aria-pressed={active}
               className={cn(
-                "rounded-xl border px-0.5 py-2 flex flex-col items-center justify-center gap-1 min-w-0 transition-colors",
+                "rounded-lg border px-0 py-2 flex flex-col items-center justify-center gap-1 min-w-0 transition-colors",
                 active
                   ? "border-primary/60 bg-primary/10 text-foreground"
                   : "border-border bg-card text-muted-foreground hover:text-foreground",
               )}
             >
-              <Icon className="h-4 w-4 shrink-0" />
-              <span className="text-[10px] font-medium leading-tight truncate w-full text-center">{shortLabel}</span>
+              <Icon className="h-3.5 w-3.5 shrink-0" />
+              <span className="text-[9px] font-medium leading-tight truncate w-full text-center px-0.5">{shortLabel}</span>
             </button>
           );
         })}
