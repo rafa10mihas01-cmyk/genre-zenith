@@ -1132,7 +1132,40 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         </Collapsible>
       )}
 
+      {/* Banner: contas com playlists pendentes de importação (cap por execução) */}
+      {!showArchived && !showCapacity && pendingSyncs.length > 0 && (
+        <div className="nx-card !p-3 sm:!p-4 flex flex-col sm:flex-row sm:items-center gap-3 border-amber-500/40 bg-amber-500/10">
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            <div className="h-8 w-8 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+              <AlertCircle className="h-4 w-4 text-amber-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[13px] font-semibold text-foreground">
+                {pendingSyncs.reduce((s, a) => s + a.pending, 0)} playlists pendentes de importação
+              </div>
+              <div className="text-[11px] text-muted-foreground leading-snug truncate">
+                {pendingSyncs.slice(0, 3).map(a => `${a.display_name ?? "—"}: ${a.imported}/${a.found} (${a.pending} pend.)`).join(" · ")}
+                {pendingSyncs.length > 3 ? ` · +${pendingSyncs.length - 3}` : ""}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap sm:shrink-0">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 flex-1 sm:flex-none border-amber-500/40 text-amber-500 hover:bg-amber-500/15 hover:text-amber-500"
+              onClick={() => pendingSyncs[0]?.spotify_user_id && handleBulkImport(pendingSyncs[0].spotify_user_id, pendingSyncs[0].display_name ?? undefined)}
+              disabled={bulkImporting || !pendingSyncs[0]?.spotify_user_id}
+              title={pendingSyncs[0]?.display_name ? `Continuar sincronização de ${pendingSyncs[0].display_name}` : "Continuar sincronização"}
+            >
+              {bulkImporting ? "Sincronizando…" : "Continuar"}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Banner: playlists sem gênero — atalho para classificar */}
+
       {!showArchived && !showCapacity && missingGenreCount > 0 && !filterMissingGenre && (
         <div className="nx-card !p-3 sm:!p-4 flex flex-col sm:flex-row sm:items-center gap-3 border-warning/40 bg-warning/10">
           <div className="flex items-start gap-3 flex-1 min-w-0">
