@@ -34,10 +34,13 @@ type StepResult = {
   step: string;
   method: string;
   url: string;
+  request_body: unknown;
   http_status: number | null;
-  request_id: string | null;
+  spotify_request_id: string | null;
+  response_headers: Record<string, string> | null;
   ok: boolean;
   body_preview: unknown;
+  raw_body: string | null;
   error?: string;
 };
 
@@ -52,20 +55,26 @@ async function call(token: string, method: string, url: string, body?: unknown):
     const txt = await r.text();
     let parsed: unknown = txt;
     try { parsed = txt ? JSON.parse(txt) : null; } catch { /* keep text */ }
+    const headers: Record<string, string> = {};
+    r.headers.forEach((v, k) => { headers[k] = v; });
     return {
       step: "",
       method,
       url,
+      request_body: body ?? null,
       http_status: r.status,
-      request_id: r.headers.get("x-request-id"),
+      spotify_request_id: r.headers.get("x-spotify-request-id") ?? r.headers.get("x-request-id"),
+      response_headers: headers,
       ok: r.ok,
-      body_preview: typeof parsed === "string" ? parsed.slice(0, 500) : parsed,
+      body_preview: typeof parsed === "string" ? parsed.slice(0, 2000) : parsed,
+      raw_body: txt,
     };
   } catch (e) {
     return {
-      step: "", method, url,
-      http_status: null, request_id: null, ok: false,
-      body_preview: null, error: (e as Error).message,
+      step: "", method, url, request_body: body ?? null,
+      http_status: null, spotify_request_id: null, response_headers: null,
+      ok: false, body_preview: null, raw_body: null,
+      error: (e as Error).message,
     };
   }
 }
@@ -84,7 +93,8 @@ async function runOwner(app: { id: string; name: string }, row: SpotifyUserToken
       app_id: app.id, app_name: app.name, spotify_user_id: row.spotify_user_id,
       display_name: row.display_name,
       steps: [{ step: "refresh", method: "POST", url: "accounts/api/token",
-        http_status: null, request_id: null, ok: false, body_preview: null,
+        request_body: null, http_status: null, spotify_request_id: null,
+        response_headers: null, ok: false, body_preview: null, raw_body: null,
         error: (e as Error).message }],
       verdict: "REPROVADO", summary: `refresh falhou: ${(e as Error).message}`,
     };
@@ -99,7 +109,7 @@ async function runOwner(app: { id: string; name: string }, row: SpotifyUserToken
   }
   const meId = (me.body_preview as { id?: string })?.id ?? row.spotify_user_id;
 
-  // 2) Acha uma playlist EXISTENTE do owner que NÃO esteja sob gestão (não cliente, não campanha)
+  // 2) Tenta achar playlist própria fora de gestão; senão CRIA uma sandbox privada
   const sb2 = createClient(SUPABASE_URL, SERVICE_KEY);
   const list = await call(token, "GET",
     `https://api.spotify.com/v1/me/playlists?limit=50`);
@@ -114,16 +124,31 @@ async function runOwner(app: { id: string; name: string }, row: SpotifyUserToken
   const { data: managed } = await sb2.from("managed_playlists")
     .select("spotify_playlist_id");
   const managedSet = new Set((managed ?? []).map((m: any) => m.spotify_playlist_id));
-  const candidate = items.find((p) => !managedSet.has(p.id));
-  if (!candidate) {
-    return { app_id: app.id, app_name: app.name, spotify_user_id: row.spotify_user_id,
-      display_name: row.display_name, steps, verdict: "REPROVADO",
-      summary: `Sem playlist de teste disponível (todas as ${items.length} próprias estão sob gestão)` };
+  const candidate = items.find((p) => !managedSet.has(p.id) && /sandbox|nex.?test/i.test(p.name ?? ""));
+
+  let playlistId: string;
+  let sandboxCreated = false;
+  if (candidate) {
+    playlistId = candidate.id;
+    steps.push({ step: "playlist_selected (existing)", method: "—",
+      url: `spotify:playlist:${playlistId}`, request_body: null,
+      http_status: null, spotify_request_id: null, response_headers: null,
+      ok: true, body_preview: { id: playlistId, name: candidate.name }, raw_body: null });
+  } else {
+    const createRes = await call(token, "POST",
+      `https://api.spotify.com/v1/users/${meId}/playlists`,
+      { name: `__nex_sandbox_${Date.now()}`, public: false, collaborative: false,
+        description: "Homologation test — safe to delete" });
+    createRes.step = "POST create sandbox playlist"; steps.push(createRes);
+    if (!createRes.ok) {
+      return { app_id: app.id, app_name: app.name, spotify_user_id: row.spotify_user_id,
+        display_name: row.display_name, steps, verdict: "REPROVADO",
+        summary: `Criar sandbox falhou: ${createRes.http_status}` };
+    }
+    playlistId = (createRes.body_preview as { id: string }).id;
+    sandboxCreated = true;
   }
-  const playlistId: string = candidate.id;
-  steps.push({ step: "playlist_selected", method: "—",
-    url: `spotify:playlist:${playlistId}`, http_status: null, request_id: null,
-    ok: true, body_preview: { id: playlistId, name: candidate.name, tracks_total: candidate.tracks?.total } });
+
 
   // 3) GET /playlists/{id}
   const getPl = await call(token, "GET", `https://api.spotify.com/v1/playlists/${playlistId}`);
@@ -156,7 +181,12 @@ async function runOwner(app: { id: string; name: string }, row: SpotifyUserToken
   getTracks3.step = "GET tracks (depois remove)"; steps.push(getTracks3);
   const countAfterDel = (getTracks3.body_preview as { items?: unknown[] })?.items?.length ?? 0;
 
-  // 9) Sem cleanup destrutivo necessário.
+  // 9) Cleanup: se criou sandbox, unfollow
+  if (sandboxCreated) {
+    const cleanup = await call(token, "DELETE",
+      `https://api.spotify.com/v1/playlists/${playlistId}/followers`);
+    cleanup.step = "DELETE sandbox (unfollow)"; steps.push(cleanup);
+  }
 
   // Critérios
   const has403 = steps.some((s) => s.http_status === 403);
