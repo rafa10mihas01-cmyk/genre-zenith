@@ -13,6 +13,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { usePlaylistCovers, type PlaylistMeta } from "@/hooks/usePlaylistCovers";
 import { PlaylistCell } from "./PlaylistCell";
 import { KpiBig } from "@/components/KpiBig";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 type GrowthRow = {
   campaign_id: string;
