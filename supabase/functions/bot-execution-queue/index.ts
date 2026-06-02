@@ -35,20 +35,31 @@ function jr(p: unknown, status = 200) {
   });
 }
 
+function parseJwtClaims(token: string): Record<string, unknown> | null {
+  const parts = token.split(".");
+  if (parts.length < 2) return null;
+  try {
+    const payload = parts[1].replaceAll("-", "+").replaceAll("_", "/").padEnd(Math.ceil(parts[1].length / 4) * 4, "=");
+    return JSON.parse(atob(payload)) as Record<string, unknown>;
+  } catch { return null; }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const startedAt = Date.now();
 
-  // Auth: aceita BOT_API_KEY (bot desktop) OU Bearer SERVICE_ROLE_KEY (cron interno)
+  // Auth: aceita BOT_API_KEY (bot desktop) OU Bearer JWT com role=service_role (cron interno)
   const botKey = req.headers.get("x-bot-key");
   const auth = req.headers.get("authorization") || "";
-  const bearer = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7) : "";
-  const isBot = botKey && botKey === BOT_API_KEY;
-  const isInternal = bearer && bearer === SERVICE_KEY;
+  const bearer = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
+  const isBot = !!botKey && botKey === BOT_API_KEY;
+  const claims = bearer ? parseJwtClaims(bearer) : null;
+  const isInternal = !!claims && (claims as any).role === "service_role";
   if (!isBot && !isInternal) return jr({ error: "unauthorized" }, 401);
 
   const url = new URL(req.url);
   const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") ?? "3"), 1), 10);
+
 
   const workerId = req.headers.get("x-worker-id") || (isInternal ? "internal-cron" : "unknown");
   const processId = req.headers.get("x-process-id") || null;
