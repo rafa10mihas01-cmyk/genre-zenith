@@ -184,22 +184,33 @@ Deno.serve(async (req) => {
       phase0.app05_direct_tracks = c;
       row("0.1", "App05 GET /tracks", "403", String(c.status), c.status === 403, `req_id=${c.spotify_request_id ?? "none"}`);
     }
-    // 0.2 App 01 baseline
-    if (tok01) {
-      const ladoPls = await spCall(tok01, "GET", "https://api.spotify.com/v1/me/playlists?limit=10", "lado_me_pls", undefined, true);
-      const ladoExisting = body.existing_lado_playlist_id ?? (ladoPls.body as any)?.items?.[0]?.id ?? null;
-      phase0.app01_existing_playlist = ladoExisting;
-      if (ladoExisting) {
-        const c = await spCall(tok01, "GET", `https://api.spotify.com/v1/playlists/${ladoExisting}/tracks?limit=5`, "app01_direct_tracks", undefined, true);
-        phase0.app01_direct_tracks = c;
-        baselineAvailable = c.ok;
-        const sample = (c.body as any)?.items?.[0];
-        phase0.baseline_schema = sample ? Object.keys(sample.track ?? {}) : null;
-        row("0.2", "App01 GET /tracks (baseline)", "200", String(c.status), c.ok || c.status === 200, baselineAvailable ? "schema captured" : "BASELINE_UNAVAILABLE");
+    // 0.2 App 01 baseline — tenta todos os users do App 01 até achar um com playlist + /tracks 200
+    const { data: app01Users } = await sb.from("spotify_user_tokens").select("spotify_user_id").eq("app_id", app01);
+    phase0.app01_users_tried = [];
+    for (const u of (app01Users ?? [])) {
+      try {
+        const t = await getToken(sb, app01, u.spotify_user_id);
+        const pls = await spCall(t, "GET", "https://api.spotify.com/v1/me/playlists?limit=10", `app01_me_pls(${u.spotify_user_id})`, undefined, true);
+        const pid = (pls.body as any)?.items?.[0]?.id;
+        phase0.app01_users_tried.push({ user: u.spotify_user_id, pls_status: pls.status, first_pl: pid ?? null });
+        if (!pid) continue;
+        const c = await spCall(t, "GET", `https://api.spotify.com/v1/playlists/${pid}/tracks?limit=5`, "app01_direct_tracks", undefined, true);
+        if (c.ok) {
+          tok01 = t;
+          (report as any).app01_baseline_user = u.spotify_user_id;
+          phase0.app01_existing_playlist = pid;
+          phase0.app01_direct_tracks = c;
+          baselineAvailable = true;
+          const sample = (c.body as any)?.items?.[0];
+          phase0.baseline_schema = sample ? Object.keys(sample.track ?? {}) : null;
+          row("0.2", "App01 GET /tracks (baseline)", "200", String(c.status), true, `user=${u.spotify_user_id}`);
+          break;
+        }
+      } catch (e) {
+        phase0.app01_users_tried.push({ user: u.spotify_user_id, error: (e as Error).message });
       }
-    } else {
-      row("0.2", "App01 baseline", "200", "no_token", false, "BASELINE_UNAVAILABLE");
     }
+    if (!baselineAvailable) row("0.2", "App01 baseline", "200", "none_found", false, "BASELINE_UNAVAILABLE");
     report.phases.phase0 = phase0;
 
     if (!tok01) {
