@@ -478,5 +478,22 @@ Deno.serve(async (req) => {
   report.summary = { total: report.rows.length, failed: failedRows.length, read: report.read_verdict, write: report.write_verdict, regression: report.regression_verdict };
   report.finished_at = new Date().toISOString();
 
-  return new Response(JSON.stringify(report, null, 2), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  // Persiste em collection_logs (mensagem = JSON do relatório)
+  await sb.from("collection_logs").insert({
+    acao: "validate-fallback",
+    status: report.read_verdict === "APPROVED" ? "sucesso" : "erro",
+    mensagem: JSON.stringify({ job_id, ...report }).slice(0, 50000),
+    duracao_ms: Date.now() - new Date(report.started_at).getTime(),
+  });
+    return report;
+  };
+
+  if (async_mode) {
+    const er = (globalThis as any).EdgeRuntime;
+    const p = runAll();
+    if (er?.waitUntil) er.waitUntil(p); else p.catch(() => {});
+    return new Response(JSON.stringify({ ok: true, job_id, mode: "async", poll: "select mensagem from collection_logs where acao='validate-fallback' order by created_at desc limit 1" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  }
+  const finalReport = await runAll();
+  return new Response(JSON.stringify(finalReport, null, 2), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 });
