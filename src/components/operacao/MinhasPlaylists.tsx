@@ -1771,6 +1771,87 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         </DialogContent>
       </Dialog>
 
+      {/* Sync report dialog */}
+      <Dialog open={!!syncReport} onOpenChange={(o) => !o && setSyncReport(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{syncReport?.title ?? "Relatório de sincronização"}</DialogTitle>
+            <DialogDescription>
+              Chamadas Spotify contam apenas listagem + followers (síncrono). Pipeline de tracks/cérebro
+              roda em background.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {(syncReport?.items ?? []).map((it, idx) => {
+              const totalFound = it.found;
+              const breakerOpen = it.circuit_status === "open";
+              const had429 = it.rate_429 > 0;
+              return (
+                <div key={idx} className="rounded-md border border-border bg-card/50 p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="font-medium">{it.account}</div>
+                    <div className="flex items-center gap-2 text-xs">
+                      {had429 && (
+                        <span className="rounded bg-destructive/15 text-destructive px-2 py-0.5">
+                          {it.rate_429}× 429
+                        </span>
+                      )}
+                      <span
+                        className={cn(
+                          "rounded px-2 py-0.5",
+                          breakerOpen
+                            ? "bg-destructive/15 text-destructive"
+                            : "bg-emerald-500/15 text-emerald-500",
+                        )}
+                      >
+                        Breaker {breakerOpen ? "OPEN" : "closed"}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                    <div>
+                      <div className="text-muted-foreground text-xs">Encontradas</div>
+                      <div className="font-semibold">{totalFound}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground text-xs">Importadas</div>
+                      <div className="font-semibold">{it.imported}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground text-xs">Ativas</div>
+                      <div className="font-semibold text-emerald-500">{it.active}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground text-xs">Auto-arquivadas</div>
+                      <div className="font-semibold">{it.auto_archived}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground text-xs">Adiadas (cap)</div>
+                      <div className="font-semibold">{it.deferred}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground text-xs">Calls Spotify</div>
+                      <div className="font-semibold">{it.spotify_calls}</div>
+                    </div>
+                  </div>
+                  {breakerOpen && it.circuit_blocked_until && (
+                    <div className="text-xs text-destructive">
+                      Bloqueado até {new Date(it.circuit_blocked_until).toLocaleString("pt-BR")}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {(syncReport?.items ?? []).length === 0 && (
+              <div className="text-sm text-muted-foreground">Nenhuma conta sincronizada.</div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setSyncReport(null)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Diagnosis drawer */}
       <Dialog open={!!drawerPl} onOpenChange={(o) => !o && setDrawerPl(null)}>
         <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto p-0">
