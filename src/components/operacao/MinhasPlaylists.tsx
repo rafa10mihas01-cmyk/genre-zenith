@@ -906,7 +906,13 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   async function emptyTrash() {
     const archivedCount = items.filter(i => i.archived_at).length;
     if (archivedCount === 0) return;
-    if (!confirm(`Esvaziar lixeira? ${archivedCount} playlist(s) serão excluídas permanentemente. Esta ação não pode ser desfeita.`)) return;
+    // Dupla confirmação: primeiro aviso + segundo passo exigindo digitar EXCLUIR.
+    if (!confirm(`Atenção: ${archivedCount} playlist(s) arquivadas serão APAGADAS PERMANENTEMENTE.\n\nEsta ação não pode ser desfeita. Deseja continuar?`)) return;
+    const typed = prompt(`Para confirmar a exclusão permanente de ${archivedCount} playlist(s), digite EXCLUIR (em maiúsculas).`);
+    if (typed !== "EXCLUIR") {
+      toast({ title: "Exclusão cancelada", description: "Texto de confirmação não confere." });
+      return;
+    }
     const { data, error } = await supabase.functions.invoke("delete-managed-playlist", {
       body: { delete_all_archived: true },
     });
