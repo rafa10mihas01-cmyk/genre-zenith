@@ -247,23 +247,66 @@ export default function Campanhas() {
         {tab === "lista" && (
           <>
             {/* Filtros */}
-            <div className="flex flex-wrap gap-2 mb-4">
-              {(["all", "awaiting_client", "awaiting_internal", "running", "completed"] as const).map(f => {
-                const count = stageCounts[f];
-                return (
-                  <Button
-                    key={f}
-                    variant={filter === f ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setFilter(f)}
-                    disabled={f !== "all" && count === 0}
-                  >
-                    {PIPELINE_LABEL[f]}
-                    <span className="ml-1.5 text-xs opacity-60 tabular-nums">{count}</span>
-                  </Button>
-                );
-              })}
-            </div>
+            {(() => {
+              const FILTER_META: Record<PipelineFilter, { icon: typeof ListChecks; short: string }> = {
+                all: { icon: ListChecks, short: "Todas" },
+                awaiting_client: { icon: Clock, short: "Cliente" },
+                awaiting_internal: { icon: MessageSquareWarning, short: "Você" },
+                running: { icon: Play, short: "Rodando" },
+                completed: { icon: CheckCircle2, short: "Feitas" },
+              };
+              const order = ["all", "awaiting_client", "awaiting_internal", "running", "completed"] as const;
+              return (
+                <>
+                  {/* Mobile: régua única com 5 colunas, ícone + contagem */}
+                  <div className="grid grid-cols-5 gap-1.5 mb-4 sm:hidden">
+                    {order.map(f => {
+                      const count = stageCounts[f];
+                      const meta = FILTER_META[f];
+                      const Icon = meta.icon;
+                      const isActive = filter === f;
+                      const isDisabled = f !== "all" && count === 0;
+                      return (
+                        <button
+                          key={f}
+                          onClick={() => setFilter(f)}
+                          disabled={isDisabled}
+                          aria-label={`${PIPELINE_LABEL[f]} (${count})`}
+                          className={`flex flex-col items-center justify-center gap-1 rounded-xl border px-1 py-2 transition-colors ${
+                            isActive
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border bg-card text-muted-foreground hover:text-foreground"
+                          } ${isDisabled ? "opacity-40 pointer-events-none" : ""}`}
+                        >
+                          <Icon className="w-4 h-4" />
+                          <span className="text-[10px] font-medium leading-none truncate max-w-full">{meta.short}</span>
+                          <span className="text-[10px] tabular-nums opacity-70 leading-none">{count}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Desktop / tablet: layout original */}
+                  <div className="hidden sm:flex flex-wrap gap-2 mb-4">
+                    {order.map(f => {
+                      const count = stageCounts[f];
+                      return (
+                        <Button
+                          key={f}
+                          variant={filter === f ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setFilter(f)}
+                          disabled={f !== "all" && count === 0}
+                        >
+                          {PIPELINE_LABEL[f]}
+                          <span className="ml-1.5 text-xs opacity-60 tabular-nums">{count}</span>
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </>
+              );
+            })()}
 
             {/* Lista */}
             {loading ? (
