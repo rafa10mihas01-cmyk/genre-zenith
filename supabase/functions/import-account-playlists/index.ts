@@ -79,8 +79,16 @@ Deno.serve(async (req) => {
     while (url && safety < 20) {
       safety++;
       if (pageIdx++ > 0) await sleep(SPOTIFY_CALL_DELAY_MS);
-      const r: Response = await guardedSpotifyFetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      spotifyCalls++;
+      let r: Response;
+      try {
+        r = await guardedSpotifyFetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      } catch (e) {
+        if (e instanceof SpotifyCircuitOpenError) rate429Count++;
+        throw e;
+      }
       if (!r.ok) {
+        if (r.status === 429) rate429Count++;
         const t = await r.text();
         return jr({ ok: false, error: `Spotify ${r.status}: ${t.slice(0, 200)}` }, 500);
       }
