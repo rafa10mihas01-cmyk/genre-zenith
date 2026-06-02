@@ -151,6 +151,12 @@ Deno.serve(async (req) => {
       if (error) return jr({ ok: false, error: error.message }, 500);
       if (!data) return jr({ ok: false, error: "invite_not_found" }, 404);
       const expired = new Date(data.expires_at).getTime() < Date.now();
+      await logAudit(sb, {
+        event: "invite_opened", flow: "invite",
+        invite_token: data.token, app_id: data.app_id,
+        meta: { expired, consumed: !!data.consumed_at },
+        ...reqMeta,
+      });
       return jr({
         ok: true,
         token: data.token,
