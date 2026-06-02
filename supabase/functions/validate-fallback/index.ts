@@ -190,10 +190,12 @@ Deno.serve(async (req) => {
     report.rows.push({ phase, test, expected, actual, result: pass === "n/a" ? "N/A" : pass ? "PASS" : "FAIL", notes });
   };
 
+  const runAll = async () => {
   let tok05: string | null = null;
   let tok01: string | null = null;
   let baselineAvailable = false;
   const createdByApp01: string[] = [];
+
 
   try {
     tok05 = await getToken(sb, app05, sul);
