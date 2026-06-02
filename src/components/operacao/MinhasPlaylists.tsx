@@ -973,8 +973,10 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
 
 
 
+      {/* Saúde do ecossistema + Top oportunidades — mesma régua, lado a lado */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
       {/* Saúde do ecossistema — colapsado, mesmo padrão do Top oportunidades */}
-      <Collapsible className="nx-card !p-0 overflow-hidden">
+      <Collapsible className={cn("nx-card !p-0 overflow-hidden", opportunities.length === 0 && "sm:col-span-2") }>
         <CollapsibleTrigger asChild>
           <button
             type="button"
@@ -1144,6 +1146,9 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
           </CollapsibleContent>
         </Collapsible>
       )}
+      </div>
+
+
 
       {/* Banner: contas com playlists pendentes de importação (cap por execução) */}
       {!showArchived && !showCapacity && pendingSyncs.length > 0 && (
