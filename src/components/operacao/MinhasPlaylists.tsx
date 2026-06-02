@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/sheet";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+  Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
@@ -979,179 +979,185 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
 
 
 
-      {/* Saúde do ecossistema + Top oportunidades — mesma régua, lado a lado */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
-      {/* Saúde do ecossistema — colapsado, mesmo padrão do Top oportunidades */}
-      <Collapsible className={cn("nx-card !p-0 overflow-hidden", opportunities.length === 0 && "sm:col-span-2") }>
-        <CollapsibleTrigger asChild>
-          <button
-            type="button"
-            className="group w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-[hsl(var(--hover))] transition-colors text-left"
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              <Activity className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="text-[14px] font-semibold">Saúde do ecossistema</span>
-              <span className="text-[11px] text-muted-foreground truncate">
-                · composição do catálogo
-              </span>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground tabular-nums">
-                {totalActiveCount + totalArchivedCount} monitoradas
-              </span>
-              {eligibleCount > 0 && (
-                <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-warning font-semibold">
-                  <Bell className="h-3 w-3" />
-                  {eligibleCount} elegív{eligibleCount === 1 ? "el" : "eis"}
-                </span>
-              )}
-              <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-90" />
-            </div>
-          </button>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <div className="px-4 pb-4 pt-1 grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <Link
-              to="/catalogo"
-              className="group rounded-xl border border-border/40 bg-[hsl(var(--elevated))] px-3 py-2.5 transition-all hover:-translate-y-[1px] hover:border-foreground/30 flex items-center justify-between gap-2"
-            >
-              <span className="flex items-center gap-2 min-w-0">
-                <span className="h-2 w-2 rounded-full bg-success shrink-0" />
-                <span className="text-[12px] text-foreground/85 group-hover:text-foreground truncate">Ativas</span>
-              </span>
-              <span className="text-[16px] font-semibold tabular-nums">{totalActiveCount}</span>
-            </Link>
-            <Link
-              to="/catalogo?arquivadas=1"
-              className="group rounded-xl border border-border/40 bg-[hsl(var(--elevated))] px-3 py-2.5 transition-all hover:-translate-y-[1px] hover:border-foreground/30 flex items-center justify-between gap-2"
-            >
-              <span className="flex items-center gap-2 min-w-0">
-                <Archive className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                <span className="text-[12px] text-foreground/85 group-hover:text-foreground truncate">Arquivadas</span>
-              </span>
-              <span className="text-[16px] font-semibold tabular-nums">{totalArchivedCount}</span>
-            </Link>
-            <Link
-              to="/catalogo?arquivadas=1&elegiveis=1"
-              className={cn(
-                "group rounded-xl border px-3 py-2.5 transition-all hover:-translate-y-[1px] flex items-center justify-between gap-2",
-                eligibleCount > 0
-                  ? "border-warning/30 bg-warning/5 hover:border-warning/60"
-                  : "border-border/40 bg-[hsl(var(--elevated))] hover:border-foreground/30",
-              )}
-            >
-              <span className="flex items-center gap-2 min-w-0">
-                <Bell className={cn("h-3.5 w-3.5 shrink-0", eligibleCount > 0 ? "text-warning" : "text-muted-foreground")} />
-                <span className={cn(
-                  "text-[12px] truncate",
-                  eligibleCount > 0 ? "text-warning" : "text-foreground/85 group-hover:text-foreground",
-                )}>
-                  Elegíveis para retorno
-                </span>
-              </span>
-              <span className={cn(
-                "text-[16px] font-semibold tabular-nums",
-                eligibleCount > 0 ? "text-warning" : "text-foreground",
-              )}>
-                {eligibleCount}
-              </span>
-            </Link>
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
-
-      {/* Top oportunidades — match score (colapsado por padrão) */}
-      {opportunities.length > 0 && (
-        <Collapsible className="nx-card !p-0 overflow-hidden">
-          <CollapsibleTrigger asChild>
+      {/* Saúde do ecossistema + Top oportunidades — mesma régua, lado a lado, abre em popup */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-stretch">
+        {/* Saúde do ecossistema */}
+        <Dialog>
+          <DialogTrigger asChild>
             <button
               type="button"
-              className="group w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-[hsl(var(--hover))] transition-colors text-left"
+              className={cn(
+                "nx-card !p-0 overflow-hidden text-left w-full h-full group",
+                "flex items-center justify-between gap-3 px-4 py-3 hover:bg-[hsl(var(--hover))] transition-colors",
+                opportunities.length === 0 && "sm:col-span-2",
+              )}
             >
               <div className="flex items-center gap-2 min-w-0">
-                <Target className="h-4 w-4 text-primary shrink-0" />
-                <span className="text-[14px] font-semibold">Top oportunidades</span>
-                <span className="text-[11px] text-muted-foreground truncate">
-                  · onde alimentar primeiro
-                </span>
+                <Activity className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className="text-[14px] font-semibold truncate">Saúde do ecossistema</span>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                  {opportunities.length} sugest{opportunities.length === 1 ? "ão" : "ões"}
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground tabular-nums">
+                  {totalActiveCount + totalArchivedCount}
                 </span>
-                <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-90" />
+                {eligibleCount > 0 && (
+                  <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-warning font-semibold">
+                    <Bell className="h-3 w-3" />
+                    {eligibleCount}
+                  </span>
+                )}
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
               </div>
             </button>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div className="px-4 pb-4 pt-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-              {opportunities.map((o) => {
-                const tone =
-                  o.matchScore >= 60
-                    ? "success"
-                    : o.matchScore >= 30
-                    ? "primary"
-                    : "muted";
-                return (
-                  <Link
-                    key={o.pl.id}
-                    to={`/playlists/${o.pl.canonical_playlist_id}`}
-                    className={cn(
-                      "group rounded-xl border px-3 py-2.5 transition-all hover:-translate-y-[1px] hover:border-foreground/30",
-                      tone === "success" && "border-success/30 bg-success/5",
-                      tone === "primary" && "border-primary/30 bg-primary/5",
-                      tone === "muted" && "border-border/40 bg-[hsl(var(--elevated))]",
-                    )}
-                  >
-                    <div className="flex items-start gap-2.5">
-                      {o.pl.cover_url ? (
-                        <img
-                          src={o.pl.cover_url}
-                          alt=""
-                          className="h-10 w-10 rounded-md object-cover shrink-0"
-                        />
-                      ) : (
-                        <div className="h-10 w-10 rounded-md bg-muted shrink-0 flex items-center justify-center">
-                          <ListMusic className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[13px] font-semibold truncate group-hover:text-primary transition-colors">
-                          {o.pl.name}
-                        </div>
-                        <div className="text-[11px] text-muted-foreground tabular-nums flex items-center gap-1.5 flex-wrap mt-0.5">
-                          <span className="inline-flex items-center gap-0.5">
-                            <TrendingUp className="h-3 w-3" />
-                            {Math.round(Number(o.brain.headroom_pct))}% de folga
-                          </span>
-                          {o.sigCount > 0 && (
-                            <span className="text-warning">· {o.sigCount} sinal{o.sigCount > 1 ? "is" : ""}</span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <div
-                          className={cn(
-                            "text-[18px] font-bold tabular-nums leading-none",
-                            tone === "success" && "text-success",
-                            tone === "primary" && "text-primary",
-                            tone === "muted" && "text-muted-foreground",
-                          )}
-                        >
-                          {o.matchScore}
-                        </div>
-                        <div className="text-[9px] uppercase tracking-wider text-muted-foreground mt-0.5">
-                          match
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
+          </DialogTrigger>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Saúde do ecossistema</DialogTitle>
+              <DialogDescription>Composição do catálogo monitorado.</DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-1 gap-2">
+              <Link
+                to="/catalogo"
+                className="group rounded-xl border border-border/40 bg-[hsl(var(--elevated))] px-3 py-2.5 transition-all hover:border-foreground/30 flex items-center justify-between gap-2"
+              >
+                <span className="flex items-center gap-2 min-w-0">
+                  <span className="h-2 w-2 rounded-full bg-success shrink-0" />
+                  <span className="text-[13px] text-foreground/85 group-hover:text-foreground truncate">Ativas</span>
+                </span>
+                <span className="text-[16px] font-semibold tabular-nums">{totalActiveCount}</span>
+              </Link>
+              <Link
+                to="/catalogo?arquivadas=1"
+                className="group rounded-xl border border-border/40 bg-[hsl(var(--elevated))] px-3 py-2.5 transition-all hover:border-foreground/30 flex items-center justify-between gap-2"
+              >
+                <span className="flex items-center gap-2 min-w-0">
+                  <Archive className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span className="text-[13px] text-foreground/85 group-hover:text-foreground truncate">Arquivadas</span>
+                </span>
+                <span className="text-[16px] font-semibold tabular-nums">{totalArchivedCount}</span>
+              </Link>
+              <Link
+                to="/catalogo?arquivadas=1&elegiveis=1"
+                className={cn(
+                  "group rounded-xl border px-3 py-2.5 transition-all flex items-center justify-between gap-2",
+                  eligibleCount > 0
+                    ? "border-warning/30 bg-warning/5 hover:border-warning/60"
+                    : "border-border/40 bg-[hsl(var(--elevated))] hover:border-foreground/30",
+                )}
+              >
+                <span className="flex items-center gap-2 min-w-0">
+                  <Bell className={cn("h-3.5 w-3.5 shrink-0", eligibleCount > 0 ? "text-warning" : "text-muted-foreground")} />
+                  <span className={cn(
+                    "text-[13px] truncate",
+                    eligibleCount > 0 ? "text-warning" : "text-foreground/85 group-hover:text-foreground",
+                  )}>
+                    Elegíveis para retorno
+                  </span>
+                </span>
+                <span className={cn(
+                  "text-[16px] font-semibold tabular-nums",
+                  eligibleCount > 0 ? "text-warning" : "text-foreground",
+                )}>
+                  {eligibleCount}
+                </span>
+              </Link>
             </div>
-          </CollapsibleContent>
-        </Collapsible>
-      )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Top oportunidades */}
+        {opportunities.length > 0 && (
+          <Dialog>
+            <DialogTrigger asChild>
+              <button
+                type="button"
+                className="nx-card !p-0 overflow-hidden text-left w-full h-full group flex items-center justify-between gap-3 px-4 py-3 hover:bg-[hsl(var(--hover))] transition-colors"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <Target className="h-4 w-4 text-primary shrink-0" />
+                  <span className="text-[14px] font-semibold truncate">Top oportunidades</span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground tabular-nums">
+                    {opportunities.length}
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Top oportunidades</DialogTitle>
+                <DialogDescription>Onde alimentar primeiro — ordenado por match score.</DialogDescription>
+              </DialogHeader>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[60vh] overflow-y-auto nx-scroll pr-1">
+                {opportunities.map((o) => {
+                  const tone =
+                    o.matchScore >= 60
+                      ? "success"
+                      : o.matchScore >= 30
+                      ? "primary"
+                      : "muted";
+                  return (
+                    <Link
+                      key={o.pl.id}
+                      to={`/playlists/${o.pl.canonical_playlist_id}`}
+                      className={cn(
+                        "group rounded-xl border px-3 py-2.5 transition-all hover:-translate-y-[1px] hover:border-foreground/30",
+                        tone === "success" && "border-success/30 bg-success/5",
+                        tone === "primary" && "border-primary/30 bg-primary/5",
+                        tone === "muted" && "border-border/40 bg-[hsl(var(--elevated))]",
+                      )}
+                    >
+                      <div className="flex items-start gap-2.5">
+                        {o.pl.cover_url ? (
+                          <img
+                            src={o.pl.cover_url}
+                            alt=""
+                            className="h-10 w-10 rounded-md object-cover shrink-0"
+                          />
+                        ) : (
+                          <div className="h-10 w-10 rounded-md bg-muted shrink-0 flex items-center justify-center">
+                            <ListMusic className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[13px] font-semibold truncate group-hover:text-primary transition-colors">
+                            {o.pl.name}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground tabular-nums flex items-center gap-1.5 flex-wrap mt-0.5">
+                            <span className="inline-flex items-center gap-0.5">
+                              <TrendingUp className="h-3 w-3" />
+                              {Math.round(Number(o.brain.headroom_pct))}% de folga
+                            </span>
+                            {o.sigCount > 0 && (
+                              <span className="text-warning">· {o.sigCount} sinal{o.sigCount > 1 ? "is" : ""}</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div
+                            className={cn(
+                              "text-[18px] font-bold tabular-nums leading-none",
+                              tone === "success" && "text-success",
+                              tone === "primary" && "text-primary",
+                              tone === "muted" && "text-muted-foreground",
+                            )}
+                          >
+                            {o.matchScore}
+                          </div>
+                          <div className="text-[9px] uppercase tracking-wider text-muted-foreground mt-0.5">
+                            match
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
 
