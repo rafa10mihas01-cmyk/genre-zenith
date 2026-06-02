@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Upload, Search, Mail, Instagram, Link2, ExternalLink, Star, Ban, Copy,
   CheckCircle2, Trash2, Users, Filter, Download, Loader2, MoreHorizontal,
-  SlidersHorizontal, Send, ChevronRight,
+  SlidersHorizontal, Send, ChevronRight, CircleDashed, MessageSquare,
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
