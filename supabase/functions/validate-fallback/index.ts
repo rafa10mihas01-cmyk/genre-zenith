@@ -91,11 +91,10 @@ function poolUris(n: number): string[] {
   return out;
 }
 
-async function createPl(token: string, userId: string, name: string, opts: { public?: boolean; collaborative?: boolean } = {}): Promise<{ id: string | null; call: Call }> {
-  // collaborative exige public=false
+async function createPl(token: string, _userId: string, name: string, opts: { public?: boolean; collaborative?: boolean } = {}): Promise<{ id: string | null; call: Call }> {
   const body: any = { name, public: opts.public ?? false };
   if (opts.collaborative) body.collaborative = true;
-  const c = await spCall(token, "POST", `https://api.spotify.com/v1/users/${userId}/playlists`, "create", body, true);
+  const c = await spCall(token, "POST", `https://api.spotify.com/v1/me/playlists`, "create", body, true);
   return { id: (c.body as any)?.id ?? null, call: c };
 }
 
