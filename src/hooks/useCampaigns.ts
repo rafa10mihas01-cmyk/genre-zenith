@@ -118,6 +118,11 @@ export function useCampaigns() {
         { event: "*", schema: "public", table: "curator_deals" },
         () => qc.invalidateQueries({ queryKey: QUERY_KEY }),
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "campaign_access_emails" },
+        () => qc.invalidateQueries({ queryKey: QUERY_KEY }),
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
