@@ -13,6 +13,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { usePlaylistCovers, type PlaylistMeta } from "@/hooks/usePlaylistCovers";
 import { PlaylistCell } from "./PlaylistCell";
 import { KpiBig } from "@/components/KpiBig";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 type GrowthRow = {
   campaign_id: string;
@@ -34,6 +35,7 @@ type CuratorMeta = { id: string; name: string | null };
 type SortKey = "delta" | "current" | "baseline" | "name";
 
 const ROW_H = 64;
+const ROW_H_MOBILE = 56;
 
 export function ExecucaoView({ campaignId, onOpenHistory }: { campaignId: string; onOpenHistory?: (playlistId: string) => void }) {
   const [rows, setRows] = useState<GrowthRow[] | null>(null);
@@ -290,12 +292,12 @@ export function ExecucaoView({ campaignId, onOpenHistory }: { campaignId: string
 
       <Card>
         <CardContent className="p-0">
-          <div className="flex items-center justify-between px-3 py-2 text-[11px] text-muted-foreground border-b border-border/60 bg-card/40">
-            <span>{filtered.length} de {rows.length} playlist(s)</span>
-            <span className="flex items-center gap-3">
-              <span>Base: <span className="text-foreground tabular-nums">{formatInt(filteredTotals.baseline)}</span></span>
-              <span>Atual: <span className="text-foreground tabular-nums">{formatInt(filteredTotals.current)}</span></span>
-              <span>Δ: <span className="text-primary font-semibold tabular-nums">{filteredTotals.delta > 0 ? "+" : ""}{formatInt(filteredTotals.delta)}</span></span>
+          <div className="flex items-center justify-between gap-2 px-3 py-2 text-[11px] text-muted-foreground border-b border-border/60 bg-card/40">
+            <span className="shrink-0">{filtered.length}/{rows.length}</span>
+            <span className="flex items-center gap-2 md:gap-3 tabular-nums">
+              <span className="hidden xs:inline">Base <span className="text-foreground">{formatInt(filteredTotals.baseline)}</span></span>
+              <span>Atual <span className="text-foreground">{formatInt(filteredTotals.current)}</span></span>
+              <span>Δ <span className={cn("font-semibold", filteredTotals.delta > 0 ? "text-primary" : "text-muted-foreground")}>{filteredTotals.delta > 0 ? "+" : ""}{formatInt(filteredTotals.delta)}</span></span>
             </span>
           </div>
           <VirtualTable
@@ -312,6 +314,7 @@ export function ExecucaoView({ campaignId, onOpenHistory }: { campaignId: string
           />
         </CardContent>
       </Card>
+
     </div>
   );
 }
@@ -333,14 +336,15 @@ function VirtualTable({
   onSort: (k: SortKey) => void;
   onRowClick?: (playlistId: string) => void;
 }) {
-
+  const isMobile = useIsMobile();
   const parentRef = useRef<HTMLDivElement>(null);
   const covers = usePlaylistCovers(rows.map((r) => r.playlist_id));
+  const rowH = isMobile ? ROW_H_MOBILE : ROW_H;
 
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => ROW_H,
+    estimateSize: () => rowH,
     overscan: 12,
   });
 
@@ -350,7 +354,8 @@ function VirtualTable({
 
   return (
     <div>
-      <div className="grid grid-cols-[44px_minmax(220px,2fr)_120px_110px_110px_120px_140px_150px] gap-3 px-4 py-2.5 text-[10px] uppercase tracking-[0.08em] text-muted-foreground border-b border-border bg-card/40">
+      {/* Header — só desktop. Mobile usa layout em linha sem cabeçalho. */}
+      <div className="hidden md:grid grid-cols-[44px_minmax(220px,2fr)_120px_110px_110px_120px_140px_150px] gap-3 px-4 py-2.5 text-[10px] uppercase tracking-[0.08em] text-muted-foreground border-b border-border bg-card/40">
         <div className="text-right">#</div>
         <SortHeader label="Playlist" k="name" sort={sort} dir={sortDir} onSort={onSort} />
         <div>Atribuição</div>
@@ -361,7 +366,11 @@ function VirtualTable({
         <div>Última coleta</div>
       </div>
 
-      <div ref={parentRef} className="overflow-auto" style={{ height: Math.min(640, Math.max(240, rows.length * ROW_H + 8)) }}>
+      <div
+        ref={parentRef}
+        className="overflow-auto"
+        style={{ height: Math.min(640, Math.max(240, rows.length * rowH + 8)) }}
+      >
         <div style={{ height: virtualizer.getTotalSize(), position: "relative", width: "100%" }}>
           {virtualizer.getVirtualItems().map((vi) => {
             const r = rows[vi.index];
@@ -369,6 +378,73 @@ function VirtualTable({
             const curName = r.attributed_curator_id ? curators[r.attributed_curator_id]?.name ?? "Curador" : null;
             const st = r.attributed_curator_id ? statuses[`${r.attributed_curator_id}::${r.playlist_id}`] ?? "pending_match" : null;
             const isEven = vi.index % 2 === 0;
+            const baseStyle: React.CSSProperties = {
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: vi.size,
+              transform: `translateY(${vi.start}px)`,
+            };
+
+            if (isMobile) {
+              return (
+                <div
+                  key={vi.key}
+                  onClick={() => onRowClick?.(r.playlist_id)}
+                  className={cn(
+                    "flex items-center gap-2.5 px-3 border-b border-border/40 hover:bg-accent/40 transition-colors",
+                    isEven ? "bg-transparent" : "bg-card/30",
+                    onRowClick && "cursor-pointer",
+                  )}
+                  style={baseStyle}
+                >
+                  <div className="w-5 text-right tabular-nums text-[10px] text-muted-foreground font-mono shrink-0">
+                    {vi.index + 1}
+                  </div>
+                  <MobileCover
+                    playlistId={r.playlist_id}
+                    url={r.playlist_url}
+                    coverUrl={meta?.cover_url ?? null}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[13px] font-medium text-foreground truncate leading-tight">
+                      {r.current_name ?? r.baseline_name ?? meta?.name ?? "—"}
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-muted-foreground min-w-0">
+                      <AttributionDot attr={r.attributed_to} />
+                      <span className="truncate">
+                        {r.attributed_to === "ecosystem"
+                          ? "Ecossistema"
+                          : r.attributed_to.startsWith("curator:")
+                            ? curName ?? "Curador"
+                            : "Orgânico"}
+                      </span>
+                      {meta?.followers != null && (
+                        <>
+                          <span aria-hidden>·</span>
+                          <span className="tabular-nums">{Intl.NumberFormat("pt-BR").format(meta.followers)}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0 leading-tight">
+                    <div
+                      className={cn(
+                        "text-[13px] font-semibold tabular-nums",
+                        Number(r.delta) > 0 ? "text-primary" : "text-muted-foreground",
+                      )}
+                    >
+                      {Number(r.delta) > 0 ? "+" : ""}{formatInt(Number(r.delta ?? 0))}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
+                      {formatInt(Number(r.current_plays ?? 0))}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
             return (
               <div
                 key={vi.key}
@@ -376,16 +452,9 @@ function VirtualTable({
                 className={cn(
                   "grid grid-cols-[44px_minmax(220px,2fr)_120px_110px_110px_120px_140px_150px] gap-3 items-center px-4 border-b border-border/40 hover:bg-accent/40 transition-colors",
                   isEven ? "bg-transparent" : "bg-card/30",
-                  onRowClick && "cursor-pointer"
+                  onRowClick && "cursor-pointer",
                 )}
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  width: "100%",
-                  height: vi.size,
-                  transform: `translateY(${vi.start}px)`,
-                }}
+                style={baseStyle}
               >
                 <div className="text-right tabular-nums text-xs text-muted-foreground font-mono">
                   {vi.index + 1}
@@ -413,6 +482,7 @@ function VirtualTable({
           })}
         </div>
       </div>
+
     </div>
   );
 }
@@ -438,6 +508,36 @@ function AttributionBadge({ attr, curatorName }: { attr: string; curatorName: st
   if (attr.startsWith("curator:")) return <Badge variant="outline" className="border-purple-500/40 text-purple-400 truncate max-w-full">{curatorName ?? "Curador"}</Badge>;
   return <Badge variant="outline" className="border-pink-500/40 text-pink-400">Orgânico</Badge>;
 }
+
+function AttributionDot({ attr }: { attr: string }) {
+  const cls =
+    attr === "ecosystem" ? "bg-blue-400"
+    : attr.startsWith("curator:") ? "bg-purple-400"
+    : "bg-pink-400";
+  return <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", cls)} aria-hidden />;
+}
+
+function MobileCover({
+  playlistId, url, coverUrl,
+}: { playlistId: string; url: string | null | undefined; coverUrl: string | null }) {
+  const href = url || `https://open.spotify.com/playlist/${playlistId}`;
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      className="h-9 w-9 shrink-0 rounded-md overflow-hidden bg-muted border border-border flex items-center justify-center"
+    >
+      {coverUrl ? (
+        <img src={coverUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
+      ) : (
+        <span className="text-[10px] text-muted-foreground">♪</span>
+      )}
+    </a>
+  );
+}
+
 
 function MatchStatusBadge({ status }: { status: string }) {
   if (status === "matched") return <Badge className="bg-primary text-primary-foreground">matched</Badge>;
