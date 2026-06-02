@@ -48,13 +48,13 @@ const TONE_CLS: Record<KpiTone, string> = {
 };
 
 const VALUE_SIZE: Record<KpiVariant, string> = {
-  hero:    "text-lg sm:text-3xl md:text-4xl font-semibold tracking-tight",
+  hero:    "text-base sm:text-2xl md:text-3xl font-semibold",
   default: "text-base sm:text-2xl md:text-3xl font-semibold",
   compact: "text-sm sm:text-lg md:text-xl font-semibold",
 };
 
 const PADDING: Record<KpiVariant, string> = {
-  hero:    "p-5 min-h-[132px]",
+  hero:    "p-4 min-h-[112px]",
   default: "p-4 min-h-[112px]",
   compact: "p-3 min-h-[88px]",
 };
