@@ -1146,6 +1146,9 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
           </CollapsibleContent>
         </Collapsible>
       )}
+      </div>
+
+
 
       {/* Banner: contas com playlists pendentes de importação (cap por execução) */}
       {!showArchived && !showCapacity && pendingSyncs.length > 0 && (
