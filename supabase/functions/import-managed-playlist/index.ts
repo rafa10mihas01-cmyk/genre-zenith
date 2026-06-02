@@ -10,6 +10,11 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const PLAYLIST_RE = /spotify\.com\/(?:intl-[a-z]{2}\/)?playlist\/([A-Za-z0-9]+)/i;
 
+// Onboarding: playlists novas com saves < AUTO_ARCHIVE_MIN_FOLLOWERS nascem arquivadas.
+// Exceções: metadata.strategic === true, metadata.auto_archive_exempt === true, locked_at IS NOT NULL.
+// Reativação é sempre manual via UI.
+const AUTO_ARCHIVE_MIN_FOLLOWERS = 100;
+
 function jr(p: unknown, status = 200) {
   return new Response(JSON.stringify(p), {
     status, headers: { ...corsHeaders, "Content-Type": "application/json" },
