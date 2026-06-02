@@ -50,6 +50,13 @@ Deno.serve(async (req) => {
     const SPOTIFY_CALL_DELAY_MS = 500; // entre chamadas individuais
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+    // Contadores pra relatório pós-sync.
+    // IMPORTANTE: só contam chamadas SÍNCRONAS (listagem + followers).
+    // Pipeline pós-import roda em EdgeRuntime.waitUntil e suas calls NÃO entram aqui.
+    let spotifyCalls = 0;
+    let rate429Count = 0;
+    const { SpotifyCircuitOpenError } = await import("../_shared/spotify.ts");
+
     // 1) token OAuth da conta padrão (Baile Hits Oficial hoje)
     const { token, row } = await getUserAccessToken(body?.spotify_user_id ?? undefined);
     const ownerId = row.spotify_user_id;
