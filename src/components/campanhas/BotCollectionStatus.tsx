@@ -253,28 +253,28 @@ export function BotCollectionStatus({ campaignId, dealId }: Props) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-[11px] pt-2 border-t border-border/40">
-        <div>
+      <div className="grid grid-cols-2 md:grid-cols-4 text-[11px] pt-3 border-t border-border/40 divide-x divide-border/40 [&>*:nth-child(n+3)]:border-t [&>*:nth-child(n+3)]:border-border/40 [&>*:nth-child(n+3)]:pt-2.5 [&>*:nth-child(n+3)]:mt-2.5 md:[&>*:nth-child(n+3)]:border-t-0 md:[&>*:nth-child(n+3)]:pt-0 md:[&>*:nth-child(n+3)]:mt-0">
+        <div className="px-2.5 first:pl-0">
           <div className="text-muted-foreground uppercase tracking-wider text-[9px]">Última passada</div>
-          <div className="text-foreground font-medium tabular-nums">
+          <div className="text-foreground font-medium tabular-nums mt-0.5">
             {song?.last_auto_collect_at ? fmtAgo(song.last_auto_collect_at) : "nenhuma"}
           </div>
         </div>
-        <div>
+        <div className="px-2.5">
           <div className="text-muted-foreground uppercase tracking-wider text-[9px]">Próximo ciclo</div>
-          <div className="text-foreground font-medium tabular-nums">
+          <div className="text-foreground font-medium tabular-nums mt-0.5">
             {fmtIn(song?.next_auto_collect_at ?? null)}
           </div>
         </div>
-        <div>
+        <div className="px-2.5 first:pl-0 md:first:pl-2.5">
           <div className="text-muted-foreground uppercase tracking-wider text-[9px]">Na fila desde</div>
-          <div className="text-foreground font-medium tabular-nums">
+          <div className="text-foreground font-medium tabular-nums mt-0.5">
             {status === "queued" ? fmtAgo(song?.queued_at ?? null) : "—"}
           </div>
         </div>
-        <div>
+        <div className="px-2.5">
           <div className="text-muted-foreground uppercase tracking-wider text-[9px]">Heartbeat robô</div>
-          <div className={`font-medium tabular-nums ${botFresh.fresh ? "text-foreground" : "text-destructive"}`}>
+          <div className={`font-medium tabular-nums mt-0.5 ${botFresh.fresh ? "text-foreground" : "text-destructive"}`}>
             {fmtAgo(botFresh.at)}
           </div>
         </div>
