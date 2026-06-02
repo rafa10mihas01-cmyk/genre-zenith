@@ -325,7 +325,7 @@
      No mobile, reserva espaço para o bottom nav (64px + safe-area). */
   .nx-page {
     padding: var(--space-page-y) 8px;
-    padding-bottom: calc(64px + env(safe-area-inset-bottom) + 16px);
+    padding-bottom: calc(96px + env(safe-area-inset-bottom) + 32px);
     display: flex;
     flex-direction: column;
     gap: var(--space-section);
