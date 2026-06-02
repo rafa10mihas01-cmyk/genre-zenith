@@ -437,10 +437,21 @@ export async function refreshUserToken(row: SpotifyUserToken): Promise<string> {
   return access_token;
 }
 
-/** Retorna access_token de usuário válido (faz refresh se necessário). */
+/** Retorna access_token de usuário válido (faz refresh se necessário).
+ *  Ignora contas vinculadas a apps que não estão `status='active'` (quarentenados/desativados),
+ *  exceto se o caller pedir um spotify_user_id que SÓ existe em app não-active —
+ *  nesse caso usa mesmo assim e o circuit breaker decide. */
 export async function getUserAccessToken(userId?: string): Promise<{ token: string; row: SpotifyUserToken }> {
   const supabase = db();
   const defaultAppId = await getDefaultSpotifyAppId();
+
+  // Lista de apps ativos para filtrar contas em quarentena.
+  const { data: activeApps } = await supabase
+    .from("spotify_apps")
+    .select("id")
+    .eq("status", "active");
+  const activeAppIds = new Set((activeApps ?? []).map((a: any) => a.id));
+
   let q = supabase
     .from("spotify_user_tokens")
     .select("*")
@@ -449,25 +460,34 @@ export async function getUserAccessToken(userId?: string): Promise<{ token: stri
   if (userId) q = q.eq("spotify_user_id", userId);
   const { data, error } = await q.limit(userId ? 25 : 1);
   if (error) throw new Error(error.message);
-  const rows = (data ?? []) as SpotifyUserToken[];
-  if (rows.length === 0) throw new Error("Nenhuma conta Spotify conectada. Conecte em Configurações primeiro.");
+  const allRows = (data ?? []) as SpotifyUserToken[];
+  if (allRows.length === 0) throw new Error("Nenhuma conta Spotify conectada. Conecte em Configurações primeiro.");
+
+  // Prefere contas em apps ativos; só cai pra app quarentenado se não houver alternativa.
+  const activeRows = allRows.filter((r) => !r.app_id || activeAppIds.has(r.app_id));
+  const rows = activeRows.length > 0 ? activeRows : allRows;
 
   const row = (userId && defaultAppId)
     ? rows.find((r) => r.app_id === defaultAppId) ?? rows[0]
     : rows[0];
-  // NOTE: NÃO bloqueamos leitura/refresh do token aqui. Se o caller usar o token
-  // para chamar api.spotify.com, o guard global já bloqueia. Refresh em accounts.spotify.com
-  // está na whitelist e deve sempre funcionar (mesmo com breaker open).
   const expiresMs = new Date(row.expires_at).getTime();
   if (expiresMs > Date.now() + 60_000) return { token: row.access_token, row };
   const fresh = await refreshUserToken(row);
   return { token: fresh, row: { ...row, access_token: fresh } };
 }
 
-/** Força refresh imediato do token de usuário (ignora expiry cache). Útil em retry após 401. */
+/** Força refresh imediato do token de usuário (ignora expiry cache). Útil em retry após 401.
+ *  Também respeita quarentena (igual getUserAccessToken). */
 export async function forceRefreshUserAccessToken(userId: string): Promise<{ token: string; row: SpotifyUserToken }> {
   const supabase = db();
   const defaultAppId = await getDefaultSpotifyAppId();
+
+  const { data: activeApps } = await supabase
+    .from("spotify_apps")
+    .select("id")
+    .eq("status", "active");
+  const activeAppIds = new Set((activeApps ?? []).map((a: any) => a.id));
+
   const { data, error } = await supabase
     .from("spotify_user_tokens")
     .select("*")
@@ -476,9 +496,12 @@ export async function forceRefreshUserAccessToken(userId: string): Promise<{ tok
     .order("updated_at", { ascending: false })
     .limit(25);
   if (error) throw new Error(error.message);
-  const rows = (data ?? []) as SpotifyUserToken[];
-  if (rows.length === 0) throw new Error(`Sem token para spotify_user_id=${userId}`);
+  const allRows = (data ?? []) as SpotifyUserToken[];
+  if (allRows.length === 0) throw new Error(`Sem token para spotify_user_id=${userId}`);
+  const activeRows = allRows.filter((r) => !r.app_id || activeAppIds.has(r.app_id));
+  const rows = activeRows.length > 0 ? activeRows : allRows;
   const row = defaultAppId ? rows.find((r) => r.app_id === defaultAppId) ?? rows[0] : rows[0];
   const fresh = await refreshUserToken(row);
   return { token: fresh, row: { ...row, access_token: fresh } };
 }
+
