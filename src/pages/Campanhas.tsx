@@ -774,12 +774,17 @@ function CampaignRow({ c }: { c: Campaign }) {
                 <Pause className="h-4 w-4 mr-2" /> Pausar
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem
-              disabled={c.status === "cancelled"}
-              onSelect={() => doUpdateStatus("cancelled", "Campanha arquivada")}
-            >
-              <Archive className="h-4 w-4 mr-2" /> Arquivar
-            </DropdownMenuItem>
+            {c.status === "cancelled" ? (
+              <DropdownMenuItem onSelect={() => doUpdateStatus("draft", "Campanha desarquivada")}>
+                <ArchiveRestore className="h-4 w-4 mr-2" /> Desarquivar
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem
+                onSelect={() => doUpdateStatus("cancelled", "Campanha arquivada")}
+              >
+                <Archive className="h-4 w-4 mr-2" /> Arquivar
+              </DropdownMenuItem>
+            )}
 
             <DropdownMenuSeparator />
             <DropdownMenuItem
