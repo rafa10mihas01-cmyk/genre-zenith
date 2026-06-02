@@ -1525,31 +1525,15 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
               to="/catalogo?arquivadas=1"
               replace
               className="h-9 w-9 sm:w-auto sm:px-3 rounded-full text-[11px] sm:text-xs font-medium border transition-colors tabular-nums shrink-0 inline-flex items-center justify-center gap-1.5 bg-elevated border-border text-muted-foreground hover:text-foreground"
-              title={`Lixeira (${totalArchivedCount})`}
-              aria-label={`Lixeira (${totalArchivedCount})`}
+              title={`Arquivado (${totalArchivedCount})`}
+              aria-label={`Arquivado (${totalArchivedCount})`}
             >
-              <Trash2 className="h-4 w-4 sm:hidden" />
-              <span className="hidden sm:inline">Lixeira ({totalArchivedCount})</span>
+              <Archive className="h-4 w-4 sm:hidden" />
+              <span className="hidden sm:inline">Arquivado ({totalArchivedCount})</span>
             </Link>
           )}
 
-          {/* Capacidade — view alternativa, separada visualmente dos chips de estado */}
-          <span className="h-5 w-px bg-border mx-1 hidden sm:inline-block" aria-hidden />
-          <Link
-            to={showCapacity ? "/catalogo" : "/catalogo?aba=capacidade"}
-            replace
-            className={cn(
-              "h-9 w-9 sm:w-auto sm:px-2.5 rounded-md text-[11px] sm:text-xs font-medium transition-colors shrink-0 inline-flex items-center justify-center gap-1.5",
-              showCapacity
-                ? "text-primary"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-            title="Matriz de capacidade — quanto cabe em cada playlist"
-            aria-label="Capacidade"
-          >
-            <Activity className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
-            <span className="hidden sm:inline">Capacidade</span>
-          </Link>
+          {/* Capacidade ocultada — acessível pela URL /catalogo?aba=capacidade se necessário. */}
 
 
           {showArchived && eligibleCount > 0 && (
@@ -1574,8 +1558,9 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
               variant="outline"
               size="sm"
               className="h-8 gap-1.5 text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+              title="Excluir permanentemente todas as playlists arquivadas (pede confirmação dupla)"
             >
-              <Trash2 className="h-3.5 w-3.5" /> Esvaziar lixeira
+              <Trash2 className="h-3.5 w-3.5" /> Excluir arquivadas
             </Button>
           )}
         </div>
