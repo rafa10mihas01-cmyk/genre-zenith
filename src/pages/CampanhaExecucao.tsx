@@ -727,12 +727,7 @@ export default function CampanhaExecucao() {
                   recentUploads={recentUploads}
                   onOpenUpload={clientToken ? () => setUploadOpen(true) : undefined}
                 />
-              ) : (
-                <BotCollectionStatus
-                  campaignId={camp.id}
-                  dealId={camp.deal_id ?? null}
-                />
-              )}
+              ) : null}
               <RadioCollectedCard
                 campaignId={camp.id}
                 metaPlanned={snapshot.streamsOrganic ?? 0}
@@ -775,6 +770,12 @@ export default function CampanhaExecucao() {
                       approvingPlan={approvingPlan}
                       dispatching={dispatching}
                     />
+                    {(camp as any).collection_mode !== "spreadsheet" && (
+                      <BotCollectionStatus
+                        campaignId={camp.id}
+                        dealId={camp.deal_id ?? null}
+                      />
+                    )}
                     {(() => {
                       const baseline = recentUploads.find((u) => u.is_baseline);
                       return baseline ? (
