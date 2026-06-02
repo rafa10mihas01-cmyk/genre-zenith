@@ -727,12 +727,7 @@ export default function CampanhaExecucao() {
                   recentUploads={recentUploads}
                   onOpenUpload={clientToken ? () => setUploadOpen(true) : undefined}
                 />
-              ) : (
-                <BotCollectionStatus
-                  campaignId={camp.id}
-                  dealId={camp.deal_id ?? null}
-                />
-              )}
+              ) : null}
               <RadioCollectedCard
                 campaignId={camp.id}
                 metaPlanned={snapshot.streamsOrganic ?? 0}
