@@ -127,6 +127,9 @@ function AccountCard({ a, onChange }: { a: Account; onChange: () => void }) {
           />
         </div>
       </div>
+      {a.last_sync_at && (
+        <SyncStatusBlock a={a} />
+      )}
       {editing ? (
         <div className="mt-3 space-y-2">
           <div className="flex items-center gap-2">
