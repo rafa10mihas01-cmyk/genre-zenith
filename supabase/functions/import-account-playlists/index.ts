@@ -462,6 +462,19 @@ Deno.serve(async (req) => {
       },
     });
   } catch (e) {
-    return jr({ ok: false, error: (e as Error).message }, 500);
+    const msg = (e as Error).message ?? String(e);
+    if (msg.startsWith("SPOTIFY_CIRCUIT_OPEN")) {
+      const blockedMatch = msg.match(/blocked_until=([^\s]+)/);
+      const retryMatch = msg.match(/retry_after=(\d+)s/);
+      return jr({
+        ok: false,
+        error: "SPOTIFY_CIRCUIT_OPEN",
+        circuit_open: true,
+        blocked_until: blockedMatch?.[1] ?? null,
+        retry_after_sec: retryMatch ? Number(retryMatch[1]) : 0,
+        message: msg,
+      }, 200);
+    }
+    return jr({ ok: false, error: msg }, 500);
   }
 });
