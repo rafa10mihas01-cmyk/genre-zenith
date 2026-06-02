@@ -103,7 +103,8 @@ export default function Sistema() {
 
       <SpotifyReconnectBanner />
 
-      <div className="sticky top-0 z-30 -mt-px bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border -mx-4 md:-mx-6">
+      {/* Desktop: underline rail */}
+      <div className="hidden sm:block sticky top-0 z-30 -mt-px bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border -mx-4 md:-mx-6">
         <div className="nx-tab-rail items-center gap-1 px-4 md:px-6">
           {visibleTabs.map((t) => {
             const Icon = t.icon;
@@ -124,6 +125,37 @@ export default function Sistema() {
           })}
         </div>
       </div>
+
+      {/* Mobile: cards na mesma régua (4 por linha) */}
+      <div className="grid grid-cols-4 gap-1.5 sm:hidden mb-4">
+        {visibleTabs.map((t) => {
+          const Icon = t.icon;
+          const active = activeTab === t.id;
+          const shortLabel =
+            t.id === "capacidade" ? "Capac." :
+            t.id === "aprendizado" ? "Aprend." :
+            t.id === "configuracoes" ? "Config" :
+            t.label;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              aria-pressed={active}
+              className={cn(
+                "rounded-xl border px-0.5 py-2 flex flex-col items-center justify-center gap-1 min-w-0 transition-colors",
+                active
+                  ? "border-primary/60 bg-primary/10 text-foreground"
+                  : "border-border bg-card text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              <span className="text-[10px] font-medium leading-tight truncate w-full text-center">{shortLabel}</span>
+            </button>
+          );
+        })}
+      </div>
+
 
       <div className="min-h-[480px] animate-tab-in">
         {activeTab === "saude" && (
