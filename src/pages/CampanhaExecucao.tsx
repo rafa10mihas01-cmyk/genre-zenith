@@ -140,12 +140,27 @@ export default function CampanhaExecucao() {
     }
     setDispatching(true);
     try {
-      const { error } = await (supabase.rpc as any)("approve_campaign", { p_campaign_id: camp.id });
-      if (error) throw error;
+      // Recovery path: campanha já está active (entrou nesse estado por outro caminho) mas nunca
+      // teve eco_dispatched_at carimbado — não passa pelo approve_campaign (que exige draft/paused).
+      // Carimba o dispatch e enfileira direto.
+      const alreadyActiveWithoutDispatch = camp.status === "active" && !camp.eco_dispatched_at;
+
+      if (!alreadyActiveWithoutDispatch) {
+        const { error } = await (supabase.rpc as any)("approve_campaign", { p_campaign_id: camp.id });
+        if (error) throw error;
+      } else {
+        const { error: stampErr } = await supabase
+          .from("campaigns")
+          .update({ eco_dispatched_at: new Date().toISOString() })
+          .eq("id", camp.id)
+          .is("eco_dispatched_at", null);
+        if (stampErr) throw stampErr;
+      }
+
       // Dispara o planner agora pra enfileirar os ADDs imediatamente (sem esperar o cron de 1min).
       const { error: planErr } = await supabase.functions.invoke("execution-planner", { body: {} });
       if (planErr) {
-        toast.success("Campanha distribuída", { description: "Deal criado. Inserções começam no próximo ciclo (~1min)." });
+        toast.success("Campanha distribuída", { description: "Deal pronto. Inserções começam no próximo ciclo (~1min)." });
       } else {
         toast.success("Campanha distribuída", { description: "Inserções enfileiradas — músicas entram nas playlists nas próximas execuções do bot." });
       }
@@ -166,6 +181,7 @@ export default function CampanhaExecucao() {
       setDispatching(false);
     }
   }
+
 
   const loadCampaign = async () => {
     if (!id) return;
