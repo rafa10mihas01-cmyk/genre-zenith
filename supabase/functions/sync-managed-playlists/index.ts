@@ -49,17 +49,72 @@ Deno.serve(async (req) => {
   const startedAt = Date.now();
   const body = await req.json().catch(() => ({}));
   const playlistId: string | undefined = body?.playlist_id;
-  const source: string = isCron ? "cron" : (body?.source ?? "manual");
+  const rawTier: string | undefined = body?.tier;
+  const tier: "hot" | "warm" | "cold" | "__all__" | null =
+    rawTier === "hot" || rawTier === "warm" || rawTier === "cold" || rawTier === "__all__"
+      ? rawTier
+      : null;
+  const limit: number = Math.min(Math.max(Number(body?.limit) || 300, 1), 500);
+  const source: string = isCron ? `cron${tier ? `:${tier}` : ""}` : (body?.source ?? "manual");
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
   let synced = 0, failed = 0, recalculated = 0;
   const errors: string[] = [];
 
   try {
+    // Resolve IDs por tier via RPC SQL (subqueries com EXISTS/NOT EXISTS).
+    // Quando não há tier (ou playlist_id), comportamento legado: todas as ativas.
+    let targetIds: string[] | null = null;
+    if (playlistId) {
+      targetIds = [playlistId];
+    } else if (tier && tier !== "__all__") {
+      const cutoff30d = new Date(Date.now() - 30 * 86400_000).toISOString();
+      const cutoff14d = new Date(Date.now() - 14 * 86400_000).toISOString();
+      const cutoff180d = new Date(Date.now() - 180 * 86400_000).toISOString();
+
+      if (tier === "hot") {
+        const { data, error } = await supabase.rpc("sync_tier_hot_ids", {
+          p_limit: limit, p_cutoff: cutoff30d,
+        });
+        if (error) throw new Error(`hot tier: ${error.message}`);
+        targetIds = (data ?? []).map((r: { id: string }) => r.id);
+      } else if (tier === "warm") {
+        const { data, error } = await supabase.rpc("sync_tier_warm_ids", {
+          p_limit: limit, p_cutoff_imported: cutoff180d, p_cutoff_metrics: cutoff14d, p_cutoff_alloc: cutoff30d,
+        });
+        if (error) throw new Error(`warm tier: ${error.message}`);
+        targetIds = (data ?? []).map((r: { id: string }) => r.id);
+      } else {
+        const { data, error } = await supabase.rpc("sync_tier_cold_ids", {
+          p_limit: limit, p_cutoff_imported: cutoff180d, p_cutoff_metrics: cutoff14d, p_cutoff_alloc: cutoff30d,
+        });
+        if (error) throw new Error(`cold tier: ${error.message}`);
+        targetIds = (data ?? []).map((r: { id: string }) => r.id);
+      }
+    }
+
     let q = supabase.from("managed_playlists")
       .select("id, spotify_playlist_id, canonical_playlist_id, name, cover_url")
       .is("archived_at", null);
-    if (playlistId) q = q.eq("id", playlistId);
+    if (targetIds) {
+      if (targetIds.length === 0) {
+        // tier vazio: nada a processar
+        await supabase.from("sync_log").insert({
+          source, tier, synced: 0, failed: 0, recalculated: 0, errors: null,
+          duration_ms: Date.now() - startedAt,
+        });
+        if (isCron) {
+          await reportCronHealth(supabase, {
+            job_name: `sync-managed-playlists${tier ? `-${tier}` : ""}`,
+            status: "ok", startedAt, metrics: { synced: 0, failed: 0, recalculated: 0, tier },
+          });
+        }
+        return jr({ ok: true, tier, synced: 0, failed: 0, recalculated: 0 });
+      }
+      q = q.in("id", targetIds);
+    } else {
+      q = q.order("last_metrics_at", { ascending: true, nullsFirst: true }).limit(limit);
+    }
     const { data: pls, error } = await q;
     if (error) throw new Error(error.message);
 
@@ -147,30 +202,30 @@ Deno.serve(async (req) => {
 
 
     await supabase.from("sync_log").insert({
-      source, synced, failed, recalculated,
+      source, tier, synced, failed, recalculated,
       errors: errors.length ? errors.slice(0, 20) : null,
       duration_ms: Date.now() - startedAt,
     });
 
     if (isCron) {
       await reportCronHealth(supabase, {
-        job_name: "sync-managed-playlists",
+        job_name: `sync-managed-playlists${tier ? `-${tier}` : ""}`,
         status: failed === 0 ? "ok" : (synced === 0 ? "error" : "partial"),
         startedAt,
-        metrics: { synced, failed, recalculated },
+        metrics: { synced, failed, recalculated, tier },
       });
     }
 
-    return jr({ ok: true, synced, failed, recalculated, errors: errors.slice(0, 5) });
+    return jr({ ok: true, tier, synced, failed, recalculated, errors: errors.slice(0, 5) });
   } catch (e) {
     await supabase.from("sync_log").insert({
-      source, synced, failed, recalculated,
+      source, tier, synced, failed, recalculated,
       errors: [(e as Error).message],
       duration_ms: Date.now() - startedAt,
     });
     if (isCron) {
       await reportCronHealth(supabase, {
-        job_name: "sync-managed-playlists",
+        job_name: `sync-managed-playlists${tier ? `-${tier}` : ""}`,
         status: "error",
         startedAt,
         message: (e as Error).message,
