@@ -111,7 +111,21 @@ Deno.serve(async (req) => {
       const { error: insErr } = await sb.from("spotify_invite_tokens").insert({
         token, app_id, created_by: auth.userId, label, expires_at,
       });
-      if (insErr) return jr({ ok: false, error: insErr.message }, 500);
+      if (insErr) {
+        await logAudit(sb, {
+          event: "failure", flow: "invite", status: "error",
+          error_code: "invite_create_failed", error_message: insErr.message,
+          app_id, actor_user_id: auth.userId, ...reqMeta,
+        });
+        return jr({ ok: false, error: insErr.message }, 500);
+      }
+
+      await logAudit(sb, {
+        event: "invite_created", flow: "invite",
+        invite_token: token, app_id, actor_user_id: auth.userId,
+        meta: { label, hours, app_name: app.name },
+        ...reqMeta,
+      });
 
       const origin = req.headers.get("origin") || body.origin || "";
       return jr({
