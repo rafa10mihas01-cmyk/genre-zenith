@@ -137,7 +137,16 @@ export default function Campanhas() {
     const delivered = active.reduce((s, i) => s + Number(i.total_delivered || 0), 0);
     const allocated = active.reduce((s, i) => s + Number(i.total_allocated || 0), 0);
     const pct = goal > 0 ? Math.round((delivered / goal) * 100) : 0;
-    return { activeCount: active.length, goal, delivered, allocated, pct };
+    // CPP médio ponderado (só campanhas ativas com valor e entrega > 0)
+    let totalCost = 0;
+    let totalDeliveredCpp = 0;
+    for (const c of active) {
+      const cost = Number(c.valor_cobrado || 0);
+      const d = Number(c.total_delivered || 0);
+      if (cost > 0 && d > 0) { totalCost += cost; totalDeliveredCpp += d; }
+    }
+    const cpp = totalDeliveredCpp > 0 ? totalCost / totalDeliveredCpp : null;
+    return { activeCount: active.length, goal, delivered, allocated, pct, cpp };
   }, [items]);
 
   async function doRecalcAll() {
