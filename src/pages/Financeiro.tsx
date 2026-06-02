@@ -187,8 +187,8 @@ export default function Financeiro() {
         manualKey="financeiro"
       />
       <PageContainer>
-        {/* Tabs no mesmo padrão das outras telas (underline + ícone) */}
-        <div className="flex items-center gap-1 border-b border-border mb-6 overflow-x-auto scrollbar-none -mx-4 px-4 lg:mx-0 lg:px-0">
+        {/* Desktop: tabs underline */}
+        <div className="hidden sm:flex items-center gap-1 border-b border-border mb-6 overflow-x-auto scrollbar-none">
           {TABS.map((t) => {
             const Icon = t.icon;
             const active = tab === t.id;
@@ -205,6 +205,36 @@ export default function Financeiro() {
               >
                 <Icon className="h-3.5 w-3.5" />
                 {t.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Mobile: 5 cards na mesma régua */}
+        <div className="grid grid-cols-5 gap-1.5 sm:hidden mb-4">
+          {TABS.map((t) => {
+            const Icon = t.icon;
+            const active = tab === t.id;
+            const shortLabel =
+              t.id === "visao" ? "Visão" :
+              t.id === "receita" ? "Receita" :
+              t.id === "custo" ? "Custo" :
+              t.id === "margem" ? "Margem" : "Config";
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                aria-pressed={active}
+                className={cn(
+                  "rounded-xl border px-0.5 py-2 flex flex-col items-center justify-center gap-1 min-w-0 transition-colors",
+                  active
+                    ? "border-primary/60 bg-primary/10 text-foreground"
+                    : "border-border bg-card text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className="text-[10px] font-medium leading-tight truncate w-full text-center">{shortLabel}</span>
               </button>
             );
           })}
