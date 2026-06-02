@@ -1502,15 +1502,24 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
             <Link
               to="/catalogo"
               replace
-              className="h-9 px-3 rounded-full text-[11px] sm:text-xs font-medium border transition-colors tabular-nums shrink-0 inline-flex items-center bg-elevated border-border text-muted-foreground hover:text-foreground"
-            >Ativas</Link>
+              className="h-9 w-9 sm:w-auto sm:px-3 rounded-full text-[11px] sm:text-xs font-medium border transition-colors tabular-nums shrink-0 inline-flex items-center justify-center gap-1.5 bg-elevated border-border text-muted-foreground hover:text-foreground"
+              title="Ativas"
+              aria-label="Voltar para ativas"
+            >
+              <ListMusic className="h-4 w-4 sm:hidden" />
+              <span className="hidden sm:inline">Ativas</span>
+            </Link>
           ) : (
             <Link
               to="/catalogo?arquivadas=1"
               replace
-              className="h-9 px-3 rounded-full text-[11px] sm:text-xs font-medium border transition-colors tabular-nums shrink-0 inline-flex items-center bg-elevated border-border text-muted-foreground hover:text-foreground"
+              className="h-9 w-9 sm:w-auto sm:px-3 rounded-full text-[11px] sm:text-xs font-medium border transition-colors tabular-nums shrink-0 inline-flex items-center justify-center gap-1.5 bg-elevated border-border text-muted-foreground hover:text-foreground"
               title={`Lixeira (${totalArchivedCount})`}
-            >Lixeira ({totalArchivedCount})</Link>
+              aria-label={`Lixeira (${totalArchivedCount})`}
+            >
+              <Trash2 className="h-4 w-4 sm:hidden" />
+              <span className="hidden sm:inline">Lixeira ({totalArchivedCount})</span>
+            </Link>
           )}
 
           {/* Capacidade — view alternativa, separada visualmente dos chips de estado */}
@@ -1519,16 +1528,18 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
             to={showCapacity ? "/catalogo" : "/catalogo?aba=capacidade"}
             replace
             className={cn(
-              "h-9 px-2.5 rounded-md text-[11px] sm:text-xs font-medium transition-colors shrink-0 inline-flex items-center gap-1.5",
+              "h-9 w-9 sm:w-auto sm:px-2.5 rounded-md text-[11px] sm:text-xs font-medium transition-colors shrink-0 inline-flex items-center justify-center gap-1.5",
               showCapacity
                 ? "text-primary"
                 : "text-muted-foreground hover:text-foreground",
             )}
             title="Matriz de capacidade — quanto cabe em cada playlist"
+            aria-label="Capacidade"
           >
-            <Activity className="h-3.5 w-3.5" />
-            Capacidade
+            <Activity className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+            <span className="hidden sm:inline">Capacidade</span>
           </Link>
+
 
           {showArchived && eligibleCount > 0 && (
             <button
