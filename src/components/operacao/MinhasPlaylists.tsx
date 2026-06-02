@@ -1232,44 +1232,81 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         </div>
       )}
 
-      {/* Abas por fase — padrão underline+ícone (igual /financeiro) */}
-      {!showArchived && !showCapacity && (
-        <div className="flex items-center gap-1 border-b border-border overflow-x-auto overflow-y-hidden scrollbar-none -mx-4 px-4 lg:mx-0 lg:px-0 touch-pan-x overscroll-x-contain overscroll-y-none">
-          {([
-            { key: "all",       label: "Todas",     count: faseCounts.all,       icon: ListMusic,    tip: "Todas as playlists ativas do catálogo." },
-            { key: "prontas",   label: "Prontas",   count: faseCounts.prontas,   icon: CheckCircle2, tip: "Playlists com 100+ seguidores e gênero definido. Prontas para usar em campanhas." },
-            { key: "crescendo", label: "Crescendo", count: faseCounts.crescendo, icon: TrendingUp,   tip: "Entre 10 e 99 seguidores. Estão ganhando força — alimente com boas músicas." },
-            { key: "novas",     label: "Novas",     count: faseCounts.novas,     icon: Sparkles,     tip: "Menos de 10 seguidores. Recém criadas, precisam de tempo para crescer." },
-            { key: "atencao",   label: "Atenção",   count: faseCounts.atencao,   icon: AlertCircle,  tip: "Perdendo seguidores ou engajamento. Precisam de intervenção." },
-          ] as const).map((t) => {
-            const Icon = t.icon;
-            const active = filterFase === t.key;
-            return (
-              <Tooltip key={t.key} delayDuration={200}>
-                <TooltipTrigger asChild>
+      {/* Filtro por fase — padrão unificado com /campanhas:
+           mobile = grid 5 cards quadrados (ícone + label + contagem)
+           desktop = underline tabs */}
+      {!showArchived && !showCapacity && (() => {
+        const FASE_META = [
+          { key: "all",       label: "Todas",     count: faseCounts.all,       icon: ListMusic,    tip: "Todas as playlists ativas do catálogo." },
+          { key: "prontas",   label: "Prontas",   count: faseCounts.prontas,   icon: CheckCircle2, tip: "Playlists com 100+ seguidores e gênero definido. Prontas para usar em campanhas." },
+          { key: "crescendo", label: "Crescendo", count: faseCounts.crescendo, icon: TrendingUp,   tip: "Entre 10 e 99 seguidores. Estão ganhando força — alimente com boas músicas." },
+          { key: "novas",     label: "Novas",     count: faseCounts.novas,     icon: Sparkles,     tip: "Menos de 10 seguidores. Recém criadas, precisam de tempo para crescer." },
+          { key: "atencao",   label: "Atenção",   count: faseCounts.atencao,   icon: AlertCircle,  tip: "Perdendo seguidores ou engajamento. Precisam de intervenção." },
+        ] as const;
+        return (
+          <>
+            {/* Mobile: 5 cards quadrados */}
+            <div className="grid grid-cols-5 gap-1.5 sm:hidden">
+              {FASE_META.map((t) => {
+                const Icon = t.icon;
+                const active = filterFase === t.key;
+                const disabled = t.key !== "all" && t.count === 0;
+                return (
                   <button
+                    key={t.key}
                     type="button"
                     onClick={() => setFilterFase(t.key)}
+                    disabled={disabled}
+                    aria-label={`${t.label} (${t.count})`}
                     className={cn(
-                      "px-3 lg:px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap shrink-0",
+                      "flex flex-col items-center justify-center gap-1 rounded-xl border px-1 py-2 transition-colors",
                       active
-                        ? "border-primary text-foreground"
-                        : "border-transparent text-muted-foreground hover:text-foreground",
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-card text-muted-foreground hover:text-foreground",
+                      disabled && "opacity-40 pointer-events-none",
                     )}
                   >
-                    <Icon className="h-3.5 w-3.5" />
-                    {t.label}
-                    <span className="text-[11px] tabular-nums opacity-70">({t.count})</span>
+                    <Icon className="w-4 h-4" />
+                    <span className="text-[10px] font-medium leading-none truncate max-w-full">{t.label}</span>
+                    <span className="text-[10px] tabular-nums opacity-70 leading-none">{t.count}</span>
                   </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-[260px] text-[12px] leading-snug">
-                  {t.tip}
-                </TooltipContent>
-              </Tooltip>
-            );
-          })}
-        </div>
-      )}
+                );
+              })}
+            </div>
+
+            {/* Desktop / tablet: underline tabs */}
+            <div className="hidden sm:flex items-center gap-1 border-b border-border overflow-x-auto overflow-y-hidden scrollbar-none">
+              {FASE_META.map((t) => {
+                const Icon = t.icon;
+                const active = filterFase === t.key;
+                return (
+                  <Tooltip key={t.key} delayDuration={200}>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={() => setFilterFase(t.key)}
+                        className={cn(
+                          "px-3 lg:px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap shrink-0",
+                          active
+                            ? "border-primary text-foreground"
+                            : "border-transparent text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        <Icon className="h-3.5 w-3.5" />
+                        {t.label}
+                        <span className="text-[11px] tabular-nums opacity-70">({t.count})</span>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-[260px] text-[12px] leading-snug">
+                      {t.tip}
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
+            </div>
+          </>
+        );
+      })()}
 
 
 
