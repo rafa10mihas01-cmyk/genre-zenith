@@ -269,7 +269,8 @@ Deno.serve(async (req) => {
     // 10) Pipeline automático pós-import (fire-and-forget, não bloqueia resposta).
     //     Para cada playlist importada: classify-playlist-genre → snapshot-playlist-tracks → playlist-brain-calc.
     //     Cada step tem timeout próprio; falha de uma playlist não derruba as outras.
-    if (importedIds.length > 0) {
+    //     IMPORTANTE: só pra playlists que NÃO nasceram arquivadas — arquivadas não consomem Spotify até reativação manual.
+    if (activeImportedIds.length > 0) {
       const PIPELINE_STEPS = [
         { name: "classify-playlist-genre", bodyKey: "playlist_id", timeoutMs: 45_000 },
         { name: "snapshot-playlist-tracks", bodyKey: "playlist_id", timeoutMs: 60_000 },
