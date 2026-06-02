@@ -109,45 +109,20 @@ async function runOwner(app: { id: string; name: string }, row: SpotifyUserToken
   }
   const meId = (me.body_preview as { id?: string })?.id ?? row.spotify_user_id;
 
-  // 2) Tenta achar playlist própria fora de gestão; senão CRIA uma sandbox privada
-  const sb2 = createClient(SUPABASE_URL, SERVICE_KEY);
-  const list = await call(token, "GET",
-    `https://api.spotify.com/v1/me/playlists?limit=50`);
-  list.step = "GET /me/playlists"; steps.push(list);
-  if (!list.ok) {
+  // 2) CRIA sandbox privada via /me/playlists (funciona em Dev Mode)
+  void meId;
+  const createRes = await call(token, "POST",
+    `https://api.spotify.com/v1/me/playlists`,
+    { name: `__nex_sandbox_${Date.now()}`, public: false, collaborative: false,
+      description: "Homologation test — safe to delete" });
+  createRes.step = "POST create sandbox (/me/playlists)"; steps.push(createRes);
+  if (!createRes.ok) {
     return { app_id: app.id, app_name: app.name, spotify_user_id: row.spotify_user_id,
       display_name: row.display_name, steps, verdict: "REPROVADO",
-      summary: `Falha listar playlists: ${list.http_status}` };
+      summary: `Criar sandbox falhou: ${createRes.http_status}` };
   }
-  const items = ((list.body_preview as { items?: any[] })?.items ?? [])
-    .filter((p) => p?.owner?.id === meId);
-  const { data: managed } = await sb2.from("managed_playlists")
-    .select("spotify_playlist_id");
-  const managedSet = new Set((managed ?? []).map((m: any) => m.spotify_playlist_id));
-  const candidate = items.find((p) => !managedSet.has(p.id) && /sandbox|nex.?test/i.test(p.name ?? ""));
-
-  let playlistId: string;
-  let sandboxCreated = false;
-  if (candidate) {
-    playlistId = candidate.id;
-    steps.push({ step: "playlist_selected (existing)", method: "—",
-      url: `spotify:playlist:${playlistId}`, request_body: null,
-      http_status: null, spotify_request_id: null, response_headers: null,
-      ok: true, body_preview: { id: playlistId, name: candidate.name }, raw_body: null });
-  } else {
-    const createRes = await call(token, "POST",
-      `https://api.spotify.com/v1/users/${meId}/playlists`,
-      { name: `__nex_sandbox_${Date.now()}`, public: false, collaborative: false,
-        description: "Homologation test — safe to delete" });
-    createRes.step = "POST create sandbox playlist"; steps.push(createRes);
-    if (!createRes.ok) {
-      return { app_id: app.id, app_name: app.name, spotify_user_id: row.spotify_user_id,
-        display_name: row.display_name, steps, verdict: "REPROVADO",
-        summary: `Criar sandbox falhou: ${createRes.http_status}` };
-    }
-    playlistId = (createRes.body_preview as { id: string }).id;
-    sandboxCreated = true;
-  }
+  const playlistId = (createRes.body_preview as { id: string }).id;
+  const sandboxCreated = true;
 
 
   // 3) GET /playlists/{id}
