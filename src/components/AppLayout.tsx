@@ -187,7 +187,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           {/* CONTEÚDO — só ele rola */}
           <main className={cn(
             "relative flex-1 min-h-0 overflow-x-hidden overscroll-contain nx-scroll",
-            fullscreen ? "overflow-hidden" : "overflow-y-auto max-lg:pb-[calc(64px+env(safe-area-inset-bottom,0px))]",
+            fullscreen ? "overflow-hidden" : "overflow-y-auto",
           )}>
             {/* Gradiente sutil no topo: verde Spotify difuso → transparente */}
             <div
@@ -198,7 +198,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   "radial-gradient(ellipse 80% 60% at 50% 0%, hsl(141 76% 48% / 0.10) 0%, hsl(141 76% 48% / 0.04) 30%, transparent 70%)",
               }}
             />
-            <div className={fullscreen ? "relative z-10 w-full h-full min-h-0" : "nx-page relative z-10 flex flex-col min-h-full"}>
+            <div className={fullscreen ? "relative z-10 w-full h-full min-h-0" : "nx-page relative z-10 flex flex-col lg:min-h-full"}>
               {children}
               {!fullscreen && <div className="mt-auto hidden lg:block"><AppFooter /></div>}
             </div>
