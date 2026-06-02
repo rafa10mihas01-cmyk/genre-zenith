@@ -337,7 +337,8 @@ Deno.serve(async (req) => {
       others_count: others,
       imported,
       skipped,
-      pipeline_dispatched: importedIds.length,
+      pipeline_dispatched: activeImportedIds.length,
+      auto_archived: importedIds.length - activeImportedIds.length,
       throttle: { max_per_run: MAX_PLAYLISTS_PER_RUN, call_delay_ms: SPOTIFY_CALL_DELAY_MS },
     });
   } catch (e) {
