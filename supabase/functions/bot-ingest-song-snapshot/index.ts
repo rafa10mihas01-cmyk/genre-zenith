@@ -148,6 +148,88 @@ Deno.serve(async (req) => {
     }
   }
 
+  // 2.5) Distribuição para campaign_playlist_collections (espelha bot-ingest-snapshot).
+  //      Resolve campaign_id via deal → se baseline_status='pending', vira baseline
+  //      oficial. RPC é atômica e idempotente. Falha silenciosa — header já salvo.
+  let collectionCampaignId: string | null = null;
+  let collectionIntent: string | null = null;
+  let collectionResult: any = null;
+
+  try {
+    const { data: songJoin } = await supabase
+      .from("curator_deal_songs")
+      .select("deal_id, curator_deals!inner(campaign_id)")
+      .eq("id", song_id)
+      .maybeSingle();
+
+    collectionCampaignId =
+      ((songJoin as any)?.curator_deals?.campaign_id as string | null) ?? null;
+
+    if (collectionCampaignId && playlists.length > 0) {
+      const { data: campRow } = await supabase
+        .from("campaigns")
+        .select("baseline_status")
+        .eq("id", collectionCampaignId)
+        .maybeSingle();
+      collectionIntent =
+        (campRow as any)?.baseline_status === "pending" ? "baseline" : "periodic";
+
+      const capturedAt = snap.captured_at ?? new Date().toISOString();
+      const rpcRows = playlists
+        .map((p: any) => {
+          const pid = p.spotify_playlist_id ?? null;
+          if (!pid) return null;
+          return {
+            playlist_id: pid,
+            playlist_url: p.spotify_url ?? `https://open.spotify.com/playlist/${pid}`,
+            playlist_name_at_capture: String(p.name ?? "").trim() || null,
+            plays_7d: Math.max(0, toInt(p.plays_7d) ?? 0),
+            captured_at: capturedAt,
+            source: "s4a_dom",
+            proof_screenshot_url: screenshot_url ?? null,
+            proof_screenshot_urls: screenshot_url ? [screenshot_url] : [],
+          };
+        })
+        .filter(Boolean);
+
+      if (rpcRows.length > 0) {
+        const { data: ingestRes, error: ingestErr } = await supabase.rpc(
+          "ingest_campaign_collection_batch",
+          {
+            p_campaign_id: collectionCampaignId,
+            p_intent: collectionIntent,
+            p_rows: rpcRows,
+          },
+        );
+        if (ingestErr) {
+          console.warn(
+            "[bot-ingest-song-snapshot] collections rpc failed:",
+            ingestErr.message,
+            { campaign_id: collectionCampaignId, intent: collectionIntent },
+          );
+        } else {
+          collectionResult = ingestRes;
+          console.log(
+            "[bot-ingest-song-snapshot] collections ingested:",
+            JSON.stringify(ingestRes),
+            { campaign_id: collectionCampaignId, intent: collectionIntent },
+          );
+        }
+      }
+    }
+  } catch (e) {
+    console.warn(
+      "[bot-ingest-song-snapshot] collections error:",
+      (e as Error).message,
+    );
+  }
+
+  // Marca snapshot como processado pra não reprocessar futuramente.
+  await supabase
+    .from("song_snapshots")
+    .update({ processed_at: new Date().toISOString() })
+    .eq("id", snap.id);
+
   // 3) Bump curator_deal_songs (se song_id corresponde a uma row na fila):
   //    - sair de queued/error → idle
   //    - agendar próxima coleta com base no interval da row
