@@ -60,9 +60,9 @@ export function PageHeader({
       <header
         className={cn(
           "flex",
-          "max-lg:fixed max-lg:top-14 max-lg:left-0 max-lg:right-0 max-lg:z-40 max-lg:h-[88px] max-lg:px-4 md:max-lg:px-6 max-lg:pt-4 max-lg:pb-2",
+          "max-lg:fixed max-lg:top-14 max-lg:left-0 max-lg:right-0 max-lg:z-40 max-lg:h-[88px] max-lg:px-3 md:max-lg:px-4 max-lg:pt-4 max-lg:pb-2",
           "max-lg:bg-background/90 max-lg:backdrop-blur-md max-lg:supports-[backdrop-filter]:bg-background/75",
-          "lg:fixed lg:top-14 lg:left-[var(--sidebar-width)] lg:right-0 lg:z-40 lg:h-[120px] lg:px-6 lg:pt-7 lg:pb-4 lg:bg-background",
+          "lg:fixed lg:top-14 lg:left-[var(--sidebar-width)] lg:right-0 lg:z-40 lg:h-[120px] lg:px-5 lg:pt-7 lg:pb-4 lg:bg-background",
           "peer-data-[state=collapsed]:lg:left-[var(--sidebar-width-icon)]",
           "border-b border-border/60",
           "flex-row items-center justify-between gap-3 md:gap-4 w-auto min-w-0 overflow-hidden",
