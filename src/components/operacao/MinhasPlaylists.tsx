@@ -1288,6 +1288,22 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
             Capacidade
           </Link>
 
+          {showArchived && eligibleCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setOnlyEligible((v) => !v)}
+              className={cn(
+                "h-9 px-3 rounded-full text-[11px] sm:text-xs font-medium border transition-colors tabular-nums shrink-0 inline-flex items-center gap-1.5",
+                onlyEligible
+                  ? "bg-primary/15 border-primary/40 text-primary"
+                  : "bg-elevated border-border text-muted-foreground hover:text-foreground",
+              )}
+              title="Playlists arquivadas que voltaram a ultrapassar 100 saves"
+            >
+              🔔 Elegíveis para retorno ({eligibleCount})
+            </button>
+          )}
+
           {showArchived && items.filter(i => i.archived_at).length > 0 && (
             <Button
               onClick={emptyTrash}
