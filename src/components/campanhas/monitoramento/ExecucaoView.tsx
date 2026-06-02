@@ -35,6 +35,7 @@ type CuratorMeta = { id: string; name: string | null };
 type SortKey = "delta" | "current" | "baseline" | "name";
 
 const ROW_H = 64;
+const ROW_H_MOBILE = 56;
 
 export function ExecucaoView({ campaignId, onOpenHistory }: { campaignId: string; onOpenHistory?: (playlistId: string) => void }) {
   const [rows, setRows] = useState<GrowthRow[] | null>(null);
