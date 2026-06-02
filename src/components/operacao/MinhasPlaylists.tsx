@@ -347,6 +347,15 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const [logs, setLogs] = useState<Array<{ id: string; source: string; synced: number; failed: number; recalculated: number; errors: any; duration_ms: number | null; created_at: string }>>([]);
   const [logsLoading, setLogsLoading] = useState(false);
   const [accounts, setAccounts] = useState<SpotifyAccountLite[]>([]);
+  const [pendingSyncs, setPendingSyncs] = useState<Array<{
+    spotify_user_id: string | null;
+    display_name: string | null;
+    found: number;
+    imported: number;
+    pending: number;
+    auto_archived: number;
+    last_sync_at: string | null;
+  }>>([]);
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [syncReport, setSyncReport] = useState<{
     title: string;
@@ -374,6 +383,23 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       .order("is_default", { ascending: false })
       .order("display_name", { ascending: true, nullsFirst: false });
     setAccounts((data ?? []) as SpotifyAccountLite[]);
+  }
+
+  async function loadPendingSyncs() {
+    const { data } = await supabase
+      .from("accounts")
+      .select("spotify_user_id, display_name, last_sync_found, last_sync_imported, last_sync_pending, last_sync_auto_archived, last_sync_at")
+      .gt("last_sync_pending", 0)
+      .order("last_sync_at", { ascending: false });
+    setPendingSyncs(((data ?? []) as any[]).map(a => ({
+      spotify_user_id: a.spotify_user_id,
+      display_name: a.display_name,
+      found: a.last_sync_found ?? 0,
+      imported: a.last_sync_imported ?? 0,
+      pending: a.last_sync_pending ?? 0,
+      auto_archived: a.last_sync_auto_archived ?? 0,
+      last_sync_at: a.last_sync_at,
+    })));
   }
 
 
@@ -441,6 +467,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         items: [reportItemFromResponse(accountLabel ?? "Conta padrão", data)],
       });
       load();
+      loadPendingSyncs();
     } catch (e: any) {
       toast({ title: "Erro na importação", description: e.message, variant: "destructive" });
     } finally {
@@ -504,6 +531,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         });
       }
       load();
+      loadPendingSyncs();
     } catch (e: any) {
       toast({ title: "Erro na sincronização global", description: e.message, variant: "destructive" });
     } finally {
@@ -725,6 +753,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       setGenres(sorted as any);
     });
     loadAccounts();
+    loadPendingSyncs();
     // Auto-vincula conta Spotify pelo dono da playlist
     supabase.functions.invoke("link-managed-playlist-accounts").then(({ data }) => {
       if (data?.linked > 0) {
@@ -1103,7 +1132,40 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         </Collapsible>
       )}
 
+      {/* Banner: contas com playlists pendentes de importação (cap por execução) */}
+      {!showArchived && !showCapacity && pendingSyncs.length > 0 && (
+        <div className="nx-card !p-3 sm:!p-4 flex flex-col sm:flex-row sm:items-center gap-3 border-amber-500/40 bg-amber-500/10">
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            <div className="h-8 w-8 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+              <AlertCircle className="h-4 w-4 text-amber-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[13px] font-semibold text-foreground">
+                {pendingSyncs.reduce((s, a) => s + a.pending, 0)} playlists pendentes de importação
+              </div>
+              <div className="text-[11px] text-muted-foreground leading-snug truncate">
+                {pendingSyncs.slice(0, 3).map(a => `${a.display_name ?? "—"}: ${a.imported}/${a.found} (${a.pending} pend.)`).join(" · ")}
+                {pendingSyncs.length > 3 ? ` · +${pendingSyncs.length - 3}` : ""}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap sm:shrink-0">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 flex-1 sm:flex-none border-amber-500/40 text-amber-500 hover:bg-amber-500/15 hover:text-amber-500"
+              onClick={() => pendingSyncs[0]?.spotify_user_id && handleBulkImport(pendingSyncs[0].spotify_user_id, pendingSyncs[0].display_name ?? undefined)}
+              disabled={bulkImporting || !pendingSyncs[0]?.spotify_user_id}
+              title={pendingSyncs[0]?.display_name ? `Continuar sincronização de ${pendingSyncs[0].display_name}` : "Continuar sincronização"}
+            >
+              {bulkImporting ? "Sincronizando…" : "Continuar"}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Banner: playlists sem gênero — atalho para classificar */}
+
       {!showArchived && !showCapacity && missingGenreCount > 0 && !filterMissingGenre && (
         <div className="nx-card !p-3 sm:!p-4 flex flex-col sm:flex-row sm:items-center gap-3 border-warning/40 bg-warning/10">
           <div className="flex items-start gap-3 flex-1 min-w-0">
