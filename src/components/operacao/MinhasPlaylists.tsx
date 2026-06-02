@@ -461,6 +461,19 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       const { data, error } = await supabase.functions.invoke("import-account-playlists", {
         body: spotifyUserId ? { spotify_user_id: spotifyUserId } : {},
       });
+      // Circuit breaker aberto: aviso amigável, sem stack/blank screen
+      if (data?.circuit_open || data?.error === "SPOTIFY_CIRCUIT_OPEN") {
+        const mins = Math.max(1, Math.ceil((data.retry_after_sec ?? 0) / 60));
+        const until = data.blocked_until ? new Date(data.blocked_until).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : null;
+        toast({
+          title: "Spotify temporariamente bloqueado",
+          description: until
+            ? `Limite de chamadas atingido. Tente novamente após ${until} (~${mins} min).`
+            : `Limite de chamadas atingido. Aguarde ~${mins} min e tente de novo.`,
+          variant: "destructive",
+        });
+        return;
+      }
       if (error || !data?.ok) throw new Error(error?.message ?? data?.error ?? "Falhou");
       setSyncReport({
         title: accountLabel ? `Sincronização — ${accountLabel}` : "Sincronização concluída",
