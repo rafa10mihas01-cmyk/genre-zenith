@@ -182,8 +182,6 @@ export function ExecucaoView({ campaignId, onOpenHistory }: { campaignId: string
     URL.revokeObjectURL(url);
   };
 
-  if (!rows) return <Skeleton className="h-96 w-full" />;
-
   const lastCapturedAt = useMemo(() => {
     let latest: string | null = null;
     for (const r of rows ?? []) {
@@ -191,6 +189,8 @@ export function ExecucaoView({ campaignId, onOpenHistory }: { campaignId: string
     }
     return latest;
   }, [rows]);
+
+  if (!rows) return <Skeleton className="h-96 w-full" />;
 
   return (
     <div className="space-y-4">
