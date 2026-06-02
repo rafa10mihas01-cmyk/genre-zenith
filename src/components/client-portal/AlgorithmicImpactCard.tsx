@@ -8,6 +8,12 @@ interface AlgorithmicImpactCardProps {
   valorCobrado: number;
   /** Streams já entregues (para usar como base quando em andamento). */
   totalDelivered?: number;
+  /**
+   * Tipo do cliente. Só "label" (gravadora) recebe a narrativa de
+   * expansão orgânica — artista/produtor/manager veem apenas o garantido,
+   * pois o orgânico fica com a engine (NexEngine).
+   */
+  clientType?: string | null;
 }
 
 const EXPANSION_RATE = 0.18;
@@ -20,23 +26,27 @@ const fmtBRLDecimal = (n: number) =>
 
 /**
  * "Impacto algorítmico estimado" — versão compacta/premium.
- * Mesmas regras de cálculo (expansão orgânica 18%), só visualmente mais fino.
+ * Para gravadora: mostra Garantido + Orgânico estimado = Potencial total.
+ * Para os demais (artista/produtor/manager): mostra só o garantido + CPS direto.
  */
 export function AlgorithmicImpactCard({
   goalPlays,
   valorCobrado,
   totalDelivered,
+  clientType,
 }: AlgorithmicImpactCardProps) {
   if (!goalPlays || goalPlays <= 0) return null;
   if (!valorCobrado || valorCobrado <= 0) return null;
 
+  const isLabel = clientType === "label";
+
   const garantido =
     totalDelivered && totalDelivered > 0 ? totalDelivered : goalPlays;
   const expansao = Math.round(goalPlays * EXPANSION_RATE);
-  const potencialTotal = garantido + expansao;
+  const potencialTotal = isLabel ? garantido + expansao : garantido;
 
   const cpsDireto = valorCobrado / goalPlays;
-  const cpsEfetivo = valorCobrado / potencialTotal;
+  const cpsEfetivo = isLabel ? valorCobrado / potencialTotal : cpsDireto;
 
   const pctGarantido = potencialTotal > 0 ? (garantido / potencialTotal) * 100 : 0;
   const pctExpansao = potencialTotal > 0 ? (expansao / potencialTotal) * 100 : 0;
@@ -46,137 +56,130 @@ export function AlgorithmicImpactCard({
       <CardContent className="space-y-4">
         {/* Header */}
         <div className="flex items-center gap-2">
-          <Sparkles className="h-3.5 w-3.5" style={{ color: ORG }} />
+          <Sparkles className="h-3.5 w-3.5" style={{ color: isLabel ? ORG : "hsl(var(--primary))" }} />
           <h3 className="text-[13px] font-semibold text-foreground tracking-tight">
-            Impacto algorítmico estimado
+            {isLabel ? "Impacto algorítmico estimado" : "Entrega contratada"}
           </h3>
-          <span
-            className="ml-1 text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded"
-            style={{ color: ORG, backgroundColor: "hsl(217 91% 60% / 0.12)" }}
-          >
-
-            estimativa
-          </span>
-        </div>
-
-        {/* Desktop: equação visual — Garantido + Orgânico = Potencial total */}
-        <div className="hidden sm:flex sm:items-start sm:gap-4 lg:gap-6">
-          {/* Garantido */}
-          <div className="flex-1 min-w-0">
-            <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-medium mb-2">
-              Garantido
-            </div>
-            <div className="text-2xl font-semibold tabular-nums text-foreground leading-none">
-              {fmtInt(garantido)}
-            </div>
-            <div className="text-[10px] text-muted-foreground mt-1.5">streams contratados</div>
-          </div>
-
-          {/* Operador + */}
-          <div
-            className="hidden md:flex items-center text-2xl font-light leading-none select-none pt-5"
-            style={{ color: "hsl(var(--muted-foreground) / 0.4)" }}
-            aria-hidden
-          >
-            +
-          </div>
-
-          {/* Orgânico estimado */}
-          <div className="flex-1 min-w-0">
-            <div
-              className="text-[10px] uppercase tracking-[0.14em] font-medium mb-2"
-              style={{ color: ORG }}
+          {isLabel && (
+            <span
+              className="ml-1 text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded"
+              style={{ color: ORG, backgroundColor: "hsl(217 91% 60% / 0.12)" }}
             >
-              Orgânico estimado
-            </div>
-            <div
-              className="text-2xl font-semibold tabular-nums leading-none"
-              style={{ color: ORG }}
-            >
-              +{fmtInt(expansao)}
-            </div>
-            <div className="text-[10px] text-muted-foreground mt-1.5">
-              Radio · Autoplay · Mixes
-            </div>
-          </div>
-
-          {/* Operador = */}
-          <div
-            className="hidden md:flex items-center text-2xl font-light leading-none select-none pt-5"
-            style={{ color: "hsl(var(--muted-foreground) / 0.4)" }}
-            aria-hidden
-          >
-            =
-          </div>
-
-          {/* Potencial total — destaque hero */}
-          <div className="flex-1 min-w-0 text-right pl-3 border-l border-border/60">
-            <div className="text-[10px] uppercase tracking-[0.14em] text-primary/80 font-semibold mb-2">
-              Potencial total
-            </div>
-            <div className="text-3xl font-bold tabular-nums text-primary leading-none">
-              {fmtInt(potencialTotal)}
-            </div>
-            <div className="text-[10px] text-muted-foreground mt-1.5">streams</div>
-          </div>
-        </div>
-
-        {/* Mobile: 3 linhas alinhadas em grid de 2 colunas (label | número+unit) */}
-        <div className="sm:hidden divide-y divide-border/60 -mt-1">
-          <ImpactRow
-            label="Garantido"
-            labelColor="hsl(var(--muted-foreground))"
-            value={fmtInt(garantido)}
-            valueColor="hsl(var(--foreground))"
-            unit="streams"
-            big={false}
-          />
-          <ImpactRow
-            label="+ Orgânico estimado"
-            labelColor={ORG}
-            value={`+${fmtInt(expansao)}`}
-            valueColor={ORG}
-            unit="streams"
-            big={false}
-          />
-          <ImpactRow
-            label="Potencial total"
-            labelColor="hsl(var(--muted-foreground))"
-            value={fmtInt(potencialTotal)}
-            valueColor="hsl(var(--primary))"
-            unit="streams"
-            big
-          />
-        </div>
-
-
-        {/* Barra compacta */}
-        <div className="space-y-1.5">
-          <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-            <div className="h-full bg-primary" style={{ width: `${pctGarantido}%` }} />
-            <div className="h-full" style={{ width: `${pctExpansao}%`, background: ORG }} />
-          </div>
-          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" />
-              Garantido {Math.round(pctGarantido)}%
+              estimativa
             </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: ORG }} />
-              Orgânico {Math.round(pctExpansao)}%
-            </span>
-          </div>
+          )}
         </div>
 
-        {/* Custo efetivo — inline, sem caixa */}
+        {isLabel ? (
+          <>
+            {/* Desktop: equação visual — Garantido + Orgânico = Potencial total */}
+            <div className="hidden sm:flex sm:items-start sm:gap-4 lg:gap-6">
+              <div className="flex-1 min-w-0">
+                <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-medium mb-2">
+                  Garantido
+                </div>
+                <div className="text-2xl font-semibold tabular-nums text-foreground leading-none">
+                  {fmtInt(garantido)}
+                </div>
+                <div className="text-[10px] text-muted-foreground mt-1.5">streams contratados</div>
+              </div>
+
+              <div
+                className="hidden md:flex items-center text-2xl font-light leading-none select-none pt-5"
+                style={{ color: "hsl(var(--muted-foreground) / 0.4)" }}
+                aria-hidden
+              >
+                +
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div
+                  className="text-[10px] uppercase tracking-[0.14em] font-medium mb-2"
+                  style={{ color: ORG }}
+                >
+                  Orgânico estimado
+                </div>
+                <div
+                  className="text-2xl font-semibold tabular-nums leading-none"
+                  style={{ color: ORG }}
+                >
+                  +{fmtInt(expansao)}
+                </div>
+                <div className="text-[10px] text-muted-foreground mt-1.5">
+                  Radio · Autoplay · Mixes
+                </div>
+              </div>
+
+              <div
+                className="hidden md:flex items-center text-2xl font-light leading-none select-none pt-5"
+                style={{ color: "hsl(var(--muted-foreground) / 0.4)" }}
+                aria-hidden
+              >
+                =
+              </div>
+
+              <div className="flex-1 min-w-0 text-right pl-3 border-l border-border/60">
+                <div className="text-[10px] uppercase tracking-[0.14em] text-primary/80 font-semibold mb-2">
+                  Potencial total
+                </div>
+                <div className="text-3xl font-bold tabular-nums text-primary leading-none">
+                  {fmtInt(potencialTotal)}
+                </div>
+                <div className="text-[10px] text-muted-foreground mt-1.5">streams</div>
+              </div>
+            </div>
+
+            {/* Mobile */}
+            <div className="sm:hidden divide-y divide-border/60 -mt-1">
+              <ImpactRow label="Garantido" labelColor="hsl(var(--muted-foreground))" value={fmtInt(garantido)} valueColor="hsl(var(--foreground))" unit="streams" big={false} />
+              <ImpactRow label="+ Orgânico estimado" labelColor={ORG} value={`+${fmtInt(expansao)}`} valueColor={ORG} unit="streams" big={false} />
+              <ImpactRow label="Potencial total" labelColor="hsl(var(--muted-foreground))" value={fmtInt(potencialTotal)} valueColor="hsl(var(--primary))" unit="streams" big />
+            </div>
+
+            {/* Barra compacta */}
+            <div className="space-y-1.5">
+              <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                <div className="h-full bg-primary" style={{ width: `${pctGarantido}%` }} />
+                <div className="h-full" style={{ width: `${pctExpansao}%`, background: ORG }} />
+              </div>
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" />
+                  Garantido {Math.round(pctGarantido)}%
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: ORG }} />
+                  Orgânico {Math.round(pctExpansao)}%
+                </span>
+              </div>
+            </div>
+          </>
+        ) : (
+          // Artista / produtor / manager: só garantido, sem orgânico
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-medium mb-2">
+                Streams garantidos
+              </div>
+              <div className="text-3xl font-bold tabular-nums text-primary leading-none">
+                {fmtInt(garantido)}
+              </div>
+              <div className="text-[10px] text-muted-foreground mt-1.5">entregues via curadoria</div>
+            </div>
+          </div>
+        )}
+
+        {/* Custo efetivo */}
         <div className="flex items-baseline justify-between gap-3 pt-3 border-t border-border">
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-            Custo efetivo
+            {isLabel ? "Custo efetivo" : "Custo por stream"}
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-[11px] text-muted-foreground line-through tabular-nums">
-              {fmtBRLDecimal(cpsDireto)}
-            </span>
+            {isLabel && (
+              <span className="text-[11px] text-muted-foreground line-through tabular-nums">
+                {fmtBRLDecimal(cpsDireto)}
+              </span>
+            )}
             <span className="text-base font-semibold tabular-nums text-primary">
               {fmtBRLDecimal(cpsEfetivo)}
             </span>
@@ -186,8 +189,9 @@ export function AlgorithmicImpactCard({
 
         {/* Disclaimer */}
         <p className="text-[10px] leading-relaxed text-muted-foreground">
-          Estimativa baseada em campanhas similares. Expansão orgânica não é
-          garantida. Entrega garantida: {fmtInt(garantido)} streams.
+          {isLabel
+            ? `Estimativa baseada em campanhas similares. Expansão orgânica não é garantida. Entrega garantida: ${fmtInt(garantido)} streams.`
+            : `Entrega garantida: ${fmtInt(garantido)} streams via inserção em playlists de curadoria.`}
         </p>
       </CardContent>
     </Card>

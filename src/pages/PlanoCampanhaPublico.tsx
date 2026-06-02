@@ -616,7 +616,9 @@ export default function PlanoCampanhaPublico() {
                       goalPlays={snapshot.meta}
                       valorCobrado={valorCobrado}
                       totalDelivered={delivered}
+                      clientType={(camp as any)?.client_type ?? null}
                     />
+
                   );
                 })()}
                 {forecast && <DeliveryForecastCard forecast={forecast} organicSummary={organicSummary} spotifyTrackId={snapshot?.music?.spotifyTrackId ?? null} />}
