@@ -347,6 +347,15 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const [logs, setLogs] = useState<Array<{ id: string; source: string; synced: number; failed: number; recalculated: number; errors: any; duration_ms: number | null; created_at: string }>>([]);
   const [logsLoading, setLogsLoading] = useState(false);
   const [accounts, setAccounts] = useState<SpotifyAccountLite[]>([]);
+  const [pendingSyncs, setPendingSyncs] = useState<Array<{
+    spotify_user_id: string | null;
+    display_name: string | null;
+    found: number;
+    imported: number;
+    pending: number;
+    auto_archived: number;
+    last_sync_at: string | null;
+  }>>([]);
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [syncReport, setSyncReport] = useState<{
     title: string;
