@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
   // Lê só o estritamente necessário pro portal do cliente.
   const { data: campRaw, error: cErr } = await supabase
     .from("campaigns")
-    .select("id, deal_id, track_name, artist, cover_url, spotify_track_url, goal_plays, status, started_at, deadline, simulation_snapshot, total_delivered, client_approved_at, client_rejected_at, client_adjustment_request, collection_mode, engagement_multiplier")
+    .select("id, deal_id, client_id, track_name, artist, cover_url, spotify_track_url, goal_plays, status, started_at, deadline, simulation_snapshot, total_delivered, client_approved_at, client_rejected_at, client_adjustment_request, collection_mode, engagement_multiplier")
     .eq("public_plan_token", token)
     .maybeSingle();
 
@@ -80,6 +80,18 @@ Deno.serve(async (req) => {
     if (!gate.ok) return jr({ error: gate.error }, gate.status ?? 401);
   }
 
+  // 🎯 client_type define se mostramos "expansão orgânica" no portal.
+  // Só gravadora (label) recebe a narrativa de potencial orgânico —
+  // artista/produtor/manager veem apenas o garantido (o orgânico fica com a engine).
+  let clientType: string | null = null;
+  if (campRaw.client_id) {
+    const { data: cli } = await supabase
+      .from("clients")
+      .select("client_type")
+      .eq("id", campRaw.client_id)
+      .maybeSingle();
+    clientType = (cli?.client_type as string | null) ?? null;
+  }
 
   // Payload sanitizado — sem custos, sem margens, sem campos internos.
   const camp = {
@@ -97,6 +109,7 @@ Deno.serve(async (req) => {
     client_approved_at: campRaw.client_approved_at,
     client_rejected_at: campRaw.client_rejected_at,
     client_adjustment_request: campRaw.client_adjustment_request,
+    client_type: clientType,
     simulation_snapshot: sanitizeSnapshot(campRaw.simulation_snapshot),
   };
 
