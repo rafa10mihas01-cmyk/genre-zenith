@@ -21,6 +21,12 @@ export type Database = {
           display_name: string | null
           email: string | null
           id: string
+          last_sync_already_existed: number | null
+          last_sync_at: string | null
+          last_sync_auto_archived: number | null
+          last_sync_found: number | null
+          last_sync_imported: number | null
+          last_sync_pending: number | null
           max_playlists: number
           notes: string | null
           spotify_user_id: string
@@ -34,6 +40,12 @@ export type Database = {
           display_name?: string | null
           email?: string | null
           id?: string
+          last_sync_already_existed?: number | null
+          last_sync_at?: string | null
+          last_sync_auto_archived?: number | null
+          last_sync_found?: number | null
+          last_sync_imported?: number | null
+          last_sync_pending?: number | null
           max_playlists?: number
           notes?: string | null
           spotify_user_id: string
@@ -47,6 +59,12 @@ export type Database = {
           display_name?: string | null
           email?: string | null
           id?: string
+          last_sync_already_existed?: number | null
+          last_sync_at?: string | null
+          last_sync_auto_archived?: number | null
+          last_sync_found?: number | null
+          last_sync_imported?: number | null
+          last_sync_pending?: number | null
           max_playlists?: number
           notes?: string | null
           spotify_user_id?: string
