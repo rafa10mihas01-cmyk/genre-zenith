@@ -344,6 +344,19 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Estado final do circuit breaker do app vinculado a esse token.
+    const appIdForBreaker = (row as any)?.app_id ?? null;
+    let circuitBreaker: any = { status: "closed", blocked_until: null, retry_after_sec: 0, app_id: appIdForBreaker };
+    if (appIdForBreaker) {
+      const { data: cb } = await supabase
+        .from("spotify_circuit_breaker")
+        .select("status, blocked_until, retry_after_sec, last_429_at")
+        .eq("app_id", appIdForBreaker)
+        .maybeSingle();
+      if (cb) circuitBreaker = { ...cb, app_id: appIdForBreaker };
+    }
+
+    const autoArchived = importedIds.length - activeImportedIds.length;
     return jr({
       ok: true,
       spotify_user_id: ownerId,
@@ -356,8 +369,19 @@ Deno.serve(async (req) => {
       imported,
       skipped,
       pipeline_dispatched: activeImportedIds.length,
-      auto_archived: importedIds.length - activeImportedIds.length,
+      auto_archived: autoArchived,
       throttle: { max_per_run: MAX_PLAYLISTS_PER_RUN, call_delay_ms: SPOTIFY_CALL_DELAY_MS },
+      report: {
+        found: ownedAll.length,
+        imported,
+        active: activeImportedIds.length,
+        auto_archived: autoArchived,
+        deferred,
+        spotify_calls_sync: spotifyCalls,
+        rate_429_count: rate429Count,
+        circuit_breaker: circuitBreaker,
+        note: "spotify_calls_sync conta apenas chamadas síncronas (listagem + followers). Pipeline pós-import (snapshot/classify/brain) roda em background.",
+      },
     });
   } catch (e) {
     return jr({ ok: false, error: (e as Error).message }, 500);
