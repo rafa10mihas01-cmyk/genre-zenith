@@ -1292,9 +1292,9 @@ function AuditCampaignButton({ campaignId }: { campaignId: string }) {
   return (
     <Dialog open={open} onOpenChange={handleOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="h-9 gap-1.5" title="Auditar campanha">
-          <CheckCircle2 className="h-4 w-4" />
-          Auditar
+        <Button variant="outline" size="sm" className="h-9 px-2 lg:px-3 lg:gap-1.5" title="Auditar campanha" aria-label="Auditar">
+          <CheckCircle2 className="h-4 w-4 lg:mr-0" />
+          <span className="hidden lg:inline">Auditar</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-card border-border">

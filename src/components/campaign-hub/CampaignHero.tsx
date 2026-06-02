@@ -68,7 +68,7 @@ export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed 
       "sticky top-0 z-40 shrink-0 border-b border-border bg-background px-4 md:px-6",
     )}>
 
-      <div className="py-3 md:py-4 flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+      <div className="py-3 md:py-4 flex flex-row items-center gap-2 md:gap-4">
         {/* Linha 1 mobile / esquerda desktop: capa + texto */}
         <div className="flex items-center gap-3 min-w-0 flex-1">
           {camp.cover_url ? (
@@ -110,7 +110,7 @@ export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed 
         </div>
 
         {/* Ações */}
-        <div className="flex items-center gap-1.5 lg:gap-2 flex-nowrap justify-end shrink-0 w-full md:w-auto overflow-x-auto -mx-1 px-1 md:mx-0 md:px-0">
+        <div className="flex items-center gap-1 lg:gap-2 flex-nowrap justify-end shrink-0">
           {mode === "internal" && (
             <>
               {/* Botão "Campanhas" só no desktop — no mobile o topbar global já tem o < */}
