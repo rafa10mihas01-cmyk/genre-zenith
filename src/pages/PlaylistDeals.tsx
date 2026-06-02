@@ -338,10 +338,9 @@ export default function PlaylistDeals() {
         }
       />
 
-      {/* KPIs */}
-      <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      {/* KPIs — grid uniforme (4 cards de mesma largura) */}
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2 md:pt-4">
         <KpiBig
-          tier="hero"
           icon={Target}
           label="Plays entregues"
           value={formatNumber(kpi.earned)}
@@ -366,7 +365,6 @@ export default function PlaylistDeals() {
           loading={loading && deals.length === 0}
         />
         <KpiBig
-          tier="quiet"
           icon={ListMusic}
           label="Total de deals"
           value={formatNumber(kpi.total)}
