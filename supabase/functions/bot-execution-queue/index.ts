@@ -38,19 +38,46 @@ function jr(p: unknown, status = 200) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const startedAt = Date.now();
-  if (req.headers.get("x-bot-key") !== BOT_API_KEY) return jr({ error: "unauthorized" }, 401);
+
+  // Auth: aceita BOT_API_KEY (bot desktop) OU Bearer SERVICE_ROLE_KEY (cron interno)
+  const botKey = req.headers.get("x-bot-key");
+  const auth = req.headers.get("authorization") || "";
+  const bearer = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7) : "";
+  const isBot = botKey && botKey === BOT_API_KEY;
+  const isInternal = bearer && bearer === SERVICE_KEY;
+  if (!isBot && !isInternal) return jr({ error: "unauthorized" }, 401);
 
   const url = new URL(req.url);
   const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") ?? "3"), 1), 10);
 
-  const workerId = req.headers.get("x-worker-id") || "unknown";
+  const workerId = req.headers.get("x-worker-id") || (isInternal ? "internal-cron" : "unknown");
   const processId = req.headers.get("x-process-id") || null;
   const hostname = req.headers.get("x-hostname") || null;
   const timerId = req.headers.get("x-timer-id") || null;
-  const botName = req.headers.get("x-bot-name") || "spotify-artists-bot";
+  const botName = req.headers.get("x-bot-name") || (isInternal ? "internal-cron" : "spotify-artists-bot");
   const session = req.headers.get("x-bot-session") || null;
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+
+  // Feature flag: drenamento interno pode ser desligado instantaneamente
+  if (isInternal) {
+    const { data: flags } = await supabase
+      .from("system_flags")
+      .select("execution_queue_internal_enabled")
+      .eq("singleton_key", "app")
+      .maybeSingle();
+    if (!flags?.execution_queue_internal_enabled) {
+      await reportCronHealth(supabase, {
+        job_name: "bot-execution-queue",
+        status: "ok",
+        startedAt,
+        metrics: { skipped: true, reason: "flag_disabled" },
+        message: "internal cron skipped: flag disabled",
+      });
+      return jr({ ok: true, skipped: true, reason: "flag_disabled" });
+    }
+  }
+
 
   // Recovery: jobs claimed com lease vencido voltam pra pending
   const nowIso = new Date().toISOString();
