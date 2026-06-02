@@ -353,10 +353,13 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     items: Array<{
       account: string;
       found: number;
+      already_existed: number;
       imported: number;
       active: number;
       auto_archived: number;
       deferred: number;
+      pending_after: number;
+      fully_synced: boolean;
       spotify_calls: number;
       rate_429: number;
       circuit_status: string;
