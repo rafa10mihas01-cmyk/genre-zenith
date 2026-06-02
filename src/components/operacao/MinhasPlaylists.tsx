@@ -980,7 +980,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
 
 
       {/* Saúde do ecossistema + Top oportunidades — mesma régua, lado a lado, abre em popup */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-stretch">
+      <div className="grid grid-cols-2 gap-3 items-stretch">
         {/* Saúde do ecossistema */}
         <Dialog>
           <DialogTrigger asChild>
