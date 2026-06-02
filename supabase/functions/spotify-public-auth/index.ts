@@ -74,6 +74,11 @@ Deno.serve(async (req) => {
       authUrl.searchParams.set("state", state);
       authUrl.searchParams.set("show_dialog", "true");
 
+      await logAudit(supabase, {
+        event: "login_started", flow: "public",
+        state, app_id: creds.app_id, ...reqMeta,
+      });
+
       return jr({ ok: true, url: authUrl.toString(), state });
     }
 
