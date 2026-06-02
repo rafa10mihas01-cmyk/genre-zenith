@@ -114,11 +114,16 @@ type LogPayload = {
 
 async function writeCallLog(p: LogPayload): Promise<void> {
   try {
-    await db().from("spotify_call_log").insert(p);
-  } catch {
-    // Métrica nunca pode derrubar a operação principal.
+    const { error } = await db().from("spotify_call_log").insert(p);
+    if (error) {
+      // Loud-fail: aparece nos edge logs sem derrubar o caller.
+      console.error("[spotify_call_log] insert failed:", error.message, error.code ?? "");
+    }
+  } catch (e) {
+    console.error("[spotify_call_log] insert threw:", (e as Error)?.message ?? String(e));
   }
 }
+
 
 // Fire-and-forget. Não bloqueia a chamada nem propaga erro.
 function logAsync(p: LogPayload): void {
