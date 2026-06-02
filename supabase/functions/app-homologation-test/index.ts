@@ -99,21 +99,31 @@ async function runOwner(app: { id: string; name: string }, row: SpotifyUserToken
   }
   const meId = (me.body_preview as { id?: string })?.id ?? row.spotify_user_id;
 
-  // 2) Cria playlist sandbox privada
-  const createUrl = `https://api.spotify.com/v1/users/${encodeURIComponent(meId)}/playlists`;
-  const createRes = await call(token, "POST", createUrl, {
-    name: `NX-SANDBOX-${Date.now()}`,
-    public: false,
-    collaborative: false,
-    description: "Sandbox de homologação NexEngine — pode apagar.",
-  });
-  createRes.step = "POST create playlist"; steps.push(createRes);
-  const playlistId = (createRes.body_preview as { id?: string })?.id;
-  if (!createRes.ok || !playlistId) {
+  // 2) Acha uma playlist EXISTENTE do owner que NÃO esteja sob gestão (não cliente, não campanha)
+  const sb2 = createClient(SUPABASE_URL, SERVICE_KEY);
+  const list = await call(token, "GET",
+    `https://api.spotify.com/v1/me/playlists?limit=50`);
+  list.step = "GET /me/playlists"; steps.push(list);
+  if (!list.ok) {
     return { app_id: app.id, app_name: app.name, spotify_user_id: row.spotify_user_id,
       display_name: row.display_name, steps, verdict: "REPROVADO",
-      summary: `Falha criar playlist sandbox: ${createRes.http_status}` };
+      summary: `Falha listar playlists: ${list.http_status}` };
   }
+  const items = ((list.body_preview as { items?: any[] })?.items ?? [])
+    .filter((p) => p?.owner?.id === meId);
+  const { data: managed } = await sb2.from("managed_playlists")
+    .select("spotify_playlist_id");
+  const managedSet = new Set((managed ?? []).map((m: any) => m.spotify_playlist_id));
+  const candidate = items.find((p) => !managedSet.has(p.id));
+  if (!candidate) {
+    return { app_id: app.id, app_name: app.name, spotify_user_id: row.spotify_user_id,
+      display_name: row.display_name, steps, verdict: "REPROVADO",
+      summary: `Sem playlist de teste disponível (todas as ${items.length} próprias estão sob gestão)` };
+  }
+  const playlistId: string = candidate.id;
+  steps.push({ step: "playlist_selected", method: "—",
+    url: `spotify:playlist:${playlistId}`, http_status: null, request_id: null,
+    ok: true, body_preview: { id: playlistId, name: candidate.name, tracks_total: candidate.tracks?.total } });
 
   // 3) GET /playlists/{id}
   const getPl = await call(token, "GET", `https://api.spotify.com/v1/playlists/${playlistId}`);
