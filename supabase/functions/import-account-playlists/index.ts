@@ -13,6 +13,10 @@ import { getPlaylistMeta } from "../_shared/spotify-playlist.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+// Mesma regra do import-managed-playlist: novas com saves < limite nascem arquivadas.
+// Exceções: metadata.strategic, metadata.auto_archive_exempt, locked_at.
+const AUTO_ARCHIVE_MIN_FOLLOWERS = 100;
+
 function jr(p: unknown, status = 200) {
   return new Response(JSON.stringify(p), {
     status,
