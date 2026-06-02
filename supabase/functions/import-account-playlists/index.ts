@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
     const deferred = ownedAll.length - owned.length;
 
     // Cliente Supabase precisa estar disponível antes do dryRun pra computar already_existed.
-    const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+    // (supabase client já criado acima)
 
     // 4.1) Pré-computa quantas das 107 (ownedAll) JÁ existem em managed_playlists.
     // Essa métrica é o que o operador precisa pra entender "já tem N importadas
