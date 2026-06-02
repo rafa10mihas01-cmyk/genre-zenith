@@ -340,8 +340,7 @@ Deno.serve(async (req) => {
     }
   }
 
-  // ============= 2) Dispatch pro bot (já não inclui add/remove — agora rodam inline acima) =============
-  // Mantido por compatibilidade caso surjam novos job_types futuros que precisem do bot.
+  // ============= 2) Dispatch pro bot (compat futuro — não inclui add/remove/reorder) =============
   const { data: candidates, error: selErr } = await supabase
     .from("playlist_execution_jobs")
     .select("id, job_type, allocation_id, campaign_id, playlist_id, spotify_playlist_id, spotify_track_id, attempts, max_attempts, playlists(name)")
@@ -351,80 +350,106 @@ Deno.serve(async (req) => {
     .order("scheduled_for", { ascending: true })
     .limit(limit);
 
-  if (selErr) return jr({ error: selErr.message }, 500);
-  if (!candidates || candidates.length === 0) {
-    return jr({ ok: true, count: 0, queue: [], reorder: { done: reorderDone, failed: reorderFailed }, mutations: { done: addRemoveDone, failed: addRemoveFailed } });
+  if (selErr) {
+    await reportCronHealth(supabase, {
+      job_name: "bot-execution-queue",
+      status: "error",
+      startedAt,
+      metrics: { error: "select_failed" },
+      message: selErr.message,
+    });
+    return jr({ error: selErr.message }, 500);
   }
 
-
-  const ids = candidates.map((c: any) => c.id);
-
-
-  // Marca claimed e gera correlation_id
-  const updates = candidates.map((c: any) => ({
-    id: c.id,
-    correlation_id: crypto.randomUUID(),
-  }));
-
-  // Update um a um pra ter correlation_id por linha (poucas linhas, ok)
   const claimed: any[] = [];
-  for (const u of updates) {
-    const { data, error } = await supabase
-      .from("playlist_execution_jobs")
-      .update({
-        status: "claimed",
-        claimed_by: workerId,
-        claimed_at: nowIso,
-        lease_expires_at: lease,
-        correlation_id: u.correlation_id,
-        attempts: (candidates.find((c: any) => c.id === u.id) as any).attempts + 1,
-      })
-      .eq("id", u.id)
-      .eq("status", "pending") // double-check
-      .select("id, job_type, allocation_id, campaign_id, playlist_id, spotify_playlist_id, spotify_track_id, correlation_id, attempts, max_attempts")
-      .maybeSingle();
-    if (!error && data) {
-      const src: any = candidates.find((c: any) => c.id === u.id);
-      (data as any).playlist_name = src?.playlists?.name ?? null;
-      claimed.push(data);
+  if (candidates && candidates.length > 0) {
+    const updates = candidates.map((c: any) => ({ id: c.id, correlation_id: crypto.randomUUID() }));
+    for (const u of updates) {
+      const { data, error } = await supabase
+        .from("playlist_execution_jobs")
+        .update({
+          status: "claimed",
+          claimed_by: workerId,
+          claimed_at: nowIso,
+          lease_expires_at: lease,
+          correlation_id: u.correlation_id,
+          attempts: (candidates.find((c: any) => c.id === u.id) as any).attempts + 1,
+        })
+        .eq("id", u.id)
+        .eq("status", "pending")
+        .select("id, job_type, allocation_id, campaign_id, playlist_id, spotify_playlist_id, spotify_track_id, correlation_id, attempts, max_attempts")
+        .maybeSingle();
+      if (!error && data) {
+        const src: any = candidates.find((c: any) => c.id === u.id);
+        (data as any).playlist_name = src?.playlists?.name ?? null;
+        claimed.push(data);
+      }
+    }
+
+    if (claimed.length) {
+      const events = claimed.map((c: any) => ({
+        bot_name: botName,
+        session_id: session,
+        step: "execution_dispatch",
+        status: "running",
+        lifecycle_state: "FETCHED",
+        correlation_id: c.correlation_id,
+        worker_id: workerId,
+        process_id: processId,
+        hostname,
+        timer_id: timerId,
+        message: `Execution dispatched: ${c.job_type}`,
+        metadata: {
+          job_id: c.id,
+          spotify_playlist_id: c.spotify_playlist_id,
+          spotify_track_id: c.spotify_track_id,
+          allocation_id: c.allocation_id,
+          attempt: c.attempts,
+        },
+      }));
+      await supabase.from("bot_events").insert(events);
     }
   }
 
-  // Eventos de lifecycle
-  if (claimed.length) {
-    const events = claimed.map((c: any) => ({
-      bot_name: botName,
-      session_id: session,
-      step: "execution_dispatch",
-      status: "running",
-      lifecycle_state: "FETCHED",
-      correlation_id: c.correlation_id,
-      worker_id: workerId,
-      process_id: processId,
-      hostname,
-      timer_id: timerId,
-      message: `Execution dispatched: ${c.job_type}`,
-      metadata: {
-        job_id: c.id,
-        spotify_playlist_id: c.spotify_playlist_id,
-        spotify_track_id: c.spotify_track_id,
-        allocation_id: c.allocation_id,
-        attempt: c.attempts,
-      },
-    }));
-    await supabase.from("bot_events").insert(events);
-  }
+  // ============= Health: SEMPRE registra (claimed/completed/failed/pending_remaining/duration_ms) =============
+  const { count: pendingRemaining } = await supabase
+    .from("playlist_execution_jobs")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "pending")
+    .lte("scheduled_for", new Date().toISOString());
 
-  // Health: só loga quando houve dispatch real ou erro acima
-  if (claimed.length > 0) {
-    await reportCronHealth(supabase, {
-      job_name: "bot-execution-queue",
-      status: "ok",
-      startedAt,
-      metrics: { claimed: claimed.length, candidates: candidates.length },
-      message: `claimed=${claimed.length} candidates=${candidates.length}`,
-    });
-  }
+  const totalClaimed = reorderDone + reorderFailed + addRemoveDone + addRemoveFailed + claimed.length;
+  const totalCompleted = reorderDone + addRemoveDone;
+  const totalFailed = reorderFailed + addRemoveFailed;
+  const duration = Date.now() - startedAt;
 
-  return jr({ ok: true, count: claimed.length, queue: claimed });
+  await reportCronHealth(supabase, {
+    job_name: "bot-execution-queue",
+    status: totalFailed > 0 ? "degraded" : "ok",
+    startedAt,
+    metrics: {
+      source: isInternal ? "internal_cron" : "bot_desktop",
+      claimed: totalClaimed,
+      completed: totalCompleted,
+      failed: totalFailed,
+      pending_remaining: pendingRemaining ?? null,
+      duration_ms: duration,
+      reorder: { done: reorderDone, failed: reorderFailed },
+      mutations: { done: addRemoveDone, failed: addRemoveFailed },
+      dispatched: claimed.length,
+    },
+    message: `claimed=${totalClaimed} done=${totalCompleted} failed=${totalFailed} pending=${pendingRemaining ?? "?"} dur=${duration}ms`,
+  });
+
+  return jr({
+    ok: true,
+    source: isInternal ? "internal_cron" : "bot_desktop",
+    count: claimed.length,
+    queue: claimed,
+    reorder: { done: reorderDone, failed: reorderFailed },
+    mutations: { done: addRemoveDone, failed: addRemoveFailed },
+    pending_remaining: pendingRemaining ?? null,
+    duration_ms: duration,
+  });
 });
+
