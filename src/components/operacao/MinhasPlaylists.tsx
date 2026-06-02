@@ -25,7 +25,7 @@ import { formatNumber, timeAgo } from "@/lib/format";
 import {
   Plus, RefreshCw, ExternalLink, Music2, Sparkles, Archive, ArchiveRestore,
   ListMusic, AlertCircle, Activity, Brain, ArrowUpRight, Target, TrendingUp,
-  History, CheckCircle2, XCircle, Clock, Trash2, ChevronDown, ChevronRight, ArrowUpDown, Link2Off, Link2, Filter, Check, CalendarDays,
+  History, CheckCircle2, XCircle, Clock, Trash2, ChevronDown, ChevronRight, ArrowUpDown, Link2Off, Link2, Filter, Check, CalendarDays, Bell,
 } from "lucide-react";
 import { MaintenanceCalendarDialog } from "./MaintenanceCalendarDialog";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
@@ -885,6 +885,85 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     <section className="space-y-4">
 
 
+
+      {/* Saúde do ecossistema — colapsado, mesmo padrão do Top oportunidades */}
+      <Collapsible className="nx-card !p-0 overflow-hidden">
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="group w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-[hsl(var(--hover))] transition-colors text-left"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <Activity className="h-4 w-4 text-muted-foreground shrink-0" />
+              <span className="text-[14px] font-semibold">Saúde do ecossistema</span>
+              <span className="text-[11px] text-muted-foreground truncate">
+                · composição do catálogo
+              </span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground tabular-nums">
+                {totalActiveCount + totalArchivedCount} monitoradas
+              </span>
+              {eligibleCount > 0 && (
+                <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-warning font-semibold">
+                  <Bell className="h-3 w-3" />
+                  {eligibleCount} elegív{eligibleCount === 1 ? "el" : "eis"}
+                </span>
+              )}
+              <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-90" />
+            </div>
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="px-4 pb-4 pt-1 grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <Link
+              to="/catalogo"
+              className="group rounded-xl border border-border/40 bg-[hsl(var(--elevated))] px-3 py-2.5 transition-all hover:-translate-y-[1px] hover:border-foreground/30 flex items-center justify-between gap-2"
+            >
+              <span className="flex items-center gap-2 min-w-0">
+                <span className="h-2 w-2 rounded-full bg-success shrink-0" />
+                <span className="text-[12px] text-foreground/85 group-hover:text-foreground truncate">Ativas</span>
+              </span>
+              <span className="text-[16px] font-semibold tabular-nums">{totalActiveCount}</span>
+            </Link>
+            <Link
+              to="/catalogo?arquivadas=1"
+              className="group rounded-xl border border-border/40 bg-[hsl(var(--elevated))] px-3 py-2.5 transition-all hover:-translate-y-[1px] hover:border-foreground/30 flex items-center justify-between gap-2"
+            >
+              <span className="flex items-center gap-2 min-w-0">
+                <Archive className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <span className="text-[12px] text-foreground/85 group-hover:text-foreground truncate">Arquivadas</span>
+              </span>
+              <span className="text-[16px] font-semibold tabular-nums">{totalArchivedCount}</span>
+            </Link>
+            <Link
+              to="/catalogo?arquivadas=1&elegiveis=1"
+              className={cn(
+                "group rounded-xl border px-3 py-2.5 transition-all hover:-translate-y-[1px] flex items-center justify-between gap-2",
+                eligibleCount > 0
+                  ? "border-warning/30 bg-warning/5 hover:border-warning/60"
+                  : "border-border/40 bg-[hsl(var(--elevated))] hover:border-foreground/30",
+              )}
+            >
+              <span className="flex items-center gap-2 min-w-0">
+                <Bell className={cn("h-3.5 w-3.5 shrink-0", eligibleCount > 0 ? "text-warning" : "text-muted-foreground")} />
+                <span className={cn(
+                  "text-[12px] truncate",
+                  eligibleCount > 0 ? "text-warning" : "text-foreground/85 group-hover:text-foreground",
+                )}>
+                  Elegíveis para retorno
+                </span>
+              </span>
+              <span className={cn(
+                "text-[16px] font-semibold tabular-nums",
+                eligibleCount > 0 ? "text-warning" : "text-foreground",
+              )}>
+                {eligibleCount}
+              </span>
+            </Link>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
 
       {/* Top oportunidades — match score (colapsado por padrão) */}
       {opportunities.length > 0 && (
