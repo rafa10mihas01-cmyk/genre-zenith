@@ -988,8 +988,8 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
               type="button"
               className={cn(
                 "nx-card !p-0 overflow-hidden text-left w-full h-full group",
-                "flex items-center justify-between gap-3 px-4 py-3 hover:bg-[hsl(var(--hover))] transition-colors",
-                opportunities.length === 0 && "sm:col-span-2",
+                "flex items-center justify-between gap-3 px-4 py-5 hover:bg-[hsl(var(--hover))] transition-colors",
+                opportunities.length === 0 && "col-span-2",
               )}
             >
               <div className="flex items-center gap-2 min-w-0">
