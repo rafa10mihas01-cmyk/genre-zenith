@@ -506,7 +506,7 @@ export function CampaignDistributionConsole({
             </div>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button size="lg" variant="solid" disabled={dispatching || !baselineReady} className="shadow-lg shadow-primary/20">
+                <Button size="lg" variant="solid" disabled={dispatching} className="shadow-lg shadow-primary/20">
                   {dispatching ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Rocket className="h-4 w-4 mr-2" />}
                   Distribuir agora
                 </Button>
@@ -517,7 +517,9 @@ export function CampaignDistributionConsole({
                   <AlertDialogDescription asChild>
                     <div className="space-y-4 text-sm">
                       <p className="text-muted-foreground leading-relaxed">
-                        A baseline já foi capturada e será usada como ponto zero. Cada playlist entra no dia previsto, dentro da janela <span className="text-foreground font-medium">08h–22h</span>. Os rebaixamentos rodam automaticamente.
+                        {baselineReady
+                          ? "A baseline já foi capturada e será usada como ponto zero."
+                          : "A baseline ainda não fechou; a distribuição será liberada agora e o bot seguirá capturando o marco zero em paralelo."} Cada playlist entra no dia previsto, dentro da janela <span className="text-foreground font-medium">08h–22h</span>. Os rebaixamentos rodam automaticamente.
                       </p>
 
                       <div className="rounded-lg border border-border bg-background/40 divide-y divide-border">
