@@ -22,33 +22,65 @@ const TABS = [
  */
 export function AnalyticsTabs() {
   const { pathname } = useLocation();
+  const isActive = (t: typeof TABS[number]) => {
+    const matches = t.match ?? [t.to];
+    return t.end
+      ? matches.includes(pathname)
+      : matches.some((m) => pathname === m || pathname.startsWith(m + "/"));
+  };
   return (
-    <div className="min-w-0 overflow-hidden border-b border-border -mt-2 mb-6">
-      <nav className="nx-tab-rail min-w-0 items-center gap-1 -mb-px px-0">
+    <>
+      {/* Desktop: underline rail */}
+      <div className="hidden sm:block min-w-0 overflow-hidden border-b border-border -mt-2 mb-6">
+        <nav className="nx-tab-rail min-w-0 items-center gap-1 -mb-px px-0">
+          {TABS.map((t) => {
+            const Icon = t.icon;
+            const active = isActive(t);
+            return (
+              <NavLink
+                key={t.to}
+                to={t.to}
+                end={t.end}
+                className={cn(
+                  "px-2.5 sm:px-3 h-9 inline-flex items-center gap-2 text-[13px] font-medium border-b-2 transition-colors whitespace-nowrap",
+                  active
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border",
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {t.label}
+              </NavLink>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* Mobile: 4 cards na mesma régua */}
+      <div className="grid grid-cols-4 gap-1.5 sm:hidden mb-4 -mt-2">
         {TABS.map((t) => {
           const Icon = t.icon;
-          const matches = t.match ?? [t.to];
-          const active = t.end
-            ? matches.includes(pathname)
-            : matches.some((m) => pathname === m || pathname.startsWith(m + "/"));
+          const active = isActive(t);
           return (
             <NavLink
               key={t.to}
               to={t.to}
               end={t.end}
+              aria-pressed={active}
               className={cn(
-                "px-2.5 sm:px-3 h-9 inline-flex items-center gap-2 text-[13px] font-medium border-b-2 transition-colors whitespace-nowrap",
+                "rounded-xl border px-1 py-2 flex flex-col items-center justify-center gap-1 min-w-0 transition-colors",
                 active
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border",
+                  ? "border-primary/60 bg-primary/10 text-foreground"
+                  : "border-border bg-card text-muted-foreground hover:text-foreground",
               )}
             >
-              <Icon className="h-3.5 w-3.5" />
-              {t.label}
+              <Icon className="h-4 w-4 shrink-0" />
+              <span className="text-[10px] font-medium leading-tight truncate w-full text-center">{t.label}</span>
             </NavLink>
           );
         })}
-      </nav>
-    </div>
+      </div>
+    </>
   );
 }
+
