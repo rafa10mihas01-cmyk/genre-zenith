@@ -25,7 +25,7 @@ import { formatNumber, timeAgo } from "@/lib/format";
 import {
   Plus, RefreshCw, ExternalLink, Music2, Sparkles, Archive, ArchiveRestore,
   ListMusic, AlertCircle, Activity, Brain, ArrowUpRight, Target, TrendingUp,
-  History, CheckCircle2, XCircle, Clock, Trash2, ChevronDown, ChevronRight, ArrowUpDown, Link2Off, Link2, Filter, Check, CalendarDays,
+  History, CheckCircle2, XCircle, Clock, Trash2, ChevronDown, ChevronRight, ArrowUpDown, Link2Off, Link2, Filter, Check, CalendarDays, Bell,
 } from "lucide-react";
 import { MaintenanceCalendarDialog } from "./MaintenanceCalendarDialog";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
