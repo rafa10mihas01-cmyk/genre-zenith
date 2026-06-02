@@ -214,35 +214,67 @@ export default function Campanhas() {
         </section>
 
 
-        <div className="flex items-center gap-1 border-b border-border mb-6 overflow-x-auto overflow-y-hidden scrollbar-none -mx-4 px-4 lg:mx-0 lg:px-0 overscroll-x-contain overscroll-y-none touch-pan-x [-webkit-overflow-scrolling:auto]">
-          {([
-            { id: "financeiro", label: "Planejamento", labelLong: "Planejamento", icon: Calculator },
-            { id: "lista", label: "Aprovação", labelLong: "Aprovação", icon: ListChecks },
-            { id: "deals", label: "Negociações", labelLong: "Negociações", icon: Handshake },
-          ] as const).map(t => {
-            const Icon = t.icon;
-            const active = tab === t.id;
-            return (
-              <button
-                key={t.id}
-                onClick={() => {
-                  if (t.id === "deals") navigate("/playlist-deals");
-                  else setTab(t.id as "lista" | "financeiro");
-                }}
-                className={cn(
-                  "px-3 lg:px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap shrink-0",
-                  active
-                    ? "border-primary text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <Icon className="h-3.5 w-3.5" />
-                <span className="lg:hidden">{t.label}</span>
-                <span className="hidden lg:inline">{t.labelLong}</span>
-              </button>
-            );
-          })}
-        </div>
+        {(() => {
+          const TABS_TOP = [
+            { id: "financeiro", label: "Planejamento", icon: Calculator },
+            { id: "lista", label: "Aprovação", icon: ListChecks },
+            { id: "deals", label: "Negociações", icon: Handshake },
+          ] as const;
+          const onPick = (id: typeof TABS_TOP[number]["id"]) => {
+            if (id === "deals") navigate("/playlist-deals");
+            else setTab(id as "lista" | "financeiro");
+          };
+          return (
+            <>
+              {/* Mobile: grid de cards */}
+              <div className="grid grid-cols-3 gap-1.5 mb-4 sm:hidden">
+                {TABS_TOP.map(t => {
+                  const Icon = t.icon;
+                  const active = tab === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => onPick(t.id)}
+                      className={cn(
+                        "rounded-xl border px-1 py-2 flex flex-col items-center justify-center gap-1 transition-colors",
+                        active
+                          ? "border-primary/60 bg-primary/10 text-foreground"
+                          : "border-border bg-card text-muted-foreground hover:text-foreground",
+                      )}
+                      aria-pressed={active}
+                    >
+                      <Icon className={cn("h-4 w-4", active ? "text-primary" : "")} />
+                      <span className="text-[11px] font-medium leading-none text-center">{t.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Desktop: rail clássico */}
+              <div className="hidden sm:flex items-center gap-1 border-b border-border mb-6 overflow-x-auto overflow-y-hidden scrollbar-none -mx-4 px-4 lg:mx-0 lg:px-0">
+                {TABS_TOP.map(t => {
+                  const Icon = t.icon;
+                  const active = tab === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => onPick(t.id)}
+                      className={cn(
+                        "px-3 lg:px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap shrink-0",
+                        active
+                          ? "border-primary text-foreground"
+                          : "border-transparent text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      <span>{t.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          );
+        })()}
 
         {tab === "lista" && (
           <>
