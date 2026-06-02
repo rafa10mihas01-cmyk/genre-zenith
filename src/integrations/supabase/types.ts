@@ -8304,6 +8304,7 @@ export type Database = {
           apify_blocked_reason: string | null
           auto_deal_from_campaign: boolean
           created_at: string
+          execution_queue_internal_enabled: boolean
           id: string
           singleton_key: string
           updated_at: string
@@ -8314,6 +8315,7 @@ export type Database = {
           apify_blocked_reason?: string | null
           auto_deal_from_campaign?: boolean
           created_at?: string
+          execution_queue_internal_enabled?: boolean
           id?: string
           singleton_key?: string
           updated_at?: string
@@ -8324,6 +8326,7 @@ export type Database = {
           apify_blocked_reason?: string | null
           auto_deal_from_campaign?: boolean
           created_at?: string
+          execution_queue_internal_enabled?: boolean
           id?: string
           singleton_key?: string
           updated_at?: string
