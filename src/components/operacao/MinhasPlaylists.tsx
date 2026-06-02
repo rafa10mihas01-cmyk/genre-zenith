@@ -184,11 +184,20 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   // loadedCount cresce, e os updates locais (setItems) seguem o key atual.
   const [loadedCount, setLoadedCount] = useState(PAGE_SIZE);
 
+  // Filtro local da lixeira: só elegíveis para retorno (reactivation_eligible_at IS NOT NULL).
+  // Não é URL param — é toggle leve dentro da view de arquivadas.
+  const [onlyEligible, setOnlyEligible] = useState(false);
+
   // Reset paginação ao trocar de aba — evita carregar 500 itens de "all"
   // e mostrar só os que sobrarem ao filtrar uma fase.
   useEffect(() => {
     setLoadedCount(PAGE_SIZE);
-  }, [filterFase, showArchived, filterMissingGenre, filterGenreId, filterSize]);
+  }, [filterFase, showArchived, filterMissingGenre, filterGenreId, filterSize, onlyEligible]);
+
+  // Reseta o filtro de elegíveis ao sair da lixeira.
+  useEffect(() => {
+    if (!showArchived) setOnlyEligible(false);
+  }, [showArchived]);
 
   const itemsQuery = useQuery({
     queryKey: ["managed-playlists", loadedCount, filterFase, showArchived, sortBy, filterMissingGenre, filterGenreId, filterSize],
