@@ -1071,7 +1071,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
             <DialogTrigger asChild>
               <button
                 type="button"
-                className="nx-card !p-0 overflow-hidden text-left w-full h-full group flex items-center justify-between gap-3 px-4 py-3 hover:bg-[hsl(var(--hover))] transition-colors"
+                className="nx-card !p-0 overflow-hidden text-left w-full h-full group flex items-center justify-between gap-3 px-4 py-5 hover:bg-[hsl(var(--hover))] transition-colors"
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <Target className="h-4 w-4 text-primary shrink-0" />
