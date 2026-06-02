@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Music, Lock, Share2, ArrowLeft, ExternalLink, Clock, Copy, MessageCircle } from "lucide-react";
+import { Music, Lock, Share2, ArrowLeft, ExternalLink, Copy, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
