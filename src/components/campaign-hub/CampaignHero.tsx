@@ -110,7 +110,7 @@ export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed 
         </div>
 
         {/* Ações */}
-        <div className="flex items-center gap-1.5 lg:gap-2 flex-nowrap justify-end shrink-0">
+        <div className="flex items-center gap-1.5 lg:gap-2 flex-nowrap justify-end shrink-0 w-full md:w-auto overflow-x-auto -mx-1 px-1 md:mx-0 md:px-0">
           {mode === "internal" && (
             <>
               {/* Botão "Campanhas" só no desktop — no mobile o topbar global já tem o < */}
