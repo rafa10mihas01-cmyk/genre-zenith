@@ -47,6 +47,9 @@ type ManagedPlaylist = {
   tracks_count: number;
   genre_id: string | null;
   archived_at: string | null;
+  archived_reason?: string | null;
+  archived_followers?: number | null;
+  reactivation_eligible_at?: string | null;
   last_diagnosis_at: string | null;
   imported_at: string;
   canonical_playlist_id: string | null;
@@ -69,6 +72,7 @@ type CountRow = {
   followers: number | null;
   genre_id: string | null;
   archived_at: string | null;
+  reactivation_eligible_at: string | null;
   lifecycle_phase: string | null;
 };
 
@@ -180,14 +184,23 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   // loadedCount cresce, e os updates locais (setItems) seguem o key atual.
   const [loadedCount, setLoadedCount] = useState(PAGE_SIZE);
 
+  // Filtro local da lixeira: só elegíveis para retorno (reactivation_eligible_at IS NOT NULL).
+  // Não é URL param — é toggle leve dentro da view de arquivadas.
+  const [onlyEligible, setOnlyEligible] = useState(false);
+
   // Reset paginação ao trocar de aba — evita carregar 500 itens de "all"
   // e mostrar só os que sobrarem ao filtrar uma fase.
   useEffect(() => {
     setLoadedCount(PAGE_SIZE);
-  }, [filterFase, showArchived, filterMissingGenre, filterGenreId, filterSize]);
+  }, [filterFase, showArchived, filterMissingGenre, filterGenreId, filterSize, onlyEligible]);
+
+  // Reseta o filtro de elegíveis ao sair da lixeira.
+  useEffect(() => {
+    if (!showArchived) setOnlyEligible(false);
+  }, [showArchived]);
 
   const itemsQuery = useQuery({
-    queryKey: ["managed-playlists", loadedCount, filterFase, showArchived, sortBy, filterMissingGenre, filterGenreId, filterSize],
+    queryKey: ["managed-playlists", loadedCount, filterFase, showArchived, sortBy, filterMissingGenre, filterGenreId, filterSize, onlyEligible],
     queryFn: async () => {
       let q = supabase
         .from("managed_playlists")
@@ -197,8 +210,12 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       } else {
         q = q.order("imported_at", { ascending: false });
       }
-      if (showArchived) q = q.not("archived_at", "is", null);
-      else q = q.is("archived_at", null);
+      if (showArchived) {
+        q = q.not("archived_at", "is", null);
+        if (onlyEligible) q = q.not("reactivation_eligible_at", "is", null);
+      } else {
+        q = q.is("archived_at", null);
+      }
       // Fase server-side — abas mutuamente exclusivas (cada playlist cai em UMA só).
       // Hierarquia: Atenção > Prontas > Crescendo > Novas.
       const notAtencao = "or(lifecycle_phase.is.null,lifecycle_phase.not.in.(bloated,decline))";
@@ -234,7 +251,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const loading = itemsQuery.isPending;
   const setItems = useCallback(
     (updater: ManagedPlaylist[] | ((prev: ManagedPlaylist[]) => ManagedPlaylist[])) => {
-      queryClient.setQueryData<ManagedPlaylist[]>(["managed-playlists", loadedCount, filterFase, showArchived, sortBy, filterMissingGenre, filterGenreId, filterSize], (prev) => {
+      queryClient.setQueryData<ManagedPlaylist[]>(["managed-playlists", loadedCount, filterFase, showArchived, sortBy, filterMissingGenre, filterGenreId, filterSize, onlyEligible], (prev) => {
         const base = prev ?? [];
         return typeof updater === "function" ? (updater as (p: ManagedPlaylist[]) => ManagedPlaylist[])(base) : updater;
       });
@@ -248,7 +265,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     queryFn: async () => {
       const { data, error } = await supabase
         .from("managed_playlists")
-        .select("id, followers, genre_id, archived_at, lifecycle_phase")
+        .select("id, followers, genre_id, archived_at, reactivation_eligible_at, lifecycle_phase")
         .limit(5000);
       if (error) throw error;
       return (data ?? []) as CountRow[];
@@ -258,6 +275,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const countRows = countsQuery.data ?? [];
   const totalActiveCount = countRows.filter((r) => !r.archived_at).length;
   const totalArchivedCount = countRows.filter((r) => r.archived_at).length;
+  const eligibleCount = countRows.filter((r) => r.archived_at && r.reactivation_eligible_at).length;
 
   // Contagens por fase (catálogo ativo inteiro).
   const activeRows = useMemo(() => countRows.filter((r) => !r.archived_at), [countRows]);
@@ -1269,6 +1287,22 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
             <Activity className="h-3.5 w-3.5" />
             Capacidade
           </Link>
+
+          {showArchived && eligibleCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setOnlyEligible((v) => !v)}
+              className={cn(
+                "h-9 px-3 rounded-full text-[11px] sm:text-xs font-medium border transition-colors tabular-nums shrink-0 inline-flex items-center gap-1.5",
+                onlyEligible
+                  ? "bg-primary/15 border-primary/40 text-primary"
+                  : "bg-elevated border-border text-muted-foreground hover:text-foreground",
+              )}
+              title="Playlists arquivadas que voltaram a ultrapassar 100 saves"
+            >
+              🔔 Elegíveis para retorno ({eligibleCount})
+            </button>
+          )}
 
           {showArchived && items.filter(i => i.archived_at).length > 0 && (
             <Button

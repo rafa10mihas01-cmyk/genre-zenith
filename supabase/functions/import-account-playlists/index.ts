@@ -13,6 +13,10 @@ import { getPlaylistMeta } from "../_shared/spotify-playlist.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+// Mesma regra do import-managed-playlist: novas com saves < limite nascem arquivadas.
+// Exceções: metadata.strategic, metadata.auto_archive_exempt, locked_at.
+const AUTO_ARCHIVE_MIN_FOLLOWERS = 100;
+
 function jr(p: unknown, status = 200) {
   return new Response(JSON.stringify(p), {
     status,
@@ -125,11 +129,12 @@ Deno.serve(async (req) => {
     let imported = 0;
     let skipped = 0;
     const importedIds: string[] = []; // managed_playlists.id (UUID) das playlists upsertadas com sucesso
+    const activeImportedIds: string[] = []; // subset que NÃO nasceu arquivada — usado pra disparar pipeline
     const snapshotInserts: Array<{ playlist_spotify_id: string; followers: number | null; total_tracks: number | null }> = [];
     const { data: existingManaged } = owned.length > 0
       ? await supabase
         .from("managed_playlists")
-        .select("spotify_playlist_id, genre_id, canonical_playlist_id")
+        .select("spotify_playlist_id, genre_id, canonical_playlist_id, archived_at, metadata, locked_at")
         .in("spotify_playlist_id", owned.map((p) => p.id))
       : { data: [] as any[] };
     const existingBySpotifyId = new Map(
@@ -162,7 +167,19 @@ Deno.serve(async (req) => {
         continue;
       }
       canonicalId = canonical.id;
-      const payload = {
+
+      // Decide se aplica auto-arquivamento (só pra registros NOVOS).
+      const isNew = !existing;
+      const existingMeta = (existing?.metadata ?? {}) as Record<string, unknown>;
+      const isExempt =
+        existingMeta.strategic === true ||
+        existingMeta.auto_archive_exempt === true ||
+        !!existing?.locked_at;
+      const followersNum = typeof followers === "number" ? followers : null;
+      const shouldAutoArchive =
+        isNew && followersNum !== null && followersNum < AUTO_ARCHIVE_MIN_FOLLOWERS && !isExempt;
+
+      const payload: Record<string, unknown> = {
         spotify_playlist_id: p.id,
         spotify_url: p.external_urls?.spotify ?? `https://open.spotify.com/playlist/${p.id}`,
         name: p.name ?? `Playlist ${p.id}`,
@@ -177,24 +194,34 @@ Deno.serve(async (req) => {
         owner_spotify_user_id: ownerId,
         metadata: { source: "import-account-playlists", owner_display_name: p.owner?.display_name ?? null },
       };
+      if (shouldAutoArchive) {
+        payload.archived_at = nowIso;
+        payload.archived_reason = "auto_onboarding_low_followers";
+        payload.archived_followers = followersNum;
+      }
+
       const { data: upserted, error } = await supabase
         .from("managed_playlists")
         .upsert(payload, { onConflict: "spotify_playlist_id" })
-        .select("id, lifecycle_stage")
+        .select("id, lifecycle_stage, archived_at")
         .maybeSingle();
       if (error) {
         skipped++;
         console.error("upsert error", p.id, error.message);
       } else {
         imported++;
-        if (upserted?.id) importedIds.push(upserted.id);
+        if (upserted?.id) {
+          importedIds.push(upserted.id);
+          if (!upserted?.archived_at) activeImportedIds.push(upserted.id);
+        }
         snapshotInserts.push({
           playlist_spotify_id: p.id,
           followers,
           total_tracks: p.tracks?.total ?? null,
         });
-        // Dispara onboarding-check (fire-and-forget) só pra playlists em estágio onboarding.
-        if (upserted?.id && upserted?.lifecycle_stage === "onboarding") {
+        // Dispara onboarding-check só pra playlists em onboarding QUE NÃO nasceram arquivadas.
+        // Playlist auto-arquivada não consome ciclos de onboarding até ser reativada manualmente.
+        if (upserted?.id && upserted?.lifecycle_stage === "onboarding" && !upserted?.archived_at) {
           fetch(`${SUPABASE_URL}/functions/v1/playlist-onboarding-check`, {
             method: "POST",
             headers: {
@@ -242,7 +269,8 @@ Deno.serve(async (req) => {
     // 10) Pipeline automático pós-import (fire-and-forget, não bloqueia resposta).
     //     Para cada playlist importada: classify-playlist-genre → snapshot-playlist-tracks → playlist-brain-calc.
     //     Cada step tem timeout próprio; falha de uma playlist não derruba as outras.
-    if (importedIds.length > 0) {
+    //     IMPORTANTE: só pra playlists que NÃO nasceram arquivadas — arquivadas não consomem Spotify até reativação manual.
+    if (activeImportedIds.length > 0) {
       const PIPELINE_STEPS = [
         { name: "classify-playlist-genre", bodyKey: "playlist_id", timeoutMs: 45_000 },
         { name: "snapshot-playlist-tracks", bodyKey: "playlist_id", timeoutMs: 60_000 },
@@ -275,9 +303,9 @@ Deno.serve(async (req) => {
       };
 
       const runPipeline = async () => {
-        for (let i = 0; i < importedIds.length; i += PIPELINE_CONCURRENCY) {
+        for (let i = 0; i < activeImportedIds.length; i += PIPELINE_CONCURRENCY) {
           if (i > 0) await sleep(PIPELINE_BATCH_DELAY_MS);
-          const batch = importedIds.slice(i, i + PIPELINE_CONCURRENCY);
+          const batch = activeImportedIds.slice(i, i + PIPELINE_CONCURRENCY);
           await Promise.all(batch.map(async (pid) => {
             for (const step of PIPELINE_STEPS) {
               await callStep(step, pid);
@@ -285,7 +313,7 @@ Deno.serve(async (req) => {
             }
           }));
         }
-        console.log(`pipeline done: ${importedIds.length} playlists processed`);
+        console.log(`pipeline done: ${activeImportedIds.length} active playlists processed (${importedIds.length - activeImportedIds.length} auto-archived skipped)`);
       };
 
       // EdgeRuntime.waitUntil mantém a função viva após o response.
@@ -309,7 +337,8 @@ Deno.serve(async (req) => {
       others_count: others,
       imported,
       skipped,
-      pipeline_dispatched: importedIds.length,
+      pipeline_dispatched: activeImportedIds.length,
+      auto_archived: importedIds.length - activeImportedIds.length,
       throttle: { max_per_run: MAX_PLAYLISTS_PER_RUN, call_delay_ms: SPOTIFY_CALL_DELAY_MS },
     });
   } catch (e) {
