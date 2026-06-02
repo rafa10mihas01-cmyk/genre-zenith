@@ -170,8 +170,8 @@ export default function ComunidadeAdmin() {
       </section>
 
 
-      {/* TABS — mesmo padrão visual de Operação */}
-      <div className="sticky top-0 z-30 -mt-px bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border -mx-4 md:-mx-6">
+      {/* TABS desktop — rail clássico */}
+      <div className="hidden sm:block sticky top-0 z-30 -mt-px bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border -mx-4 md:-mx-6">
         <div className="nx-tab-rail items-center gap-1 px-4 md:px-6">
           {TABS.map((t) => {
           const Icon = t.icon;
@@ -209,6 +209,41 @@ export default function ComunidadeAdmin() {
           );
           })}
         </div>
+      </div>
+
+      {/* TABS mobile — grid de cards (mesmo padrão de Operação) */}
+      <div className="grid grid-cols-3 gap-1.5 sm:hidden">
+        {TABS.map((t) => {
+          const Icon = t.icon;
+          const active = tab === t.id;
+          const count =
+            t.id === "convites" ? counts.convites :
+            t.id === "campanhas" ? counts.campanhas :
+            t.id === "membros" ? counts.membros :
+            t.id === "aprovacoes" ? counts.aprovacoes :
+            null;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={cn(
+                "rounded-xl border px-1 py-2 flex flex-col items-center justify-center gap-1 transition-colors",
+                active
+                  ? "border-primary/60 bg-primary/10 text-foreground"
+                  : "border-border bg-card text-muted-foreground hover:text-foreground",
+              )}
+              aria-pressed={active}
+            >
+              <Icon className={cn("h-4 w-4", active && "text-primary")} />
+              <span className="text-[12px] font-medium leading-none">{t.label}</span>
+              {count !== null && (
+                <span className={cn("text-[11px] font-bold tabular-nums leading-none", active ? "text-primary" : "text-muted-foreground")}>
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       <div className="min-h-[480px] animate-tab-in">
