@@ -41,11 +41,30 @@ interface Call {
   body?: unknown; error?: string;
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+let lastCallAt = 0;
+const MIN_GAP_MS = 250;
+
 async function spCall(token: string, method: string, url: string, step: string, body?: unknown, keepBody = false): Promise<Call> {
+  const wait = Math.max(0, MIN_GAP_MS - (Date.now() - lastCallAt));
+  if (wait > 0) await sleep(wait);
   const init: RequestInit = { method, headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } };
   if (body !== undefined) init.body = JSON.stringify(body);
   const t0 = Date.now();
-  const r = await fetch(url, init);
+  let r: Response;
+  try {
+    r = await fetch(url, init);
+  } catch (e) {
+    lastCallAt = Date.now();
+    return { step, endpoint: url.replace("https://api.spotify.com",""), method, status: 0, ok: false, duration_ms: Date.now()-t0, spotify_request_id: null, body_size: 0, error: (e as Error).message };
+  }
+  lastCallAt = Date.now();
+  // 429 retry uma vez com Retry-After
+  if (r.status === 429) {
+    const ra = Math.min(15, Math.max(2, Number(r.headers.get("retry-after") ?? "5")));
+    await sleep(ra * 1000);
+    try { r = await fetch(url, init); lastCallAt = Date.now(); } catch { /* keep */ }
+  }
   const txt = await r.text();
   let parsed: unknown = null;
   try { parsed = txt ? JSON.parse(txt) : null; } catch { parsed = txt; }
