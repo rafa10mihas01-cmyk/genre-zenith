@@ -211,7 +211,7 @@ Deno.serve(async (req) => {
     async function makeTestPl(name: string, nTracks: number, opts: { public?: boolean; collaborative?: boolean } = {}): Promise<string | null> {
       if (!tok01) return null;
       const { id, call } = await createPl(tok01, lado, name, opts);
-      if (!id) { report.created_errors = [...(report.created_errors ?? []), { name, err: call.body }]; return null; }
+      if (!id) { report.created_errors = [...(report.created_errors ?? []), { name, status: call.status, err: call.body, raw: call }]; return null; }
       createdByApp01.push(id);
       report.created.push(id);
       if (nTracks > 0) await addTracks(tok01, id, poolUris(nTracks));
