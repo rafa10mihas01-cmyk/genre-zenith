@@ -456,6 +456,17 @@ function KpiCard({ icon: Icon, label, value, accent, raw }: { icon: any; label: 
   );
 }
 
+function KpiCell({ label, value, accent }: { label: string; value: number; accent?: boolean }) {
+  return (
+    <div className="px-2 py-2.5 text-center">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className={cn("mt-1 text-base font-semibold tabular-nums truncate", accent && "text-primary")}>
+        {value > 0 && accent ? "+" : ""}{formatInt(value)}
+      </div>
+    </div>
+  );
+}
+
 function CuratorSummary({
   rows,
   curators,
