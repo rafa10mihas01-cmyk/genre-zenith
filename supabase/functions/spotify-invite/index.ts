@@ -75,6 +75,7 @@ Deno.serve(async (req) => {
 
   const url = new URL(req.url);
   const mode = url.searchParams.get("mode") ?? "";
+  const reqMeta = extractRequestMeta(req);
 
   try {
     // ─────────────────────── CREATE (admin) ──────────────────────
