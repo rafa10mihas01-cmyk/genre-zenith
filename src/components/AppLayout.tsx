@@ -200,7 +200,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             />
             <div className={fullscreen ? "relative z-10 w-full h-full min-h-0" : "nx-page relative z-10 flex flex-col min-h-full"}>
               {children}
-              {!fullscreen && <div className="mt-auto"><AppFooter /></div>}
+              {!fullscreen && <div className="mt-auto hidden lg:block"><AppFooter /></div>}
             </div>
           </main>
         </div>
