@@ -25,19 +25,17 @@ export interface KpiBigProps {
 }
 
 export function KpiBig({ tier = "default", className, ...props }: KpiBigProps) {
-  const variant = tier === "hero" ? "hero" : "default";
-  const composed = [
-    tier === "hero" && "md:col-span-2",
-    tier === "quiet" && "opacity-80",
-    className,
-  ].filter(Boolean).join(" ");
+  // tier foi descontinuado visualmente — todos os KPIs renderizam uniformes (igual /deals).
+  // Mantemos a prop por compat, mas não aplicamos mais col-span/opacity/variant especial.
+  const composed = [className].filter(Boolean).join(" ");
   return (
     <Kpi
       {...props}
-      variant={variant}
+      variant="default"
       tone={props.tone ?? "default"}
       className={composed || undefined}
     />
   );
 }
+
 
