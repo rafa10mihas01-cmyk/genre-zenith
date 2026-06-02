@@ -238,8 +238,8 @@ export function ExecucaoView({ campaignId, onOpenHistory }: { campaignId: string
 
 
       <Card>
-        <CardContent className="p-3 flex flex-wrap items-center gap-2">
-          <div className="relative flex-1 min-w-[200px]">
+        <CardContent className="p-3 space-y-2">
+          <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               value={q}
@@ -248,50 +248,51 @@ export function ExecucaoView({ campaignId, onOpenHistory }: { campaignId: string
               className="pl-8 h-9"
             />
           </div>
-          <Select value={scope} onValueChange={(v) => setScope(v as any)}>
-            <SelectTrigger className="h-9 w-[160px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas atribuições</SelectItem>
-              <SelectItem value="ecosystem">Ecossistema</SelectItem>
-              <SelectItem value="curator">Curadores</SelectItem>
-              <SelectItem value="organic">Orgânico</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={curatorFilter} onValueChange={setCuratorFilter} disabled={scope === "ecosystem" || scope === "organic"}>
-            <SelectTrigger className="h-9 w-[180px]"><SelectValue placeholder="Curador" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos curadores</SelectItem>
-              {curatorOptions.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="h-9 w-[160px]"><SelectValue placeholder="Status" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos status</SelectItem>
-              <SelectItem value="matched">Matched</SelectItem>
-              <SelectItem value="pending_match">Pending</SelectItem>
-              <SelectItem value="not_found_yet">Not found</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="outline" size="sm" className="h-9" onClick={exportCsv}>
-            <Download className="h-4 w-4 mr-1" /> CSV
-          </Button>
+          <div className="flex items-center gap-2">
+            <Select value={scope} onValueChange={(v) => setScope(v as any)}>
+              <SelectTrigger className="h-9 flex-1 min-w-0 md:flex-none md:w-[160px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas atribuições</SelectItem>
+                <SelectItem value="ecosystem">Ecossistema</SelectItem>
+                <SelectItem value="curator">Curadores</SelectItem>
+                <SelectItem value="organic">Orgânico</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={curatorFilter} onValueChange={setCuratorFilter} disabled={scope === "ecosystem" || scope === "organic"}>
+              <SelectTrigger className="h-9 flex-1 min-w-0 md:flex-none md:w-[180px]"><SelectValue placeholder="Curador" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos curadores</SelectItem>
+                {curatorOptions.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="h-9 flex-1 min-w-0 md:flex-none md:w-[160px]"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos status</SelectItem>
+                <SelectItem value="matched">Matched</SelectItem>
+                <SelectItem value="pending_match">Pending</SelectItem>
+                <SelectItem value="not_found_yet">Not found</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" className="h-9 px-2 md:px-3 shrink-0" onClick={exportCsv}>
+              <Download className="h-4 w-4 md:mr-1" /> <span className="hidden md:inline">CSV</span>
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
-      <div className="flex items-center justify-between text-sm text-muted-foreground px-1">
-        <span>{filtered.length} de {rows.length} playlist(s)</span>
-        <span className="flex items-center gap-4">
-          <span>Baseline: <span className="text-foreground tabular-nums">{formatInt(filteredTotals.baseline)}</span></span>
-          <span>Atual: <span className="text-foreground tabular-nums">{formatInt(filteredTotals.current)}</span></span>
-          <span>Δ: <span className="text-primary font-semibold tabular-nums">{filteredTotals.delta > 0 ? "+" : ""}{formatInt(filteredTotals.delta)}</span></span>
-        </span>
-      </div>
-
       <Card>
         <CardContent className="p-0">
+          <div className="flex items-center justify-between px-3 py-2 text-[11px] text-muted-foreground border-b border-border/60 bg-card/40">
+            <span>{filtered.length} de {rows.length} playlist(s)</span>
+            <span className="flex items-center gap-3">
+              <span>Base: <span className="text-foreground tabular-nums">{formatInt(filteredTotals.baseline)}</span></span>
+              <span>Atual: <span className="text-foreground tabular-nums">{formatInt(filteredTotals.current)}</span></span>
+              <span>Δ: <span className="text-primary font-semibold tabular-nums">{filteredTotals.delta > 0 ? "+" : ""}{formatInt(filteredTotals.delta)}</span></span>
+            </span>
+          </div>
           <VirtualTable
             rows={filtered}
             curators={curators}
