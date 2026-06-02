@@ -121,21 +121,43 @@ Deno.serve(async (req) => {
     // 5) enriquecimento followers: concorrência baixa (3) + delay de 500ms entre lotes.
     // Antes: CONCURRENCY=8 sem delay → 100 playlists = 100 calls em ~1s → causa 429 24h.
     // /v1/me/playlists não retorna followers — só /v1/playlists/{id} retorna.
+    // HARDENING: se a 1ª chamada falhar/retornar null, fazemos 1 retry após 1.5s.
+    // Se ainda assim vier null, marcamos a playlist como `followers_unknown_at_import`
+    // no metadata — assim o auto-archive NÃO decide silenciosamente "deixa ativo".
     const followersMap = new Map<string, number | null>();
+    const followersUnknown = new Set<string>(); // p.id que ficou sem resposta após retry
     const CONCURRENCY = 3;
+    const fetchFollowersOnce = async (id: string): Promise<number | null> => {
+      const meta = await getPlaylistMeta(id, token, { fields: "followers(total)" });
+      return typeof meta.followers === "number" ? meta.followers : null;
+    };
     for (let i = 0; i < owned.length; i += CONCURRENCY) {
       if (i > 0) await sleep(SPOTIFY_CALL_DELAY_MS);
       const batch = owned.slice(i, i + CONCURRENCY);
       await Promise.all(batch.map(async (p) => {
         spotifyCalls++;
+        let val: number | null = null;
         try {
-          const meta = await getPlaylistMeta(p.id, token, { fields: "followers(total)" });
-          followersMap.set(p.id, meta.followers ?? null);
+          val = await fetchFollowersOnce(p.id);
         } catch (e) {
-          if (e instanceof SpotifyCircuitOpenError) rate429Count++;
-          else if (e instanceof Error && /429/.test(e.message)) rate429Count++;
-          followersMap.set(p.id, null);
+          if (e instanceof SpotifyCircuitOpenError) { rate429Count++; throw e; }
+          if (e instanceof Error && /429/.test(e.message)) rate429Count++;
+          val = null;
         }
+        if (val === null) {
+          // 1 retry isolado após 1.5s — cobre intermitência sem inflar chamadas.
+          await sleep(1500);
+          spotifyCalls++;
+          try {
+            val = await fetchFollowersOnce(p.id);
+          } catch (e) {
+            if (e instanceof SpotifyCircuitOpenError) { rate429Count++; throw e; }
+            if (e instanceof Error && /429/.test(e.message)) rate429Count++;
+            val = null;
+          }
+        }
+        followersMap.set(p.id, val);
+        if (val === null) followersUnknown.add(p.id);
       }));
     }
 
@@ -210,7 +232,11 @@ Deno.serve(async (req) => {
         canonical_playlist_id: canonicalId,
         imported_by: guard.via === "user" ? guard.userId : null,
         owner_spotify_user_id: ownerId,
-        metadata: { source: "import-account-playlists", owner_display_name: p.owner?.display_name ?? null },
+        metadata: {
+          source: "import-account-playlists",
+          owner_display_name: p.owner?.display_name ?? null,
+          ...(followersUnknown.has(p.id) ? { followers_unknown_at_import: true } : {}),
+        },
       };
       if (shouldAutoArchive) {
         payload.archived_at = nowIso;
