@@ -987,27 +987,22 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
             <button
               type="button"
               className={cn(
-                "nx-card !p-0 overflow-hidden text-left w-full h-full group",
-                "flex items-center justify-between gap-3 px-4 py-5 hover:bg-[hsl(var(--hover))] transition-colors",
+                "nx-card !p-0 overflow-hidden text-center w-full h-full group",
+                "flex items-center justify-center gap-2 px-3 py-6 hover:bg-[hsl(var(--hover))] transition-colors",
                 opportunities.length === 0 && "col-span-2",
               )}
             >
-              <div className="flex items-center gap-2 min-w-0">
-                <Activity className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span className="text-[14px] font-semibold truncate">Saúde do ecossistema</span>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground tabular-nums">
-                  {totalActiveCount + totalArchivedCount}
+              <Activity className="h-4 w-4 text-muted-foreground shrink-0" />
+              <span className="text-[13px] font-semibold truncate">Saúde do ecossistema</span>
+              <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
+                {totalActiveCount + totalArchivedCount}
+              </span>
+              {eligibleCount > 0 && (
+                <span className="inline-flex items-center gap-0.5 text-[10px] text-warning font-semibold shrink-0">
+                  <Bell className="h-3 w-3" />
+                  {eligibleCount}
                 </span>
-                {eligibleCount > 0 && (
-                  <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-warning font-semibold">
-                    <Bell className="h-3 w-3" />
-                    {eligibleCount}
-                  </span>
-                )}
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              </div>
+              )}
             </button>
           </DialogTrigger>
           <DialogContent className="max-w-lg">
@@ -1071,18 +1066,13 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
             <DialogTrigger asChild>
               <button
                 type="button"
-                className="nx-card !p-0 overflow-hidden text-left w-full h-full group flex items-center justify-between gap-3 px-4 py-5 hover:bg-[hsl(var(--hover))] transition-colors"
+                className="nx-card !p-0 overflow-hidden text-center w-full h-full group flex items-center justify-center gap-2 px-3 py-6 hover:bg-[hsl(var(--hover))] transition-colors"
               >
-                <div className="flex items-center gap-2 min-w-0">
-                  <Target className="h-4 w-4 text-primary shrink-0" />
-                  <span className="text-[14px] font-semibold truncate">Top oportunidades</span>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground tabular-nums">
-                    {opportunities.length}
-                  </span>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </div>
+                <Target className="h-4 w-4 text-primary shrink-0" />
+                <span className="text-[13px] font-semibold truncate">Top oportunidades</span>
+                <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
+                  {opportunities.length}
+                </span>
               </button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl">
