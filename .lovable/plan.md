@@ -1,76 +1,47 @@
+# Plano — Padrão "cards de fase" no CRM de Curadores (mobile)
 
-# Ajuste cirúrgico: Orçamento de audiência + posição inteligente
+Aplicar o mesmo padrão visual do Playlists/Deals no `CuradoresCRM` **apenas no mobile**, sem sobrepor a barra de filtros já existente e sem mexer em nada de desktop nem em lógica de dados.
+
+## Princípio
+Hoje no mobile o CRM tem **3 blocos verticais empilhados** que competem entre si:
+1. 4 MiniStats (Total / Não contatados / Enviados / Responderam) — só informativos, não clicáveis.
+2. Toolbar (busca + Importar + ⋯).
+3. Barra de filtros colapsáveis (Contato/Status/Score/Tamanho).
+
+A ideia é **fundir o bloco 1 com o filtro de Contato** (que tem exatamente os mesmos valores: Todos, Não contatados, Enviados, Aguardando, Responderam). Os MiniStats viram cards-filtro clicáveis no mobile — o número fica visível, o estado ativo controla `contactFilter`, e a página inteira encurta uma linha.
+
+## Mudanças (mobile-only, `sm:hidden`)
+
+### 1. Substituir o grid de MiniStat por grid de cards-filtro
+- Trocar o bloco atual `<div className="grid grid-cols-2 md:grid-cols-4 gap-2">` por:
+  - Mobile (`sm:hidden`): `grid grid-cols-4 gap-1.5` com 4 cards (Todos / Não contatados / Enviados / Responderam) no mesmo formato dos cards de Playlists — ícone + label curta + número, `rounded-xl border px-1 py-2`, estado ativo com `border-primary/60 bg-primary/10 text-primary`.
+  - Clicar no card seta `contactFilter` correspondente (`"todos" | "nao_contatado" | "enviado" | "respondeu"`).
+  - Desktop (`hidden sm:grid`): mantém os 4 `MiniStat` originais inalterados (sem virar botão).
+
+Labels curtos (cabem em 4 colunas em 390px):
+- Todos · Novos · Enviados · Resp.
+
+Ícones sugeridos (Lucide já usados no projeto): `Users`, `CircleDashed`, `Send`, `MessageSquare`.
+
+### 2. Esconder o chip "Contato" da barra de filtros **só no mobile**
+- Como o card já controla esse filtro, o chip "Contato" da barra de filtros vira redundante no mobile.
+- Adicionar `hidden sm:inline-flex` no botão do chip `"contato"` (linha 657). Os outros 3 chips (Status, Score, Tamanho) continuam visíveis em todas as larguras.
+- No desktop nada muda — chip continua visível e funciona como hoje.
+
+### 3. Compactar a toolbar no mobile (só se sobrar tempo, opcional)
+- O botão `Importar` com label texto + ícone ocupa muito espaço no mobile. Sugestão: `<span className="hidden sm:inline">Importar</span>` mantendo só o ícone Upload no mobile.
+- Esse passo é puramente cosmético e não muda comportamento. Faço junto se autorizado.
 
 ## O que NÃO muda
-- Fórmula de projeção (`playlistCapAtPosition`, `calculateTrackDailyStreams`, multiplicadores, curva por posição) — permanece exatamente igual.
-- `buildEcoPlan`, `campaignSnapshot`, relatórios, dashboards, histórico, KPIs, PDFs.
-- Estrutura de `campaigns`, `campaign_eco_allocations`, `managed_playlists`.
-- Fluxo Baseline S4A, bot, scheduler, monitoramento.
-
-A projeção continua sendo a **fonte de verdade**. Estamos adicionando 2 filtros *antes* dela decidir, não substituindo nada.
-
-## O que muda (apenas 2 coisas)
-
-### 1. Orçamento de audiência por playlist (camada de proteção)
-
-Nova função pura `getPlaylistAvailableCapacity(playlist_id, window)` que retorna:
-
-```
-saldoDisponível = capacidadeProjetada(playlist, posição_máx, janela)
-                  − Σ planned_streams de allocations ATIVAS de OUTRAS campanhas
-                    que se sobrepõem temporalmente nessa playlist
-```
-
-Considera ativa: `campaigns.status in ('active','approved')` AND janela `[started_at, started_at + days]` se sobrepõe à janela da campanha sendo planejada.
-
-Onde aplicar (único ponto): no momento em que `buildEcoPlan` (ou `replan-campaign-eco`) **escolhe** quais playlists usar — antes do loop de alocação, filtra/ordena pela capacidade disponível em vez de pela capacidade teórica isolada. Se saldo ≤ 0 → playlist sai do pool dessa campanha. Se saldo < cap projetado → o teto efetivo daquela playlist nessa campanha vira o saldo.
-
-A projeção em si (cap_dia, daily[]) continua calculada pela fórmula atual usando o cap efetivo resultante.
-
-### 2. Posição proporcional à necessidade (substitui o 3-3-3 / 7-7-7)
-
-Hoje `assignPositions` usa buckets fixos por tier (`PRIMARY_RANGES_BY_CHART`). Vamos trocar **apenas dentro do range já permitido pelo tier** a lógica de escolha:
-
-- Calcular `needRatio = dailyNeedRestante / capacidadeTotalDisponívelDoPool`
-- Para cada playlist (na ordem de followers desc), escolher a **posição mais rasa dentro do range do tier** cujo cap ≤ `dailyNeedRestante × (1 + tolerância 10%)`.
-- Se `needRatio` for baixo (campanha pequena num pool grande) → naturalmente cai em posições mais profundas dentro do range → preserva audiência.
-- Se `needRatio` for alto → naturalmente sobe pra posições mais rasas → extrai mais.
-- Decrementa `dailyNeedRestante` após cada alocação.
-
-Esse algoritmo já existe parcialmente como `distributeByDailyNeed` (linhas 152–188 do `computeEcoPlan.ts`) e é só ativá-lo como padrão no `buildEcoPlan` quando não há `position` persistida, **respeitando os ranges do tier atual como limite**.
-
-Nenhuma posição nova é introduzida. Nenhum multiplicador muda. Só a regra de **escolha** dentro do range já existente.
+- Nada na aba **Ativos** (`CuradoresLibraryTab`).
+- Nada na aba **Prospecção** desktop (`>= sm`).
+- Nenhuma query, hook, schema, tipo ou estado novo.
+- A lógica de `filtered`, `stats`, `contactFilter`, paginação, import, follow-up, sheets — tudo intacto.
+- `MiniStat` continua existindo (usado no desktop).
+- Chip "Status/Score/Tamanho" e painel expansível continuam idênticos.
 
 ## Arquivos tocados
+- `src/components/operacao/CuradoresCRM.tsx` — bloco 588-594 e linha 651 (props `show` do chip Contato). 2 edições pontuais.
 
-- `supabase/functions/_shared/computeEcoPlan.ts`
-  - Nova função `getPlaylistAvailableCapacity` (ou recebe via parâmetro).
-  - `buildEcoPlan` recebe novo parâmetro opcional `reservedByPlaylist: Map<string, number>` (default: vazio = comportamento atual).
-  - Quando `reservedByPlaylist` presente, ajusta cap efetivo por playlist antes do loop.
-  - Substitui chamada de `assignPositions` (buckets) pela versão `distributeByDailyNeed` quando não há posição persistida, **clamping** o resultado dentro do range do tier original.
-
-- `supabase/functions/replan-campaign-eco/index.ts` e `supabase/functions/approve-campaign-plan/index.ts`
-  - Antes de chamar `buildEcoPlan`, consultam `campaign_eco_allocations` + `campaigns` pra montar `reservedByPlaylist` (somando `planned_streams` de outras campanhas ativas sobrepostas).
-  - Passam o mapa pro `buildEcoPlan`.
-
-- `src/hooks/useEcoRealCapacity.ts` e `src/hooks/useEcosystemCapacity.ts`
-  - Mesma lógica de saldo, pra UI mostrar capacidade **disponível** (não teórica) durante o planejamento. Opcional nesta fase — pode ficar como follow-up se o usuário preferir.
-
-## Compatibilidade / segurança
-
-- Sem migração de banco. Sem novas tabelas. Sem novas colunas.
-- Campanhas existentes com `position` já persistida em `campaign_eco_allocations` **não são afetadas** (o caminho `allPersisted` continua tendo prioridade — linha 405).
-- Replans manuais antigos continuam funcionando.
-- Feature flag opcional via env `ECO_BUDGET_ENABLED=true` pra permitir rollback instantâneo sem deploy.
-
-## Validação
-
-1. Rodar replan numa campanha pequena num gênero com muitas playlists → conferir que posições caem mais fundo que antes.
-2. Rodar replan numa campanha grande → conferir que posições sobem.
-3. Criar 2 campanhas simultâneas no mesmo gênero → a 2ª deve receber playlists diferentes ou posições mais profundas nas mesmas playlists.
-4. Conferir que campanhas já aprovadas com plano antigo continuam idênticas (snapshot intacto).
-
-## Não incluso (fora de escopo, conforme pedido)
-- UI nova de override manual de posição.
-- Mudança em fórmula, multiplicador, ou curva de posição.
-- Mudança em relatórios, dashboards, ou histórico.
+## Risco
+Baixo. Tudo é additive/visibility-only no mobile. Se algo desagradar, basta reverter as duas edições — desktop e lógica continuam idênticos.

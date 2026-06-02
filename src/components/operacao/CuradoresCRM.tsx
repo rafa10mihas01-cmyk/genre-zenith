@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Upload, Search, Mail, Instagram, Link2, ExternalLink, Star, Ban, Copy,
   CheckCircle2, Trash2, Users, Filter, Download, Loader2, MoreHorizontal,
-  SlidersHorizontal, Send, ChevronRight,
+  SlidersHorizontal, Send, ChevronRight, CircleDashed, MessageSquare,
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -586,7 +586,39 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
   return (
     <div className="space-y-4">
       {/* KPIs — sempre primeiro */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+      {/* Mobile: cards-filtro de Contato (clicáveis, controlam contactFilter) */}
+      <div className="grid grid-cols-4 gap-1.5 sm:hidden">
+        {([
+          { id: "todos" as const, label: "Todos", value: stats.total, Icon: Users },
+          { id: "nao_contatado" as const, label: "Novos", value: stats.naoContatado, Icon: CircleDashed },
+          { id: "enviado" as const, label: "Enviados", value: stats.enviado, Icon: Send },
+          { id: "respondeu" as const, label: "Resp.", value: stats.respondeu, Icon: MessageSquare },
+        ]).map((c) => {
+          const active = contactFilter === c.id;
+          const I = c.Icon;
+          return (
+            <button
+              key={c.id}
+              onClick={() => setContactFilter(c.id)}
+              className={cn(
+                "rounded-xl border px-1 py-2 flex flex-col items-center justify-center gap-1 transition-colors",
+                active
+                  ? "border-primary/60 bg-primary/10 text-foreground"
+                  : "border-border bg-card text-muted-foreground hover:text-foreground",
+              )}
+              aria-pressed={active}
+            >
+              <I className={cn("h-4 w-4", active ? "text-primary" : "")} />
+              <span className="text-[11px] font-medium leading-none">{c.label}</span>
+              <span className={cn("text-[11px] font-bold tabular-nums leading-none", active ? "text-primary" : "text-muted-foreground")}>
+                {c.value}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      {/* Desktop: MiniStats originais (informativos) */}
+      <div className="hidden sm:grid grid-cols-4 gap-2">
         <MiniStat label="Total" value={stats.total} />
         <MiniStat label="Não contatados" value={stats.naoContatado} tone="warning" />
         <MiniStat label="Enviados" value={stats.enviado} tone="primary" />
@@ -658,7 +690,9 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
                 key={f.id}
                 onClick={() => setExpandedFilter(open ? null : f.id)}
                 className={cn(
-                  "h-8 px-3 rounded-lg text-[12px] font-medium transition-colors inline-flex items-center gap-1.5",
+                  "h-8 px-3 rounded-lg text-[12px] font-medium transition-colors items-center gap-1.5",
+                  // Contato já é controlado pelos cards no mobile — esconde aqui
+                  f.id === "contato" ? "hidden sm:inline-flex" : "inline-flex",
                   open
                     ? "bg-elevated text-foreground"
                     : f.active
