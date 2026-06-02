@@ -770,6 +770,12 @@ export default function CampanhaExecucao() {
                       approvingPlan={approvingPlan}
                       dispatching={dispatching}
                     />
+                    {(camp as any).collection_mode !== "spreadsheet" && (
+                      <BotCollectionStatus
+                        campaignId={camp.id}
+                        dealId={camp.deal_id ?? null}
+                      />
+                    )}
                     {(() => {
                       const baseline = recentUploads.find((u) => u.is_baseline);
                       return baseline ? (
