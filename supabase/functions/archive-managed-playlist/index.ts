@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
     // pega canonical_playlist_id antes de arquivar pra limpar derivados
     const { data: mp } = await supabase
       .from("managed_playlists")
-      .select("id, canonical_playlist_id")
+      .select("id, canonical_playlist_id, followers")
       .eq("id", id)
       .maybeSingle();
 
@@ -35,7 +35,11 @@ Deno.serve(async (req) => {
     // Ao arquivar manualmente, registra o motivo + snapshot de followers.
     const updatePayload: Record<string, unknown> = restore
       ? { archived_at: null, reactivation_eligible_at: null }
-      : { archived_at: new Date().toISOString(), archived_reason: "manual" };
+      : {
+          archived_at: new Date().toISOString(),
+          archived_reason: "manual",
+          archived_followers: mp?.followers ?? null,
+        };
 
     const { error } = await supabase
       .from("managed_playlists")
