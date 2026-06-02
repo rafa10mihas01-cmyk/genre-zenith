@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Music, Lock, Share2, ArrowLeft, ExternalLink, Clock, Copy, MessageCircle } from "lucide-react";
+import { Music, Lock, Share2, ArrowLeft, ExternalLink, Copy, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -63,25 +63,30 @@ export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed 
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
   }
 
+  const subtitleParts = [
+    camp.artist ?? "—",
+    daysTotal > 0 ? `D${daysElapsed}/${daysTotal} · faltam ${daysLeft}d` : null,
+    lastUpdateAt ? `atualizado ${timeAgo(lastUpdateAt)}` : null,
+  ].filter(Boolean);
+
   return (
     <div className={cn(
       "sticky top-0 z-40 shrink-0 border-b border-border bg-background px-4 md:px-6",
     )}>
-
-      <div className="py-3 md:py-4 flex flex-row items-center gap-2 md:gap-4">
-        {/* Linha 1 mobile / esquerda desktop: capa + texto */}
+      <div className="py-3 md:py-4 flex flex-row items-center gap-3 md:gap-4">
+        {/* Capa pequena (acento) + título/subtítulo no padrão PageHeader */}
         <div className="flex items-center gap-3 min-w-0 flex-1">
           {camp.cover_url ? (
-            <img src={camp.cover_url} alt="" className="w-12 h-12 md:w-14 md:h-14 rounded-lg object-cover shadow-sm shrink-0" />
+            <img src={camp.cover_url} alt="" className="w-10 h-10 md:w-12 md:h-12 rounded-lg object-cover shadow-sm shrink-0" />
           ) : (
-            <div className="w-12 h-12 md:w-14 md:h-14 rounded-lg bg-muted grid place-items-center shrink-0">
-              <Music className="h-5 w-5 md:h-6 md:w-6 text-muted-foreground" />
+            <div className="w-10 h-10 md:w-12 md:h-12 rounded-lg bg-muted grid place-items-center shrink-0">
+              <Music className="h-5 w-5 text-muted-foreground" />
             </div>
           )}
 
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 space-y-0.5">
             <div className="flex items-center gap-2 min-w-0">
-              <h1 className="text-base md:text-xl font-semibold leading-tight truncate min-w-0">
+              <h1 className="text-[19px] sm:text-2xl lg:text-3xl font-semibold tracking-tight leading-tight truncate min-w-0">
                 {camp.track_name}
               </h1>
               <span className={cn(
@@ -91,29 +96,22 @@ export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed 
                 {STATUS_LABEL[statusKey] ?? statusKey}
               </span>
             </div>
-            <div className="text-[11px] md:text-xs text-muted-foreground truncate mt-0.5">
-              {camp.artist ?? "—"}
-              {daysTotal > 0 && (
-                <>
-                  {" · "}D{daysElapsed}/{daysTotal}
-                  <span className="hidden md:inline"> · faltam {daysLeft}d</span>
-                </>
-              )}
-              {lastUpdateAt && (
-                <span className="hidden md:inline">
-                  {" · "}
-                  <Clock className="inline h-3 w-3 -mt-0.5" /> {timeAgo(lastUpdateAt)}
-                </span>
-              )}
-            </div>
+            <p className="text-[12px] lg:text-sm text-muted-foreground truncate">
+              {subtitleParts.join(" · ")}
+            </p>
           </div>
         </div>
 
-        {/* Ações */}
-        <div className="flex items-center gap-1 lg:gap-2 flex-nowrap justify-end shrink-0">
+        {/* Ações — mesma régua do PageHeader (h-9, px-3) */}
+        <div
+          className={cn(
+            "flex items-center justify-end gap-2 shrink-0 min-w-0 max-w-[58%] overflow-x-auto overflow-y-hidden scrollbar-none",
+            "lg:max-w-none lg:overflow-visible lg:flex-nowrap",
+            "[&_button]:h-9 [&_button]:px-3 [&_button]:text-[13px] sm:[&_button]:px-4 sm:[&_button]:text-sm [&_button]:shrink-0",
+          )}
+        >
           {mode === "internal" && (
             <>
-              {/* Botão "Campanhas" só no desktop — no mobile o topbar global já tem o < */}
               <Link to="/campanhas" className="hidden lg:inline-flex">
                 <Button variant="ghost" size="sm">
                   <ArrowLeft className="h-4 w-4 mr-1.5" /> Campanhas
@@ -125,7 +123,6 @@ export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed 
                     <Button
                       variant="outline"
                       size="sm"
-                      className="px-2 lg:px-3"
                       aria-label="Compartilhar"
                       title="Compartilhar"
                     >
@@ -169,7 +166,7 @@ export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed 
           )}
           {mode === "client" && camp.spotify_track_url && (
             <a href={camp.spotify_track_url} target="_blank" rel="noreferrer" className="shrink-0">
-              <Button variant="outline" size="sm" className="shrink-0">
+              <Button variant="outline" size="sm">
                 <ExternalLink className="h-4 w-4 mr-1.5" /> Ouvir
               </Button>
             </a>
@@ -199,7 +196,6 @@ export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed 
         </div>
       )}
     </div>
-
   );
 }
 
