@@ -142,6 +142,7 @@ async function runOwner(app: { id: string; name: string }, row: SpotifyUserToken
   // 6) GET tracks (deve ter 1)
   const getTracks2 = await call(token, "GET", `https://api.spotify.com/v1/playlists/${playlistId}/tracks`);
   getTracks2.step = "GET tracks (depois add)"; steps.push(getTracks2);
+  const countBefore = (getTracks1.body_preview as { items?: unknown[] })?.items?.length ?? 0;
   const countAfterAdd = (getTracks2.body_preview as { items?: unknown[] })?.items?.length ?? 0;
 
   // 7) DELETE remove
@@ -150,20 +151,19 @@ async function runOwner(app: { id: string; name: string }, row: SpotifyUserToken
     { tracks: [{ uri: TEST_TRACK_URI }] });
   delRes.step = "DELETE remove track"; steps.push(delRes);
 
-  // 8) GET tracks (deve ter 0)
+  // 8) GET tracks (deve voltar ao count original)
   const getTracks3 = await call(token, "GET", `https://api.spotify.com/v1/playlists/${playlistId}/tracks`);
   getTracks3.step = "GET tracks (depois remove)"; steps.push(getTracks3);
   const countAfterDel = (getTracks3.body_preview as { items?: unknown[] })?.items?.length ?? 0;
 
-  // 9) Sem cleanup destrutivo necessário — só adicionamos+removemos a faixa de teste.
-  // (Mantém a playlist do owner intacta.)
+  // 9) Sem cleanup destrutivo necessário.
 
   // Critérios
   const has403 = steps.some((s) => s.http_status === 403);
   const has429 = steps.some((s) => s.http_status === 429);
   const tracksOk = getTracks1.ok && getTracks2.ok && getTracks3.ok;
-  const addOk = addRes.ok && countAfterAdd === 1;
-  const delOk = delRes.ok && countAfterDel === 0;
+  const addOk = addRes.ok && countAfterAdd === countBefore + 1;
+  const delOk = delRes.ok && countAfterDel === countBefore;
   const aprovado = tracksOk && addOk && delOk && !has403 && !has429;
 
   return {
