@@ -123,34 +123,7 @@ export default function Prospecao() {
         ];
         return (
           <>
-            {/* Mobile: grid de 2 cards */}
-            <div className="grid grid-cols-2 gap-1.5 sm:hidden">
-              {SEG.map((t) => {
-                const Icon = t.icon;
-                const active = segment === t.id;
-                return (
-                  <button
-                    key={t.id}
-                    onClick={() => setSegment(t.id)}
-                    className={cn(
-                      "rounded-xl border px-2 py-2.5 flex flex-col items-center justify-center gap-1 transition-colors",
-                      active
-                        ? "border-primary/60 bg-primary/10 text-foreground"
-                        : "border-border bg-card text-muted-foreground hover:text-foreground",
-                    )}
-                    aria-pressed={active}
-                  >
-                    <Icon className={cn("h-4 w-4", active ? "text-primary" : "")} />
-                    <span className="text-[12px] font-medium leading-none">{t.label}</span>
-                    <span className={cn("text-[11px] font-bold tabular-nums leading-none", active ? "text-primary" : "text-muted-foreground")}>
-                      {t.id === "prospeccao" && outreach.loading ? "…" : t.count}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Desktop: rail clássico */}
+            {/* Desktop: rail clássico (mantido no topo) */}
             <div className="hidden sm:block sticky top-0 z-30 -mt-px bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border -mx-4 md:-mx-6">
               <div className="nx-tab-rail items-center gap-1 px-4 md:px-6">
                 {SEG.map((t) => {
@@ -184,6 +157,7 @@ export default function Prospecao() {
           </>
         );
       })()}
+
 
       {/* Ativos: KPI grid original (mobile + desktop). Prospecção: funil único no mobile. */}
       {segment === "ativos" ? (
