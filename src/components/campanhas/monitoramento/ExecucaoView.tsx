@@ -509,6 +509,36 @@ function AttributionBadge({ attr, curatorName }: { attr: string; curatorName: st
   return <Badge variant="outline" className="border-pink-500/40 text-pink-400">Orgânico</Badge>;
 }
 
+function AttributionDot({ attr }: { attr: string }) {
+  const cls =
+    attr === "ecosystem" ? "bg-blue-400"
+    : attr.startsWith("curator:") ? "bg-purple-400"
+    : "bg-pink-400";
+  return <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", cls)} aria-hidden />;
+}
+
+function MobileCover({
+  playlistId, url, coverUrl,
+}: { playlistId: string; url: string | null | undefined; coverUrl: string | null }) {
+  const href = url || `https://open.spotify.com/playlist/${playlistId}`;
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      className="h-9 w-9 shrink-0 rounded-md overflow-hidden bg-muted border border-border flex items-center justify-center"
+    >
+      {coverUrl ? (
+        <img src={coverUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
+      ) : (
+        <span className="text-[10px] text-muted-foreground">♪</span>
+      )}
+    </a>
+  );
+}
+
+
 function MatchStatusBadge({ status }: { status: string }) {
   if (status === "matched") return <Badge className="bg-primary text-primary-foreground">matched</Badge>;
   if (status === "pending_match") return <Badge variant="outline">pending</Badge>;
