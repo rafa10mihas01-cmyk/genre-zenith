@@ -63,10 +63,15 @@ export function useCampaigns() {
       // Reversão 30/05: baseline deixou de ser gate. Mantemos só a leitura de
       // baseline_captured_at (informativo na UI), sem derivar "pending".
       const ids = campaigns.map((c) => c.id);
-      const { data: deals } = await supabase
-        .from("curator_deals")
-        .select("campaign_id, baseline_captured_at")
-        .in("campaign_id", ids);
+      const clientIds = Array.from(new Set(campaigns.map((c) => c.client_id).filter(Boolean) as string[]));
+
+      const [{ data: deals }, { data: accessEmails }, { data: clients }] = await Promise.all([
+        supabase.from("curator_deals").select("campaign_id, baseline_captured_at").in("campaign_id", ids),
+        supabase.from("campaign_access_emails").select("campaign_id").in("campaign_id", ids),
+        clientIds.length > 0
+          ? supabase.from("clients").select("id, email").in("id", clientIds)
+          : Promise.resolve({ data: [] as Array<{ id: string; email: string | null }> } as any),
+      ]);
 
       const byCamp = new Map<string, string | null>();
       for (const d of deals ?? []) {
@@ -75,13 +80,26 @@ export function useCampaigns() {
         if (cap && (!cur || cap < cur)) byCamp.set(d.campaign_id as string, cap);
         else if (!byCamp.has(d.campaign_id as string)) byCamp.set(d.campaign_id as string, cur);
       }
+      const accessCount = new Map<string, number>();
+      for (const a of accessEmails ?? []) {
+        const k = a.campaign_id as string;
+        accessCount.set(k, (accessCount.get(k) ?? 0) + 1);
+      }
+      const clientEmailById = new Map<string, string | null>();
+      for (const cl of (clients ?? []) as Array<{ id: string; email: string | null }>) {
+        clientEmailById.set(cl.id, cl.email ?? null);
+      }
+
       return campaigns.map((c) => ({
         ...c,
         baseline_pending: false,
         baseline_captured_at: byCamp.get(c.id) ?? null,
+        access_emails_count: accessCount.get(c.id) ?? 0,
+        client_email: c.client_id ? clientEmailById.get(c.client_id) ?? null : null,
       }));
     },
   });
+
 
 
   // Realtime: qualquer mudança em campaigns OU curator_deals (baseline) invalida.
