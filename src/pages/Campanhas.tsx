@@ -5,7 +5,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusDot } from "@/components/ui/status-dot";
-import { Plus, RefreshCw, Target, ListChecks, Calculator, Megaphone, CheckCircle2, Percent, MoreHorizontal, Pause, Play, Archive, Trash2, Handshake, Link2, Copy, Check, Clock, MessageSquareWarning, Upload, Loader2, ImagePlus, X } from "lucide-react";
+import { Plus, RefreshCw, Target, ListChecks, Calculator, Megaphone, CheckCircle2, Percent, MoreHorizontal, Pause, Play, Archive, ArchiveRestore, Trash2, Handshake, Link2, Copy, Check, Clock, MessageSquareWarning, Upload, Loader2, ImagePlus, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { PUBLIC_DOMAIN } from "@/lib/curatorPublicUrl";
@@ -774,12 +774,17 @@ function CampaignRow({ c }: { c: Campaign }) {
                 <Pause className="h-4 w-4 mr-2" /> Pausar
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem
-              disabled={c.status === "cancelled"}
-              onSelect={() => doUpdateStatus("cancelled", "Campanha arquivada")}
-            >
-              <Archive className="h-4 w-4 mr-2" /> Arquivar
-            </DropdownMenuItem>
+            {c.status === "cancelled" ? (
+              <DropdownMenuItem onSelect={() => doUpdateStatus("draft", "Campanha desarquivada")}>
+                <ArchiveRestore className="h-4 w-4 mr-2" /> Desarquivar
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem
+                onSelect={() => doUpdateStatus("cancelled", "Campanha arquivada")}
+              >
+                <Archive className="h-4 w-4 mr-2" /> Arquivar
+              </DropdownMenuItem>
+            )}
 
             <DropdownMenuSeparator />
             <DropdownMenuItem
