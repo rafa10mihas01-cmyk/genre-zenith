@@ -690,7 +690,9 @@ export function CuradoresCRM({ segment }: { segment?: Segment } = {}) {
                 key={f.id}
                 onClick={() => setExpandedFilter(open ? null : f.id)}
                 className={cn(
-                  "h-8 px-3 rounded-lg text-[12px] font-medium transition-colors inline-flex items-center gap-1.5",
+                  "h-8 px-3 rounded-lg text-[12px] font-medium transition-colors items-center gap-1.5",
+                  // Contato já é controlado pelos cards no mobile — esconde aqui
+                  f.id === "contato" ? "hidden sm:inline-flex" : "inline-flex",
                   open
                     ? "bg-elevated text-foreground"
                     : f.active
