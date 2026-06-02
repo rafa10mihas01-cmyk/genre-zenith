@@ -206,6 +206,11 @@ Deno.serve(async (req) => {
       authUrl.searchParams.set("scope", SPOTIFY_USER_SCOPES);
       authUrl.searchParams.set("state", state);
       authUrl.searchParams.set("show_dialog", "true");
+      await logAudit(sb, {
+        event: "login_started", flow: "invite",
+        invite_token: token, app_id: inv.app_id, state,
+        ...reqMeta,
+      });
       return jr({ ok: true, url: authUrl.toString(), state });
     }
 
