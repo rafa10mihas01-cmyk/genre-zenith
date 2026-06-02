@@ -406,6 +406,23 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     loadLogs();
   }
 
+  function reportItemFromResponse(label: string, data: any) {
+    const r = data?.report ?? {};
+    const cb = r.circuit_breaker ?? {};
+    return {
+      account: label,
+      found: r.found ?? data?.owned_count ?? 0,
+      imported: r.imported ?? data?.imported ?? 0,
+      active: r.active ?? data?.pipeline_dispatched ?? 0,
+      auto_archived: r.auto_archived ?? data?.auto_archived ?? 0,
+      deferred: r.deferred ?? data?.deferred_count ?? 0,
+      spotify_calls: r.spotify_calls_sync ?? 0,
+      rate_429: r.rate_429_count ?? 0,
+      circuit_status: cb.status ?? "closed",
+      circuit_blocked_until: cb.blocked_until ?? null,
+    };
+  }
+
   async function handleBulkImport(spotifyUserId?: string, accountLabel?: string) {
     setBulkImporting(true);
     try {
@@ -413,9 +430,9 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         body: spotifyUserId ? { spotify_user_id: spotifyUserId } : {},
       });
       if (error || !data?.ok) throw new Error(error?.message ?? data?.error ?? "Falhou");
-      toast({
-        title: "Importação concluída",
-        description: `${data.imported} playlists${accountLabel ? ` de ${accountLabel}` : ""} (${data.others_count} ignoradas por não serem dessa conta)`,
+      setSyncReport({
+        title: accountLabel ? `Sincronização — ${accountLabel}` : "Sincronização concluída",
+        items: [reportItemFromResponse(accountLabel ?? "Conta padrão", data)],
       });
       load();
     } catch (e: any) {
@@ -451,28 +468,35 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         description: "Isso pode levar alguns segundos.",
       });
 
-      let totalImported = 0;
+      const reportItems: any[] = [];
       const failures: string[] = [];
       for (const t of targets) {
+        const label = t.display_name ?? t.email ?? t.spotify_user_id!;
         try {
           const { data, error } = await supabase.functions.invoke("import-account-playlists", {
             body: { spotify_user_id: t.spotify_user_id },
           });
           if (error || !data?.ok) {
-            failures.push(`${t.display_name ?? t.email ?? t.spotify_user_id}: ${error?.message ?? data?.error ?? "falhou"}`);
+            failures.push(`${label}: ${error?.message ?? data?.error ?? "falhou"}`);
           } else {
-            totalImported += data.imported ?? 0;
+            reportItems.push(reportItemFromResponse(label, data));
           }
         } catch (e: any) {
-          failures.push(`${t.display_name ?? t.spotify_user_id}: ${e.message}`);
+          failures.push(`${label}: ${e.message}`);
         }
       }
 
-      toast({
-        title: "Sincronização concluída",
-        description: `${totalImported} playlists importadas de ${targets.length - failures.length}/${targets.length} contas${failures.length ? ` — falhas: ${failures.slice(0, 2).join("; ")}` : ""}`,
-        variant: failures.length ? "destructive" : "default",
+      setSyncReport({
+        title: `Sincronização global — ${reportItems.length}/${targets.length} contas`,
+        items: reportItems,
       });
+      if (failures.length) {
+        toast({
+          title: `${failures.length} falha(s) na sincronização`,
+          description: failures.slice(0, 2).join("; "),
+          variant: "destructive",
+        });
+      }
       load();
     } catch (e: any) {
       toast({ title: "Erro na sincronização global", description: e.message, variant: "destructive" });
