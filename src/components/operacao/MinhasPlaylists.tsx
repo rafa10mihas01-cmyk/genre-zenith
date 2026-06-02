@@ -531,6 +531,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         });
       }
       load();
+      loadPendingSyncs();
     } catch (e: any) {
       toast({ title: "Erro na sincronização global", description: e.message, variant: "destructive" });
     } finally {
