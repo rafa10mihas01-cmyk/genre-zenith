@@ -212,7 +212,6 @@ export default function Campanhas() {
             loading={loading}
           />
           <KpiBig
-            tier="quiet"
             icon={Percent}
             label="Cumprimento"
             value={`${kpis.pct}%`}
@@ -220,7 +219,14 @@ export default function Campanhas() {
             domain="playlists"
             loading={loading}
           />
-
+          <KpiBig
+            icon={Coins}
+            label="CPP médio"
+            value={kpis.cpp != null ? formatBRLDetail(kpis.cpp) : "—"}
+            hint="Custo por play (ativas)"
+            domain="campaigns"
+            loading={loading}
+          />
         </section>
 
 
