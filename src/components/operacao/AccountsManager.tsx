@@ -16,6 +16,12 @@ type Account = {
   status: string;
   max_playlists: number;
   current_playlists: number;
+  last_sync_at: string | null;
+  last_sync_found: number | null;
+  last_sync_imported: number | null;
+  last_sync_pending: number | null;
+  last_sync_already_existed: number | null;
+  last_sync_auto_archived: number | null;
 };
 
 export function AccountsManager() {
