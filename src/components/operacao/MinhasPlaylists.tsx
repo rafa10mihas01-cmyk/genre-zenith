@@ -1311,8 +1311,9 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
 
 
 
-      {/* Toolbar — 1 linha no mobile (textos só no desktop) */}
-      <div className="flex flex-nowrap sm:flex-wrap items-center gap-1.5 sm:gap-2 overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0 sm:overflow-visible">
+      {/* Toolbar — quebra em 2 linhas no mobile (sem scroll horizontal) */}
+      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
