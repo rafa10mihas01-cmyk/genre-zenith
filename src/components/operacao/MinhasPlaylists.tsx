@@ -415,10 +415,13 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     return {
       account: label,
       found: r.found ?? data?.owned_count ?? 0,
+      already_existed: r.already_existed ?? 0,
       imported: r.imported ?? data?.imported ?? 0,
       active: r.active ?? data?.pipeline_dispatched ?? 0,
       auto_archived: r.auto_archived ?? data?.auto_archived ?? 0,
       deferred: r.deferred ?? data?.deferred_count ?? 0,
+      pending_after: r.pending_after ?? r.deferred ?? data?.deferred_count ?? 0,
+      fully_synced: r.fully_synced ?? ((r.pending_after ?? r.deferred ?? 0) === 0),
       spotify_calls: r.spotify_calls_sync ?? 0,
       rate_429: r.rate_429_count ?? 0,
       circuit_status: cb.status ?? "closed",
