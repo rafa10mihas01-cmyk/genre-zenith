@@ -127,10 +127,13 @@ Deno.serve(async (req) => {
       if (i > 0) await sleep(SPOTIFY_CALL_DELAY_MS);
       const batch = owned.slice(i, i + CONCURRENCY);
       await Promise.all(batch.map(async (p) => {
+        spotifyCalls++;
         try {
           const meta = await getPlaylistMeta(p.id, token, { fields: "followers(total)" });
           followersMap.set(p.id, meta.followers ?? null);
-        } catch {
+        } catch (e) {
+          if (e instanceof SpotifyCircuitOpenError) rate429Count++;
+          else if (e instanceof Error && /429/.test(e.message)) rate429Count++;
           followersMap.set(p.id, null);
         }
       }));
