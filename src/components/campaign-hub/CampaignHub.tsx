@@ -89,31 +89,54 @@ export function CampaignHub({
           mode === "internal" ? "overflow-y-auto overflow-x-hidden overscroll-contain" : "overflow-visible",
         )}
       >
-        <div className={cn(
-          "shrink-0 px-4 md:px-6",
-          "border-b border-border bg-background",
-        )}>
-
-          <div className="h-11 overflow-x-auto overflow-y-hidden overscroll-x-contain overscroll-y-none scrollbar-none [touch-action:pan-x]">
-            <TabsList className="h-11 min-h-11 items-stretch bg-transparent gap-1 p-0 rounded-none w-max min-w-full justify-start">
+        <div className={cn("shrink-0 px-4 md:px-6 bg-background")}>
+          {/* Mobile: grid de cards quadrados (mesmo padrão do catálogo) */}
+          <div className="sm:hidden pt-2 pb-3">
+            <TabsList className="grid grid-cols-3 gap-1.5 h-auto bg-transparent p-0 rounded-none w-full">
               {visible.map((t) => {
                 const Icon = t.icon;
                 return (
                   <TabsTrigger
                     key={t.id}
                     value={t.id}
+                    aria-label={t.label}
                     className={cn(
-                      "m-0 h-11 min-h-11 max-h-11 gap-1.5 rounded-none border-b-2 border-transparent bg-transparent px-3 py-0 leading-none shrink-0 whitespace-nowrap box-border",
-                      "data-[state=active]:bg-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none",
-                      "text-muted-foreground transition-colors hover:text-foreground hover:[transform:none] active:[transform:none] focus-visible:[transform:none]",
+                      "flex flex-col items-center justify-center gap-1 rounded-xl border px-1 py-2 h-auto transition-colors leading-none",
+                      "border-border bg-card text-muted-foreground hover:text-foreground",
+                      "data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none",
                     )}
                   >
-                    <Icon className="h-3.5 w-3.5" />
-                    {t.label}
+                    <Icon className="w-4 h-4" />
+                    <span className="text-[10px] font-medium leading-none truncate max-w-full">{t.label}</span>
                   </TabsTrigger>
                 );
               })}
             </TabsList>
+          </div>
+
+          {/* Desktop / tablet: underline tabs */}
+          <div className="hidden sm:block border-b border-border">
+            <div className="h-11 overflow-x-auto overflow-y-hidden overscroll-x-contain overscroll-y-none scrollbar-none [touch-action:pan-x]">
+              <TabsList className="h-11 min-h-11 items-stretch bg-transparent gap-1 p-0 rounded-none w-max min-w-full justify-start">
+                {visible.map((t) => {
+                  const Icon = t.icon;
+                  return (
+                    <TabsTrigger
+                      key={t.id}
+                      value={t.id}
+                      className={cn(
+                        "m-0 h-11 min-h-11 max-h-11 gap-1.5 rounded-none border-b-2 border-transparent bg-transparent px-3 py-0 leading-none shrink-0 whitespace-nowrap box-border",
+                        "data-[state=active]:bg-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none",
+                        "text-muted-foreground transition-colors hover:text-foreground hover:[transform:none] active:[transform:none] focus-visible:[transform:none]",
+                      )}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      {t.label}
+                    </TabsTrigger>
+                  );
+                })}
+              </TabsList>
+            </div>
           </div>
         </div>
 
