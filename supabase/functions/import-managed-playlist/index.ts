@@ -87,27 +87,51 @@ Deno.serve(async (req) => {
       .single();
     if (canonicalError) return jr({ ok: false, error: canonicalError.message }, 500);
 
+    // Verifica se já existe (pra decidir se aplica auto-arquivamento de onboarding e
+    // pra não clobber archived_at/metadata em re-imports).
+    const { data: existing } = await supabase
+      .from("managed_playlists")
+      .select("id, archived_at, metadata, locked_at")
+      .eq("spotify_playlist_id", playlistId)
+      .maybeSingle();
+
+    const isNew = !existing;
+    const existingMeta = (existing?.metadata ?? {}) as Record<string, unknown>;
+    const isExempt =
+      existingMeta.strategic === true ||
+      existingMeta.auto_archive_exempt === true ||
+      !!existing?.locked_at;
+    const shouldAutoArchive =
+      isNew && followers < AUTO_ARCHIVE_MIN_FOLLOWERS && !isExempt;
+
+    const payload: Record<string, unknown> = {
+      spotify_playlist_id: playlistId,
+      spotify_url: `https://open.spotify.com/playlist/${playlistId}`,
+      name,
+      cover_url,
+      followers,
+      tracks_count,
+      description,
+      genre_id: genreId,
+      canonical_playlist_id: canonical.id,
+      last_metrics_at: now,
+      imported_by: guard.via === "user" ? guard.userId : null,
+      metadata: { source: "import-managed-playlist" },
+    };
+    if (shouldAutoArchive) {
+      payload.archived_at = now;
+      payload.archived_reason = "auto_onboarding_low_followers";
+      payload.archived_followers = followers;
+    }
+
     const { data, error } = await supabase
       .from("managed_playlists")
-      .upsert({
-        spotify_playlist_id: playlistId,
-        spotify_url: `https://open.spotify.com/playlist/${playlistId}`,
-        name,
-        cover_url,
-        followers,
-        tracks_count,
-        description,
-        genre_id: genreId,
-        canonical_playlist_id: canonical.id,
-        last_metrics_at: now,
-        imported_by: guard.via === "user" ? guard.userId : null,
-        metadata: { source: "import-managed-playlist" },
-      }, { onConflict: "spotify_playlist_id" })
+      .upsert(payload, { onConflict: "spotify_playlist_id" })
       .select()
       .single();
 
     if (error) return jr({ ok: false, error: error.message }, 500);
-    return jr({ ok: true, playlist: data });
+    return jr({ ok: true, playlist: data, auto_archived: shouldAutoArchive });
   } catch (e) {
     return jr({ ok: false, error: (e as Error).message }, 500);
   }
