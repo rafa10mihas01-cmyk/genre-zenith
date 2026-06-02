@@ -162,7 +162,7 @@ export function BotCollectionStatus({ campaignId, dealId }: Props) {
           <div className="sm:hidden text-sm font-medium text-foreground">Coleta do robô</div>
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-foreground flex items-center gap-2 flex-wrap">
+          <div className="text-sm font-medium text-foreground hidden sm:flex items-center gap-2 flex-wrap">
             Coleta do robô
             <span
               className={`text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded border leading-none ${
