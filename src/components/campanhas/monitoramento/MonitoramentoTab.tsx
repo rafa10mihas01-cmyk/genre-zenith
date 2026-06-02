@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { Activity } from "lucide-react";
 import { ExecucaoView } from "./ExecucaoView";
 import { PlaylistHistoryDrawer } from "./PlaylistHistoryDrawer";
 
 type Props = { campaignId: string };
+
+type BaselineTone = "success" | "warning" | "muted";
 
 export function MonitoramentoTab({ campaignId }: Props) {
   const [kpis, setKpis] = useState<{ status: string | null; capturedAt: string | null; playlists: number }>({
@@ -34,30 +36,16 @@ export function MonitoramentoTab({ campaignId }: Props) {
     })();
   }, [campaignId]);
 
+  const tone: BaselineTone =
+    kpis.status === "captured" ? "success" : kpis.status === "pending" ? "warning" : "muted";
+  const label =
+    kpis.status === "captured" ? "Baseline capturada"
+    : kpis.status === "pending" ? "Baseline pendente"
+    : "Sem baseline";
+
   return (
-    <div className="space-y-6">
-      <section className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        <Card>
-          <CardContent className="p-5">
-            <div className="text-xs text-muted-foreground uppercase tracking-wide">Baseline</div>
-            <div className="mt-2"><BaselineStatusBadge status={kpis.status} /></div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5">
-            <div className="text-xs text-muted-foreground uppercase tracking-wide">Capturada em</div>
-            <div className="mt-2 text-foreground font-semibold">
-              {kpis.capturedAt ? new Date(kpis.capturedAt).toLocaleString("pt-BR") : "—"}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5">
-            <div className="text-xs text-muted-foreground uppercase tracking-wide">Playlists na baseline</div>
-            <div className="mt-2 text-2xl font-semibold text-foreground">{kpis.playlists}</div>
-          </CardContent>
-        </Card>
-      </section>
+    <div className="space-y-4">
+      <BaselineStatus tone={tone} label={label} capturedAt={kpis.capturedAt} playlists={kpis.playlists} />
 
       <ExecucaoView campaignId={campaignId} onOpenHistory={setDrawerPlaylistId} />
 
@@ -71,8 +59,52 @@ export function MonitoramentoTab({ campaignId }: Props) {
   );
 }
 
-function BaselineStatusBadge({ status }: { status: string | null }) {
-  if (status === "captured") return <Badge className="bg-primary text-primary-foreground">Capturada</Badge>;
-  if (status === "pending") return <Badge variant="outline">Pendente</Badge>;
-  return <Badge variant="outline">{status ?? "—"}</Badge>;
+const TONE_DOT: Record<BaselineTone, string> = {
+  success: "bg-success",
+  warning: "bg-warning",
+  muted:   "bg-muted-foreground",
+};
+const TONE_TEXT: Record<BaselineTone, string> = {
+  success: "text-success",
+  warning: "text-warning",
+  muted:   "text-muted-foreground",
+};
+
+function BaselineStatus({
+  tone, label, capturedAt, playlists,
+}: { tone: BaselineTone; label: string; capturedAt: string | null; playlists: number }) {
+  return (
+    <Card className="p-3 md:p-4 flex items-center gap-3 md:gap-4">
+      <div className="relative shrink-0">
+        <span className={`block h-2.5 w-2.5 rounded-full ${TONE_DOT[tone]}`} aria-hidden />
+        {tone === "warning" && (
+          <span className={`absolute inset-0 rounded-full ${TONE_DOT[tone]} opacity-60 animate-ping`} aria-hidden />
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <Activity className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-bold">
+            Monitoramento
+          </span>
+        </div>
+        <div className={`text-sm md:text-base font-semibold leading-tight mt-0.5 ${TONE_TEXT[tone]}`}>
+          {label}
+        </div>
+        {capturedAt && (
+          <div className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">
+            Capturada em: {new Date(capturedAt).toLocaleString("pt-BR")}
+          </div>
+        )}
+      </div>
+      <div className="hidden sm:flex flex-col items-end shrink-0">
+        <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
+          Playlists
+        </span>
+        <span className="text-base md:text-lg font-bold tabular-nums leading-tight">
+          {playlists}
+        </span>
+      </div>
+    </Card>
+  );
 }

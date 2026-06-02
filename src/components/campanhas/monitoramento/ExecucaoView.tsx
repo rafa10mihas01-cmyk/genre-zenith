@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { usePlaylistCovers, type PlaylistMeta } from "@/hooks/usePlaylistCovers";
 import { PlaylistCell } from "./PlaylistCell";
+import { KpiBig } from "@/components/KpiBig";
 
 type GrowthRow = {
   campaign_id: string;
@@ -194,36 +195,40 @@ export function ExecucaoView({ campaignId, onOpenHistory }: { campaignId: string
 
   return (
     <div className="space-y-4">
-      {/* Meta line */}
-      <div className="flex items-center justify-between px-1 text-[11px] text-muted-foreground">
-        <span>{totals.n} playlists monitoradas</span>
-        {lastCapturedAt && (
-          <span className="tabular-nums">
-            capturada {new Date(lastCapturedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
-            {" · "}
-            {new Date(lastCapturedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-          </span>
-        )}
+      {/* KPI grid — mesmo padrão de Performance (2 cols mobile / 4 cols desktop) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+        <KpiBig
+          label="Crescimento total"
+          value={`${totals.total > 0 ? "+" : ""}${formatInt(totals.total)}`}
+          icon={TrendingUp}
+          tone={totals.total > 0 ? "success" : "default"}
+          hint={`${totals.n} playlists monitoradas`}
+        />
+        <KpiBig
+          label="Ecossistema"
+          value={`${totals.eco > 0 ? "+" : ""}${formatInt(totals.eco)}`}
+          icon={Layers}
+          domain="playlists"
+          hint="Playlists internas"
+        />
+        <KpiBig
+          label="Curadores"
+          value={`${totals.curator > 0 ? "+" : ""}${formatInt(totals.curator)}`}
+          icon={Users}
+          domain="curators"
+          hint="Atribuído a parceiros"
+        />
+        <KpiBig
+          label="Orgânico"
+          value={`${totals.organic > 0 ? "+" : ""}${formatInt(totals.organic)}`}
+          icon={Activity}
+          tone="default"
+          hint={lastCapturedAt
+            ? `Atualizado ${new Date(lastCapturedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} ${new Date(lastCapturedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
+            : "Sem atribuição"}
+        />
       </div>
 
-      {/* Compact KPI strip — single card with divided columns */}
-      <Card className="md:hidden">
-        <CardContent className="p-0 grid grid-cols-4 divide-x divide-border/40">
-          <KpiCell label="Δ Total" value={totals.total} accent />
-          <KpiCell label="Ecoss." value={totals.eco} />
-          <KpiCell label="Curad." value={totals.curator} />
-          <KpiCell label="Orgân." value={totals.organic} />
-        </CardContent>
-      </Card>
-
-      {/* Desktop KPI grid keeps original look */}
-      <div className="hidden md:grid grid-cols-5 gap-3">
-        <KpiCard icon={TrendingUp} label="Crescimento total" value={totals.total} accent />
-        <KpiCard icon={Layers} label="Ecossistema" value={totals.eco} />
-        <KpiCard icon={Users} label="Curadores" value={totals.curator} />
-        <KpiCard icon={Activity} label="Orgânico" value={totals.organic} />
-        <KpiCard icon={Layers} label="Playlists monitoradas" value={totals.n} raw />
-      </div>
 
       <CuratorSummary
         rows={rows}
