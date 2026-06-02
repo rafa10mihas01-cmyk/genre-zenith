@@ -9,7 +9,10 @@
 // Retorno: relatório JSON estruturado com tabela final e veredictos.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { refreshUserToken, type SpotifyUserToken } from "../_shared/spotify.ts";
+
+// IMPORTANTE: NÃO importar de _shared/spotify.ts — esse módulo instala um fetch-guard
+// global que assoca 429 ao breaker do app default (App 02), enviesando os testes.
+// Inlining refresh aqui mantém o globalThis.fetch puro.
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
