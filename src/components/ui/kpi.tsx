@@ -87,7 +87,6 @@ export function Kpi({
   empty,
   emptyLabel = "Sem dados",
 }: KpiProps) {
-  const isHero = variant === "hero";
   const iconStyle = domain
     ? ({ color: `hsl(var(--domain-${domain}))` } as React.CSSProperties)
     : undefined;
@@ -97,20 +96,12 @@ export function Kpi({
   return (
     <div
       className={cn(
-        "relative overflow-hidden flex flex-col gap-2 rounded-2xl border transition-colors",
+        "relative overflow-hidden flex flex-col gap-2 rounded-2xl border border-border bg-card transition-colors",
         PADDING[variant],
-        isHero
-          ? "border-border border-l-2 border-l-primary bg-gradient-to-br from-card via-card to-primary/[0.06]"
-          : "border-border bg-card",
         className,
       )}
     >
-      {isHero && (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -top-16 -right-16 h-40 w-40 rounded-full bg-primary/15 blur-3xl"
-        />
-      )}
+
 
       {/* Header — label + ícone/ação */}
       <div className="relative flex items-start justify-between gap-2 min-h-4">
