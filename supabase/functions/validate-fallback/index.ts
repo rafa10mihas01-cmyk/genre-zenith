@@ -80,12 +80,34 @@ async function spCall(token: string, method: string, url: string, step: string, 
   };
 }
 
+type TokenRow = { id: string; access_token: string; refresh_token: string; expires_at: string; app_id: string };
+
+async function refreshToken(sb: any, row: TokenRow): Promise<string> {
+  const { data: app } = await sb.from("spotify_apps").select("client_id, client_secret").eq("id", row.app_id).maybeSingle();
+  if (!app?.client_id || !app?.client_secret) throw new Error(`app creds not found: ${row.app_id}`);
+  const basic = btoa(`${app.client_id}:${app.client_secret}`);
+  const r = await fetch("https://accounts.spotify.com/api/token", {
+    method: "POST",
+    headers: { Authorization: `Basic ${basic}`, "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: row.refresh_token }).toString(),
+  });
+  if (!r.ok) throw new Error(`refresh ${r.status}: ${(await r.text()).slice(0,200)}`);
+  const j = await r.json();
+  await sb.from("spotify_user_tokens").update({
+    access_token: j.access_token,
+    refresh_token: j.refresh_token ?? row.refresh_token,
+    expires_at: new Date(Date.now() + (j.expires_in ?? 3600) * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  }).eq("id", row.id);
+  return j.access_token;
+}
+
 async function getToken(sb: any, appId: string, userId: string): Promise<string> {
-  const { data } = await sb.from("spotify_user_tokens").select("*").eq("app_id", appId).eq("spotify_user_id", userId).maybeSingle();
+  const { data } = await sb.from("spotify_user_tokens").select("id,access_token,refresh_token,expires_at,app_id").eq("app_id", appId).eq("spotify_user_id", userId).maybeSingle();
   if (!data) throw new Error(`token not found: ${appId}/${userId}`);
-  const row = data as SpotifyUserToken;
+  const row = data as TokenRow;
   if (new Date(row.expires_at).getTime() > Date.now() + 60_000) return row.access_token;
-  return await refreshUserToken(row);
+  return await refreshToken(sb, row);
 }
 
 function poolUris(n: number): string[] {
