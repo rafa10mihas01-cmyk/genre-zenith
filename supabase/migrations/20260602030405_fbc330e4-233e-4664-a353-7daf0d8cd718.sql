@@ -1,0 +1,1 @@
+DELETE FROM public.curator_deals WHERE id = '541b1263-5b0e-4a77-bc50-8187ba63ff9c';
