@@ -157,6 +157,9 @@ Deno.serve(async (req) => {
   const sul = body.sul_user_id ?? SUL;
   const lado = body.lado_sul_user_id ?? LADO;
 
+  // Fecha breakers abertos antes de começar (testes controlados, sem stampede)
+  await sb.from("spotify_circuit_breaker").update({ status: "closed", blocked_until: null, retry_after_sec: 0 }).eq("status", "open");
+
   const report: any = { started_at: new Date().toISOString(), config: { app05, app01, sul, lado }, phases: {}, rows: [] as any[], created: [] as string[] };
   const row = (phase: string, test: string, expected: string, actual: string, pass: boolean | "n/a", notes = "") => {
     report.rows.push({ phase, test, expected, actual, result: pass === "n/a" ? "N/A" : pass ? "PASS" : "FAIL", notes });
