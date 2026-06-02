@@ -467,6 +467,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         items: [reportItemFromResponse(accountLabel ?? "Conta padrão", data)],
       });
       load();
+      loadPendingSyncs();
     } catch (e: any) {
       toast({ title: "Erro na importação", description: e.message, variant: "destructive" });
     } finally {
