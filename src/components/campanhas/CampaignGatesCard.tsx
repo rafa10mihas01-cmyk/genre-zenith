@@ -79,16 +79,21 @@ export function CampaignGatesCard({
   const isClosed = status === "completed" || status === "cancelled";
 
   const clientDone = !!clientApprovedAt || isLive || isClosed;
-  const planDone = !!planApprovedAt || isLive || isClosed;
-  // Spreadsheet campaigns don't have an eco dispatch — once active the third gate represents "coleta ativa".
-  const dispatchDone = !!ecoDispatchedAt || (isSpreadsheet && (isLive || isClosed)) || status === "completed";
+  // Don't infer plan/dispatch from isLive — a campaign can be active without these timestamps
+  // (recovery scenario), and we must keep the CTAs visible so the user can finish the flow.
+  const planDone = !!planApprovedAt || isClosed;
+  // Spreadsheet campaigns don't have an eco dispatch — once plan approved + active, the third gate represents "coleta ativa".
+  const dispatchDone =
+    !!ecoDispatchedAt ||
+    (isSpreadsheet && planDone && (isLive || isClosed)) ||
+    status === "completed";
 
   const state1: GateState = clientDone ? "done" : "current";
   const state2: GateState = planDone ? "done" : clientDone ? "current" : "locked";
   const state3: GateState = dispatchDone ? "done" : planDone && (isSpreadsheet || baselineReady) ? "current" : "locked";
 
-  // Once the campaign is live or closed, hide CTAs — gates become a read-only timeline.
-  const nextAction: "plan" | "dispatch" | null = isLive || isClosed
+  // Hide CTAs only when the gate is genuinely completed (or campaign closed).
+  const nextAction: "plan" | "dispatch" | null = isClosed
     ? null
     : dispatchDone
       ? null
@@ -97,6 +102,7 @@ export function CampaignGatesCard({
         : clientDone
           ? "plan"
           : null;
+
 
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
