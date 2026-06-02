@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS public.uq_spotify_user_tokens_spotify_user_id;
