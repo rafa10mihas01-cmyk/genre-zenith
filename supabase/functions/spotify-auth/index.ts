@@ -114,6 +114,7 @@ Deno.serve(async (req) => {
 
   const url = new URL(req.url);
   const mode = url.searchParams.get("mode") ?? "ping";
+  const reqMeta = extractRequestMeta(req);
 
   try {
     if (mode === "scopes") {
