@@ -34,10 +34,13 @@ type StepResult = {
   step: string;
   method: string;
   url: string;
+  request_body: unknown;
   http_status: number | null;
-  request_id: string | null;
+  spotify_request_id: string | null;
+  response_headers: Record<string, string> | null;
   ok: boolean;
   body_preview: unknown;
+  raw_body: string | null;
   error?: string;
 };
 
@@ -52,20 +55,26 @@ async function call(token: string, method: string, url: string, body?: unknown):
     const txt = await r.text();
     let parsed: unknown = txt;
     try { parsed = txt ? JSON.parse(txt) : null; } catch { /* keep text */ }
+    const headers: Record<string, string> = {};
+    r.headers.forEach((v, k) => { headers[k] = v; });
     return {
       step: "",
       method,
       url,
+      request_body: body ?? null,
       http_status: r.status,
-      request_id: r.headers.get("x-request-id"),
+      spotify_request_id: r.headers.get("x-spotify-request-id") ?? r.headers.get("x-request-id"),
+      response_headers: headers,
       ok: r.ok,
-      body_preview: typeof parsed === "string" ? parsed.slice(0, 500) : parsed,
+      body_preview: typeof parsed === "string" ? parsed.slice(0, 2000) : parsed,
+      raw_body: txt,
     };
   } catch (e) {
     return {
-      step: "", method, url,
-      http_status: null, request_id: null, ok: false,
-      body_preview: null, error: (e as Error).message,
+      step: "", method, url, request_body: body ?? null,
+      http_status: null, spotify_request_id: null, response_headers: null,
+      ok: false, body_preview: null, raw_body: null,
+      error: (e as Error).message,
     };
   }
 }
