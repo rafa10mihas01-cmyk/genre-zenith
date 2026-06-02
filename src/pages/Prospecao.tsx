@@ -115,42 +115,75 @@ export default function Prospecao() {
 
       <PageContainer>
 
-      {/* Segmento de alto nível — TOPO (antes dos KPIs no mobile) */}
-      <div className="sticky top-0 z-30 -mt-px bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border -mx-4 md:-mx-6">
-        <div className="nx-tab-rail items-center gap-1 px-4 md:px-6">
-          {([
-            { id: "ativos" as const,      label: "Ativos",     icon: Handshake,  count: ativosCount, hint: "Curadores com quem você já fechou deal" },
-            { id: "prospeccao" as const,  label: "Prospecção", icon: UserSearch, count: null,        hint: "Contatos para abordar e negociar" },
-          ]).map((t) => {
-            const Icon = t.icon;
-            const active = segment === t.id;
-            return (
-              <button
-                key={t.id}
-                onClick={() => setSegment(t.id)}
-                title={t.hint}
-                className={cn(
-                  "px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 transition-colors -mb-px shrink-0 whitespace-nowrap",
-                  active
-                    ? "border-primary text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <Icon className="h-3.5 w-3.5" />
-                {t.label}
-                {t.count !== null && (
-                  <span className={cn(
-                    "ml-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold tabular-nums",
-                    active ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
-                  )}>
-                    {t.count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      {/* Segmento de alto nível */}
+      {(() => {
+        const SEG = [
+          { id: "ativos" as const,      label: "Ativos",     icon: Handshake,  count: ativosCount,    hint: "Curadores com quem você já fechou deal" },
+          { id: "prospeccao" as const,  label: "Prospecção", icon: UserSearch, count: outreach.leads, hint: "Contatos para abordar e negociar" },
+        ];
+        return (
+          <>
+            {/* Mobile: grid de 2 cards */}
+            <div className="grid grid-cols-2 gap-1.5 sm:hidden">
+              {SEG.map((t) => {
+                const Icon = t.icon;
+                const active = segment === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => setSegment(t.id)}
+                    className={cn(
+                      "rounded-xl border px-2 py-2.5 flex flex-col items-center justify-center gap-1 transition-colors",
+                      active
+                        ? "border-primary/60 bg-primary/10 text-foreground"
+                        : "border-border bg-card text-muted-foreground hover:text-foreground",
+                    )}
+                    aria-pressed={active}
+                  >
+                    <Icon className={cn("h-4 w-4", active ? "text-primary" : "")} />
+                    <span className="text-[12px] font-medium leading-none">{t.label}</span>
+                    <span className={cn("text-[11px] font-bold tabular-nums leading-none", active ? "text-primary" : "text-muted-foreground")}>
+                      {t.id === "prospeccao" && outreach.loading ? "…" : t.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Desktop: rail clássico */}
+            <div className="hidden sm:block sticky top-0 z-30 -mt-px bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border -mx-4 md:-mx-6">
+              <div className="nx-tab-rail items-center gap-1 px-4 md:px-6">
+                {SEG.map((t) => {
+                  const Icon = t.icon;
+                  const active = segment === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => setSegment(t.id)}
+                      title={t.hint}
+                      className={cn(
+                        "px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 transition-colors -mb-px shrink-0 whitespace-nowrap",
+                        active
+                          ? "border-primary text-foreground"
+                          : "border-transparent text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      {t.label}
+                      <span className={cn(
+                        "ml-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold tabular-nums",
+                        active ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
+                      )}>
+                        {t.id === "prospeccao" && outreach.loading ? "…" : t.count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        );
+      })()}
 
       {/* Ativos: KPI grid original (mobile + desktop). Prospecção: funil único no mobile. */}
       {segment === "ativos" ? (
