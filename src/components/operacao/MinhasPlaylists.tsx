@@ -385,6 +385,23 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     setAccounts((data ?? []) as SpotifyAccountLite[]);
   }
 
+  async function loadPendingSyncs() {
+    const { data } = await supabase
+      .from("accounts")
+      .select("spotify_user_id, display_name, last_sync_found, last_sync_imported, last_sync_pending, last_sync_auto_archived, last_sync_at")
+      .gt("last_sync_pending", 0)
+      .order("last_sync_at", { ascending: false });
+    setPendingSyncs(((data ?? []) as any[]).map(a => ({
+      spotify_user_id: a.spotify_user_id,
+      display_name: a.display_name,
+      found: a.last_sync_found ?? 0,
+      imported: a.last_sync_imported ?? 0,
+      pending: a.last_sync_pending ?? 0,
+      auto_archived: a.last_sync_auto_archived ?? 0,
+      last_sync_at: a.last_sync_at,
+    })));
+  }
+
 
   async function assignAccount(playlistId: string, accountId: string | null) {
     setAssigningId(playlistId);
