@@ -1311,8 +1311,9 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
 
 
 
-      {/* Toolbar — quebra em 2 linhas no mobile (sem scroll horizontal) */}
-      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+      {/* Toolbar — 1 linha (mobile colapsa texto pra caber sem scroll) */}
+      <div className="flex flex-nowrap items-center gap-1.5 sm:gap-2">
+
 
 
         <DropdownMenu>
