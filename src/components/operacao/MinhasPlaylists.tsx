@@ -348,6 +348,21 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const [logsLoading, setLogsLoading] = useState(false);
   const [accounts, setAccounts] = useState<SpotifyAccountLite[]>([]);
   const [assigningId, setAssigningId] = useState<string | null>(null);
+  const [syncReport, setSyncReport] = useState<{
+    title: string;
+    items: Array<{
+      account: string;
+      found: number;
+      imported: number;
+      active: number;
+      auto_archived: number;
+      deferred: number;
+      spotify_calls: number;
+      rate_429: number;
+      circuit_status: string;
+      circuit_blocked_until: string | null;
+    }>;
+  } | null>(null);
 
   async function loadAccounts() {
     const { data } = await supabase
@@ -391,6 +406,23 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     loadLogs();
   }
 
+  function reportItemFromResponse(label: string, data: any) {
+    const r = data?.report ?? {};
+    const cb = r.circuit_breaker ?? {};
+    return {
+      account: label,
+      found: r.found ?? data?.owned_count ?? 0,
+      imported: r.imported ?? data?.imported ?? 0,
+      active: r.active ?? data?.pipeline_dispatched ?? 0,
+      auto_archived: r.auto_archived ?? data?.auto_archived ?? 0,
+      deferred: r.deferred ?? data?.deferred_count ?? 0,
+      spotify_calls: r.spotify_calls_sync ?? 0,
+      rate_429: r.rate_429_count ?? 0,
+      circuit_status: cb.status ?? "closed",
+      circuit_blocked_until: cb.blocked_until ?? null,
+    };
+  }
+
   async function handleBulkImport(spotifyUserId?: string, accountLabel?: string) {
     setBulkImporting(true);
     try {
@@ -398,9 +430,9 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         body: spotifyUserId ? { spotify_user_id: spotifyUserId } : {},
       });
       if (error || !data?.ok) throw new Error(error?.message ?? data?.error ?? "Falhou");
-      toast({
-        title: "Importação concluída",
-        description: `${data.imported} playlists${accountLabel ? ` de ${accountLabel}` : ""} (${data.others_count} ignoradas por não serem dessa conta)`,
+      setSyncReport({
+        title: accountLabel ? `Sincronização — ${accountLabel}` : "Sincronização concluída",
+        items: [reportItemFromResponse(accountLabel ?? "Conta padrão", data)],
       });
       load();
     } catch (e: any) {
@@ -436,28 +468,35 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         description: "Isso pode levar alguns segundos.",
       });
 
-      let totalImported = 0;
+      const reportItems: any[] = [];
       const failures: string[] = [];
       for (const t of targets) {
+        const label = t.display_name ?? t.email ?? t.spotify_user_id!;
         try {
           const { data, error } = await supabase.functions.invoke("import-account-playlists", {
             body: { spotify_user_id: t.spotify_user_id },
           });
           if (error || !data?.ok) {
-            failures.push(`${t.display_name ?? t.email ?? t.spotify_user_id}: ${error?.message ?? data?.error ?? "falhou"}`);
+            failures.push(`${label}: ${error?.message ?? data?.error ?? "falhou"}`);
           } else {
-            totalImported += data.imported ?? 0;
+            reportItems.push(reportItemFromResponse(label, data));
           }
         } catch (e: any) {
-          failures.push(`${t.display_name ?? t.spotify_user_id}: ${e.message}`);
+          failures.push(`${label}: ${e.message}`);
         }
       }
 
-      toast({
-        title: "Sincronização concluída",
-        description: `${totalImported} playlists importadas de ${targets.length - failures.length}/${targets.length} contas${failures.length ? ` — falhas: ${failures.slice(0, 2).join("; ")}` : ""}`,
-        variant: failures.length ? "destructive" : "default",
+      setSyncReport({
+        title: `Sincronização global — ${reportItems.length}/${targets.length} contas`,
+        items: reportItems,
       });
+      if (failures.length) {
+        toast({
+          title: `${failures.length} falha(s) na sincronização`,
+          description: failures.slice(0, 2).join("; "),
+          variant: "destructive",
+        });
+      }
       load();
     } catch (e: any) {
       toast({ title: "Erro na sincronização global", description: e.message, variant: "destructive" });
@@ -1728,6 +1767,87 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
             <Button onClick={handleImport} disabled={importing || !importUrl.trim()}>
               {importing ? "Importando..." : "Importar"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Sync report dialog */}
+      <Dialog open={!!syncReport} onOpenChange={(o) => !o && setSyncReport(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{syncReport?.title ?? "Relatório de sincronização"}</DialogTitle>
+            <DialogDescription>
+              Chamadas Spotify contam apenas listagem + followers (síncrono). Pipeline de tracks/cérebro
+              roda em background.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {(syncReport?.items ?? []).map((it, idx) => {
+              const totalFound = it.found;
+              const breakerOpen = it.circuit_status === "open";
+              const had429 = it.rate_429 > 0;
+              return (
+                <div key={idx} className="rounded-md border border-border bg-card/50 p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="font-medium">{it.account}</div>
+                    <div className="flex items-center gap-2 text-xs">
+                      {had429 && (
+                        <span className="rounded bg-destructive/15 text-destructive px-2 py-0.5">
+                          {it.rate_429}× 429
+                        </span>
+                      )}
+                      <span
+                        className={cn(
+                          "rounded px-2 py-0.5",
+                          breakerOpen
+                            ? "bg-destructive/15 text-destructive"
+                            : "bg-emerald-500/15 text-emerald-500",
+                        )}
+                      >
+                        Breaker {breakerOpen ? "OPEN" : "closed"}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                    <div>
+                      <div className="text-muted-foreground text-xs">Encontradas</div>
+                      <div className="font-semibold">{totalFound}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground text-xs">Importadas</div>
+                      <div className="font-semibold">{it.imported}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground text-xs">Ativas</div>
+                      <div className="font-semibold text-emerald-500">{it.active}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground text-xs">Auto-arquivadas</div>
+                      <div className="font-semibold">{it.auto_archived}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground text-xs">Adiadas (cap)</div>
+                      <div className="font-semibold">{it.deferred}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground text-xs">Calls Spotify</div>
+                      <div className="font-semibold">{it.spotify_calls}</div>
+                    </div>
+                  </div>
+                  {breakerOpen && it.circuit_blocked_until && (
+                    <div className="text-xs text-destructive">
+                      Bloqueado até {new Date(it.circuit_blocked_until).toLocaleString("pt-BR")}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {(syncReport?.items ?? []).length === 0 && (
+              <div className="text-sm text-muted-foreground">Nenhuma conta sincronizada.</div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setSyncReport(null)}>Fechar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
