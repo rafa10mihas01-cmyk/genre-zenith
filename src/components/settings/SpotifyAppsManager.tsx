@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import {
   Plus, Star, Trash2, Pencil, Loader2, ExternalLink, AlertTriangle, LinkIcon, Copy, Check,
-  Music2, RefreshCw, Settings2, ChevronDown,
+  Music2, RefreshCw, Settings2, ChevronDown, CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -722,6 +722,25 @@ export function SpotifyAppsManager({
   );
 }
 
+type InviteConnection = {
+  display_name: string | null;
+  email: string | null;
+  spotify_user_id: string | null;
+  connected_at: string; // ISO
+};
+
+function formatRelative(fromIso: string, nowMs: number): string {
+  const diff = Math.max(0, Math.floor((nowMs - new Date(fromIso).getTime()) / 1000));
+  if (diff < 5) return "agora mesmo";
+  if (diff < 60) return `há ${diff} segundos`;
+  const min = Math.floor(diff / 60);
+  if (min < 60) return `há ${min} ${min === 1 ? "minuto" : "minutos"}`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `há ${h} ${h === 1 ? "hora" : "horas"}`;
+  const d = Math.floor(h / 24);
+  return `há ${d} ${d === 1 ? "dia" : "dias"}`;
+}
+
 function InviteDialog({
   appId, app, onClose,
 }: {
@@ -733,26 +752,77 @@ function InviteDialog({
   const [hours, setHours] = useState(48);
   const [creating, setCreating] = useState(false);
   const [link, setLink] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [connection, setConnection] = useState<InviteConnection | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
   useEffect(() => {
     if (!appId) {
-      setLabel(""); setHours(48); setLink(null); setExpiresAt(null); setCopied(false);
+      setLabel(""); setHours(48); setLink(null); setToken(null); setExpiresAt(null);
+      setCopied(false); setConnection(null);
     }
   }, [appId]);
+
+  // Tick pra atualizar tempo relativo enquanto o bloco de confirmação estiver visível.
+  useEffect(() => {
+    if (!connection) return;
+    const id = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [connection]);
+
+  // Realtime: escuta evento `account_connected` no audit log filtrado pelo token do convite.
+  useEffect(() => {
+    if (!token || connection) return;
+    const channel = supabase
+      .channel(`spotify-invite-${token}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "spotify_oauth_audit",
+          filter: `invite_token=eq.${token}`,
+        },
+        (payload) => {
+          const row = payload.new as {
+            event?: string;
+            display_name?: string | null;
+            email?: string | null;
+            spotify_user_id?: string | null;
+            created_at?: string;
+          };
+          if (row?.event !== "account_connected") return;
+          setConnection({
+            display_name: row.display_name ?? null,
+            email: row.email ?? null,
+            spotify_user_id: row.spotify_user_id ?? null,
+            connected_at: row.created_at ?? new Date().toISOString(),
+          });
+          setNowMs(Date.now());
+          toast.success("Conta conectada", {
+            description: row.display_name || row.email || row.spotify_user_id || "Autorização concluída",
+          });
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [token, connection]);
 
   async function generate() {
     if (!appId) return;
     setCreating(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const authToken = session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       const resp = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/spotify-invite?mode=create`,
         {
           method: "POST",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
           body: JSON.stringify({ app_id: appId, label: label || null, hours, origin: window.location.origin }),
         },
       );
@@ -761,6 +831,7 @@ function InviteDialog({
         toast.error("Falha ao gerar convite", { description: j.error });
       } else {
         setLink(j.url || `${window.location.origin}${j.path}`);
+        setToken(j.token ?? null);
         setExpiresAt(j.expires_at);
         toast.success("Link de convite criado");
       }
@@ -834,30 +905,64 @@ function InviteDialog({
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2">
-              <Label className="text-[10px] uppercase tracking-wide text-primary">Link gerado</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  value={link}
-                  readOnly
-                  className="h-9 text-xs font-mono bg-background"
-                  onFocus={(e) => e.currentTarget.select()}
-                />
-                <Button size="sm" variant="outline" onClick={copyLink} className="h-9 px-3 shrink-0">
-                  {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
-                </Button>
-              </div>
-              {expiresAt && (
-                <p className="text-[11px] text-muted-foreground">
-                  Válido até {new Date(expiresAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })} · uso único
+            {connection ? (
+              <div className="rounded-md border border-success/40 bg-success/5 p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-success" />
+                  <Label className="text-[10px] uppercase tracking-wide text-success">Conta conectada</Label>
+                </div>
+                <div className="space-y-0.5">
+                  {connection.display_name && (
+                    <p className="text-sm font-medium text-foreground">{connection.display_name}</p>
+                  )}
+                  {connection.email && (
+                    <p className="text-xs text-muted-foreground break-all">{connection.email}</p>
+                  )}
+                  {connection.spotify_user_id && (
+                    <p className="text-[11px] font-mono text-muted-foreground/80">{connection.spotify_user_id}</p>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground pt-1 border-t border-success/20">
+                  Conectada às{" "}
+                  {new Date(connection.connected_at).toLocaleTimeString("pt-BR", {
+                    hour: "2-digit", minute: "2-digit", second: "2-digit",
+                  })}
+                  {" · "}
+                  {formatRelative(connection.connected_at, nowMs)}
                 </p>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Mande esse link pela pessoa por WhatsApp, e-mail ou onde preferir.
-              Quando ela autorizar, a conta cai automaticamente no app{" "}
-              <span className="text-foreground font-medium">{app?.name}</span>.
-            </p>
+              </div>
+            ) : (
+              <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2">
+                <Label className="text-[10px] uppercase tracking-wide text-primary">Link gerado</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={link}
+                    readOnly
+                    className="h-9 text-xs font-mono bg-background"
+                    onFocus={(e) => e.currentTarget.select()}
+                  />
+                  <Button size="sm" variant="outline" onClick={copyLink} className="h-9 px-3 shrink-0">
+                    {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
+                  </Button>
+                </div>
+                {expiresAt && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Válido até {new Date(expiresAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })} · uso único
+                  </p>
+                )}
+                <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground pt-1">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Aguardando autorização…
+                </p>
+              </div>
+            )}
+            {!connection && (
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Mande esse link pela pessoa por WhatsApp, e-mail ou onde preferir.
+                Quando ela autorizar, a conta cai automaticamente no app{" "}
+                <span className="text-foreground font-medium">{app?.name}</span>.
+              </p>
+            )}
             <DialogFooter>
               <Button size="sm" onClick={onClose} className="bg-primary text-primary-foreground hover:bg-primary/90">
                 Fechar
