@@ -49,6 +49,7 @@ Deno.serve(async (req) => {
 
   const url = new URL(req.url);
   const mode = url.searchParams.get("mode") ?? "login";
+  const reqMeta = extractRequestMeta(req);
 
   try {
     // ───────────────────────── LOGIN ─────────────────────────
