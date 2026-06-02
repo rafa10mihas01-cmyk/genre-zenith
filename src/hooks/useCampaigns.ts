@@ -27,6 +27,8 @@ export type Campaign = {
   collection_mode: "bot" | "spreadsheet" | string | null;
   plan_approved_at: string | null;
   client_decision_round: number | null;
+  /** Valor total cobrado do cliente (base pro CPP). */
+  valor_cobrado?: number | null;
   /** @deprecated mantido só pra compat de tipos durante reversão 30/05. Sempre false. */
   baseline_pending?: boolean;
   /** Derivado: timestamp da 1ª baseline capturada (qualquer deal da campanha). */
