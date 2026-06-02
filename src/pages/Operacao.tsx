@@ -6,6 +6,7 @@ import {
   AlertCircle, Wrench, ChevronDown, ChevronUp, Server, Sparkles, Heart, Target, Gauge, ShieldAlert,
 } from "lucide-react";
 import { MinhasPlaylists } from "@/components/operacao/MinhasPlaylists";
+import { EcosystemHealthCard } from "@/components/operacao/EcosystemHealthCard";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -280,7 +281,7 @@ export default function Operacao() {
       <PageContainer>
         {/* KPIs operacionais — todos referenciam o catálogo importado (managed_playlists) */}
         {/* KPIs — hierarquia cockpit: hero (Salvamentos) + secundários + quiet (derivada) */}
-        <section className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-7 gap-3">
+        <section className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-8 gap-3">
           {(() => {
             const filtered = !!playlistStats.filterLabel;
             const followers = filtered ? playlistStats.filteredFollowers : kpi.totalFollowers;
@@ -295,6 +296,9 @@ export default function Operacao() {
             return (
               <>
                 <KpiBig tier="hero" icon={Heart} label="Salvamentos totais" value={formatNumber(followers)} hint={scopeHint} domain="playlists" loading={loading && playlistsAll.length === 0} className="!col-span-2 xl:!col-span-2" />
+                <div className="col-span-2 sm:col-span-3 xl:col-span-2">
+                  <EcosystemHealthCard />
+                </div>
                 <KpiBig icon={Target}        label="Plays teóricos / mês" value={formatNumber(followers * 30)} tone="primary" hint={playsHint} loading={loading && playlistsAll.length === 0} />
                 <KpiBig icon={Activity}      label="Total ativas"  value={formatNumber(count)} hint={totalHint} loading={loading && playlistsAll.length === 0} />
               </>

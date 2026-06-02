@@ -184,9 +184,17 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   // loadedCount cresce, e os updates locais (setItems) seguem o key atual.
   const [loadedCount, setLoadedCount] = useState(PAGE_SIZE);
 
-  // Filtro local da lixeira: só elegíveis para retorno (reactivation_eligible_at IS NOT NULL).
-  // Não é URL param — é toggle leve dentro da view de arquivadas.
-  const [onlyEligible, setOnlyEligible] = useState(false);
+  // Filtro da lixeira: só elegíveis para retorno (reactivation_eligible_at IS NOT NULL).
+  // Sincronizado com URL (?elegiveis=1) pra permitir deep-link a partir do card
+  // "Saúde do Ecossistema" no topo da página.
+  const onlyEligible = searchParams.get("elegiveis") === "1" && showArchived;
+  const setOnlyEligible = useCallback(
+    (next: boolean | ((prev: boolean) => boolean)) => {
+      const value = typeof next === "function" ? (next as (p: boolean) => boolean)(onlyEligible) : next;
+      updateParam("elegiveis", value ? "1" : null);
+    },
+    [onlyEligible, updateParam],
+  );
 
   // Reset paginação ao trocar de aba — evita carregar 500 itens de "all"
   // e mostrar só os que sobrarem ao filtrar uma fase.
@@ -194,10 +202,12 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     setLoadedCount(PAGE_SIZE);
   }, [filterFase, showArchived, filterMissingGenre, filterGenreId, filterSize, onlyEligible]);
 
-  // Reseta o filtro de elegíveis ao sair da lixeira.
+  // Limpa o param ao sair da lixeira.
   useEffect(() => {
-    if (!showArchived) setOnlyEligible(false);
-  }, [showArchived]);
+    if (!showArchived && searchParams.get("elegiveis")) {
+      updateParam("elegiveis", null);
+    }
+  }, [showArchived, searchParams, updateParam]);
 
   const itemsQuery = useQuery({
     queryKey: ["managed-playlists", loadedCount, filterFase, showArchived, sortBy, filterMissingGenre, filterGenreId, filterSize, onlyEligible],
