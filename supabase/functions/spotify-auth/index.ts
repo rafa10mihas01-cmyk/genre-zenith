@@ -9,6 +9,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getSpotifyToken, SPOTIFY_USER_SCOPES, SPOTIFY_USER_SCOPES_LIST, getAppCredentials } from "../_shared/spotify.ts";
+import { logAudit, extractRequestMeta } from "../_shared/oauth-audit.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
