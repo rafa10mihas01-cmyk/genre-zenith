@@ -47,6 +47,9 @@ type ManagedPlaylist = {
   tracks_count: number;
   genre_id: string | null;
   archived_at: string | null;
+  archived_reason?: string | null;
+  archived_followers?: number | null;
+  reactivation_eligible_at?: string | null;
   last_diagnosis_at: string | null;
   imported_at: string;
   canonical_playlist_id: string | null;
@@ -69,6 +72,7 @@ type CountRow = {
   followers: number | null;
   genre_id: string | null;
   archived_at: string | null;
+  reactivation_eligible_at: string | null;
   lifecycle_phase: string | null;
 };
 
