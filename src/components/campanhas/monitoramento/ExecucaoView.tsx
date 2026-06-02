@@ -184,9 +184,40 @@ export function ExecucaoView({ campaignId, onOpenHistory }: { campaignId: string
 
   if (!rows) return <Skeleton className="h-96 w-full" />;
 
+  const lastCapturedAt = useMemo(() => {
+    let latest: string | null = null;
+    for (const r of rows ?? []) {
+      if (r.last_captured_at && (!latest || r.last_captured_at > latest)) latest = r.last_captured_at;
+    }
+    return latest;
+  }, [rows]);
+
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      {/* Meta line */}
+      <div className="flex items-center justify-between px-1 text-[11px] text-muted-foreground">
+        <span>{totals.n} playlists monitoradas</span>
+        {lastCapturedAt && (
+          <span className="tabular-nums">
+            capturada {new Date(lastCapturedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+            {" · "}
+            {new Date(lastCapturedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+          </span>
+        )}
+      </div>
+
+      {/* Compact KPI strip — single card with divided columns */}
+      <Card className="md:hidden">
+        <CardContent className="p-0 grid grid-cols-4 divide-x divide-border/40">
+          <KpiCell label="Δ Total" value={totals.total} accent />
+          <KpiCell label="Ecoss." value={totals.eco} />
+          <KpiCell label="Curad." value={totals.curator} />
+          <KpiCell label="Orgân." value={totals.organic} />
+        </CardContent>
+      </Card>
+
+      {/* Desktop KPI grid keeps original look */}
+      <div className="hidden md:grid grid-cols-5 gap-3">
         <KpiCard icon={TrendingUp} label="Crescimento total" value={totals.total} accent />
         <KpiCard icon={Layers} label="Ecossistema" value={totals.eco} />
         <KpiCard icon={Users} label="Curadores" value={totals.curator} />
