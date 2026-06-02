@@ -149,16 +149,17 @@ export function BotCollectionStatus({ campaignId, dealId }: Props) {
   return (
     <div className="rounded-2xl border border-border bg-card px-5 py-4 space-y-3">
       <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
-        <div className="shrink-0 mt-0.5">
+        <div className="flex items-center gap-3 sm:block sm:shrink-0 sm:mt-0.5">
           {isError ? (
-            <AlertTriangle className="h-5 w-5 text-destructive" />
+            <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
           ) : isRunning ? (
-            <Loader2 className="h-5 w-5 text-primary animate-spin" />
+            <Loader2 className="h-5 w-5 text-primary animate-spin shrink-0" />
           ) : snapCount > 0 ? (
-            <CheckCircle2 className="h-5 w-5 text-primary" />
+            <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
           ) : (
-            <Bot className="h-5 w-5 text-muted-foreground" />
+            <Bot className="h-5 w-5 text-muted-foreground shrink-0" />
           )}
+          <div className="sm:hidden text-sm font-medium text-foreground">Coleta do robô</div>
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-medium text-foreground flex items-center gap-2 flex-wrap">
