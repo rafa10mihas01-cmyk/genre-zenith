@@ -211,11 +211,17 @@ export default function ComunidadeAdmin() {
         </div>
       </div>
 
-      {/* TABS mobile — grid de cards (mesmo padrão de Operação) */}
-      <div className="grid grid-cols-3 gap-1.5 sm:hidden">
+      {/* TABS mobile — grid de 5 cards numa única régua */}
+      <div className="grid grid-cols-5 gap-1 sm:hidden">
         {TABS.map((t) => {
           const Icon = t.icon;
           const active = tab === t.id;
+          const shortLabel =
+            t.id === "convites" ? "Convites" :
+            t.id === "campanhas" ? "Campan." :
+            t.id === "membros" ? "Membros" :
+            t.id === "aprovacoes" ? "Aprovar" :
+            "Auditar";
           const count =
             t.id === "convites" ? counts.convites :
             t.id === "campanhas" ? counts.campanhas :
@@ -227,7 +233,7 @@ export default function ComunidadeAdmin() {
               key={t.id}
               onClick={() => setTab(t.id)}
               className={cn(
-                "rounded-xl border px-1 py-2 flex flex-col items-center justify-center gap-1 transition-colors",
+                "rounded-xl border px-0.5 py-2 flex flex-col items-center justify-center gap-1 transition-colors min-w-0",
                 active
                   ? "border-primary/60 bg-primary/10 text-foreground"
                   : "border-border bg-card text-muted-foreground hover:text-foreground",
@@ -235,9 +241,9 @@ export default function ComunidadeAdmin() {
               aria-pressed={active}
             >
               <Icon className={cn("h-4 w-4", active && "text-primary")} />
-              <span className="text-[12px] font-medium leading-none">{t.label}</span>
+              <span className="text-[10px] font-medium leading-none truncate max-w-full">{shortLabel}</span>
               {count !== null && (
-                <span className={cn("text-[11px] font-bold tabular-nums leading-none", active ? "text-primary" : "text-muted-foreground")}>
+                <span className={cn("text-[10px] font-bold tabular-nums leading-none", active ? "text-primary" : "text-muted-foreground")}>
                   {count}
                 </span>
               )}
@@ -245,6 +251,7 @@ export default function ComunidadeAdmin() {
           );
         })}
       </div>
+
 
       <div className="min-h-[480px] animate-tab-in">
         {tab === "convites" && <ConvitesTab adminId={user?.id ?? ""} onChange={loadCounts} />}
