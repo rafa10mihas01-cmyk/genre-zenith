@@ -181,7 +181,12 @@ async function runOwner(app: { id: string; name: string }, row: SpotifyUserToken
   getTracks3.step = "GET tracks (depois remove)"; steps.push(getTracks3);
   const countAfterDel = (getTracks3.body_preview as { items?: unknown[] })?.items?.length ?? 0;
 
-  // 9) Sem cleanup destrutivo necessário.
+  // 9) Cleanup: se criou sandbox, unfollow
+  if (sandboxCreated) {
+    const cleanup = await call(token, "DELETE",
+      `https://api.spotify.com/v1/playlists/${playlistId}/followers`);
+    cleanup.step = "DELETE sandbox (unfollow)"; steps.push(cleanup);
+  }
 
   // Critérios
   const has403 = steps.some((s) => s.http_status === 403);
