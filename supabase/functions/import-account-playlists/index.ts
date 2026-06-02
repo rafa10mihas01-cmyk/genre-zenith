@@ -303,9 +303,9 @@ Deno.serve(async (req) => {
       };
 
       const runPipeline = async () => {
-        for (let i = 0; i < importedIds.length; i += PIPELINE_CONCURRENCY) {
+        for (let i = 0; i < activeImportedIds.length; i += PIPELINE_CONCURRENCY) {
           if (i > 0) await sleep(PIPELINE_BATCH_DELAY_MS);
-          const batch = importedIds.slice(i, i + PIPELINE_CONCURRENCY);
+          const batch = activeImportedIds.slice(i, i + PIPELINE_CONCURRENCY);
           await Promise.all(batch.map(async (pid) => {
             for (const step of PIPELINE_STEPS) {
               await callStep(step, pid);
@@ -313,7 +313,7 @@ Deno.serve(async (req) => {
             }
           }));
         }
-        console.log(`pipeline done: ${importedIds.length} playlists processed`);
+        console.log(`pipeline done: ${activeImportedIds.length} active playlists processed (${importedIds.length - activeImportedIds.length} auto-archived skipped)`);
       };
 
       // EdgeRuntime.waitUntil mantém a função viva após o response.
