@@ -144,15 +144,61 @@ function fireAndForgetLog(row: SpotifyLogRow): void {
 }
 
 export async function guardedSpotifyFetch(url: string, init: RequestInit = {}, appId = "global"): Promise<Response> {
-  if (!isCircuitBypassUrl(url)) await assertSpotifyCircuitClosed(appId);
-  const r = await spotifyOriginalFetch(url, init);
-  if (r.status === 429 && !isCircuitBypassUrl(url)) {
-    const ra = Number(r.headers.get("Retry-After") ?? r.headers.get("retry-after") ?? "");
-    const opened = await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60, appId, url);
-    throw new SpotifyCircuitOpenError(opened.blockedUntil, opened.retryAfterSec);
+  const startedAt = Date.now();
+  const method = (init.method ?? "GET").toUpperCase();
+  const endpoint = normalizeEndpointForLog(url);
+  const fnName = Deno.env.get("SUPABASE_FUNCTION_NAME") ?? null;
+  const bypass = isCircuitBypassUrl(url);
+  let logStatus: SpotifyLogRow["status"] = "ok";
+  let httpStatus: number | null = null;
+  let retryAfterSec: number | null = null;
+  let breakerOpen = false;
+  let errorMsg: string | null = null;
+  try {
+    if (!bypass) await assertSpotifyCircuitClosed(appId);
+    const r = await spotifyOriginalFetch(url, init);
+    httpStatus = r.status;
+    if (!r.ok) {
+      logStatus = "http_error";
+      const ra = Number(r.headers.get("Retry-After") ?? r.headers.get("retry-after") ?? "");
+      if (Number.isFinite(ra) && ra > 0) retryAfterSec = ra;
+    }
+    if (r.status === 429 && !bypass) {
+      const ra = Number(r.headers.get("Retry-After") ?? r.headers.get("retry-after") ?? "");
+      const opened = await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60, appId, url);
+      logStatus = "circuit_open";
+      breakerOpen = true;
+      retryAfterSec = opened.retryAfterSec;
+      errorMsg = `429 opened breaker until ${opened.blockedUntil}`;
+      throw new SpotifyCircuitOpenError(opened.blockedUntil, opened.retryAfterSec);
+    }
+    return r;
+  } catch (e) {
+    if (e instanceof SpotifyCircuitOpenError) {
+      logStatus = "circuit_open";
+      breakerOpen = true;
+      retryAfterSec = retryAfterSec ?? e.retryAfterSec ?? null;
+      errorMsg = errorMsg ?? e.message;
+    } else if (logStatus === "ok") {
+      logStatus = "exception";
+      errorMsg = (e as Error)?.message ?? String(e);
+    }
+    throw e;
+  } finally {
+    fireAndForgetLog({
+      function_name: fnName,
+      endpoint,
+      method,
+      http_status: httpStatus,
+      status: logStatus,
+      duration_ms: Date.now() - startedAt,
+      retry_after_sec: retryAfterSec,
+      breaker_open: breakerOpen,
+      error: errorMsg,
+    });
   }
-  return r;
 }
+
 
 export function installSpotifyCircuitFetchGuard() {
   const g = globalThis as typeof globalThis & { __spotifyCircuitFetchGuardInstalled?: boolean };
