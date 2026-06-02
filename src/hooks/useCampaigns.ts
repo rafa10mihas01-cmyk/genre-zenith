@@ -8,6 +8,7 @@ export type Campaign = {
   id: string;
   track_name: string;
   artist: string | null;
+  cover_url: string | null;
   goal_plays: number;
   deadline: string;
   status: "draft" | "active" | "paused" | "completed" | "cancelled";
@@ -15,6 +16,7 @@ export type Campaign = {
   total_delivered: number;
   created_at: string;
   snapshot_locked_at: string | null;
+  client_id: string | null;
   curator_id: string | null;
   deal_id: string | null;
   public_plan_token: string | null;
@@ -29,10 +31,14 @@ export type Campaign = {
   baseline_pending?: boolean;
   /** Derivado: timestamp da 1ª baseline capturada (qualquer deal da campanha). */
   baseline_captured_at?: string | null;
-
+  /** Derivado: e-mail principal do cliente vinculado (se houver). */
+  client_email?: string | null;
+  /** Derivado: nº de e-mails autorizados a acessar o portal desta campanha. */
+  access_emails_count?: number;
 };
 
-const SELECT = "id, track_name, artist, goal_plays, deadline, status, total_allocated, total_delivered, created_at, snapshot_locked_at, curator_id, deal_id, public_plan_token, client_approved_at, client_approved_by, client_rejected_at, campaign_type, collection_mode, plan_approved_at, client_decision_round";
+const SELECT = "id, track_name, artist, cover_url, goal_plays, deadline, status, total_allocated, total_delivered, created_at, snapshot_locked_at, client_id, curator_id, deal_id, public_plan_token, client_approved_at, client_approved_by, client_rejected_at, campaign_type, collection_mode, plan_approved_at, client_decision_round";
+
 const QUERY_KEY = ["campaigns"] as const;
 
 export function useCampaigns() {
