@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
     const { data: existingManaged } = owned.length > 0
       ? await supabase
         .from("managed_playlists")
-        .select("spotify_playlist_id, genre_id, canonical_playlist_id")
+        .select("spotify_playlist_id, genre_id, canonical_playlist_id, archived_at, metadata, locked_at")
         .in("spotify_playlist_id", owned.map((p) => p.id))
       : { data: [] as any[] };
     const existingBySpotifyId = new Map(
@@ -166,7 +166,19 @@ Deno.serve(async (req) => {
         continue;
       }
       canonicalId = canonical.id;
-      const payload = {
+
+      // Decide se aplica auto-arquivamento (só pra registros NOVOS).
+      const isNew = !existing;
+      const existingMeta = (existing?.metadata ?? {}) as Record<string, unknown>;
+      const isExempt =
+        existingMeta.strategic === true ||
+        existingMeta.auto_archive_exempt === true ||
+        !!existing?.locked_at;
+      const followersNum = typeof followers === "number" ? followers : null;
+      const shouldAutoArchive =
+        isNew && followersNum !== null && followersNum < AUTO_ARCHIVE_MIN_FOLLOWERS && !isExempt;
+
+      const payload: Record<string, unknown> = {
         spotify_playlist_id: p.id,
         spotify_url: p.external_urls?.spotify ?? `https://open.spotify.com/playlist/${p.id}`,
         name: p.name ?? `Playlist ${p.id}`,
@@ -181,10 +193,16 @@ Deno.serve(async (req) => {
         owner_spotify_user_id: ownerId,
         metadata: { source: "import-account-playlists", owner_display_name: p.owner?.display_name ?? null },
       };
+      if (shouldAutoArchive) {
+        payload.archived_at = nowIso;
+        payload.archived_reason = "auto_onboarding_low_followers";
+        payload.archived_followers = followersNum;
+      }
+
       const { data: upserted, error } = await supabase
         .from("managed_playlists")
         .upsert(payload, { onConflict: "spotify_playlist_id" })
-        .select("id, lifecycle_stage")
+        .select("id, lifecycle_stage, archived_at")
         .maybeSingle();
       if (error) {
         skipped++;
@@ -197,8 +215,9 @@ Deno.serve(async (req) => {
           followers,
           total_tracks: p.tracks?.total ?? null,
         });
-        // Dispara onboarding-check (fire-and-forget) só pra playlists em estágio onboarding.
-        if (upserted?.id && upserted?.lifecycle_stage === "onboarding") {
+        // Dispara onboarding-check só pra playlists em onboarding QUE NÃO nasceram arquivadas.
+        // Playlist auto-arquivada não consome ciclos de onboarding até ser reativada manualmente.
+        if (upserted?.id && upserted?.lifecycle_stage === "onboarding" && !upserted?.archived_at) {
           fetch(`${SUPABASE_URL}/functions/v1/playlist-onboarding-check`, {
             method: "POST",
             headers: {
