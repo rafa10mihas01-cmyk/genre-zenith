@@ -171,7 +171,7 @@ Deno.serve(async (req) => {
 
   try {
     tok05 = await getToken(sb, app05, sul);
-    try { tok01 = await getToken(sb, app01, lado); } catch (e) { report.app01_token_error = (e as Error).message; }
+    // tok01 será resolvido em Phase 0.2 iterando users do App 01
 
     // ============ PHASE 0 ============
     const phase0: any = {};
