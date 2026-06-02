@@ -9413,6 +9413,34 @@ export type Database = {
           suggested_weight: number
         }[]
       }
+      sync_tier_cold_ids: {
+        Args: {
+          p_cutoff_alloc: string
+          p_cutoff_imported: string
+          p_cutoff_metrics: string
+          p_limit: number
+        }
+        Returns: {
+          id: string
+        }[]
+      }
+      sync_tier_hot_ids: {
+        Args: { p_cutoff: string; p_limit: number }
+        Returns: {
+          id: string
+        }[]
+      }
+      sync_tier_warm_ids: {
+        Args: {
+          p_cutoff_alloc: string
+          p_cutoff_imported: string
+          p_cutoff_metrics: string
+          p_limit: number
+        }
+        Returns: {
+          id: string
+        }[]
+      }
       trigger_recalc_playlist_scores: { Args: never; Returns: number }
       unaccent: { Args: { "": string }; Returns: string }
     }
