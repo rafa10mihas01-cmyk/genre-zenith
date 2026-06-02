@@ -136,7 +136,7 @@ export default function ComunidadeAdmin() {
       />
 
       {/* KPIs — hierarquia cockpit: hero (Membros) + ação + ação + quiet */}
-      <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KpiBig
           tier="hero"
           icon={UsersIcon}
