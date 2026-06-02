@@ -7947,6 +7947,74 @@ export type Database = {
           },
         ]
       }
+      spotify_oauth_audit: {
+        Row: {
+          actor_user_id: string | null
+          app_id: string | null
+          created_at: string
+          display_name: string | null
+          email: string | null
+          error_code: string | null
+          error_message: string | null
+          event: string
+          flow: string | null
+          id: string
+          invite_token: string | null
+          ip: string | null
+          meta: Json
+          spotify_user_id: string | null
+          state: string | null
+          status: string
+          user_agent: string | null
+        }
+        Insert: {
+          actor_user_id?: string | null
+          app_id?: string | null
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          error_code?: string | null
+          error_message?: string | null
+          event: string
+          flow?: string | null
+          id?: string
+          invite_token?: string | null
+          ip?: string | null
+          meta?: Json
+          spotify_user_id?: string | null
+          state?: string | null
+          status?: string
+          user_agent?: string | null
+        }
+        Update: {
+          actor_user_id?: string | null
+          app_id?: string | null
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          error_code?: string | null
+          error_message?: string | null
+          event?: string
+          flow?: string | null
+          id?: string
+          invite_token?: string | null
+          ip?: string | null
+          meta?: Json
+          spotify_user_id?: string | null
+          state?: string | null
+          status?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spotify_oauth_audit_app_id_fkey"
+            columns: ["app_id"]
+            isOneToOne: false
+            referencedRelation: "spotify_apps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       spotify_oauth_states: {
         Row: {
           app_id: string | null

@@ -27,6 +27,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { SPOTIFY_USER_SCOPES, getAppCredentials } from "../_shared/spotify.ts";
+import { logAudit, extractRequestMeta } from "../_shared/oauth-audit.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -74,6 +75,7 @@ Deno.serve(async (req) => {
 
   const url = new URL(req.url);
   const mode = url.searchParams.get("mode") ?? "";
+  const reqMeta = extractRequestMeta(req);
 
   try {
     // ─────────────────────── CREATE (admin) ──────────────────────
@@ -109,7 +111,21 @@ Deno.serve(async (req) => {
       const { error: insErr } = await sb.from("spotify_invite_tokens").insert({
         token, app_id, created_by: auth.userId, label, expires_at,
       });
-      if (insErr) return jr({ ok: false, error: insErr.message }, 500);
+      if (insErr) {
+        await logAudit(sb, {
+          event: "failure", flow: "invite", status: "error",
+          error_code: "invite_create_failed", error_message: insErr.message,
+          app_id, actor_user_id: auth.userId, ...reqMeta,
+        });
+        return jr({ ok: false, error: insErr.message }, 500);
+      }
+
+      await logAudit(sb, {
+        event: "invite_created", flow: "invite",
+        invite_token: token, app_id, actor_user_id: auth.userId,
+        meta: { label, hours, app_name: app.name },
+        ...reqMeta,
+      });
 
       const origin = req.headers.get("origin") || body.origin || "";
       return jr({
@@ -135,6 +151,12 @@ Deno.serve(async (req) => {
       if (error) return jr({ ok: false, error: error.message }, 500);
       if (!data) return jr({ ok: false, error: "invite_not_found" }, 404);
       const expired = new Date(data.expires_at).getTime() < Date.now();
+      await logAudit(sb, {
+        event: "invite_opened", flow: "invite",
+        invite_token: data.token, app_id: data.app_id,
+        meta: { expired, consumed: !!data.consumed_at },
+        ...reqMeta,
+      });
       return jr({
         ok: true,
         token: data.token,
@@ -184,6 +206,11 @@ Deno.serve(async (req) => {
       authUrl.searchParams.set("scope", SPOTIFY_USER_SCOPES);
       authUrl.searchParams.set("state", state);
       authUrl.searchParams.set("show_dialog", "true");
+      await logAudit(sb, {
+        event: "login_started", flow: "invite",
+        invite_token: token, app_id: inv.app_id, state,
+        ...reqMeta,
+      });
       return jr({ ok: true, url: authUrl.toString(), state });
     }
 
@@ -192,18 +219,38 @@ Deno.serve(async (req) => {
       const code = url.searchParams.get("code");
       const redirect = url.searchParams.get("redirect");
       const state = url.searchParams.get("state");
+      const sbEarly = db();
+      const failInvite = async (code_: string, msg: string, extras: Record<string, unknown> = {}) => {
+        await logAudit(sbEarly, {
+          event: "failure", flow: "invite", status: "error",
+          error_code: code_, error_message: msg, state, ...reqMeta,
+          meta: extras,
+        });
+      };
+
       if (!code || !redirect || !state) {
+        await failInvite("missing_params", "code/redirect/state ausentes");
         return jr({ ok: false, error: "code, redirect, state obrigatórios" }, 400);
       }
-      if (!state.startsWith("inv_")) return jr({ ok: false, error: "state não é de convite" }, 400);
+      if (!state.startsWith("inv_")) {
+        await failInvite("wrong_flow", "state não é de convite");
+        return jr({ ok: false, error: "state não é de convite" }, 400);
+      }
 
       // Extrai invite_token: "inv_<token>_<random>"
       const rest = state.slice(4);
       const sepIdx = rest.lastIndexOf("_");
-      if (sepIdx < 0) return jr({ ok: false, error: "state malformado" }, 400);
+      if (sepIdx < 0) {
+        await failInvite("state_malformed", "state malformado");
+        return jr({ ok: false, error: "state malformado" }, 400);
+      }
       const inviteToken = rest.slice(0, sepIdx);
 
       const sb = db();
+      await logAudit(sb, {
+        event: "callback_received", flow: "invite",
+        invite_token: inviteToken, state, ...reqMeta,
+      });
 
       // Valida state
       const { data: stRow } = await sb
@@ -211,14 +258,22 @@ Deno.serve(async (req) => {
         .select("state, flow, app_id, created_at, consumed_at")
         .eq("state", state)
         .maybeSingle();
-      if (!stRow) return jr({ ok: false, error: "state inválido" }, 400);
-      if (stRow.flow !== "invite") return jr({ ok: false, error: "flow incorreto" }, 400);
+      if (!stRow) {
+        await failInvite("state_not_found", "state inválido", { invite_token: inviteToken });
+        return jr({ ok: false, error: "state inválido" }, 400);
+      }
+      if (stRow.flow !== "invite") {
+        await failInvite("wrong_flow", "flow incorreto", { flow: stRow.flow });
+        return jr({ ok: false, error: "flow incorreto" }, 400);
+      }
       if (stRow.consumed_at) {
         const age = Date.now() - new Date(stRow.consumed_at).getTime();
         if (age <= 2 * 60 * 1000) return jr({ ok: true, idempotent: true });
+        await failInvite("state_already_used", "state já utilizado", { app_id: stRow.app_id });
         return jr({ ok: false, error: "state já utilizado" }, 400);
       }
       if (Date.now() - new Date(stRow.created_at).getTime() > 30 * 60 * 1000) {
+        await failInvite("state_expired", "state expirado", { app_id: stRow.app_id });
         return jr({ ok: false, error: "state expirado" }, 400);
       }
       await sb.from("spotify_oauth_states").update({ consumed_at: new Date().toISOString() }).eq("state", state);
@@ -229,9 +284,16 @@ Deno.serve(async (req) => {
         .select("token, app_id, expires_at, consumed_at")
         .eq("token", inviteToken)
         .maybeSingle();
-      if (!inv) return jr({ ok: false, error: "invite_not_found" }, 404);
-      if (inv.consumed_at) return jr({ ok: false, error: "invite_already_used" }, 400);
+      if (!inv) {
+        await failInvite("invite_not_found", "invite inexistente", { invite_token: inviteToken });
+        return jr({ ok: false, error: "invite_not_found" }, 404);
+      }
+      if (inv.consumed_at) {
+        await failInvite("invite_already_used", "invite já usado", { invite_token: inviteToken, app_id: inv.app_id });
+        return jr({ ok: false, error: "invite_already_used" }, 400);
+      }
       if (new Date(inv.expires_at).getTime() < Date.now()) {
+        await failInvite("invite_expired", "invite expirado", { invite_token: inviteToken, app_id: inv.app_id });
         return jr({ ok: false, error: "invite_expired" }, 400);
       }
 
@@ -245,6 +307,9 @@ Deno.serve(async (req) => {
       });
       if (!tokenResp.ok) {
         const t = await tokenResp.text();
+        await failInvite("token_exchange_failed", `${tokenResp.status}: ${t.slice(0, 200)}`, {
+          app_id: inv.app_id, invite_token: inviteToken, status: tokenResp.status,
+        });
         return jr({ ok: false, error: `token exchange ${tokenResp.status}: ${t.slice(0, 200)}` }, 400);
       }
       const tj = await tokenResp.json();
@@ -258,9 +323,19 @@ Deno.serve(async (req) => {
       });
       if (!meResp.ok) {
         const t = await meResp.text();
+        await failInvite("me_fetch_failed", `${meResp.status}: ${t.slice(0, 200)}`, {
+          app_id: inv.app_id, invite_token: inviteToken,
+        });
         return jr({ ok: false, error: `me ${meResp.status}: ${t.slice(0, 200)}` }, 400);
       }
       const me = await meResp.json();
+
+      await logAudit(sb, {
+        event: "token_exchanged", flow: "invite",
+        invite_token: inviteToken, app_id: inv.app_id,
+        spotify_user_id: me.id, email: me.email ?? null, display_name: me.display_name ?? null,
+        state, ...reqMeta,
+      });
 
       // Confere vaga (a vaga existia ao criar o convite, mas pode ter sido consumida por outro convite)
       const { data: app } = await sb
@@ -268,22 +343,48 @@ Deno.serve(async (req) => {
         .select("id, name, max_accounts")
         .eq("id", inv.app_id)
         .maybeSingle();
-      if (!app) return jr({ ok: false, error: "App não existe mais" }, 400);
+      if (!app) {
+        await failInvite("app_missing", "App não existe mais", { app_id: inv.app_id });
+        return jr({ ok: false, error: "App não existe mais" }, 400);
+      }
 
-      const { data: existing } = await sb
+      // Checa vínculo cruzado consultando TODAS as linhas pra essa conta
+      // (a constraint composta permite multi-app; queremos saber se já existe outro app).
+      const { data: existingRows } = await sb
         .from("spotify_user_tokens")
         .select("spotify_user_id, app_id")
-        .eq("spotify_user_id", me.id)
-        .maybeSingle();
-      if (existing && existing.app_id !== inv.app_id) {
+        .eq("spotify_user_id", me.id);
+      const existingSameApp = (existingRows ?? []).find((r: any) => r.app_id === inv.app_id);
+      const existingOtherApp = (existingRows ?? []).find((r: any) => r.app_id !== inv.app_id);
+
+      if (existingOtherApp && !existingSameApp) {
+        // Política: convite só vincula a UM app. Registra tentativa cruzada.
+        const { data: otherApp } = await sb
+          .from("spotify_apps")
+          .select("name")
+          .eq("id", existingOtherApp.app_id)
+          .maybeSingle();
+        await logAudit(sb, {
+          event: "failure", flow: "invite", status: "error",
+          error_code: "account_in_use",
+          error_message: `Conta já vinculada ao app ${otherApp?.name ?? existingOtherApp.app_id}`,
+          invite_token: inviteToken, app_id: inv.app_id,
+          spotify_user_id: me.id, email: me.email ?? null, display_name: me.display_name ?? null,
+          state,
+          meta: { other_app_id: existingOtherApp.app_id, other_app_name: otherApp?.name ?? null },
+          ...reqMeta,
+        });
         return jr({ ok: false, error: `Essa conta Spotify já está vinculada a outro app` }, 400);
       }
-      if (!existing) {
+      if (!existingSameApp) {
         const { count } = await sb
           .from("spotify_user_tokens")
           .select("*", { count: "exact", head: true })
           .eq("app_id", inv.app_id);
         if ((count ?? 0) >= app.max_accounts) {
+          await failInvite("app_full", `App "${app.name}" lotado`, {
+            app_id: inv.app_id, app_name: app.name, count, max: app.max_accounts,
+          });
           return jr({ ok: false, error: `App "${app.name}" lotado` }, 400);
         }
       }
@@ -300,8 +401,13 @@ Deno.serve(async (req) => {
         access_token, refresh_token, scope, expires_at,
         app_id: inv.app_id,
         is_default: (defCount ?? 0) === 0,
-      }, { onConflict: "spotify_user_id" });
-      if (upErr) return jr({ ok: false, error: upErr.message }, 500);
+      }, { onConflict: "app_id,spotify_user_id" });
+      if (upErr) {
+        await failInvite("tokens_upsert_failed", upErr.message, {
+          app_id: inv.app_id, spotify_user_id: me.id,
+        });
+        return jr({ ok: false, error: upErr.message }, 500);
+      }
 
       // Marca invite como consumido
       await sb.from("spotify_invite_tokens").update({
@@ -309,6 +415,15 @@ Deno.serve(async (req) => {
         consumed_spotify_user_id: me.id,
         consumed_email: me.email ?? null,
       }).eq("token", inviteToken);
+
+      await logAudit(sb, {
+        event: "account_connected", flow: "invite",
+        invite_token: inviteToken, app_id: inv.app_id,
+        spotify_user_id: me.id, email: me.email ?? null, display_name: me.display_name ?? null,
+        state,
+        meta: { app_name: app.name },
+        ...reqMeta,
+      });
 
       return jr({
         ok: true,

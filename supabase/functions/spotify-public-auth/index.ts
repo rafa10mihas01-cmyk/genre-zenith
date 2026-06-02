@@ -19,6 +19,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getAppCredentials } from "../_shared/spotify.ts";
+import { logAudit, extractRequestMeta } from "../_shared/oauth-audit.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -48,6 +49,7 @@ Deno.serve(async (req) => {
 
   const url = new URL(req.url);
   const mode = url.searchParams.get("mode") ?? "login";
+  const reqMeta = extractRequestMeta(req);
 
   try {
     // ───────────────────────── LOGIN ─────────────────────────
@@ -72,6 +74,11 @@ Deno.serve(async (req) => {
       authUrl.searchParams.set("state", state);
       authUrl.searchParams.set("show_dialog", "true");
 
+      await logAudit(supabase, {
+        event: "login_started", flow: "public",
+        state, app_id: creds.app_id, ...reqMeta,
+      });
+
       return jr({ ok: true, url: authUrl.toString(), state });
     }
 
@@ -80,11 +87,24 @@ Deno.serve(async (req) => {
       const code = url.searchParams.get("code");
       const redirect = url.searchParams.get("redirect");
       const state = url.searchParams.get("state");
+      const supabase = db();
+
+      const failPublic = async (code_: string, msg: string, extras: Record<string, unknown> = {}) => {
+        await logAudit(supabase, {
+          event: "failure", flow: "public", status: "error",
+          error_code: code_, error_message: msg, state: state ?? null,
+          ...reqMeta, meta: extras,
+        });
+      };
+
       if (!code || !redirect || !state) {
+        await failPublic("missing_params", "code/redirect/state ausentes");
         return jr({ ok: false, error: "code, redirect e state obrigatórios" }, 400);
       }
 
-      const supabase = db();
+      await logAudit(supabase, {
+        event: "callback_received", flow: "public", state, ...reqMeta,
+      });
 
       // Valida state (one-shot, expira em 30min, flow correto)
       const { data: stRow, error: stErr } = await supabase
@@ -92,10 +112,18 @@ Deno.serve(async (req) => {
         .select("state, flow, app_id, created_at, consumed_at")
         .eq("state", state)
         .maybeSingle();
-      if (stErr) return jr({ ok: false, error: `state lookup: ${stErr.message}` }, 500);
-      if (!stRow) return jr({ ok: false, error: "state inválido" }, 400);
-      if (stRow.flow !== "public_login")
+      if (stErr) {
+        await failPublic("state_lookup_failed", stErr.message);
+        return jr({ ok: false, error: `state lookup: ${stErr.message}` }, 500);
+      }
+      if (!stRow) {
+        await failPublic("state_not_found", "state inválido");
+        return jr({ ok: false, error: "state inválido" }, 400);
+      }
+      if (stRow.flow !== "public_login") {
+        await failPublic("wrong_flow", "state de flow incorreto", { flow: stRow.flow });
         return jr({ ok: false, error: "state de flow incorreto" }, 400);
+      }
 
       // Idempotência: re-disparo dentro de 2min retorna sucesso silencioso
       if (stRow.consumed_at) {
@@ -103,10 +131,14 @@ Deno.serve(async (req) => {
         if (ageMs <= 2 * 60 * 1000) {
           return jr({ ok: true, idempotent: true });
         }
+        await failPublic("state_already_used", "state já utilizado", { app_id: stRow.app_id });
         return jr({ ok: false, error: "state já utilizado" }, 400);
       }
       const ageMs = Date.now() - new Date(stRow.created_at).getTime();
-      if (ageMs > 30 * 60 * 1000) return jr({ ok: false, error: "state expirado" }, 400);
+      if (ageMs > 30 * 60 * 1000) {
+        await failPublic("state_expired", "state expirado", { app_id: stRow.app_id });
+        return jr({ ok: false, error: "state expirado" }, 400);
+      }
 
       // Marca consumido (one-shot)
       await supabase
@@ -131,6 +163,9 @@ Deno.serve(async (req) => {
       });
       if (!tokenResp.ok) {
         const t = await tokenResp.text();
+        await failPublic("token_exchange_failed", `${tokenResp.status}: ${t.slice(0, 200)}`, {
+          app_id: stRow.app_id, status: tokenResp.status,
+        });
         return jr(
           { ok: false, error: `token exchange ${tokenResp.status}: ${t.slice(0, 200)}` },
           400,
@@ -148,6 +183,9 @@ Deno.serve(async (req) => {
       });
       if (!meResp.ok) {
         const t = await meResp.text();
+        await failPublic("me_fetch_failed", `${meResp.status}: ${t.slice(0, 200)}`, {
+          app_id: stRow.app_id,
+        });
         return jr({ ok: false, error: `me ${meResp.status}: ${t.slice(0, 200)}` }, 400);
       }
       const me = await meResp.json();
@@ -156,6 +194,9 @@ Deno.serve(async (req) => {
       const email: string | null = me.email ?? null;
 
       if (!email) {
+        await failPublic("no_email", "Spotify não devolveu email", {
+          app_id: stRow.app_id, spotify_user_id,
+        });
         return jr(
           {
             ok: false,
@@ -165,6 +206,12 @@ Deno.serve(async (req) => {
           400,
         );
       }
+
+      await logAudit(supabase, {
+        event: "token_exchanged", flow: "public",
+        state, app_id: stRow.app_id,
+        spotify_user_id, email, display_name, ...reqMeta,
+      });
 
       // Persiste tokens (sempre — política definida pelo dono do app)
       const { count } = await supabase
@@ -186,9 +233,20 @@ Deno.serve(async (req) => {
             app_id: stRow.app_id,
             is_default: (count ?? 0) === 0,
           },
-          { onConflict: "spotify_user_id" },
+          { onConflict: "app_id,spotify_user_id" },
         );
-      if (upErr) return jr({ ok: false, error: `tokens save: ${upErr.message}` }, 500);
+      if (upErr) {
+        await failPublic("tokens_upsert_failed", upErr.message, {
+          app_id: stRow.app_id, spotify_user_id,
+        });
+        return jr({ ok: false, error: `tokens save: ${upErr.message}` }, 500);
+      }
+
+      await logAudit(supabase, {
+        event: "account_connected", flow: "public",
+        state, app_id: stRow.app_id,
+        spotify_user_id, email, display_name, ...reqMeta,
+      });
 
       // Verifica allowlist
       const emailLower = email.toLowerCase();

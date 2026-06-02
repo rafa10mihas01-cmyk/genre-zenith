@@ -9,6 +9,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getSpotifyToken, SPOTIFY_USER_SCOPES, SPOTIFY_USER_SCOPES_LIST, getAppCredentials } from "../_shared/spotify.ts";
+import { logAudit, extractRequestMeta } from "../_shared/oauth-audit.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -113,6 +114,7 @@ Deno.serve(async (req) => {
 
   const url = new URL(req.url);
   const mode = url.searchParams.get("mode") ?? "ping";
+  const reqMeta = extractRequestMeta(req);
 
   try {
     if (mode === "scopes") {
@@ -195,6 +197,13 @@ Deno.serve(async (req) => {
       authUrl.searchParams.set("state", state);
       authUrl.searchParams.set("show_dialog", "true");
 
+      await logAudit(supabase, {
+        event: "login_started", flow: "admin",
+        state, app_id: appId, actor_user_id: auth.userId,
+        meta: { app_name: creds.name, force_login: forceLogin },
+        ...reqMeta,
+      });
+
       return jr({ ok: true, url: authUrl.toString(), state, app: creds.name, app_id: appId, slug: expectedSlug, force_login: forceLogin });
     }
 
@@ -205,20 +214,44 @@ Deno.serve(async (req) => {
       const code = url.searchParams.get("code");
       const redirect = url.searchParams.get("redirect");
       const state = url.searchParams.get("state");
+      const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+
+      const failAdmin = async (code_: string, msg: string, extras: Record<string, unknown> = {}) => {
+        await logAudit(supabase, {
+          event: "failure", flow: "admin", status: "error",
+          error_code: code_, error_message: msg,
+          state: state ?? null, actor_user_id: auth.userId,
+          ...reqMeta, meta: extras,
+        });
+      };
+
       if (!code || !redirect || !state) {
+        await failAdmin("missing_params", "code/redirect/state ausentes");
         return jr({ ok: false, error: "code, redirect e state obrigatórios" }, 400);
       }
 
-      const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+      await logAudit(supabase, {
+        event: "callback_received", flow: "admin",
+        state, actor_user_id: auth.userId, ...reqMeta,
+      });
 
       const { data: stRow, error: stErr } = await supabase
         .from("spotify_oauth_states")
         .select("state, user_id, app_id, created_at, consumed_at")
         .eq("state", state)
         .maybeSingle();
-      if (stErr) return jr({ ok: false, error: `state lookup: ${stErr.message}` }, 500);
-      if (!stRow) return jr({ ok: false, error: "state inválido" }, 400);
-      if (stRow.user_id !== auth.userId) return jr({ ok: false, error: "state não pertence ao usuário" }, 403);
+      if (stErr) {
+        await failAdmin("state_lookup_failed", stErr.message);
+        return jr({ ok: false, error: `state lookup: ${stErr.message}` }, 500);
+      }
+      if (!stRow) {
+        await failAdmin("state_not_found", "state inválido");
+        return jr({ ok: false, error: "state inválido" }, 400);
+      }
+      if (stRow.user_id !== auth.userId) {
+        await failAdmin("state_user_mismatch", "state não pertence ao usuário", { app_id: stRow.app_id });
+        return jr({ ok: false, error: "state não pertence ao usuário" }, 403);
+      }
 
       if (stRow.consumed_at) {
         const consumedAgeMs = Date.now() - new Date(stRow.consumed_at).getTime();
@@ -237,10 +270,14 @@ Deno.serve(async (req) => {
             app_id: latest?.app_id,
           });
         }
+        await failAdmin("state_already_used", "state já utilizado", { app_id: stRow.app_id });
         return jr({ ok: false, error: "state já utilizado" }, 400);
       }
       const ageMs = Date.now() - new Date(stRow.created_at).getTime();
-      if (ageMs > 30 * 60 * 1000) return jr({ ok: false, error: "state expirado" }, 400);
+      if (ageMs > 30 * 60 * 1000) {
+        await failAdmin("state_expired", "state expirado", { app_id: stRow.app_id });
+        return jr({ ok: false, error: "state expirado" }, 400);
+      }
 
       await supabase
         .from("spotify_oauth_states")
@@ -265,6 +302,9 @@ Deno.serve(async (req) => {
           client_id_prefix: creds.client_id.slice(0, 6),
           redirect_uri: redirect, status: tokenResp.status, body: t.slice(0, 500),
         });
+        await failAdmin("token_exchange_failed", `${tokenResp.status}: ${t.slice(0, 200)}`, {
+          app_id: stRow.app_id, app_name: creds.name, status: tokenResp.status,
+        });
         return jr({ ok: false, error: `token exchange ${tokenResp.status} (app=${creds.name}, client_id=${creds.client_id.slice(0, 6)}…, redirect=${redirect}): ${t.slice(0, 300)}` }, 400);
       }
       const tj = await tokenResp.json();
@@ -282,15 +322,28 @@ Deno.serve(async (req) => {
           app_id: stRow.app_id, app_name: creds.name,
           status: meResp.status, body: t.slice(0, 500),
         });
+        await failAdmin("me_fetch_failed", `${meResp.status}: ${t.slice(0, 200)}`, {
+          app_id: stRow.app_id, app_name: creds.name,
+        });
         return jr({ ok: false, error: `/me ${meResp.status} (app=${creds.name}): ${t.slice(0, 300)}` }, 400);
       }
       const me = await meResp.json();
+
+      await logAudit(supabase, {
+        event: "token_exchanged", flow: "admin",
+        state, app_id: stRow.app_id, actor_user_id: auth.userId,
+        spotify_user_id: me.id, email: me.email ?? null, display_name: me.display_name ?? null,
+        ...reqMeta,
+      });
 
       try {
         await assertAppHasSlotForSpotifyUser(supabase, stRow.app_id, me.id);
       } catch (e) {
         console.error("[spotify-auth] slot check failed", {
           app_id: stRow.app_id, spotify_user: me.id, err: (e as Error).message,
+        });
+        await failAdmin("slot_check_failed", (e as Error).message, {
+          app_id: stRow.app_id, spotify_user_id: me.id,
         });
         return jr({ ok: false, error: (e as Error).message }, 400);
       }
@@ -310,7 +363,20 @@ Deno.serve(async (req) => {
           app_id: stRow.app_id,
           is_default: (count ?? 0) === 0,
         }, { onConflict: "app_id,spotify_user_id" });
-      if (upErr) return jr({ ok: false, error: upErr.message }, 500);
+      if (upErr) {
+        await failAdmin("tokens_upsert_failed", upErr.message, {
+          app_id: stRow.app_id, spotify_user_id: me.id,
+        });
+        return jr({ ok: false, error: upErr.message }, 500);
+      }
+
+      await logAudit(supabase, {
+        event: "account_connected", flow: "admin",
+        state, app_id: stRow.app_id, actor_user_id: auth.userId,
+        spotify_user_id: me.id, email: me.email ?? null, display_name: me.display_name ?? null,
+        meta: { app_name: creds.name },
+        ...reqMeta,
+      });
 
       return jr({
         ok: true,
