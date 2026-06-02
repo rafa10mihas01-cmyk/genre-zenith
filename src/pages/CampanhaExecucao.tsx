@@ -134,10 +134,6 @@ export default function CampanhaExecucao() {
   async function handleDispatchEco() {
     if (!camp) return;
     const baselineReady = baselineGate.required > 0 && baselineGate.collected >= baselineGate.required;
-    if (!baselineReady) {
-      toast.error("Baseline obrigatória", { description: `Coletadas ${baselineGate.collected}/${baselineGate.required || allocs.length} playlist(s). Aguarde o marco zero antes de distribuir.` });
-      return;
-    }
     setDispatching(true);
     try {
       // Recovery path: campanha já está active (entrou nesse estado por outro caminho) mas nunca
@@ -162,7 +158,11 @@ export default function CampanhaExecucao() {
       if (planErr) {
         toast.success("Campanha distribuída", { description: "Deal pronto. Inserções começam no próximo ciclo (~1min)." });
       } else {
-        toast.success("Campanha distribuída", { description: "Inserções enfileiradas — músicas entram nas playlists nas próximas execuções do bot." });
+        toast.success("Campanha distribuída", {
+          description: baselineReady
+            ? "Inserções enfileiradas — músicas entram nas playlists nas próximas execuções do bot."
+            : "Distribuição liberada mesmo sem baseline completa; o bot seguirá coletando o marco zero em paralelo.",
+        });
       }
       setCamp((c) => c ? ({ ...c, status: "active", eco_dispatched_at: new Date().toISOString() }) : c);
       setPlanRefreshKey((k) => k + 1);
