@@ -103,6 +103,29 @@ Deno.serve(async (req) => {
     const others = collected.length - ownedAll.length;
     const deferred = ownedAll.length - owned.length;
 
+    // Cliente Supabase precisa estar disponível antes do dryRun pra computar already_existed.
+    // (supabase client já criado acima)
+
+    // 4.1) Pré-computa quantas das 107 (ownedAll) JÁ existem em managed_playlists.
+    // Essa métrica é o que o operador precisa pra entender "já tem N importadas
+    // de antes, faltam M". Não depende do cap.
+    const ownedAllIds = ownedAll.map((p) => p.id);
+    const { data: existingAllRows } = ownedAllIds.length > 0
+      ? await supabase
+        .from("managed_playlists")
+        .select("spotify_playlist_id")
+        .in("spotify_playlist_id", ownedAllIds)
+      : { data: [] as { spotify_playlist_id: string }[] };
+    const existingAllIds = new Set(
+      (existingAllRows ?? []).map((r: { spotify_playlist_id: string }) => r.spotify_playlist_id),
+    );
+    const alreadyExistedAll = existingAllIds.size;
+    // Pendentes reais = ownedAll que AINDA não estão em managed_playlists e não vão ser
+    // importadas neste run.
+    const ownedNotYet = ownedAll.filter((p) => !existingAllIds.has(p.id));
+    const willImportNow = owned.filter((p) => !existingAllIds.has(p.id)).length;
+    const pendingAfterRun = Math.max(0, ownedNotYet.length - willImportNow);
+
     if (dryRun) {
       return jr({
         ok: true,
@@ -111,8 +134,10 @@ Deno.serve(async (req) => {
         account_id: accountId,
         total_fetched: collected.length,
         owned_count: ownedAll.length,
-        will_import_now: owned.length,
+        already_existed: alreadyExistedAll,
+        will_import_now: willImportNow,
         deferred_count: deferred,
+        pending_after_run: pendingAfterRun,
         others_count: others,
         sample: owned.slice(0, 5).map((p) => ({ id: p.id, name: p.name, tracks: p.tracks?.total })),
       });
@@ -383,6 +408,30 @@ Deno.serve(async (req) => {
     }
 
     const autoArchived = importedIds.length - activeImportedIds.length;
+
+    // Pendentes reais APÓS este run: ownedAll que continuam sem linha em managed_playlists.
+    // Quem foi processado agora entra em existingAllIds via upsert; releitura mais simples
+    // é subtrair: ownedAll - (já existiam antes + novos importados nesta execução).
+    const newImportedThisRun = importedIds.length; // upsertados (inclui re-upserts de existentes, mas é o melhor proxy)
+    const totalCoveredAfter = Math.min(
+      ownedAll.length,
+      alreadyExistedAll + Math.max(0, newImportedThisRun - 0 /* upsert pode ter tocado em existentes; usamos willImportNow */)
+    );
+    const pendingAfter = Math.max(0, ownedAll.length - alreadyExistedAll - willImportNow);
+    const fullySynced = pendingAfter === 0;
+
+    // Persiste o status da última sync na tabela `accounts` pra exibição no card.
+    if (accountId) {
+      await supabase.from("accounts").update({
+        last_sync_at: new Date().toISOString(),
+        last_sync_found: ownedAll.length,
+        last_sync_imported: imported,
+        last_sync_pending: pendingAfter,
+        last_sync_already_existed: alreadyExistedAll,
+        last_sync_auto_archived: autoArchived,
+      }).eq("id", accountId);
+    }
+
     return jr({
       ok: true,
       spotify_user_id: ownerId,
@@ -399,10 +448,13 @@ Deno.serve(async (req) => {
       throttle: { max_per_run: MAX_PLAYLISTS_PER_RUN, call_delay_ms: SPOTIFY_CALL_DELAY_MS },
       report: {
         found: ownedAll.length,
+        already_existed: alreadyExistedAll,
         imported,
         active: activeImportedIds.length,
         auto_archived: autoArchived,
         deferred,
+        pending_after: pendingAfter,
+        fully_synced: fullySynced,
         spotify_calls_sync: spotifyCalls,
         rate_429_count: rate429Count,
         circuit_breaker: circuitBreaker,

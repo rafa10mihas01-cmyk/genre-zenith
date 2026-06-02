@@ -353,10 +353,13 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     items: Array<{
       account: string;
       found: number;
+      already_existed: number;
       imported: number;
       active: number;
       auto_archived: number;
       deferred: number;
+      pending_after: number;
+      fully_synced: boolean;
       spotify_calls: number;
       rate_429: number;
       circuit_status: string;
@@ -412,10 +415,13 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     return {
       account: label,
       found: r.found ?? data?.owned_count ?? 0,
+      already_existed: r.already_existed ?? 0,
       imported: r.imported ?? data?.imported ?? 0,
       active: r.active ?? data?.pipeline_dispatched ?? 0,
       auto_archived: r.auto_archived ?? data?.auto_archived ?? 0,
       deferred: r.deferred ?? data?.deferred_count ?? 0,
+      pending_after: r.pending_after ?? r.deferred ?? data?.deferred_count ?? 0,
+      fully_synced: r.fully_synced ?? ((r.pending_after ?? r.deferred ?? 0) === 0),
       spotify_calls: r.spotify_calls_sync ?? 0,
       rate_429: r.rate_429_count ?? 0,
       circuit_status: cb.status ?? "closed",
@@ -1783,13 +1789,20 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
           </DialogHeader>
           <div className="space-y-4">
             {(syncReport?.items ?? []).map((it, idx) => {
-              const totalFound = it.found;
               const breakerOpen = it.circuit_status === "open";
               const had429 = it.rate_429 > 0;
+              const hasPending = it.pending_after > 0;
               return (
                 <div key={idx} className="rounded-md border border-border bg-card/50 p-4 space-y-3">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="font-medium">{it.account}</div>
+                    <div className="font-medium flex items-center gap-2">
+                      {it.fully_synced ? (
+                        <span className="text-emerald-500">✅</span>
+                      ) : (
+                        <span className="text-amber-500">⚠️</span>
+                      )}
+                      {it.account}
+                    </div>
                     <div className="flex items-center gap-2 text-xs">
                       {had429 && (
                         <span className="rounded bg-destructive/15 text-destructive px-2 py-0.5">
@@ -1810,30 +1823,43 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
                     <div>
-                      <div className="text-muted-foreground text-xs">Encontradas</div>
-                      <div className="font-semibold">{totalFound}</div>
+                      <div className="text-muted-foreground text-xs">Encontradas no Spotify</div>
+                      <div className="font-semibold">{it.found}</div>
                     </div>
                     <div>
-                      <div className="text-muted-foreground text-xs">Importadas</div>
-                      <div className="font-semibold">{it.imported}</div>
+                      <div className="text-muted-foreground text-xs">Já existiam</div>
+                      <div className="font-semibold">{it.already_existed}</div>
                     </div>
                     <div>
-                      <div className="text-muted-foreground text-xs">Ativas</div>
-                      <div className="font-semibold text-emerald-500">{it.active}</div>
+                      <div className="text-muted-foreground text-xs">Importadas agora</div>
+                      <div className="font-semibold text-emerald-500">{it.imported}</div>
                     </div>
                     <div>
                       <div className="text-muted-foreground text-xs">Auto-arquivadas</div>
                       <div className="font-semibold">{it.auto_archived}</div>
                     </div>
                     <div>
-                      <div className="text-muted-foreground text-xs">Adiadas (cap)</div>
-                      <div className="font-semibold">{it.deferred}</div>
+                      <div className="text-muted-foreground text-xs">Pendentes</div>
+                      <div className={cn("font-semibold", hasPending ? "text-amber-500" : "text-muted-foreground")}>
+                        {it.pending_after}
+                      </div>
                     </div>
                     <div>
                       <div className="text-muted-foreground text-xs">Calls Spotify</div>
                       <div className="font-semibold">{it.spotify_calls}</div>
                     </div>
                   </div>
+                  {hasPending && (
+                    <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-500">
+                      ⚠️ Existem <strong>{it.pending_after}</strong> playlist{it.pending_after > 1 ? "s" : ""} aguardando importação devido ao limite de 50 por execução.
+                      Clique em <strong>Sincronizar</strong> de novo para importar o próximo lote.
+                    </div>
+                  )}
+                  {it.fully_synced && it.imported > 0 && (
+                    <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-500">
+                      ✅ Conta totalmente sincronizada.
+                    </div>
+                  )}
                   {breakerOpen && it.circuit_blocked_until && (
                     <div className="text-xs text-destructive">
                       Bloqueado até {new Date(it.circuit_blocked_until).toLocaleString("pt-BR")}

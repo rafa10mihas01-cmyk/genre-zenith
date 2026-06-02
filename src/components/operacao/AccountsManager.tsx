@@ -16,6 +16,12 @@ type Account = {
   status: string;
   max_playlists: number;
   current_playlists: number;
+  last_sync_at: string | null;
+  last_sync_found: number | null;
+  last_sync_imported: number | null;
+  last_sync_pending: number | null;
+  last_sync_already_existed: number | null;
+  last_sync_auto_archived: number | null;
 };
 
 export function AccountsManager() {
@@ -121,6 +127,9 @@ function AccountCard({ a, onChange }: { a: Account; onChange: () => void }) {
           />
         </div>
       </div>
+      {a.last_sync_at && (
+        <SyncStatusBlock a={a} />
+      )}
       {editing ? (
         <div className="mt-3 space-y-2">
           <div className="flex items-center gap-2">
@@ -152,6 +161,43 @@ function AccountCard({ a, onChange }: { a: Account; onChange: () => void }) {
           Editar limites
         </Button>
       )}
+    </div>
+  );
+}
+
+function SyncStatusBlock({ a }: { a: Account }) {
+  const found = a.last_sync_found ?? 0;
+  const imported = a.last_sync_imported ?? 0;
+  const pending = a.last_sync_pending ?? 0;
+  const fully = pending === 0 && found > 0;
+  const when = a.last_sync_at ? new Date(a.last_sync_at).toLocaleString("pt-BR", {
+    day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
+  }) : null;
+  return (
+    <div className={cn(
+      "mt-3 rounded-md border px-2.5 py-2 text-[11px] space-y-1.5",
+      fully ? "border-primary/30 bg-primary/5" : "border-warning/30 bg-warning/5",
+    )}>
+      <div className="flex items-center justify-between gap-2">
+        <span className={cn("font-bold uppercase tracking-wide", fully ? "text-primary" : "text-warning")}>
+          {fully ? "✅ Totalmente sincronizada" : "⚠️ Sincronização parcial"}
+        </span>
+        {when && <span className="text-muted-foreground">{when}</span>}
+      </div>
+      <div className="grid grid-cols-3 gap-1.5 font-mono tabular-nums">
+        <div>
+          <div className="text-muted-foreground">Encontradas</div>
+          <div className="font-bold text-foreground">{found}</div>
+        </div>
+        <div>
+          <div className="text-muted-foreground">Importadas</div>
+          <div className="font-bold text-foreground">{imported}</div>
+        </div>
+        <div>
+          <div className="text-muted-foreground">Pendentes</div>
+          <div className={cn("font-bold", pending > 0 ? "text-warning" : "text-foreground")}>{pending}</div>
+        </div>
+      </div>
     </div>
   );
 }
