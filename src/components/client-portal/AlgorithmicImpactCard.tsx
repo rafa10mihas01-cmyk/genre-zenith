@@ -8,6 +8,12 @@ interface AlgorithmicImpactCardProps {
   valorCobrado: number;
   /** Streams já entregues (para usar como base quando em andamento). */
   totalDelivered?: number;
+  /**
+   * Tipo do cliente. Só "label" (gravadora) recebe a narrativa de
+   * expansão orgânica — artista/produtor/manager veem apenas o garantido,
+   * pois o orgânico fica com a engine (NexEngine).
+   */
+  clientType?: string | null;
 }
 
 const EXPANSION_RATE = 0.18;
@@ -20,23 +26,27 @@ const fmtBRLDecimal = (n: number) =>
 
 /**
  * "Impacto algorítmico estimado" — versão compacta/premium.
- * Mesmas regras de cálculo (expansão orgânica 18%), só visualmente mais fino.
+ * Para gravadora: mostra Garantido + Orgânico estimado = Potencial total.
+ * Para os demais (artista/produtor/manager): mostra só o garantido + CPS direto.
  */
 export function AlgorithmicImpactCard({
   goalPlays,
   valorCobrado,
   totalDelivered,
+  clientType,
 }: AlgorithmicImpactCardProps) {
   if (!goalPlays || goalPlays <= 0) return null;
   if (!valorCobrado || valorCobrado <= 0) return null;
 
+  const isLabel = clientType === "label";
+
   const garantido =
     totalDelivered && totalDelivered > 0 ? totalDelivered : goalPlays;
   const expansao = Math.round(goalPlays * EXPANSION_RATE);
-  const potencialTotal = garantido + expansao;
+  const potencialTotal = isLabel ? garantido + expansao : garantido;
 
   const cpsDireto = valorCobrado / goalPlays;
-  const cpsEfetivo = valorCobrado / potencialTotal;
+  const cpsEfetivo = isLabel ? valorCobrado / potencialTotal : cpsDireto;
 
   const pctGarantido = potencialTotal > 0 ? (garantido / potencialTotal) * 100 : 0;
   const pctExpansao = potencialTotal > 0 ? (expansao / potencialTotal) * 100 : 0;
