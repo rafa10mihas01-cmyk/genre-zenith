@@ -189,7 +189,43 @@ export default function Prospecao() {
         </>
       )}
 
+      {/* Mobile: seletor de segmento posicionado acima da busca/filtros do conteúdo */}
+      {(() => {
+        const SEG_M = [
+          { id: "ativos" as const,     label: "Ativos",     icon: Handshake,  count: ativosCount },
+          { id: "prospeccao" as const, label: "Prospecção", icon: UserSearch, count: outreach.leads },
+        ];
+        return (
+          <div className="grid grid-cols-2 gap-1.5 sm:hidden">
+            {SEG_M.map((t) => {
+              const Icon = t.icon;
+              const active = segment === t.id;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setSegment(t.id)}
+                  className={cn(
+                    "rounded-xl border px-2 py-2.5 flex flex-col items-center justify-center gap-1 transition-colors",
+                    active
+                      ? "border-primary/60 bg-primary/10 text-foreground"
+                      : "border-border bg-card text-muted-foreground hover:text-foreground",
+                  )}
+                  aria-pressed={active}
+                >
+                  <Icon className={cn("h-4 w-4", active ? "text-primary" : "")} />
+                  <span className="text-[12px] font-medium leading-none">{t.label}</span>
+                  <span className={cn("text-[11px] font-bold tabular-nums leading-none", active ? "text-primary" : "text-muted-foreground")}>
+                    {t.id === "prospeccao" && outreach.loading ? "…" : t.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        );
+      })()}
+
       <section className="space-y-4 animate-tab-in" key={segment}>
+
         {segment === "ativos" ? (
           <CuradoresLibraryTab
             curators={curators}
