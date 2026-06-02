@@ -194,6 +194,7 @@ export default function Campanhas() {
             hint="Plays planejados"
             domain="campaigns"
             loading={loading}
+            className="col-span-2 md:col-span-1"
           />
           <KpiBig
             icon={Megaphone}
