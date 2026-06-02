@@ -354,7 +354,15 @@ export default function CampanhaExecucao() {
       const url = alloc.managed_playlists?.spotify_url as string | null | undefined;
       return url?.match(/playlist\/([A-Za-z0-9]+)/)?.[1] ?? null;
     }).filter(Boolean) as string[]));
-    if (dealId && plannedSpotifyIds.length > 0) {
+    // Autoritativo: campaigns.baseline_status é o flag oficial setado pelo bot-ingest
+    // e pela importação de planilha. Se ele já marcou 'captured', a baseline existe
+    // independente do que esteja em curator_deal_snapshots/logs (que podem usar IDs diferentes).
+    const campBaselineStatus = (c as any)?.baseline_status as string | null | undefined;
+    const campBaselineAt = (c as any)?.baseline_captured_at as string | null | undefined;
+    if (campBaselineStatus === "captured") {
+      const n = plannedSpotifyIds.length || 1;
+      setBaselineGate({ required: n, collected: n, capturedAt: campBaselineAt ?? null });
+    } else if (dealId && plannedSpotifyIds.length > 0) {
       const [{ data: baselineSnaps }, { data: baselineLog }] = await Promise.all([
         supabase
           .from("curator_deal_snapshots")
