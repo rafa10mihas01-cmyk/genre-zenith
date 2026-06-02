@@ -267,5 +267,8 @@ Deno.serve(async (req) => {
     playlists_recorded: playlists.length,
     next_auto_collect_at: nextAt,
     deal_song_bumped: !!songRow,
+    campaign_id: collectionCampaignId,
+    collection_intent: collectionIntent,
+    collection_result: collectionResult,
   });
 });
