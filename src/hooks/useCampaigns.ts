@@ -8,6 +8,7 @@ export type Campaign = {
   id: string;
   track_name: string;
   artist: string | null;
+  cover_url: string | null;
   goal_plays: number;
   deadline: string;
   status: "draft" | "active" | "paused" | "completed" | "cancelled";
@@ -15,6 +16,7 @@ export type Campaign = {
   total_delivered: number;
   created_at: string;
   snapshot_locked_at: string | null;
+  client_id: string | null;
   curator_id: string | null;
   deal_id: string | null;
   public_plan_token: string | null;
@@ -29,10 +31,14 @@ export type Campaign = {
   baseline_pending?: boolean;
   /** Derivado: timestamp da 1ª baseline capturada (qualquer deal da campanha). */
   baseline_captured_at?: string | null;
-
+  /** Derivado: e-mail principal do cliente vinculado (se houver). */
+  client_email?: string | null;
+  /** Derivado: nº de e-mails autorizados a acessar o portal desta campanha. */
+  access_emails_count?: number;
 };
 
-const SELECT = "id, track_name, artist, goal_plays, deadline, status, total_allocated, total_delivered, created_at, snapshot_locked_at, curator_id, deal_id, public_plan_token, client_approved_at, client_approved_by, client_rejected_at, campaign_type, collection_mode, plan_approved_at, client_decision_round";
+const SELECT = "id, track_name, artist, cover_url, goal_plays, deadline, status, total_allocated, total_delivered, created_at, snapshot_locked_at, client_id, curator_id, deal_id, public_plan_token, client_approved_at, client_approved_by, client_rejected_at, campaign_type, collection_mode, plan_approved_at, client_decision_round";
+
 const QUERY_KEY = ["campaigns"] as const;
 
 export function useCampaigns() {
@@ -57,10 +63,15 @@ export function useCampaigns() {
       // Reversão 30/05: baseline deixou de ser gate. Mantemos só a leitura de
       // baseline_captured_at (informativo na UI), sem derivar "pending".
       const ids = campaigns.map((c) => c.id);
-      const { data: deals } = await supabase
-        .from("curator_deals")
-        .select("campaign_id, baseline_captured_at")
-        .in("campaign_id", ids);
+      const clientIds = Array.from(new Set(campaigns.map((c) => c.client_id).filter(Boolean) as string[]));
+
+      const [{ data: deals }, { data: accessEmails }, { data: clients }] = await Promise.all([
+        supabase.from("curator_deals").select("campaign_id, baseline_captured_at").in("campaign_id", ids),
+        supabase.from("campaign_access_emails").select("campaign_id").in("campaign_id", ids),
+        clientIds.length > 0
+          ? supabase.from("clients").select("id, email").in("id", clientIds)
+          : Promise.resolve({ data: [] as Array<{ id: string; email: string | null }> } as any),
+      ]);
 
       const byCamp = new Map<string, string | null>();
       for (const d of deals ?? []) {
@@ -69,13 +80,26 @@ export function useCampaigns() {
         if (cap && (!cur || cap < cur)) byCamp.set(d.campaign_id as string, cap);
         else if (!byCamp.has(d.campaign_id as string)) byCamp.set(d.campaign_id as string, cur);
       }
+      const accessCount = new Map<string, number>();
+      for (const a of accessEmails ?? []) {
+        const k = a.campaign_id as string;
+        accessCount.set(k, (accessCount.get(k) ?? 0) + 1);
+      }
+      const clientEmailById = new Map<string, string | null>();
+      for (const cl of (clients ?? []) as Array<{ id: string; email: string | null }>) {
+        clientEmailById.set(cl.id, cl.email ?? null);
+      }
+
       return campaigns.map((c) => ({
         ...c,
         baseline_pending: false,
         baseline_captured_at: byCamp.get(c.id) ?? null,
+        access_emails_count: accessCount.get(c.id) ?? 0,
+        client_email: c.client_id ? clientEmailById.get(c.client_id) ?? null : null,
       }));
     },
   });
+
 
 
   // Realtime: qualquer mudança em campaigns OU curator_deals (baseline) invalida.
@@ -92,6 +116,11 @@ export function useCampaigns() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "curator_deals" },
+        () => qc.invalidateQueries({ queryKey: QUERY_KEY }),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "campaign_access_emails" },
         () => qc.invalidateQueries({ queryKey: QUERY_KEY }),
       )
       .subscribe();

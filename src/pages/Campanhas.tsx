@@ -5,7 +5,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusDot } from "@/components/ui/status-dot";
-import { Plus, RefreshCw, Target, ListChecks, Calculator, Megaphone, CheckCircle2, Percent, MoreHorizontal, Pause, Play, Archive, ArchiveRestore, Trash2, Handshake, Link2, Copy, Check, Clock, MessageSquareWarning, Upload, Loader2, ImagePlus, X } from "lucide-react";
+import { Plus, RefreshCw, Target, ListChecks, Calculator, Megaphone, CheckCircle2, Percent, MoreHorizontal, Pause, Play, Archive, ArchiveRestore, Trash2, Handshake, Link2, Copy, Check, Clock, MessageSquareWarning, Upload, Loader2, ImagePlus, X, Mail, Music2, AtSign } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { PUBLIC_DOMAIN } from "@/lib/curatorPublicUrl";
@@ -691,13 +691,53 @@ function CampaignRow({ c }: { c: Campaign }) {
                 Rodada {c.client_decision_round}
               </span>
             )}
+            {(c.access_emails_count ?? 0) > 0 && (
+              <span
+                className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider rounded border border-blue-500/40 bg-blue-500/10 px-1.5 py-0.5 text-blue-400"
+                title={`${c.access_emails_count} e-mail(s) com acesso ao portal do cliente`}
+              >
+                <Mail className="h-2.5 w-2.5" />
+                Acesso · {c.access_emails_count}
+              </span>
+            )}
           </div>
-          <div className="font-semibold truncate">{c.track_name}</div>
-          {c.artist && <div className="text-sm text-muted-foreground truncate">{c.artist}</div>}
-          <div className="text-xs text-muted-foreground mt-1">
-            {daysLeft > 0 ? `${daysLeft}d restantes` : daysLeft === 0 ? "Vence hoje" : `${Math.abs(daysLeft)}d em atraso`}
+          <div className="flex items-start gap-3 min-w-0">
+            {c.cover_url ? (
+              <img
+                src={c.cover_url}
+                alt=""
+                loading="lazy"
+                className="h-12 w-12 rounded-md object-cover border border-border shrink-0"
+              />
+            ) : (
+              <div className="h-12 w-12 rounded-md bg-muted border border-border flex items-center justify-center shrink-0">
+                <Music2 className="h-5 w-5 text-muted-foreground" />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="font-semibold truncate">{c.track_name}</div>
+              {c.artist && <div className="text-sm text-muted-foreground truncate">{c.artist}</div>}
+              <div className="text-xs text-muted-foreground mt-0.5">
+                {daysLeft > 0 ? `${daysLeft}d restantes` : daysLeft === 0 ? "Vence hoje" : `${Math.abs(daysLeft)}d em atraso`}
+              </div>
+            </div>
           </div>
+          {c.client_email ? (
+            <div
+              className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground min-w-0"
+              title="E-mail do cliente cadastrado"
+            >
+              <AtSign className="h-3 w-3 shrink-0 text-primary/80" />
+              <span className="truncate">{c.client_email}</span>
+            </div>
+          ) : c.client_id ? (
+            <div className="mt-2 flex items-center gap-1.5 text-[11px] text-amber-500/90">
+              <AtSign className="h-3 w-3 shrink-0" />
+              <span>Cliente sem e-mail cadastrado</span>
+            </div>
+          ) : null}
         </div>
+
         <div className="mt-auto space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
