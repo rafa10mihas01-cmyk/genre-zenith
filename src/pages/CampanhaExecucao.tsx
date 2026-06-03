@@ -913,7 +913,7 @@ export default function CampanhaExecucao() {
                       <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
                         <Switch
                           checked={dominanceReliefPreview}
-                          onCheckedChange={setDominanceReliefPreview}
+                          onCheckedChange={handleDominanceReliefPreviewChange}
                           aria-label="Dominance Relief (simulação)"
                         />
                         <span>Dominance Relief <span className="opacity-60">(simulação)</span></span>
@@ -938,7 +938,7 @@ export default function CampanhaExecucao() {
                       ) : reliefInlineError ? (
                         <div className="text-destructive">{reliefInlineError}</div>
                       ) : !reliefInline ? (
-                        <div className="text-muted-foreground">Sem dados de simulação.</div>
+                        <div className="text-muted-foreground">Clique no toggle para calcular a simulação.</div>
                       ) : reliefInline.applied ? (
                         <div className="grid grid-cols-3 gap-3">
                           <div><div className="text-muted-foreground">Top1 antes</div><div className="font-semibold tabular-nums">{reliefInline.top1_before_pct.toFixed(1)}%</div></div>
