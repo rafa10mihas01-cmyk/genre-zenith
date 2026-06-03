@@ -10,6 +10,8 @@ const EXPECTED: Record<string, string> = {
   "31svfjqrk6nayh5d46kmffemqyhy": "c71fb93a-9cc5-4a56-a347-cd627ddede61", // 07
   "31swa2xl3uawqijufmt3bc4vtvta": "c71fb93a-9cc5-4a56-a347-cd627ddede61", // 07
   "4v4pfdsr9dxm3zxnktj1kawf0": "e9a23b28-a4cf-4386-ba26-7277f870952a", // 08
+  "5dn9yc38yq6ri8n8w2hubk1ji": "e9a23b28-a4cf-4386-ba26-7277f870952a", // 08 (METRALHA DOS BAILES)
+  "31goz5mop3omjdye64kwlcqfbjga": "e9a23b28-a4cf-4386-ba26-7277f870952a", // 08 (BAILE DO PERNA)
   "6p5z5stfg640xtjoobureeo3g": "821cb0cc-001b-4d2f-a0c0-66cafe055e72", // 05
   "americanow61": "c71fb93a-9cc5-4a56-a347-cd627ddede61", // 07
   "feliguin25": "c71fb93a-9cc5-4a56-a347-cd627ddede61", // 07
