@@ -1,9 +1,9 @@
 // useCuratorDeals — camada de dados do módulo redesenhado de Curator Deals.
 // Mesmo padrão dos demais hooks: SDK Supabase direto em useEffect/useCallback.
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useQueries, useQueryClient } from "@tanstack/react-query";
+import { useQueries, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import type {
   CuratorDeal,
   CuratorDealLog,
@@ -162,36 +162,35 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
   const includeInternal = opts?.includeInternal ?? false;
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [deals, setDeals] = useState<CuratorDeal[]>([]);
-  const [logs, setLogs] = useState<CuratorDealLog[]>([]);
-  const [playlists, setPlaylists] = useState<CuratorPlaylist[]>([]);
-  const [songs, setSongs] = useState<CuratorDealSong[]>([]);
-  const [alerts, setAlerts] = useState<CuratorFraudAlert[]>([]);
-  const [curators, setCurators] = useState<Curator[]>([]);
-  const [balances, setBalances] = useState<CuratorBalance[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const hasLoadedRef = useRef(false);
 
-  const load = useCallback(async () => {
-    if (!user) {
-      hasLoadedRef.current = false;
-      setDeals([]);
-      setLogs([]);
-      setPlaylists([]);
-      setSongs([]);
-      setAlerts([]);
-      setCurators([]);
-      setBalances([]);
-      setLoading(false);
-      return;
-    }
-    // Só mostra skeleton no primeiro carregamento — reloads silenciosos evitam flicker.
-    if (!hasLoadedRef.current) setLoading(true);
-    setError(null);
-    try {
+  const queryKey = useMemo(
+    () => ["curator-deals", user?.id ?? "anon", includeInternal] as const,
+    [user?.id, includeInternal],
+  );
+
+  type CuratorDealsBundle = {
+    deals: CuratorDeal[];
+    logs: CuratorDealLog[];
+    playlists: CuratorPlaylist[];
+    songs: CuratorDealSong[];
+    alerts: CuratorFraudAlert[];
+    curators: Curator[];
+    balances: CuratorBalance[];
+  };
+
+  const emptyBundle: CuratorDealsBundle = {
+    deals: [], logs: [], playlists: [], songs: [], alerts: [], curators: [], balances: [],
+  };
+
+  const query = useQuery<CuratorDealsBundle>({
+    queryKey,
+    enabled: !!user,
+    staleTime: 30_000,
+    gcTime: 600_000,
+    placeholderData: keepPreviousData,
+    refetchOnWindowFocus: false,
+    queryFn: async () => {
       // Curadores + saldos em paralelo com deals
-      // Tetos altos para não cortar dado atual mas impedir crescimento ilimitado.
       const [dealsRes, curatorsRes, balancesRes] = await Promise.all([
         (() => {
           let q = supabase
@@ -217,73 +216,78 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
       if (balancesRes.error) throw balancesRes.error;
 
       const dealsRows = (dealsRes.data ?? []) as CuratorDeal[];
-      setDeals(dealsRows);
-      setCurators((curatorsRes.data ?? []) as Curator[]);
-      setBalances((balancesRes.data ?? []) as CuratorBalance[]);
+      const curatorsRows = (curatorsRes.data ?? []) as Curator[];
+      const balancesRows = (balancesRes.data ?? []) as CuratorBalance[];
 
       const dealIds = dealsRows.map((d) => d.id);
       if (dealIds.length === 0) {
-        setLogs([]);
-        setPlaylists([]);
-        setSongs([]);
-        setAlerts([]);
-      } else {
-        const [logsRes, plRes, songsRes, alertsRes] = await Promise.all([
-          supabase
-            .from("curator_deal_logs")
-            .select("*")
-            .in("deal_id", dealIds)
-            .order("created_at", { ascending: true })
-            .limit(5000),
-          supabase
-            .from("curator_playlists")
-            .select("*")
-            .in("deal_id", dealIds)
-            .order("added_at", { ascending: true })
-            .limit(5000),
-          supabase
-            .from("curator_deal_songs")
-            .select("*")
-            .in("deal_id", dealIds)
-            .order("position", { ascending: true })
-            .limit(5000),
-          supabase
-            .from("curator_fraud_alerts")
-            .select("*")
-            .in("deal_id", dealIds)
-            .eq("status", "open")
-            .order("created_at", { ascending: false })
-            .limit(500),
-        ]);
-        if (logsRes.error) throw logsRes.error;
-        if (plRes.error) throw plRes.error;
-        if (songsRes.error) throw songsRes.error;
-        if (alertsRes.error) throw alertsRes.error;
-        setLogs((logsRes.data ?? []) as CuratorDealLog[]);
-        setPlaylists(
-          ((plRes.data ?? []) as CuratorPlaylist[]).map((p) => ({
-            ...p,
-            match_status: (p.match_status as string) === "algorithmic" ? "editorial" : p.match_status,
-          })) as CuratorPlaylist[],
-        );
-        setSongs((songsRes.data ?? []) as CuratorDealSong[]);
-        setAlerts((alertsRes.data ?? []) as CuratorFraudAlert[]);
+        return {
+          deals: dealsRows,
+          logs: [], playlists: [], songs: [], alerts: [],
+          curators: curatorsRows,
+          balances: balancesRows,
+        };
       }
 
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      hasLoadedRef.current = true;
-      setLoading(false);
-    }
-  }, [user, includeInternal]);
+      const [logsRes, plRes, songsRes, alertsRes] = await Promise.all([
+        supabase
+          .from("curator_deal_logs")
+          .select("*")
+          .in("deal_id", dealIds)
+          .order("created_at", { ascending: true })
+          .limit(5000),
+        supabase
+          .from("curator_playlists")
+          .select("*")
+          .in("deal_id", dealIds)
+          .order("added_at", { ascending: true })
+          .limit(5000),
+        supabase
+          .from("curator_deal_songs")
+          .select("*")
+          .in("deal_id", dealIds)
+          .order("position", { ascending: true })
+          .limit(5000),
+        supabase
+          .from("curator_fraud_alerts")
+          .select("*")
+          .in("deal_id", dealIds)
+          .eq("status", "open")
+          .order("created_at", { ascending: false })
+          .limit(500),
+      ]);
+      if (logsRes.error) throw logsRes.error;
+      if (plRes.error) throw plRes.error;
+      if (songsRes.error) throw songsRes.error;
+      if (alertsRes.error) throw alertsRes.error;
 
-  useEffect(() => {
-    load();
-  }, [load]);
+      return {
+        deals: dealsRows,
+        logs: (logsRes.data ?? []) as CuratorDealLog[],
+        playlists: ((plRes.data ?? []) as CuratorPlaylist[]).map((p) => ({
+          ...p,
+          match_status: (p.match_status as string) === "algorithmic" ? "editorial" : p.match_status,
+        })) as CuratorPlaylist[],
+        songs: (songsRes.data ?? []) as CuratorDealSong[],
+        alerts: (alertsRes.data ?? []) as CuratorFraudAlert[],
+        curators: curatorsRows,
+        balances: balancesRows,
+      };
+    },
+  });
+
+  const bundle = query.data ?? emptyBundle;
+  const { deals, logs, playlists, songs, alerts, curators, balances } = bundle;
+  // `loading` mantém contrato: true só quando NÃO há dado em cache (1ª visita).
+  const loading = query.isLoading && !query.data;
+  const error = query.error ? (query.error instanceof Error ? query.error.message : String(query.error)) : null;
+
+  const load = useCallback(async () => {
+    await query.refetch();
+  }, [query]);
 
   // Polling de fallback: enquanto houver música em coleta ativa (queued/collecting),
-  // recarrega a cada 5s para garantir que o status volte para "idle" no UI mesmo
+  // revalida a cada 5s para garantir que o status volte para "idle" mesmo
   // que o evento realtime seja perdido.
   const hasActiveCollection = useMemo(
     () =>
@@ -297,10 +301,10 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
   useEffect(() => {
     if (!hasActiveCollection) return;
     const id = setInterval(() => {
-      load();
+      queryClient.invalidateQueries({ queryKey });
     }, 5000);
     return () => clearInterval(id);
-  }, [hasActiveCollection, load]);
+  }, [hasActiveCollection, queryClient, queryKey]);
 
   // ============================================================
   // FASE 6 — Progresso via TanStack Query (cache + realtime)
@@ -345,13 +349,14 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
 
   useEffect(() => {
     if (!user) return;
+    const invalidateBundle = () => queryClient.invalidateQueries({ queryKey });
     const channel = supabase
       .channel(`curator-deals-live-${user.id}-${Math.random().toString(36).slice(2, 10)}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "curator_deals" },
         () => {
-          load();
+          invalidateBundle();
         },
       )
       .on(
@@ -373,7 +378,7 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
           const dealId = row?.deal_id;
           if (dealId && dealIdsRef.current.includes(dealId)) {
             queryClient.invalidateQueries({ queryKey: ["curator-progress", dealId] });
-            load();
+            invalidateBundle();
           }
         },
       )
@@ -389,22 +394,9 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, queryClient, load]);
+  }, [user, queryClient, queryKey]);
 
 
-  useEffect(() => {
-    if (!user) return;
-    const refresh = () => load();
-    const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") load();
-    };
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refreshWhenVisible);
-    return () => {
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
-    };
-  }, [user, load]);
 
   const invalidateProgress = useCallback(
     (dealId?: string) => {

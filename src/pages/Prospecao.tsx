@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { RefreshCw, Handshake, UserSearch, Users, Activity, DollarSign, TrendingUp, Send, Mail, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageContainer } from "@/components/PageContainer";
@@ -54,18 +55,19 @@ export default function Prospecao() {
     return { curadores: activeCurators.length, dealsAtivos, receita, ticket };
   }, [curators, balances, deals]);
 
-  // Outreach KPIs (carrega quando entra em prospecção)
-  const [outreach, setOutreach] = useState({ leads: 0, contatados: 0, respondidos: 0, convertidos: 0, loading: true });
-  useEffect(() => {
-    if (segment !== "prospeccao") return;
-    let cancelled = false;
-    (async () => {
-      setOutreach((s) => ({ ...s, loading: true }));
+  // Outreach KPIs (cache compartilhado entre montagens da página)
+  const outreachQuery = useQuery({
+    queryKey: ["outreach"],
+    enabled: segment === "prospeccao",
+    staleTime: 60_000,
+    gcTime: 600_000,
+    placeholderData: keepPreviousData,
+    refetchOnWindowFocus: false,
+    queryFn: async () => {
       const [extRes, logsRes] = await Promise.all([
         supabase.from("external_curators").select("id, pipeline_status"),
         supabase.from("curator_outreach_log").select("external_curator_id, event_type"),
       ]);
-      if (cancelled) return;
       const ext = (extRes.data ?? []) as { id: string; pipeline_status: string }[];
       const logs = (logsRes.data ?? []) as { external_curator_id: string | null; event_type: string }[];
       const leads = ext.length;
@@ -77,18 +79,23 @@ export default function Prospecao() {
       const respondidosSet = new Set(
         logs.filter((l) => l.external_curator_id && l.event_type === "replied").map((l) => l.external_curator_id as string),
       );
-
       const convertidos = ext.filter((c) => c.pipeline_status === "fechado").length;
-      setOutreach({
+      return {
         leads,
         contatados: contatadosSet.size,
         respondidos: respondidosSet.size,
         convertidos,
-        loading: false,
-      });
-    })();
-    return () => { cancelled = true; };
-  }, [segment]);
+      };
+    },
+  });
+
+  const outreach = {
+    leads: outreachQuery.data?.leads ?? 0,
+    contatados: outreachQuery.data?.contatados ?? 0,
+    respondidos: outreachQuery.data?.respondidos ?? 0,
+    convertidos: outreachQuery.data?.convertidos ?? 0,
+    loading: outreachQuery.isLoading && !outreachQuery.data,
+  };
 
   const taxaResposta = outreach.contatados > 0 ? (outreach.respondidos / outreach.contatados) * 100 : 0;
 
