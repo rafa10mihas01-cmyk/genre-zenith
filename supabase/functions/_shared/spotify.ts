@@ -588,6 +588,7 @@ export async function getUserAccessToken(userId?: string): Promise<{ token: stri
   const row = primary
     ?? (defaultAppId ? rows.find((r) => r.app_id === defaultAppId) : undefined)
     ?? rows[0];
+  enterCtx({ appId: row.app_id, spotify_user_id: row.spotify_user_id });
   const expiresMs = new Date(row.expires_at).getTime();
   if (expiresMs > Date.now() + 60_000) return { token: row.access_token, row };
   const fresh = await refreshUserToken(row);
