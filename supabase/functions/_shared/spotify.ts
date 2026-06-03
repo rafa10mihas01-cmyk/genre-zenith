@@ -42,15 +42,21 @@ type CtxFields = {
   function_name?: string | null;
 };
 const ctxStore = new AsyncLocalStorage<CtxFields>();
+// Fallback module-level (Deno ALS pode não persistir enterWith em todos cenários).
+// Em Edge Runtime cada isolate normalmente atende 1 request por vez, então
+// é seguro como fallback de observabilidade. ALS continua sendo preferido.
+let __lastCtx: CtxFields = {};
 
 export function withSpotifyCtx<T>(ctx: CtxFields, fn: () => T | Promise<T>): Promise<T> {
+  __lastCtx = { ...__lastCtx, ...ctx };
   return Promise.resolve(ctxStore.run({ ...ctx }, fn));
 }
 
 function enterCtx(patch: CtxFields): void {
+  __lastCtx = { ...__lastCtx, ...patch };
   const cur = ctxStore.getStore();
   if (cur) Object.assign(cur, patch);
-  else ctxStore.enterWith({ ...patch });
+  else { try { ctxStore.enterWith({ ...patch }); } catch { /* ignore */ } }
 }
 
 const appNameCache = new Map<string, string>();
