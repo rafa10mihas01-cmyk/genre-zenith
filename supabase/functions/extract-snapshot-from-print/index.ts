@@ -759,8 +759,9 @@ Deno.serve(async (req) => {
       let snapshotPatch: Record<string, unknown> = {
         batch_id: batch_id ?? null,
         correlation_id: correlation_id ?? null,
+        snapshot_run_id: batch_id ?? null,
       };
-      if (firstPrintUrl) snapshotPatch.print_url = firstPrintUrl;
+
 
       let snapQ = supabase
         .from("curator_deal_snapshots")
