@@ -82,7 +82,9 @@ export function useEcosystemCapacity(
   slotPositions: number[] = [3],
   topPosition: number | null = null,
   streamsEcoNeeded: number | null = null,
+  campaignId: string | null = null,
 ): EcosystemCapacity {
+
   const slotKey = slotPositions.join(",");
   const [state, setState] = useState<EcosystemCapacity>({
     loading: false,
@@ -202,6 +204,21 @@ export function useEcosystemCapacity(
         playlistsSelected = count;
       }
 
+      // Fix #2: quando temos campaignId, o "Eco Coberto" não é capacidade
+      // teórica viva (que oscila com followers do pool) — é o que foi
+      // GRAVADO em campaign_eco_allocations no fechamento do plano. Lê
+      // SUM(planned_streams) e sobrescreve capacityTotal/capacityPerDay.
+      let lockedTotal: number | null = null;
+      if (campaignId) {
+        const { data: allocRows } = await supabase
+          .from("campaign_eco_allocations")
+          .select("planned_streams")
+          .eq("campaign_id", campaignId);
+        if (allocRows && allocRows.length > 0) {
+          lockedTotal = allocRows.reduce((s, r: any) => s + Number(r.planned_streams ?? 0), 0);
+        }
+      }
+
       if (cancelled) return;
       setState({
         loading: false,
@@ -210,8 +227,8 @@ export function useEcosystemCapacity(
         neighborCount: neighbors.length,
         savesTotal: saves,
         slotPositions: safeSlots,
-        capacityPerDay: perDay,
-        capacityTotal: total,
+        capacityPerDay: lockedTotal !== null && days > 0 ? Math.round(lockedTotal / Math.max(1, days)) : perDay,
+        capacityTotal: lockedTotal !== null ? lockedTotal : total,
         genreResolved,
         playlistsSelected,
       });
@@ -221,7 +238,8 @@ export function useEcosystemCapacity(
     }, 300);
     return () => { cancelled = true; clearTimeout(timer); };
 
-  }, [genre, days, engagementMultiplier, slotKey, topPosition, streamsEcoNeeded]);
+  }, [genre, days, engagementMultiplier, slotKey, topPosition, streamsEcoNeeded, campaignId]);
+
 
   return state;
 }
