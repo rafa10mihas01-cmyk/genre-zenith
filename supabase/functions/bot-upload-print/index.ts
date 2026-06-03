@@ -110,6 +110,12 @@ Deno.serve(async (req) => {
 
   if (!bytes || bytes.length === 0) return jr({ error: "empty_file" }, 400);
   if (bytes.length > 8 * 1024 * 1024) return jr({ error: "file_too_large_8mb" }, 413);
+  if (!dealId) {
+    return jr({
+      error: "deal_id_required",
+      detail: "Print sem deal_id vira órfão e não aparece em nenhuma coleta.",
+    }, 400);
+  }
 
   const parsed = parsePartLabel(label);
   if (parsed?.key === "playlists" && parsed.total === 1 && domPlaylists.length > MAX_DOM_PLAYLISTS_FOR_SINGLE_PRINT) {
@@ -180,13 +186,16 @@ Deno.serve(async (req) => {
     // Procura batch ATIVO (pending) pra essa chave. Se não existe ou já está
     // complete/processed/error, abre um novo — assim cada execução do robô
     // tem seu próprio batch e não empilha em cima do anterior.
-    const { data: existing } = await supabase
+    let existingQuery = supabase
       .from("bot_print_batches")
       .select("id, received_parts, total_parts, print_paths, print_urls, status, dom_payload")
       .eq("deal_id", dealId)
-      .eq("song_id", songId || null)
       .eq("batch_key", parsed.key)
-      .eq("status", "pending")
+      .eq("status", "pending");
+    existingQuery = songId
+      ? existingQuery.eq("song_id", songId)
+      : existingQuery.is("song_id", null);
+    const { data: existing } = await existingQuery
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
