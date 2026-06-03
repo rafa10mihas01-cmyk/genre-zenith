@@ -458,6 +458,9 @@ export async function getAppCredentials(appId?: string | null): Promise<SpotifyA
 export async function getSpotifyToken(forceRefresh = false): Promise<string> {
   const supabase = db();
   const creds = await getAppCredentials();
+  // Propaga app pra TODAS as chamadas Spotify subsequentes neste contexto async.
+  enterCtx({ appId: creds.app_id, appName: creds.name });
+  if (creds.app_id) appNameCache.set(creds.app_id, creds.name);
   const tokenKey = creds.app_id ? `app:${creds.app_id}` : "app";
 
   // NOTE: NÃO chamamos assertSpotifyCircuitClosed aqui — refresh de token
