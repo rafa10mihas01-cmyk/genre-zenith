@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      _rls_optimization_audit: {
+        Row: {
+          after_check: string | null
+          after_qual: string | null
+          before_check: string | null
+          before_qual: string | null
+          changed: boolean
+          cmd: string
+          created_at: string
+          id: number
+          policyname: string
+          tablename: string
+        }
+        Insert: {
+          after_check?: string | null
+          after_qual?: string | null
+          before_check?: string | null
+          before_qual?: string | null
+          changed: boolean
+          cmd: string
+          created_at?: string
+          id?: number
+          policyname: string
+          tablename: string
+        }
+        Update: {
+          after_check?: string | null
+          after_qual?: string | null
+          before_check?: string | null
+          before_qual?: string | null
+          changed?: boolean
+          cmd?: string
+          created_at?: string
+          id?: number
+          policyname?: string
+          tablename?: string
+        }
+        Relationships: []
+      }
       accounts: {
         Row: {
           created_at: string
