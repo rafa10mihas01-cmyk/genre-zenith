@@ -38,6 +38,7 @@ Deno.serve(async (req) => {
       .from("managed_playlists")
       .select("id, name, genre_id, last_diagnosis_at")
       .is("archived_at", null)
+      .eq("diagnose_blocked", false)
       .or(`last_diagnosis_at.is.null,last_diagnosis_at.lt.${cutoff}`)
       .order("last_diagnosis_at", { ascending: true, nullsFirst: true })
       .limit(Math.max(1000, limit * 25));
