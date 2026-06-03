@@ -15,6 +15,7 @@
 //   "window": "7d",
 //   "total_plays_28d": number,
 //   "screenshot_url": "string",
+//   "print_urls": ["string"],
 //   "playlists": [
 //     { "spotify_playlist_id": "string|null", "name": "string", "owner": "string|null", "plays_7d": number }
 //   ],
@@ -78,6 +79,7 @@ Deno.serve(async (req) => {
     window: timeWindow,
     total_plays_28d,
     screenshot_url,
+    print_urls,
     playlists,
     bot_metadata,
   } = body ?? {};
@@ -95,13 +97,30 @@ Deno.serve(async (req) => {
     }
   }
 
+  const screenshotUrls = [
+    ...(Array.isArray(print_urls) ? print_urls : []),
+    ...(typeof screenshot_url === "string" && screenshot_url.length > 0 ? [screenshot_url] : []),
+  ]
+    .map((url) => String(url).trim())
+    .filter(Boolean)
+    .filter((url, idx, arr) => arr.indexOf(url) === idx);
+
+  if (playlists.length > 30 && screenshotUrls.length <= 1) {
+    return jr({
+      error: "multi_print_required",
+      message: `Coleta com ${playlists.length} playlists não pode ser salva com apenas ${screenshotUrls.length} print. Envie print_urls[] com todas as partes da tela.`,
+      playlists_received: playlists.length,
+      prints_received: screenshotUrls.length,
+    }, 422);
+  }
+
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
   // --- FONTE ÚNICA DE PRINTS ---
   // Quando vier screenshot_url, cria 1 linha em bot_print_batches (= a coleta)
   // e referencia via snapshot_run_id. NÃO grava mais screenshot_url na linha.
   let snapshotRunId: string | null = null;
-  if (typeof screenshot_url === "string" && screenshot_url.length > 0) {
+  if (screenshotUrls.length > 0) {
     // Resolve deal_id pela música (FK obrigatória em bot_print_batches)
     const { data: songMeta } = await supabase
       .from("curator_deal_songs")
@@ -116,10 +135,10 @@ Deno.serve(async (req) => {
           deal_id: dealForBatch,
           song_id,
           batch_key: `song-snapshot-${correlation_id ?? crypto.randomUUID()}`,
-          total_parts: 1,
-          received_parts: 1,
+          total_parts: screenshotUrls.length,
+          received_parts: screenshotUrls.length,
           print_paths: [],
-          print_urls: [screenshot_url],
+          print_urls: screenshotUrls,
           status: "complete",
           correlation_id: correlation_id ?? null,
           completed_at: new Date().toISOString(),

@@ -121,6 +121,11 @@ Esses jobs são baseline/monitoramento de campanha interna e exigem o formato no
 - enviar `snapshots[]` por playlist para `bot-ingest-snapshot`, **ou** prints
   `playlists-part-X-of-Y` via `bot-upload-print` com `dom_playlists`.
 
+Para coletas grandes, **1 print não é evidência válida**: se o payload trouxer
+mais de 30 playlists e só `screenshot_url`, o backend rejeita com
+`422 multi_print_required`. O worker deve enviar todas as partes em
+`print_urls[]` ou usar `bot-upload-print` com labels `playlists-part-X-of-Y`.
+
 Se o worker mandar apenas total agregado nesses jobs, o backend responde
 `422 playlist_breakdown_required` e não grava baseline agregada.
 
