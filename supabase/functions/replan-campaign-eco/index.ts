@@ -224,6 +224,64 @@ Deno.serve(async (req) => {
   const primaryFresh = freshPrimary.map((p: any) => ({ id: p.id, planned_streams: 0, followers: Number(p.followers ?? 0), genreSource: "primary" as const }));
   const neighborFresh = freshNeighbor.map((p: any) => ({ id: p.id, planned_streams: 0, followers: Number(p.followers ?? 0), genreSource: "affinity" as const }));
 
+  // DOMINANCE_RELIEF_PREVIEW — preview independente do gap de replanejamento.
+  // Mesmo quando dailyNeedRemaining <= 0, o alívio precisa simular sobre o plano
+  // atual para o toggle produzir feedback visual sem gravar nada.
+  const buildDominanceReliefPreview = async (newRows: any[] = []) => {
+    try {
+      const { data: existingForRelief } = await admin
+        .from("campaign_eco_allocations")
+        .select("id, managed_playlist_id, position, planned_streams, genre_source, status, managed_playlists(followers)")
+        .eq("campaign_id", campaignId)
+        .neq("status", "cancelled");
+      const existAllocs: ReliefAlloc[] = ((existingForRelief ?? []) as any[])
+        .filter(r => r.managed_playlist_id && Number(r.planned_streams) > 0 && Number(r.position) > 0)
+        .map(r => ({
+          id: r.id,
+          playlist_id: r.managed_playlist_id,
+          followers: Number(r.managed_playlists?.followers ?? 0),
+          position: Number(r.position),
+          planned_streams: Number(r.planned_streams),
+          genre_source: (r.genre_source ?? "primary") as any,
+        }));
+      const followersByNewId = new Map<string, number>();
+      for (const p of primaryFresh) followersByNewId.set(p.id, p.followers);
+      for (const p of neighborFresh) followersByNewId.set(p.id, p.followers);
+      const newAllocs: ReliefAlloc[] = newRows.map((r, idx) => ({
+        id: `new:${idx}`,
+        playlist_id: r.managed_playlist_id,
+        followers: followersByNewId.get(r.managed_playlist_id) ?? 0,
+        position: r.position,
+        planned_streams: r.planned_streams,
+        genre_source: r.genre_source,
+      }));
+      const combined = [...existAllocs, ...newAllocs];
+      const selectedIds = new Set(combined.map(a => a.playlist_id));
+      const pool: ReliefCandidate[] = freshPrimary
+        .filter((p: any) => !selectedIds.has(p.id))
+        .map((p: any) => ({ playlist_id: p.id, followers: Number(p.followers ?? 0), rank_score: Number(p.followers ?? 0) }));
+      const relief = applyDominanceRelief(combined, pool, mult);
+      return {
+        applied: relief.applied,
+        reason: relief.reason,
+        cap_used: relief.capUsed,
+        top1_before_pct: Number(relief.top1Before.toFixed(2)),
+        top1_after_pct: Number(relief.top1After.toFixed(2)),
+        top1_drop_pp: Number((relief.top1Before - relief.top1After).toFixed(2)),
+        redistributed_streams: relief.redistributedStreams,
+        added_count: relief.addedAllocs.length,
+        added_playlists: relief.addedAllocs.map(a => ({
+          playlist_id: a.playlist_id,
+          position: a.position,
+          planned_streams: a.planned_streams,
+        })),
+        total_after_streams: relief.allocs.reduce((s, a) => s + a.planned_streams, 0),
+      };
+    } catch (e) {
+      return { applied: false, reason: "error", error: (e as Error).message };
+    }
+  };
+
   // Necessidade diária restante = (metaEco - já planejado) / dias.
   const dailyNeedRemaining = metaEco > 0
     ? Math.max(0, (metaEco - existingTotalPlanned)) / days
@@ -259,7 +317,10 @@ Deno.serve(async (req) => {
       playlists_dropped_by_budget: 0,
       message: "O plano aprovado já cobre a fatia ECO do snapshot; não há gap planejado para adicionar playlists.",
     };
-    return json({ ok: true, dry_run: dryRun, ...summary });
+    const dominanceReliefResult = dryRun && dominanceRelief
+      ? await buildDominanceReliefPreview([])
+      : null;
+    return json({ ok: true, dry_run: dryRun, ...summary, dominance_relief: dominanceReliefResult });
   }
 
   // ─── Orçamento de audiência (camada de proteção) ───
@@ -489,61 +550,9 @@ Deno.serve(async (req) => {
 
 
   // DOMINANCE_RELIEF_PREVIEW — só roda em dry_run; não altera rows persistidos.
-  let dominanceReliefResult: any = null;
-  if (dryRun && dominanceRelief) {
-    try {
-      const { data: existingForRelief } = await admin
-        .from("campaign_eco_allocations")
-        .select("id, managed_playlist_id, position, planned_streams, genre_source, status, managed_playlists(followers)")
-        .eq("campaign_id", campaignId)
-        .neq("status", "cancelled");
-      const existAllocs: ReliefAlloc[] = ((existingForRelief ?? []) as any[])
-        .filter(r => r.managed_playlist_id && Number(r.planned_streams) > 0 && Number(r.position) > 0)
-        .map(r => ({
-          id: r.id,
-          playlist_id: r.managed_playlist_id,
-          followers: Number(r.managed_playlists?.followers ?? 0),
-          position: Number(r.position),
-          planned_streams: Number(r.planned_streams),
-          genre_source: (r.genre_source ?? "primary") as any,
-        }));
-      const followersByNewId = new Map<string, number>();
-      for (const p of primaryFresh) followersByNewId.set(p.id, p.followers);
-      for (const p of neighborFresh) followersByNewId.set(p.id, p.followers);
-      const newAllocs: ReliefAlloc[] = rows.map((r, idx) => ({
-        id: `new:${idx}`,
-        playlist_id: r.managed_playlist_id,
-        followers: followersByNewId.get(r.managed_playlist_id) ?? 0,
-        position: r.position,
-        planned_streams: r.planned_streams,
-        genre_source: r.genre_source,
-      }));
-      const combined = [...existAllocs, ...newAllocs];
-      const selectedIds = new Set(combined.map(a => a.playlist_id));
-      const pool: ReliefCandidate[] = freshPrimary
-        .filter((p: any) => !selectedIds.has(p.id))
-        .map((p: any) => ({ playlist_id: p.id, followers: Number(p.followers ?? 0), rank_score: Number(p.followers ?? 0) }));
-      const relief = applyDominanceRelief(combined, pool, mult);
-      dominanceReliefResult = {
-        applied: relief.applied,
-        reason: relief.reason,
-        cap_used: relief.capUsed,
-        top1_before_pct: Number(relief.top1Before.toFixed(2)),
-        top1_after_pct: Number(relief.top1After.toFixed(2)),
-        top1_drop_pp: Number((relief.top1Before - relief.top1After).toFixed(2)),
-        redistributed_streams: relief.redistributedStreams,
-        added_count: relief.addedAllocs.length,
-        added_playlists: relief.addedAllocs.map(a => ({
-          playlist_id: a.playlist_id,
-          position: a.position,
-          planned_streams: a.planned_streams,
-        })),
-        total_after_streams: relief.allocs.reduce((s, a) => s + a.planned_streams, 0),
-      };
-    } catch (e) {
-      dominanceReliefResult = { applied: false, reason: "error", error: (e as Error).message };
-    }
-  }
+  const dominanceReliefResult = dryRun && dominanceRelief
+    ? await buildDominanceReliefPreview(rows)
+    : null;
 
   if (dryRun) {
     return json({ ok: true, dry_run: true, ...summary, dominance_relief: dominanceReliefResult });
