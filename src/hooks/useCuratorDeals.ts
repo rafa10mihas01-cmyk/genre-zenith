@@ -1,6 +1,6 @@
 // useCuratorDeals — camada de dados do módulo redesenhado de Curator Deals.
 // Mesmo padrão dos demais hooks: SDK Supabase direto em useEffect/useCallback.
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
