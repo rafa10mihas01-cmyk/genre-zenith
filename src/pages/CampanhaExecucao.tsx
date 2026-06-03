@@ -23,9 +23,9 @@ import { CampaignFullPlanCard, CampaignFullPlanSummary } from "@/components/camp
 import { CampaignExecutionStatus } from "@/components/campanhas/CampaignExecutionStatus";
 import { CampaignDistributionConsole } from "@/components/campanhas/CampaignDistributionConsole";
 import { TrackActionsPanel } from "@/components/campanhas/TrackActionsPanel";
-import { ArrowLeft, Loader2, Save, Upload, Rocket, CheckCircle2, RefreshCw, Plus, Shield } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Upload, Rocket, CheckCircle2, RefreshCw, Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
-import { Switch } from "@/components/ui/switch";
+
 import { Badge } from "@/components/ui/badge";
 import { NewDealDialog } from "@/components/playlist-deals/NewDealDialog";
 import { cn } from "@/lib/utils";
