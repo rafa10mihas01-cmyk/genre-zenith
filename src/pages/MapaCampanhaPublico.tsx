@@ -185,6 +185,7 @@ export default function MapaCampanhaPublico() {
           shareToken={null}
           showShare={false}
           radioGoal={radioGoal}
+          radioCollectedTotal={radioCollectedTotal}
           track={{
             name: camp.track_name,
             artist: camp.artist,
