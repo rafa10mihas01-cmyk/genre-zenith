@@ -64,7 +64,7 @@ function formatPlays(n: number): string {
  * mantendo as mesmas props e callbacks. Toda a lógica de negócio vem dos
  * mesmos hooks/utilitários — só muda a apresentação.
  */
-export function DealRow(props: DealRowProps) {
+function DealRowImpl(props: DealRowProps) {
   const { deal, logs, playlists, songs = [], progress } = props;
   const deliveryMap = useDeliveryStatusMap([deal.id]);
   const stats = computeCuratorStats(deal, logs, playlists, progress ?? null);
