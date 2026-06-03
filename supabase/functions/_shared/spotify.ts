@@ -467,9 +467,14 @@ export async function getUserAccessToken(userId?: string): Promise<{ token: stri
   const activeRows = allRows.filter((r) => !r.app_id || activeAppIds.has(r.app_id));
   const rows = activeRows.length > 0 ? activeRows : allRows;
 
-  const row = (userId && defaultAppId)
-    ? rows.find((r) => r.app_id === defaultAppId) ?? rows[0]
-    : rows[0];
+  // Prioridade determinística:
+  //   1) is_default=true (PRIMARY por owner)
+  //   2) defaultAppId global (compat)
+  //   3) primeiro da lista (já ordenada por is_default desc, updated_at desc)
+  const primary = rows.find((r) => r.is_default === true);
+  const row = primary
+    ?? (defaultAppId ? rows.find((r) => r.app_id === defaultAppId) : undefined)
+    ?? rows[0];
   const expiresMs = new Date(row.expires_at).getTime();
   if (expiresMs > Date.now() + 60_000) return { token: row.access_token, row };
   const fresh = await refreshUserToken(row);
@@ -500,7 +505,10 @@ export async function forceRefreshUserAccessToken(userId: string): Promise<{ tok
   if (allRows.length === 0) throw new Error(`Sem token para spotify_user_id=${userId}`);
   const activeRows = allRows.filter((r) => !r.app_id || activeAppIds.has(r.app_id));
   const rows = activeRows.length > 0 ? activeRows : allRows;
-  const row = defaultAppId ? rows.find((r) => r.app_id === defaultAppId) ?? rows[0] : rows[0];
+  const primary = rows.find((r) => r.is_default === true);
+  const row = primary
+    ?? (defaultAppId ? rows.find((r) => r.app_id === defaultAppId) : undefined)
+    ?? rows[0];
   const fresh = await refreshUserToken(row);
   return { token: fresh, row: { ...row, access_token: fresh } };
 }
