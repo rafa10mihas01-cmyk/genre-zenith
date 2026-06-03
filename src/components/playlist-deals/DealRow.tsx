@@ -322,6 +322,27 @@ function DealRowImpl(props: DealRowProps) {
   );
 }
 
+export const DealRow = memo(DealRowImpl, (prev, next) => {
+  return (
+    prev.deal === next.deal &&
+    prev.logs === next.logs &&
+    prev.playlists === next.playlists &&
+    prev.songs === next.songs &&
+    prev.progress === next.progress &&
+    prev.campaignCollectionMode === next.campaignCollectionMode &&
+    prev.onLog === next.onLog &&
+    prev.onDetail === next.onDetail &&
+    prev.onDelete === next.onDelete &&
+    prev.onEdit === next.onEdit &&
+    prev.onDuplicate === next.onDuplicate &&
+    prev.onClose === next.onClose &&
+    prev.onReopen === next.onReopen &&
+    prev.onForceCollect === next.onForceCollect
+  );
+});
+
+
+
 function RecalcBaselineInline({ dealId }: { dealId: string }) {
   const [loading, setLoading] = useState(false);
   async function handle(e: React.MouseEvent) {
