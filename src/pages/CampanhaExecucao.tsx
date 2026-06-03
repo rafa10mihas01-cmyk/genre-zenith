@@ -1126,22 +1126,10 @@ function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
 
-type ReliefPreview = {
-  applied: boolean;
-  reason: string;
-  cap_used: number;
-  top1_before_pct: number;
-  top1_after_pct: number;
-  top1_drop_pp: number;
-  redistributed_streams: number;
-  added_count: number;
-  added_playlists?: Array<{ playlist_id: string; position: number; planned_streams: number }>;
-  total_after_streams?: number;
-};
-type ReplanPreview = { added: number; plays_per_day_added: number; message?: string; relief?: ReliefPreview | null };
+type ReplanPreview = { added: number; plays_per_day_added: number; message?: string };
 type ReplanStrategy = "daily_need" | "chart_tier";
 
-function ReplanButton({ campaignId, onReplanned, dominanceRelief = false }: { campaignId: string; onReplanned: () => void | Promise<void>; dominanceRelief?: boolean }) {
+function ReplanButton({ campaignId, onReplanned }: { campaignId: string; onReplanned: () => void | Promise<void> }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [executing, setExecuting] = useState<ReplanStrategy | null>(null);
@@ -1152,13 +1140,14 @@ function ReplanButton({ campaignId, onReplanned, dominanceRelief = false }: { ca
 
   const fetchPreview = async (strategy: ReplanStrategy): Promise<ReplanPreview> => {
     const { data, error } = await supabase.functions.invoke("replan-campaign-eco", {
-      body: { campaign_id: campaignId, dry_run: true, strategy, dominance_relief: dominanceRelief },
+      body: { campaign_id: campaignId, dry_run: true, strategy },
     });
     if (error) throw error;
-    const res = data as { ok: boolean; added?: number; plays_per_day_added?: number; message?: string; error?: string; dominance_relief?: ReliefPreview | null };
+    const res = data as { ok: boolean; added?: number; plays_per_day_added?: number; message?: string; error?: string };
     if (!res?.ok) throw new Error(res?.error ?? "Falha ao calcular replanejamento");
-    return { added: Number(res.added ?? 0), plays_per_day_added: Number(res.plays_per_day_added ?? 0), message: res.message, relief: res.dominance_relief ?? null };
+    return { added: Number(res.added ?? 0), plays_per_day_added: Number(res.plays_per_day_added ?? 0), message: res.message };
   };
+
 
   const handleOpen = async () => {
     setOpen(true);
