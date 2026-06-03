@@ -135,6 +135,27 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
+  // 🔍 Auditoria: grava metadados do upload (não armazenamos os bytes da imagem,
+  // só refs + headers + tamanho — a imagem já vai pro storage `bot-prints`).
+  try {
+    const { logRawIngest } = await import("../_shared/raw-ingest.ts");
+    await logRawIngest(supabase, {
+      endpoint: "bot-upload-print",
+      req,
+      rawText: "",
+      payload: {
+        deal_id: dealId || null,
+        song_id: songId || null,
+        label: label || null,
+        correlation_id: correlationId || null,
+        content_type: ct,
+        bytes_size: bytes?.length ?? 0,
+        dom_playlists_count: domPlaylists.length,
+        target_path: path,
+      },
+    });
+  } catch (_) { /* never block ingest */ }
+
   // ====== Gate de ciclo de vida (Fase 5B) ======
   if (dealId) {
     const { data: dealRow } = await supabase
