@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
-  let body: { campaign_id?: string; dry_run?: boolean };
+  let body: { campaign_id?: string; dry_run?: boolean; strategy?: "daily_need" | "chart_tier" };
   try {
     body = await req.json();
   } catch {
@@ -102,6 +102,7 @@ Deno.serve(async (req) => {
   }
   const campaignId = body?.campaign_id;
   const dryRun = !!body?.dry_run;
+  const strategy: "daily_need" | "chart_tier" = body?.strategy === "chart_tier" ? "chart_tier" : "daily_need";
   if (!campaignId || typeof campaignId !== "string") {
     return json({ ok: false, error: "missing_campaign_id" }, 400);
   }
