@@ -82,7 +82,9 @@ export function useEcosystemCapacity(
   slotPositions: number[] = [3],
   topPosition: number | null = null,
   streamsEcoNeeded: number | null = null,
+  campaignId: string | null = null,
 ): EcosystemCapacity {
+
   const slotKey = slotPositions.join(",");
   const [state, setState] = useState<EcosystemCapacity>({
     loading: false,
