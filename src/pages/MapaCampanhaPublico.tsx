@@ -96,6 +96,7 @@ export default function MapaCampanhaPublico() {
   const { token } = useParams<{ token: string }>();
   const [camp, setCamp] = useState<Camp | null>(null);
   const [allocs, setAllocs] = useState<Alloc[]>([]);
+  const [radioCollectedTotal, setRadioCollectedTotal] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
