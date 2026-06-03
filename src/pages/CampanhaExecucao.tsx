@@ -848,8 +848,30 @@ export default function CampanhaExecucao() {
                   <TabsTrigger value="status">Acompanhamento</TabsTrigger>
                 </TabsList>
                 <TabsContent value="mapa" className="mt-0 space-y-4">
-                  <div className="flex items-center justify-end">
-                    <ReplanButton campaignId={camp.id} onReplanned={loadCampaign} />
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      {dominanceReliefPreview && (
+                        <Badge variant="outline" className="gap-1.5 border-primary/40 text-primary">
+                          <Shield className="h-3 w-3" />
+                          Dominance Relief — Preview
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+                        <Switch
+                          checked={dominanceReliefPreview}
+                          onCheckedChange={setDominanceReliefPreview}
+                          aria-label="Dominance Relief (simulação)"
+                        />
+                        <span>Dominance Relief <span className="opacity-60">(simulação)</span></span>
+                      </label>
+                      <ReplanButton
+                        campaignId={camp.id}
+                        onReplanned={loadCampaign}
+                        dominanceRelief={dominanceReliefPreview}
+                      />
+                    </div>
                   </div>
                   <CampaignFullPlanCard
                     snapshot={snapshot}
