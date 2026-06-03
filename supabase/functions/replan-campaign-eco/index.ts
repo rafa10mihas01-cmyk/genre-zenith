@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
-  let body: { campaign_id?: string; dry_run?: boolean };
+  let body: { campaign_id?: string; dry_run?: boolean; strategy?: "daily_need" | "chart_tier" };
   try {
     body = await req.json();
   } catch {
@@ -102,6 +102,7 @@ Deno.serve(async (req) => {
   }
   const campaignId = body?.campaign_id;
   const dryRun = !!body?.dry_run;
+  const strategy: "daily_need" | "chart_tier" = body?.strategy === "chart_tier" ? "chart_tier" : "daily_need";
   if (!campaignId || typeof campaignId !== "string") {
     return json({ ok: false, error: "missing_campaign_id" }, 400);
   }
@@ -270,7 +271,7 @@ Deno.serve(async (req) => {
   let gapAfterPrimary = 0;
   let usedNeighbors = false;
 
-  if (dailyNeedRemaining > 0) {
+  if (strategy === "daily_need" && dailyNeedRemaining > 0) {
     // 1ª fase: distribui SÓ primárias contra a necessidade diária (com orçamento).
     const primDist = primaryFresh.length > 0
       ? distributeByDailyNeed(primaryFresh, dailyNeedRemaining, mult, ECO_DAILY_TOLERANCE, { maxCapById, currentPositionById })
@@ -382,6 +383,7 @@ Deno.serve(async (req) => {
     mode,
     affinity_range: [affLo, affHi],
     position_strategy: positionStrategy,
+    strategy_requested: strategy,
     daily_need_remaining: Math.round(dailyNeedRemaining),
     covered_daily_by_primary: Math.round(coveredDailyByPrimary),
     gap_after_primary: Math.round(gapAfterPrimary),
