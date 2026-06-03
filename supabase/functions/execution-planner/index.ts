@@ -393,6 +393,27 @@ Deno.serve(async (req) => {
 
   const enqueued = count ?? toInsert.length;
 
+  // Fix #3: marcar as eco allocations efetivamente enfileiradas como
+  // 'dispatched'. Sem isso, replan/auditoria veem alocações como 'pending'
+  // mesmo após o ADD ter ido pra fila. Só atualiza quem ainda está 'pending'
+  // — não regride 'active'/'dispatched' e ignora as origens legacy.
+  const dispatchedEcoIds = candidates
+    .filter((c) => c.allocation_source === "eco" && c.allocation_id)
+    .map((c) => c.allocation_id as string);
+  if (dispatchedEcoIds.length > 0) {
+    const { error: updErr, count: updCount } = await supabase
+      .from("campaign_eco_allocations")
+      .update({ status: "dispatched", dispatched_at: new Date().toISOString() }, { count: "exact" })
+      .in("id", dispatchedEcoIds)
+      .eq("status", "pending");
+    if (updErr) {
+      console.warn(`[execution-planner] failed to mark dispatched: ${updErr.message}`);
+    } else {
+      console.info(`[execution-planner] marked dispatched: ${updCount ?? 0}/${dispatchedEcoIds.length}`);
+    }
+  }
+
+
   // 5. Desmame: enfileira playlist.track.reorder quando hoje é um dia de
   //    transição de posição planejada (eco allocations + simulation_snapshot).
   const reorderResult = await runEcoReorderPass(supabase, new Date(now));
