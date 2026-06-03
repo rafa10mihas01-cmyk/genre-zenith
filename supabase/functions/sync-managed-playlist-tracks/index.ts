@@ -15,7 +15,7 @@
 //   - force: ignora o hash match e força recálculo do delta (útil pra backfill / debug).
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getSpotifyToken, SpotifyCircuitOpenError } from "../_shared/spotify.ts";
+import { getSpotifyToken, SpotifyCircuitOpenError, setSpotifyCtx } from "../_shared/spotify.ts";
 import { listPlaylistTracksRich } from "../_shared/spotify-playlist.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
 import {
@@ -65,11 +65,20 @@ Deno.serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
   const { data: pl, error: plErr } = await supabase
     .from("managed_playlists")
-    .select("id, spotify_playlist_id, name, tracks_hash")
+    .select("id, spotify_playlist_id, name, tracks_hash, owner_spotify_user_id")
     .eq("id", playlist_id)
     .maybeSingle();
   if (plErr) return jr({ ok: false, error: plErr.message }, 500);
   if (!pl?.spotify_playlist_id) return jr({ ok: false, error: "playlist não encontrada" }, 404);
+
+  // Propaga contexto pras chamadas Spotify deste request (listPlaylistTracksRich etc.)
+  const ownerSpotifyId: string | null = (pl as any).owner_spotify_user_id ?? null;
+  setSpotifyCtx({
+    playlist_id: pl.id,
+    owner_id: ownerSpotifyId,
+    spotify_user_id: ownerSpotifyId,
+    function_name: "sync-managed-playlist-tracks",
+  });
 
   const { count: tracksBefore } = await supabase
     .from("managed_playlist_tracks")

@@ -8,7 +8,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
-import { getSpotifyToken, guardedSpotifyFetch, SpotifyCircuitOpenError } from "../_shared/spotify.ts";
+import { getSpotifyToken, guardedSpotifyFetch, SpotifyCircuitOpenError, setSpotifyCtx } from "../_shared/spotify.ts";
 import {
   acquirePlaylistLock,
   releasePlaylistLock,
@@ -305,6 +305,16 @@ Deno.serve(async (req) => {
     // Contador de 403s observados nesta execução — usado pro streak.
     let run403s = 0;
     const ownerSpotifyId: string | null = (pl as any).owner_spotify_user_id ?? null;
+
+    // Propaga contexto Spotify pra TODAS as chamadas derivadas desta execução
+    // (getPlaylistMeta, listPlaylistTracksRich, guardedSpotifyFetch sem ctx, etc.)
+    setSpotifyCtx({
+      playlist_id: pl.id,
+      owner_id: ownerSpotifyId,
+      spotify_user_id: ownerSpotifyId,
+      function_name: "diagnose-managed-playlist",
+    });
+
 
     // Lock operacional: impede race com apply-playlist-plan / sync-managed-playlist-tracks.
     // TTL de 30s; liberado no finally.

@@ -59,6 +59,16 @@ function enterCtx(patch: CtxFields): void {
   else { try { ctxStore.enterWith({ ...patch }); } catch { /* ignore */ } }
 }
 
+/**
+ * Define contexto Spotify (playlist_id, owner_id, spotify_user_id) pra TODAS as
+ * chamadas subsequentes neste request/loop, sem precisar de wrapper de função.
+ * Use após carregar a entidade (ex: managed_playlist) e antes de qualquer
+ * getPlaylistMeta / guardedSpotifyFetch / listPlaylistTracksRich.
+ */
+export function setSpotifyCtx(patch: CtxFields): void {
+  enterCtx(patch);
+}
+
 const appNameCache = new Map<string, string>();
 async function resolveAppName(appId: string | null | undefined): Promise<string | null> {
   if (!appId) return null;
@@ -224,9 +234,13 @@ function fireAndForgetLog(row: SpotifyLogRow): void {
   }
 }
 
-/** Merge per-call ctx, async-local ctx e defaults. */
+/** Merge per-call ctx, async-local ctx, módulo-level fallback e defaults. */
 function resolveLogCtx(perCall?: SpotifyCallCtx): Required<Pick<SpotifyLogRow, "function_name" | "app_id" | "app_name" | "playlist_id" | "owner_id" | "spotify_user_id">> {
-  const stored = ctxStore.getStore() ?? __lastCtx;
+  // Mescla SEMPRE __lastCtx + ALS store, com ALS por cima quando presente.
+  // Antes usávamos `getStore() ?? __lastCtx`, mas ALS no Deno às vezes carrega
+  // apenas o patch local do `run()`, perdendo o app_id/appName setado fora dele.
+  const als = ctxStore.getStore() ?? {};
+  const stored: CtxFields = { ...__lastCtx, ...als };
   return {
     function_name: perCall?.function_name ?? stored.function_name ?? RESOLVED_FUNCTION_NAME,
     app_id: perCall?.appId ?? stored.appId ?? null,
