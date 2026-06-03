@@ -65,8 +65,18 @@ const ROW_LIMIT = 50;
 export function OperacaoTab({ allocations, snapshots, externalItems, totalDays, startedAt }: Props) {
   const [expanded, setExpanded] = useState(false);
   const latestSnap = useMemo(() => {
+    // Determinístico: maior captured_at por playlist, desempate por id.
+    // Sem isso, duas abas podem mostrar totais diferentes porque a query
+    // .order("captured_at desc").limit(500) não tem tiebreaker e o Postgres
+    // devolve linhas com timestamps iguais em ordem indeterminada.
     const m = new Map<string, EcoSnap>();
-    for (const s of snapshots) if (!m.has(s.managed_playlist_id)) m.set(s.managed_playlist_id, s);
+    for (const s of snapshots) {
+      const prev = m.get(s.managed_playlist_id);
+      if (!prev) { m.set(s.managed_playlist_id, s); continue; }
+      const a = s.captured_at ? new Date(s.captured_at).getTime() : 0;
+      const b = prev.captured_at ? new Date(prev.captured_at).getTime() : 0;
+      if (a > b || (a === b && (s.id ?? "") > (prev.id ?? ""))) m.set(s.managed_playlist_id, s);
+    }
     return m;
   }, [snapshots]);
 
