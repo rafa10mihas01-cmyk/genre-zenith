@@ -86,8 +86,9 @@ Deno.serve(async (req) => {
     // Try existing populated playlist first
     const list = await call(token, "GET", `https://api.spotify.com/v1/me/playlists?limit=50`);
     const items: any[] = (list.body as any)?.items ?? [];
-    const ownedWithTracks = items.find((p) => p?.owner?.id === meId && (p?.tracks?.total ?? 0) > 0);
-    out.step_pick_existing = { found: !!ownedWithTracks, total_listed: items.length, all_summary: items.slice(0, 20).map((p) => ({ id: p.id, name: p.name, owner: p?.owner?.id, total: p?.tracks?.total })) };
+    const ownedAll = items.filter((p) => p?.owner?.id === meId);
+    const ownedWithTracks = ownedAll.find((p) => (p?.tracks?.total ?? 0) > 0) ?? ownedAll[0];
+    out.step_pick_existing = { found: !!ownedWithTracks, picked: ownedWithTracks ? { id: ownedWithTracks.id, name: ownedWithTracks.name, total: ownedWithTracks?.tracks?.total } : null, owned_count: ownedAll.length, sample: ownedAll.slice(0, 5).map((p) => ({ id: p.id, name: p.name, total: p?.tracks?.total })) };
     if (ownedWithTracks) {
       playlistId = ownedWithTracks.id;
     } else {
