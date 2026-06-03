@@ -186,6 +186,8 @@ Deno.serve(async (req) => {
       playlist_id: null,
       managed_playlist_id: a.managed_playlist_id,
       spotify_playlist_id: a.managed_playlists?.spotify_playlist_id,
+      playlist_name: a.managed_playlists?.name ?? null,
+      execution_mode: a.managed_playlists?.execution_mode ?? null,
       spotify_track_id: a.campaigns?.spotify_track_id,
       started_at: a.campaigns?.started_at,
       plan_approved_at: a.campaigns?.plan_approved_at,
