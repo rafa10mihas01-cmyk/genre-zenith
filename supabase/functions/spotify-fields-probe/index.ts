@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
     const meId = (me.body as any)?.id;
     out.step_me = { http_status: me.http_status, id: meId };
     if (!meId) return new Response(JSON.stringify({ ...out, error: "me failed" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    const created = await call(token, "POST", `https://api.spotify.com/v1/users/${meId}/playlists`, { name: `fields-probe ${new Date().toISOString()}`, public: false });
+    const created = await call(token, "POST", `https://api.spotify.com/v1/me/playlists`, { name: `fields-probe ${new Date().toISOString()}`, public: false });
     out.step_create = { http_status: created.http_status, id: (created.body as any)?.id };
     playlistId = (created.body as any)?.id;
     createdHere = !!playlistId;
