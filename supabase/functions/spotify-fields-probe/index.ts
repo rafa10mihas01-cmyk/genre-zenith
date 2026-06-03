@@ -76,21 +76,29 @@ Deno.serve(async (req) => {
   };
   const token = await refreshIfNeeded(sb, row);
 
-  // Setup playlist
+  // Setup playlist: prefer existing populated one owned by user
   let playlistId: string = body.playlist_id ?? "";
   let createdHere = false;
   if (!playlistId) {
     const me = await call(token, "GET", "https://api.spotify.com/v1/me");
     const meId = (me.body as any)?.id;
     out.step_me = { http_status: me.http_status, id: meId };
-    if (!meId) return new Response(JSON.stringify({ ...out, error: "me failed" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    const created = await call(token, "POST", `https://api.spotify.com/v1/me/playlists`, { name: `fields-probe ${new Date().toISOString()}`, public: false });
-    out.step_create = { http_status: created.http_status, id: (created.body as any)?.id };
-    playlistId = (created.body as any)?.id;
-    createdHere = !!playlistId;
-    if (!playlistId) return new Response(JSON.stringify({ ...out, error: "create failed" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    const add = await call(token, "POST", `https://api.spotify.com/v1/playlists/${playlistId}/tracks`, { uris: [trackUri] });
-    out.step_add = { http_status: add.http_status, snapshot_id: (add.body as any)?.snapshot_id };
+    // Try existing populated playlist first
+    const list = await call(token, "GET", `https://api.spotify.com/v1/me/playlists?limit=50`);
+    const items: any[] = (list.body as any)?.items ?? [];
+    const ownedWithTracks = items.find((p) => p?.owner?.id === meId && (p?.tracks?.total ?? 0) > 0);
+    out.step_pick_existing = { found: !!ownedWithTracks, candidates_owned_with_tracks: items.filter((p) => p?.owner?.id === meId && (p?.tracks?.total ?? 0) > 0).map((p) => ({ id: p.id, name: p.name, total: p.tracks?.total })).slice(0, 5) };
+    if (ownedWithTracks) {
+      playlistId = ownedWithTracks.id;
+    } else {
+      const created = await call(token, "POST", `https://api.spotify.com/v1/me/playlists`, { name: `fields-probe ${new Date().toISOString()}`, public: false });
+      out.step_create = { http_status: created.http_status, id: (created.body as any)?.id };
+      playlistId = (created.body as any)?.id;
+      createdHere = !!playlistId;
+      if (!playlistId) return new Response(JSON.stringify({ ...out, error: "create failed" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const add = await call(token, "POST", `https://api.spotify.com/v1/playlists/${playlistId}/tracks`, { uris: [trackUri] });
+      out.step_add = { http_status: add.http_status, body: add.body };
+    }
   }
   out.playlist_id = playlistId;
 
