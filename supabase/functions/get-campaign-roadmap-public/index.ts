@@ -188,5 +188,6 @@ Deno.serve(async (req) => {
     allocations: allocs ?? [],
     snapshots: snaps ?? [],
     forecast,
+    organic_summary: { total_plays: organicTotalPlays },
   });
 });
