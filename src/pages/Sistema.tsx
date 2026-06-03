@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import {
   Activity, Workflow, Music2, HeartPulse, Bot, Bell, ListPlus,
-  Settings as SettingsIcon, Server, Brain, FlaskConical, Wrench, Flag, ShieldAlert, Gauge,
+  Settings as SettingsIcon, Server, Brain, FlaskConical, Wrench, Flag, ShieldAlert, Gauge, ClipboardCheck,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
@@ -34,9 +34,10 @@ import { BrainFreshnessCard } from "@/components/home/BrainFreshnessCard";
 import { EngineHealthGrid } from "@/components/cockpit/EngineHealthGrid";
 import { CapacidadePanel } from "@/components/sistema/CapacidadePanel";
 import { SpotifyPilotPanel } from "@/components/sistema/SpotifyPilotPanel";
+import { ManualDistribuicoesPanel } from "@/components/sistema/ManualDistribuicoesPanel";
 
 type SistemaTab = "saude" | "capacidade" | "aprendizado" | "alertas" | "motores" | "configuracoes" | "dev";
-type MotorSub = "robo" | "coleta" | "execucao" | "fluxo" | "ao-vivo";
+type MotorSub = "robo" | "coleta" | "execucao" | "manual" | "fluxo" | "ao-vivo";
 type DevSub = "infra" | "flags" | "seo" | "spotify";
 
 type TabDef = { id: SistemaTab; label: string; icon: typeof Activity; adminOnly?: boolean };
@@ -208,6 +209,7 @@ export default function Sistema() {
                 { id: "robo", label: "Robô", icon: Bot },
                 { id: "coleta", label: "Coleta", icon: Music2 },
                 { id: "execucao", label: "Execução", icon: ListPlus },
+                { id: "manual", label: "Manual", icon: ClipboardCheck },
                 { id: "fluxo", label: "Fluxo", icon: Workflow },
                 { id: "ao-vivo", label: "Ao vivo", icon: Activity },
               ]}
@@ -215,6 +217,7 @@ export default function Sistema() {
             {motorSub === "robo" && <RoboAoVivo />}
             {motorSub === "coleta" && <ColetaPanel />}
             {motorSub === "execucao" && <ExecucaoPanel />}
+            {motorSub === "manual" && <ManualDistribuicoesPanel />}
             {motorSub === "fluxo" && <FluxoVisual />}
             {motorSub === "ao-vivo" && <AoVivoPainel />}
           </div>
