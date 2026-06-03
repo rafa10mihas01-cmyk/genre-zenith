@@ -346,7 +346,7 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
   useEffect(() => {
     if (!user) return;
     const channel = supabase
-      .channel(`curator-deals-live-${user.id}`)
+      .channel(`curator-deals-live-${user.id}-${Math.random().toString(36).slice(2, 10)}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "curator_deals" },
