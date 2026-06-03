@@ -59,6 +59,16 @@ function enterCtx(patch: CtxFields): void {
   else { try { ctxStore.enterWith({ ...patch }); } catch { /* ignore */ } }
 }
 
+/**
+ * Define contexto Spotify (playlist_id, owner_id, spotify_user_id) pra TODAS as
+ * chamadas subsequentes neste request/loop, sem precisar de wrapper de função.
+ * Use após carregar a entidade (ex: managed_playlist) e antes de qualquer
+ * getPlaylistMeta / guardedSpotifyFetch / listPlaylistTracksRich.
+ */
+export function setSpotifyCtx(patch: CtxFields): void {
+  enterCtx(patch);
+}
+
 const appNameCache = new Map<string, string>();
 async function resolveAppName(appId: string | null | undefined): Promise<string | null> {
   if (!appId) return null;
