@@ -17,13 +17,19 @@ Deno.serve(async (req) => {
   );
 
   try {
-    // 1) Acha rascunhos expirados
+    // 1) Acha rascunhos expirados — IGNORA rascunhos com plano congelado
+    // (snapshot_locked_at != null). Plano fechado é intencional; quem segura
+    // o rascunho é a decisão de aprovação do cliente, não o TTL de 48h.
+    // Se essas campanhas precisarem ser limpas, é via UI explícita ou
+    // restore-campaign-allocations para o caso de já terem sido zeradas.
     const { data: expired, error: selErr } = await supabase
       .from("campaigns")
       .select("id, track_name, artist, client_id, curator_id, expires_at")
       .eq("status", "draft")
+      .is("snapshot_locked_at", null)
       .lt("expires_at", new Date().toISOString());
     if (selErr) throw selErr;
+
 
     const ids = (expired ?? []).map((c) => c.id);
     if (ids.length === 0) {
