@@ -438,6 +438,106 @@ Deno.serve(async (req) => {
   // Reflete no objeto local pra resto do fluxo (cost do deal usa isso).
   (campaign as any).valor_cobrado = resolvedValorCobrado;
 
+  // ─── DOMINANCE_RELIEF_DEFAULT_FOR_NEW_CAMPAIGNS ───
+  // Aplica alívio de concentração APENAS aqui (aprovação de plano novo).
+  // Campanhas já aprovadas saem antes (`already_approved` short-circuit acima)
+  // e nunca passam por esta seção — Carnívoro/Toma Botadão ficam intocados.
+  // Replan, swap e execução também NÃO acionam relief.
+  try {
+    const mult = Math.max(1, Math.round(Number((campaign as any).engagement_multiplier ?? 30)));
+    const { data: finalAllocs } = await admin
+      .from("campaign_eco_allocations")
+      .select("id, managed_playlist_id, planned_streams, position, genre_source, managed_playlists(followers, genre_id)")
+      .eq("campaign_id", campaignId);
+
+    const allocList = ((finalAllocs ?? []) as any[])
+      .filter(a => a.managed_playlist_id && Number(a.planned_streams) > 0 && Number(a.position) > 0);
+
+    if (allocList.length >= 5) {
+      const reliefInput = allocList.map(a => ({
+        id: a.id as string,
+        playlist_id: a.managed_playlist_id as string,
+        followers: Number(a.managed_playlists?.followers ?? 0),
+        position: Number(a.position),
+        planned_streams: Number(a.planned_streams),
+        genre_source: (a.genre_source ?? "primary") as "primary" | "affinity",
+      }));
+
+      const usedIds = new Set(reliefInput.map(a => a.playlist_id));
+      const genreCounts = new Map<string, number>();
+      for (const a of allocList) {
+        const g = a.managed_playlists?.genre_id;
+        if (g) genreCounts.set(g, (genreCounts.get(g) ?? 0) + 1);
+      }
+      const primaryGenreId = [...genreCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+
+      let pool: ReliefCandidate[] = [];
+      if (primaryGenreId) {
+        const { data: candPls } = await admin
+          .from("managed_playlists")
+          .select("id, followers")
+          .eq("genre_id", primaryGenreId)
+          .is("archived_at", null)
+          .gte("followers", MIN_PLAYLIST_SAVES_FOR_CAMPAIGN)
+          .order("followers", { ascending: false })
+          .limit(20);
+        pool = ((candPls ?? []) as any[])
+          .filter(p => !usedIds.has(p.id))
+          .map(p => ({ playlist_id: p.id, followers: Number(p.followers ?? 0), rank_score: Number(p.followers ?? 0) }));
+      }
+
+      const relief = applyDominanceRelief(reliefInput, pool, mult);
+      console.log("[approve] dominance_relief", {
+        applied: relief.applied,
+        reason: relief.reason,
+        top1Before: Number(relief.top1Before.toFixed(2)),
+        top1After: Number(relief.top1After.toFixed(2)),
+        redistributed: relief.redistributedStreams,
+        added: relief.addedAllocs.length,
+        capUsed: relief.capUsed,
+      });
+
+      if (relief.applied) {
+        // Atualiza planned_streams das allocs existentes que mudaram.
+        const originalById = new Map(reliefInput.map(r => [r.id, r.planned_streams]));
+        const updates = relief.allocs
+          .filter(a => !a.id.startsWith("relief:"))
+          .filter(a => originalById.get(a.id) !== a.planned_streams)
+          .map(a =>
+            admin.from("campaign_eco_allocations")
+              .update({ planned_streams: a.planned_streams })
+              .eq("id", a.id),
+          );
+
+        // Insere playlists de expansão controlada (sempre primárias).
+        if (relief.addedAllocs.length > 0) {
+          const newRows = relief.addedAllocs.map(a => ({
+            campaign_id: campaignId,
+            managed_playlist_id: a.playlist_id,
+            planned_streams: a.planned_streams,
+            start_day: 1,
+            status: "pending",
+            position: a.position,
+            genre_source: "primary",
+          }));
+          updates.push(admin.from("campaign_eco_allocations").insert(newRows) as any);
+        }
+
+        const results = await Promise.all(updates);
+        for (const r of results) {
+          if ((r as any)?.error) {
+            console.warn("[approve] dominance_relief partial write error:", (r as any).error.message);
+          }
+        }
+      }
+    }
+  } catch (e) {
+    // Relief é best-effort: se falhar, o plano aprovado original permanece válido.
+    console.warn("[approve-campaign-plan] dominance relief skipped:", (e as Error).message);
+  }
+
+
+
 
   // 3) Lê feature flag
   const { data: flagRow } = await admin
