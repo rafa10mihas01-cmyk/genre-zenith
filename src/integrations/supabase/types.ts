@@ -7746,7 +7746,9 @@ export type Database = {
           name: string
           notes: string | null
           owner_email: string | null
+          ready_for_deletion: boolean
           retired_from_production: boolean
+          retirement_audit: Json | null
           slug: string
           status: string
           updated_at: string
@@ -7761,7 +7763,9 @@ export type Database = {
           name: string
           notes?: string | null
           owner_email?: string | null
+          ready_for_deletion?: boolean
           retired_from_production?: boolean
+          retirement_audit?: Json | null
           slug: string
           status?: string
           updated_at?: string
@@ -7776,7 +7780,9 @@ export type Database = {
           name?: string
           notes?: string | null
           owner_email?: string | null
+          ready_for_deletion?: boolean
           retired_from_production?: boolean
+          retirement_audit?: Json | null
           slug?: string
           status?: string
           updated_at?: string
