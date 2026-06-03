@@ -43,9 +43,22 @@ Deno.serve(async (req) => {
   if (!isAuthorizedBot(req)) return jr({ error: "unauthorized" }, 401);
 
   let body: any;
-  try { body = await req.json(); } catch { return jr({ error: "invalid_json" }, 400); }
+  let rawText = "";
+  try {
+    rawText = await req.text();
+    body = rawText ? JSON.parse(rawText) : null;
+  } catch { return jr({ error: "invalid_json" }, 400); }
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+
+  // 🔍 Auditoria: grava payload bruto antes de qualquer processamento
+  const { logRawIngest } = await import("../_shared/raw-ingest.ts");
+  await logRawIngest(supabase, {
+    endpoint: "bot-ingest-dom",
+    req,
+    rawText,
+    payload: body,
+  });
   const correlationHeader = req.headers.get("x-correlation-id");
 
   const items: DomItem[] = Array.isArray(body?.items)

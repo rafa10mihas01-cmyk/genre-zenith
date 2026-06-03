@@ -45,7 +45,21 @@ Deno.serve(async (req) => {
   }
 
   let body: any;
-  try { body = await req.json(); } catch { return jr({ error: "invalid_json" }, 400); }
+  let rawText = "";
+  try {
+    rawText = await req.text();
+    body = rawText ? JSON.parse(rawText) : null;
+  } catch { return jr({ error: "invalid_json" }, 400); }
+
+  // 🔍 Auditoria: grava payload bruto antes de qualquer processamento
+  const _rawAuditSb = createClient(SUPABASE_URL, SERVICE_KEY);
+  const { logRawIngest, markRawIngestProcessed } = await import("../_shared/raw-ingest.ts");
+  const _rawAuditId = await logRawIngest(_rawAuditSb, {
+    endpoint: "bot-ingest-snapshot",
+    req,
+    rawText,
+    payload: body,
+  });
 
   // ====== Adaptador para payload "agregado" do worker VPS ======
   // O handler spotifyDealCollect.js (VPS) manda um objeto único com `plays` (total),

@@ -65,11 +65,23 @@ Deno.serve(async (req) => {
   if (!isAuthorizedBot(req)) return jr({ error: "unauthorized" }, 401);
 
   let body: any;
+  let rawText = "";
   try {
-    body = await req.json();
+    rawText = await req.text();
+    body = rawText ? JSON.parse(rawText) : null;
   } catch {
     return jr({ error: "invalid_json" }, 400);
   }
+
+  // 🔍 Auditoria: grava payload bruto antes de qualquer processamento
+  const _rawAuditSb = createClient(SUPABASE_URL, SERVICE_KEY);
+  const { logRawIngest, markRawIngestProcessed } = await import("../_shared/raw-ingest.ts");
+  const _rawAuditId = await logRawIngest(_rawAuditSb, {
+    endpoint: "bot-ingest-song-snapshot",
+    req,
+    rawText,
+    payload: body,
+  });
 
   const {
     song_id,
