@@ -1,5 +1,5 @@
 // useCampaigns — React Query + realtime + mutações otimistas para /campanhas.
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useId } from "react";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -46,6 +46,7 @@ const QUERY_KEY = ["campaigns"] as const;
 export function useCampaigns() {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const instanceId = useId();
 
   const query = useQuery({
     queryKey: QUERY_KEY,
@@ -107,8 +108,9 @@ export function useCampaigns() {
   // Realtime: qualquer mudança em campaigns OU curator_deals (baseline) invalida.
   useEffect(() => {
     if (!user) return;
+    const topic = `campaigns-live-${user.id}-${instanceId.replace(/:/g, "")}`;
     const channel = supabase
-      .channel(`campaigns-live-${user.id}`)
+      .channel(topic)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "campaigns" },
@@ -128,7 +130,7 @@ export function useCampaigns() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, qc]);
+  }, [user, qc, instanceId]);
 
   // Update status (active/paused/cancelled etc) — otimista
   const updateStatus = useMutation({
