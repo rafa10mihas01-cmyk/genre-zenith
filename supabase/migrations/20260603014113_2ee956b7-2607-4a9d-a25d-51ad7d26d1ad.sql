@@ -1,0 +1,1 @@
+ALTER TABLE public.spotify_apps ADD COLUMN IF NOT EXISTS retired_from_production boolean NOT NULL DEFAULT false;

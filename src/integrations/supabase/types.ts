@@ -7746,6 +7746,7 @@ export type Database = {
           name: string
           notes: string | null
           owner_email: string | null
+          retired_from_production: boolean
           slug: string
           status: string
           updated_at: string
@@ -7760,6 +7761,7 @@ export type Database = {
           name: string
           notes?: string | null
           owner_email?: string | null
+          retired_from_production?: boolean
           slug: string
           status?: string
           updated_at?: string
@@ -7774,6 +7776,7 @@ export type Database = {
           name?: string
           notes?: string | null
           owner_email?: string | null
+          retired_from_production?: boolean
           slug?: string
           status?: string
           updated_at?: string
