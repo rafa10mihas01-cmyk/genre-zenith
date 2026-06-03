@@ -109,66 +109,10 @@ export default function CampanhaExecucao() {
   const [approvingPlan, setApprovingPlan] = useState(false);
   const [baselineGate, setBaselineGate] = useState({ required: 0, collected: 0, capturedAt: null as string | null });
   const [dealStatus, setDealStatus] = useState<{ state: string | null; baselineCapturedAt: string | null }>({ state: null, baselineCapturedAt: null });
-  const [dominanceReliefPreview, setDominanceReliefPreview] = useState<boolean>(() => {
-    if (typeof window === "undefined" || !id) return false;
-    return window.localStorage.getItem(`dominance_relief_preview:${id}`) === "1";
-  });
-  useEffect(() => {
-    if (typeof window === "undefined" || !id) return;
-    window.localStorage.setItem(`dominance_relief_preview:${id}`, dominanceReliefPreview ? "1" : "0");
-  }, [dominanceReliefPreview, id]);
-  const [reliefInline, setReliefInline] = useState<ReliefPreview | null>(null);
-  const [reliefInlineLoading, setReliefInlineLoading] = useState(false);
-  const [reliefInlineError, setReliefInlineError] = useState<string | null>(null);
-  const reliefLastRunKeyRef = useRef<string | null>(null);
+  // Dominance Relief agora é aplicado automaticamente em campanhas NOVAS no
+  // momento da aprovação do plano (approve-campaign-plan). Removido o preview
+  // manual: campanhas já aprovadas/em execução não sofrem reprocessamento.
 
-  const runReliefInlinePreview = async (force = false) => {
-    if (!id) return;
-    const runKey = `${id}:${planRefreshKey}`;
-    if (!force && reliefLastRunKeyRef.current === runKey) return;
-    reliefLastRunKeyRef.current = runKey;
-    setReliefInlineLoading(true);
-    setReliefInlineError(null);
-    setReliefInline(null);
-    try {
-      const { data, error } = await supabase.functions.invoke("replan-campaign-eco", {
-        body: { campaign_id: id, dry_run: true, strategy: "daily_need", dominance_relief: true },
-      });
-      if (error) throw error;
-      const res = data as { ok: boolean; error?: string; message?: string; dominance_relief?: ReliefPreview | null };
-      if (!res?.ok) throw new Error(res?.error ?? "Falha na simulação");
-      if (!res.dominance_relief) throw new Error(res.message ?? "Simulação sem retorno");
-      setReliefInline(res.dominance_relief);
-    } catch (e) {
-      reliefLastRunKeyRef.current = null;
-      setReliefInlineError(e instanceof Error ? e.message : "Erro");
-    } finally {
-      setReliefInlineLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!dominanceReliefPreview || !id) {
-      setReliefInline(null);
-      setReliefInlineError(null);
-      setReliefInlineLoading(false);
-      reliefLastRunKeyRef.current = null;
-      return;
-    }
-    void runReliefInlinePreview(false);
-  }, [dominanceReliefPreview, id, planRefreshKey]);
-
-  const handleDominanceReliefPreviewChange = (checked: boolean) => {
-    setDominanceReliefPreview(checked);
-    if (!checked) {
-      setReliefInline(null);
-      setReliefInlineError(null);
-      setReliefInlineLoading(false);
-      reliefLastRunKeyRef.current = null;
-      return;
-    }
-    void runReliefInlinePreview(true);
-  };
 
   async function handleApprovePlan() {
     if (!camp) return;
