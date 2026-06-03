@@ -5057,6 +5057,7 @@ export type Database = {
           diagnose_blocked: boolean
           diagnose_blocked_at: string | null
           diagnose_blocked_reason: string | null
+          execution_mode: Database["public"]["Enums"]["playlist_execution_mode"]
           followers: number
           genre_id: string | null
           id: string
@@ -5108,6 +5109,7 @@ export type Database = {
           diagnose_blocked?: boolean
           diagnose_blocked_at?: string | null
           diagnose_blocked_reason?: string | null
+          execution_mode?: Database["public"]["Enums"]["playlist_execution_mode"]
           followers?: number
           genre_id?: string | null
           id?: string
@@ -5159,6 +5161,7 @@ export type Database = {
           diagnose_blocked?: boolean
           diagnose_blocked_at?: string | null
           diagnose_blocked_reason?: string | null
+          execution_mode?: Database["public"]["Enums"]["playlist_execution_mode"]
           followers?: number
           genre_id?: string | null
           id?: string
@@ -5246,11 +5249,13 @@ export type Database = {
           completed_at: string | null
           completed_by: string | null
           created_at: string
+          executed_position: number | null
           id: string
           job_id: string | null
           job_type: string | null
           motivo: string
           observacao: string | null
+          planned_position: number | null
           playlist_id: string | null
           playlist_name: string | null
           position: number | null
@@ -5264,11 +5269,13 @@ export type Database = {
           completed_at?: string | null
           completed_by?: string | null
           created_at?: string
+          executed_position?: number | null
           id?: string
           job_id?: string | null
           job_type?: string | null
           motivo: string
           observacao?: string | null
+          planned_position?: number | null
           playlist_id?: string | null
           playlist_name?: string | null
           position?: number | null
@@ -5282,11 +5289,13 @@ export type Database = {
           completed_at?: string | null
           completed_by?: string | null
           created_at?: string
+          executed_position?: number | null
           id?: string
           job_id?: string | null
           job_type?: string | null
           motivo?: string
           observacao?: string | null
+          planned_position?: number | null
           playlist_id?: string | null
           playlist_name?: string | null
           position?: number | null
@@ -9241,6 +9250,10 @@ export type Database = {
         Args: { p_genre_id: string; p_version_a: number; p_version_b: number }
         Returns: Json
       }
+      compute_playlist_execution_mode: {
+        Args: { p_archived_at: string; p_owner: string }
+        Returns: Database["public"]["Enums"]["playlist_execution_mode"]
+      }
       count_recent_backfill_attempts: {
         Args: { p_genre_id: string; p_hours?: number }
         Returns: number
@@ -9789,6 +9802,7 @@ export type Database = {
         | "inconclusive"
       notification_type: "critical" | "warning" | "info"
       organic_play_kind: "algorithmic" | "organic" | "editorial"
+      playlist_execution_mode: "API_READY" | "MANUAL_ONLY" | "DISABLED"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -9942,6 +9956,7 @@ export const Constants = {
       ],
       notification_type: ["critical", "warning", "info"],
       organic_play_kind: ["algorithmic", "organic", "editorial"],
+      playlist_execution_mode: ["API_READY", "MANUAL_ONLY", "DISABLED"],
     },
   },
 } as const
