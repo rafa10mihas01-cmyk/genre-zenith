@@ -150,7 +150,12 @@ export function CampaignHub({
 
         <div className="px-4 pt-6 pb-[calc(64px+env(safe-area-inset-bottom)+24px)] md:px-6 lg:pb-8">
           {visible.map((t) => (
-            <TabsContent key={t.id} value={t.id} className="mt-0 scroll-mt-32">
+            <TabsContent
+              key={t.id}
+              value={t.id}
+              forceMount
+              className="mt-0 scroll-mt-32 data-[state=inactive]:hidden"
+            >
               {t.content}
             </TabsContent>
           ))}
