@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
       .select(`
         id, campaign_id, managed_playlist_id, status, position, start_day, created_at,
         campaigns!inner ( id, status, spotify_track_id, started_at, plan_approved_at, eco_dispatched_at ),
-        managed_playlists!inner ( id, spotify_playlist_id )
+        managed_playlists!inner ( id, spotify_playlist_id, execution_mode, name )
       `)
       .in("status", ["pending", "approved", "active", "dispatched"])
       .in("campaigns.status", ["active", "running", "live"])
