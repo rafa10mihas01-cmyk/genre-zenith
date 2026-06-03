@@ -306,6 +306,16 @@ Deno.serve(async (req) => {
     let run403s = 0;
     const ownerSpotifyId: string | null = (pl as any).owner_spotify_user_id ?? null;
 
+    // Propaga contexto Spotify pra TODAS as chamadas derivadas desta execução
+    // (getPlaylistMeta, listPlaylistTracksRich, guardedSpotifyFetch sem ctx, etc.)
+    setSpotifyCtx({
+      playlist_id: pl.id,
+      owner_id: ownerSpotifyId,
+      spotify_user_id: ownerSpotifyId,
+      function_name: "diagnose-managed-playlist",
+    });
+
+
     // Lock operacional: impede race com apply-playlist-plan / sync-managed-playlist-tracks.
     // TTL de 30s; liberado no finally.
     const lockResult = await acquirePlaylistLock(supabase, pl.id, "DIAGNOSE_ENGINE", pl.tracks_count ?? null);
