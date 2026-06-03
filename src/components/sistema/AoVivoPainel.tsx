@@ -92,7 +92,7 @@ export function AoVivoPainel() {
   useEffect(() => {
     load();
     const ch = supabase
-      .channel(`aovivo-atual:${Math.random().toString(36).slice(2)}`)
+      .channel("aovivo-atual")
       .on("postgres_changes", { event: "*", schema: "public", table: "playlist_execution_jobs" }, () => load())
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "bot_heartbeats" }, () => load())
       .on("postgres_changes", { event: "*", schema: "public", table: "search_results" }, () => load())

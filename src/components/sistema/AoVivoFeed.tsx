@@ -114,7 +114,7 @@ export function AoVivoFeed() {
   useEffect(() => {
     load();
     const ch = supabase
-      .channel(`sistema-feed-atual:${Math.random().toString(36).slice(2)}`)
+      .channel("sistema-feed-atual")
       .on("postgres_changes", { event: "*", schema: "public", table: "collection_logs" }, () => load())
       .on("postgres_changes", { event: "*", schema: "public", table: "playlist_execution_jobs" }, () => load())
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "bot_heartbeats" }, () => load())

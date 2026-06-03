@@ -107,9 +107,8 @@ export function useCampaigns() {
   // Realtime: qualquer mudança em campaigns OU curator_deals (baseline) invalida.
   useEffect(() => {
     if (!user) return;
-    const suffix = `${user.id}-${Math.random().toString(36).slice(2)}`;
     const channel = supabase
-      .channel(`campaigns-live-${suffix}`)
+      .channel(`campaigns-live-${user.id}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "campaigns" },
