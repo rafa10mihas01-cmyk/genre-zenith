@@ -75,11 +75,19 @@ Deno.serve(async (req) => {
       return jr({ ok: false, error: gate.error, code: gate.code, gated: true }, gate.status);
     }
 
-    const requiresPlaylistBreakdown = (dealRow as any)?.source === "campaign_internal" || !!(dealRow as any)?.campaign_id;
+    const { data: songContract } = await supabase
+      .from("curator_deal_songs")
+      .select("auto_collect")
+      .eq("id", s_id)
+      .maybeSingle();
+    const requiresPlaylistBreakdown =
+      (dealRow as any)?.source === "campaign_internal" ||
+      !!(dealRow as any)?.campaign_id ||
+      (songContract as any)?.auto_collect === true;
     if (requiresPlaylistBreakdown) {
       await supabase.from("curator_deal_songs").update({
         auto_collect_status: "error",
-        auto_collect_error: "Payload agregado recusado: campanha interna exige breakdown por playlist do Spotify for Artists",
+        auto_collect_error: "Payload agregado recusado: coleta automática exige prints por partes ou snapshots por playlist",
         next_auto_collect_at: new Date(Date.now() + 5 * 60_000).toISOString(),
         queued_at: null,
       }).eq("id", s_id);
@@ -93,7 +101,7 @@ Deno.serve(async (req) => {
       return jr({
         ok: false,
         error: "playlist_breakdown_required",
-        message: "Campanhas internas não aceitam total agregado; envie snapshots[] por playlist ou prints playlists-part-X-of-Y com dom_playlists.",
+        message: "Coleta automática não aceita total agregado; envie snapshots[] por playlist ou prints playlists-part-X-of-Y com dom_playlists.",
       }, 422);
     }
 
