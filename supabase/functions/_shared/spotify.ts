@@ -4,12 +4,73 @@
 //   - getSpotifyToken(): Client Credentials (app-only) — usa app default.
 //   - getUserAccessToken(): OAuth user token (refresh automático per-app).
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { AsyncLocalStorage } from "node:async_hooks";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ENV_CLIENT_ID = Deno.env.get("SPOTIFY_CLIENT_ID");
 const ENV_CLIENT_SECRET = Deno.env.get("SPOTIFY_CLIENT_SECRET");
 const spotifyOriginalFetch = globalThis.fetch.bind(globalThis);
+
+// ---------------------------------------------------------------------------
+// Detecção real do function_name no Edge Runtime.
+// `SUPABASE_FUNCTION_NAME` NÃO existe — derivamos de Deno.mainModule:
+//   file:///home/deno/functions/<name>/index.ts
+// ---------------------------------------------------------------------------
+function detectFunctionName(): string {
+  try {
+    const fromEnv = Deno.env.get("SUPABASE_FUNCTION_NAME");
+    if (fromEnv) return fromEnv;
+    const main = Deno.mainModule ?? "";
+    const m = main.match(/\/functions\/([^/]+)\//);
+    if (m?.[1]) return m[1];
+    const m2 = main.match(/\/([^/]+)\/index\.[tj]sx?$/);
+    if (m2?.[1]) return m2[1];
+  } catch { /* ignore */ }
+  return "unknown";
+}
+const RESOLVED_FUNCTION_NAME = detectFunctionName();
+
+// Contexto async-local: propaga app_id/owner/playlist_id pra TODAS as chamadas
+// fetch() do mesmo callback sem precisar passar ctx manualmente.
+type CtxFields = {
+  appId?: string | null;
+  appName?: string | null;
+  playlist_id?: string | null;
+  owner_id?: string | null;
+  spotify_user_id?: string | null;
+  function_name?: string | null;
+};
+const ctxStore = new AsyncLocalStorage<CtxFields>();
+// Fallback module-level (Deno ALS pode não persistir enterWith em todos cenários).
+// Em Edge Runtime cada isolate normalmente atende 1 request por vez, então
+// é seguro como fallback de observabilidade. ALS continua sendo preferido.
+let __lastCtx: CtxFields = {};
+
+export function withSpotifyCtx<T>(ctx: CtxFields, fn: () => T | Promise<T>): Promise<T> {
+  __lastCtx = { ...__lastCtx, ...ctx };
+  return Promise.resolve(ctxStore.run({ ...ctx }, fn));
+}
+
+function enterCtx(patch: CtxFields): void {
+  __lastCtx = { ...__lastCtx, ...patch };
+  const cur = ctxStore.getStore();
+  if (cur) Object.assign(cur, patch);
+  else { try { ctxStore.enterWith({ ...patch }); } catch { /* ignore */ } }
+}
+
+const appNameCache = new Map<string, string>();
+async function resolveAppName(appId: string | null | undefined): Promise<string | null> {
+  if (!appId) return null;
+  const cached = appNameCache.get(appId);
+  if (cached) return cached;
+  try {
+    const { data } = await createClient(SUPABASE_URL, SERVICE_KEY)
+      .from("spotify_apps").select("name").eq("id", appId).maybeSingle();
+    if (data?.name) { appNameCache.set(appId, data.name); return data.name; }
+  } catch { /* ignore */ }
+  return null;
+}
 
 export class SpotifyCircuitOpenError extends Error {
   blockedUntil: string | null;
@@ -111,6 +172,8 @@ function normalizeEndpointForLog(rawUrl: string): string {
 
 type SpotifyLogRow = {
   function_name: string | null;
+  app_id: string | null;
+  app_name: string | null;
   endpoint: string;
   method: string;
   http_status: number | null;
@@ -127,6 +190,7 @@ type SpotifyLogRow = {
 
 export type SpotifyCallCtx = {
   appId?: string;
+  appName?: string | null;
   playlist_id?: string | null;
   owner_id?: string | null;
   spotify_user_id?: string | null;
@@ -146,12 +210,31 @@ async function writeSpotifyCallLog(row: SpotifyLogRow): Promise<void> {
 
 function fireAndForgetLog(row: SpotifyLogRow): void {
   const er = (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } }).EdgeRuntime;
-  const p = writeSpotifyCallLog(row);
+  // Resolve app_name de forma assíncrona se temos app_id mas não name.
+  const enriched = (async () => {
+    if (row.app_id && !row.app_name) {
+      row.app_name = await resolveAppName(row.app_id);
+    }
+    await writeSpotifyCallLog(row);
+  })();
   if (er?.waitUntil) {
-    try { er.waitUntil(p); } catch { p.catch(() => {}); }
+    try { er.waitUntil(enriched); } catch { enriched.catch(() => {}); }
   } else {
-    p.catch(() => {});
+    enriched.catch(() => {});
   }
+}
+
+/** Merge per-call ctx, async-local ctx e defaults. */
+function resolveLogCtx(perCall?: SpotifyCallCtx): Required<Pick<SpotifyLogRow, "function_name" | "app_id" | "app_name" | "playlist_id" | "owner_id" | "spotify_user_id">> {
+  const stored = ctxStore.getStore() ?? __lastCtx;
+  return {
+    function_name: perCall?.function_name ?? stored.function_name ?? RESOLVED_FUNCTION_NAME,
+    app_id: perCall?.appId ?? stored.appId ?? null,
+    app_name: perCall?.appName ?? stored.appName ?? null,
+    playlist_id: perCall?.playlist_id ?? stored.playlist_id ?? null,
+    owner_id: perCall?.owner_id ?? stored.owner_id ?? null,
+    spotify_user_id: perCall?.spotify_user_id ?? stored.spotify_user_id ?? null,
+  };
 }
 
 export async function guardedSpotifyFetch(
@@ -159,12 +242,12 @@ export async function guardedSpotifyFetch(
   init: RequestInit = {},
   ctxOrAppId: string | SpotifyCallCtx = "global",
 ): Promise<Response> {
-  const ctx: SpotifyCallCtx = typeof ctxOrAppId === "string" ? { appId: ctxOrAppId } : ctxOrAppId;
-  const appId = ctx.appId ?? "global";
+  const ctx: SpotifyCallCtx = typeof ctxOrAppId === "string" ? { appId: ctxOrAppId === "global" ? undefined : ctxOrAppId } : ctxOrAppId;
+  const merged = resolveLogCtx(ctx);
+  const appId = merged.app_id ?? "global";
   const startedAt = Date.now();
   const method = (init.method ?? "GET").toUpperCase();
   const endpoint = normalizeEndpointForLog(url);
-  const fnName = ctx.function_name ?? Deno.env.get("SUPABASE_FUNCTION_NAME") ?? null;
   const bypass = isCircuitBypassUrl(url);
   let logStatus: SpotifyLogRow["status"] = "ok";
   let httpStatus: number | null = null;
@@ -209,7 +292,7 @@ export async function guardedSpotifyFetch(
     throw e;
   } finally {
     fireAndForgetLog({
-      function_name: fnName,
+      ...merged,
       endpoint,
       method,
       http_status: httpStatus,
@@ -218,9 +301,6 @@ export async function guardedSpotifyFetch(
       retry_after_sec: retryAfterSec,
       breaker_open: breakerOpen,
       error: errorMsg,
-      playlist_id: ctx.playlist_id ?? null,
-      owner_id: ctx.owner_id ?? null,
-      spotify_user_id: ctx.spotify_user_id ?? null,
       error_body: errorBody,
     });
   }
@@ -231,15 +311,15 @@ export function installSpotifyCircuitFetchGuard() {
   const g = globalThis as typeof globalThis & { __spotifyCircuitFetchGuardInstalled?: boolean };
   if (g.__spotifyCircuitFetchGuardInstalled) return;
   g.__spotifyCircuitFetchGuardInstalled = true;
-  const fnName = Deno.env.get("SUPABASE_FUNCTION_NAME") ?? null;
   g.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const rawUrl = typeof input === "string" || input instanceof URL ? input.toString() : input.url;
     let host = "";
     try { host = new URL(rawUrl).hostname; } catch { /* ignore */ }
     const isSpotify = host === "api.spotify.com" || host === "accounts.spotify.com" || host.endsWith(".spotify.com");
     if (!isSpotify) return spotifyOriginalFetch(input, init);
-    // Whitelist: refresh de token NUNCA é bloqueado pelo breaker.
     const bypass = isCircuitBypassUrl(rawUrl);
+    const merged = resolveLogCtx();
+    const appId = merged.app_id ?? "global";
     const startedAt = Date.now();
     const method = (init?.method ?? "GET").toUpperCase();
     const endpoint = normalizeEndpointForLog(rawUrl);
@@ -248,18 +328,24 @@ export function installSpotifyCircuitFetchGuard() {
     let retryAfterSec: number | null = null;
     let breakerOpen = false;
     let errorMsg: string | null = null;
+    let errorBody: string | null = null;
     try {
-      if (!bypass) await assertSpotifyCircuitClosed();
+      if (!bypass) await assertSpotifyCircuitClosed(appId);
       const r = await spotifyOriginalFetch(input, init);
       httpStatus = r.status;
       if (!r.ok) {
         logStatus = "http_error";
         const ra = Number(r.headers.get("Retry-After") ?? r.headers.get("retry-after") ?? "");
         if (Number.isFinite(ra) && ra > 0) retryAfterSec = ra;
+        try {
+          const clone = r.clone();
+          const text = await clone.text();
+          if (text) errorBody = text.slice(0, 1000);
+        } catch { /* ignore */ }
       }
       if (r.status === 429 && !bypass) {
         const ra = Number(r.headers.get("Retry-After") ?? r.headers.get("retry-after") ?? "");
-        const opened = await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60, "global", rawUrl);
+        const opened = await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60, appId, rawUrl);
         logStatus = "circuit_open";
         breakerOpen = true;
         retryAfterSec = opened.retryAfterSec;
@@ -280,7 +366,7 @@ export function installSpotifyCircuitFetchGuard() {
       throw e;
     } finally {
       fireAndForgetLog({
-        function_name: fnName,
+        ...merged,
         endpoint,
         method,
         http_status: httpStatus,
@@ -289,6 +375,7 @@ export function installSpotifyCircuitFetchGuard() {
         retry_after_sec: retryAfterSec,
         breaker_open: breakerOpen,
         error: errorMsg,
+        error_body: errorBody,
       });
     }
   };
@@ -377,6 +464,9 @@ export async function getAppCredentials(appId?: string | null): Promise<SpotifyA
 export async function getSpotifyToken(forceRefresh = false): Promise<string> {
   const supabase = db();
   const creds = await getAppCredentials();
+  // Propaga app pra TODAS as chamadas Spotify subsequentes neste contexto async.
+  enterCtx({ appId: creds.app_id, appName: creds.name });
+  if (creds.app_id) appNameCache.set(creds.app_id, creds.name);
   const tokenKey = creds.app_id ? `app:${creds.app_id}` : "app";
 
   // NOTE: NÃO chamamos assertSpotifyCircuitClosed aqui — refresh de token
@@ -434,6 +524,8 @@ export type SpotifyUserToken = {
 /** Faz refresh do token de usuário usando o app correto e persiste. */
 export async function refreshUserToken(row: SpotifyUserToken): Promise<string> {
   const creds = await getAppCredentials(row.app_id);
+  enterCtx({ appId: creds.app_id, appName: creds.name, spotify_user_id: row.spotify_user_id });
+  if (creds.app_id) appNameCache.set(creds.app_id, creds.name);
   // NOTE: NÃO chamamos assertSpotifyCircuitClosed — refresh é em accounts.spotify.com (whitelisted).
   const basic = btoa(`${creds.client_id}:${creds.client_secret}`);
   const resp = await fetch("https://accounts.spotify.com/api/token", {
@@ -502,6 +594,7 @@ export async function getUserAccessToken(userId?: string): Promise<{ token: stri
   const row = primary
     ?? (defaultAppId ? rows.find((r) => r.app_id === defaultAppId) : undefined)
     ?? rows[0];
+  enterCtx({ appId: row.app_id, spotify_user_id: row.spotify_user_id });
   const expiresMs = new Date(row.expires_at).getTime();
   if (expiresMs > Date.now() + 60_000) return { token: row.access_token, row };
   const fresh = await refreshUserToken(row);
