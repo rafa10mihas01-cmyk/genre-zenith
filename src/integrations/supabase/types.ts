@@ -5240,6 +5240,63 @@ export type Database = {
           },
         ]
       }
+      manual_distribution_queue: {
+        Row: {
+          campaign_id: string | null
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          id: string
+          job_id: string | null
+          job_type: string | null
+          motivo: string
+          observacao: string | null
+          playlist_id: string | null
+          playlist_name: string | null
+          position: number | null
+          spotify_playlist_id: string | null
+          spotify_track_id: string | null
+          status: string
+          track_id: string | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          id?: string
+          job_id?: string | null
+          job_type?: string | null
+          motivo: string
+          observacao?: string | null
+          playlist_id?: string | null
+          playlist_name?: string | null
+          position?: number | null
+          spotify_playlist_id?: string | null
+          spotify_track_id?: string | null
+          status?: string
+          track_id?: string | null
+        }
+        Update: {
+          campaign_id?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          id?: string
+          job_id?: string | null
+          job_type?: string | null
+          motivo?: string
+          observacao?: string | null
+          playlist_id?: string | null
+          playlist_name?: string | null
+          position?: number | null
+          spotify_playlist_id?: string | null
+          spotify_track_id?: string | null
+          status?: string
+          track_id?: string | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           action_url: string | null
