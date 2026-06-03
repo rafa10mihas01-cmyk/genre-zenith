@@ -403,8 +403,28 @@ async function upsertSnapshot(
     plays_28d?: number | null;
   },
 ): Promise<any> {
+  // Fonte única de prints: snapshot_run_id aponta para bot_print_batches.
+  // Não gravamos mais print_url na linha (mantida só por compat).
+  const payload = {
+    deal_id: row.deal_id,
+    song_id: row.song_id,
+    playlist_id: row.playlist_id,
+    plays: row.plays,
+    source: row.source,
+    match_method: row.match_method,
+    is_baseline: row.is_baseline,
+    print_url: null,
+    snapshot_run_id: row.batch_id,
+    ai_raw: row.ai_raw,
+    batch_id: row.batch_id,
+    correlation_id: row.correlation_id ?? null,
+    plays_24h: row.plays_24h ?? null,
+    plays_7d: row.plays_7d ?? null,
+    plays_28d: row.plays_28d ?? null,
+  };
+
   if (!row.batch_id) {
-    const { error } = await supabase.from("curator_deal_snapshots").insert(row);
+    const { error } = await supabase.from("curator_deal_snapshots").insert(payload);
     return error;
   }
 
@@ -426,15 +446,15 @@ async function upsertSnapshot(
           plays_28d: row.plays_28d ?? null,
           match_method: row.match_method,
           ai_raw: row.ai_raw,
-          print_url: row.print_url,
+          snapshot_run_id: row.batch_id,
         })
         .eq("id", existing.id);
       return error;
     }
-    return null; // já existe com plays >= novo, ignora
+    return null;
   }
 
-  const { error } = await supabase.from("curator_deal_snapshots").insert(row);
+  const { error } = await supabase.from("curator_deal_snapshots").insert(payload);
   return error;
 }
 
@@ -739,8 +759,9 @@ Deno.serve(async (req) => {
       let snapshotPatch: Record<string, unknown> = {
         batch_id: batch_id ?? null,
         correlation_id: correlation_id ?? null,
+        snapshot_run_id: batch_id ?? null,
       };
-      if (firstPrintUrl) snapshotPatch.print_url = firstPrintUrl;
+
 
       let snapQ = supabase
         .from("curator_deal_snapshots")

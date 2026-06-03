@@ -1,0 +1,1 @@
+ALTER VIEW public.v_snapshot_prints SET (security_invoker = true);

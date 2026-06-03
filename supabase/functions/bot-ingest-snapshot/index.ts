@@ -192,6 +192,35 @@ Deno.serve(async (req) => {
     }
   }
 
+  // --- FONTE ÚNICA DE PRINTS ---
+  // Cria 1 linha em bot_print_batches representando esta coleta e referencia
+  // via snapshot_run_id. Evita duplicar URLs em curator_deal_snapshots e
+  // campaign_playlist_collections.
+  let snapshotRunId: string | null = null;
+  if (screenshotUrls.length > 0) {
+    const { data: batchRow, error: batchErr } = await supabase
+      .from("bot_print_batches")
+      .insert({
+        deal_id,
+        song_id,
+        batch_key: `bot-snapshot-${correlation_id ?? crypto.randomUUID()}`,
+        total_parts: 1,
+        received_parts: 1,
+        print_paths: [],
+        print_urls: screenshotUrls,
+        status: "complete",
+        correlation_id: correlation_id ?? null,
+        completed_at: new Date().toISOString(),
+        processed_at: new Date().toISOString(),
+      })
+      .select("id")
+      .single();
+    if (!batchErr && batchRow?.id) snapshotRunId = batchRow.id as string;
+    else console.warn("[bot-ingest-snapshot] batch insert failed", batchErr);
+  }
+
+
+
 
   if (bot_error) {
     await supabase
@@ -603,8 +632,7 @@ Deno.serve(async (req) => {
             plays_7d: plays7d,
             captured_at: capturedAt,
             source: "s4a_dom",
-            proof_screenshot_url: screenshotUrl,
-            proof_screenshot_urls: screenshotUrls,
+            // prints ficam SÓ em bot_print_batches (referenciado por snapshot_run_id)
           };
         })
         .filter(Boolean);
@@ -616,6 +644,7 @@ Deno.serve(async (req) => {
             p_campaign_id: collectionCampaignId,
             p_intent: intent,
             p_rows: rows,
+            p_snapshot_run_id: snapshotRunId,
           },
         );
         if (ingestErr) {

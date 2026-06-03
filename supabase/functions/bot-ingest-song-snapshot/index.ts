@@ -97,7 +97,42 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
-  // 1) Insere header do snapshot
+  // --- FONTE ÚNICA DE PRINTS ---
+  // Quando vier screenshot_url, cria 1 linha em bot_print_batches (= a coleta)
+  // e referencia via snapshot_run_id. NÃO grava mais screenshot_url na linha.
+  let snapshotRunId: string | null = null;
+  if (typeof screenshot_url === "string" && screenshot_url.length > 0) {
+    // Resolve deal_id pela música (FK obrigatória em bot_print_batches)
+    const { data: songMeta } = await supabase
+      .from("curator_deal_songs")
+      .select("deal_id")
+      .eq("id", song_id)
+      .maybeSingle();
+    const dealForBatch = (songMeta as any)?.deal_id ?? null;
+    if (dealForBatch) {
+      const { data: batchRow, error: batchErr } = await supabase
+        .from("bot_print_batches")
+        .insert({
+          deal_id: dealForBatch,
+          song_id,
+          batch_key: `song-snapshot-${correlation_id ?? crypto.randomUUID()}`,
+          total_parts: 1,
+          received_parts: 1,
+          print_paths: [],
+          print_urls: [screenshot_url],
+          status: "complete",
+          correlation_id: correlation_id ?? null,
+          completed_at: new Date().toISOString(),
+          processed_at: new Date().toISOString(),
+        })
+        .select("id")
+        .single();
+      if (!batchErr && batchRow?.id) snapshotRunId = batchRow.id as string;
+      else console.warn("[bot-ingest-song-snapshot] batch insert failed", batchErr);
+    }
+  }
+
+  // 1) Insere header do snapshot (sem screenshot_url — fonte única é o batch)
   const { data: snap, error: snapErr } = await supabase
     .from("song_snapshots")
     .insert({
@@ -107,7 +142,8 @@ Deno.serve(async (req) => {
       captured_at: captured_at ?? new Date().toISOString(),
       time_window: typeof timeWindow === "string" ? timeWindow : "7d",
       total_plays_28d: toInt(total_plays_28d),
-      screenshot_url: screenshot_url ?? null,
+      screenshot_url: null,
+      snapshot_run_id: snapshotRunId,
       bot_metadata: bot_metadata ?? {},
     })
     .select("id, captured_at")
@@ -186,8 +222,7 @@ Deno.serve(async (req) => {
             plays_7d: Math.max(0, toInt(p.plays_7d) ?? 0),
             captured_at: capturedAt,
             source: "s4a_dom",
-            proof_screenshot_url: screenshot_url ?? null,
-            proof_screenshot_urls: screenshot_url ? [screenshot_url] : [],
+            // print fica EXCLUSIVAMENTE em bot_print_batches via snapshot_run_id
           };
         })
         .filter(Boolean);
@@ -199,6 +234,7 @@ Deno.serve(async (req) => {
             p_campaign_id: collectionCampaignId,
             p_intent: collectionIntent,
             p_rows: rpcRows,
+            p_snapshot_run_id: snapshotRunId,
           },
         );
         if (ingestErr) {

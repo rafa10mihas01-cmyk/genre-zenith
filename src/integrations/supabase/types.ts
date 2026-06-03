@@ -1249,6 +1249,7 @@ export type Database = {
           plays_7d: number
           proof_screenshot_url: string | null
           proof_screenshot_urls: string[]
+          snapshot_run_id: string | null
           source: string
         }
         Insert: {
@@ -1265,6 +1266,7 @@ export type Database = {
           plays_7d?: number
           proof_screenshot_url?: string | null
           proof_screenshot_urls?: string[]
+          snapshot_run_id?: string | null
           source?: string
         }
         Update: {
@@ -1281,6 +1283,7 @@ export type Database = {
           plays_7d?: number
           proof_screenshot_url?: string | null
           proof_screenshot_urls?: string[]
+          snapshot_run_id?: string | null
           source?: string
         }
         Relationships: [
@@ -1311,6 +1314,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_financial_summary"
             referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "campaign_playlist_collections_snapshot_run_id_fkey"
+            columns: ["snapshot_run_id"]
+            isOneToOne: false
+            referencedRelation: "bot_print_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_playlist_collections_snapshot_run_id_fkey"
+            columns: ["snapshot_run_id"]
+            isOneToOne: false
+            referencedRelation: "v_snapshot_prints"
+            referencedColumns: ["run_id"]
           },
         ]
       }
@@ -2542,6 +2559,7 @@ export type Database = {
           plays_28d: number | null
           plays_7d: number | null
           print_url: string | null
+          snapshot_run_id: string | null
           song_id: string | null
           source: string
         }
@@ -2566,6 +2584,7 @@ export type Database = {
           plays_28d?: number | null
           plays_7d?: number | null
           print_url?: string | null
+          snapshot_run_id?: string | null
           song_id?: string | null
           source?: string
         }
@@ -2590,6 +2609,7 @@ export type Database = {
           plays_28d?: number | null
           plays_7d?: number | null
           print_url?: string | null
+          snapshot_run_id?: string | null
           song_id?: string | null
           source?: string
         }
@@ -2607,6 +2627,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "curator_playlists"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curator_deal_snapshots_snapshot_run_id_fkey"
+            columns: ["snapshot_run_id"]
+            isOneToOne: false
+            referencedRelation: "bot_print_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curator_deal_snapshots_snapshot_run_id_fkey"
+            columns: ["snapshot_run_id"]
+            isOneToOne: false
+            referencedRelation: "v_snapshot_prints"
+            referencedColumns: ["run_id"]
           },
           {
             foreignKeyName: "curator_deal_snapshots_song_id_fkey"
@@ -7785,6 +7819,7 @@ export type Database = {
           processed_at: string | null
           processing_error: string | null
           screenshot_url: string | null
+          snapshot_run_id: string | null
           song_id: string
           spotify_song_id: string | null
           time_window: string
@@ -7799,6 +7834,7 @@ export type Database = {
           processed_at?: string | null
           processing_error?: string | null
           screenshot_url?: string | null
+          snapshot_run_id?: string | null
           song_id: string
           spotify_song_id?: string | null
           time_window?: string
@@ -7813,12 +7849,28 @@ export type Database = {
           processed_at?: string | null
           processing_error?: string | null
           screenshot_url?: string | null
+          snapshot_run_id?: string | null
           song_id?: string
           spotify_song_id?: string | null
           time_window?: string
           total_plays_28d?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "song_snapshots_snapshot_run_id_fkey"
+            columns: ["snapshot_run_id"]
+            isOneToOne: false
+            referencedRelation: "bot_print_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "song_snapshots_snapshot_run_id_fkey"
+            columns: ["snapshot_run_id"]
+            isOneToOne: false
+            referencedRelation: "v_snapshot_prints"
+            referencedColumns: ["run_id"]
+          },
+        ]
       }
       spotify_accounts: {
         Row: {
@@ -9039,6 +9091,62 @@ export type Database = {
           },
         ]
       }
+      v_snapshot_prints: {
+        Row: {
+          campaign_id: string | null
+          completed_at: string | null
+          created_at: string | null
+          deal_id: string | null
+          print_count: number | null
+          print_urls: string[] | null
+          run_id: string | null
+          song_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_print_batches_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bot_print_batches_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deal_songs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curator_deals_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_radio_collected"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "curator_deals_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curator_deals_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_campaign_velocity"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "curator_deals_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_financial_summary"
+            referencedColumns: ["campaign_id"]
+          },
+        ]
+      }
       vw_403_audit_report: {
         Row: {
           errors_7d: number | null
@@ -9526,10 +9634,20 @@ export type Database = {
         Returns: number
       }
       infer_collection_mode: { Args: { p_deal_id: string }; Returns: string }
-      ingest_campaign_collection_batch: {
-        Args: { p_campaign_id: string; p_intent: string; p_rows: Json }
-        Returns: Json
-      }
+      ingest_campaign_collection_batch:
+        | {
+            Args: { p_campaign_id: string; p_intent: string; p_rows: Json }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_campaign_id: string
+              p_intent: string
+              p_rows: Json
+              p_snapshot_run_id?: string
+            }
+            Returns: Json
+          }
       is_admin: { Args: never; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
       is_internal_operator: { Args: never; Returns: boolean }
