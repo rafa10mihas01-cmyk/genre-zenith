@@ -241,7 +241,7 @@ function resolveLogCtx(perCall?: SpotifyCallCtx): Required<Pick<SpotifyLogRow, "
   // apenas o patch local do `run()`, perdendo o app_id/appName setado fora dele.
   const als = ctxStore.getStore() ?? {};
   const stored: CtxFields = { ...__lastCtx, ...als };
-  console.log("[ctx-debug]", JSON.stringify({ perCall, als, __lastCtx, stored }).slice(0, 500));
+  console.error("[ctx-debug]", JSON.stringify({ perCallKeys: Object.keys(perCall ?? {}), alsKeys: Object.keys(als), lastKeys: Object.keys(__lastCtx), playlist_id: stored.playlist_id, owner_id: stored.owner_id, app_id: stored.appId }));
   return {
     function_name: perCall?.function_name ?? stored.function_name ?? RESOLVED_FUNCTION_NAME,
     app_id: perCall?.appId ?? stored.appId ?? null,
