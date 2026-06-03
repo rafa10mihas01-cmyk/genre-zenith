@@ -112,6 +112,25 @@ Deno.serve(async (req) => {
   const cronT0 = Date.now();
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
+  // EXECUTION_FREEZE_MODE: kill-switch global. Não cria novos jobs enquanto frozen.
+  {
+    const { data: frozenFlag } = await supabase
+      .from("system_flags")
+      .select("execution_frozen")
+      .eq("singleton_key", "app")
+      .maybeSingle();
+    if (frozenFlag?.execution_frozen) {
+      await reportCronHealth(supabase, {
+        job_name: "execution-planner",
+        status: "ok",
+        startedAt: cronT0,
+        metrics: { skipped: true, reason: "execution_frozen" },
+        message: "skipped: EXECUTION_FROZEN",
+      });
+      return jr({ ok: true, skipped: true, reason: "execution_frozen" });
+    }
+  }
+
   // Backoff adaptativo: se ainda estamos em cooldown, sai imediatamente.
   const backoff = await readPlannerBackoffState(supabase);
   if (backoff.cooldown_remaining > 0) {

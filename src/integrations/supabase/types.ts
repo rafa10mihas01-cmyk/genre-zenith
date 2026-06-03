@@ -8526,6 +8526,10 @@ export type Database = {
           apify_blocked_reason: string | null
           auto_deal_from_campaign: boolean
           created_at: string
+          execution_frozen: boolean
+          execution_frozen_at: string | null
+          execution_frozen_by: string | null
+          execution_frozen_reason: string | null
           execution_queue_internal_enabled: boolean
           id: string
           singleton_key: string
@@ -8537,6 +8541,10 @@ export type Database = {
           apify_blocked_reason?: string | null
           auto_deal_from_campaign?: boolean
           created_at?: string
+          execution_frozen?: boolean
+          execution_frozen_at?: string | null
+          execution_frozen_by?: string | null
+          execution_frozen_reason?: string | null
           execution_queue_internal_enabled?: boolean
           id?: string
           singleton_key?: string
@@ -8548,6 +8556,10 @@ export type Database = {
           apify_blocked_reason?: string | null
           auto_deal_from_campaign?: boolean
           created_at?: string
+          execution_frozen?: boolean
+          execution_frozen_at?: string | null
+          execution_frozen_by?: string | null
+          execution_frozen_reason?: string | null
           execution_queue_internal_enabled?: boolean
           id?: string
           singleton_key?: string

@@ -71,6 +71,26 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
+  // EXECUTION_FREEZE_MODE: kill-switch global. Não entrega jobs a nenhum worker
+  // (bot externo ou cron interno) enquanto a flag estiver ligada.
+  {
+    const { data: frozenFlag } = await supabase
+      .from("system_flags")
+      .select("execution_frozen")
+      .eq("singleton_key", "app")
+      .maybeSingle();
+    if (frozenFlag?.execution_frozen) {
+      await reportCronHealth(supabase, {
+        job_name: "bot-execution-queue",
+        status: "ok",
+        startedAt,
+        metrics: { skipped: true, reason: "execution_frozen" },
+        message: "skipped: EXECUTION_FROZEN",
+      });
+      return jr({ ok: true, skipped: true, reason: "execution_frozen", jobs: [] });
+    }
+  }
+
   // Feature flag: drenamento interno pode ser desligado instantaneamente
   if (isInternal) {
     const { data: flags } = await supabase

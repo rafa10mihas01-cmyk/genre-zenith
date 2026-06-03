@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 // SplashLoader é montado UMA vez em App.tsx (fora do AppLayout) pra cobrir
 // rotas públicas e o boot inteiro. Não duplicar aqui.
 import { AppFooter } from "@/components/AppFooter";
+import { ExecutionFreezeBanner } from "@/components/ExecutionFreezeBanner";
 
 // Mapa de rótulos curtos para o título no header mobile/tablet
 const ROUTE_TITLES: Record<string, string> = {
@@ -183,6 +184,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               <NotificationsBell />
             </div>
           </header>
+
+          <ExecutionFreezeBanner />
 
           {/* CONTEÚDO — só ele rola */}
           <main className={cn(
