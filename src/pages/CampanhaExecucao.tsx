@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { PageContainer } from "@/components/PageContainer";
@@ -120,32 +120,55 @@ export default function CampanhaExecucao() {
   const [reliefInline, setReliefInline] = useState<ReliefPreview | null>(null);
   const [reliefInlineLoading, setReliefInlineLoading] = useState(false);
   const [reliefInlineError, setReliefInlineError] = useState<string | null>(null);
+  const reliefLastRunKeyRef = useRef<string | null>(null);
+
+  const runReliefInlinePreview = async (force = false) => {
+    if (!id) return;
+    const runKey = `${id}:${planRefreshKey}`;
+    if (!force && reliefLastRunKeyRef.current === runKey) return;
+    reliefLastRunKeyRef.current = runKey;
+    setReliefInlineLoading(true);
+    setReliefInlineError(null);
+    setReliefInline(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("replan-campaign-eco", {
+        body: { campaign_id: id, dry_run: true, strategy: "daily_need", dominance_relief: true },
+      });
+      if (error) throw error;
+      const res = data as { ok: boolean; error?: string; message?: string; dominance_relief?: ReliefPreview | null };
+      if (!res?.ok) throw new Error(res?.error ?? "Falha na simulação");
+      if (!res.dominance_relief) throw new Error(res.message ?? "Simulação sem retorno");
+      setReliefInline(res.dominance_relief);
+    } catch (e) {
+      reliefLastRunKeyRef.current = null;
+      setReliefInlineError(e instanceof Error ? e.message : "Erro");
+    } finally {
+      setReliefInlineLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!dominanceReliefPreview || !id) {
       setReliefInline(null);
       setReliefInlineError(null);
+      setReliefInlineLoading(false);
+      reliefLastRunKeyRef.current = null;
       return;
     }
-    let cancelled = false;
-    setReliefInlineLoading(true);
-    setReliefInlineError(null);
-    (async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke("replan-campaign-eco", {
-          body: { campaign_id: id, dry_run: true, strategy: "daily_need", dominance_relief: true },
-        });
-        if (error) throw error;
-        const res = data as { ok: boolean; error?: string; dominance_relief?: ReliefPreview | null };
-        if (!res?.ok) throw new Error(res?.error ?? "Falha na simulação");
-        if (!cancelled) setReliefInline(res.dominance_relief ?? null);
-      } catch (e) {
-        if (!cancelled) setReliefInlineError(e instanceof Error ? e.message : "Erro");
-      } finally {
-        if (!cancelled) setReliefInlineLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
+    void runReliefInlinePreview(false);
   }, [dominanceReliefPreview, id, planRefreshKey]);
+
+  const handleDominanceReliefPreviewChange = (checked: boolean) => {
+    setDominanceReliefPreview(checked);
+    if (!checked) {
+      setReliefInline(null);
+      setReliefInlineError(null);
+      setReliefInlineLoading(false);
+      reliefLastRunKeyRef.current = null;
+      return;
+    }
+    void runReliefInlinePreview(true);
+  };
 
   async function handleApprovePlan() {
     if (!camp) return;
@@ -890,7 +913,7 @@ export default function CampanhaExecucao() {
                       <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
                         <Switch
                           checked={dominanceReliefPreview}
-                          onCheckedChange={setDominanceReliefPreview}
+                          onCheckedChange={handleDominanceReliefPreviewChange}
                           aria-label="Dominance Relief (simulação)"
                         />
                         <span>Dominance Relief <span className="opacity-60">(simulação)</span></span>
@@ -915,7 +938,7 @@ export default function CampanhaExecucao() {
                       ) : reliefInlineError ? (
                         <div className="text-destructive">{reliefInlineError}</div>
                       ) : !reliefInline ? (
-                        <div className="text-muted-foreground">Sem dados de simulação.</div>
+                        <div className="text-muted-foreground">Clique no toggle para calcular a simulação.</div>
                       ) : reliefInline.applied ? (
                         <div className="grid grid-cols-3 gap-3">
                           <div><div className="text-muted-foreground">Top1 antes</div><div className="font-semibold tabular-nums">{reliefInline.top1_before_pct.toFixed(1)}%</div></div>
