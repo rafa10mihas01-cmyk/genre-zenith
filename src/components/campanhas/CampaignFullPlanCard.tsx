@@ -266,7 +266,11 @@ export function CampaignFullPlanCard({
   // ---- Resumo da distribuição (card no topo) ----
   const resumo = useMemo(() => {
     const capacidadeEcoDia = plans.reduce((s, p) => s + (p.capDia ?? 0), 0);
-    const ecoCobertoTotal = plans.reduce((s, p) => s + (p.totalStreams ?? 0), 0);
+    // Verdade do eco coberto = soma do que foi COMPROMETIDO nas alocações
+    // (planned_streams já clampado por capacidade real no fechamento).
+    // A curva diária (`totalStreams`) é só preview da distribuição — usar ela
+    // aqui gera "déficit fantasma" por causa da rampa/tail decay.
+    const ecoCobertoTotal = allocations.reduce((s, a) => s + (Number(a.planned_streams) || 0), 0);
     const metaEco = snapshot.streamsEco ?? 0;
     const metaExt = snapshot.streamsExt ?? Math.max(0, snapshot.meta - metaEco);
     const necDiaTotal = Math.round(snapshot.meta / Math.max(1, days));
@@ -275,7 +279,8 @@ export function CampaignFullPlanCard({
     const pico = dailyTotals.length ? Math.max(...dailyTotals) : 0;
     // Média/dia REAL do plano (rampa + boost + tail). É o que realmente vamos entregar por dia.
     const planDays = snapshot.effectiveDays ?? days;
-    const mediaDiaReal = planDays > 0 ? Math.round(ecoCobertoTotal / planDays) : 0;
+    const ecoDailyCurveTotal = plans.reduce((s, p) => s + (p.totalStreams ?? 0), 0);
+    const mediaDiaReal = planDays > 0 ? Math.round(ecoDailyCurveTotal / planDays) : 0;
     const usoCap = mediaDiaReal > 0 ? Math.round((necDiaEco / mediaDiaReal) * 100) : 0;
     const deficitEco = Math.max(0, metaEco - ecoCobertoTotal);
     return {
@@ -283,7 +288,8 @@ export function CampaignFullPlanCard({
       necDiaTotal, necDiaEco, necDiaExt, pico, usoCap, deficitEco,
       qtdPlaylists: plans.length,
     };
-  }, [plans, dailyTotals, snapshot, days]);
+  }, [plans, dailyTotals, snapshot, days, allocations]);
+
 
 
   function cellValue(p: DailyPlaylistPlan, i: number) {
@@ -706,7 +712,9 @@ export function CampaignFullPlanSummary({
 
   const resumo = useMemo(() => {
     const capacidadeEcoDia = plans.reduce((s, p) => s + (p.capDia ?? 0), 0);
-    const ecoCobertoTotal = plans.reduce((s, p) => s + (p.totalStreams ?? 0), 0);
+    // Eco coberto = comprometido nas alocações (verdade), não soma da curva diária.
+    const ecoCobertoTotal = allocations.reduce((s, a) => s + (Number(a.planned_streams) || 0), 0);
+    const ecoDailyCurveTotal = plans.reduce((s, p) => s + (p.totalStreams ?? 0), 0);
     const metaEco = snapshot.streamsEco ?? 0;
     const metaExt = snapshot.streamsExt ?? Math.max(0, snapshot.meta - metaEco);
     const metaOrg = Math.max(0, Math.round(snapshot.streamsOrganic ?? 0));
@@ -717,11 +725,12 @@ export function CampaignFullPlanSummary({
     const necDiaOrg = Math.round(metaOrg / Math.max(1, days));
     const pico = dailyTotals.length ? Math.max(...dailyTotals) : 0;
     const planDays = snapshot.effectiveDays ?? days;
-    const mediaDiaReal = planDays > 0 ? Math.round(ecoCobertoTotal / planDays) : 0;
+    const mediaDiaReal = planDays > 0 ? Math.round(ecoDailyCurveTotal / planDays) : 0;
     const usoCap = mediaDiaReal > 0 ? Math.round((necDiaEco / mediaDiaReal) * 100) : 0;
     const deficitEco = Math.max(0, metaEco - ecoCobertoTotal);
     return { capacidadeEcoDia, mediaDiaReal, ecoCobertoTotal, metaEco, metaExt, metaOrg, orgPct, necDiaTotal, necDiaEco, necDiaExt, necDiaOrg, pico, usoCap, deficitEco, qtdPlaylists: plans.length };
-  }, [plans, dailyTotals, snapshot, days]);
+  }, [plans, dailyTotals, snapshot, days, allocations]);
+
 
   if (plans.length === 0) return null;
 
