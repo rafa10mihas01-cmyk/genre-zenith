@@ -260,10 +260,8 @@ Deno.serve(async (req) => {
       playlists_dropped_by_budget: 0,
       message: "O plano aprovado já cobre a fatia ECO do snapshot; não há gap planejado para adicionar playlists.",
     };
-    const dominanceReliefResult = dryRun && dominanceRelief
-      ? await buildDominanceReliefPreview([])
-      : null;
-    return json({ ok: true, dry_run: dryRun, ...summary, dominance_relief: dominanceReliefResult });
+    return json({ ok: true, dry_run: dryRun, ...summary });
+
   }
 
   // ─── Orçamento de audiência (camada de proteção) ───
