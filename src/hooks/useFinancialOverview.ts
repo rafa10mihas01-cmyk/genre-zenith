@@ -125,7 +125,7 @@ export function useFinancialOverview() {
   useEffect(() => {
     if (!user) return;
     const channel = supabase
-      .channel(`financial-live-${user.id}-${Math.random().toString(36).slice(2)}`)
+      .channel(`financial-live-${user.id}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "curator_purchases" },

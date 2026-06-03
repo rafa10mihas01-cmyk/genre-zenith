@@ -167,7 +167,7 @@ export function RegrasVsExecucao() {
   useEffect(() => {
     load();
     const ch = supabase
-      .channel(`rules:${Math.random().toString(36).slice(2)}`)
+      .channel("sistema-rules")
       .on("postgres_changes", { event: "*", schema: "public", table: "autopilot_runs" }, () => load())
       .on("postgres_changes", { event: "*", schema: "public", table: "playlist_templates" }, () => load())
       .subscribe();

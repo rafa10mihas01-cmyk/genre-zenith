@@ -336,13 +336,17 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
   // Realtime: invalida cache quando snapshots mudam e recarrega status das músicas.
   // Também recarrega a lista quando deals são criados/alterados fora da tela atual
   // (ex.: separação manual de campanhas em deals independentes).
+  //
+  // FIX REALTIME_LEAK: `dealIds` é mantido em ref pra não disparar re-subscribe
+  // a cada load(). Nome de canal determinístico (sem Math.random) pra permitir
+  // dedupe no client e evitar churn de WAL listeners.
+  const dealIdsRef = useRef<string[]>([]);
+  useEffect(() => { dealIdsRef.current = dealIds; }, [dealIds]);
+
   useEffect(() => {
     if (!user) return;
-    // Sempre escuta INSERT/UPDATE/DELETE em curator_deals — independente de já ter
-    // deals carregados. Garante que novos deals criados em outras telas (ex.: portal
-    // do curador, aprovação de campanha) apareçam aqui em tempo real.
     const channel = supabase
-      .channel(`curator-deals-live-${user.id}-${Math.random().toString(36).slice(2)}`)
+      .channel(`curator-deals-live-${user.id}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "curator_deals" },
@@ -356,7 +360,7 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
         (payload) => {
           const row = (payload.new ?? payload.old) as { deal_id?: string } | null;
           const dealId = row?.deal_id;
-          if (dealId && dealIds.includes(dealId)) {
+          if (dealId && dealIdsRef.current.includes(dealId)) {
             queryClient.invalidateQueries({ queryKey: ["curator-progress", dealId] });
           }
         },
@@ -367,7 +371,7 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
         (payload) => {
           const row = (payload.new ?? payload.old) as { deal_id?: string } | null;
           const dealId = row?.deal_id;
-          if (dealId && dealIds.includes(dealId)) {
+          if (dealId && dealIdsRef.current.includes(dealId)) {
             queryClient.invalidateQueries({ queryKey: ["curator-progress", dealId] });
             load();
           }
@@ -385,7 +389,7 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, dealIds, queryClient, load]);
+  }, [user, queryClient, load]);
 
 
   useEffect(() => {

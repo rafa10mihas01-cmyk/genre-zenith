@@ -77,7 +77,7 @@ export function FluxoVisual({ compact = false }: { compact?: boolean }) {
   useEffect(() => {
     loadFluxo();
     const ch = supabase
-      .channel(`fluxo-atual:${Math.random().toString(36).slice(2)}`)
+      .channel("fluxo-atual")
       .on("postgres_changes", { event: "*", schema: "public", table: "collection_logs" }, () => loadFluxo())
       .on("postgres_changes", { event: "*", schema: "public", table: "search_results" }, () => loadFluxo())
       .on("postgres_changes", { event: "*", schema: "public", table: "playlist_execution_jobs" }, () => loadFluxo())

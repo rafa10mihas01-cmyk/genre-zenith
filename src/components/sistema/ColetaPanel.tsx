@@ -62,7 +62,7 @@ export function ColetaPanel() {
   useEffect(() => {
     load();
     const ch = supabase
-      .channel(`sistema-coleta:${Math.random().toString(36).slice(2)}`)
+      .channel("sistema-coleta")
       .on("postgres_changes", { event: "*", schema: "public", table: "search_results" }, () => load())
       .subscribe();
     return () => { supabase.removeChannel(ch); };

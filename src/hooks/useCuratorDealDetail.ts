@@ -140,7 +140,7 @@ export function useCuratorDealDetail(dealId: string | null | undefined) {
   useEffect(() => {
     if (!user || !dealId) return;
     const channel = supabase
-      .channel(`curator-deal-detail-${dealId}-${Math.random().toString(36).slice(2)}`)
+      .channel(`curator-deal-detail-${dealId}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "curator_deals", filter: `id=eq.${dealId}` },
