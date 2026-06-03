@@ -222,8 +222,7 @@ Deno.serve(async (req) => {
             plays_7d: Math.max(0, toInt(p.plays_7d) ?? 0),
             captured_at: capturedAt,
             source: "s4a_dom",
-            proof_screenshot_url: screenshot_url ?? null,
-            proof_screenshot_urls: screenshot_url ? [screenshot_url] : [],
+            // print fica EXCLUSIVAMENTE em bot_print_batches via snapshot_run_id
           };
         })
         .filter(Boolean);
@@ -235,6 +234,7 @@ Deno.serve(async (req) => {
             p_campaign_id: collectionCampaignId,
             p_intent: collectionIntent,
             p_rows: rpcRows,
+            p_snapshot_run_id: snapshotRunId,
           },
         );
         if (ingestErr) {
