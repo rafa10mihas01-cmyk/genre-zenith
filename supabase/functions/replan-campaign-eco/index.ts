@@ -37,6 +37,7 @@ import {
 } from "../_shared/eco-budget.ts";
 import { getGenreNeighbors } from "../_shared/genre-affinity.ts";
 import { MIN_PLAYLIST_SAVES_FOR_CAMPAIGN } from "../_shared/eco-constants.ts";
+import { applyDominanceRelief, type ReliefAlloc, type ReliefCandidate } from "../_shared/dominanceRelief.ts";
 
 
 // Pequeno RNG determinístico (mesma família do computeEcoPlan) para
