@@ -219,3 +219,8 @@ export default function DealDetail() {
               onReload={reload}
             />
           </Suspense>
+        </>
+      )}
+    </PageContainer>
+  );
+}
