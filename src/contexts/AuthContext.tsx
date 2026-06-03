@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -32,15 +32,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error: error?.message ?? null };
-  };
-  const signOut = async () => {
+  }, []);
+  const signOut = useCallback(async () => {
     await supabase.auth.signOut();
-  };
+  }, []);
 
-  return <Ctx.Provider value={{ user, session, loading, signIn, signOut }}>{children}</Ctx.Provider>;
+  // Perf: memoiza o value pra evitar re-render global em toda tela
+  // consumidora a cada render do AuthProvider.
+  const value = useMemo(
+    () => ({ user, session, loading, signIn, signOut }),
+    [user, session, loading, signIn, signOut],
+  );
+
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
 export const useAuth = () => {

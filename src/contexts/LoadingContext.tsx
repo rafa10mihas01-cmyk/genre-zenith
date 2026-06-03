@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 /**
  * Contexto GLOBAL de loading do app.
@@ -71,20 +71,21 @@ export function LoadingProvider({ children }: { children: ReactNode }) {
     manualTimer.current = setTimeout(() => setManualSplash(false), ms);
   }, []);
 
-  return (
-    <Ctx.Provider
-      value={{
-        isLoading: count > 0,
-        start,
-        withLoading,
-        isSplashing: bootCount > 0 || manualSplash,
-        startBoot,
-        triggerSplash,
-      }}
-    >
-      {children}
-    </Ctx.Provider>
+  // Perf: memoiza o value pra evitar re-render global de TODA tela consumidora
+  // a cada render do provider (antes: objeto novo a cada render).
+  const value = useMemo(
+    () => ({
+      isLoading: count > 0,
+      start,
+      withLoading,
+      isSplashing: bootCount > 0 || manualSplash,
+      startBoot,
+      triggerSplash,
+    }),
+    [count, bootCount, manualSplash, start, withLoading, startBoot, triggerSplash],
   );
+
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
 export function useLoading() {
