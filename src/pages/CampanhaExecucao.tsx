@@ -1116,24 +1116,35 @@ function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
 
+type ReplanPreview = { added: number; plays_per_day_added: number };
+type ReplanStrategy = "daily_need" | "chart_tier";
+
 function ReplanButton({ campaignId, onReplanned }: { campaignId: string; onReplanned: () => void | Promise<void> }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [executing, setExecuting] = useState(false);
-  const [preview, setPreview] = useState<{ added: number; plays_per_day_added: number } | null>(null);
+  const [executing, setExecuting] = useState<ReplanStrategy | null>(null);
+  const [previews, setPreviews] = useState<Record<ReplanStrategy, ReplanPreview | null>>({
+    daily_need: null,
+    chart_tier: null,
+  });
+
+  const fetchPreview = async (strategy: ReplanStrategy): Promise<ReplanPreview> => {
+    const { data, error } = await supabase.functions.invoke("replan-campaign-eco", {
+      body: { campaign_id: campaignId, dry_run: true, strategy },
+    });
+    if (error) throw error;
+    const res = data as { ok: boolean; added?: number; plays_per_day_added?: number; error?: string };
+    if (!res?.ok) throw new Error(res?.error ?? "Falha ao calcular replanejamento");
+    return { added: Number(res.added ?? 0), plays_per_day_added: Number(res.plays_per_day_added ?? 0) };
+  };
 
   const handleOpen = async () => {
     setOpen(true);
-    setPreview(null);
+    setPreviews({ daily_need: null, chart_tier: null });
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("replan-campaign-eco", {
-        body: { campaign_id: campaignId, dry_run: true },
-      });
-      if (error) throw error;
-      const res = data as { ok: boolean; added?: number; plays_per_day_added?: number; error?: string };
-      if (!res?.ok) throw new Error(res?.error ?? "Falha ao calcular replanejamento");
-      setPreview({ added: Number(res.added ?? 0), plays_per_day_added: Number(res.plays_per_day_added ?? 0) });
+      const [daily, chart] = await Promise.all([fetchPreview("daily_need"), fetchPreview("chart_tier")]);
+      setPreviews({ daily_need: daily, chart_tier: chart });
     } catch (e: unknown) {
       toast.error(getErrorMessage(e, "Falha ao calcular replanejamento"));
       setOpen(false);
@@ -1142,11 +1153,11 @@ function ReplanButton({ campaignId, onReplanned }: { campaignId: string; onRepla
     }
   };
 
-  const handleConfirm = async () => {
-    setExecuting(true);
+  const handleConfirm = async (strategy: ReplanStrategy) => {
+    setExecuting(strategy);
     try {
       const { data, error } = await supabase.functions.invoke("replan-campaign-eco", {
-        body: { campaign_id: campaignId, dry_run: false },
+        body: { campaign_id: campaignId, dry_run: false, strategy },
       });
       if (error) throw error;
       const res = data as { ok: boolean; added?: number; error?: string };
@@ -1157,9 +1168,47 @@ function ReplanButton({ campaignId, onReplanned }: { campaignId: string; onRepla
     } catch (e: unknown) {
       toast.error(getErrorMessage(e, "Falha ao replanejar"));
     } finally {
-      setExecuting(false);
+      setExecuting(null);
     }
   };
+
+  const hasAny = (previews.daily_need?.added ?? 0) + (previews.chart_tier?.added ?? 0) > 0;
+  const busy = executing !== null;
+
+  const renderOption = (
+    strategy: ReplanStrategy,
+    title: string,
+    description: string,
+    preview: ReplanPreview | null,
+  ) => (
+    <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+      <div>
+        <div className="text-sm font-medium">{title}</div>
+        <div className="text-xs text-muted-foreground mt-0.5">{description}</div>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-md bg-background/50 p-2">
+          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Playlists</div>
+          <div className="text-xl font-semibold tabular-nums">{preview?.added ?? 0}</div>
+        </div>
+        <div className="rounded-md bg-background/50 p-2">
+          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Plays/dia</div>
+          <div className="text-xl font-semibold tabular-nums">
+            {(preview?.plays_per_day_added ?? 0).toLocaleString("pt-BR")}
+          </div>
+        </div>
+      </div>
+      <Button
+        size="sm"
+        className="w-full"
+        onClick={() => handleConfirm(strategy)}
+        disabled={busy || !preview || preview.added === 0}
+      >
+        {executing === strategy ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : null}
+        Aplicar
+      </Button>
+    </div>
+  );
 
   return (
     <>
@@ -1167,50 +1216,50 @@ function ReplanButton({ campaignId, onReplanned }: { campaignId: string; onRepla
         <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
         Replanejar plano
       </Button>
-      <Dialog open={open} onOpenChange={(o) => !executing && setOpen(o)}>
-        <DialogContent className="max-w-md">
+      <Dialog open={open} onOpenChange={(o) => !busy && setOpen(o)}>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Replanejar plano</DialogTitle>
           </DialogHeader>
           {loading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground py-6">
-              <Loader2 className="h-4 w-4 animate-spin" /> Buscando playlists do gênero…
+              <Loader2 className="h-4 w-4 animate-spin" /> Calculando os dois cenários…
             </div>
-          ) : preview ? (
-            preview.added === 0 ? (
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Nenhuma playlist nova do gênero primário fora do plano atual.
-                </p>
-                <div className="flex justify-end">
-                  <Button variant="outline" size="sm" onClick={() => setOpen(false)}>Fechar</Button>
-                </div>
+          ) : !hasAny ? (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Nenhuma playlist nova do gênero primário fora do plano atual.
+              </p>
+              <div className="flex justify-end">
+                <Button variant="outline" size="sm" onClick={() => setOpen(false)}>Fechar</Button>
               </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-lg border border-border bg-card p-3">
-                    <div className="text-xs text-muted-foreground">Playlists novas</div>
-                    <div className="text-2xl font-semibold tabular-nums">{preview.added}</div>
-                  </div>
-                  <div className="rounded-lg border border-border bg-card p-3">
-                    <div className="text-xs text-muted-foreground">Plays/dia adicionais</div>
-                    <div className="text-2xl font-semibold tabular-nums">{preview.plays_per_day_added.toLocaleString("pt-BR")}</div>
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  As playlists existentes (incluindo já despachadas) não serão alteradas. Só novas allocs serão inseridas com status <span className="font-mono">approved</span>.
-                </p>
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setOpen(false)} disabled={executing}>Cancelar</Button>
-                  <Button size="sm" onClick={handleConfirm} disabled={executing}>
-                    {executing ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : null}
-                    Confirmar
-                  </Button>
-                </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-xs text-muted-foreground">
+                Escolha a estratégia. As 22 playlists atuais (e despachadas) não são alteradas em nenhum cenário.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {renderOption(
+                  "chart_tier",
+                  "Concentrado",
+                  "Mesma lógica do plano original: poucas playlists em posições boas.",
+                  previews.chart_tier,
+                )}
+                {renderOption(
+                  "daily_need",
+                  "Espalhado",
+                  "Muitas playlists em posição baixa, distribuído contra a meta diária.",
+                  previews.daily_need,
+                )}
               </div>
-            )
-          ) : null}
+              <div className="flex justify-end">
+                <Button variant="outline" size="sm" onClick={() => setOpen(false)} disabled={busy}>
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </>
