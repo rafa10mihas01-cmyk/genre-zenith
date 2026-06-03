@@ -117,6 +117,35 @@ export default function CampanhaExecucao() {
     if (typeof window === "undefined" || !id) return;
     window.localStorage.setItem(`dominance_relief_preview:${id}`, dominanceReliefPreview ? "1" : "0");
   }, [dominanceReliefPreview, id]);
+  const [reliefInline, setReliefInline] = useState<ReliefPreview | null>(null);
+  const [reliefInlineLoading, setReliefInlineLoading] = useState(false);
+  const [reliefInlineError, setReliefInlineError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!dominanceReliefPreview || !id) {
+      setReliefInline(null);
+      setReliefInlineError(null);
+      return;
+    }
+    let cancelled = false;
+    setReliefInlineLoading(true);
+    setReliefInlineError(null);
+    (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("replan-campaign-eco", {
+          body: { campaign_id: id, dry_run: true, strategy: "daily_need", dominance_relief: true },
+        });
+        if (error) throw error;
+        const res = data as { ok: boolean; error?: string; dominance_relief?: ReliefPreview | null };
+        if (!res?.ok) throw new Error(res?.error ?? "Falha na simulação");
+        if (!cancelled) setReliefInline(res.dominance_relief ?? null);
+      } catch (e) {
+        if (!cancelled) setReliefInlineError(e instanceof Error ? e.message : "Erro");
+      } finally {
+        if (!cancelled) setReliefInlineLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [dominanceReliefPreview, id, planRefreshKey]);
 
   async function handleApprovePlan() {
     if (!camp) return;
