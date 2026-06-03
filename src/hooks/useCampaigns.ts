@@ -1,5 +1,5 @@
 // useCampaigns — React Query + realtime + mutações otimistas para /campanhas.
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useId } from "react";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
