@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { RefreshCw, Handshake, UserSearch, Users, Activity, DollarSign, TrendingUp, Send, Mail, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageContainer } from "@/components/PageContainer";
