@@ -86,6 +86,7 @@ type Alloc = {
 type Payload = {
   campaign?: Camp;
   allocations?: Alloc[];
+  organic_summary?: { total_plays?: number } | null;
   error?: string;
 };
 
