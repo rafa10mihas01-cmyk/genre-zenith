@@ -108,8 +108,9 @@ export function useCampaigns() {
   // Realtime: qualquer mudança em campaigns OU curator_deals (baseline) invalida.
   useEffect(() => {
     if (!user) return;
+    const topic = `campaigns-live-${user.id}-${instanceId.replace(/:/g, "")}`;
     const channel = supabase
-      .channel(`campaigns-live-${user.id}`)
+      .channel(topic)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "campaigns" },
@@ -129,7 +130,7 @@ export function useCampaigns() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, qc]);
+  }, [user, qc, instanceId]);
 
   // Update status (active/paused/cancelled etc) — otimista
   const updateStatus = useMutation({
