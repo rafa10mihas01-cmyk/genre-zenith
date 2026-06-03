@@ -226,7 +226,7 @@ function fireAndForgetLog(row: SpotifyLogRow): void {
 
 /** Merge per-call ctx, async-local ctx e defaults. */
 function resolveLogCtx(perCall?: SpotifyCallCtx): Required<Pick<SpotifyLogRow, "function_name" | "app_id" | "app_name" | "playlist_id" | "owner_id" | "spotify_user_id">> {
-  const stored = ctxStore.getStore() ?? {};
+  const stored = ctxStore.getStore() ?? __lastCtx;
   return {
     function_name: perCall?.function_name ?? stored.function_name ?? RESOLVED_FUNCTION_NAME,
     app_id: perCall?.appId ?? stored.appId ?? null,
