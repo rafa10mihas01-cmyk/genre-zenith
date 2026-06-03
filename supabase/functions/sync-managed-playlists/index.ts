@@ -125,71 +125,81 @@ Deno.serve(async (req) => {
       const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
       const processOne = async (p: typeof pls[number]) => {
-        try {
-          const meta = await fetchMeta(p.spotify_playlist_id, token);
-          if (!meta) { failed++; return; }
-          const update: Record<string, unknown> = {
-            followers: meta.followers,
-            tracks_count: meta.tracks_count,
-            last_metrics_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          };
-          if (meta.name && meta.name !== p.name) update.name = meta.name;
-          if (meta.cover_url && meta.cover_url !== p.cover_url) update.cover_url = meta.cover_url;
-          let canonicalId = p.canonical_playlist_id;
-          if (!canonicalId) {
-            const { data: canonical, error: canonicalError } = await supabase
-              .from("playlists")
-              .upsert({
-                spotify_playlist_id: p.spotify_playlist_id,
-                name: meta.name ?? p.name,
-                ownership: "own",
-                source: "managed",
-                followers: meta.followers,
-                cover_url: meta.cover_url ?? p.cover_url,
-                monitored: true,
-                last_seen_at: new Date().toISOString(),
-              }, { onConflict: "spotify_playlist_id" })
-              .select("id")
-              .single();
-            if (canonicalError) throw new Error(canonicalError.message);
-            canonicalId = canonical.id;
-            update.canonical_playlist_id = canonicalId;
-          } else {
-            await supabase.from("playlists").update({
-              name: meta.name ?? p.name,
-              followers: meta.followers,
-              cover_url: meta.cover_url ?? p.cover_url,
-              ownership: "own",
-              source: "managed",
-              monitored: true,
-              last_seen_at: new Date().toISOString(),
-            }).eq("id", canonicalId);
-          }
-
-          await supabase.from("managed_playlists").update(update).eq("id", p.id);
-          synced++;
-
-          if (canonicalId) {
-            // fire-and-forget pra não bloquear o sync
-            fetch(`${SUPABASE_URL}/functions/v1/playlist-brain-calc`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
-              body: JSON.stringify({ playlist_id: canonicalId }),
-            }).then((r) => { if (r.ok) recalculated++; }).catch(() => {});
-          }
-
-          // Enfileira AUTO_SYNC da playlist (dedupe ativo: skippa se já pending).
-          // Antes era um fetch direto fire-and-forget — agora vai pela fila central.
-          await enqueuePlaylistJob(supabase, {
+        const ownerId = (p as any).owner_spotify_user_id ?? null;
+        return withSpotifyCtx(
+          {
             playlist_id: p.id,
-            operation_type: "AUTO_SYNC",
-          }).catch(() => { /* best-effort */ });
-        } catch (e) {
-          if (e instanceof SpotifyCircuitOpenError) throw e;
-          failed++;
-          errors.push(`${p.name}: ${(e as Error).message}`);
-        }
+            owner_id: ownerId,
+            spotify_user_id: ownerId,
+            function_name: "sync-managed-playlists",
+          },
+          async () => {
+            try {
+              const meta = await fetchMeta(p.spotify_playlist_id, token);
+              if (!meta) { failed++; return; }
+              const update: Record<string, unknown> = {
+                followers: meta.followers,
+                tracks_count: meta.tracks_count,
+                last_metrics_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              };
+              if (meta.name && meta.name !== p.name) update.name = meta.name;
+              if (meta.cover_url && meta.cover_url !== p.cover_url) update.cover_url = meta.cover_url;
+              let canonicalId = p.canonical_playlist_id;
+              if (!canonicalId) {
+                const { data: canonical, error: canonicalError } = await supabase
+                  .from("playlists")
+                  .upsert({
+                    spotify_playlist_id: p.spotify_playlist_id,
+                    name: meta.name ?? p.name,
+                    ownership: "own",
+                    source: "managed",
+                    followers: meta.followers,
+                    cover_url: meta.cover_url ?? p.cover_url,
+                    monitored: true,
+                    last_seen_at: new Date().toISOString(),
+                  }, { onConflict: "spotify_playlist_id" })
+                  .select("id")
+                  .single();
+                if (canonicalError) throw new Error(canonicalError.message);
+                canonicalId = canonical.id;
+                update.canonical_playlist_id = canonicalId;
+              } else {
+                await supabase.from("playlists").update({
+                  name: meta.name ?? p.name,
+                  followers: meta.followers,
+                  cover_url: meta.cover_url ?? p.cover_url,
+                  ownership: "own",
+                  source: "managed",
+                  monitored: true,
+                  last_seen_at: new Date().toISOString(),
+                }).eq("id", canonicalId);
+              }
+
+              await supabase.from("managed_playlists").update(update).eq("id", p.id);
+              synced++;
+
+              if (canonicalId) {
+                // fire-and-forget pra não bloquear o sync
+                fetch(`${SUPABASE_URL}/functions/v1/playlist-brain-calc`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
+                  body: JSON.stringify({ playlist_id: canonicalId }),
+                }).then((r) => { if (r.ok) recalculated++; }).catch(() => {});
+              }
+
+              // Enfileira AUTO_SYNC da playlist (dedupe ativo: skippa se já pending).
+              await enqueuePlaylistJob(supabase, {
+                playlist_id: p.id,
+                operation_type: "AUTO_SYNC",
+              }).catch(() => { /* best-effort */ });
+            } catch (e) {
+              if (e instanceof SpotifyCircuitOpenError) throw e;
+              failed++;
+              errors.push(`${p.name}: ${(e as Error).message}`);
+            }
+          },
+        );
       };
 
       // processa em lotes de 10 com 2s de pausa entre lotes (rate-limit Spotify)
