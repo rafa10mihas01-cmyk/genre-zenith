@@ -110,6 +110,28 @@ Deno.serve(async (req) => {
     .order("captured_at", { ascending: false })
     .limit(500);
 
+  // Coletado real de rádio/autoplay/mixes — mesma fonte que o painel interno
+  // usa pra mostrar "coletado" na linha #0 do plano. Soma plays_7d mais recente
+  // por playlist em organic_plays_snapshots. Quando ausente, o card cai no
+  // valor estimado (radioGoal = meta × splitOrganicPct%).
+  let organicTotalPlays = 0;
+  try {
+    const { data: organicRows } = await supabase
+      .from("organic_plays_snapshots")
+      .select("spotify_playlist_id, playlist_name, plays_7d, plays_28d, plays_24h, captured_at")
+      .eq("campaign_id", campRaw.id);
+    const latest = new Map<string, { plays: number; at: string }>();
+    for (const r of (organicRows ?? []) as any[]) {
+      const key = r.spotify_playlist_id ?? `name:${r.playlist_name ?? ""}`;
+      const prev = latest.get(key);
+      const at = String(r.captured_at ?? "");
+      if (!prev || at > prev.at) {
+        latest.set(key, { plays: Number(r.plays_7d ?? r.plays_28d ?? r.plays_24h ?? 0), at });
+      }
+    }
+    for (const v of latest.values()) organicTotalPlays += v.plays;
+  } catch (_) { /* organic_summary é opcional */ }
+
   // Forecast — curva acumulada PLANEJADA (sem preço, sem nomes de playlist).
   let forecast: {
     curve: Array<{ day: number; cumulative: number }>;
