@@ -20,9 +20,14 @@ type Item = {
   spotify_track_id: string | null;
   job_type: string | null;
   position: number | null;
+  planned_position: number | null;
+  executed_position: number | null;
   motivo: string;
   status: string;
   created_at: string;
+  observacao: string | null;
+  completed_at: string | null;
+  completed_by: string | null;
 };
 
 const reasonLabel: Record<string, string> = {
@@ -30,7 +35,7 @@ const reasonLabel: Record<string, string> = {
   spotify_403: "Spotify 403 (sem permissão)",
   spotify_429: "Spotify 429 (rate-limit)",
   no_account_connected: "Nenhuma conta conectada",
-  owner_without_token: "Owner sem token",
+  owner_without_token: "Owner sem token OAuth",
   playlist_collaborative: "Playlist colaborativa",
 };
 
@@ -38,13 +43,13 @@ export function ManualDistribuicoesPanel() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<Item[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
-  const [edits, setEdits] = useState<Record<string, { position?: string; observacao?: string }>>({});
+  const [edits, setEdits] = useState<Record<string, { executed_position?: string; observacao?: string }>>({});
 
   async function load() {
     setLoading(true);
     const { data, error } = await supabase
       .from("manual_distribution_queue")
-      .select("id, campaign_id, playlist_id, spotify_playlist_id, playlist_name, spotify_track_id, job_type, position, motivo, status, created_at")
+      .select("id, campaign_id, playlist_id, spotify_playlist_id, playlist_name, spotify_track_id, job_type, position, planned_position, executed_position, motivo, status, created_at, observacao, completed_at, completed_by")
       .in("status", ["MANUAL_PENDING", "AUTO_FAILED_FALLBACK_MANUAL"])
       .order("created_at", { ascending: false })
       .limit(200);
@@ -61,9 +66,13 @@ export function ManualDistribuicoesPanel() {
   async function markDone(item: Item) {
     setBusy(item.id);
     const local = edits[item.id] ?? {};
-    const positionNum = local.position && local.position.trim() ? Number(local.position) : null;
+    const executedNum = local.executed_position && local.executed_position.trim() ? Number(local.executed_position) : null;
     const { error } = await supabase.functions.invoke("mark-manual-distribution-done", {
-      body: { id: item.id, position: positionNum, observacao: local.observacao ?? null },
+      body: {
+        id: item.id,
+        executed_position: executedNum,
+        observacao: local.observacao ?? null,
+      },
     });
     setBusy(null);
     if (error) {
@@ -110,16 +119,20 @@ export function ManualDistribuicoesPanel() {
                     <div><span className="text-foreground/70">Faixa:</span> <span className="font-mono">{it.spotify_track_id ?? "—"}</span></div>
                     <div><span className="text-foreground/70">Tipo:</span> {it.job_type ?? "—"}</div>
                     <div><span className="text-foreground/70">Motivo:</span> {reasonLabel[it.motivo] ?? it.motivo}</div>
-                    <div><span className="text-foreground/70">Posição planejada:</span> {it.position ?? "—"}</div>
+                    <div><span className="text-foreground/70">Posição planejada:</span> {it.planned_position ?? it.position ?? "—"}</div>
+                    <div><span className="text-foreground/70">Posição executada:</span> {it.executed_position ?? "—"}</div>
+                    <div><span className="text-foreground/70">Operador:</span> <span className="font-mono">{it.completed_by ?? "—"}</span></div>
+                    <div><span className="text-foreground/70">Conclusão:</span> {it.completed_at ? new Date(it.completed_at).toLocaleString() : "—"}</div>
+                    <div className="md:col-span-2"><span className="text-foreground/70">Observação anterior:</span> {it.observacao ?? "—"}</div>
                     <div><span className="text-foreground/70">Criado:</span> {new Date(it.created_at).toLocaleString()}</div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-[140px_1fr_auto] gap-2 items-start">
+                  <div className="grid grid-cols-1 md:grid-cols-[160px_1fr_auto] gap-2 items-start">
                     <Input
                       type="number"
-                      placeholder="posição"
-                      value={e.position ?? (it.position?.toString() ?? "")}
-                      onChange={(ev) => setEdits((p) => ({ ...p, [it.id]: { ...p[it.id], position: ev.target.value } }))}
+                      placeholder="posição executada"
+                      value={e.executed_position ?? ""}
+                      onChange={(ev) => setEdits((p) => ({ ...p, [it.id]: { ...p[it.id], executed_position: ev.target.value } }))}
                     />
                     <Textarea
                       placeholder="observação (opcional)"
@@ -132,6 +145,7 @@ export function ManualDistribuicoesPanel() {
                       Marcar como distribuído
                     </Button>
                   </div>
+
                 </CardContent>
               </Card>
             );

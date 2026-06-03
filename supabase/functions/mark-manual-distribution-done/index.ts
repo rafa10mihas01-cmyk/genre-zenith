@@ -46,11 +46,12 @@ Deno.serve(async (req) => {
     const id = String(body?.id ?? "");
     if (!id) return jr({ error: "id obrigatório" }, 400);
     const position = body?.position != null ? Number(body.position) : null;
+    const executedPosition = body?.executed_position != null ? Number(body.executed_position) : position;
     const observacao = body?.observacao ? String(body.observacao).slice(0, 2000) : null;
 
     const { data: item, error: getErr } = await admin
       .from("manual_distribution_queue")
-      .select("id, job_id, status")
+      .select("id, job_id, status, planned_position, position")
       .eq("id", id)
       .maybeSingle();
     if (getErr) return jr({ error: getErr.message }, 500);
@@ -64,7 +65,7 @@ Deno.serve(async (req) => {
         status: "MANUAL_DONE",
         completed_at: now,
         completed_by: userId,
-        position: position ?? undefined,
+        executed_position: executedPosition ?? undefined,
         observacao: observacao ?? undefined,
       })
       .eq("id", id);
