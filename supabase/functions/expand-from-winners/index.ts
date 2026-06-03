@@ -88,6 +88,12 @@ async function expandGenre(
 
   if (owners.length === 0) return stats;
 
+  // Carrega editorial blocklist — perfis institucionais retornam 403.
+  const { data: blocklistRows } = await supabase
+    .from("spotify_editorial_blocklist")
+    .select("spotify_user_id");
+  const blocklist = new Set<string>((blocklistRows ?? []).map((r: any) => String(r.spotify_user_id).toLowerCase()));
+
   const token = await getSpotifyToken();
 
   // 2) IDs já existentes nesse gênero (para dedupe rápido)
@@ -98,7 +104,13 @@ async function expandGenre(
   const existingIds = new Set((existing ?? []).map((e: any) => e.spotify_playlist_id).filter(Boolean));
 
   let ownerIdx = 0;
+  let skippedEditorial = 0;
   for (const owner of owners) {
+    if (blocklist.has(String(owner.owner_id).toLowerCase())) {
+      skippedEditorial++;
+      console.log(`[expand] skip editorial_blocked owner=${owner.owner_id}`);
+      continue;
+    }
     if (ownerIdx++ > 0) await sleep(THROTTLE_MS);
     stats.owners_processed++;
     let items: any[] = [];
