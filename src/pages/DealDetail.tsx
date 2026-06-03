@@ -1,7 +1,7 @@
 // DealDetail — página dedicada do deal. Substitui o drawer.
 // Segue o mesmo padrão de ClienteDetalhe / CuradorDetail: PageHeader rico,
 // KPIs em hierarquia cockpit, e tabs (renderizadas pelo DealHistorySheet em modo asPage).
-import { useMemo } from "react";
+import { lazy, Suspense, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ChevronLeft,
@@ -21,7 +21,11 @@ import { PageContainer } from "@/components/PageContainer";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { useCuratorDealDetail } from "@/hooks/useCuratorDealDetail";
-import { DealHistorySheet } from "@/components/playlist-deals/DealHistorySheet";
+// Perf: DealHistorySheet tem 1.412 linhas + 20 useEffect/useState. Carregar
+// sob demanda corta o JS inicial da página em ~80% e mostra o hero/KPI antes.
+const DealHistorySheet = lazy(() =>
+  import("@/components/playlist-deals/DealHistorySheet").then((m) => ({ default: m.DealHistorySheet })),
+);
 import { CuratorDealAccessManager } from "@/components/playlist-deals/CuratorDealAccessManager";
 import { computeCuratorStats } from "@/lib/curatorDealsUtils";
 
@@ -202,19 +206,16 @@ export default function DealDetail() {
             );
           })()}
 
-          <DealHistorySheet
-            asPage
-            open
-            deal={deal}
-            songs={songs}
-            allLogs={logs}
-            allPlaylists={playlists}
-            progress={progress ?? undefined}
-            onClose={back}
-            onReload={reload}
-          />
-        </>
-      )}
-    </PageContainer>
-  );
-}
+          <Suspense fallback={<div className="rounded-2xl border border-border/50 bg-card h-[480px] animate-pulse" />}>
+            <DealHistorySheet
+              asPage
+              open
+              deal={deal}
+              songs={songs}
+              allLogs={logs}
+              allPlaylists={playlists}
+              progress={progress ?? undefined}
+              onClose={back}
+              onReload={reload}
+            />
+          </Suspense>

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 type Theme = "light" | "dark" | "system";
 
@@ -83,11 +83,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return () => mq.removeEventListener("change", handler);
   }, [theme]);
 
-  return (
-    <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme: setThemeState }}>
-      {children}
-    </ThemeContext.Provider>
+  const setTheme = useCallback((t: Theme) => setThemeState(t), []);
+
+  // Perf: memoiza o value pra evitar re-render global em toda tela.
+  const value = useMemo(
+    () => ({ theme, resolvedTheme, setTheme }),
+    [theme, resolvedTheme, setTheme],
   );
+
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
 export function useTheme() {
