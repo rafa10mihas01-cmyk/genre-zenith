@@ -9,10 +9,12 @@ import { formatBRL, formatInt } from "@/lib/campaignEngine";
 import type { EcoAllocation } from "../types";
 
 type EcoSnap = {
+  id?: string;
   managed_playlist_id: string;
   plays_24h: number | null;
   plays_7d: number | null;
   plays_28d: number | null;
+  captured_at?: string;
 };
 
 export type ExternalItemRow = {
