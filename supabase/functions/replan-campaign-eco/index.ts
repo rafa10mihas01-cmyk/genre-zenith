@@ -490,14 +490,10 @@ Deno.serve(async (req) => {
   };
 
 
-  // DOMINANCE_RELIEF_PREVIEW — só roda em dry_run; não altera rows persistidos.
-  const dominanceReliefResult = dryRun && dominanceRelief
-    ? await buildDominanceReliefPreview(rows)
-    : null;
-
   if (dryRun) {
-    return json({ ok: true, dry_run: true, ...summary, dominance_relief: dominanceReliefResult });
+    return json({ ok: true, dry_run: true, ...summary });
   }
+
 
   // 6) Insert
   const { error: insErr, count } = await admin
