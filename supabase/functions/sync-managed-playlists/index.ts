@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
     }
 
     let q = supabase.from("managed_playlists")
-      .select("id, spotify_playlist_id, canonical_playlist_id, name, cover_url")
+      .select("id, spotify_playlist_id, canonical_playlist_id, name, cover_url, owner_spotify_user_id")
       .is("archived_at", null);
     if (targetIds) {
       if (targetIds.length === 0) {
