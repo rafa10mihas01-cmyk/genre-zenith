@@ -601,7 +601,49 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
       if (droppedCount > 0) {
         console.info(`[Calculadora] Dropped ${droppedCount} allocations (sem slot livre até pos ${MAX_POSITION})`);
       }
+
+      // ─── CLAMP DE OVERSHOOT (Fix #1):
+      // O engine define o alvo (r.streamsEco) respeitando split contratado.
+      // planRealCapacity preenche cada playlist por cap_dia inteiro e pode
+      // ultrapassar o alvo no último item. Aparamos o excedente sem mexer
+      // em ranking/seleção/posição: itens anteriores ficam intactos, apenas
+      // o item que cruza a fronteira é reduzido pra fechar exatamente o
+      // alvo; os subsequentes (excedentes puros) são descartados.
+      // Déficit (sum < target) continua permitido — é capacidade real menor
+      // que a demanda, problema legítimo que o realign downward já cobre.
+      const ecoTarget = Math.max(0, Math.round(r.streamsEco));
+      let trimmedCount = 0;
+      let trimmedAmount = 0;
+      if (ecoTarget > 0) {
+        const clamped: EcoAllocationPlan[] = [];
+        let acc = 0;
+        for (const a of allocations) {
+          if (acc >= ecoTarget) {
+            trimmedCount += 1;
+            trimmedAmount += a.planned_streams;
+            continue;
+          }
+          const room = ecoTarget - acc;
+          if (a.planned_streams > room) {
+            trimmedAmount += a.planned_streams - room;
+            trimmedCount += 1;
+            clamped.push({ ...a, planned_streams: room });
+            acc = ecoTarget;
+          } else {
+            clamped.push(a);
+            acc += a.planned_streams;
+          }
+        }
+        allocations.length = 0;
+        allocations.push(...clamped);
+        if (trimmedAmount > 0) {
+          console.info(`[Calculadora] clamp overshoot: target=${ecoTarget} aparado=${trimmedAmount} (${trimmedCount} allocations afetadas)`);
+        }
+      }
+
       console.info(`[Calculadora] planRealCapacity: ${allocations.length} playlists (modo=${mode}, dailyNeed=${Math.round(dailyNeed)}, coberto=${Math.round(realPlan.coveredDaily)}/dia, primárias=${corePool.length}, vizinhos=${neighborPool.length})`);
+
+
 
       const startD = startOfDay(new Date(song.startDateISO));
 
