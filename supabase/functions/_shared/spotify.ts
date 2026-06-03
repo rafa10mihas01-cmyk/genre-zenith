@@ -166,6 +166,8 @@ function normalizeEndpointForLog(rawUrl: string): string {
 
 type SpotifyLogRow = {
   function_name: string | null;
+  app_id: string | null;
+  app_name: string | null;
   endpoint: string;
   method: string;
   http_status: number | null;
@@ -182,6 +184,7 @@ type SpotifyLogRow = {
 
 export type SpotifyCallCtx = {
   appId?: string;
+  appName?: string | null;
   playlist_id?: string | null;
   owner_id?: string | null;
   spotify_user_id?: string | null;
@@ -201,12 +204,31 @@ async function writeSpotifyCallLog(row: SpotifyLogRow): Promise<void> {
 
 function fireAndForgetLog(row: SpotifyLogRow): void {
   const er = (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } }).EdgeRuntime;
-  const p = writeSpotifyCallLog(row);
+  // Resolve app_name de forma assíncrona se temos app_id mas não name.
+  const enriched = (async () => {
+    if (row.app_id && !row.app_name) {
+      row.app_name = await resolveAppName(row.app_id);
+    }
+    await writeSpotifyCallLog(row);
+  })();
   if (er?.waitUntil) {
-    try { er.waitUntil(p); } catch { p.catch(() => {}); }
+    try { er.waitUntil(enriched); } catch { enriched.catch(() => {}); }
   } else {
-    p.catch(() => {});
+    enriched.catch(() => {});
   }
+}
+
+/** Merge per-call ctx, async-local ctx e defaults. */
+function resolveLogCtx(perCall?: SpotifyCallCtx): Required<Pick<SpotifyLogRow, "function_name" | "app_id" | "app_name" | "playlist_id" | "owner_id" | "spotify_user_id">> {
+  const stored = ctxStore.getStore() ?? {};
+  return {
+    function_name: perCall?.function_name ?? stored.function_name ?? RESOLVED_FUNCTION_NAME,
+    app_id: perCall?.appId ?? stored.appId ?? null,
+    app_name: perCall?.appName ?? stored.appName ?? null,
+    playlist_id: perCall?.playlist_id ?? stored.playlist_id ?? null,
+    owner_id: perCall?.owner_id ?? stored.owner_id ?? null,
+    spotify_user_id: perCall?.spotify_user_id ?? stored.spotify_user_id ?? null,
+  };
 }
 
 export async function guardedSpotifyFetch(
@@ -214,12 +236,12 @@ export async function guardedSpotifyFetch(
   init: RequestInit = {},
   ctxOrAppId: string | SpotifyCallCtx = "global",
 ): Promise<Response> {
-  const ctx: SpotifyCallCtx = typeof ctxOrAppId === "string" ? { appId: ctxOrAppId } : ctxOrAppId;
-  const appId = ctx.appId ?? "global";
+  const ctx: SpotifyCallCtx = typeof ctxOrAppId === "string" ? { appId: ctxOrAppId === "global" ? undefined : ctxOrAppId } : ctxOrAppId;
+  const merged = resolveLogCtx(ctx);
+  const appId = merged.app_id ?? "global";
   const startedAt = Date.now();
   const method = (init.method ?? "GET").toUpperCase();
   const endpoint = normalizeEndpointForLog(url);
-  const fnName = ctx.function_name ?? Deno.env.get("SUPABASE_FUNCTION_NAME") ?? null;
   const bypass = isCircuitBypassUrl(url);
   let logStatus: SpotifyLogRow["status"] = "ok";
   let httpStatus: number | null = null;
@@ -264,7 +286,7 @@ export async function guardedSpotifyFetch(
     throw e;
   } finally {
     fireAndForgetLog({
-      function_name: fnName,
+      ...merged,
       endpoint,
       method,
       http_status: httpStatus,
@@ -273,9 +295,6 @@ export async function guardedSpotifyFetch(
       retry_after_sec: retryAfterSec,
       breaker_open: breakerOpen,
       error: errorMsg,
-      playlist_id: ctx.playlist_id ?? null,
-      owner_id: ctx.owner_id ?? null,
-      spotify_user_id: ctx.spotify_user_id ?? null,
       error_body: errorBody,
     });
   }
@@ -286,15 +305,15 @@ export function installSpotifyCircuitFetchGuard() {
   const g = globalThis as typeof globalThis & { __spotifyCircuitFetchGuardInstalled?: boolean };
   if (g.__spotifyCircuitFetchGuardInstalled) return;
   g.__spotifyCircuitFetchGuardInstalled = true;
-  const fnName = Deno.env.get("SUPABASE_FUNCTION_NAME") ?? null;
   g.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const rawUrl = typeof input === "string" || input instanceof URL ? input.toString() : input.url;
     let host = "";
     try { host = new URL(rawUrl).hostname; } catch { /* ignore */ }
     const isSpotify = host === "api.spotify.com" || host === "accounts.spotify.com" || host.endsWith(".spotify.com");
     if (!isSpotify) return spotifyOriginalFetch(input, init);
-    // Whitelist: refresh de token NUNCA é bloqueado pelo breaker.
     const bypass = isCircuitBypassUrl(rawUrl);
+    const merged = resolveLogCtx();
+    const appId = merged.app_id ?? "global";
     const startedAt = Date.now();
     const method = (init?.method ?? "GET").toUpperCase();
     const endpoint = normalizeEndpointForLog(rawUrl);
@@ -303,18 +322,24 @@ export function installSpotifyCircuitFetchGuard() {
     let retryAfterSec: number | null = null;
     let breakerOpen = false;
     let errorMsg: string | null = null;
+    let errorBody: string | null = null;
     try {
-      if (!bypass) await assertSpotifyCircuitClosed();
+      if (!bypass) await assertSpotifyCircuitClosed(appId);
       const r = await spotifyOriginalFetch(input, init);
       httpStatus = r.status;
       if (!r.ok) {
         logStatus = "http_error";
         const ra = Number(r.headers.get("Retry-After") ?? r.headers.get("retry-after") ?? "");
         if (Number.isFinite(ra) && ra > 0) retryAfterSec = ra;
+        try {
+          const clone = r.clone();
+          const text = await clone.text();
+          if (text) errorBody = text.slice(0, 1000);
+        } catch { /* ignore */ }
       }
       if (r.status === 429 && !bypass) {
         const ra = Number(r.headers.get("Retry-After") ?? r.headers.get("retry-after") ?? "");
-        const opened = await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60, "global", rawUrl);
+        const opened = await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60, appId, rawUrl);
         logStatus = "circuit_open";
         breakerOpen = true;
         retryAfterSec = opened.retryAfterSec;
@@ -335,7 +360,7 @@ export function installSpotifyCircuitFetchGuard() {
       throw e;
     } finally {
       fireAndForgetLog({
-        function_name: fnName,
+        ...merged,
         endpoint,
         method,
         http_status: httpStatus,
@@ -344,6 +369,7 @@ export function installSpotifyCircuitFetchGuard() {
         retry_after_sec: retryAfterSec,
         breaker_open: breakerOpen,
         error: errorMsg,
+        error_body: errorBody,
       });
     }
   };
