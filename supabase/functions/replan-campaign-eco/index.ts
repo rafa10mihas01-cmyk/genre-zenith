@@ -383,6 +383,7 @@ Deno.serve(async (req) => {
     mode,
     affinity_range: [affLo, affHi],
     position_strategy: positionStrategy,
+    strategy_requested: strategy,
     daily_need_remaining: Math.round(dailyNeedRemaining),
     covered_daily_by_primary: Math.round(coveredDailyByPrimary),
     gap_after_primary: Math.round(gapAfterPrimary),
