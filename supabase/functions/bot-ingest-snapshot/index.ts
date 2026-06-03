@@ -632,8 +632,7 @@ Deno.serve(async (req) => {
             plays_7d: plays7d,
             captured_at: capturedAt,
             source: "s4a_dom",
-            proof_screenshot_url: screenshotUrl,
-            proof_screenshot_urls: screenshotUrls,
+            // prints ficam SÓ em bot_print_batches (referenciado por snapshot_run_id)
           };
         })
         .filter(Boolean);
@@ -645,6 +644,7 @@ Deno.serve(async (req) => {
             p_campaign_id: collectionCampaignId,
             p_intent: intent,
             p_rows: rows,
+            p_snapshot_run_id: snapshotRunId,
           },
         );
         if (ingestErr) {
