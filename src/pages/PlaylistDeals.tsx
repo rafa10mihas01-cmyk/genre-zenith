@@ -82,8 +82,12 @@ export default function PlaylistDeals() {
 
   // Mapa id->collection_mode das campanhas vinculadas (pra mostrar "Coleta Spotify/Excel" nos cards)
   const [campaignModeById, setCampaignModeById] = useState<Record<string, string | null>>({});
+  const campaignIdsKey = useMemo(
+    () => Array.from(new Set(deals.map((d) => d.campaign_id).filter(Boolean))).sort().join(","),
+    [deals],
+  );
   useEffect(() => {
-    const ids = Array.from(new Set(deals.map((d) => d.campaign_id).filter(Boolean))) as string[];
+    const ids = campaignIdsKey ? campaignIdsKey.split(",") : [];
     if (ids.length === 0) {
       setCampaignModeById({});
       return;
@@ -97,7 +101,7 @@ export default function PlaylistDeals() {
       for (const c of (data ?? []) as any[]) map[c.id] = c.collection_mode ?? null;
       setCampaignModeById(map);
     })();
-  }, [deals]);
+  }, [campaignIdsKey]);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();

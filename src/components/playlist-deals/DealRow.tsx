@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   Camera,
@@ -64,7 +64,7 @@ function formatPlays(n: number): string {
  * mantendo as mesmas props e callbacks. Toda a lógica de negócio vem dos
  * mesmos hooks/utilitários — só muda a apresentação.
  */
-export function DealRow(props: DealRowProps) {
+function DealRowImpl(props: DealRowProps) {
   const { deal, logs, playlists, songs = [], progress } = props;
   const deliveryMap = useDeliveryStatusMap([deal.id]);
   const stats = computeCuratorStats(deal, logs, playlists, progress ?? null);
@@ -321,6 +321,27 @@ export function DealRow(props: DealRowProps) {
     </div>
   );
 }
+
+export const DealRow = memo(DealRowImpl, (prev, next) => {
+  return (
+    prev.deal === next.deal &&
+    prev.logs === next.logs &&
+    prev.playlists === next.playlists &&
+    prev.songs === next.songs &&
+    prev.progress === next.progress &&
+    prev.campaignCollectionMode === next.campaignCollectionMode &&
+    prev.onLog === next.onLog &&
+    prev.onDetail === next.onDetail &&
+    prev.onDelete === next.onDelete &&
+    prev.onEdit === next.onEdit &&
+    prev.onDuplicate === next.onDuplicate &&
+    prev.onClose === next.onClose &&
+    prev.onReopen === next.onReopen &&
+    prev.onForceCollect === next.onForceCollect
+  );
+});
+
+
 
 function RecalcBaselineInline({ dealId }: { dealId: string }) {
   const [loading, setLoading] = useState(false);

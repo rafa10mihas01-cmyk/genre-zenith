@@ -837,7 +837,7 @@ export default function CampanhaExecucao() {
                   <TabsTrigger value="console">Distribuição</TabsTrigger>
                   <TabsTrigger value="status">Acompanhamento</TabsTrigger>
                 </TabsList>
-                <TabsContent value="mapa" className="mt-0 space-y-4">
+                <TabsContent value="mapa" forceMount className="mt-0 space-y-4 data-[state=inactive]:hidden">
                   <div className="flex items-center justify-end gap-3 flex-wrap">
                     <ReplanButton
                       campaignId={camp.id}
@@ -863,7 +863,7 @@ export default function CampanhaExecucao() {
                     }}
                   />
                 </TabsContent>
-                <TabsContent value="console" className="mt-0 space-y-4">
+                <TabsContent value="console" forceMount className="mt-0 space-y-4 data-[state=inactive]:hidden">
                   <CampaignDistributionConsole
                     campaignId={camp.id}
                     spotifyTrackId={camp.spotify_track_id ?? null}
@@ -883,7 +883,7 @@ export default function CampanhaExecucao() {
                   />
 
                 </TabsContent>
-                <TabsContent value="status" className="mt-0 space-y-4">
+                <TabsContent value="status" forceMount className="mt-0 space-y-4 data-[state=inactive]:hidden">
                   <CampaignExecutionStatus campaignId={camp.id} />
                 </TabsContent>
               </Tabs>
