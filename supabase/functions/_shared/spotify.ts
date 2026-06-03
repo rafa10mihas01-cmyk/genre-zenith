@@ -119,13 +119,24 @@ type SpotifyLogRow = {
   retry_after_sec: number | null;
   breaker_open: boolean;
   error: string | null;
+  playlist_id?: string | null;
+  owner_id?: string | null;
+  spotify_user_id?: string | null;
+  error_body?: string | null;
+};
+
+export type SpotifyCallCtx = {
+  appId?: string;
+  playlist_id?: string | null;
+  owner_id?: string | null;
+  spotify_user_id?: string | null;
+  function_name?: string | null;
 };
 
 async function writeSpotifyCallLog(row: SpotifyLogRow): Promise<void> {
   try {
     const { error } = await db().from("spotify_call_log").insert(row);
     if (error) {
-      // Loud-fail no edge log, sem propagar para o caller.
       console.error("[spotify_call_log] insert failed:", error.message, error.code ?? "");
     }
   } catch (e) {
@@ -143,17 +154,24 @@ function fireAndForgetLog(row: SpotifyLogRow): void {
   }
 }
 
-export async function guardedSpotifyFetch(url: string, init: RequestInit = {}, appId = "global"): Promise<Response> {
+export async function guardedSpotifyFetch(
+  url: string,
+  init: RequestInit = {},
+  ctxOrAppId: string | SpotifyCallCtx = "global",
+): Promise<Response> {
+  const ctx: SpotifyCallCtx = typeof ctxOrAppId === "string" ? { appId: ctxOrAppId } : ctxOrAppId;
+  const appId = ctx.appId ?? "global";
   const startedAt = Date.now();
   const method = (init.method ?? "GET").toUpperCase();
   const endpoint = normalizeEndpointForLog(url);
-  const fnName = Deno.env.get("SUPABASE_FUNCTION_NAME") ?? null;
+  const fnName = ctx.function_name ?? Deno.env.get("SUPABASE_FUNCTION_NAME") ?? null;
   const bypass = isCircuitBypassUrl(url);
   let logStatus: SpotifyLogRow["status"] = "ok";
   let httpStatus: number | null = null;
   let retryAfterSec: number | null = null;
   let breakerOpen = false;
   let errorMsg: string | null = null;
+  let errorBody: string | null = null;
   try {
     if (!bypass) await assertSpotifyCircuitClosed(appId);
     const r = await spotifyOriginalFetch(url, init);
@@ -162,6 +180,11 @@ export async function guardedSpotifyFetch(url: string, init: RequestInit = {}, a
       logStatus = "http_error";
       const ra = Number(r.headers.get("Retry-After") ?? r.headers.get("retry-after") ?? "");
       if (Number.isFinite(ra) && ra > 0) retryAfterSec = ra;
+      try {
+        const clone = r.clone();
+        const text = await clone.text();
+        if (text) errorBody = text.slice(0, 1000);
+      } catch { /* ignore */ }
     }
     if (r.status === 429 && !bypass) {
       const ra = Number(r.headers.get("Retry-After") ?? r.headers.get("retry-after") ?? "");
@@ -195,6 +218,10 @@ export async function guardedSpotifyFetch(url: string, init: RequestInit = {}, a
       retry_after_sec: retryAfterSec,
       breaker_open: breakerOpen,
       error: errorMsg,
+      playlist_id: ctx.playlist_id ?? null,
+      owner_id: ctx.owner_id ?? null,
+      spotify_user_id: ctx.spotify_user_id ?? null,
+      error_body: errorBody,
     });
   }
 }
