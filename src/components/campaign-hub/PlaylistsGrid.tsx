@@ -56,7 +56,7 @@ export function PlaylistsGrid({ allocations, snapshots, proofThumbs = [], positi
       if (!prev) { m.set(s.managed_playlist_id, s); continue; }
       const a = new Date(s.captured_at).getTime();
       const b = new Date(prev.captured_at).getTime();
-      if (a > b || (a === b && s.id > prev.id)) m.set(s.managed_playlist_id, s);
+      if (a > b || (a === b && (s.id ?? "") > (prev.id ?? ""))) m.set(s.managed_playlist_id, s);
     }
     return m;
   }, [snapshots]);
