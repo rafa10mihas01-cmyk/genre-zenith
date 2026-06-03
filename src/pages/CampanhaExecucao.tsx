@@ -1242,6 +1242,49 @@ function ReplanButton({ campaignId, onReplanned, dominanceRelief = false }: { ca
           </div>
         </div>
       </div>
+      {preview?.relief && (
+        <div className="rounded-md border border-primary/30 bg-primary/5 p-2 space-y-1.5">
+          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-primary">
+            <Shield className="h-3 w-3" />
+            Dominance Relief — simulação
+          </div>
+          {preview.relief.applied ? (
+            <div className="grid grid-cols-3 gap-2 text-[11px]">
+              <div>
+                <div className="text-muted-foreground">Top1 antes</div>
+                <div className="font-semibold tabular-nums">{preview.relief.top1_before_pct.toFixed(1)}%</div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">Top1 depois</div>
+                <div className="font-semibold tabular-nums">{preview.relief.top1_after_pct.toFixed(1)}%</div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">Δ</div>
+                <div className="font-semibold tabular-nums text-primary">−{preview.relief.top1_drop_pp.toFixed(1)}pp</div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">Cap</div>
+                <div className="font-semibold tabular-nums">{preview.relief.cap_used.toLocaleString("pt-BR")}</div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">Redistribuído</div>
+                <div className="font-semibold tabular-nums">{preview.relief.redistributed_streams.toLocaleString("pt-BR")}</div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">+ Playlists</div>
+                <div className="font-semibold tabular-nums">{preview.relief.added_count}</div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-[11px] text-muted-foreground">
+              {preview.relief.reason === "no_surplus" ? "Sem concentração excessiva — nada a aliviar." :
+               preview.relief.reason === "insufficient_pool" ? "Pool insuficiente — plano original preservado." :
+               `Não aplicado (${preview.relief.reason}).`}
+            </div>
+          )}
+          <div className="text-[10px] text-muted-foreground italic">Simulação visual. Não grava nada.</div>
+        </div>
+      )}
       <Button
         size="sm"
         className="w-full"
