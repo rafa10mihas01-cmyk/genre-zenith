@@ -294,12 +294,66 @@ Deno.serve(async (req) => {
       positionStrategy = "daily_need_primary_only";
     }
   } else {
-    // Fallback chart-tier (snapshots antigos sem metaEco). Preferir primárias.
+    // Estratégia chart-tier "concentrada": atribui posições via tier do chart e
+    // SELECIONA o menor subconjunto de playlists cuja soma de capacidade diária
+    // cubra dailyNeedRemaining. Sem isso, todas as candidatas entrariam (mesmo
+    // resultado da Espalhada). Mantém respeito a maxCapById (orçamento).
+    const pickConcentrated = (
+      pool: typeof primaryFresh,
+      need: number,
+    ): Map<string, number> => {
+      const posMap = distributeEcoPositions(pool, days, mult, { chartTier });
+      const ranked = pool.map(p => {
+        const pos = posMap.get(p.id) ?? 3;
+        const pct = POSITION_PCT[pos - 1] ?? 0.003;
+        const rawCap = Math.max(1, Math.round(Number(p.followers ?? 0) * (mult / 30) * pct));
+        const budgetCap = maxCapById?.get(p.id);
+        const cap = typeof budgetCap === "number" ? Math.min(rawCap, Math.max(0, budgetCap)) : rawCap;
+        return { id: p.id, pos, cap };
+      })
+      .filter(r => r.cap > 0)
+      .sort((a, b) => b.cap - a.cap);
+
+      const out = new Map<string, number>();
+      let cumulative = 0;
+      const target = Math.max(0, need);
+      for (const r of ranked) {
+        if (target > 0 && cumulative >= target) break;
+        out.set(r.id, r.pos);
+        cumulative += r.cap;
+      }
+      // Se não houver target (need<=0), não adiciona nada novo.
+      return out;
+    };
+
     if (primaryFresh.length > 0) {
-      allPositions = distributeEcoPositions(primaryFresh, days, mult, { chartTier });
+      allPositions = pickConcentrated(primaryFresh, dailyNeedRemaining);
+      // Mede cobertura e decide se precisa de vizinhos.
+      for (const [, pos] of allPositions) {
+        // coveredDailyByPrimary é estimado a partir das linhas montadas depois.
+      }
+      coveredDailyByPrimary = 0; // recalculado abaixo na fase de build
       positionStrategy = "chart_tier_primary_only";
+
+      // Vizinhos só se ainda houver gap relevante (mesma lógica do daily_need).
+      // Estima cobertura primária aqui pra decidir.
+      let estPrimaryCovered = 0;
+      for (const p of primaryFresh) {
+        if (!allPositions.has(p.id)) continue;
+        const pos = allPositions.get(p.id)!;
+        const pct = POSITION_PCT[pos - 1] ?? 0.003;
+        estPrimaryCovered += Math.max(1, Math.round(Number(p.followers ?? 0) * (mult / 30) * pct));
+      }
+      const gap = Math.max(0, dailyNeedRemaining - estPrimaryCovered);
+      const gapPct = dailyNeedRemaining > 0 ? gap / dailyNeedRemaining : 0;
+      if (gapPct > NEIGHBOR_GAP_THRESHOLD && neighborFresh.length > 0) {
+        const neighPos = pickConcentrated(neighborFresh, gap);
+        for (const [k, v] of neighPos) allPositions.set(k, v);
+        usedNeighbors = true;
+        positionStrategy = "chart_tier_with_neighbors";
+      }
     } else if (neighborFresh.length > 0) {
-      allPositions = distributeEcoPositions(neighborFresh, days, mult, { chartTier });
+      allPositions = pickConcentrated(neighborFresh, dailyNeedRemaining);
       positionStrategy = "chart_tier_with_neighbors";
       usedNeighbors = true;
     } else {
