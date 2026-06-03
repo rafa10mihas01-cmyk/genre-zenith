@@ -277,9 +277,26 @@ export async function confirmExternalPackage(args: {
     created++;
   }
 
+  // Recalcula target_cost com o custo REAL contratado (soma dos itens),
+  // eliminando divergência entre orçado (CPP médio do plano) e contratado
+  // (CPP real de cada curador na curator_purchases).
+  const realCost = (items ?? []).reduce(
+    (s, it) => s + Number((it as any).assigned_cost ?? 0),
+    0,
+  );
+  const realStreams = (items ?? []).reduce(
+    (s, it) => s + Number((it as any).assigned_streams ?? 0),
+    0,
+  );
+
   await supabase
     .from("campaign_external_packages")
-    .update({ status: "dispatched", confirmed_at: new Date().toISOString() })
+    .update({
+      status: "dispatched",
+      confirmed_at: new Date().toISOString(),
+      target_cost: +realCost.toFixed(2),
+      target_streams: realStreams,
+    })
     .eq("id", packageId);
 
   return { dealsCreated: created };
