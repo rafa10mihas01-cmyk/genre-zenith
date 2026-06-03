@@ -46,6 +46,7 @@ const QUERY_KEY = ["campaigns"] as const;
 export function useCampaigns() {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const instanceId = useId();
 
   const query = useQuery({
     queryKey: QUERY_KEY,
