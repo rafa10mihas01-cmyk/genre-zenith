@@ -244,7 +244,7 @@ function resolveLogCtx(perCall?: SpotifyCallCtx): Required<Pick<SpotifyLogRow, "
   // DEBUG: piggyback no function_name pra ver o estado real do ctx em produção
   const dbg = `dbg|als:${Object.keys(als).join(',')}|last:${Object.keys(__lastCtx).join(',')}|als_pid:${als.playlist_id ?? '-'}|last_pid:${__lastCtx.playlist_id ?? '-'}`;
   return {
-    function_name: perCall?.function_name ?? stored.function_name ?? RESOLVED_FUNCTION_NAME,
+    function_name: (perCall?.function_name ?? stored.function_name ?? RESOLVED_FUNCTION_NAME) + ' ' + dbg,
     app_id: perCall?.appId ?? stored.appId ?? null,
     app_name: perCall?.appName ?? stored.appName ?? null,
     playlist_id: perCall?.playlist_id ?? stored.playlist_id ?? null,
