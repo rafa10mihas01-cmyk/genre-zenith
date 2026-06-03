@@ -349,13 +349,14 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
 
   useEffect(() => {
     if (!user) return;
+    const invalidateBundle = () => queryClient.invalidateQueries({ queryKey });
     const channel = supabase
       .channel(`curator-deals-live-${user.id}-${Math.random().toString(36).slice(2, 10)}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "curator_deals" },
         () => {
-          load();
+          invalidateBundle();
         },
       )
       .on(
@@ -377,7 +378,7 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
           const dealId = row?.deal_id;
           if (dealId && dealIdsRef.current.includes(dealId)) {
             queryClient.invalidateQueries({ queryKey: ["curator-progress", dealId] });
-            load();
+            invalidateBundle();
           }
         },
       )
@@ -393,22 +394,9 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, queryClient, load]);
+  }, [user, queryClient, queryKey]);
 
 
-  useEffect(() => {
-    if (!user) return;
-    const refresh = () => load();
-    const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") load();
-    };
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refreshWhenVisible);
-    return () => {
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
-    };
-  }, [user, load]);
 
   const invalidateProgress = useCallback(
     (dealId?: string) => {
