@@ -9459,6 +9459,7 @@ export type Database = {
           reason: string
         }[]
       }
+      purge_bot_heartbeats: { Args: never; Returns: number }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {
