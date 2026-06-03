@@ -202,6 +202,7 @@ export default function CampanhaExecucao() {
         .select("id, managed_playlist_id, plays_24h, plays_7d, plays_28d, captured_at, source")
         .eq("campaign_id", id)
         .order("captured_at", { ascending: false })
+        .order("id", { ascending: false })
         .limit(500),
       supabase
         .from("campaign_external_package_items")
