@@ -200,7 +200,7 @@ Deno.serve(async (req) => {
     if (!job) break; // nada pra processar
 
     processed++;
-    const outcome = await invokeHandler(job);
+    const outcome = await invokeHandler(job, sb);
     const fin = await finishJob(sb, job, outcome);
     if (fin.final === "done") done++;
     else if (fin.final === "failed") failed++;
