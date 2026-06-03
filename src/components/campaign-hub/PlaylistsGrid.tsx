@@ -9,6 +9,7 @@ import { SwapPlaylistDialog } from "./SwapPlaylistDialog";
 
 
 type EcoSnap = {
+  id?: string;
   managed_playlist_id: string;
   plays_24h: number | null;
   plays_7d: number | null;
