@@ -7038,6 +7038,24 @@ export type Database = {
         }
         Relationships: []
       }
+      realtime_audit_markers: {
+        Row: {
+          created_at: string
+          id: string
+          marker: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          marker: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          marker?: string
+        }
+        Relationships: []
+      }
       recommendation_feedback: {
         Row: {
           action: string
