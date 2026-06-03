@@ -649,14 +649,9 @@ export default function CampanhaExecucao() {
   }, [proofs, snaps, allocs]);
 
   if (loading) {
-    return (
-      <PageContainer>
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-32 mt-6" />
-        <Skeleton className="h-96 mt-4" />
-      </PageContainer>
-    );
+    return <PageLoader />;
   }
+
 
   if (!camp || !snapshot) {
     return (
