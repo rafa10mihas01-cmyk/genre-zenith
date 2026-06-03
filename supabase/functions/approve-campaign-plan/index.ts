@@ -15,6 +15,8 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { distributeEcoPositions, distributeByDailyNeed, chartTierFromTopPosition, ECO_DAILY_TOLERANCE } from "../_shared/computeEcoPlan.ts";
+import { applyDominanceRelief, type ReliefCandidate } from "../_shared/dominanceRelief.ts";
+
 import {
   getReservationsByPlaylist,
   reservationsToDailyCap,
