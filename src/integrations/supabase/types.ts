@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      _io_stats_snapshots: {
+        Row: {
+          id: number
+          idx_scan: number | null
+          idx_tup_fetch: number | null
+          label: string
+          n_live_tup: number | null
+          n_tup_del: number | null
+          n_tup_ins: number | null
+          n_tup_upd: number | null
+          relname: string
+          seq_scan: number | null
+          seq_tup_read: number | null
+          taken_at: string
+        }
+        Insert: {
+          id?: number
+          idx_scan?: number | null
+          idx_tup_fetch?: number | null
+          label: string
+          n_live_tup?: number | null
+          n_tup_del?: number | null
+          n_tup_ins?: number | null
+          n_tup_upd?: number | null
+          relname: string
+          seq_scan?: number | null
+          seq_tup_read?: number | null
+          taken_at?: string
+        }
+        Update: {
+          id?: number
+          idx_scan?: number | null
+          idx_tup_fetch?: number | null
+          label?: string
+          n_live_tup?: number | null
+          n_tup_del?: number | null
+          n_tup_ins?: number | null
+          n_tup_upd?: number | null
+          relname?: string
+          seq_scan?: number | null
+          seq_tup_read?: number | null
+          taken_at?: string
+        }
+        Relationships: []
+      }
       _rls_optimization_audit: {
         Row: {
           after_check: string | null
