@@ -278,6 +278,7 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const playlistId: string = body?.playlist_id;
     const skipAi: boolean = body?.skip_ai === true || body?.source === "batch" || body?.source === "cron";
+    const forceBlocked: boolean = body?.force === true || body?.force_blocked === true;
     if (!playlistId) return jr({ ok: false, error: "playlist_id obrigatório" }, 400);
 
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
@@ -288,6 +289,22 @@ Deno.serve(async (req) => {
       .eq("id", playlistId)
       .maybeSingle();
     if (plErr || !pl) return jr({ ok: false, error: plErr?.message ?? "playlist não encontrada" }, 404);
+
+    // FASE 2 — Diagnose blocked: corta cedo se a playlist está marcada por 403 persistente.
+    // Apenas tentativa manual com force=true ignora a marca.
+    if ((pl as any).diagnose_blocked === true && !forceBlocked) {
+      return jr({
+        ok: true,
+        skipped: true,
+        reason: "diagnose_blocked",
+        diagnose_blocked_at: (pl as any).diagnose_blocked_at,
+        diagnose_blocked_reason: (pl as any).diagnose_blocked_reason,
+      });
+    }
+
+    // Contador de 403s observados nesta execução — usado pro streak.
+    let run403s = 0;
+    const ownerSpotifyId: string | null = (pl as any).owner_spotify_user_id ?? null;
 
     // Lock operacional: impede race com apply-playlist-plan / sync-managed-playlist-tracks.
     // TTL de 30s; liberado no finally.
