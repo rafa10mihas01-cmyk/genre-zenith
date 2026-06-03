@@ -43,13 +43,13 @@ export function ManualDistribuicoesPanel() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<Item[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
-  const [edits, setEdits] = useState<Record<string, { position?: string; observacao?: string }>>({});
+  const [edits, setEdits] = useState<Record<string, { executed_position?: string; observacao?: string }>>({});
 
   async function load() {
     setLoading(true);
     const { data, error } = await supabase
       .from("manual_distribution_queue")
-      .select("id, campaign_id, playlist_id, spotify_playlist_id, playlist_name, spotify_track_id, job_type, position, motivo, status, created_at")
+      .select("id, campaign_id, playlist_id, spotify_playlist_id, playlist_name, spotify_track_id, job_type, position, planned_position, executed_position, motivo, status, created_at, observacao, completed_at, completed_by")
       .in("status", ["MANUAL_PENDING", "AUTO_FAILED_FALLBACK_MANUAL"])
       .order("created_at", { ascending: false })
       .limit(200);
@@ -66,9 +66,13 @@ export function ManualDistribuicoesPanel() {
   async function markDone(item: Item) {
     setBusy(item.id);
     const local = edits[item.id] ?? {};
-    const positionNum = local.position && local.position.trim() ? Number(local.position) : null;
+    const executedNum = local.executed_position && local.executed_position.trim() ? Number(local.executed_position) : null;
     const { error } = await supabase.functions.invoke("mark-manual-distribution-done", {
-      body: { id: item.id, position: positionNum, observacao: local.observacao ?? null },
+      body: {
+        id: item.id,
+        executed_position: executedNum,
+        observacao: local.observacao ?? null,
+      },
     });
     setBusy(null);
     if (error) {
