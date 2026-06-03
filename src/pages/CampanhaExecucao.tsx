@@ -838,6 +838,9 @@ export default function CampanhaExecucao() {
                   <TabsTrigger value="status">Acompanhamento</TabsTrigger>
                 </TabsList>
                 <TabsContent value="mapa" className="mt-0 space-y-4">
+                  <div className="flex items-center justify-end">
+                    <ReplanButton campaignId={camp.id} onReplanned={loadCampaign} />
+                  </div>
                   <CampaignFullPlanCard
                     snapshot={snapshot}
                     startedAt={camp.started_at}
