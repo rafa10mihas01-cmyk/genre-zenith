@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
-  let body: { campaign_id?: string; dry_run?: boolean; strategy?: "daily_need" | "chart_tier" };
+  let body: { campaign_id?: string; dry_run?: boolean; strategy?: "daily_need" | "chart_tier"; dominance_relief?: boolean };
   try {
     body = await req.json();
   } catch {
@@ -102,9 +102,14 @@ Deno.serve(async (req) => {
   }
   const campaignId = body?.campaign_id;
   const dryRun = !!body?.dry_run;
+  const dominanceRelief = !!body?.dominance_relief;
   const strategy: "daily_need" | "chart_tier" = body?.strategy === "chart_tier" ? "chart_tier" : "daily_need";
   if (!campaignId || typeof campaignId !== "string") {
     return json({ ok: false, error: "missing_campaign_id" }, 400);
+  }
+  // EXECUTION_FROZEN: dominance_relief só é permitido em pré-visualização.
+  if (dominanceRelief && !dryRun) {
+    return json({ ok: false, error: "relief_preview_only", message: "Dominance Relief só pode ser usado em pré-visualização (EXECUTION_FROZEN)." }, 400);
   }
 
   // 1) Campanha + ownership
