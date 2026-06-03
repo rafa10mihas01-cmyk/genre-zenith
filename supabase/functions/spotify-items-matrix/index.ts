@@ -83,7 +83,7 @@ async function runOwner(sb: any, app: any, row: any, trackUri: string) {
   const getPl  = await call(token, "GET",    `https://api.spotify.com/v1/playlists/${playlistId}`);
   const getIt  = await call(token, "GET",    `https://api.spotify.com/v1/playlists/${playlistId}/items?limit=10`);
   const addIt  = await call(token, "POST",   `https://api.spotify.com/v1/playlists/${playlistId}/items`, { uris: [trackUri] });
-  const remIt  = await call(token, "DELETE", `https://api.spotify.com/v1/playlists/${playlistId}/items`, { tracks: [{ uri: trackUri }] });
+  const remIt  = await call(token, "DELETE", `https://api.spotify.com/v1/playlists/${playlistId}/items`, { items: [{ uri: trackUri }] });
   const cleanup = await call(token, "DELETE", `https://api.spotify.com/v1/playlists/${playlistId}/followers`);
 
   out.get_playlist = { status: getPl.http_status, ms: getPl.response_time_ms, request_id: getPl.spotify_request_id, body: getPl.ok ? undefined : getPl.body };
