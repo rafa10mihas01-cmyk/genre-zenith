@@ -8,6 +8,7 @@ import { reportCronHealth } from "../_shared/cron-health.ts";
 import { reorderPlaylistTracks, listPlaylistTrackUris, addPlaylistTracks, removePlaylistTracks } from "../_shared/spotify-playlist.ts";
 import { getUserAccessToken, forceRefreshUserAccessToken, installSpotifyCircuitFetchGuard } from "../_shared/spotify.ts";
 import { SpotifyApiError } from "../_shared/spotify-playlist.ts";
+import { classifyManualReason, enqueueManual } from "../_shared/manual-fallback.ts";
 
 // Defesa em profundidade: garante que o guard global de fetch p/ Spotify
 // esteja instalado antes de qualquer chamada (add/remove/reorder no Spotify).
@@ -183,6 +184,16 @@ Deno.serve(async (req) => {
       reorderDone++;
     } catch (e) {
       const msg = (e as Error).message ?? String(e);
+      const manualReason = classifyManualReason(e);
+      if (manualReason) {
+        await enqueueManual(supabase, { job: j, reason: manualReason, fallback: true, position: j.to_position ?? null });
+        await supabase.from("playlist_execution_jobs")
+          .update({ status: "manual", last_error: msg, claimed_by: null, claimed_at: null, lease_expires_at: null })
+          .eq("id", j.id);
+        console.log(JSON.stringify({ evt: "reorder.manual_fallback", job_id: j.id, reason: manualReason }));
+        reorderFailed++;
+        continue;
+      }
       const nextStatus = ((j.attempts ?? 0) + 1) >= (j.max_attempts ?? 3) ? "failed" : "pending";
       console.log(JSON.stringify({ evt: "reorder.error", job_id: j.id, error: msg, next_status: nextStatus }));
       await supabase.from("playlist_execution_jobs")
@@ -342,6 +353,16 @@ Deno.serve(async (req) => {
       addRemoveDone++;
     } catch (e) {
       const msg = (e as Error).message ?? String(e);
+      const manualReason = classifyManualReason(e);
+      if (manualReason) {
+        await enqueueManual(supabase, { job: j, reason: manualReason, fallback: true, position: j.to_position ?? null });
+        await supabase.from("playlist_execution_jobs")
+          .update({ status: "manual", last_error: msg, claimed_by: null, claimed_at: null, lease_expires_at: null })
+          .eq("id", j.id);
+        console.log(JSON.stringify({ evt: "mutation.manual_fallback", job_id: j.id, job_type: j.job_type, reason: manualReason }));
+        addRemoveFailed++;
+        continue;
+      }
       const nextStatus = ((j.attempts ?? 0) + 1) >= (j.max_attempts ?? 3) ? "failed" : "pending";
       console.log(JSON.stringify({ evt: "mutation.error", job_id: j.id, job_type: j.job_type, error: msg, next_status: nextStatus }));
       await supabase.from("playlist_execution_jobs")
