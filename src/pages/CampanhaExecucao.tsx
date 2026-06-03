@@ -107,6 +107,14 @@ export default function CampanhaExecucao() {
   const [approvingPlan, setApprovingPlan] = useState(false);
   const [baselineGate, setBaselineGate] = useState({ required: 0, collected: 0, capturedAt: null as string | null });
   const [dealStatus, setDealStatus] = useState<{ state: string | null; baselineCapturedAt: string | null }>({ state: null, baselineCapturedAt: null });
+  const [dominanceReliefPreview, setDominanceReliefPreview] = useState<boolean>(() => {
+    if (typeof window === "undefined" || !id) return false;
+    return window.localStorage.getItem(`dominance_relief_preview:${id}`) === "1";
+  });
+  useEffect(() => {
+    if (typeof window === "undefined" || !id) return;
+    window.localStorage.setItem(`dominance_relief_preview:${id}`, dominanceReliefPreview ? "1" : "0");
+  }, [dominanceReliefPreview, id]);
 
   async function handleApprovePlan() {
     if (!camp) return;
