@@ -209,6 +209,7 @@ Deno.serve(async (req) => {
   }
 
   const candidates: any[] = [];
+  const manualCandidates: any[] = [];
   for (const [, list] of byCampaign) {
     const startedAt = (list[0] as any).started_at;
     const startMs = startedAt ? new Date(startedAt).getTime() : now;
@@ -233,6 +234,24 @@ Deno.serve(async (req) => {
       // Fallback de rampa só pra allocations sem start_day próprio (legacy).
       if (a.source === "legacy" && idx >= releasedCount) return;
 
+      // EXECUTION_MODE gating (eco apenas — legacy não tem managed_playlists).
+      // DISABLED → ignora silenciosamente. MANUAL_ONLY → roteia direto pra fila manual
+      // sem criar job automático (evita tentar OAuth que sabemos não existir).
+      const mode = (a as any).execution_mode as string | null | undefined;
+      if (a.source === "eco" && mode === "DISABLED") return;
+      if (a.source === "eco" && mode === "MANUAL_ONLY") {
+        manualCandidates.push({
+          allocation_id: a.allocation_id,
+          campaign_id: a.campaign_id,
+          spotify_playlist_id: plId,
+          spotify_track_id: trackId,
+          playlist_name: (a as any).playlist_name ?? null,
+          planned_position: a.position ? Number(a.position) : null,
+          dedupe_key: `manual:${a.campaign_id}:${plId}:${trackId}`,
+        });
+        return;
+      }
+
       candidates.push({
         allocation_source: a.source,
         allocation_id: a.allocation_id,
@@ -247,6 +266,45 @@ Deno.serve(async (req) => {
       });
     });
   }
+
+  // Enfileira MANUAL_ONLY no painel (idempotente por campanha+playlist+track aberto).
+  let manualEnqueued = 0;
+  if (manualCandidates.length > 0) {
+    const uniqManual = Array.from(new Map(manualCandidates.map((m) => [m.dedupe_key, m])).values());
+    // Verifica duplicatas abertas
+    const { data: openManual } = await supabase
+      .from("manual_distribution_queue")
+      .select("campaign_id, spotify_playlist_id, spotify_track_id")
+      .in("status", ["MANUAL_PENDING", "AUTO_FAILED_FALLBACK_MANUAL"])
+      .in("campaign_id", uniqManual.map((m) => m.campaign_id));
+    const openSet = new Set(
+      (openManual ?? []).map((r: any) => `${r.campaign_id}|${r.spotify_playlist_id}|${r.spotify_track_id}`),
+    );
+    const toInsertManual = uniqManual
+      .filter((m) => !openSet.has(`${m.campaign_id}|${m.spotify_playlist_id}|${m.spotify_track_id}`))
+      .map((m) => ({
+        campaign_id: m.campaign_id,
+        spotify_playlist_id: m.spotify_playlist_id,
+        spotify_track_id: m.spotify_track_id,
+        playlist_name: m.playlist_name,
+        job_type: "playlist.track.add",
+        position: m.planned_position,
+        planned_position: m.planned_position,
+        motivo: "owner_without_token",
+        status: "MANUAL_PENDING",
+      }));
+    if (toInsertManual.length > 0) {
+      const { count, error: mErr } = await supabase
+        .from("manual_distribution_queue")
+        .insert(toInsertManual, { count: "exact" });
+      if (mErr) {
+        console.warn(`[execution-planner] manual enqueue failed: ${mErr.message}`);
+      } else {
+        manualEnqueued = count ?? toInsertManual.length;
+      }
+    }
+  }
+
 
 
   const uniqueCandidates = Array.from(new Map(candidates.map((c) => [c.dedupe_key, c])).values());
