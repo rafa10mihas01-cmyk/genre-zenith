@@ -86,6 +86,7 @@ type Alloc = {
 type Payload = {
   campaign?: Camp;
   allocations?: Alloc[];
+  organic_summary?: { total_plays?: number } | null;
   error?: string;
 };
 
@@ -95,6 +96,7 @@ export default function MapaCampanhaPublico() {
   const { token } = useParams<{ token: string }>();
   const [camp, setCamp] = useState<Camp | null>(null);
   const [allocs, setAllocs] = useState<Alloc[]>([]);
+  const [radioCollectedTotal, setRadioCollectedTotal] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
@@ -112,9 +114,12 @@ export default function MapaCampanhaPublico() {
         setErr(payload?.error ?? error?.message ?? "erro");
         setCamp(null);
         setAllocs([]);
+        setRadioCollectedTotal(null);
       } else {
         setCamp(payload?.campaign ?? null);
         setAllocs(payload?.allocations ?? []);
+        const collected = Number(payload?.organic_summary?.total_plays ?? 0);
+        setRadioCollectedTotal(collected > 0 ? collected : null);
         setErr(null);
       }
       setLoading(false);
@@ -180,6 +185,7 @@ export default function MapaCampanhaPublico() {
           shareToken={null}
           showShare={false}
           radioGoal={radioGoal}
+          radioCollectedTotal={radioCollectedTotal}
           track={{
             name: camp.track_name,
             artist: camp.artist,
