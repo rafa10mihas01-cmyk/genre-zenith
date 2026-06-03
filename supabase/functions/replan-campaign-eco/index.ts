@@ -223,6 +223,39 @@ Deno.serve(async (req) => {
     ? Math.max(0, (metaEco - existingTotalPlanned)) / days
     : 0;
 
+  // Se o plano aprovado já cobre a fatia ECO do snapshot, não existe gap de
+  // PLANO para preencher. Antes daqui, daily_need caía no ramo chart_tier e,
+  // com need=0, acabava selecionando todas as candidatas — por isso as duas
+  // opções apareciam iguais (113 playlists) mesmo sem necessidade real.
+  if (dailyNeedRemaining <= 0) {
+    const summary = {
+      added: 0,
+      added_primary: 0,
+      added_neighbor: 0,
+      available_primary: freshPrimary.length,
+      available_neighbor: freshNeighbor.length,
+      plays_per_day_added: 0,
+      plays_per_day_primary: 0,
+      plays_per_day_neighbor: 0,
+      neighbor_genres: neighborGenreIds,
+      used_neighbors: false,
+      coverage_ratio: coverageRatio,
+      mode,
+      affinity_range: [affLo, affHi],
+      position_strategy: strategy === "chart_tier" ? "chart_tier_primary_only" : "daily_need_primary_only",
+      strategy_requested: strategy,
+      daily_need_remaining: 0,
+      covered_daily_by_primary: 0,
+      gap_after_primary: 0,
+      neighbor_gap_threshold: NEIGHBOR_GAP_THRESHOLD,
+      daily_tolerance: ECO_DAILY_TOLERANCE,
+      eco_budget_enabled: ECO_BUDGET_ENABLED,
+      playlists_dropped_by_budget: 0,
+      message: "O plano aprovado já cobre a fatia ECO do snapshot; não há gap planejado para adicionar playlists.",
+    };
+    return json({ ok: true, dry_run: dryRun, ...summary });
+  }
+
   // ─── Orçamento de audiência (camada de proteção) ───
   // Para cada playlist candidata, descobre quanto da capacidade teórica já
   // está reservada por OUTRAS campanhas ativas sobrepostas. O resultado é o
@@ -302,6 +335,7 @@ Deno.serve(async (req) => {
       pool: typeof primaryFresh,
       need: number,
     ): Map<string, number> => {
+      if (need <= 0) return new Map<string, number>();
       const posMap = distributeEcoPositions(pool, days, mult, { chartTier });
       const ranked = pool.map(p => {
         const pos = posMap.get(p.id) ?? 3;
