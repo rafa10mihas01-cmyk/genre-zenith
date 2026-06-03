@@ -207,7 +207,11 @@ export function CampaignFullPlanCard({
   // Linha "Rádio · Autoplay · Mixes" — só renderiza quando o consumidor
   // (somente página interna) passar `radioGoal` explicitamente. Distribuída
   // na curva da campanha (snapshot.curva.streamsDay). Soma exata = radioTotal.
-  const radioTotal = radioGoal != null ? Math.max(0, Math.round(radioGoal)) : 0;
+  // Quando há coletado real (radioCollectedTotal > 0), usamos ele como Total
+  // da linha (mesma fonte de verdade do painel interno). Senão, cai no estimado.
+  const radioCollectedNum = radioCollectedTotal != null && radioCollectedTotal > 0 ? Math.round(radioCollectedTotal) : 0;
+  const radioEstimated = radioGoal != null ? Math.max(0, Math.round(radioGoal)) : 0;
+  const radioTotal = radioCollectedNum > 0 ? radioCollectedNum : radioEstimated;
   const radioDaily = useMemo(() => {
     const arr = Array.from({ length: days }, () => 0);
     if (radioTotal <= 0) return arr;
