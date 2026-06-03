@@ -4,12 +4,67 @@
 //   - getSpotifyToken(): Client Credentials (app-only) — usa app default.
 //   - getUserAccessToken(): OAuth user token (refresh automático per-app).
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { AsyncLocalStorage } from "node:async_hooks";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ENV_CLIENT_ID = Deno.env.get("SPOTIFY_CLIENT_ID");
 const ENV_CLIENT_SECRET = Deno.env.get("SPOTIFY_CLIENT_SECRET");
 const spotifyOriginalFetch = globalThis.fetch.bind(globalThis);
+
+// ---------------------------------------------------------------------------
+// Detecção real do function_name no Edge Runtime.
+// `SUPABASE_FUNCTION_NAME` NÃO existe — derivamos de Deno.mainModule:
+//   file:///home/deno/functions/<name>/index.ts
+// ---------------------------------------------------------------------------
+function detectFunctionName(): string {
+  try {
+    const fromEnv = Deno.env.get("SUPABASE_FUNCTION_NAME");
+    if (fromEnv) return fromEnv;
+    const main = Deno.mainModule ?? "";
+    const m = main.match(/\/functions\/([^/]+)\//);
+    if (m?.[1]) return m[1];
+    const m2 = main.match(/\/([^/]+)\/index\.[tj]sx?$/);
+    if (m2?.[1]) return m2[1];
+  } catch { /* ignore */ }
+  return "unknown";
+}
+const RESOLVED_FUNCTION_NAME = detectFunctionName();
+
+// Contexto async-local: propaga app_id/owner/playlist_id pra TODAS as chamadas
+// fetch() do mesmo callback sem precisar passar ctx manualmente.
+type CtxFields = {
+  appId?: string | null;
+  appName?: string | null;
+  playlist_id?: string | null;
+  owner_id?: string | null;
+  spotify_user_id?: string | null;
+  function_name?: string | null;
+};
+const ctxStore = new AsyncLocalStorage<CtxFields>();
+
+export function withSpotifyCtx<T>(ctx: CtxFields, fn: () => T | Promise<T>): Promise<T> {
+  return Promise.resolve(ctxStore.run({ ...ctx }, fn));
+}
+
+function enterCtx(patch: CtxFields): void {
+  const cur = ctxStore.getStore();
+  if (cur) Object.assign(cur, patch);
+  else ctxStore.enterWith({ ...patch });
+}
+
+const appNameCache = new Map<string, string>();
+async function resolveAppName(appId: string | null | undefined): Promise<string | null> {
+  if (!appId) return null;
+  const cached = appNameCache.get(appId);
+  if (cached) return cached;
+  try {
+    const { data } = await createClient(SUPABASE_URL, SERVICE_KEY)
+      .from("spotify_apps").select("name").eq("id", appId).maybeSingle();
+    if (data?.name) { appNameCache.set(appId, data.name); return data.name; }
+  } catch { /* ignore */ }
+  return null;
+}
 
 export class SpotifyCircuitOpenError extends Error {
   blockedUntil: string | null;
