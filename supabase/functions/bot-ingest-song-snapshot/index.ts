@@ -97,11 +97,6 @@ Deno.serve(async (req) => {
     }
   }
 
-  const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
-
-  // --- FONTE ÚNICA DE PRINTS ---
-  // Quando vier screenshot_url, cria 1 linha em bot_print_batches (= a coleta)
-  // e referencia via snapshot_run_id. NÃO grava mais screenshot_url na linha.
   const screenshotUrls = [
     ...(Array.isArray(print_urls) ? print_urls : []),
     ...(typeof screenshot_url === "string" && screenshot_url.length > 0 ? [screenshot_url] : []),
@@ -110,6 +105,20 @@ Deno.serve(async (req) => {
     .filter(Boolean)
     .filter((url, idx, arr) => arr.indexOf(url) === idx);
 
+  if (playlists.length > 30 && screenshotUrls.length <= 1) {
+    return jr({
+      error: "multi_print_required",
+      message: `Coleta com ${playlists.length} playlists não pode ser salva com apenas ${screenshotUrls.length} print. Envie print_urls[] com todas as partes da tela.`,
+      playlists_received: playlists.length,
+      prints_received: screenshotUrls.length,
+    }, 422);
+  }
+
+  const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+
+  // --- FONTE ÚNICA DE PRINTS ---
+  // Quando vier screenshot_url, cria 1 linha em bot_print_batches (= a coleta)
+  // e referencia via snapshot_run_id. NÃO grava mais screenshot_url na linha.
   let snapshotRunId: string | null = null;
   if (screenshotUrls.length > 0) {
     // Resolve deal_id pela música (FK obrigatória em bot_print_batches)
