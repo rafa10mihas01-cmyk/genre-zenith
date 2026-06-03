@@ -57,7 +57,7 @@ export function MonitoramentoTab({ campaignId }: Props) {
         .eq("campaign_id", campaignId)
         .order("created_at", { ascending: false })
         .limit(50);
-      setRuns(((data ?? []) as SnapshotRun[]).filter((r) => (r.print_urls?.length ?? 0) > 0));
+      setRuns(((data ?? []) as unknown as SnapshotRun[]).filter((r) => (r.print_urls?.length ?? 0) > 0));
       setRunsLoading(false);
     })();
   }, [campaignId]);
