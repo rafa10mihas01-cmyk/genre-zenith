@@ -271,7 +271,7 @@ Deno.serve(async (req) => {
   let gapAfterPrimary = 0;
   let usedNeighbors = false;
 
-  if (dailyNeedRemaining > 0) {
+  if (strategy === "daily_need" && dailyNeedRemaining > 0) {
     // 1ª fase: distribui SÓ primárias contra a necessidade diária (com orçamento).
     const primDist = primaryFresh.length > 0
       ? distributeByDailyNeed(primaryFresh, dailyNeedRemaining, mult, ECO_DAILY_TOLERANCE, { maxCapById, currentPositionById })
