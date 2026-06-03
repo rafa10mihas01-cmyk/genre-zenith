@@ -2234,7 +2234,26 @@ Deno.serve(async (req) => {
       });
     }
 
-    return jr({ ok: true, diagnosis: diag, error: dErr?.message, sync: syncRes });
+    // FASE 2 — Atualiza streak de 403 e marca diagnose_blocked após 3 execuções consecutivas com 403.
+    try {
+      if (run403s > 0) {
+        const prev = Number((pl as any).diagnose_403_streak ?? 0);
+        const next = prev + 1;
+        const upd: Record<string, unknown> = { diagnose_403_streak: next };
+        if (next >= 3) {
+          upd.diagnose_blocked = true;
+          upd.diagnose_blocked_at = new Date().toISOString();
+          upd.diagnose_blocked_reason = `403_persistent (${run403s} 403s na execução, streak=${next})`;
+        }
+        await supabase.from("managed_playlists").update(upd).eq("id", pl.id);
+      } else if (Number((pl as any).diagnose_403_streak ?? 0) > 0) {
+        await supabase.from("managed_playlists").update({ diagnose_403_streak: 0 }).eq("id", pl.id);
+      }
+    } catch (e) {
+      console.error("[diagnose] streak update failed:", (e as Error).message);
+    }
+
+    return jr({ ok: true, diagnosis: diag, error: dErr?.message, sync: syncRes, _403_observed: run403s });
   } catch (e) {
     // Circuit breaker aberto: aborta com erro claro em vez de degradar.
     if (e instanceof SpotifyCircuitOpenError) {
