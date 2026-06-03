@@ -9,6 +9,7 @@ import { SwapPlaylistDialog } from "./SwapPlaylistDialog";
 
 
 type EcoSnap = {
+  id?: string;
   managed_playlist_id: string;
   plays_24h: number | null;
   plays_7d: number | null;
@@ -45,9 +46,17 @@ const GROUP_LABEL: Record<Group, string> = {
 
 export function PlaylistsGrid({ allocations, snapshots, proofThumbs = [], positions, mode, flat = false, campaignId, snapshotLocked = false, onSwapped }: Props) {
   const latestSnap = useMemo(() => {
+    // Determinístico: pega o snapshot com maior captured_at por playlist;
+    // desempate por id pra garantir o mesmo resultado entre abas/cargas
+    // (a query upstream ordena por captured_at desc mas sem tiebreaker,
+    // então a ordem do servidor pode variar quando timestamps batem).
     const m = new Map<string, EcoSnap>();
     for (const s of snapshots) {
-      if (!m.has(s.managed_playlist_id)) m.set(s.managed_playlist_id, s);
+      const prev = m.get(s.managed_playlist_id);
+      if (!prev) { m.set(s.managed_playlist_id, s); continue; }
+      const a = new Date(s.captured_at).getTime();
+      const b = new Date(prev.captured_at).getTime();
+      if (a > b || (a === b && (s.id ?? "") > (prev.id ?? ""))) m.set(s.managed_playlist_id, s);
     }
     return m;
   }, [snapshots]);
