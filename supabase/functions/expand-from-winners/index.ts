@@ -112,6 +112,11 @@ async function expandGenre(
       continue;
     }
     if (ownerIdx++ > 0) await sleep(THROTTLE_MS);
+    setSpotifyCtx({
+      owner_id: owner.owner_id,
+      spotify_user_id: owner.owner_id,
+      function_name: "expand-from-winners",
+    });
     stats.owners_processed++;
     let items: any[] = [];
     try {
