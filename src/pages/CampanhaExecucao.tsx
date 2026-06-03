@@ -23,8 +23,10 @@ import { CampaignFullPlanCard, CampaignFullPlanSummary } from "@/components/camp
 import { CampaignExecutionStatus } from "@/components/campanhas/CampaignExecutionStatus";
 import { CampaignDistributionConsole } from "@/components/campanhas/CampaignDistributionConsole";
 import { TrackActionsPanel } from "@/components/campanhas/TrackActionsPanel";
-import { ArrowLeft, Loader2, Save, Upload, Rocket, CheckCircle2, RefreshCw, Plus } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Upload, Rocket, CheckCircle2, RefreshCw, Plus, Shield } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { NewDealDialog } from "@/components/playlist-deals/NewDealDialog";
 import { cn } from "@/lib/utils";
 import { CampaignHub } from "@/components/campaign-hub/CampaignHub";
@@ -107,6 +109,14 @@ export default function CampanhaExecucao() {
   const [approvingPlan, setApprovingPlan] = useState(false);
   const [baselineGate, setBaselineGate] = useState({ required: 0, collected: 0, capturedAt: null as string | null });
   const [dealStatus, setDealStatus] = useState<{ state: string | null; baselineCapturedAt: string | null }>({ state: null, baselineCapturedAt: null });
+  const [dominanceReliefPreview, setDominanceReliefPreview] = useState<boolean>(() => {
+    if (typeof window === "undefined" || !id) return false;
+    return window.localStorage.getItem(`dominance_relief_preview:${id}`) === "1";
+  });
+  useEffect(() => {
+    if (typeof window === "undefined" || !id) return;
+    window.localStorage.setItem(`dominance_relief_preview:${id}`, dominanceReliefPreview ? "1" : "0");
+  }, [dominanceReliefPreview, id]);
 
   async function handleApprovePlan() {
     if (!camp) return;
@@ -838,8 +848,30 @@ export default function CampanhaExecucao() {
                   <TabsTrigger value="status">Acompanhamento</TabsTrigger>
                 </TabsList>
                 <TabsContent value="mapa" className="mt-0 space-y-4">
-                  <div className="flex items-center justify-end">
-                    <ReplanButton campaignId={camp.id} onReplanned={loadCampaign} />
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      {dominanceReliefPreview && (
+                        <Badge variant="outline" className="gap-1.5 border-primary/40 text-primary">
+                          <Shield className="h-3 w-3" />
+                          Dominance Relief — Preview
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+                        <Switch
+                          checked={dominanceReliefPreview}
+                          onCheckedChange={setDominanceReliefPreview}
+                          aria-label="Dominance Relief (simulação)"
+                        />
+                        <span>Dominance Relief <span className="opacity-60">(simulação)</span></span>
+                      </label>
+                      <ReplanButton
+                        campaignId={camp.id}
+                        onReplanned={loadCampaign}
+                        dominanceRelief={dominanceReliefPreview}
+                      />
+                    </div>
                   </div>
                   <CampaignFullPlanCard
                     snapshot={snapshot}
@@ -1116,10 +1148,22 @@ function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
 
-type ReplanPreview = { added: number; plays_per_day_added: number; message?: string };
+type ReliefPreview = {
+  applied: boolean;
+  reason: string;
+  cap_used: number;
+  top1_before_pct: number;
+  top1_after_pct: number;
+  top1_drop_pp: number;
+  redistributed_streams: number;
+  added_count: number;
+  added_playlists?: Array<{ playlist_id: string; position: number; planned_streams: number }>;
+  total_after_streams?: number;
+};
+type ReplanPreview = { added: number; plays_per_day_added: number; message?: string; relief?: ReliefPreview | null };
 type ReplanStrategy = "daily_need" | "chart_tier";
 
-function ReplanButton({ campaignId, onReplanned }: { campaignId: string; onReplanned: () => void | Promise<void> }) {
+function ReplanButton({ campaignId, onReplanned, dominanceRelief = false }: { campaignId: string; onReplanned: () => void | Promise<void>; dominanceRelief?: boolean }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [executing, setExecuting] = useState<ReplanStrategy | null>(null);
@@ -1130,12 +1174,12 @@ function ReplanButton({ campaignId, onReplanned }: { campaignId: string; onRepla
 
   const fetchPreview = async (strategy: ReplanStrategy): Promise<ReplanPreview> => {
     const { data, error } = await supabase.functions.invoke("replan-campaign-eco", {
-      body: { campaign_id: campaignId, dry_run: true, strategy },
+      body: { campaign_id: campaignId, dry_run: true, strategy, dominance_relief: dominanceRelief },
     });
     if (error) throw error;
-    const res = data as { ok: boolean; added?: number; plays_per_day_added?: number; message?: string; error?: string };
+    const res = data as { ok: boolean; added?: number; plays_per_day_added?: number; message?: string; error?: string; dominance_relief?: ReliefPreview | null };
     if (!res?.ok) throw new Error(res?.error ?? "Falha ao calcular replanejamento");
-    return { added: Number(res.added ?? 0), plays_per_day_added: Number(res.plays_per_day_added ?? 0), message: res.message };
+    return { added: Number(res.added ?? 0), plays_per_day_added: Number(res.plays_per_day_added ?? 0), message: res.message, relief: res.dominance_relief ?? null };
   };
 
   const handleOpen = async () => {
@@ -1198,6 +1242,49 @@ function ReplanButton({ campaignId, onReplanned }: { campaignId: string; onRepla
           </div>
         </div>
       </div>
+      {preview?.relief && (
+        <div className="rounded-md border border-primary/30 bg-primary/5 p-2 space-y-1.5">
+          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-primary">
+            <Shield className="h-3 w-3" />
+            Dominance Relief — simulação
+          </div>
+          {preview.relief.applied ? (
+            <div className="grid grid-cols-3 gap-2 text-[11px]">
+              <div>
+                <div className="text-muted-foreground">Top1 antes</div>
+                <div className="font-semibold tabular-nums">{preview.relief.top1_before_pct.toFixed(1)}%</div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">Top1 depois</div>
+                <div className="font-semibold tabular-nums">{preview.relief.top1_after_pct.toFixed(1)}%</div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">Δ</div>
+                <div className="font-semibold tabular-nums text-primary">−{preview.relief.top1_drop_pp.toFixed(1)}pp</div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">Cap</div>
+                <div className="font-semibold tabular-nums">{preview.relief.cap_used.toLocaleString("pt-BR")}</div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">Redistribuído</div>
+                <div className="font-semibold tabular-nums">{preview.relief.redistributed_streams.toLocaleString("pt-BR")}</div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">+ Playlists</div>
+                <div className="font-semibold tabular-nums">{preview.relief.added_count}</div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-[11px] text-muted-foreground">
+              {preview.relief.reason === "no_surplus" ? "Sem concentração excessiva — nada a aliviar." :
+               preview.relief.reason === "insufficient_pool" ? "Pool insuficiente — plano original preservado." :
+               `Não aplicado (${preview.relief.reason}).`}
+            </div>
+          )}
+          <div className="text-[10px] text-muted-foreground italic">Simulação visual. Não grava nada.</div>
+        </div>
+      )}
       <Button
         size="sm"
         className="w-full"

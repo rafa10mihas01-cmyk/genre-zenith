@@ -37,6 +37,7 @@ import {
 } from "../_shared/eco-budget.ts";
 import { getGenreNeighbors } from "../_shared/genre-affinity.ts";
 import { MIN_PLAYLIST_SAVES_FOR_CAMPAIGN } from "../_shared/eco-constants.ts";
+import { applyDominanceRelief, type ReliefAlloc, type ReliefCandidate } from "../_shared/dominanceRelief.ts";
 
 
 // Pequeno RNG determinístico (mesma família do computeEcoPlan) para
@@ -94,7 +95,7 @@ Deno.serve(async (req) => {
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
-  let body: { campaign_id?: string; dry_run?: boolean; strategy?: "daily_need" | "chart_tier" };
+  let body: { campaign_id?: string; dry_run?: boolean; strategy?: "daily_need" | "chart_tier"; dominance_relief?: boolean };
   try {
     body = await req.json();
   } catch {
@@ -102,9 +103,14 @@ Deno.serve(async (req) => {
   }
   const campaignId = body?.campaign_id;
   const dryRun = !!body?.dry_run;
+  const dominanceRelief = !!body?.dominance_relief;
   const strategy: "daily_need" | "chart_tier" = body?.strategy === "chart_tier" ? "chart_tier" : "daily_need";
   if (!campaignId || typeof campaignId !== "string") {
     return json({ ok: false, error: "missing_campaign_id" }, 400);
+  }
+  // EXECUTION_FROZEN: dominance_relief só é permitido em pré-visualização.
+  if (dominanceRelief && !dryRun) {
+    return json({ ok: false, error: "relief_preview_only", message: "Dominance Relief só pode ser usado em pré-visualização (EXECUTION_FROZEN)." }, 400);
   }
 
   // 1) Campanha + ownership
@@ -482,8 +488,65 @@ Deno.serve(async (req) => {
   };
 
 
+  // DOMINANCE_RELIEF_PREVIEW — só roda em dry_run; não altera rows persistidos.
+  let dominanceReliefResult: any = null;
+  if (dryRun && dominanceRelief) {
+    try {
+      const { data: existingForRelief } = await admin
+        .from("campaign_eco_allocations")
+        .select("id, managed_playlist_id, position, planned_streams, genre_source, status, managed_playlists(followers)")
+        .eq("campaign_id", campaignId)
+        .neq("status", "cancelled");
+      const existAllocs: ReliefAlloc[] = ((existingForRelief ?? []) as any[])
+        .filter(r => r.managed_playlist_id && Number(r.planned_streams) > 0 && Number(r.position) > 0)
+        .map(r => ({
+          id: r.id,
+          playlist_id: r.managed_playlist_id,
+          followers: Number(r.managed_playlists?.followers ?? 0),
+          position: Number(r.position),
+          planned_streams: Number(r.planned_streams),
+          genre_source: (r.genre_source ?? "primary") as any,
+        }));
+      const followersByNewId = new Map<string, number>();
+      for (const p of primaryFresh) followersByNewId.set(p.id, p.followers);
+      for (const p of neighborFresh) followersByNewId.set(p.id, p.followers);
+      const newAllocs: ReliefAlloc[] = rows.map((r, idx) => ({
+        id: `new:${idx}`,
+        playlist_id: r.managed_playlist_id,
+        followers: followersByNewId.get(r.managed_playlist_id) ?? 0,
+        position: r.position,
+        planned_streams: r.planned_streams,
+        genre_source: r.genre_source,
+      }));
+      const combined = [...existAllocs, ...newAllocs];
+      const selectedIds = new Set(combined.map(a => a.playlist_id));
+      const pool: ReliefCandidate[] = freshPrimary
+        .filter((p: any) => !selectedIds.has(p.id))
+        .map((p: any) => ({ playlist_id: p.id, followers: Number(p.followers ?? 0), rank_score: Number(p.followers ?? 0) }));
+      const relief = applyDominanceRelief(combined, pool, mult);
+      dominanceReliefResult = {
+        applied: relief.applied,
+        reason: relief.reason,
+        cap_used: relief.capUsed,
+        top1_before_pct: Number(relief.top1Before.toFixed(2)),
+        top1_after_pct: Number(relief.top1After.toFixed(2)),
+        top1_drop_pp: Number((relief.top1Before - relief.top1After).toFixed(2)),
+        redistributed_streams: relief.redistributedStreams,
+        added_count: relief.addedAllocs.length,
+        added_playlists: relief.addedAllocs.map(a => ({
+          playlist_id: a.playlist_id,
+          position: a.position,
+          planned_streams: a.planned_streams,
+        })),
+        total_after_streams: relief.allocs.reduce((s, a) => s + a.planned_streams, 0),
+      };
+    } catch (e) {
+      dominanceReliefResult = { applied: false, reason: "error", error: (e as Error).message };
+    }
+  }
+
   if (dryRun) {
-    return json({ ok: true, dry_run: true, ...summary });
+    return json({ ok: true, dry_run: true, ...summary, dominance_relief: dominanceReliefResult });
   }
 
   // 6) Insert
