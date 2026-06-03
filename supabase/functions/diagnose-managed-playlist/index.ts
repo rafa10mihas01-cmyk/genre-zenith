@@ -278,6 +278,7 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const playlistId: string = body?.playlist_id;
     const skipAi: boolean = body?.skip_ai === true || body?.source === "batch" || body?.source === "cron";
+    const forceBlocked: boolean = body?.force === true || body?.force_blocked === true;
     if (!playlistId) return jr({ ok: false, error: "playlist_id obrigatório" }, 400);
 
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
@@ -288,6 +289,22 @@ Deno.serve(async (req) => {
       .eq("id", playlistId)
       .maybeSingle();
     if (plErr || !pl) return jr({ ok: false, error: plErr?.message ?? "playlist não encontrada" }, 404);
+
+    // FASE 2 — Diagnose blocked: corta cedo se a playlist está marcada por 403 persistente.
+    // Apenas tentativa manual com force=true ignora a marca.
+    if ((pl as any).diagnose_blocked === true && !forceBlocked) {
+      return jr({
+        ok: true,
+        skipped: true,
+        reason: "diagnose_blocked",
+        diagnose_blocked_at: (pl as any).diagnose_blocked_at,
+        diagnose_blocked_reason: (pl as any).diagnose_blocked_reason,
+      });
+    }
+
+    // Contador de 403s observados nesta execução — usado pro streak.
+    let run403s = 0;
+    const ownerSpotifyId: string | null = (pl as any).owner_spotify_user_id ?? null;
 
     // Lock operacional: impede race com apply-playlist-plan / sync-managed-playlist-tracks.
     // TTL de 30s; liberado no finally.
@@ -489,9 +506,8 @@ Deno.serve(async (req) => {
         // /v1/tracks?ids= (até 50)
         for (let i = 0; i < trackIds.length; i += 50) {
           const ids = trackIds.slice(i, i + 50);
-          const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
+          const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`, { headers: { Authorization: `Bearer ${token}` } }, { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, function_name: 'diagnose-managed-playlist' });
+          if (r.status === 403) run403s++;
           if (!r.ok) continue;
           const j = await r.json();
           for (const tr of j.tracks ?? []) {
@@ -509,9 +525,8 @@ Deno.serve(async (req) => {
         );
         for (let i = 0; i < artistIds.length; i += 50) {
           const ids = artistIds.slice(i, i + 50);
-          const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/artists?ids=${ids.join(",")}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
+          const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/artists?ids=${ids.join(",")}`, { headers: { Authorization: `Bearer ${token}` } }, { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, function_name: 'diagnose-managed-playlist' });
+          if (r.status === 403) run403s++;
           if (!r.ok) continue;
           const j = await r.json();
           for (const ar of j.artists ?? []) {
@@ -988,9 +1003,8 @@ Deno.serve(async (req) => {
         const candArtistIds = new Map<string, string>(); // trackId → artistId
         for (let i = 0; i < rawCandidates.length; i += 50) {
           const ids = rawCandidates.slice(i, i + 50).map((c) => c.id);
-          const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
+          const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`, { headers: { Authorization: `Bearer ${token}` } }, { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, function_name: 'diagnose-managed-playlist' });
+          if (r.status === 403) run403s++;
           if (!r.ok) continue;
           const j = await r.json();
           for (const tr of j.tracks ?? []) {
@@ -1010,9 +1024,8 @@ Deno.serve(async (req) => {
         const artistPopMap = new Map<string, number | null>();
         for (let i = 0; i < uniqueArtistIds.length; i += 50) {
           const ids = uniqueArtistIds.slice(i, i + 50);
-          const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/artists?ids=${ids.join(",")}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
+          const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/artists?ids=${ids.join(",")}`, { headers: { Authorization: `Bearer ${token}` } }, { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, function_name: 'diagnose-managed-playlist' });
+          if (r.status === 403) run403s++;
           if (!r.ok) continue;
           const j = await r.json();
           for (const ar of j.artists ?? []) {
@@ -1605,9 +1618,8 @@ Deno.serve(async (req) => {
           const token = await getSpotifyToken();
           for (let i = 0; i < candidateIds.length; i += 50) {
             const slice = candidateIds.slice(i, i + 50);
-            const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/tracks?ids=${slice.join(",")}`, {
-              headers: { Authorization: `Bearer ${token}` },
-            });
+            const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/tracks?ids=${slice.join(",")}`, { headers: { Authorization: `Bearer ${token}` } }, { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, function_name: 'diagnose-managed-playlist' });
+          if (r.status === 403) run403s++;
             if (!r.ok) continue;
             const j = await r.json();
             for (const tr of j.tracks ?? []) {
@@ -2222,7 +2234,26 @@ Deno.serve(async (req) => {
       });
     }
 
-    return jr({ ok: true, diagnosis: diag, error: dErr?.message, sync: syncRes });
+    // FASE 2 — Atualiza streak de 403 e marca diagnose_blocked após 3 execuções consecutivas com 403.
+    try {
+      if (run403s > 0) {
+        const prev = Number((pl as any).diagnose_403_streak ?? 0);
+        const next = prev + 1;
+        const upd: Record<string, unknown> = { diagnose_403_streak: next };
+        if (next >= 3) {
+          upd.diagnose_blocked = true;
+          upd.diagnose_blocked_at = new Date().toISOString();
+          upd.diagnose_blocked_reason = `403_persistent (${run403s} 403s na execução, streak=${next})`;
+        }
+        await supabase.from("managed_playlists").update(upd).eq("id", pl.id);
+      } else if (Number((pl as any).diagnose_403_streak ?? 0) > 0) {
+        await supabase.from("managed_playlists").update({ diagnose_403_streak: 0 }).eq("id", pl.id);
+      }
+    } catch (e) {
+      console.error("[diagnose] streak update failed:", (e as Error).message);
+    }
+
+    return jr({ ok: true, diagnosis: diag, error: dErr?.message, sync: syncRes, _403_observed: run403s });
   } catch (e) {
     // Circuit breaker aberto: aborta com erro claro em vez de degradar.
     if (e instanceof SpotifyCircuitOpenError) {

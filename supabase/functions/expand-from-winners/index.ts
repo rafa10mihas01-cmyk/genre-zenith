@@ -26,11 +26,12 @@ async function fetchUserPlaylists(token: string, ownerId: string, limit = 50): P
   // Spotify só expõe playlists públicas de usuários comuns.
   // Para owner_type='label' ou ownerId 'spotify', o endpoint pode falhar.
   const url = `https://api.spotify.com/v1/users/${encodeURIComponent(ownerId)}/playlists?limit=${limit}`;
-  const r = await guardedSpotifyFetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const ctx = { spotify_user_id: ownerId, owner_id: ownerId, function_name: "expand-from-winners" } as const;
+  const r = await guardedSpotifyFetch(url, { headers: { Authorization: `Bearer ${token}` } }, ctx);
   if (r.status === 404 || r.status === 403) return [];
   if (r.status === 401) {
     const t2 = await getSpotifyToken(true);
-    const r2 = await guardedSpotifyFetch(url, { headers: { Authorization: `Bearer ${t2}` } });
+    const r2 = await guardedSpotifyFetch(url, { headers: { Authorization: `Bearer ${t2}` } }, ctx);
     if (!r2.ok) return [];
     const j2 = await r2.json();
     return j2.items ?? [];
@@ -87,6 +88,12 @@ async function expandGenre(
 
   if (owners.length === 0) return stats;
 
+  // Carrega editorial blocklist — perfis institucionais retornam 403.
+  const { data: blocklistRows } = await supabase
+    .from("spotify_editorial_blocklist")
+    .select("spotify_user_id");
+  const blocklist = new Set<string>((blocklistRows ?? []).map((r: any) => String(r.spotify_user_id).toLowerCase()));
+
   const token = await getSpotifyToken();
 
   // 2) IDs já existentes nesse gênero (para dedupe rápido)
@@ -97,7 +104,13 @@ async function expandGenre(
   const existingIds = new Set((existing ?? []).map((e: any) => e.spotify_playlist_id).filter(Boolean));
 
   let ownerIdx = 0;
+  let skippedEditorial = 0;
   for (const owner of owners) {
+    if (blocklist.has(String(owner.owner_id).toLowerCase())) {
+      skippedEditorial++;
+      console.log(`[expand] skip editorial_blocked owner=${owner.owner_id}`);
+      continue;
+    }
     if (ownerIdx++ > 0) await sleep(THROTTLE_MS);
     stats.owners_processed++;
     let items: any[] = [];

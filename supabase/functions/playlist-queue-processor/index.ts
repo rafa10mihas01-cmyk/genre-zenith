@@ -60,9 +60,21 @@ const HANDLERS: Record<string, { fn: string; body: (job: Job) => Record<string, 
   },
 };
 
-async function invokeHandler(job: Job): Promise<HandlerOutcome> {
+async function invokeHandler(job: Job, sb: any): Promise<HandlerOutcome> {
   const handler = HANDLERS[job.operation_type];
   if (!handler) return { ok: false, error: `no_handler:${job.operation_type}` };
+
+  // FASE 2 — Skip DIAGNOSE_ENGINE / BRAIN_CALC quando playlist está diagnose_blocked.
+  if (job.operation_type === "DIAGNOSE_ENGINE" || job.operation_type === "BRAIN_CALC") {
+    const { data: mp } = await sb
+      .from("managed_playlists")
+      .select("diagnose_blocked")
+      .eq("id", job.playlist_id)
+      .maybeSingle();
+    if (mp?.diagnose_blocked === true) {
+      return { ok: true, error: "diagnose_blocked_skip" } as HandlerOutcome;
+    }
+  }
 
   const url = `${SUPABASE_URL}/functions/v1/${handler.fn}`;
   let resp: Response;
@@ -188,7 +200,7 @@ Deno.serve(async (req) => {
     if (!job) break; // nada pra processar
 
     processed++;
-    const outcome = await invokeHandler(job);
+    const outcome = await invokeHandler(job, sb);
     const fin = await finishJob(sb, job, outcome);
     if (fin.final === "done") done++;
     else if (fin.final === "failed") failed++;
