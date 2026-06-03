@@ -4969,6 +4969,10 @@ export type Database = {
           curator_id: string | null
           curatorial_state: Database["public"]["Enums"]["curatorial_state"]
           description: string | null
+          diagnose_403_streak: number
+          diagnose_blocked: boolean
+          diagnose_blocked_at: string | null
+          diagnose_blocked_reason: string | null
           followers: number
           genre_id: string | null
           id: string
@@ -5016,6 +5020,10 @@ export type Database = {
           curator_id?: string | null
           curatorial_state?: Database["public"]["Enums"]["curatorial_state"]
           description?: string | null
+          diagnose_403_streak?: number
+          diagnose_blocked?: boolean
+          diagnose_blocked_at?: string | null
+          diagnose_blocked_reason?: string | null
           followers?: number
           genre_id?: string | null
           id?: string
@@ -5063,6 +5071,10 @@ export type Database = {
           curator_id?: string | null
           curatorial_state?: Database["public"]["Enums"]["curatorial_state"]
           description?: string | null
+          diagnose_403_streak?: number
+          diagnose_blocked?: boolean
+          diagnose_blocked_at?: string | null
+          diagnose_blocked_reason?: string | null
           followers?: number
           genre_id?: string | null
           id?: string
@@ -7799,12 +7811,16 @@ export type Database = {
           duration_ms: number | null
           endpoint: string
           error: string | null
+          error_body: string | null
           function_name: string | null
           http_status: number | null
           id: number
           meta: Json | null
           method: string
+          owner_id: string | null
+          playlist_id: string | null
           retry_after_sec: number | null
+          spotify_user_id: string | null
           status: string
         }
         Insert: {
@@ -7816,12 +7832,16 @@ export type Database = {
           duration_ms?: number | null
           endpoint: string
           error?: string | null
+          error_body?: string | null
           function_name?: string | null
           http_status?: number | null
           id?: number
           meta?: Json | null
           method?: string
+          owner_id?: string | null
+          playlist_id?: string | null
           retry_after_sec?: number | null
+          spotify_user_id?: string | null
           status: string
         }
         Update: {
@@ -7833,12 +7853,16 @@ export type Database = {
           duration_ms?: number | null
           endpoint?: string
           error?: string | null
+          error_body?: string | null
           function_name?: string | null
           http_status?: number | null
           id?: number
           meta?: Json | null
           method?: string
+          owner_id?: string | null
+          playlist_id?: string | null
           retry_after_sec?: number | null
+          spotify_user_id?: string | null
           status?: string
         }
         Relationships: []
@@ -7903,6 +7927,27 @@ export type Database = {
           opened_at?: string
           retry_after_sec?: number
           source_function?: string | null
+        }
+        Relationships: []
+      }
+      spotify_editorial_blocklist: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          reason: string
+          spotify_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          reason?: string
+          spotify_user_id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          reason?: string
+          spotify_user_id?: string
         }
         Relationships: []
       }
@@ -8813,6 +8858,15 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      vw_403_audit_report: {
+        Row: {
+          errors_7d: number | null
+          group_key: string | null
+          group_kind: string | null
+          last_seen: string | null
+        }
+        Relationships: []
       }
       vw_campaign_playlist_growth: {
         Row: {
