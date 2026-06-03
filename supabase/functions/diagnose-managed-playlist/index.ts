@@ -506,9 +506,8 @@ Deno.serve(async (req) => {
         // /v1/tracks?ids= (até 50)
         for (let i = 0; i < trackIds.length; i += 50) {
           const ids = trackIds.slice(i, i + 50);
-          const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
+          const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`, { headers: { Authorization: `Bearer ${token}` } }, { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, function_name: 'diagnose-managed-playlist' });
+          if (r.status === 403) run403s++;
           if (!r.ok) continue;
           const j = await r.json();
           for (const tr of j.tracks ?? []) {
@@ -526,9 +525,8 @@ Deno.serve(async (req) => {
         );
         for (let i = 0; i < artistIds.length; i += 50) {
           const ids = artistIds.slice(i, i + 50);
-          const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/artists?ids=${ids.join(",")}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
+          const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/artists?ids=${ids.join(",")}`, { headers: { Authorization: `Bearer ${token}` } }, { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, function_name: 'diagnose-managed-playlist' });
+          if (r.status === 403) run403s++;
           if (!r.ok) continue;
           const j = await r.json();
           for (const ar of j.artists ?? []) {
@@ -1005,9 +1003,8 @@ Deno.serve(async (req) => {
         const candArtistIds = new Map<string, string>(); // trackId → artistId
         for (let i = 0; i < rawCandidates.length; i += 50) {
           const ids = rawCandidates.slice(i, i + 50).map((c) => c.id);
-          const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
+          const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`, { headers: { Authorization: `Bearer ${token}` } }, { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, function_name: 'diagnose-managed-playlist' });
+          if (r.status === 403) run403s++;
           if (!r.ok) continue;
           const j = await r.json();
           for (const tr of j.tracks ?? []) {
@@ -1027,9 +1024,8 @@ Deno.serve(async (req) => {
         const artistPopMap = new Map<string, number | null>();
         for (let i = 0; i < uniqueArtistIds.length; i += 50) {
           const ids = uniqueArtistIds.slice(i, i + 50);
-          const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/artists?ids=${ids.join(",")}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
+          const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/artists?ids=${ids.join(",")}`, { headers: { Authorization: `Bearer ${token}` } }, { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, function_name: 'diagnose-managed-playlist' });
+          if (r.status === 403) run403s++;
           if (!r.ok) continue;
           const j = await r.json();
           for (const ar of j.artists ?? []) {
@@ -1622,9 +1618,8 @@ Deno.serve(async (req) => {
           const token = await getSpotifyToken();
           for (let i = 0; i < candidateIds.length; i += 50) {
             const slice = candidateIds.slice(i, i + 50);
-            const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/tracks?ids=${slice.join(",")}`, {
-              headers: { Authorization: `Bearer ${token}` },
-            });
+            const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/tracks?ids=${slice.join(",")}`, { headers: { Authorization: `Bearer ${token}` } }, { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, function_name: 'diagnose-managed-playlist' });
+          if (r.status === 403) run403s++;
             if (!r.ok) continue;
             const j = await r.json();
             for (const tr of j.tracks ?? []) {
