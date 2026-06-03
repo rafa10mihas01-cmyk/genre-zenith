@@ -844,65 +844,13 @@ export default function CampanhaExecucao() {
                   <TabsTrigger value="status">Acompanhamento</TabsTrigger>
                 </TabsList>
                 <TabsContent value="mapa" className="mt-0 space-y-4">
-                  <div className="flex items-center justify-between gap-3 flex-wrap">
-                    <div className="flex items-center gap-2">
-                      {dominanceReliefPreview && (
-                        <Badge variant="outline" className="gap-1.5 border-primary/40 text-primary">
-                          <Shield className="h-3 w-3" />
-                          Dominance Relief — Preview
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
-                        <Switch
-                          checked={dominanceReliefPreview}
-                          onCheckedChange={handleDominanceReliefPreviewChange}
-                          aria-label="Dominance Relief (simulação)"
-                        />
-                        <span>Dominance Relief <span className="opacity-60">(simulação)</span></span>
-                      </label>
-                      <ReplanButton
-                        campaignId={camp.id}
-                        onReplanned={loadCampaign}
-                        dominanceRelief={dominanceReliefPreview}
-                      />
-                    </div>
+                  <div className="flex items-center justify-end gap-3 flex-wrap">
+                    <ReplanButton
+                      campaignId={camp.id}
+                      onReplanned={loadCampaign}
+                    />
                   </div>
-                  {dominanceReliefPreview && (
-                    <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs">
-                      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-primary mb-2">
-                        <Shield className="h-3 w-3" />
-                        Dominance Relief — simulação ao vivo
-                      </div>
-                      {reliefInlineLoading ? (
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Loader2 className="h-3 w-3 animate-spin" /> Calculando…
-                        </div>
-                      ) : reliefInlineError ? (
-                        <div className="text-destructive">{reliefInlineError}</div>
-                      ) : !reliefInline ? (
-                        <div className="text-muted-foreground">Clique no toggle para calcular a simulação.</div>
-                      ) : reliefInline.applied ? (
-                        <div className="grid grid-cols-3 gap-3">
-                          <div><div className="text-muted-foreground">Top1 antes</div><div className="font-semibold tabular-nums">{reliefInline.top1_before_pct.toFixed(1)}%</div></div>
-                          <div><div className="text-muted-foreground">Top1 depois</div><div className="font-semibold tabular-nums">{reliefInline.top1_after_pct.toFixed(1)}%</div></div>
-                          <div><div className="text-muted-foreground">Δ Top1</div><div className="font-semibold tabular-nums text-primary">−{reliefInline.top1_drop_pp.toFixed(1)}pp</div></div>
-                          <div><div className="text-muted-foreground">Cap usado</div><div className="font-semibold tabular-nums">{reliefInline.cap_used.toLocaleString("pt-BR")}</div></div>
-                          <div><div className="text-muted-foreground">Redistribuído</div><div className="font-semibold tabular-nums">{reliefInline.redistributed_streams.toLocaleString("pt-BR")}</div></div>
-                          <div><div className="text-muted-foreground">+ Playlists</div><div className="font-semibold tabular-nums">{reliefInline.added_count}</div></div>
-                        </div>
-                      ) : (
-                        <div className="text-muted-foreground">
-                          {reliefInline.reason === "no_surplus" ? "Sem concentração excessiva — nada a aliviar." :
-                           reliefInline.reason === "insufficient_pool" ? "Pool insuficiente — plano original preservado." :
-                           reliefInline.reason === "gate_blocked" ? "Ganho abaixo do limite — apenas redistribuição interna aplicada." :
-                           `Não aplicado (${reliefInline.reason}).`}
-                        </div>
-                      )}
-                      <div className="text-[10px] text-muted-foreground italic mt-2">Simulação visual. Não grava nada. Para aplicar, use Replanejar.</div>
-                    </div>
-                  )}
+
                   <CampaignFullPlanCard
                     snapshot={snapshot}
                     startedAt={camp.started_at}
