@@ -1116,7 +1116,7 @@ function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
 
-type ReplanPreview = { added: number; plays_per_day_added: number };
+type ReplanPreview = { added: number; plays_per_day_added: number; message?: string };
 type ReplanStrategy = "daily_need" | "chart_tier";
 
 function ReplanButton({ campaignId, onReplanned }: { campaignId: string; onReplanned: () => void | Promise<void> }) {
@@ -1133,9 +1133,9 @@ function ReplanButton({ campaignId, onReplanned }: { campaignId: string; onRepla
       body: { campaign_id: campaignId, dry_run: true, strategy },
     });
     if (error) throw error;
-    const res = data as { ok: boolean; added?: number; plays_per_day_added?: number; error?: string };
+    const res = data as { ok: boolean; added?: number; plays_per_day_added?: number; message?: string; error?: string };
     if (!res?.ok) throw new Error(res?.error ?? "Falha ao calcular replanejamento");
-    return { added: Number(res.added ?? 0), plays_per_day_added: Number(res.plays_per_day_added ?? 0) };
+    return { added: Number(res.added ?? 0), plays_per_day_added: Number(res.plays_per_day_added ?? 0), message: res.message };
   };
 
   const handleOpen = async () => {
@@ -1228,7 +1228,7 @@ function ReplanButton({ campaignId, onReplanned }: { campaignId: string; onRepla
           ) : !hasAny ? (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Nenhuma playlist nova do gênero primário fora do plano atual.
+                {previews.chart_tier?.message ?? previews.daily_need?.message ?? "Nenhuma playlist nova para adicionar ao plano atual."}
               </p>
               <div className="flex justify-end">
                 <Button variant="outline" size="sm" onClick={() => setOpen(false)}>Fechar</Button>
