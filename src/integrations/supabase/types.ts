@@ -451,6 +451,75 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_ingest_raw: {
+        Row: {
+          campaign_id: string | null
+          correlation_id: string | null
+          created_at: string
+          deal_id: string | null
+          endpoint: string
+          expires_at: string
+          headers_json: Json | null
+          http_method: string | null
+          id: string
+          ip: string | null
+          payload_hash: string | null
+          payload_json: Json
+          payload_size_bytes: number | null
+          processed: boolean
+          processed_at: string | null
+          processing_result: Json | null
+          snapshot_id: string | null
+          song_id: string | null
+          source: string
+          worker_id: string | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          correlation_id?: string | null
+          created_at?: string
+          deal_id?: string | null
+          endpoint: string
+          expires_at?: string
+          headers_json?: Json | null
+          http_method?: string | null
+          id?: string
+          ip?: string | null
+          payload_hash?: string | null
+          payload_json: Json
+          payload_size_bytes?: number | null
+          processed?: boolean
+          processed_at?: string | null
+          processing_result?: Json | null
+          snapshot_id?: string | null
+          song_id?: string | null
+          source: string
+          worker_id?: string | null
+        }
+        Update: {
+          campaign_id?: string | null
+          correlation_id?: string | null
+          created_at?: string
+          deal_id?: string | null
+          endpoint?: string
+          expires_at?: string
+          headers_json?: Json | null
+          http_method?: string | null
+          id?: string
+          ip?: string | null
+          payload_hash?: string | null
+          payload_json?: Json
+          payload_size_bytes?: number | null
+          processed?: boolean
+          processed_at?: string | null
+          processing_result?: Json | null
+          snapshot_id?: string | null
+          song_id?: string | null
+          source?: string
+          worker_id?: string | null
+        }
+        Relationships: []
+      }
       bot_print_batches: {
         Row: {
           batch_key: string
@@ -9285,6 +9354,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      cleanup_bot_ingest_raw: { Args: never; Returns: number }
       cleanup_old_bot_prints: { Args: never; Returns: Json }
       cleanup_old_logs: { Args: never; Returns: Json }
       cleanup_old_logs_and_snapshots: { Args: never; Returns: Json }
