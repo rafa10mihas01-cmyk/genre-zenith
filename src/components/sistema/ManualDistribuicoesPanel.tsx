@@ -20,9 +20,14 @@ type Item = {
   spotify_track_id: string | null;
   job_type: string | null;
   position: number | null;
+  planned_position: number | null;
+  executed_position: number | null;
   motivo: string;
   status: string;
   created_at: string;
+  observacao: string | null;
+  completed_at: string | null;
+  completed_by: string | null;
 };
 
 const reasonLabel: Record<string, string> = {
@@ -30,7 +35,7 @@ const reasonLabel: Record<string, string> = {
   spotify_403: "Spotify 403 (sem permissão)",
   spotify_429: "Spotify 429 (rate-limit)",
   no_account_connected: "Nenhuma conta conectada",
-  owner_without_token: "Owner sem token",
+  owner_without_token: "Owner sem token OAuth",
   playlist_collaborative: "Playlist colaborativa",
 };
 
