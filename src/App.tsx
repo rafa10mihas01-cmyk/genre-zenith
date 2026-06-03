@@ -63,12 +63,15 @@ const Benchmarks = lazy(() => import("./pages/Benchmarks"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Defaults globais de cache: navegação "instantânea" sem reload visual.
+// Dia 1 perf: refetchOnWindowFocus DESLIGADO globalmente (cada troca de aba
+// disparava dezenas de queries inúteis). Hooks que precisam de refetch ao
+// voltar (notificações, financeiro) ativam localmente.
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 60_000,
-      gcTime: 5 * 60_000,
-      refetchOnWindowFocus: true,
+      staleTime: 2 * 60_000,           // 2 min (antes: 1 min)
+      gcTime: 10 * 60_000,             // 10 min (antes: 5 min)
+      refetchOnWindowFocus: false,     // antes: true
       refetchOnReconnect: true,
       retry: 1,
     },
