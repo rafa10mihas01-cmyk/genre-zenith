@@ -114,9 +114,12 @@ export default function MapaCampanhaPublico() {
         setErr(payload?.error ?? error?.message ?? "erro");
         setCamp(null);
         setAllocs([]);
+        setRadioCollectedTotal(null);
       } else {
         setCamp(payload?.campaign ?? null);
         setAllocs(payload?.allocations ?? []);
+        const collected = Number(payload?.organic_summary?.total_plays ?? 0);
+        setRadioCollectedTotal(collected > 0 ? collected : null);
         setErr(null);
       }
       setLoading(false);
