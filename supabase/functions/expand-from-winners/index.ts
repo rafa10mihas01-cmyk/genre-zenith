@@ -14,7 +14,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { loadGateContext, scoreAndGate } from "../_shared/discovery-scoring.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
-import { getSpotifyToken, guardedSpotifyFetch } from "../_shared/spotify.ts";
+import { getSpotifyToken, guardedSpotifyFetch, setSpotifyCtx } from "../_shared/spotify.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
