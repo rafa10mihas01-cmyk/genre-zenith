@@ -911,6 +911,29 @@ function PlaylistRow({
         {cfg.label}
       </span>
 
+      {/* badge revalidação — só quando job está done */}
+      {row.state.status === "done" && row.state.validationStatus && (() => {
+        const vs = row.state.validationStatus;
+        const map: Record<string, { label: string; cls: string; icon: typeof Clock; tooltip: string }> = {
+          present: { label: "Presente", cls: "bg-primary/15 text-primary border-primary/30", icon: CheckCircle2, tooltip: "Faixa segue na posição planejada" },
+          moved: { label: `Pos. ${row.state.validationPosition ?? "?"}`, cls: "bg-amber-500/15 text-amber-400 border-amber-500/30", icon: AlertCircle, tooltip: `Faixa mudou de posição (planejado: ${row.plannedPosition ?? "?"} · real: ${row.state.validationPosition ?? "?"})` },
+          duplicate: { label: "Duplicada", cls: "bg-amber-500/15 text-amber-400 border-amber-500/30", icon: AlertCircle, tooltip: "Faixa aparece mais de uma vez na playlist" },
+          removed: { label: "Removida", cls: "bg-rose-500/15 text-rose-400 border-rose-500/30", icon: XCircle, tooltip: "Faixa não está mais na playlist (curador removeu)" },
+          error: { label: "Sem checagem", cls: "bg-muted text-muted-foreground border-border", icon: AlertCircle, tooltip: "Não foi possível verificar (token/erro Spotify)" },
+        };
+        const v = map[vs] ?? map.error;
+        const VIcon = v.icon;
+        return (
+          <span
+            className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] border shrink-0", v.cls)}
+            title={`${v.tooltip}${row.state.validatedAt ? ` · checado ${fmtDateTime(row.state.validatedAt)}` : ""}`}
+          >
+            <VIcon className="h-3 w-3" />
+            {v.label}
+          </span>
+        );
+      })()}
+
       {/* retry */}
       {row.state.status === "failed" && onRetry && (
         <Button size="sm" variant="ghost" onClick={() => onRetry()} className="h-7 px-2 text-[11px] shrink-0">
