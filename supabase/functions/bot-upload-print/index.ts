@@ -93,6 +93,28 @@ Deno.serve(async (req) => {
           if (Array.isArray(parsed)) domPlaylists = parsed;
         } catch (_) { /* ignore */ }
       }
+    } else if (ct.includes("application/json")) {
+      // Bridge VPS manda { content_base64, deal_id, song_id, label, correlation_id, dom_playlists }
+      const body = await req.json();
+      const b64Raw: string = body?.content_base64 ?? body?.file_base64 ?? body?.image_base64 ?? "";
+      if (typeof b64Raw !== "string" || !b64Raw) {
+        return jr({ error: "content_base64 required" }, 400);
+      }
+      // Aceita data URL ("data:image/png;base64,...") ou base64 puro
+      const b64 = b64Raw.includes(",") ? b64Raw.split(",", 2)[1] : b64Raw;
+      try {
+        const bin = atob(b64.replace(/\s+/g, ""));
+        const arr = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+        bytes = arr;
+      } catch (e) {
+        return jr({ error: "invalid_base64", detail: String(e) }, 400);
+      }
+      dealId = body?.deal_id || dealId;
+      songId = body?.song_id || songId;
+      label = body?.label || label;
+      correlationId = body?.correlation_id || correlationId;
+      if (Array.isArray(body?.dom_playlists)) domPlaylists = body.dom_playlists;
     } else {
       const buf = await req.arrayBuffer();
       bytes = new Uint8Array(buf);
@@ -106,6 +128,20 @@ Deno.serve(async (req) => {
     }
   } catch (e) {
     return jr({ error: "invalid_body", detail: String(e) }, 400);
+  }
+
+  // Sanity check: PNG começa com magic bytes 89 50 4E 47. Se vier outra coisa
+  // (ex: JSON tratado como bytes), rejeita pra não poluir storage com lixo.
+  if (bytes && bytes.length >= 4) {
+    const isPng = bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47;
+    const isJpg = bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF;
+    if (!isPng && !isJpg) {
+      return jr({
+        error: "invalid_image_bytes",
+        detail: "Body não começa com magic bytes de PNG/JPEG. Verifique se o bridge mandou bytes corretos ou base64 válido.",
+        first_bytes_hex: Array.from(bytes.slice(0, 8)).map((b) => b.toString(16).padStart(2, "0")).join(" "),
+      }, 415);
+    }
   }
 
   if (!bytes || bytes.length === 0) return jr({ error: "empty_file" }, 400);
