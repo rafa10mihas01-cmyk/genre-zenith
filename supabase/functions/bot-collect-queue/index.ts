@@ -306,8 +306,12 @@ Deno.serve(async (req) => {
     s.s4a_song_url = s4aSongUrl;
     s.song_s4a_url = s4aSongUrl;
     s.url = s4aSongUrl;
-    s.requires_playlist_breakdown = isCampaignInternal(s);
-    s.capture_mode = isCampaignInternal(s) ? "playlist_breakdown_required" : "curator_playlist_breakdown";
+    // Backend (bot-ingest-snapshot) rejeita payload agregado para QUALQUER song
+    // com auto_collect=true (não só campaign_internal). Como bot-collect-queue
+    // só entrega rows com auto_collect=true, 100% precisa de breakdown.
+    // Alinhar a flag aqui evita o 422 "playlist_breakdown_required" no worker.
+    s.requires_playlist_breakdown = true;
+    s.capture_mode = "playlist_breakdown_required";
     s.ingest_contract = isCampaignInternal(s)
       ? "send_playlist_rows_not_aggregate"
       : "send_curator_playlist_rows";
