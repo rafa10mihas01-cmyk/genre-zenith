@@ -662,6 +662,31 @@ export default function CampanhaExecucao() {
     return <PageLoader />;
   }
 
+  if (loadError) {
+    return (
+      <PageContainer>
+        <PageHeader domain="campaigns" title="Execução" subtitle="Falha ao carregar campanha" />
+        <div className="rounded-2xl border border-destructive/40 bg-destructive/10 p-5 text-sm text-foreground-body">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+            <div className="min-w-0 space-y-3">
+              <p className="font-medium text-foreground">Não foi possível carregar esta campanha agora.</p>
+              <p className="text-muted-foreground break-words">{loadError}</p>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={loadCampaign}>
+                  <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Tentar novamente
+                </Button>
+                <Button asChild variant="ghost" size="sm">
+                  <Link to="/campanhas"><ArrowLeft className="mr-1.5 h-3.5 w-3.5" /> Voltar</Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </PageContainer>
+    );
+  }
+
 
   if (!camp || !snapshot) {
     return (
