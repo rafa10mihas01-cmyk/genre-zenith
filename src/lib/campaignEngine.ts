@@ -174,15 +174,27 @@ export function buildCurve(
   if (sumW <= 0) return [];
 
   // Distribui meta proporcional ao envelope; corrige resíduo no último dia ativo.
-  const result: CurvaPonto[] = [];
+  const raw: number[] = new Array(days).fill(0);
   let allocated = 0;
-  let cum = 0;
   for (let i = 0; i < days; i++) {
     const isLast = i === days - 1;
     const sd = isLast
       ? Math.max(0, meta - allocated)
       : Math.round((meta * weights[i]) / sumW);
     allocated += sd;
+    raw[i] = sd;
+  }
+
+  // Piso mínimo da rampa: eleva dias < MIN_DAILY_STREAMS pro piso e
+  // compensa retirando proporcionalmente dos dias mais fortes. Só aplica
+  // quando meta >= MIN_FLOOR_META e existir superávit suficiente.
+  // A soma final permanece exatamente igual a `meta`.
+  const floored = applyMinDailyFloor(raw, meta);
+
+  const result: CurvaPonto[] = [];
+  let cum = 0;
+  for (let i = 0; i < days; i++) {
+    const sd = floored[i];
     const eco = Math.round(sd * ecoFrac);
     const ext = Math.max(0, sd - eco);
     cum += sd;
@@ -195,6 +207,63 @@ export function buildCurve(
     });
   }
   return result;
+}
+
+/** Piso mínimo de streams/dia aplicado à curva da campanha. */
+export const MIN_DAILY_STREAMS = 500;
+/** Só aplica o piso a partir desta meta total (campanhas pequenas mantêm comportamento atual). */
+export const MIN_FLOOR_META = 20_000;
+
+/**
+ * Eleva todo dia abaixo de MIN_DAILY_STREAMS para o piso e retira o excedente
+ * proporcionalmente dos dias acima do piso (preservando o total exato).
+ * Sai sem alterar quando a campanha for pequena demais para sustentar o piso.
+ */
+export function applyMinDailyFloor(daily: number[], meta: number, floor: number = MIN_DAILY_STREAMS): number[] {
+  const n = daily.length;
+  if (n === 0 || meta < MIN_FLOOR_META) return daily.slice();
+  if (meta / n < floor) return daily.slice();
+
+  const out = daily.slice();
+  const belowIdx: number[] = [];
+  const aboveIdx: number[] = [];
+  let deficit = 0;
+  let surplusTotal = 0;
+  for (let i = 0; i < n; i++) {
+    if (out[i] < floor) { deficit += floor - out[i]; belowIdx.push(i); }
+    else if (out[i] > floor) { surplusTotal += out[i] - floor; aboveIdx.push(i); }
+  }
+  if (deficit === 0) return out;
+  if (surplusTotal < deficit) return daily.slice();
+
+  for (const i of belowIdx) out[i] = floor;
+
+  const keepFrac = (surplusTotal - deficit) / surplusTotal;
+  let removed = 0;
+  for (const i of aboveIdx) {
+    const newVal = Math.max(floor, Math.round(floor + (out[i] - floor) * keepFrac));
+    removed += out[i] - newVal;
+    out[i] = newVal;
+  }
+
+  // Acerta resíduo de arredondamento mantendo todos >= floor e soma = meta.
+  let drift = removed - deficit;
+  if (drift !== 0 && aboveIdx.length > 0) {
+    const sorted = [...aboveIdx].sort((a, b) => out[b] - out[a]);
+    if (drift > 0) {
+      out[sorted[0]] += drift;
+    } else {
+      let need = -drift;
+      for (const i of sorted) {
+        if (need === 0) break;
+        const slack = out[i] - floor;
+        const take = Math.min(slack, need);
+        out[i] -= take;
+        need -= take;
+      }
+    }
+  }
+  return out;
 }
 
 
