@@ -168,7 +168,12 @@ Deno.serve(async (req) => {
 
     .or(`next_auto_collect_at.is.null,next_auto_collect_at.lte.${new Date().toISOString()}`)
     .order("next_auto_collect_at", { ascending: true, nullsFirst: true })
-    .limit(limit);
+    // Over-fetch: o filtro JS abaixo descarta deals em modo planilha, curador pausado
+    // e tokens expirados. Sem isso, 1 song "envenenada" no topo (ex.: spreadsheet
+    // sobrando) pode zerar a fila inteira quando o bot pede limit=1.
+    // Bug histórico: 02/06/2026 → 04/06/2026 — Eu Já Era Trap (spreadsheet) bloqueou
+    // a coleta das baselines de Sorriso/Se Fosse Eu/Cabeça/Primeira Lágrima por 36h.
+    .limit(Math.min(50, Math.max(limit * 5, 10)));
 
   if (error) return jr({ error: error.message }, 500);
 
@@ -209,7 +214,10 @@ Deno.serve(async (req) => {
   }
 
   const isCampaignInternal = (s: any) => s?.curator_deals?.source === "campaign_internal" || !!s?.curator_deals?.campaign_id;
-  const eligible = candidates.filter((s: any) => isCampaignInternal(s) || dealsWithWhitelist.has(s.deal_id));
+  const eligibleAll = candidates.filter((s: any) => isCampaignInternal(s) || dealsWithWhitelist.has(s.deal_id));
+  // Respeita o `limit` pedido pelo bot — over-fetch acima é só pra atravessar
+  // deals filtrados (spreadsheet/pausado), não pra inflar o batch entregue.
+  const eligible = eligibleAll.slice(0, limit);
   for (const s of eligible as any[]) {
     const rows = whitelistsByDeal.get(s.deal_id) ?? [];
     const scoped = rows.filter((p: any) => !p.song_id || p.song_id === s.id);
