@@ -36,6 +36,9 @@ type JobRow = {
   last_error: string | null;
   from_position: number | null;
   to_position: number | null;
+  last_validated_at: string | null;
+  last_validation_status: string | null;
+  last_validation_position: number | null;
 };
 
 type BotHealth = {
