@@ -18,18 +18,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Listener FIRST
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-    });
-    // Then fetch existing session
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
+    let done = false;
+    const finish = (s: Session | null) => {
+      if (done) return;
+      done = true;
       setSession(s);
       setUser(s?.user ?? null);
       setLoading(false);
+    };
+
+    // Listener FIRST — destrava o boot na primeira mudança de estado
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s);
+      setUser(s?.user ?? null);
+      if (!done) {
+        done = true;
+        setLoading(false);
+      }
     });
-    return () => sub.subscription.unsubscribe();
+
+    // Then fetch existing session
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      finish(s);
+    }).catch(() => {
+      // gotrue indisponível — libera o app mesmo assim (rotas protegidas vão
+      // redirecionar pra /auth se não houver sessão).
+      finish(null);
+    });
+
+    // Hard fallback: se em 4s nada resolveu (lock preso, gotrue 504),
+    // libera o splash pra não deixar o usuário travado na tela preta.
+    const safety = setTimeout(() => finish(null), 4000);
+
+    return () => {
+      clearTimeout(safety);
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
