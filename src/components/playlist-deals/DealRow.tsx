@@ -214,7 +214,7 @@ function DealRowImpl(props: DealRowProps) {
                 Coleta Excel
               </span>
             )}
-            <DealDeliveryBadge row={deliveryMap[deal.id]} />
+            <DealDeliveryBadge row={resolvedDelivery} />
           </div>
         </button>
       </div>
