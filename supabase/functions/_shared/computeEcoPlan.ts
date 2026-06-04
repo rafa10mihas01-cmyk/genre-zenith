@@ -1,6 +1,13 @@
 // Shared eco-plan compute — mirrors src/lib/campaignOperationalPlan.ts.
 // Single source of truth used by edge functions that need the daily matrix.
-import { ECO_CURVE_LOSS_COMPENSATION } from "./eco-constants.ts";
+import {
+  ECO_CURVE_LOSS_COMPENSATION,
+  MIN_PLAYLIST_DAILY_STREAMS,
+  deepestPositionMeetingFloor,
+  applyPlaylistDailyFloor,
+} from "./eco-constants.ts";
+
+export { MIN_PLAYLIST_DAILY_STREAMS };
 
 export const POSITION_PCT: number[] = [
   0.12, 0.10, 0.08, 0.07, 0.06,
