@@ -1038,52 +1038,61 @@ export function buildEcoPlaylistPlan(
     const positionByDay = Array.from({ length: planLen }, (_, i) =>
       positionForDay(pos, i + 1, tailStart, tailDays),
     );
+    // RAMPA ABSOLUTA piso→cap em RAMP_STEPS dias:
+    //   dia 0 = FLOOR (500)
+    //   dia 1 = FLOOR + (cap-FLOOR)/3
+    //   dia 2 = FLOOR + 2(cap-FLOOR)/3
+    //   dia 3+ = cap (com growth/weekday)
+    // Cada playlist sobe na PRÓPRIA escada até o teto da posição dela —
+    // sem achatar grandes (CÊ TÁ DOIDO cap 5.6k começa em 500 e bate 5.6k no dia 4)
+    // nem deixar pequenas grudadas só no piso (Bia cap 1.4k vai 500→823→1.146→1.470).
+    const FLOOR = MIN_PLAYLIST_DAILY_STREAMS;
+    const RAMP_STEPS = 3;
     for (let i = startDay - 1; i < planLen; i++) {
-      // Ramp suave nos primeiros dias de entrada na playlist.
       const rampIdx = i - (startDay - 1);
-      const ramp = rampIdx < ECO_RAMP.length ? ECO_RAMP[rampIdx] : 1;
-      // Boost algorítmico (compounding +5/-3) após a rampa.
-      const growthIdx = rampIdx - ECO_RAMP.length;
-      const growth = growthIdx >= 0 ? ecoGrowthFactor(growthIdx) : 1;
-      // Dia da semana (se conhecido).
       let weekday = 1;
       if (startValid) {
         const d = new Date(startBase!);
         d.setDate(d.getDate() + i);
         weekday = WEEKDAY_FLAT_FACTOR[d.getDay()] ?? 1;
       }
-      // Cap do dia: usa POSITION_PCT da posição planejada no dia (rebaixada
-      // na fase de saída). No platô, posição = base → dayCap = baseCap.
       const dayCap = Math.max(1, Math.round(
         calculateTrackDailyStreams(followers, multiplier, positionByDay[i]),
       ));
-      daily[i] = Math.max(1, Math.round(dayCap * ramp * growth * weekday));
+      let value: number;
+      if (rampIdx < RAMP_STEPS && dayCap > FLOOR) {
+        // Rampa limpa: sem weekday/growth nos primeiros dias.
+        const t = rampIdx / RAMP_STEPS;
+        value = Math.round(FLOOR + (dayCap - FLOOR) * t);
+      } else {
+        const growthIdx = rampIdx - RAMP_STEPS;
+        const growth = growthIdx >= 0 ? ecoGrowthFactor(growthIdx) : 1;
+        value = Math.round(dayCap * growth * weekday);
+      }
+      daily[i] = Math.max(FLOOR, value);
     }
 
-    // Downscale só é acionado se o plano teórico estourar MUITO o planned_streams
-    // (folga de 5% pra absorver weekday/growth). Isso evita squashing do boost.
+    // ENCURTA janela ativa pelo FIM se rawTotal > planned_streams.
+    // Em vez de achatar proporcionalmente (que destruía a rampa e travava
+    // playlists grandes em ~1k/dia), zera/reduz dias do final mantendo cada
+    // dia ativo entregando ~cap/dia. Última reentrada nunca cai abaixo do piso.
     const targetTotal = Math.max(0, Math.round(a.planned_streams || 0));
-    const rawTotal = daily.reduce((s, v) => s + v, 0);
+    let rawTotal = daily.reduce((s, v) => s + v, 0);
     if (targetTotal > 0 && rawTotal > targetTotal * 1.05) {
-      let allocated = 0;
-      for (let i = 0; i < daily.length; i++) {
+      for (let i = daily.length - 1; i >= startDay - 1 && rawTotal > targetTotal; i--) {
         if (daily[i] <= 0) continue;
-        const scaled = Math.max(0, Math.round((daily[i] / rawTotal) * targetTotal));
-        daily[i] = Math.min(scaled, Math.max(0, targetTotal - allocated));
-        allocated += daily[i];
-      }
-      let delta = targetTotal - allocated;
-      for (let i = daily.length - 1; i >= 0 && delta !== 0; i--) {
-        if (rawTotal > 0 && (daily[i] > 0 || i >= startDay - 1)) {
-          daily[i] += delta;
-          delta = 0;
+        const excess = rawTotal - targetTotal;
+        if (daily[i] - excess >= FLOOR) {
+          daily[i] -= excess;
+          rawTotal -= excess;
+        } else {
+          rawTotal -= daily[i];
+          daily[i] = 0;
         }
       }
     }
 
-    // PISO 500/dia POR DIA ATIVO — eleva dias < piso pro piso e retira o
-    // excesso dos dias acima do piso. Preserva total_streams da playlist
-    // (e portanto a meta total da campanha).
+    // Safety net: garante piso em todo dia ativo restante (preserva total).
     const flooredDaily = applyPlaylistDailyFloor(daily, MIN_PLAYLIST_DAILY_STREAMS);
     for (let i = 0; i < daily.length; i++) daily[i] = flooredDaily[i];
 
