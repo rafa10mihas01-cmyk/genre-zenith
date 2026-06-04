@@ -12,7 +12,7 @@ export type EcoPlanInput = {
   start_day: number;
   /** Posição persistida em campaign_eco_allocations.position. Null = ainda não materializada → cai no fallback dinâmico. */
   position?: number | null;
-  managed_playlists?: { name: string; followers: number; cover_url?: string | null } | null;
+  managed_playlists?: { name: string; followers: number; cover_url?: string | null; engagement_multiplier_override?: number | null } | null;
 };
 
 export type ExternalPlanInput = {
