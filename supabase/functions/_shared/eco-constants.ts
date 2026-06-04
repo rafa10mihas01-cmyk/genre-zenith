@@ -51,30 +51,53 @@ export function deepestPositionMeetingFloor(
 
 /**
  * Aplica o piso à curva diária de UMA playlist, preservando o total exato.
- * 1) Eleva todo dia ativo (>0) pra max(d, floor).
- * 2) Calcula excesso = soma_pos_floor - soma_original.
- * 3) Retira excesso dos dias mais fortes (acima do floor), proporcional ao
- *    quanto excedem. Repete até zerar o excesso ou esgotar margem.
- * Se planned_streams < floor × active_days, o piso "ganha" e total sobe
- * (caso raro — caller deve evitar via promoção/expulsão prévia).
+ *
+ * Caso A — total ≥ piso × dias_ativos:
+ *   eleva dias < piso pro piso e retira o excesso dos dias acima do piso.
+ *
+ * Caso B — total < piso × dias_ativos (planned_streams pequeno demais):
+ *   encurta a janela. Mantém só `floor(total / piso)` dias em piso e coloca
+ *   o resto num único dia final (≥ piso). Demais dias ativos viram 0.
+ *   Isso garante que NENHUM dia entregue abaixo do piso e o total não muda.
  */
 export function applyPlaylistDailyFloor(
   daily: number[],
   floor: number = MIN_PLAYLIST_DAILY_STREAMS,
 ): number[] {
-  if (!daily.length) return daily;
+  if (!daily.length || floor <= 0) return daily;
   const originalTotal = daily.reduce((s, v) => s + v, 0);
+  if (originalTotal <= 0) return daily;
+  const activeIdx: number[] = [];
+  for (let i = 0; i < daily.length; i++) if (daily[i] > 0) activeIdx.push(i);
+  if (activeIdx.length === 0) return daily;
+
   const out = daily.slice();
-  // Passo 1: piso nos dias ativos.
+
+  // Caso B: total não cabe em piso × dias_ativos → encurta janela.
+  if (originalTotal < floor * activeIdx.length) {
+    // Zera todos os dias ativos primeiro.
+    for (const i of activeIdx) out[i] = 0;
+    // Quantos dias cabem em piso. Se total < piso, vira 1 dia com o total cheio.
+    const fullDays = Math.max(1, Math.floor(originalTotal / floor));
+    const keep = Math.min(fullDays, activeIdx.length);
+    let remaining = originalTotal;
+    for (let k = 0; k < keep - 1; k++) {
+      out[activeIdx[k]] = floor;
+      remaining -= floor;
+    }
+    // Último dia absorve o resto (≥ piso por construção, ou = total se total < piso).
+    out[activeIdx[keep - 1]] = Math.max(floor, remaining);
+    return out;
+  }
+
+  // Caso A: eleva dias < piso e compensa nos dias > piso.
   for (let i = 0; i < out.length; i++) {
     if (out[i] > 0 && out[i] < floor) out[i] = floor;
   }
-  // Passo 2: compensar retirando dos dias acima do floor.
   let excess = out.reduce((s, v) => s + v, 0) - originalTotal;
   if (excess <= 0) return out;
   let guard = out.length * 100;
   while (excess > 0 && guard-- > 0) {
-    // Capacidade total acima do floor neste passo.
     let headroom = 0;
     for (const v of out) if (v > floor) headroom += v - floor;
     if (headroom <= 0) break;
