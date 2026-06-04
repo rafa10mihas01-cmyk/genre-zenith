@@ -201,7 +201,7 @@ export default function CampanhaExecucao() {
         .maybeSingle(),
       supabase
         .from("campaign_eco_allocations")
-        .select("id, managed_playlist_id, planned_streams, start_day, status, dispatched_at, position, genre_source, genre_affinity_score, managed_playlists(name, cover_url, followers, spotify_url, spotify_playlist_id, genre_id)")
+        .select("id, managed_playlist_id, planned_streams, start_day, status, dispatched_at, position, genre_source, genre_affinity_score, managed_playlists(name, cover_url, followers, spotify_url, spotify_playlist_id, genre_id, engagement_multiplier_override)")
         .eq("campaign_id", id)
         .order("planned_streams", { ascending: false }),
       supabase

@@ -103,7 +103,7 @@ Deno.serve(async (req) => {
 
   const { data: allocs, error: aErr } = await admin
     .from("campaign_eco_allocations")
-    .select("id, planned_streams, start_day, status, position, managed_playlists(id, name, cover_url, followers, spotify_url)")
+    .select("id, planned_streams, start_day, status, position, managed_playlists(id, name, cover_url, followers, spotify_url, engagement_multiplier_override)")
     .eq("campaign_id", campaignId);
   if (aErr) return jr({ error: aErr.message }, 500);
 
