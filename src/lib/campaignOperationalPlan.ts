@@ -1061,7 +1061,8 @@ export function buildEcoPlaylistPlan(
       // Cap do dia: usa POSITION_PCT da posição planejada no dia (rebaixada
       // na fase de saída). No platô, posição = base → dayCap = baseCap.
       const dayCap = Math.max(1, Math.round(
-        calculateTrackDailyStreams(followers, multiplier, positionByDay[i]),
+        calculateTrackDailyStreams(followers, effMult, positionByDay[i]),
+
       ));
       daily[i] = Math.max(1, Math.round(dayCap * ramp * growth * weekday));
     }
