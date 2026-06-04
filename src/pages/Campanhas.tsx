@@ -717,9 +717,17 @@ function CampaignRow({ c }: { c: Campaign }) {
                 );
               }
               if (c.plan_approved_at && !hasBaseline) {
+                const bstatus = (c as any).baseline_status as string | null | undefined;
                 return (
-                  <span className="text-[10px] uppercase tracking-wider rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-primary">
-                    Plano aprovado
+                  <span
+                    className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-amber-500"
+                    title="Bot ainda não capturou a baseline. Coleta roda automaticamente no próximo ciclo do bot Spotify."
+                  >
+                    <span className="relative inline-flex h-1.5 w-1.5">
+                      <span className="absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-60 animate-ping" />
+                      <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-500" />
+                    </span>
+                    {bstatus === "failed" ? "Baseline falhou" : "Aguardando baseline (bot)"}
                   </span>
                 );
               }
