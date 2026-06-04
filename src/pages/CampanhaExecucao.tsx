@@ -197,6 +197,10 @@ export default function CampanhaExecucao() {
     if (!id) return;
     setLoading(true);
     setLoadError(null);
+    const timeout = window.setTimeout(() => {
+      setLoadError("Tempo excedido ao carregar dados da campanha. Tente novamente.");
+      setLoading(false);
+    }, 8000);
     try {
     const [{ data: c }, { data: a }, { data: s }, { data: pkg }] = await Promise.all([
       supabase
@@ -469,6 +473,7 @@ export default function CampanhaExecucao() {
       console.error("Falha ao carregar execução da campanha", e);
       setLoadError(getErrorMessage(e, "Falha ao carregar campanha"));
     } finally {
+      window.clearTimeout(timeout);
       setLoading(false);
     }
   };
