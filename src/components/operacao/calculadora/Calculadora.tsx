@@ -86,7 +86,7 @@ type Song = {
 };
 
 
-const ENGAGEMENT_PRESETS = [18, 30, 50] as const;
+const ENGAGEMENT_PRESETS = [18, 35, 50] as const;
 
 const STORAGE_KEY_V2 = "nx:calc:state:v2";
 const STORAGE_KEY_V1 = "nx:calculadora:state:v1";
