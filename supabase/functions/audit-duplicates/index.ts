@@ -8,21 +8,21 @@ Deno.serve(async (req) => {
 
   const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
-  // pega jobs done de campanhas ativas
+  const { data: camps } = await sb.from('campaigns').select('id, track_name, spotify_track_id').eq('status', 'active');
+  const campMap = new Map((camps ?? []).map(c => [c.id, c]));
   const { data: jobs, error: je } = await sb
     .from('playlist_execution_jobs')
-    .select('spotify_playlist_id, to_position, campaign_id, campaigns!inner(track_name, spotify_track_id, status)')
+    .select('spotify_playlist_id, to_position, campaign_id')
     .eq('status', 'done')
-    .eq('job_type', 'playlist.track.add');
+    .eq('job_type', 'playlist.track.add')
+    .in('campaign_id', [...campMap.keys()]);
   if (je) return new Response(JSON.stringify({ error: je.message }), { status: 500, headers: corsHeaders });
 
-  const active = (jobs ?? []).filter((j: any) => j.campaigns.status === 'active');
-
-  // dedupe por (playlist, track)
   const uniq = new Map<string, any>();
-  for (const j of active) {
-    const k = `${j.spotify_playlist_id}|${j.campaigns.spotify_track_id}`;
-    if (!uniq.has(k)) uniq.set(k, j);
+  for (const j of jobs ?? []) {
+    const c = campMap.get(j.campaign_id); if (!c) continue;
+    const k = `${j.spotify_playlist_id}|${c.spotify_track_id}`;
+    if (!uniq.has(k)) uniq.set(k, { ...j, track_name: c.track_name, spotify_track_id: c.spotify_track_id });
   }
 
   // mapa playlist -> account/token
