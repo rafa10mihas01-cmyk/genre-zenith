@@ -168,7 +168,12 @@ Deno.serve(async (req) => {
 
     .or(`next_auto_collect_at.is.null,next_auto_collect_at.lte.${new Date().toISOString()}`)
     .order("next_auto_collect_at", { ascending: true, nullsFirst: true })
-    .limit(limit);
+    // Over-fetch: o filtro JS abaixo descarta deals em modo planilha, curador pausado
+    // e tokens expirados. Sem isso, 1 song "envenenada" no topo (ex.: spreadsheet
+    // sobrando) pode zerar a fila inteira quando o bot pede limit=1.
+    // Bug histórico: 02/06/2026 → 04/06/2026 — Eu Já Era Trap (spreadsheet) bloqueou
+    // a coleta das baselines de Sorriso/Se Fosse Eu/Cabeça/Primeira Lágrima por 36h.
+    .limit(Math.min(50, Math.max(limit * 5, 10)));
 
   if (error) return jr({ error: error.message }, 500);
 
