@@ -831,6 +831,9 @@ type PlaylistRowState = {
   lastError: string | null;
   jobId: string | null;
   completedAt: string | null;
+  validationStatus: string | null;
+  validationPosition: number | null;
+  validatedAt: string | null;
 };
 function PlaylistRow({
   row,
