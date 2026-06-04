@@ -29,7 +29,7 @@ import {
 import { StatusDot, type StatusVariant } from "@/components/ui/status-dot";
 import { MetricCell } from "@/components/ui/metric-cell";
 import { DealDeliveryBadge } from "@/components/playlist-deals/DealDeliveryBadge";
-import { useDeliveryStatusMap } from "@/hooks/useDeliveryStatus";
+import { useDeliveryStatusMap, type DeliveryStatusRow } from "@/hooks/useDeliveryStatus";
 import { cn } from "@/lib/utils";
 
 
@@ -49,6 +49,11 @@ export interface DealRowProps {
   onForceCollect?: (deal: CuratorDeal) => Promise<void> | void;
   /** collection_mode da campanha vinculada — 'bot' (Spotify) ou 'spreadsheet' (Excel) */
   campaignCollectionMode?: string | null;
+  /**
+   * Status de entrega já buscado pelo pai. Quando informado, o card NÃO
+   * dispara query própria — fundamental pra performance de scroll.
+   */
+  deliveryRow?: DeliveryStatusRow | null;
 }
 
 function formatPlays(n: number): string {
