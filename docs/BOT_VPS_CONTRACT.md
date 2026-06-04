@@ -82,17 +82,23 @@ FINISHED        (gerado pelo endpoint após extract concluir)
 
 Regras obrigatórias do worker ao montar `dom_payload` e enviar prints:
 
-1. **Scroll até o fim da lista virtualizada**. Pare quando:
+1. **Enquadramento obrigatório antes de qualquer print**: ajustar o navegador para
+   **zoom 25%** (aceito somente 25–26%), viewport alvo **1440×1550** quando
+   disponível, e capturar em modo viewport. A evidência correta precisa mostrar
+   **22–23 playlists por print**; a primeira parte deve incluir o cabeçalho da
+   música + início da lista. Print com 3–5 playlists grandes (zoom 100%/página
+   “normal”) é inválido para esse fluxo.
+2. **Scroll até o fim da lista virtualizada**. Pare quando:
    - `playlistCount` lido do header **≤** itens já capturados, **OU**
    - 3 scroll-passes consecutivos sem novo `data-testid="row"` aparecer.
-2. **Nunca duplicar** linhas no `dom_payload`: dedup por `spotify_playlist_id`
+3. **Nunca duplicar** linhas no `dom_payload`: dedup por `spotify_playlist_id`
    (e por `algo:<nome>` para Radio/Mixes/Smart Shuffle).
-3. **Nunca enviar prints redundantes**. `total_parts` deve ser **exatamente**
+4. **Nunca enviar prints redundantes**. `total_parts` deve ser **exatamente**
    `ceil(linhas_únicas / linhas_por_print)`. Se a tela cabe em 4 prints, não
    mande 6 — o ingest passou a deduplicar internamente, mas prints sobrando
    geram storage lixo e custo de IA.
-4. **Ordem dos prints** monotônica (parte 1 = topo, parte N = fundo).
-5. Se `playlistCount` do header divergir do capturado, emitir `DISCARDED`
+5. **Ordem dos prints** monotônica (parte 1 = topo, parte N = fundo).
+6. Se `playlistCount` do header divergir do capturado, emitir `DISCARDED`
    com `discard_reason="scroll_incomplete"` em vez de mandar payload parcial.
 
 Sequências de erro:
