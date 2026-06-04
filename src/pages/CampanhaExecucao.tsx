@@ -52,6 +52,7 @@ import { toast } from "sonner";
 import type { Json } from "@/integrations/supabase/types";
 import { PlanHistoryTab } from "@/components/campaign-hub/tabs/PlanHistoryTab";
 import { CampaignGatesCard } from "@/components/campanhas/CampaignGatesCard";
+import { useAuth } from "@/contexts/AuthContext";
 
 type EcoSnap = {
   id: string;
@@ -89,6 +90,7 @@ type SpreadsheetUpload = {
 
 export default function CampanhaExecucao() {
   const { id } = useParams<{ id: string }>();
+  const { user: authUser } = useAuth();
   const [camp, setCamp] = useState<CampaignHubCampaign | null>(null);
   const [allocs, setAllocs] = useState<EcoAllocation[]>([]);
   const [snaps, setSnaps] = useState<EcoSnap[]>([]);
@@ -246,8 +248,7 @@ export default function CampanhaExecucao() {
         }
         setCamp({ ...(c as unknown as CampaignHubCampaign), deal_id: dealId });
       } else {
-        const { data: auth } = await supabase.auth.getUser();
-        const userId = c.created_by ?? auth.user?.id ?? null;
+        const userId = c.created_by ?? authUser?.id ?? null;
         if (userId) {
           const goal = Number(c.goal_plays ?? snapshot?.meta ?? 0);
           const { data: newDeal } = await supabase
