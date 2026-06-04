@@ -13,6 +13,7 @@ import {
 import { ArrowRight, Check, EyeOff, RefreshCw, RotateCw, Search, FileSearch, ExternalLink, Plus, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { PedirRemocaoDialog } from "./PedirRemocaoDialog";
 
 type FitRow = {
