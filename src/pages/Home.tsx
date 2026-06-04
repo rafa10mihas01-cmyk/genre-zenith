@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { useSetSidebarKpis } from "@/contexts/SidebarContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { ActionNowHero } from "@/components/home/ActionNowHero";
 import { CuradoriaBlock } from "@/components/home/CuradoriaBlock";
 import { CatalogHealthCard } from "@/components/home/CatalogHealthCard";
@@ -14,9 +15,11 @@ import { OperationalAlertsCard } from "@/components/home/OperationalAlertsCard";
  * Saúde do sistema, motor editorial e atividade recente vivem em /sistema.
  */
 export default function Home() {
+  const { user, loading: authLoading } = useAuth();
   const [kpis, setKpis] = useState<{ playlists: number; deals: number; notif: number } | null>(null);
 
   useEffect(() => {
+    if (authLoading || !user) return;
     let cancelled = false;
     async function load() {
       const [mp, deals, notif] = await Promise.all([
@@ -35,7 +38,7 @@ export default function Home() {
     load();
     const i = setInterval(load, 60000);
     return () => { cancelled = true; clearInterval(i); };
-  }, []);
+  }, [authLoading, user]);
 
   useSetSidebarKpis(
     kpis
