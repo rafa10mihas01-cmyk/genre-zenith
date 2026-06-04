@@ -9,7 +9,7 @@ Deno.serve(async (req) => {
   const url = new URL(req.url);
   const dealId = url.searchParams.get("deal_id") ?? "11317f14-486b-4d31-b44e-9ceae9415f62";
   const songId = url.searchParams.get("song_id") ?? "50a3cfb2-53c3-4ea7-92d7-6751f65e998a";
-  const correlationId = `synthetic-${Date.now()}`;
+  const correlationId = crypto.randomUUID();
 
   const payload = {
     content_base64: PNG_1x1,
