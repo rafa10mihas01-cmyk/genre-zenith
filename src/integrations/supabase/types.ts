@@ -5160,6 +5160,7 @@ export type Database = {
           diagnose_blocked: boolean
           diagnose_blocked_at: string | null
           diagnose_blocked_reason: string | null
+          engagement_multiplier_override: number | null
           execution_mode: Database["public"]["Enums"]["playlist_execution_mode"]
           followers: number
           genre_id: string | null
@@ -5212,6 +5213,7 @@ export type Database = {
           diagnose_blocked?: boolean
           diagnose_blocked_at?: string | null
           diagnose_blocked_reason?: string | null
+          engagement_multiplier_override?: number | null
           execution_mode?: Database["public"]["Enums"]["playlist_execution_mode"]
           followers?: number
           genre_id?: string | null
@@ -5264,6 +5266,7 @@ export type Database = {
           diagnose_blocked?: boolean
           diagnose_blocked_at?: string | null
           diagnose_blocked_reason?: string | null
+          engagement_multiplier_override?: number | null
           execution_mode?: Database["public"]["Enums"]["playlist_execution_mode"]
           followers?: number
           genre_id?: string | null
