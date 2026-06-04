@@ -5,7 +5,7 @@
 // GET ?limit=3
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { reportCronHealth } from "../_shared/cron-health.ts";
-import { reorderPlaylistTracks, listPlaylistTrackUris, addPlaylistTracks, removePlaylistTracks } from "../_shared/spotify-playlist.ts";
+import { reorderPlaylistTracks, listPlaylistTrackUris, listPlaylistTrackRefs, findPlaylistTrackIndex, addPlaylistTracks, removePlaylistTracks } from "../_shared/spotify-playlist.ts";
 import { getUserAccessToken, forceRefreshUserAccessToken, installSpotifyCircuitFetchGuard } from "../_shared/spotify.ts";
 import { SpotifyApiError } from "../_shared/spotify-playlist.ts";
 import { classifyManualReason, enqueueManual } from "../_shared/manual-fallback.ts";
