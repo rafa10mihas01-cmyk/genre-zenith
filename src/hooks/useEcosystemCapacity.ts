@@ -78,7 +78,7 @@ function assignPositions(
 export function useEcosystemCapacity(
   genre: string,
   days: number,
-  engagementMultiplier = 30,
+  engagementMultiplier = 35,
   slotPositions: number[] = [3],
   topPosition: number | null = null,
   streamsEcoNeeded: number | null = null,

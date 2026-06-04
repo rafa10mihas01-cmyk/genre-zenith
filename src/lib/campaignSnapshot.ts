@@ -133,7 +133,7 @@ export function planEcoAllocations(
   days: number,
   playlists: { id: string; followers: number }[],
   modo: CampaignSnapshot["modo"] = "simultaneo",
-  engagementMultiplier: number = 30,
+  engagementMultiplier: number = 35,
   genreContext?: GenreContext,
   topPosition?: number | null,
 ): EcoAllocationPlan[] {
@@ -234,7 +234,7 @@ export async function closeCampaignFromCalculator(args: {
   campaignType?: "ecosystem" | "external" | "hybrid";
   collectionMode?: "bot" | "spreadsheet";
 }): Promise<{ campaignId: string }> {
-  const { snapshot, deadlineISO, allocations, engagementMultiplier = 30, clientId = null, curatorId = null, status = "draft", campaignType = "ecosystem", collectionMode = "bot" } = args;
+  const { snapshot, deadlineISO, allocations, engagementMultiplier = 35, clientId = null, curatorId = null, status = "draft", campaignType = "ecosystem", collectionMode = "bot" } = args;
 
   // Snapshot de pricing (operacional + mercado + venda) pras alocações eco
   const { data: { user } } = await supabase.auth.getUser();
