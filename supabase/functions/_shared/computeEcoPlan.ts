@@ -457,7 +457,9 @@ export type Alloc = {
     cover_url?: string | null;
     followers?: number;
     spotify_url?: string | null;
+    engagement_multiplier_override?: number | null;
   } | null;
+
 };
 
 export type EcoPlanRow = {
