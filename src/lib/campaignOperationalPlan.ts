@@ -239,16 +239,37 @@ export function deepestPositionMeetingFloor(
 }
 
 /**
- * Aplica o piso à curva diária preservando o total exato. Eleva dias < piso
- * pro piso e retira o excesso dos dias acima do piso, proporcional ao excedente.
+ * Aplica o piso à curva diária preservando o total exato.
+ *
+ * Caso A — total ≥ piso × dias_ativos: eleva dias < piso e compensa.
+ * Caso B — total < piso × dias_ativos: encurta janela, mantém só
+ *   `floor(total/piso)` dias em piso (último absorve o resto ≥ piso).
  */
 export function applyPlaylistDailyFloor(
   daily: number[],
   floor: number = MIN_PLAYLIST_DAILY_STREAMS,
 ): number[] {
-  if (!daily.length) return daily;
+  if (!daily.length || floor <= 0) return daily;
   const originalTotal = daily.reduce((s, v) => s + v, 0);
+  if (originalTotal <= 0) return daily;
+  const activeIdx: number[] = [];
+  for (let i = 0; i < daily.length; i++) if (daily[i] > 0) activeIdx.push(i);
+  if (activeIdx.length === 0) return daily;
   const out = daily.slice();
+
+  if (originalTotal < floor * activeIdx.length) {
+    for (const i of activeIdx) out[i] = 0;
+    const fullDays = Math.max(1, Math.floor(originalTotal / floor));
+    const keep = Math.min(fullDays, activeIdx.length);
+    let remaining = originalTotal;
+    for (let k = 0; k < keep - 1; k++) {
+      out[activeIdx[k]] = floor;
+      remaining -= floor;
+    }
+    out[activeIdx[keep - 1]] = Math.max(floor, remaining);
+    return out;
+  }
+
   for (let i = 0; i < out.length; i++) {
     if (out[i] > 0 && out[i] < floor) out[i] = floor;
   }
