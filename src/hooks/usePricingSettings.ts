@@ -5,6 +5,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { COST_PER_STREAM, type CostPerStream } from "@/lib/campaignEngine";
+import { useAuth } from "@/contexts/AuthContext";
 
 export type PricingSettings = {
   cost_per_stream_eco: number;
