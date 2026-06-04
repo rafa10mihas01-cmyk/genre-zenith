@@ -993,7 +993,11 @@ export function buildEcoPlaylistPlan(
       : effectiveEcoStartDay(index, ordered.length, planDaysOf(snapshot), a.start_day, snapshot.modo);
     const startDay = Math.min(planDaysOf(snapshot), Math.max(baseStart, ecoFloorDay));
     const followers = Number(a.managed_playlists?.followers ?? 0);
-    const pos = positions.get(a.id) ?? MIN_CAMPAIGN_POSITION;
+    let pos = positions.get(a.id) ?? MIN_CAMPAIGN_POSITION;
+    // PISO 500/dia: PROMOVE pra posição mais profunda que ainda atende o piso
+    // (nunca rebaixa — só sobe a posição/diminui o número se necessário).
+    const deepestFloor = deepestPositionMeetingFloor(followers, multiplier);
+    if (deepestFloor != null && pos > deepestFloor) pos = deepestFloor;
     // VERDADE: capDia da faixa = saves × (mult/30) × POSITION_PCT[pos].
     // A música fica FIXA na posição → entrega ~capDia TODO DIA, com leve
     // dip de fim-de-semana/segunda. Sem curva gaussiana, sem delay, sem jitter.
