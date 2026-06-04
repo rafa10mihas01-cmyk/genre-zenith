@@ -216,6 +216,13 @@ export function distributeByDailyNeed(
       chosenCap = playlistCapAtPosition(followers, mult, current);
       fits = chosenCap <= ceiling;
     }
+    // PISO 500/dia: clampa pra posição mais profunda que ainda atende o piso.
+    const deepestFloor = deepestPositionMeetingFloor(followers, mult, POSITION_PCT, MIN_PLAYLIST_DAILY_STREAMS);
+    if (deepestFloor != null && chosenPos > deepestFloor) {
+      chosenPos = deepestFloor;
+      chosenCap = playlistCapAtPosition(followers, mult, chosenPos);
+      fits = chosenCap <= ceiling;
+    }
     return { position: chosenPos, cap: chosenCap, fits };
   };
 
