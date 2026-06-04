@@ -24,7 +24,7 @@ import { CampaignExecutionStatus } from "@/components/campanhas/CampaignExecutio
 import { CampaignDistributionConsole } from "@/components/campanhas/CampaignDistributionConsole";
 import { CampaignManualQueue } from "@/components/campanhas/CampaignManualQueue";
 import { TrackActionsPanel } from "@/components/campanhas/TrackActionsPanel";
-import { AlertTriangle, ArrowLeft, Loader2, Save, Upload, Rocket, CheckCircle2, RefreshCw, Plus } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Upload, Rocket, CheckCircle2, RefreshCw, Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 
 import { Badge } from "@/components/ui/badge";
@@ -52,7 +52,6 @@ import { toast } from "sonner";
 import type { Json } from "@/integrations/supabase/types";
 import { PlanHistoryTab } from "@/components/campaign-hub/tabs/PlanHistoryTab";
 import { CampaignGatesCard } from "@/components/campanhas/CampaignGatesCard";
-import { useAuth } from "@/contexts/AuthContext";
 
 type EcoSnap = {
   id: string;
@@ -90,13 +89,11 @@ type SpreadsheetUpload = {
 
 export default function CampanhaExecucao() {
   const { id } = useParams<{ id: string }>();
-  const { user: authUser } = useAuth();
   const [camp, setCamp] = useState<CampaignHubCampaign | null>(null);
   const [allocs, setAllocs] = useState<EcoAllocation[]>([]);
   const [snaps, setSnaps] = useState<EcoSnap[]>([]);
   const [proofs, setProofs] = useState<DeliveryProof[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [planRefreshKey, setPlanRefreshKey] = useState(0);
   const [tab, setTab] = useState<CampaignHubTabId>("overview");
   const [selectedAlloc, setSelectedAlloc] = useState<EcoAllocation | null>(null);
@@ -196,12 +193,6 @@ export default function CampanhaExecucao() {
   const loadCampaign = async () => {
     if (!id) return;
     setLoading(true);
-    setLoadError(null);
-    const timeout = window.setTimeout(() => {
-      setLoadError("Tempo excedido ao carregar dados da campanha. Tente novamente.");
-      setLoading(false);
-    }, 8000);
-    try {
     const [{ data: c }, { data: a }, { data: s }, { data: pkg }] = await Promise.all([
       supabase
         .from("campaigns")
@@ -255,7 +246,8 @@ export default function CampanhaExecucao() {
         }
         setCamp({ ...(c as unknown as CampaignHubCampaign), deal_id: dealId });
       } else {
-        const userId = c.created_by ?? authUser?.id ?? null;
+        const { data: auth } = await supabase.auth.getUser();
+        const userId = c.created_by ?? auth.user?.id ?? null;
         if (userId) {
           const goal = Number(c.goal_plays ?? snapshot?.meta ?? 0);
           const { data: newDeal } = await supabase
@@ -469,13 +461,7 @@ export default function CampanhaExecucao() {
     } else {
       setOrganicRows([]);
     }
-    } catch (e) {
-      console.error("Falha ao carregar execução da campanha", e);
-      setLoadError(getErrorMessage(e, "Falha ao carregar campanha"));
-    } finally {
-      window.clearTimeout(timeout);
-      setLoading(false);
-    }
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -665,31 +651,6 @@ export default function CampanhaExecucao() {
 
   if (loading) {
     return <PageLoader />;
-  }
-
-  if (loadError) {
-    return (
-      <PageContainer>
-        <PageHeader domain="campaigns" title="Execução" subtitle="Falha ao carregar campanha" />
-        <div className="rounded-2xl border border-destructive/40 bg-destructive/10 p-5 text-sm text-foreground-body">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-            <div className="min-w-0 space-y-3">
-              <p className="font-medium text-foreground">Não foi possível carregar esta campanha agora.</p>
-              <p className="text-muted-foreground break-words">{loadError}</p>
-              <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" onClick={loadCampaign}>
-                  <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Tentar novamente
-                </Button>
-                <Button asChild variant="ghost" size="sm">
-                  <Link to="/campanhas"><ArrowLeft className="mr-1.5 h-3.5 w-3.5" /> Voltar</Link>
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </PageContainer>
-    );
   }
 
 

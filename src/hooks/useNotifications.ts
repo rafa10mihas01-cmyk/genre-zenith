@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { showPush } from "@/lib/browserPush";
 import { passesAlertPrefs } from "@/lib/alertPrefs";
-import { useAuth } from "@/contexts/AuthContext";
 
 export type NotificationType = "critical" | "warning" | "info";
 export type NotificationDomain =
@@ -69,11 +68,9 @@ function shouldToast(n: NotificationRow): boolean {
 
 export function useNotifications() {
   const qc = useQueryClient();
-  const { user, loading: authLoading } = useAuth();
 
   const query = useQuery({
-    queryKey: [...QUERY_KEY, user?.id ?? null],
-    enabled: !authLoading && !!user,
+    queryKey: QUERY_KEY,
     staleTime: 10_000,
     placeholderData: keepPreviousData,
     queryFn: async () => {
@@ -88,97 +85,96 @@ export function useNotifications() {
   });
 
   useEffect(() => {
-    if (!user) return;
     let cancelled = false;
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
-    const filter = `user_id=eq.${user.id}`;
-    channel = supabase
-      .channel(`notifications-stream-${user.id}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "notifications", filter },
-        (payload) => {
-          if (cancelled) return;
-          const n = payload.new as NotificationRow;
-          qc.setQueryData<NotificationRow[]>([...QUERY_KEY, user.id], (prev) => {
-            const list = prev ?? [];
-            if (list.some((p) => p.id === n.id)) return list;
-            return [n, ...list].slice(0, LIMIT);
-          });
-          if (shouldToast(n)) {
-            const opts = { description: n.message } as const;
-            if (n.type === "critical") toast.error(n.title, { ...opts, duration: 10_000 });
-            else if (n.type === "warning") toast.warning(n.title, { ...opts, duration: 6_000 });
-            if (n.type === "critical" || n.type === "warning") {
-              showPush({
-                title: n.title,
-                body: n.message,
-                tag: n.metadata?.dedupe_key ?? n.metadata?.kind ?? n.id,
-                url: n.action_url ?? undefined,
-              });
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (cancelled || !user) return;
+
+      const filter = `user_id=eq.${user.id}`;
+      channel = supabase
+        .channel(`notifications-stream-${user.id}`)
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "notifications", filter },
+          (payload) => {
+            const n = payload.new as NotificationRow;
+            qc.setQueryData<NotificationRow[]>(QUERY_KEY, (prev) => {
+              const list = prev ?? [];
+              if (list.some((p) => p.id === n.id)) return list;
+              return [n, ...list].slice(0, LIMIT);
+            });
+            if (shouldToast(n)) {
+              const opts = { description: n.message } as const;
+              if (n.type === "critical") toast.error(n.title, { ...opts, duration: 10_000 });
+              else if (n.type === "warning") toast.warning(n.title, { ...opts, duration: 6_000 });
+              if (n.type === "critical" || n.type === "warning") {
+                showPush({
+                  title: n.title,
+                  body: n.message,
+                  tag: n.metadata?.dedupe_key ?? n.metadata?.kind ?? n.id,
+                  url: n.action_url ?? undefined,
+                });
+              }
             }
           }
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "notifications", filter },
-        (payload) => {
-          if (cancelled) return;
-          const n = payload.new as NotificationRow;
-          qc.setQueryData<NotificationRow[]>([...QUERY_KEY, user.id], (prev) =>
-            (prev ?? []).map((p) => (p.id === n.id ? { ...p, ...n } : p)),
-          );
-        }
-      )
-      .subscribe();
+        )
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "notifications", filter },
+          (payload) => {
+            const n = payload.new as NotificationRow;
+            qc.setQueryData<NotificationRow[]>(QUERY_KEY, (prev) =>
+              (prev ?? []).map((p) => (p.id === n.id ? { ...p, ...n } : p)),
+            );
+          }
+        )
+        .subscribe();
+    })();
 
     return () => {
       cancelled = true;
       if (channel) supabase.removeChannel(channel);
     };
-  }, [qc, user]);
+  }, [qc]);
 
   const items = query.data ?? [];
   const unreadCount = items.filter((i) => !i.read).length;
 
   const markRead = useCallback(async (id: string) => {
-    const key = [...QUERY_KEY, user?.id ?? null];
-    await qc.cancelQueries({ queryKey: key });
-    const previous = qc.getQueryData<NotificationRow[]>(key);
-    qc.setQueryData<NotificationRow[]>(key, (prev) =>
+    await qc.cancelQueries({ queryKey: QUERY_KEY });
+    const previous = qc.getQueryData<NotificationRow[]>(QUERY_KEY);
+    qc.setQueryData<NotificationRow[]>(QUERY_KEY, (prev) =>
       (prev ?? []).map((p) => (p.id === id ? { ...p, read: true } : p)),
     );
     const { error } = await supabase.from("notifications").update({ read: true }).eq("id", id);
-    if (error) qc.setQueryData(key, previous);
-  }, [qc, user]);
+    if (error) qc.setQueryData(QUERY_KEY, previous);
+  }, [qc]);
 
   const markAllRead = useCallback(async () => {
-    const key = [...QUERY_KEY, user?.id ?? null];
-    const previous = qc.getQueryData<NotificationRow[]>(key) ?? [];
+    const previous = qc.getQueryData<NotificationRow[]>(QUERY_KEY) ?? [];
     const unreadIds = previous.filter((i) => !i.read).map((i) => i.id);
     if (unreadIds.length === 0) return;
-    qc.setQueryData<NotificationRow[]>(key, (prev) =>
+    qc.setQueryData<NotificationRow[]>(QUERY_KEY, (prev) =>
       (prev ?? []).map((p) => ({ ...p, read: true })),
     );
     const { error } = await supabase.from("notifications").update({ read: true }).in("id", unreadIds);
-    if (error) qc.setQueryData(key, previous);
-  }, [qc, user]);
+    if (error) qc.setQueryData(QUERY_KEY, previous);
+  }, [qc]);
 
   const refresh = useCallback(async () => {
-    await qc.invalidateQueries({ queryKey: [...QUERY_KEY, user?.id ?? null] });
-  }, [qc, user]);
+    await qc.invalidateQueries({ queryKey: QUERY_KEY });
+  }, [qc]);
 
   const clearRead = useCallback(async () => {
-    const key = [...QUERY_KEY, user?.id ?? null];
-    const previous = qc.getQueryData<NotificationRow[]>(key) ?? [];
+    const previous = qc.getQueryData<NotificationRow[]>(QUERY_KEY) ?? [];
     const readIds = previous.filter((i) => i.read).map((i) => i.id);
     if (readIds.length === 0) return;
-    qc.setQueryData<NotificationRow[]>(key, (prev) => (prev ?? []).filter((p) => !p.read));
+    qc.setQueryData<NotificationRow[]>(QUERY_KEY, (prev) => (prev ?? []).filter((p) => !p.read));
     const { error } = await supabase.from("notifications").delete().in("id", readIds);
-    if (error) qc.setQueryData(key, previous);
-  }, [qc, user]);
+    if (error) qc.setQueryData(QUERY_KEY, previous);
+  }, [qc]);
 
   return { items, loading: query.isLoading, unreadCount, markRead, markAllRead, clearRead, refresh };
 }

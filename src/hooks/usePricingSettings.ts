@@ -5,7 +5,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { COST_PER_STREAM, type CostPerStream } from "@/lib/campaignEngine";
-import { useAuth } from "@/contexts/AuthContext";
 
 export type PricingSettings = {
   cost_per_stream_eco: number;
@@ -27,12 +26,11 @@ const DEFAULTS: PricingSettings = {
 
 export function usePricingSettings() {
   const qc = useQueryClient();
-  const { user, loading: authLoading } = useAuth();
 
   const query = useQuery({
-    queryKey: ["pricing_settings", user?.id ?? null],
-    enabled: !authLoading && !!user,
+    queryKey: ["pricing_settings"],
     queryFn: async (): Promise<PricingSettings> => {
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) return DEFAULTS;
 
       const { data, error } = await supabase
@@ -71,6 +69,7 @@ export function usePricingSettings() {
 
   const update = useMutation({
     mutationFn: async (patch: Partial<PricingSettings>) => {
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Sessão expirada");
       const { error } = await supabase
         .from("pricing_settings")
