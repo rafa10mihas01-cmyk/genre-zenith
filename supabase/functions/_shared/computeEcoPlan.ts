@@ -180,8 +180,12 @@ export function distributeByDailyNeed(
   const maxCapById = opts?.maxCapById;
   const currentPosById = opts?.currentPositionById;
 
-  const primary = allocs.filter(a => (a.genreSource ?? "primary") === "primary");
-  const neighbor = allocs.filter(a => a.genreSource === "affinity");
+  // PISO 500/dia: expulsa playlists cuja capacidade @ pos #1 < piso
+  // (não atendem o piso em NENHUMA posição).
+  const meetsFloor = (followers: number) =>
+    deepestPositionMeetingFloor(followers, mult, POSITION_PCT, MIN_PLAYLIST_DAILY_STREAMS) != null;
+  const primary = allocs.filter(a => (a.genreSource ?? "primary") === "primary" && meetsFloor(a.followers));
+  const neighbor = allocs.filter(a => a.genreSource === "affinity" && meetsFloor(a.followers));
 
   const targetDaily = dailyNeed * ECO_CURVE_LOSS_COMPENSATION;
   let remaining = targetDaily;
