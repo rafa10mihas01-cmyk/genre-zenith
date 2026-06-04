@@ -70,9 +70,15 @@ function formatPlays(n: number): string {
  * mesmos hooks/utilitários — só muda a apresentação.
  */
 function DealRowImpl(props: DealRowProps) {
-  const { deal, logs, playlists, songs = [], progress } = props;
-  const deliveryMap = useDeliveryStatusMap([deal.id]);
-  const stats = computeCuratorStats(deal, logs, playlists, progress ?? null);
+  const { deal, logs, playlists, songs = [], progress, deliveryRow } = props;
+  // Fallback: só dispara query individual se o pai NÃO passou deliveryRow.
+  // Em listas grandes (PlaylistDeals, etc) o pai deve passar — evita N queries.
+  const fallbackMap = useDeliveryStatusMap(deliveryRow === undefined ? [deal.id] : []);
+  const resolvedDelivery = deliveryRow !== undefined ? deliveryRow : fallbackMap[deal.id];
+  const stats = useMemo(
+    () => computeCuratorStats(deal, logs, playlists, progress ?? null),
+    [deal, logs, playlists, progress],
+  );
   const { earned, pct, vel, eta, hasBaseline, todayPlays } = stats;
   const target = Number(deal.target_plays ?? 0);
   const isClosed = !!deal.closed_at;
