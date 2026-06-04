@@ -267,9 +267,8 @@ export function CampaignDistributionConsole({
         const url = a.managed_playlists?.spotify_url ?? "";
         const m = typeof url === "string" ? url.match(/playlist\/([A-Za-z0-9]+)/) : null;
         const spid = m?.[1] ?? null;
-        const state: PlaylistState = spid
-          ? (stateBySpid.get(spid) ?? { status: "idle", scheduledFor: null, lastError: null, jobId: null, completedAt: null })
-          : { status: "idle", scheduledFor: null, lastError: null, jobId: null, completedAt: null };
+        const idleState: PlaylistState = { status: "idle", scheduledFor: null, lastError: null, jobId: null, completedAt: null, validationStatus: null, validationPosition: null, validatedAt: null };
+        const state: PlaylistState = spid ? (stateBySpid.get(spid) ?? idleState) : idleState;
         const realStart = realStartByAllocation.get(a.id) ?? a.start_day ?? 1;
         return {
           allocId: a.id,
