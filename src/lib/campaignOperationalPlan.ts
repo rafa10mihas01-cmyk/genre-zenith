@@ -1060,6 +1060,12 @@ export function buildEcoPlaylistPlan(
       }
     }
 
+    // PISO 500/dia POR DIA ATIVO — eleva dias < piso pro piso e retira o
+    // excesso dos dias acima do piso. Preserva total_streams da playlist
+    // (e portanto a meta total da campanha).
+    const flooredDaily = applyPlaylistDailyFloor(daily, MIN_PLAYLIST_DAILY_STREAMS);
+    for (let i = 0; i < daily.length; i++) daily[i] = flooredDaily[i];
+
     const realTotal = daily.reduce((s, v) => s + v, 0);
 
     return {
