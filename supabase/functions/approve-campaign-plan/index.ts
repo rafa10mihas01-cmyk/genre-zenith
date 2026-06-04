@@ -290,13 +290,76 @@ Deno.serve(async (req) => {
           console.log("[approve] positions via chart_tier fallback", { chartTier, playlists: rows.length });
         }
 
+        // ─── Diversificação de POSIÇÃO (anti-repetição entre campanhas) ───
+        // Para cada playlist usada, consulta posições já ocupadas por allocs
+        // ATIVAS de OUTRAS campanhas (últimos 30d) e escolhe, dentro de uma
+        // FAIXA fixa [base, base+SPREAD-1] clampada em [1,20], a posição
+        // menos ocupada. Empate → menor (preserva base). Não troca playlist,
+        // não altera planned_streams; só evita posições idênticas.
+        const SPREAD_WINDOW = 5;
+        const MAX_POS = 20;
+        const usageByPlaylist = new Map<string, Map<number, number>>();
+        try {
+          const playlistIds = rows
+            .map(r => r.managed_playlist_id ?? r.managed_playlists?.id)
+            .filter((v): v is string => typeof v === "string" && v.length > 0);
+          if (playlistIds.length > 0) {
+            const sinceIso = new Date(Date.now() - 30 * 86400000).toISOString();
+            const { data: otherAllocs } = await admin
+              .from("campaign_eco_allocations")
+              .select("managed_playlist_id, position, status, campaigns!inner(id, started_at)")
+              .in("managed_playlist_id", playlistIds)
+              .in("status", ["pending", "approved", "dispatched", "done"])
+              .neq("campaign_id", campaignId)
+              .gte("campaigns.started_at", sinceIso);
+            for (const a of (otherAllocs ?? []) as any[]) {
+              const pid = a.managed_playlist_id;
+              const pos = Number(a.position);
+              if (!pid || !Number.isFinite(pos) || pos <= 0) continue;
+              let m = usageByPlaylist.get(pid);
+              if (!m) { m = new Map(); usageByPlaylist.set(pid, m); }
+              m.set(pos, (m.get(pos) ?? 0) + 1);
+            }
+          }
+        } catch (e) {
+          console.warn("[approve] spread lookup failed (using base positions):", (e as Error)?.message ?? e);
+        }
+
+        const pickSpread = (playlistId: string | null | undefined, basePos: number): number => {
+          const base = Math.max(1, Math.min(MAX_POS, Math.round(basePos)));
+          if (!playlistId) return base;
+          const hi = Math.min(MAX_POS, base + SPREAD_WINDOW - 1);
+          const usage = usageByPlaylist.get(playlistId) ?? new Map<number, number>();
+          let bestPos = base;
+          let bestCount = usage.get(base) ?? 0;
+          for (let p = base + 1; p <= hi; p++) {
+            const c = usage.get(p) ?? 0;
+            if (c < bestCount) { bestCount = c; bestPos = p; }
+          }
+          // Marca uso local pra que próximas linhas desta mesma campanha
+          // também diversifiquem entre si.
+          let m = usageByPlaylist.get(playlistId);
+          if (!m) { m = new Map(); usageByPlaylist.set(playlistId, m); }
+          m.set(bestPos, (m.get(bestPos) ?? 0) + 1);
+          return bestPos;
+        };
+
         positionUpdates = rows
           .filter(r => r.position == null)
           // Se a playlist ficou sem saldo (cap=0), ainda gravamos uma posição
           // (a mais profunda) — não removemos allocs no backfill pra não
           // quebrar plano já aprovado pelo cliente. O orçamento só age
           // efetivamente no replan (que escolhe novas playlists).
-          .map(r => ({ id: r.id, position: positions.get(r.id) ?? 3 }));
+          .map(r => {
+            const base = positions.get(r.id) ?? 3;
+            const pid = r.managed_playlist_id ?? r.managed_playlists?.id ?? null;
+            return { id: r.id, position: pickSpread(pid, base) };
+          });
+        console.log("[approve] position spread applied", {
+          window: SPREAD_WINDOW,
+          maxPos: MAX_POS,
+          playlistsWithUsage: usageByPlaylist.size,
+        });
       }
 
     }
