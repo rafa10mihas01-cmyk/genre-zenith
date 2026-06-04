@@ -1,6 +1,13 @@
 // Shared eco-plan compute — mirrors src/lib/campaignOperationalPlan.ts.
 // Single source of truth used by edge functions that need the daily matrix.
-import { ECO_CURVE_LOSS_COMPENSATION } from "./eco-constants.ts";
+import {
+  ECO_CURVE_LOSS_COMPENSATION,
+  MIN_PLAYLIST_DAILY_STREAMS,
+  deepestPositionMeetingFloor,
+  applyPlaylistDailyFloor,
+} from "./eco-constants.ts";
+
+export { MIN_PLAYLIST_DAILY_STREAMS };
 
 export const POSITION_PCT: number[] = [
   0.12, 0.10, 0.08, 0.07, 0.06,
@@ -173,8 +180,12 @@ export function distributeByDailyNeed(
   const maxCapById = opts?.maxCapById;
   const currentPosById = opts?.currentPositionById;
 
-  const primary = allocs.filter(a => (a.genreSource ?? "primary") === "primary");
-  const neighbor = allocs.filter(a => a.genreSource === "affinity");
+  // PISO 500/dia: expulsa playlists cuja capacidade @ pos #1 < piso
+  // (não atendem o piso em NENHUMA posição).
+  const meetsFloor = (followers: number) =>
+    deepestPositionMeetingFloor(followers, mult, POSITION_PCT, MIN_PLAYLIST_DAILY_STREAMS) != null;
+  const primary = allocs.filter(a => (a.genreSource ?? "primary") === "primary" && meetsFloor(a.followers));
+  const neighbor = allocs.filter(a => a.genreSource === "affinity" && meetsFloor(a.followers));
 
   const targetDaily = dailyNeed * ECO_CURVE_LOSS_COMPENSATION;
   let remaining = targetDaily;
@@ -203,6 +214,13 @@ export function distributeByDailyNeed(
     if (current != null && current >= minPos && current < chosenPos) {
       chosenPos = current;
       chosenCap = playlistCapAtPosition(followers, mult, current);
+      fits = chosenCap <= ceiling;
+    }
+    // PISO 500/dia: clampa pra posição mais profunda que ainda atende o piso.
+    const deepestFloor = deepestPositionMeetingFloor(followers, mult, POSITION_PCT, MIN_PLAYLIST_DAILY_STREAMS);
+    if (deepestFloor != null && chosenPos > deepestFloor) {
+      chosenPos = deepestFloor;
+      chosenCap = playlistCapAtPosition(followers, mult, chosenPos);
       fits = chosenCap <= ceiling;
     }
     return { position: chosenPos, cap: chosenCap, fits };
@@ -515,13 +533,17 @@ export function buildEcoPlan(args: {
       : effectiveStart(index, ordered.length, days, a.start_day, modo);
     const startDay = Math.min(days, Math.max(baseStart, ecoFloor));
     const followers = Number(a.managed_playlists?.followers ?? 0);
-    const pos = positions.get(a.id) ?? MIN_CAMPAIGN_POSITION;
+    let pos = positions.get(a.id) ?? MIN_CAMPAIGN_POSITION;
+
+    // PISO 500/dia: promover posição se cap atual < piso.
+    // Se nem pos #1 atende → playlist deveria ter sido expulsa upstream;
+    // mantém a posição mas o piso será aplicado no daily mesmo assim.
+    const deepest = deepestPositionMeetingFloor(followers, mult, POSITION_PCT, MIN_PLAYLIST_DAILY_STREAMS);
+    if (deepest != null && pos > deepest) pos = deepest;
+
     const baseCap = Math.max(1, Math.round(calcTrackDailyStreams(followers, mult, pos)));
 
-    const daily: number[] = Array.from({ length: days }, () => 0);
-    // Saída suave: últimos 20% dos dias. Posição rebaixa em degraus
-    // (pos → pos×2 → pos×5 → pos×15 → pos×30) e o cap diário usa
-    // POSITION_PCT da nova posição — sem fator quadrático artificial.
+    let daily: number[] = Array.from({ length: days }, () => 0);
     const runLen = Math.max(1, days - (startDay - 1));
     const tailDays = Math.max(1, Math.round(runLen * 0.2));
     const tailStart = days - tailDays + 1;
@@ -547,6 +569,10 @@ export function buildEcoPlan(args: {
       const dayCap = Math.max(1, Math.round(calcTrackDailyStreams(followers, mult, positionByDay[i])));
       daily[i] = Math.max(1, Math.round(dayCap * ramp * growth * weekday));
     }
+
+    // PISO 500/dia POR DIA ATIVO — total preservado retirando dos dias fortes.
+    daily = applyPlaylistDailyFloor(daily, MIN_PLAYLIST_DAILY_STREAMS);
+
     const total = daily.reduce((s, v) => s + v, 0);
 
     return {

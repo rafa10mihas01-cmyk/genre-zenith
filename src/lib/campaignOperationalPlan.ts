@@ -215,6 +215,87 @@ export const NEIGHBOR_MIN_POSITION = 5;
 export const MIN_PLAYLIST_SAVES_FOR_CAMPAIGN = 250;
 
 /**
+ * Piso de entrega POR PLAYLIST POR DIA ATIVO. Espelha
+ * `supabase/functions/_shared/eco-constants.ts`.
+ * Toda playlist participante deve entregar ≥ piso em todo dia ativo
+ * (incluindo rampa e tail). Promoção automática de posição quando a posição
+ * planejada não atende; expulsão upstream quando nem pos #1 atende.
+ */
+export const MIN_PLAYLIST_DAILY_STREAMS = 500;
+
+/** Posição mais profunda cuja cap ainda atende o piso. Null se nem pos #1 atende. */
+export function deepestPositionMeetingFloor(
+  followers: number,
+  multiplier: number,
+  floor: number = MIN_PLAYLIST_DAILY_STREAMS,
+): number | null {
+  if (followers <= 0) return null;
+  let deepest: number | null = null;
+  for (let i = 0; i < POSITION_PCT.length; i++) {
+    const cap = calculateTrackDailyStreams(followers, multiplier, i + 1);
+    if (cap >= floor) deepest = i + 1;
+  }
+  return deepest;
+}
+
+/**
+ * Aplica o piso à curva diária preservando o total exato.
+ *
+ * Caso A — total ≥ piso × dias_ativos: eleva dias < piso e compensa.
+ * Caso B — total < piso × dias_ativos: encurta janela, mantém só
+ *   `floor(total/piso)` dias em piso (último absorve o resto ≥ piso).
+ */
+export function applyPlaylistDailyFloor(
+  daily: number[],
+  floor: number = MIN_PLAYLIST_DAILY_STREAMS,
+): number[] {
+  if (!daily.length || floor <= 0) return daily;
+  const originalTotal = daily.reduce((s, v) => s + v, 0);
+  if (originalTotal <= 0) return daily;
+  const activeIdx: number[] = [];
+  for (let i = 0; i < daily.length; i++) if (daily[i] > 0) activeIdx.push(i);
+  if (activeIdx.length === 0) return daily;
+  const out = daily.slice();
+
+  if (originalTotal < floor * activeIdx.length) {
+    for (const i of activeIdx) out[i] = 0;
+    const fullDays = Math.max(1, Math.floor(originalTotal / floor));
+    const keep = Math.min(fullDays, activeIdx.length);
+    let remaining = originalTotal;
+    for (let k = 0; k < keep - 1; k++) {
+      out[activeIdx[k]] = floor;
+      remaining -= floor;
+    }
+    out[activeIdx[keep - 1]] = Math.max(floor, remaining);
+    return out;
+  }
+
+  for (let i = 0; i < out.length; i++) {
+    if (out[i] > 0 && out[i] < floor) out[i] = floor;
+  }
+  let excess = out.reduce((s, v) => s + v, 0) - originalTotal;
+  if (excess <= 0) return out;
+  let guard = out.length * 100;
+  while (excess > 0 && guard-- > 0) {
+    let headroom = 0;
+    for (const v of out) if (v > floor) headroom += v - floor;
+    if (headroom <= 0) break;
+    let removed = 0;
+    for (let i = 0; i < out.length; i++) {
+      if (out[i] <= floor) continue;
+      const share = (out[i] - floor) / headroom;
+      const take = Math.min(out[i] - floor, Math.max(1, Math.round(excess * share)));
+      out[i] -= take;
+      removed += take;
+      if (removed >= excess) break;
+    }
+    if (removed === 0) break;
+    excess -= removed;
+  }
+  return out;
+}
+
+/**
  * Fator de compensação da curva de entrega.
  * A simulação dia-a-dia (ECO_RAMP + tail de saída com rebaixamento de
  * posição) consome ~12% do total teórico. Pra GARANTIR a entrega da meta
@@ -933,7 +1014,11 @@ export function buildEcoPlaylistPlan(
       : effectiveEcoStartDay(index, ordered.length, planDaysOf(snapshot), a.start_day, snapshot.modo);
     const startDay = Math.min(planDaysOf(snapshot), Math.max(baseStart, ecoFloorDay));
     const followers = Number(a.managed_playlists?.followers ?? 0);
-    const pos = positions.get(a.id) ?? MIN_CAMPAIGN_POSITION;
+    let pos = positions.get(a.id) ?? MIN_CAMPAIGN_POSITION;
+    // PISO 500/dia: PROMOVE pra posição mais profunda que ainda atende o piso
+    // (nunca rebaixa — só sobe a posição/diminui o número se necessário).
+    const deepestFloor = deepestPositionMeetingFloor(followers, multiplier);
+    if (deepestFloor != null && pos > deepestFloor) pos = deepestFloor;
     // VERDADE: capDia da faixa = saves × (mult/30) × POSITION_PCT[pos].
     // A música fica FIXA na posição → entrega ~capDia TODO DIA, com leve
     // dip de fim-de-semana/segunda. Sem curva gaussiana, sem delay, sem jitter.
@@ -995,6 +1080,12 @@ export function buildEcoPlaylistPlan(
         }
       }
     }
+
+    // PISO 500/dia POR DIA ATIVO — eleva dias < piso pro piso e retira o
+    // excesso dos dias acima do piso. Preserva total_streams da playlist
+    // (e portanto a meta total da campanha).
+    const flooredDaily = applyPlaylistDailyFloor(daily, MIN_PLAYLIST_DAILY_STREAMS);
+    for (let i = 0; i < daily.length; i++) daily[i] = flooredDaily[i];
 
     const realTotal = daily.reduce((s, v) => s + v, 0);
 
