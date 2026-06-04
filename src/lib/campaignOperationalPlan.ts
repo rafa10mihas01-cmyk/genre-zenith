@@ -215,6 +215,66 @@ export const NEIGHBOR_MIN_POSITION = 5;
 export const MIN_PLAYLIST_SAVES_FOR_CAMPAIGN = 250;
 
 /**
+ * Piso de entrega POR PLAYLIST POR DIA ATIVO. Espelha
+ * `supabase/functions/_shared/eco-constants.ts`.
+ * Toda playlist participante deve entregar ≥ piso em todo dia ativo
+ * (incluindo rampa e tail). Promoção automática de posição quando a posição
+ * planejada não atende; expulsão upstream quando nem pos #1 atende.
+ */
+export const MIN_PLAYLIST_DAILY_STREAMS = 500;
+
+/** Posição mais profunda cuja cap ainda atende o piso. Null se nem pos #1 atende. */
+export function deepestPositionMeetingFloor(
+  followers: number,
+  multiplier: number,
+  floor: number = MIN_PLAYLIST_DAILY_STREAMS,
+): number | null {
+  if (followers <= 0) return null;
+  let deepest: number | null = null;
+  for (let i = 0; i < POSITION_PCT.length; i++) {
+    const cap = calculateTrackDailyStreams(followers, multiplier, i + 1);
+    if (cap >= floor) deepest = i + 1;
+  }
+  return deepest;
+}
+
+/**
+ * Aplica o piso à curva diária preservando o total exato. Eleva dias < piso
+ * pro piso e retira o excesso dos dias acima do piso, proporcional ao excedente.
+ */
+export function applyPlaylistDailyFloor(
+  daily: number[],
+  floor: number = MIN_PLAYLIST_DAILY_STREAMS,
+): number[] {
+  if (!daily.length) return daily;
+  const originalTotal = daily.reduce((s, v) => s + v, 0);
+  const out = daily.slice();
+  for (let i = 0; i < out.length; i++) {
+    if (out[i] > 0 && out[i] < floor) out[i] = floor;
+  }
+  let excess = out.reduce((s, v) => s + v, 0) - originalTotal;
+  if (excess <= 0) return out;
+  let guard = out.length * 100;
+  while (excess > 0 && guard-- > 0) {
+    let headroom = 0;
+    for (const v of out) if (v > floor) headroom += v - floor;
+    if (headroom <= 0) break;
+    let removed = 0;
+    for (let i = 0; i < out.length; i++) {
+      if (out[i] <= floor) continue;
+      const share = (out[i] - floor) / headroom;
+      const take = Math.min(out[i] - floor, Math.max(1, Math.round(excess * share)));
+      out[i] -= take;
+      removed += take;
+      if (removed >= excess) break;
+    }
+    if (removed === 0) break;
+    excess -= removed;
+  }
+  return out;
+}
+
+/**
  * Fator de compensação da curva de entrega.
  * A simulação dia-a-dia (ECO_RAMP + tail de saída com rebaixamento de
  * posição) consome ~12% do total teórico. Pra GARANTIR a entrega da meta
