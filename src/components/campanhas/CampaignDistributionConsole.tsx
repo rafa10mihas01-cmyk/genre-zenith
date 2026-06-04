@@ -36,6 +36,9 @@ type JobRow = {
   last_error: string | null;
   from_position: number | null;
   to_position: number | null;
+  last_validated_at: string | null;
+  last_validation_status: string | null;
+  last_validation_position: number | null;
 };
 
 type BotHealth = {
@@ -131,7 +134,7 @@ export function CampaignDistributionConsole({
   const loadJobs = async () => {
     const { data } = await supabase
       .from("playlist_execution_jobs")
-      .select("id, job_type, status, spotify_playlist_id, attempts, max_attempts, scheduled_for, completed_at, last_error, from_position, to_position")
+      .select("id, job_type, status, spotify_playlist_id, attempts, max_attempts, scheduled_for, completed_at, last_error, from_position, to_position, last_validated_at, last_validation_status, last_validation_position")
       .eq("campaign_id", campaignId)
       .in("job_type", ["playlist.track.add", "playlist.track.reorder"])
       .order("created_at", { ascending: false })
@@ -200,6 +203,9 @@ export function CampaignDistributionConsole({
     lastError: string | null;
     jobId: string | null;
     completedAt: string | null;
+    validationStatus: string | null;
+    validationPosition: number | null;
+    validatedAt: string | null;
   };
   const stateBySpid = useMemo(() => {
     const m = new Map<string, PlaylistState>();
@@ -221,6 +227,9 @@ export function CampaignDistributionConsole({
         lastError: j.last_error,
         jobId: j.id,
         completedAt: j.completed_at,
+        validationStatus: j.last_validation_status,
+        validationPosition: j.last_validation_position,
+        validatedAt: j.last_validated_at,
       });
     }
     return m;
@@ -258,9 +267,8 @@ export function CampaignDistributionConsole({
         const url = a.managed_playlists?.spotify_url ?? "";
         const m = typeof url === "string" ? url.match(/playlist\/([A-Za-z0-9]+)/) : null;
         const spid = m?.[1] ?? null;
-        const state: PlaylistState = spid
-          ? (stateBySpid.get(spid) ?? { status: "idle", scheduledFor: null, lastError: null, jobId: null, completedAt: null })
-          : { status: "idle", scheduledFor: null, lastError: null, jobId: null, completedAt: null };
+        const idleState: PlaylistState = { status: "idle", scheduledFor: null, lastError: null, jobId: null, completedAt: null, validationStatus: null, validationPosition: null, validatedAt: null };
+        const state: PlaylistState = spid ? (stateBySpid.get(spid) ?? idleState) : idleState;
         const realStart = realStartByAllocation.get(a.id) ?? a.start_day ?? 1;
         return {
           allocId: a.id,
@@ -823,6 +831,9 @@ type PlaylistRowState = {
   lastError: string | null;
   jobId: string | null;
   completedAt: string | null;
+  validationStatus: string | null;
+  validationPosition: number | null;
+  validatedAt: string | null;
 };
 function PlaylistRow({
   row,
@@ -899,6 +910,29 @@ function PlaylistRow({
         <Icon className="h-3 w-3" />
         {cfg.label}
       </span>
+
+      {/* badge revalidação — só quando job está done */}
+      {row.state.status === "done" && row.state.validationStatus && (() => {
+        const vs = row.state.validationStatus;
+        const map: Record<string, { label: string; cls: string; icon: typeof Clock; tooltip: string }> = {
+          present: { label: "Presente", cls: "bg-primary/15 text-primary border-primary/30", icon: CheckCircle2, tooltip: "Faixa segue na posição planejada" },
+          moved: { label: `Pos. ${row.state.validationPosition ?? "?"}`, cls: "bg-amber-500/15 text-amber-400 border-amber-500/30", icon: AlertCircle, tooltip: `Faixa mudou de posição (planejado: ${row.plannedPosition ?? "?"} · real: ${row.state.validationPosition ?? "?"})` },
+          duplicate: { label: "Duplicada", cls: "bg-amber-500/15 text-amber-400 border-amber-500/30", icon: AlertCircle, tooltip: "Faixa aparece mais de uma vez na playlist" },
+          removed: { label: "Removida", cls: "bg-rose-500/15 text-rose-400 border-rose-500/30", icon: XCircle, tooltip: "Faixa não está mais na playlist (curador removeu)" },
+          error: { label: "Sem checagem", cls: "bg-muted text-muted-foreground border-border", icon: AlertCircle, tooltip: "Não foi possível verificar (token/erro Spotify)" },
+        };
+        const v = map[vs] ?? map.error;
+        const VIcon = v.icon;
+        return (
+          <span
+            className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] border shrink-0", v.cls)}
+            title={`${v.tooltip}${row.state.validatedAt ? ` · checado ${fmtDateTime(row.state.validatedAt)}` : ""}`}
+          >
+            <VIcon className="h-3 w-3" />
+            {v.label}
+          </span>
+        );
+      })()}
 
       {/* retry */}
       {row.state.status === "failed" && onRetry && (
