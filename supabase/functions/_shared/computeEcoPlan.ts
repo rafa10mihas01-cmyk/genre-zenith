@@ -555,11 +555,11 @@ export function buildEcoPlan(args: {
       const mult = t < 0.25 ? 1 : t < 0.5 ? 2 : t < 0.75 ? 5 : t < 1 ? 15 : 30;
       return Math.min(100, Math.max(1, pos * mult));
     });
+    // RAMPA ABSOLUTA piso→cap em 3 dias (espelha campaignOperationalPlan.ts).
+    const FLOOR = MIN_PLAYLIST_DAILY_STREAMS;
+    const RAMP_STEPS = 3;
     for (let i = startDay - 1; i < days; i++) {
       const rampIdx = i - (startDay - 1);
-      const ramp = rampIdx < ECO_RAMP.length ? ECO_RAMP[rampIdx] : 1;
-      const gi = rampIdx - ECO_RAMP.length;
-      const growth = gi >= 0 ? ecoGrowthFactor(gi) : 1;
       let weekday = 1;
       if (startValid) {
         const d = new Date(startBase!);
@@ -567,7 +567,16 @@ export function buildEcoPlan(args: {
         weekday = WEEKDAY_FLAT_FACTOR[d.getDay()] ?? 1;
       }
       const dayCap = Math.max(1, Math.round(calcTrackDailyStreams(followers, mult, positionByDay[i])));
-      daily[i] = Math.max(1, Math.round(dayCap * ramp * growth * weekday));
+      let value: number;
+      if (rampIdx < RAMP_STEPS && dayCap > FLOOR) {
+        const t = rampIdx / RAMP_STEPS;
+        value = Math.round(FLOOR + (dayCap - FLOOR) * t);
+      } else {
+        const gi = rampIdx - RAMP_STEPS;
+        const growth = gi >= 0 ? ecoGrowthFactor(gi) : 1;
+        value = Math.round(dayCap * growth * weekday);
+      }
+      daily[i] = Math.max(FLOOR, value);
     }
 
     // PISO 500/dia POR DIA ATIVO — total preservado retirando dos dias fortes.
