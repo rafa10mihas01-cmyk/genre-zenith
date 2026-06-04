@@ -76,23 +76,6 @@ function jr(p: unknown, status = 200) {
   });
 }
 
-const PLAYLIST_PRINT_CAPTURE_PROFILE = {
-  name: "spotify_artists_playlist_evidence_v2",
-  browser_zoom_percent: 25,
-  browser_zoom_min_percent: 25,
-  browser_zoom_max_percent: 26,
-  viewport_width_px: 1440,
-  viewport_height_px: 1550,
-  rows_per_print_target: 22,
-  rows_per_print_min: 21,
-  rows_per_print_max: 23,
-  first_print_includes_header: true,
-  scroll_mode: "row_window",
-  screenshot_mode: "viewport",
-  required: true,
-  instruction: "Antes dos prints, ajustar zoom do navegador para 25% (aceito 25-26%) e capturar janelas com 22-23 playlists visíveis; a primeira imagem deve incluir o cabeçalho + lista.",
-};
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const startedAt = Date.now();
@@ -329,10 +312,6 @@ Deno.serve(async (req) => {
     // Alinhar a flag aqui evita o 422 "playlist_breakdown_required" no worker.
     s.requires_playlist_breakdown = true;
     s.capture_mode = "playlist_breakdown_required";
-    s.capture_profile = PLAYLIST_PRINT_CAPTURE_PROFILE;
-    s.print_capture_profile = PLAYLIST_PRINT_CAPTURE_PROFILE;
-    s.browser_zoom_percent = PLAYLIST_PRINT_CAPTURE_PROFILE.browser_zoom_percent;
-    s.rows_per_print_target = PLAYLIST_PRINT_CAPTURE_PROFILE.rows_per_print_target;
     s.ingest_contract = isCampaignInternal(s)
       ? "send_playlist_rows_not_aggregate"
       : "send_curator_playlist_rows";
@@ -357,7 +336,6 @@ Deno.serve(async (req) => {
         song_name: s.song_name,
         spotify_track_id: s.spotify_track_id,
         interval_minutes: s.auto_collect_interval_minutes,
-        capture_profile: PLAYLIST_PRINT_CAPTURE_PROFILE,
         user_agent: callerUserAgent,
       },
     }));
