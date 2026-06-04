@@ -156,7 +156,7 @@ function BaselineStatus({
           <ChevronRight className="bchev h-4 w-4 text-muted-foreground shrink-0 transition-transform ml-1" />
         </summary>
 
-        <div className="border-t border-border/60 px-4 py-4 bg-background/40 space-y-3">
+        <div className="border-t border-border/60 px-4 py-4 bg-background/40 space-y-3 max-h-[60vh] overflow-y-auto overscroll-contain">
           {runsLoading ? (
             <div className="text-[12px] text-muted-foreground">Carregando prints…</div>
           ) : runs.length === 0 ? (
