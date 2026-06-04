@@ -41,20 +41,20 @@ Deno.serve(async (req) => {
   for (const j of uniq.values()) {
     const pl = plMap.get(j.spotify_playlist_id);
     const tok = pl ? tokByAcct.get(pl.account_id) : null;
-    if (!tok) { err++; results.push({ track: j.campaigns.track_name, playlist: pl?.name, error: 'sem token' }); continue; }
+    if (!tok) { err++; results.push({ track: j.track_name, playlist: pl?.name, error: 'sem token' }); continue; }
     try {
       const refs = await listPlaylistTrackRefs(j.spotify_playlist_id, tok);
       const positions: number[] = [];
-      refs.forEach((r, idx) => { if (r.id === j.campaigns.spotify_track_id) positions.push(idx + 1); });
+      refs.forEach((r, idx) => { if (r.id === j.spotify_track_id) positions.push(idx + 1); });
       const actual = positions[0] ?? null;
       let status: string;
       if (positions.length > 1) { status = 'DUPLICATA'; dup++; }
       else if (actual === j.to_position) { status = 'OK'; ok++; }
       else if (actual) { status = `posicao_diferente(${actual})`; mismatch++; }
       else { status = 'AUSENTE'; missing++; }
-      results.push({ track: j.campaigns.track_name, playlist: pl?.name, planejado: j.to_position, real: actual, occurrences: positions.length, positions, status });
+      results.push({ track: j.track_name, playlist: pl?.name, planejado: j.to_position, real: actual, occurrences: positions.length, positions, status });
     } catch (e: any) {
-      err++; results.push({ track: j.campaigns.track_name, playlist: pl?.name, error: e.message?.slice(0, 200) });
+      err++; results.push({ track: j.track_name, playlist: pl?.name, error: e.message?.slice(0, 200) });
     }
   }
 
