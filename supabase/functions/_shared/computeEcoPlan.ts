@@ -573,7 +573,7 @@ export function buildEcoPlan(args: {
         d.setDate(d.getDate() + i);
         weekday = WEEKDAY_FLAT_FACTOR[d.getDay()] ?? 1;
       }
-      const dayCap = Math.max(1, Math.round(calcTrackDailyStreams(followers, mult, positionByDay[i])));
+      const dayCap = Math.max(1, Math.round(calcTrackDailyStreams(followers, effMult, positionByDay[i])));
       daily[i] = Math.max(1, Math.round(dayCap * ramp * growth * weekday));
     }
 
