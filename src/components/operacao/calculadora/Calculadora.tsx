@@ -122,7 +122,7 @@ function emptySong(): Song {
     splitEco: DEFAULT_SPLIT.eco,
     splitOrganic: 15,
     clientProfile: "artista",
-    engagementMultiplier: 30,
+    engagementMultiplier: 35,
     startDateISO: startOfDay(new Date()).toISOString().slice(0, 10),
     clientPriceTotal: 0,
     genre: "",

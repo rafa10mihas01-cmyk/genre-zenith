@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
         started_at: new Date().toISOString(),
         status: "active",
         campaign_type: "ecosystem",
-        engagement_multiplier: 30,
+        engagement_multiplier: 35,
         created_by: userId,
         client_id: client.id,
         notes: "[TEST] Simulação automática — apagar se sobrar",
@@ -141,7 +141,7 @@ Deno.serve(async (req) => {
       custoExt: 800,
       clientPriceTotal: 1500,
       pricePerStreamSell: 0.15,
-      engagement_multiplier: 30,
+      engagement_multiplier: 35,
       music: { top200Position: 0 },
     };
     const { error: snapErr } = await admin

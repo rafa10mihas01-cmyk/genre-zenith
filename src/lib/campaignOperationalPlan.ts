@@ -453,7 +453,7 @@ export function getCampaignPreferredPositions(snapshot?: CampaignSnapshot | null
 export function inferEcoPreferredPositions(
   snapshot: CampaignSnapshot,
   allocs: EcoPositionInput[],
-  engagementMultiplier = 30,
+  engagementMultiplier = 35,
 ): number[] {
   const saved = getCampaignPreferredPositions(snapshot);
   if (saved.some((p) => p < MIN_CAMPAIGN_POSITION)) return saved;
@@ -547,7 +547,7 @@ export function recommendEcoPosition(
   plannedStreams: number,
   days: number,
   followers: number,
-  engagementMultiplier = 30,
+  engagementMultiplier = 35,
   seed = "default",
 ): number {
   const tier = classifyPlaylistSize(followers);
@@ -666,7 +666,7 @@ function distributeByChartTier(
 export function distributeEcoPositions(
   allocs: Array<EcoPositionInput & { genreSource?: "primary" | "affinity" }>,
   days: number,
-  engagementMultiplier = 30,
+  engagementMultiplier = 35,
   opts: { strongSlotShareCap?: number; preferredSlots?: number[]; coverageRatio?: number; mode?: CoverageMode; chartTier?: ChartTier } = {},
 ): Map<string, number> {
   // Modo determinístico baseado na posição no Top200 — sem RNG, sem buckets.

@@ -270,7 +270,7 @@ export async function generateAndStoreCampaignReport(campaignId: string): Promis
       .maybeSingle(),
     supabase
       .from("campaign_eco_allocations")
-      .select("managed_playlist_id, planned_streams, position, managed_playlists(name, followers)")
+      .select("managed_playlist_id, planned_streams, position, managed_playlists(name, followers, engagement_multiplier_override)")
       .eq("campaign_id", campaignId)
       .order("position", { nullsFirst: false }),
     supabase

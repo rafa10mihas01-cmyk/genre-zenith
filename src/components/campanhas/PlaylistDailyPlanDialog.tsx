@@ -39,7 +39,7 @@ export function PlaylistDailyPlanDialog({
   snapshot,
   startedAt,
   campaignTitle,
-  engagementMultiplier = 30,
+  engagementMultiplier = 35,
 }: Props) {
   const plan = useMemo(() => {
     if (!allocation) return null;
