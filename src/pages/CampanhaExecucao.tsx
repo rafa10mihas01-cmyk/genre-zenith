@@ -860,6 +860,7 @@ export default function CampanhaExecucao() {
                   />
                 </TabsContent>
                 <TabsContent value="console" forceMount className="mt-0 space-y-4 data-[state=inactive]:hidden">
+                  <CampaignManualQueue campaignId={camp.id} />
                   <CampaignDistributionConsole
                     campaignId={camp.id}
                     spotifyTrackId={camp.spotify_track_id ?? null}
