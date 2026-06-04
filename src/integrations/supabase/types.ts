@@ -6025,6 +6025,56 @@ export type Database = {
           },
         ]
       }
+      playlist_delivery_validations: {
+        Row: {
+          actual_position: number | null
+          campaign_id: string | null
+          checked_at: string
+          error: string | null
+          expected_position: number | null
+          id: string
+          job_id: string | null
+          occurrences: number
+          spotify_playlist_id: string
+          spotify_track_id: string
+          status: string
+        }
+        Insert: {
+          actual_position?: number | null
+          campaign_id?: string | null
+          checked_at?: string
+          error?: string | null
+          expected_position?: number | null
+          id?: string
+          job_id?: string | null
+          occurrences?: number
+          spotify_playlist_id: string
+          spotify_track_id: string
+          status: string
+        }
+        Update: {
+          actual_position?: number | null
+          campaign_id?: string | null
+          checked_at?: string
+          error?: string | null
+          expected_position?: number | null
+          id?: string
+          job_id?: string | null
+          occurrences?: number
+          spotify_playlist_id?: string
+          spotify_track_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "playlist_delivery_validations_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "playlist_execution_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       playlist_diagnoses: {
         Row: {
           applied_at: string | null
@@ -6244,6 +6294,9 @@ export type Database = {
           id: string
           job_type: string
           last_error: string | null
+          last_validated_at: string | null
+          last_validation_position: number | null
+          last_validation_status: string | null
           lease_expires_at: string | null
           max_attempts: number
           metadata: Json
@@ -6269,6 +6322,9 @@ export type Database = {
           id?: string
           job_type?: string
           last_error?: string | null
+          last_validated_at?: string | null
+          last_validation_position?: number | null
+          last_validation_status?: string | null
           lease_expires_at?: string | null
           max_attempts?: number
           metadata?: Json
@@ -6294,6 +6350,9 @@ export type Database = {
           id?: string
           job_type?: string
           last_error?: string | null
+          last_validated_at?: string | null
+          last_validation_position?: number | null
+          last_validation_status?: string | null
           lease_expires_at?: string | null
           max_attempts?: number
           metadata?: Json
