@@ -9610,7 +9610,7 @@ export type Database = {
       }
       enqueue_baseline_collection: {
         Args: { p_campaign_id: string }
-        Returns: Json
+        Returns: undefined
       }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
