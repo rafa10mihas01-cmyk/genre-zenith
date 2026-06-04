@@ -12,43 +12,56 @@ interface AuthCtx {
 
 const Ctx = createContext<AuthCtx | undefined>(undefined);
 
+function readCachedSession(): Session | null {
+  if (typeof window === "undefined") return null;
+  const key = Object.keys(window.localStorage).find((k) => k.startsWith("sb-") && k.endsWith("-auth-token"));
+  if (!key) return null;
+
+  try {
+    const cached = JSON.parse(window.localStorage.getItem(key) ?? "null");
+    const session = cached?.currentSession ?? cached;
+    return session?.access_token && session?.user ? (session as Session) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<Session | null>(() => readCachedSession());
+  const [user, setUser] = useState<User | null>(() => readCachedSession()?.user ?? null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let done = false;
-    const finish = (s: Session | null) => {
-      if (done) return;
-      done = true;
+    let released = false;
+    const applySession = (s: Session | null) => {
       setSession(s);
       setUser(s?.user ?? null);
+    };
+    const release = () => {
+      if (released) return;
+      released = true;
       setLoading(false);
     };
 
     // Listener FIRST — destrava o boot na primeira mudança de estado
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-      if (!done) {
-        done = true;
-        setLoading(false);
-      }
+      applySession(s);
+      release();
     });
 
     // Then fetch existing session
     supabase.auth.getSession().then(({ data: { session: s } }) => {
-      finish(s);
+      applySession(s);
+      release();
     }).catch(() => {
       // gotrue indisponível — libera o app mesmo assim (rotas protegidas vão
-      // redirecionar pra /auth se não houver sessão).
-      finish(null);
+      // redirecionar pra /auth se não houver sessão em cache).
+      release();
     });
 
     // Hard fallback: se em 4s nada resolveu (lock preso, gotrue 504),
-    // libera o splash pra não deixar o usuário travado na tela preta.
-    const safety = setTimeout(() => finish(null), 4000);
+    // libera o splash sem apagar sessão em cache nem bloquear resolução tardia.
+    const safety = setTimeout(release, 4000);
 
     return () => {
       clearTimeout(safety);
