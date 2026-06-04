@@ -226,7 +226,7 @@ Deno.serve(async (req) => {
   // ============= 1b) ADD / REMOVE: executa inline via Web API do Spotify =============
   const { data: mutationJobs } = await supabase
     .from("playlist_execution_jobs")
-    .select("id, job_type, campaign_id, spotify_playlist_id, spotify_track_id, attempts, max_attempts")
+    .select("id, job_type, campaign_id, spotify_playlist_id, spotify_track_id, attempts, max_attempts, to_position, metadata")
     .eq("status", "pending")
     .in("job_type", ["playlist.track.add", "playlist.track.remove"])
     .lte("scheduled_for", nowIso)
