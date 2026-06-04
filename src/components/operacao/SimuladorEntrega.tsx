@@ -222,7 +222,7 @@ export function ProjecaoFaixa({ playlist }: {
 function SimDetail({ playlist, onBack, embedded }: { playlist: SimPlaylist; onBack?: () => void; embedded?: boolean }) {
   // Multiplicador plays/save/mês — ajustável pelo usuário (18=conservador, 30=mercado, 50=engajado)
   const PRESETS = [18, 30, 50] as const;
-  const [multiplier, setMultiplier] = useState<number>(PLAYS_PER_SAVE_MONTH);
+  const [multiplier, setMultiplier] = useState<number>(35);
   const [customOpen, setCustomOpen] = useState(false);
 
   const monthly = playlist.followers * multiplier;

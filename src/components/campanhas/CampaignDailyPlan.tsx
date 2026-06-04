@@ -36,7 +36,7 @@ type Props = {
 
 export function CampaignDailyPlan({
   campaignId, snapshot, startedAt, ecoAllocations, refreshKey = 0,
-  engagementMultiplier: initialMultiplier = 30,
+  engagementMultiplier: initialMultiplier = 35,
   onEngagementChange,
 }: Props) {
   const [externalItems, setExternalItems] = useState<ExternalPlanInput[]>([]);

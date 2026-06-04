@@ -7,7 +7,7 @@ import { buildEcoPlan, type Alloc, type EcoPlanRow } from "../_shared/computeEco
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const DEFAULT_MULT = 30;
+const DEFAULT_MULT = 35;
 
 function jr(p: unknown, status = 200) {
   return new Response(JSON.stringify(p), {

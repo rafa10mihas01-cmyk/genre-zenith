@@ -58,7 +58,7 @@ export function CampaignFullPlanCard({
   snapshot,
   startedAt,
   allocations,
-  engagementMultiplier = 30,
+  engagementMultiplier = 35,
   shareToken,
   showShare = true,
   track = null,
@@ -681,7 +681,7 @@ export function CampaignFullPlanSummary({
   snapshot,
   startedAt,
   allocations,
-  engagementMultiplier = 30,
+  engagementMultiplier = 35,
 }: {
   snapshot: CampaignSnapshot;
   startedAt: string;

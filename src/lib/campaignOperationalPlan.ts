@@ -12,7 +12,7 @@ export type EcoPlanInput = {
   start_day: number;
   /** Posição persistida em campaign_eco_allocations.position. Null = ainda não materializada → cai no fallback dinâmico. */
   position?: number | null;
-  managed_playlists?: { name: string; followers: number; cover_url?: string | null } | null;
+  managed_playlists?: { name: string; followers: number; cover_url?: string | null; engagement_multiplier_override?: number | null } | null;
 };
 
 export type ExternalPlanInput = {
@@ -453,7 +453,7 @@ export function getCampaignPreferredPositions(snapshot?: CampaignSnapshot | null
 export function inferEcoPreferredPositions(
   snapshot: CampaignSnapshot,
   allocs: EcoPositionInput[],
-  engagementMultiplier = 30,
+  engagementMultiplier = 35,
 ): number[] {
   const saved = getCampaignPreferredPositions(snapshot);
   if (saved.some((p) => p < MIN_CAMPAIGN_POSITION)) return saved;
@@ -547,7 +547,7 @@ export function recommendEcoPosition(
   plannedStreams: number,
   days: number,
   followers: number,
-  engagementMultiplier = 30,
+  engagementMultiplier = 35,
   seed = "default",
 ): number {
   const tier = classifyPlaylistSize(followers);
@@ -666,7 +666,7 @@ function distributeByChartTier(
 export function distributeEcoPositions(
   allocs: Array<EcoPositionInput & { genreSource?: "primary" | "affinity" }>,
   days: number,
-  engagementMultiplier = 30,
+  engagementMultiplier = 35,
   opts: { strongSlotShareCap?: number; preferredSlots?: number[]; coverageRatio?: number; mode?: CoverageMode; chartTier?: ChartTier } = {},
 ): Map<string, number> {
   // Modo determinístico baseado na posição no Top200 — sem RNG, sem buckets.
@@ -1014,15 +1014,21 @@ export function buildEcoPlaylistPlan(
       : effectiveEcoStartDay(index, ordered.length, planDaysOf(snapshot), a.start_day, snapshot.modo);
     const startDay = Math.min(planDaysOf(snapshot), Math.max(baseStart, ecoFloorDay));
     const followers = Number(a.managed_playlists?.followers ?? 0);
+    // Override por playlist: managed_playlists.engagement_multiplier_override
+    // sobrescreve o multiplicador da campanha apenas para esta playlist.
+    // NULL/0 → usa o multiplicador da campanha (default 35).
+    const overrideMult = Number(a.managed_playlists?.engagement_multiplier_override ?? 0);
+    const effMult = overrideMult > 0 ? overrideMult : multiplier;
     let pos = positions.get(a.id) ?? MIN_CAMPAIGN_POSITION;
     // PISO 500/dia: PROMOVE pra posição mais profunda que ainda atende o piso
     // (nunca rebaixa — só sobe a posição/diminui o número se necessário).
-    const deepestFloor = deepestPositionMeetingFloor(followers, multiplier);
+    const deepestFloor = deepestPositionMeetingFloor(followers, effMult);
     if (deepestFloor != null && pos > deepestFloor) pos = deepestFloor;
     // VERDADE: capDia da faixa = saves × (mult/30) × POSITION_PCT[pos].
     // A música fica FIXA na posição → entrega ~capDia TODO DIA, com leve
     // dip de fim-de-semana/segunda. Sem curva gaussiana, sem delay, sem jitter.
-    const baseCap = Math.max(1, Math.round(calculateTrackDailyStreams(followers, multiplier, pos)));
+    const baseCap = Math.max(1, Math.round(calculateTrackDailyStreams(followers, effMult, pos)));
+
 
     const planLen = planDaysOf(snapshot);
     const daily = Array.from({ length: planLen }, () => 0);
@@ -1055,7 +1061,8 @@ export function buildEcoPlaylistPlan(
       // Cap do dia: usa POSITION_PCT da posição planejada no dia (rebaixada
       // na fase de saída). No platô, posição = base → dayCap = baseCap.
       const dayCap = Math.max(1, Math.round(
-        calculateTrackDailyStreams(followers, multiplier, positionByDay[i]),
+        calculateTrackDailyStreams(followers, effMult, positionByDay[i]),
+
       ));
       daily[i] = Math.max(1, Math.round(dayCap * ramp * growth * weekday));
     }
