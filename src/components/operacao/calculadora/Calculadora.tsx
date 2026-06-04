@@ -257,7 +257,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
   }, [active.track?.position]);
 
   // Capacidade real do ecossistema filtrada por gênero da música ativa.
-  const ecoCap = useEcosystemCapacity(active.genre, active.days, active.engagementMultiplier ?? 30, preferredSlots, active.track?.position ?? null, result.streamsEco);
+  const ecoCap = useEcosystemCapacity(active.genre, active.days, active.engagementMultiplier ?? 35, preferredSlots, active.track?.position ?? null, result.streamsEco);
   const ecoNeeded = result.streamsEco;
   const ecoUsagePct = ecoCap.capacityTotal > 0
     ? Math.round((ecoNeeded / ecoCap.capacityTotal) * 100)
@@ -510,7 +510,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
       const compatiblePlaylists = [...coreSlice, ...neighborSlice].sort((a, b) => (b.followers ?? 0) - (a.followers ?? 0));
       const slots = (song.track?.position ?? 999) <= 50 ? [1, 2, 3] : [3];
       const capacityPerDay = compatiblePlaylists.reduce((sum, playlist, index) => (
-        sum + calculateTrackDailyStreams(playlist.followers ?? 0, song.engagementMultiplier ?? 30, slots[index % slots.length] ?? 3)
+        sum + calculateTrackDailyStreams(playlist.followers ?? 0, song.engagementMultiplier ?? 35, slots[index % slots.length] ?? 3)
       ), 0);
       const capacity = capacityPerDay * r.days;
       let shortfall: { capacity: number; missing: number; suggestedExtPct: number } | undefined;
@@ -540,7 +540,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
       const realPlan = planRealCapacity(
         [...corePool, ...neighborPool],
         dailyNeed,
-        song.engagementMultiplier ?? 30,
+        song.engagementMultiplier ?? 35,
         undefined,
         { mode },
       );
@@ -586,7 +586,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
           descendedCount += 1;
           // Recalcula cap_dia/planned_streams pro novo slot (posição menor = menos %).
           const followers = compatiblePlaylists.find(p => p.id === a.managed_playlist_id)?.followers ?? 0;
-          const newDaily = calculateTrackDailyStreams(followers, song.engagementMultiplier ?? 30, pos);
+          const newDaily = calculateTrackDailyStreams(followers, song.engagementMultiplier ?? 35, pos);
           allocations.push({ ...a, position: pos, planned_streams: Math.max(1, Math.round(newDaily * planMultiplier)) });
         } else {
           allocations.push(a);
@@ -653,7 +653,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         snapshot,
         deadlineISO,
         allocations,
-        engagementMultiplier: song.engagementMultiplier ?? 30,
+        engagementMultiplier: song.engagementMultiplier ?? 35,
         clientId: clientId || null,
         curatorId: curatorId || null,
         status: "draft",
@@ -1232,7 +1232,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                           onClick={() => setEngagementMultiplier(p)}
                           className={cn(
                             "h-9 px-3.5 rounded-md text-xs font-medium tabular-nums border transition-colors",
-                            (active.engagementMultiplier ?? 30) === p
+                            (active.engagementMultiplier ?? 35) === p
                               ? "bg-primary text-primary-foreground border-primary"
                               : "border-border text-muted-foreground hover:text-foreground hover:bg-elevated/60",
                           )}
@@ -1244,7 +1244,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                         type="number"
                         min={1}
                         max={200}
-                        value={active.engagementMultiplier ?? 30}
+                        value={active.engagementMultiplier ?? 35}
                         onChange={(e) => setEngagementMultiplier(Number(e.target.value))}
                         className="h-9 w-20 text-xs tabular-nums text-center"
                       />
@@ -1435,7 +1435,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     <CapacidadeRealCard
                       genre={active.genre}
                       dailyNeed={result.effectiveDays > 0 ? Math.round(result.streamsEco / result.effectiveDays) : 0}
-                      multiplier={active.engagementMultiplier ?? 30}
+                      multiplier={active.engagementMultiplier ?? 35}
                       clientProfile={active.clientProfile}
                     />
                   </div>

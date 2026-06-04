@@ -103,14 +103,14 @@ Deno.serve(async (req) => {
 
   const { data: allocs, error: aErr } = await admin
     .from("campaign_eco_allocations")
-    .select("id, planned_streams, start_day, status, position, managed_playlists(id, name, cover_url, followers, spotify_url)")
+    .select("id, planned_streams, start_day, status, position, managed_playlists(id, name, cover_url, followers, spotify_url, engagement_multiplier_override)")
     .eq("campaign_id", campaignId);
   if (aErr) return jr({ error: aErr.message }, 500);
 
   const plan = buildEcoPlan({
     snapshot,
     startedAt: (camp as any).started_at,
-    engagementMultiplier: Math.max(1, (camp as any).engagement_multiplier ?? 30),
+    engagementMultiplier: Math.max(1, (camp as any).engagement_multiplier ?? 35),
     allocs: (allocs ?? []) as any,
   });
 

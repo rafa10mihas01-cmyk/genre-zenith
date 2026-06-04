@@ -186,7 +186,7 @@ Deno.serve(async (req) => {
   // 2a) Calcula backfill de positions (lê estado atual)
   try {
     const snapDays = Number(snap?.days ?? 0);
-    const mult = Math.max(1, Math.round(Number((campaign as any).engagement_multiplier ?? snap?.engagement_multiplier ?? 30)));
+    const mult = Math.max(1, Math.round(Number((campaign as any).engagement_multiplier ?? snap?.engagement_multiplier ?? 35)));
     const topPos = Number(snap?.music?.top200Position ?? snap?.music?.top200Pos ?? 0) || null;
     const chartTier = chartTierFromTopPosition(topPos);
     if (snapDays > 0) {
@@ -385,7 +385,7 @@ Deno.serve(async (req) => {
   try {
     const goalPlays = Number((campaign as any).goal_plays ?? 0);
     const snapDays = Number(snap?.effectiveDays ?? snap?.days ?? 0);
-    const mult = Math.max(1, Math.round(Number((campaign as any).engagement_multiplier ?? 30)));
+    const mult = Math.max(1, Math.round(Number((campaign as any).engagement_multiplier ?? 35)));
     const snapEcoTarget = Number(snap?.streamsEco ?? 0);
     const splitEcoPct = Number(snap?.splitEcoPct ?? 0);
     const ecoTarget = snapEcoTarget > 0
@@ -507,7 +507,7 @@ Deno.serve(async (req) => {
   // e nunca passam por esta seção — Carnívoro/Toma Botadão ficam intocados.
   // Replan, swap e execução também NÃO acionam relief.
   try {
-    const mult = Math.max(1, Math.round(Number((campaign as any).engagement_multiplier ?? 30)));
+    const mult = Math.max(1, Math.round(Number((campaign as any).engagement_multiplier ?? 35)));
     const { data: finalAllocs } = await admin
       .from("campaign_eco_allocations")
       .select("id, managed_playlist_id, planned_streams, position, genre_source, managed_playlists(followers, genre_id)")

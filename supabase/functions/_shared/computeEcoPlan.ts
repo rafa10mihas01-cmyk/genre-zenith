@@ -457,7 +457,9 @@ export type Alloc = {
     cover_url?: string | null;
     followers?: number;
     spotify_url?: string | null;
+    engagement_multiplier_override?: number | null;
   } | null;
+
 };
 
 export type EcoPlanRow = {
@@ -533,15 +535,20 @@ export function buildEcoPlan(args: {
       : effectiveStart(index, ordered.length, days, a.start_day, modo);
     const startDay = Math.min(days, Math.max(baseStart, ecoFloor));
     const followers = Number(a.managed_playlists?.followers ?? 0);
+    // Override por playlist: se a playlist tem multiplicador próprio, usa-o no
+    // lugar do multiplicador da campanha. NULL/0 = usa o da campanha.
+    const overrideMult = Number(a.managed_playlists?.engagement_multiplier_override ?? 0);
+    const effMult = overrideMult > 0 ? overrideMult : mult;
     let pos = positions.get(a.id) ?? MIN_CAMPAIGN_POSITION;
 
     // PISO 500/dia: promover posição se cap atual < piso.
     // Se nem pos #1 atende → playlist deveria ter sido expulsa upstream;
     // mantém a posição mas o piso será aplicado no daily mesmo assim.
-    const deepest = deepestPositionMeetingFloor(followers, mult, POSITION_PCT, MIN_PLAYLIST_DAILY_STREAMS);
+    const deepest = deepestPositionMeetingFloor(followers, effMult, POSITION_PCT, MIN_PLAYLIST_DAILY_STREAMS);
     if (deepest != null && pos > deepest) pos = deepest;
 
-    const baseCap = Math.max(1, Math.round(calcTrackDailyStreams(followers, mult, pos)));
+    const baseCap = Math.max(1, Math.round(calcTrackDailyStreams(followers, effMult, pos)));
+
 
     let daily: number[] = Array.from({ length: days }, () => 0);
     const runLen = Math.max(1, days - (startDay - 1));
@@ -566,7 +573,7 @@ export function buildEcoPlan(args: {
         d.setDate(d.getDate() + i);
         weekday = WEEKDAY_FLAT_FACTOR[d.getDay()] ?? 1;
       }
-      const dayCap = Math.max(1, Math.round(calcTrackDailyStreams(followers, mult, positionByDay[i])));
+      const dayCap = Math.max(1, Math.round(calcTrackDailyStreams(followers, effMult, positionByDay[i])));
       daily[i] = Math.max(1, Math.round(dayCap * ramp * growth * weekday));
     }
 

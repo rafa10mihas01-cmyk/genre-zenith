@@ -25,13 +25,13 @@ export type ScenarioCapacity = {
   monthly: number;
 };
 
-export function capacityOf(saves: number, scenario: ScenarioKey, mult = 30): ScenarioCapacity {
+export function capacityOf(saves: number, scenario: ScenarioKey, mult = 35): ScenarioCapacity {
   const pos = SCENARIOS[scenario].position;
   const daily = calculateTrackDailyStreams(saves, mult, pos);
   return { daily: Math.round(daily), monthly: Math.round(daily * 30) };
 }
 
-export function aggregateCapacity(playlists: EcoPlaylist[], mult = 30) {
+export function aggregateCapacity(playlists: EcoPlaylist[], mult = 35) {
   const savesTotal = playlists.reduce((s, p) => s + (p.followers || 0), 0);
   return {
     playlistCount: playlists.length,
@@ -57,7 +57,7 @@ export function bandOf(saves: number): string {
   return "b1";
 }
 
-export function concentrationTop(playlists: EcoPlaylist[], pct: number, mult = 30) {
+export function concentrationTop(playlists: EcoPlaylist[], pct: number, mult = 35) {
   const sorted = [...playlists].sort((a, b) => b.followers - a.followers);
   const n = Math.max(1, Math.ceil(sorted.length * pct));
   const top = sorted.slice(0, n);

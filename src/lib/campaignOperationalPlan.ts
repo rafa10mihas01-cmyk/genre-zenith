@@ -965,7 +965,7 @@ export function buildEcoPlaylistPlan(
 ): EcoPlanResult {
   // Multiplicador plays/save/mês — propagado da campanha. Fórmula oficial:
   //   trackDailyStreams = saves × (mult/30) × POSITION_PCT[pos]
-  const multiplier = Math.max(1, opts.engagementMultiplier ?? 30);
+  const multiplier = Math.max(1, opts.engagementMultiplier ?? 35);
   const curva = opts.startedAt
     ? applyWeekdaySeasonality(snapshot.curva, opts.startedAt)
     : snapshot.curva;
