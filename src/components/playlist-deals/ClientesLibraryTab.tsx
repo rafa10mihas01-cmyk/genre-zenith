@@ -267,6 +267,7 @@ export function ClientesLibraryTab({ deals, songs, loading, financeByClient }: P
               <div
                 key={client.id}
                 onClick={() => navigate(`/clientes/${client.id}`)}
+                style={{ contentVisibility: "auto", containIntrinsicSize: "320px 260px" }}
                 className={cn(
                   "group relative rounded-2xl border border-border/50 bg-card transition-colors cursor-pointer flex flex-col",
                   "border-l-2 border-l-domain-clients/60",

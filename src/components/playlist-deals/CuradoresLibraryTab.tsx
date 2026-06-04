@@ -397,6 +397,7 @@ export function CuradoresLibraryTab({
               <div
                 key={curator.id}
                 onClick={() => navigate(`/curadores/${curator.id}`)}
+                style={{ contentVisibility: "auto", containIntrinsicSize: "320px 220px" }}
                 className={cn(
                   "group relative rounded-2xl border border-border/50 bg-card transition-colors cursor-pointer",
                   "border-l-2 border-l-domain-curators/60",
