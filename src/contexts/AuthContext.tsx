@@ -20,7 +20,9 @@ function readCachedSession(): Session | null {
   try {
     const cached = JSON.parse(window.localStorage.getItem(key) ?? "null");
     const session = cached?.currentSession ?? cached;
-    return session?.access_token && session?.user ? (session as Session) : null;
+    const expiresAt = Number(session?.expires_at ?? 0);
+    const stillValid = expiresAt > Math.floor(Date.now() / 1000) + 30;
+    return session?.access_token && session?.user && stillValid ? (session as Session) : null;
   } catch {
     return null;
   }
