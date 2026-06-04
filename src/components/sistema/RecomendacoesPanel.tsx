@@ -13,6 +13,7 @@ import {
 import { ArrowRight, Check, EyeOff, RefreshCw, RotateCw, Search, FileSearch, ExternalLink, Plus, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { PedirRemocaoDialog } from "./PedirRemocaoDialog";
 
 type FitRow = {
@@ -65,17 +66,15 @@ export function RecomendacoesPanel() {
   const [removalRow, setRemovalRow] = useState<FitRow | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [{ data: fits, error: fitsErr }, { data: { user } }] = await Promise.all([
-      supabase
-        .from("track_playlist_fit")
-        .select("*")
-        .order("fit_score", { ascending: false })
-        .limit(2000),
-      supabase.auth.getUser(),
-    ]);
+    const { data: fits, error: fitsErr } = await supabase
+      .from("track_playlist_fit")
+      .select("*")
+      .order("fit_score", { ascending: false })
+      .limit(2000);
     if (fitsErr) toast({ title: "Erro ao carregar", description: fitsErr.message, variant: "destructive" });
     setRows((fits ?? []) as FitRow[]);
 
@@ -89,7 +88,7 @@ export function RecomendacoesPanel() {
       setFeedbackMap(map);
     }
     setLoading(false);
-  }, [toast]);
+  }, [toast, user]);
 
   useEffect(() => { load(); }, [load]);
 
