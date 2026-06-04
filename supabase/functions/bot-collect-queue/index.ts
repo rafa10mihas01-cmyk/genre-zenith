@@ -214,7 +214,10 @@ Deno.serve(async (req) => {
   }
 
   const isCampaignInternal = (s: any) => s?.curator_deals?.source === "campaign_internal" || !!s?.curator_deals?.campaign_id;
-  const eligible = candidates.filter((s: any) => isCampaignInternal(s) || dealsWithWhitelist.has(s.deal_id));
+  const eligibleAll = candidates.filter((s: any) => isCampaignInternal(s) || dealsWithWhitelist.has(s.deal_id));
+  // Respeita o `limit` pedido pelo bot — over-fetch acima é só pra atravessar
+  // deals filtrados (spreadsheet/pausado), não pra inflar o batch entregue.
+  const eligible = eligibleAll.slice(0, limit);
   for (const s of eligible as any[]) {
     const rows = whitelistsByDeal.get(s.deal_id) ?? [];
     const scoped = rows.filter((p: any) => !p.song_id || p.song_id === s.id);
