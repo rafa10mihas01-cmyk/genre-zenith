@@ -9300,6 +9300,22 @@ export type Database = {
         Returns: Database["public"]["Enums"]["notification_type"]
       }
       accept_community_invite: { Args: { p_code: string }; Returns: Json }
+      admin_get_client_pii: {
+        Args: { _client_id: string }
+        Returns: {
+          document: string
+          phone: string
+        }[]
+      }
+      admin_get_curator_pii: {
+        Args: { _curator_id: string }
+        Returns: {
+          document: string
+          phone: string
+          pix_key: string
+          pix_type: string
+        }[]
+      }
       apply_playlist_cooldown: {
         Args: {
           _action: Database["public"]["Enums"]["curatorial_action_type"]
