@@ -22,6 +22,7 @@ import { buildEcoPlaylistPlan, distributeEcoPositions, chartTierFromTopPosition 
 import { CampaignFullPlanCard, CampaignFullPlanSummary } from "@/components/campanhas/CampaignFullPlanCard";
 import { CampaignExecutionStatus } from "@/components/campanhas/CampaignExecutionStatus";
 import { CampaignDistributionConsole } from "@/components/campanhas/CampaignDistributionConsole";
+import { CampaignManualQueue } from "@/components/campanhas/CampaignManualQueue";
 import { TrackActionsPanel } from "@/components/campanhas/TrackActionsPanel";
 import { ArrowLeft, Loader2, Save, Upload, Rocket, CheckCircle2, RefreshCw, Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
