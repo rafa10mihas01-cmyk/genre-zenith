@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { useScreenField } from "@/lib/screen-state";
 import { useSetSidebarKpis } from "@/contexts/SidebarContext";
 import { useCuratorDeals } from "@/hooks/useCuratorDeals";
+import { useDeliveryStatusMap } from "@/hooks/useDeliveryStatus";
 import { computeCuratorStats, type CuratorDeal } from "@/lib/curatorDealsUtils";
 import { formatNumber } from "@/lib/format";
 import { DealRow } from "@/components/playlist-deals/DealRow";
@@ -293,6 +294,8 @@ export default function PlaylistDeals() {
     () => filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
     [filtered, safePage],
   );
+  const pagedIds = useMemo(() => paged.map((d) => d.id), [paged]);
+  const deliveryMap = useDeliveryStatusMap(pagedIds);
 
   const handleNew = () => setNewOpen(true);
 
@@ -409,7 +412,7 @@ export default function PlaylistDeals() {
         })}
       </div>
 
-      <div className="hidden sm:block sticky top-0 z-30 -mt-px bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border -mx-4 md:-mx-6">
+      <div className="hidden sm:block sticky top-0 z-30 -mt-px bg-background border-b border-border -mx-4 md:-mx-6">
         <div className="nx-tab-rail items-center gap-1 px-4 md:px-6 flex">
           <div className="flex items-center gap-1 flex-1 min-w-0 overflow-x-auto scrollbar-none">
             {TABS.map((t) => {
@@ -567,6 +570,7 @@ export default function PlaylistDeals() {
                   onReopen={handleReopen}
                   onForceCollect={(deal) => forceCollectNow(deal.id)}
                   campaignCollectionMode={d.campaign_id ? campaignModeById[d.campaign_id] ?? null : null}
+                  deliveryRow={deliveryMap[d.id] ?? null}
                 />
               ))}
             </div>

@@ -29,7 +29,7 @@ import {
 import { StatusDot, type StatusVariant } from "@/components/ui/status-dot";
 import { MetricCell } from "@/components/ui/metric-cell";
 import { DealDeliveryBadge } from "@/components/playlist-deals/DealDeliveryBadge";
-import { useDeliveryStatusMap } from "@/hooks/useDeliveryStatus";
+import { useDeliveryStatusMap, type DeliveryStatusRow } from "@/hooks/useDeliveryStatus";
 import { cn } from "@/lib/utils";
 
 
@@ -49,6 +49,11 @@ export interface DealRowProps {
   onForceCollect?: (deal: CuratorDeal) => Promise<void> | void;
   /** collection_mode da campanha vinculada — 'bot' (Spotify) ou 'spreadsheet' (Excel) */
   campaignCollectionMode?: string | null;
+  /**
+   * Status de entrega já buscado pelo pai. Quando informado, o card NÃO
+   * dispara query própria — fundamental pra performance de scroll.
+   */
+  deliveryRow?: DeliveryStatusRow | null;
 }
 
 function formatPlays(n: number): string {
@@ -65,9 +70,15 @@ function formatPlays(n: number): string {
  * mesmos hooks/utilitários — só muda a apresentação.
  */
 function DealRowImpl(props: DealRowProps) {
-  const { deal, logs, playlists, songs = [], progress } = props;
-  const deliveryMap = useDeliveryStatusMap([deal.id]);
-  const stats = computeCuratorStats(deal, logs, playlists, progress ?? null);
+  const { deal, logs, playlists, songs = [], progress, deliveryRow } = props;
+  // Fallback: só dispara query individual se o pai NÃO passou deliveryRow.
+  // Em listas grandes (PlaylistDeals, etc) o pai deve passar — evita N queries.
+  const fallbackMap = useDeliveryStatusMap(deliveryRow === undefined ? [deal.id] : []);
+  const resolvedDelivery = deliveryRow !== undefined ? deliveryRow : fallbackMap[deal.id];
+  const stats = useMemo(
+    () => computeCuratorStats(deal, logs, playlists, progress ?? null),
+    [deal, logs, playlists, progress],
+  );
   const { earned, pct, vel, eta, hasBaseline, todayPlays } = stats;
   const target = Number(deal.target_plays ?? 0);
   const isClosed = !!deal.closed_at;
@@ -117,6 +128,7 @@ function DealRowImpl(props: DealRowProps) {
   return (
     <div
       onClick={() => props.onDetail(deal)}
+      style={{ contentVisibility: "auto", containIntrinsicSize: "320px 220px" } as React.CSSProperties}
       className={cn(
         "group relative rounded-2xl border border-border/50 bg-card transition-colors flex flex-col h-full cursor-pointer",
         "hover:border-foreground/20 hover:bg-[hsl(var(--elevated))]",
@@ -203,7 +215,7 @@ function DealRowImpl(props: DealRowProps) {
                 Coleta Excel
               </span>
             )}
-            <DealDeliveryBadge row={deliveryMap[deal.id]} />
+            <DealDeliveryBadge row={resolvedDelivery} />
           </div>
         </button>
       </div>
@@ -330,6 +342,7 @@ export const DealRow = memo(DealRowImpl, (prev, next) => {
     prev.songs === next.songs &&
     prev.progress === next.progress &&
     prev.campaignCollectionMode === next.campaignCollectionMode &&
+    prev.deliveryRow === next.deliveryRow &&
     prev.onLog === next.onLog &&
     prev.onDetail === next.onDetail &&
     prev.onDelete === next.onDelete &&
