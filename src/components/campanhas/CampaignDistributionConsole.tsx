@@ -203,6 +203,9 @@ export function CampaignDistributionConsole({
     lastError: string | null;
     jobId: string | null;
     completedAt: string | null;
+    validationStatus: string | null;
+    validationPosition: number | null;
+    validatedAt: string | null;
   };
   const stateBySpid = useMemo(() => {
     const m = new Map<string, PlaylistState>();
@@ -224,6 +227,9 @@ export function CampaignDistributionConsole({
         lastError: j.last_error,
         jobId: j.id,
         completedAt: j.completed_at,
+        validationStatus: j.last_validation_status,
+        validationPosition: j.last_validation_position,
+        validatedAt: j.last_validated_at,
       });
     }
     return m;
