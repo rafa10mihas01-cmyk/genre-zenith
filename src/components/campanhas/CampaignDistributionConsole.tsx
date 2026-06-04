@@ -134,7 +134,7 @@ export function CampaignDistributionConsole({
   const loadJobs = async () => {
     const { data } = await supabase
       .from("playlist_execution_jobs")
-      .select("id, job_type, status, spotify_playlist_id, attempts, max_attempts, scheduled_for, completed_at, last_error, from_position, to_position")
+      .select("id, job_type, status, spotify_playlist_id, attempts, max_attempts, scheduled_for, completed_at, last_error, from_position, to_position, last_validated_at, last_validation_status, last_validation_position")
       .eq("campaign_id", campaignId)
       .in("job_type", ["playlist.track.add", "playlist.track.reorder"])
       .order("created_at", { ascending: false })
