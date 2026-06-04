@@ -9608,6 +9608,10 @@ export type Database = {
           spotify_playlist_id: string
         }[]
       }
+      enqueue_baseline_collection: {
+        Args: { p_campaign_id: string }
+        Returns: Json
+      }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
