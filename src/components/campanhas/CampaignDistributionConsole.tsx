@@ -241,7 +241,7 @@ export function CampaignDistributionConsole({
     const m = new Map<string, number>();
     try {
       const plans = buildEcoPlaylistPlan(snapshot, allocations as any, {
-        engagementMultiplier: engagementMultiplier ?? 30,
+        engagementMultiplier: engagementMultiplier ?? 35,
         startedAt: campaignStartedAt ?? undefined,
         positions: ecoPositionByAllocation,
       });
@@ -381,7 +381,7 @@ export function CampaignDistributionConsole({
     let plans: ReturnType<typeof buildEcoPlaylistPlan> = [];
     try {
       plans = buildEcoPlaylistPlan(snapshot, allocations as any, {
-        engagementMultiplier: engagementMultiplier ?? 30,
+        engagementMultiplier: engagementMultiplier ?? 35,
         startedAt: campaignStartedAt ?? undefined,
         positions: ecoPositionByAllocation,
       });

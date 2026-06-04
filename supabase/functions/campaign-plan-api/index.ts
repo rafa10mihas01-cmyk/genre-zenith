@@ -253,7 +253,7 @@ Deno.serve(async (req) => {
     .order("planned_streams", { ascending: false });
   if (aErr) return jr({ error: aErr.message }, 500);
 
-  const mult = Math.max(1, (camp as any).engagement_multiplier ?? 30);
+  const mult = Math.max(1, (camp as any).engagement_multiplier ?? 35);
   // Plano roda sobre effectiveDays (real). Snapshots antigos caem em days.
   const days = (snapshot as any).effectiveDays ?? snapshot.days;
   const startedAt = (camp as any).started_at as string;

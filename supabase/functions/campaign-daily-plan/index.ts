@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
   const plan = buildEcoPlan({
     snapshot,
     startedAt: (camp as any).started_at,
-    engagementMultiplier: Math.max(1, (camp as any).engagement_multiplier ?? 30),
+    engagementMultiplier: Math.max(1, (camp as any).engagement_multiplier ?? 35),
     allocs: (allocs ?? []) as any,
   });
 

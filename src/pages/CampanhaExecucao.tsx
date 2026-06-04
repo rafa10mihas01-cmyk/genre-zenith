@@ -572,14 +572,14 @@ export default function CampanhaExecucao() {
         genreSource: (a.genre_source as "primary" | "affinity" | null) ?? "primary",
       })),
       snapshot.days,
-      camp?.engagement_multiplier ?? 30,
+      camp?.engagement_multiplier ?? 35,
       { chartTier: chartTierFromTopPosition(top) },
     );
   }, [snapshot, allocs, camp?.engagement_multiplier]);
 
   const ecoPlanByAllocation = useMemo(() => {
     if (!snapshot) return new Map<string, number>();
-    const mult = camp?.engagement_multiplier ?? 30;
+    const mult = camp?.engagement_multiplier ?? 35;
     return new Map(
       buildEcoPlaylistPlan(snapshot, allocs as unknown as Parameters<typeof buildEcoPlaylistPlan>[1], {
         startedAt: camp?.started_at,
@@ -825,7 +825,7 @@ export default function CampanhaExecucao() {
                 snapshot={snapshot}
                 startedAt={camp.started_at}
                 allocations={allocs as unknown as Parameters<typeof CampaignFullPlanSummary>[0]["allocations"]}
-                engagementMultiplier={camp.engagement_multiplier ?? 30}
+                engagementMultiplier={camp.engagement_multiplier ?? 35}
               />
               <Tabs defaultValue="mapa" className="space-y-4">
                 <TabsList>
@@ -845,7 +845,7 @@ export default function CampanhaExecucao() {
                     snapshot={snapshot}
                     startedAt={camp.started_at}
                     allocations={allocs as unknown as Parameters<typeof CampaignFullPlanCard>[0]["allocations"]}
-                    engagementMultiplier={camp.engagement_multiplier ?? 30}
+                    engagementMultiplier={camp.engagement_multiplier ?? 35}
                     shareToken={camp.public_plan_token ?? null}
                     campaignId={camp.id}
                     onPositionsRedistributed={loadCampaign}
@@ -873,7 +873,7 @@ export default function CampanhaExecucao() {
                     baselineCapturedAt={baselineGate.capturedAt}
                     campaignStartedAt={camp.started_at ?? null}
                     snapshot={snapshot}
-                    engagementMultiplier={camp.engagement_multiplier ?? 30}
+                    engagementMultiplier={camp.engagement_multiplier ?? 35}
                     custoTotal={snapshot.custoTotal ?? 0}
                     dispatching={dispatching}
                     onDispatch={handleDispatchEco}
@@ -932,7 +932,7 @@ export default function CampanhaExecucao() {
         snapshot={snapshot}
         startedAt={camp.started_at}
         campaignTitle={camp.track_name}
-        engagementMultiplier={camp.engagement_multiplier ?? 30}
+        engagementMultiplier={camp.engagement_multiplier ?? 35}
       />
 
       <NewDealDialog

@@ -127,7 +127,7 @@ Deno.serve(async (req) => {
 
   const snap = (campaign as any).simulation_snapshot ?? null;
   const days = Number(snap?.effectiveDays ?? snap?.days ?? 0);
-  const mult = Math.max(1, Math.round(Number((campaign as any).engagement_multiplier ?? snap?.engagement_multiplier ?? 30)));
+  const mult = Math.max(1, Math.round(Number((campaign as any).engagement_multiplier ?? snap?.engagement_multiplier ?? 35)));
   if (days <= 0) return json({ ok: false, error: "invalid_snapshot_days" }, 400);
   const campaignStartedAt = (campaign as any).started_at ? new Date((campaign as any).started_at) : new Date();
   const campaignEndsAt = new Date(campaignStartedAt.getTime() + days * 86400000);

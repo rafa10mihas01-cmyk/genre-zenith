@@ -279,7 +279,7 @@ export default function PlanoCampanhaPublico() {
         genreSource: ((a as any).genre_source as "primary" | "affinity" | null) ?? "primary",
       })),
       snapshot.days,
-      camp?.engagement_multiplier ?? 30,
+      camp?.engagement_multiplier ?? 35,
       { chartTier: chartTierFromTopPosition(top) },
     );
   }, [snapshot, allocs, camp?.engagement_multiplier]);
@@ -383,7 +383,7 @@ export default function PlanoCampanhaPublico() {
             snapshot={snapshot}
             startedAt={camp.started_at}
             allocations={allocs as unknown as Parameters<typeof CampaignFullPlanCard>[0]["allocations"]}
-            engagementMultiplier={camp.engagement_multiplier ?? 30}
+            engagementMultiplier={camp.engagement_multiplier ?? 35}
             shareToken={null}
             showShare={false}
             radioGoal={Math.round(snapshot.meta * ((snapshot.splitOrganicPct ?? 15) / 100))}

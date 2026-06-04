@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
       // 4) Parâmetros do snapshot (fonte de verdade — não recalcula)
       const days = Number(snap?.effectiveDays ?? snap?.days ?? 0);
       const streamsEco = Number(snap?.streamsEco ?? 0);
-      const mult = Math.max(1, Math.round(Number(camp.engagement_multiplier ?? snap?.engagementMultiplier ?? 30)));
+      const mult = Math.max(1, Math.round(Number(camp.engagement_multiplier ?? snap?.engagementMultiplier ?? 35)));
       const topPos = Number(snap?.music?.top200Position ?? 0) || null;
       const chartTier = chartTierFromTopPosition(topPos);
       if (!(days > 0) || !(streamsEco > 0)) {

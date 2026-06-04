@@ -181,7 +181,7 @@ export default function MapaCampanhaPublico() {
           snapshot={snapshot}
           startedAt={camp.started_at}
           allocations={allocs as unknown as Parameters<typeof CampaignFullPlanCard>[0]["allocations"]}
-          engagementMultiplier={camp.engagement_multiplier ?? 30}
+          engagementMultiplier={camp.engagement_multiplier ?? 35}
           shareToken={null}
           showShare={false}
           radioGoal={radioGoal}
