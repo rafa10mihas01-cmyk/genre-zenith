@@ -128,6 +128,7 @@ function DealRowImpl(props: DealRowProps) {
   return (
     <div
       onClick={() => props.onDetail(deal)}
+      style={{ contentVisibility: "auto", containIntrinsicSize: "320px 220px" } as React.CSSProperties}
       className={cn(
         "group relative rounded-2xl border border-border/50 bg-card transition-colors flex flex-col h-full cursor-pointer",
         "hover:border-foreground/20 hover:bg-[hsl(var(--elevated))]",
@@ -341,6 +342,7 @@ export const DealRow = memo(DealRowImpl, (prev, next) => {
     prev.songs === next.songs &&
     prev.progress === next.progress &&
     prev.campaignCollectionMode === next.campaignCollectionMode &&
+    prev.deliveryRow === next.deliveryRow &&
     prev.onLog === next.onLog &&
     prev.onDetail === next.onDetail &&
     prev.onDelete === next.onDelete &&
