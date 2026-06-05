@@ -5643,6 +5643,75 @@ export type Database = {
           },
         ]
       }
+      patch_b_v2_backup_curator_playlists: {
+        Row: {
+          attribution_method: string | null
+          attribution_reason: string | null
+          backed_up_at: string
+          deal_id: string | null
+          id: string
+          image_url: string | null
+          playlist_name: string | null
+          spotify_owner_id: string | null
+          spotify_owner_name: string | null
+          spotify_playlist_id: string | null
+          spotify_url: string | null
+          streams_28d: number | null
+          streams_7d: number | null
+          streams_total: number | null
+          twin_pid_applied: string | null
+        }
+        Insert: {
+          attribution_method?: string | null
+          attribution_reason?: string | null
+          backed_up_at?: string
+          deal_id?: string | null
+          id: string
+          image_url?: string | null
+          playlist_name?: string | null
+          spotify_owner_id?: string | null
+          spotify_owner_name?: string | null
+          spotify_playlist_id?: string | null
+          spotify_url?: string | null
+          streams_28d?: number | null
+          streams_7d?: number | null
+          streams_total?: number | null
+          twin_pid_applied?: string | null
+        }
+        Update: {
+          attribution_method?: string | null
+          attribution_reason?: string | null
+          backed_up_at?: string
+          deal_id?: string | null
+          id?: string
+          image_url?: string | null
+          playlist_name?: string | null
+          spotify_owner_id?: string | null
+          spotify_owner_name?: string | null
+          spotify_playlist_id?: string | null
+          spotify_url?: string | null
+          streams_28d?: number | null
+          streams_7d?: number | null
+          streams_total?: number | null
+          twin_pid_applied?: string | null
+        }
+        Relationships: []
+      }
+      patch_b_v2_green_cohort: {
+        Row: {
+          ghost_id: string
+          twin_pid: string
+        }
+        Insert: {
+          ghost_id: string
+          twin_pid: string
+        }
+        Update: {
+          ghost_id?: string
+          twin_pid?: string
+        }
+        Relationships: []
+      }
       performance_insights: {
         Row: {
           acoes_sugeridas: Json
