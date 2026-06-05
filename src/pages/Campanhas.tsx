@@ -491,7 +491,8 @@ function CampaignRow({ c }: { c: Campaign }) {
       const managedByName = new Map((managed ?? []).map((p: any) => [normalizeText(p.name), p]));
 
       const { data: existing } = await supabase
-        .from("curator_playlists")
+        // Separação operacional × observacional: dedup só contra playlists operacionais reais.
+        .from("v_curator_playlists_operational")
         .select("id, playlist_name, spotify_playlist_id")
         .eq("deal_id", dealId);
       const existingByKey = new Map((existing ?? []).map((p: any) => [p.spotify_playlist_id ? `id:${p.spotify_playlist_id}` : `name:${normalizeText(p.playlist_name)}`, p.id]));

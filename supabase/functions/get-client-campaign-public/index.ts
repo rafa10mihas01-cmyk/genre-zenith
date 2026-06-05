@@ -229,7 +229,8 @@ Deno.serve(async (req) => {
 
     // Agrupa snapshots por minuto (curator playlists only)
     const { data: curatorPlaylistRows } = await admin
-      .from("curator_playlists")
+      // Separação operacional × observacional: hub público do cliente lê só curadoria entregue.
+      .from("v_curator_playlists_operational")
       .select("id")
       .eq("deal_id", dealId!)
       .eq("match_status", "curator");
@@ -301,7 +302,8 @@ Deno.serve(async (req) => {
     ]));
 
     const { data: playlistsRaw } = await admin
-      .from("curator_playlists")
+      // Separação operacional × observacional
+      .from("v_curator_playlists_operational")
       .select("id, deal_id, playlist_name, image_url, added_at, added_at_spotify, is_baseline, song_id")
       .in("deal_id", allDealIds)
       .eq("match_status", "curator")

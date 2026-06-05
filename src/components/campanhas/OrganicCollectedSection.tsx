@@ -78,7 +78,8 @@ export function OrganicCollectedSection({ rows }: Props) {
     }
     (async () => {
       const { data } = await supabase
-        .from("curator_playlists")
+        // Separação operacional × observacional
+        .from("v_curator_playlists_operational")
         .select("spotify_playlist_id, followers")
         .in("spotify_playlist_id", spotifyIds)
         .not("followers", "is", null);

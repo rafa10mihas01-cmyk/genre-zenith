@@ -123,7 +123,8 @@ export function useCuratorLibrary(curatorId: string | null) {
           if (clientIds.length) {
             const [{ data: cps }, { data: clientsRows }] = await Promise.all([
               supabase
-                .from("curator_playlists")
+                // Separação operacional × observacional
+                .from("v_curator_playlists_operational")
                 .select("deal_id, spotify_playlist_id, spotify_url")
                 .in("deal_id", dealIds)
                 .limit(5000),

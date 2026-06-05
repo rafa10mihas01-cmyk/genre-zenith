@@ -67,7 +67,8 @@ export default function Analytics() {
     const ids = [...new Set(s30.map((s) => s.playlist_id).filter(Boolean))] as string[];
     if (ids.length > 0) {
       const { data: pls } = await supabase
-        .from("curator_playlists")
+        // Separação operacional × observacional
+        .from("v_curator_playlists_operational")
         .select("id, playlist_name")
         .in("id", ids);
       const map: Record<string, string> = {};
