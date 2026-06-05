@@ -698,7 +698,7 @@ function CampaignRow({ c }: { c: Campaign }) {
                     className="text-[10px] uppercase tracking-wider rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-primary"
                     title={`Baseline coletada em ${new Date(c.baseline_captured_at!).toLocaleString("pt-BR")}`}
                   >
-                    Baseline coletada
+                    Baseline ok
                   </span>
                 ) : (
                   <span
