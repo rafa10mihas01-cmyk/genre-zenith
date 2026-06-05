@@ -154,6 +154,21 @@ Deno.serve(async (req) => {
   }
 
   const parsed = parsePartLabel(label);
+
+  // 🚫 Bloqueio do fluxo LEGADO "playlists-part-*".
+  // O VPS ainda dispara dois batches por coleta (playlists + song-snapshot-*) com o mesmo
+  // correlation_id, duplicando o histórico. Apenas o "song-snapshot-{correlation_id}-part-*"
+  // é o fluxo válido. Rejeitamos o legado aqui pra parar a duplicação enquanto o bot não
+  // for atualizado. Quando o dist do bot remover o envio duplicado, este guard pode sair.
+  if (parsed?.key === "playlists") {
+    return jr({
+      error: "legacy_playlists_label_deprecated",
+      detail: "Label 'playlists-part-*' foi descontinuado. Use 'song-snapshot-{correlation_id}-part-X-of-Y'. Este upload foi descartado pra evitar duplicar o histórico.",
+      received_label: label,
+      correlation_id: correlationId,
+    }, 410);
+  }
+
   if (parsed?.key === "playlists" && parsed.total === 1 && domPlaylists.length > MAX_DOM_PLAYLISTS_FOR_SINGLE_PRINT) {
     return jr({
       error: "clipped_playlist_batch_rejected",
