@@ -110,6 +110,7 @@ Deno.serve(async (req) => {
           }).eq("id", row.id);
           continue;
         }
+        console.error("getPlaylistMeta failed", spId, (e as any)?.status, String(e).slice(0, 200));
         failed++;
         continue;
       }
