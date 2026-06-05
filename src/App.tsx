@@ -61,6 +61,7 @@ const Valuation = lazy(() => import("./pages/Valuation"));
 const PlaylistDetail = lazy(() => import("./pages/PlaylistDetail"));
 const Benchmarks = lazy(() => import("./pages/Benchmarks"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const CampaignInventory = lazy(() => import("./pages/CampaignInventory"));
 
 // Defaults globais de cache: navegação "instantânea" sem reload visual.
 // Dia 1 perf: refetchOnWindowFocus DESLIGADO globalmente (cada troca de aba
@@ -171,6 +172,7 @@ const App = () => (
                 <Route path="/infraestrutura" element={<Navigate to="/sistema?tab=infra" replace />} />
                 <Route path="/settings" element={<Protected><AdminRoute><Settings /></AdminRoute></Protected>} />
                 <Route path="/configuracoes" element={<Protected><AdminRoute><Settings /></AdminRoute></Protected>} />
+                <Route path="/campaign-inventory" element={<Protected><AdminRoute><CampaignInventory /></AdminRoute></Protected>} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
