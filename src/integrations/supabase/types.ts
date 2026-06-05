@@ -2248,10 +2248,13 @@ export type Database = {
       }
       curator_campaign_playlists: {
         Row: {
+          baseline_conflict_at: string | null
+          baseline_conflict_source: string | null
           campaign_id: string
           created_at: string
           curator_id: string
           deal_id: string | null
+          excluded_from_kpis: boolean
           first_seen_collection_run_id: string | null
           id: string
           matched_at: string | null
@@ -2262,10 +2265,13 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          baseline_conflict_at?: string | null
+          baseline_conflict_source?: string | null
           campaign_id: string
           created_at?: string
           curator_id: string
           deal_id?: string | null
+          excluded_from_kpis?: boolean
           first_seen_collection_run_id?: string | null
           id?: string
           matched_at?: string | null
@@ -2276,10 +2282,13 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          baseline_conflict_at?: string | null
+          baseline_conflict_source?: string | null
           campaign_id?: string
           created_at?: string
           curator_id?: string
           deal_id?: string | null
+          excluded_from_kpis?: boolean
           first_seen_collection_run_id?: string | null
           id?: string
           matched_at?: string | null
