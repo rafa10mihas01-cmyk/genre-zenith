@@ -20,7 +20,7 @@ type InvRow = {
   campaign_id: string;
   playlist_id: string;
   source: "ecosystem" | "curator" | "orphan";
-  state: "planned" | "pending_match" | "matched" | "orphan_collected";
+  state: "planned" | "pending_match" | "matched" | "orphan_collected" | "baseline_conflict";
   curator_id: string | null;
   managed_playlist_id: string | null;
   playlist_name: string | null;
@@ -41,6 +41,7 @@ const STATE_LABEL: Record<InvRow["state"], string> = {
   pending_match: "Pendente match",
   matched: "Coletada",
   orphan_collected: "Órfã coletada",
+  baseline_conflict: "Conflito baseline",
 };
 
 export default function CampaignInventory() {
