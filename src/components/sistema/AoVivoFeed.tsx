@@ -119,7 +119,8 @@ export function AoVivoFeed() {
       .on("postgres_changes", { event: "*", schema: "public", table: "playlist_execution_jobs" }, () => load())
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "bot_heartbeats" }, () => load())
       .subscribe();
-    const t = setInterval(load, 30_000);
+    // Polling de fallback raro — realtime cobre o tempo real
+    const t = setInterval(load, 90_000);
     return () => { supabase.removeChannel(ch); clearInterval(t); };
   }, []);
 
