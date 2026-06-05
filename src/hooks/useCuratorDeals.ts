@@ -237,7 +237,8 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
           .order("created_at", { ascending: true })
           .limit(5000),
         supabase
-          .from("curator_playlists")
+          // Separação operacional × observacional: hub interno usa apenas curadoria entregue
+          .from("v_curator_playlists_operational")
           .select("*")
           .in("deal_id", dealIds)
           .order("added_at", { ascending: true })
