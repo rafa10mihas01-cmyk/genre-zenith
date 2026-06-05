@@ -706,9 +706,11 @@ export default function CuratorPage() {
         description: "Volte assim que a primeira coleta do Spotify for capturada.",
       });
       return;
-    } else if (item?.status === "campaign_baseline_blocked") {
-      toast.error("Essa playlist já estava na foto inicial da campanha", {
-        description: "Playlists da baseline não contam como entrega de curador.",
+    } else if (item?.status === "campaign_baseline_blocked" || item?.status === "baseline_conflict") {
+      toast.error("Esta playlist já continha a música antes do início da campanha", {
+        description:
+          "Ela não pode ser contabilizada como entrega nova. Você pode enviar outra playlist ou trabalhar ganho de posição nesta.",
+        duration: 8000,
       });
       return;
     } else if (item?.status === "invalid_url") {
