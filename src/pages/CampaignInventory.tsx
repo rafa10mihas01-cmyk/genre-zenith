@@ -186,6 +186,7 @@ export default function CampaignInventory() {
               <ToggleGroupItem value="planned" size="sm">Planejada</ToggleGroupItem>
               <ToggleGroupItem value="pending_match" size="sm">Pendente</ToggleGroupItem>
               <ToggleGroupItem value="matched" size="sm">Coletada</ToggleGroupItem>
+              <ToggleGroupItem value="baseline_conflict" size="sm">Conflito</ToggleGroupItem>
               <ToggleGroupItem value="orphan_collected" size="sm">Órfã</ToggleGroupItem>
             </ToggleGroup>
           </div>
