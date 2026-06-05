@@ -288,6 +288,7 @@ export function ExecucaoView({ campaignId, onOpenHistory }: { campaignId: string
                 <SelectItem value="all">Todos status</SelectItem>
                 <SelectItem value="matched">Matched</SelectItem>
                 <SelectItem value="pending_match">Pending</SelectItem>
+                <SelectItem value="baseline_conflict">Conflito baseline</SelectItem>
                 <SelectItem value="not_found_yet">Not found</SelectItem>
               </SelectContent>
             </Select>
