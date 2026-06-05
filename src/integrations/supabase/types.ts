@@ -8938,6 +8938,25 @@ export type Database = {
       }
     }
     Views: {
+      campaign_playlist_inventory_v1: {
+        Row: {
+          campaign_id: string | null
+          curator_id: string | null
+          first_seen_at: string | null
+          has_collection: boolean | null
+          last_collected_at: string | null
+          managed_playlist_id: string | null
+          missing_spotify_id: boolean | null
+          planned_at: string | null
+          playlist_id: string | null
+          playlist_name: string | null
+          raw_status: string | null
+          source: string | null
+          source_ref: string | null
+          state: string | null
+        }
+        Relationships: []
+      }
       campaign_radio_collected: {
         Row: {
           campaign_id: string | null
