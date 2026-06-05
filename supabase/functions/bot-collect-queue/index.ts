@@ -185,9 +185,15 @@ Deno.serve(async (req) => {
   const candidates = (data ?? []).filter((s: any) => {
     // Curador pausado: bloqueia coleta
     if (s?.curator_deals?.curators?.paused_at) return false;
-    // Campanha em modo planilha: planilha é a única fonte de verdade,
-    // robô não coleta (defesa em profundidade; auto_collect dos songs também é false).
-    if (s?.curator_deals?.campaigns?.collection_mode === "spreadsheet") return false;
+    // Campanha em modo planilha: planilha é a única fonte de verdade da BASELINE,
+    // então bloqueia APENAS shadow deals do ecossistema (source='campaign_internal').
+    // Curadores reais (source IS NULL) continuam coletando normalmente — a planilha
+    // governa baseline, não a entrega curatorial. Regra arquitetural confirmada
+    // 05/06/2026 (caso Carnívoro: Manolo + Plug bloqueados indevidamente).
+    if (
+      s?.curator_deals?.campaigns?.collection_mode === "spreadsheet" &&
+      (s?.curator_deals?.source === "campaign_internal" || !!s?.curator_deals?.campaign_id)
+    ) return false;
     const exp = s?.curator_deals?.token_expires_at;
     if (!exp) return true;
     const t = new Date(exp).getTime();
