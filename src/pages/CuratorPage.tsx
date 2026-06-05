@@ -359,6 +359,9 @@ export default function CuratorPage() {
     baseline_captured_at: null,
     baseline_playlist_count: 0,
   });
+  const [curatorSubmissions, setCuratorSubmissions] =
+    useState<CuratorSubmissionsSummary | null>(null);
+  const [baselineConflicts, setBaselineConflicts] = useState<BaselineConflict[]>([]);
   const [url, setUrl] = useState("");
   const [position, setPosition] = useState("");
   const [submitting, setSubmitting] = useState(false);
