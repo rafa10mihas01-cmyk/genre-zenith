@@ -94,10 +94,11 @@ export default function CampaignInventory() {
     const planned = rows.filter((r) => r.state === "planned" || r.state === "pending_match").length;
     const matched = rows.filter((r) => r.state === "matched").length;
     const orphans = rows.filter((r) => r.state === "orphan_collected").length;
+    const conflicts = rows.filter((r) => r.state === "baseline_conflict").length;
     const invisible = rows.filter((r) => !r.visible_in_monitor).length;
     const eco = rows.filter((r) => r.source === "ecosystem").length;
     const cur = rows.filter((r) => r.source === "curator").length;
-    return { total, planned, matched, orphans, invisible, eco, cur };
+    return { total, planned, matched, orphans, conflicts, invisible, eco, cur };
   }, [rows]);
 
   // Aplica filtros à tabela
