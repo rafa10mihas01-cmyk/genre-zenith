@@ -39,7 +39,7 @@ export type Campaign = {
   access_emails_count?: number;
 };
 
-const SELECT = "id, track_name, artist, cover_url, goal_plays, deadline, status, total_allocated, total_delivered, created_at, snapshot_locked_at, client_id, curator_id, deal_id, public_plan_token, client_approved_at, client_approved_by, client_rejected_at, campaign_type, collection_mode, plan_approved_at, client_decision_round, valor_cobrado";
+const SELECT = "id, track_name, artist, cover_url, goal_plays, deadline, status, total_allocated, total_delivered, created_at, snapshot_locked_at, client_id, curator_id, deal_id, public_plan_token, client_approved_at, client_approved_by, client_rejected_at, campaign_type, collection_mode, plan_approved_at, client_decision_round, valor_cobrado, baseline_captured_at, baseline_status";
 
 const QUERY_KEY = ["campaigns"] as const;
 
@@ -63,8 +63,10 @@ export function useCampaigns() {
       const campaigns = (data ?? []) as Campaign[];
       if (campaigns.length === 0) return campaigns;
 
-      // Reversão 30/05: baseline deixou de ser gate. Mantemos só a leitura de
-      // baseline_captured_at (informativo na UI), sem derivar "pending".
+      // Reversão 30/05: baseline deixou de ser gate. baseline_captured_at vem
+      // direto de campaigns (fonte da verdade gravada por ingest_campaign_collection_batch).
+      // Mantemos lookup em curator_deals só como FALLBACK pra campanhas antigas
+      // onde o campo só foi preenchido no deal.
       const ids = campaigns.map((c) => c.id);
       const clientIds = Array.from(new Set(campaigns.map((c) => c.client_id).filter(Boolean) as string[]));
 
@@ -76,12 +78,13 @@ export function useCampaigns() {
           : Promise.resolve({ data: [] as Array<{ id: string; email: string | null }> } as any),
       ]);
 
-      const byCamp = new Map<string, string | null>();
+      const dealBaselineByCamp = new Map<string, string | null>();
       for (const d of deals ?? []) {
         const cap = d.baseline_captured_at as string | null;
-        const cur = byCamp.get(d.campaign_id as string) ?? null;
-        if (cap && (!cur || cap < cur)) byCamp.set(d.campaign_id as string, cap);
-        else if (!byCamp.has(d.campaign_id as string)) byCamp.set(d.campaign_id as string, cur);
+        const cur = dealBaselineByCamp.get(d.campaign_id as string) ?? null;
+        // Mantém a MAIS ANTIGA (primeira baseline coletada do deal).
+        if (cap && (!cur || cap < cur)) dealBaselineByCamp.set(d.campaign_id as string, cap);
+        else if (!dealBaselineByCamp.has(d.campaign_id as string)) dealBaselineByCamp.set(d.campaign_id as string, cur);
       }
       const accessCount = new Map<string, number>();
       for (const a of accessEmails ?? []) {
@@ -96,7 +99,8 @@ export function useCampaigns() {
       return campaigns.map((c) => ({
         ...c,
         baseline_pending: false,
-        baseline_captured_at: byCamp.get(c.id) ?? null,
+        // Prioridade: valor da própria campaign > fallback do deal.
+        baseline_captured_at: (c as any).baseline_captured_at ?? dealBaselineByCamp.get(c.id) ?? null,
         access_emails_count: accessCount.get(c.id) ?? 0,
         client_email: c.client_id ? clientEmailById.get(c.client_id) ?? null : null,
       }));
