@@ -161,6 +161,99 @@ Deno.serve(async (req) => {
       };
     }
 
+    // ====== Submissões do curador na camada de campanha (CCP) ======
+    // Resumo + lista de conflitos de baseline para esta dupla deal/campanha.
+    // Nunca quebra a resposta — se a tabela/colunas não existirem, devolve vazio.
+    let curator_submissions: {
+      total: number;
+      valid: number;
+      baseline_conflict: number;
+      pending_substitution: number;
+      resolved: number;
+    } = { total: 0, valid: 0, baseline_conflict: 0, pending_substitution: 0, resolved: 0 };
+    let baseline_conflicts: Array<{
+      playlist_id: string;
+      playlist_url: string;
+      playlist_name: string | null;
+      registered_at: string | null;
+      baseline_conflict_at: string | null;
+      baseline_captured_at: string | null;
+      baseline_plays_7d: number | null;
+      reason: string;
+      resolved: boolean;
+    }> = [];
+
+    if ((deal as any).campaign_id) {
+      const campaignId = (deal as any).campaign_id as string;
+      try {
+        const { data: ccpRows } = await admin
+          .from("curator_campaign_playlists")
+          .select(
+            "playlist_id, playlist_url, status, registered_at, matched_at, baseline_conflict_at",
+          )
+          .eq("deal_id", (deal as any).id);
+
+        const rows = (ccpRows ?? []) as Array<any>;
+        const total = rows.length;
+        const valid = rows.filter((r) => r.status === "matched").length;
+        const conflictRows = rows.filter((r) => r.status === "baseline_conflict");
+        const conflictCount = conflictRows.length;
+
+        // Enriquecer conflitos com dados da baseline (nome + plays_7d + captura)
+        const conflictIds = conflictRows.map((r) => r.playlist_id);
+        const baselineByPid: Record<string, any> = {};
+        if (conflictIds.length > 0) {
+          const { data: baseRows } = await admin
+            .from("campaign_playlist_collections")
+            .select("playlist_id, playlist_name_at_capture, plays_7d, captured_at, is_baseline")
+            .eq("campaign_id", campaignId)
+            .eq("is_baseline", true)
+            .in("playlist_id", conflictIds);
+          for (const b of (baseRows ?? []) as any[]) {
+            baselineByPid[b.playlist_id] = b;
+          }
+        }
+
+        // "Resolvido" = curador registrou outra playlist (não-conflito) DEPOIS
+        // do conflito, na mesma campanha/deal.
+        const validSorted = rows
+          .filter((r) => r.status === "matched" && r.registered_at)
+          .map((r) => new Date(r.registered_at).getTime());
+
+        baseline_conflicts = conflictRows.map((r) => {
+          const base = baselineByPid[r.playlist_id] ?? null;
+          const conflictAt = r.baseline_conflict_at
+            ? new Date(r.baseline_conflict_at).getTime()
+            : (r.registered_at ? new Date(r.registered_at).getTime() : 0);
+          const resolved = validSorted.some((t) => t > conflictAt);
+          return {
+            playlist_id: r.playlist_id,
+            playlist_url: r.playlist_url,
+            playlist_name: base?.playlist_name_at_capture ?? null,
+            registered_at: r.registered_at ?? null,
+            baseline_conflict_at: r.baseline_conflict_at ?? null,
+            baseline_captured_at: base?.captured_at ?? null,
+            baseline_plays_7d: typeof base?.plays_7d === "number" ? base.plays_7d : null,
+            reason:
+              "A música já estava nesta playlist antes do início da campanha. Conta como cenário pré-existente, não como entrega nova do curador.",
+            resolved,
+          };
+        });
+
+        const resolvedCount = baseline_conflicts.filter((c) => c.resolved).length;
+        curator_submissions = {
+          total,
+          valid,
+          baseline_conflict: conflictCount,
+          pending_substitution: conflictCount - resolvedCount,
+          resolved: resolvedCount,
+        };
+      } catch (_e) {
+        // best-effort; mantém defaults
+      }
+    }
+
+
     return jr({
       ok: true,
       deal,
