@@ -542,6 +542,7 @@ Deno.serve(async (req) => {
         duplicate_in_payload: items.filter((it) => it.status === "duplicate_in_payload").length,
         baseline_blocked: items.filter((it) => it.status === "baseline_blocked").length,
         campaign_baseline_blocked: items.filter((it) => it.status === "campaign_baseline_blocked").length,
+        baseline_conflict: items.filter((it) => it.status === "baseline_conflict").length,
         awaiting_baseline: items.filter((it) => it.status === "awaiting_baseline").length,
         track_already_present: items.filter((it) => it.status === "track_already_present").length,
         track_not_present: items.filter((it) => it.status === "track_not_present").length,
