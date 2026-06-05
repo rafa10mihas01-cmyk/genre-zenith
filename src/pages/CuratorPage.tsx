@@ -24,6 +24,12 @@ import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { cn } from "@/lib/utils";
 import { PrintThumbs } from "@/components/playlist-deals/PrintThumbs";
+import {
+  BaselineConflictsSection,
+  CuratorSubmissionsKpis,
+  type BaselineConflict,
+  type CuratorSubmissionsSummary,
+} from "@/components/curators/BaselineConflictsSection";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useExternalSplash } from "@/hooks/useExternalSplash";
@@ -353,6 +359,9 @@ export default function CuratorPage() {
     baseline_captured_at: null,
     baseline_playlist_count: 0,
   });
+  const [curatorSubmissions, setCuratorSubmissions] =
+    useState<CuratorSubmissionsSummary | null>(null);
+  const [baselineConflicts, setBaselineConflicts] = useState<BaselineConflict[]>([]);
   const [url, setUrl] = useState("");
   const [position, setPosition] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -491,6 +500,8 @@ export default function CuratorPage() {
       setSnapshotHistory((data.snapshot_history ?? []) as SnapshotHistoryEntry[]);
       setAccess(data.access ?? { writable: true });
       if (data.campaign_context) setCampaignContext(data.campaign_context);
+      setCuratorSubmissions((data.curator_submissions ?? null) as CuratorSubmissionsSummary | null);
+      setBaselineConflicts((data.baseline_conflicts ?? []) as BaselineConflict[]);
       setError(null);
     }
     setLoading(false);
@@ -1313,6 +1324,22 @@ export default function CuratorPage() {
             })}
           </div>
         </div>
+
+        {/* Resumo de submissões na camada de campanha + conflitos de baseline.
+            Só aparece quando o deal está vinculado a uma campanha e há submissões. */}
+        {curatorSubmissions && curatorSubmissions.total > 0 && (
+          <CuratorSubmissionsKpis summary={curatorSubmissions} />
+        )}
+        {baselineConflicts.length > 0 && (
+          <BaselineConflictsSection
+            conflicts={baselineConflicts}
+            onSubstitute={() => {
+              setActiveTab("cadastro");
+              setPasteOpen(true);
+            }}
+          />
+        )}
+
 
         {/* Meta combinada — sempre visível, mesmo antes de cadastrar playlists.
             É o número do contrato. Sem isso o curador não sabe o que entregar. */}
