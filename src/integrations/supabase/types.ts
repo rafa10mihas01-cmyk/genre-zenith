@@ -9444,6 +9444,14 @@ export type Database = {
         }
         Returns: Json
       }
+      backfill_curator_deal_songs: {
+        Args: { p_deal_ids?: string[] }
+        Returns: {
+          action: string
+          deal_id: string
+          song_id: string
+        }[]
+      }
       bump_ai_quota: {
         Args: { p_month_start: string; p_tokens: number; p_user_id: string }
         Returns: Json
