@@ -1,0 +1,1 @@
+ALTER VIEW public.campaign_playlist_inventory_v1 SET (security_invoker = true);
