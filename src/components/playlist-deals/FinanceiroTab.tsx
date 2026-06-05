@@ -174,6 +174,7 @@ export function FinanceiroTab({ deals, hideHero = false }: Props) {
   return (
     <>
     <div className="space-y-6">
+      <BaselineConflictFinancialAlert />
       {/* ============= HERO FINANCEIRO — mesmo padrão do KpiBig hero ============= */}
       {!hideHero && (
       <section className="relative overflow-hidden rounded-2xl border border-border border-l-2 border-l-primary bg-gradient-to-br from-card via-card to-primary/[0.08]">
