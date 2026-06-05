@@ -2607,6 +2607,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "curator_deal_plan_curator_playlist_id_fkey"
+            columns: ["curator_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_playlists_observational"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curator_deal_plan_curator_playlist_id_fkey"
+            columns: ["curator_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_playlists_operational"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "curator_deal_plan_deal_id_fkey"
             columns: ["deal_id"]
             isOneToOne: false
@@ -2704,6 +2718,20 @@ export type Database = {
             columns: ["playlist_id"]
             isOneToOne: false
             referencedRelation: "curator_playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curator_deal_snapshots_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_playlists_observational"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curator_deal_snapshots_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_playlists_operational"
             referencedColumns: ["id"]
           },
           {
@@ -3178,6 +3206,20 @@ export type Database = {
             referencedRelation: "curator_playlists"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "curator_fraud_alerts_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_playlists_observational"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curator_fraud_alerts_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_playlists_operational"
+            referencedColumns: ["id"]
+          },
         ]
       }
       curator_outreach_log: {
@@ -3391,6 +3433,7 @@ export type Database = {
           id: string
           image_url: string | null
           is_baseline: boolean
+          is_observational: boolean | null
           last_paste_at: string | null
           match_reason: string | null
           match_status: string
@@ -3416,6 +3459,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_baseline?: boolean
+          is_observational?: boolean | null
           last_paste_at?: string | null
           match_reason?: string | null
           match_status?: string
@@ -3441,6 +3485,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_baseline?: boolean
+          is_observational?: boolean | null
           last_paste_at?: string | null
           match_reason?: string | null
           match_status?: string
@@ -3734,6 +3779,20 @@ export type Database = {
             columns: ["playlist_id"]
             isOneToOne: false
             referencedRelation: "curator_playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_proofs_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_playlists_observational"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_proofs_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_playlists_operational"
             referencedColumns: ["id"]
           },
           {
@@ -9391,6 +9450,212 @@ export type Database = {
           user_id: string | null
         }
         Relationships: []
+      }
+      v_curator_playlists_observational: {
+        Row: {
+          added_at: string | null
+          added_at_spotify: string | null
+          attribution_method: string | null
+          attribution_reason: string | null
+          canonical_playlist_id: string | null
+          deal_id: string | null
+          followers: number | null
+          id: string | null
+          image_url: string | null
+          is_baseline: boolean | null
+          is_observational: boolean | null
+          last_paste_at: string | null
+          match_reason: string | null
+          match_status: string | null
+          playlist_name: string | null
+          position_in_paste: number | null
+          song_id: string | null
+          spotify_owner_id: string | null
+          spotify_owner_name: string | null
+          spotify_playlist_id: string | null
+          spotify_url: string | null
+          streams_28d: number | null
+          streams_7d: number | null
+          streams_total: number | null
+        }
+        Insert: {
+          added_at?: string | null
+          added_at_spotify?: string | null
+          attribution_method?: string | null
+          attribution_reason?: string | null
+          canonical_playlist_id?: string | null
+          deal_id?: string | null
+          followers?: number | null
+          id?: string | null
+          image_url?: string | null
+          is_baseline?: boolean | null
+          is_observational?: boolean | null
+          last_paste_at?: string | null
+          match_reason?: string | null
+          match_status?: string | null
+          playlist_name?: string | null
+          position_in_paste?: number | null
+          song_id?: string | null
+          spotify_owner_id?: string | null
+          spotify_owner_name?: string | null
+          spotify_playlist_id?: string | null
+          spotify_url?: string | null
+          streams_28d?: number | null
+          streams_7d?: number | null
+          streams_total?: number | null
+        }
+        Update: {
+          added_at?: string | null
+          added_at_spotify?: string | null
+          attribution_method?: string | null
+          attribution_reason?: string | null
+          canonical_playlist_id?: string | null
+          deal_id?: string | null
+          followers?: number | null
+          id?: string | null
+          image_url?: string | null
+          is_baseline?: boolean | null
+          is_observational?: boolean | null
+          last_paste_at?: string | null
+          match_reason?: string | null
+          match_status?: string | null
+          playlist_name?: string | null
+          position_in_paste?: number | null
+          song_id?: string | null
+          spotify_owner_id?: string | null
+          spotify_owner_name?: string | null
+          spotify_playlist_id?: string | null
+          spotify_url?: string | null
+          streams_28d?: number | null
+          streams_7d?: number | null
+          streams_total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curator_playlists_canonical_playlist_id_fkey"
+            columns: ["canonical_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curator_playlists_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curator_playlists_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deal_songs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_curator_playlists_operational: {
+        Row: {
+          added_at: string | null
+          added_at_spotify: string | null
+          attribution_method: string | null
+          attribution_reason: string | null
+          canonical_playlist_id: string | null
+          deal_id: string | null
+          followers: number | null
+          id: string | null
+          image_url: string | null
+          is_baseline: boolean | null
+          is_observational: boolean | null
+          last_paste_at: string | null
+          match_reason: string | null
+          match_status: string | null
+          playlist_name: string | null
+          position_in_paste: number | null
+          song_id: string | null
+          spotify_owner_id: string | null
+          spotify_owner_name: string | null
+          spotify_playlist_id: string | null
+          spotify_url: string | null
+          streams_28d: number | null
+          streams_7d: number | null
+          streams_total: number | null
+        }
+        Insert: {
+          added_at?: string | null
+          added_at_spotify?: string | null
+          attribution_method?: string | null
+          attribution_reason?: string | null
+          canonical_playlist_id?: string | null
+          deal_id?: string | null
+          followers?: number | null
+          id?: string | null
+          image_url?: string | null
+          is_baseline?: boolean | null
+          is_observational?: boolean | null
+          last_paste_at?: string | null
+          match_reason?: string | null
+          match_status?: string | null
+          playlist_name?: string | null
+          position_in_paste?: number | null
+          song_id?: string | null
+          spotify_owner_id?: string | null
+          spotify_owner_name?: string | null
+          spotify_playlist_id?: string | null
+          spotify_url?: string | null
+          streams_28d?: number | null
+          streams_7d?: number | null
+          streams_total?: number | null
+        }
+        Update: {
+          added_at?: string | null
+          added_at_spotify?: string | null
+          attribution_method?: string | null
+          attribution_reason?: string | null
+          canonical_playlist_id?: string | null
+          deal_id?: string | null
+          followers?: number | null
+          id?: string | null
+          image_url?: string | null
+          is_baseline?: boolean | null
+          is_observational?: boolean | null
+          last_paste_at?: string | null
+          match_reason?: string | null
+          match_status?: string | null
+          playlist_name?: string | null
+          position_in_paste?: number | null
+          song_id?: string | null
+          spotify_owner_id?: string | null
+          spotify_owner_name?: string | null
+          spotify_playlist_id?: string | null
+          spotify_url?: string | null
+          streams_28d?: number | null
+          streams_7d?: number | null
+          streams_total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curator_playlists_canonical_playlist_id_fkey"
+            columns: ["canonical_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curator_playlists_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curator_playlists_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deal_songs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       v_dispatch_trace: {
         Row: {
