@@ -569,6 +569,7 @@ function MobileCover({
 function MatchStatusBadge({ status }: { status: string }) {
   if (status === "matched") return <Badge className="bg-primary text-primary-foreground">matched</Badge>;
   if (status === "pending_match") return <Badge variant="outline">pending</Badge>;
+  if (status === "baseline_conflict") return <Badge variant="outline" className="border-destructive/40 text-destructive">conflito baseline</Badge>;
   if (status === "not_found_yet") return <Badge variant="outline" className="border-destructive/40 text-destructive">not found</Badge>;
   return <Badge variant="outline">{status}</Badge>;
 }
