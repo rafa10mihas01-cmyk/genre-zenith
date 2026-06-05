@@ -1032,29 +1032,65 @@ Deno.serve(async (req) => {
     }
 
     if (!playlistId) {
-      const { data: created, error: cErr } = await supabase
-        .from("curator_playlists")
-        .insert({
-          deal_id,
-          song_id: song_id ?? null,
-          spotify_url: sUrl,
-          spotify_playlist_id: sId,
-          playlist_name: sName ?? "Sem nome",
-          spotify_owner_name: pl.made_by ?? null,
-          is_baseline: isWhitelistedCurator ? isBaseline : false,
-          match_status: isWhitelistedCurator ? "curator" : isEditorial ? "editorial" : "organic",
-          match_reason: isWhitelistedCurator ? "curator_whitelist" : isEditorial ? "spotify_editorial_detected" : "sfa_detected_not_whitelisted",
-          position_in_paste: typeof pl.position === "number" ? pl.position : null,
-          last_paste_at: new Date().toISOString(),
-        })
-        .select("id")
-        .single();
-      if (cErr) {
+      // PATCH A — contenção do bug `organic_created`:
+      // Só criamos linhas novas em curator_playlists para playlists da WHITELIST
+      // do curador. Tudo que não é whitelist (editorial/orgânica/desconhecida)
+      // vai para `organic_plays_snapshots` (quarentena), espelhando o padrão
+      // já usado por bot-ingest-snapshot e _shared/ingest-dom. Isso preserva
+      // a tração sem fragmentar a identidade da playlist no deal.
+      if (isWhitelistedCurator) {
+        const { data: created, error: cErr } = await supabase
+          .from("curator_playlists")
+          .insert({
+            deal_id,
+            song_id: song_id ?? null,
+            spotify_url: sUrl,
+            spotify_playlist_id: sId,
+            playlist_name: sName ?? "Sem nome",
+            spotify_owner_name: pl.made_by ?? null,
+            is_baseline: isBaseline,
+            match_status: "curator",
+            match_reason: "curator_whitelist",
+            position_in_paste: typeof pl.position === "number" ? pl.position : null,
+            last_paste_at: new Date().toISOString(),
+          })
+          .select("id")
+          .single();
+        if (cErr) {
+          skipped++;
+          continue;
+        }
+        playlistId = created.id;
+        matchMethod = domHit ? "dom_created" : "created";
+      } else {
+        // Não-whitelist: NÃO insere em curator_playlists.
+        // Classifica e grava em organic_plays_snapshots quando temos sId real.
+        // Sem sId: loga no_match e segue (preserva total_plays já contabilizado acima).
+        const kind = classifyPlaylistKind(sName, pl.made_by ?? null, sId);
+        if (kind && sId) {
+          await supabase.from("organic_plays_snapshots").insert({
+            deal_id,
+            song_id: song_id ?? null,
+            spotify_track_id: songSpotifyTrackId,
+            spotify_playlist_id: sId,
+            playlist_name: sName,
+            kind,
+            plays_24h: (pl as any).plays_24h ?? null,
+            plays_7d: (pl as any).plays_7d ?? null,
+            plays_28d: (pl as any).plays_28d ?? null,
+            source: "spotify_for_artists",
+          });
+        } else {
+          const ref = sId ?? sName ?? "unknown";
+          await supabase.from("collection_logs").insert({
+            acao: "no_match",
+            status: "alerta",
+            mensagem: `[WARN] no_match (extract-print): playlist ${ref} not in whitelist for deal ${deal_id}`,
+          });
+        }
         skipped++;
         continue;
       }
-      playlistId = created.id;
-      matchMethod = isWhitelistedCurator ? (domHit ? "dom_created" : "created") : "organic_created";
     }
 
     // Enriquece metadados (capa, owner, followers) via Spotify Web API
