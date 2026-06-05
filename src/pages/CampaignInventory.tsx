@@ -296,6 +296,7 @@ function StatePill({ state }: { state: InvRow["state"] }) {
     state === "matched" ? "text-success border-success/40"
     : state === "planned" ? "text-warning border-warning/40"
     : state === "pending_match" ? "text-warning border-warning/40"
+    : state === "baseline_conflict" ? "text-destructive border-destructive/40"
     : "text-muted-foreground border-border";
   return <Badge variant="outline" className={cls}>{STATE_LABEL[state]}</Badge>;
 }
