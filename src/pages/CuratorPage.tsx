@@ -24,6 +24,12 @@ import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { cn } from "@/lib/utils";
 import { PrintThumbs } from "@/components/playlist-deals/PrintThumbs";
+import {
+  BaselineConflictsSection,
+  CuratorSubmissionsKpis,
+  type BaselineConflict,
+  type CuratorSubmissionsSummary,
+} from "@/components/curators/BaselineConflictsSection";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useExternalSplash } from "@/hooks/useExternalSplash";
