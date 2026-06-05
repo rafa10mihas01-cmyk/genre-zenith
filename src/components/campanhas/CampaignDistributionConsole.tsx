@@ -175,7 +175,7 @@ export function CampaignDistributionConsole({
 
   useEffect(() => {
     loadBot();
-    const t = setInterval(loadBot, 30_000);
+    const t = setInterval(loadBot, 60_000);
     return () => clearInterval(t);
   }, []);
 

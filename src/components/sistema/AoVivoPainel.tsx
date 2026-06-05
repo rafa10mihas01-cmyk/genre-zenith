@@ -97,7 +97,8 @@ export function AoVivoPainel() {
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "bot_heartbeats" }, () => load())
       .on("postgres_changes", { event: "*", schema: "public", table: "search_results" }, () => load())
       .subscribe();
-    const t = setInterval(load, 15_000);
+    // Polling de fallback raro — realtime cobre o tempo real
+    const t = setInterval(load, 60_000);
     return () => { supabase.removeChannel(ch); clearInterval(t); };
   }, []);
 

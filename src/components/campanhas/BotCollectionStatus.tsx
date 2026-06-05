@@ -110,7 +110,7 @@ export function BotCollectionStatus({ campaignId, dealId }: Props) {
       setSnapCount(snapCountRes.count ?? 0);
     }
     load();
-    const t = setInterval(load, 15_000);
+    const t = setInterval(load, 60_000);
     return () => {
       cancel = true;
       clearInterval(t);

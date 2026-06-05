@@ -87,7 +87,7 @@ export function BaselineAwaitingBanner({ dealState, baselineCapturedAt, dealId }
       setBot((b as BotPing) ?? null);
     }
     load();
-    const t = setInterval(load, 10_000);
+    const t = setInterval(load, 60_000);
     return () => {
       cancel = true;
       clearInterval(t);
