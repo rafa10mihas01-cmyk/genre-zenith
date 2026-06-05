@@ -9374,6 +9374,22 @@ export type Database = {
           },
         ]
       }
+      vw_inventory_vs_monitor_diff: {
+        Row: {
+          campaign_id: string | null
+          curator_id: string | null
+          divergence: string | null
+          last_collected_at: string | null
+          managed_playlist_id: string | null
+          planned_at: string | null
+          playlist_id: string | null
+          playlist_name: string | null
+          source: string | null
+          state: string | null
+          visible_in_monitor: boolean | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       _normalize_notification_type: {
