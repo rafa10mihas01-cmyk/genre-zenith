@@ -10030,6 +10030,10 @@ export type Database = {
           suggested_weight: number
         }[]
       }
+      sync_campaign_curator_playlist_attribution: {
+        Args: { p_campaign_id: string; p_playlist_id?: string }
+        Returns: number
+      }
       sync_tier_cold_ids: {
         Args: {
           p_cutoff_alloc: string
