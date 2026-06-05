@@ -30,6 +30,7 @@ import { formatNumber, formatBRLHero } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Kpi } from "@/components/ui/kpi";
 import type { CuratorDeal } from "@/lib/curatorDealsUtils";
+import { BaselineConflictFinancialAlert } from "./BaselineConflictFinancialAlert";
 
 const fmtBRL = (v: number | null | undefined) =>
   v == null ? "—" : v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
