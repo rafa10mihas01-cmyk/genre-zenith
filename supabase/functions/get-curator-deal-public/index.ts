@@ -269,6 +269,8 @@ Deno.serve(async (req) => {
       songs: songs ?? [],
       progress: progressRpc ?? null,
       snapshot_history: historyRpc ?? [],
+      curator_submissions,
+      baseline_conflicts,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
