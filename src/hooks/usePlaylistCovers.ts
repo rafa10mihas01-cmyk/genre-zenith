@@ -26,7 +26,8 @@ export function usePlaylistCovers(playlistIds: string[]) {
           .select("spotify_playlist_id, name, cover_url, followers")
           .in("spotify_playlist_id", playlistIds),
         supabase
-          .from("curator_playlists")
+          // Separação operacional × observacional
+          .from("v_curator_playlists_operational")
           .select("spotify_playlist_id, playlist_name, image_url, followers")
           .in("spotify_playlist_id", playlistIds),
       ]);

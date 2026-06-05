@@ -73,7 +73,8 @@ Deno.serve(async (req) => {
       { data: latestSnaps, error: snapsErr },
     ] = await Promise.all([
       admin
-        .from("curator_playlists")
+        // Separação operacional × observacional: hub público do curador só vê entregas reais.
+        .from("v_curator_playlists_operational")
         .select(
           "id, deal_id, song_id, spotify_url, playlist_name, followers, is_baseline, added_at, spotify_playlist_id, spotify_owner_id, spotify_owner_name, image_url, added_at_spotify, match_status, match_reason, last_paste_at",
         )

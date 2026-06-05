@@ -125,7 +125,8 @@ export default function PlaylistDeals() {
       let curatorId: string | null = null;
       if (playlistId) {
         const { data } = await supabase
-          .from("curator_playlists")
+          // Separação operacional × observacional
+          .from("v_curator_playlists_operational")
           .select("deal_id")
           .eq("spotify_playlist_id", playlistId)
           .limit(50);
