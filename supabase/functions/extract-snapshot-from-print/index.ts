@@ -805,6 +805,18 @@ Deno.serve(async (req) => {
   const { count: existingLogs } = await baselineQuery;
   const isBaseline = (existingLogs ?? 0) === 0;
 
+  // Patch A: spotify_track_id usado pra gravar quarentena em organic_plays_snapshots
+  // quando uma playlist não pertence à whitelist do curador. Fetch único.
+  let songSpotifyTrackId: string | null = null;
+  if (song_id) {
+    const { data: songRow } = await supabase
+      .from("curator_deal_songs")
+      .select("spotify_track_id")
+      .eq("id", song_id)
+      .maybeSingle();
+    songSpotifyTrackId = (songRow as any)?.spotify_track_id ?? null;
+  }
+
   // 3. Para cada playlist: match e snapshot
   let inserted = 0;
   let skipped = 0;
