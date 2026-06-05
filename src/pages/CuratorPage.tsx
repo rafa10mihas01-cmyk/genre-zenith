@@ -500,6 +500,8 @@ export default function CuratorPage() {
       setSnapshotHistory((data.snapshot_history ?? []) as SnapshotHistoryEntry[]);
       setAccess(data.access ?? { writable: true });
       if (data.campaign_context) setCampaignContext(data.campaign_context);
+      setCuratorSubmissions((data.curator_submissions ?? null) as CuratorSubmissionsSummary | null);
+      setBaselineConflicts(((data.baseline_conflicts ?? []) as BaselineConflict[]) ?? []);
       setError(null);
     }
     setLoading(false);
