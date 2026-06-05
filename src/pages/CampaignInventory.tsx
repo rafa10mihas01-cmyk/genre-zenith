@@ -156,10 +156,11 @@ export default function CampaignInventory() {
       </Card>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
         <KpiCell label="Total" value={kpis.total} />
         <KpiCell label="Planejadas / Pendentes" value={kpis.planned} tone="warning" />
         <KpiCell label="Coletadas" value={kpis.matched} tone="success" />
+        <KpiCell label="Conflito baseline" value={kpis.conflicts} tone="danger" />
         <KpiCell label="Órfãs" value={kpis.orphans} tone="muted" />
         <KpiCell label="Ecossistema" value={kpis.eco} />
         <KpiCell label="Curadores" value={kpis.cur} />
