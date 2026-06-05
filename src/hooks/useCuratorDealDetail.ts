@@ -52,7 +52,8 @@ export function useCuratorDealDetail(dealId: string | null | undefined) {
           .order("created_at", { ascending: true })
           .limit(5000),
         supabase
-          .from("curator_playlists")
+          // Separação operacional × observacional: detalhe do deal usa apenas curadoria entregue
+          .from("v_curator_playlists_operational")
           .select("*")
           .eq("deal_id", dealId)
           .order("added_at", { ascending: true })

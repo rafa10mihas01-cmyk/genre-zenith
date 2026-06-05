@@ -70,7 +70,8 @@ Deno.serve(async (req) => {
 
       // Anti-spam: playlists com streams_7d > 2× cap_dia × 7 no último paste
       const { data: curatorPls } = await admin
-        .from("curator_playlists")
+        // Separação operacional × observacional: cron usa apenas curadoria entregue
+        .from("v_curator_playlists_operational")
         .select("id, playlist_name, streams_7d")
         .eq("deal_id", deal.id);
 
