@@ -172,6 +172,7 @@ const App = () => (
                 <Route path="/infraestrutura" element={<Navigate to="/sistema?tab=infra" replace />} />
                 <Route path="/settings" element={<Protected><AdminRoute><Settings /></AdminRoute></Protected>} />
                 <Route path="/configuracoes" element={<Protected><AdminRoute><Settings /></AdminRoute></Protected>} />
+                <Route path="/campaign-inventory" element={<Protected><AdminRoute><CampaignInventory /></AdminRoute></Protected>} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
