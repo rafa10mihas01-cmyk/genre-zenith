@@ -300,16 +300,21 @@ Deno.serve(async (req) => {
         .map((r: any) => r.playlist_name)
         .filter((v: unknown): v is string => typeof v === "string" && v.length > 0);
 
-      // ====== Contexto de campanha (Fase 3) ======
-      // Quando o deal é shadow de campanha, aplicamos 2 gates extras sobre o cadastro:
-      // (1) baseline ainda não capturada → bloqueia TODO o cadastro (awaiting_baseline)
-      // (2) playlist_id presente na baseline da campanha → bloqueia individualmente
-      //     (campaign_baseline_blocked). Esses gates rodam ANTES da chamada ao Spotify.
+      // ====== Contexto de campanha ======
+      // REGRA DE NEGÓCIO OFICIAL (baseline conflict):
+      // A baseline da campanha é mecanismo de EXCLUSÃO. Se a playlist já continha
+      // a música antes do início da campanha, ela NÃO pode ser contabilizada como
+      // entrega nova do curador, independente do deal.source.
+      //
+      // Gates aplicados sempre que o deal estiver vinculado a uma campanha:
+      // (1) baseline ainda não capturada (apenas para shadow internos) → awaiting_baseline
+      // (2) playlist_id presente na baseline da campanha → baseline_conflict
+      const hasCampaign = !!deal!.campaign_id;
       const isCampaignShadow =
-        deal!.source === "campaign_internal" && !!deal!.campaign_id;
+        deal!.source === "campaign_internal" && hasCampaign;
       let campaignBaselineStatus: string | null = null;
       const campaignBaselineIds = new Set<string>();
-      if (isCampaignShadow) {
+      if (hasCampaign) {
         const { data: camp } = await admin
           .from("campaigns")
           .select("baseline_status")
@@ -354,18 +359,19 @@ Deno.serve(async (req) => {
           continue;
         }
         seenInPayload.add(pid);
-        // Gate de campanha: aguardando baseline → bloqueia TODOS os cadastros.
+        // Gate de campanha: aguardando baseline (apenas shadows internos) → bloqueia TODOS os cadastros.
         if (isCampaignShadow && campaignBaselineStatus === "pending") {
           item.status = "awaiting_baseline";
           continue;
         }
-        // Gate de campanha: playlist já presente na baseline da campanha → bloqueia.
-        if (isCampaignShadow && campaignBaselineIds.has(pid)) {
-          item.status = "campaign_baseline_blocked";
+        // Gate de campanha (TODOS os deals com campaign_id): playlist já presente
+        // na baseline da campanha → conflito de baseline.
+        if (hasCampaign && campaignBaselineIds.has(pid)) {
+          item.status = "baseline_conflict";
           continue;
         }
         if (baselineIds.has(pid)) {
-          // Bloqueio forte: estava na baseline, então não é entrega do curador.
+          // Bloqueio forte: estava na baseline do curador, então não é entrega dele.
           item.status = "baseline_blocked";
           continue;
         }
@@ -373,6 +379,7 @@ Deno.serve(async (req) => {
           item.status = "duplicate";
         }
       }
+
 
       const ITEM_TIMEOUT_MS = 15_000;
       const BATCH = 5;
