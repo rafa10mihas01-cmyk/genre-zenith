@@ -612,15 +612,17 @@ function CuratorSummary({
   onPick: (curatorId: string) => void;
 }) {
   const summary = useMemo(() => {
-    const map = new Map<string, { playlists: number; matched: number; pending: number; notFound: number; delta: number }>();
+    const map = new Map<string, { playlists: number; matched: number; pending: number; conflict: number; notFound: number; delta: number }>();
     for (const r of rows) {
       if (!r.attributed_curator_id) continue;
       const cur = r.attributed_curator_id;
-      const agg = map.get(cur) ?? { playlists: 0, matched: 0, pending: 0, notFound: 0, delta: 0 };
+      const agg = map.get(cur) ?? { playlists: 0, matched: 0, pending: 0, conflict: 0, notFound: 0, delta: 0 };
       agg.playlists += 1;
-      agg.delta += Number(r.delta ?? 0);
+      // Δ de baseline_conflict NÃO conta como crescimento atribuído ao curador
+      if (!r.is_baseline_conflict) agg.delta += Number(r.delta ?? 0);
       const st = statuses[`${cur}::${r.playlist_id}`] ?? "pending_match";
       if (st === "matched") agg.matched += 1;
+      else if (st === "baseline_conflict") agg.conflict += 1;
       else if (st === "not_found_yet") agg.notFound += 1;
       else agg.pending += 1;
       map.set(cur, agg);
@@ -641,11 +643,12 @@ function CuratorSummary({
             <div className="text-xs text-muted-foreground">{summary.length} curador(es) com playlists atribuídas</div>
           </div>
         </div>
-        <div className="grid grid-cols-[1fr_90px_90px_90px_120px_70px] gap-3 px-4 py-2 text-xs uppercase tracking-wide text-muted-foreground border-b border-border/60 bg-card/40">
+        <div className="grid grid-cols-[1fr_80px_80px_80px_90px_110px_60px] gap-3 px-4 py-2 text-xs uppercase tracking-wide text-muted-foreground border-b border-border/60 bg-card/40">
           <div>Curador</div>
           <div className="text-right">Playlists</div>
           <div className="text-right">Matched</div>
           <div className="text-right">Pending</div>
+          <div className="text-right">Conflito</div>
           <div className="text-right">Δ</div>
           <div />
         </div>
@@ -653,12 +656,13 @@ function CuratorSummary({
           {summary.map((s) => (
             <div
               key={s.id}
-              className="grid grid-cols-[1fr_90px_90px_90px_120px_70px] gap-3 items-center px-4 py-2.5 border-b border-border/40 hover:bg-accent/30"
+              className="grid grid-cols-[1fr_80px_80px_80px_90px_110px_60px] gap-3 items-center px-4 py-2.5 border-b border-border/40 hover:bg-accent/30"
             >
               <div className="font-medium text-foreground text-sm truncate">{s.name}</div>
               <div className="text-right tabular-nums text-sm text-foreground">{s.playlists}</div>
               <div className="text-right tabular-nums text-sm text-primary">{s.matched}</div>
               <div className="text-right tabular-nums text-sm text-muted-foreground">{s.pending}</div>
+              <div className={cn("text-right tabular-nums text-sm", s.conflict > 0 ? "text-destructive font-semibold" : "text-muted-foreground")}>{s.conflict}</div>
               <div className={cn("text-right tabular-nums text-sm font-semibold", s.delta > 0 ? "text-primary" : "text-muted-foreground")}>
                 {s.delta > 0 ? "+" : ""}{formatInt(s.delta)}
               </div>
