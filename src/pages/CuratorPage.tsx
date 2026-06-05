@@ -1325,6 +1325,22 @@ export default function CuratorPage() {
           </div>
         </div>
 
+        {/* Resumo de submissões na camada de campanha + conflitos de baseline.
+            Só aparece quando o deal está vinculado a uma campanha e há submissões. */}
+        {curatorSubmissions && curatorSubmissions.total > 0 && (
+          <CuratorSubmissionsKpis summary={curatorSubmissions} />
+        )}
+        {baselineConflicts.length > 0 && (
+          <BaselineConflictsSection
+            conflicts={baselineConflicts}
+            onSubstitute={() => {
+              setActiveTab("cadastro");
+              setPasteOpen(true);
+            }}
+          />
+        )}
+
+
         {/* Meta combinada — sempre visível, mesmo antes de cadastrar playlists.
             É o número do contrato. Sem isso o curador não sabe o que entregar. */}
         {activeTab === "entrega" && (stats.target > 0 || stats.dailyGoal > 0) && (
