@@ -2729,6 +2729,90 @@ export type Database = {
           },
         ]
       }
+      curator_deal_snapshots_repoint_backup: {
+        Row: {
+          ai_confidence: number | null
+          ai_raw: Json | null
+          backed_up_at: string | null
+          batch_id: string | null
+          captured_at: string | null
+          correlation_id: string | null
+          created_at: string | null
+          created_by: string | null
+          deal_id: string | null
+          flag_reason: string | null
+          flagged: boolean | null
+          id: string | null
+          is_baseline: boolean | null
+          match_method: string | null
+          notes: string | null
+          original_playlist_id_backup: string | null
+          playlist_id: string | null
+          plays: number | null
+          plays_24h: number | null
+          plays_28d: number | null
+          plays_7d: number | null
+          print_url: string | null
+          snapshot_run_id: string | null
+          song_id: string | null
+          source: string | null
+        }
+        Insert: {
+          ai_confidence?: number | null
+          ai_raw?: Json | null
+          backed_up_at?: string | null
+          batch_id?: string | null
+          captured_at?: string | null
+          correlation_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          deal_id?: string | null
+          flag_reason?: string | null
+          flagged?: boolean | null
+          id?: string | null
+          is_baseline?: boolean | null
+          match_method?: string | null
+          notes?: string | null
+          original_playlist_id_backup?: string | null
+          playlist_id?: string | null
+          plays?: number | null
+          plays_24h?: number | null
+          plays_28d?: number | null
+          plays_7d?: number | null
+          print_url?: string | null
+          snapshot_run_id?: string | null
+          song_id?: string | null
+          source?: string | null
+        }
+        Update: {
+          ai_confidence?: number | null
+          ai_raw?: Json | null
+          backed_up_at?: string | null
+          batch_id?: string | null
+          captured_at?: string | null
+          correlation_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          deal_id?: string | null
+          flag_reason?: string | null
+          flagged?: boolean | null
+          id?: string | null
+          is_baseline?: boolean | null
+          match_method?: string | null
+          notes?: string | null
+          original_playlist_id_backup?: string | null
+          playlist_id?: string | null
+          plays?: number | null
+          plays_24h?: number | null
+          plays_28d?: number | null
+          plays_7d?: number | null
+          print_url?: string | null
+          snapshot_run_id?: string | null
+          song_id?: string | null
+          source?: string | null
+        }
+        Relationships: []
+      }
       curator_deal_songs: {
         Row: {
           artist_candidates: string[]
@@ -3394,6 +3478,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      curator_playlists_ghost_repoint_map: {
+        Row: {
+          created_at: string
+          deal_id: string
+          ghost_id: string
+          ghost_name: string | null
+          id: string
+          norm_key: string | null
+          twin_id: string
+          twin_name: string | null
+          twin_spotify_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          deal_id: string
+          ghost_id: string
+          ghost_name?: string | null
+          id?: string
+          norm_key?: string | null
+          twin_id: string
+          twin_name?: string | null
+          twin_spotify_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          deal_id?: string
+          ghost_id?: string
+          ghost_name?: string | null
+          id?: string
+          norm_key?: string | null
+          twin_id?: string
+          twin_name?: string | null
+          twin_spotify_id?: string | null
+        }
+        Relationships: []
       }
       curator_purchases: {
         Row: {
