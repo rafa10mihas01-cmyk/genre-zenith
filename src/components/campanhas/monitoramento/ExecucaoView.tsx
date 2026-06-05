@@ -239,6 +239,24 @@ export function ExecucaoView({ campaignId, onOpenHistory }: { campaignId: string
         />
       </div>
 
+      {totals.conflictCount > 0 && (
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardContent className="p-3 flex items-start gap-3">
+            <span className="mt-0.5 h-2 w-2 rounded-full bg-destructive shrink-0" />
+            <div className="text-[12px] text-foreground-body leading-relaxed">
+              <strong className="text-destructive">Conflito de baseline:</strong>{" "}
+              {totals.conflictCount} playlist(s) já continham a música antes do início da campanha.
+              Não contam como entrega válida e foram excluídas dos totais de Curadores/Ecossistema.
+              {totals.conflict !== 0 && (
+                <> O Δ observado nelas ({totals.conflict > 0 ? "+" : ""}{formatInt(totals.conflict)}) reflete apenas ganho de posição, não entrega nova.</>
+              )}
+              {" "}Use o filtro <em>Status → Conflito baseline</em> para auditar.
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+
 
       <CuratorSummary
         rows={rows}
