@@ -29,6 +29,7 @@ type GrowthRow = {
   first_seen_at: string | null;
   attributed_to: string;
   attributed_curator_id: string | null;
+  is_baseline_conflict: boolean | null;
 };
 
 type CuratorMeta = { id: string; name: string | null };
