@@ -83,9 +83,16 @@ export function ExecucaoView({ campaignId, onOpenHistory }: { campaignId: string
   }, [campaignId]);
 
   const totals = useMemo(() => {
-    const t = { total: 0, eco: 0, curator: 0, organic: 0, n: rows?.length ?? 0 };
+    const t = { total: 0, eco: 0, curator: 0, organic: 0, conflict: 0, conflictCount: 0, n: rows?.length ?? 0 };
     for (const r of rows ?? []) {
       const d = Number(r.delta ?? 0);
+      // Baseline conflict: NÃO é entrega válida. Não soma como crescimento da campanha
+      // nem como crescimento de curador. Fica isolado num bucket próprio (informativo).
+      if (r.is_baseline_conflict) {
+        t.conflict += d;
+        t.conflictCount += 1;
+        continue;
+      }
       t.total += d;
       if (r.attributed_to === "ecosystem") t.eco += d;
       else if (r.attributed_to.startsWith("curator:")) t.curator += d;
