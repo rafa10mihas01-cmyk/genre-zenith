@@ -147,7 +147,8 @@ export function useDealTodayPlaylistBreakdown(dealId: string | null | undefined)
       if (playlistIds.length === 0) return EMPTY;
 
       const { data: playlists } = await supabase
-        .from("curator_playlists")
+        // Separação operacional × observacional
+        .from("v_curator_playlists_operational")
         .select("id, playlist_name, spotify_url, spotify_owner_name, image_url, match_status, is_baseline")
         .in("id", playlistIds);
 
