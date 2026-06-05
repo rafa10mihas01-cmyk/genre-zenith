@@ -9914,6 +9914,7 @@ export type Database = {
         }[]
       }
       purge_bot_heartbeats: { Args: never; Returns: number }
+      purge_cron_job_run_details: { Args: never; Returns: undefined }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {
