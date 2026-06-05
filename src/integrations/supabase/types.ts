@@ -9327,6 +9327,7 @@ export type Database = {
           current_plays: number | null
           delta: number | null
           first_seen_at: string | null
+          is_baseline_conflict: boolean | null
           last_captured_at: string | null
           playlist_id: string | null
           playlist_url: string | null

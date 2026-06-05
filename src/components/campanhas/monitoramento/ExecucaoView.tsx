@@ -29,6 +29,7 @@ type GrowthRow = {
   first_seen_at: string | null;
   attributed_to: string;
   attributed_curator_id: string | null;
+  is_baseline_conflict: boolean | null;
 };
 
 type CuratorMeta = { id: string; name: string | null };
@@ -82,9 +83,16 @@ export function ExecucaoView({ campaignId, onOpenHistory }: { campaignId: string
   }, [campaignId]);
 
   const totals = useMemo(() => {
-    const t = { total: 0, eco: 0, curator: 0, organic: 0, n: rows?.length ?? 0 };
+    const t = { total: 0, eco: 0, curator: 0, organic: 0, conflict: 0, conflictCount: 0, n: rows?.length ?? 0 };
     for (const r of rows ?? []) {
       const d = Number(r.delta ?? 0);
+      // Baseline conflict: NÃO é entrega válida. Não soma como crescimento da campanha
+      // nem como crescimento de curador. Fica isolado num bucket próprio (informativo).
+      if (r.is_baseline_conflict) {
+        t.conflict += d;
+        t.conflictCount += 1;
+        continue;
+      }
       t.total += d;
       if (r.attributed_to === "ecosystem") t.eco += d;
       else if (r.attributed_to.startsWith("curator:")) t.curator += d;
@@ -231,6 +239,24 @@ export function ExecucaoView({ campaignId, onOpenHistory }: { campaignId: string
         />
       </div>
 
+      {totals.conflictCount > 0 && (
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardContent className="p-3 flex items-start gap-3">
+            <span className="mt-0.5 h-2 w-2 rounded-full bg-destructive shrink-0" />
+            <div className="text-[12px] text-foreground-body leading-relaxed">
+              <strong className="text-destructive">Conflito de baseline:</strong>{" "}
+              {totals.conflictCount} playlist(s) já continham a música antes do início da campanha.
+              Não contam como entrega válida e foram excluídas dos totais de Curadores/Ecossistema.
+              {totals.conflict !== 0 && (
+                <> O Δ observado nelas ({totals.conflict > 0 ? "+" : ""}{formatInt(totals.conflict)}) reflete apenas ganho de posição, não entrega nova.</>
+              )}
+              {" "}Use o filtro <em>Status → Conflito baseline</em> para auditar.
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+
 
       <CuratorSummary
         rows={rows}
@@ -280,6 +306,7 @@ export function ExecucaoView({ campaignId, onOpenHistory }: { campaignId: string
                 <SelectItem value="all">Todos status</SelectItem>
                 <SelectItem value="matched">Matched</SelectItem>
                 <SelectItem value="pending_match">Pending</SelectItem>
+                <SelectItem value="baseline_conflict">Conflito baseline</SelectItem>
                 <SelectItem value="not_found_yet">Not found</SelectItem>
               </SelectContent>
             </Select>
@@ -542,6 +569,7 @@ function MobileCover({
 function MatchStatusBadge({ status }: { status: string }) {
   if (status === "matched") return <Badge className="bg-primary text-primary-foreground">matched</Badge>;
   if (status === "pending_match") return <Badge variant="outline">pending</Badge>;
+  if (status === "baseline_conflict") return <Badge variant="outline" className="border-destructive/40 text-destructive">conflito baseline</Badge>;
   if (status === "not_found_yet") return <Badge variant="outline" className="border-destructive/40 text-destructive">not found</Badge>;
   return <Badge variant="outline">{status}</Badge>;
 }
@@ -584,15 +612,17 @@ function CuratorSummary({
   onPick: (curatorId: string) => void;
 }) {
   const summary = useMemo(() => {
-    const map = new Map<string, { playlists: number; matched: number; pending: number; notFound: number; delta: number }>();
+    const map = new Map<string, { playlists: number; matched: number; pending: number; conflict: number; notFound: number; delta: number }>();
     for (const r of rows) {
       if (!r.attributed_curator_id) continue;
       const cur = r.attributed_curator_id;
-      const agg = map.get(cur) ?? { playlists: 0, matched: 0, pending: 0, notFound: 0, delta: 0 };
+      const agg = map.get(cur) ?? { playlists: 0, matched: 0, pending: 0, conflict: 0, notFound: 0, delta: 0 };
       agg.playlists += 1;
-      agg.delta += Number(r.delta ?? 0);
+      // Δ de baseline_conflict NÃO conta como crescimento atribuído ao curador
+      if (!r.is_baseline_conflict) agg.delta += Number(r.delta ?? 0);
       const st = statuses[`${cur}::${r.playlist_id}`] ?? "pending_match";
       if (st === "matched") agg.matched += 1;
+      else if (st === "baseline_conflict") agg.conflict += 1;
       else if (st === "not_found_yet") agg.notFound += 1;
       else agg.pending += 1;
       map.set(cur, agg);
@@ -613,11 +643,12 @@ function CuratorSummary({
             <div className="text-xs text-muted-foreground">{summary.length} curador(es) com playlists atribuídas</div>
           </div>
         </div>
-        <div className="grid grid-cols-[1fr_90px_90px_90px_120px_70px] gap-3 px-4 py-2 text-xs uppercase tracking-wide text-muted-foreground border-b border-border/60 bg-card/40">
+        <div className="grid grid-cols-[1fr_80px_80px_80px_90px_110px_60px] gap-3 px-4 py-2 text-xs uppercase tracking-wide text-muted-foreground border-b border-border/60 bg-card/40">
           <div>Curador</div>
           <div className="text-right">Playlists</div>
           <div className="text-right">Matched</div>
           <div className="text-right">Pending</div>
+          <div className="text-right">Conflito</div>
           <div className="text-right">Δ</div>
           <div />
         </div>
@@ -625,12 +656,13 @@ function CuratorSummary({
           {summary.map((s) => (
             <div
               key={s.id}
-              className="grid grid-cols-[1fr_90px_90px_90px_120px_70px] gap-3 items-center px-4 py-2.5 border-b border-border/40 hover:bg-accent/30"
+              className="grid grid-cols-[1fr_80px_80px_80px_90px_110px_60px] gap-3 items-center px-4 py-2.5 border-b border-border/40 hover:bg-accent/30"
             >
               <div className="font-medium text-foreground text-sm truncate">{s.name}</div>
               <div className="text-right tabular-nums text-sm text-foreground">{s.playlists}</div>
               <div className="text-right tabular-nums text-sm text-primary">{s.matched}</div>
               <div className="text-right tabular-nums text-sm text-muted-foreground">{s.pending}</div>
+              <div className={cn("text-right tabular-nums text-sm", s.conflict > 0 ? "text-destructive font-semibold" : "text-muted-foreground")}>{s.conflict}</div>
               <div className={cn("text-right tabular-nums text-sm font-semibold", s.delta > 0 ? "text-primary" : "text-muted-foreground")}>
                 {s.delta > 0 ? "+" : ""}{formatInt(s.delta)}
               </div>

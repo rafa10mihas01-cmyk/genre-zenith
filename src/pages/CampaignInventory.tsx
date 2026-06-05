@@ -20,7 +20,7 @@ type InvRow = {
   campaign_id: string;
   playlist_id: string;
   source: "ecosystem" | "curator" | "orphan";
-  state: "planned" | "pending_match" | "matched" | "orphan_collected";
+  state: "planned" | "pending_match" | "matched" | "orphan_collected" | "baseline_conflict";
   curator_id: string | null;
   managed_playlist_id: string | null;
   playlist_name: string | null;
@@ -41,6 +41,7 @@ const STATE_LABEL: Record<InvRow["state"], string> = {
   pending_match: "Pendente match",
   matched: "Coletada",
   orphan_collected: "Órfã coletada",
+  baseline_conflict: "Conflito baseline",
 };
 
 export default function CampaignInventory() {
@@ -93,10 +94,11 @@ export default function CampaignInventory() {
     const planned = rows.filter((r) => r.state === "planned" || r.state === "pending_match").length;
     const matched = rows.filter((r) => r.state === "matched").length;
     const orphans = rows.filter((r) => r.state === "orphan_collected").length;
+    const conflicts = rows.filter((r) => r.state === "baseline_conflict").length;
     const invisible = rows.filter((r) => !r.visible_in_monitor).length;
     const eco = rows.filter((r) => r.source === "ecosystem").length;
     const cur = rows.filter((r) => r.source === "curator").length;
-    return { total, planned, matched, orphans, invisible, eco, cur };
+    return { total, planned, matched, orphans, conflicts, invisible, eco, cur };
   }, [rows]);
 
   // Aplica filtros à tabela
@@ -154,10 +156,11 @@ export default function CampaignInventory() {
       </Card>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
         <KpiCell label="Total" value={kpis.total} />
         <KpiCell label="Planejadas / Pendentes" value={kpis.planned} tone="warning" />
         <KpiCell label="Coletadas" value={kpis.matched} tone="success" />
+        <KpiCell label="Conflito baseline" value={kpis.conflicts} tone="danger" />
         <KpiCell label="Órfãs" value={kpis.orphans} tone="muted" />
         <KpiCell label="Ecossistema" value={kpis.eco} />
         <KpiCell label="Curadores" value={kpis.cur} />
@@ -183,6 +186,7 @@ export default function CampaignInventory() {
               <ToggleGroupItem value="planned" size="sm">Planejada</ToggleGroupItem>
               <ToggleGroupItem value="pending_match" size="sm">Pendente</ToggleGroupItem>
               <ToggleGroupItem value="matched" size="sm">Coletada</ToggleGroupItem>
+              <ToggleGroupItem value="baseline_conflict" size="sm">Conflito</ToggleGroupItem>
               <ToggleGroupItem value="orphan_collected" size="sm">Órfã</ToggleGroupItem>
             </ToggleGroup>
           </div>
@@ -292,6 +296,7 @@ function StatePill({ state }: { state: InvRow["state"] }) {
     state === "matched" ? "text-success border-success/40"
     : state === "planned" ? "text-warning border-warning/40"
     : state === "pending_match" ? "text-warning border-warning/40"
+    : state === "baseline_conflict" ? "text-destructive border-destructive/40"
     : "text-muted-foreground border-border";
   return <Badge variant="outline" className={cls}>{STATE_LABEL[state]}</Badge>;
 }
