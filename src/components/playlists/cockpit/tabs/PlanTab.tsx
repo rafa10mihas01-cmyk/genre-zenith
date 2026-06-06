@@ -16,6 +16,7 @@ import { BucketReorder } from "../shared/BucketReorder";
 import { BucketAdd } from "../shared/BucketAdd";
 import { EditorialBanner } from "../shared/EditorialBanner";
 import { PlanImpactCard } from "../shared/PlanImpactCard";
+import { computePlanImpact } from "../shared/computePlanImpact";
 import { TabShell } from "../shared/ds/TabShell";
 import { TabContextBanner } from "../shared/ds/TabContextBanner";
 import { TabKpiStrip } from "../shared/ds/TabKpiStrip";
