@@ -34,6 +34,13 @@ import { BucketAdd } from "./shared/BucketAdd";
 import { MarketBlock } from "./shared/MarketBlock";
 import { EditorialBanner } from "./shared/EditorialBanner";
 
+// Tabs (Commits 4 e 5 da Fase 2) — cada aba consome o CockpitContext.
+import { PlanTab } from "./tabs/PlanTab";
+import { IdentityTab } from "./tabs/IdentityTab";
+import { MarketTab } from "./tabs/MarketTab";
+import { StrategyTab } from "./tabs/StrategyTab";
+import { EditorTab } from "./tabs/EditorTab";
+
 // Tipos / helpers / hooks / context — extraídos nos Commits 1 e 3 da Fase 2.
 import type { Props } from "./types";
 import { fmtNum } from "./helpers";
