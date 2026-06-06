@@ -1,7 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useCallback, useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +6,6 @@ import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft, ExternalLink, Sparkles, Loader2, Music2, TrendingUp,
@@ -38,76 +34,36 @@ import { BucketAdd } from "./shared/BucketAdd";
 import { MarketBlock } from "./shared/MarketBlock";
 import { EditorialBanner } from "./shared/EditorialBanner";
 
-// -------------------- types & helpers --------------------
-// Tipos e helpers puros agora vivem em ./types e ./helpers (extraídos
-// no Commit 1 da Fase 2 — modularização; comportamento idêntico).
-import type { Diagnosis, Props, Suggestion, Zone } from "./types";
-import { fmtNum, HEALTH_META, ZONE_CAPS, zoneFromPos, norm } from "./helpers";
-
-
-
+// Tipos / helpers / hooks / context — extraídos nos Commits 1 e 3 da Fase 2.
+import type { Props } from "./types";
+import { fmtNum } from "./helpers";
+import { useDiagnosisLoader } from "./hooks/useDiagnosisLoader";
+import { useDiagnosisActions } from "./hooks/useDiagnosisActions";
+import { useCockpitDerivations } from "./hooks/useCockpitDerivations";
+import { CockpitProvider, type CockpitContextValue } from "./context/CockpitContext";
 
 // -------------------- main --------------------
 export function PlaylistCockpit({
   managedId, spotifyPlaylistId, spotifyUrl, playlistName, coverUrl,
   followers, tracksCount, genreName, brainScore, canonicalPlaylistId, onBack,
 }: Props) {
-  const [diag, setDiag] = useState<Diagnosis | null>(null);
-  const [liveTracksCount, setLiveTracksCount] = useState(tracksCount);
-  const [loading, setLoading] = useState(true);
-  const [running, setRunning] = useState(false);
-  const [applying, setApplying] = useState<null | "remove" | "demote" | "promote" | "add" | "all">(null);
-  const [applyProgress, setApplyProgress] = useState<null | {
-    index: number;
-    total: number;
-    description: string;
-    status: "running" | "done" | "skipped" | "failed";
-    error?: string;
-  }>(null);
+  // 1) Loader: diag + loading + loadLatest (efeito de mount embutido).
+  const { diag, setDiag, loading, loadLatest } = useDiagnosisLoader(managedId);
+
+  // 2) Ações: runDiagnose, applyPlan, archive, contadores de progresso.
+  const {
+    running, applying, applyProgress, liveTracksCount,
+    archiving, runDiagnose, applyPlan, handleArchive,
+  } = useDiagnosisActions({ managedId, playlistName, tracksCount, setDiag, onBack });
+
+  // 3) Derivações (useMemos): buckets, market, health, cross-tab keys.
+  const {
+    buckets, health, market, idealRange,
+    currentTrackKeys, currentArtistKeys, suggestionByTitle,
+  } = useCockpitDerivations(diag);
+
+  // 4) Estado puramente local de aba (coordena Mercado → Plano).
   const [activeTab, setActiveTab] = useState<string>("identidade");
-  const [archiving, setArchiving] = useState(false);
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-
-
-  async function handleArchive() {
-    if (!confirm(`Mover "${playlistName}" para a lixeira?`)) return;
-    setArchiving(true);
-    const { error } = await supabase.functions.invoke("archive-managed-playlist", {
-      body: { playlist_id: managedId, restore: false },
-    });
-    setArchiving(false);
-    if (error) {
-      toast({ title: "Erro ao arquivar", description: error.message, variant: "destructive" });
-      return;
-    }
-    // Atualiza cache local imediatamente (otimista) + invalida pra refetch ao chegar em /catalogo.
-    queryClient.setQueryData<any[]>(["managed-playlists"], (prev) =>
-      (prev ?? []).map((p) => (p.id === managedId ? { ...p, archived_at: new Date().toISOString() } : p)),
-    );
-    queryClient.invalidateQueries({ queryKey: ["managed-playlists"] });
-    toast({ title: "Movida para lixeira", description: "Você pode restaurar em Catálogo › Lixeira." });
-    if (onBack) onBack(); else navigate("/catalogo");
-  }
-
-  useEffect(() => { setLiveTracksCount(tracksCount); }, [tracksCount]);
-
-  const loadLatest = useCallback(async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from("playlist_diagnoses")
-      .select("id, created_at, name_current, name_suggestion, name_score, tracks_analysis, tracks_suggestions, tracks_summary, raw")
-      .eq("playlist_id", managedId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    setDiag((data as any) ?? null);
-    setLoading(false);
-  }, [managedId]);
-
-  useEffect(() => { loadLatest(); }, [loadLatest]);
-
-  // Quando o diagnóstico chega, escolhe a aba inicial uma única vez.
   const [initialTabSet, setInitialTabSet] = useState(false);
   useEffect(() => {
     if (!initialTabSet && diag) {
@@ -131,215 +87,24 @@ export function PlaylistCockpit({
     }, 80);
   }, []);
 
-  async function runDiagnose() {
-    setRunning(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("diagnose-managed-playlist", {
-        body: { playlist_id: managedId },
-      });
-      if (error || !data?.ok) throw new Error(error?.message ?? data?.error ?? "Falha");
-      setDiag(data.diagnosis);
-      toast({ title: "Diagnóstico pronto" });
-    } catch (e: any) {
-      toast({ title: "Erro no diagnóstico", description: e.message, variant: "destructive" });
-    } finally {
-      setRunning(false);
-    }
-  }
-
-  async function applyPlan(action: "remove" | "demote" | "promote" | "add" | "all") {
-    setApplying(action);
-    setApplyProgress(null);
-    let completed: any = null;
-    let lastError: string | null = null;
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/apply-playlist-plan`;
-      const resp = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        },
-        body: JSON.stringify({ playlist_id: managedId, action, stream: true }),
-      });
-
-      if (!resp.ok || !resp.body) {
-        const txt = await resp.text().catch(() => "");
-        let parsed: any = null;
-        try { parsed = JSON.parse(txt); } catch { /* */ }
-        toast({
-          title: `Erro ${resp.status}`,
-          description: parsed?.error ?? txt ?? "falha ao iniciar execução",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n\n");
-        buffer = lines.pop() ?? "";
-        for (const block of lines) {
-          const line = block.split("\n").find((l) => l.startsWith("data: "));
-          if (!line) continue;
-          let evt: any;
-          try { evt = JSON.parse(line.slice(6)); } catch { continue; }
-          if (evt.type === "start") {
-            setApplyProgress({
-              index: 0,
-              total: evt.total ?? 0,
-              description: evt.total ? `Iniciando ${evt.total} ações…` : "Sem ações a executar",
-              status: "running",
-            });
-          } else if (evt.type === "step") {
-            setApplyProgress({
-              index: evt.index,
-              total: evt.total,
-              description: evt.description ?? `Executando ${evt.index} de ${evt.total}`,
-              status: evt.status,
-              error: evt.error,
-            });
-            if (evt.status === "failed") {
-              lastError = `Falhou em ${evt.index}/${evt.total}: ${evt.description ?? evt.kind} — ${evt.error ?? "erro"}`;
-            }
-          } else if (evt.type === "complete") {
-            completed = evt;
-          }
-        }
-      }
-
-      if (typeof completed?.current_tracks_count === "number") {
-        setLiveTracksCount(completed.current_tracks_count);
-      }
-
-      if (completed?.ok === false || lastError) {
-        toast({
-          title: "Plano interrompido",
-          description: lastError ?? completed?.error ?? "erro durante execução",
-          variant: "destructive",
-        });
-      } else {
-        const executed = completed?.executed ?? 0;
-        const total = completed?.total ?? 0;
-        toast({
-          title: action === "all" ? "Plano executado" : "Bucket aplicado",
-          description: total === 0 ? "sem alterações necessárias" : `${executed}/${total} ações concluídas`,
-        });
-      }
-
-      if (action === "all") {
-        runDiagnose();
-      } else {
-        setDiag((prev) => {
-          if (!prev) return prev;
-          const next: any = { ...prev };
-          if (action === "remove" || action === "demote" || action === "promote") {
-            next.tracks_analysis = (prev.tracks_analysis ?? []).filter(
-              (t: any) => t.status !== action,
-            );
-          }
-          if (action === "add") {
-            next.tracks_suggestions = [];
-          }
-          return next;
-        });
-      }
-    } catch (e: any) {
-      toast({
-        title: "Falha ao aplicar",
-        description: e?.message ?? String(e),
-        variant: "destructive",
-      });
-    } finally {
-      setApplying(null);
-      // mantém o progresso visível por 2.5s pra usuário ver o estado final
-      setTimeout(() => setApplyProgress(null), 2500);
-    }
-  }
-
-  // ---- buckets ----
-  const analysis = diag?.tracks_analysis ?? [];
-  const suggestions = diag?.tracks_suggestions ?? [];
-  const caps = diag?.raw?.applied_caps;
-  const buckets = useMemo(() => {
-    const removeAll = analysis.filter((t) => t.status === "remove")
-      .sort((a, b) => a.position - b.position);
-    const demoteAll = analysis.filter((t) => t.status === "demote")
-      .sort((a, b) => a.position - b.position);
-    const promoteAll = analysis.filter((t) => t.status === "promote")
-      .sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0));
-
-    // Aplica o cap recomendado pelo cérebro — detecta tudo, executa só o que
-    // cabe neste ciclo. UI mostra "X detectadas · Y recomendadas".
-    const recRemove = caps?.recommended_remove ?? removeAll.length;
-    const recDemote = caps?.recommended_demote ?? demoteAll.length;
-    const recPromote = caps?.recommended_promote ?? promoteAll.length;
-
-    // Adicionar: respeita capped_suggestions do backend e ainda aplica
-    // cap por zona pra não empilhar 6 faixas brigando por posição 0/1.
-    // Excedente "desce" pra próxima zona com vaga (anchor → premium → support → tail).
-    const addAfterBackendCap = caps?.capped_suggestions != null
-      ? suggestions.slice(0, caps.capped_suggestions)
-      : suggestions;
-    const ZONE_ORDER: Zone[] = ["anchor", "premium", "support", "tail"];
-    function zoneStart(z: Zone): number {
-      return z === "anchor" ? 0 : z === "premium" ? 2 : z === "support" ? 6 : 12;
-    }
-    const zoneCount: Record<Zone, number> = { anchor: 0, premium: 0, support: 0, tail: 0 };
-    const addFinal: Array<Suggestion & { _zone: Zone }> = [];
-    for (const s of addAfterBackendCap) {
-      const original = (s.target_zone ?? zoneFromPos(s.suggested_position ?? 99)) as Zone;
-      let z: Zone = original;
-      const startIdx = ZONE_ORDER.indexOf(original);
-      for (let k = startIdx; k < ZONE_ORDER.length; k++) {
-        if (zoneCount[ZONE_ORDER[k]] < ZONE_CAPS[ZONE_ORDER[k]]) { z = ZONE_ORDER[k]; break; }
-      }
-      if (zoneCount[z] >= ZONE_CAPS[z]) continue;
-      zoneCount[z]++;
-      // Posição sempre derivada do contador da zona — garante slots únicos
-      // no batch (#13, #14, #15... em vez de #14, #14, #15, #15 repetidos).
-      // O `suggested_position` do backend é só uma dica da zona, não do slot.
-      const pos = zoneStart(z) + zoneCount[z] - 1;
-      addFinal.push({ ...s, _zone: z, suggested_position: pos });
-    }
-
-
-    return {
-      remove: removeAll.slice(0, recRemove),
-      demote: demoteAll.slice(0, recDemote),
-      promote: promoteAll.slice(0, recPromote),
-      add: addFinal,
-      detected: {
-        remove: removeAll.length,
-        demote: demoteAll.length,
-        promote: promoteAll.length,
-        add: suggestions.length,
-      },
-    };
-  }, [analysis, suggestions, caps]);
-
-
-  const health = HEALTH_META[diag?.raw?.health_status ?? "saudavel"];
-  const market = diag?.raw?.market_insights;
-  const idealRange = market?.ideal_track_count_range;
-  // Sets pra cruzar Mercado ↔ Plano: o que já está, o que está sugerido.
-  const currentTrackKeys = useMemo(() => new Set(analysis.map((t) => norm(t.track_name))), [analysis]);
-  const currentArtistKeys = useMemo(() => new Set(analysis.map((t) => norm(t.artist_name))), [analysis]);
-  const suggestionByTitle = useMemo(() => {
-    const m = new Map<string, string>(); // norm(title) → spotify_track_id
-    for (const s of buckets.add) m.set(norm(s.nome), s.spotify_track_id);
-    return m;
-  }, [buckets.add]);
+  // Monta o valor do contexto que será consumido pelas abas (Commits 4 e 5).
+  const ctxValue: CockpitContextValue = {
+    managedId, spotifyPlaylistId, spotifyUrl, playlistName, coverUrl,
+    followers, genreName: genreName ?? null, canonicalPlaylistId: canonicalPlaylistId ?? null,
+    brainScore: brainScore ?? null,
+    diag, setDiag, loading, loadLatest,
+    running, applying, applyProgress, liveTracksCount, archiving,
+    runDiagnose, applyPlan, handleArchive,
+    analysis: useCockpitDerivations(diag).analysis,
+    suggestions: useCockpitDerivations(diag).suggestions,
+    caps: useCockpitDerivations(diag).caps,
+    buckets, health, market, idealRange,
+    currentTrackKeys, currentArtistKeys, suggestionByTitle,
+    activeTab, setActiveTab, jumpToPlanAdd, onBack,
+  };
 
   return (
+    <CockpitProvider value={ctxValue}>
     <div className="h-full min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain nx-scroll">
       <div className="mx-auto w-full max-w-[1600px] px-4 md:px-8 pt-4 md:pt-5 pb-[calc(88px+env(safe-area-inset-bottom,0px))] md:pb-8 space-y-4">
       {/* ============ 1. HEADER ============ */}
