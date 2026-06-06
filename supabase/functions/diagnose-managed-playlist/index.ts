@@ -2442,6 +2442,27 @@ Deno.serve(async (req) => {
       await supabase.from("managed_playlists")
         .update({ last_diagnosis_at: new Date().toISOString() })
         .eq("id", pl.id);
+
+      // === FASE 6C — persiste drift events (>5%) em brain_drift_events ===
+      if (driftEvents.length > 0 && brain) {
+        try {
+          await supabase.from("brain_drift_events").insert(
+            driftEvents.map((d) => ({
+              playlist_id: pl.id,
+              canonical_playlist_id: brainCanonicalId,
+              diagnosis_id: (diag as any)?.id ?? null,
+              field: d.field,
+              brain_value: d.brain_value as any,
+              local_value: d.local_value as any,
+              diff_pct: d.diff_pct,
+              brain_confidence: (brain as any).confidence_score ?? null,
+              brain_calculated_at: (brain as any).last_calculated_at ?? null,
+            })),
+          );
+        } catch (e) {
+          console.warn("[brain_drift] insert falhou:", (e as Error).message);
+        }
+      }
     }
 
 
