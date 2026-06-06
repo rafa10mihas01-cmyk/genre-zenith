@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
   AlertTriangle,
@@ -15,10 +16,15 @@ import { cn } from "@/lib/utils";
 /**
  * ProactiveAlertsCard — surface things going wrong before user looks.
  *
- * Detecta:
- *  - Curadores com queda de trust score (vs última medição histórica)
+ * Detecta (regras / thresholds INTOCADOS):
+ *  - Curadores com queda de trust score (vs penúltima medição histórica) ≥ 10 pts
  *  - Curadores com sinais de severidade alta abertos
- *  - Playlists saturadas (headroom < 15%)
+ *  - Playlists saturadas (headroom < 15% AND confidence ≥ 40)
+ *
+ * Fase 4B.2 — perf:
+ *  - 5 awaits sequenciais → 2 fases paralelas (RTT 5 → 2)
+ *  - React Query (staleTime 60s) — cache entre navegações
+ *  - Lógica, thresholds, ordenação e copy: idênticos ao original
  */
 
 type AlertItem = {
@@ -30,124 +36,138 @@ type AlertItem = {
   severity: "high" | "medium";
 };
 
+async function fetchProactiveAlerts(): Promise<AlertItem[]> {
+  const out: AlertItem[] = [];
+
+  // ============================================================
+  // FASE 1 (paralela) — queries sem dependência entre si
+  //   A1: curator_brain  (universo de curadores com cérebro)
+  //   B4: playlist_brain (playlists saturadas)
+  // ============================================================
+  const [brainsRes, pBrainsRes] = await Promise.all([
+    supabase
+      .from("curator_brain")
+      .select("curator_id, trust_score, signals")
+      .limit(500),
+    supabase
+      .from("playlist_brain")
+      .select("playlist_id, headroom_pct, confidence_score")
+      .lt("headroom_pct", 15)
+      .gte("confidence_score", 40)
+      .limit(20),
+  ]);
+
+  const brains = brainsRes.data ?? [];
+  const pBrains = pBrainsRes.data ?? [];
+  const curatorIds = brains.map((b: any) => b.curator_id);
+  const pIds = pBrains.map((p: any) => p.playlist_id);
+
+  // ============================================================
+  // FASE 2 (paralela) — queries dependentes dos IDs da fase 1
+  //   A2: curators                (nomes/archived dos curadores)
+  //   A3: curator_brain_history   (penúltima medição para detectar queda)
+  //   B5: managed_playlists       (nomes das playlists saturadas)
+  // ============================================================
+  const [curRes, histRes, plsRes] = await Promise.all([
+    curatorIds.length
+      ? supabase
+          .from("curators")
+          .select("id, name, archived_at")
+          .in("id", curatorIds)
+      : Promise.resolve({ data: [] as any[] }),
+    curatorIds.length
+      ? supabase
+          .from("curator_brain_history")
+          .select("curator_id, trust_score, calculated_at")
+          .in("curator_id", curatorIds)
+          .order("calculated_at", { ascending: false })
+          .limit(curatorIds.length * 5)
+      : Promise.resolve({ data: [] as any[] }),
+    pIds.length
+      ? supabase
+          .from("managed_playlists")
+          .select("id, name, canonical_playlist_id, archived_at")
+          .in("canonical_playlist_id", pIds)
+      : Promise.resolve({ data: [] as any[] }),
+  ]);
+
+  const cur = curRes.data ?? [];
+  const hist = histRes.data ?? [];
+  const pls = plsRes.data ?? [];
+
+  // ============================================================
+  // PROCESSAMENTO — idêntico ao original
+  // ============================================================
+  const nameById = new Map<string, string>();
+  const archivedById = new Map<string, string | null>();
+  cur.forEach((c: any) => {
+    nameById.set(c.id, c.name);
+    archivedById.set(c.id, c.archived_at);
+  });
+
+  // 2ª medição mais recente por curador (1ª deve ser o snapshot atual)
+  const prevTrustByCurator = new Map<string, number>();
+  const seenCount = new Map<string, number>();
+  hist.forEach((h: any) => {
+    const n = (seenCount.get(h.curator_id) ?? 0) + 1;
+    seenCount.set(h.curator_id, n);
+    if (n === 2 && h.trust_score !== null) {
+      prevTrustByCurator.set(h.curator_id, Number(h.trust_score));
+    }
+  });
+
+  for (const b of brains) {
+    if (archivedById.get(b.curator_id)) continue;
+    const name = nameById.get(b.curator_id) ?? "Curador";
+    const sigs = Array.isArray(b.signals) ? b.signals : [];
+    const highSigs = sigs.filter((s: any) => s?.severity === "high");
+    const prev = prevTrustByCurator.get(b.curator_id);
+    const curScore = Number(b.trust_score ?? 0);
+    if (prev !== undefined && prev - curScore >= 10) {
+      out.push({
+        id: `trust-${b.curator_id}`,
+        kind: "trust_drop",
+        title: name,
+        detail: `Trust caiu ${prev - curScore} pts (${prev} → ${curScore})`,
+        to: `/curadores/${b.curator_id}`,
+        severity: prev - curScore >= 20 ? "high" : "medium",
+      });
+    } else if (highSigs.length > 0) {
+      out.push({
+        id: `sig-${b.curator_id}`,
+        kind: "high_signal",
+        title: name,
+        detail: `${highSigs.length} sinal(is) de severidade alta`,
+        to: `/curadores/${b.curator_id}`,
+        severity: "high",
+      });
+    }
+  }
+
+  for (const p of pls) {
+    if (p.archived_at) continue;
+    const b = pBrains.find((x: any) => x.playlist_id === p.canonical_playlist_id);
+    out.push({
+      id: `sat-${p.id}`,
+      kind: "saturated",
+      title: p.name,
+      detail: `Folga ${Math.round(Number(b?.headroom_pct ?? 0))}% — sem espaço pra novas plays`,
+      to: `/playlists/${p.canonical_playlist_id}`,
+      severity: "medium",
+    });
+  }
+
+  // ordenar high primeiro, limitar
+  out.sort((a, b) => (a.severity === "high" ? -1 : 1) - (b.severity === "high" ? -1 : 1));
+  return out.slice(0, 50);
+}
+
 export function ProactiveAlertsCard() {
-  const [alerts, setAlerts] = useState<AlertItem[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try {
-        const out: AlertItem[] = [];
-
-        // 1) Curadores com cérebro
-        const { data: brains } = await supabase
-          .from("curator_brain")
-          .select("curator_id, trust_score, signals")
-          .limit(500);
-
-        const curatorIds = (brains ?? []).map((b: any) => b.curator_id);
-
-        // 2) Nomes
-        const { data: cur } = curatorIds.length
-          ? await supabase
-              .from("curators")
-              .select("id, name, archived_at")
-              .in("id", curatorIds)
-          : { data: [] as any[] };
-        const nameById = new Map<string, string>();
-        const archivedById = new Map<string, string | null>();
-        (cur ?? []).forEach((c: any) => {
-          nameById.set(c.id, c.name);
-          archivedById.set(c.id, c.archived_at);
-        });
-
-        // 3) Histórico recente (penúltima medição) p/ detectar queda
-        const { data: hist } = curatorIds.length
-          ? await supabase
-              .from("curator_brain_history")
-              .select("curator_id, trust_score, calculated_at")
-              .in("curator_id", curatorIds)
-              .order("calculated_at", { ascending: false })
-              .limit(curatorIds.length * 5)
-          : { data: [] as any[] };
-
-        // pega a 2ª medição mais recente por curador (a 1ª deve ser o snapshot atual)
-        const prevTrustByCurator = new Map<string, number>();
-        const seenCount = new Map<string, number>();
-        (hist ?? []).forEach((h: any) => {
-          const n = (seenCount.get(h.curator_id) ?? 0) + 1;
-          seenCount.set(h.curator_id, n);
-          if (n === 2 && h.trust_score !== null) {
-            prevTrustByCurator.set(h.curator_id, Number(h.trust_score));
-          }
-        });
-
-        for (const b of brains ?? []) {
-          if (archivedById.get(b.curator_id)) continue;
-          const name = nameById.get(b.curator_id) ?? "Curador";
-          const sigs = Array.isArray(b.signals) ? b.signals : [];
-          const highSigs = sigs.filter((s: any) => s?.severity === "high");
-          const prev = prevTrustByCurator.get(b.curator_id);
-          const cur = Number(b.trust_score ?? 0);
-          if (prev !== undefined && prev - cur >= 10) {
-            out.push({
-              id: `trust-${b.curator_id}`,
-              kind: "trust_drop",
-              title: name,
-              detail: `Trust caiu ${prev - cur} pts (${prev} → ${cur})`,
-              to: `/curadores/${b.curator_id}`,
-              severity: prev - cur >= 20 ? "high" : "medium",
-            });
-          } else if (highSigs.length > 0) {
-            out.push({
-              id: `sig-${b.curator_id}`,
-              kind: "high_signal",
-              title: name,
-              detail: `${highSigs.length} sinal(is) de severidade alta`,
-              to: `/curadores/${b.curator_id}`,
-              severity: "high",
-            });
-          }
-        }
-
-        // 4) Playlists saturadas (headroom baixo)
-        const { data: pBrains } = await supabase
-          .from("playlist_brain")
-          .select("playlist_id, headroom_pct, confidence_score")
-          .lt("headroom_pct", 15)
-          .gte("confidence_score", 40)
-          .limit(20);
-
-        const pIds = (pBrains ?? []).map((p: any) => p.playlist_id);
-        const { data: pls } = pIds.length
-          ? await supabase
-              .from("managed_playlists")
-              .select("id, name, canonical_playlist_id, archived_at")
-              .in("canonical_playlist_id", pIds)
-          : { data: [] as any[] };
-
-        for (const p of pls ?? []) {
-          if (p.archived_at) continue;
-          const b = (pBrains ?? []).find((x: any) => x.playlist_id === p.canonical_playlist_id);
-          out.push({
-            id: `sat-${p.id}`,
-            kind: "saturated",
-            title: p.name,
-            detail: `Folga ${Math.round(Number(b?.headroom_pct ?? 0))}% — sem espaço pra novas plays`,
-            to: `/playlists/${p.canonical_playlist_id}`,
-            severity: "medium",
-          });
-        }
-
-        // ordenar high primeiro, limitar
-        out.sort((a, b) => (a.severity === "high" ? -1 : 1) - (b.severity === "high" ? -1 : 1));
-        setAlerts(out.slice(0, 50));
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+  const { data: alerts = [], isLoading } = useQuery({
+    queryKey: ["proactive_alerts"],
+    staleTime: 60_000,
+    queryFn: fetchProactiveAlerts,
+  });
 
   const counts = useMemo(() => {
     const high = alerts.filter((a) => a.severity === "high").length;
@@ -183,7 +203,7 @@ export function ProactiveAlertsCard() {
         )}
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div className="text-[12px] text-muted-foreground">Analisando…</div>
       ) : alerts.length === 0 ? (
         <div className="flex items-center gap-2 text-[12px] text-success">
