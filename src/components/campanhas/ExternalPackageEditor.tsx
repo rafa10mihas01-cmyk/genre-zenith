@@ -565,4 +565,109 @@ export function ExternalPackageEditor({
   );
 }
 
+function CuratorCard({ item }: { item: ItemRow }) {
+  const name = item.curators?.name ?? "—";
+  const initials = name
+    .split(/\s+/)
+    .map((p) => p[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase() || "—";
+
+  const deal = item.curator_deals;
+  const delivered = Number(deal?.reconciled_total_plays ?? 0);
+  const planned = Math.max(0, Number(item.assigned_streams ?? 0));
+  const pct = planned > 0 ? Math.min(100, Math.round((delivered / planned) * 100)) : 0;
+
+  let statusLabel = "Travado";
+  let statusClass = "border border-primary/60 text-primary";
+  if (!item.curator_deal_id) {
+    statusLabel = "Rascunho";
+    statusClass = "border border-border text-muted-foreground";
+  } else if (deal?.closed_status === "completed") {
+    statusLabel = "Concluído";
+    statusClass = "border border-primary/60 text-primary";
+  } else if (deal?.closed_status === "paused" || deal?.state === "paused") {
+    statusLabel = "Pausado";
+    statusClass = "border border-border text-muted-foreground";
+  } else if (deal?.state === "active" || deal?.state === "in_progress") {
+    statusLabel = "Ativo";
+    statusClass = "bg-primary text-primary-foreground";
+  }
+
+  let restanteLabel: string = "—";
+  let restanteClass = "text-muted-foreground";
+  if (deal?.ends_at) {
+    const ms = new Date(deal.ends_at).getTime() - Date.now();
+    const days = Math.ceil(ms / 86400000);
+    if (days > 0) {
+      restanteLabel = `${days} ${days === 1 ? "dia" : "dias"}`;
+      restanteClass = "text-primary";
+    } else if (days === 0) {
+      restanteLabel = "hoje";
+      restanteClass = "text-warning";
+    } else {
+      restanteLabel = "vencido";
+      restanteClass = "text-destructive";
+    }
+  }
+
+  return (
+    <div className="bg-card border border-border rounded-2xl p-5 hover:bg-elevated transition-colors flex flex-col">
+      <div className="flex items-start gap-3 mb-5">
+        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-muted to-elevated flex items-center justify-center border border-border shrink-0">
+          <span className="text-sm font-semibold text-muted-foreground tabular-nums">{initials}</span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="font-semibold text-foreground truncate text-[15px] leading-tight">{name}</h3>
+          <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide mt-1.5", statusClass)}>
+            {statusLabel}
+          </span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-y-3 gap-x-3 mb-5">
+        <div>
+          <p className="text-[10px] uppercase text-muted-foreground tracking-wider mb-0.5">R$/Stream</p>
+          <p className="text-[13px] font-semibold tabular-nums text-foreground">R$ {item.cost_per_stream.toFixed(3)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase text-muted-foreground tracking-wider mb-0.5">Custo total</p>
+          <p className="text-[13px] font-semibold tabular-nums text-foreground">{formatBRL(item.assigned_cost)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase text-muted-foreground tracking-wider mb-0.5">Planejado</p>
+          <p className="text-[13px] font-semibold tabular-nums text-foreground">{formatInt(planned)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase text-muted-foreground tracking-wider mb-0.5">Restante</p>
+          <p className={cn("text-[13px] font-semibold tabular-nums", restanteClass)}>{restanteLabel}</p>
+        </div>
+      </div>
+
+      <div className="space-y-1.5 mb-5">
+        <div className="flex justify-between text-[11px] font-medium">
+          <span className="text-muted-foreground">Entregues</span>
+          <span className="text-foreground tabular-nums">{formatInt(delivered)} <span className="text-muted-foreground">({pct}%)</span></span>
+        </div>
+        <div className="w-full h-1.5 bg-elevated rounded-full overflow-hidden">
+          <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+        </div>
+      </div>
+
+      {item.curator_deal_id ? (
+        <Button asChild variant="outline" size="sm" className="w-full mt-auto">
+          <Link to={`/deals/${item.curator_deal_id}`}>Ver deal</Link>
+        </Button>
+      ) : (
+        <Button variant="outline" size="sm" className="w-full mt-auto" disabled>
+          Sem deal
+        </Button>
+      )}
+    </div>
+  );
+}
+
+
 
