@@ -465,8 +465,8 @@ export function ExecucaoView({
         />
       )}
 
-      {/* Filtros — de volta pro lugar original (logo acima da tabela) */}
-      {filtersBar}
+      {/* Filtros — de volta pro lugar original (logo acima da tabela). No Ecossistema o botão Exportar vai pra régua de contagem. */}
+      {!isEcosystem && filtersBar}
 
       {/* Header da tabela — contagem à esquerda, Atual/Δ à direita */}
       <div>
@@ -482,8 +482,14 @@ export function ExecucaoView({
             )}>
               {filteredTotals.delta > 0 ? "+" : ""}{formatInt(filteredTotals.delta)}
             </span></span>
+            {isEcosystem && (
+              <Button variant="outline" size="sm" className="h-7 px-2.5 text-[11px]" onClick={exportCsv}>
+                <Download className="h-3.5 w-3.5 mr-1.5" /> Exportar CSV
+              </Button>
+            )}
           </div>
         </div>
+
 
         <Card>
           <CardContent className="p-0">
