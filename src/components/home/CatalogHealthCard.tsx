@@ -1,91 +1,50 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ListMusic, TrendingUp, TrendingDown, Minus, ArrowRight } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { useMemo } from "react";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useActiveManagedPlaylists } from "@/hooks/useActiveManagedPlaylists";
+import { useRecentSnapshots } from "@/hooks/useRecentSnapshots";
 
 type Decline = { id: string; name: string; delta: number; followers: number };
 
-type Data = {
-  total: number;
-  crescendo: number;
-  estavel: number;
-  caindo: number;
-  followers7d: number;
-  declines: Decline[];
-};
-
 const STABLE_THRESHOLD = 5; // |delta| <= 5 = estável
 
+/**
+ * Fase 4B.1: consome hooks compartilhados (managed + snapshots).
+ * Lógica de classificação preservada 1:1.
+ */
 export function CatalogHealthCard() {
-  const [d, setD] = useState<Data | null>(null);
+  const { data: mgd = [] } = useActiveManagedPlaylists();
+  const { data: snapsRes } = useRecentSnapshots(8, 8000);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      const sinceISO = new Date(Date.now() - 8 * 86400000).toISOString();
-
-      const [mgdRes, snapsRes] = await Promise.all([
-        supabase
-          .from("managed_playlists")
-          .select("id, name, followers, spotify_playlist_id")
-          .is("archived_at", null),
-        supabase
-          .from("playlist_metrics_snapshots")
-          .select("spotify_playlist_id, followers, collected_at")
-          .gte("collected_at", sinceISO)
-          .order("collected_at", { ascending: true })
-          .limit(8000),
-      ]);
-
-      const mgd = (mgdRes.data ?? []) as any[];
-      const snaps = (snapsRes.data ?? []) as any[];
-
-      const byPid = new Map<string, { first: number; last: number; firstTs: number; lastTs: number }>();
-      for (const r of snaps) {
-        const ts = new Date(r.collected_at).getTime();
-        const cur = byPid.get(r.spotify_playlist_id);
-        if (!cur) {
-          byPid.set(r.spotify_playlist_id, { first: r.followers, last: r.followers, firstTs: ts, lastTs: ts });
-        } else {
-          if (ts < cur.firstTs) { cur.first = r.followers; cur.firstTs = ts; }
-          if (ts > cur.lastTs) { cur.last = r.followers; cur.lastTs = ts; }
-        }
-      }
-
-      let crescendo = 0, estavel = 0, caindo = 0, followers7d = 0;
-      const declines: Decline[] = [];
-
-      for (const m of mgd) {
-        const s = byPid.get(m.spotify_playlist_id);
-        if (!s || s.firstTs === s.lastTs) { estavel++; continue; }
-        const delta = s.last - s.first;
-        followers7d += delta;
-        if (delta > STABLE_THRESHOLD) crescendo++;
-        else if (delta < -STABLE_THRESHOLD) {
-          caindo++;
-          declines.push({ id: m.id, name: m.name, delta, followers: m.followers });
-        } else estavel++;
-      }
-
-      declines.sort((a, b) => a.delta - b.delta);
-
-      if (!cancelled) {
-        setD({
-          total: mgd.length,
-          crescendo,
-          estavel,
-          caindo,
-          followers7d,
-          declines: declines.slice(0, 5),
-        });
-      }
+  const d = useMemo(() => {
+    if (!snapsRes) return null;
+    const byPid = snapsRes.index;
+    let crescendo = 0, estavel = 0, caindo = 0, followers7d = 0;
+    const declines: Decline[] = [];
+    for (const m of mgd) {
+      if (!m.spotify_playlist_id) { estavel++; continue; }
+      const s = byPid.get(m.spotify_playlist_id);
+      if (!s || s.firstTs === s.lastTs) { estavel++; continue; }
+      const delta = s.last - s.first;
+      followers7d += delta;
+      if (delta > STABLE_THRESHOLD) crescendo++;
+      else if (delta < -STABLE_THRESHOLD) {
+        caindo++;
+        declines.push({ id: m.id, name: m.name ?? "Sem nome", delta, followers: m.followers ?? 0 });
+      } else estavel++;
     }
-    load();
-    const i = setInterval(load, 60000);
-    return () => { cancelled = true; clearInterval(i); };
-  }, []);
+    declines.sort((a, b) => a.delta - b.delta);
+    return {
+      total: mgd.length,
+      crescendo,
+      estavel,
+      caindo,
+      followers7d,
+      declines: declines.slice(0, 5),
+    };
+  }, [mgd, snapsRes]);
 
   if (!d) {
     return <div className="nx-card p-4 lg:p-5 h-64 animate-pulse bg-muted/20" />;
