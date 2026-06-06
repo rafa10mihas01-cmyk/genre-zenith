@@ -1097,12 +1097,14 @@ Deno.serve(async (req) => {
     const candMeta = new Map<string, { popularity: number | null; artistPop: number | null; cover: string | null }>();
     const coverMap = new Map<string, string>();
     if (rawCandidates.length > 0) {
+      tel.start("spotify_candidates_tracks_and_artists");
       try {
         const token = await getSpotifyToken();
         const candArtistIds = new Map<string, string>(); // trackId → artistId
         for (let i = 0; i < rawCandidates.length; i += 50) {
           const ids = rawCandidates.slice(i, i + 50).map((c) => c.id);
           const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`, { headers: { Authorization: `Bearer ${token}` } }, { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, function_name: 'diagnose-managed-playlist' });
+          tel.noteSpotifyStatus(r.status);
           if (r.status === 403) run403s++;
           if (!r.ok) continue;
           const j = await r.json();
@@ -1124,6 +1126,7 @@ Deno.serve(async (req) => {
         for (let i = 0; i < uniqueArtistIds.length; i += 50) {
           const ids = uniqueArtistIds.slice(i, i + 50);
           const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/artists?ids=${ids.join(",")}`, { headers: { Authorization: `Bearer ${token}` } }, { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, function_name: 'diagnose-managed-playlist' });
+          tel.noteSpotifyStatus(r.status);
           if (r.status === 403) run403s++;
           if (!r.ok) continue;
           const j = await r.json();
@@ -1136,11 +1139,17 @@ Deno.serve(async (req) => {
           const cur = candMeta.get(tid);
           if (cur) cur.artistPop = artistPopMap.get(aid) ?? null;
         }
+        tel.end("spotify_candidates_tracks_and_artists", "ok", `${candMeta.size} cands · ${uniqueArtistIds.length} artistas`);
       } catch (e) {
+        tel.noteThrow(e);
+        tel.end("spotify_candidates_tracks_and_artists", "error", (e as Error)?.message);
         if (e instanceof SpotifyCircuitOpenError) throw e;
         // outras falhas: degrade gracefully
       }
+    } else {
+      tel.skip("spotify_candidates_tracks_and_artists", "sem candidatos");
     }
+
 
     // 7.c) Calcula scores por zona pra cada candidato (mesma fórmula da camada 2)
     type Candidate = {
