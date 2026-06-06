@@ -30,17 +30,30 @@ export function ActionNowHero() {
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
+      // Carrega canonical_playlist_id das playlists ATIVAS pra restringir
+      // a contagem de saturadas e ignorar resíduos de arquivadas no brain.
+      const { data: activeMp } = await supabase
+        .from("managed_playlists")
+        .select("canonical_playlist_id")
+        .is("archived_at", null);
+      const activeCanonicals = (activeMp ?? [])
+        .map((r: any) => r.canonical_playlist_id)
+        .filter(Boolean) as string[];
+
       const [dealsRes, brainsRes, satRes] = await Promise.all([
         supabase
           .from("curator_deals")
           .select("id", { count: "exact", head: true })
           .in("state", ["awaiting_playlists", "awaiting_review", "pending"]),
         supabase.from("curator_brain").select("signals"),
-        supabase
-          .from("playlist_brain")
-          .select("id", { count: "exact", head: true })
-          .lt("headroom_pct", 15)
-          .gte("confidence_score", 40),
+        activeCanonicals.length
+          ? supabase
+              .from("playlist_brain")
+              .select("id", { count: "exact", head: true })
+              .in("playlist_id", activeCanonicals)
+              .lt("headroom_pct", 15)
+              .gte("confidence_score", 40)
+          : Promise.resolve({ count: 0 } as any),
       ]);
 
       const curatorsAtRisk = (brainsRes.data ?? []).filter((b: any) => {
@@ -52,7 +65,7 @@ export function ActionNowHero() {
       setC({
         dealsPending: dealsRes.count ?? 0,
         curatorsAtRisk,
-        playlistsSaturated: satRes.count ?? 0,
+        playlistsSaturated: (satRes as any).count ?? 0,
         loading: false,
       });
     };

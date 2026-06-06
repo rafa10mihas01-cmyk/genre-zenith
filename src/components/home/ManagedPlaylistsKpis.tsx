@@ -22,14 +22,24 @@ export function ManagedPlaylistsKpis() {
     (async () => {
       const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
 
-      const [totalRes, brainRes, staleRes] = await Promise.all([
-        supabase
-          .from("managed_playlists")
-          .select("id", { count: "exact", head: true })
-          .is("archived_at", null),
-        supabase
-          .from("playlist_brain")
-          .select("health_trend"),
+      // Busca canonical_playlist_id apenas das playlists ATIVAS pra evitar
+      // que brains de playlists arquivadas inflem os KPIs de tendência.
+      const { data: activeMp, count: totalCount } = await supabase
+        .from("managed_playlists")
+        .select("canonical_playlist_id", { count: "exact" })
+        .is("archived_at", null);
+
+      const activeCanonicals = (activeMp ?? [])
+        .map((r: any) => r.canonical_playlist_id)
+        .filter(Boolean) as string[];
+
+      const [brainRes, staleRes] = await Promise.all([
+        activeCanonicals.length
+          ? supabase
+              .from("playlist_brain")
+              .select("health_trend")
+              .in("playlist_id", activeCanonicals)
+          : Promise.resolve({ data: [] as Array<{ health_trend: string | null }> }),
         supabase
           .from("managed_playlists")
           .select("id", { count: "exact", head: true })
@@ -37,12 +47,12 @@ export function ManagedPlaylistsKpis() {
           .or(`last_diagnosis_at.is.null,last_diagnosis_at.lt.${sevenDaysAgo}`),
       ]);
 
-      const trends = (brainRes.data ?? []) as Array<{ health_trend: string | null }>;
+      const trends = ((brainRes as any).data ?? []) as Array<{ health_trend: string | null }>;
       const crescendo = trends.filter((t) => t.health_trend === "crescendo").length;
       const encolhendo = trends.filter((t) => t.health_trend === "encolhendo").length;
 
       setK({
-        total: totalRes.count ?? 0,
+        total: totalCount ?? 0,
         crescendo,
         encolhendo,
         semDiagnostico: staleRes.count ?? 0,
