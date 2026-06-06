@@ -4,6 +4,8 @@ import type { AnalysisTrack } from "../types";
 import { shortReason } from "../helpers";
 import { BucketShell } from "./BucketShell";
 import { TrackLine } from "./TrackLine";
+import { TrackExplain } from "./TrackExplain";
+import { explainAnalysis } from "./trackExplain";
 
 export function BucketReorder({ kind, items, totalTracks, applying, onApplyAll }: {
   kind: "promote" | "demote";
@@ -36,6 +38,7 @@ export function BucketReorder({ kind, items, totalTracks, applying, onApplyAll }
       {items.map((t) => {
         // target_position vem 0-based do diagnose; UI sempre 1-based humano.
         const target0 = t.target_position ?? (kind === "promote" ? 4 : Math.max(29, totalTracks - 11));
+        const ex = explainAnalysis(t, kind);
         return (
           <TrackLine
             key={t.spotify_track_id}
@@ -44,6 +47,7 @@ export function BucketReorder({ kind, items, totalTracks, applying, onApplyAll }
             title={t.track_name ?? "—"}
             artist={t.artist_name ?? "—"}
             reason={shortReason(t, kind)}
+            extra={<TrackExplain data={ex} />}
             action={
               <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
                 {kind === "promote" ? "Topo" : "Baixo"}
