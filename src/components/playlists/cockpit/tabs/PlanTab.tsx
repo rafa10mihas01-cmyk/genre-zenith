@@ -343,6 +343,9 @@ export function PlanTab() {
               {/* Impacto esperado — projeção pré-execução (Fase 8.1) */}
               <PlanImpactCard />
 
+              {/* Resultado da última execução avaliada (Fase 8.5) */}
+              <PlanResultCard snapshot={lastResult} />
+
               {/* CTA único — footer da seção Ações */}
               <Card className="p-4 md:p-5 bg-primary/5 border-primary/30 flex flex-col items-center text-center gap-3 md:flex-row md:items-center md:text-left md:justify-between">
 
