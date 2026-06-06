@@ -228,8 +228,13 @@ export function ExecucaoView({
       if (scope === "organic" && (r.attributed_to === "ecosystem" || r.attributed_to.startsWith("curator:"))) return false;
       if (curatorFilter !== "all" && r.attributed_curator_id !== curatorFilter) return false;
       if (statusFilter !== "all") {
-        const st = r.attributed_curator_id ? statuses[`${r.attributed_curator_id}::${r.playlist_id}`] ?? "pending_match" : null;
-        if (st !== statusFilter) return false;
+        const hasData = r.baseline_plays != null || r.current_plays != null;
+        if (statusFilter === "no_data") {
+          if (hasData) return false;
+        } else {
+          const st = r.attributed_curator_id ? statuses[`${r.attributed_curator_id}::${r.playlist_id}`] ?? "pending_match" : null;
+          if (st !== statusFilter) return false;
+        }
       }
       if (qn) {
         const name = (r.current_name ?? r.baseline_name ?? "").toLowerCase();
