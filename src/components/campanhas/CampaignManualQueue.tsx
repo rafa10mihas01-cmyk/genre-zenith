@@ -32,7 +32,7 @@ const reasonLabel: Record<string, string> = {
   playlist_collaborative: "Playlist colaborativa",
 };
 
-export function CampaignManualQueue({ campaignId }: { campaignId: string }) {
+export function CampaignManualQueue({ campaignId, onChanged }: { campaignId: string; onChanged?: () => void }) {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<Item[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
@@ -82,6 +82,7 @@ export function CampaignManualQueue({ campaignId }: { campaignId: string }) {
     }
     toast.success("Distribuição manual concluída");
     setItems((prev) => prev.filter((x) => x.id !== it.id));
+    onChanged?.();
   }
 
   if (loading) {

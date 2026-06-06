@@ -873,8 +873,9 @@ export default function CampanhaExecucao() {
                   />
                 </TabsContent>
                 <TabsContent value="console" forceMount className="mt-0 space-y-4 data-[state=inactive]:hidden">
-                  <CampaignManualQueue campaignId={camp.id} />
+                  <CampaignManualQueue campaignId={camp.id} onChanged={() => setPlanRefreshKey((k) => k + 1)} />
                   <CampaignDistributionConsole
+                    key={`distribution-console-${camp.id}-${planRefreshKey}`}
                     campaignId={camp.id}
                     spotifyTrackId={camp.spotify_track_id ?? null}
                     allocations={allocs}
@@ -894,8 +895,8 @@ export default function CampanhaExecucao() {
 
                 </TabsContent>
                 <TabsContent value="status" forceMount className="mt-0 space-y-4 data-[state=inactive]:hidden">
-                  <CampaignManualQueue campaignId={camp.id} />
-                  <CampaignExecutionStatus campaignId={camp.id} />
+                  <CampaignManualQueue campaignId={camp.id} onChanged={() => setPlanRefreshKey((k) => k + 1)} />
+                  <CampaignExecutionStatus key={`execution-status-${camp.id}-${planRefreshKey}`} campaignId={camp.id} />
                 </TabsContent>
               </Tabs>
             </div>
