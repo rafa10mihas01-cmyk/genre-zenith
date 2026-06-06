@@ -264,6 +264,13 @@ Deno.serve(async (req) => {
       pruned_old: pruned ?? 0,
       retention_days: RETENTION_DAYS,
       failed_ids: failed_ids.length ? failed_ids : undefined,
+      auth_breaker: {
+        triggered: authBreakerTriggered,
+        failover_used: failoverUsed,
+        quarantined: quarantinedDuringRun,
+        final_app_id: currentAppId,
+        final_app_name: currentAppName,
+      },
     };
 
     await reportCronHealth(sb, {
