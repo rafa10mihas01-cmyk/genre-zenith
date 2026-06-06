@@ -236,11 +236,12 @@ export function CampaignDistributionConsole({
 
   // --- estado por spotify_playlist_id (último job ADD por playlist) ---
   type PlaylistState = {
-    status: "done" | "pending" | "scheduled" | "failed" | "idle";
+    status: "done" | "manual_done" | "manual_pending" | "pending" | "scheduled" | "failed" | "idle";
     scheduledFor: string | null;
     lastError: string | null;
     jobId: string | null;
     completedAt: string | null;
+    executedPosition: number | null;
     validationStatus: string | null;
     validationPosition: number | null;
     validatedAt: string | null;
@@ -265,6 +266,7 @@ export function CampaignDistributionConsole({
         lastError: j.last_error,
         jobId: j.id,
         completedAt: j.completed_at,
+        executedPosition: null,
         validationStatus: j.last_validation_status,
         validationPosition: j.last_validation_position,
         validatedAt: j.last_validated_at,
@@ -272,6 +274,26 @@ export function CampaignDistributionConsole({
     }
     return m;
   }, [jobs]);
+
+  const manualStateBySpid = useMemo(() => {
+    const m = new Map<string, PlaylistState>();
+    for (const it of manualItems) {
+      if (!it.spotify_playlist_id || m.has(it.spotify_playlist_id)) continue;
+      const done = it.status === "MANUAL_DONE";
+      m.set(it.spotify_playlist_id, {
+        status: done ? "manual_done" : "manual_pending",
+        scheduledFor: null,
+        lastError: null,
+        jobId: null,
+        completedAt: it.completed_at ?? it.created_at,
+        executedPosition: it.executed_position ?? it.planned_position ?? null,
+        validationStatus: null,
+        validationPosition: null,
+        validatedAt: null,
+      });
+    }
+    return m;
+  }, [manualItems]);
 
   // --- Plano operacional (espelha o mapa) — usado pra saber o PRIMEIRO DIA REAL
   // com volume de cada playlist (alguns slots só entram no D7, D8, etc).
@@ -305,8 +327,8 @@ export function CampaignDistributionConsole({
         const url = a.managed_playlists?.spotify_url ?? "";
         const m = typeof url === "string" ? url.match(/playlist\/([A-Za-z0-9]+)/) : null;
         const spid = m?.[1] ?? null;
-        const idleState: PlaylistState = { status: "idle", scheduledFor: null, lastError: null, jobId: null, completedAt: null, validationStatus: null, validationPosition: null, validatedAt: null };
-        const state: PlaylistState = spid ? (stateBySpid.get(spid) ?? idleState) : idleState;
+        const idleState: PlaylistState = { status: "idle", scheduledFor: null, lastError: null, jobId: null, completedAt: null, executedPosition: null, validationStatus: null, validationPosition: null, validatedAt: null };
+        const state: PlaylistState = spid ? (stateBySpid.get(spid) ?? manualStateBySpid.get(spid) ?? idleState) : idleState;
         const realStart = realStartByAllocation.get(a.id) ?? a.start_day ?? 1;
         return {
           allocId: a.id,
@@ -331,7 +353,7 @@ export function CampaignDistributionConsole({
         if (pa !== pb) return pa - pb;
         return a.name.localeCompare(b.name);
       });
-  }, [allocations, ecoPositionByAllocation, stateBySpid]);
+  }, [allocations, ecoPositionByAllocation, stateBySpid, manualStateBySpid]);
 
   // --- ações ---
   const handleRetryOne = async (jobId: string) => {
