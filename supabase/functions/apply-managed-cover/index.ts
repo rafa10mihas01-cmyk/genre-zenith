@@ -5,7 +5,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
-import { getUserAccessToken, getSpotifyToken, guardedSpotifyFetch } from "../_shared/spotify.ts";
+import { getUserAccessToken, getSpotifyToken, guardedSpotifyFetch, forceRefreshUserAccessToken } from "../_shared/spotify.ts";
 import { getPlaylistMeta } from "../_shared/spotify-playlist.ts";
 import decodePng from "npm:@jsquash/png@3.1.0/decode.js";
 import decodeJpeg from "npm:@jsquash/jpeg@1.5.0/decode.js";
