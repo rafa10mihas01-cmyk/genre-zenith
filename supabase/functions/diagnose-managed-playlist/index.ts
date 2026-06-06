@@ -1536,7 +1536,9 @@ Deno.serve(async (req) => {
     //   recorrencia*0.35 + recencia*0.30 + presenca_em_playlists_lideres*0.20
     //   + qualidade_visual*0.10 + (diversidade aplicada na seleção)
     // Objetivo: referências MODERNAS, com viés a últimos 90 dias e playlists líderes do nicho.
+    tel.start("market_insights_visual_ranking");
     let topRecurringTracks: Array<{
+
       spotify_track_id: string;
       title: string | null;
       artist: string | null;
