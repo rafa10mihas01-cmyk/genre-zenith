@@ -5,6 +5,7 @@ import { Plus, ExternalLink, Loader2, Check, Music2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { useGenreModelInsights } from "@/hooks/useCockpitQueries";
 
 export type CoverReference = {
   id: string;
@@ -14,12 +15,13 @@ export type CoverReference = {
   external_url?: string | null;
 };
 
-export function CoverCard({ managedId, currentCover, references, spotifyPlaylistId, genreName }: {
+export function CoverCard({ managedId, currentCover, references, spotifyPlaylistId, genreName, genreId }: {
   managedId: string;
   currentCover: string | null;
   references: CoverReference[];
   spotifyPlaylistId: string;
   genreName: string | null;
+  genreId: string | null;
 }) {
   const [uploading, setUploading] = useState(false);
   const [applyingLeader, setApplyingLeader] = useState<string | null>(null);
@@ -27,32 +29,17 @@ export function CoverCard({ managedId, currentCover, references, spotifyPlaylist
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingPreview, setPendingPreview] = useState<string | null>(null);
   const [selectedLeader, setSelectedLeader] = useState<CoverReference | null>(null);
-  const [hasDnaVisual, setHasDnaVisual] = useState(false);
 
   useEffect(() => { setLocalCover(currentCover); }, [currentCover]);
 
-  // Gap 21: verifica se o gênero tem DNA visual analisado (genre_models.insights.ln)
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const { data: mp } = await supabase
-        .from("managed_playlists")
-        .select("genre_id")
-        .eq("id", managedId)
-        .maybeSingle();
-      const genreId = (mp as any)?.genre_id;
-      if (!genreId) { if (!cancelled) setHasDnaVisual(false); return; }
-      const { data: gm } = await supabase
-        .from("genre_models")
-        .select("insights")
-        .eq("genre_id", genreId)
-        .maybeSingle();
-      if (cancelled) return;
-      const ln = (gm as any)?.insights?.ln;
-      setHasDnaVisual(Boolean(ln && (ln.estilo_dominante || ln.atmosfera || ln.capas_analisadas?.length)));
-    })();
-    return () => { cancelled = true; };
-  }, [managedId]);
+  // Gap 21: verifica se o gênero tem DNA visual analisado (genre_models.insights.ln).
+  // Fase 4B.3A: genreId vem do contexto (sem nova query a managed_playlists);
+  // genre_models passa por React Query (dedup com outros consumidores).
+  const { data: insights } = useGenreModelInsights(genreId);
+  const ln = (insights as any)?.ln;
+  const hasDnaVisual = Boolean(ln && (ln.estilo_dominante || ln.atmosfera || ln.capas_analisadas?.length));
+
+
 
   const applyLeaderCover = async (ref: CoverReference) => {
     if (!ref.cover_url) return;
