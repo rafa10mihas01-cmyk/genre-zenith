@@ -2073,9 +2073,11 @@ Deno.serve(async (req) => {
         last_seen_run: null,
       }));
     }
+    tel.end("market_insights_visual_ranking", "ok", `${topRecurringTracks.length} tracks`);
 
     const marketInsights = {
       ideal_track_count_range: benchmark
+
         ? [benchmark.tracks_p50, benchmark.tracks_p90].filter((x: any) => x != null)
         : null,
       followers_p50: benchmark?.followers_p50 ?? null,
