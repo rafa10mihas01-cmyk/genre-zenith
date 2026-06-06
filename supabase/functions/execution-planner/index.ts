@@ -290,11 +290,12 @@ Deno.serve(async (req) => {
   let manualEnqueued = 0;
   if (manualCandidates.length > 0) {
     const uniqManual = Array.from(new Map(manualCandidates.map((m) => [m.dedupe_key, m])).values());
-    // Verifica duplicatas abertas
+    // Dedupe: inclui MANUAL_DONE pra NÃO recriar item depois que o admin marcou como feito.
+    // Sem isso a alloc fica pending pra sempre e o planner recriaria em loop a cada ciclo.
     const { data: openManual } = await supabase
       .from("manual_distribution_queue")
       .select("campaign_id, spotify_playlist_id, spotify_track_id")
-      .in("status", ["MANUAL_PENDING", "AUTO_FAILED_FALLBACK_MANUAL"])
+      .in("status", ["MANUAL_PENDING", "AUTO_FAILED_FALLBACK_MANUAL", "MANUAL_DONE"])
       .in("campaign_id", uniqManual.map((m) => m.campaign_id));
     const openSet = new Set(
       (openManual ?? []).map((r: any) => `${r.campaign_id}|${r.spotify_playlist_id}|${r.spotify_track_id}`),
