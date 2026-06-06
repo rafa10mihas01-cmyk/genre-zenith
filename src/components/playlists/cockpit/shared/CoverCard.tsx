@@ -139,18 +139,18 @@ export function CoverCard({ managedId, currentCover, references, spotifyPlaylist
             <img
               src={localCover}
               alt="capa atual"
-              className="w-24 h-24 md:w-28 md:h-28 rounded-xl object-cover ring-1 ring-border shadow-md"
+              className="w-20 h-20 md:w-24 md:h-24 rounded-xl object-cover ring-1 ring-border shadow-md"
             />
           ) : (
-            <div className="w-24 h-24 md:w-28 md:h-28 rounded-xl bg-elevated grid place-items-center ring-1 ring-border">
+            <div className="w-20 h-20 md:w-24 md:h-24 rounded-xl bg-elevated grid place-items-center ring-1 ring-border">
               <Music2 className="h-7 w-7 text-muted-foreground/40" />
             </div>
           )}
         </div>
 
-        {/* Coluna direita: ações + referências centralizadas verticalmente */}
-        <div className="flex-1 min-w-0 flex flex-col justify-center gap-2.5">
-          <div className="flex items-center gap-2">
+        {/* Linha única: ações + referências, tudo alinhado verticalmente com a capa */}
+        <div className="flex-1 min-w-0 flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-2 shrink-0">
             <label className={cn(
               "inline-flex items-center gap-1.5 h-8 px-3.5 text-xs rounded-full cursor-pointer",
               "bg-primary text-primary-foreground hover:bg-primary/90 font-medium transition-colors",
@@ -178,7 +178,7 @@ export function CoverCard({ managedId, currentCover, references, spotifyPlaylist
               <div className="text-[10px] uppercase tracking-wider text-subtle-foreground font-medium shrink-0">
                 Referências
               </div>
-              <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+              <div className="flex items-center gap-1.5 min-w-0">
                 {references.slice(0, 6).map((l) => {
                   const busy = applyingLeader === l.id;
                   return (
@@ -191,9 +191,9 @@ export function CoverCard({ managedId, currentCover, references, spotifyPlaylist
                       className="relative group rounded-md overflow-hidden ring-1 ring-border hover:ring-primary/60 transition-all disabled:opacity-50 shrink-0"
                     >
                       {l.cover_url ? (
-                        <img src={l.cover_url} alt={l.name} className="w-9 h-9 object-cover" />
+                        <img src={l.cover_url} alt={l.name} className="w-8 h-8 object-cover" />
                       ) : (
-                        <div className="w-9 h-9 bg-elevated" />
+                        <div className="w-8 h-8 bg-elevated" />
                       )}
                       <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity grid place-items-center">
                         {busy ? (
@@ -208,13 +208,13 @@ export function CoverCard({ managedId, currentCover, references, spotifyPlaylist
               </div>
             </div>
           )}
-          {hasDnaVisual && genreName && references.length > 0 && (
-            <div className="text-[10px] text-subtle-foreground italic -mt-1">
-              Baseado no DNA visual do gênero {genreName}
-            </div>
-          )}
         </div>
       </div>
+      {hasDnaVisual && genreName && references.length > 0 && (
+        <div className="mt-2 text-[10px] text-subtle-foreground italic">
+          Baseado no DNA visual do gênero {genreName}
+        </div>
+      )}
 
       {/* Preview seleção pendente */}
       {selectedCoverPreview && (pendingFile || selectedLeader) && (
