@@ -353,11 +353,15 @@ export function CampaignDistributionConsole({
         const url = a.managed_playlists?.spotify_url ?? "";
         const spid = spotifyPlaylistIdFromAllocation(a);
         const idleState: PlaylistState = { status: "idle", scheduledFor: null, lastError: null, jobId: null, completedAt: null, executedPosition: null, validationStatus: null, validationPosition: null, validatedAt: null };
-        const state: PlaylistState = spid ? (manualStateBySpid.get(spid) ?? stateBySpid.get(spid) ?? idleState) : idleState;
+        const manualItem = spid ? (manualItems.find((it) => it.spotify_playlist_id === spid) ?? null) : null;
         const realStart = realStartByAllocation.get(a.id) ?? a.start_day ?? 1;
         // Fonte de verdade = managed_playlists.execution_mode (mesmo campo que o planner usa).
         // NUNCA chutar API_READY quando o campo vier ausente — isso mente pro operador.
         const executionMode: PlaylistExecutionMode = (a.managed_playlists?.execution_mode ?? null) as PlaylistExecutionMode;
+        const plannedManualState: PlaylistState = { ...idleState, status: "manual_pending" };
+        const state: PlaylistState = spid
+          ? (manualStateBySpid.get(spid) ?? stateBySpid.get(spid) ?? (executionMode === "MANUAL_ONLY" ? plannedManualState : idleState))
+          : (executionMode === "MANUAL_ONLY" ? plannedManualState : idleState);
         return {
           allocId: a.id,
           spid,
@@ -367,6 +371,7 @@ export function CampaignDistributionConsole({
           plannedPosition: ecoPositionByAllocation.get(a.id) ?? null,
           plannedFor: plannedDateFor(realStart, planBaseIso),
           executionMode,
+          manualItem,
           state,
         };
       })
@@ -382,7 +387,7 @@ export function CampaignDistributionConsole({
         if (pa !== pb) return pa - pb;
         return a.name.localeCompare(b.name);
       });
-  }, [allocations, ecoPositionByAllocation, stateBySpid, manualStateBySpid, planBaseIso, realStartByAllocation]);
+  }, [allocations, ecoPositionByAllocation, stateBySpid, manualStateBySpid, manualItems, planBaseIso, realStartByAllocation]);
 
   // Particionamento por modo de execução — espelha o que o planner decidiu.
   const rowsByMode = useMemo(() => {
