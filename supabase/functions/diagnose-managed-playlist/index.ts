@@ -2265,9 +2265,11 @@ Deno.serve(async (req) => {
       : null;
 
 
+    tel.start("persist_diagnosis");
     const { data: diag, error: dErr } = await supabase
       .from("playlist_diagnoses")
       .insert({
+
         playlist_id: pl.id,
         created_by: guard.via === "user" ? guard.userId : null,
         name_score: nameScore,
