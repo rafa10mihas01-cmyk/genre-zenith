@@ -216,72 +216,14 @@ export function ExecucaoView({
 
   return (
     <div className="space-y-4">
-      {/* KPI grid — adapta ao escopo */}
-      {mode === "all" ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-          <KpiBig
-            label="Crescimento total"
-            value={`${totals.total > 0 ? "+" : ""}${formatInt(totals.total)}`}
-            icon={TrendingUp}
-            tone={totals.total > 0 ? "success" : "default"}
-            hint={`${totals.n} playlists monitoradas`}
-          />
-          <KpiBig
-            label="Ecossistema"
-            value={`${totals.eco > 0 ? "+" : ""}${formatInt(totals.eco)}`}
-            icon={Layers}
-            domain="playlists"
-            hint="Playlists internas"
-          />
-          <KpiBig
-            label="Curadores"
-            value={`${totals.curator > 0 ? "+" : ""}${formatInt(totals.curator)}`}
-            icon={Users}
-            domain="curators"
-            hint="Atribuído a parceiros"
-          />
-          <KpiBig
-            label="Orgânico"
-            value={`${totals.organic > 0 ? "+" : ""}${formatInt(totals.organic)}`}
-            icon={Activity}
-            tone="default"
-            hint={lastCapturedAt
-              ? `Atualizado ${new Date(lastCapturedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} ${new Date(lastCapturedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
-              : "Sem atribuição"}
-          />
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
-          <KpiBig
-            label={mode === "ecosystem" ? "Δ Ecossistema" : mode === "curators" ? "Δ Curadores" : "Δ Orgânico"}
-            value={`${(mode === "ecosystem" ? totals.eco : mode === "curators" ? totals.curator : totals.organic) > 0 ? "+" : ""}${formatInt(
-              mode === "ecosystem" ? totals.eco : mode === "curators" ? totals.curator : totals.organic,
-            )}`}
-            icon={mode === "ecosystem" ? Layers : mode === "curators" ? Users : Activity}
-            domain={mode === "ecosystem" ? "playlists" : mode === "curators" ? "curators" : undefined}
-            tone="success"
-            hint={`${filtered.length} playlists no escopo`}
-          />
-          <KpiBig
-            label="Playlists no escopo"
-            value={formatInt(filtered.length)}
-            icon={Layers}
-            tone="default"
-            hint={`${totals.n} no total da campanha`}
-          />
-          <KpiBig
-            label="Última coleta"
-            value={lastCapturedAt
-              ? new Date(lastCapturedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
-              : "—"}
-            icon={Activity}
-            tone="default"
-            hint={lastCapturedAt
-              ? new Date(lastCapturedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })
-              : "Sem atribuição"}
-          />
-        </div>
-      )}
+      {/* Hero KPI — número gigante de crescimento + métricas secundárias horizontais */}
+      <HeroGrowth
+        mode={mode}
+        totals={totals}
+        filteredCount={filtered.length}
+        lastCapturedAt={lastCapturedAt}
+      />
+
 
       {totals.conflictCount > 0 && mode === "all" && (
         <Card className="border-destructive/40 bg-destructive/5">
