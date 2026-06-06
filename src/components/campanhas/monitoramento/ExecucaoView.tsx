@@ -42,10 +42,12 @@ export function ExecucaoView({
   campaignId,
   onOpenHistory,
   mode = "all",
+  tabsSlot,
 }: {
   campaignId: string;
   onOpenHistory?: (playlistId: string) => void;
   mode?: "all" | "ecosystem" | "curators" | "organic";
+  tabsSlot?: React.ReactNode;
 }) {
   const initialScope: "all" | "ecosystem" | "curator" | "organic" =
     mode === "curators" ? "curator" : mode === "ecosystem" ? "ecosystem" : mode === "organic" ? "organic" : "all";
