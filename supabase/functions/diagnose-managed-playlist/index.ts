@@ -497,12 +497,15 @@ Deno.serve(async (req) => {
         .map(([artist, count]) => ({ artist, count }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 30);
+      tel.end("load_model_benchmark_competitors");
+      if (!benchmark) tel.failures.benchmark_empty = true;
+      tel.failures.competitors_count = competitors.length;
+      if (competitors.length < 3) tel.failures.competitors_insufficient = true;
+    } else {
+      tel.skip("load_model_benchmark_competitors", "genre_id ausente");
     }
 
-    tel.end("load_model_benchmark_competitors");
-    if (!benchmark) tel.failures.benchmark_empty = true;
-    tel.failures.competitors_count = competitors.length;
-    if (competitors.length < 3) tel.failures.competitors_insufficient = true;
+
 
 
 
