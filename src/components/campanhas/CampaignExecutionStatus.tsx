@@ -4,9 +4,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   CheckCircle2, Clock, XCircle, Loader2, ArrowDownUp, Plus,
-  AlertCircle, ChevronDown, ChevronRight, Activity, Hand,
+  AlertCircle, ChevronDown, ChevronRight, Activity, Hand, Bot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PlaylistModeBadge, type PlaylistExecutionMode } from "./PlaylistModeBadge";
 
 type JobRow = {
   id: string;
