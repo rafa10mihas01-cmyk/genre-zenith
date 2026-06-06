@@ -64,12 +64,14 @@ export function ExternalPackageEditor({
   onChanged,
   renderTabsRow,
   onNewDeal,
+  headerExtra,
 }: {
   campaignId: string;
   snapshot: CampaignSnapshot;
   onChanged?: () => void;
   renderTabsRow?: (extra?: React.ReactNode, ctx?: { isDispatched: boolean }) => React.ReactNode;
   onNewDeal?: () => void;
+  headerExtra?: React.ReactNode;
 }) {
   const [pkg, setPkg] = useState<PackageRow | null>(null);
   const [items, setItems] = useState<ItemRow[]>([]);
@@ -270,6 +272,11 @@ export function ExternalPackageEditor({
                   <span className="mx-1.5 opacity-30">•</span>
                   {dealsCount} {dealsCount === 1 ? "deal criado" : "deals criados"}
                 </p>
+              )}
+              {headerExtra && (
+                <div className="pt-1 [&_button]:!h-7 [&_button]:!px-2 [&_button]:!text-[11px] [&_button]:!rounded-full opacity-90">
+                  {headerExtra}
+                </div>
               )}
             </div>
 
