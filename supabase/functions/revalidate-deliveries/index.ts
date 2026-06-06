@@ -56,30 +56,54 @@ Deno.serve(async (req) => {
     .select('spotify_playlist_id, account_id')
     .in('spotify_playlist_id', pids);
   const plMap = new Map(pls?.map((p) => [p.spotify_playlist_id, p]) ?? []);
-  const acctIds = [...new Set(pls?.map((p) => p.account_id) ?? [])];
-  const { data: accts } = await sb
-    .from('accounts')
-    .select('id, spotify_user_token_id')
-    .in('id', acctIds);
-  const { data: toks } = await sb
-    .from('spotify_user_tokens')
-    .select('id, access_token')
-    .in('id', accts?.map((a) => a.spotify_user_token_id) ?? []);
+  // filtra nulos: playlists sem account_id não vão pra IN(...) — senão a query quebra e contamina o lote
+  const acctIds = [
+    ...new Set(
+      (pls ?? [])
+        .map((p) => p.account_id)
+        .filter((id): id is string => !!id),
+    ),
+  ];
+  const { data: accts, error: acctsErr } = acctIds.length
+    ? await sb
+        .from('accounts')
+        .select('id, spotify_user_token_id')
+        .in('id', acctIds)
+    : { data: [], error: null };
+  if (acctsErr) console.error('[revalidate] accounts query error', acctsErr);
+  const tokIds = (accts ?? [])
+    .map((a) => a.spotify_user_token_id)
+    .filter((id): id is string => !!id);
+  const { data: toks, error: toksErr } = tokIds.length
+    ? await sb
+        .from('spotify_user_tokens')
+        .select('id, access_token')
+        .in('id', tokIds)
+    : { data: [], error: null };
+  if (toksErr) console.error('[revalidate] tokens query error', toksErr);
   const tokById = new Map(toks?.map((t) => [t.id, t.access_token]) ?? []);
   const tokByAcct = new Map(
-    accts?.map((a) => [a.id, tokById.get(a.spotify_user_token_id)]) ?? [],
+    (accts ?? []).map((a) => [a.id, tokById.get(a.spotify_user_token_id)]),
   );
 
   // cache por playlist pra evitar listar duas vezes a mesma
   const refsCache = new Map<string, { id: string }[]>();
 
-  let counts = { present: 0, moved: 0, duplicate: 0, removed: 0, error: 0 };
+  let counts = { present: 0, moved: 0, duplicate: 0, removed: 0, error: 0, skipped: 0 };
   const validations: any[] = [];
   const jobUpdates: { id: string; status: string; position: number | null }[] = [];
 
   for (const j of uniq.values()) {
     const pl = plMap.get(j.spotify_playlist_id);
-    const tok = pl ? tokByAcct.get(pl.account_id) : null;
+    // playlist sem account_id mapeado → pula sem poluir o lote nem gerar erro global
+    if (!pl || !pl.account_id) {
+      counts.skipped++;
+      console.warn(
+        `[revalidate] skip playlist ${j.spotify_playlist_id} — sem account_id vinculado`,
+      );
+      continue;
+    }
+    const tok = tokByAcct.get(pl.account_id);
     if (!tok) {
       counts.error++;
       validations.push({
@@ -96,6 +120,7 @@ Deno.serve(async (req) => {
       jobUpdates.push({ id: j.id, status: 'error', position: null });
       continue;
     }
+
     try {
       let refs = refsCache.get(j.spotify_playlist_id);
       if (!refs) {
