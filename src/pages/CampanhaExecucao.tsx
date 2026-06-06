@@ -801,16 +801,10 @@ export default function CampanhaExecucao() {
                 snapshot={snapshot}
                 onChanged={() => setPlanRefreshKey(k => k + 1)}
                 onNewDeal={() => setNewDealOpen(true)}
+                headerExtra={<GenresUsedFromAllocs allocs={allocs} compact />}
                 renderTabsRow={(extra, ctx) => {
-                  // Quando o pacote já está despachado, os CTAs (Novo deal / Pacote / Ver deals)
-                  // já aparecem dentro do header — não duplicar a linha de ações.
-                  if (ctx?.isDispatched) {
-                    return (
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <GenresUsedFromAllocs allocs={allocs} compact />
-                      </div>
-                    );
-                  }
+                  // Pacote despachado: header já carrega CTAs + chip de gêneros — não renderiza linha extra.
+                  if (ctx?.isDispatched) return null;
                   return (
                     <div className="flex items-center gap-2 flex-wrap">
                       <GenresUsedFromAllocs allocs={allocs} compact />
@@ -829,6 +823,7 @@ export default function CampanhaExecucao() {
                   );
                 }}
               />
+
 
             </div>
           ),
