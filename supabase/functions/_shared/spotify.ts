@@ -357,9 +357,16 @@ export async function guardedSpotifyFetch(
         if (text) errorBody = text.slice(0, 1000);
       } catch { /* ignore */ }
     }
+    // Hook AUTH_INVALID em 401 + reset em 2xx (debounced).
+    if (r.status === 401 && !bypass && merged.app_id) {
+      fireAndForget(markAppAuthFailure(merged.app_id, "AUTH_INVALID"));
+    } else if (r.ok && merged.app_id) {
+      fireAndForget(resetAppAuthFailures(merged.app_id));
+    }
     if (r.status === 429 && !bypass) {
       const ra = Number(r.headers.get("Retry-After") ?? r.headers.get("retry-after") ?? "");
       const opened = await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60, appId, url);
+      if (merged.app_id) fireAndForget(markAppAuthFailure(merged.app_id, "RATE_LIMIT", opened.retryAfterSec));
       logStatus = "circuit_open";
       breakerOpen = true;
       retryAfterSec = opened.retryAfterSec;
