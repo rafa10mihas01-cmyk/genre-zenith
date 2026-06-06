@@ -92,6 +92,8 @@ Deno.serve(async (req) => {
   const action: Action = (body?.action ?? "all") as Action;
   const limitAdd: number = Math.max(1, Math.min(Number(body?.limit_add ?? 15), 50));
   const stream: boolean = body?.stream !== false; // default true
+  const snapshotPayload: any = body?.snapshot_payload ?? null;
+  const executedBy: string | null = guard.via === "user" ? (guard.userId ?? null) : null;
   if (!playlistId) return jr({ ok: false, error: "playlist_id obrigatório" }, 400);
   if (!["remove", "demote", "promote", "add", "all"].includes(action)) {
     return jr({ ok: false, error: "action inválida" }, 400);
