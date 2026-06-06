@@ -1481,6 +1481,7 @@ Deno.serve(async (req) => {
     const algoDescription = suggestedDescription;
     let aiCopy: EditorialCopy | null = null;
     let aiError: string | null = null;
+    tel.start("ai_editorial_copy");
     try {
       aiCopy = await generateEditorialCopy({
         skipAi,
@@ -1498,9 +1499,13 @@ Deno.serve(async (req) => {
         currentSize: totalTracks,
         competitors: competitors.slice(0, 6).map((c) => ({ name: c.name })),
       });
+      tel.end("ai_editorial_copy", aiCopy ? "ok" : "skipped", aiCopy ? undefined : "sem retorno/skipAi");
     } catch (e) {
       aiError = (e as Error).message;
+      tel.failures.ai_editorial_failed = true;
+      tel.end("ai_editorial_copy", "error", aiError);
     }
+
     // Ranking BR-viral: compara TODOS os candidatos (AI + algoName + nome atual) por score
     // de SEO/CTR e escolhe o maior. Garante que nome forte nunca vire abstrato.
     const titleCandidates: string[] = [
