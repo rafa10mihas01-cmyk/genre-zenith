@@ -2340,12 +2340,14 @@ Deno.serve(async (req) => {
       })
       .select()
       .single();
+    tel.end("persist_diagnosis", dErr ? "error" : "ok", dErr?.message);
 
     if (!dErr) {
       await supabase.from("managed_playlists")
         .update({ last_diagnosis_at: new Date().toISOString() })
         .eq("id", pl.id);
     }
+
 
 
     if (lockHandle) {
