@@ -235,14 +235,14 @@ export function ExecucaoView({
               <div className="grid grid-cols-3 gap-6 md:gap-10 flex-1">
                 <div className="flex flex-col gap-1.5">
                   <span className="text-[12px] text-muted-foreground">Atual</span>
-                  <span className="text-[26px] md:text-[30px] font-medium tabular-nums text-foreground leading-none">
+                  <span className="text-[20px] sm:text-[24px] lg:text-[28px] font-medium tabular-nums text-foreground leading-none">
                     {formatInt(filteredTotals.current)}
                   </span>
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <span className="text-[12px] text-muted-foreground">Variação</span>
                   <span className={cn(
-                    "text-[26px] md:text-[30px] font-medium tabular-nums leading-none",
+                    "text-[20px] sm:text-[24px] lg:text-[28px] font-medium tabular-nums leading-none",
                     filteredTotals.delta > 0 ? "text-primary" : "text-foreground",
                   )}>
                     {filteredTotals.delta > 0 ? "+" : ""}{formatInt(filteredTotals.delta)}
@@ -250,7 +250,7 @@ export function ExecucaoView({
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <span className="text-[12px] text-muted-foreground">Playlists monitoradas</span>
-                  <span className="text-[26px] md:text-[30px] font-medium tabular-nums text-foreground leading-none">
+                  <span className="text-[20px] sm:text-[24px] lg:text-[28px] font-medium tabular-nums text-foreground leading-none">
                     {formatInt(filtered.length)}
                   </span>
                 </div>
