@@ -496,12 +496,13 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   async function handleBulkImportAllAccounts() {
     setBulkImporting(true);
     try {
-      const { data: tokens, error: tokErr } = await supabase
+      const { data: tokensRaw, error: tokErr } = await supabase
         .from("spotify_user_tokens_public" as any)
         .select("spotify_user_id, display_name, email");
       if (tokErr) throw new Error(tokErr.message);
+      const tokens = (tokensRaw ?? []) as Array<{ spotify_user_id: string | null; display_name: string | null; email: string | null }>;
 
-      const targets = (tokens ?? []).filter(
+      const targets = tokens.filter(
         (t) => t.spotify_user_id && !EXCLUDED_SPOTIFY_USER_IDS.has(t.spotify_user_id),
       );
       if (targets.length === 0) {
