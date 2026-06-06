@@ -57,10 +57,12 @@ export function PlaylistCockpit({
   } = useDiagnosisActions({ managedId, playlistName, tracksCount, setDiag, onBack });
 
   // 3) Derivações (useMemos): buckets, market, health, cross-tab keys.
+  const derivations = useCockpitDerivations(diag);
   const {
+    analysis, suggestions, caps,
     buckets, health, market, idealRange,
     currentTrackKeys, currentArtistKeys, suggestionByTitle,
-  } = useCockpitDerivations(diag);
+  } = derivations;
 
   // 4) Estado puramente local de aba (coordena Mercado → Plano).
   const [activeTab, setActiveTab] = useState<string>("identidade");
@@ -95,9 +97,7 @@ export function PlaylistCockpit({
     diag, setDiag, loading, loadLatest,
     running, applying, applyProgress, liveTracksCount, archiving,
     runDiagnose, applyPlan, handleArchive,
-    analysis: useCockpitDerivations(diag).analysis,
-    suggestions: useCockpitDerivations(diag).suggestions,
-    caps: useCockpitDerivations(diag).caps,
+    analysis, suggestions, caps,
     buckets, health, market, idealRange,
     currentTrackKeys, currentArtistKeys, suggestionByTitle,
     activeTab, setActiveTab, jumpToPlanAdd, onBack,
@@ -593,6 +593,7 @@ export function PlaylistCockpit({
       )}
       </div>
     </div>
+    </CockpitProvider>
   );
 }
 
