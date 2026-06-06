@@ -255,86 +255,201 @@ export function ExecucaoView({
         />
       )}
 
-      <Card>
-        <CardContent className="p-3 space-y-2">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Buscar playlist..."
-              className="pl-8 h-9"
-            />
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {!scopeLocked && (
-              <Select value={scope} onValueChange={(v) => setScope(v as any)}>
-                <SelectTrigger className="h-9 flex-1 min-w-0 md:flex-none md:w-[160px]"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas atribuições</SelectItem>
-                  <SelectItem value="ecosystem">Ecossistema</SelectItem>
-                  <SelectItem value="curator">Curadores</SelectItem>
-                  <SelectItem value="organic">Orgânico</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-            {(mode === "all" || mode === "curators") && (
-              <Select value={curatorFilter} onValueChange={setCuratorFilter}>
-                <SelectTrigger className="h-9 flex-1 min-w-0 md:flex-none md:w-[200px]"><SelectValue placeholder="Curador" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos curadores</SelectItem>
-                  {curatorOptions.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="h-9 flex-1 min-w-0 md:flex-none md:w-[160px]"><SelectValue placeholder="Status" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos status</SelectItem>
-                <SelectItem value="matched">Matched</SelectItem>
-                <SelectItem value="pending_match">Pending</SelectItem>
-                <SelectItem value="baseline_conflict">Conflito baseline</SelectItem>
-                <SelectItem value="not_found_yet">Not found</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="outline" size="sm" className="h-9 px-2 md:px-3 shrink-0 ml-auto" onClick={exportCsv}>
-              <Download className="h-4 w-4 md:mr-1" /> <span className="hidden md:inline">CSV</span>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-
-      <Card>
-        <CardContent className="p-0">
-          <div className="flex items-center justify-between gap-2 px-3 py-2 text-[11px] text-muted-foreground border-b border-border/60 bg-card/40">
-            <span className="shrink-0">{filtered.length}/{rows.length}</span>
-            <span className="flex items-center gap-2 md:gap-3 tabular-nums">
-              <span className="hidden xs:inline">Base <span className="text-foreground">{formatInt(filteredTotals.baseline)}</span></span>
-              <span>Atual <span className="text-foreground">{formatInt(filteredTotals.current)}</span></span>
-              <span>Δ <span className={cn("font-semibold", filteredTotals.delta > 0 ? "text-primary" : "text-muted-foreground")}>{filteredTotals.delta > 0 ? "+" : ""}{formatInt(filteredTotals.delta)}</span></span>
-            </span>
-          </div>
-          <VirtualTable
-            rows={filtered}
-            curators={curators}
-            statuses={statuses}
-            sort={sort}
-            sortDir={sortDir}
-            onSort={(k) => {
-              if (sort === k) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-              else { setSort(k); setSortDir("desc"); }
-            }}
-            onRowClick={onOpenHistory}
+      {/* Filtros — barra única, compacta, sem card gigante */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="relative flex-1 min-w-[180px]">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Buscar playlist..."
+            className="pl-8 h-9"
           />
-        </CardContent>
-      </Card>
+        </div>
+        {!scopeLocked && (
+          <Select value={scope} onValueChange={(v) => setScope(v as any)}>
+            <SelectTrigger className="h-9 w-[150px] shrink-0"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Atribuição</SelectItem>
+              <SelectItem value="ecosystem">Ecossistema</SelectItem>
+              <SelectItem value="curator">Curadores</SelectItem>
+              <SelectItem value="organic">Orgânico</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
+        {(mode === "all" || mode === "curators") && (
+          <Select value={curatorFilter} onValueChange={setCuratorFilter}>
+            <SelectTrigger className="h-9 w-[170px] shrink-0"><SelectValue placeholder="Curador" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Curador</SelectItem>
+              {curatorOptions.map((c) => (
+                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="h-9 w-[140px] shrink-0"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Status</SelectItem>
+            <SelectItem value="matched">Matched</SelectItem>
+            <SelectItem value="pending_match">Pending</SelectItem>
+            <SelectItem value="baseline_conflict">Conflito baseline</SelectItem>
+            <SelectItem value="not_found_yet">Not found</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button variant="outline" size="sm" className="h-9 px-3 shrink-0" onClick={exportCsv}>
+          <Download className="h-4 w-4 md:mr-1.5" /> <span className="hidden md:inline">CSV</span>
+        </Button>
+      </div>
+
+      {/* RESULTADOS — cabeçalho enfatizado acima da tabela */}
+      <div className="pt-2">
+        <div className="flex items-end justify-between gap-4 mb-2 px-1">
+          <div>
+            <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-bold">
+              Resultados
+            </div>
+            <div className="text-[13px] text-foreground font-semibold mt-0.5 tabular-nums">
+              {filtered.length} {filtered.length === 1 ? "playlist" : "playlists"}
+            </div>
+          </div>
+          <div className="flex items-center gap-4 md:gap-6 text-[11px] tabular-nums">
+            <div className="flex flex-col items-end">
+              <span className="text-[9px] uppercase tracking-wider text-muted-foreground">Atual</span>
+              <span className="text-sm font-semibold text-foreground leading-tight">{formatInt(filteredTotals.current)}</span>
+            </div>
+            <div className="flex flex-col items-end">
+              <span className="text-[9px] uppercase tracking-wider text-muted-foreground">Δ</span>
+              <span className={cn(
+                "text-sm font-semibold leading-tight",
+                filteredTotals.delta > 0 ? "text-primary" : "text-muted-foreground",
+              )}>
+                {filteredTotals.delta > 0 ? "+" : ""}{formatInt(filteredTotals.delta)}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <Card>
+          <CardContent className="p-0">
+            <VirtualTable
+              rows={filtered}
+              curators={curators}
+              statuses={statuses}
+              sort={sort}
+              sortDir={sortDir}
+              onSort={(k) => {
+                if (sort === k) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+                else { setSort(k); setSortDir("desc"); }
+              }}
+              onRowClick={onOpenHistory}
+            />
+          </CardContent>
+        </Card>
+      </div>
 
     </div>
   );
 }
+
+/**
+ * Hero KPI — número gigante de crescimento (56-72px) +
+ * métricas secundárias (Ecossistema / Curadores / Orgânico) horizontais.
+ */
+function HeroGrowth({
+  mode,
+  totals,
+  filteredCount,
+  lastCapturedAt,
+}: {
+  mode: "all" | "ecosystem" | "curators" | "organic";
+  totals: { total: number; eco: number; curator: number; organic: number; n: number };
+  filteredCount: number;
+  lastCapturedAt: string | null;
+}) {
+  const heroValue =
+    mode === "ecosystem" ? totals.eco
+    : mode === "curators" ? totals.curator
+    : mode === "organic" ? totals.organic
+    : totals.total;
+
+  const heroLabel =
+    mode === "ecosystem" ? "Crescimento ecossistema"
+    : mode === "curators" ? "Crescimento curadores"
+    : mode === "organic" ? "Crescimento orgânico"
+    : "Crescimento total";
+
+  const sign = heroValue > 0 ? "+" : heroValue < 0 ? "" : "";
+  const valueClass = heroValue > 0 ? "text-primary" : heroValue < 0 ? "text-destructive" : "text-foreground";
+
+  const lastLabel = lastCapturedAt
+    ? `${new Date(lastCapturedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} · ${new Date(lastCapturedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
+    : "—";
+
+  return (
+    <Card>
+      <CardContent className="p-5 md:p-6">
+        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+          {/* Hero number */}
+          <div className="min-w-0">
+            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold flex items-center gap-2">
+              <TrendingUp className="h-3 w-3" />
+              {heroLabel}
+            </div>
+            <div
+              className={cn(
+                "font-semibold tabular-nums leading-none mt-2 tracking-tight",
+                "text-[56px] md:text-[64px] lg:text-[72px]",
+                valueClass,
+              )}
+            >
+              {sign}{formatInt(heroValue)}
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-2 tabular-nums">
+              {mode === "all"
+                ? <>{totals.n} playlists monitoradas · última coleta {lastLabel}</>
+                : <>{filteredCount} playlists no escopo · última coleta {lastLabel}</>}
+            </div>
+          </div>
+
+          {/* Métricas secundárias — só na visão geral */}
+          {mode === "all" && (
+            <div className="flex items-stretch gap-0 divide-x divide-border/60 border-t lg:border-t-0 lg:border-l border-border/60 pt-4 lg:pt-0 lg:pl-6">
+              <SecondaryMetric icon={Layers} label="Ecossistema" value={totals.eco} />
+              <SecondaryMetric icon={Users} label="Curadores" value={totals.curator} />
+              <SecondaryMetric icon={Activity} label="Orgânico" value={totals.organic} />
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SecondaryMetric({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: any;
+  label: string;
+  value: number;
+}) {
+  const sign = value > 0 ? "+" : "";
+  return (
+    <div className="px-4 md:px-5 first:pl-0 lg:first:pl-0 flex flex-col justify-center min-w-[90px]">
+      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+        <Icon className="h-3 w-3" />
+        {label}
+      </div>
+      <div className="text-[20px] md:text-[22px] font-semibold tabular-nums text-foreground leading-tight mt-1">
+        {sign}{formatInt(value)}
+      </div>
+    </div>
+  );
+}
+
 
 function VirtualTable({
   rows,
