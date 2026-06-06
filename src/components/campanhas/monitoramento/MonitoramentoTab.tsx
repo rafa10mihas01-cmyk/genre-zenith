@@ -92,22 +92,25 @@ export function MonitoramentoTab({ campaignId }: Props) {
       />
 
       <Tabs value={subtab} onValueChange={setSubtab} className="space-y-4">
-        <div className="sticky top-0 z-20 -mx-px bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70 py-2 border-b border-border/40">
-          <TabsList className="grid grid-cols-4 w-full md:w-auto md:inline-grid">
-            <TabsTrigger value="visao" className="gap-1.5">
-              <BarChart3 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Visão geral</span><span className="sm:hidden">Visão</span>
-            </TabsTrigger>
-            <TabsTrigger value="curadores" className="gap-1.5">
-              <Users className="h-3.5 w-3.5" /> Curadores
-            </TabsTrigger>
-            <TabsTrigger value="ecossistema" className="gap-1.5">
-              <Layers className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Ecossistema</span><span className="sm:hidden">Eco</span>
-            </TabsTrigger>
-            <TabsTrigger value="saude" className="gap-1.5">
-              <HeartPulse className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Saúde da entrega</span><span className="sm:hidden">Saúde</span>
-            </TabsTrigger>
+        <div className="-mx-px border-b border-border/40">
+          <TabsList className="bg-transparent rounded-none p-0 h-auto gap-1 w-full md:w-auto justify-start">
+            {[
+              { v: "visao", label: "Visão geral", Icon: BarChart3 },
+              { v: "curadores", label: "Curadores", Icon: Users },
+              { v: "ecossistema", label: "Ecossistema", Icon: Layers },
+              { v: "saude", label: "Saúde da entrega", Icon: HeartPulse },
+            ].map(({ v, label, Icon }) => (
+              <TabsTrigger
+                key={v}
+                value={v}
+                className="gap-1.5 rounded-none bg-transparent px-4 py-2.5 text-muted-foreground border-b-2 border-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-primary data-[state=active]:shadow-none -mb-px"
+              >
+                <Icon className="h-3.5 w-3.5" /> {label}
+              </TabsTrigger>
+            ))}
           </TabsList>
         </div>
+
 
         <TabsContent value="visao" className="mt-0">
           <ExecucaoView campaignId={campaignId} onOpenHistory={setDrawerPlaylistId} mode="all" />
