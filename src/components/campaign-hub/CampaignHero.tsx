@@ -19,6 +19,7 @@ type Props = {
   daysTotal?: number;
   lastUpdateAt?: string | null;
   extraActions?: ReactNode;
+  extraActionsAfter?: ReactNode;
   hideProgress?: boolean;
 };
 
