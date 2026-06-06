@@ -145,16 +145,50 @@ Deno.serve(async (req) => {
       }));
     return jr({ ok: true, source: "spotify", tracks: out, total: out.length });
   } catch (e) {
-    // Circuit breaker aberto: erro claro, SEM fallback de cache silencioso.
+    // Circuit breaker aberto: tenta servir cache local antes de devolver 503.
     if (e instanceof SpotifyCircuitOpenError) {
-      const retryAfter = Math.max(1, Math.ceil((e.blockedUntil.getTime() - Date.now()) / 1000));
+      // blockedUntil pode ser string ISO, Date ou null/undefined — normaliza com segurança.
+      const rawBlocked: unknown = (e as any).blockedUntil;
+      let blockedUntilIso: string | null = null;
+      let blockedUntilMs: number | null = null;
+      if (rawBlocked instanceof Date) {
+        blockedUntilMs = rawBlocked.getTime();
+        blockedUntilIso = rawBlocked.toISOString();
+      } else if (typeof rawBlocked === "string" && rawBlocked.length > 0) {
+        const parsed = Date.parse(rawBlocked);
+        if (!Number.isNaN(parsed)) {
+          blockedUntilMs = parsed;
+          blockedUntilIso = new Date(parsed).toISOString();
+        }
+      }
+      const retryAfter = blockedUntilMs
+        ? Math.max(1, Math.ceil((blockedUntilMs - Date.now()) / 1000))
+        : 15;
+
+      // Fallback: serve cache local se houver, evitando bloquear o Editor.
+      const cache = await loadCache();
+      if (cache.tracks.length > 0) {
+        return jr({
+          ok: true,
+          source: "cache",
+          cache_snapshot_at: cache.snapshot_at,
+          rate_limited: true,
+          retry_after: retryAfter,
+          blocked_until: blockedUntilIso,
+          message: "Spotify temporariamente indisponível. Exibindo última sincronização.",
+          tracks: cache.tracks,
+          total: cache.tracks.length,
+        });
+      }
+
       return jr({
         ok: false,
         error: "SPOTIFY_CIRCUIT_OPEN",
         code: "spotify_circuit_open",
         message: "Spotify API temporariamente bloqueada pelo circuit breaker.",
-        blocked_until: e.blockedUntil.toISOString(),
+        blocked_until: blockedUntilIso,
         retry_after: retryAfter,
+        fallback: true,
         tracks: [],
         total: 0,
       }, 503);
