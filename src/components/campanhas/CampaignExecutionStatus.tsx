@@ -340,7 +340,7 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
   return (
     <div className="space-y-4">
       {/* PRIORIDADE — Pendências manuais. Visível no topo enquanto houver. */}
-      {pendingManualList.length > 0 && (
+      {(pendingManualList.length > 0 || fallbackManualList.length > 0) && (
         <Card className="border-amber-500/40">
           <CardContent className="p-0">
             <div className="px-4 py-3 border-b border-amber-500/20 bg-amber-500/[0.04] flex items-center justify-between gap-3">
@@ -348,7 +348,7 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
                 <Hand className="h-4 w-4 text-amber-400" />
                 <div>
                   <div className="text-sm font-semibold">
-                    Pendências manuais ({pendingManualList.length})
+                    Pendências manuais ({pendingManualList.length + fallbackManualList.length})
                   </div>
                   <div className="text-[11px] text-muted-foreground">
                     Estas playlists não têm OAuth — você precisa inserir a faixa manualmente.
@@ -371,15 +371,33 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
                         Pos. planejada: <span className="text-foreground font-medium">{pos ?? "—"}</span> · aguardando execução manual
                       </div>
                     </div>
-                    <button
+                    <Button
+                      size="sm"
                       onClick={() => markManualDone(it.id)}
-                      className="text-[11px] px-2.5 py-1 rounded border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 shrink-0"
+                      disabled={busyManualId === it.id}
+                      className="h-8 shrink-0"
                     >
+                      {busyManualId === it.id ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <CheckCircle2 className="h-3 w-3 mr-1" />}
                       Marcar Feito
-                    </button>
+                    </Button>
                   </div>
                 );
               })}
+              {fallbackManualList.map((it) => (
+                <div key={it.spid} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/20">
+                  <Hand className="h-4 w-4 text-amber-400 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{it.name}</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      Pos. planejada: <span className="text-foreground font-medium">{it.position ?? "—"}</span> · manual planejada · aparece como pendente após distribuir
+                    </div>
+                  </div>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] border shrink-0 bg-amber-500/15 text-amber-400 border-amber-500/30">
+                    <Clock className="h-3 w-3" />
+                    Manual planejada
+                  </span>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
