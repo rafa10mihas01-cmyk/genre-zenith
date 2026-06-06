@@ -18,6 +18,7 @@ import { BucketRemove } from "../shared/BucketRemove";
 import { BucketReorder } from "../shared/BucketReorder";
 import { BucketAdd } from "../shared/BucketAdd";
 import { EditorialBanner } from "../shared/EditorialBanner";
+import { PlanStatusBand } from "../shared/PlanStatusBand";
 import { useCockpit } from "../context/CockpitContext";
 
 export function PlanTab() {
@@ -30,6 +31,9 @@ export function PlanTab() {
 
   return (
     <>
+      {/* ===== 0. STATUS BAND (Fase 7A.2) ===== */}
+      <PlanStatusBand />
+
       {/* ===== 1. VISÃO GERAL ===== */}
       <section className="space-y-3">
         <SectionTitle>Visão geral</SectionTitle>
