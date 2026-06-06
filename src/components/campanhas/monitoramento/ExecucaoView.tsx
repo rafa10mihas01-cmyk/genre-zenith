@@ -66,31 +66,136 @@ export function ExecucaoView({
 
   useEffect(() => {
     (async () => {
-      const { data: g } = await (supabase as any)
-        .from("vw_campaign_playlist_growth")
-        .select("*")
-        .eq("campaign_id", campaignId);
-      const list = ((g ?? []) as unknown) as GrowthRow[];
+      // ─────────────────────────────────────────────────────────────
+      // FONTE DE VERDADE: campaign_playlist_collections + curator_campaign_playlists + campaign_eco_allocations
+      // A view de crescimento é apenas ENRIQUECIMENTO. Toda playlist vinculada à campanha aparece.
+      // ─────────────────────────────────────────────────────────────
+      const [collRes, ccpRes, ecoRes, growthRes] = await Promise.all([
+        supabase
+          .from("campaign_playlist_collections")
+          .select("playlist_id")
+          .eq("campaign_id", campaignId),
+        supabase
+          .from("curator_campaign_playlists")
+          .select("playlist_id, curator_id, status, playlist_url")
+          .eq("campaign_id", campaignId),
+        supabase
+          .from("campaign_eco_allocations")
+          .select("managed_playlist_id, managed_playlists!inner(spotify_playlist_id)")
+          .eq("campaign_id", campaignId),
+        (supabase as any)
+          .from("vw_campaign_playlist_growth")
+          .select("*")
+          .eq("campaign_id", campaignId),
+      ]);
+
+      // Conjunto canônico de playlist_ids da campanha
+      const collIds = new Set<string>(((collRes.data ?? []) as any[]).map((r) => r.playlist_id));
+      const curatorRegByPlaylist = new Map<string, { curator_id: string; status: string; playlist_url: string | null }>();
+      for (const r of (ccpRes.data ?? []) as any[]) {
+        // precedência: matched > pending_match > baseline_conflict > resto
+        const cur = curatorRegByPlaylist.get(r.playlist_id);
+        const rank = (s: string) => (s === "matched" ? 1 : s === "pending_match" ? 2 : s === "baseline_conflict" ? 3 : 4);
+        if (!cur || rank(r.status) < rank(cur.status)) {
+          curatorRegByPlaylist.set(r.playlist_id, { curator_id: r.curator_id, status: r.status, playlist_url: r.playlist_url });
+        }
+      }
+      const ecoIds = new Set<string>(
+        ((ecoRes.data ?? []) as any[])
+          .map((r) => r.managed_playlists?.spotify_playlist_id)
+          .filter(Boolean)
+      );
+
+      const allIds = new Set<string>([
+        ...collIds,
+        ...curatorRegByPlaylist.keys(),
+        ...ecoIds,
+      ]);
+
+      const growthByPid = new Map<string, GrowthRow>();
+      for (const g of ((growthRes.data ?? []) as unknown) as GrowthRow[]) {
+        growthByPid.set(g.playlist_id, g);
+      }
+
+      // Materializar lista canônica respeitando precedência Curador > Ecossistema > Orgânico
+      const list: GrowthRow[] = [];
+      for (const pid of allIds) {
+        const g = growthByPid.get(pid);
+        const reg = curatorRegByPlaylist.get(pid);
+        const attribution: string = reg
+          ? `curator:${reg.curator_id}`
+          : ecoIds.has(pid)
+            ? "ecosystem"
+            : "organic";
+        if (g) {
+          list.push({
+            ...g,
+            attributed_to: attribution,
+            attributed_curator_id: reg ? reg.curator_id : null,
+          });
+        } else {
+          // Playlist vinculada à campanha mas SEM coleta ainda. Aparece com "Sem dados".
+          list.push({
+            campaign_id: campaignId,
+            playlist_id: pid,
+            playlist_url: reg?.playlist_url ?? null,
+            current_name: null,
+            baseline_name: null,
+            baseline_plays: null,
+            current_plays: null,
+            delta: 0,
+            baseline_at: null,
+            last_captured_at: null,
+            first_seen_at: null,
+            attributed_to: attribution,
+            attributed_curator_id: reg ? reg.curator_id : null,
+            is_baseline_conflict: reg?.status === "baseline_conflict" ? true : null,
+          });
+        }
+      }
       setRows(list);
 
-      const curatorIds = Array.from(new Set(list.map((r) => r.attributed_curator_id).filter(Boolean) as string[]));
-      if (curatorIds.length > 0) {
-        const [{ data: cs }, { data: ccp }] = await Promise.all([
-          supabase.from("curators").select("id, name").in("id", curatorIds),
-          supabase
-            .from("curator_campaign_playlists")
-            .select("playlist_id, curator_id, status")
-            .eq("campaign_id", campaignId)
-            .in("curator_id", curatorIds),
-        ]);
+      // Curadores: pegar TODOS os curadores vinculados à campanha (não só os com crescimento)
+      const allCuratorIds = Array.from(new Set(Array.from(curatorRegByPlaylist.values()).map((v) => v.curator_id)));
+      if (allCuratorIds.length > 0) {
+        const { data: cs } = await supabase.from("curators").select("id, name").in("id", allCuratorIds);
         const cmap: Record<string, CuratorMeta> = {};
         for (const c of (cs ?? []) as CuratorMeta[]) cmap[c.id] = c;
         setCurators(cmap);
-        const smap: Record<string, string> = {};
-        for (const s of (ccp ?? []) as any[]) {
-          smap[`${s.curator_id}::${s.playlist_id}`] = s.status;
-        }
-        setStatuses(smap);
+      } else {
+        setCurators({});
+      }
+
+      // Statuses por curador::playlist (TODOS os registros de curator_campaign_playlists)
+      const smap: Record<string, string> = {};
+      for (const s of (ccpRes.data ?? []) as any[]) {
+        smap[`${s.curator_id}::${s.playlist_id}`] = s.status;
+      }
+      setStatuses(smap);
+
+      // ── LOG DE VALIDAÇÃO ──────────────────────────────────────
+      const totalEco = list.filter((r) => r.attributed_to === "ecosystem").length;
+      const totalCur = list.filter((r) => r.attributed_to.startsWith("curator:")).length;
+      const totalOrg = list.filter((r) => r.attributed_to === "organic").length;
+      const totalNoData = list.filter((r) => r.baseline_plays == null && r.current_plays == null).length;
+      // eslint-disable-next-line no-console
+      console.log("[Monitoramento V2] Fonte de verdade", {
+        campaign_id: campaignId,
+        total_collections_distinct: collIds.size,
+        total_curator_reg_distinct: curatorRegByPlaylist.size,
+        total_eco_alloc_distinct: ecoIds.size,
+        total_canonical: allIds.size,
+        total_renderizado: list.length,
+        breakdown: { ecossistema: totalEco, curadores: totalCur, organico: totalOrg },
+        soma_buckets: totalEco + totalCur + totalOrg,
+        sem_dados: totalNoData,
+        match_buckets_total: totalEco + totalCur + totalOrg === list.length,
+      });
+      if (allIds.size !== list.length) {
+        console.warn("[Monitoramento V2] DIVERGÊNCIA: canônico !== renderizado", {
+          canonical: allIds.size,
+          rendered: list.length,
+        });
       }
     })();
   }, [campaignId]);
