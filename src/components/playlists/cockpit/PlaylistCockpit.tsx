@@ -29,6 +29,17 @@ import { GenrePicker } from "@/components/playlists/cockpit/GenrePicker";
 import { GenreAffinityCard } from "@/components/playlists/cockpit/GenreAffinityCard";
 import { LifecycleRoadmapCard } from "@/components/playlists/cockpit/LifecycleRoadmapCard";
 
+// Subcomponentes extraídos no Commit 2 da Fase 2 — sem mudança de JSX/lógica.
+import { SectionTitle } from "./shared/SectionTitle";
+import { IdentityField } from "./shared/IdentityField";
+import { CoverCard } from "./shared/CoverCard";
+import { ActionCard } from "./shared/ActionCard";
+import { BucketRemove } from "./shared/BucketRemove";
+import { BucketReorder } from "./shared/BucketReorder";
+import { BucketAdd } from "./shared/BucketAdd";
+import { MarketBlock } from "./shared/MarketBlock";
+import { EditorialBanner } from "./shared/EditorialBanner";
+
 
 // -------------------- types & helpers --------------------
 // Tipos e helpers puros agora vivem em ./types e ./helpers (extraídos
