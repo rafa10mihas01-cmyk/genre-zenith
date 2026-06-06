@@ -177,41 +177,47 @@ function BaselineStatus({
   return (
     <Card className="overflow-hidden !p-0">
       <details className="group/baseline [&[open]>summary_.bchev]:rotate-180">
-        <summary className="cursor-pointer list-none min-h-[72px] px-5 py-3 flex items-center gap-4 hover:bg-muted/20 transition-colors">
+        <summary className="cursor-pointer list-none min-h-[56px] px-4 py-2.5 flex items-center gap-3 hover:bg-muted/15 transition-colors">
           <div className="relative shrink-0">
-            <CheckCircle2 className={`h-5 w-5 ${toneIconClass}`} aria-hidden />
+            <CheckCircle2 className={`h-4 w-4 ${toneIconClass}`} aria-hidden />
             {tone === "warning" && (
               <span className="absolute inset-0 rounded-full bg-warning opacity-30 animate-ping" aria-hidden />
             )}
           </div>
 
-          <div className="min-w-0 flex items-center gap-3 flex-wrap">
-            <div className={`text-[15px] font-semibold leading-none whitespace-nowrap ${TONE_TEXT[tone]}`}>
-              {label}
-            </div>
-            {capturedAt && (
-              <div className="text-[12px] text-muted-foreground tabular-nums leading-none flex items-center gap-2">
-                <span>{dateLabel}, {timeLabel}</span>
-                <span className="text-muted-foreground/60">•</span>
-                <span>{playlists} playlists</span>
-              </div>
-            )}
+          <div className={`text-[13px] font-medium leading-none whitespace-nowrap ${TONE_TEXT[tone]}`}>
+            {label}
           </div>
+
+          {capturedAt && (
+            <>
+              <span className="h-3.5 w-px bg-border/50 shrink-0" aria-hidden />
+              <div className="text-[12px] text-muted-foreground tabular-nums leading-none whitespace-nowrap">
+                {dateLabel}, {timeLabel}
+              </div>
+              <span className="h-3.5 w-px bg-border/50 shrink-0" aria-hidden />
+              <div className="text-[12px] text-muted-foreground tabular-nums leading-none whitespace-nowrap">
+                {playlists} playlists
+              </div>
+            </>
+          )}
 
           <div className="ml-auto flex items-center gap-3 shrink-0">
             {latestTime && (
-              <div className="hidden sm:flex flex-col items-end leading-tight">
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Última coleta</span>
-                <span className="text-[13px] font-semibold tabular-nums text-foreground">{latestTime}</span>
+              <div className="hidden sm:flex flex-col items-end leading-tight gap-0.5">
+                <span className="text-[9px] uppercase tracking-[0.14em] text-muted-foreground font-medium">Última coleta</span>
+                <span className="text-[12px] font-semibold tabular-nums text-foreground leading-none">{latestTime}</span>
               </div>
             )}
-            <div className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md border border-border/60 bg-card/40 hover:bg-muted/30 transition-colors text-[12px] text-foreground">
-              <ImageIcon className="h-3.5 w-3.5" />
+            <span className="hidden sm:block h-7 w-px bg-border/50" aria-hidden />
+            <div className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-border/60 bg-card/40 hover:bg-muted/20 transition-colors text-[12px] text-foreground/90">
+              <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />
               <span>Ver prints</span>
-              <ChevronDown className="bchev h-3.5 w-3.5 transition-transform" />
+              <ChevronDown className="bchev h-3 w-3 transition-transform text-muted-foreground" />
             </div>
           </div>
         </summary>
+
 
 
         <div className="border-t border-border/60 px-4 py-4 bg-background/40 space-y-3 max-h-[60vh] overflow-y-auto overscroll-contain">
