@@ -152,20 +152,26 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
   }, [campaignId]);
 
   const grouped = useMemo(() => {
-    const m = new Map<string, JobRow[]>();
+    const m = new Map<string, { jobs: JobRow[]; manual: ManualRow[] }>();
     for (const j of jobs) {
-      const arr = m.get(j.spotify_playlist_id) ?? [];
-      arr.push(j);
-      m.set(j.spotify_playlist_id, arr);
+      const entry = m.get(j.spotify_playlist_id) ?? { jobs: [], manual: [] };
+      entry.jobs.push(j);
+      m.set(j.spotify_playlist_id, entry);
+    }
+    for (const it of manualItems) {
+      if (!it.spotify_playlist_id) continue;
+      const entry = m.get(it.spotify_playlist_id) ?? { jobs: [], manual: [] };
+      entry.manual.push(it);
+      m.set(it.spotify_playlist_id, entry);
     }
     // Ordena playlists: com falhas primeiro, depois pendentes, depois concluídas
-    return Array.from(m.entries()).sort(([aId, aJobs], [bId, bJobs]) => {
-      const rank = (jobs: JobRow[]) => {
-        if (jobs.some(j => j.status === "failed")) return 0;
-        if (jobs.some(j => j.status === "pending" || j.status === "claimed")) return 1;
+    return Array.from(m.entries()).sort(([aId, aEntry], [bId, bEntry]) => {
+      const rank = (entry: { jobs: JobRow[]; manual: ManualRow[] }) => {
+        if (entry.jobs.some(j => j.status === "failed")) return 0;
+        if (entry.jobs.some(j => j.status === "pending" || j.status === "claimed") || entry.manual.some(it => it.status !== "MANUAL_DONE")) return 1;
         return 2;
       };
-      const ra = rank(aJobs), rb = rank(bJobs);
+      const ra = rank(aEntry), rb = rank(bEntry);
       if (ra !== rb) return ra - rb;
       const na = ecoMap.get(aId)?.name ?? aId;
       const nb = ecoMap.get(bId)?.name ?? bId;

@@ -474,9 +474,7 @@ export function CampaignDistributionConsole({
 
     const spidByAlloc = new Map<string, string | null>();
     for (const a of allocations) {
-      const url = a.managed_playlists?.spotify_url ?? "";
-      const m = typeof url === "string" ? url.match(/playlist\/([A-Za-z0-9]+)/) : null;
-      spidByAlloc.set(a.id, m?.[1] ?? null);
+      spidByAlloc.set(a.id, spotifyPlaylistIdFromAllocation(a));
     }
 
     const reorderJobs = jobs.filter((j) => j.job_type === "playlist.track.reorder");
