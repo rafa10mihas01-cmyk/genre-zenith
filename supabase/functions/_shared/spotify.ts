@@ -93,6 +93,80 @@ export class SpotifyCircuitOpenError extends Error {
   }
 }
 
+/**
+ * Erros de autenticação Spotify — sinalizam que o app atual está com credencial
+ * podre OU sem user token. Callers críticos (snapshot, diagnose) podem catch
+ * específico pra failover entre apps; demais callers só veem uma exception.
+ *
+ * Ambos herdam de Error puro (não de SpotifyApiError pra evitar dependência
+ * circular com spotify-playlist.ts). Carregam appId + reason pra telemetria.
+ */
+export class SpotifyAuthInvalidError extends Error {
+  appId: string | null;
+  reason: "AUTH_INVALID";
+  status = 401 as const;
+  constructor(appId: string | null, detail = "") {
+    super(`SPOTIFY_AUTH_INVALID app=${appId ?? "unknown"}${detail ? ": " + detail.slice(0, 200) : ""}`);
+    this.name = "SpotifyAuthInvalidError";
+    this.appId = appId;
+    this.reason = "AUTH_INVALID";
+  }
+}
+
+export class SpotifyAuthMissingError extends Error {
+  appId: string | null;
+  reason: "AUTH_MISSING";
+  constructor(appId: string | null, detail = "") {
+    super(`SPOTIFY_AUTH_MISSING app=${appId ?? "unknown"}${detail ? ": " + detail : ""}`);
+    this.name = "SpotifyAuthMissingError";
+    this.appId = appId;
+    this.reason = "AUTH_MISSING";
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers de saúde de app — wrappers fail-silent das RPCs criadas na migration.
+// Usados pelo guardedSpotifyFetch (hook 401), pelo fetch guard global e pelo
+// snapshot-playlist-tracks (failover local).
+// ---------------------------------------------------------------------------
+type AuthFailureReason = "AUTH_MISSING" | "AUTH_INVALID" | "RATE_LIMIT" | "SPOTIFY_5XX" | "MANUAL";
+
+const __lastResetAt = new Map<string, number>();
+const RESET_DEBOUNCE_MS = 60_000;
+
+export async function markAppAuthFailure(
+  appId: string | null | undefined,
+  reason: AuthFailureReason,
+  retryAfterSec?: number | null,
+): Promise<void> {
+  if (!appId) return;
+  try {
+    await db().rpc("mark_spotify_app_auth_failure", {
+      p_app_id: appId,
+      p_reason: reason,
+      p_retry_after_sec: retryAfterSec ?? null,
+    });
+  } catch (e) {
+    console.error("[markAppAuthFailure] rpc failed:", (e as Error)?.message ?? String(e));
+  }
+}
+
+export async function resetAppAuthFailures(appId: string | null | undefined): Promise<void> {
+  if (!appId) return;
+  const last = __lastResetAt.get(appId) ?? 0;
+  if (Date.now() - last < RESET_DEBOUNCE_MS) return;
+  __lastResetAt.set(appId, Date.now());
+  try {
+    await db().rpc("reset_spotify_app_auth_failures", { p_app_id: appId });
+  } catch { /* silent */ }
+}
+
+function fireAndForget(p: Promise<unknown>): void {
+  const er = (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } }).EdgeRuntime;
+  if (er?.waitUntil) { try { er.waitUntil(p); } catch { p.catch(() => {}); } }
+  else p.catch(() => {});
+}
+
 // Escopos necessários pra operação completa da NexEngine:
 //   - modify-public/private → adicionar/remover faixas, reordenar, mudar nome/descrição
 //   - read-private/collaborative → listar playlists privadas e colaborativas do usuário
