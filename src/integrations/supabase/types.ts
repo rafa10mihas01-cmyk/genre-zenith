@@ -5945,6 +5945,7 @@ export type Database = {
       plan_execution_snapshots: {
         Row: {
           accuracy_by_metric: Json | null
+          accuracy_grade: string | null
           accuracy_overall: number | null
           baseline_benchmark_tracks: number | null
           baseline_dominant_artists: number | null
@@ -5984,6 +5985,7 @@ export type Database = {
         }
         Insert: {
           accuracy_by_metric?: Json | null
+          accuracy_grade?: string | null
           accuracy_overall?: number | null
           baseline_benchmark_tracks?: number | null
           baseline_dominant_artists?: number | null
@@ -6023,6 +6025,7 @@ export type Database = {
         }
         Update: {
           accuracy_by_metric?: Json | null
+          accuracy_grade?: string | null
           accuracy_overall?: number | null
           baseline_benchmark_tracks?: number | null
           baseline_dominant_artists?: number | null
