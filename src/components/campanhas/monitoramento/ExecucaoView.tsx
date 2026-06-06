@@ -789,12 +789,12 @@ function VirtualTable({
                   followers={meta?.followers ?? null}
                 />
                 <AttributionBadge attr={r.attributed_to} curatorName={curName} />
-                <div className="text-right tabular-nums text-muted-foreground text-sm">{formatInt(Number(r.baseline_plays ?? 0))}</div>
-                <div className="text-right tabular-nums text-foreground text-sm">{formatInt(Number(r.current_plays ?? 0))}</div>
+                <div className="text-right tabular-nums text-muted-foreground text-sm">{r.baseline_plays == null ? "—" : formatInt(Number(r.baseline_plays))}</div>
+                <div className="text-right tabular-nums text-foreground text-sm">{r.current_plays == null ? "—" : formatInt(Number(r.current_plays))}</div>
                 <div className={cn("text-right tabular-nums font-semibold text-sm", Number(r.delta) > 0 ? "text-primary" : "text-muted-foreground")}>
-                  {Number(r.delta) > 0 ? "+" : ""}{formatInt(Number(r.delta ?? 0))}
+                  {r.baseline_plays == null && r.current_plays == null ? "—" : (Number(r.delta) > 0 ? "+" : "") + formatInt(Number(r.delta ?? 0))}
                 </div>
-                <div>{st ? <MatchStatusBadge status={st} /> : <span className="text-xs text-muted-foreground">—</span>}</div>
+                <div>{r.baseline_plays == null && r.current_plays == null ? <Badge variant="outline" className="border-muted-foreground/30 text-muted-foreground">sem dados</Badge> : st ? <MatchStatusBadge status={st} /> : <span className="text-xs text-muted-foreground">—</span>}</div>
                 <div className="text-muted-foreground text-xs">
                   {r.last_captured_at ? new Date(r.last_captured_at).toLocaleString("pt-BR") : "—"}
                 </div>
