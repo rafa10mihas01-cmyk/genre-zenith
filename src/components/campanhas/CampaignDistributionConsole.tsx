@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   Rocket, CheckCircle2, Clock, XCircle, Loader2, RefreshCw, ArrowDownUp,
-  Bot, ShieldCheck, AlertCircle, ExternalLink, Activity, ArrowDown, Hand, Ban,
+  Bot, ShieldCheck, AlertCircle, ExternalLink, Activity, ArrowDown, Hand, Ban, ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatBRL } from "@/lib/campaignEngine";
