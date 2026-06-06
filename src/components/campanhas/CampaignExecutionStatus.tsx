@@ -298,14 +298,17 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
       <Card>
         <CardContent className="p-0">
           <div className="divide-y divide-border">
-            {grouped.map(([spid, plJobs]) => {
+            {grouped.map(([spid, entry]) => {
+              const plJobs = entry.jobs;
+              const manual = entry.manual;
               const eco = ecoMap.get(spid);
               const name = eco?.name ?? spid;
               const planned = eco?.position ?? null;
               const open = expanded.has(spid);
-              const done = plJobs.filter((j) => j.status === "done").length;
+              const done = plJobs.filter((j) => j.status === "done").length + manual.filter((it) => it.status === "MANUAL_DONE").length;
               const failed = plJobs.filter((j) => j.status === "failed").length;
-              const pending = plJobs.filter((j) => j.status === "pending" || j.status === "claimed").length;
+              const pending = plJobs.filter((j) => j.status === "pending" || j.status === "claimed").length + manual.filter((it) => it.status !== "MANUAL_DONE").length;
+              const totalItems = plJobs.length + manual.length;
               return (
                 <div key={spid}>
                   <button
@@ -316,7 +319,7 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate">{name}</div>
                       <div className="text-[11px] text-muted-foreground">
-                        Pos. planejada: {planned ?? "—"} · {plJobs.length} job(s)
+                        Pos. planejada: {planned ?? "—"} · {totalItems} registro(s)
                       </div>
                     </div>
                     <div className="flex items-center gap-2 text-[11px]">
@@ -340,6 +343,19 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
                           </tr>
                         </thead>
                         <tbody>
+                          {manual.map((it) => (
+                            <tr key={it.id} className="border-b border-border/50 last:border-0">
+                              <td className="py-2 pr-3">
+                                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"><Hand className="h-3 w-3" /> ADD manual</span>
+                              </td>
+                              <td className="py-2 pr-3"><StatusBadge status={it.status} /></td>
+                              <td className="py-2 pr-3 text-muted-foreground">{it.executed_position ?? it.planned_position ?? planned ?? "—"}</td>
+                              <td className="py-2 pr-3 text-muted-foreground">{fmtDate(it.created_at)}</td>
+                              <td className="py-2 pr-3 text-muted-foreground">{fmtDate(it.completed_at)}</td>
+                              <td className="py-2 pr-3 text-muted-foreground">—</td>
+                              <td className="py-2 text-muted-foreground max-w-[280px] truncate">manual</td>
+                            </tr>
+                          ))}
                           {plJobs.map((j) => (
                             <tr key={j.id} className="border-b border-border/50 last:border-0">
                               <td className="py-2 pr-3"><JobTypeBadge type={j.job_type} /></td>
