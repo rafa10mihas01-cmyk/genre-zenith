@@ -1,47 +1,183 @@
-# Plano — Padrão "cards de fase" no CRM de Curadores (mobile)
+# Plano — Blindagem Spotify Fase A (com ajustes obrigatórios)
 
-Aplicar o mesmo padrão visual do Playlists/Deals no `CuradoresCRM` **apenas no mobile**, sem sobrepor a barra de filtros já existente e sem mexer em nada de desktop nem em lógica de dados.
+Objetivo: garantir que um app Spotify com auth inválida **não derrube** diagnose/sync/playlists. Apenas infra — diagnose, score, benchmark, playlists, campanhas ficam intactos.
 
-## Princípio
-Hoje no mobile o CRM tem **3 blocos verticais empilhados** que competem entre si:
-1. 4 MiniStats (Total / Não contatados / Enviados / Responderam) — só informativos, não clicáveis.
-2. Toolbar (busca + Importar + ⋯).
-3. Barra de filtros colapsáveis (Contato/Status/Score/Tamanho).
+---
 
-A ideia é **fundir o bloco 1 com o filtro de Contato** (que tem exatamente os mesmos valores: Todos, Não contatados, Enviados, Aguardando, Responderam). Os MiniStats viram cards-filtro clicáveis no mobile — o número fica visível, o estado ativo controla `contactFilter`, e a página inteira encurta uma linha.
+## 1. Migration — `spotify_apps` ganha estado de saúde + rastreabilidade
 
-## Mudanças (mobile-only, `sm:hidden`)
+Adicionar 4 colunas + 3 funções SQL:
 
-### 1. Substituir o grid de MiniStat por grid de cards-filtro
-- Trocar o bloco atual `<div className="grid grid-cols-2 md:grid-cols-4 gap-2">` por:
-  - Mobile (`sm:hidden`): `grid grid-cols-4 gap-1.5` com 4 cards (Todos / Não contatados / Enviados / Responderam) no mesmo formato dos cards de Playlists — ícone + label curta + número, `rounded-xl border px-1 py-2`, estado ativo com `border-primary/60 bg-primary/10 text-primary`.
-  - Clicar no card seta `contactFilter` correspondente (`"todos" | "nao_contatado" | "enviado" | "respondeu"`).
-  - Desktop (`hidden sm:grid`): mantém os 4 `MiniStat` originais inalterados (sem virar botão).
+```sql
+ALTER TABLE public.spotify_apps
+  ADD COLUMN auth_failure_count    int          NOT NULL DEFAULT 0,
+  ADD COLUMN last_auth_failure_at  timestamptz,
+  ADD COLUMN quarantined_until     timestamptz,
+  ADD COLUMN quarantine_reason     text;        -- AUTH_INVALID | AUTH_MISSING | RATE_LIMIT | SPOTIFY_5XX | MANUAL
 
-Labels curtos (cabem em 4 colunas em 390px):
-- Todos · Novos · Enviados · Resp.
+CREATE FUNCTION public.mark_spotify_app_auth_failure(
+  p_app_id uuid,
+  p_reason text DEFAULT 'AUTH_INVALID',
+  p_threshold int DEFAULT 5,
+  p_quarantine_minutes int DEFAULT 30
+) RETURNS jsonb ...
+-- incrementa contador; ao atingir threshold:
+--   quarantined_until = now() + interval
+--   quarantine_reason = p_reason
+--   last_auth_failure_at = now()
 
-Ícones sugeridos (Lucide já usados no projeto): `Users`, `CircleDashed`, `Send`, `MessageSquare`.
+CREATE FUNCTION public.reset_spotify_app_auth_failures(p_app_id uuid) ...
+-- chamada em sucesso: zera contador, NÃO mexe em quarantined_until
 
-### 2. Esconder o chip "Contato" da barra de filtros **só no mobile**
-- Como o card já controla esse filtro, o chip "Contato" da barra de filtros vira redundante no mobile.
-- Adicionar `hidden sm:inline-flex` no botão do chip `"contato"` (linha 657). Os outros 3 chips (Status, Score, Tamanho) continuam visíveis em todas as larguras.
-- No desktop nada muda — chip continua visível e funciona como hoje.
+CREATE FUNCTION public.expire_spotify_app_quarantines() ...
+-- UPDATE spotify_apps SET quarantine_reason=NULL WHERE quarantined_until < now()
+```
 
-### 3. Compactar a toolbar no mobile (só se sobrar tempo, opcional)
-- O botão `Importar` com label texto + ícone ocupa muito espaço no mobile. Sugestão: `<span className="hidden sm:inline">Importar</span>` mantendo só o ícone Upload no mobile.
-- Esse passo é puramente cosmético e não muda comportamento. Faço junto se autorizado.
+`status='quarantined_auto'` é derivado: `status='active' AND quarantined_until > now()`. Coluna `status` permanece para quarentena manual.
 
-## O que NÃO muda
-- Nada na aba **Ativos** (`CuradoresLibraryTab`).
-- Nada na aba **Prospecção** desktop (`>= sm`).
-- Nenhuma query, hook, schema, tipo ou estado novo.
-- A lógica de `filtered`, `stats`, `contactFilter`, paginação, import, follow-up, sheets — tudo intacto.
-- `MiniStat` continua existindo (usado no desktop).
-- Chip "Status/Score/Tamanho" e painel expansível continuam idênticos.
+---
 
-## Arquivos tocados
-- `src/components/operacao/CuradoresCRM.tsx` — bloco 588-594 e linha 651 (props `show` do chip Contato). 2 edições pontuais.
+## 2. `_shared/spotify.ts` — selector com failover + pré-validação
 
-## Risco
-Baixo. Tudo é additive/visibility-only no mobile. Se algo desagradar, basta reverter as duas edições — desktop e lógica continuam idênticos.
+### Novidades
+
+- **`SpotifyAuthInvalidError`** — subclasse de `SpotifyApiError` (para não quebrar `catch (e instanceof SpotifyApiError)` existentes). Carrega `appId` e `reason`.
+- **`SpotifyAuthMissingError`** — lançada **antes de qualquer fetch** quando um endpoint exige user token e o app escolhido não tem `spotify_user_tokens` válido. Reason = `AUTH_MISSING_USER_TOKEN`. Custo: 0ms, sem request, sem 401.
+- **`markAppAuthFailure(appId, reason)`** — chama RPC, fire-and-forget.
+
+### `getAppCredentials(opts?)` refatorada
+
+```ts
+getAppCredentials({ appId?, excludeAppIds?: string[] })
+```
+
+- Chama `expire_spotify_app_quarantines()` (fail-silent, <5ms).
+- Filtra `status='active' AND (quarantined_until IS NULL OR quarantined_until < now())`.
+- Aplica `excludeAppIds` (failover).
+- Ordem preservada: `is_default DESC, created_at ASC`.
+- Se ninguém saudável → lança `NO_HEALTHY_SPOTIFY_APP`.
+
+### `getSpotifyToken({ excludeAppIds?, requireUserAuth? })` refatorada
+
+- Quando `requireUserAuth=true`:
+  - Após escolher app, consulta `spotify_user_tokens` daquele app.
+  - Se NENHUM token válido (ou todos expirados sem refresh): **lança `SpotifyAuthMissingError`** sem fazer request.
+- Caso contrário: comportamento atual (`client_credentials`).
+
+### Hook 401 nos wrappers
+
+`guardedSpotifyFetch` e o monkey-patch global: quando `r.status === 401` em `api.spotify.com` (não `accounts`) → `markAppAuthFailure(appId, 'AUTH_INVALID')` em fire-and-forget. Não muda o contrato (continua devolvendo o `Response`).
+
+---
+
+## 3. `_shared/spotify-playlist.ts` — fail-fast em 401
+
+`defaultSpotifyFetch`: quando `r.status === 401` → lança **`SpotifyAuthInvalidError`** (não `SpotifyApiError` genérico). Callers que não tratam continuam funcionando (ainda é exception). Callers críticos (snapshot, diagnose) podem `catch` específico para failover.
+
+**Pré-validação adicional:** `listPlaylistTrackRefs` e variantes que tocam endpoints `/v1/playlists/{id}/items` aceitam parâmetro opcional `{ requiresUserAuth?: boolean }`. Se true e o token recebido for `client_credentials` (heurística: token sem `user_id` em cache, ou flag explícita do caller), aborta com `SpotifyAuthMissingError`.
+
+---
+
+## 4. `snapshot-playlist-tracks/index.ts` — streak breaker + failover local
+
+```text
+let currentAppId = ...
+let token        = await getSpotifyToken({ requireUserAuth: true para playlists privadas })
+let consecutiveAuthFailures = 0
+let triedApps   = new Set([currentAppId])
+
+for playlist in list:
+  try:
+    refs = await fetchRefs(token)
+    consecutiveAuthFailures = 0
+  catch SpotifyAuthMissingError:
+    # falhou em 0ms — não chegou no Spotify
+    log AUTH_MISSING_USER_TOKEN { app, playlist }
+    markAppAuthFailure(currentAppId, 'AUTH_MISSING')
+    try failover (excludeAppIds=triedApps) → senão break AUTH_BREAKER_OPEN
+    continue (retenta mesma playlist)
+  catch SpotifyAuthInvalidError:
+    consecutiveAuthFailures++
+    markAppAuthFailure(currentAppId, 'AUTH_INVALID')
+    if consecutiveAuthFailures == 1:
+      try { token = await getSpotifyToken({ excludeAppIds: [...triedApps] }) }
+      catch NO_HEALTHY_SPOTIFY_APP: break AUTH_BREAKER_OPEN
+      triedApps.add(currentAppId = novo)
+      continue
+    if consecutiveAuthFailures >= 5:
+      break AUTH_BREAKER_OPEN
+```
+
+Resposta JSON ganha:
+```json
+"auth_breaker": {
+  "triggered": true|false,
+  "quarantined": [{ "app_id", "reason", "until" }],
+  "failover_used": true|false,
+  "final_app_id": "..."
+}
+```
+
+---
+
+## 5. Teste obrigatório de failover (gate de deploy)
+
+**Antes de marcar a Fase A como entregue**, rodar cenário controlado:
+
+1. Garantir 2+ apps `active` no pool (ex.: NexEngine 02 e 05).
+2. Forçar NexEngine 02 a ser escolhido primeiro (`is_default=true`) e remover/invalidar seu token (cenário do incidente).
+3. Disparar `snapshot-playlist-tracks` com uma playlist privada.
+4. **Resultado esperado:**
+   - ✓ 1 chamada → 401 → `markAppAuthFailure` → quarentena imediata (threshold 1 nesse teste, ou contador já em 4)
+   - ✓ failover para NexEngine 05
+   - ✓ snapshot conclui com `final_app_id = NexEngine 05`
+   - ✓ nenhum 429
+   - ✓ nenhum breaker global
+   - ✓ `spotify_apps[02].quarantine_reason = 'AUTH_INVALID'`
+   - ✓ `spotify_apps[02].quarantined_until = now()+30min`
+5. **Se qualquer item falhar → reverter, não liberar.**
+
+Documentar o resultado do teste no comentário do deploy.
+
+---
+
+## 6. Arquivos tocados
+
+| Arquivo | Mudança |
+|---|---|
+| `supabase/migrations/<ts>_spotify_app_health.sql` | 4 colunas + 3 funções |
+| `supabase/functions/_shared/spotify.ts` | `SpotifyAuthInvalidError`, `SpotifyAuthMissingError`, `markAppAuthFailure`, `getAppCredentials({excludeAppIds})`, `getSpotifyToken({excludeAppIds, requireUserAuth})`, hook 401 nos wrappers |
+| `supabase/functions/_shared/spotify-playlist.ts` | `defaultSpotifyFetch` joga `SpotifyAuthInvalidError` em 401; opção `requiresUserAuth` |
+| `supabase/functions/snapshot-playlist-tracks/index.ts` | streak counter, failover local, resposta com `auth_breaker` |
+
+**NÃO** toca: `diagnose-managed-playlist`, lógica de score/benchmark/playlists/campanhas, UI. Demais edge functions herdam o failover de `getSpotifyToken()` sem mudança de contrato.
+
+---
+
+## 7. Riscos e mitigação
+
+| Risco | Mitigação |
+|---|---|
+| `SpotifyAuthInvalidError` quebra caller que esperava `SpotifyApiError` | é subclasse — `instanceof SpotifyApiError` continua true |
+| Quarentena agressiva derruba pool inteiro em incidente Spotify-wide | threshold 5 + TTL 30min; se NENHUM app saudável, `getAppCredentials` faz fallback pra quarentenado (padrão atual `activeRows.length>0 ? activeRows : allRows`) |
+| Pré-validação adiciona 1 query extra | `expire_spotify_app_quarantines()` é UPDATE indexado <5ms |
+| `requireUserAuth` mal classificado pode falhar requests públicos válidos | flag opcional, default `false`; apenas `snapshot-playlist-tracks` ativa para playlists privadas |
+| Fase B (toasts/dashboard) fica de fora | confirmado pelo usuário — só executar após Fase A validada e teste passado |
+
+---
+
+## 8. Critério de sucesso resumido
+
+Cenário "5× 401 consecutivos" do incident:
+
+```text
+ANTES: 746 × 401 em 3 min → 429 → breaker global 12h
+DEPOIS: 1 × 401 → quarentena 30min (motivo registrado) → failover → operação continua
+```
+
+Ou (cenário mais comum):
+
+```text
+ANTES: snapshot dispara request em playlist privada com client_credentials → 401 garantido
+DEPOIS: SpotifyAuthMissingError em 0ms → failover para app com user token → 200 OK
+```
