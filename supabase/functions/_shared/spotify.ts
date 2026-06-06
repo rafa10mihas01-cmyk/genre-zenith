@@ -589,9 +589,17 @@ export async function getAppCredentials(
   };
 }
 
-export async function getSpotifyToken(forceRefresh = false): Promise<string> {
+export type GetSpotifyTokenOpts = {
+  forceRefresh?: boolean;
+  excludeAppIds?: string[];
+};
+
+/** Versão estendida que retorna também o appId/appName usados. Útil pra failover. */
+export async function getSpotifyTokenWithApp(
+  opts: GetSpotifyTokenOpts = {},
+): Promise<{ token: string; appId: string | null; appName: string }> {
   const supabase = db();
-  const creds = await getAppCredentials();
+  const creds = await getAppCredentials({ excludeAppIds: opts.excludeAppIds });
   // Propaga app pra TODAS as chamadas Spotify subsequentes neste contexto async.
   enterCtx({ appId: creds.app_id, appName: creds.name });
   if (creds.app_id) appNameCache.set(creds.app_id, creds.name);
@@ -600,14 +608,14 @@ export async function getSpotifyToken(forceRefresh = false): Promise<string> {
   // NOTE: NÃO chamamos assertSpotifyCircuitClosed aqui — refresh de token
   // usa accounts.spotify.com (quota separada) e deve sempre passar.
 
-  if (!forceRefresh) {
+  if (!opts.forceRefresh) {
     const { data } = await supabase
       .from("spotify_tokens")
       .select("access_token,expires_at")
       .eq("singleton_key", tokenKey)
       .maybeSingle();
     if (data && new Date(data.expires_at).getTime() > Date.now() + 60_000) {
-      return data.access_token;
+      return { token: data.access_token, appId: creds.app_id, appName: creds.name };
     }
   }
 
@@ -633,7 +641,16 @@ export async function getSpotifyToken(forceRefresh = false): Promise<string> {
     { onConflict: "singleton_key" },
   );
 
-  return access_token;
+  return { token: access_token, appId: creds.app_id, appName: creds.name };
+}
+
+/** Compat: continua aceitando boolean (forceRefresh) OU opts. Retorna só o token. */
+export async function getSpotifyToken(forceRefreshOrOpts: boolean | GetSpotifyTokenOpts = false): Promise<string> {
+  const opts: GetSpotifyTokenOpts = typeof forceRefreshOrOpts === "boolean"
+    ? { forceRefresh: forceRefreshOrOpts }
+    : forceRefreshOrOpts;
+  const { token } = await getSpotifyTokenWithApp(opts);
+  return token;
 }
 
 export type SpotifyUserToken = {
