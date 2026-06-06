@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { TrendingDown, ArrowRight } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { formatNumber } from "@/lib/format";
+import { useActiveManagedPlaylists } from "@/hooks/useActiveManagedPlaylists";
+import { useRecentSnapshots } from "@/hooks/useRecentSnapshots";
 
 type Row = {
   id: string;
@@ -13,66 +14,34 @@ type Row = {
 
 /**
  * Top 5 das minhas playlists com pior delta de seguidores nos últimos 7d.
- * Baseado em playlist_metrics_snapshots + managed_playlists.
+ * Fase 4B.1: consome hooks compartilhados.
+ *
+ * Nota: o cálculo de delta usa first/last do índice compartilhado
+ * (último ponto - primeiro ponto no período), idêntico à versão original
+ * que só mantinha {first,last} sem distinguir timestamps.
  */
 export function PlaylistsInDeclineCard() {
-  const [rows, setRows] = useState<Row[] | null>(null);
+  const { data: mgd = [] } = useActiveManagedPlaylists();
+  const { data: snapsRes, isLoading } = useRecentSnapshots(8, 8000);
 
-  useEffect(() => {
-    (async () => {
-      const sinceISO = new Date(Date.now() - 8 * 86400000).toISOString();
+  const rows = useMemo<Row[] | null>(() => {
+    if (!snapsRes) return null;
+    const { index } = snapsRes;
+    const list: Row[] = mgd
+      .map((m) => {
+        if (!m.spotify_playlist_id) return null;
+        const s = index.get(m.spotify_playlist_id);
+        if (!s) return null;
+        const delta = s.last - s.first;
+        return { id: m.id, name: m.name ?? "Sem nome", followers: m.followers ?? 0, delta };
+      })
+      .filter((x): x is Row => !!x && x.delta < 0)
+      .sort((a, b) => a.delta - b.delta)
+      .slice(0, 5);
+    return list;
+  }, [mgd, snapsRes]);
 
-      // Snapshots dos últimos 8 dias
-      const { data: snaps } = await supabase
-        .from("playlist_metrics_snapshots")
-        .select("spotify_playlist_id, followers, collected_at")
-        .gte("collected_at", sinceISO)
-        .order("collected_at", { ascending: true })
-        .limit(5000);
-
-      if (!snaps || snaps.length === 0) {
-        setRows([]);
-        return;
-      }
-
-      // primeiro x último por playlist
-      const map = new Map<string, { first: number; last: number }>();
-      for (const r of snaps as any[]) {
-        const cur = map.get(r.spotify_playlist_id);
-        if (!cur) {
-          map.set(r.spotify_playlist_id, { first: r.followers, last: r.followers });
-        } else {
-          cur.last = r.followers;
-        }
-      }
-
-      const pids = Array.from(map.keys());
-      if (pids.length === 0) {
-        setRows([]);
-        return;
-      }
-
-      // só managed_playlists ativas
-      const { data: mgd } = await supabase
-        .from("managed_playlists")
-        .select("id, name, followers, spotify_playlist_id")
-        .in("spotify_playlist_id", pids)
-        .is("archived_at", null);
-
-      const list: Row[] = ((mgd ?? []) as any[])
-        .map((m) => {
-          const s = map.get(m.spotify_playlist_id);
-          if (!s) return null;
-          const delta = s.last - s.first;
-          return { id: m.id, name: m.name, followers: m.followers, delta };
-        })
-        .filter((x): x is Row => !!x && x.delta < 0)
-        .sort((a, b) => a.delta - b.delta)
-        .slice(0, 5);
-
-      setRows(list);
-    })();
-  }, []);
+  const loading = isLoading || rows === null;
 
   return (
     <div className="nx-card-hover p-5 flex flex-col gap-3 h-full">
@@ -91,15 +60,15 @@ export function PlaylistsInDeclineCard() {
         </Link>
       </div>
 
-      {rows === null ? (
+      {loading ? (
         <div className="h-32 rounded-md bg-muted/40 animate-pulse" />
-      ) : rows.length === 0 ? (
+      ) : rows!.length === 0 ? (
         <div className="text-xs text-muted-foreground py-6 text-center">
           Nenhuma playlist em queda nos últimos 7 dias.
         </div>
       ) : (
         <ul className="divide-y divide-border/50">
-          {rows.map((r) => (
+          {rows!.map((r) => (
             <li key={r.id} className="flex items-center gap-3 py-2.5">
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-semibold truncate">{r.name}</div>

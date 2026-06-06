@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, ArrowRight, CheckCircle2, Activity, Stethoscope } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -14,15 +14,16 @@ type Stats = {
  * Sinaliza dois sintomas de pipeline parado:
  *   - playlists sem diagnóstico há > 7 dias
  *   - última entrada em collection_logs há > 4 horas (bot sem coleta)
+ *
+ * Fase 4B.1: migrado pra React Query.
  */
 export function OperationalAlertsCard() {
-  const [stats, setStats] = useState<Stats | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
+  const { data: stats } = useQuery({
+    queryKey: ["operational_alerts"],
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+    queryFn: async (): Promise<Stats> => {
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-
       const [diagRes, collectRes] = await Promise.all([
         supabase
           .from("managed_playlists")
@@ -36,20 +37,12 @@ export function OperationalAlertsCard() {
           .limit(1)
           .maybeSingle(),
       ]);
-
-      if (cancelled) return;
-      setStats({
+      return {
         staleDiagnosisCount: diagRes.count ?? 0,
         lastCollectionAt: collectRes.data?.created_at ?? null,
-      });
-    }
-    load();
-    const i = setInterval(load, 60_000);
-    return () => {
-      cancelled = true;
-      clearInterval(i);
-    };
-  }, []);
+      };
+    },
+  });
 
   if (!stats) return null;
 
@@ -61,7 +54,6 @@ export function OperationalAlertsCard() {
   const diagStale = stats.staleDiagnosisCount > 0;
   const anyAlert = botSilent || diagStale;
 
-  // Caminho mais relevante quando o operador clicar no card.
   const ctaHref = diagStale ? "/catalogo" : "/sistema?tab=saude";
 
   const botSilentLabel = (() => {

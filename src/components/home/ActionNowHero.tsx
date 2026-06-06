@@ -1,15 +1,9 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Zap, Handshake, AlertTriangle, Gauge, ChevronRight, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-
-type Counts = {
-  dealsPending: number;
-  curatorsAtRisk: number;
-  playlistsSaturated: number;
-  loading: boolean;
-};
+import { useActiveManagedPlaylists } from "@/hooks/useActiveManagedPlaylists";
 
 /**
  * Hero acionável do Cockpit — soma o que EXIGE ação agora.
@@ -18,34 +12,28 @@ type Counts = {
  *  - Deals pendentes: curator_deals.state ∈ (awaiting_playlists, awaiting_review, pending)
  *  - Curadores em risco: curator_brain com algum signal severity='high'
  *  - Playlists saturadas: playlist_brain headroom_pct < 15 AND confidence_score >= 40
+ *
+ * Fase 4B.1: migrado pra React Query, share de active managed_playlists,
+ * .limit(500) em curator_brain. Lógica preservada 1:1.
  */
 export function ActionNowHero() {
-  const [c, setC] = useState<Counts>({
-    dealsPending: 0,
-    curatorsAtRisk: 0,
-    playlistsSaturated: 0,
-    loading: true,
-  });
+  const { data: activeMp = [] } = useActiveManagedPlaylists();
+  const activeCanonicals = activeMp
+    .map((r) => r.canonical_playlist_id)
+    .filter(Boolean) as string[];
 
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      // Carrega canonical_playlist_id das playlists ATIVAS pra restringir
-      // a contagem de saturadas e ignorar resíduos de arquivadas no brain.
-      const { data: activeMp } = await supabase
-        .from("managed_playlists")
-        .select("canonical_playlist_id")
-        .is("archived_at", null);
-      const activeCanonicals = (activeMp ?? [])
-        .map((r: any) => r.canonical_playlist_id)
-        .filter(Boolean) as string[];
-
+  const { data: counts } = useQuery({
+    queryKey: ["action_now_hero", activeCanonicals.length],
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+    enabled: true,
+    queryFn: async () => {
       const [dealsRes, brainsRes, satRes] = await Promise.all([
         supabase
           .from("curator_deals")
           .select("id", { count: "exact", head: true })
           .in("state", ["awaiting_playlists", "awaiting_review", "pending"]),
-        supabase.from("curator_brain").select("signals"),
+        supabase.from("curator_brain").select("signals").limit(500),
         activeCanonicals.length
           ? supabase
               .from("playlist_brain")
@@ -61,22 +49,16 @@ export function ActionNowHero() {
         return sigs.some((s: any) => s?.severity === "high");
       }).length;
 
-      if (cancelled) return;
-      setC({
+      return {
         dealsPending: dealsRes.count ?? 0,
         curatorsAtRisk,
         playlistsSaturated: (satRes as any).count ?? 0,
-        loading: false,
-      });
-    };
-    load();
-    const t = setInterval(load, 30_000);
-    return () => {
-      cancelled = true;
-      clearInterval(t);
-    };
-  }, []);
+      };
+    },
+  });
 
+  const c = counts ?? { dealsPending: 0, curatorsAtRisk: 0, playlistsSaturated: 0 };
+  const loading = !counts;
   const total = c.dealsPending + c.curatorsAtRisk + c.playlistsSaturated;
   const tone = total === 0 ? "success" : total >= 10 ? "destructive" : "warning";
 
@@ -107,7 +89,7 @@ export function ActionNowHero() {
         </div>
       </div>
 
-      {c.loading ? (
+      {loading ? (
         <div className="relative mt-4 h-16 w-40 rounded-md bg-muted/40 animate-pulse" />
       ) : total === 0 ? (
         <div className="relative mt-4 flex items-center gap-3">
