@@ -117,6 +117,7 @@ export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed 
                   <ArrowLeft className="h-4 w-4 mr-1.5" /> Campanhas
                 </Button>
               </Link>
+              {extraActions}
               {camp.public_plan_token && (
                 <Popover>
                   <PopoverTrigger asChild>
@@ -161,7 +162,6 @@ export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed 
                   </PopoverContent>
                 </Popover>
               )}
-              {extraActions}
             </>
           )}
           {mode === "client" && camp.spotify_track_url && (
