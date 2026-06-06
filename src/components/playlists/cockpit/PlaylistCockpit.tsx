@@ -4,12 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
-  ArrowLeft, ExternalLink, Sparkles, Loader2, Music2, TrendingUp,
-  Trash2, Activity, Users, Crown, Eye, Timer, ShieldCheck, ListMusic,
+  Sparkles, Loader2, TrendingUp, Activity, Eye, ListMusic,
 } from "lucide-react";
 
-import { KpiBig } from "@/components/KpiBig";
-import { GenrePicker } from "@/components/playlists/cockpit/GenrePicker";
+// Header sticky com capa/título/KPIs (Commit 6 — cleanup final).
+import { CockpitHeader } from "./shared/CockpitHeader";
 
 // Tabs (Commits 4 e 5 da Fase 2) — cada aba consome o CockpitContext.
 import { PlanTab } from "./tabs/PlanTab";
