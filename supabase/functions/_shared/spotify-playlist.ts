@@ -16,7 +16,7 @@
 // Todos respeitam o limite de 100 URIs por chamada do Spotify.
 // =====================================================================
 
-import { guardedSpotifyFetch, openSpotifyCircuitBreaker } from "./spotify.ts";
+import { guardedSpotifyFetch, openSpotifyCircuitBreaker, SpotifyAuthInvalidError } from "./spotify.ts";
 
 export type SpotifyFetch = (
   url: string,
@@ -42,7 +42,10 @@ export class SpotifyApiError extends Error {
   }
 }
 
-/** Fetch wrapper padrão — joga SpotifyApiError com status + body + retryAfter. */
+/** Fetch wrapper padrão — joga SpotifyApiError com status + body + retryAfter.
+ *  Em 401 lança SpotifyAuthInvalidError (NÃO subclasse de SpotifyApiError pra
+ *  callers críticos pegarem com catch específico e fazer failover de app sem
+ *  ambiguidade com 404/429). Callers que só fazem catch genérico continuam OK. */
 export const defaultSpotifyFetch: SpotifyFetch = async (url, init, token) => {
   const r = await guardedSpotifyFetch(url, {
     ...init,
@@ -56,6 +59,11 @@ export const defaultSpotifyFetch: SpotifyFetch = async (url, init, token) => {
     const t = await r.text();
     const ra = Number(r.headers.get("Retry-After") ?? "");
     const retryAfter = Number.isFinite(ra) && ra > 0 ? ra : null;
+    if (r.status === 401) {
+      // Fail-fast: caller pode trocar app e retentar. guardedSpotifyFetch já
+      // chamou markAppAuthFailure(AUTH_INVALID) em fire-and-forget.
+      throw new SpotifyAuthInvalidError(null, t);
+    }
     throw new SpotifyApiError(r.status, t, retryAfter);
   }
   // DELETE/PUT podem voltar 200 sem body útil
