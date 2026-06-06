@@ -418,50 +418,40 @@ export function DealHistorySheet({
     return null;
   };
 
-  // Dedup visual: durante testes, o bot disparou várias vezes em poucos minutos
-  // gerando logs redundantes (mesma execução, leituras diferentes). Agrupamos
-  // por (song_id, janela de 15 min) e mantemos apenas UM representante por
-  // grupo — o que tem mais prints (e em empate, o mais recente). Baselines
-  // nunca são ocultados.
+  // Dedup visual: durante testes, o bot disparou várias vezes no mesmo dia
+  // gerando vários cards redundantes no histórico. Para a visão de Deal,
+  // mostramos só UM card por música/dia — o mais completo por prints e,
+  // em empate, o mais recente. Baselines nunca são ocultados.
   const reversedLogs = useMemo(() => {
     if (!stats) return [] as CuratorDealLog[];
     const desc = [...stats.dealLogs].reverse();
-    const WINDOW_MS = 15 * 60 * 1000;
-    type Group = { rep: CuratorDealLog; ts: number };
+    type Group = { rep: CuratorDealLog; ts: number; orderTs: number };
     const groups = new Map<string, Group>();
-    const order: string[] = [];
     for (const log of desc) {
+      const ts = new Date(log.created_at).getTime();
       if (log.is_baseline) {
         const k = `b:${log.id}`;
-        groups.set(k, { rep: log, ts: new Date(log.created_at).getTime() });
-        order.push(k);
+        groups.set(k, { rep: log, ts, orderTs: ts });
         continue;
       }
-      const ts = new Date(log.created_at).getTime();
       const songKey = log.song_id ?? "_";
-      // Procura grupo existente compatível (mesma song, dentro da janela do ts mais recente do grupo)
-      let matched: string | null = null;
-      for (const [k, g] of groups) {
-        if (k.startsWith("b:")) continue;
-        if (!k.startsWith(`${songKey}:`)) continue;
-        if (Math.abs(g.ts - ts) <= WINDOW_MS) { matched = k; break; }
-      }
-      if (matched) {
-        const g = groups.get(matched)!;
+      const dayKey = format(new Date(log.created_at), "yyyy-MM-dd");
+      const k = `${songKey}:${dayKey}`;
+      const existing = groups.get(k);
+      if (existing) {
         const prints = (log.print_urls?.length ?? 0);
-        const repPrints = (g.rep.print_urls?.length ?? 0);
-        // Substitui se este log tem mais prints, ou mesmo nº mas é mais recente
-        if (prints > repPrints || (prints === repPrints && ts > g.ts)) {
-          g.rep = log;
-          g.ts = ts;
+        const repPrints = (existing.rep.print_urls?.length ?? 0);
+        if (prints > repPrints || (prints === repPrints && ts > existing.ts)) {
+          existing.rep = log;
+          existing.ts = ts;
         }
       } else {
-        const k = `${songKey}:${ts}`;
-        groups.set(k, { rep: log, ts });
-        order.push(k);
+        groups.set(k, { rep: log, ts, orderTs: ts });
       }
     }
-    return order.map((k) => groups.get(k)!.rep);
+    return [...groups.values()]
+      .sort((a, b) => b.orderTs - a.orderTs)
+      .map((g) => g.rep);
   }, [stats]);
 
 
