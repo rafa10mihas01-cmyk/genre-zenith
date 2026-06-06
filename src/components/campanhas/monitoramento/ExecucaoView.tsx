@@ -390,32 +390,27 @@ function HeroGrowth({
   return (
     <Card>
       <CardContent className="p-5 md:p-6">
-        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
-          {/* Hero number */}
-          <div className="min-w-0">
-            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold flex items-center gap-2">
-              <TrendingUp className="h-3 w-3" />
-              {heroLabel}
-            </div>
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+          {/* Hero number — número GIGANTE em cima, label embaixo */}
+          <div className="min-w-0 flex-1">
             <div
               className={cn(
-                "font-semibold tabular-nums leading-none mt-2 tracking-tight",
+                "font-semibold tabular-nums leading-none tracking-tight",
                 "text-[56px] md:text-[64px] lg:text-[72px]",
                 valueClass,
               )}
             >
               {sign}{formatInt(heroValue)}
             </div>
-            <div className="text-[11px] text-muted-foreground mt-2 tabular-nums">
-              {mode === "all"
-                ? <>{totals.n} playlists monitoradas · última coleta {lastLabel}</>
-                : <>{filteredCount} playlists no escopo · última coleta {lastLabel}</>}
+            <div className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground font-bold mt-3 flex items-center gap-1.5">
+              {heroLabel}
+              <Activity className="h-3 w-3 opacity-60" />
             </div>
           </div>
 
-          {/* Métricas secundárias — só na visão geral */}
+          {/* Métricas secundárias — colunas alinhadas no topo, só na visão geral */}
           {mode === "all" && (
-            <div className="flex items-stretch gap-0 divide-x divide-border/60 border-t lg:border-t-0 lg:border-l border-border/60 pt-4 lg:pt-0 lg:pl-6">
+            <div className="grid grid-cols-3 gap-6 md:gap-10 lg:gap-12 shrink-0 lg:pt-2">
               <SecondaryMetric icon={Layers} label="Ecossistema" value={totals.eco} />
               <SecondaryMetric icon={Users} label="Curadores" value={totals.curator} />
               <SecondaryMetric icon={Activity} label="Orgânico" value={totals.organic} />
@@ -438,17 +433,20 @@ function SecondaryMetric({
 }) {
   const sign = value > 0 ? "+" : "";
   return (
-    <div className="px-4 md:px-5 first:pl-0 lg:first:pl-0 flex flex-col justify-center min-w-[90px]">
-      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
-        <Icon className="h-3 w-3" />
-        {label}
+    <div className="flex flex-col gap-2 min-w-[90px]">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[12px] text-muted-foreground font-medium">
+          {label}
+        </span>
+        <Icon className="h-3.5 w-3.5 text-muted-foreground/70" />
       </div>
-      <div className="text-[20px] md:text-[22px] font-semibold tabular-nums text-foreground leading-tight mt-1">
+      <div className="text-[26px] md:text-[28px] font-semibold tabular-nums text-foreground leading-none">
         {sign}{formatInt(value)}
       </div>
     </div>
   );
 }
+
 
 
 function VirtualTable({
