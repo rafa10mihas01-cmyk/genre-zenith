@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   Rocket, CheckCircle2, Clock, XCircle, Loader2, RefreshCw, ArrowDownUp,
-  Bot, ShieldCheck, AlertCircle, ExternalLink, Activity, ArrowDown,
+  Bot, ShieldCheck, AlertCircle, ExternalLink, Activity, ArrowDown, Hand,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatBRL } from "@/lib/campaignEngine";
@@ -45,6 +45,16 @@ type BotHealth = {
   last_heartbeat: string | null;
   status: string | null;
   spotify_valid: boolean;
+};
+
+type ManualQueueRow = {
+  id: string;
+  status: string;
+  spotify_playlist_id: string | null;
+  planned_position: number | null;
+  executed_position: number | null;
+  created_at: string;
+  completed_at: string | null;
 };
 
 type Props = {
@@ -125,7 +135,9 @@ export function CampaignDistributionConsole({
 
 
   const [jobs, setJobs] = useState<JobRow[]>([]);
+  const [manualItems, setManualItems] = useState<ManualQueueRow[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
+  const [loadingManual, setLoadingManual] = useState(true);
   const [bot, setBot] = useState<BotHealth | null>(null);
   const [retrying, setRetrying] = useState(false);
   const [forcing, setForcing] = useState(false);
@@ -143,18 +155,44 @@ export function CampaignDistributionConsole({
     setLoadingJobs(false);
   };
 
+  const loadManualItems = async () => {
+    const { data } = await supabase
+      .from("manual_distribution_queue")
+      .select("id, status, spotify_playlist_id, planned_position, executed_position, created_at, completed_at")
+      .eq("campaign_id", campaignId)
+      .in("status", ["MANUAL_PENDING", "AUTO_FAILED_FALLBACK_MANUAL", "MANUAL_DONE"])
+      .order("created_at", { ascending: false })
+      .limit(500);
+    setManualItems((data ?? []) as ManualQueueRow[]);
+    setLoadingManual(false);
+  };
+
   useEffect(() => {
     setLoadingJobs(true);
+    setLoadingManual(true);
     loadJobs();
-    const channel = supabase
-      .channel(`distrib-jobs-${campaignId}`)
+    loadManualItems();
+    const channelKey = Math.random().toString(36).slice(2);
+    const jobsChannel = supabase
+      .channel(`distrib-jobs-${campaignId}-${channelKey}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "playlist_execution_jobs", filter: `campaign_id=eq.${campaignId}` },
         () => loadJobs(),
       )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    const manualChannel = supabase
+      .channel(`distrib-manual-${campaignId}-${channelKey}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "manual_distribution_queue", filter: `campaign_id=eq.${campaignId}` },
+        () => loadManualItems(),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(jobsChannel);
+      supabase.removeChannel(manualChannel);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campaignId]);
 
@@ -183,8 +221,24 @@ export function CampaignDistributionConsole({
   const kpis = useMemo(() => {
     const now = Date.now();
     let added = 0, pending = 0, failed = 0, scheduled = 0;
+    const latestManualBySpid = new Map<string, ManualQueueRow>();
+    for (const it of manualItems) {
+      if (it.spotify_playlist_id && !latestManualBySpid.has(it.spotify_playlist_id)) {
+        latestManualBySpid.set(it.spotify_playlist_id, it);
+      }
+    }
+    const manualSpids = new Set<string>();
+    for (const [spid, it] of latestManualBySpid) {
+      manualSpids.add(spid);
+      if (it.status === "MANUAL_DONE") {
+        added++;
+      } else {
+        pending++;
+      }
+    }
     for (const j of jobs) {
       if (j.job_type !== "playlist.track.add") continue;
+      if (manualSpids.has(j.spotify_playlist_id)) continue;
       if (j.status === "done") added++;
       else if (j.status === "failed") failed++;
       else if (j.status === "pending" || j.status === "claimed") {
@@ -194,15 +248,16 @@ export function CampaignDistributionConsole({
       }
     }
     return { added, pending, failed, scheduled };
-  }, [jobs]);
+  }, [jobs, manualItems]);
 
   // --- estado por spotify_playlist_id (último job ADD por playlist) ---
   type PlaylistState = {
-    status: "done" | "pending" | "scheduled" | "failed" | "idle";
+    status: "done" | "manual_done" | "manual_pending" | "pending" | "scheduled" | "failed" | "idle";
     scheduledFor: string | null;
     lastError: string | null;
     jobId: string | null;
     completedAt: string | null;
+    executedPosition: number | null;
     validationStatus: string | null;
     validationPosition: number | null;
     validatedAt: string | null;
@@ -227,6 +282,7 @@ export function CampaignDistributionConsole({
         lastError: j.last_error,
         jobId: j.id,
         completedAt: j.completed_at,
+        executedPosition: null,
         validationStatus: j.last_validation_status,
         validationPosition: j.last_validation_position,
         validatedAt: j.last_validated_at,
@@ -234,6 +290,26 @@ export function CampaignDistributionConsole({
     }
     return m;
   }, [jobs]);
+
+  const manualStateBySpid = useMemo(() => {
+    const m = new Map<string, PlaylistState>();
+    for (const it of manualItems) {
+      if (!it.spotify_playlist_id || m.has(it.spotify_playlist_id)) continue;
+      const done = it.status === "MANUAL_DONE";
+      m.set(it.spotify_playlist_id, {
+        status: done ? "manual_done" : "manual_pending",
+        scheduledFor: null,
+        lastError: null,
+        jobId: null,
+        completedAt: it.completed_at ?? it.created_at,
+        executedPosition: it.executed_position ?? it.planned_position ?? null,
+        validationStatus: null,
+        validationPosition: null,
+        validatedAt: null,
+      });
+    }
+    return m;
+  }, [manualItems]);
 
   // --- Plano operacional (espelha o mapa) — usado pra saber o PRIMEIRO DIA REAL
   // com volume de cada playlist (alguns slots só entram no D7, D8, etc).
@@ -267,8 +343,8 @@ export function CampaignDistributionConsole({
         const url = a.managed_playlists?.spotify_url ?? "";
         const m = typeof url === "string" ? url.match(/playlist\/([A-Za-z0-9]+)/) : null;
         const spid = m?.[1] ?? null;
-        const idleState: PlaylistState = { status: "idle", scheduledFor: null, lastError: null, jobId: null, completedAt: null, validationStatus: null, validationPosition: null, validatedAt: null };
-        const state: PlaylistState = spid ? (stateBySpid.get(spid) ?? idleState) : idleState;
+        const idleState: PlaylistState = { status: "idle", scheduledFor: null, lastError: null, jobId: null, completedAt: null, executedPosition: null, validationStatus: null, validationPosition: null, validatedAt: null };
+        const state: PlaylistState = spid ? (manualStateBySpid.get(spid) ?? stateBySpid.get(spid) ?? idleState) : idleState;
         const realStart = realStartByAllocation.get(a.id) ?? a.start_day ?? 1;
         return {
           allocId: a.id,
@@ -293,7 +369,7 @@ export function CampaignDistributionConsole({
         if (pa !== pb) return pa - pb;
         return a.name.localeCompare(b.name);
       });
-  }, [allocations, ecoPositionByAllocation, stateBySpid]);
+  }, [allocations, ecoPositionByAllocation, stateBySpid, manualStateBySpid]);
 
   // --- ações ---
   const handleRetryOne = async (jobId: string) => {
@@ -629,7 +705,7 @@ export function CampaignDistributionConsole({
             </div>
 
           </div>
-          {loadingJobs ? (
+          {loadingJobs || loadingManual ? (
             <div className="p-4 space-y-2">
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
@@ -826,11 +902,12 @@ function KpiTile({
 
 // ---- Playlist row ----
 type PlaylistRowState = {
-  status: "done" | "pending" | "scheduled" | "failed" | "idle";
+  status: "done" | "manual_done" | "manual_pending" | "pending" | "scheduled" | "failed" | "idle";
   scheduledFor: string | null;
   lastError: string | null;
   jobId: string | null;
   completedAt: string | null;
+  executedPosition: number | null;
   validationStatus: string | null;
   validationPosition: number | null;
   validatedAt: string | null;
@@ -855,6 +932,8 @@ function PlaylistRow({
   const initial = row.name.charAt(0).toUpperCase();
   const statusCfg: Record<PlaylistRowState["status"], { label: string; cls: string; icon: typeof Clock }> = {
     done: { label: "Adicionada", cls: "bg-primary/15 text-primary border-primary/30", icon: CheckCircle2 },
+    manual_done: { label: "Feito manual", cls: "bg-primary/15 text-primary border-primary/30", icon: Hand },
+    manual_pending: { label: "Manual pendente", cls: "bg-amber-500/15 text-amber-400 border-amber-500/30", icon: Hand },
     pending: { label: "Pendente", cls: "bg-amber-500/15 text-amber-400 border-amber-500/30", icon: Clock },
     scheduled: { label: "Agendada", cls: "bg-blue-500/15 text-blue-400 border-blue-500/30", icon: Activity },
     failed: { label: "Falhou", cls: "bg-rose-500/15 text-rose-400 border-rose-500/30", icon: XCircle },
@@ -890,7 +969,14 @@ function PlaylistRow({
           <span>
             Pos. planejada: <span className="text-foreground font-medium">{row.plannedPosition ?? "—"}</span>
           </span>
-          {row.state.status === "scheduled" ? (
+          {row.state.status === "manual_done" ? (
+            <span>
+              · feito manual{row.state.executedPosition ? <> na pos. <span className="text-foreground font-medium">{row.state.executedPosition}</span></> : null}
+              {row.state.completedAt ? <> em {fmtDateTime(row.state.completedAt)}</> : null}
+            </span>
+          ) : row.state.status === "manual_pending" ? (
+            <span>· aguardando execução manual</span>
+          ) : row.state.status === "scheduled" ? (
             <span>· agendada para {fmtDateTime(row.plannedFor ?? row.state.scheduledFor)}</span>
           ) : row.state.status === "done" && row.state.completedAt ? (
             <span>· {fmtDateTime(row.state.completedAt)}</span>
