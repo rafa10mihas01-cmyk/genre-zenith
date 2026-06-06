@@ -328,7 +328,7 @@ export function CampaignDistributionConsole({
         const m = typeof url === "string" ? url.match(/playlist\/([A-Za-z0-9]+)/) : null;
         const spid = m?.[1] ?? null;
         const idleState: PlaylistState = { status: "idle", scheduledFor: null, lastError: null, jobId: null, completedAt: null, executedPosition: null, validationStatus: null, validationPosition: null, validatedAt: null };
-        const state: PlaylistState = spid ? (stateBySpid.get(spid) ?? manualStateBySpid.get(spid) ?? idleState) : idleState;
+        const state: PlaylistState = spid ? (manualStateBySpid.get(spid) ?? stateBySpid.get(spid) ?? idleState) : idleState;
         const realStart = realStartByAllocation.get(a.id) ?? a.start_day ?? 1;
         return {
           allocId: a.id,
@@ -953,7 +953,14 @@ function PlaylistRow({
           <span>
             Pos. planejada: <span className="text-foreground font-medium">{row.plannedPosition ?? "—"}</span>
           </span>
-          {row.state.status === "scheduled" ? (
+          {row.state.status === "manual_done" ? (
+            <span>
+              · feito manual{row.state.executedPosition ? <> na pos. <span className="text-foreground font-medium">{row.state.executedPosition}</span></> : null}
+              {row.state.completedAt ? <> em {fmtDateTime(row.state.completedAt)}</> : null}
+            </span>
+          ) : row.state.status === "manual_pending" ? (
+            <span>· aguardando execução manual</span>
+          ) : row.state.status === "scheduled" ? (
             <span>· agendada para {fmtDateTime(row.plannedFor ?? row.state.scheduledFor)}</span>
           ) : row.state.status === "done" && row.state.completedAt ? (
             <span>· {fmtDateTime(row.state.completedAt)}</span>
