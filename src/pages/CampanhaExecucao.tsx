@@ -891,6 +891,7 @@ export default function CampanhaExecucao() {
 
                 </TabsContent>
                 <TabsContent value="status" forceMount className="mt-0 space-y-4 data-[state=inactive]:hidden">
+                  <CampaignManualQueue campaignId={camp.id} />
                   <CampaignExecutionStatus campaignId={camp.id} />
                 </TabsContent>
               </Tabs>
