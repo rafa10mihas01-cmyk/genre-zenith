@@ -80,6 +80,27 @@ export function MonitoramentoTab({ campaignId }: Props) {
     setParams(next, { replace: true });
   };
 
+  const tabsList = (
+    <div className="-mx-px border-b border-border/40">
+      <TabsList className="bg-transparent rounded-none p-0 h-auto gap-1 w-full md:w-auto justify-start">
+        {[
+          { v: "visao", label: "Visão geral", Icon: BarChart3 },
+          { v: "curadores", label: "Curadores", Icon: Users },
+          { v: "ecossistema", label: "Ecossistema", Icon: Layers },
+          { v: "saude", label: "Saúde da entrega", Icon: HeartPulse },
+        ].map(({ v, label, Icon }) => (
+          <TabsTrigger
+            key={v}
+            value={v}
+            className="gap-1.5 rounded-none bg-transparent px-4 py-2.5 text-muted-foreground border-b-2 border-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-primary data-[state=active]:shadow-none -mb-px"
+          >
+            <Icon className="h-3.5 w-3.5" /> {label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </div>
+  );
+
   return (
     <div className="space-y-4">
       <BaselineStatus
@@ -92,36 +113,17 @@ export function MonitoramentoTab({ campaignId }: Props) {
       />
 
       <Tabs value={subtab} onValueChange={setSubtab} className="space-y-4">
-        <div className="-mx-px border-b border-border/40">
-          <TabsList className="bg-transparent rounded-none p-0 h-auto gap-1 w-full md:w-auto justify-start">
-            {[
-              { v: "visao", label: "Visão geral", Icon: BarChart3 },
-              { v: "curadores", label: "Curadores", Icon: Users },
-              { v: "ecossistema", label: "Ecossistema", Icon: Layers },
-              { v: "saude", label: "Saúde da entrega", Icon: HeartPulse },
-            ].map(({ v, label, Icon }) => (
-              <TabsTrigger
-                key={v}
-                value={v}
-                className="gap-1.5 rounded-none bg-transparent px-4 py-2.5 text-muted-foreground border-b-2 border-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-primary data-[state=active]:shadow-none -mb-px"
-              >
-                <Icon className="h-3.5 w-3.5" /> {label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </div>
-
-
         <TabsContent value="visao" className="mt-0">
-          <ExecucaoView campaignId={campaignId} onOpenHistory={setDrawerPlaylistId} mode="all" />
+          <ExecucaoView campaignId={campaignId} onOpenHistory={setDrawerPlaylistId} mode="all" tabsSlot={tabsList} />
         </TabsContent>
         <TabsContent value="curadores" className="mt-0">
-          <ExecucaoView campaignId={campaignId} onOpenHistory={setDrawerPlaylistId} mode="curators" />
+          <ExecucaoView campaignId={campaignId} onOpenHistory={setDrawerPlaylistId} mode="curators" tabsSlot={tabsList} />
         </TabsContent>
         <TabsContent value="ecossistema" className="mt-0">
-          <ExecucaoView campaignId={campaignId} onOpenHistory={setDrawerPlaylistId} mode="ecosystem" />
+          <ExecucaoView campaignId={campaignId} onOpenHistory={setDrawerPlaylistId} mode="ecosystem" tabsSlot={tabsList} />
         </TabsContent>
-        <TabsContent value="saude" className="mt-0">
+        <TabsContent value="saude" className="mt-0 space-y-4">
+          {tabsList}
           <SaudeView campaignId={campaignId} />
         </TabsContent>
       </Tabs>
