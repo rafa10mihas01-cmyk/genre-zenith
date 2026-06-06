@@ -591,7 +591,54 @@ export function CampaignDistributionConsole({
         />
       </div>
 
-      {/* BLOCO 2 — Dispatch (só antes de distribuir; depois vira info inline no header de status) */}
+      {/* Classificação por modo de execução — operador identifica em <3s o que é bot vs manual */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-center gap-3 justify-between">
+            <div className="flex flex-wrap items-center gap-2">
+              <ModeCountChip
+                icon={Bot}
+                label="Automáticas"
+                value={modeCounts.auto}
+                tone="primary"
+                tooltip="Playlists com acesso OAuth — bot insere/reordena sozinho."
+              />
+              <ModeCountChip
+                icon={Hand}
+                label="Manuais"
+                value={modeCounts.manual}
+                tone="amber"
+                tooltip="Playlists sem acesso OAuth — operador insere a faixa manualmente."
+              />
+              <ModeCountChip
+                icon={Ban}
+                label="Desabilitadas"
+                value={modeCounts.disabled}
+                tone="muted"
+                tooltip="Owner removido, token inválido ou desativada manualmente. Não entram na distribuição."
+              />
+            </div>
+            {(modeCounts.auto > 0 || modeCounts.manual > 0) && (
+              <div className="text-[11px] text-muted-foreground leading-relaxed max-w-md">
+                Ao distribuir:{" "}
+                {modeCounts.auto > 0 && (
+                  <>
+                    <span className="text-foreground font-medium">{modeCounts.auto}</span> playlist(s) vão pro bot
+                  </>
+                )}
+                {modeCounts.auto > 0 && modeCounts.manual > 0 && " · "}
+                {modeCounts.manual > 0 && (
+                  <>
+                    <span className="text-amber-400 font-medium">{modeCounts.manual}</span> entram na fila manual
+                  </>
+                )}
+                .
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {!ecoDispatchedAt && (
         <Card className="border-2 border-primary/40 bg-gradient-to-br from-primary/[0.08] via-primary/[0.03] to-transparent overflow-hidden relative">
           <div className="absolute inset-0 pointer-events-none opacity-[0.04]" style={{
