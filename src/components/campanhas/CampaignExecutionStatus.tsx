@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   CheckCircle2, Clock, XCircle, Loader2, ArrowDownUp, Plus,
-  AlertCircle, ChevronDown, ChevronRight, Activity,
+  AlertCircle, ChevronDown, ChevronRight, Activity, Hand,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +29,17 @@ type EcoRow = {
   managed_playlist_id: string;
   position: number | null;
   managed_playlists: { name: string | null; spotify_playlist_id: string | null } | null;
+};
+
+type ManualRow = {
+  id: string;
+  status: string;
+  spotify_playlist_id: string | null;
+  playlist_name: string | null;
+  planned_position: number | null;
+  executed_position: number | null;
+  created_at: string;
+  completed_at: string | null;
 };
 
 type Props = { campaignId: string };
@@ -76,12 +87,13 @@ function JobTypeBadge({ type }: { type: string }) {
 
 export function CampaignExecutionStatus({ campaignId }: Props) {
   const [jobs, setJobs] = useState<JobRow[]>([]);
+  const [manualItems, setManualItems] = useState<ManualRow[]>([]);
   const [ecoMap, setEcoMap] = useState<Map<string, { name: string; position: number | null }>>(new Map());
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const load = async () => {
-    const [jobsRes, ecoRes] = await Promise.all([
+    const [jobsRes, manualRes, ecoRes] = await Promise.all([
       supabase
         .from("playlist_execution_jobs")
         .select("id, job_type, status, spotify_playlist_id, spotify_track_id, attempts, max_attempts, scheduled_for, claimed_at, completed_at, last_error, from_position, to_position, created_at")
@@ -90,11 +102,19 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
         .order("created_at", { ascending: false })
         .limit(500),
       supabase
+        .from("manual_distribution_queue")
+        .select("id, status, spotify_playlist_id, playlist_name, planned_position, executed_position, created_at, completed_at")
+        .eq("campaign_id", campaignId)
+        .in("status", ["MANUAL_PENDING", "AUTO_FAILED_FALLBACK_MANUAL", "MANUAL_DONE"])
+        .order("created_at", { ascending: false })
+        .limit(500),
+      supabase
         .from("campaign_eco_allocations")
         .select("managed_playlist_id, position, managed_playlists(name, spotify_playlist_id)")
         .eq("campaign_id", campaignId),
     ]);
     setJobs((jobsRes.data ?? []) as JobRow[]);
+    setManualItems((manualRes.data ?? []) as ManualRow[]);
     const map = new Map<string, { name: string; position: number | null }>();
     for (const r of (ecoRes.data ?? []) as unknown as EcoRow[]) {
       const spid = r.managed_playlists?.spotify_playlist_id;
@@ -107,15 +127,27 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
   useEffect(() => {
     setLoading(true);
     load();
-    const channel = supabase
-      .channel(`camp-exec-jobs-${campaignId}`)
+    const channelKey = Math.random().toString(36).slice(2);
+    const jobsChannel = supabase
+      .channel(`camp-exec-jobs-${campaignId}-${channelKey}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "playlist_execution_jobs", filter: `campaign_id=eq.${campaignId}` },
         () => load(),
       )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    const manualChannel = supabase
+      .channel(`camp-exec-manual-${campaignId}-${channelKey}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "manual_distribution_queue", filter: `campaign_id=eq.${campaignId}` },
+        () => load(),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(jobsChannel);
+      supabase.removeChannel(manualChannel);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campaignId]);
 
