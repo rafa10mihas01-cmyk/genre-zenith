@@ -1152,37 +1152,71 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
 
 
 
-      {/* Banner: contas com playlists pendentes de importação (cap por execução) */}
-      {!showArchived && !showCapacity && pendingSyncs.length > 0 && (
-        <div className="nx-card !p-3 sm:!p-4 flex flex-col sm:flex-row sm:items-center gap-3 border-amber-500/40 bg-amber-500/10">
-          <div className="flex items-start gap-3 flex-1 min-w-0">
-            <div className="h-8 w-8 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
-              <AlertCircle className="h-4 w-4 text-amber-500" />
+      {/* Banner: contas com playlists aguardando próximo lote (cap por execução) */}
+      {!showArchived && !showCapacity && pendingSyncs.length > 0 && (() => {
+        const BATCH_CAP = 50;
+        const top = pendingSyncs[0];
+        const totalPending = pendingSyncs.reduce((s, a) => s + a.pending, 0);
+        const nextBatch = Math.min(BATCH_CAP, top.pending);
+        const remainingAfter = Math.max(0, top.pending - nextBatch);
+        const pct = top.found > 0 ? Math.round((top.imported / top.found) * 100) : 0;
+        const isLastBatch = remainingAfter === 0;
+        return (
+          <div className="nx-card !p-3 sm:!p-4 flex flex-col sm:flex-row sm:items-center gap-3 border-sky-500/30 bg-sky-500/5">
+            <div className="flex items-start gap-3 flex-1 min-w-0">
+              <div className="h-8 w-8 rounded-full bg-sky-500/15 flex items-center justify-center shrink-0">
+                <RefreshCw className="h-4 w-4 text-sky-400" />
+              </div>
+              <div className="flex-1 min-w-0 space-y-1.5">
+                <div className="text-[13px] font-semibold text-foreground">
+                  {totalPending} playlist{totalPending > 1 ? "s" : ""} aguardando próximo lote
+                </div>
+                <div className="text-[11px] text-muted-foreground leading-snug">
+                  <span className="text-foreground/80 font-medium">{top.display_name ?? "—"}</span>
+                  {" · "}
+                  {top.imported} de {top.found} importadas
+                  {pendingSyncs.length > 1 ? ` · +${pendingSyncs.length - 1} conta(s)` : ""}
+                </div>
+                {/* Barra de progresso */}
+                <div className="flex items-center gap-2">
+                  <div className="h-1.5 flex-1 rounded-full bg-border/40 overflow-hidden">
+                    <div
+                      className="h-full bg-sky-400 rounded-full transition-all"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">{pct}%</span>
+                </div>
+                <div className="text-[11px] text-muted-foreground leading-snug">
+                  Próximo lote: <span className="text-foreground font-medium">+{nextBatch}</span>
+                  {" · "}
+                  {isLastBatch
+                    ? <span className="text-emerald-400 font-medium">após esta execução: importação concluída</span>
+                    : <>restarão <span className="text-foreground font-medium">{remainingAfter}</span></>}
+                </div>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-[13px] font-semibold text-foreground">
-                {pendingSyncs.reduce((s, a) => s + a.pending, 0)} playlists pendentes de importação
-              </div>
-              <div className="text-[11px] text-muted-foreground leading-snug truncate">
-                {pendingSyncs.slice(0, 3).map(a => `${a.display_name ?? "—"}: ${a.imported}/${a.found} (${a.pending} pend.)`).join(" · ")}
-                {pendingSyncs.length > 3 ? ` · +${pendingSyncs.length - 3}` : ""}
-              </div>
+            <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap sm:shrink-0">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 flex-1 sm:flex-none border-sky-500/40 text-sky-400 hover:bg-sky-500/10 hover:text-sky-300"
+                    onClick={() => top.spotify_user_id && handleBulkImport(top.spotify_user_id, top.display_name ?? undefined)}
+                    disabled={bulkImporting || !top.spotify_user_id}
+                  >
+                    {bulkImporting ? "Importando…" : `Importar próximo lote (+${nextBatch})`}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs text-xs leading-snug">
+                  Para evitar bloqueios e rate limits do Spotify, a importação é feita em lotes de até {BATCH_CAP} playlists por execução.
+                </TooltipContent>
+              </Tooltip>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap sm:shrink-0">
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 flex-1 sm:flex-none border-amber-500/40 text-amber-500 hover:bg-amber-500/15 hover:text-amber-500"
-              onClick={() => pendingSyncs[0]?.spotify_user_id && handleBulkImport(pendingSyncs[0].spotify_user_id, pendingSyncs[0].display_name ?? undefined)}
-              disabled={bulkImporting || !pendingSyncs[0]?.spotify_user_id}
-              title={pendingSyncs[0]?.display_name ? `Continuar sincronização de ${pendingSyncs[0].display_name}` : "Continuar sincronização"}
-            >
-              {bulkImporting ? "Sincronizando…" : "Continuar"}
-            </Button>
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Banner: playlists sem gênero — atalho para classificar */}
 
