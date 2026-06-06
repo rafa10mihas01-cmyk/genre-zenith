@@ -72,6 +72,46 @@ Deno.serve(async (req) => {
     }
   }
 
+  // Retenção de playlist_diagnoses: manter o registro mais recente + 5 históricos por playlist.
+  // Fase 1.2 — política única, sem TTL por data (diagnose pode ser raro e ainda válido).
+  try {
+    const { data: rows, error: rowsErr } = await supabase
+      .from("playlist_diagnoses")
+      .select("id, playlist_id, created_at")
+      .order("created_at", { ascending: false });
+    if (rowsErr) throw rowsErr;
+
+    const KEEP_PER_PLAYLIST = 6; // 1 atual + 5 históricos
+    const counts = new Map<string, number>();
+    const idsToDelete: string[] = [];
+    for (const r of (rows ?? []) as Array<{ id: string; playlist_id: string }>) {
+      const k = r.playlist_id;
+      const n = (counts.get(k) ?? 0) + 1;
+      counts.set(k, n);
+      if (n > KEEP_PER_PLAYLIST) idsToDelete.push(r.id);
+    }
+
+    let deleted = 0;
+    for (let i = 0; i < idsToDelete.length; i += 500) {
+      const chunk = idsToDelete.slice(i, i + 500);
+      const { error: delErr } = await supabase
+        .from("playlist_diagnoses")
+        .delete()
+        .in("id", chunk);
+      if (delErr) throw delErr;
+      deleted += chunk.length;
+    }
+    results.push({ table: "playlist_diagnoses", ts_column: "created_at", days: null, deleted });
+  } catch (err) {
+    results.push({
+      table: "playlist_diagnoses",
+      ts_column: "created_at",
+      days: null,
+      deleted: null,
+      error: (err as Error).message,
+    });
+  }
+
   return new Response(JSON.stringify({ ok: true, ran_at: new Date().toISOString(), results }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
