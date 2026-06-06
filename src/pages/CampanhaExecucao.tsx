@@ -143,9 +143,9 @@ export default function CampanhaExecucao() {
     const baselineReady = baselineGate.required > 0 && baselineGate.collected >= baselineGate.required;
     setDispatching(true);
     try {
-      // Recovery path: campanha já está active (entrou nesse estado por outro caminho) mas nunca
-      // teve eco_dispatched_at carimbado — não passa pelo approve_campaign (que exige draft/paused).
-      // Carimba o dispatch e enfileira direto.
+      // Caminho normal: RPC approve_campaign já carimba status='active' + eco_dispatched_at.
+      // Caminho recovery: campanha ficou 'active' sem eco_dispatched_at (estado legado, hoje
+      // já backfillado) — RPC não aceita reaprovar, então carimba direto.
       const alreadyActiveWithoutDispatch = camp.status === "active" && !camp.eco_dispatched_at;
 
       if (!alreadyActiveWithoutDispatch) {
@@ -171,7 +171,8 @@ export default function CampanhaExecucao() {
             : "Distribuição liberada mesmo sem baseline completa; o bot seguirá coletando o marco zero em paralelo.",
         });
       }
-      setCamp((c) => c ? ({ ...c, status: "active", eco_dispatched_at: new Date().toISOString() }) : c);
+      // Recarrega do banco (fonte de verdade) — sem otimismo local pra não mascarar falhas silenciosas.
+      await loadCampaign();
       setPlanRefreshKey((k) => k + 1);
     } catch (e: any) {
       const raw = e?.message ?? String(e);
