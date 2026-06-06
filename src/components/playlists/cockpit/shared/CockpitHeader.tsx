@@ -10,6 +10,7 @@ import { KpiBig } from "@/components/KpiBig";
 import { GenrePicker } from "@/components/playlists/cockpit/GenrePicker";
 import { fmtNum } from "../helpers";
 import { useCockpit } from "../context/CockpitContext";
+import { DiagnoseProgress } from "./DiagnoseProgress";
 
 export function CockpitHeader() {
   const {
@@ -170,6 +171,7 @@ export function CockpitHeader() {
           }
         />
       </div>
+      <DiagnoseProgress running={running} />
     </header>
   );
 }
