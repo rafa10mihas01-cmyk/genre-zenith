@@ -45,6 +45,10 @@ export function OnboardingChecklist({ managedId }: Props) {
     ? (["name_ok", "description_ok", "min_tracks_ok", "cover_ok", "niche_alignment_ok"] as const).filter((k) => !chk[k]).length
     : 0;
 
+  // Fase 7A.2: oculta o card quando 100% dos checks passaram E o streak já está
+  // pronto para promoção (>= 3). Nesse ponto não há mais ação operacional.
+  if (chk && pending === 0 && (data.onboarding_ready_streak ?? 0) >= 3) return null;
+
   return (
     <Card className="p-4 border-primary/30 bg-primary/5 space-y-3">
       <div className="flex items-start justify-between gap-3 flex-wrap">
