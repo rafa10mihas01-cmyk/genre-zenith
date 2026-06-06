@@ -97,16 +97,14 @@ Deno.serve(async (req) => {
       url = j.next ?? null;
     }
 
-    // 4) filtra só as que são DO próprio usuário + aplica cap por execução
+    // 4) filtra só as que são DO próprio usuário
     const ownedAll = collected.filter((p) => p.owner?.id === ownerId);
-    const owned = ownedAll.slice(0, MAX_PLAYLISTS_PER_RUN);
     const others = collected.length - ownedAll.length;
-    const deferred = ownedAll.length - owned.length;
 
     // Cliente Supabase precisa estar disponível antes do dryRun pra computar already_existed.
     // (supabase client já criado acima)
 
-    // 4.1) Pré-computa quantas das 107 (ownedAll) JÁ existem em managed_playlists.
+    // 4.1) Pré-computa quantas das ownedAll JÁ existem em managed_playlists.
     // Essa métrica é o que o operador precisa pra entender "já tem N importadas
     // de antes, faltam M". Não depende do cap.
     const ownedAllIds = ownedAll.map((p) => p.id);
@@ -120,10 +118,14 @@ Deno.serve(async (req) => {
       (existingAllRows ?? []).map((r: { spotify_playlist_id: string }) => r.spotify_playlist_id),
     );
     const alreadyExistedAll = existingAllIds.size;
-    // Pendentes reais = ownedAll que AINDA não estão em managed_playlists e não vão ser
-    // importadas neste run.
+
+    // 4.2) CRÍTICO: aplica o cap SOMENTE sobre o que ainda NÃO foi importado.
+    // Antes: slice(0, 50) pegava os mesmos 50 primeiros toda execução → travava
+    // em 50/N porque eram todos duplicatas ignoradas.
     const ownedNotYet = ownedAll.filter((p) => !existingAllIds.has(p.id));
-    const willImportNow = owned.filter((p) => !existingAllIds.has(p.id)).length;
+    const owned = ownedNotYet.slice(0, MAX_PLAYLISTS_PER_RUN);
+    const deferred = ownedNotYet.length - owned.length;
+    const willImportNow = owned.length;
     const pendingAfterRun = Math.max(0, ownedNotYet.length - willImportNow);
 
     if (dryRun) {
