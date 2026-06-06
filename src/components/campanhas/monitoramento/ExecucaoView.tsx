@@ -41,12 +41,15 @@ const ROW_H_MOBILE = 56;
 export function ExecucaoView({
   campaignId,
   onOpenHistory,
-  initialScope = "all",
+  mode = "all",
 }: {
   campaignId: string;
   onOpenHistory?: (playlistId: string) => void;
-  initialScope?: "all" | "ecosystem" | "curator" | "organic";
+  mode?: "all" | "ecosystem" | "curators" | "organic";
 }) {
+  const initialScope: "all" | "ecosystem" | "curator" | "organic" =
+    mode === "curators" ? "curator" : mode === "ecosystem" ? "ecosystem" : mode === "organic" ? "organic" : "all";
+  const scopeLocked = mode !== "all";
   const [rows, setRows] = useState<GrowthRow[] | null>(null);
   const [curators, setCurators] = useState<Record<string, CuratorMeta>>({});
   const [statuses, setStatuses] = useState<Record<string, string>>({});
