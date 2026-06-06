@@ -1121,6 +1121,8 @@ type PlaylistRowState = {
 function PlaylistRow({
   row,
   onRetry,
+  onMarkManualDone,
+  markingManual,
 }: {
   row: {
     allocId: string;
@@ -1131,9 +1133,12 @@ function PlaylistRow({
     plannedPosition: number | null;
     plannedFor: string | null;
     executionMode?: PlaylistExecutionMode;
+    manualItem?: ManualQueueRow | null;
     state: PlaylistRowState;
   };
   onRetry?: () => void | Promise<void>;
+  onMarkManualDone?: () => void | Promise<void>;
+  markingManual?: boolean;
 }) {
 
   const initial = row.name.charAt(0).toUpperCase();
@@ -1237,6 +1242,13 @@ function PlaylistRow({
         <Button size="sm" variant="ghost" onClick={() => onRetry()} className="h-7 px-2 text-[11px] shrink-0">
           <RefreshCw className="h-3 w-3 mr-1" />
           Retentar
+        </Button>
+      )}
+
+      {row.state.status === "manual_pending" && onMarkManualDone && (
+        <Button size="sm" onClick={() => onMarkManualDone()} disabled={markingManual} className="h-8 shrink-0">
+          {markingManual ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <CheckCircle2 className="h-3 w-3 mr-1" />}
+          Marcar feito
         </Button>
       )}
     </div>
