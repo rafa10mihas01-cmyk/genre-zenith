@@ -2276,21 +2276,63 @@ Deno.serve(async (req) => {
       })
       .eq("id", pl.id);
 
-    // === Lifecycle phase + roadmap (espelho do que brain-calc vai materializar) ===
+    // === Lifecycle phase + roadmap (FASE 6C — preferir Brain como fonte oficial) ===
+    // Mantém o cálculo local SEMPRE — usado como fallback e como referência para drift.
     const currentTracksCount = Number((pl as any).tracks_count ?? 0);
-    const benchmarkTracksDiag: number | null = (benchmark?.tracks_p50 as number | null) ?? null;
-    const { phase: lifecyclePhaseDiagRaw, ratio: ratioDiag } = derivePhase(currentTracksCount, benchmarkTracksDiag);
-    // Tenta carregar a fase persistida (que considera decline via snapshots)
+    const benchmarkTracksLocal: number | null = (benchmark?.tracks_p50 as number | null) ?? null;
+    const { phase: lifecyclePhaseDiagRaw, ratio: ratioLocal } = derivePhase(currentTracksCount, benchmarkTracksLocal);
     const { data: mgdPhase } = await supabase
       .from("managed_playlists")
       .select("lifecycle_phase")
       .eq("id", pl.id)
       .maybeSingle();
-    const lifecyclePhaseDiag = ((mgdPhase as any)?.lifecycle_phase as any) ?? lifecyclePhaseDiagRaw;
-    const growthRoadmapDiag = buildRoadmap(currentTracksCount, benchmarkTracksDiag ?? 0, lifecyclePhaseDiag);
+    const lifecyclePhaseLocal = ((mgdPhase as any)?.lifecycle_phase as any) ?? lifecyclePhaseDiagRaw;
+    const growthRoadmapLocal = buildRoadmap(currentTracksCount, benchmarkTracksLocal ?? 0, lifecyclePhaseLocal);
+
+    // Decide a origem efetiva de cada campo. Brain só é usado se existe E tem confidence >= 40.
+    const brainUsable = !!brain && Number((brain as any).confidence_score ?? 0) >= 40;
+    const lifecyclePhaseDiag = brainUsable && (brain as any).lifecycle_phase ? (brain as any).lifecycle_phase : lifecyclePhaseLocal;
+    const lifecyclePhaseSource: "brain" | "local" = brainUsable && (brain as any).lifecycle_phase ? "brain" : "local";
+
+    const benchmarkTracksDiag = brainUsable && (brain as any).benchmark_tracks != null ? Number((brain as any).benchmark_tracks) : benchmarkTracksLocal;
+    const benchmarkTracksSource: "brain" | "local" = brainUsable && (brain as any).benchmark_tracks != null ? "brain" : "local";
+
+    const ratioDiag = brainUsable && (brain as any).ratio_to_benchmark != null ? Number((brain as any).ratio_to_benchmark) : ratioLocal;
+    const ratioSource: "brain" | "local" = brainUsable && (brain as any).ratio_to_benchmark != null ? "brain" : "local";
+
+    const growthRoadmapDiag = brainUsable && (brain as any).growth_roadmap
+      ? (brain as any).growth_roadmap
+      : growthRoadmapLocal;
+    const growthRoadmapSource: "brain" | "local" = brainUsable && (brain as any).growth_roadmap ? "brain" : "local";
+
     const bloatedBudget = lifecyclePhaseDiag === "bloated"
       ? bloatedRemovalBudget(currentTracksCount, benchmarkTracksDiag ?? 0)
       : null;
+
+    // === Drift audit (>5%) — só calcula quando temos brain e local lado a lado ===
+    const driftEvents: Array<{ field: string; brain_value: any; local_value: any; diff_pct: number | null }> = [];
+    if (brain) {
+      const pushDrift = (field: string, b: any, l: any, diffPct: number | null) => {
+        driftEvents.push({ field, brain_value: b, local_value: l, diff_pct: diffPct });
+      };
+      // lifecycle_phase — categórico: drift = 100 se diferente
+      if ((brain as any).lifecycle_phase && (brain as any).lifecycle_phase !== lifecyclePhaseLocal) {
+        pushDrift("lifecycle_phase", (brain as any).lifecycle_phase, lifecyclePhaseLocal, 100);
+      }
+      // ratio_to_benchmark — numérico
+      const bRatio = (brain as any).ratio_to_benchmark != null ? Number((brain as any).ratio_to_benchmark) : null;
+      if (bRatio != null && ratioLocal != null && ratioLocal !== 0) {
+        const diff = Math.abs((bRatio - ratioLocal) / ratioLocal) * 100;
+        if (diff > 5) pushDrift("ratio_to_benchmark", bRatio, ratioLocal, Number(diff.toFixed(2)));
+      }
+      // benchmark_tracks — numérico
+      const bBench = (brain as any).benchmark_tracks != null ? Number((brain as any).benchmark_tracks) : null;
+      if (bBench != null && benchmarkTracksLocal != null && benchmarkTracksLocal !== 0) {
+        const diff = Math.abs((bBench - benchmarkTracksLocal) / benchmarkTracksLocal) * 100;
+        if (diff > 5) pushDrift("benchmark_tracks", bBench, benchmarkTracksLocal, Number(diff.toFixed(2)));
+      }
+    }
+
 
 
     tel.start("persist_diagnosis");
