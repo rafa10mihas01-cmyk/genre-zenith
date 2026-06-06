@@ -500,7 +500,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         .from("spotify_user_tokens_public" as any)
         .select("spotify_user_id, display_name, email");
       if (tokErr) throw new Error(tokErr.message);
-      const tokens = (tokensRaw ?? []) as Array<{ spotify_user_id: string | null; display_name: string | null; email: string | null }>;
+      const tokens = ((tokensRaw ?? []) as unknown) as Array<{ spotify_user_id: string | null; display_name: string | null; email: string | null }>;
 
       const targets = tokens.filter(
         (t) => t.spotify_user_id && !EXCLUDED_SPOTIFY_USER_IDS.has(t.spotify_user_id),
