@@ -29,7 +29,7 @@ type JobRow = {
 type EcoRow = {
   managed_playlist_id: string;
   position: number | null;
-  managed_playlists: { name: string | null; spotify_playlist_id: string | null } | null;
+  managed_playlists: { name: string | null; spotify_playlist_id: string | null; execution_mode: PlaylistExecutionMode | null } | null;
 };
 
 type ManualRow = {
