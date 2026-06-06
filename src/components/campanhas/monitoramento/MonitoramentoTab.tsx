@@ -1,10 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
-import { Activity, ChevronRight, Image as ImageIcon } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Activity, ChevronRight, Image as ImageIcon, Users, Layers, HeartPulse, BarChart3 } from "lucide-react";
 import { ExecucaoView } from "./ExecucaoView";
 import { PlaylistHistoryDrawer } from "./PlaylistHistoryDrawer";
 import { PrintThumbs } from "@/components/playlist-deals/PrintThumbs";
+import { SaudeView } from "./SaudeView";
 
 type Props = { campaignId: string };
 
