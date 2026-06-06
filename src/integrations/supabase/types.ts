@@ -536,6 +536,7 @@ export type Database = {
           received_parts: number
           song_id: string | null
           status: string
+          superseded_by: string | null
           total_parts: number
           updated_at: string
         }
@@ -554,6 +555,7 @@ export type Database = {
           received_parts?: number
           song_id?: string | null
           status?: string
+          superseded_by?: string | null
           total_parts: number
           updated_at?: string
         }
@@ -572,6 +574,7 @@ export type Database = {
           received_parts?: number
           song_id?: string | null
           status?: string
+          superseded_by?: string | null
           total_parts?: number
           updated_at?: string
         }
@@ -589,6 +592,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "curator_deal_songs"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bot_print_batches_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "bot_print_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bot_print_batches_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "v_snapshot_prints"
+            referencedColumns: ["run_id"]
           },
         ]
       }
