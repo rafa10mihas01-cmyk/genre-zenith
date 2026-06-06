@@ -227,10 +227,10 @@ export function CampaignDistributionConsole({
         latestManualBySpid.set(it.spotify_playlist_id, it);
       }
     }
-    const manualDoneSpids = new Set<string>();
+    const manualSpids = new Set<string>();
     for (const [spid, it] of latestManualBySpid) {
+      manualSpids.add(spid);
       if (it.status === "MANUAL_DONE") {
-        manualDoneSpids.add(spid);
         added++;
       } else {
         pending++;
@@ -238,7 +238,7 @@ export function CampaignDistributionConsole({
     }
     for (const j of jobs) {
       if (j.job_type !== "playlist.track.add") continue;
-      if (manualDoneSpids.has(j.spotify_playlist_id)) continue;
+      if (manualSpids.has(j.spotify_playlist_id)) continue;
       if (j.status === "done") added++;
       else if (j.status === "failed") failed++;
       else if (j.status === "pending" || j.status === "claimed") {
