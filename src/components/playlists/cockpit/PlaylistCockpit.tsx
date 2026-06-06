@@ -2,37 +2,14 @@ import { useCallback, useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Collapsible, CollapsibleContent, CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { cn } from "@/lib/utils";
 import {
   ArrowLeft, ExternalLink, Sparkles, Loader2, Music2, TrendingUp,
-  Trash2, ChevronDown, Activity, Users, Crown, Check,
-  Eye, Timer, ShieldCheck, AlertTriangle, ListMusic,
+  Trash2, Activity, Users, Crown, Eye, Timer, ShieldCheck, ListMusic,
 } from "lucide-react";
 
-import { PlaylistEditorTab } from "@/components/playlists/PlaylistEditorTab";
 import { KpiBig } from "@/components/KpiBig";
-import { ProjecaoFaixa } from "@/components/operacao/SimuladorEntrega";
-import { AdjustmentTimeline } from "@/components/playlists/cockpit/AdjustmentTimeline";
-import { OnboardingChecklist } from "@/components/playlists/cockpit/OnboardingChecklist";
-import { SeoExperimentCard } from "@/components/playlists/cockpit/SeoExperimentCard";
 import { GenrePicker } from "@/components/playlists/cockpit/GenrePicker";
-import { GenreAffinityCard } from "@/components/playlists/cockpit/GenreAffinityCard";
-import { LifecycleRoadmapCard } from "@/components/playlists/cockpit/LifecycleRoadmapCard";
-
-// Subcomponentes extraídos no Commit 2 da Fase 2 — sem mudança de JSX/lógica.
-import { SectionTitle } from "./shared/SectionTitle";
-import { IdentityField } from "./shared/IdentityField";
-import { CoverCard } from "./shared/CoverCard";
-import { ActionCard } from "./shared/ActionCard";
-import { BucketRemove } from "./shared/BucketRemove";
-import { BucketReorder } from "./shared/BucketReorder";
-import { BucketAdd } from "./shared/BucketAdd";
-import { MarketBlock } from "./shared/MarketBlock";
-import { EditorialBanner } from "./shared/EditorialBanner";
 
 // Tabs (Commits 4 e 5 da Fase 2) — cada aba consome o CockpitContext.
 import { PlanTab } from "./tabs/PlanTab";
@@ -48,6 +25,7 @@ import { useDiagnosisLoader } from "./hooks/useDiagnosisLoader";
 import { useDiagnosisActions } from "./hooks/useDiagnosisActions";
 import { useCockpitDerivations } from "./hooks/useCockpitDerivations";
 import { CockpitProvider, type CockpitContextValue } from "./context/CockpitContext";
+
 
 // -------------------- main --------------------
 export function PlaylistCockpit({
