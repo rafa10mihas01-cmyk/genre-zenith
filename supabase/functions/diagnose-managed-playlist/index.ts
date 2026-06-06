@@ -2352,12 +2352,38 @@ Deno.serve(async (req) => {
         cover_suggestion: coverSuggestion,
         competitors,
         raw: {
-          // === Lifecycle / Roadmap (espelho do brain) ===
+          // === Lifecycle / Roadmap (FASE 6C — fonte oficial = Brain quando disponível) ===
           lifecycle_phase: lifecyclePhaseDiag,
           benchmark_tracks: benchmarkTracksDiag,
           ratio_to_benchmark: ratioDiag,
           growth_roadmap: growthRoadmapDiag,
           bloated_budget: bloatedBudget,
+          // Marcadores de origem (FASE 6C)
+          lifecycle_phase_source: lifecyclePhaseSource,
+          growth_roadmap_source: growthRoadmapSource,
+          ratio_to_benchmark_source: ratioSource,
+          benchmark_tracks_source: benchmarkTracksSource,
+          headroom_source: brainUsable ? "brain" : "local",
+          // Snapshot do brain consumido (read-only) + cálculo local preservado p/ auditoria
+          brain: brain ? {
+            confidence_score: (brain as any).confidence_score ?? null,
+            health_trend: (brain as any).health_trend ?? null,
+            capacity_total: (brain as any).capacity_total ?? null,
+            capacity_per_slot: (brain as any).capacity_per_slot ?? null,
+            capacity_ceiling: (brain as any).capacity_ceiling ?? null,
+            headroom_pct: (brain as any).headroom_pct ?? null,
+            signals_count: Array.isArray((brain as any).signals) ? (brain as any).signals.length : 0,
+            last_calculated_at: (brain as any).last_calculated_at ?? null,
+            used: brainUsable,
+            drift_count: driftEvents.length,
+          } : null,
+          local_calc: {
+            lifecycle_phase: lifecyclePhaseLocal,
+            benchmark_tracks: benchmarkTracksLocal,
+            ratio_to_benchmark: ratioLocal,
+            growth_roadmap: growthRoadmapLocal,
+          },
+
           model_present: !!model,
           benchmark,
           top_keywords: topKeywords,
