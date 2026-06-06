@@ -131,52 +131,95 @@ export function CoverCard({ managedId, currentCover, references, spotifyPlaylist
   const selectedCoverHint = pendingFile ? "Imagem escolhida do seu computador." : "Capa selecionada das faixas do nicho.";
 
   return (
-    <Card className="p-6 md:p-8">
-      <div className="flex flex-col items-center text-center gap-5">
-        {/* Capa atual — herói centralizado */}
-        <div className="relative">
+    <Card className="p-4 md:p-5">
+      <div className="flex items-center gap-4 md:gap-5">
+        {/* Capa atual — herói grande à esquerda */}
+        <div className="relative shrink-0">
           {localCover ? (
             <img
               src={localCover}
               alt="capa atual"
-              className="w-32 h-32 md:w-36 md:h-36 rounded-2xl object-cover ring-1 ring-border shadow-lg"
+              className="w-24 h-24 md:w-28 md:h-28 rounded-xl object-cover ring-1 ring-border shadow-md"
             />
           ) : (
-            <div className="w-32 h-32 md:w-36 md:h-36 rounded-2xl bg-elevated grid place-items-center ring-1 ring-border">
-              <Music2 className="h-8 w-8 text-muted-foreground/40" />
+            <div className="w-24 h-24 md:w-28 md:h-28 rounded-xl bg-elevated grid place-items-center ring-1 ring-border">
+              <Music2 className="h-7 w-7 text-muted-foreground/40" />
             </div>
           )}
         </div>
 
-        {/* Ações principais — centralizadas, sem rótulos extras */}
-        <div className="flex items-center gap-2">
-          <label className={cn(
-            "inline-flex items-center gap-1.5 h-9 px-4 text-sm rounded-full cursor-pointer",
-            "bg-primary text-primary-foreground hover:bg-primary/90 font-medium transition-colors",
-            isCoverApplying && "opacity-60 pointer-events-none",
-          )}>
-            <Plus className="h-3.5 w-3.5" />
-            Trocar capa
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              className="hidden"
-              disabled={isCoverApplying}
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) selectFile(f); e.currentTarget.value = ""; }}
-            />
-          </label>
-          <Button asChild size="sm" variant="ghost" className="h-9 px-3 rounded-full text-sm gap-1.5 text-muted-foreground hover:text-foreground">
-            <a href={`https://open.spotify.com/playlist/${spotifyPlaylistId}`} target="_blank" rel="noreferrer" aria-label="Abrir no Spotify" title="Abrir no Spotify">
-              <ExternalLink className="h-3.5 w-3.5" />
-            </a>
-          </Button>
+        {/* Coluna direita: ações + referências em linha (mesma régua) */}
+        <div className="flex-1 min-w-0 flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <label className={cn(
+              "inline-flex items-center gap-1.5 h-8 px-3.5 text-xs rounded-full cursor-pointer",
+              "bg-primary text-primary-foreground hover:bg-primary/90 font-medium transition-colors",
+              isCoverApplying && "opacity-60 pointer-events-none",
+            )}>
+              <Plus className="h-3.5 w-3.5" />
+              Trocar capa
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                disabled={isCoverApplying}
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) selectFile(f); e.currentTarget.value = ""; }}
+              />
+            </label>
+            <Button asChild size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-full text-muted-foreground hover:text-foreground">
+              <a href={`https://open.spotify.com/playlist/${spotifyPlaylistId}`} target="_blank" rel="noreferrer" aria-label="Abrir no Spotify" title="Abrir no Spotify">
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            </Button>
+          </div>
+
+          {references.length > 0 && (
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="text-[10px] uppercase tracking-wider text-subtle-foreground font-medium shrink-0 mr-1">
+                Referências
+              </div>
+              <div className="flex items-center gap-1.5 overflow-x-auto nx-scroll">
+                {references.slice(0, 8).map((l) => {
+                  const busy = applyingLeader === l.id;
+                  return (
+                    <button
+                      key={l.id}
+                      type="button"
+                      disabled={!l.cover_url || isCoverApplying}
+                      onClick={() => selectLeaderCover(l)}
+                      title={`Usar capa de "${l.name}"`}
+                      className="relative group rounded-md overflow-hidden ring-1 ring-border hover:ring-primary/60 transition-all disabled:opacity-50 shrink-0"
+                    >
+                      {l.cover_url ? (
+                        <img src={l.cover_url} alt={l.name} className="w-10 h-10 object-cover" />
+                      ) : (
+                        <div className="w-10 h-10 bg-elevated" />
+                      )}
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity grid place-items-center">
+                        {busy ? (
+                          <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                        ) : (
+                          <Plus className="h-3.5 w-3.5 text-primary-foreground" />
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {hasDnaVisual && genreName && references.length > 0 && (
+            <div className="text-[10px] text-subtle-foreground italic -mt-1">
+              Baseado no DNA visual do gênero {genreName}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Preview seleção pendente */}
       {selectedCoverPreview && (pendingFile || selectedLeader) && (
-        <div className="mt-5 flex items-center gap-3 rounded-xl border border-primary/40 bg-primary/5 p-3">
-          <img src={selectedCoverPreview} alt="capa selecionada" className="w-14 h-14 rounded-md object-cover ring-1 ring-border shrink-0" />
+        <div className="mt-4 flex items-center gap-3 rounded-xl border border-primary/40 bg-primary/5 p-3">
+          <img src={selectedCoverPreview} alt="capa selecionada" className="w-12 h-12 rounded-md object-cover ring-1 ring-border shrink-0" />
           <div className="flex-1 min-w-0">
             <div className="text-xs font-medium truncate">{selectedCoverName}</div>
             <div className="text-[10px] text-muted-foreground truncate">{selectedCoverHint}</div>
@@ -193,48 +236,6 @@ export function CoverCard({ managedId, currentCover, references, spotifyPlaylist
             {isCoverApplying ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
             {isCoverApplying ? "Aplicando..." : "Aplicar"}
           </Button>
-        </div>
-      )}
-
-      {/* Referências do nicho — discretas, centralizadas */}
-      {references.length > 0 && (
-        <div className="mt-6 pt-5 border-t border-border/60 flex flex-col items-center gap-3">
-          <div className="text-[10px] uppercase tracking-wider text-subtle-foreground font-medium">
-            Referências do nicho
-          </div>
-          <div className="flex flex-wrap justify-center gap-2">
-            {references.slice(0, 8).map((l) => {
-              const busy = applyingLeader === l.id;
-              return (
-                <button
-                  key={l.id}
-                  type="button"
-                  disabled={!l.cover_url || isCoverApplying}
-                  onClick={() => selectLeaderCover(l)}
-                  title={`Usar capa de "${l.name}"`}
-                  className="relative group rounded-md overflow-hidden ring-1 ring-border hover:ring-primary/60 transition-all disabled:opacity-50"
-                >
-                  {l.cover_url ? (
-                    <img src={l.cover_url} alt={l.name} className="w-14 h-14 object-cover" />
-                  ) : (
-                    <div className="w-14 h-14 bg-elevated" />
-                  )}
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity grid place-items-center">
-                    {busy ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-                    ) : (
-                      <Plus className="h-4 w-4 text-primary-foreground" />
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-          {hasDnaVisual && genreName && (
-            <div className="text-[10px] text-subtle-foreground italic">
-              Baseado no DNA visual do gênero {genreName}
-            </div>
-          )}
         </div>
       )}
     </Card>
