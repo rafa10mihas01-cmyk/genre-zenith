@@ -73,6 +73,7 @@ export function CampaignHub({
         daysTotal={daysTotal}
         lastUpdateAt={lastUpdateAt}
         extraActions={heroExtraActions}
+        extraActionsAfter={heroExtraActionsAfter}
         hideProgress={!!progressSection}
       />
 
