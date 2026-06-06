@@ -107,22 +107,55 @@ Deno.serve(async (req) => {
       if (list.length >= Math.max(limit, managedIds.size + topByGenre.length)) break;
     }
 
-    const token = await getSpotifyToken();
+    // Token + appId iniciais (failover trocará durante o loop se necessário).
+    let { token, appId: currentAppId, appName: currentAppName } = await getSpotifyTokenWithApp();
+    const triedApps = new Set<string>();
+    if (currentAppId) triedApps.add(currentAppId);
+
     let inserted = 0;
     let unchanged = 0;
     let failed = 0;
     let auto_archived = 0;
     const failed_ids: string[] = [];
 
+    // Auth streak breaker — protege contra cascata 401 → 429 → blackout 12h.
+    const AUTH_STREAK_THRESHOLD = 5;
+    let consecutiveAuthFailures = 0;
+    let authBreakerTriggered = false;
+    const quarantinedDuringRun: Array<{ app_id: string; app_name: string; reason: string }> = [];
+    let failoverUsed = false;
+
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
     const THROTTLE_MS = 400; // ~150 req/min, abaixo do limite ~180 do Spotify
     let rateLimitedHits = 0;
 
+    /** Tenta failover pro próximo app saudável. Retorna true se conseguiu, false se acabou o pool. */
+    const tryFailover = async (reason: "AUTH_INVALID" | "AUTH_MISSING"): Promise<boolean> => {
+      if (currentAppId) {
+        await markAppAuthFailure(currentAppId, reason);
+        quarantinedDuringRun.push({ app_id: currentAppId, app_name: currentAppName, reason });
+      }
+      try {
+        const next = await getSpotifyTokenWithApp({ excludeAppIds: Array.from(triedApps) });
+        token = next.token;
+        currentAppId = next.appId;
+        currentAppName = next.appName;
+        if (next.appId) triedApps.add(next.appId);
+        failoverUsed = true;
+        console.warn(`[snapshot] failover → app=${currentAppName} (excluded=${Array.from(triedApps).join(",")})`);
+        return true;
+      } catch (e) {
+        console.error(`[snapshot] failover esgotado: ${(e as Error).message}`);
+        return false;
+      }
+    };
+
     for (let idx = 0; idx < list.length; idx++) {
+      if (authBreakerTriggered) break;
       const t = list[idx];
       if (idx > 0) await sleep(THROTTLE_MS);
 
-      // Helper: lista refs com 1 retry respeitando Retry-After em caso de 429
+      // Helper: lista refs com 1 retry pra 429. 401 borbulha pro outer catch (failover).
       const fetchRefs = async (): Promise<string[]> => {
         for (let attempt = 0; attempt < 2; attempt++) {
           try {
@@ -146,7 +179,35 @@ Deno.serve(async (req) => {
         let ids: string[];
         try {
           ids = await fetchRefs();
+          consecutiveAuthFailures = 0; // sucesso reseta streak local
         } catch (e) {
+          // ── AUTH_INVALID: incrementa streak, tenta failover na 1ª, aborta no threshold.
+          if (e instanceof SpotifyAuthInvalidError) {
+            consecutiveAuthFailures++;
+            console.warn(`[snapshot] 401 on ${t.id} app=${currentAppName} streak=${consecutiveAuthFailures}`);
+            if (consecutiveAuthFailures === 1) {
+              const ok = await tryFailover("AUTH_INVALID");
+              if (!ok) {
+                authBreakerTriggered = true;
+                failed++;
+                if (failed_ids.length < 10) failed_ids.push(`${t.id}:401-no-failover`);
+                break;
+              }
+              // Retenta a mesma playlist com novo app (decrementa idx).
+              idx--;
+              continue;
+            }
+            if (consecutiveAuthFailures >= AUTH_STREAK_THRESHOLD) {
+              authBreakerTriggered = true;
+              failed++;
+              if (failed_ids.length < 10) failed_ids.push(`${t.id}:401-streak`);
+              console.error(`[snapshot] AUTH_BREAKER_OPEN após ${consecutiveAuthFailures} × 401 — abortando lote`);
+              break;
+            }
+            failed++;
+            if (failed_ids.length < 10) failed_ids.push(`${t.id}:401`);
+            continue;
+          }
           if (e instanceof SpotifyApiError) {
             // Auto-archive 404 em managed → para de poluir o status
             if (e.status === 404 && managedIds.has(t.id)) {
