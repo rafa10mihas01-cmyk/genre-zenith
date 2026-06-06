@@ -499,6 +499,13 @@ Deno.serve(async (req) => {
         .slice(0, 30);
     }
 
+    tel.end("load_model_benchmark_competitors");
+    if (!benchmark) tel.failures.benchmark_empty = true;
+    tel.failures.competitors_count = competitors.length;
+    if (competitors.length < 3) tel.failures.competitors_insufficient = true;
+
+
+
     // Adjacência de gêneros — pra checar aderência da faixa ao nicho via Spotify artist.genres
     const NICHE_ADJACENCY: Record<string, string[]> = {
       pagode: ["pagode", "samba"],
