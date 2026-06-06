@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   Rocket, CheckCircle2, Clock, XCircle, Loader2, RefreshCw, ArrowDownUp,
-  Bot, ShieldCheck, AlertCircle, ExternalLink, Activity, ArrowDown, Hand,
+  Bot, ShieldCheck, AlertCircle, ExternalLink, Activity, ArrowDown, Hand, Ban, ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatBRL } from "@/lib/campaignEngine";
@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import type { EcoAllocation } from "@/components/campaign-hub/types";
 import { buildEcoPlaylistPlan } from "@/lib/campaignOperationalPlan";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
+import { PlaylistModeBadge, type PlaylistExecutionMode } from "./PlaylistModeBadge";
 
 type JobRow = {
   id: string;
@@ -353,6 +354,7 @@ export function CampaignDistributionConsole({
         const idleState: PlaylistState = { status: "idle", scheduledFor: null, lastError: null, jobId: null, completedAt: null, executedPosition: null, validationStatus: null, validationPosition: null, validatedAt: null };
         const state: PlaylistState = spid ? (manualStateBySpid.get(spid) ?? stateBySpid.get(spid) ?? idleState) : idleState;
         const realStart = realStartByAllocation.get(a.id) ?? a.start_day ?? 1;
+        const executionMode: PlaylistExecutionMode = (a.managed_playlists?.execution_mode ?? "API_READY") as PlaylistExecutionMode;
         return {
           allocId: a.id,
           spid,
@@ -361,6 +363,7 @@ export function CampaignDistributionConsole({
           spotifyUrl: url || null,
           plannedPosition: ecoPositionByAllocation.get(a.id) ?? null,
           plannedFor: plannedDateFor(realStart, planBaseIso),
+          executionMode,
           state,
         };
       })
@@ -376,7 +379,26 @@ export function CampaignDistributionConsole({
         if (pa !== pb) return pa - pb;
         return a.name.localeCompare(b.name);
       });
-  }, [allocations, ecoPositionByAllocation, stateBySpid, manualStateBySpid]);
+  }, [allocations, ecoPositionByAllocation, stateBySpid, manualStateBySpid, planBaseIso, realStartByAllocation]);
+
+  // Particionamento por modo de execução — espelha o que o planner decidiu.
+  const rowsByMode = useMemo(() => {
+    const auto: typeof rows = [];
+    const manual: typeof rows = [];
+    const disabled: typeof rows = [];
+    for (const r of rows) {
+      if (r.executionMode === "MANUAL_ONLY") manual.push(r);
+      else if (r.executionMode === "DISABLED") disabled.push(r);
+      else auto.push(r);
+    }
+    return { auto, manual, disabled };
+  }, [rows]);
+
+  const modeCounts = {
+    auto: rowsByMode.auto.length,
+    manual: rowsByMode.manual.length,
+    disabled: rowsByMode.disabled.length,
+  };
 
   // --- ações ---
   const handleRetryOne = async (jobId: string) => {
@@ -569,7 +591,54 @@ export function CampaignDistributionConsole({
         />
       </div>
 
-      {/* BLOCO 2 — Dispatch (só antes de distribuir; depois vira info inline no header de status) */}
+      {/* Classificação por modo de execução — operador identifica em <3s o que é bot vs manual */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-center gap-3 justify-between">
+            <div className="flex flex-wrap items-center gap-2">
+              <ModeCountChip
+                icon={Bot}
+                label="Automáticas"
+                value={modeCounts.auto}
+                tone="primary"
+                tooltip="Playlists com acesso OAuth — bot insere/reordena sozinho."
+              />
+              <ModeCountChip
+                icon={Hand}
+                label="Manuais"
+                value={modeCounts.manual}
+                tone="amber"
+                tooltip="Playlists sem acesso OAuth — operador insere a faixa manualmente."
+              />
+              <ModeCountChip
+                icon={Ban}
+                label="Desabilitadas"
+                value={modeCounts.disabled}
+                tone="muted"
+                tooltip="Owner removido, token inválido ou desativada manualmente. Não entram na distribuição."
+              />
+            </div>
+            {(modeCounts.auto > 0 || modeCounts.manual > 0) && (
+              <div className="text-[11px] text-muted-foreground leading-relaxed max-w-md">
+                Ao distribuir:{" "}
+                {modeCounts.auto > 0 && (
+                  <>
+                    <span className="text-foreground font-medium">{modeCounts.auto}</span> playlist(s) vão pro bot
+                  </>
+                )}
+                {modeCounts.auto > 0 && modeCounts.manual > 0 && " · "}
+                {modeCounts.manual > 0 && (
+                  <>
+                    <span className="text-amber-400 font-medium">{modeCounts.manual}</span> entram na fila manual
+                  </>
+                )}
+                .
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {!ecoDispatchedAt && (
         <Card className="border-2 border-primary/40 bg-gradient-to-br from-primary/[0.08] via-primary/[0.03] to-transparent overflow-hidden relative">
           <div className="absolute inset-0 pointer-events-none opacity-[0.04]" style={{
@@ -695,44 +764,114 @@ export function CampaignDistributionConsole({
         </Card>
       )}
 
-      {/* BLOCO 3 — Lista de playlists com status */}
-      <Card>
-        <CardContent className="p-0">
-          <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-semibold">Status por playlist</div>
-              <div className="text-[11px] text-muted-foreground">
-                {playlistsCount} playlist(s) · atualiza em tempo real
-                {ecoDispatchedAt && (
-                  <> · distribuído em <span className="text-foreground">{fmtDateTime(ecoDispatchedAt)}</span></>
-                )}
-              </div>
-            </div>
-
-          </div>
-          {loadingJobs || loadingManual ? (
-            <div className="p-4 space-y-2">
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
-            </div>
-          ) : rows.length === 0 ? (
-            <div className="p-8 text-center text-sm text-muted-foreground">
-              Nenhuma playlist no ecossistema desta campanha.
-            </div>
-          ) : (
-            <div className="max-h-[640px] overflow-y-auto divide-y divide-border">
-              {rows.map((r) => (
-                <PlaylistRow
-                  key={r.allocId}
-                  row={r}
-                  onRetry={r.state.jobId ? () => handleRetryOne(r.state.jobId!) : undefined}
-                />
-              ))}
-            </div>
+      {/* BLOCO 3 — Lista de playlists com status, particionada por modo de execução */}
+      {loadingJobs || loadingManual ? (
+        <Card>
+          <CardContent className="p-4 space-y-2">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </CardContent>
+        </Card>
+      ) : rows.length === 0 ? (
+        <Card>
+          <CardContent className="p-8 text-center text-sm text-muted-foreground">
+            Nenhuma playlist no ecossistema desta campanha.
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* SEÇÃO — Execução Automática (API_READY) */}
+          {rowsByMode.auto.length > 0 && (
+            <Card>
+              <CardContent className="p-0">
+                <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Bot className="h-4 w-4 text-primary" />
+                    <div>
+                      <div className="text-sm font-semibold">Execução automática</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {rowsByMode.auto.length} playlist(s) · bot insere/reordena dentro da janela 08h–22h
+                      </div>
+                    </div>
+                  </div>
+                  <PlaylistModeBadge mode="API_READY" size="sm" />
+                </div>
+                <div className="max-h-[640px] overflow-y-auto divide-y divide-border">
+                  {rowsByMode.auto.map((r) => (
+                    <PlaylistRow
+                      key={r.allocId}
+                      row={r}
+                      onRetry={r.state.jobId ? () => handleRetryOne(r.state.jobId!) : undefined}
+                    />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           )}
-        </CardContent>
-      </Card>
+
+          {/* SEÇÃO — Execução Manual (MANUAL_ONLY) — sempre visível quando existir */}
+          {rowsByMode.manual.length > 0 && (
+            <Card className="border-amber-500/30">
+              <CardContent className="p-0">
+                <div className="px-4 py-3 border-b border-amber-500/20 bg-amber-500/[0.03] flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Hand className="h-4 w-4 text-amber-400" />
+                    <div>
+                      <div className="text-sm font-semibold">Execução manual</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {rowsByMode.manual.length} playlist(s) sem OAuth · você precisa inserir a faixa manualmente
+                      </div>
+                    </div>
+                  </div>
+                  <PlaylistModeBadge mode="MANUAL_ONLY" size="sm" />
+                </div>
+                <div className="divide-y divide-border">
+                  {rowsByMode.manual.map((r) => (
+                    <PlaylistRow
+                      key={r.allocId}
+                      row={r}
+                      onRetry={r.state.jobId ? () => handleRetryOne(r.state.jobId!) : undefined}
+                    />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* SEÇÃO — Desabilitadas (DISABLED) — colapsável, mas contador sempre visível */}
+          {rowsByMode.disabled.length > 0 && (
+            <Card>
+              <CardContent className="p-0">
+                <details className="group">
+                  <summary className="px-4 py-3 border-b border-transparent group-open:border-border flex items-center justify-between gap-3 cursor-pointer hover:bg-muted/20 list-none">
+                    <div className="flex items-center gap-2">
+                      <Ban className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <div className="text-sm font-semibold">Desabilitadas</div>
+                        <div className="text-[11px] text-muted-foreground">
+                          {rowsByMode.disabled.length} playlist(s) · não entram na distribuição (owner removido, token inválido ou desativadas)
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <PlaylistModeBadge mode="DISABLED" size="sm" />
+                      <ChevronRight className="h-4 w-4 text-muted-foreground group-open:rotate-90 transition-transform" />
+                    </div>
+                  </summary>
+                  <div className="divide-y divide-border">
+                    {rowsByMode.disabled.map((r) => (
+                      <PlaylistRow key={r.allocId} row={r} />
+                    ))}
+                  </div>
+                </details>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
+
+
 
       {/* BLOCO 4b — Rebaixamentos (mesma estrutura do "Status por playlist") */}
       <Card>
@@ -905,6 +1044,42 @@ function KpiTile({
   );
 }
 
+// ---- Mode count chip (header de classificação) ----
+function ModeCountChip({
+  icon: Icon,
+  label,
+  value,
+  tone,
+  tooltip,
+}: {
+  icon: typeof Bot;
+  label: string;
+  value: number;
+  tone: "primary" | "amber" | "muted";
+  tooltip: string;
+}) {
+  const cls =
+    tone === "primary"
+      ? "border-primary/30 bg-primary/[0.06]"
+      : tone === "amber"
+      ? "border-amber-500/30 bg-amber-500/[0.06]"
+      : "border-border bg-muted/30";
+  const iconCls =
+    tone === "primary" ? "text-primary" : tone === "amber" ? "text-amber-400" : "text-muted-foreground";
+  return (
+    <div
+      className={cn("inline-flex items-center gap-2 px-3 py-2 rounded-lg border", cls)}
+      title={tooltip}
+    >
+      <Icon className={cn("h-4 w-4 shrink-0", iconCls)} />
+      <div className="flex items-baseline gap-1.5">
+        <span className="text-lg font-semibold leading-none">{value}</span>
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{label}</span>
+      </div>
+    </div>
+  );
+}
+
 // ---- Playlist row ----
 type PlaylistRowState = {
   status: "done" | "manual_done" | "manual_pending" | "pending" | "scheduled" | "failed" | "idle";
@@ -929,6 +1104,7 @@ function PlaylistRow({
     spotifyUrl: string | null;
     plannedPosition: number | null;
     plannedFor: string | null;
+    executionMode?: PlaylistExecutionMode;
     state: PlaylistRowState;
   };
   onRetry?: () => void | Promise<void>;
@@ -946,6 +1122,7 @@ function PlaylistRow({
   };
   const cfg = statusCfg[row.state.status];
   const Icon = cfg.icon;
+
 
   return (
     <div className="flex items-center gap-3 px-4 py-3 hover:bg-muted/20">
@@ -969,6 +1146,10 @@ function PlaylistRow({
             <span className="truncate">{row.name}</span>
           )}
           {row.spotifyUrl && <ExternalLink className="h-3 w-3 text-muted-foreground/60 shrink-0" />}
+        </div>
+        {/* Modo de execução — informação primária, abaixo do nome */}
+        <div className="mt-1">
+          <PlaylistModeBadge mode={row.executionMode} size="sm" />
         </div>
         <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
           <span>

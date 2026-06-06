@@ -4,9 +4,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   CheckCircle2, Clock, XCircle, Loader2, ArrowDownUp, Plus,
-  AlertCircle, ChevronDown, ChevronRight, Activity, Hand,
+  AlertCircle, ChevronDown, ChevronRight, Activity, Hand, Bot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PlaylistModeBadge, type PlaylistExecutionMode } from "./PlaylistModeBadge";
 
 type JobRow = {
   id: string;
@@ -28,7 +29,7 @@ type JobRow = {
 type EcoRow = {
   managed_playlist_id: string;
   position: number | null;
-  managed_playlists: { name: string | null; spotify_playlist_id: string | null } | null;
+  managed_playlists: { name: string | null; spotify_playlist_id: string | null; execution_mode: PlaylistExecutionMode | null } | null;
 };
 
 type ManualRow = {
@@ -91,7 +92,7 @@ function JobTypeBadge({ type }: { type: string }) {
 export function CampaignExecutionStatus({ campaignId }: Props) {
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [manualItems, setManualItems] = useState<ManualRow[]>([]);
-  const [ecoMap, setEcoMap] = useState<Map<string, { name: string; position: number | null }>>(new Map());
+  const [ecoMap, setEcoMap] = useState<Map<string, { name: string; position: number | null; executionMode: PlaylistExecutionMode }>>(new Map());
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
@@ -113,15 +114,19 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
         .limit(500),
       supabase
         .from("campaign_eco_allocations")
-        .select("managed_playlist_id, position, managed_playlists(name, spotify_playlist_id)")
+        .select("managed_playlist_id, position, managed_playlists(name, spotify_playlist_id, execution_mode)")
         .eq("campaign_id", campaignId),
     ]);
     setJobs((jobsRes.data ?? []) as JobRow[]);
     setManualItems((manualRes.data ?? []) as ManualRow[]);
-    const map = new Map<string, { name: string; position: number | null }>();
+    const map = new Map<string, { name: string; position: number | null; executionMode: PlaylistExecutionMode }>();
     for (const r of (ecoRes.data ?? []) as unknown as EcoRow[]) {
       const spid = r.managed_playlists?.spotify_playlist_id;
-      if (spid) map.set(spid, { name: r.managed_playlists?.name ?? spid, position: r.position });
+      if (spid) map.set(spid, {
+        name: r.managed_playlists?.name ?? spid,
+        position: r.position,
+        executionMode: (r.managed_playlists?.execution_mode ?? "API_READY") as PlaylistExecutionMode,
+      });
     }
     setEcoMap(map);
     setLoading(false);
@@ -195,6 +200,36 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
     }
     return acc;
   }, [jobs, manualItems]);
+
+  // Métricas operacionais: o que o bot já fez vs o que ainda depende do operador.
+  const opsMetrics = useMemo(() => {
+    const autoDone = jobs.filter((j) => j.job_type === "playlist.track.add" && j.status === "done").length;
+    const autoPending = jobs.filter(
+      (j) => j.job_type === "playlist.track.add" && (j.status === "pending" || j.status === "claimed"),
+    ).length;
+    const autoFailed = jobs.filter((j) => j.job_type === "playlist.track.add" && j.status === "failed").length;
+    const manualDone = manualItems.filter((it) => it.status === "MANUAL_DONE").length;
+    const manualPending = manualItems.filter((it) => it.status !== "MANUAL_DONE").length;
+    return { autoDone, autoPending, autoFailed, manualDone, manualPending };
+  }, [jobs, manualItems]);
+
+  // Lista de pendências manuais — mostrada no topo, com prioridade visual.
+  const pendingManualList = useMemo(
+    () => manualItems.filter((it) => it.status !== "MANUAL_DONE"),
+    [manualItems],
+  );
+
+  const markManualDone = async (id: string) => {
+    const { error } = await supabase
+      .from("manual_distribution_queue")
+      .update({ status: "MANUAL_DONE", completed_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.error("Falha ao marcar manual como feito", error);
+    }
+  };
+
 
   const toggle = (id: string) => {
     setExpanded((prev) => {
@@ -272,6 +307,98 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
 
   return (
     <div className="space-y-4">
+      {/* PRIORIDADE — Pendências manuais. Visível no topo enquanto houver. */}
+      {pendingManualList.length > 0 && (
+        <Card className="border-amber-500/40">
+          <CardContent className="p-0">
+            <div className="px-4 py-3 border-b border-amber-500/20 bg-amber-500/[0.04] flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Hand className="h-4 w-4 text-amber-400" />
+                <div>
+                  <div className="text-sm font-semibold">
+                    Pendências manuais ({pendingManualList.length})
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Estas playlists não têm OAuth — você precisa inserir a faixa manualmente.
+                  </div>
+                </div>
+              </div>
+              <PlaylistModeBadge mode="MANUAL_ONLY" size="sm" />
+            </div>
+            <div className="divide-y divide-border">
+              {pendingManualList.map((it) => {
+                const eco = it.spotify_playlist_id ? ecoMap.get(it.spotify_playlist_id) : null;
+                const name = it.playlist_name ?? eco?.name ?? it.spotify_playlist_id ?? "Playlist";
+                const pos = it.executed_position ?? it.planned_position ?? eco?.position ?? null;
+                return (
+                  <div key={it.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/20">
+                    <Hand className="h-4 w-4 text-amber-400 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate">{name}</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        Pos. planejada: <span className="text-foreground font-medium">{pos ?? "—"}</span> · aguardando execução manual
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => markManualDone(it.id)}
+                      className="text-[11px] px-2.5 py-1 rounded border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 shrink-0"
+                    >
+                      Marcar Feito
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Métricas operacionais — o que o sistema resolveu vs o que depende de mim */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Bot className="h-4 w-4 text-primary" />
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Execução automática</span>
+            </div>
+            <div className="flex items-baseline gap-4 flex-wrap">
+              <div>
+                <div className="text-2xl font-semibold leading-none text-primary">{opsMetrics.autoDone}</div>
+                <div className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider">Concluídas</div>
+              </div>
+              <div>
+                <div className="text-2xl font-semibold leading-none text-amber-400">{opsMetrics.autoPending}</div>
+                <div className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider">Pendentes</div>
+              </div>
+              {opsMetrics.autoFailed > 0 && (
+                <div>
+                  <div className="text-2xl font-semibold leading-none text-rose-400">{opsMetrics.autoFailed}</div>
+                  <div className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider">Falharam</div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className={cn(opsMetrics.manualPending > 0 && "border-amber-500/30")}>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Hand className="h-4 w-4 text-amber-400" />
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Execução manual</span>
+            </div>
+            <div className="flex items-baseline gap-4 flex-wrap">
+              <div>
+                <div className="text-2xl font-semibold leading-none text-primary">{opsMetrics.manualDone}</div>
+                <div className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider">Concluídas</div>
+              </div>
+              <div>
+                <div className="text-2xl font-semibold leading-none text-amber-400">{opsMetrics.manualPending}</div>
+                <div className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider">Pendentes</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center justify-between flex-wrap gap-3">
@@ -318,8 +445,9 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
                     {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate">{name}</div>
-                      <div className="text-[11px] text-muted-foreground">
-                        Pos. planejada: {planned ?? "—"} · {totalItems} registro(s)
+                      <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
+                        <PlaylistModeBadge mode={eco?.executionMode} size="sm" />
+                        <span>Pos. planejada: {planned ?? "—"} · {totalItems} registro(s)</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 text-[11px]">
