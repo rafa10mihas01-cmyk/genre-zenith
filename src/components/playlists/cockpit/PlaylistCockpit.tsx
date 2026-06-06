@@ -29,7 +29,7 @@ import { CockpitProvider, type CockpitContextValue } from "./context/CockpitCont
 // -------------------- main --------------------
 export function PlaylistCockpit({
   managedId, spotifyPlaylistId, spotifyUrl, playlistName, coverUrl,
-  followers, tracksCount, genreName, brainScore, canonicalPlaylistId, onBack,
+  followers, tracksCount, genreId, genreName, brainScore, canonicalPlaylistId, onBack,
 }: Props) {
   // 1) Loader: diag + loading + loadLatest (efeito de mount embutido).
   const { diag, setDiag, loading, loadLatest } = useDiagnosisLoader(managedId);
