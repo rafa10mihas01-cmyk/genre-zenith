@@ -19,6 +19,7 @@ type Props = {
   daysTotal?: number;
   lastUpdateAt?: string | null;
   extraActions?: ReactNode;
+  extraActionsAfter?: ReactNode;
   hideProgress?: boolean;
 };
 
@@ -38,7 +39,7 @@ const STATUS_TONE: Record<string, string> = {
   cancelled: "bg-muted text-muted-foreground",
 };
 
-export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed = 0, daysTotal = 0, lastUpdateAt, extraActions, hideProgress = false }: Props) {
+export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed = 0, daysTotal = 0, lastUpdateAt, extraActions, extraActionsAfter, hideProgress = false }: Props) {
   const pct = goal > 0 ? Math.min(100, Math.round((delivered / goal) * 100)) : 0;
   const daysLeft = Math.max(0, daysTotal - daysElapsed);
   const statusKey = camp.status ?? "draft";
@@ -162,6 +163,7 @@ export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed 
                   </PopoverContent>
                 </Popover>
               )}
+              {extraActionsAfter}
             </>
           )}
           {mode === "client" && camp.spotify_track_url && (

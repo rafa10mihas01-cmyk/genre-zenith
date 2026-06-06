@@ -686,29 +686,30 @@ export default function CampanhaExecucao() {
           <>
             <AuditCampaignButton campaignId={camp.id} />
             <CampaignAccessManager campaignId={camp.id} />
-            {clientToken ? (
-              <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="icon" className="h-9 w-9" title="Importar planilha" aria-label="Importar planilha">
-                    <Upload className="h-4 w-4" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Importar planilha de streams</DialogTitle>
-                  </DialogHeader>
-                  <SpreadsheetUploadCard
-                    clientToken={clientToken}
-                    lastUploadAt={lastSpreadsheetUploadAt}
-                    recentUploads={recentUploads}
-                    onUploaded={loadCampaign}
-                    approved={!!camp.client_approved_at}
-                  />
-
-                </DialogContent>
-              </Dialog>
-            ) : null}
           </>
+        }
+        heroExtraActionsAfter={
+          clientToken ? (
+            <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="icon" className="h-9 w-9" title="Importar planilha" aria-label="Importar planilha">
+                  <Upload className="h-4 w-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Importar planilha de streams</DialogTitle>
+                </DialogHeader>
+                <SpreadsheetUploadCard
+                  clientToken={clientToken}
+                  lastUploadAt={lastSpreadsheetUploadAt}
+                  recentUploads={recentUploads}
+                  onUploaded={loadCampaign}
+                  approved={!!camp.client_approved_at}
+                />
+              </DialogContent>
+            </Dialog>
+          ) : null
         }
         slots={{
           overview: (
