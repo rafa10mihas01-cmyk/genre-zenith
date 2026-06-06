@@ -310,283 +310,30 @@ export function PlaylistCockpit({
 
             {/* ============ PLANO DE AÇÃO ============ */}
             <TabsContent value="plano" className="space-y-6 mt-0">
-              {/* ===== 1. VISÃO GERAL ===== */}
-              <section className="space-y-3">
-                <SectionTitle>Visão geral</SectionTitle>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <ActionCard kind="remove" count={buckets.remove.length} detected={buckets.detected.remove} hrefId="bucket-remove" />
-                  <ActionCard kind="demote" count={buckets.demote.length} detected={buckets.detected.demote} hrefId="bucket-demote" />
-                  <ActionCard kind="promote" count={buckets.promote.length} detected={buckets.detected.promote} hrefId="bucket-promote" />
-                  <ActionCard kind="add" count={buckets.add.length} detected={buckets.detected.add} hrefId="bucket-add" />
-                </div>
-              </section>
-
-              {/* ===== 2. DIAGNÓSTICO ===== */}
-              <section className="space-y-3">
-                <SectionTitle>Diagnóstico</SectionTitle>
-                <EditorialBanner diag={diag} onRediagnose={runDiagnose} running={running} />
-                {(() => {
-                  const mode = diag.raw?.recommendation_mode ?? "light";
-                  const total = buckets.remove.length + buckets.demote.length + buckets.promote.length + buckets.add.length;
-                  const detectedTotal = buckets.detected.remove + buckets.detected.demote + buckets.detected.promote + buckets.detected.add;
-                  if (mode === "hold") {
-                    return (
-                      <Card className="p-5 border-primary/30 bg-primary/5">
-                        <div className="flex items-start gap-3">
-                          <ShieldCheck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                          <div className="space-y-1 min-w-0">
-                            <div className="text-sm font-semibold">Não mexer agora</div>
-                            <div className="text-xs text-muted-foreground leading-relaxed">
-                              O cérebro analisou essa playlist e decidiu que ela está performando bem — qualquer mexida agora atrapalha mais do que ajuda.
-                              {detectedTotal > 0 && <> Existem <span className="text-foreground font-semibold">{detectedTotal}</span> ajustes possíveis, mas estão segurados nesse ciclo.</>}
-                              {" "}Volte depois de 7 dias ou clique em <strong className="text-foreground">Reavaliar</strong> se algo mudou.
-                            </div>
-                          </div>
-                        </div>
-                      </Card>
-                    );
-                  }
-                  if (total === 0 && detectedTotal === 0) {
-                    return (
-                      <Card className="p-5">
-                        <div className="flex items-start gap-3">
-                          <ShieldCheck className="h-5 w-5 text-success shrink-0 mt-0.5" />
-                          <div className="space-y-1 min-w-0">
-                            <div className="text-sm font-semibold">Nada a fazer</div>
-                            <div className="text-xs text-muted-foreground">Nenhuma faixa fora do padrão nem sugestão pra adicionar agora.</div>
-                          </div>
-                        </div>
-                      </Card>
-                    );
-                  }
-                  return null;
-                })()}
-              </section>
-
-              {/* ===== 3. EXECUTAR PLANO ===== */}
-              {(buckets.remove.length + buckets.demote.length + buckets.promote.length + buckets.add.length) > 0 && (
-                <Card className="p-4 md:p-5 bg-primary/5 border-primary/30 flex flex-col items-center text-center gap-3 md:flex-row md:items-center md:text-left md:justify-between">
-                  <div className="space-y-0.5 min-w-0">
-                    <div className="text-sm font-semibold">Executar plano</div>
-                    <div className="text-[11px] text-muted-foreground">
-                      Aplica tudo via API.
-                    </div>
-                  </div>
-                  <Button
-                    onClick={() => applyPlan("all")}
-                    disabled={applying !== null}
-                    size="sm"
-                    className="gap-1.5 h-9 px-5 rounded-full text-sm font-medium shrink-0"
-                  >
-                    {applying === "all" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                    Aprovar e executar
-                  </Button>
-                </Card>
-              )}
-
-              <section className="space-y-3">
-
-                {applyProgress && (
-                  <Card className={cn(
-                    "p-4 space-y-2 border",
-                    applyProgress.status === "failed"
-                      ? "bg-destructive/5 border-destructive/40"
-                      : "bg-primary/5 border-primary/30",
-                  )}>
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2 min-w-0">
-                        {applyProgress.status === "failed" ? (
-                          <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
-                        ) : applyProgress.status === "done" || applyProgress.status === "skipped" ? (
-                          <Check className="h-4 w-4 text-primary shrink-0" />
-                        ) : (
-                          <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
-                        )}
-                        <div className="min-w-0">
-                          <div className="text-sm font-medium truncate">
-                            {applyProgress.description}
-                          </div>
-                          {applyProgress.error && (
-                            <div className="text-xs text-destructive mt-0.5 truncate">
-                              {applyProgress.error}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="text-xs font-mono text-muted-foreground shrink-0">
-                        {applyProgress.index} / {applyProgress.total}
-                      </div>
-                    </div>
-                    {applyProgress.total > 0 && (
-                      <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                        <div
-                          className={cn(
-                            "h-full transition-all duration-300",
-                            applyProgress.status === "failed" ? "bg-destructive" : "bg-primary",
-                          )}
-                          style={{ width: `${Math.min(100, (applyProgress.index / applyProgress.total) * 100)}%` }}
-                        />
-                      </div>
-                    )}
-                  </Card>
-                )}
-              </section>
-
-              {/* ===== 3. AÇÕES (sequência canônica) ===== */}
-              <section className="space-y-3">
-                <SectionTitle>Ações na ordem</SectionTitle>
-                <BucketRemove
-                  items={buckets.remove}
-                  applying={applying === "remove" || applying === "all"}
-                  onApplyAll={() => applyPlan("remove")}
-                />
-                <BucketReorder
-                  kind="demote"
-                  items={buckets.demote}
-                  totalTracks={liveTracksCount}
-                  applying={applying === "demote" || applying === "all"}
-                  onApplyAll={() => applyPlan("demote")}
-                />
-                <BucketReorder
-                  kind="promote"
-                  items={buckets.promote}
-                  totalTracks={liveTracksCount}
-                  applying={applying === "promote" || applying === "all"}
-                  onApplyAll={() => applyPlan("promote")}
-                />
-                {/* Projeção de plays — contexto pra decidir posição das novas faixas. Colapsado. */}
-                {buckets.add.length > 0 && (
-                  <Collapsible>
-                    <CollapsibleTrigger className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5 px-2 py-1.5 rounded border border-border hover:border-primary/40">
-                      <ChevronDown className="h-3 w-3" /> Ver projeção de plays por posição
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="mt-3">
-                      <ProjecaoFaixa
-                        playlist={{
-                          id: managedId,
-                          name: playlistName,
-                          cover_url: coverUrl,
-                          followers: followers ?? 0,
-                          tracks_count: liveTracksCount,
-                        }}
-                      />
-                    </CollapsibleContent>
-                  </Collapsible>
-                )}
-                <BucketAdd
-                  items={buckets.add}
-                  applying={applying === "add" || applying === "all"}
-                  onApplyAll={() => applyPlan("add")}
-                />
-              </section>
-
-              {/* ===== 4. HISTÓRICO ===== */}
-              <section className="space-y-3">
-                <SectionTitle>Histórico</SectionTitle>
-                <AdjustmentTimeline playlistId={managedId} />
-              </section>
+              <PlanTab />
             </TabsContent>
 
             {/* ============ IDENTIDADE ============ */}
             <TabsContent value="identidade" className="space-y-4 mt-0">
-              <OnboardingChecklist managedId={managedId} />
-              <CoverCard
-                managedId={managedId}
-                currentCover={coverUrl}
-                genreName={genreName ?? null}
-                references={(diag.raw?.market_insights?.top_recurring_tracks ?? [])
-                  .filter((t: any) => t?.cover_url)
-                  .map((t: any) => ({
-                    id: t.spotify_track_id,
-                    name: t.title ?? "—",
-                    subtitle: t.artist ?? "",
-                    cover_url: t.cover_url,
-                    external_url: t.spotify_track_id ? `https://open.spotify.com/track/${t.spotify_track_id}` : null,
-                  }))}
-                spotifyPlaylistId={spotifyPlaylistId}
-              />
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <IdentityField
-                  label="Nome"
-                  field="name"
-                  managedId={managedId}
-                  current={diag.name_current ?? playlistName}
-                  suggestion={diag.name_suggestion}
-                  score={diag.name_score}
-                  onApplied={runDiagnose}
-                />
-                <IdentityField
-                  label="Descrição"
-                  field="description"
-                  managedId={managedId}
-                  current={diag.raw?.description_current || ""}
-                  suggestion={diag.raw?.suggested_description ?? null}
-                  onApplied={runDiagnose}
-                />
-              </div>
-              {(diag.raw?.missing_keywords?.length ?? 0) > 0 && (
-                <Card className="p-5">
-                  <div className="flex items-center justify-between mb-3 pb-3 border-b border-border/60">
-                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
-                      Palavras fortes do nicho que faltam
-                    </div>
-                    <Badge variant="outline" className="h-5 px-1.5 text-[10px] tabular-nums text-muted-foreground">
-                      {diag.raw!.missing_keywords!.length}
-                    </Badge>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {[...diag.raw!.missing_keywords!]
-                      .sort((a, b) => a.localeCompare(b, "pt-BR"))
-                      .map((k) => (
-                        <Badge
-                          key={k}
-                          variant="outline"
-                          className="h-6 px-2.5 rounded-full text-[11px] font-medium border-warning/40 text-warning bg-warning/5 hover:bg-warning/10 transition-colors"
-                        >
-                          {k}
-                        </Badge>
-                      ))}
-                  </div>
-                </Card>
-              )}
+              <IdentityTab />
             </TabsContent>
 
 
             {/* ============ MERCADO ============ */}
             {market && (
               <TabsContent value="mercado" className="space-y-4 mt-0">
-                <MarketBlock
-                  market={market}
-                  idealRange={idealRange}
-                  currentTrackKeys={currentTrackKeys}
-                  currentArtistKeys={currentArtistKeys}
-                  suggestionByTitle={suggestionByTitle}
-                  onJumpToAdd={jumpToPlanAdd}
-                />
-
+                <MarketTab />
               </TabsContent>
             )}
 
             {/* ============ ESTRATÉGIA ============ */}
             <TabsContent value="estrategia" className="space-y-4 mt-0">
-              {canonicalPlaylistId && (
-                <LifecycleRoadmapCard
-                  playlistId={canonicalPlaylistId}
-                  currentTracks={liveTracksCount}
-                />
-              )}
-              <GenreAffinityCard managedId={managedId} />
-              <SeoExperimentCard managedId={managedId} />
+              <StrategyTab />
             </TabsContent>
 
             {/* ============ EDITOR (drag-and-drop) ============ */}
             <TabsContent value="editor" className="space-y-3 mt-0">
-              <Card className="p-3 border-warning/30 bg-warning/5">
-                <div className="text-xs text-foreground/80">
-                  Use esta aba para editar as faixas diretamente, sem seguir o Plano.
-                </div>
-              </Card>
-              <PlaylistEditorTab playlistId={managedId} />
+              <EditorTab />
             </TabsContent>
           </Tabs>
         </>
