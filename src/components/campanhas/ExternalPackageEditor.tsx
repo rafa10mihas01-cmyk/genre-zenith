@@ -94,7 +94,7 @@ export function ExternalPackageEditor({
           .single(),
         supabase
           .from("campaign_external_package_items")
-          .select("id, curator_id, assigned_streams, assigned_cost, cost_per_stream, curator_deal_id, curators(name, contact)")
+          .select("id, curator_id, assigned_streams, assigned_cost, cost_per_stream, curator_deal_id, curators(name, contact), curator_deals(state, reconciled_total_plays, ends_at, closed_status)")
           .eq("package_id", packageId)
           .order("assigned_streams", { ascending: false }),
         fetchCuratorCandidates(),
