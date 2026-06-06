@@ -354,6 +354,7 @@ export function CampaignDistributionConsole({
         const idleState: PlaylistState = { status: "idle", scheduledFor: null, lastError: null, jobId: null, completedAt: null, executedPosition: null, validationStatus: null, validationPosition: null, validatedAt: null };
         const state: PlaylistState = spid ? (manualStateBySpid.get(spid) ?? stateBySpid.get(spid) ?? idleState) : idleState;
         const realStart = realStartByAllocation.get(a.id) ?? a.start_day ?? 1;
+        const executionMode: PlaylistExecutionMode = (a.managed_playlists?.execution_mode ?? "API_READY") as PlaylistExecutionMode;
         return {
           allocId: a.id,
           spid,
@@ -362,6 +363,7 @@ export function CampaignDistributionConsole({
           spotifyUrl: url || null,
           plannedPosition: ecoPositionByAllocation.get(a.id) ?? null,
           plannedFor: plannedDateFor(realStart, planBaseIso),
+          executionMode,
           state,
         };
       })
@@ -377,7 +379,26 @@ export function CampaignDistributionConsole({
         if (pa !== pb) return pa - pb;
         return a.name.localeCompare(b.name);
       });
-  }, [allocations, ecoPositionByAllocation, stateBySpid, manualStateBySpid]);
+  }, [allocations, ecoPositionByAllocation, stateBySpid, manualStateBySpid, planBaseIso, realStartByAllocation]);
+
+  // Particionamento por modo de execução — espelha o que o planner decidiu.
+  const rowsByMode = useMemo(() => {
+    const auto: typeof rows = [];
+    const manual: typeof rows = [];
+    const disabled: typeof rows = [];
+    for (const r of rows) {
+      if (r.executionMode === "MANUAL_ONLY") manual.push(r);
+      else if (r.executionMode === "DISABLED") disabled.push(r);
+      else auto.push(r);
+    }
+    return { auto, manual, disabled };
+  }, [rows]);
+
+  const modeCounts = {
+    auto: rowsByMode.auto.length,
+    manual: rowsByMode.manual.length,
+    disabled: rowsByMode.disabled.length,
+  };
 
   // --- ações ---
   const handleRetryOne = async (jobId: string) => {
