@@ -346,7 +346,9 @@ export function CampaignDistributionConsole({
   // --- linhas de playlist a renderizar (a partir das allocations) ---
   // Base pra "data prevista": prioriza eco_dispatched_at (real). Cai pra
   // started_at quando o eco ainda não foi disparado (planejamento).
-  const planBaseIso = ecoDispatchedAt ?? campaignStartedAt;
+  // Usar started_at como âncora canônica (mesma base do execution-planner).
+  // eco_dispatched_at pode cair em outro dia UTC e deslocar +1 no fuso BRT.
+  const planBaseIso = campaignStartedAt ?? ecoDispatchedAt;
   const rows = useMemo(() => {
     return allocations
       .map((a) => {
