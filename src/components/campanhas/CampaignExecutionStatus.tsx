@@ -201,6 +201,36 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
     return acc;
   }, [jobs, manualItems]);
 
+  // Métricas operacionais: o que o bot já fez vs o que ainda depende do operador.
+  const opsMetrics = useMemo(() => {
+    const autoDone = jobs.filter((j) => j.job_type === "playlist.track.add" && j.status === "done").length;
+    const autoPending = jobs.filter(
+      (j) => j.job_type === "playlist.track.add" && (j.status === "pending" || j.status === "claimed"),
+    ).length;
+    const autoFailed = jobs.filter((j) => j.job_type === "playlist.track.add" && j.status === "failed").length;
+    const manualDone = manualItems.filter((it) => it.status === "MANUAL_DONE").length;
+    const manualPending = manualItems.filter((it) => it.status !== "MANUAL_DONE").length;
+    return { autoDone, autoPending, autoFailed, manualDone, manualPending };
+  }, [jobs, manualItems]);
+
+  // Lista de pendências manuais — mostrada no topo, com prioridade visual.
+  const pendingManualList = useMemo(
+    () => manualItems.filter((it) => it.status !== "MANUAL_DONE"),
+    [manualItems],
+  );
+
+  const markManualDone = async (id: string) => {
+    const { error } = await supabase
+      .from("manual_distribution_queue")
+      .update({ status: "MANUAL_DONE", completed_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.error("Falha ao marcar manual como feito", error);
+    }
+  };
+
+
   const toggle = (id: string) => {
     setExpanded((prev) => {
       const next = new Set(prev);
