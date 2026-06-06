@@ -125,7 +125,7 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
       if (spid) map.set(spid, {
         name: r.managed_playlists?.name ?? spid,
         position: r.position,
-        executionMode: (r.managed_playlists?.execution_mode ?? "API_READY") as PlaylistExecutionMode,
+        executionMode: (r.managed_playlists?.execution_mode ?? null) as PlaylistExecutionMode,
       });
     }
     setEcoMap(map);

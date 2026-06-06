@@ -354,7 +354,9 @@ export function CampaignDistributionConsole({
         const idleState: PlaylistState = { status: "idle", scheduledFor: null, lastError: null, jobId: null, completedAt: null, executedPosition: null, validationStatus: null, validationPosition: null, validatedAt: null };
         const state: PlaylistState = spid ? (manualStateBySpid.get(spid) ?? stateBySpid.get(spid) ?? idleState) : idleState;
         const realStart = realStartByAllocation.get(a.id) ?? a.start_day ?? 1;
-        const executionMode: PlaylistExecutionMode = (a.managed_playlists?.execution_mode ?? "API_READY") as PlaylistExecutionMode;
+        // Fonte de verdade = managed_playlists.execution_mode (mesmo campo que o planner usa).
+        // NUNCA chutar API_READY quando o campo vier ausente — isso mente pro operador.
+        const executionMode: PlaylistExecutionMode = (a.managed_playlists?.execution_mode ?? null) as PlaylistExecutionMode;
         return {
           allocId: a.id,
           spid,
