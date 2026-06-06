@@ -17,23 +17,39 @@ ALTER TABLE public.spotify_apps
 
 CREATE FUNCTION public.mark_spotify_app_auth_failure(
   p_app_id uuid,
-  p_reason text DEFAULT 'AUTH_INVALID',
-  p_threshold int DEFAULT 5,
-  p_quarantine_minutes int DEFAULT 30
+  p_reason text,                          -- AUTH_MISSING | AUTH_INVALID | RATE_LIMIT | SPOTIFY_5XX | MANUAL
+  p_retry_after_sec int DEFAULT NULL      -- usado em RATE_LIMIT
 ) RETURNS jsonb ...
--- incrementa contador; ao atingir threshold:
---   quarantined_until = now() + interval
---   quarantine_reason = p_reason
---   last_auth_failure_at = now()
+-- Política por motivo (decidida pelo usuário):
+--   AUTH_MISSING  → quarentena IMEDIATA 30min (threshold=1). Não há como o app
+--                   recuperar dentro do request — falta token de usuário.
+--   AUTH_INVALID  → incrementa auth_failure_count; quarentena 30min só ao
+--                   atingir threshold=5. Pode ser flake de token expirando.
+--   RATE_LIMIT    → quarentena com TTL = Retry-After do Spotify (clampeado
+--                   2s..6h). Não conta como auth_failure.
+--   SPOTIFY_5XX   → NÃO quarentena. Só registra last_auth_failure_at p/
+--                   métrica. Caller decide retry/backoff.
+--   MANUAL        → quarentena indefinida até reset humano.
+-- Em todos os casos com quarentena: grava quarantine_reason + horário + contador.
 
 CREATE FUNCTION public.reset_spotify_app_auth_failures(p_app_id uuid) ...
--- chamada em sucesso: zera contador, NÃO mexe em quarantined_until
+-- chamada em sucesso 2xx: zera auth_failure_count. NÃO mexe em quarantined_until.
 
 CREATE FUNCTION public.expire_spotify_app_quarantines() ...
 -- UPDATE spotify_apps SET quarantine_reason=NULL WHERE quarantined_until < now()
 ```
 
 `status='quarantined_auto'` é derivado: `status='active' AND quarantined_until > now()`. Coluna `status` permanece para quarentena manual.
+
+### Tabela de política
+
+| Motivo | Threshold | TTL quarentena | Conta em auth_failure_count |
+|---|---|---|---|
+| `AUTH_MISSING` | 1 (imediato) | 30 min | não |
+| `AUTH_INVALID` | 5 consecutivos | 30 min | sim |
+| `RATE_LIMIT` | 1 (imediato) | `Retry-After` (2s–6h) | não |
+| `SPOTIFY_5XX` | — | **não quarentena** | não |
+| `MANUAL` | — | indefinida | não |
 
 ---
 
