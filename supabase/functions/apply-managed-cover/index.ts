@@ -184,14 +184,42 @@ Deno.serve(async (req) => {
     const b64 = uint8ToBase64(jpeg.bytes);
     console.log(`[cover] PUT ${pl.spotify_playlist_id} owner=${ownerId ?? "?"} ${jpeg.width}x${jpeg.height} q=${jpeg.quality} ${jpeg.bytes.byteLength}b base64=${b64.length}c`);
 
-    const resp = await guardedSpotifyFetch(`https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}/images`, {
+    let resp = await guardedSpotifyFetch(`https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}/images`, {
       method: "PUT",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "image/jpeg" },
       body: b64,
     });
-    const respText = await resp.text().catch(() => "");
+    let respText = await resp.text().catch(() => "");
     console.log(`[cover] Spotify resposta status=${resp.status} body="${respText.slice(0, 200)}"`);
+
+    // Retry uma vez se 401 — token revogado/invalidado antes do expires_at
+    if (resp.status === 401 && ownerId) {
+      try {
+        console.log(`[cover] 401 recebido — forçando refresh do token de ${ownerId} e retry`);
+        const refreshed = await forceRefreshUserAccessToken(ownerId);
+        token = refreshed.token;
+        resp = await guardedSpotifyFetch(`https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}/images`, {
+          method: "PUT",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "image/jpeg" },
+          body: b64,
+        });
+        respText = await resp.text().catch(() => "");
+        console.log(`[cover] retry status=${resp.status} body="${respText.slice(0, 200)}"`);
+      } catch (e) {
+        return jr({
+          ok: false,
+          error: `Token Spotify da conta "${ownerId}" expirou/foi revogado. Reconecte a conta em Configurações → Spotify. (${(e as Error).message})`,
+        }, 412);
+      }
+    }
+
     if (!resp.ok && resp.status !== 202) {
+      if (resp.status === 401) {
+        return jr({
+          ok: false,
+          error: `Token Spotify da conta "${ownerId ?? "?"}" foi revogado. Reconecte a conta em Configurações → Spotify.`,
+        }, 412);
+      }
       return jr({ ok: false, error: `Spotify ${resp.status}: ${respText.slice(0, 300)}` }, 502);
     }
 
