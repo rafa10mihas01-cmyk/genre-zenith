@@ -378,7 +378,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
 
   async function loadAccounts() {
     const { data } = await supabase
-      .from("spotify_user_tokens")
+      .from("spotify_user_tokens_public" as any)
       .select("id, spotify_user_id, display_name, email, is_default")
       .order("is_default", { ascending: false })
       .order("display_name", { ascending: true, nullsFirst: false });
