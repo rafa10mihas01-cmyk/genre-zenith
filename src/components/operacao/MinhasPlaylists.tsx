@@ -497,7 +497,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     setBulkImporting(true);
     try {
       const { data: tokens, error: tokErr } = await supabase
-        .from("spotify_user_tokens")
+        .from("spotify_user_tokens_public" as any)
         .select("spotify_user_id, display_name, email");
       if (tokErr) throw new Error(tokErr.message);
 
