@@ -1229,10 +1229,12 @@ function ReplanButton({ campaignId, onReplanned }: { campaignId: string; onRepla
 
   return (
     <>
+      {/* Botão "Replanejar plano" ocultado a pedido — dialog ainda acessível via handleOpen se reativado.
       <Button variant="outline" size="sm" onClick={handleOpen}>
         <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
         Replanejar plano
       </Button>
+      */}
       <Dialog open={open} onOpenChange={(o) => !busy && setOpen(o)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
