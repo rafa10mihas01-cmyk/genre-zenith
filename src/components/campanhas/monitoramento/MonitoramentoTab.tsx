@@ -72,6 +72,14 @@ export function MonitoramentoTab({ campaignId }: Props) {
     : kpis.status === "pending" ? "Baseline pendente"
     : "Sem baseline";
 
+  const [params, setParams] = useSearchParams();
+  const subtab = (params.get("subtab") as "visao" | "curadores" | "ecossistema" | "saude") || "visao";
+  const setSubtab = (v: string) => {
+    const next = new URLSearchParams(params);
+    if (v === "visao") next.delete("subtab"); else next.set("subtab", v);
+    setParams(next, { replace: true });
+  };
+
   return (
     <div className="space-y-4">
       <BaselineStatus
@@ -83,7 +91,35 @@ export function MonitoramentoTab({ campaignId }: Props) {
         runsLoading={runsLoading}
       />
 
-      <ExecucaoView campaignId={campaignId} onOpenHistory={setDrawerPlaylistId} />
+      <Tabs value={subtab} onValueChange={setSubtab} className="space-y-4">
+        <TabsList className="grid grid-cols-4 w-full md:w-auto md:inline-grid">
+          <TabsTrigger value="visao" className="gap-1.5">
+            <BarChart3 className="h-3.5 w-3.5" /> Visão geral
+          </TabsTrigger>
+          <TabsTrigger value="curadores" className="gap-1.5">
+            <Users className="h-3.5 w-3.5" /> Curadores
+          </TabsTrigger>
+          <TabsTrigger value="ecossistema" className="gap-1.5">
+            <Layers className="h-3.5 w-3.5" /> Ecossistema
+          </TabsTrigger>
+          <TabsTrigger value="saude" className="gap-1.5">
+            <HeartPulse className="h-3.5 w-3.5" /> Saúde da entrega
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="visao" className="mt-0">
+          <ExecucaoView campaignId={campaignId} onOpenHistory={setDrawerPlaylistId} />
+        </TabsContent>
+        <TabsContent value="curadores" className="mt-0">
+          <ExecucaoView campaignId={campaignId} onOpenHistory={setDrawerPlaylistId} initialScope="curator" />
+        </TabsContent>
+        <TabsContent value="ecossistema" className="mt-0">
+          <ExecucaoView campaignId={campaignId} onOpenHistory={setDrawerPlaylistId} initialScope="ecosystem" />
+        </TabsContent>
+        <TabsContent value="saude" className="mt-0">
+          <SaudeView campaignId={campaignId} />
+        </TabsContent>
+      </Tabs>
 
       <PlaylistHistoryDrawer
         campaignId={campaignId}
