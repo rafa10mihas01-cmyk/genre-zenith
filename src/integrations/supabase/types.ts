@@ -5942,6 +5942,148 @@ export type Database = {
         }
         Relationships: []
       }
+      plan_execution_snapshots: {
+        Row: {
+          accuracy_by_metric: Json | null
+          accuracy_overall: number | null
+          baseline_benchmark_tracks: number | null
+          baseline_dominant_artists: number | null
+          baseline_headroom_pct: number | null
+          baseline_ratio_to_benchmark: number | null
+          baseline_saturation_avg: number | null
+          baseline_size: number | null
+          created_at: string
+          diagnosis_id: string | null
+          evaluated_at: string | null
+          evaluation_notes: string | null
+          executed_at: string
+          executed_by: string | null
+          id: string
+          measured_artist_delta: number | null
+          measured_benchmark_delta: number | null
+          measured_concentration_delta_pp: number | null
+          measured_coverage_delta_pp: number | null
+          measured_headroom_delta_pp: number | null
+          measured_saturation_delta_pp: number | null
+          measured_size_delta: number | null
+          ops_add: number
+          ops_demote: number
+          ops_promote: number
+          ops_remove: number
+          playlist_id: string
+          projected_artist_delta: number | null
+          projected_benchmark_delta: number | null
+          projected_concentration_delta_pp: number | null
+          projected_confidence: string | null
+          projected_coverage_delta_pp: number | null
+          projected_headroom_delta_pp: number | null
+          projected_saturation_delta_pp: number | null
+          projected_size_delta: number | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          accuracy_by_metric?: Json | null
+          accuracy_overall?: number | null
+          baseline_benchmark_tracks?: number | null
+          baseline_dominant_artists?: number | null
+          baseline_headroom_pct?: number | null
+          baseline_ratio_to_benchmark?: number | null
+          baseline_saturation_avg?: number | null
+          baseline_size?: number | null
+          created_at?: string
+          diagnosis_id?: string | null
+          evaluated_at?: string | null
+          evaluation_notes?: string | null
+          executed_at?: string
+          executed_by?: string | null
+          id?: string
+          measured_artist_delta?: number | null
+          measured_benchmark_delta?: number | null
+          measured_concentration_delta_pp?: number | null
+          measured_coverage_delta_pp?: number | null
+          measured_headroom_delta_pp?: number | null
+          measured_saturation_delta_pp?: number | null
+          measured_size_delta?: number | null
+          ops_add?: number
+          ops_demote?: number
+          ops_promote?: number
+          ops_remove?: number
+          playlist_id: string
+          projected_artist_delta?: number | null
+          projected_benchmark_delta?: number | null
+          projected_concentration_delta_pp?: number | null
+          projected_confidence?: string | null
+          projected_coverage_delta_pp?: number | null
+          projected_headroom_delta_pp?: number | null
+          projected_saturation_delta_pp?: number | null
+          projected_size_delta?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          accuracy_by_metric?: Json | null
+          accuracy_overall?: number | null
+          baseline_benchmark_tracks?: number | null
+          baseline_dominant_artists?: number | null
+          baseline_headroom_pct?: number | null
+          baseline_ratio_to_benchmark?: number | null
+          baseline_saturation_avg?: number | null
+          baseline_size?: number | null
+          created_at?: string
+          diagnosis_id?: string | null
+          evaluated_at?: string | null
+          evaluation_notes?: string | null
+          executed_at?: string
+          executed_by?: string | null
+          id?: string
+          measured_artist_delta?: number | null
+          measured_benchmark_delta?: number | null
+          measured_concentration_delta_pp?: number | null
+          measured_coverage_delta_pp?: number | null
+          measured_headroom_delta_pp?: number | null
+          measured_saturation_delta_pp?: number | null
+          measured_size_delta?: number | null
+          ops_add?: number
+          ops_demote?: number
+          ops_promote?: number
+          ops_remove?: number
+          playlist_id?: string
+          projected_artist_delta?: number | null
+          projected_benchmark_delta?: number | null
+          projected_concentration_delta_pp?: number | null
+          projected_confidence?: string | null
+          projected_coverage_delta_pp?: number | null
+          projected_headroom_delta_pp?: number | null
+          projected_saturation_delta_pp?: number | null
+          projected_size_delta?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_execution_snapshots_diagnosis_id_fkey"
+            columns: ["diagnosis_id"]
+            isOneToOne: false
+            referencedRelation: "playlist_diagnoses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_execution_snapshots_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "managed_playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_execution_snapshots_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_playlist_vps_assignment"
+            referencedColumns: ["managed_playlist_id"]
+          },
+        ]
+      }
       playlist_adjustment_impacts: {
         Row: {
           action_type: string
