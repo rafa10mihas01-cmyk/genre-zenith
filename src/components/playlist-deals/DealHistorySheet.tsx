@@ -418,7 +418,26 @@ export function DealHistorySheet({
     return null;
   };
 
-  const reversedLogs = stats ? [...stats.dealLogs].reverse() : [];
+  // Dedup visual: testes recentes geraram múltiplos logs com mesma observação
+  // (mesmo song_id + mesmo total_plays) em curto intervalo. Mantemos apenas o
+  // registro mais recente de cada observação. Baselines e registros mais antigos
+  // que 24h em relação ao mais recente do mesmo par são preservados intactos.
+  const reversedLogs = useMemo(() => {
+    if (!stats) return [] as CuratorDealLog[];
+    const desc = [...stats.dealLogs].reverse();
+    const seen = new Map<string, number>(); // key -> timestamp ms do mais recente
+    const out: CuratorDealLog[] = [];
+    for (const log of desc) {
+      if (log.is_baseline) { out.push(log); continue; }
+      const key = `${log.song_id ?? "_"}|${log.total_plays}`;
+      const ts = new Date(log.created_at).getTime();
+      const prevTs = seen.get(key);
+      if (prevTs && Math.abs(prevTs - ts) < 24 * 60 * 60 * 1000) continue;
+      seen.set(key, ts);
+      out.push(log);
+    }
+    return out;
+  }, [stats]);
 
   const dealPlaylists = useMemo(() => {
     if (!deal) return [] as CuratorPlaylist[];
