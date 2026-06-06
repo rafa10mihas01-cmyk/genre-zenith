@@ -1147,6 +1147,10 @@ function PlaylistRow({
           )}
           {row.spotifyUrl && <ExternalLink className="h-3 w-3 text-muted-foreground/60 shrink-0" />}
         </div>
+        {/* Modo de execução — informação primária, abaixo do nome */}
+        <div className="mt-1">
+          <PlaylistModeBadge mode={row.executionMode} size="sm" />
+        </div>
         <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
           <span>
             Pos. planejada: <span className="text-foreground font-medium">{row.plannedPosition ?? "—"}</span>
