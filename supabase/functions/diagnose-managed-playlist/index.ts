@@ -29,7 +29,64 @@ function jr(p: unknown, status = 200) {
   });
 }
 
+// ---------- telemetria (Fase 0A — observabilidade pura, não muda regras) ----------
+// Mede duração de cada etapa do diagnose + contadores de falha.
+// É puramente passivo: nenhum fluxo, score ou benchmark é alterado por esses dados.
+type TelemetryStep = { name: string; started_at: number; ended_at: number | null; duration_ms: number | null; status: "ok" | "skipped" | "error"; note?: string };
+class DiagnoseTelemetry {
+  readonly t0 = Date.now();
+  steps: TelemetryStep[] = [];
+  active = new Map<string, number>();
+  failures = {
+    spotify_403: 0,
+    spotify_429: 0,
+    spotify_5xx: 0,
+    spotify_other: 0,
+    spotify_throw: 0,
+    benchmark_empty: false,
+    competitors_count: 0,
+    competitors_insufficient: false,
+    genre_missing: false,
+    sync_failed: false,
+    ai_editorial_failed: false,
+    last_error: null as string | null,
+  };
+  start(name: string) { this.active.set(name, Date.now()); }
+  end(name: string, status: TelemetryStep["status"] = "ok", note?: string) {
+    const started = this.active.get(name) ?? Date.now();
+    this.active.delete(name);
+    this.steps.push({ name, started_at: started, ended_at: Date.now(), duration_ms: Date.now() - started, status, note });
+  }
+  skip(name: string, note?: string) {
+    const now = Date.now();
+    this.steps.push({ name, started_at: now, ended_at: now, duration_ms: 0, status: "skipped", note });
+  }
+  noteSpotifyStatus(status: number) {
+    if (status === 403) this.failures.spotify_403++;
+    else if (status === 429) this.failures.spotify_429++;
+    else if (status >= 500) this.failures.spotify_5xx++;
+    else if (!(status >= 200 && status < 300)) this.failures.spotify_other++;
+  }
+  noteThrow(e: unknown) {
+    this.failures.spotify_throw++;
+    this.failures.last_error = (e as Error)?.message ?? String(e);
+  }
+  report() {
+    const total = Date.now() - this.t0;
+    const slowest = [...this.steps].sort((a, b) => (b.duration_ms ?? 0) - (a.duration_ms ?? 0))[0] ?? null;
+    const breakdown = this.steps.map((s) => ({
+      name: s.name,
+      ms: s.duration_ms,
+      pct: total > 0 && s.duration_ms != null ? Math.round((s.duration_ms / total) * 1000) / 10 : null,
+      status: s.status,
+      note: s.note ?? null,
+    }));
+    return { total_ms: total, slowest, steps: breakdown, failures: this.failures };
+  }
+}
+
 // ---------- helpers ----------
+
 
 async function syncTracks(authHeader: string, playlistId: string) {
   // Chama sync-managed-playlist-tracks com skip_lock=true (já seguramos o lock DIAGNOSE_ENGINE).
