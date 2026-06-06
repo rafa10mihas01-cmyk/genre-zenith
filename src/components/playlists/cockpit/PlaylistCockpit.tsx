@@ -42,7 +42,7 @@ import { EditorialBanner } from "./shared/EditorialBanner";
 // Tipos e helpers puros agora vivem em ./types e ./helpers (extraídos
 // no Commit 1 da Fase 2 — modularização; comportamento idêntico).
 import type { Diagnosis, Props, Suggestion, Zone } from "./types";
-import { fmtNum, HEALTH_META, ZONE_CAPS, zoneFromPos } from "./helpers";
+import { fmtNum, HEALTH_META, ZONE_CAPS, zoneFromPos, norm } from "./helpers";
 
 
 
