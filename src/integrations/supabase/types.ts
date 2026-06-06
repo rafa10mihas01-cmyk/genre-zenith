@@ -10605,6 +10605,36 @@ export type Database = {
           total_tracks: number
         }[]
       }
+      get_spotify_app_for_playlist: {
+        Args: { p_playlist_id: string }
+        Returns: {
+          app_id: string
+          app_name: string
+          app_status: string
+          auth_failure_count: number
+          blocked_until: string
+          circuit_status: string
+          level: string
+          playlists_count: number
+          retry_after_sec: number
+        }[]
+      }
+      get_spotify_apps_status: {
+        Args: never
+        Returns: {
+          app_id: string
+          app_name: string
+          app_status: string
+          auth_failure_count: number
+          blocked_until: string
+          circuit_status: string
+          last_429_at: string
+          level: string
+          playlists_count: number
+          quarantined_until: string
+          retry_after_sec: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
