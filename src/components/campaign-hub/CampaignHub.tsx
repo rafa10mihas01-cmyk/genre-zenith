@@ -26,13 +26,14 @@ type Props = {
   slots: Partial<Record<CampaignHubTabId, ReactNode>>;
   hiddenTabs?: CampaignHubTabId[];
   heroExtraActions?: ReactNode;
+  heroExtraActionsAfter?: ReactNode;
   kpis?: ReactNode;
   progressSection?: ReactNode;
 };
 
 export function CampaignHub({
   camp, mode, delivered, goal, daysElapsed, daysTotal, lastUpdateAt,
-  tab, onTabChange, slots, hiddenTabs = [], heroExtraActions, kpis, progressSection,
+  tab, onTabChange, slots, hiddenTabs = [], heroExtraActions, heroExtraActionsAfter, kpis, progressSection,
 }: Props) {
   const clientAllowedTabs: CampaignHubTabId[] = ["overview", "playlists", "monitoramento", "upload", "history"];
   const tabs: TabDef[] = [
