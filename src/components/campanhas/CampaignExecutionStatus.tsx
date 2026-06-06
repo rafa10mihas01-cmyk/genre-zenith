@@ -445,8 +445,9 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
                     {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate">{name}</div>
-                      <div className="text-[11px] text-muted-foreground">
-                        Pos. planejada: {planned ?? "—"} · {totalItems} registro(s)
+                      <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
+                        <PlaylistModeBadge mode={eco?.executionMode} size="sm" />
+                        <span>Pos. planejada: {planned ?? "—"} · {totalItems} registro(s)</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 text-[11px]">
