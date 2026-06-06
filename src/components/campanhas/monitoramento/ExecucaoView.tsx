@@ -231,18 +231,18 @@ export function ExecucaoView({
             <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold mb-4">
               Resultado da campanha
             </div>
-            <div className="flex flex-col lg:flex-row lg:items-center gap-6">
+            <div className="flex flex-col lg:flex-row lg:items-center gap-6 lg:gap-8 lg:divide-x lg:divide-border/50">
               <div className="grid grid-cols-3 gap-6 md:gap-10 flex-1">
                 <div className="flex flex-col gap-1.5">
                   <span className="text-[12px] text-muted-foreground">Atual</span>
-                  <span className="text-[28px] md:text-[32px] font-semibold tabular-nums text-foreground leading-none">
+                  <span className="text-[26px] md:text-[30px] font-medium tabular-nums text-foreground leading-none">
                     {formatInt(filteredTotals.current)}
                   </span>
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <span className="text-[12px] text-muted-foreground">Variação</span>
                   <span className={cn(
-                    "text-[28px] md:text-[32px] font-semibold tabular-nums leading-none",
+                    "text-[26px] md:text-[30px] font-medium tabular-nums leading-none",
                     filteredTotals.delta > 0 ? "text-primary" : "text-foreground",
                   )}>
                     {filteredTotals.delta > 0 ? "+" : ""}{formatInt(filteredTotals.delta)}
@@ -250,15 +250,16 @@ export function ExecucaoView({
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <span className="text-[12px] text-muted-foreground">Playlists monitoradas</span>
-                  <span className="text-[28px] md:text-[32px] font-semibold tabular-nums text-foreground leading-none">
+                  <span className="text-[26px] md:text-[30px] font-medium tabular-nums text-foreground leading-none">
                     {formatInt(filtered.length)}
                   </span>
                 </div>
               </div>
-              <div className="w-full lg:w-[420px] shrink-0">
+              <div className="w-full lg:w-[420px] shrink-0 lg:pl-8">
                 <GrowthSparkline />
               </div>
             </div>
+
           </CardContent>
         </Card>
       )}
