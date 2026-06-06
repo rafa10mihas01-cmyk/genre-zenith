@@ -20,6 +20,7 @@ export type CockpitContextValue = {
   playlistName: string;
   coverUrl: string | null;
   followers: number | null;
+  genreId: string | null;
   genreName: string | null;
   canonicalPlaylistId: string | null;
   brainScore: number | null;

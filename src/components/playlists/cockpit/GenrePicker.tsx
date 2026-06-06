@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Check, Pencil, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useGenresList } from "@/hooks/useCockpitQueries";
 
 type Genre = { id: string; nome: string };
 
@@ -19,29 +20,27 @@ type Props = {
  */
 export function GenrePicker({ managedId, currentGenreName, onChanged }: Props) {
   const [open, setOpen] = useState(false);
-  const [genres, setGenres] = useState<Genre[]>([]);
   const [saving, setSaving] = useState(false);
   const [currentName, setCurrentName] = useState<string | null>(currentGenreName ?? null);
 
   useEffect(() => { setCurrentName(currentGenreName ?? null); }, [currentGenreName]);
 
-  useEffect(() => {
-    if (!open || genres.length > 0) return;
-    // Ordem editorial fixa: nichos principais primeiro, resto alfabético.
+  // Fase 4B.3A: lista de gêneros via React Query (cache 5min, dedup global).
+  // Só dispara o fetch quando o popover é aberto pela primeira vez.
+  const { data: genresRaw } = useGenresList(open);
+  const genres = useMemo<Genre[]>(() => {
     const PRIORITY = ["funk", "trap", "sertanejo", "pagode", "piseiro", "forró", "rap"];
-    supabase.from("genres").select("id, nome").then(({ data }) => {
-      const list = (data ?? []) as Genre[];
-      const sorted = [...list].sort((a, b) => {
-        const ia = PRIORITY.indexOf(a.nome.toLowerCase());
-        const ib = PRIORITY.indexOf(b.nome.toLowerCase());
-        if (ia !== -1 && ib !== -1) return ia - ib;
-        if (ia !== -1) return -1;
-        if (ib !== -1) return 1;
-        return a.nome.localeCompare(b.nome, "pt-BR");
-      });
-      setGenres(sorted);
+    const list = (genresRaw ?? []) as Genre[];
+    return [...list].sort((a, b) => {
+      const ia = PRIORITY.indexOf(a.nome.toLowerCase());
+      const ib = PRIORITY.indexOf(b.nome.toLowerCase());
+      if (ia !== -1 && ib !== -1) return ia - ib;
+      if (ia !== -1) return -1;
+      if (ib !== -1) return 1;
+      return a.nome.localeCompare(b.nome, "pt-BR");
     });
-  }, [open, genres.length]);
+  }, [genresRaw]);
+
 
   async function changeTo(g: Genre) {
     setSaving(true);

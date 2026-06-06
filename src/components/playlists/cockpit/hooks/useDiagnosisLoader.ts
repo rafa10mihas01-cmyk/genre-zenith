@@ -1,27 +1,37 @@
-// useDiagnosisLoader — carrega o último diagnostico da playlist (extraído sem
-// mudar a query nem a forma do retorno). Fase 2 / Commit 3.
-import { useCallback, useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+// useDiagnosisLoader — Fase 4B.3A: agora usa React Query (dedup + cache).
+// API pública preservada: { diag, setDiag, loading, loadLatest }.
+import { useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { usePlaylistDiagnosis } from "@/hooks/useCockpitQueries";
 import type { Diagnosis } from "../types";
 
+type DiagSetter = React.Dispatch<React.SetStateAction<Diagnosis | null>>;
+
 export function useDiagnosisLoader(managedId: string) {
-  const [diag, setDiag] = useState<Diagnosis | null>(null);
-  const [loading, setLoading] = useState(true);
+  const qc = useQueryClient();
+  const q = usePlaylistDiagnosis(managedId);
+  const key = ["playlist-diagnosis", managedId] as const;
+
+  const setDiag: DiagSetter = useCallback(
+    (updater) => {
+      qc.setQueryData<Diagnosis | null>(key as any, (prev) => {
+        const current = (prev ?? null) as Diagnosis | null;
+        return typeof updater === "function"
+          ? (updater as (p: Diagnosis | null) => Diagnosis | null)(current)
+          : (updater as Diagnosis | null);
+      });
+    },
+    [qc, managedId],
+  );
 
   const loadLatest = useCallback(async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from("playlist_diagnoses")
-      .select("id, created_at, name_current, name_suggestion, name_score, tracks_analysis, tracks_suggestions, tracks_summary, raw")
-      .eq("playlist_id", managedId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    setDiag((data as any) ?? null);
-    setLoading(false);
-  }, [managedId]);
+    await qc.invalidateQueries({ queryKey: key as any });
+  }, [qc, managedId]);
 
-  useEffect(() => { loadLatest(); }, [loadLatest]);
-
-  return { diag, setDiag, loading, loadLatest } as const;
+  return {
+    diag: (q.data ?? null) as Diagnosis | null,
+    setDiag,
+    loading: q.isLoading,
+    loadLatest,
+  } as const;
 }

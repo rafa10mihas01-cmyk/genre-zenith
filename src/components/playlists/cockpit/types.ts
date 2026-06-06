@@ -81,6 +81,7 @@ export type Props = {
   coverUrl: string | null;
   followers: number | null;
   tracksCount: number;
+  genreId?: string | null;
   genreName?: string | null;
   brainScore?: number | null;
   canonicalPlaylistId?: string | null;

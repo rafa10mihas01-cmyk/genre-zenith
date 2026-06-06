@@ -1,43 +1,23 @@
-import { useEffect, useState } from "react";
 import { useParams, useSearchParams, Link, useNavigate } from "react-router-dom";
 import { Loader2, ArrowLeft } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { PageContainer } from "@/components/PageContainer";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { PlaylistTracksTab } from "@/components/playlists/PlaylistTracksTab";
 import { PlaylistCockpit } from "@/components/playlists/cockpit/PlaylistCockpit";
 import { usePlaylistBrain } from "@/hooks/usePlaylistBrain";
-
-type PlaylistRow = {
-  id: string;
-  spotify_playlist_id: string;
-  name: string | null;
-  followers: number | null;
-  cover_url: string | null;
-  genre_id: string | null;
-};
-
-type ManagedRow = {
-  id: string;
-  name: string | null;
-  followers: number | null;
-  canonical_playlist_id: string | null;
-  spotify_playlist_id: string;
-  cover_url: string | null;
-  description: string | null;
-  tracks_count: number;
-  spotify_url: string;
-  genre_id: string | null;
-};
+import {
+  usePlaylistById,
+  useManagedByPlaylistId,
+  useManagedById,
+  useGenreName,
+  type PlaylistRow,
+  type ManagedRow,
+} from "@/hooks/useCockpitQueries";
 
 export default function PlaylistDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [pl, setPl] = useState<PlaylistRow | null>(null);
-  const [mgd, setMgd] = useState<ManagedRow | null>(null);
-  const [genreName, setGenreName] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [searchParams] = useSearchParams();
   const tab = searchParams.get("tab") === "faixas" ? "faixas" : "geral";
 
@@ -48,56 +28,41 @@ export default function PlaylistDetail() {
 
   const { data: brain } = usePlaylistBrain(id);
 
-  useEffect(() => {
-    if (!id) return;
-    (async () => {
-      setLoading(true);
-      const { data: p } = await supabase
-        .from("playlists")
-        .select("id, spotify_playlist_id, name, followers, cover_url, genre_id")
-        .eq("id", id)
-        .maybeSingle();
-      let playlist = p as PlaylistRow | null;
+  // 1) tenta como playlist canonical
+  const playlistQ = usePlaylistById(id);
+  const p = playlistQ.data ?? null;
 
-      if (playlist?.spotify_playlist_id) {
-        const { data: m } = await supabase
-          .from("managed_playlists")
-          .select("id, name, followers, canonical_playlist_id, spotify_playlist_id, cover_url, description, tracks_count, spotify_url, genre_id")
-          .eq("spotify_playlist_id", playlist.spotify_playlist_id)
-          .maybeSingle();
-        setMgd(m as ManagedRow | null);
+  // 2) managed: por spotify_playlist_id quando há playlist; senão pelo próprio id
+  const managedBySpotifyQ = useManagedByPlaylistId(p?.spotify_playlist_id);
+  const managedByIdQ = useManagedById(!playlistQ.isLoading && !p ? id : null);
+  const mgd: ManagedRow | null =
+    (managedBySpotifyQ.data as ManagedRow | null) ??
+    (managedByIdQ.data as ManagedRow | null) ??
+    null;
 
-        const genreId = (m as any)?.genre_id ?? playlist?.genre_id;
-        if (genreId) {
-          const { data: g } = await supabase.from("genres").select("nome").eq("id", genreId).maybeSingle();
-          setGenreName((g as any)?.nome ?? null);
+  // 3) derive playlist quando só existe managed
+  const derivedPl: PlaylistRow | null =
+    p ??
+    (mgd
+      ? {
+          id: mgd.canonical_playlist_id ?? mgd.id,
+          spotify_playlist_id: mgd.spotify_playlist_id,
+          name: mgd.name,
+          followers: mgd.followers,
+          cover_url: mgd.cover_url,
+          genre_id: mgd.genre_id,
         }
-      } else {
-        const { data: m } = await supabase
-          .from("managed_playlists")
-          .select("id, name, followers, canonical_playlist_id, spotify_playlist_id, cover_url, description, tracks_count, spotify_url, genre_id")
-          .eq("id", id)
-          .maybeSingle();
-        setMgd(m as ManagedRow | null);
-        if (m) {
-          playlist = {
-            id: (m as ManagedRow).canonical_playlist_id ?? (m as ManagedRow).id,
-            spotify_playlist_id: (m as ManagedRow).spotify_playlist_id,
-            name: (m as ManagedRow).name,
-            followers: (m as ManagedRow).followers,
-            cover_url: (m as ManagedRow).cover_url,
-            genre_id: (m as ManagedRow).genre_id,
-          };
-          if ((m as ManagedRow).genre_id) {
-            const { data: g } = await supabase.from("genres").select("nome").eq("id", (m as ManagedRow).genre_id).maybeSingle();
-            setGenreName((g as any)?.nome ?? null);
-          }
-        }
-      }
-      setPl(playlist);
-      setLoading(false);
-    })();
-  }, [id]);
+      : null);
+
+  // 4) gênero — usa managed.genre_id (fonte primária do cockpit) com fallback
+  const genreId = mgd?.genre_id ?? derivedPl?.genre_id ?? null;
+  const genreNameQ = useGenreName(genreId);
+
+  const loading =
+    playlistQ.isLoading ||
+    managedBySpotifyQ.isLoading ||
+    managedByIdQ.isLoading ||
+    (!!genreId && genreNameQ.isLoading);
 
   if (loading) {
     return (
@@ -109,7 +74,7 @@ export default function PlaylistDetail() {
     );
   }
 
-  if (!pl) {
+  if (!derivedPl) {
     return (
       <PageContainer>
         <PageHeader
@@ -126,15 +91,15 @@ export default function PlaylistDetail() {
     return (
       <PageContainer>
         <PageHeader
-          title={pl.name ?? "Playlist"}
+          title={derivedPl.name ?? "Playlist"}
           subtitle="Faixas"
           actions={
             <Button asChild variant="outline">
-              <Link to={`/playlists/${pl.id}`}><ArrowLeft className="h-4 w-4 mr-1" /> Cockpit</Link>
+              <Link to={`/playlists/${derivedPl.id}`}><ArrowLeft className="h-4 w-4 mr-1" /> Cockpit</Link>
             </Button>
           }
         />
-        <PlaylistTracksTab playlistId={pl.id} />
+        <PlaylistTracksTab playlistId={derivedPl.id} />
       </PageContainer>
     );
   }
@@ -143,7 +108,7 @@ export default function PlaylistDetail() {
   if (!mgd) {
     return (
       <PageContainer>
-        <PageHeader title={pl.name ?? "Playlist"} subtitle="Playlist externa — sem gestão direta" />
+        <PageHeader title={derivedPl.name ?? "Playlist"} subtitle="Playlist externa — sem gestão direta" />
         <p className="text-sm text-muted-foreground">
           Esta playlist não está sob gestão (apenas monitorada). Importe-a no Catálogo para gerar diagnóstico.
         </p>
@@ -151,19 +116,19 @@ export default function PlaylistDetail() {
     );
   }
 
-  // Cockpit em modo fullscreen — o AppLayout detecta a rota e remove o nx-page.
   return (
     <PlaylistCockpit
       managedId={mgd.id}
-      spotifyPlaylistId={pl.spotify_playlist_id}
+      spotifyPlaylistId={derivedPl.spotify_playlist_id}
       spotifyUrl={mgd.spotify_url}
-      playlistName={pl.name ?? "Playlist"}
-      coverUrl={mgd.cover_url ?? pl.cover_url}
-      followers={pl.followers}
+      playlistName={derivedPl.name ?? "Playlist"}
+      coverUrl={mgd.cover_url ?? derivedPl.cover_url}
+      followers={derivedPl.followers}
       tracksCount={mgd.tracks_count}
-      genreName={genreName}
+      genreId={genreId}
+      genreName={genreNameQ.data ?? null}
       brainScore={brain?.capacity_total ? Math.round(brain.confidence_score) : null}
-      canonicalPlaylistId={pl.id}
+      canonicalPlaylistId={derivedPl.id}
       onBack={handleBack}
     />
   );
