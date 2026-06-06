@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   Rocket, CheckCircle2, Clock, XCircle, Loader2, RefreshCw, ArrowDownUp,
-  Bot, ShieldCheck, AlertCircle, ExternalLink, Activity, ArrowDown, Hand,
+  Bot, ShieldCheck, AlertCircle, ExternalLink, Activity, ArrowDown, Hand, Ban,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatBRL } from "@/lib/campaignEngine";
@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import type { EcoAllocation } from "@/components/campaign-hub/types";
 import { buildEcoPlaylistPlan } from "@/lib/campaignOperationalPlan";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
+import { PlaylistModeBadge, type PlaylistExecutionMode } from "./PlaylistModeBadge";
 
 type JobRow = {
   id: string;
