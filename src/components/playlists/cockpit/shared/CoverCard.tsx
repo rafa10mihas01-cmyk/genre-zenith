@@ -188,12 +188,12 @@ export function CoverCard({ managedId, currentCover, references, spotifyPlaylist
                       disabled={!l.cover_url || isCoverApplying}
                       onClick={() => selectLeaderCover(l)}
                       title={`Usar capa de "${l.name}"`}
-                      className="relative group rounded-md overflow-hidden ring-1 ring-border hover:ring-primary/60 transition-all disabled:opacity-50 shrink-0"
+                      className="relative group rounded-lg overflow-hidden ring-1 ring-border hover:ring-primary/60 transition-all disabled:opacity-50 shrink-0"
                     >
                       {l.cover_url ? (
-                        <img src={l.cover_url} alt={l.name} className="w-8 h-8 object-cover" />
+                        <img src={l.cover_url} alt={l.name} className="w-14 h-14 md:w-16 md:h-16 object-cover" />
                       ) : (
-                        <div className="w-8 h-8 bg-elevated" />
+                        <div className="w-14 h-14 md:w-16 md:h-16 bg-elevated" />
                       )}
                       <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity grid place-items-center">
                         {busy ? (
