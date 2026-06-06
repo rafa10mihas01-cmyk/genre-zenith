@@ -800,23 +800,36 @@ export default function CampanhaExecucao() {
                 campaignId={camp.id}
                 snapshot={snapshot}
                 onChanged={() => setPlanRefreshKey(k => k + 1)}
-                renderTabsRow={(extra) => (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <GenresUsedFromAllocs allocs={allocs} compact />
-                    <div className="ml-auto flex items-center gap-2 flex-wrap">
-                      <Button
-                        size="sm"
-                        onClick={() => setNewDealOpen(true)}
-                        className="gap-1.5"
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                        Novo deal
-                      </Button>
-                      {extra}
+                onNewDeal={() => setNewDealOpen(true)}
+                renderTabsRow={(extra, ctx) => {
+                  // Quando o pacote já está despachado, os CTAs (Novo deal / Pacote / Ver deals)
+                  // já aparecem dentro do header — não duplicar a linha de ações.
+                  if (ctx?.isDispatched) {
+                    return (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <GenresUsedFromAllocs allocs={allocs} compact />
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <GenresUsedFromAllocs allocs={allocs} compact />
+                      <div className="ml-auto flex items-center gap-2 flex-wrap">
+                        <Button
+                          size="sm"
+                          onClick={() => setNewDealOpen(true)}
+                          className="gap-1.5"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Novo deal
+                        </Button>
+                        {extra}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                }}
               />
+
             </div>
           ),
           curve: (

@@ -63,11 +63,13 @@ export function ExternalPackageEditor({
   snapshot,
   onChanged,
   renderTabsRow,
+  onNewDeal,
 }: {
   campaignId: string;
   snapshot: CampaignSnapshot;
   onChanged?: () => void;
-  renderTabsRow?: (extra?: React.ReactNode) => React.ReactNode;
+  renderTabsRow?: (extra?: React.ReactNode, ctx?: { isDispatched: boolean }) => React.ReactNode;
+  onNewDeal?: () => void;
 }) {
   const [pkg, setPkg] = useState<PackageRow | null>(null);
   const [items, setItems] = useState<ItemRow[]>([]);
@@ -252,45 +254,79 @@ export function ExternalPackageEditor({
     <>
     <section className="space-y-6">
       {isDispatched ? (
-        <div className="rounded-2xl border border-primary/30 bg-card overflow-hidden">
-          <div className="px-5 pt-4 pb-3 flex items-start gap-3 border-b border-border/60">
-            <div className="rounded-full bg-primary/15 p-2 shrink-0">
-              <Lock className="h-4 w-4 text-primary" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-semibold text-foreground">Pacote confirmado</span>
-                <span className="text-[10px] uppercase tracking-wide border border-primary/40 text-primary rounded px-1.5 py-0.5 font-medium">
+        <header className="bg-card border border-border rounded-2xl overflow-hidden">
+          {/* Top: contexto + ações */}
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-6 border-b border-border">
+            <div className="space-y-1 min-w-0">
+              <div className="flex items-center gap-3 flex-wrap">
+                <h2 className="text-foreground text-xl font-semibold tracking-tight">Pacote confirmado</h2>
+                <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider border border-primary/20">
                   Travado
                 </span>
               </div>
               {pkg?.confirmed_at && (
-                <div className="text-[11px] text-muted-foreground mt-0.5">
-                  Em {new Date(pkg.confirmed_at).toLocaleDateString("pt-BR")} · {dealsCount} {dealsCount === 1 ? "deal criado" : "deals criados"}
-                </div>
+                <p className="text-muted-foreground text-sm">
+                  Em {new Date(pkg.confirmed_at).toLocaleDateString("pt-BR")}
+                  <span className="mx-1.5 opacity-30">•</span>
+                  {dealsCount} {dealsCount === 1 ? "deal criado" : "deals criados"}
+                </p>
               )}
             </div>
-            <Button asChild size="sm" variant="outline" className="shrink-0">
-              <Link to={`/deals?campaign=${campaignId}`}>
-                Ver deals <ExternalLink className="h-3 w-3 ml-1.5" />
-              </Link>
-            </Button>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              {onNewDeal && (
+                <Button
+                  size="sm"
+                  onClick={onNewDeal}
+                  className="h-10 px-4 gap-1.5 font-semibold"
+                >
+                  <Plus className="h-4 w-4" />
+                  Novo deal
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setReopenOpen(true)}
+                className="h-10 px-4 gap-2"
+              >
+                <Pencil className="h-4 w-4 text-muted-foreground" />
+                Pacote
+              </Button>
+              <Button asChild size="sm" variant="outline" className="h-10 px-4 gap-2">
+                <Link to={`/deals?campaign=${campaignId}`}>
+                  Ver deals
+                  <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                </Link>
+              </Button>
+            </div>
           </div>
-          <div className="grid grid-cols-3 divide-x divide-border/60">
-            <div className="px-4 py-3 text-center">
-              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Curadores</div>
-              <div className="text-base font-semibold text-foreground tabular-nums mt-0.5">{items.length}</div>
+
+          {/* Bottom: baseline KPIs */}
+          <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-border bg-background/40">
+            <div className="px-6 py-5 flex flex-col gap-1">
+              <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">Curadores</span>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-foreground tabular-nums">{items.length}</span>
+                <span className="text-[11px] text-muted-foreground font-medium">no pacote</span>
+              </div>
             </div>
-            <div className="px-4 py-3 text-center">
-              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Streams</div>
-              <div className="text-base font-semibold text-foreground tabular-nums mt-0.5">{formatInt(totalStreams)}</div>
+            <div className="px-6 py-5 flex flex-col gap-1">
+              <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">Total Streams</span>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-foreground tabular-nums">{formatInt(totalStreams)}</span>
+                <span className="text-[11px] text-muted-foreground font-medium">projetados</span>
+              </div>
             </div>
-            <div className="px-4 py-3 text-center">
-              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Custo</div>
-              <div className="text-base font-semibold text-foreground tabular-nums mt-0.5">{formatBRL(totalCost)}</div>
+            <div className="px-6 py-5 flex flex-col gap-1">
+              <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">Investimento</span>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-foreground tabular-nums">{formatBRL(totalCost)}</span>
+                <span className="text-[11px] text-muted-foreground font-medium">valor total</span>
+              </div>
             </div>
           </div>
-        </div>
+        </header>
       ) : (
         <section className="grid grid-cols-2 md:grid-cols-6 gap-3">
           <KpiBig
@@ -333,7 +369,7 @@ export function ExternalPackageEditor({
         </section>
       )}
 
-      {renderTabsRow?.(actionButtons)}
+      {renderTabsRow?.(isDispatched ? null : actionButtons, { isDispatched })}
 
       <div className="border-t border-border" />
 
