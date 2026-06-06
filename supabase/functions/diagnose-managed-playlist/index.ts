@@ -2333,6 +2333,7 @@ Deno.serve(async (req) => {
           ai_reasoning: aiCopy?.reasoning ?? null,
           algo_name_baseline: algoName,
           algo_description_baseline: algoDescription,
+          __telemetry: tel.report(),
         },
       })
       .select()
@@ -2343,6 +2344,7 @@ Deno.serve(async (req) => {
         .update({ last_diagnosis_at: new Date().toISOString() })
         .eq("id", pl.id);
     }
+
 
     if (lockHandle) {
       await finishPlaylistOperation(supabase, lockHandle, {
