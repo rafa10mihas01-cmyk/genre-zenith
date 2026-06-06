@@ -307,6 +307,98 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
 
   return (
     <div className="space-y-4">
+      {/* PRIORIDADE — Pendências manuais. Visível no topo enquanto houver. */}
+      {pendingManualList.length > 0 && (
+        <Card className="border-amber-500/40">
+          <CardContent className="p-0">
+            <div className="px-4 py-3 border-b border-amber-500/20 bg-amber-500/[0.04] flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Hand className="h-4 w-4 text-amber-400" />
+                <div>
+                  <div className="text-sm font-semibold">
+                    Pendências manuais ({pendingManualList.length})
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Estas playlists não têm OAuth — você precisa inserir a faixa manualmente.
+                  </div>
+                </div>
+              </div>
+              <PlaylistModeBadge mode="MANUAL_ONLY" size="sm" />
+            </div>
+            <div className="divide-y divide-border">
+              {pendingManualList.map((it) => {
+                const eco = it.spotify_playlist_id ? ecoMap.get(it.spotify_playlist_id) : null;
+                const name = it.playlist_name ?? eco?.name ?? it.spotify_playlist_id ?? "Playlist";
+                const pos = it.executed_position ?? it.planned_position ?? eco?.position ?? null;
+                return (
+                  <div key={it.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/20">
+                    <Hand className="h-4 w-4 text-amber-400 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate">{name}</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        Pos. planejada: <span className="text-foreground font-medium">{pos ?? "—"}</span> · aguardando execução manual
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => markManualDone(it.id)}
+                      className="text-[11px] px-2.5 py-1 rounded border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 shrink-0"
+                    >
+                      Marcar Feito
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Métricas operacionais — o que o sistema resolveu vs o que depende de mim */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Bot className="h-4 w-4 text-primary" />
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Execução automática</span>
+            </div>
+            <div className="flex items-baseline gap-4 flex-wrap">
+              <div>
+                <div className="text-2xl font-semibold leading-none text-primary">{opsMetrics.autoDone}</div>
+                <div className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider">Concluídas</div>
+              </div>
+              <div>
+                <div className="text-2xl font-semibold leading-none text-amber-400">{opsMetrics.autoPending}</div>
+                <div className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider">Pendentes</div>
+              </div>
+              {opsMetrics.autoFailed > 0 && (
+                <div>
+                  <div className="text-2xl font-semibold leading-none text-rose-400">{opsMetrics.autoFailed}</div>
+                  <div className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider">Falharam</div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className={cn(opsMetrics.manualPending > 0 && "border-amber-500/30")}>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Hand className="h-4 w-4 text-amber-400" />
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Execução manual</span>
+            </div>
+            <div className="flex items-baseline gap-4 flex-wrap">
+              <div>
+                <div className="text-2xl font-semibold leading-none text-primary">{opsMetrics.manualDone}</div>
+                <div className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider">Concluídas</div>
+              </div>
+              <div>
+                <div className="text-2xl font-semibold leading-none text-amber-400">{opsMetrics.manualPending}</div>
+                <div className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider">Pendentes</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center justify-between flex-wrap gap-3">
