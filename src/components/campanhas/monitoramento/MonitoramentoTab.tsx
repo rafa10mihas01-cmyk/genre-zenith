@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Activity, ChevronRight, Image as ImageIcon, Users, Layers, HeartPulse, BarChart3 } from "lucide-react";
+import { Activity, ChevronDown, Image as ImageIcon, Users, Layers, HeartPulse, BarChart3, CheckCircle2 } from "lucide-react";
 import { ExecucaoView } from "./ExecucaoView";
 import { PlaylistHistoryDrawer } from "./PlaylistHistoryDrawer";
 import { PrintThumbs } from "@/components/playlist-deals/PrintThumbs";
@@ -92,22 +92,25 @@ export function MonitoramentoTab({ campaignId }: Props) {
       />
 
       <Tabs value={subtab} onValueChange={setSubtab} className="space-y-4">
-        <div className="sticky top-0 z-20 -mx-px bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70 py-2 border-b border-border/40">
-          <TabsList className="grid grid-cols-4 w-full md:w-auto md:inline-grid">
-            <TabsTrigger value="visao" className="gap-1.5">
-              <BarChart3 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Visão geral</span><span className="sm:hidden">Visão</span>
-            </TabsTrigger>
-            <TabsTrigger value="curadores" className="gap-1.5">
-              <Users className="h-3.5 w-3.5" /> Curadores
-            </TabsTrigger>
-            <TabsTrigger value="ecossistema" className="gap-1.5">
-              <Layers className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Ecossistema</span><span className="sm:hidden">Eco</span>
-            </TabsTrigger>
-            <TabsTrigger value="saude" className="gap-1.5">
-              <HeartPulse className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Saúde da entrega</span><span className="sm:hidden">Saúde</span>
-            </TabsTrigger>
+        <div className="-mx-px border-b border-border/40">
+          <TabsList className="bg-transparent rounded-none p-0 h-auto gap-1 w-full md:w-auto justify-start">
+            {[
+              { v: "visao", label: "Visão geral", Icon: BarChart3 },
+              { v: "curadores", label: "Curadores", Icon: Users },
+              { v: "ecossistema", label: "Ecossistema", Icon: Layers },
+              { v: "saude", label: "Saúde da entrega", Icon: HeartPulse },
+            ].map(({ v, label, Icon }) => (
+              <TabsTrigger
+                key={v}
+                value={v}
+                className="gap-1.5 rounded-none bg-transparent px-4 py-2.5 text-muted-foreground border-b-2 border-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-primary data-[state=active]:shadow-none -mb-px"
+              >
+                <Icon className="h-3.5 w-3.5" /> {label}
+              </TabsTrigger>
+            ))}
           </TabsList>
         </div>
+
 
         <TabsContent value="visao" className="mt-0">
           <ExecucaoView campaignId={campaignId} onOpenHistory={setDrawerPlaylistId} mode="all" />
@@ -168,46 +171,48 @@ function BaselineStatus({
     ? new Date(latestRunAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
     : null;
 
+  const toneIconClass =
+    tone === "success" ? "text-success" : tone === "warning" ? "text-warning" : "text-muted-foreground";
+
   return (
     <Card className="overflow-hidden !p-0">
-      <details className="group/baseline [&[open]>summary_.bchev]:rotate-90">
-        <summary className="cursor-pointer list-none h-[64px] px-4 flex items-center gap-4 hover:bg-muted/20 transition-colors">
+      <details className="group/baseline [&[open]>summary_.bchev]:rotate-180">
+        <summary className="cursor-pointer list-none min-h-[72px] px-5 py-3 flex items-center gap-4 hover:bg-muted/20 transition-colors">
           <div className="relative shrink-0">
-            <span className={`block h-2 w-2 rounded-full ${TONE_DOT[tone]}`} aria-hidden />
+            <CheckCircle2 className={`h-5 w-5 ${toneIconClass}`} aria-hidden />
             {tone === "warning" && (
-              <span className={`absolute inset-0 rounded-full ${TONE_DOT[tone]} opacity-60 animate-ping`} aria-hidden />
+              <span className="absolute inset-0 rounded-full bg-warning opacity-30 animate-ping" aria-hidden />
             )}
           </div>
 
-          <div className={`text-[13px] font-semibold leading-none whitespace-nowrap ${TONE_TEXT[tone]}`}>
-            {label}
-          </div>
-
-          {capturedAt && (
-            <div className="hidden md:flex items-center gap-3 text-[11px] text-muted-foreground tabular-nums leading-none">
-              <span className="h-3 w-px bg-border/60" />
-              <span>{dateLabel} {timeLabel}</span>
-              <span className="h-3 w-px bg-border/60" />
-              <span>{playlists} playlists</span>
-              {latestTime && (
-                <>
-                  <span className="h-3 w-px bg-border/60" />
-                  <span>Última coleta {latestTime}</span>
-                </>
-              )}
+          <div className="min-w-0 flex items-center gap-3 flex-wrap">
+            <div className={`text-[15px] font-semibold leading-none whitespace-nowrap ${TONE_TEXT[tone]}`}>
+              {label}
             </div>
-          )}
-
-          <div className="md:hidden flex items-center gap-2 text-[11px] text-muted-foreground tabular-nums">
-            <span>{playlists} playlists</span>
-            {latestTime && <span>· {latestTime}</span>}
+            {capturedAt && (
+              <div className="text-[12px] text-muted-foreground tabular-nums leading-none flex items-center gap-2">
+                <span>{dateLabel}, {timeLabel}</span>
+                <span className="text-muted-foreground/60">•</span>
+                <span>{playlists} playlists</span>
+              </div>
+            )}
           </div>
 
-          <div className="ml-auto flex items-center gap-1.5 text-[11px] text-muted-foreground shrink-0">
-            <span className="hidden sm:inline">Ver detalhes</span>
-            <ChevronRight className="bchev h-3.5 w-3.5 transition-transform" />
+          <div className="ml-auto flex items-center gap-3 shrink-0">
+            {latestTime && (
+              <div className="hidden sm:flex flex-col items-end leading-tight">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Última coleta</span>
+                <span className="text-[13px] font-semibold tabular-nums text-foreground">{latestTime}</span>
+              </div>
+            )}
+            <div className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md border border-border/60 bg-card/40 hover:bg-muted/30 transition-colors text-[12px] text-foreground">
+              <ImageIcon className="h-3.5 w-3.5" />
+              <span>Ver prints</span>
+              <ChevronDown className="bchev h-3.5 w-3.5 transition-transform" />
+            </div>
           </div>
         </summary>
+
 
         <div className="border-t border-border/60 px-4 py-4 bg-background/40 space-y-3 max-h-[60vh] overflow-y-auto overscroll-contain">
 

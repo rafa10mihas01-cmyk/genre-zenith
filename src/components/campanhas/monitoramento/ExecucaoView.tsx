@@ -224,6 +224,44 @@ export function ExecucaoView({
         lastCapturedAt={lastCapturedAt}
       />
 
+      {/* RESULTADO DA CAMPANHA — Atual / Variação / Playlists + sparkline (apenas Visão geral) */}
+      {mode === "all" && (
+        <Card>
+          <CardContent className="p-5 md:p-6">
+            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold mb-4">
+              Resultado da campanha
+            </div>
+            <div className="flex flex-col lg:flex-row lg:items-center gap-6">
+              <div className="grid grid-cols-3 gap-6 md:gap-10 flex-1">
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[12px] text-muted-foreground">Atual</span>
+                  <span className="text-[28px] md:text-[32px] font-semibold tabular-nums text-foreground leading-none">
+                    {formatInt(filteredTotals.current)}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[12px] text-muted-foreground">Variação</span>
+                  <span className={cn(
+                    "text-[28px] md:text-[32px] font-semibold tabular-nums leading-none",
+                    filteredTotals.delta > 0 ? "text-primary" : "text-foreground",
+                  )}>
+                    {filteredTotals.delta > 0 ? "+" : ""}{formatInt(filteredTotals.delta)}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[12px] text-muted-foreground">Playlists monitoradas</span>
+                  <span className="text-[28px] md:text-[32px] font-semibold tabular-nums text-foreground leading-none">
+                    {formatInt(filtered.length)}
+                  </span>
+                </div>
+              </div>
+              <div className="w-full lg:w-[420px] shrink-0">
+                <GrowthSparkline />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {totals.conflictCount > 0 && mode === "all" && (
         <Card className="border-destructive/40 bg-destructive/5">
@@ -242,8 +280,8 @@ export function ExecucaoView({
         </Card>
       )}
 
-      {/* Resumo por curador: apenas na visão geral OU na aba Curadores */}
-      {(mode === "all" || mode === "curators") && (
+      {/* Resumo por curador: apenas na aba Curadores (sai da Visão geral pra deixar o topo limpo como o mockup) */}
+      {mode === "curators" && (
         <CuratorSummary
           rows={rows}
           curators={curators}
@@ -255,7 +293,7 @@ export function ExecucaoView({
         />
       )}
 
-      {/* Filtros — barra única, compacta, sem card gigante */}
+      {/* Filtros — barra única, compacta */}
       <div className="flex items-center gap-2 flex-wrap">
         <div className="relative flex-1 min-w-[180px]">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -268,9 +306,9 @@ export function ExecucaoView({
         </div>
         {!scopeLocked && (
           <Select value={scope} onValueChange={(v) => setScope(v as any)}>
-            <SelectTrigger className="h-9 w-[150px] shrink-0"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-9 w-[180px] shrink-0"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Atribuição</SelectItem>
+              <SelectItem value="all">Todas atribuições</SelectItem>
               <SelectItem value="ecosystem">Ecossistema</SelectItem>
               <SelectItem value="curator">Curadores</SelectItem>
               <SelectItem value="organic">Orgânico</SelectItem>
@@ -279,9 +317,9 @@ export function ExecucaoView({
         )}
         {(mode === "all" || mode === "curators") && (
           <Select value={curatorFilter} onValueChange={setCuratorFilter}>
-            <SelectTrigger className="h-9 w-[170px] shrink-0"><SelectValue placeholder="Curador" /></SelectTrigger>
+            <SelectTrigger className="h-9 w-[180px] shrink-0"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Curador</SelectItem>
+              <SelectItem value="all">Todos curadores</SelectItem>
               {curatorOptions.map((c) => (
                 <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
               ))}
@@ -289,45 +327,34 @@ export function ExecucaoView({
           </Select>
         )}
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="h-9 w-[140px] shrink-0"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectTrigger className="h-9 w-[160px] shrink-0"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Status</SelectItem>
+            <SelectItem value="all">Todos status</SelectItem>
             <SelectItem value="matched">Matched</SelectItem>
             <SelectItem value="pending_match">Pending</SelectItem>
             <SelectItem value="baseline_conflict">Conflito baseline</SelectItem>
             <SelectItem value="not_found_yet">Not found</SelectItem>
           </SelectContent>
         </Select>
-        <Button variant="outline" size="sm" className="h-9 px-3 shrink-0" onClick={exportCsv}>
-          <Download className="h-4 w-4 md:mr-1.5" /> <span className="hidden md:inline">CSV</span>
+        <Button variant="outline" size="sm" className="h-9 px-3 shrink-0 ml-auto" onClick={exportCsv}>
+          <Download className="h-4 w-4 mr-1.5" /> Exportar CSV
         </Button>
       </div>
 
-      {/* RESULTADOS — cabeçalho enfatizado acima da tabela */}
-      <div className="pt-2">
+      {/* Header da tabela — contagem à esquerda, Atual/Δ à direita */}
+      <div>
         <div className="flex items-end justify-between gap-4 mb-2 px-1">
-          <div>
-            <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-bold">
-              Resultados
-            </div>
-            <div className="text-[13px] text-foreground font-semibold mt-0.5 tabular-nums">
-              {filtered.length} {filtered.length === 1 ? "playlist" : "playlists"}
-            </div>
+          <div className="text-[13px] text-foreground font-semibold tabular-nums">
+            {filtered.length} {filtered.length === 1 ? "playlist" : "playlists"}
           </div>
           <div className="flex items-center gap-4 md:gap-6 text-[11px] tabular-nums">
-            <div className="flex flex-col items-end">
-              <span className="text-[9px] uppercase tracking-wider text-muted-foreground">Atual</span>
-              <span className="text-sm font-semibold text-foreground leading-tight">{formatInt(filteredTotals.current)}</span>
-            </div>
-            <div className="flex flex-col items-end">
-              <span className="text-[9px] uppercase tracking-wider text-muted-foreground">Δ</span>
-              <span className={cn(
-                "text-sm font-semibold leading-tight",
-                filteredTotals.delta > 0 ? "text-primary" : "text-muted-foreground",
-              )}>
-                {filteredTotals.delta > 0 ? "+" : ""}{formatInt(filteredTotals.delta)}
-              </span>
-            </div>
+            <span className="text-muted-foreground">Atual <span className="text-foreground font-semibold">{formatInt(filteredTotals.current)}</span></span>
+            <span className="text-muted-foreground">Δ <span className={cn(
+              "font-semibold",
+              filteredTotals.delta > 0 ? "text-primary" : "text-muted-foreground",
+            )}>
+              {filteredTotals.delta > 0 ? "+" : ""}{formatInt(filteredTotals.delta)}
+            </span></span>
           </div>
         </div>
 
@@ -352,6 +379,42 @@ export function ExecucaoView({
     </div>
   );
 }
+
+/** Sparkline puramente decorativa (linha verde subindo) — visual placeholder do mockup. */
+function GrowthSparkline() {
+  const points = [10, 18, 16, 28, 24, 36, 34, 48, 56, 52, 70, 78, 92];
+  const w = 420;
+  const h = 100;
+  const stepX = w / (points.length - 1);
+  const maxY = Math.max(...points);
+  const path = points
+    .map((p, i) => `${i === 0 ? "M" : "L"} ${i * stepX} ${h - (p / maxY) * (h - 10) - 4}`)
+    .join(" ");
+  const areaPath = `${path} L ${w} ${h} L 0 ${h} Z`;
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-[100px]" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.25" />
+          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill="url(#sparkFill)" />
+      <path d={path} fill="none" stroke="hsl(var(--primary))" strokeWidth="1.75" strokeLinejoin="round" strokeLinecap="round" />
+      {points.map((p, i) => (
+        <circle
+          key={i}
+          cx={i * stepX}
+          cy={h - (p / maxY) * (h - 10) - 4}
+          r={i === points.length - 1 ? 3.5 : 2}
+          fill="hsl(var(--primary))"
+        />
+      ))}
+    </svg>
+  );
+}
+
+
 
 /**
  * Hero KPI — número gigante de crescimento (56-72px) +
@@ -390,32 +453,27 @@ function HeroGrowth({
   return (
     <Card>
       <CardContent className="p-5 md:p-6">
-        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
-          {/* Hero number */}
-          <div className="min-w-0">
-            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold flex items-center gap-2">
-              <TrendingUp className="h-3 w-3" />
-              {heroLabel}
-            </div>
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+          {/* Hero number — número GIGANTE em cima, label embaixo */}
+          <div className="min-w-0 flex-1">
             <div
               className={cn(
-                "font-semibold tabular-nums leading-none mt-2 tracking-tight",
+                "font-semibold tabular-nums leading-none tracking-tight",
                 "text-[56px] md:text-[64px] lg:text-[72px]",
                 valueClass,
               )}
             >
               {sign}{formatInt(heroValue)}
             </div>
-            <div className="text-[11px] text-muted-foreground mt-2 tabular-nums">
-              {mode === "all"
-                ? <>{totals.n} playlists monitoradas · última coleta {lastLabel}</>
-                : <>{filteredCount} playlists no escopo · última coleta {lastLabel}</>}
+            <div className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground font-bold mt-3 flex items-center gap-1.5">
+              {heroLabel}
+              <Activity className="h-3 w-3 opacity-60" />
             </div>
           </div>
 
-          {/* Métricas secundárias — só na visão geral */}
+          {/* Métricas secundárias — colunas alinhadas no topo, só na visão geral */}
           {mode === "all" && (
-            <div className="flex items-stretch gap-0 divide-x divide-border/60 border-t lg:border-t-0 lg:border-l border-border/60 pt-4 lg:pt-0 lg:pl-6">
+            <div className="grid grid-cols-3 gap-6 md:gap-10 lg:gap-12 shrink-0 lg:pt-2">
               <SecondaryMetric icon={Layers} label="Ecossistema" value={totals.eco} />
               <SecondaryMetric icon={Users} label="Curadores" value={totals.curator} />
               <SecondaryMetric icon={Activity} label="Orgânico" value={totals.organic} />
@@ -438,17 +496,20 @@ function SecondaryMetric({
 }) {
   const sign = value > 0 ? "+" : "";
   return (
-    <div className="px-4 md:px-5 first:pl-0 lg:first:pl-0 flex flex-col justify-center min-w-[90px]">
-      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
-        <Icon className="h-3 w-3" />
-        {label}
+    <div className="flex flex-col gap-2 min-w-[90px]">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[12px] text-muted-foreground font-medium">
+          {label}
+        </span>
+        <Icon className="h-3.5 w-3.5 text-muted-foreground/70" />
       </div>
-      <div className="text-[20px] md:text-[22px] font-semibold tabular-nums text-foreground leading-tight mt-1">
+      <div className="text-[26px] md:text-[28px] font-semibold tabular-nums text-foreground leading-none">
         {sign}{formatInt(value)}
       </div>
     </div>
   );
 }
+
 
 
 function VirtualTable({
