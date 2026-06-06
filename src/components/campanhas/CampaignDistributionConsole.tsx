@@ -1044,6 +1044,42 @@ function KpiTile({
   );
 }
 
+// ---- Mode count chip (header de classificação) ----
+function ModeCountChip({
+  icon: Icon,
+  label,
+  value,
+  tone,
+  tooltip,
+}: {
+  icon: typeof Bot;
+  label: string;
+  value: number;
+  tone: "primary" | "amber" | "muted";
+  tooltip: string;
+}) {
+  const cls =
+    tone === "primary"
+      ? "border-primary/30 bg-primary/[0.06]"
+      : tone === "amber"
+      ? "border-amber-500/30 bg-amber-500/[0.06]"
+      : "border-border bg-muted/30";
+  const iconCls =
+    tone === "primary" ? "text-primary" : tone === "amber" ? "text-amber-400" : "text-muted-foreground";
+  return (
+    <div
+      className={cn("inline-flex items-center gap-2 px-3 py-2 rounded-lg border", cls)}
+      title={tooltip}
+    >
+      <Icon className={cn("h-4 w-4 shrink-0", iconCls)} />
+      <div className="flex items-baseline gap-1.5">
+        <span className="text-lg font-semibold leading-none">{value}</span>
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{label}</span>
+      </div>
+    </div>
+  );
+}
+
 // ---- Playlist row ----
 type PlaylistRowState = {
   status: "done" | "manual_done" | "manual_pending" | "pending" | "scheduled" | "failed" | "idle";
@@ -1068,6 +1104,7 @@ function PlaylistRow({
     spotifyUrl: string | null;
     plannedPosition: number | null;
     plannedFor: string | null;
+    executionMode?: PlaylistExecutionMode;
     state: PlaylistRowState;
   };
   onRetry?: () => void | Promise<void>;
@@ -1085,6 +1122,7 @@ function PlaylistRow({
   };
   const cfg = statusCfg[row.state.status];
   const Icon = cfg.icon;
+
 
   return (
     <div className="flex items-center gap-3 px-4 py-3 hover:bg-muted/20">
