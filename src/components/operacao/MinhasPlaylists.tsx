@@ -382,7 +382,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       .select("id, spotify_user_id, display_name, email, is_default")
       .order("is_default", { ascending: false })
       .order("display_name", { ascending: true, nullsFirst: false });
-    setAccounts((data ?? []) as SpotifyAccountLite[]);
+    setAccounts(((data ?? []) as unknown) as SpotifyAccountLite[]);
   }
 
   async function loadPendingSyncs() {
