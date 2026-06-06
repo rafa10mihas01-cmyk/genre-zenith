@@ -528,6 +528,7 @@ Deno.serve(async (req) => {
     const nicheTerms: string[] = baseNiche ? (NICHE_ADJACENCY[baseNiche] ?? [baseNiche]) : [];
 
     // 3) Faixas atuais da playlist gerenciada
+    tel.start("load_current_tracks");
     const { data: currentTracks } = await supabase
       .from("managed_playlist_tracks")
       .select("spotify_track_id, track_name, artist_name, position, added_at, isrc, duration_ms")
@@ -535,6 +536,8 @@ Deno.serve(async (req) => {
       .order("position", { ascending: true });
 
     const trackIds = (currentTracks ?? []).map((t: any) => t.spotify_track_id).filter(Boolean);
+    tel.end("load_current_tracks", "ok", `${trackIds.length} faixas`);
+
 
     // 3.a) CAMPANHAS ATIVAS NA PLAYLIST — faixas com deal em andamento entram em estado PROTEGIDO.
     // O analisador NÃO pode recomendar remover, rebaixar ou promover uma faixa em campanha ativa:
