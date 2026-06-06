@@ -362,6 +362,7 @@ export function ExecucaoView({
           <SelectItem value="pending_match">Pending</SelectItem>
           <SelectItem value="baseline_conflict">Conflito baseline</SelectItem>
           <SelectItem value="not_found_yet">Not found</SelectItem>
+          <SelectItem value="no_data">Sem dados</SelectItem>
         </SelectContent>
       </Select>
       <Button variant="outline" size="sm" className="h-9 px-3 shrink-0 ml-auto" onClick={exportCsv}>
