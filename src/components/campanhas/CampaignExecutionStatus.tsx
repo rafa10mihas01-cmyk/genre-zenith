@@ -177,17 +177,21 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
       const nb = ecoMap.get(bId)?.name ?? bId;
       return na.localeCompare(nb);
     });
-  }, [jobs, ecoMap]);
+  }, [jobs, manualItems, ecoMap]);
 
   const totals = useMemo(() => {
-    return jobs.reduce(
+    const acc = jobs.reduce(
       (acc, j) => {
         acc[j.status] = (acc[j.status] ?? 0) + 1;
         return acc;
       },
       {} as Record<string, number>,
     );
-  }, [jobs]);
+    for (const it of manualItems) {
+      acc[it.status] = (acc[it.status] ?? 0) + 1;
+    }
+    return acc;
+  }, [jobs, manualItems]);
 
   const toggle = (id: string) => {
     setExpanded((prev) => {
@@ -271,11 +275,11 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
             <div>
               <div className="text-sm font-semibold">Status das adições por playlist</div>
               <div className="text-xs text-muted-foreground">
-                Atualiza em tempo real. {jobs.length} job(s) · {grouped.length} playlist(s)
+                Atualiza em tempo real. {jobs.length} job(s) · {manualItems.length} manual(is) · {grouped.length} playlist(s)
               </div>
             </div>
             <div className="flex items-center gap-2 text-[11px]">
-              {(["pending", "claimed", "done", "failed"] as const).map((s) =>
+              {(["pending", "claimed", "done", "failed", "MANUAL_PENDING", "AUTO_FAILED_FALLBACK_MANUAL", "MANUAL_DONE"] as const).map((s) =>
                 totals[s] ? (
                   <span key={s} className="inline-flex items-center gap-1">
                     <StatusBadge status={s} />
