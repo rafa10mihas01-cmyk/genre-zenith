@@ -756,10 +756,10 @@ function VirtualTable({
                         Number(r.delta) > 0 ? "text-primary" : "text-muted-foreground",
                       )}
                     >
-                      {Number(r.delta) > 0 ? "+" : ""}{formatInt(Number(r.delta ?? 0))}
+                      {r.baseline_plays == null && r.current_plays == null ? "—" : (Number(r.delta) > 0 ? "+" : "") + formatInt(Number(r.delta ?? 0))}
                     </div>
                     <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
-                      {formatInt(Number(r.current_plays ?? 0))}
+                      {r.current_plays == null ? "sem dados" : formatInt(Number(r.current_plays))}
                     </div>
                   </div>
                 </div>
