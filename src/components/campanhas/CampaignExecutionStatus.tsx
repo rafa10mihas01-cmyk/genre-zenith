@@ -92,7 +92,7 @@ function JobTypeBadge({ type }: { type: string }) {
 export function CampaignExecutionStatus({ campaignId }: Props) {
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [manualItems, setManualItems] = useState<ManualRow[]>([]);
-  const [ecoMap, setEcoMap] = useState<Map<string, { name: string; position: number | null }>>(new Map());
+  const [ecoMap, setEcoMap] = useState<Map<string, { name: string; position: number | null; executionMode: PlaylistExecutionMode }>>(new Map());
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
@@ -114,15 +114,19 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
         .limit(500),
       supabase
         .from("campaign_eco_allocations")
-        .select("managed_playlist_id, position, managed_playlists(name, spotify_playlist_id)")
+        .select("managed_playlist_id, position, managed_playlists(name, spotify_playlist_id, execution_mode)")
         .eq("campaign_id", campaignId),
     ]);
     setJobs((jobsRes.data ?? []) as JobRow[]);
     setManualItems((manualRes.data ?? []) as ManualRow[]);
-    const map = new Map<string, { name: string; position: number | null }>();
+    const map = new Map<string, { name: string; position: number | null; executionMode: PlaylistExecutionMode }>();
     for (const r of (ecoRes.data ?? []) as unknown as EcoRow[]) {
       const spid = r.managed_playlists?.spotify_playlist_id;
-      if (spid) map.set(spid, { name: r.managed_playlists?.name ?? spid, position: r.position });
+      if (spid) map.set(spid, {
+        name: r.managed_playlists?.name ?? spid,
+        position: r.position,
+        executionMode: (r.managed_playlists?.execution_mode ?? "API_READY") as PlaylistExecutionMode,
+      });
     }
     setEcoMap(map);
     setLoading(false);
