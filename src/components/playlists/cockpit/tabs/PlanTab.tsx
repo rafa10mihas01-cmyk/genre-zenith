@@ -16,6 +16,8 @@ import { BucketReorder } from "../shared/BucketReorder";
 import { BucketAdd } from "../shared/BucketAdd";
 import { EditorialBanner } from "../shared/EditorialBanner";
 import { PlanImpactCard } from "../shared/PlanImpactCard";
+import { PlanResultCard } from "../shared/PlanResultCard";
+import { useLastPlanResult } from "../hooks/useLastPlanResult";
 import { computePlanImpact } from "../shared/computePlanImpact";
 import { TabShell } from "../shared/ds/TabShell";
 import { TabContextBanner } from "../shared/ds/TabContextBanner";
@@ -63,6 +65,7 @@ export function PlanTab() {
   if (!diag) return null;
 
   const { data: brain } = usePlaylistBrain(canonicalPlaylistId ?? undefined);
+  const { data: lastResult } = useLastPlanResult(managedId ?? null);
   const confidence = brain?.confidence_score ?? null;
   const trend = brain?.health_trend ?? "sem_dados";
   const tMeta = trendMeta(trend);
@@ -339,6 +342,9 @@ export function PlanTab() {
 
               {/* Impacto esperado — projeção pré-execução (Fase 8.1) */}
               <PlanImpactCard />
+
+              {/* Resultado da última execução avaliada (Fase 8.5) */}
+              <PlanResultCard snapshot={lastResult} />
 
               {/* CTA único — footer da seção Ações */}
               <Card className="p-4 md:p-5 bg-primary/5 border-primary/30 flex flex-col items-center text-center gap-3 md:flex-row md:items-center md:text-left md:justify-between">
