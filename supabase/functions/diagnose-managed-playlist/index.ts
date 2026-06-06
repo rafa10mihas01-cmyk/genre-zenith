@@ -379,10 +379,16 @@ Deno.serve(async (req) => {
     if (!lockResult.ok) return jr(lockedResponseBody(lockResult), 423);
     lockHandle = lockResult;
 
+    // === TELEMETRIA (Fase 0A) — passiva, não altera fluxo ===
+    const tel = new DiagnoseTelemetry();
+
     // 1) Snapshot fresco das faixas atuais (best-effort — se falhar, segue com cache)
     // Passa skip_lock=true porque já seguramos o lock DIAGNOSE_ENGINE.
     const authHeader = req.headers.get("Authorization") ?? `Bearer ${SERVICE_KEY}`;
+    tel.start("sync_tracks");
     const syncRes = await syncTracks(authHeader, pl.id).catch((e) => ({ ok: false, error: String(e) }));
+    tel.end("sync_tracks", (syncRes as any)?.ok ? "ok" : "error", (syncRes as any)?.ok ? undefined : "sync falhou");
+    if (!(syncRes as any)?.ok) tel.failures.sync_failed = true;
 
     // 2) Carrega modelo, benchmark, concorrentes, faixas atuais e ecosystem scores
     let model: any = null;
@@ -393,8 +399,12 @@ Deno.serve(async (req) => {
     let genreArtistsTop: { artist: string; count: number }[] = [];
     let genreName: string | null = null;
 
+    if (!pl.genre_id) tel.failures.genre_missing = true;
+
     if (pl.genre_id) {
+      tel.start("load_model_benchmark_competitors");
       const [{ data: m }, { data: b }, { data: comps }, { data: gRow }] = await Promise.all([
+
         supabase.from("genre_models")
           .select("palavras_chave, padroes_nome, musicas_recorrentes, insights")
           .eq("genre_id", pl.genre_id).maybeSingle(),
