@@ -38,14 +38,22 @@ type SortKey = "delta" | "current" | "baseline" | "name";
 const ROW_H = 64;
 const ROW_H_MOBILE = 56;
 
-export function ExecucaoView({ campaignId, onOpenHistory }: { campaignId: string; onOpenHistory?: (playlistId: string) => void }) {
+export function ExecucaoView({
+  campaignId,
+  onOpenHistory,
+  initialScope = "all",
+}: {
+  campaignId: string;
+  onOpenHistory?: (playlistId: string) => void;
+  initialScope?: "all" | "ecosystem" | "curator" | "organic";
+}) {
   const [rows, setRows] = useState<GrowthRow[] | null>(null);
   const [curators, setCurators] = useState<Record<string, CuratorMeta>>({});
   const [statuses, setStatuses] = useState<Record<string, string>>({});
 
   // filters
   const [q, setQ] = useState("");
-  const [scope, setScope] = useState<"all" | "ecosystem" | "curator" | "organic">("all");
+  const [scope, setScope] = useState<"all" | "ecosystem" | "curator" | "organic">(initialScope);
   const [curatorFilter, setCuratorFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sort, setSort] = useState<SortKey>("delta");
