@@ -689,7 +689,7 @@ export function CampaignDistributionConsole({
             </div>
 
           </div>
-          {loadingJobs ? (
+          {loadingJobs || loadingManual ? (
             <div className="p-4 space-y-2">
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
@@ -886,11 +886,12 @@ function KpiTile({
 
 // ---- Playlist row ----
 type PlaylistRowState = {
-  status: "done" | "pending" | "scheduled" | "failed" | "idle";
+  status: "done" | "manual_done" | "manual_pending" | "pending" | "scheduled" | "failed" | "idle";
   scheduledFor: string | null;
   lastError: string | null;
   jobId: string | null;
   completedAt: string | null;
+  executedPosition: number | null;
   validationStatus: string | null;
   validationPosition: number | null;
   validatedAt: string | null;
@@ -915,6 +916,8 @@ function PlaylistRow({
   const initial = row.name.charAt(0).toUpperCase();
   const statusCfg: Record<PlaylistRowState["status"], { label: string; cls: string; icon: typeof Clock }> = {
     done: { label: "Adicionada", cls: "bg-primary/15 text-primary border-primary/30", icon: CheckCircle2 },
+    manual_done: { label: "Feito manual", cls: "bg-primary/15 text-primary border-primary/30", icon: Hand },
+    manual_pending: { label: "Manual pendente", cls: "bg-amber-500/15 text-amber-400 border-amber-500/30", icon: Hand },
     pending: { label: "Pendente", cls: "bg-amber-500/15 text-amber-400 border-amber-500/30", icon: Clock },
     scheduled: { label: "Agendada", cls: "bg-blue-500/15 text-blue-400 border-blue-500/30", icon: Activity },
     failed: { label: "Falhou", cls: "bg-rose-500/15 text-rose-400 border-rose-500/30", icon: XCircle },
