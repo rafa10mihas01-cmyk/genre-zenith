@@ -150,6 +150,7 @@ export function CampaignDistributionConsole({
   const [bot, setBot] = useState<BotHealth | null>(null);
   const [retrying, setRetrying] = useState(false);
   const [forcing, setForcing] = useState(false);
+  const [busyManualId, setBusyManualId] = useState<string | null>(null);
 
   // --- carrega jobs ---
   const loadJobs = async () => {
@@ -352,11 +353,15 @@ export function CampaignDistributionConsole({
         const url = a.managed_playlists?.spotify_url ?? "";
         const spid = spotifyPlaylistIdFromAllocation(a);
         const idleState: PlaylistState = { status: "idle", scheduledFor: null, lastError: null, jobId: null, completedAt: null, executedPosition: null, validationStatus: null, validationPosition: null, validatedAt: null };
-        const state: PlaylistState = spid ? (manualStateBySpid.get(spid) ?? stateBySpid.get(spid) ?? idleState) : idleState;
+        const manualItem = spid ? (manualItems.find((it) => it.spotify_playlist_id === spid) ?? null) : null;
         const realStart = realStartByAllocation.get(a.id) ?? a.start_day ?? 1;
         // Fonte de verdade = managed_playlists.execution_mode (mesmo campo que o planner usa).
         // NUNCA chutar API_READY quando o campo vier ausente — isso mente pro operador.
         const executionMode: PlaylistExecutionMode = (a.managed_playlists?.execution_mode ?? null) as PlaylistExecutionMode;
+        const plannedManualState: PlaylistState = { ...idleState, status: "manual_pending" };
+        const state: PlaylistState = spid
+          ? (manualStateBySpid.get(spid) ?? stateBySpid.get(spid) ?? (executionMode === "MANUAL_ONLY" ? plannedManualState : idleState))
+          : (executionMode === "MANUAL_ONLY" ? plannedManualState : idleState);
         return {
           allocId: a.id,
           spid,
@@ -366,6 +371,7 @@ export function CampaignDistributionConsole({
           plannedPosition: ecoPositionByAllocation.get(a.id) ?? null,
           plannedFor: plannedDateFor(realStart, planBaseIso),
           executionMode,
+          manualItem,
           state,
         };
       })
@@ -381,7 +387,7 @@ export function CampaignDistributionConsole({
         if (pa !== pb) return pa - pb;
         return a.name.localeCompare(b.name);
       });
-  }, [allocations, ecoPositionByAllocation, stateBySpid, manualStateBySpid, planBaseIso, realStartByAllocation]);
+  }, [allocations, ecoPositionByAllocation, stateBySpid, manualStateBySpid, manualItems, planBaseIso, realStartByAllocation]);
 
   // Particionamento por modo de execução — espelha o que o planner decidiu.
   const rowsByMode = useMemo(() => {
@@ -427,6 +433,20 @@ export function CampaignDistributionConsole({
     } finally {
       setRetrying(false);
     }
+  };
+
+  const handleMarkManualDone = async (manualId: string) => {
+    setBusyManualId(manualId);
+    const { error } = await supabase.functions.invoke("mark-manual-distribution-done", {
+      body: { id: manualId, observacao: null },
+    });
+    setBusyManualId(null);
+    if (error) {
+      toast.error("Não foi possível marcar como feito");
+      return;
+    }
+    toast.success("Execução manual concluída");
+    await loadManualItems();
   };
 
   const handleForcePositions = async () => {
@@ -805,6 +825,8 @@ export function CampaignDistributionConsole({
                       key={r.allocId}
                       row={r}
                       onRetry={r.state.jobId ? () => handleRetryOne(r.state.jobId!) : undefined}
+                      onMarkManualDone={r.manualItem && r.manualItem.status !== "MANUAL_DONE" ? () => handleMarkManualDone(r.manualItem!.id) : undefined}
+                      markingManual={r.manualItem ? busyManualId === r.manualItem.id : false}
                     />
                   ))}
                 </div>
@@ -834,6 +856,8 @@ export function CampaignDistributionConsole({
                       key={r.allocId}
                       row={r}
                       onRetry={r.state.jobId ? () => handleRetryOne(r.state.jobId!) : undefined}
+                      onMarkManualDone={r.manualItem && r.manualItem.status !== "MANUAL_DONE" ? () => handleMarkManualDone(r.manualItem!.id) : undefined}
+                      markingManual={r.manualItem ? busyManualId === r.manualItem.id : false}
                     />
                   ))}
                 </div>
@@ -1097,6 +1121,8 @@ type PlaylistRowState = {
 function PlaylistRow({
   row,
   onRetry,
+  onMarkManualDone,
+  markingManual,
 }: {
   row: {
     allocId: string;
@@ -1107,9 +1133,12 @@ function PlaylistRow({
     plannedPosition: number | null;
     plannedFor: string | null;
     executionMode?: PlaylistExecutionMode;
+    manualItem?: ManualQueueRow | null;
     state: PlaylistRowState;
   };
   onRetry?: () => void | Promise<void>;
+  onMarkManualDone?: () => void | Promise<void>;
+  markingManual?: boolean;
 }) {
 
   const initial = row.name.charAt(0).toUpperCase();
@@ -1213,6 +1242,13 @@ function PlaylistRow({
         <Button size="sm" variant="ghost" onClick={() => onRetry()} className="h-7 px-2 text-[11px] shrink-0">
           <RefreshCw className="h-3 w-3 mr-1" />
           Retentar
+        </Button>
+      )}
+
+      {row.state.status === "manual_pending" && onMarkManualDone && (
+        <Button size="sm" onClick={() => onMarkManualDone()} disabled={markingManual} className="h-8 shrink-0">
+          {markingManual ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <CheckCircle2 className="h-3 w-3 mr-1" />}
+          Marcar feito
         </Button>
       )}
     </div>

@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 import {
   CheckCircle2, Clock, XCircle, Loader2, ArrowDownUp, Plus,
   AlertCircle, ChevronDown, ChevronRight, Activity, Hand, Bot,
@@ -95,6 +97,7 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
   const [ecoMap, setEcoMap] = useState<Map<string, { name: string; position: number | null; executionMode: PlaylistExecutionMode }>>(new Map());
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [busyManualId, setBusyManualId] = useState<string | null>(null);
 
   const load = async () => {
     const [jobsRes, manualRes, ecoRes] = await Promise.all([
@@ -219,15 +222,25 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
     [manualItems],
   );
 
+  const fallbackManualList = useMemo(() => {
+    const queuedSpids = new Set(manualItems.map((it) => it.spotify_playlist_id).filter(Boolean));
+    return Array.from(ecoMap.entries())
+      .filter(([spid, eco]) => eco.executionMode === "MANUAL_ONLY" && !queuedSpids.has(spid))
+      .map(([spid, eco]) => ({ spid, ...eco }));
+  }, [ecoMap, manualItems]);
+
   const markManualDone = async (id: string) => {
-    const { error } = await supabase
-      .from("manual_distribution_queue")
-      .update({ status: "MANUAL_DONE", completed_at: new Date().toISOString() })
-      .eq("id", id);
+    setBusyManualId(id);
+    const { error } = await supabase.functions.invoke("mark-manual-distribution-done", {
+      body: { id, observacao: null },
+    });
+    setBusyManualId(null);
     if (error) {
-      // eslint-disable-next-line no-console
-      console.error("Falha ao marcar manual como feito", error);
+      toast.error("Não foi possível marcar como feito");
+      return;
     }
+    toast.success("Execução manual concluída");
+    await load();
   };
 
 
@@ -251,7 +264,7 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
     );
   }
 
-  if (jobs.length === 0 && manualItems.length === 0) {
+  if (jobs.length === 0 && manualItems.length === 0 && fallbackManualList.length === 0) {
     return (
       <Card>
         <CardContent className="p-8 text-center space-y-2">
@@ -265,14 +278,14 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
     );
   }
 
-  if (jobs.length === 0 && manualItems.length > 0) {
+  if (jobs.length === 0 && (manualItems.length > 0 || fallbackManualList.length > 0)) {
     return (
       <Card>
         <CardContent className="p-0">
           <div className="px-4 py-3 border-b border-border">
             <div className="text-sm font-semibold">Status manual por playlist</div>
             <div className="text-xs text-muted-foreground">
-              {manualItems.length} registro(s) manual(is) · sem job de bot
+              {manualItems.length} registro(s) manual(is) · {fallbackManualList.length} playlist(s) manual(is) planejada(s) · sem job de bot
             </div>
           </div>
           <div className="divide-y divide-border">
@@ -289,16 +302,35 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
                       {done && it.completed_at ? <> · {fmtDate(it.completed_at)}</> : <> · aguardando execução manual</>}
                     </div>
                   </div>
-                  <span className={cn(
-                    "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] border shrink-0",
-                    done ? "bg-primary/15 text-primary border-primary/30" : "bg-amber-500/15 text-amber-400 border-amber-500/30",
-                  )}>
-                    <CheckCircle2 className="h-3 w-3" />
-                    {done ? "Feito manual" : "Manual pendente"}
-                  </span>
+                  {done ? (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] border shrink-0 bg-primary/15 text-primary border-primary/30">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Feito manual
+                    </span>
+                  ) : (
+                    <Button size="sm" onClick={() => markManualDone(it.id)} disabled={busyManualId === it.id} className="h-8 shrink-0">
+                      {busyManualId === it.id ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <CheckCircle2 className="h-3 w-3 mr-1" />}
+                      Marcar feito
+                    </Button>
+                  )}
                 </div>
               );
             })}
+            {fallbackManualList.map((it) => (
+              <div key={it.spid} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/20">
+                <Hand className="h-4 w-4 shrink-0 text-amber-400" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate">{it.name}</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Pos. planejada: {it.position ?? "—"} · execução manual planejada · aguardando distribuição
+                  </div>
+                </div>
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] border shrink-0 bg-amber-500/15 text-amber-400 border-amber-500/30">
+                  <Hand className="h-3 w-3" />
+                  Manual planejada
+                </span>
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>
@@ -308,7 +340,7 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
   return (
     <div className="space-y-4">
       {/* PRIORIDADE — Pendências manuais. Visível no topo enquanto houver. */}
-      {pendingManualList.length > 0 && (
+      {(pendingManualList.length > 0 || fallbackManualList.length > 0) && (
         <Card className="border-amber-500/40">
           <CardContent className="p-0">
             <div className="px-4 py-3 border-b border-amber-500/20 bg-amber-500/[0.04] flex items-center justify-between gap-3">
@@ -316,7 +348,7 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
                 <Hand className="h-4 w-4 text-amber-400" />
                 <div>
                   <div className="text-sm font-semibold">
-                    Pendências manuais ({pendingManualList.length})
+                    Pendências manuais ({pendingManualList.length + fallbackManualList.length})
                   </div>
                   <div className="text-[11px] text-muted-foreground">
                     Estas playlists não têm OAuth — você precisa inserir a faixa manualmente.
@@ -339,15 +371,33 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
                         Pos. planejada: <span className="text-foreground font-medium">{pos ?? "—"}</span> · aguardando execução manual
                       </div>
                     </div>
-                    <button
+                    <Button
+                      size="sm"
                       onClick={() => markManualDone(it.id)}
-                      className="text-[11px] px-2.5 py-1 rounded border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 shrink-0"
+                      disabled={busyManualId === it.id}
+                      className="h-8 shrink-0"
                     >
+                      {busyManualId === it.id ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <CheckCircle2 className="h-3 w-3 mr-1" />}
                       Marcar Feito
-                    </button>
+                    </Button>
                   </div>
                 );
               })}
+              {fallbackManualList.map((it) => (
+                <div key={it.spid} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/20">
+                  <Hand className="h-4 w-4 text-amber-400 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{it.name}</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      Pos. planejada: <span className="text-foreground font-medium">{it.position ?? "—"}</span> · manual planejada · aparece como pendente após distribuir
+                    </div>
+                  </div>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] border shrink-0 bg-amber-500/15 text-amber-400 border-amber-500/30">
+                    <Clock className="h-3 w-3" />
+                    Manual planejada
+                  </span>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
