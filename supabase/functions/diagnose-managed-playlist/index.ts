@@ -390,6 +390,34 @@ Deno.serve(async (req) => {
     tel.end("sync_tracks", (syncRes as any)?.ok ? "ok" : "error", (syncRes as any)?.ok ? undefined : "sync falhou");
     if (!(syncRes as any)?.ok) tel.failures.sync_failed = true;
 
+    // === FASE 6C — Carrega Playlist Brain (fonte oficial dos indicadores operacionais) ===
+    // Leitura passiva: não recalcula nada no brain. Diagnose continua tendo seu cálculo
+    // local intacto pra fallback + auditoria de drift.
+    let brain: any = null;
+    const brainCanonicalId: string | null = (pl as any).canonical_playlist_id ?? null;
+    tel.start("load_brain");
+    if (brainCanonicalId) {
+      const { data: pb, error: brErr } = await supabase
+        .from("playlist_brain")
+        .select("playlist_id, identity, personality, capacity_total, capacity_per_slot, capacity_ceiling, headroom_pct, health_trend, signals, recommendations, confidence_score, last_calculated_at, lifecycle_phase, benchmark_tracks, ratio_to_benchmark, growth_roadmap")
+        .eq("playlist_id", brainCanonicalId)
+        .maybeSingle();
+      if (brErr) {
+        tel.end("load_brain", "error", brErr.message);
+      } else if (pb) {
+        brain = pb;
+        const ageH = pb.last_calculated_at
+          ? Math.round((Date.now() - new Date(pb.last_calculated_at as string).getTime()) / 3_600_000)
+          : null;
+        tel.end("load_brain", "ok", `conf=${pb.confidence_score} age=${ageH}h`);
+      } else {
+        tel.end("load_brain", "skipped", "brain ausente");
+      }
+    } else {
+      tel.skip("load_brain", "canonical_playlist_id ausente");
+    }
+
+
     // 2) Carrega modelo, benchmark, concorrentes, faixas atuais e ecosystem scores
     let model: any = null;
     let benchmark: any = null;
