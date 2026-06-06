@@ -15,6 +15,7 @@ import { BucketRemove } from "../shared/BucketRemove";
 import { BucketReorder } from "../shared/BucketReorder";
 import { BucketAdd } from "../shared/BucketAdd";
 import { EditorialBanner } from "../shared/EditorialBanner";
+import { PlanImpactCard } from "../shared/PlanImpactCard";
 import { TabShell } from "../shared/ds/TabShell";
 import { TabContextBanner } from "../shared/ds/TabContextBanner";
 import { TabKpiStrip } from "../shared/ds/TabKpiStrip";
@@ -300,8 +301,12 @@ export function PlanTab() {
                 </Card>
               )}
 
+              {/* Impacto esperado — projeção pré-execução (Fase 8.1) */}
+              <PlanImpactCard />
+
               {/* CTA único — footer da seção Ações */}
               <Card className="p-4 md:p-5 bg-primary/5 border-primary/30 flex flex-col items-center text-center gap-3 md:flex-row md:items-center md:text-left md:justify-between">
+
                 <div className="space-y-0.5 min-w-0">
                   <div className="text-sm font-semibold">Aprovar e executar tudo</div>
                   <div className="text-[11px] text-muted-foreground">
