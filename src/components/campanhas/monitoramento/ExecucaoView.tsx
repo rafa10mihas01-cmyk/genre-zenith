@@ -41,12 +41,15 @@ const ROW_H_MOBILE = 56;
 export function ExecucaoView({
   campaignId,
   onOpenHistory,
-  initialScope = "all",
+  mode = "all",
 }: {
   campaignId: string;
   onOpenHistory?: (playlistId: string) => void;
-  initialScope?: "all" | "ecosystem" | "curator" | "organic";
+  mode?: "all" | "ecosystem" | "curators" | "organic";
 }) {
+  const initialScope: "all" | "ecosystem" | "curator" | "organic" =
+    mode === "curators" ? "curator" : mode === "ecosystem" ? "ecosystem" : mode === "organic" ? "organic" : "all";
+  const scopeLocked = mode !== "all";
   const [rows, setRows] = useState<GrowthRow[] | null>(null);
   const [curators, setCurators] = useState<Record<string, CuratorMeta>>({});
   const [statuses, setStatuses] = useState<Record<string, string>>({});
@@ -213,41 +216,74 @@ export function ExecucaoView({
 
   return (
     <div className="space-y-4">
-      {/* KPI grid — mesmo padrão de Performance (2 cols mobile / 4 cols desktop) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        <KpiBig
-          label="Crescimento total"
-          value={`${totals.total > 0 ? "+" : ""}${formatInt(totals.total)}`}
-          icon={TrendingUp}
-          tone={totals.total > 0 ? "success" : "default"}
-          hint={`${totals.n} playlists monitoradas`}
-        />
-        <KpiBig
-          label="Ecossistema"
-          value={`${totals.eco > 0 ? "+" : ""}${formatInt(totals.eco)}`}
-          icon={Layers}
-          domain="playlists"
-          hint="Playlists internas"
-        />
-        <KpiBig
-          label="Curadores"
-          value={`${totals.curator > 0 ? "+" : ""}${formatInt(totals.curator)}`}
-          icon={Users}
-          domain="curators"
-          hint="Atribuído a parceiros"
-        />
-        <KpiBig
-          label="Orgânico"
-          value={`${totals.organic > 0 ? "+" : ""}${formatInt(totals.organic)}`}
-          icon={Activity}
-          tone="default"
-          hint={lastCapturedAt
-            ? `Atualizado ${new Date(lastCapturedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} ${new Date(lastCapturedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
-            : "Sem atribuição"}
-        />
-      </div>
+      {/* KPI grid — adapta ao escopo */}
+      {mode === "all" ? (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+          <KpiBig
+            label="Crescimento total"
+            value={`${totals.total > 0 ? "+" : ""}${formatInt(totals.total)}`}
+            icon={TrendingUp}
+            tone={totals.total > 0 ? "success" : "default"}
+            hint={`${totals.n} playlists monitoradas`}
+          />
+          <KpiBig
+            label="Ecossistema"
+            value={`${totals.eco > 0 ? "+" : ""}${formatInt(totals.eco)}`}
+            icon={Layers}
+            domain="playlists"
+            hint="Playlists internas"
+          />
+          <KpiBig
+            label="Curadores"
+            value={`${totals.curator > 0 ? "+" : ""}${formatInt(totals.curator)}`}
+            icon={Users}
+            domain="curators"
+            hint="Atribuído a parceiros"
+          />
+          <KpiBig
+            label="Orgânico"
+            value={`${totals.organic > 0 ? "+" : ""}${formatInt(totals.organic)}`}
+            icon={Activity}
+            tone="default"
+            hint={lastCapturedAt
+              ? `Atualizado ${new Date(lastCapturedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} ${new Date(lastCapturedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
+              : "Sem atribuição"}
+          />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+          <KpiBig
+            label={mode === "ecosystem" ? "Δ Ecossistema" : mode === "curators" ? "Δ Curadores" : "Δ Orgânico"}
+            value={`${(mode === "ecosystem" ? totals.eco : mode === "curators" ? totals.curator : totals.organic) > 0 ? "+" : ""}${formatInt(
+              mode === "ecosystem" ? totals.eco : mode === "curators" ? totals.curator : totals.organic,
+            )}`}
+            icon={mode === "ecosystem" ? Layers : mode === "curators" ? Users : Activity}
+            domain={mode === "ecosystem" ? "playlists" : mode === "curators" ? "curators" : undefined}
+            tone="success"
+            hint={`${filtered.length} playlists no escopo`}
+          />
+          <KpiBig
+            label="Playlists no escopo"
+            value={formatInt(filtered.length)}
+            icon={Layers}
+            tone="default"
+            hint={`${totals.n} no total da campanha`}
+          />
+          <KpiBig
+            label="Última coleta"
+            value={lastCapturedAt
+              ? new Date(lastCapturedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+              : "—"}
+            icon={Activity}
+            tone="default"
+            hint={lastCapturedAt
+              ? new Date(lastCapturedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })
+              : "Sem atribuição"}
+          />
+        </div>
+      )}
 
-      {totals.conflictCount > 0 && (
+      {totals.conflictCount > 0 && mode === "all" && (
         <Card className="border-destructive/40 bg-destructive/5">
           <CardContent className="p-3 flex items-start gap-3">
             <span className="mt-0.5 h-2 w-2 rounded-full bg-destructive shrink-0" />
@@ -264,19 +300,18 @@ export function ExecucaoView({
         </Card>
       )}
 
-
-
-      <CuratorSummary
-        rows={rows}
-        curators={curators}
-        statuses={statuses}
-        onPick={(curatorId) => {
-          setScope("curator");
-          setCuratorFilter(curatorId);
-        }}
-      />
-
-
+      {/* Resumo por curador: apenas na visão geral OU na aba Curadores */}
+      {(mode === "all" || mode === "curators") && (
+        <CuratorSummary
+          rows={rows}
+          curators={curators}
+          statuses={statuses}
+          onPick={(curatorId) => {
+            if (!scopeLocked) setScope("curator");
+            setCuratorFilter(curatorId);
+          }}
+        />
+      )}
 
       <Card>
         <CardContent className="p-3 space-y-2">
@@ -289,25 +324,29 @@ export function ExecucaoView({
               className="pl-8 h-9"
             />
           </div>
-          <div className="flex items-center gap-2">
-            <Select value={scope} onValueChange={(v) => setScope(v as any)}>
-              <SelectTrigger className="h-9 flex-1 min-w-0 md:flex-none md:w-[160px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas atribuições</SelectItem>
-                <SelectItem value="ecosystem">Ecossistema</SelectItem>
-                <SelectItem value="curator">Curadores</SelectItem>
-                <SelectItem value="organic">Orgânico</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={curatorFilter} onValueChange={setCuratorFilter} disabled={scope === "ecosystem" || scope === "organic"}>
-              <SelectTrigger className="h-9 flex-1 min-w-0 md:flex-none md:w-[180px]"><SelectValue placeholder="Curador" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos curadores</SelectItem>
-                {curatorOptions.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="flex items-center gap-2 flex-wrap">
+            {!scopeLocked && (
+              <Select value={scope} onValueChange={(v) => setScope(v as any)}>
+                <SelectTrigger className="h-9 flex-1 min-w-0 md:flex-none md:w-[160px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas atribuições</SelectItem>
+                  <SelectItem value="ecosystem">Ecossistema</SelectItem>
+                  <SelectItem value="curator">Curadores</SelectItem>
+                  <SelectItem value="organic">Orgânico</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+            {(mode === "all" || mode === "curators") && (
+              <Select value={curatorFilter} onValueChange={setCuratorFilter}>
+                <SelectTrigger className="h-9 flex-1 min-w-0 md:flex-none md:w-[200px]"><SelectValue placeholder="Curador" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos curadores</SelectItem>
+                  {curatorOptions.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="h-9 flex-1 min-w-0 md:flex-none md:w-[160px]"><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>
@@ -318,12 +357,13 @@ export function ExecucaoView({
                 <SelectItem value="not_found_yet">Not found</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" className="h-9 px-2 md:px-3 shrink-0" onClick={exportCsv}>
+            <Button variant="outline" size="sm" className="h-9 px-2 md:px-3 shrink-0 ml-auto" onClick={exportCsv}>
               <Download className="h-4 w-4 md:mr-1" /> <span className="hidden md:inline">CSV</span>
             </Button>
           </div>
         </CardContent>
       </Card>
+
 
       <Card>
         <CardContent className="p-0">
