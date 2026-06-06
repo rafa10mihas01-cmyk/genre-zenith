@@ -63,11 +63,13 @@ export function ExternalPackageEditor({
   snapshot,
   onChanged,
   renderTabsRow,
+  onNewDeal,
 }: {
   campaignId: string;
   snapshot: CampaignSnapshot;
   onChanged?: () => void;
-  renderTabsRow?: (extra?: React.ReactNode) => React.ReactNode;
+  renderTabsRow?: (extra?: React.ReactNode, ctx?: { isDispatched: boolean }) => React.ReactNode;
+  onNewDeal?: () => void;
 }) {
   const [pkg, setPkg] = useState<PackageRow | null>(null);
   const [items, setItems] = useState<ItemRow[]>([]);
