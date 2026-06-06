@@ -156,49 +156,61 @@ function BaselineStatus({
   runsLoading: boolean;
 }) {
   const totalPrints = runs.reduce((acc, r) => acc + (r.print_urls?.length ?? 0), 0);
-  const hasPrints = totalPrints > 0;
+  const latestRunAt = runs[0]?.created_at ?? null;
+
+  const dateLabel = capturedAt
+    ? new Date(capturedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })
+    : null;
+  const timeLabel = capturedAt
+    ? new Date(capturedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+    : null;
+  const latestTime = latestRunAt
+    ? new Date(latestRunAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+    : null;
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden !p-0">
       <details className="group/baseline [&[open]>summary_.bchev]:rotate-90">
-        <summary className="cursor-pointer list-none p-3 md:p-4 flex items-center gap-3 md:gap-4 hover:bg-muted/20 transition-colors">
+        <summary className="cursor-pointer list-none h-[64px] px-4 flex items-center gap-4 hover:bg-muted/20 transition-colors">
           <div className="relative shrink-0">
-            <span className={`block h-2.5 w-2.5 rounded-full ${TONE_DOT[tone]}`} aria-hidden />
+            <span className={`block h-2 w-2 rounded-full ${TONE_DOT[tone]}`} aria-hidden />
             {tone === "warning" && (
               <span className={`absolute inset-0 rounded-full ${TONE_DOT[tone]} opacity-60 animate-ping`} aria-hidden />
             )}
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <Activity className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-bold">
-                Monitoramento
-              </span>
-            </div>
-            <div className={`text-sm md:text-base font-semibold leading-tight mt-0.5 ${TONE_TEXT[tone]}`}>
-              {label}
-            </div>
-            {capturedAt && (
-              <div className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">
-                Capturada em: {new Date(capturedAt).toLocaleString("pt-BR")}
-                {hasPrints && (
-                  <> · {totalPrints} {totalPrints === 1 ? "print" : "prints"} em {runs.length} {runs.length === 1 ? "coleta" : "coletas"}</>
-                )}
-              </div>
-            )}
+
+          <div className={`text-[13px] font-semibold leading-none whitespace-nowrap ${TONE_TEXT[tone]}`}>
+            {label}
           </div>
-          <div className="hidden sm:flex flex-col items-end shrink-0">
-            <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
-              Playlists
-            </span>
-            <span className="text-base md:text-lg font-bold tabular-nums leading-tight">
-              {playlists}
-            </span>
+
+          {capturedAt && (
+            <div className="hidden md:flex items-center gap-3 text-[11px] text-muted-foreground tabular-nums leading-none">
+              <span className="h-3 w-px bg-border/60" />
+              <span>{dateLabel} {timeLabel}</span>
+              <span className="h-3 w-px bg-border/60" />
+              <span>{playlists} playlists</span>
+              {latestTime && (
+                <>
+                  <span className="h-3 w-px bg-border/60" />
+                  <span>Última coleta {latestTime}</span>
+                </>
+              )}
+            </div>
+          )}
+
+          <div className="md:hidden flex items-center gap-2 text-[11px] text-muted-foreground tabular-nums">
+            <span>{playlists} playlists</span>
+            {latestTime && <span>· {latestTime}</span>}
           </div>
-          <ChevronRight className="bchev h-4 w-4 text-muted-foreground shrink-0 transition-transform ml-1" />
+
+          <div className="ml-auto flex items-center gap-1.5 text-[11px] text-muted-foreground shrink-0">
+            <span className="hidden sm:inline">Ver detalhes</span>
+            <ChevronRight className="bchev h-3.5 w-3.5 transition-transform" />
+          </div>
         </summary>
 
         <div className="border-t border-border/60 px-4 py-4 bg-background/40 space-y-3 max-h-[60vh] overflow-y-auto overscroll-contain">
+
           {runsLoading ? (
             <div className="text-[12px] text-muted-foreground">Carregando prints…</div>
           ) : runs.length === 0 ? (
