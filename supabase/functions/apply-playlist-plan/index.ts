@@ -500,6 +500,17 @@ Deno.serve(async (req) => {
           mensagem: `${spId} (${action}): ${results.length}/${total} executadas${fatalError ? ` — FAILED@${failedAt}: ${fatalError}` : ""}`,
         });
 
+        // Fase 8.3 — persistir snapshot do plano executado (só "all", só se houve execução real)
+        if (action === "all" && snapshotPayload && results.length > 0) {
+          await persistExecutionSnapshot({
+            supabase,
+            playlistId: pl.id,
+            executedBy,
+            payload: snapshotPayload,
+            results,
+          });
+        }
+
         send({
           type: "complete",
           ok: !fatalError,
