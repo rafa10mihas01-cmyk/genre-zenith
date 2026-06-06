@@ -452,21 +452,24 @@ export function ExecucaoView({
         </Card>
       )}
 
-      {/* Resumo por curador: apenas na aba Curadores */}
+      {/* Comando por curador: pílulas + KPIs tiles (somente na aba Curadores) */}
       {mode === "curators" && (
-        <CuratorSummary
+        <CuratorCommand
           rows={rows}
           curators={curators}
           statuses={statuses}
-          onPick={(curatorId) => {
+          curatorFilter={curatorFilter}
+          statusFilter={statusFilter}
+          onPickCurator={(id) => {
             if (!scopeLocked) setScope("curator");
-            setCuratorFilter(curatorId);
+            setCuratorFilter(id);
           }}
+          onToggleStatus={(st) => setStatusFilter((prev) => (prev === st ? "all" : st))}
         />
       )}
 
-      {/* Filtros — de volta pro lugar original (logo acima da tabela). No Ecossistema o botão Exportar vai pra régua de contagem. */}
-      {!isEcosystem && filtersBar}
+      {/* Filtros — só renderiza nas abas Visão geral / Orgânico. Ecossistema e Curadores usam superfícies próprias. */}
+      {!isEcosystem && mode !== "curators" && filtersBar}
 
       {/* Header da tabela — contagem à esquerda, Atual/Δ à direita */}
       <div>
@@ -482,13 +485,14 @@ export function ExecucaoView({
             )}>
               {filteredTotals.delta > 0 ? "+" : ""}{formatInt(filteredTotals.delta)}
             </span></span>
-            {isEcosystem && (
+            {(isEcosystem || mode === "curators") && (
               <Button variant="outline" size="sm" className="h-7 px-2.5 text-[11px]" onClick={exportCsv}>
                 <Download className="h-3.5 w-3.5 mr-1.5" /> Exportar CSV
               </Button>
             )}
           </div>
         </div>
+
 
 
         <Card>
