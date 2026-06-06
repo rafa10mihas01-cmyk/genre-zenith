@@ -29,7 +29,64 @@ function jr(p: unknown, status = 200) {
   });
 }
 
+// ---------- telemetria (Fase 0A — observabilidade pura, não muda regras) ----------
+// Mede duração de cada etapa do diagnose + contadores de falha.
+// É puramente passivo: nenhum fluxo, score ou benchmark é alterado por esses dados.
+type TelemetryStep = { name: string; started_at: number; ended_at: number | null; duration_ms: number | null; status: "ok" | "skipped" | "error"; note?: string };
+class DiagnoseTelemetry {
+  readonly t0 = Date.now();
+  steps: TelemetryStep[] = [];
+  active = new Map<string, number>();
+  failures = {
+    spotify_403: 0,
+    spotify_429: 0,
+    spotify_5xx: 0,
+    spotify_other: 0,
+    spotify_throw: 0,
+    benchmark_empty: false,
+    competitors_count: 0,
+    competitors_insufficient: false,
+    genre_missing: false,
+    sync_failed: false,
+    ai_editorial_failed: false,
+    last_error: null as string | null,
+  };
+  start(name: string) { this.active.set(name, Date.now()); }
+  end(name: string, status: TelemetryStep["status"] = "ok", note?: string) {
+    const started = this.active.get(name) ?? Date.now();
+    this.active.delete(name);
+    this.steps.push({ name, started_at: started, ended_at: Date.now(), duration_ms: Date.now() - started, status, note });
+  }
+  skip(name: string, note?: string) {
+    const now = Date.now();
+    this.steps.push({ name, started_at: now, ended_at: now, duration_ms: 0, status: "skipped", note });
+  }
+  noteSpotifyStatus(status: number) {
+    if (status === 403) this.failures.spotify_403++;
+    else if (status === 429) this.failures.spotify_429++;
+    else if (status >= 500) this.failures.spotify_5xx++;
+    else if (!(status >= 200 && status < 300)) this.failures.spotify_other++;
+  }
+  noteThrow(e: unknown) {
+    this.failures.spotify_throw++;
+    this.failures.last_error = (e as Error)?.message ?? String(e);
+  }
+  report() {
+    const total = Date.now() - this.t0;
+    const slowest = [...this.steps].sort((a, b) => (b.duration_ms ?? 0) - (a.duration_ms ?? 0))[0] ?? null;
+    const breakdown = this.steps.map((s) => ({
+      name: s.name,
+      ms: s.duration_ms,
+      pct: total > 0 && s.duration_ms != null ? Math.round((s.duration_ms / total) * 1000) / 10 : null,
+      status: s.status,
+      note: s.note ?? null,
+    }));
+    return { total_ms: total, slowest, steps: breakdown, failures: this.failures };
+  }
+}
+
 // ---------- helpers ----------
+
 
 async function syncTracks(authHeader: string, playlistId: string) {
   // Chama sync-managed-playlist-tracks com skip_lock=true (já seguramos o lock DIAGNOSE_ENGINE).
@@ -322,10 +379,16 @@ Deno.serve(async (req) => {
     if (!lockResult.ok) return jr(lockedResponseBody(lockResult), 423);
     lockHandle = lockResult;
 
+    // === TELEMETRIA (Fase 0A) — passiva, não altera fluxo ===
+    const tel = new DiagnoseTelemetry();
+
     // 1) Snapshot fresco das faixas atuais (best-effort — se falhar, segue com cache)
     // Passa skip_lock=true porque já seguramos o lock DIAGNOSE_ENGINE.
     const authHeader = req.headers.get("Authorization") ?? `Bearer ${SERVICE_KEY}`;
+    tel.start("sync_tracks");
     const syncRes = await syncTracks(authHeader, pl.id).catch((e) => ({ ok: false, error: String(e) }));
+    tel.end("sync_tracks", (syncRes as any)?.ok ? "ok" : "error", (syncRes as any)?.ok ? undefined : "sync falhou");
+    if (!(syncRes as any)?.ok) tel.failures.sync_failed = true;
 
     // 2) Carrega modelo, benchmark, concorrentes, faixas atuais e ecosystem scores
     let model: any = null;
@@ -336,8 +399,12 @@ Deno.serve(async (req) => {
     let genreArtistsTop: { artist: string; count: number }[] = [];
     let genreName: string | null = null;
 
+    if (!pl.genre_id) tel.failures.genre_missing = true;
+
     if (pl.genre_id) {
+      tel.start("load_model_benchmark_competitors");
       const [{ data: m }, { data: b }, { data: comps }, { data: gRow }] = await Promise.all([
+
         supabase.from("genre_models")
           .select("palavras_chave, padroes_nome, musicas_recorrentes, insights")
           .eq("genre_id", pl.genre_id).maybeSingle(),
@@ -430,7 +497,17 @@ Deno.serve(async (req) => {
         .map(([artist, count]) => ({ artist, count }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 30);
+      tel.end("load_model_benchmark_competitors");
+      if (!benchmark) tel.failures.benchmark_empty = true;
+      tel.failures.competitors_count = competitors.length;
+      if (competitors.length < 3) tel.failures.competitors_insufficient = true;
+    } else {
+      tel.skip("load_model_benchmark_competitors", "genre_id ausente");
     }
+
+
+
+
 
     // Adjacência de gêneros — pra checar aderência da faixa ao nicho via Spotify artist.genres
     const NICHE_ADJACENCY: Record<string, string[]> = {
@@ -451,6 +528,7 @@ Deno.serve(async (req) => {
     const nicheTerms: string[] = baseNiche ? (NICHE_ADJACENCY[baseNiche] ?? [baseNiche]) : [];
 
     // 3) Faixas atuais da playlist gerenciada
+    tel.start("load_current_tracks");
     const { data: currentTracks } = await supabase
       .from("managed_playlist_tracks")
       .select("spotify_track_id, track_name, artist_name, position, added_at, isrc, duration_ms")
@@ -458,6 +536,8 @@ Deno.serve(async (req) => {
       .order("position", { ascending: true });
 
     const trackIds = (currentTracks ?? []).map((t: any) => t.spotify_track_id).filter(Boolean);
+    tel.end("load_current_tracks", "ok", `${trackIds.length} faixas`);
+
 
     // 3.a) CAMPANHAS ATIVAS NA PLAYLIST — faixas com deal em andamento entram em estado PROTEGIDO.
     // O analisador NÃO pode recomendar remover, rebaixar ou promover uma faixa em campanha ativa:
@@ -511,12 +591,14 @@ Deno.serve(async (req) => {
     const artistMeta = new Map<string, { popularity: number | null; followers: number | null; genres: string[] }>();
 
     if (trackIds.length > 0) {
+      tel.start("spotify_current_tracks_and_artists");
       try {
         const token = await getSpotifyToken();
         // /v1/tracks?ids= (até 50)
         for (let i = 0; i < trackIds.length; i += 50) {
           const ids = trackIds.slice(i, i + 50);
           const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`, { headers: { Authorization: `Bearer ${token}` } }, { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, function_name: 'diagnose-managed-playlist' });
+          tel.noteSpotifyStatus(r.status);
           if (r.status === 403) run403s++;
           if (!r.ok) continue;
           const j = await r.json();
@@ -536,6 +618,7 @@ Deno.serve(async (req) => {
         for (let i = 0; i < artistIds.length; i += 50) {
           const ids = artistIds.slice(i, i + 50);
           const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/artists?ids=${ids.join(",")}`, { headers: { Authorization: `Bearer ${token}` } }, { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, function_name: 'diagnose-managed-playlist' });
+          tel.noteSpotifyStatus(r.status);
           if (r.status === 403) run403s++;
           if (!r.ok) continue;
           const j = await r.json();
@@ -548,12 +631,18 @@ Deno.serve(async (req) => {
             });
           }
         }
+        tel.end("spotify_current_tracks_and_artists", "ok", `${spotMeta.size} tracks · ${artistMeta.size} artistas`);
       } catch (e) {
+        tel.noteThrow(e);
+        tel.end("spotify_current_tracks_and_artists", "error", (e as Error)?.message);
         // Circuit breaker aberto: aborta o diagnóstico — propaga pro handler.
         if (e instanceof SpotifyCircuitOpenError) throw e;
         // Outras falhas: segue sem metadados (classificador degrada gracefully).
       }
+    } else {
+      tel.skip("spotify_current_tracks_and_artists", "sem trackIds");
     }
+
 
     // Helper: avalia se um artista (pelos seus spotify.genres) pertence ao nicho da playlist.
     // Retorna:
@@ -1008,12 +1097,14 @@ Deno.serve(async (req) => {
     const candMeta = new Map<string, { popularity: number | null; artistPop: number | null; cover: string | null }>();
     const coverMap = new Map<string, string>();
     if (rawCandidates.length > 0) {
+      tel.start("spotify_candidates_tracks_and_artists");
       try {
         const token = await getSpotifyToken();
         const candArtistIds = new Map<string, string>(); // trackId → artistId
         for (let i = 0; i < rawCandidates.length; i += 50) {
           const ids = rawCandidates.slice(i, i + 50).map((c) => c.id);
           const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`, { headers: { Authorization: `Bearer ${token}` } }, { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, function_name: 'diagnose-managed-playlist' });
+          tel.noteSpotifyStatus(r.status);
           if (r.status === 403) run403s++;
           if (!r.ok) continue;
           const j = await r.json();
@@ -1035,6 +1126,7 @@ Deno.serve(async (req) => {
         for (let i = 0; i < uniqueArtistIds.length; i += 50) {
           const ids = uniqueArtistIds.slice(i, i + 50);
           const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/artists?ids=${ids.join(",")}`, { headers: { Authorization: `Bearer ${token}` } }, { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, function_name: 'diagnose-managed-playlist' });
+          tel.noteSpotifyStatus(r.status);
           if (r.status === 403) run403s++;
           if (!r.ok) continue;
           const j = await r.json();
@@ -1047,11 +1139,17 @@ Deno.serve(async (req) => {
           const cur = candMeta.get(tid);
           if (cur) cur.artistPop = artistPopMap.get(aid) ?? null;
         }
+        tel.end("spotify_candidates_tracks_and_artists", "ok", `${candMeta.size} cands · ${uniqueArtistIds.length} artistas`);
       } catch (e) {
+        tel.noteThrow(e);
+        tel.end("spotify_candidates_tracks_and_artists", "error", (e as Error)?.message);
         if (e instanceof SpotifyCircuitOpenError) throw e;
         // outras falhas: degrade gracefully
       }
+    } else {
+      tel.skip("spotify_candidates_tracks_and_artists", "sem candidatos");
     }
+
 
     // 7.c) Calcula scores por zona pra cada candidato (mesma fórmula da camada 2)
     type Candidate = {
@@ -1383,6 +1481,7 @@ Deno.serve(async (req) => {
     const algoDescription = suggestedDescription;
     let aiCopy: EditorialCopy | null = null;
     let aiError: string | null = null;
+    tel.start("ai_editorial_copy");
     try {
       aiCopy = await generateEditorialCopy({
         skipAi,
@@ -1400,9 +1499,13 @@ Deno.serve(async (req) => {
         currentSize: totalTracks,
         competitors: competitors.slice(0, 6).map((c) => ({ name: c.name })),
       });
+      tel.end("ai_editorial_copy", aiCopy ? "ok" : "skipped", aiCopy ? undefined : "sem retorno/skipAi");
     } catch (e) {
       aiError = (e as Error).message;
+      tel.failures.ai_editorial_failed = true;
+      tel.end("ai_editorial_copy", "error", aiError);
     }
+
     // Ranking BR-viral: compara TODOS os candidatos (AI + algoName + nome atual) por score
     // de SEO/CTR e escolhe o maior. Garante que nome forte nunca vire abstrato.
     const titleCandidates: string[] = [
@@ -1433,7 +1536,9 @@ Deno.serve(async (req) => {
     //   recorrencia*0.35 + recencia*0.30 + presenca_em_playlists_lideres*0.20
     //   + qualidade_visual*0.10 + (diversidade aplicada na seleção)
     // Objetivo: referências MODERNAS, com viés a últimos 90 dias e playlists líderes do nicho.
+    tel.start("market_insights_visual_ranking");
     let topRecurringTracks: Array<{
+
       spotify_track_id: string;
       title: string | null;
       artist: string | null;
@@ -1968,9 +2073,11 @@ Deno.serve(async (req) => {
         last_seen_run: null,
       }));
     }
+    tel.end("market_insights_visual_ranking", "ok", `${topRecurringTracks.length} tracks`);
 
     const marketInsights = {
       ideal_track_count_range: benchmark
+
         ? [benchmark.tracks_p50, benchmark.tracks_p90].filter((x: any) => x != null)
         : null,
       followers_p50: benchmark?.followers_p50 ?? null,
@@ -2158,9 +2265,11 @@ Deno.serve(async (req) => {
       : null;
 
 
+    tel.start("persist_diagnosis");
     const { data: diag, error: dErr } = await supabase
       .from("playlist_diagnoses")
       .insert({
+
         playlist_id: pl.id,
         created_by: guard.via === "user" ? guard.userId : null,
         name_score: nameScore,
@@ -2226,16 +2335,20 @@ Deno.serve(async (req) => {
           ai_reasoning: aiCopy?.reasoning ?? null,
           algo_name_baseline: algoName,
           algo_description_baseline: algoDescription,
+          __telemetry: tel.report(),
         },
       })
       .select()
       .single();
+    tel.end("persist_diagnosis", dErr ? "error" : "ok", dErr?.message);
 
     if (!dErr) {
       await supabase.from("managed_playlists")
         .update({ last_diagnosis_at: new Date().toISOString() })
         .eq("id", pl.id);
     }
+
+
 
     if (lockHandle) {
       await finishPlaylistOperation(supabase, lockHandle, {
@@ -2263,7 +2376,7 @@ Deno.serve(async (req) => {
       console.error("[diagnose] streak update failed:", (e as Error).message);
     }
 
-    return jr({ ok: true, diagnosis: diag, error: dErr?.message, sync: syncRes, _403_observed: run403s });
+    return jr({ ok: true, diagnosis: diag, error: dErr?.message, sync: syncRes, _403_observed: run403s, _telemetry: tel.report() });
   } catch (e) {
     // Circuit breaker aberto: aborta com erro claro em vez de degradar.
     if (e instanceof SpotifyCircuitOpenError) {
