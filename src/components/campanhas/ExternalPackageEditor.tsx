@@ -50,6 +50,12 @@ type ItemRow = {
   cost_per_stream: number;
   curator_deal_id: string | null;
   curators: { name: string; contact: string | null } | null;
+  curator_deals: {
+    state: string | null;
+    reconciled_total_plays: number | null;
+    ends_at: string | null;
+    closed_status: string | null;
+  } | null;
 };
 
 export function ExternalPackageEditor({
