@@ -278,14 +278,14 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
     );
   }
 
-  if (jobs.length === 0 && manualItems.length > 0) {
+  if (jobs.length === 0 && (manualItems.length > 0 || fallbackManualList.length > 0)) {
     return (
       <Card>
         <CardContent className="p-0">
           <div className="px-4 py-3 border-b border-border">
             <div className="text-sm font-semibold">Status manual por playlist</div>
             <div className="text-xs text-muted-foreground">
-              {manualItems.length} registro(s) manual(is) · sem job de bot
+              {manualItems.length} registro(s) manual(is) · {fallbackManualList.length} playlist(s) manual(is) planejada(s) · sem job de bot
             </div>
           </div>
           <div className="divide-y divide-border">
@@ -302,16 +302,35 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
                       {done && it.completed_at ? <> · {fmtDate(it.completed_at)}</> : <> · aguardando execução manual</>}
                     </div>
                   </div>
-                  <span className={cn(
-                    "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] border shrink-0",
-                    done ? "bg-primary/15 text-primary border-primary/30" : "bg-amber-500/15 text-amber-400 border-amber-500/30",
-                  )}>
-                    <CheckCircle2 className="h-3 w-3" />
-                    {done ? "Feito manual" : "Manual pendente"}
-                  </span>
+                  {done ? (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] border shrink-0 bg-primary/15 text-primary border-primary/30">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Feito manual
+                    </span>
+                  ) : (
+                    <Button size="sm" onClick={() => markManualDone(it.id)} disabled={busyManualId === it.id} className="h-8 shrink-0">
+                      {busyManualId === it.id ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <CheckCircle2 className="h-3 w-3 mr-1" />}
+                      Marcar feito
+                    </Button>
+                  )}
                 </div>
               );
             })}
+            {fallbackManualList.map((it) => (
+              <div key={it.spid} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/20">
+                <Hand className="h-4 w-4 shrink-0 text-amber-400" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate">{it.name}</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Pos. planejada: {it.position ?? "—"} · execução manual planejada · aguardando distribuição
+                  </div>
+                </div>
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] border shrink-0 bg-amber-500/15 text-amber-400 border-amber-500/30">
+                  <Hand className="h-3 w-3" />
+                  Manual planejada
+                </span>
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>
