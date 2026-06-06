@@ -350,7 +350,7 @@ export function PlanTab() {
                   </div>
                 </div>
                 <Button
-                  onClick={() => applyPlan("all")}
+                  onClick={() => applyPlan("all", buildSnapshotPayload())}
                   disabled={applying !== null}
                   size="sm"
                   className="gap-1.5 h-9 px-5 rounded-full text-sm font-medium shrink-0"
