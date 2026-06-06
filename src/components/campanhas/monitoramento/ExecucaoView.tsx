@@ -275,8 +275,8 @@ export function ExecucaoView({
         lastCapturedAt={lastCapturedAt}
       />
 
-      {/* Filtros — no meio dos dois cards, como referência visual */}
-      {filtersBar}
+      {/* Tabs — entre os dois cards (slot vindo do MonitoramentoTab) */}
+      {tabsSlot}
 
       {/* RESULTADO DA CAMPANHA — Atual / Variação / Playlists + sparkline (apenas Visão geral) */}
       {mode === "all" && (
@@ -335,7 +335,7 @@ export function ExecucaoView({
         </Card>
       )}
 
-      {/* Resumo por curador: apenas na aba Curadores (sai da Visão geral pra deixar o topo limpo como o mockup) */}
+      {/* Resumo por curador: apenas na aba Curadores */}
       {mode === "curators" && (
         <CuratorSummary
           rows={rows}
@@ -347,6 +347,9 @@ export function ExecucaoView({
           }}
         />
       )}
+
+      {/* Filtros — de volta pro lugar original (logo acima da tabela) */}
+      {filtersBar}
 
       {/* Header da tabela — contagem à esquerda, Atual/Δ à direita */}
       <div>
