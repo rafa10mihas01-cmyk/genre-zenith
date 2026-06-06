@@ -2484,14 +2484,17 @@ Deno.serve(async (req) => {
           error: `SPOTIFY_CIRCUIT_OPEN retry_after=${retryAfter}s`,
         });
       }
+      // Retornamos 200 (não 503) para que o client consiga ler o body via
+      // supabase.functions.invoke — circuit-open é estado controlado, não falha.
       return jr({
         ok: false,
         error: "SPOTIFY_CIRCUIT_OPEN",
         code: "spotify_circuit_open",
-        message: "Diagnóstico abortado: Spotify API bloqueada pelo circuit breaker.",
+        circuit_open: true,
+        message: "Spotify temporariamente indisponível (circuit breaker). Tente novamente em alguns minutos.",
         blocked_until: e.blockedUntil,
         retry_after: retryAfter,
-      }, 503);
+      }, 200);
     }
     if (lockHandle && supabaseRef) {
       await finishPlaylistOperation(supabaseRef, lockHandle, {
