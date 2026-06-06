@@ -150,6 +150,7 @@ export function CampaignDistributionConsole({
   const [bot, setBot] = useState<BotHealth | null>(null);
   const [retrying, setRetrying] = useState(false);
   const [forcing, setForcing] = useState(false);
+  const [busyManualId, setBusyManualId] = useState<string | null>(null);
 
   // --- carrega jobs ---
   const loadJobs = async () => {
@@ -427,6 +428,20 @@ export function CampaignDistributionConsole({
     } finally {
       setRetrying(false);
     }
+  };
+
+  const handleMarkManualDone = async (manualId: string) => {
+    setBusyManualId(manualId);
+    const { error } = await supabase.functions.invoke("mark-manual-distribution-done", {
+      body: { id: manualId, observacao: null },
+    });
+    setBusyManualId(null);
+    if (error) {
+      toast.error("Não foi possível marcar como feito");
+      return;
+    }
+    toast.success("Execução manual concluída");
+    await loadManualItems();
   };
 
   const handleForcePositions = async () => {
