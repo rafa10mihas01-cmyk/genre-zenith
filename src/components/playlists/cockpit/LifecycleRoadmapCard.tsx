@@ -4,7 +4,7 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { usePlaylistBrain, type LifecyclePhase, type RoadmapStep } from "@/hooks/usePlaylistBrain";
 import {
-  Sprout, TrendingUp, ShieldCheck, Scissors, AlertTriangle, CheckCircle2,
+  Sprout, TrendingUp, ShieldCheck, Scissors, AlertTriangle, CheckCircle2, Target, CalendarClock,
 } from "lucide-react";
 
 interface Props {
@@ -143,6 +143,49 @@ export function LifecycleRoadmapCard({ playlistId, currentTracks }: Props) {
         <p className="text-xs text-muted-foreground">
           Sem benchmark de nicho disponível — roadmap será gerado quando o gênero tiver concorrentes mapeados.
         </p>
+      )}
+
+      {/* Fase 7A.2: próxima milestone explícita + próxima revisão sugerida.
+          Usa apenas dados já carregados do Brain — sem queries novas. */}
+      {(roadmap[0] || brain.last_calculated_at) && (
+        <div className="pt-3 border-t border-border/60 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          {roadmap[0] && (
+            <div className="flex items-start gap-2">
+              <Target className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+              <div className="min-w-0">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                  Próxima milestone
+                </div>
+                <div className="text-foreground">
+                  {roadmap[0].action === "build" ? "+" : ""}{roadmap[0].delta} faixas
+                  <span className="text-muted-foreground"> → {roadmap[0].total} total</span>
+                </div>
+              </div>
+            </div>
+          )}
+          {brain.last_calculated_at && (() => {
+            const nextRecalc = new Date(brain.last_calculated_at).getTime() + 7 * 86_400_000;
+            const days = Math.ceil((nextRecalc - Date.now()) / 86_400_000);
+            const label = days <= 0
+              ? "Pronto pra reavaliar"
+              : days === 1
+                ? "Em 1 dia"
+                : `Em ${days} dias`;
+            return (
+              <div className="flex items-start gap-2">
+                <CalendarClock className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                    Próxima revisão
+                  </div>
+                  <div className={cn(days <= 0 ? "text-warning" : "text-foreground")}>
+                    {label}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
       )}
     </Card>
   );
