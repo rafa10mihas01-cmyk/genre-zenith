@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { ListMusic, TrendingUp, TrendingDown, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { KpiBig } from "./KpiBig";
+import { KpiBig } from "@/components/KpiBig";
 import { formatNumber } from "@/lib/format";
 import { useActiveManagedPlaylists } from "@/hooks/useActiveManagedPlaylists";
 
