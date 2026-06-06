@@ -57,7 +57,7 @@ export function CampaignManualQueue({ campaignId }: { campaignId: string }) {
   useEffect(() => {
     load();
     const channel = supabase
-      .channel(`manual-queue-${campaignId}`)
+      .channel(`manual-queue-${campaignId}-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "manual_distribution_queue", filter: `campaign_id=eq.${campaignId}` },
