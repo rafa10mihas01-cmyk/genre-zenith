@@ -452,18 +452,14 @@ export function ExecucaoView({
         </Card>
       )}
 
-      {/* Comando por curador: pílulas + KPIs tiles (somente na aba Curadores) */}
+      {/* Aba Curadores: KPI tiles no topo (Playlists/Matched/Pending/Conflito/Δ) */}
       {mode === "curators" && (
-        <CuratorCommand
+        <CuratorTiles
           rows={rows}
           curators={curators}
           statuses={statuses}
           curatorFilter={curatorFilter}
           statusFilter={statusFilter}
-          onPickCurator={(id) => {
-            if (!scopeLocked) setScope("curator");
-            setCuratorFilter(id);
-          }}
           onToggleStatus={(st) => setStatusFilter((prev) => (prev === st ? "all" : st))}
         />
       )}
@@ -471,27 +467,47 @@ export function ExecucaoView({
       {/* Filtros — só renderiza nas abas Visão geral / Orgânico. Ecossistema e Curadores usam superfícies próprias. */}
       {!isEcosystem && mode !== "curators" && filtersBar}
 
-      {/* Header da tabela — contagem à esquerda, Atual/Δ à direita */}
+      {/* Header da tabela */}
       <div>
-        <div className="flex items-end justify-between gap-4 mb-2 px-1">
-          <div className="text-[13px] text-foreground font-semibold tabular-nums">
-            {filtered.length} {filtered.length === 1 ? "playlist" : "playlists"}
+        {mode === "curators" ? (
+          /* Curadores: pílulas de curador à esquerda + Exportar CSV à direita. Sem régua "X playlists / Atual / Δ" (já está nos KPI tiles acima). */
+          <div className="flex items-center justify-between gap-3 mb-2 px-1">
+            <CuratorPills
+              rows={rows}
+              curators={curators}
+              statuses={statuses}
+              curatorFilter={curatorFilter}
+              onPickCurator={(id) => {
+                if (!scopeLocked) setScope("curator");
+                setCuratorFilter(id);
+              }}
+            />
+            <Button variant="outline" size="sm" className="h-8 px-3 text-[11px] shrink-0" onClick={exportCsv}>
+              <Download className="h-3.5 w-3.5 mr-1.5" /> Exportar CSV
+            </Button>
           </div>
-          <div className="flex items-center gap-4 md:gap-6 text-[11px] tabular-nums">
-            <span className="text-muted-foreground">Atual <span className="text-foreground font-semibold">{formatInt(filteredTotals.current)}</span></span>
-            <span className="text-muted-foreground">Δ <span className={cn(
-              "font-semibold",
-              filteredTotals.delta > 0 ? "text-primary" : "text-muted-foreground",
-            )}>
-              {filteredTotals.delta > 0 ? "+" : ""}{formatInt(filteredTotals.delta)}
-            </span></span>
-            {(isEcosystem || mode === "curators") && (
-              <Button variant="outline" size="sm" className="h-7 px-2.5 text-[11px]" onClick={exportCsv}>
-                <Download className="h-3.5 w-3.5 mr-1.5" /> Exportar CSV
-              </Button>
-            )}
+        ) : (
+          <div className="flex items-end justify-between gap-4 mb-2 px-1">
+            <div className="text-[13px] text-foreground font-semibold tabular-nums">
+              {filtered.length} {filtered.length === 1 ? "playlist" : "playlists"}
+            </div>
+            <div className="flex items-center gap-4 md:gap-6 text-[11px] tabular-nums">
+              <span className="text-muted-foreground">Atual <span className="text-foreground font-semibold">{formatInt(filteredTotals.current)}</span></span>
+              <span className="text-muted-foreground">Δ <span className={cn(
+                "font-semibold",
+                filteredTotals.delta > 0 ? "text-primary" : "text-muted-foreground",
+              )}>
+                {filteredTotals.delta > 0 ? "+" : ""}{formatInt(filteredTotals.delta)}
+              </span></span>
+              {isEcosystem && (
+                <Button variant="outline" size="sm" className="h-7 px-2.5 text-[11px]" onClick={exportCsv}>
+                  <Download className="h-3.5 w-3.5 mr-1.5" /> Exportar CSV
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
+        )}
+
 
 
 
@@ -911,28 +927,14 @@ function KpiCell({ label, value, accent }: { label: string; value: number; accen
 }
 
 /**
- * CuratorCommand — substitui CuratorSummary com a UX escolhida (Variante B).
- * Pílulas horizontais (curadores) + 5 tiles KPI (Playlists, Matched, Pending, Conflito, Δ).
- * Clicar numa pílula filtra por curador; clicar num tile colorido alterna o filtro de status.
+ * Resumo agregado por curador — usado por CuratorTiles e CuratorPills.
  */
-function CuratorCommand({
-  rows,
-  curators,
-  statuses,
-  curatorFilter,
-  statusFilter,
-  onPickCurator,
-  onToggleStatus,
-}: {
-  rows: GrowthRow[];
-  curators: Record<string, CuratorMeta>;
-  statuses: Record<string, string>;
-  curatorFilter: string;
-  statusFilter: string;
-  onPickCurator: (curatorId: string) => void;
-  onToggleStatus: (status: string) => void;
-}) {
-  const list = useMemo(() => {
+function useCuratorSummary(
+  rows: GrowthRow[],
+  curators: Record<string, CuratorMeta>,
+  statuses: Record<string, string>,
+) {
+  return useMemo(() => {
     const map = new Map<string, { id: string; name: string; playlists: number; matched: number; pending: number; conflict: number; notFound: number; delta: number }>();
     for (const r of rows) {
       if (!r.attributed_curator_id) continue;
@@ -949,7 +951,28 @@ function CuratorCommand({
     }
     return Array.from(map.values()).sort((a, b) => b.delta - a.delta || b.playlists - a.playlists);
   }, [rows, curators, statuses]);
+}
 
+/**
+ * CuratorTiles — 5 KPI tiles (Playlists / Matched / Pending / Conflito / Δ).
+ * Os 3 do meio são filtros de status (clicar alterna).
+ */
+function CuratorTiles({
+  rows,
+  curators,
+  statuses,
+  curatorFilter,
+  statusFilter,
+  onToggleStatus,
+}: {
+  rows: GrowthRow[];
+  curators: Record<string, CuratorMeta>;
+  statuses: Record<string, string>;
+  curatorFilter: string;
+  statusFilter: string;
+  onToggleStatus: (status: string) => void;
+}) {
+  const list = useCuratorSummary(rows, curators, statuses);
   const totals = useMemo(() => {
     const target = curatorFilter === "all" ? list : list.filter((c) => c.id === curatorFilter);
     return target.reduce(
@@ -967,77 +990,96 @@ function CuratorCommand({
   if (list.length === 0) return null;
 
   return (
-    <div className="space-y-3">
-      {/* Pílulas horizontais — curadores */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-thin">
-        <button
-          onClick={() => onPickCurator("all")}
-          className={cn(
-            "shrink-0 inline-flex items-center gap-2 h-8 px-3 rounded-full text-[12px] font-medium transition-colors border",
-            curatorFilter === "all"
-              ? "bg-accent text-foreground border-[hsl(280_70%_60%)]"
-              : "bg-card text-muted-foreground border-border hover:text-foreground hover:bg-accent/60",
-          )}
-        >
-          <span
-            className={cn(
-              "h-1.5 w-1.5 rounded-full",
-              curatorFilter === "all" ? "bg-[hsl(280_70%_60%)] shadow-[0_0_6px_hsl(280_70%_60%/0.7)]" : "bg-muted-foreground/40",
-            )}
-          />
-          Todos curadores
-          <span className="text-[10px] tabular-nums text-subtle-foreground">{list.reduce((s, c) => s + c.playlists, 0)}</span>
-        </button>
-        {list.map((c) => {
-          const active = curatorFilter === c.id;
-          return (
-            <button
-              key={c.id}
-              onClick={() => onPickCurator(c.id)}
-              className={cn(
-                "shrink-0 inline-flex items-center gap-2 h-8 px-3 rounded-full text-[12px] font-medium transition-colors border",
-                active
-                  ? "bg-accent text-foreground border-[hsl(280_70%_60%)]"
-                  : "bg-card text-muted-foreground border-border hover:text-foreground hover:bg-accent/60",
-              )}
-            >
-              {active && <span className="h-1.5 w-1.5 rounded-full bg-[hsl(280_70%_60%)] shadow-[0_0_6px_hsl(280_70%_60%/0.7)]" />}
-              <span className="truncate max-w-[160px]">{c.name}</span>
-              <span className="text-[10px] tabular-nums text-subtle-foreground">{c.playlists}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* KPI tiles — Playlists / Matched / Pending / Conflito / Δ */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <KpiTile label="Playlists" value={totals.playlists} />
-        <KpiTile
-          label="Matched"
-          value={totals.matched}
-          accent="emerald"
-          active={statusFilter === "matched"}
-          onClick={() => onToggleStatus("matched")}
-        />
-        <KpiTile
-          label="Pending"
-          value={totals.pending}
-          accent="amber"
-          active={statusFilter === "pending_match"}
-          onClick={() => onToggleStatus("pending_match")}
-        />
-        <KpiTile
-          label="Conflito"
-          value={totals.conflict}
-          accent="rose"
-          active={statusFilter === "baseline_conflict"}
-          onClick={() => onToggleStatus("baseline_conflict")}
-        />
-        <KpiTile label="Δ Variação" value={totals.delta} delta />
-      </div>
+    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <KpiTile label="Playlists" value={totals.playlists} />
+      <KpiTile
+        label="Matched"
+        value={totals.matched}
+        accent="emerald"
+        active={statusFilter === "matched"}
+        onClick={() => onToggleStatus("matched")}
+      />
+      <KpiTile
+        label="Pending"
+        value={totals.pending}
+        accent="amber"
+        active={statusFilter === "pending_match"}
+        onClick={() => onToggleStatus("pending_match")}
+      />
+      <KpiTile
+        label="Conflito"
+        value={totals.conflict}
+        accent="rose"
+        active={statusFilter === "baseline_conflict"}
+        onClick={() => onToggleStatus("baseline_conflict")}
+      />
+      <KpiTile label="Δ Variação" value={totals.delta} delta />
     </div>
   );
 }
+
+/**
+ * CuratorPills — pílulas horizontais (Todos curadores · <cada curador>).
+ */
+function CuratorPills({
+  rows,
+  curators,
+  statuses,
+  curatorFilter,
+  onPickCurator,
+}: {
+  rows: GrowthRow[];
+  curators: Record<string, CuratorMeta>;
+  statuses: Record<string, string>;
+  curatorFilter: string;
+  onPickCurator: (curatorId: string) => void;
+}) {
+  const list = useCuratorSummary(rows, curators, statuses);
+  if (list.length === 0) return null;
+  const total = list.reduce((s, c) => s + c.playlists, 0);
+  return (
+    <div className="flex items-center gap-2 overflow-x-auto scrollbar-thin min-w-0">
+      <button
+        onClick={() => onPickCurator("all")}
+        className={cn(
+          "shrink-0 inline-flex items-center gap-2 h-8 px-3 rounded-full text-[12px] font-medium transition-colors border",
+          curatorFilter === "all"
+            ? "bg-accent text-foreground border-[hsl(280_70%_60%)]"
+            : "bg-card text-muted-foreground border-border hover:text-foreground hover:bg-accent/60",
+        )}
+      >
+        <span
+          className={cn(
+            "h-1.5 w-1.5 rounded-full",
+            curatorFilter === "all" ? "bg-[hsl(280_70%_60%)] shadow-[0_0_6px_hsl(280_70%_60%/0.7)]" : "bg-muted-foreground/40",
+          )}
+        />
+        Todos curadores
+        <span className="text-[10px] tabular-nums text-subtle-foreground">{total}</span>
+      </button>
+      {list.map((c) => {
+        const active = curatorFilter === c.id;
+        return (
+          <button
+            key={c.id}
+            onClick={() => onPickCurator(c.id)}
+            className={cn(
+              "shrink-0 inline-flex items-center gap-2 h-8 px-3 rounded-full text-[12px] font-medium transition-colors border",
+              active
+                ? "bg-accent text-foreground border-[hsl(280_70%_60%)]"
+                : "bg-card text-muted-foreground border-border hover:text-foreground hover:bg-accent/60",
+            )}
+          >
+            {active && <span className="h-1.5 w-1.5 rounded-full bg-[hsl(280_70%_60%)] shadow-[0_0_6px_hsl(280_70%_60%/0.7)]" />}
+            <span className="truncate max-w-[160px]">{c.name}</span>
+            <span className="text-[10px] tabular-nums text-subtle-foreground">{c.playlists}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 
 function KpiTile({
   label,
