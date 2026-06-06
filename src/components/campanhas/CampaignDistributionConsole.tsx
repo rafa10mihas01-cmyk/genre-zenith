@@ -221,8 +221,24 @@ export function CampaignDistributionConsole({
   const kpis = useMemo(() => {
     const now = Date.now();
     let added = 0, pending = 0, failed = 0, scheduled = 0;
+    const latestManualBySpid = new Map<string, ManualQueueRow>();
+    for (const it of manualItems) {
+      if (it.spotify_playlist_id && !latestManualBySpid.has(it.spotify_playlist_id)) {
+        latestManualBySpid.set(it.spotify_playlist_id, it);
+      }
+    }
+    const manualDoneSpids = new Set<string>();
+    for (const [spid, it] of latestManualBySpid) {
+      if (it.status === "MANUAL_DONE") {
+        manualDoneSpids.add(spid);
+        added++;
+      } else {
+        pending++;
+      }
+    }
     for (const j of jobs) {
       if (j.job_type !== "playlist.track.add") continue;
+      if (manualDoneSpids.has(j.spotify_playlist_id)) continue;
       if (j.status === "done") added++;
       else if (j.status === "failed") failed++;
       else if (j.status === "pending" || j.status === "claimed") {
@@ -232,7 +248,7 @@ export function CampaignDistributionConsole({
       }
     }
     return { added, pending, failed, scheduled };
-  }, [jobs]);
+  }, [jobs, manualItems]);
 
   // --- estado por spotify_playlist_id (último job ADD por playlist) ---
   type PlaylistState = {
