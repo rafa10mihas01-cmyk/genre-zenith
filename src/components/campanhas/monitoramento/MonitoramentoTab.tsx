@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Activity, ChevronRight, Image as ImageIcon, Users, Layers, HeartPulse, BarChart3 } from "lucide-react";
+import { Activity, ChevronDown, Image as ImageIcon, Users, Layers, HeartPulse, BarChart3, CheckCircle2 } from "lucide-react";
 import { ExecucaoView } from "./ExecucaoView";
 import { PlaylistHistoryDrawer } from "./PlaylistHistoryDrawer";
 import { PrintThumbs } from "@/components/playlist-deals/PrintThumbs";
