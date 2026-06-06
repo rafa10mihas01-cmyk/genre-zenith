@@ -164,6 +164,13 @@ export type Database = {
             referencedRelation: "spotify_user_tokens"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "accounts_spotify_user_token_id_fkey"
+            columns: ["spotify_user_token_id"]
+            isOneToOne: false
+            referencedRelation: "spotify_user_tokens_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       ai_print_cache: {
@@ -9363,6 +9370,30 @@ export type Database = {
           total_playlists: number | null
           total_termos: number | null
           ultima_coleta: string | null
+        }
+        Relationships: []
+      }
+      spotify_user_tokens_public: {
+        Row: {
+          display_name: string | null
+          email: string | null
+          id: string | null
+          is_default: boolean | null
+          spotify_user_id: string | null
+        }
+        Insert: {
+          display_name?: string | null
+          email?: string | null
+          id?: string | null
+          is_default?: boolean | null
+          spotify_user_id?: string | null
+        }
+        Update: {
+          display_name?: string | null
+          email?: string | null
+          id?: string | null
+          is_default?: boolean | null
+          spotify_user_id?: string | null
         }
         Relationships: []
       }
