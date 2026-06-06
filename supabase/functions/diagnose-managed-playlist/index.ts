@@ -390,6 +390,34 @@ Deno.serve(async (req) => {
     tel.end("sync_tracks", (syncRes as any)?.ok ? "ok" : "error", (syncRes as any)?.ok ? undefined : "sync falhou");
     if (!(syncRes as any)?.ok) tel.failures.sync_failed = true;
 
+    // === FASE 6C — Carrega Playlist Brain (fonte oficial dos indicadores operacionais) ===
+    // Leitura passiva: não recalcula nada no brain. Diagnose continua tendo seu cálculo
+    // local intacto pra fallback + auditoria de drift.
+    let brain: any = null;
+    const brainCanonicalId: string | null = (pl as any).canonical_playlist_id ?? null;
+    tel.start("load_brain");
+    if (brainCanonicalId) {
+      const { data: pb, error: brErr } = await supabase
+        .from("playlist_brain")
+        .select("playlist_id, identity, personality, capacity_total, capacity_per_slot, capacity_ceiling, headroom_pct, health_trend, signals, recommendations, confidence_score, last_calculated_at, lifecycle_phase, benchmark_tracks, ratio_to_benchmark, growth_roadmap")
+        .eq("playlist_id", brainCanonicalId)
+        .maybeSingle();
+      if (brErr) {
+        tel.end("load_brain", "error", brErr.message);
+      } else if (pb) {
+        brain = pb;
+        const ageH = pb.last_calculated_at
+          ? Math.round((Date.now() - new Date(pb.last_calculated_at as string).getTime()) / 3_600_000)
+          : null;
+        tel.end("load_brain", "ok", `conf=${pb.confidence_score} age=${ageH}h`);
+      } else {
+        tel.end("load_brain", "skipped", "brain ausente");
+      }
+    } else {
+      tel.skip("load_brain", "canonical_playlist_id ausente");
+    }
+
+
     // 2) Carrega modelo, benchmark, concorrentes, faixas atuais e ecosystem scores
     let model: any = null;
     let benchmark: any = null;
@@ -2248,21 +2276,63 @@ Deno.serve(async (req) => {
       })
       .eq("id", pl.id);
 
-    // === Lifecycle phase + roadmap (espelho do que brain-calc vai materializar) ===
+    // === Lifecycle phase + roadmap (FASE 6C — preferir Brain como fonte oficial) ===
+    // Mantém o cálculo local SEMPRE — usado como fallback e como referência para drift.
     const currentTracksCount = Number((pl as any).tracks_count ?? 0);
-    const benchmarkTracksDiag: number | null = (benchmark?.tracks_p50 as number | null) ?? null;
-    const { phase: lifecyclePhaseDiagRaw, ratio: ratioDiag } = derivePhase(currentTracksCount, benchmarkTracksDiag);
-    // Tenta carregar a fase persistida (que considera decline via snapshots)
+    const benchmarkTracksLocal: number | null = (benchmark?.tracks_p50 as number | null) ?? null;
+    const { phase: lifecyclePhaseDiagRaw, ratio: ratioLocal } = derivePhase(currentTracksCount, benchmarkTracksLocal);
     const { data: mgdPhase } = await supabase
       .from("managed_playlists")
       .select("lifecycle_phase")
       .eq("id", pl.id)
       .maybeSingle();
-    const lifecyclePhaseDiag = ((mgdPhase as any)?.lifecycle_phase as any) ?? lifecyclePhaseDiagRaw;
-    const growthRoadmapDiag = buildRoadmap(currentTracksCount, benchmarkTracksDiag ?? 0, lifecyclePhaseDiag);
+    const lifecyclePhaseLocal = ((mgdPhase as any)?.lifecycle_phase as any) ?? lifecyclePhaseDiagRaw;
+    const growthRoadmapLocal = buildRoadmap(currentTracksCount, benchmarkTracksLocal ?? 0, lifecyclePhaseLocal);
+
+    // Decide a origem efetiva de cada campo. Brain só é usado se existe E tem confidence >= 40.
+    const brainUsable = !!brain && Number((brain as any).confidence_score ?? 0) >= 40;
+    const lifecyclePhaseDiag = brainUsable && (brain as any).lifecycle_phase ? (brain as any).lifecycle_phase : lifecyclePhaseLocal;
+    const lifecyclePhaseSource: "brain" | "local" = brainUsable && (brain as any).lifecycle_phase ? "brain" : "local";
+
+    const benchmarkTracksDiag = brainUsable && (brain as any).benchmark_tracks != null ? Number((brain as any).benchmark_tracks) : benchmarkTracksLocal;
+    const benchmarkTracksSource: "brain" | "local" = brainUsable && (brain as any).benchmark_tracks != null ? "brain" : "local";
+
+    const ratioDiag = brainUsable && (brain as any).ratio_to_benchmark != null ? Number((brain as any).ratio_to_benchmark) : ratioLocal;
+    const ratioSource: "brain" | "local" = brainUsable && (brain as any).ratio_to_benchmark != null ? "brain" : "local";
+
+    const growthRoadmapDiag = brainUsable && (brain as any).growth_roadmap
+      ? (brain as any).growth_roadmap
+      : growthRoadmapLocal;
+    const growthRoadmapSource: "brain" | "local" = brainUsable && (brain as any).growth_roadmap ? "brain" : "local";
+
     const bloatedBudget = lifecyclePhaseDiag === "bloated"
       ? bloatedRemovalBudget(currentTracksCount, benchmarkTracksDiag ?? 0)
       : null;
+
+    // === Drift audit (>5%) — só calcula quando temos brain e local lado a lado ===
+    const driftEvents: Array<{ field: string; brain_value: any; local_value: any; diff_pct: number | null }> = [];
+    if (brain) {
+      const pushDrift = (field: string, b: any, l: any, diffPct: number | null) => {
+        driftEvents.push({ field, brain_value: b, local_value: l, diff_pct: diffPct });
+      };
+      // lifecycle_phase — categórico: drift = 100 se diferente
+      if ((brain as any).lifecycle_phase && (brain as any).lifecycle_phase !== lifecyclePhaseLocal) {
+        pushDrift("lifecycle_phase", (brain as any).lifecycle_phase, lifecyclePhaseLocal, 100);
+      }
+      // ratio_to_benchmark — numérico
+      const bRatio = (brain as any).ratio_to_benchmark != null ? Number((brain as any).ratio_to_benchmark) : null;
+      if (bRatio != null && ratioLocal != null && ratioLocal !== 0) {
+        const diff = Math.abs((bRatio - ratioLocal) / ratioLocal) * 100;
+        if (diff > 5) pushDrift("ratio_to_benchmark", bRatio, ratioLocal, Number(diff.toFixed(2)));
+      }
+      // benchmark_tracks — numérico
+      const bBench = (brain as any).benchmark_tracks != null ? Number((brain as any).benchmark_tracks) : null;
+      if (bBench != null && benchmarkTracksLocal != null && benchmarkTracksLocal !== 0) {
+        const diff = Math.abs((bBench - benchmarkTracksLocal) / benchmarkTracksLocal) * 100;
+        if (diff > 5) pushDrift("benchmark_tracks", bBench, benchmarkTracksLocal, Number(diff.toFixed(2)));
+      }
+    }
+
 
 
     tel.start("persist_diagnosis");
@@ -2282,12 +2352,38 @@ Deno.serve(async (req) => {
         cover_suggestion: coverSuggestion,
         competitors,
         raw: {
-          // === Lifecycle / Roadmap (espelho do brain) ===
+          // === Lifecycle / Roadmap (FASE 6C — fonte oficial = Brain quando disponível) ===
           lifecycle_phase: lifecyclePhaseDiag,
           benchmark_tracks: benchmarkTracksDiag,
           ratio_to_benchmark: ratioDiag,
           growth_roadmap: growthRoadmapDiag,
           bloated_budget: bloatedBudget,
+          // Marcadores de origem (FASE 6C)
+          lifecycle_phase_source: lifecyclePhaseSource,
+          growth_roadmap_source: growthRoadmapSource,
+          ratio_to_benchmark_source: ratioSource,
+          benchmark_tracks_source: benchmarkTracksSource,
+          headroom_source: brainUsable ? "brain" : "local",
+          // Snapshot do brain consumido (read-only) + cálculo local preservado p/ auditoria
+          brain: brain ? {
+            confidence_score: (brain as any).confidence_score ?? null,
+            health_trend: (brain as any).health_trend ?? null,
+            capacity_total: (brain as any).capacity_total ?? null,
+            capacity_per_slot: (brain as any).capacity_per_slot ?? null,
+            capacity_ceiling: (brain as any).capacity_ceiling ?? null,
+            headroom_pct: (brain as any).headroom_pct ?? null,
+            signals_count: Array.isArray((brain as any).signals) ? (brain as any).signals.length : 0,
+            last_calculated_at: (brain as any).last_calculated_at ?? null,
+            used: brainUsable,
+            drift_count: driftEvents.length,
+          } : null,
+          local_calc: {
+            lifecycle_phase: lifecyclePhaseLocal,
+            benchmark_tracks: benchmarkTracksLocal,
+            ratio_to_benchmark: ratioLocal,
+            growth_roadmap: growthRoadmapLocal,
+          },
+
           model_present: !!model,
           benchmark,
           top_keywords: topKeywords,
@@ -2346,6 +2442,27 @@ Deno.serve(async (req) => {
       await supabase.from("managed_playlists")
         .update({ last_diagnosis_at: new Date().toISOString() })
         .eq("id", pl.id);
+
+      // === FASE 6C — persiste drift events (>5%) em brain_drift_events ===
+      if (driftEvents.length > 0 && brain) {
+        try {
+          await supabase.from("brain_drift_events").insert(
+            driftEvents.map((d) => ({
+              playlist_id: pl.id,
+              canonical_playlist_id: brainCanonicalId,
+              diagnosis_id: (diag as any)?.id ?? null,
+              field: d.field,
+              brain_value: d.brain_value as any,
+              local_value: d.local_value as any,
+              diff_pct: d.diff_pct,
+              brain_confidence: (brain as any).confidence_score ?? null,
+              brain_calculated_at: (brain as any).last_calculated_at ?? null,
+            })),
+          );
+        } catch (e) {
+          console.warn("[brain_drift] insert falhou:", (e as Error).message);
+        }
+      }
     }
 
 

@@ -616,6 +616,48 @@ export type Database = {
           },
         ]
       }
+      brain_drift_events: {
+        Row: {
+          brain_calculated_at: string | null
+          brain_confidence: number | null
+          brain_value: Json | null
+          canonical_playlist_id: string | null
+          detected_at: string
+          diagnosis_id: string | null
+          diff_pct: number | null
+          field: string
+          id: string
+          local_value: Json | null
+          playlist_id: string
+        }
+        Insert: {
+          brain_calculated_at?: string | null
+          brain_confidence?: number | null
+          brain_value?: Json | null
+          canonical_playlist_id?: string | null
+          detected_at?: string
+          diagnosis_id?: string | null
+          diff_pct?: number | null
+          field: string
+          id?: string
+          local_value?: Json | null
+          playlist_id: string
+        }
+        Update: {
+          brain_calculated_at?: string | null
+          brain_confidence?: number | null
+          brain_value?: Json | null
+          canonical_playlist_id?: string | null
+          detected_at?: string
+          diagnosis_id?: string | null
+          diff_pct?: number | null
+          field?: string
+          id?: string
+          local_value?: Json | null
+          playlist_id?: string
+        }
+        Relationships: []
+      }
       campaign_access_emails: {
         Row: {
           added_at: string
