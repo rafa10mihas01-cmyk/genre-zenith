@@ -500,6 +500,7 @@ async function getDefaultSpotifyAppId(): Promise<string | null> {
     .from("spotify_apps")
     .select("id")
     .eq("status", "active")
+    .or("quarantined_until.is.null,quarantined_until.lt." + new Date().toISOString())
     .order("is_default", { ascending: false })
     .order("created_at", { ascending: true })
     .limit(1)
@@ -507,12 +508,25 @@ async function getDefaultSpotifyAppId(): Promise<string | null> {
   return data?.id ?? null;
 }
 
+export type GetAppCredentialsOpts = {
+  excludeAppIds?: string[];
+};
+
 /** Busca credenciais do app Spotify.
  *  - appId informado → carrega esse app (erro se não achar).
- *  - sem appId → pega is_default, ou primeiro active, ou cai no env (compat).
+ *  - sem appId → expira quarentenas vencidas; escolhe primeiro app `active` AND
+ *    não-quarentenado AND não em excludeAppIds (ordem: is_default DESC, created_at ASC).
+ *    Se nenhum saudável, faz fallback pra qualquer active (mesmo padrão antigo
+ *    pra não derrubar operação em incidente Spotify-wide). Só cai no env como
+ *    último recurso quando não há ZERO apps cadastrados.
  */
-export async function getAppCredentials(appId?: string | null): Promise<SpotifyAppCreds> {
+export async function getAppCredentials(
+  appIdOrOpts?: string | null | GetAppCredentialsOpts,
+): Promise<SpotifyAppCreds> {
   const sb = db();
+  const appId = typeof appIdOrOpts === "string" ? appIdOrOpts : null;
+  const opts: GetAppCredentialsOpts = (appIdOrOpts && typeof appIdOrOpts === "object") ? appIdOrOpts : {};
+  const excludeAppIds = new Set((opts.excludeAppIds ?? []).filter(Boolean));
 
   if (appId) {
     const { data, error } = await sb
@@ -530,30 +544,41 @@ export async function getAppCredentials(appId?: string | null): Promise<SpotifyA
     };
   }
 
-  // sem appId: tenta default → primeiro active
-  const { data: def } = await sb
+  // Expira quarentenas vencidas antes de selecionar (fail-silent, ~5ms).
+  try { await sb.rpc("expire_spotify_app_quarantines"); } catch { /* noop */ }
+
+  const nowIso = new Date().toISOString();
+  const { data: rows } = await sb
     .from("spotify_apps")
-    .select("id, name, client_id, client_secret, is_default, status")
+    .select("id, name, client_id, client_secret, is_default, status, quarantined_until")
     .eq("status", "active")
     .order("is_default", { ascending: false })
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+    .order("created_at", { ascending: true });
 
-  if (def) {
+  const allActive = (rows ?? []) as Array<{ id: string; name: string; client_id: string; client_secret: string; quarantined_until: string | null }>;
+  const healthy = allActive.filter((r) => {
+    if (excludeAppIds.has(r.id)) return false;
+    if (r.quarantined_until && new Date(r.quarantined_until).getTime() > Date.now()) return false;
+    return true;
+  });
+
+  // Prioridade: healthy > active (mesmo quarentenado) excluindo excludeAppIds > primeiro active
+  const fallback = allActive.filter((r) => !excludeAppIds.has(r.id));
+  const picked = healthy[0] ?? fallback[0] ?? allActive[0] ?? null;
+
+  if (picked) {
     return {
-      app_id: def.id,
-      name: def.name,
-      client_id: def.client_id,
-      client_secret: def.client_secret,
+      app_id: picked.id,
+      name: picked.name,
+      client_id: picked.client_id,
+      client_secret: picked.client_secret,
     };
   }
 
-  // Fallback: env vars (compat retroativo enquanto não há apps cadastrados)
+  // Fallback final: env vars (compat retroativo)
   if (!ENV_CLIENT_ID || !ENV_CLIENT_SECRET) {
     throw new Error(
-      "Nenhum app Spotify cadastrado e SPOTIFY_CLIENT_ID/SECRET não configurados. " +
-      "Cadastre um app em Configurações → Conexões → Spotify.",
+      "NO_HEALTHY_SPOTIFY_APP: nenhum app Spotify saudável e SPOTIFY_CLIENT_ID/SECRET não configurados.",
     );
   }
   return {
