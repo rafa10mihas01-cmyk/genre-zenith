@@ -56,6 +56,9 @@ function StatusBadge({ status }: { status: string }) {
     claimed: { label: "Executando", icon: Loader2, cls: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
     done: { label: "Concluído", icon: CheckCircle2, cls: "bg-primary/15 text-primary border-primary/30" },
     failed: { label: "Falhou", icon: XCircle, cls: "bg-rose-500/15 text-rose-400 border-rose-500/30" },
+    MANUAL_PENDING: { label: "Manual pendente", icon: Hand, cls: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
+    AUTO_FAILED_FALLBACK_MANUAL: { label: "Manual pendente", icon: Hand, cls: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
+    MANUAL_DONE: { label: "Feito manual", icon: Hand, cls: "bg-primary/15 text-primary border-primary/30" },
   };
   const c = cfg[status] ?? { label: status, icon: AlertCircle, cls: "bg-muted text-muted-foreground border-border" };
   const Icon = c.icon;
