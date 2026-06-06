@@ -49,11 +49,12 @@ export function PlaylistCockpit({
   } = derivations;
 
   // 4) Estado puramente local de aba (coordena Mercado → Plano).
-  const [activeTab, setActiveTab] = useState<string>("identidade");
+  // Default = "plano" (Fase 7A.2): operador chega direto na decisão.
+  const [activeTab, setActiveTab] = useState<string>("plano");
   const [initialTabSet, setInitialTabSet] = useState(false);
   useEffect(() => {
     if (!initialTabSet && diag) {
-      setActiveTab(diag.raw?.market_insights ? "mercado" : "identidade");
+      setActiveTab("plano");
       setInitialTabSet(true);
     }
   }, [diag, initialTabSet]);
@@ -117,14 +118,6 @@ export function PlaylistCockpit({
             <div className="sticky top-0 z-30 -mx-4 md:-mx-8 px-4 md:px-8 py-3 bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border">
             <div className="overflow-x-auto nx-scroll -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <TabsList className="inline-flex w-max items-center justify-start gap-1 h-auto rounded-2xl bg-elevated/80 p-1.5 text-muted-foreground whitespace-nowrap">
-              {market && (
-                <TabsTrigger value="mercado" className="h-9 gap-1.5 rounded-xl px-3 text-sm shrink-0 data-[state=active]:bg-background">
-                  <TrendingUp className="h-3.5 w-3.5" /> Mercado
-                </TabsTrigger>
-              )}
-              <TabsTrigger value="identidade" className="h-9 gap-1.5 rounded-xl px-3 text-sm shrink-0 data-[state=active]:bg-background">
-                <Eye className="h-3.5 w-3.5" /> Identidade
-              </TabsTrigger>
               <TabsTrigger value="plano" className="h-9 gap-1.5 rounded-xl px-3 text-sm shrink-0 data-[state=active]:bg-background">
                 <Sparkles className="h-3.5 w-3.5" /> <span className="sm:hidden">Plano</span><span className="hidden sm:inline">Plano de ação</span>
                 {(buckets.remove.length + buckets.demote.length + buckets.promote.length + buckets.add.length) > 0 && (
@@ -133,11 +126,19 @@ export function PlaylistCockpit({
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="estrategia" className="h-9 gap-1.5 rounded-xl px-3 text-sm shrink-0 data-[state=active]:bg-background">
-                <Activity className="h-3.5 w-3.5" /> Estratégia
-              </TabsTrigger>
+              {market && (
+                <TabsTrigger value="mercado" className="h-9 gap-1.5 rounded-xl px-3 text-sm shrink-0 data-[state=active]:bg-background">
+                  <TrendingUp className="h-3.5 w-3.5" /> Mercado
+                </TabsTrigger>
+              )}
               <TabsTrigger value="editor" className="h-9 gap-1.5 rounded-xl px-3 text-sm shrink-0 data-[state=active]:bg-background">
                 <ListMusic className="h-3.5 w-3.5" /> <span className="sm:hidden">Editar</span><span className="hidden sm:inline">Editar manualmente</span>
+              </TabsTrigger>
+              <TabsTrigger value="identidade" className="h-9 gap-1.5 rounded-xl px-3 text-sm shrink-0 data-[state=active]:bg-background">
+                <Eye className="h-3.5 w-3.5" /> Identidade
+              </TabsTrigger>
+              <TabsTrigger value="estrategia" className="h-9 gap-1.5 rounded-xl px-3 text-sm shrink-0 data-[state=active]:bg-background">
+                <Activity className="h-3.5 w-3.5" /> Estratégia
               </TabsTrigger>
             </TabsList>
             </div>
