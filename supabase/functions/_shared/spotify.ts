@@ -431,9 +431,17 @@ export function installSpotifyCircuitFetchGuard() {
           if (text) errorBody = text.slice(0, 1000);
         } catch { /* ignore */ }
       }
+      // Hook AUTH_INVALID: 401 em api.spotify.com (não em accounts) → conta falha do app.
+      if (r.status === 401 && !bypass && merged.app_id) {
+        fireAndForget(markAppAuthFailure(merged.app_id, "AUTH_INVALID"));
+      } else if (r.ok && merged.app_id) {
+        // Sucesso 2xx → reseta contador (debounce 60s pra evitar RPC spam).
+        fireAndForget(resetAppAuthFailures(merged.app_id));
+      }
       if (r.status === 429 && !bypass) {
         const ra = Number(r.headers.get("Retry-After") ?? r.headers.get("retry-after") ?? "");
         const opened = await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60, appId, rawUrl);
+        if (merged.app_id) fireAndForget(markAppAuthFailure(merged.app_id, "RATE_LIMIT", opened.retryAfterSec));
         logStatus = "circuit_open";
         breakerOpen = true;
         retryAfterSec = opened.retryAfterSec;
