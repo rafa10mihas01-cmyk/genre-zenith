@@ -50,6 +50,12 @@ type ItemRow = {
   cost_per_stream: number;
   curator_deal_id: string | null;
   curators: { name: string; contact: string | null } | null;
+  curator_deals: {
+    state: string | null;
+    reconciled_total_plays: number | null;
+    ends_at: string | null;
+    closed_status: string | null;
+  } | null;
 };
 
 export function ExternalPackageEditor({
@@ -88,7 +94,7 @@ export function ExternalPackageEditor({
           .single(),
         supabase
           .from("campaign_external_package_items")
-          .select("id, curator_id, assigned_streams, assigned_cost, cost_per_stream, curator_deal_id, curators(name, contact)")
+          .select("id, curator_id, assigned_streams, assigned_cost, cost_per_stream, curator_deal_id, curators(name, contact), curator_deals(state, reconciled_total_plays, ends_at, closed_status)")
           .eq("package_id", packageId)
           .order("assigned_streams", { ascending: false }),
         fetchCuratorCandidates(),
@@ -366,56 +372,24 @@ export function ExternalPackageEditor({
 
         {items.length > 0 && (
           <>
-            <div className="flex items-center justify-between gap-3 flex-wrap text-[11px]">
-              <div className="flex items-start gap-2 text-muted-foreground min-w-0">
-                <Users className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
-                <span className="min-w-0">
-                  Distribuição em <strong className="text-foreground">{effDays} dias</strong> ·
-                  alvo <strong className="text-foreground tabular-nums">{formatInt(snapshot.streamsExt)}</strong> streams ·
-                  <strong className="text-foreground"> {formatBRL(snapshot.custoExt)}</strong>
-                </span>
+            {!isDispatched && (
+              <div className="flex items-center justify-between gap-3 flex-wrap text-[11px]">
+                <div className="flex items-start gap-2 text-muted-foreground min-w-0">
+                  <Users className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+                  <span className="min-w-0">
+                    Distribuição em <strong className="text-foreground">{effDays} dias</strong> ·
+                    alvo <strong className="text-foreground tabular-nums">{formatInt(snapshot.streamsExt)}</strong> streams ·
+                    <strong className="text-foreground"> {formatBRL(snapshot.custoExt)}</strong>
+                  </span>
+                </div>
               </div>
-            </div>
+            )}
 
             {isDispatched ? (
-              <div className="rounded-xl border border-border/60 bg-card overflow-hidden divide-y divide-border/60">
-                {items.map((it) => {
-                  const perDay = Math.round(it.assigned_streams / effDays);
-                  return (
-                    <div key={it.id} className="px-4 py-3 flex items-center gap-3 min-w-0">
-                      <div className="h-9 w-9 rounded-full bg-curators/15 border border-curators/30 flex items-center justify-center shrink-0">
-                        <Users className="h-4 w-4 text-curators" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-sm font-medium text-foreground truncate">
-                          {it.curators?.name ?? "—"}
-                        </div>
-                        <div className="text-[11px] text-muted-foreground tabular-nums truncate">
-                          {formatInt(it.assigned_streams)} streams · {formatInt(perDay)}/dia · {it.cost_per_stream.toFixed(3)}/stream
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <div className="text-sm font-semibold tabular-nums text-foreground leading-tight">
-                          {formatBRL(it.assigned_cost)}
-                        </div>
-                        {it.curator_deal_id ? (
-                          <Link to={`/deals/${it.curator_deal_id}`} className="text-[10px] text-primary hover:underline">
-                            Ver deal
-                          </Link>
-                        ) : (
-                          <span className="text-[10px] text-muted-foreground">Rascunho</span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-                <div className="px-4 py-3 flex items-center gap-3 bg-elevated/30">
-                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground flex-1">Total externo</div>
-                  <div className="text-[11px] text-muted-foreground tabular-nums">
-                    {formatInt(totalStreams)} · {formatInt(Math.round(totalStreams / effDays))}/dia
-                  </div>
-                  <div className="text-sm font-semibold tabular-nums text-foreground">{formatBRL(totalCost)}</div>
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {items.map((it) => (
+                  <CuratorCard key={it.id} item={it} />
+                ))}
               </div>
             ) : (
             <div className="overflow-x-auto rounded-md border border-border">
@@ -590,5 +564,110 @@ export function ExternalPackageEditor({
     </>
   );
 }
+
+function CuratorCard({ item }: { item: ItemRow }) {
+  const name = item.curators?.name ?? "—";
+  const initials = name
+    .split(/\s+/)
+    .map((p) => p[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase() || "—";
+
+  const deal = item.curator_deals;
+  const delivered = Number(deal?.reconciled_total_plays ?? 0);
+  const planned = Math.max(0, Number(item.assigned_streams ?? 0));
+  const pct = planned > 0 ? Math.min(100, Math.round((delivered / planned) * 100)) : 0;
+
+  let statusLabel = "Travado";
+  let statusClass = "border border-primary/60 text-primary";
+  if (!item.curator_deal_id) {
+    statusLabel = "Rascunho";
+    statusClass = "border border-border text-muted-foreground";
+  } else if (deal?.closed_status === "completed") {
+    statusLabel = "Concluído";
+    statusClass = "border border-primary/60 text-primary";
+  } else if (deal?.closed_status === "paused" || deal?.state === "paused") {
+    statusLabel = "Pausado";
+    statusClass = "border border-border text-muted-foreground";
+  } else if (deal?.state === "active" || deal?.state === "in_progress") {
+    statusLabel = "Ativo";
+    statusClass = "bg-primary text-primary-foreground";
+  }
+
+  let restanteLabel: string = "—";
+  let restanteClass = "text-muted-foreground";
+  if (deal?.ends_at) {
+    const ms = new Date(deal.ends_at).getTime() - Date.now();
+    const days = Math.ceil(ms / 86400000);
+    if (days > 0) {
+      restanteLabel = `${days} ${days === 1 ? "dia" : "dias"}`;
+      restanteClass = "text-primary";
+    } else if (days === 0) {
+      restanteLabel = "hoje";
+      restanteClass = "text-warning";
+    } else {
+      restanteLabel = "vencido";
+      restanteClass = "text-destructive";
+    }
+  }
+
+  return (
+    <div className="bg-card border border-border rounded-2xl p-5 hover:bg-elevated transition-colors flex flex-col">
+      <div className="flex items-start gap-3 mb-5">
+        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-muted to-elevated flex items-center justify-center border border-border shrink-0">
+          <span className="text-sm font-semibold text-muted-foreground tabular-nums">{initials}</span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="font-semibold text-foreground truncate text-[15px] leading-tight">{name}</h3>
+          <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide mt-1.5", statusClass)}>
+            {statusLabel}
+          </span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-y-3 gap-x-3 mb-5">
+        <div>
+          <p className="text-[10px] uppercase text-muted-foreground tracking-wider mb-0.5">R$/Stream</p>
+          <p className="text-[13px] font-semibold tabular-nums text-foreground">R$ {item.cost_per_stream.toFixed(3)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase text-muted-foreground tracking-wider mb-0.5">Custo total</p>
+          <p className="text-[13px] font-semibold tabular-nums text-foreground">{formatBRL(item.assigned_cost)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase text-muted-foreground tracking-wider mb-0.5">Planejado</p>
+          <p className="text-[13px] font-semibold tabular-nums text-foreground">{formatInt(planned)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase text-muted-foreground tracking-wider mb-0.5">Restante</p>
+          <p className={cn("text-[13px] font-semibold tabular-nums", restanteClass)}>{restanteLabel}</p>
+        </div>
+      </div>
+
+      <div className="space-y-1.5 mb-5">
+        <div className="flex justify-between text-[11px] font-medium">
+          <span className="text-muted-foreground">Entregues</span>
+          <span className="text-foreground tabular-nums">{formatInt(delivered)} <span className="text-muted-foreground">({pct}%)</span></span>
+        </div>
+        <div className="w-full h-1.5 bg-elevated rounded-full overflow-hidden">
+          <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+        </div>
+      </div>
+
+      {item.curator_deal_id ? (
+        <Button asChild variant="outline" size="sm" className="w-full mt-auto">
+          <Link to={`/deals/${item.curator_deal_id}`}>Ver deal</Link>
+        </Button>
+      ) : (
+        <Button variant="outline" size="sm" className="w-full mt-auto" disabled>
+          Sem deal
+        </Button>
+      )}
+    </div>
+  );
+}
+
 
 
