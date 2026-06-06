@@ -825,6 +825,8 @@ export function CampaignDistributionConsole({
                       key={r.allocId}
                       row={r}
                       onRetry={r.state.jobId ? () => handleRetryOne(r.state.jobId!) : undefined}
+                      onMarkManualDone={r.manualItem && r.manualItem.status !== "MANUAL_DONE" ? () => handleMarkManualDone(r.manualItem!.id) : undefined}
+                      markingManual={r.manualItem ? busyManualId === r.manualItem.id : false}
                     />
                   ))}
                 </div>
@@ -854,6 +856,8 @@ export function CampaignDistributionConsole({
                       key={r.allocId}
                       row={r}
                       onRetry={r.state.jobId ? () => handleRetryOne(r.state.jobId!) : undefined}
+                      onMarkManualDone={r.manualItem && r.manualItem.status !== "MANUAL_DONE" ? () => handleMarkManualDone(r.manualItem!.id) : undefined}
+                      markingManual={r.manualItem ? busyManualId === r.manualItem.id : false}
                     />
                   ))}
                 </div>
