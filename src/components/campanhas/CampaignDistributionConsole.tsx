@@ -764,44 +764,114 @@ export function CampaignDistributionConsole({
         </Card>
       )}
 
-      {/* BLOCO 3 — Lista de playlists com status */}
-      <Card>
-        <CardContent className="p-0">
-          <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-semibold">Status por playlist</div>
-              <div className="text-[11px] text-muted-foreground">
-                {playlistsCount} playlist(s) · atualiza em tempo real
-                {ecoDispatchedAt && (
-                  <> · distribuído em <span className="text-foreground">{fmtDateTime(ecoDispatchedAt)}</span></>
-                )}
-              </div>
-            </div>
-
-          </div>
-          {loadingJobs || loadingManual ? (
-            <div className="p-4 space-y-2">
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
-            </div>
-          ) : rows.length === 0 ? (
-            <div className="p-8 text-center text-sm text-muted-foreground">
-              Nenhuma playlist no ecossistema desta campanha.
-            </div>
-          ) : (
-            <div className="max-h-[640px] overflow-y-auto divide-y divide-border">
-              {rows.map((r) => (
-                <PlaylistRow
-                  key={r.allocId}
-                  row={r}
-                  onRetry={r.state.jobId ? () => handleRetryOne(r.state.jobId!) : undefined}
-                />
-              ))}
-            </div>
+      {/* BLOCO 3 — Lista de playlists com status, particionada por modo de execução */}
+      {loadingJobs || loadingManual ? (
+        <Card>
+          <CardContent className="p-4 space-y-2">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </CardContent>
+        </Card>
+      ) : rows.length === 0 ? (
+        <Card>
+          <CardContent className="p-8 text-center text-sm text-muted-foreground">
+            Nenhuma playlist no ecossistema desta campanha.
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* SEÇÃO — Execução Automática (API_READY) */}
+          {rowsByMode.auto.length > 0 && (
+            <Card>
+              <CardContent className="p-0">
+                <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Bot className="h-4 w-4 text-primary" />
+                    <div>
+                      <div className="text-sm font-semibold">Execução automática</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {rowsByMode.auto.length} playlist(s) · bot insere/reordena dentro da janela 08h–22h
+                      </div>
+                    </div>
+                  </div>
+                  <PlaylistModeBadge mode="API_READY" size="sm" />
+                </div>
+                <div className="max-h-[640px] overflow-y-auto divide-y divide-border">
+                  {rowsByMode.auto.map((r) => (
+                    <PlaylistRow
+                      key={r.allocId}
+                      row={r}
+                      onRetry={r.state.jobId ? () => handleRetryOne(r.state.jobId!) : undefined}
+                    />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           )}
-        </CardContent>
-      </Card>
+
+          {/* SEÇÃO — Execução Manual (MANUAL_ONLY) — sempre visível quando existir */}
+          {rowsByMode.manual.length > 0 && (
+            <Card className="border-amber-500/30">
+              <CardContent className="p-0">
+                <div className="px-4 py-3 border-b border-amber-500/20 bg-amber-500/[0.03] flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Hand className="h-4 w-4 text-amber-400" />
+                    <div>
+                      <div className="text-sm font-semibold">Execução manual</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {rowsByMode.manual.length} playlist(s) sem OAuth · você precisa inserir a faixa manualmente
+                      </div>
+                    </div>
+                  </div>
+                  <PlaylistModeBadge mode="MANUAL_ONLY" size="sm" />
+                </div>
+                <div className="divide-y divide-border">
+                  {rowsByMode.manual.map((r) => (
+                    <PlaylistRow
+                      key={r.allocId}
+                      row={r}
+                      onRetry={r.state.jobId ? () => handleRetryOne(r.state.jobId!) : undefined}
+                    />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* SEÇÃO — Desabilitadas (DISABLED) — colapsável, mas contador sempre visível */}
+          {rowsByMode.disabled.length > 0 && (
+            <Card>
+              <CardContent className="p-0">
+                <details className="group">
+                  <summary className="px-4 py-3 border-b border-transparent group-open:border-border flex items-center justify-between gap-3 cursor-pointer hover:bg-muted/20 list-none">
+                    <div className="flex items-center gap-2">
+                      <Ban className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <div className="text-sm font-semibold">Desabilitadas</div>
+                        <div className="text-[11px] text-muted-foreground">
+                          {rowsByMode.disabled.length} playlist(s) · não entram na distribuição (owner removido, token inválido ou desativadas)
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <PlaylistModeBadge mode="DISABLED" size="sm" />
+                      <ChevronRight className="h-4 w-4 text-muted-foreground group-open:rotate-90 transition-transform" />
+                    </div>
+                  </summary>
+                  <div className="divide-y divide-border">
+                    {rowsByMode.disabled.map((r) => (
+                      <PlaylistRow key={r.allocId} row={r} />
+                    ))}
+                  </div>
+                </details>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
+
+
 
       {/* BLOCO 4b — Rebaixamentos (mesma estrutura do "Status por playlist") */}
       <Card>
