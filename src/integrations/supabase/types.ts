@@ -8447,15 +8447,19 @@ export type Database = {
       }
       spotify_apps: {
         Row: {
+          auth_failure_count: number
           client_id: string
           client_secret: string
           created_at: string
           id: string
           is_default: boolean
+          last_auth_failure_at: string | null
           max_accounts: number
           name: string
           notes: string | null
           owner_email: string | null
+          quarantine_reason: string | null
+          quarantined_until: string | null
           ready_for_deletion: boolean
           retired_from_production: boolean
           retirement_audit: Json | null
@@ -8464,15 +8468,19 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          auth_failure_count?: number
           client_id: string
           client_secret: string
           created_at?: string
           id?: string
           is_default?: boolean
+          last_auth_failure_at?: string | null
           max_accounts?: number
           name: string
           notes?: string | null
           owner_email?: string | null
+          quarantine_reason?: string | null
+          quarantined_until?: string | null
           ready_for_deletion?: boolean
           retired_from_production?: boolean
           retirement_audit?: Json | null
@@ -8481,15 +8489,19 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          auth_failure_count?: number
           client_id?: string
           client_secret?: string
           created_at?: string
           id?: string
           is_default?: boolean
+          last_auth_failure_at?: string | null
           max_accounts?: number
           name?: string
           notes?: string | null
           owner_email?: string | null
+          quarantine_reason?: string | null
+          quarantined_until?: string | null
           ready_for_deletion?: boolean
           retired_from_production?: boolean
           retirement_audit?: Json | null
@@ -10250,6 +10262,7 @@ export type Database = {
           valuation_score: number
         }[]
       }
+      expire_spotify_app_quarantines: { Args: never; Returns: number }
       expire_stale_medium_templates: {
         Args: { p_hours?: number }
         Returns: {
@@ -10479,6 +10492,10 @@ export type Database = {
         Args: { _action_type: string }
         Returns: Database["public"]["Enums"]["curatorial_action_type"]
       }
+      mark_spotify_app_auth_failure: {
+        Args: { p_app_id: string; p_reason: string; p_retry_after_sec?: number }
+        Returns: Json
+      }
       match_curator_playlist: {
         Args: {
           p_deal_id: string
@@ -10620,6 +10637,10 @@ export type Database = {
         }[]
       }
       refresh_genre_capacity_matrix: { Args: never; Returns: Json }
+      reset_spotify_app_auth_failures: {
+        Args: { p_app_id: string }
+        Returns: undefined
+      }
       resolve_client_token: {
         Args: { _token: string }
         Returns: {

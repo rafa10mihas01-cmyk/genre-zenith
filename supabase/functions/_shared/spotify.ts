@@ -93,6 +93,80 @@ export class SpotifyCircuitOpenError extends Error {
   }
 }
 
+/**
+ * Erros de autenticação Spotify — sinalizam que o app atual está com credencial
+ * podre OU sem user token. Callers críticos (snapshot, diagnose) podem catch
+ * específico pra failover entre apps; demais callers só veem uma exception.
+ *
+ * Ambos herdam de Error puro (não de SpotifyApiError pra evitar dependência
+ * circular com spotify-playlist.ts). Carregam appId + reason pra telemetria.
+ */
+export class SpotifyAuthInvalidError extends Error {
+  appId: string | null;
+  reason: "AUTH_INVALID";
+  status = 401 as const;
+  constructor(appId: string | null, detail = "") {
+    super(`SPOTIFY_AUTH_INVALID app=${appId ?? "unknown"}${detail ? ": " + detail.slice(0, 200) : ""}`);
+    this.name = "SpotifyAuthInvalidError";
+    this.appId = appId;
+    this.reason = "AUTH_INVALID";
+  }
+}
+
+export class SpotifyAuthMissingError extends Error {
+  appId: string | null;
+  reason: "AUTH_MISSING";
+  constructor(appId: string | null, detail = "") {
+    super(`SPOTIFY_AUTH_MISSING app=${appId ?? "unknown"}${detail ? ": " + detail : ""}`);
+    this.name = "SpotifyAuthMissingError";
+    this.appId = appId;
+    this.reason = "AUTH_MISSING";
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers de saúde de app — wrappers fail-silent das RPCs criadas na migration.
+// Usados pelo guardedSpotifyFetch (hook 401), pelo fetch guard global e pelo
+// snapshot-playlist-tracks (failover local).
+// ---------------------------------------------------------------------------
+type AuthFailureReason = "AUTH_MISSING" | "AUTH_INVALID" | "RATE_LIMIT" | "SPOTIFY_5XX" | "MANUAL";
+
+const __lastResetAt = new Map<string, number>();
+const RESET_DEBOUNCE_MS = 60_000;
+
+export async function markAppAuthFailure(
+  appId: string | null | undefined,
+  reason: AuthFailureReason,
+  retryAfterSec?: number | null,
+): Promise<void> {
+  if (!appId) return;
+  try {
+    await db().rpc("mark_spotify_app_auth_failure", {
+      p_app_id: appId,
+      p_reason: reason,
+      p_retry_after_sec: retryAfterSec ?? null,
+    });
+  } catch (e) {
+    console.error("[markAppAuthFailure] rpc failed:", (e as Error)?.message ?? String(e));
+  }
+}
+
+export async function resetAppAuthFailures(appId: string | null | undefined): Promise<void> {
+  if (!appId) return;
+  const last = __lastResetAt.get(appId) ?? 0;
+  if (Date.now() - last < RESET_DEBOUNCE_MS) return;
+  __lastResetAt.set(appId, Date.now());
+  try {
+    await db().rpc("reset_spotify_app_auth_failures", { p_app_id: appId });
+  } catch { /* silent */ }
+}
+
+function fireAndForget(p: Promise<unknown>): void {
+  const er = (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } }).EdgeRuntime;
+  if (er?.waitUntil) { try { er.waitUntil(p); } catch { p.catch(() => {}); } }
+  else p.catch(() => {});
+}
+
 // Escopos necessários pra operação completa da NexEngine:
 //   - modify-public/private → adicionar/remover faixas, reordenar, mudar nome/descrição
 //   - read-private/collaborative → listar playlists privadas e colaborativas do usuário
@@ -283,9 +357,16 @@ export async function guardedSpotifyFetch(
         if (text) errorBody = text.slice(0, 1000);
       } catch { /* ignore */ }
     }
+    // Hook AUTH_INVALID em 401 + reset em 2xx (debounced).
+    if (r.status === 401 && !bypass && merged.app_id) {
+      fireAndForget(markAppAuthFailure(merged.app_id, "AUTH_INVALID"));
+    } else if (r.ok && merged.app_id) {
+      fireAndForget(resetAppAuthFailures(merged.app_id));
+    }
     if (r.status === 429 && !bypass) {
       const ra = Number(r.headers.get("Retry-After") ?? r.headers.get("retry-after") ?? "");
       const opened = await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60, appId, url);
+      if (merged.app_id) fireAndForget(markAppAuthFailure(merged.app_id, "RATE_LIMIT", opened.retryAfterSec));
       logStatus = "circuit_open";
       breakerOpen = true;
       retryAfterSec = opened.retryAfterSec;
@@ -357,9 +438,17 @@ export function installSpotifyCircuitFetchGuard() {
           if (text) errorBody = text.slice(0, 1000);
         } catch { /* ignore */ }
       }
+      // Hook AUTH_INVALID: 401 em api.spotify.com (não em accounts) → conta falha do app.
+      if (r.status === 401 && !bypass && merged.app_id) {
+        fireAndForget(markAppAuthFailure(merged.app_id, "AUTH_INVALID"));
+      } else if (r.ok && merged.app_id) {
+        // Sucesso 2xx → reseta contador (debounce 60s pra evitar RPC spam).
+        fireAndForget(resetAppAuthFailures(merged.app_id));
+      }
       if (r.status === 429 && !bypass) {
         const ra = Number(r.headers.get("Retry-After") ?? r.headers.get("retry-after") ?? "");
         const opened = await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60, appId, rawUrl);
+        if (merged.app_id) fireAndForget(markAppAuthFailure(merged.app_id, "RATE_LIMIT", opened.retryAfterSec));
         logStatus = "circuit_open";
         breakerOpen = true;
         retryAfterSec = opened.retryAfterSec;
@@ -411,6 +500,7 @@ async function getDefaultSpotifyAppId(): Promise<string | null> {
     .from("spotify_apps")
     .select("id")
     .eq("status", "active")
+    .or("quarantined_until.is.null,quarantined_until.lt." + new Date().toISOString())
     .order("is_default", { ascending: false })
     .order("created_at", { ascending: true })
     .limit(1)
@@ -418,12 +508,25 @@ async function getDefaultSpotifyAppId(): Promise<string | null> {
   return data?.id ?? null;
 }
 
+export type GetAppCredentialsOpts = {
+  excludeAppIds?: string[];
+};
+
 /** Busca credenciais do app Spotify.
  *  - appId informado → carrega esse app (erro se não achar).
- *  - sem appId → pega is_default, ou primeiro active, ou cai no env (compat).
+ *  - sem appId → expira quarentenas vencidas; escolhe primeiro app `active` AND
+ *    não-quarentenado AND não em excludeAppIds (ordem: is_default DESC, created_at ASC).
+ *    Se nenhum saudável, faz fallback pra qualquer active (mesmo padrão antigo
+ *    pra não derrubar operação em incidente Spotify-wide). Só cai no env como
+ *    último recurso quando não há ZERO apps cadastrados.
  */
-export async function getAppCredentials(appId?: string | null): Promise<SpotifyAppCreds> {
+export async function getAppCredentials(
+  appIdOrOpts?: string | null | GetAppCredentialsOpts,
+): Promise<SpotifyAppCreds> {
   const sb = db();
+  const appId = typeof appIdOrOpts === "string" ? appIdOrOpts : null;
+  const opts: GetAppCredentialsOpts = (appIdOrOpts && typeof appIdOrOpts === "object") ? appIdOrOpts : {};
+  const excludeAppIds = new Set((opts.excludeAppIds ?? []).filter(Boolean));
 
   if (appId) {
     const { data, error } = await sb
@@ -441,30 +544,41 @@ export async function getAppCredentials(appId?: string | null): Promise<SpotifyA
     };
   }
 
-  // sem appId: tenta default → primeiro active
-  const { data: def } = await sb
+  // Expira quarentenas vencidas antes de selecionar (fail-silent, ~5ms).
+  try { await sb.rpc("expire_spotify_app_quarantines"); } catch { /* noop */ }
+
+  const nowIso = new Date().toISOString();
+  const { data: rows } = await sb
     .from("spotify_apps")
-    .select("id, name, client_id, client_secret, is_default, status")
+    .select("id, name, client_id, client_secret, is_default, status, quarantined_until")
     .eq("status", "active")
     .order("is_default", { ascending: false })
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+    .order("created_at", { ascending: true });
 
-  if (def) {
+  const allActive = (rows ?? []) as Array<{ id: string; name: string; client_id: string; client_secret: string; quarantined_until: string | null }>;
+  const healthy = allActive.filter((r) => {
+    if (excludeAppIds.has(r.id)) return false;
+    if (r.quarantined_until && new Date(r.quarantined_until).getTime() > Date.now()) return false;
+    return true;
+  });
+
+  // Prioridade: healthy > active (mesmo quarentenado) excluindo excludeAppIds > primeiro active
+  const fallback = allActive.filter((r) => !excludeAppIds.has(r.id));
+  const picked = healthy[0] ?? fallback[0] ?? allActive[0] ?? null;
+
+  if (picked) {
     return {
-      app_id: def.id,
-      name: def.name,
-      client_id: def.client_id,
-      client_secret: def.client_secret,
+      app_id: picked.id,
+      name: picked.name,
+      client_id: picked.client_id,
+      client_secret: picked.client_secret,
     };
   }
 
-  // Fallback: env vars (compat retroativo enquanto não há apps cadastrados)
+  // Fallback final: env vars (compat retroativo)
   if (!ENV_CLIENT_ID || !ENV_CLIENT_SECRET) {
     throw new Error(
-      "Nenhum app Spotify cadastrado e SPOTIFY_CLIENT_ID/SECRET não configurados. " +
-      "Cadastre um app em Configurações → Conexões → Spotify.",
+      "NO_HEALTHY_SPOTIFY_APP: nenhum app Spotify saudável e SPOTIFY_CLIENT_ID/SECRET não configurados.",
     );
   }
   return {
@@ -475,9 +589,17 @@ export async function getAppCredentials(appId?: string | null): Promise<SpotifyA
   };
 }
 
-export async function getSpotifyToken(forceRefresh = false): Promise<string> {
+export type GetSpotifyTokenOpts = {
+  forceRefresh?: boolean;
+  excludeAppIds?: string[];
+};
+
+/** Versão estendida que retorna também o appId/appName usados. Útil pra failover. */
+export async function getSpotifyTokenWithApp(
+  opts: GetSpotifyTokenOpts = {},
+): Promise<{ token: string; appId: string | null; appName: string }> {
   const supabase = db();
-  const creds = await getAppCredentials();
+  const creds = await getAppCredentials({ excludeAppIds: opts.excludeAppIds });
   // Propaga app pra TODAS as chamadas Spotify subsequentes neste contexto async.
   enterCtx({ appId: creds.app_id, appName: creds.name });
   if (creds.app_id) appNameCache.set(creds.app_id, creds.name);
@@ -486,14 +608,14 @@ export async function getSpotifyToken(forceRefresh = false): Promise<string> {
   // NOTE: NÃO chamamos assertSpotifyCircuitClosed aqui — refresh de token
   // usa accounts.spotify.com (quota separada) e deve sempre passar.
 
-  if (!forceRefresh) {
+  if (!opts.forceRefresh) {
     const { data } = await supabase
       .from("spotify_tokens")
       .select("access_token,expires_at")
       .eq("singleton_key", tokenKey)
       .maybeSingle();
     if (data && new Date(data.expires_at).getTime() > Date.now() + 60_000) {
-      return data.access_token;
+      return { token: data.access_token, appId: creds.app_id, appName: creds.name };
     }
   }
 
@@ -519,7 +641,16 @@ export async function getSpotifyToken(forceRefresh = false): Promise<string> {
     { onConflict: "singleton_key" },
   );
 
-  return access_token;
+  return { token: access_token, appId: creds.app_id, appName: creds.name };
+}
+
+/** Compat: continua aceitando boolean (forceRefresh) OU opts. Retorna só o token. */
+export async function getSpotifyToken(forceRefreshOrOpts: boolean | GetSpotifyTokenOpts = false): Promise<string> {
+  const opts: GetSpotifyTokenOpts = typeof forceRefreshOrOpts === "boolean"
+    ? { forceRefresh: forceRefreshOrOpts }
+    : forceRefreshOrOpts;
+  const { token } = await getSpotifyTokenWithApp(opts);
+  return token;
 }
 
 export type SpotifyUserToken = {
