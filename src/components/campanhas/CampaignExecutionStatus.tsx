@@ -203,7 +203,7 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
     );
   }
 
-  if (jobs.length === 0) {
+  if (jobs.length === 0 && manualItems.length === 0) {
     return (
       <Card>
         <CardContent className="p-8 text-center space-y-2">
@@ -211,6 +211,46 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
           <div className="text-sm font-medium">Nenhum job de execução ainda</div>
           <div className="text-xs text-muted-foreground">
             Quando a campanha for distribuída, os ADDs e REORDERs aparecem aqui em tempo real.
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (jobs.length === 0 && manualItems.length > 0) {
+    return (
+      <Card>
+        <CardContent className="p-0">
+          <div className="px-4 py-3 border-b border-border">
+            <div className="text-sm font-semibold">Status manual por playlist</div>
+            <div className="text-xs text-muted-foreground">
+              {manualItems.length} registro(s) manual(is) · sem job de bot
+            </div>
+          </div>
+          <div className="divide-y divide-border">
+            {manualItems.map((it) => {
+              const done = it.status === "MANUAL_DONE";
+              return (
+                <div key={it.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/20">
+                  <Hand className={cn("h-4 w-4 shrink-0", done ? "text-primary" : "text-amber-400")} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{it.playlist_name ?? it.spotify_playlist_id ?? "Playlist"}</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      Pos. planejada: {it.planned_position ?? "—"}
+                      {done ? <> · pos. feita: <span className="text-foreground font-medium">{it.executed_position ?? it.planned_position ?? "—"}</span></> : null}
+                      {done && it.completed_at ? <> · {fmtDate(it.completed_at)}</> : <> · aguardando execução manual</>}
+                    </div>
+                  </div>
+                  <span className={cn(
+                    "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] border shrink-0",
+                    done ? "bg-primary/15 text-primary border-primary/30" : "bg-amber-500/15 text-amber-400 border-amber-500/30",
+                  )}>
+                    <CheckCircle2 className="h-3 w-3" />
+                    {done ? "Feito manual" : "Manual pendente"}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
