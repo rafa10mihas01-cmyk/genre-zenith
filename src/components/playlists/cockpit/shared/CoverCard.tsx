@@ -148,8 +148,8 @@ export function CoverCard({ managedId, currentCover, references, spotifyPlaylist
           )}
         </div>
 
-        {/* Coluna direita: ações + referências em linha (mesma régua) */}
-        <div className="flex-1 min-w-0 flex flex-col gap-3">
+        {/* Coluna direita: ações + referências centralizadas verticalmente */}
+        <div className="flex-1 min-w-0 flex flex-col justify-center gap-2.5">
           <div className="flex items-center gap-2">
             <label className={cn(
               "inline-flex items-center gap-1.5 h-8 px-3.5 text-xs rounded-full cursor-pointer",
@@ -175,11 +175,11 @@ export function CoverCard({ managedId, currentCover, references, spotifyPlaylist
 
           {references.length > 0 && (
             <div className="flex items-center gap-2 min-w-0">
-              <div className="text-[10px] uppercase tracking-wider text-subtle-foreground font-medium shrink-0 mr-1">
+              <div className="text-[10px] uppercase tracking-wider text-subtle-foreground font-medium shrink-0">
                 Referências
               </div>
-              <div className="flex items-center gap-1.5 overflow-x-auto nx-scroll">
-                {references.slice(0, 8).map((l) => {
+              <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                {references.slice(0, 6).map((l) => {
                   const busy = applyingLeader === l.id;
                   return (
                     <button
@@ -191,9 +191,9 @@ export function CoverCard({ managedId, currentCover, references, spotifyPlaylist
                       className="relative group rounded-md overflow-hidden ring-1 ring-border hover:ring-primary/60 transition-all disabled:opacity-50 shrink-0"
                     >
                       {l.cover_url ? (
-                        <img src={l.cover_url} alt={l.name} className="w-10 h-10 object-cover" />
+                        <img src={l.cover_url} alt={l.name} className="w-9 h-9 object-cover" />
                       ) : (
-                        <div className="w-10 h-10 bg-elevated" />
+                        <div className="w-9 h-9 bg-elevated" />
                       )}
                       <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity grid place-items-center">
                         {busy ? (
