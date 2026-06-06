@@ -13,15 +13,13 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft, ExternalLink, Sparkles, Loader2, Music2, TrendingUp,
-  TrendingDown, ArrowUp, ArrowDown, Trash2, Plus, ChevronDown,
-  Flame, Snowflake, Activity, Users, Crown, Target, Check,
-  Heart, Eye, RotateCcw, Timer, Zap, ShieldCheck, AlertTriangle, ListMusic,
+  Trash2, ChevronDown, Activity, Users, Crown, Check,
+  Eye, Timer, ShieldCheck, AlertTriangle, ListMusic,
 } from "lucide-react";
 
 import { PlaylistEditorTab } from "@/components/playlists/PlaylistEditorTab";
 import { KpiBig } from "@/components/KpiBig";
 import { ProjecaoFaixa } from "@/components/operacao/SimuladorEntrega";
-import { CuratorialStateBadge, CooldownChip } from "@/components/playlist/CuratorialStateBadge";
 import { AdjustmentTimeline } from "@/components/playlists/cockpit/AdjustmentTimeline";
 import { OnboardingChecklist } from "@/components/playlists/cockpit/OnboardingChecklist";
 import { SeoExperimentCard } from "@/components/playlists/cockpit/SeoExperimentCard";
@@ -40,22 +38,12 @@ import { BucketAdd } from "./shared/BucketAdd";
 import { MarketBlock } from "./shared/MarketBlock";
 import { EditorialBanner } from "./shared/EditorialBanner";
 
-
 // -------------------- types & helpers --------------------
 // Tipos e helpers puros agora vivem em ./types e ./helpers (extraídos
 // no Commit 1 da Fase 2 — modularização; comportamento idêntico).
-import type { AnalysisTrack, Zone, Suggestion, Diagnosis, Props } from "./types";
-import {
-  fmtNum,
-  HEALTH_META,
-  ZONE_LABELS,
-  ZONE_CAPS,
-  zoneFromPos,
-  roleLabel,
-  ZONE_RANGE_LABEL,
-  shortReason,
-  norm,
-} from "./helpers";
+import type { Diagnosis, Props, Suggestion, Zone } from "./types";
+import { fmtNum, HEALTH_META, ZONE_CAPS, zoneFromPos } from "./helpers";
+
 
 
 
