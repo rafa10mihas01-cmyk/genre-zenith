@@ -76,7 +76,8 @@ export function PlaylistCockpit({
   // Monta o valor do contexto que será consumido pelas abas (Commits 4 e 5).
   const ctxValue: CockpitContextValue = {
     managedId, spotifyPlaylistId, spotifyUrl, playlistName, coverUrl,
-    followers, genreName: genreName ?? null, canonicalPlaylistId: canonicalPlaylistId ?? null,
+    followers, genreId: genreId ?? null, genreName: genreName ?? null,
+    canonicalPlaylistId: canonicalPlaylistId ?? null,
     brainScore: brainScore ?? null,
     diag, setDiag, loading, loadLatest,
     running, applying, applyProgress, liveTracksCount, archiving,
