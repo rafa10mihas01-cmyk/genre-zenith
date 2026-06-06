@@ -8,7 +8,7 @@ import { useCockpit } from "../context/CockpitContext";
 
 export function IdentityTab() {
   const {
-    managedId, playlistName, coverUrl, spotifyPlaylistId, genreName,
+    managedId, playlistName, coverUrl, spotifyPlaylistId, genreName, genreId,
     diag, runDiagnose,
   } = useCockpit();
   if (!diag) return null;
@@ -18,6 +18,7 @@ export function IdentityTab() {
       <CoverCard
         managedId={managedId}
         currentCover={coverUrl}
+        genreId={genreId ?? null}
         genreName={genreName ?? null}
         references={(diag.raw?.market_insights?.top_recurring_tracks ?? [])
           .filter((t: any) => t?.cover_url)
