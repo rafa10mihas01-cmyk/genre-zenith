@@ -171,6 +171,7 @@ export function CockpitHeader() {
           }
         />
       </div>
+      <DiagnoseProgress running={running} />
     </header>
   );
 }
