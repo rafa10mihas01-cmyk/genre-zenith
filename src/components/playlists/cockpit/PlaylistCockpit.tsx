@@ -30,162 +30,23 @@ import { GenreAffinityCard } from "@/components/playlists/cockpit/GenreAffinityC
 import { LifecycleRoadmapCard } from "@/components/playlists/cockpit/LifecycleRoadmapCard";
 
 
-// -------------------- types --------------------
-type AnalysisTrack = {
-  spotify_track_id: string;
-  track_name: string | null;
-  artist_name: string | null;
-  position: number;
-  status: "keep" | "remove" | "promote" | "demote";
-  reasons: string[];
-  popularity: number | null;
-  saturation_pct?: number;
-  recurrence_in_genre?: number;
-  age_days_in_playlist?: number | null;
-  target_position?: number | null;
-};
+// -------------------- types & helpers --------------------
+// Tipos e helpers puros agora vivem em ./types e ./helpers (extraídos
+// no Commit 1 da Fase 2 — modularização; comportamento idêntico).
+import type { AnalysisTrack, Zone, Suggestion, Diagnosis, Props } from "./types";
+import {
+  fmtNum,
+  HEALTH_META,
+  ZONE_LABELS,
+  ZONE_CAPS,
+  zoneFromPos,
+  ROLE_BY_ZONE,
+  roleLabel,
+  ZONE_RANGE_LABEL,
+  shortReason,
+  norm,
+} from "./helpers";
 
-type Zone = "anchor" | "premium" | "support" | "tail";
-type Suggestion = {
-  spotify_track_id: string;
-  nome: string;
-  artista: string;
-  count: number;
-  suggested_position: number;
-  from_missing_artist?: boolean;
-  target_zone?: Zone;
-  target_zone_label?: string;
-  function_role?: string;
-  popularity?: number | null;
-};
-
-type Diagnosis = {
-  id: string;
-  created_at: string;
-  name_current: string | null;
-  name_suggestion: string | null;
-  name_score: number | null;
-  tracks_analysis: AnalysisTrack[];
-  tracks_suggestions: Suggestion[];
-  tracks_summary: any;
-  raw: {
-    suggested_description?: string | null;
-    description_current?: string | null;
-    missing_keywords?: string[];
-    missing_in_description?: string[];
-    health_status?: "aquecido" | "saudavel" | "frio";
-    niche_rank?: number | null;
-    niche_total?: number | null;
-    market_insights?: {
-      ideal_track_count_range?: [number, number] | null;
-      avg_saturation_pct?: number | null;
-      top_artists?: { name: string; plays_in_niche: number }[];
-      top_recurring_tracks?: { title: string | null; artist: string | null; niche_playlists_count: number }[];
-      leader_playlists?: { spotify_playlist_id: string; name: string; followers: number; cover_url: string | null }[];
-      niche_playlist_count?: number;
-    };
-    // Sprint 2 — camada editorial
-    recommendation_mode?: "hold" | "light" | "moderate" | "structural";
-    editorial_justification?: string;
-    curatorial_state?: "saudavel" | "observacao" | "leve" | "moderada" | "estrutural" | "cooldown";
-    applied_caps?: {
-      max_change_pct: number;
-      max_change_pct_config: number;
-      max_changes: number;
-      recommended_remove: number;
-      recommended_promote: number;
-      recommended_demote: number;
-      capped_suggestions: number;
-      original_suggestions: number;
-    };
-    active_cooldowns?: Array<{ action_type: string; cooldown_until: string; days_remaining: number; reason: string | null }>;
-  };
-};
-
-type Props = {
-  managedId: string;
-  spotifyPlaylistId: string;
-  spotifyUrl: string;
-  playlistName: string;
-  coverUrl: string | null;
-  followers: number | null;
-  tracksCount: number;
-  genreName?: string | null;
-  brainScore?: number | null;
-  canonicalPlaylistId?: string | null;
-  onBack?: () => void;
-};
-
-// -------------------- helpers --------------------
-function fmtNum(n: number | null | undefined) {
-  if (n == null) return "—";
-  return new Intl.NumberFormat("pt-BR").format(n);
-}
-
-const HEALTH_META: Record<string, { label: string; tone: string; Icon: any }> = {
-  aquecido: { label: "Aquecido", tone: "text-primary border-primary/40 bg-primary/10", Icon: Flame },
-  saudavel: { label: "Saudável", tone: "text-foreground border-border bg-elevated", Icon: Activity },
-  frio: { label: "Frio", tone: "text-destructive border-destructive/40 bg-destructive/10", Icon: Snowflake },
-};
-
-// Zonas curatoriais — espelham ZONE_RANGES do diagnose-managed-playlist.
-const ZONE_LABELS: Record<Zone, string> = {
-  anchor: "Fachada",
-  premium: "Premium",
-  support: "Sustentação",
-  tail: "Cauda",
-};
-// Tamanho real de cada zona — limita quantas sugestões podem brigar pelo mesmo trecho.
-const ZONE_CAPS: Record<Zone, number> = {
-  anchor: 2,
-  premium: 4,
-  support: 6,
-  tail: Number.POSITIVE_INFINITY,
-};
-function zoneFromPos(pos: number): Zone {
-  if (pos <= 1) return "anchor";
-  if (pos <= 5) return "premium";
-  if (pos <= 11) return "support";
-  return "tail";
-}
-// Motivo curto e humano pra cada faixa sugerida — esconde o engine.
-function reasonForAdd(s: Suggestion): string {
-  if (s.from_missing_artist) return "Artista dominante faltando";
-  const c = s.count ?? 0;
-  if (c >= 4) return "Muito forte no nicho";
-  if (c >= 2) return `Recorrente no nicho (${c}×)`;
-  return "Sugerida pelo modelo do nicho";
-}
-// Função editorial humana por zona — usada na linha do ADICIONAR.
-const ROLE_BY_ZONE: Record<Zone, string> = {
-  anchor: "entra no topo",
-  premium: "retenção forte",
-  support: "recorrente no nicho",
-  tail: "volume complementar",
-};
-function roleLabel(s: Suggestion & { _zone?: Zone }): string {
-  if (s.function_role) return s.function_role;
-  return ROLE_BY_ZONE[(s._zone ?? s.target_zone ?? "support") as Zone];
-}
-// Range de posição (1-indexado) por zona — pra mostrar #1-2, #3-6 etc.
-const ZONE_RANGE_LABEL: Record<Zone, string> = {
-  anchor: "#1-2",
-  premium: "#3-6",
-  support: "#7-12",
-  tail: "#13+",
-};
-// Pega só o motivo mais relevante (primeiro), com fallback humano por ação.
-function shortReason(t: AnalysisTrack, kind: "remove" | "promote" | "demote"): string {
-  const first = (t.reasons ?? []).find((r) => r && r.trim().length > 0);
-  if (first) return first;
-  if (kind === "remove") return "Baixa performance";
-  if (kind === "promote") return "Mercado já reconheceu";
-  return "Pouca tração na vitrine";
-}
-// Normaliza string pra comparar nomes (sem acento, sem case, sem espaços).
-function norm(s: string | null | undefined): string {
-  return (s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
-}
 
 // -------------------- main --------------------
 export function PlaylistCockpit({
