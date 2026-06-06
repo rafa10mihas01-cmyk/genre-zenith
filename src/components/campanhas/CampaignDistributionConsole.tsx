@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   Rocket, CheckCircle2, Clock, XCircle, Loader2, RefreshCw, ArrowDownUp,
-  Bot, ShieldCheck, AlertCircle, ExternalLink, Activity, ArrowDown,
+  Bot, ShieldCheck, AlertCircle, ExternalLink, Activity, ArrowDown, Hand,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatBRL } from "@/lib/campaignEngine";
@@ -45,6 +45,16 @@ type BotHealth = {
   last_heartbeat: string | null;
   status: string | null;
   spotify_valid: boolean;
+};
+
+type ManualQueueRow = {
+  id: string;
+  status: string;
+  spotify_playlist_id: string | null;
+  planned_position: number | null;
+  executed_position: number | null;
+  created_at: string;
+  completed_at: string | null;
 };
 
 type Props = {
@@ -125,7 +135,9 @@ export function CampaignDistributionConsole({
 
 
   const [jobs, setJobs] = useState<JobRow[]>([]);
+  const [manualItems, setManualItems] = useState<ManualQueueRow[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
+  const [loadingManual, setLoadingManual] = useState(true);
   const [bot, setBot] = useState<BotHealth | null>(null);
   const [retrying, setRetrying] = useState(false);
   const [forcing, setForcing] = useState(false);
@@ -143,18 +155,44 @@ export function CampaignDistributionConsole({
     setLoadingJobs(false);
   };
 
+  const loadManualItems = async () => {
+    const { data } = await supabase
+      .from("manual_distribution_queue")
+      .select("id, status, spotify_playlist_id, planned_position, executed_position, created_at, completed_at")
+      .eq("campaign_id", campaignId)
+      .in("status", ["MANUAL_PENDING", "AUTO_FAILED_FALLBACK_MANUAL", "MANUAL_DONE"])
+      .order("created_at", { ascending: false })
+      .limit(500);
+    setManualItems((data ?? []) as ManualQueueRow[]);
+    setLoadingManual(false);
+  };
+
   useEffect(() => {
     setLoadingJobs(true);
+    setLoadingManual(true);
     loadJobs();
-    const channel = supabase
-      .channel(`distrib-jobs-${campaignId}`)
+    loadManualItems();
+    const channelKey = Math.random().toString(36).slice(2);
+    const jobsChannel = supabase
+      .channel(`distrib-jobs-${campaignId}-${channelKey}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "playlist_execution_jobs", filter: `campaign_id=eq.${campaignId}` },
         () => loadJobs(),
       )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    const manualChannel = supabase
+      .channel(`distrib-manual-${campaignId}-${channelKey}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "manual_distribution_queue", filter: `campaign_id=eq.${campaignId}` },
+        () => loadManualItems(),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(jobsChannel);
+      supabase.removeChannel(manualChannel);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campaignId]);
 
