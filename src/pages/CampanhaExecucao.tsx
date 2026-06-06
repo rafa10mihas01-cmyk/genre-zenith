@@ -684,8 +684,8 @@ export default function CampanhaExecucao() {
         hiddenTabs={["upload", "logs"]}
         heroExtraActions={
           <>
-            <CampaignAccessManager campaignId={camp.id} />
             <AuditCampaignButton campaignId={camp.id} />
+            <CampaignAccessManager campaignId={camp.id} />
             {clientToken ? (
               <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
                 <DialogTrigger asChild>
