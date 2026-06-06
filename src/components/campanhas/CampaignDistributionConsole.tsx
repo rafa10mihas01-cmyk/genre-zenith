@@ -113,6 +113,14 @@ function plannedDateFor(startDay: number | null | undefined, baseIso: string | n
   return base.toISOString();
 }
 
+function spotifyPlaylistIdFromAllocation(a: EcoAllocation): string | null {
+  const direct = a.managed_playlists?.spotify_playlist_id ?? null;
+  if (direct) return direct;
+  const url = a.managed_playlists?.spotify_url ?? "";
+  const m = typeof url === "string" ? url.match(/playlist\/([A-Za-z0-9]+)/) : null;
+  return m?.[1] ?? null;
+}
+
 
 
 export function CampaignDistributionConsole({
@@ -341,8 +349,7 @@ export function CampaignDistributionConsole({
     return allocations
       .map((a) => {
         const url = a.managed_playlists?.spotify_url ?? "";
-        const m = typeof url === "string" ? url.match(/playlist\/([A-Za-z0-9]+)/) : null;
-        const spid = m?.[1] ?? null;
+        const spid = spotifyPlaylistIdFromAllocation(a);
         const idleState: PlaylistState = { status: "idle", scheduledFor: null, lastError: null, jobId: null, completedAt: null, executedPosition: null, validationStatus: null, validationPosition: null, validatedAt: null };
         const state: PlaylistState = spid ? (manualStateBySpid.get(spid) ?? stateBySpid.get(spid) ?? idleState) : idleState;
         const realStart = realStartByAllocation.get(a.id) ?? a.start_day ?? 1;
@@ -467,9 +474,7 @@ export function CampaignDistributionConsole({
 
     const spidByAlloc = new Map<string, string | null>();
     for (const a of allocations) {
-      const url = a.managed_playlists?.spotify_url ?? "";
-      const m = typeof url === "string" ? url.match(/playlist\/([A-Za-z0-9]+)/) : null;
-      spidByAlloc.set(a.id, m?.[1] ?? null);
+      spidByAlloc.set(a.id, spotifyPlaylistIdFromAllocation(a));
     }
 
     const reorderJobs = jobs.filter((j) => j.job_type === "playlist.track.reorder");

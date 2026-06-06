@@ -10,7 +10,7 @@ export type EcoAllocation = {
   status: string;
   dispatched_at: string | null;
   position?: number | null;
-  managed_playlists?: { name: string; cover_url: string | null; followers: number; spotify_url?: string | null; genre_id?: string | null } | null;
+  managed_playlists?: { name: string; cover_url: string | null; followers: number; spotify_url?: string | null; spotify_playlist_id?: string | null; genre_id?: string | null } | null;
   genre_source?: "primary" | "affinity" | null;
   genre_affinity_score?: number | null;
 };

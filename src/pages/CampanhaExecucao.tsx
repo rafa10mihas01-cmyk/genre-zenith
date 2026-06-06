@@ -96,6 +96,7 @@ export default function CampanhaExecucao() {
   const [loading, setLoading] = useState(true);
   const [planRefreshKey, setPlanRefreshKey] = useState(0);
   const [tab, setTab] = useState<CampaignHubTabId>("overview");
+  const [distributionTab, setDistributionTab] = useState("mapa");
   const [selectedAlloc, setSelectedAlloc] = useState<EcoAllocation | null>(null);
   const [clientPriceInput, setClientPriceInput] = useState("");
   const [savingClientPrice, setSavingClientPrice] = useState(false);
@@ -174,6 +175,8 @@ export default function CampanhaExecucao() {
       // Recarrega do banco (fonte de verdade) — sem otimismo local pra não mascarar falhas silenciosas.
       await loadCampaign();
       setPlanRefreshKey((k) => k + 1);
+      setTab("curve");
+      setDistributionTab("console");
     } catch (e: any) {
       const raw = e?.message ?? String(e);
       const map: Record<string, string> = {
@@ -837,7 +840,7 @@ export default function CampanhaExecucao() {
                 allocations={allocs as unknown as Parameters<typeof CampaignFullPlanSummary>[0]["allocations"]}
                 engagementMultiplier={camp.engagement_multiplier ?? 35}
               />
-              <Tabs defaultValue="mapa" className="space-y-4">
+              <Tabs value={distributionTab} onValueChange={setDistributionTab} className="space-y-4">
                 <TabsList>
                   <TabsTrigger value="mapa">Cronograma</TabsTrigger>
                   <TabsTrigger value="console">Distribuição</TabsTrigger>
@@ -870,8 +873,9 @@ export default function CampanhaExecucao() {
                   />
                 </TabsContent>
                 <TabsContent value="console" forceMount className="mt-0 space-y-4 data-[state=inactive]:hidden">
-                  <CampaignManualQueue campaignId={camp.id} />
+                  <CampaignManualQueue campaignId={camp.id} onChanged={() => setPlanRefreshKey((k) => k + 1)} />
                   <CampaignDistributionConsole
+                    key={`distribution-console-${camp.id}-${planRefreshKey}`}
                     campaignId={camp.id}
                     spotifyTrackId={camp.spotify_track_id ?? null}
                     allocations={allocs}
@@ -891,8 +895,8 @@ export default function CampanhaExecucao() {
 
                 </TabsContent>
                 <TabsContent value="status" forceMount className="mt-0 space-y-4 data-[state=inactive]:hidden">
-                  <CampaignManualQueue campaignId={camp.id} />
-                  <CampaignExecutionStatus campaignId={camp.id} />
+                  <CampaignManualQueue campaignId={camp.id} onChanged={() => setPlanRefreshKey((k) => k + 1)} />
+                  <CampaignExecutionStatus key={`execution-status-${camp.id}-${planRefreshKey}`} campaignId={camp.id} />
                 </TabsContent>
               </Tabs>
             </div>

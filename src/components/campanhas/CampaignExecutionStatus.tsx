@@ -56,6 +56,9 @@ function StatusBadge({ status }: { status: string }) {
     claimed: { label: "Executando", icon: Loader2, cls: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
     done: { label: "Concluído", icon: CheckCircle2, cls: "bg-primary/15 text-primary border-primary/30" },
     failed: { label: "Falhou", icon: XCircle, cls: "bg-rose-500/15 text-rose-400 border-rose-500/30" },
+    MANUAL_PENDING: { label: "Manual pendente", icon: Hand, cls: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
+    AUTO_FAILED_FALLBACK_MANUAL: { label: "Manual pendente", icon: Hand, cls: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
+    MANUAL_DONE: { label: "Feito manual", icon: Hand, cls: "bg-primary/15 text-primary border-primary/30" },
   };
   const c = cfg[status] ?? { label: status, icon: AlertCircle, cls: "bg-muted text-muted-foreground border-border" };
   const Icon = c.icon;
@@ -152,36 +155,46 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
   }, [campaignId]);
 
   const grouped = useMemo(() => {
-    const m = new Map<string, JobRow[]>();
+    const m = new Map<string, { jobs: JobRow[]; manual: ManualRow[] }>();
     for (const j of jobs) {
-      const arr = m.get(j.spotify_playlist_id) ?? [];
-      arr.push(j);
-      m.set(j.spotify_playlist_id, arr);
+      const entry = m.get(j.spotify_playlist_id) ?? { jobs: [], manual: [] };
+      entry.jobs.push(j);
+      m.set(j.spotify_playlist_id, entry);
+    }
+    for (const it of manualItems) {
+      if (!it.spotify_playlist_id) continue;
+      const entry = m.get(it.spotify_playlist_id) ?? { jobs: [], manual: [] };
+      entry.manual.push(it);
+      m.set(it.spotify_playlist_id, entry);
     }
     // Ordena playlists: com falhas primeiro, depois pendentes, depois concluídas
-    return Array.from(m.entries()).sort(([aId, aJobs], [bId, bJobs]) => {
-      const rank = (jobs: JobRow[]) => {
-        if (jobs.some(j => j.status === "failed")) return 0;
-        if (jobs.some(j => j.status === "pending" || j.status === "claimed")) return 1;
+    return Array.from(m.entries()).sort(([aId, aEntry], [bId, bEntry]) => {
+      const rank = (entry: { jobs: JobRow[]; manual: ManualRow[] }) => {
+        if (entry.jobs.some(j => j.status === "failed")) return 0;
+        if (entry.jobs.some(j => j.status === "pending" || j.status === "claimed") || entry.manual.some(it => it.status !== "MANUAL_DONE")) return 1;
         return 2;
       };
-      const ra = rank(aJobs), rb = rank(bJobs);
+      const ra = rank(aEntry), rb = rank(bEntry);
       if (ra !== rb) return ra - rb;
       const na = ecoMap.get(aId)?.name ?? aId;
       const nb = ecoMap.get(bId)?.name ?? bId;
       return na.localeCompare(nb);
     });
-  }, [jobs, ecoMap]);
+  }, [jobs, manualItems, ecoMap]);
 
   const totals = useMemo(() => {
-    return jobs.reduce(
+    const acc = jobs.reduce(
       (acc, j) => {
         acc[j.status] = (acc[j.status] ?? 0) + 1;
         return acc;
       },
       {} as Record<string, number>,
     );
-  }, [jobs]);
+    for (const it of manualItems) {
+      acc[it.status] = (acc[it.status] ?? 0) + 1;
+    }
+    return acc;
+  }, [jobs, manualItems]);
 
   const toggle = (id: string) => {
     setExpanded((prev) => {
@@ -265,11 +278,11 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
             <div>
               <div className="text-sm font-semibold">Status das adições por playlist</div>
               <div className="text-xs text-muted-foreground">
-                Atualiza em tempo real. {jobs.length} job(s) · {grouped.length} playlist(s)
+                Atualiza em tempo real. {jobs.length} job(s) · {manualItems.length} manual(is) · {grouped.length} playlist(s)
               </div>
             </div>
             <div className="flex items-center gap-2 text-[11px]">
-              {(["pending", "claimed", "done", "failed"] as const).map((s) =>
+              {(["pending", "claimed", "done", "failed", "MANUAL_PENDING", "AUTO_FAILED_FALLBACK_MANUAL", "MANUAL_DONE"] as const).map((s) =>
                 totals[s] ? (
                   <span key={s} className="inline-flex items-center gap-1">
                     <StatusBadge status={s} />
@@ -285,14 +298,17 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
       <Card>
         <CardContent className="p-0">
           <div className="divide-y divide-border">
-            {grouped.map(([spid, plJobs]) => {
+            {grouped.map(([spid, entry]) => {
+              const plJobs = entry.jobs;
+              const manual = entry.manual;
               const eco = ecoMap.get(spid);
               const name = eco?.name ?? spid;
               const planned = eco?.position ?? null;
               const open = expanded.has(spid);
-              const done = plJobs.filter((j) => j.status === "done").length;
+              const done = plJobs.filter((j) => j.status === "done").length + manual.filter((it) => it.status === "MANUAL_DONE").length;
               const failed = plJobs.filter((j) => j.status === "failed").length;
-              const pending = plJobs.filter((j) => j.status === "pending" || j.status === "claimed").length;
+              const pending = plJobs.filter((j) => j.status === "pending" || j.status === "claimed").length + manual.filter((it) => it.status !== "MANUAL_DONE").length;
+              const totalItems = plJobs.length + manual.length;
               return (
                 <div key={spid}>
                   <button
@@ -303,7 +319,7 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate">{name}</div>
                       <div className="text-[11px] text-muted-foreground">
-                        Pos. planejada: {planned ?? "—"} · {plJobs.length} job(s)
+                        Pos. planejada: {planned ?? "—"} · {totalItems} registro(s)
                       </div>
                     </div>
                     <div className="flex items-center gap-2 text-[11px]">
@@ -327,6 +343,19 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
                           </tr>
                         </thead>
                         <tbody>
+                          {manual.map((it) => (
+                            <tr key={it.id} className="border-b border-border/50 last:border-0">
+                              <td className="py-2 pr-3">
+                                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"><Hand className="h-3 w-3" /> ADD manual</span>
+                              </td>
+                              <td className="py-2 pr-3"><StatusBadge status={it.status} /></td>
+                              <td className="py-2 pr-3 text-muted-foreground">{it.executed_position ?? it.planned_position ?? planned ?? "—"}</td>
+                              <td className="py-2 pr-3 text-muted-foreground">{fmtDate(it.created_at)}</td>
+                              <td className="py-2 pr-3 text-muted-foreground">{fmtDate(it.completed_at)}</td>
+                              <td className="py-2 pr-3 text-muted-foreground">—</td>
+                              <td className="py-2 text-muted-foreground max-w-[280px] truncate">manual</td>
+                            </tr>
+                          ))}
                           {plJobs.map((j) => (
                             <tr key={j.id} className="border-b border-border/50 last:border-0">
                               <td className="py-2 pr-3"><JobTypeBadge type={j.job_type} /></td>
