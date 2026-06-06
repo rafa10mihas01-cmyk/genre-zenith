@@ -41,7 +41,17 @@ export function useDiagnosisActions(args: {
       const { data, error } = await supabase.functions.invoke("diagnose-managed-playlist", {
         body: { playlist_id: managedId },
       });
-      if (error || !data?.ok) throw new Error(error?.message ?? data?.error ?? "Falha");
+      if (error) throw new Error(error.message ?? "Falha no diagnóstico");
+      if (data?.code === "spotify_circuit_open" || data?.circuit_open) {
+        const until = data?.blocked_until ? new Date(data.blocked_until).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : null;
+        toast({
+          title: "Spotify temporariamente indisponível",
+          description: until ? `Circuit breaker aberto. Tente novamente após ${until}.` : (data?.message ?? "Tente novamente em alguns minutos."),
+          variant: "destructive",
+        });
+        return;
+      }
+      if (!data?.ok) throw new Error(data?.error ?? data?.message ?? "Falha");
       setDiag(data.diagnosis);
       toast({ title: "Diagnóstico pronto" });
     } catch (e: any) {
