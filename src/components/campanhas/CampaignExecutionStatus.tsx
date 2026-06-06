@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 import {
   CheckCircle2, Clock, XCircle, Loader2, ArrowDownUp, Plus,
   AlertCircle, ChevronDown, ChevronRight, Activity, Hand, Bot,
@@ -95,6 +97,7 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
   const [ecoMap, setEcoMap] = useState<Map<string, { name: string; position: number | null; executionMode: PlaylistExecutionMode }>>(new Map());
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [busyManualId, setBusyManualId] = useState<string | null>(null);
 
   const load = async () => {
     const [jobsRes, manualRes, ecoRes] = await Promise.all([
@@ -219,15 +222,25 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
     [manualItems],
   );
 
+  const fallbackManualList = useMemo(() => {
+    const queuedSpids = new Set(manualItems.map((it) => it.spotify_playlist_id).filter(Boolean));
+    return Array.from(ecoMap.entries())
+      .filter(([spid, eco]) => eco.executionMode === "MANUAL_ONLY" && !queuedSpids.has(spid))
+      .map(([spid, eco]) => ({ spid, ...eco }));
+  }, [ecoMap, manualItems]);
+
   const markManualDone = async (id: string) => {
-    const { error } = await supabase
-      .from("manual_distribution_queue")
-      .update({ status: "MANUAL_DONE", completed_at: new Date().toISOString() })
-      .eq("id", id);
+    setBusyManualId(id);
+    const { error } = await supabase.functions.invoke("mark-manual-distribution-done", {
+      body: { id, observacao: null },
+    });
+    setBusyManualId(null);
     if (error) {
-      // eslint-disable-next-line no-console
-      console.error("Falha ao marcar manual como feito", error);
+      toast.error("Não foi possível marcar como feito");
+      return;
     }
+    toast.success("Execução manual concluída");
+    await load();
   };
 
 
@@ -251,7 +264,7 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
     );
   }
 
-  if (jobs.length === 0 && manualItems.length === 0) {
+  if (jobs.length === 0 && manualItems.length === 0 && fallbackManualList.length === 0) {
     return (
       <Card>
         <CardContent className="p-8 text-center space-y-2">
