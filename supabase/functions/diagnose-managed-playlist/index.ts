@@ -591,12 +591,14 @@ Deno.serve(async (req) => {
     const artistMeta = new Map<string, { popularity: number | null; followers: number | null; genres: string[] }>();
 
     if (trackIds.length > 0) {
+      tel.start("spotify_current_tracks_and_artists");
       try {
         const token = await getSpotifyToken();
         // /v1/tracks?ids= (até 50)
         for (let i = 0; i < trackIds.length; i += 50) {
           const ids = trackIds.slice(i, i + 50);
           const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`, { headers: { Authorization: `Bearer ${token}` } }, { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, function_name: 'diagnose-managed-playlist' });
+          tel.noteSpotifyStatus(r.status);
           if (r.status === 403) run403s++;
           if (!r.ok) continue;
           const j = await r.json();
@@ -616,6 +618,7 @@ Deno.serve(async (req) => {
         for (let i = 0; i < artistIds.length; i += 50) {
           const ids = artistIds.slice(i, i + 50);
           const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/artists?ids=${ids.join(",")}`, { headers: { Authorization: `Bearer ${token}` } }, { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, function_name: 'diagnose-managed-playlist' });
+          tel.noteSpotifyStatus(r.status);
           if (r.status === 403) run403s++;
           if (!r.ok) continue;
           const j = await r.json();
@@ -628,12 +631,18 @@ Deno.serve(async (req) => {
             });
           }
         }
+        tel.end("spotify_current_tracks_and_artists", "ok", `${spotMeta.size} tracks · ${artistMeta.size} artistas`);
       } catch (e) {
+        tel.noteThrow(e);
+        tel.end("spotify_current_tracks_and_artists", "error", (e as Error)?.message);
         // Circuit breaker aberto: aborta o diagnóstico — propaga pro handler.
         if (e instanceof SpotifyCircuitOpenError) throw e;
         // Outras falhas: segue sem metadados (classificador degrada gracefully).
       }
+    } else {
+      tel.skip("spotify_current_tracks_and_artists", "sem trackIds");
     }
+
 
     // Helper: avalia se um artista (pelos seus spotify.genres) pertence ao nicho da playlist.
     // Retorna:
