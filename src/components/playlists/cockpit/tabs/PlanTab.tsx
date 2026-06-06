@@ -16,6 +16,7 @@ import { BucketReorder } from "../shared/BucketReorder";
 import { BucketAdd } from "../shared/BucketAdd";
 import { EditorialBanner } from "../shared/EditorialBanner";
 import { PlanImpactCard } from "../shared/PlanImpactCard";
+import { computePlanImpact } from "../shared/computePlanImpact";
 import { TabShell } from "../shared/ds/TabShell";
 import { TabContextBanner } from "../shared/ds/TabContextBanner";
 import { TabKpiStrip } from "../shared/ds/TabKpiStrip";
@@ -75,6 +76,41 @@ export function PlanTab() {
   const mode = diag.raw?.recommendation_mode ?? "light";
   const total = buckets.remove.length + buckets.demote.length + buckets.promote.length + buckets.add.length;
   const detectedTotal = buckets.detected.remove + buckets.detected.demote + buckets.detected.promote + buckets.detected.add;
+
+  // ===== Snapshot payload (Fase 8.3) — persistido pelo edge function ao final do "Aprovar e executar" =====
+  // Construído aqui com o MESMO impact mostrado em PlanImpactCard, garantindo paridade visual x persistência.
+  function buildSnapshotPayload(): Record<string, any> {
+    const impact = computePlanImpact(diag!, buckets, brain ?? null, liveTracksCount);
+    const marketAvgSat = diag?.raw?.market_insights?.avg_saturation_pct ?? null;
+    const findDelta = (key: string) => impact.deltas.find((d) => d.key === key)?.value ?? null;
+    return {
+      diagnosis_id: diag?.id ?? null,
+      baseline: {
+        benchmark_tracks: brain?.benchmark_tracks ?? null,
+        ratio_to_benchmark: brain?.ratio_to_benchmark ?? null,
+        size: liveTracksCount,
+        saturation_avg: marketAvgSat,
+        dominant_artists: null,
+        headroom_pct: brain?.headroom_pct ?? null,
+      },
+      projected: {
+        benchmark_delta: findDelta("benchmark"),
+        artist_delta: findDelta("dom_artists"),
+        coverage_delta_pp: findDelta("coverage"),
+        saturation_delta_pp: findDelta("saturation"),
+        concentration_delta_pp: findDelta("concentration"),
+        size_delta: findDelta("size"),
+        headroom_delta_pp: findDelta("headroom"),
+        confidence: impact.confidence.level,
+      },
+      ops_planned: {
+        add: buckets.add.length,
+        remove: buckets.remove.length,
+        promote: buckets.promote.length,
+        demote: buckets.demote.length,
+      },
+    };
+  }
 
   // ===== BANNER =====
   const bannerStatus = (
@@ -314,7 +350,7 @@ export function PlanTab() {
                   </div>
                 </div>
                 <Button
-                  onClick={() => applyPlan("all")}
+                  onClick={() => applyPlan("all", buildSnapshotPayload())}
                   disabled={applying !== null}
                   size="sm"
                   className="gap-1.5 h-9 px-5 rounded-full text-sm font-medium shrink-0"

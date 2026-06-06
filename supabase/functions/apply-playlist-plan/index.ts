@@ -81,6 +81,63 @@ function describeStep(s: PlanStep, idx0: number): string {
   }
 }
 
+// Fase 8.3 — persiste snapshot da execução do plano (somente action="all" com payload do frontend)
+async function persistExecutionSnapshot(args: {
+  supabase: any;
+  playlistId: string;
+  executedBy: string | null;
+  payload: any;
+  results: any[];
+}) {
+  const { supabase, playlistId, executedBy, payload, results } = args;
+  if (!payload || typeof payload !== "object") return;
+  const baseline = payload.baseline ?? {};
+  const projected = payload.projected ?? {};
+  const num = (v: any) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+  const countOp = (kind: string) =>
+    results.filter((r: any) => r.kind === kind && r.ok !== false && !r.skipped).length;
+
+  try {
+    // Supersede pendings anteriores da mesma playlist (não apaga histórico)
+    await supabase
+      .from("plan_execution_snapshots")
+      .update({
+        status: "superseded",
+        evaluation_notes: "Substituído por execução posterior",
+      })
+      .eq("playlist_id", playlistId)
+      .eq("status", "pending");
+
+    const { error } = await supabase.from("plan_execution_snapshots").insert({
+      playlist_id: playlistId,
+      diagnosis_id: payload.diagnosis_id ?? null,
+      executed_by: executedBy,
+      baseline_benchmark_tracks:   num(baseline.benchmark_tracks),
+      baseline_ratio_to_benchmark: num(baseline.ratio_to_benchmark),
+      baseline_size:               Number.isFinite(baseline.size) ? Math.round(baseline.size) : null,
+      baseline_saturation_avg:     num(baseline.saturation_avg),
+      baseline_dominant_artists:   Number.isFinite(baseline.dominant_artists) ? Math.round(baseline.dominant_artists) : null,
+      baseline_headroom_pct:       num(baseline.headroom_pct),
+      projected_benchmark_delta:        num(projected.benchmark_delta),
+      projected_artist_delta:           num(projected.artist_delta),
+      projected_coverage_delta_pp:      num(projected.coverage_delta_pp),
+      projected_saturation_delta_pp:    num(projected.saturation_delta_pp),
+      projected_concentration_delta_pp: num(projected.concentration_delta_pp),
+      projected_size_delta:             num(projected.size_delta),
+      projected_headroom_delta_pp:      num(projected.headroom_delta_pp),
+      projected_confidence:             typeof projected.confidence === "string" ? projected.confidence : null,
+      ops_add:     countOp("add"),
+      ops_remove:  countOp("remove"),
+      ops_promote: countOp("promote"),
+      ops_demote:  countOp("demote"),
+      status: "pending",
+    });
+    if (error) console.error("[apply-playlist-plan] snapshot insert error:", error.message);
+  } catch (e) {
+    console.error("[apply-playlist-plan] snapshot persistence failed:", e);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const guard = await requireTeamAccess(req);
@@ -92,6 +149,8 @@ Deno.serve(async (req) => {
   const action: Action = (body?.action ?? "all") as Action;
   const limitAdd: number = Math.max(1, Math.min(Number(body?.limit_add ?? 15), 50));
   const stream: boolean = body?.stream !== false; // default true
+  const snapshotPayload: any = body?.snapshot_payload ?? null;
+  const executedBy: string | null = guard.via === "user" ? (guard.userId ?? null) : null;
   if (!playlistId) return jr({ ok: false, error: "playlist_id obrigatório" }, 400);
   if (!["remove", "demote", "promote", "add", "all"].includes(action)) {
     return jr({ ok: false, error: "action inválida" }, 400);
@@ -441,6 +500,17 @@ Deno.serve(async (req) => {
           mensagem: `${spId} (${action}): ${results.length}/${total} executadas${fatalError ? ` — FAILED@${failedAt}: ${fatalError}` : ""}`,
         });
 
+        // Fase 8.3 — persistir snapshot do plano executado (só "all", só se houve execução real)
+        if (action === "all" && snapshotPayload && results.length > 0) {
+          await persistExecutionSnapshot({
+            supabase,
+            playlistId: pl.id,
+            executedBy,
+            payload: snapshotPayload,
+            results,
+          });
+        }
+
         send({
           type: "complete",
           ok: !fatalError,
@@ -532,6 +602,17 @@ Deno.serve(async (req) => {
     status: fatalError ? "erro" : "sucesso",
     mensagem: `${spId} (${action}): ${results.length}/${steps.length} executadas${fatalError ? ` — FAILED@${failedAt}: ${fatalError}` : ""}`,
   });
+
+  // Fase 8.3 — persistir snapshot do plano executado (só "all", só se houve execução real)
+  if (action === "all" && snapshotPayload && results.length > 0) {
+    await persistExecutionSnapshot({
+      supabase,
+      playlistId: pl.id,
+      executedBy,
+      payload: snapshotPayload,
+      results,
+    });
+  }
 
   if (lock.ok) {
     await finishPlaylistOperation(supabase, lock, {
