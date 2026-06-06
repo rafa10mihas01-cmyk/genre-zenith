@@ -273,6 +273,11 @@ export function ExternalPackageEditor({
                   {dealsCount} {dealsCount === 1 ? "deal criado" : "deals criados"}
                 </p>
               )}
+              {headerExtra && (
+                <div className="pt-1 [&_button]:!h-7 [&_button]:!px-2 [&_button]:!text-[11px] [&_button]:!rounded-full opacity-90">
+                  {headerExtra}
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
