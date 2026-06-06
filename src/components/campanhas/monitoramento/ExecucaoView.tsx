@@ -452,21 +452,24 @@ export function ExecucaoView({
         </Card>
       )}
 
-      {/* Resumo por curador: apenas na aba Curadores */}
+      {/* Comando por curador: pílulas + KPIs tiles (somente na aba Curadores) */}
       {mode === "curators" && (
-        <CuratorSummary
+        <CuratorCommand
           rows={rows}
           curators={curators}
           statuses={statuses}
-          onPick={(curatorId) => {
+          curatorFilter={curatorFilter}
+          statusFilter={statusFilter}
+          onPickCurator={(id) => {
             if (!scopeLocked) setScope("curator");
-            setCuratorFilter(curatorId);
+            setCuratorFilter(id);
           }}
+          onToggleStatus={(st) => setStatusFilter((prev) => (prev === st ? "all" : st))}
         />
       )}
 
-      {/* Filtros — de volta pro lugar original (logo acima da tabela). No Ecossistema o botão Exportar vai pra régua de contagem. */}
-      {!isEcosystem && filtersBar}
+      {/* Filtros — só renderiza nas abas Visão geral / Orgânico. Ecossistema e Curadores usam superfícies próprias. */}
+      {!isEcosystem && mode !== "curators" && filtersBar}
 
       {/* Header da tabela — contagem à esquerda, Atual/Δ à direita */}
       <div>
@@ -482,13 +485,14 @@ export function ExecucaoView({
             )}>
               {filteredTotals.delta > 0 ? "+" : ""}{formatInt(filteredTotals.delta)}
             </span></span>
-            {isEcosystem && (
+            {(isEcosystem || mode === "curators") && (
               <Button variant="outline" size="sm" className="h-7 px-2.5 text-[11px]" onClick={exportCsv}>
                 <Download className="h-3.5 w-3.5 mr-1.5" /> Exportar CSV
               </Button>
             )}
           </div>
         </div>
+
 
 
         <Card>
@@ -906,25 +910,35 @@ function KpiCell({ label, value, accent }: { label: string; value: number; accen
   );
 }
 
-function CuratorSummary({
+/**
+ * CuratorCommand — substitui CuratorSummary com a UX escolhida (Variante B).
+ * Pílulas horizontais (curadores) + 5 tiles KPI (Playlists, Matched, Pending, Conflito, Δ).
+ * Clicar numa pílula filtra por curador; clicar num tile colorido alterna o filtro de status.
+ */
+function CuratorCommand({
   rows,
   curators,
   statuses,
-  onPick,
+  curatorFilter,
+  statusFilter,
+  onPickCurator,
+  onToggleStatus,
 }: {
   rows: GrowthRow[];
   curators: Record<string, CuratorMeta>;
   statuses: Record<string, string>;
-  onPick: (curatorId: string) => void;
+  curatorFilter: string;
+  statusFilter: string;
+  onPickCurator: (curatorId: string) => void;
+  onToggleStatus: (status: string) => void;
 }) {
-  const summary = useMemo(() => {
-    const map = new Map<string, { playlists: number; matched: number; pending: number; conflict: number; notFound: number; delta: number }>();
+  const list = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; playlists: number; matched: number; pending: number; conflict: number; notFound: number; delta: number }>();
     for (const r of rows) {
       if (!r.attributed_curator_id) continue;
       const cur = r.attributed_curator_id;
-      const agg = map.get(cur) ?? { playlists: 0, matched: 0, pending: 0, conflict: 0, notFound: 0, delta: 0 };
+      const agg = map.get(cur) ?? { id: cur, name: curators[cur]?.name ?? "Curador", playlists: 0, matched: 0, pending: 0, conflict: 0, notFound: 0, delta: 0 };
       agg.playlists += 1;
-      // Δ de baseline_conflict NÃO conta como crescimento atribuído ao curador
       if (!r.is_baseline_conflict) agg.delta += Number(r.delta ?? 0);
       const st = statuses[`${cur}::${r.playlist_id}`] ?? "pending_match";
       if (st === "matched") agg.matched += 1;
@@ -933,53 +947,156 @@ function CuratorSummary({
       else agg.pending += 1;
       map.set(cur, agg);
     }
-    return Array.from(map.entries())
-      .map(([id, s]) => ({ id, name: curators[id]?.name ?? "Curador", ...s }))
-      .sort((a, b) => b.delta - a.delta);
+    return Array.from(map.values()).sort((a, b) => b.delta - a.delta || b.playlists - a.playlists);
   }, [rows, curators, statuses]);
 
-  if (summary.length === 0) return null;
+  const totals = useMemo(() => {
+    const target = curatorFilter === "all" ? list : list.filter((c) => c.id === curatorFilter);
+    return target.reduce(
+      (acc, c) => ({
+        playlists: acc.playlists + c.playlists,
+        matched: acc.matched + c.matched,
+        pending: acc.pending + c.pending,
+        conflict: acc.conflict + c.conflict,
+        delta: acc.delta + c.delta,
+      }),
+      { playlists: 0, matched: 0, pending: 0, conflict: 0, delta: 0 },
+    );
+  }, [list, curatorFilter]);
+
+  if (list.length === 0) return null;
 
   return (
-    <Card>
-      <CardContent className="p-0">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <div>
-            <div className="text-sm font-semibold text-foreground">Resumo por curador</div>
-            <div className="text-xs text-muted-foreground">{summary.length} curador(es) com playlists atribuídas</div>
-          </div>
-        </div>
-        <div className="grid grid-cols-[1fr_80px_80px_80px_90px_110px_60px] gap-3 px-4 py-2 text-xs uppercase tracking-wide text-muted-foreground border-b border-border/60 bg-card/40">
-          <div>Curador</div>
-          <div className="text-right">Playlists</div>
-          <div className="text-right">Matched</div>
-          <div className="text-right">Pending</div>
-          <div className="text-right">Conflito</div>
-          <div className="text-right">Δ</div>
-          <div />
-        </div>
-        <div className="max-h-[320px] overflow-auto">
-          {summary.map((s) => (
-            <div
-              key={s.id}
-              className="grid grid-cols-[1fr_80px_80px_80px_90px_110px_60px] gap-3 items-center px-4 py-2.5 border-b border-border/40 hover:bg-accent/30"
+    <div className="space-y-3">
+      {/* Pílulas horizontais — curadores */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-thin">
+        <button
+          onClick={() => onPickCurator("all")}
+          className={cn(
+            "shrink-0 inline-flex items-center gap-2 h-8 px-3 rounded-full text-[12px] font-medium transition-colors border",
+            curatorFilter === "all"
+              ? "bg-accent text-foreground border-[hsl(280_70%_60%)]"
+              : "bg-card text-muted-foreground border-border hover:text-foreground hover:bg-accent/60",
+          )}
+        >
+          <span
+            className={cn(
+              "h-1.5 w-1.5 rounded-full",
+              curatorFilter === "all" ? "bg-[hsl(280_70%_60%)] shadow-[0_0_6px_hsl(280_70%_60%/0.7)]" : "bg-muted-foreground/40",
+            )}
+          />
+          Todos curadores
+          <span className="text-[10px] tabular-nums text-subtle-foreground">{list.reduce((s, c) => s + c.playlists, 0)}</span>
+        </button>
+        {list.map((c) => {
+          const active = curatorFilter === c.id;
+          return (
+            <button
+              key={c.id}
+              onClick={() => onPickCurator(c.id)}
+              className={cn(
+                "shrink-0 inline-flex items-center gap-2 h-8 px-3 rounded-full text-[12px] font-medium transition-colors border",
+                active
+                  ? "bg-accent text-foreground border-[hsl(280_70%_60%)]"
+                  : "bg-card text-muted-foreground border-border hover:text-foreground hover:bg-accent/60",
+              )}
             >
-              <div className="font-medium text-foreground text-sm truncate">{s.name}</div>
-              <div className="text-right tabular-nums text-sm text-foreground">{s.playlists}</div>
-              <div className="text-right tabular-nums text-sm text-primary">{s.matched}</div>
-              <div className="text-right tabular-nums text-sm text-muted-foreground">{s.pending}</div>
-              <div className={cn("text-right tabular-nums text-sm", s.conflict > 0 ? "text-destructive font-semibold" : "text-muted-foreground")}>{s.conflict}</div>
-              <div className={cn("text-right tabular-nums text-sm font-semibold", s.delta > 0 ? "text-primary" : "text-muted-foreground")}>
-                {s.delta > 0 ? "+" : ""}{formatInt(s.delta)}
-              </div>
-              <div className="text-right">
-                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => onPick(s.id)}>ver</Button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+              {active && <span className="h-1.5 w-1.5 rounded-full bg-[hsl(280_70%_60%)] shadow-[0_0_6px_hsl(280_70%_60%/0.7)]" />}
+              <span className="truncate max-w-[160px]">{c.name}</span>
+              <span className="text-[10px] tabular-nums text-subtle-foreground">{c.playlists}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* KPI tiles — Playlists / Matched / Pending / Conflito / Δ */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <KpiTile label="Playlists" value={totals.playlists} />
+        <KpiTile
+          label="Matched"
+          value={totals.matched}
+          accent="emerald"
+          active={statusFilter === "matched"}
+          onClick={() => onToggleStatus("matched")}
+        />
+        <KpiTile
+          label="Pending"
+          value={totals.pending}
+          accent="amber"
+          active={statusFilter === "pending_match"}
+          onClick={() => onToggleStatus("pending_match")}
+        />
+        <KpiTile
+          label="Conflito"
+          value={totals.conflict}
+          accent="rose"
+          active={statusFilter === "baseline_conflict"}
+          onClick={() => onToggleStatus("baseline_conflict")}
+        />
+        <KpiTile label="Δ Variação" value={totals.delta} delta />
+      </div>
+    </div>
   );
 }
+
+function KpiTile({
+  label,
+  value,
+  accent,
+  active,
+  delta,
+  onClick,
+}: {
+  label: string;
+  value: number;
+  accent?: "emerald" | "amber" | "rose";
+  active?: boolean;
+  delta?: boolean;
+  onClick?: () => void;
+}) {
+  const accentMap = {
+    emerald: { bar: "bg-emerald-500/60", text: "text-emerald-400", border: "border-emerald-500/40", bg: "bg-emerald-500/[0.06]" },
+    amber: { bar: "bg-amber-500/60", text: "text-amber-400", border: "border-amber-500/40", bg: "bg-amber-500/[0.06]" },
+    rose: { bar: "bg-rose-500/60", text: "text-rose-400", border: "border-rose-500/40", bg: "bg-rose-500/[0.06]" },
+  } as const;
+  const a = accent ? accentMap[accent] : undefined;
+  const clickable = !!onClick;
+  const deltaPositive = delta && value > 0;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!clickable}
+      className={cn(
+        "relative text-left rounded-2xl border bg-card p-4 transition-colors overflow-hidden",
+        clickable
+          ? cn(
+              "cursor-pointer",
+              active && a ? cn(a.border, a.bg) : "border-border hover:border-foreground/20 hover:bg-accent/40",
+            )
+          : "border-border cursor-default",
+      )}
+    >
+      <div
+        className={cn(
+          "text-[10px] uppercase tracking-[0.18em] font-semibold transition-colors",
+          active && a ? a.text : "text-muted-foreground",
+        )}
+      >
+        {label}
+      </div>
+      <div
+        className={cn(
+          "mt-2 text-[22px] font-semibold tabular-nums leading-none",
+          delta ? (value > 0 ? "text-primary" : value < 0 ? "text-destructive" : "text-foreground") : "text-foreground",
+        )}
+      >
+        {delta && deltaPositive ? "+" : ""}
+        {formatInt(value)}
+      </div>
+      {a && <div className={cn("absolute bottom-0 left-0 h-[2px] w-full", active ? a.bar : "bg-transparent")} />}
+    </button>
+  );
+}
+
 
