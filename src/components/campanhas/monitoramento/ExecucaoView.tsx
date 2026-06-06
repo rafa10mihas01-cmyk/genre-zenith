@@ -452,18 +452,14 @@ export function ExecucaoView({
         </Card>
       )}
 
-      {/* Comando por curador: pílulas + KPIs tiles (somente na aba Curadores) */}
+      {/* Aba Curadores: KPI tiles no topo (Playlists/Matched/Pending/Conflito/Δ) */}
       {mode === "curators" && (
-        <CuratorCommand
+        <CuratorTiles
           rows={rows}
           curators={curators}
           statuses={statuses}
           curatorFilter={curatorFilter}
           statusFilter={statusFilter}
-          onPickCurator={(id) => {
-            if (!scopeLocked) setScope("curator");
-            setCuratorFilter(id);
-          }}
           onToggleStatus={(st) => setStatusFilter((prev) => (prev === st ? "all" : st))}
         />
       )}
@@ -471,27 +467,47 @@ export function ExecucaoView({
       {/* Filtros — só renderiza nas abas Visão geral / Orgânico. Ecossistema e Curadores usam superfícies próprias. */}
       {!isEcosystem && mode !== "curators" && filtersBar}
 
-      {/* Header da tabela — contagem à esquerda, Atual/Δ à direita */}
+      {/* Header da tabela */}
       <div>
-        <div className="flex items-end justify-between gap-4 mb-2 px-1">
-          <div className="text-[13px] text-foreground font-semibold tabular-nums">
-            {filtered.length} {filtered.length === 1 ? "playlist" : "playlists"}
+        {mode === "curators" ? (
+          /* Curadores: pílulas de curador à esquerda + Exportar CSV à direita. Sem régua "X playlists / Atual / Δ" (já está nos KPI tiles acima). */
+          <div className="flex items-center justify-between gap-3 mb-2 px-1">
+            <CuratorPills
+              rows={rows}
+              curators={curators}
+              statuses={statuses}
+              curatorFilter={curatorFilter}
+              onPickCurator={(id) => {
+                if (!scopeLocked) setScope("curator");
+                setCuratorFilter(id);
+              }}
+            />
+            <Button variant="outline" size="sm" className="h-8 px-3 text-[11px] shrink-0" onClick={exportCsv}>
+              <Download className="h-3.5 w-3.5 mr-1.5" /> Exportar CSV
+            </Button>
           </div>
-          <div className="flex items-center gap-4 md:gap-6 text-[11px] tabular-nums">
-            <span className="text-muted-foreground">Atual <span className="text-foreground font-semibold">{formatInt(filteredTotals.current)}</span></span>
-            <span className="text-muted-foreground">Δ <span className={cn(
-              "font-semibold",
-              filteredTotals.delta > 0 ? "text-primary" : "text-muted-foreground",
-            )}>
-              {filteredTotals.delta > 0 ? "+" : ""}{formatInt(filteredTotals.delta)}
-            </span></span>
-            {(isEcosystem || mode === "curators") && (
-              <Button variant="outline" size="sm" className="h-7 px-2.5 text-[11px]" onClick={exportCsv}>
-                <Download className="h-3.5 w-3.5 mr-1.5" /> Exportar CSV
-              </Button>
-            )}
+        ) : (
+          <div className="flex items-end justify-between gap-4 mb-2 px-1">
+            <div className="text-[13px] text-foreground font-semibold tabular-nums">
+              {filtered.length} {filtered.length === 1 ? "playlist" : "playlists"}
+            </div>
+            <div className="flex items-center gap-4 md:gap-6 text-[11px] tabular-nums">
+              <span className="text-muted-foreground">Atual <span className="text-foreground font-semibold">{formatInt(filteredTotals.current)}</span></span>
+              <span className="text-muted-foreground">Δ <span className={cn(
+                "font-semibold",
+                filteredTotals.delta > 0 ? "text-primary" : "text-muted-foreground",
+              )}>
+                {filteredTotals.delta > 0 ? "+" : ""}{formatInt(filteredTotals.delta)}
+              </span></span>
+              {isEcosystem && (
+                <Button variant="outline" size="sm" className="h-7 px-2.5 text-[11px]" onClick={exportCsv}>
+                  <Download className="h-3.5 w-3.5 mr-1.5" /> Exportar CSV
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
+        )}
+
 
 
 
