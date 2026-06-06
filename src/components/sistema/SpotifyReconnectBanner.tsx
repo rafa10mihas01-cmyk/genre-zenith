@@ -13,7 +13,7 @@ export function SpotifyReconnectBanner() {
     let alive = true;
     (async () => {
       const { data } = await supabase
-        .from("spotify_user_tokens")
+        .from("spotify_user_tokens_public" as any)
         .select("display_name, spotify_user_id")
         .is("app_id", null);
       if (alive && data) setStale(data as any);

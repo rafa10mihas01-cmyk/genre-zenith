@@ -9429,6 +9429,7 @@ export type Database = {
       }
       spotify_user_tokens_public: {
         Row: {
+          app_id: string | null
           display_name: string | null
           email: string | null
           id: string | null
@@ -9436,6 +9437,7 @@ export type Database = {
           spotify_user_id: string | null
         }
         Insert: {
+          app_id?: string | null
           display_name?: string | null
           email?: string | null
           id?: string | null
@@ -9443,13 +9445,22 @@ export type Database = {
           spotify_user_id?: string | null
         }
         Update: {
+          app_id?: string | null
           display_name?: string | null
           email?: string | null
           id?: string | null
           is_default?: boolean | null
           spotify_user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "spotify_user_tokens_app_id_fkey"
+            columns: ["app_id"]
+            isOneToOne: false
+            referencedRelation: "spotify_apps"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       v_brain_health: {
         Row: {
