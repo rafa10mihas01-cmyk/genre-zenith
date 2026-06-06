@@ -51,7 +51,7 @@ export function useDiagnosisActions(args: {
     }
   }, [managedId, setDiag]);
 
-  const applyPlan = useCallback(async (action: ApplyAction) => {
+  const applyPlan = useCallback(async (action: ApplyAction, snapshotPayload?: Record<string, any> | null) => {
     setApplying(action);
     setApplyProgress(null);
     let completed: any = null;
@@ -67,7 +67,12 @@ export function useDiagnosisActions(args: {
           ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
           apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
-        body: JSON.stringify({ playlist_id: managedId, action, stream: true }),
+        body: JSON.stringify({
+          playlist_id: managedId,
+          action,
+          stream: true,
+          ...(snapshotPayload ? { snapshot_payload: snapshotPayload } : {}),
+        }),
       });
 
       if (!resp.ok || !resp.body) {
