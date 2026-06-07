@@ -6696,6 +6696,171 @@ export type Database = {
           },
         ]
       }
+      playlist_dna: {
+        Row: {
+          avg_track_age_days: number | null
+          classification: string | null
+          classification_confidence: number | null
+          classification_reasons: Json
+          computed_at: string
+          created_at: string
+          dominant_genre_id: string | null
+          dominant_genre_name: string | null
+          dominant_genre_pct: number | null
+          dominant_subgenre_id: string | null
+          dominant_subgenre_name: string | null
+          dominant_subgenre_pct: number | null
+          genre_distribution: Json
+          id: string
+          median_track_age_days: number | null
+          playlist_id: string
+          purity_score: number | null
+          subgenre_distribution: Json
+          top_artists: Json
+          tracks_analyzed: number
+          tracks_matched: number
+          unique_artists_count: number
+          updated_at: string
+        }
+        Insert: {
+          avg_track_age_days?: number | null
+          classification?: string | null
+          classification_confidence?: number | null
+          classification_reasons?: Json
+          computed_at?: string
+          created_at?: string
+          dominant_genre_id?: string | null
+          dominant_genre_name?: string | null
+          dominant_genre_pct?: number | null
+          dominant_subgenre_id?: string | null
+          dominant_subgenre_name?: string | null
+          dominant_subgenre_pct?: number | null
+          genre_distribution?: Json
+          id?: string
+          median_track_age_days?: number | null
+          playlist_id: string
+          purity_score?: number | null
+          subgenre_distribution?: Json
+          top_artists?: Json
+          tracks_analyzed?: number
+          tracks_matched?: number
+          unique_artists_count?: number
+          updated_at?: string
+        }
+        Update: {
+          avg_track_age_days?: number | null
+          classification?: string | null
+          classification_confidence?: number | null
+          classification_reasons?: Json
+          computed_at?: string
+          created_at?: string
+          dominant_genre_id?: string | null
+          dominant_genre_name?: string | null
+          dominant_genre_pct?: number | null
+          dominant_subgenre_id?: string | null
+          dominant_subgenre_name?: string | null
+          dominant_subgenre_pct?: number | null
+          genre_distribution?: Json
+          id?: string
+          median_track_age_days?: number | null
+          playlist_id?: string
+          purity_score?: number | null
+          subgenre_distribution?: Json
+          top_artists?: Json
+          tracks_analyzed?: number
+          tracks_matched?: number
+          unique_artists_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "playlist_dna_dominant_genre_id_fkey"
+            columns: ["dominant_genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_dna_dominant_genre_id_fkey"
+            columns: ["dominant_genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres_with_health"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_dna_dominant_subgenre_id_fkey"
+            columns: ["dominant_subgenre_id"]
+            isOneToOne: false
+            referencedRelation: "subgenres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_dna_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: true
+            referencedRelation: "managed_playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_dna_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: true
+            referencedRelation: "v_playlist_vps_assignment"
+            referencedColumns: ["managed_playlist_id"]
+          },
+        ]
+      }
+      playlist_dna_runs: {
+        Row: {
+          created_at: string
+          failed: number
+          finished_at: string | null
+          hibrida: number
+          id: string
+          insufficient: number
+          nicho: number
+          notes: Json
+          processed: number
+          scope: string
+          started_at: string
+          tematica: number
+          tendencia: number
+          total_candidates: number
+        }
+        Insert: {
+          created_at?: string
+          failed?: number
+          finished_at?: string | null
+          hibrida?: number
+          id?: string
+          insufficient?: number
+          nicho?: number
+          notes?: Json
+          processed?: number
+          scope?: string
+          started_at?: string
+          tematica?: number
+          tendencia?: number
+          total_candidates?: number
+        }
+        Update: {
+          created_at?: string
+          failed?: number
+          finished_at?: string | null
+          hibrida?: number
+          id?: string
+          insufficient?: number
+          nicho?: number
+          notes?: Json
+          processed?: number
+          scope?: string
+          started_at?: string
+          tematica?: number
+          tendencia?: number
+          total_candidates?: number
+        }
+        Relationships: []
+      }
       playlist_drift_snapshots: {
         Row: {
           captured_at: string
