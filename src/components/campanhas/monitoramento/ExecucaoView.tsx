@@ -869,13 +869,25 @@ function VirtualTable({
                   {vi.index + 1}
                 </div>
 
-                <PlaylistCell
-                  playlistId={r.playlist_id}
-                  name={r.current_name ?? r.baseline_name ?? meta?.name ?? null}
-                  url={r.playlist_url}
-                  coverUrl={meta?.cover_url ?? null}
-                  followers={meta?.followers ?? null}
-                />
+                {r.playlist_id === "__radio__" ? (
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-12 w-12 shrink-0 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center">
+                      <RadioIcon className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-medium text-foreground truncate">Rádio Spotify</div>
+                      <div className="text-xs text-muted-foreground">campaign_radio_collected</div>
+                    </div>
+                  </div>
+                ) : (
+                  <PlaylistCell
+                    playlistId={r.playlist_id}
+                    name={r.current_name ?? r.baseline_name ?? meta?.name ?? null}
+                    url={r.playlist_url}
+                    coverUrl={meta?.cover_url ?? null}
+                    followers={meta?.followers ?? null}
+                  />
+                )}
                 <AttributionBadge attr={r.attributed_to} curatorName={curName} />
                 <div className="text-right tabular-nums text-muted-foreground text-sm">{r.baseline_plays == null ? "—" : formatInt(Number(r.baseline_plays))}</div>
                 <div className="text-right tabular-nums text-foreground text-sm">{r.current_plays == null ? "—" : formatInt(Number(r.current_plays))}</div>
