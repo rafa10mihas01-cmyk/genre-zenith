@@ -37,6 +37,8 @@ type Props = {
   allocations?: EcoAllocation[];
   snapshots?: EcoSnap[];
   proofs?: ProofPreview[];
+  /** Plays entregues pela Rádio desde o início da campanha (current - start). */
+  radioDelta?: number;
   onJumpTab?: (tab: "playlists" | "proofs" | "curve" | "finance") => void;
   // Slot opcional que substitui o card "Curva de entrega" dentro do grid principal.
   // Usado pra subir o monitoramento ao lugar da curva planejada.
@@ -52,11 +54,12 @@ type Props = {
 
 export function OverviewTab({
   snapshot, delivered, daysElapsed, showFinance, hideDeliveryPlan = false, hideCurveShortcut = false, hideCurveCard = false, hideKpis = false, hideSplitRows = false,
-  allocations = [], snapshots = [], proofs = [], onJumpTab,
+  allocations = [], snapshots = [], proofs = [], radioDelta = 0, onJumpTab,
   curveSlot,
   splitLockedAt = null, lockedEcoStreams = null, ecoMaxPct = 70,
   canManageSplit = false, onLockSplit, onUnlockSplit,
 }: Props) {
+
   // Slot externo (ex: monitoramento) tem precedência sobre o card padrão de curva.
   const showCurveCard = !hideCurveCard && !curveSlot;
   const [planOpen, setPlanOpen] = useState(false);
