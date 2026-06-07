@@ -426,6 +426,8 @@ export function ExecucaoView({
         totals={totals}
         filteredCount={filtered.length}
         lastCapturedAt={lastCapturedAt}
+        radioDelta={radioRow?.delta ?? 0}
+        hasRadio={hasRadio}
       />
 
       {/* Tabs — entre os dois cards (slot vindo do MonitoramentoTab) */}
