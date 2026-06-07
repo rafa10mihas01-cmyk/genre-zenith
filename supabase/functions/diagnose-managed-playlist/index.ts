@@ -363,14 +363,35 @@ Deno.serve(async (req) => {
     let run403s = 0;
     const ownerSpotifyId: string | null = (pl as any).owner_spotify_user_id ?? null;
 
+    // === Roteamento do app ANTES do guard ===
+    // Resolve o app real que serve o owner desta playlist via spotify_user_tokens.
+    // Sem isso o guard cai em getDefaultSpotifyAppId() (NexEngine 02 = is_default) e
+    // bloqueia diagnoses de playlists que pertencem a apps saudáveis quando o default
+    // está com circuit OPEN. Ver auditoria de 2026-06-07.
+    let ownerAppId: string | null = null;
+    if (ownerSpotifyId) {
+      const { data: tokenRow } = await supabase
+        .from("spotify_user_tokens")
+        .select("app_id")
+        .eq("spotify_user_id", ownerSpotifyId)
+        .order("is_default", { ascending: false, nullsFirst: false })
+        .order("updated_at", { ascending: false, nullsFirst: false })
+        .limit(1)
+        .maybeSingle();
+      ownerAppId = (tokenRow?.app_id as string | null) ?? null;
+    }
+
     // Propaga contexto Spotify pra TODAS as chamadas derivadas desta execução
     // (getPlaylistMeta, listPlaylistTracksRich, guardedSpotifyFetch sem ctx, etc.)
+    // appId é a peça nova: amarra o circuit breaker ao app real do owner.
     setSpotifyCtx({
+      appId: ownerAppId,
       playlist_id: pl.id,
       owner_id: ownerSpotifyId,
       spotify_user_id: ownerSpotifyId,
       function_name: "diagnose-managed-playlist",
     });
+
 
 
     // Lock operacional: impede race com apply-playlist-plan / sync-managed-playlist-tracks.
