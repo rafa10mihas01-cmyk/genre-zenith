@@ -181,30 +181,61 @@ Deno.serve(async (req) => {
       }
     };
 
-    /** Resolve token apropriado pra UMA playlist:
-     *  - managed + owner com token OAuth  → user token (correto pra /tracks)
-     *  - caso contrário                   → app token (client_credentials)
-     *  Retorna também `isOwnerToken` pra o caller decidir se faz failover em 401.
+    /** Classifica erro de getUserAccessToken como permanente (owner nunca terá token
+     *  até reconectar OAuth) ou transitório (rede, 5xx, etc.).
+     *  Permanente:
+     *   - "Nenhuma conta Spotify conectada" → não há row em spotify_user_tokens
+     *   - "Spotify refresh 400 ... invalid_grant" → refresh_token revogado
+     *   - "Spotify refresh 401" → credenciais explicitamente rejeitadas
      */
-    const resolveTokenFor = async (spId: string): Promise<{ token: string | null; isOwnerToken: boolean; ownerId: string | null }> => {
+    const isPermanentOwnerTokenFailure = (err: unknown): boolean => {
+      const msg = String((err as Error)?.message ?? err);
+      if (msg.includes("Nenhuma conta Spotify conectada")) return true;
+      if (/Spotify refresh 4\d\d/.test(msg) && /invalid_grant|invalid_client|revoked|unauthorized/i.test(msg)) return true;
+      if (/Spotify refresh 401/.test(msg)) return true;
+      return false;
+    };
+
+    /** Resolve token apropriado pra UMA playlist:
+     *  - managed + owner com OAuth válido → user token
+     *  - managed + owner permanentemente sem token → app token (fallback degradado)
+     *  - managed + owner com falha transitória → null (skip nesta run, NÃO arquivar)
+     *  - não-managed → app token
+     */
+    const resolveTokenFor = async (spId: string): Promise<{ token: string | null; isOwnerToken: boolean; ownerId: string | null; transientOwnerFailure?: boolean }> => {
       const ownerId = managedOwnerBySpId.get(spId) ?? null;
       if (ownerId && !ownersWithoutToken.has(ownerId)) {
         const cached = ownerTokenCache.get(ownerId);
         if (cached) return { token: cached, isOwnerToken: true, ownerId };
-        try {
-          const { token: ut } = await getUserAccessToken(ownerId);
-          ownerTokenCache.set(ownerId, ut);
-          owner_token_used++;
-          return { token: ut, isOwnerToken: true, ownerId };
-        } catch (e) {
-          owner_token_failed++;
+        // tentativa 1 + 1 retry curto pra falhas transitórias
+        let lastErr: unknown = null;
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            const { token: ut } = await getUserAccessToken(ownerId);
+            ownerTokenCache.set(ownerId, ut);
+            owner_token_used++;
+            return { token: ut, isOwnerToken: true, ownerId };
+          } catch (e) {
+            lastErr = e;
+            if (isPermanentOwnerTokenFailure(e)) break;
+            if (attempt === 0) await sleep(500);
+          }
+        }
+        owner_token_failed++;
+        if (isPermanentOwnerTokenFailure(lastErr)) {
           ownersWithoutToken.add(ownerId);
-          console.warn(`[snapshot] owner ${ownerId} sem token válido (${(e as Error).message}); usando app token`);
+          console.warn(`[snapshot] owner ${ownerId} PERMANENTE sem token (${String((lastErr as Error).message).slice(0, 120)}); fallback app token`);
+        } else {
+          // Transitório: NÃO marca owner como sem token. NÃO faz fallback pra app token
+          // (pra evitar 401 cascade → archive falso positivo). Skip playlist nesta run.
+          console.warn(`[snapshot] owner ${ownerId} falha transitória (${String((lastErr as Error).message).slice(0, 120)}); skip playlist ${spId} nesta run`);
+          return { token: null, isOwnerToken: true, ownerId, transientOwnerFailure: true };
         }
       }
       await ensureAppToken();
       return { token: appToken, isOwnerToken: false, ownerId };
     };
+
 
     for (let idx = 0; idx < list.length; idx++) {
       if (authBreakerTriggered) break;
