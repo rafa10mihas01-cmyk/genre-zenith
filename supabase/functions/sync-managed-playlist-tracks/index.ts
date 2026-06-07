@@ -73,7 +73,29 @@ Deno.serve(async (req) => {
 
   // Propaga contexto pras chamadas Spotify deste request (listPlaylistTracksRich etc.)
   const ownerSpotifyId: string | null = (pl as any).owner_spotify_user_id ?? null;
+
+  // === Roteamento do app ANTES do guard ===
+  // Resolve o app real do owner via spotify_user_tokens. Sem isso o guard cai em
+  // getDefaultSpotifyAppId() (NexEngine 02 = is_default) e bloqueia o sync de
+  // playlists que pertencem a apps saudáveis quando o default está OPEN.
+  // Esta função roda em processo separado do diagnose, então o async-local ctx
+  // do caller NÃO atravessa o fetch HTTP — temos que reresolver aqui.
+  // Ver auditoria de 2026-06-07 (Fase 8.8.1).
+  let ownerAppId: string | null = null;
+  if (ownerSpotifyId) {
+    const { data: tokenRow } = await supabase
+      .from("spotify_user_tokens")
+      .select("app_id")
+      .eq("spotify_user_id", ownerSpotifyId)
+      .order("is_default", { ascending: false, nullsFirst: false })
+      .order("updated_at", { ascending: false, nullsFirst: false })
+      .limit(1)
+      .maybeSingle();
+    ownerAppId = (tokenRow?.app_id as string | null) ?? null;
+  }
+
   setSpotifyCtx({
+    appId: ownerAppId,
     playlist_id: pl.id,
     owner_id: ownerSpotifyId,
     spotify_user_id: ownerSpotifyId,
