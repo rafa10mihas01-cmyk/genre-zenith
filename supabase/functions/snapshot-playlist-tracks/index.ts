@@ -262,20 +262,12 @@ Deno.serve(async (req) => {
             // 401 de novo com outro app, o problema é da playlist (privada/restrita),
             // não do token. Tratamos como 404: auto-archive em managed, sem alimentar streak.
             if (lastFailoverPlaylistId === t.id) {
+              // DESATIVADO 2026-06-07: auto-archive por 401-persistent gerou
+              // falsos positivos em massa (16 managed playlists arquivadas
+              // indevidamente). 401 em /tracks ≠ playlist morta. Apenas
+              // contabiliza como falha e segue — só 404 explícito arquiva.
               lastFailoverPlaylistId = null;
               consecutiveAuthFailures = 0;
-              if (managedIds.has(t.id)) {
-                await sb.from("managed_playlists")
-                  .update({
-                    archived_at: new Date().toISOString(),
-                    archived_reason: "spotify_401_persistent",
-                  })
-                  .eq("spotify_playlist_id", t.id)
-                  .is("archived_at", null);
-                auto_archived++;
-                console.log(`[snapshot] auto-archived 401-persistent playlist ${t.id}`);
-                continue;
-              }
               failed++;
               if (failed_ids.length < 10) failed_ids.push(`${t.id}:401-persistent`);
               continue;
