@@ -327,8 +327,6 @@ Deno.serve(async (req) => {
         code: "spotify_circuit_open",
         blocked_until: e.blockedUntil,
         retry_after: retryAfter,
-        debug_owner_app_id: ownerAppId,
-        debug_owner_spotify_id: ownerSpotifyId,
       }, 503);
     }
     const errMsg = formatPlaylistError(e);
