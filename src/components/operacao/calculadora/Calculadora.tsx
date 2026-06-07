@@ -932,6 +932,8 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
 
 
 
+              {/* Música + Fonte da meta lado a lado (desktop) */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
               {/* Música */}
               <Card>
                 <CardHeader>
@@ -1144,6 +1146,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                   })()}
                 </CardContent>
               </Card>
+              </div>
 
               {/* Valor cliente removido — preço já vem da tabela definida em Financeiro */}
 
