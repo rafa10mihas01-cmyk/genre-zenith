@@ -194,11 +194,14 @@ Deno.serve(async (req) => {
       const t = list[idx];
       if (idx > 0) await sleep(THROTTLE_MS);
 
-      // Helper: lista refs com 1 retry pra 429. 401 borbulha pro outer catch (failover).
+      // Resolve token apropriado pra ESTA playlist (owner token se for managed+OAuth).
+      const { token: callToken, isOwnerToken } = await resolveTokenFor(t.id);
+
+      // Helper: lista refs com 1 retry pra 429. 401 borbulha pro outer catch.
       const fetchRefs = async (): Promise<string[]> => {
         for (let attempt = 0; attempt < 2; attempt++) {
           try {
-            const refs = await listPlaylistTrackRefs(t.id, token);
+            const refs = await listPlaylistTrackRefs(t.id, callToken);
             return refs.map((r) => r.id).filter((x): x is string => !!x).slice(0, 50);
           } catch (e) {
             if (e instanceof SpotifyApiError && e.status === 429) {
@@ -221,8 +224,18 @@ Deno.serve(async (req) => {
           consecutiveAuthFailures = 0; // sucesso reseta streak local
           lastFailoverPlaylistId = null;
         } catch (e) {
-          // ── AUTH_INVALID: incrementa streak, tenta failover na 1ª, aborta no threshold.
+          // ── AUTH_INVALID
           if (e instanceof SpotifyAuthInvalidError) {
+            // Quando usamos OWNER TOKEN, 401 = problema do token do owner (re-auth necessário)
+            // OU restrição da própria playlist. Não acionamos failover de app (não ajudaria)
+            // nem alimentamos o streak global do app token.
+            if (isOwnerToken) {
+              console.warn(`[snapshot] 401 com owner token em ${t.id} — owner precisa reconectar`);
+              failed++;
+              if (failed_ids.length < 10) failed_ids.push(`${t.id}:401-owner`);
+              continue;
+            }
+
             // Se acabamos de fazer failover por causa DESTA mesma playlist e ela
             // 401 de novo com outro app, o problema é da playlist (privada/restrita),
             // não do token. Tratamos como 404: auto-archive em managed, sem alimentar streak.
@@ -256,7 +269,6 @@ Deno.serve(async (req) => {
                 if (failed_ids.length < 10) failed_ids.push(`${t.id}:401-no-failover`);
                 break;
               }
-              // Retenta a mesma playlist com novo app (decrementa idx).
               lastFailoverPlaylistId = t.id;
               idx--;
               continue;
