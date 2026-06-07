@@ -1146,6 +1146,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                   })()}
                 </CardContent>
               </Card>
+              </div>
 
               {/* Valor cliente removido — preço já vem da tabela definida em Financeiro */}
 
