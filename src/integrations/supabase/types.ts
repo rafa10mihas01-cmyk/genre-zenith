@@ -10504,6 +10504,15 @@ export type Database = {
           value: Json
         }[]
       }
+      get_blocked_playlist_ids: {
+        Args: never
+        Returns: {
+          app_id: string
+          app_name: string
+          blocked_until: string
+          playlist_id: string
+        }[]
+      }
       get_campaign_analytics_overview: { Args: never; Returns: Json }
       get_community_invite_by_code: {
         Args: { p_code: string }

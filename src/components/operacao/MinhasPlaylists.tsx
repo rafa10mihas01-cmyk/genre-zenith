@@ -35,6 +35,7 @@ import { CuratorialStateBadge, CooldownStack, type CuratorialState } from "@/com
 import { IconBadge } from "@/components/playlist/IconBadge";
 import { GraduationCap } from "lucide-react";
 import { useActiveCooldowns } from "@/hooks/useActiveCooldowns";
+import { useBlockedPlaylistIds } from "@/hooks/useSpotifyAppsStatus";
 import { CapacityMatrixTab } from "./CapacityMatrixTab";
 
 type ManagedPlaylist = {
@@ -128,9 +129,17 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const filterGenreId = searchParams.get("genero");
   const filterSize = (searchParams.get("tamanho") as "all" | "pequena" | "media" | "grande" | "top") || "all";
   const filterFase = (searchParams.get("fase") as "all" | "prontas" | "crescendo" | "novas" | "atencao") || "all";
+  const filterAppBlocked = searchParams.get("app") === "bloqueado";
   const showArchived = searchParams.get("arquivadas") === "1";
   const showCapacity = searchParams.get("aba") === "capacidade";
   const sortBy = (searchParams.get("sort") as "followers" | "recent" | "valuation") || "followers";
+
+  // Apps Spotify bloqueados pelo circuit breaker — usado pelo chip "Apps bloqueados".
+  const { data: blockedRows = [] } = useBlockedPlaylistIds();
+  const blockedSet = useMemo(() => new Set(blockedRows.map(r => r.playlist_id)), [blockedRows]);
+  const blockedAppName = blockedRows[0]?.app_name ?? null;
+  const blockedUntil = blockedRows[0]?.blocked_until ?? null;
+  const setFilterAppBlocked = (v: boolean) => updateParam("app", v ? "bloqueado" : null);
 
   const updateParam = useCallback((key: string, val: string | null) => {
     setSearchParams(prev => {
@@ -804,6 +813,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     .filter((p) => (showArchived ? !!p.archived_at : !p.archived_at))
     .filter((p) => (filterMissingGenre ? !p.genre_id : true))
     .filter((p) => (filterGenreId ? p.genre_id === filterGenreId : true))
+    .filter((p) => (filterAppBlocked ? blockedSet.has(p.id) : true))
     .filter((p) => {
       if (filterSize === "all") return true;
       const f = p.followers ?? 0;
@@ -1350,7 +1360,52 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         );
       })()}
 
-
+      {/* Chip: Apps Spotify bloqueados pelo circuit breaker.
+           Aparece apenas quando há playlists afetadas. Filtra a grade pra
+           mostrar só as playlists travadas pelo app. */}
+      {!showArchived && !showCapacity && blockedRows.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <Tooltip delayDuration={150}>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() => setFilterAppBlocked(!filterAppBlocked)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-medium border transition-colors",
+                  filterAppBlocked
+                    ? "bg-destructive/15 border-destructive/50 text-destructive"
+                    : "bg-card border-destructive/30 text-destructive/90 hover:bg-destructive/10",
+                )}
+                aria-pressed={filterAppBlocked}
+              >
+                <AlertCircle className="h-3.5 w-3.5" />
+                <span>Apps bloqueados</span>
+                <span className="tabular-nums opacity-80">({blockedRows.length})</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-[280px] text-[12px] leading-snug">
+              <div className="font-semibold">{blockedAppName ?? "App Spotify"} bloqueado</div>
+              {blockedUntil && (
+                <div className="text-muted-foreground mt-0.5">
+                  Até {new Date(blockedUntil).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                </div>
+              )}
+              <div className="text-muted-foreground mt-1">
+                {blockedRows.length} playlist{blockedRows.length === 1 ? "" : "s"} afetada{blockedRows.length === 1 ? "" : "s"}. Diagnóstico, troca de capa e sync ficam indisponíveis até liberar.
+              </div>
+            </TooltipContent>
+          </Tooltip>
+          {filterAppBlocked && (
+            <button
+              type="button"
+              onClick={() => setFilterAppBlocked(false)}
+              className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+            >
+              limpar filtro
+            </button>
+          )}
+        </div>
+      )}
 
 
       {/* Toolbar — 1 linha (mobile colapsa texto pra caber sem scroll) */}
