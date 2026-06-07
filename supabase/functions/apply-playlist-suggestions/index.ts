@@ -162,12 +162,28 @@ Deno.serve(async (req) => {
       mensagem: `playlist ${pl.spotify_playlist_id}: +${selected.length} faixas no topo (snapshot ${snapshot ?? "?"})`,
     });
 
+    // Auditoria: confirma posições das protegidas após inserção
+    let protectedAuditAfter: Array<{ uri: string; position: number }> = [];
+    if (protectedTracks.length > 0) {
+      try {
+        const afterUris = await listPlaylistTrackUris(pl.spotify_playlist_id, token);
+        const protSet = protectedUriSet(protectedTracks);
+        afterUris.forEach((u, i) => {
+          if (protSet.has(u)) protectedAuditAfter.push({ uri: u, position: i });
+        });
+      } catch { /* audit best-effort */ }
+    }
+
     return jr({
       ok: true,
       inserted: selected.length,
       snapshot_id: snapshot,
+      insert_position: insertPosition,
+      protected_audit: protectedTracks.length > 0
+        ? { before: protectedAuditBefore, after: protectedAuditAfter, count: protectedTracks.length }
+        : null,
       tracks: selected.map((s, i) => ({
-        position: i + 1,
+        position: insertPosition + i + 1,
         spotify_track_id: s.spotify_track_id,
         nome: s.nome,
         artista: s.artista,
