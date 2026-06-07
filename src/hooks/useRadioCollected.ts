@@ -11,7 +11,7 @@ export type RadioCollected = {
 };
 
 /**
- * Lê a view `campaign_radio_collected` (baseline ancorada na ativação da campanha).
+ * Lê a função segura `get_campaign_radio_collected` (baseline ancorada na ativação da campanha).
  * Compartilhado entre RadioCollectedCard e OverviewTab (linha Rádio dentro do Ecossistema).
  */
 export function useRadioCollected(campaignId: string | undefined) {
@@ -23,11 +23,9 @@ export function useRadioCollected(campaignId: string | undefined) {
     let active = true;
     setLoading(true);
     void (async () => {
-      const { data: row } = await (supabase as any)
-        .from("campaign_radio_collected")
-        .select("*")
-        .eq("campaign_id", campaignId)
-        .maybeSingle();
+      const { data: rows } = await (supabase as any)
+        .rpc("get_campaign_radio_collected", { _campaign_id: campaignId });
+      const row = Array.isArray(rows) ? rows[0] : null;
       if (!active) return;
       setData((row as RadioCollected | null) ?? null);
       setLoading(false);
