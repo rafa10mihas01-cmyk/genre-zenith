@@ -642,7 +642,7 @@ Deno.serve(async (req) => {
     if (trackIds.length > 0) {
       tel.start("spotify_current_tracks_and_artists");
       try {
-        const token = await getSpotifyToken();
+        const token = await getSpotifyToken({ appId: ownerAppId });
         // /v1/tracks?ids= (até 50)
         for (let i = 0; i < trackIds.length; i += 50) {
           const ids = trackIds.slice(i, i + 50);
@@ -1148,7 +1148,7 @@ Deno.serve(async (req) => {
     if (rawCandidates.length > 0) {
       tel.start("spotify_candidates_tracks_and_artists");
       try {
-        const token = await getSpotifyToken();
+        const token = await getSpotifyToken({ appId: ownerAppId });
         const candArtistIds = new Map<string, string>(); // trackId → artistId
         for (let i = 0; i < rawCandidates.length; i += 50) {
           const ids = rawCandidates.slice(i, i + 50).map((c) => c.id);
@@ -1779,7 +1779,7 @@ Deno.serve(async (req) => {
       }
       if (candidateIds.length > 0) {
         try {
-          const token = await getSpotifyToken();
+          const token = await getSpotifyToken({ appId: ownerAppId });
           for (let i = 0; i < candidateIds.length; i += 50) {
             const slice = candidateIds.slice(i, i + 50);
             const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/tracks?ids=${slice.join(",")}`, { headers: { Authorization: `Bearer ${token}` } }, { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, function_name: 'diagnose-managed-playlist' });
