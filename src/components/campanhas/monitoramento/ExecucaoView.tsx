@@ -325,8 +325,6 @@ export function ExecucaoView({
     return latest;
   }, [rows]);
 
-  if (!rows) return <Skeleton className="h-96 w-full" />;
-
   const isEcosystem = mode === "ecosystem";
 
   // Linha virtual da Rádio Spotify (só na aba Ecossistema da visão interna).
@@ -334,6 +332,9 @@ export function ExecucaoView({
   // Nunca renderizada em portal do cliente ou compartilhamento público
   // porque esta view (ExecucaoView) só vive dentro do hub interno da campanha.
   const { data: radioData } = useRadioCollected(isEcosystem ? campaignId : undefined);
+
+  if (!rows) return <Skeleton className="h-96 w-full" />;
+
   const hasRadio = isEcosystem && !!radioData && (
     (radioData.start_plays_7d ?? 0) > 0 || (radioData.current_plays_7d ?? 0) > 0
   );
@@ -360,6 +361,7 @@ export function ExecucaoView({
     current: filteredTotals.current + (radioRow.current_plays ?? 0),
     delta: filteredTotals.delta + (radioRow.delta ?? 0),
   } : filteredTotals;
+
 
   const filtersBar = (
     <div className="flex items-center gap-2 flex-wrap">
