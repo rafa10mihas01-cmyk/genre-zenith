@@ -1,19 +1,9 @@
-import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Radio } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { formatBRL, formatInt } from "@/lib/campaignEngine";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-
-type RadioRow = {
-  campaign_id: string;
-  start_plays_7d: number | null;
-  start_captured_at: string | null;
-  current_plays_7d: number;
-  last_captured_at: string;
-  radio_delta: number;
-};
+import { useRadioCollected } from "@/hooks/useRadioCollected";
 
 type Props = {
   campaignId: string;
@@ -32,25 +22,9 @@ type Props = {
  * Custo: herda o mesmo CPP do Ecossistema (sem CPP próprio).
  */
 export function RadioCollectedCard({ campaignId, cppEco = 0 }: Props) {
-  const [data, setData] = useState<RadioRow | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let active = true;
-    void (async () => {
-      const { data: rows } = await (supabase as any)
-        .from("campaign_radio_collected")
-        .select("*")
-        .eq("campaign_id", campaignId)
-        .maybeSingle();
-      if (!active) return;
-      setData((rows as RadioRow | null) ?? null);
-      setLoading(false);
-    })();
-    return () => { active = false; };
-  }, [campaignId]);
-
+  const { data, loading } = useRadioCollected(campaignId);
   if (loading || !data) return null;
+
 
   const start = data.start_plays_7d ?? null;
   const current = data.current_plays_7d ?? 0;
