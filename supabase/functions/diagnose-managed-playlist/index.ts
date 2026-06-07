@@ -600,23 +600,19 @@ Deno.serve(async (req) => {
     };
     const protectedTracks = new Map<string, ProtectedTrack>();
     {
-      const { data: protRows } = await supabase
-        .from("campaign_eco_allocations")
-        .select("campaign_id, planned_streams, status, campaigns!inner(id, spotify_track_id, status)")
-        .eq("managed_playlist_id", pl.id)
-        .in("status", ["pending", "dispatched", "active"])
-        .in("campaigns.status", ["draft", "active", "paused"]);
-      for (const row of (protRows ?? []) as any[]) {
-        const tid = row.campaigns?.spotify_track_id;
+      // Fonte única de verdade: _shared/protected-tracks.ts
+      // Mesma regra usada por apply-playlist-plan, auto-adjust-playlists e apply-playlist-suggestions.
+      const protRows = await getProtectedTracksForPlaylist(supabase, { managed_playlist_id: pl.id });
+      for (const row of protRows) {
+        const tid = row.spotify_track_id;
         if (!tid) continue;
-        // Se a mesma faixa tiver várias allocations, mantém a mais "forte"
-        const prev = protectedTracks.get(tid);
         const cur: ProtectedTrack = {
           campaign_id: row.campaign_id,
-          campaign_status: row.campaigns.status,
+          campaign_status: row.campaign_status,
           planned_streams: Number(row.planned_streams ?? 0),
-          allocation_status: row.status,
+          allocation_status: row.alloc_status,
         };
+        const prev = protectedTracks.get(tid);
         if (!prev || cur.planned_streams > prev.planned_streams) protectedTracks.set(tid, cur);
       }
     }
