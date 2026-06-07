@@ -527,15 +527,15 @@ export function ExecucaoView({
         ) : (
           <div className="flex items-end justify-between gap-4 mb-2 px-1">
             <div className="text-[13px] text-foreground font-semibold tabular-nums">
-              {filtered.length} {filtered.length === 1 ? "playlist" : "playlists"}
+              {displayRows.length} {displayRows.length === 1 ? "linha" : "linhas"}
             </div>
             <div className="flex items-center gap-4 md:gap-6 text-[11px] tabular-nums">
-              <span className="text-muted-foreground">Atual <span className="text-foreground font-semibold">{formatInt(filteredTotals.current)}</span></span>
+              <span className="text-muted-foreground">Atual <span className="text-foreground font-semibold">{formatInt(displayTotals.current)}</span></span>
               <span className="text-muted-foreground">Δ <span className={cn(
                 "font-semibold",
-                filteredTotals.delta > 0 ? "text-primary" : "text-muted-foreground",
+                displayTotals.delta > 0 ? "text-primary" : "text-muted-foreground",
               )}>
-                {filteredTotals.delta > 0 ? "+" : ""}{formatInt(filteredTotals.delta)}
+                {displayTotals.delta > 0 ? "+" : ""}{formatInt(displayTotals.delta)}
               </span></span>
               {isEcosystem && (
                 <Button variant="outline" size="sm" className="h-7 px-2.5 text-[11px]" onClick={exportCsv}>
@@ -552,7 +552,7 @@ export function ExecucaoView({
         <Card>
           <CardContent className="p-0">
             <VirtualTable
-              rows={filtered}
+              rows={displayRows}
               curators={curators}
               statuses={statuses}
               sort={sort}
@@ -561,7 +561,7 @@ export function ExecucaoView({
                 if (sort === k) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
                 else { setSort(k); setSortDir("desc"); }
               }}
-              onRowClick={onOpenHistory}
+              onRowClick={(pid) => { if (pid !== "__radio__") onOpenHistory?.(pid); }}
             />
           </CardContent>
         </Card>
