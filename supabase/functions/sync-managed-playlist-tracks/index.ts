@@ -83,15 +83,20 @@ Deno.serve(async (req) => {
   // Ver auditoria de 2026-06-07 (Fase 8.8.1).
   let ownerAppId: string | null = null;
   if (ownerSpotifyId) {
-    const { data: tokenRow } = await supabase
+    const { data: tokenRow, error: tokenErr } = await supabase
       .from("spotify_user_tokens")
-      .select("app_id")
-      .eq("spotify_user_id", ownerSpotifyId)
-      .order("is_default", { ascending: false, nullsFirst: false })
-      .order("updated_at", { ascending: false, nullsFirst: false })
-      .limit(1)
-      .maybeSingle();
-    ownerAppId = (tokenRow?.app_id as string | null) ?? null;
+      .select("app_id, is_default, updated_at")
+      .eq("spotify_user_id", ownerSpotifyId);
+    if (tokenErr) console.error("[sync] owner token lookup error:", tokenErr.message);
+    const rows = (tokenRow ?? []) as Array<{ app_id: string | null; is_default: boolean | null; updated_at: string | null }>;
+    const sorted = rows.slice().sort((a, b) => {
+      const da = a.is_default ? 1 : 0;
+      const db = b.is_default ? 1 : 0;
+      if (da !== db) return db - da;
+      return String(b.updated_at ?? "").localeCompare(String(a.updated_at ?? ""));
+    });
+    ownerAppId = sorted[0]?.app_id ?? null;
+    console.log(`[sync] owner=${ownerSpotifyId} → ownerAppId=${ownerAppId} (rows=${rows.length})`);
   }
 
   setSpotifyCtx({
