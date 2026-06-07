@@ -122,6 +122,10 @@ Deno.serve(async (req) => {
     const AUTH_STREAK_THRESHOLD = 5;
     let consecutiveAuthFailures = 0;
     let authBreakerTriggered = false;
+    // Quando 401 ocorre, fazemos failover e re-tentamos a MESMA playlist com outro app.
+    // Se o novo app TAMBÉM retorna 401 nessa mesma playlist, o problema é da playlist
+    // (privada/restrita pelo dono), não do token — tratamos como 404 (auto-archive em managed).
+    let lastFailoverPlaylistId: string | null = null;
     const quarantinedDuringRun: Array<{ app_id: string; app_name: string; reason: string }> = [];
     let failoverUsed = false;
 
