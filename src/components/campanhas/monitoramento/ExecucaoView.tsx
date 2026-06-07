@@ -925,17 +925,17 @@ function SortHeader({
 }
 
 function AttributionBadge({ attr, curatorName }: { attr: string; curatorName: string | null }) {
-  if (attr === "ecosystem") return <Badge variant="outline" className="border-blue-500/40 text-blue-400">Ecossistema</Badge>;
-  if (attr === "radio") return <Badge variant="outline" className="border-primary/40 text-primary">Rádio</Badge>;
-  if (attr.startsWith("curator:")) return <Badge variant="outline" className="border-purple-500/40 text-purple-400 truncate max-w-full">{curatorName ?? "Curador"}</Badge>;
+  if (attr === "radio") return <Badge variant="outline" className="border-blue-500/40 text-blue-400">Rádio</Badge>;
+  if (attr === "ecosystem") return <Badge variant="outline" className="border-emerald-500/40 text-emerald-400">Ecossistema</Badge>;
+  if (attr.startsWith("curator:")) return <Badge variant="outline" className="border-amber-500/40 text-amber-400 truncate max-w-full">{curatorName ?? "Curador"}</Badge>;
   return <Badge variant="outline" className="border-pink-500/40 text-pink-400">Orgânico</Badge>;
 }
 
 function AttributionDot({ attr }: { attr: string }) {
   const cls =
-    attr === "ecosystem" ? "bg-blue-400"
-    : attr === "radio" ? "bg-primary"
-    : attr.startsWith("curator:") ? "bg-purple-400"
+    attr === "radio" ? "bg-blue-400"
+    : attr === "ecosystem" ? "bg-emerald-400"
+    : attr.startsWith("curator:") ? "bg-amber-400"
     : "bg-pink-400";
   return <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", cls)} aria-hidden />;
 }
