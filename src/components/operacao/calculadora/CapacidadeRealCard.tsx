@@ -69,19 +69,22 @@ export function CapacidadeRealCard({ genre, dailyNeed, multiplier, clientProfile
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-muted-foreground">
           <Target className="h-3 w-3" />
-          Capacidade real entregável
+          Capacidade
         </div>
-        <span className={cn("text-[11px] font-medium tabular-nums", statusAccent)}>
-          {coverage}% da meta diária
-        </span>
+        {status === "enxuto" && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 text-primary px-2 py-0.5 text-[10px] font-medium">
+            <Check className="h-2.5 w-2.5" /> Capacidade suficiente
+          </span>
+        )}
       </div>
 
       <div className="mt-2 grid grid-cols-2 gap-2">
-        <Box label="Você pediu" value={`${formatInt(dailyNeed)}/dia`} accent="text-foreground" />
+        <Box label="Necessário" value={`${formatInt(dailyNeed)}/dia`} accent="text-foreground" />
         <Box
-          label="Sistema entrega"
+          label="Entrega"
           value={`${formatInt(Math.round(cap.coveredDaily))}/dia`}
           accent={statusAccent}
+          delta={dailyNeed > 0 ? Math.round((cap.coveredDaily / dailyNeed - 1) * 100) : null}
         />
       </div>
 
