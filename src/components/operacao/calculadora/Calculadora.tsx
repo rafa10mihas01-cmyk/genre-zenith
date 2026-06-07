@@ -1444,7 +1444,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                                   sub={`${ecoCap.playlistsSelected != null ? `${ecoCap.playlistsSelected} de ${ecoCap.playlistCount}` : `${ecoCap.playlistCount}`} pl · ${genreLabel}`}
                                 />
                                 <Card
-                                  label="Externo"
+                                  label="Curadores"
                                   total={formatCompact(result.streamsExt)}
                                   pct={extRealPct > 0 ? `${extRealPct}%` : undefined}
                                   perDay={`${formatCompact(extPerDay)}/dia`}
