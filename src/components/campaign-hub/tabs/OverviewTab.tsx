@@ -184,15 +184,32 @@ export function OverviewTab({
       {/* Split eco/ext/org — extraído do Plano de entrega pra leitura imediata */}
       {!hideSplitRows && (
       <section className={cn("grid grid-cols-1 gap-3", orgTarget > 0 ? "md:grid-cols-3" : "md:grid-cols-2")}>
-        <SplitRow
-          tone="eco"
-          label="Ecossistema"
-          metaTotal={ecoTarget}
-          metaPct={ecoEffectivePct}
-          deliveredTotal={ecoDelivered}
-          perDayContract={Math.round(Math.max(0, ecoTarget - ecoDelivered) / daysRemaining)}
-          perDayReal={Math.round(ecoTarget / Math.max(1, snapshot.effectiveDays ?? snapshot.days))}
-        />
+        <div className="space-y-2">
+          <SplitRow
+            tone="eco"
+            label="Ecossistema"
+            metaTotal={ecoTarget}
+            metaPct={ecoEffectivePct}
+            deliveredTotal={ecoDelivered}
+            perDayContract={Math.round(Math.max(0, ecoTarget - ecoDelivered) / daysRemaining)}
+            perDayReal={Math.round(ecoTarget / Math.max(1, snapshot.effectiveDays ?? snapshot.days))}
+          />
+          {/* Auditoria — Rádio dentro do Ecossistema, separada visualmente */}
+          {(radioDeliveredSafe > 0 || ecoDeliveredPlaylists > 0) && (
+            <div className="rounded-md border border-border/40 bg-muted/10 px-3 py-2 text-[11px] tabular-nums flex items-center justify-between gap-3">
+              <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary/70" />
+                Playlists próprias
+              </span>
+              <span className="text-foreground/90">{formatInt(ecoDeliveredPlaylists)}</span>
+              <span className="inline-flex items-center gap-1.5 text-muted-foreground ml-3">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                Rádio
+              </span>
+              <span className="text-foreground/90">+{formatInt(radioDeliveredSafe)}</span>
+            </div>
+          )}
+        </div>
         <SplitRow
           tone="ext"
           label="Externo"
@@ -218,6 +235,7 @@ export function OverviewTab({
 
       {/* Plano de entrega — 2 cards: contratado vs real (diluído no effectiveDays) */}
       {!hideDeliveryPlan && (() => {
+
         const effDays = Math.max(1, snapshot.effectiveDays ?? snapshot.days);
         const realPerDay = Math.round(snapshot.meta / effDays);
         return (
