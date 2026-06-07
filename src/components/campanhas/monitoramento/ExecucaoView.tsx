@@ -922,6 +922,7 @@ function AttributionBadge({ attr, curatorName }: { attr: string; curatorName: st
 function AttributionDot({ attr }: { attr: string }) {
   const cls =
     attr === "ecosystem" ? "bg-blue-400"
+    : attr === "radio" ? "bg-primary"
     : attr.startsWith("curator:") ? "bg-purple-400"
     : "bg-pink-400";
   return <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", cls)} aria-hidden />;
