@@ -750,6 +750,8 @@ export default function CampanhaExecucao() {
                 
                 allocations={allocs}
                 snapshots={snaps}
+                radioDelta={radioDelta}
+
                 proofs={proofs.map(p => ({
                   id: p.id,
                   captured_at: p.captured_at,
