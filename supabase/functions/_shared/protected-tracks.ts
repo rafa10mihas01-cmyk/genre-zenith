@@ -98,13 +98,17 @@ export async function logProtectedBlock(
   },
 ): Promise<void> {
   try {
+    const summary = JSON.stringify({
+      action: payload.action,
+      playlist: payload.spotify_playlist_id ?? payload.managed_playlist_id ?? null,
+      blocked: payload.blocked_tracks.slice(0, 20),
+      blocked_count: payload.blocked_tracks.length,
+      extra: payload.extra ?? null,
+    });
     await supabase.from("collection_logs").insert({
       acao: "protected-track-block",
       status: "bloqueado",
-      mensagem: `${payload.source}: ${payload.action} bloqueado em ${
-        payload.spotify_playlist_id ?? payload.managed_playlist_id ?? "?"
-      } — ${payload.blocked_tracks.length} faixa(s) protegida(s)`,
-      detalhes: payload as unknown as Record<string, unknown>,
+      mensagem: `${payload.source}: ${summary}`.slice(0, 4000),
     });
   } catch {
     // silencioso — proteção nunca pode quebrar fluxo por causa de log
