@@ -61,9 +61,6 @@ function round(n: number | null, d = 2): number | null {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
-  const guard = await requireTeamAccess(req);
-  if (!guard.ok) return guard.resp;
-
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
   let scope: "all" | "active" | "archived" = "all";
