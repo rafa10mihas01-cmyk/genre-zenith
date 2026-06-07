@@ -933,9 +933,9 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
 
 
               {/* Música + Fonte da meta lado a lado (desktop) */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
               {/* Música */}
-              <Card>
+              <Card className="h-full">
                 <CardHeader>
                   <CardTitle className="text-sm">Música</CardTitle>
                   <CardDescription>Cole o link do Spotify da faixa.</CardDescription>
