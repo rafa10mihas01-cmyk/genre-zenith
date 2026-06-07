@@ -5,6 +5,7 @@ import { formatBRL, formatInt } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { supabase } from "@/integrations/supabase/client";
 import { useRadioCollected } from "@/hooks/useRadioCollected";
+import { plannedRadioStreams, plannedRadioCost, plannedRadioPct } from "@/lib/plannedRadio";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -57,13 +58,23 @@ export function FinanceTab({ campaignId, snapshot, clientPriceTotal }: Props) {
   }, [campaignId]);
 
   // ---------- BASES DE CÁLCULO ----------
+  // CPP do Ecossistema (herdado pela Rádio).
   const cppEco = snapshot.streamsEco > 0 ? snapshot.custoEco / snapshot.streamsEco : 0;
-  const radioDelta = Math.max(0, radio?.radio_delta ?? 0);
-  const radioCost = radioDelta * cppEco;
 
-  // Playlist Própria = Eco - Rádio (Rádio é parte do Eco mas exibimos separadamente).
-  const ownStreams = Math.max(0, snapshot.streamsEco - radioDelta);
-  const ownCost = Math.max(0, snapshot.custoEco - radioCost);
+  // Rádio agora é ALOCAÇÃO PLANEJADA (reaproveita streamsOrganic do snapshot).
+  // Não mexe no engine — só re-interpreta semanticamente o bucket.
+  const radioPlannedStr = plannedRadioStreams(snapshot);
+  const radioPlannedCst = plannedRadioCost(snapshot);
+  const radioPct = plannedRadioPct(snapshot);
+
+  // Entrega real medida pela coleta (campaign_radio_collected).
+  const radioDelivered = Math.max(0, radio?.radio_delta ?? 0);
+  const radioRemaining = Math.max(0, radioPlannedStr - radioDelivered);
+
+  // Playlist Própria = Ecossistema cheio do snapshot (sem subtrair a Rádio,
+  // pois Rádio agora é uma alocação separada que NÃO sai do Eco).
+  const ownStreams = Math.max(0, snapshot.streamsEco);
+  const ownCost = Math.max(0, snapshot.custoEco);
 
   const externalStreams = snapshot.streamsExt;
   const externalCost = snapshot.custoExt;
@@ -75,9 +86,9 @@ export function FinanceTab({ campaignId, snapshot, clientPriceTotal }: Props) {
       hint: "Inventário gerenciado",
     },
     {
-      key: "radio", label: "Rádio Spotify", icon: Radio,
-      cost: radioCost, streams: radioDelta, bucket: "eco",
-      hint: "Herda CPP do Ecossistema",
+      key: "radio", label: "Rádio Planejada", icon: Radio,
+      cost: radioPlannedCst, streams: radioPlannedStr, bucket: "eco",
+      hint: `Alocação operacional · ${radioPct}% da meta · CPP herdado do Eco`,
     },
     {
       key: "curators", label: "Curadores", icon: Users,
@@ -248,7 +259,7 @@ export function FinanceTab({ campaignId, snapshot, clientPriceTotal }: Props) {
         </CardContent>
       </Card>
 
-      {/* BLOCO 5 — Rádio (card específico) */}
+      {/* BLOCO 5 — Rádio Planejada vs Entregue */}
       <Card>
         <CardContent className="p-5 space-y-4">
           <div className="flex items-start justify-between gap-3">
@@ -257,25 +268,31 @@ export function FinanceTab({ campaignId, snapshot, clientPriceTotal }: Props) {
                 <Radio className="h-4 w-4 text-primary" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold">Rádio Spotify</h3>
+                <h3 className="text-sm font-semibold">Rádio — Planejada vs Entregue</h3>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Entrega medida pelo crescimento desde a baseline da campanha
+                  Alocação definida na criação ({radioPct}% da meta) · entrega medida pela coleta
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <RadioMini label="Planejado" value={formatInt(radioPlannedStr)} highlight />
+            <RadioMini label="Entregue" value={formatInt(radioDelivered)} />
+            <RadioMini label="Restante" value={formatInt(radioRemaining)} />
+            <RadioMini label="Custo planejado" value={formatBRL(radioPlannedCst)} />
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
             <RadioMini label="Baseline" value={radio?.start_plays_7d != null ? formatInt(radio.start_plays_7d) : "—"} />
             <RadioMini label="Atual" value={radio?.current_plays_7d != null ? formatInt(radio.current_plays_7d) : "—"} />
-            <RadioMini label="Entregue" value={`+${formatInt(radioDelta)}`} highlight />
             <RadioMini label="CPP herdado" value={cppEco > 0 ? `R$ ${cppEco.toFixed(4)}` : "—"} />
-            <RadioMini label="Custo" value={cppEco > 0 ? formatBRL(radioCost) : "—"} />
           </div>
 
           <p className="text-[11px] text-muted-foreground border-l-2 border-primary/40 pl-3 py-1">
-            A Rádio utiliza o mesmo CPP do Ecossistema e faz parte da entrega interna.
-            Não tem tarifa própria — o custo é derivado do delta × CPP eco.
+            A Rádio é uma alocação operacional do Ecossistema — não é estimativa, projeção
+            nem previsão. Herda o CPP do Eco e a coleta acompanha quanto desse planejado
+            já foi entregue.
           </p>
         </CardContent>
       </Card>
