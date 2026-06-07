@@ -243,8 +243,13 @@ Deno.serve(async (req) => {
       if (idx > 0) await sleep(THROTTLE_MS);
 
       // Resolve token apropriado pra ESTA playlist (owner token se for managed+OAuth).
-      const { token: callToken, isOwnerToken } = await resolveTokenFor(t.id);
+      const { token: callToken, isOwnerToken, transientOwnerFailure } = await resolveTokenFor(t.id);
       if (!callToken) {
+        if (transientOwnerFailure) {
+          // Falha transitória de owner token → não conta como failed, não arquiva.
+          if (failed_ids.length < 10) failed_ids.push(`${t.id}:owner-transient-skip`);
+          continue;
+        }
         failed++;
         if (failed_ids.length < 10) failed_ids.push(`${t.id}:no-token`);
         continue;
