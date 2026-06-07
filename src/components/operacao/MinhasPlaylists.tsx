@@ -1360,7 +1360,52 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         );
       })()}
 
-
+      {/* Chip: Apps Spotify bloqueados pelo circuit breaker.
+           Aparece apenas quando há playlists afetadas. Filtra a grade pra
+           mostrar só as playlists travadas pelo app. */}
+      {!showArchived && !showCapacity && blockedRows.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <Tooltip delayDuration={150}>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() => setFilterAppBlocked(!filterAppBlocked)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-medium border transition-colors",
+                  filterAppBlocked
+                    ? "bg-destructive/15 border-destructive/50 text-destructive"
+                    : "bg-card border-destructive/30 text-destructive/90 hover:bg-destructive/10",
+                )}
+                aria-pressed={filterAppBlocked}
+              >
+                <AlertCircle className="h-3.5 w-3.5" />
+                <span>Apps bloqueados</span>
+                <span className="tabular-nums opacity-80">({blockedRows.length})</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-[280px] text-[12px] leading-snug">
+              <div className="font-semibold">{blockedAppName ?? "App Spotify"} bloqueado</div>
+              {blockedUntil && (
+                <div className="text-muted-foreground mt-0.5">
+                  Até {new Date(blockedUntil).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                </div>
+              )}
+              <div className="text-muted-foreground mt-1">
+                {blockedRows.length} playlist{blockedRows.length === 1 ? "" : "s"} afetada{blockedRows.length === 1 ? "" : "s"}. Diagnóstico, troca de capa e sync ficam indisponíveis até liberar.
+              </div>
+            </TooltipContent>
+          </Tooltip>
+          {filterAppBlocked && (
+            <button
+              type="button"
+              onClick={() => setFilterAppBlocked(false)}
+              className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+            >
+              limpar filtro
+            </button>
+          )}
+        </div>
+      )}
 
 
       {/* Toolbar — 1 linha (mobile colapsa texto pra caber sem scroll) */}
