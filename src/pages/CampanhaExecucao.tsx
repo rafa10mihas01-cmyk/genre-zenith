@@ -33,6 +33,8 @@ import { cn } from "@/lib/utils";
 import { CampaignHub } from "@/components/campaign-hub/CampaignHub";
 import { OverviewTab } from "@/components/campaign-hub/tabs/OverviewTab";
 import { RadioCollectedCard } from "@/components/campaign-hub/RadioCollectedCard";
+import { useRadioCollected } from "@/hooks/useRadioCollected";
+
 import { CampaignKpis } from "@/components/campaign-hub/CampaignKpis";
 import { Lock } from "lucide-react";
 import { OperacaoTab, type ExternalItemRow } from "@/components/campaign-hub/tabs/OperacaoTab";
