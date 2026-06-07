@@ -13,7 +13,7 @@ export function IdentityField({ label, field, managedId, current, suggestion, sc
   current: string;
   suggestion: string | null;
   score?: number | null;
-  onApplied?: () => void;
+  onApplied?: (appliedValue: string, field: "name" | "description") => void;
 }) {
   const [applying, setApplying] = useState(false);
   const hasSugg = !!suggestion && suggestion.trim() !== current.trim();
