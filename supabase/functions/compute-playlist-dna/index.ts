@@ -17,7 +17,9 @@
 //   - Hibrida:    fallback
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { requireTeamAccess } from "../_shared/auth.ts";
+// Auth: gated by Supabase platform auth (verify_jwt=false globally, but the
+// Functions gateway still requires a valid project key). Read-only on source
+// tables, writes apenas em playlist_dna / playlist_dna_runs.
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
