@@ -7,7 +7,7 @@
 
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getSpotifyToken } from "../_shared/spotify.ts";
+import { getSpotifyToken, getUserAccessToken } from "../_shared/spotify.ts";
 import { listPlaylistTracksRich } from "../_shared/spotify-playlist.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 import {
@@ -32,11 +32,17 @@ function jr(p: unknown, status = 200) {
   });
 }
 
-async function syncOne(sb: any, token: string, pl: { id: string; spotify_playlist_id: string }) {
+async function syncOne(sb: any, _token: string, pl: { id: string; spotify_playlist_id: string; owner_spotify_user_id?: string | null }) {
   const lock = await acquirePlaylistLock(sb, pl.id, "MAINTENANCE", null);
   if (!lock.ok) throw new Error("playlist_locked");
 
   try {
+    // /v1/playlists/:id/tracks requer USER token (client_credentials retorna 401).
+    // Usa token do owner; só cai pra client_credentials se a playlist não tem owner.
+    const ownerId = pl.owner_spotify_user_id ?? null;
+    const token = ownerId
+      ? (await getUserAccessToken(ownerId)).token
+      : await getSpotifyToken();
     const rich = await listPlaylistTracksRich(pl.spotify_playlist_id, token, {
       max: 10000,
       fields: "items(added_at,track(id,name,duration_ms,external_ids,artists(name),album(images))),next",
