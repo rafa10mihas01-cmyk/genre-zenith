@@ -159,14 +159,14 @@ Deno.serve(async (req) => {
   // ── Acumular tokens por subgênero pra propor keywords ──────────────────
   const tokenFreqBySub = new Map<string, Map<string, { freq: number; playlists: Set<string> }>>();
 
-  // ── Enriquecer cada playlist ───────────────────────────────────────────
   const buckets = { high: 0, mid: 0, low: 0 };
   let conflitos = 0;
 
-  // Para escolher tipo de conflito, precisamos saber qual subgênero pertence a cada keyword
   type KwMap = { subgenre: typeof subgenres[number]; kw: string };
   const allSubKeywords: KwMap[] = [];
   for (const sg of subgenres) for (const kw of sg.keywords) if (kw) allSubKeywords.push({ subgenre: sg, kw });
+
+  const updates: Array<{ playlist_id: string; patch: Record<string, unknown> }> = [];
 
   for (const dna of dnaRows ?? []) {
     if (dna.classification === "Insuficiente") continue;
@@ -174,22 +174,18 @@ Deno.serve(async (req) => {
     const tracks = tracksByPlaylist.get(dna.playlist_id) ?? [];
     const totalTracks = tracks.length || dna.tracks_analyzed || 0;
 
-    // Niche artists/tracks
     const nicheArtists = topNicheArtists(dna.dominant_genre_id);
     const nicheTracks = topNicheTracks(dna.dominant_genre_id);
     const nicheArtistSet = new Set(nicheArtists.map((a) => norm(a.name)));
 
-    // Niche adherence: % de tracks da playlist cujo artista normalizado está no top nicho
     let adherenceHits = 0;
     for (const t of tracks) if (nicheArtistSet.has(norm(t.artist))) adherenceHits++;
     const nicheAdherence = totalTracks > 0 ? round((adherenceHits / totalTracks) * 100, 2) : 0;
 
-    // Internal concentration: share dos top 3 artistas (sobre top_artists já calculado)
     const topArr: any[] = Array.isArray(dna.top_artists) ? dna.top_artists : [];
     const top3 = topArr.slice(0, 3).reduce((s, a) => s + (Number(a.count) || 0), 0);
     const internalConcentration = totalTracks > 0 ? round((top3 / totalTracks) * 100, 2) : 0;
 
-    // Niche top subgenres: derivar do subgenre_distribution já existente (top 5)
     const subDist = (dna.subgenre_distribution ?? {}) as Record<string, number>;
     const nicheTopSubs = Object.entries(subDist)
       .sort(([, a], [, b]) => (b as number) - (a as number))
@@ -200,13 +196,12 @@ Deno.serve(async (req) => {
         pct: Number(pct),
       }));
 
-    // Name conflict detection: tokens do nome batem com sub de OUTRO gênero
     const nameNorm = norm(meta?.name ?? "");
     let conflict: any = null;
     if (nameNorm && dna.dominant_genre_id) {
       for (const { subgenre, kw } of allSubKeywords) {
         if (subgenre.parent_genre_id === dna.dominant_genre_id) continue;
-        if (kw.length < 4) continue; // ruído
+        if (kw.length < 4) continue;
         if (nameNorm.includes(kw)) {
           conflict = {
             type: "name_vs_dna_genre",
@@ -218,15 +213,9 @@ Deno.serve(async (req) => {
           break;
         }
       }
-      // TikTok hint sem comportamento TikTok (idade média alta)
-      if (!conflict && /tiktok|viral/.test(nameNorm)) {
-        // se já temos média de idade > 365 dias, sinaliza
-        // (usamos avg_track_age_days do DNA atual via segunda query — pulamos pra não pesar; flag simples)
-      }
     }
     if (conflict) conflitos++;
 
-    // Bucket
     const conf = Number(dna.classification_confidence ?? 0);
     let bucket: "high" | "mid" | "low";
     if (conf >= 70) bucket = "high";
@@ -234,18 +223,20 @@ Deno.serve(async (req) => {
     else bucket = "low";
     buckets[bucket]++;
 
-    await supabase.from("playlist_dna").update({
-      niche_top_artists: nicheArtists,
-      niche_top_tracks: nicheTracks,
-      niche_top_subgenres: nicheTopSubs,
-      niche_adherence_score: nicheAdherence,
-      internal_concentration_score: internalConcentration,
-      name_conflict: conflict,
-      confidence_bucket: bucket,
-      enriched_at: new Date().toISOString(),
-    }).eq("playlist_id", dna.playlist_id);
+    updates.push({
+      playlist_id: dna.playlist_id,
+      patch: {
+        niche_top_artists: nicheArtists,
+        niche_top_tracks: nicheTracks,
+        niche_top_subgenres: nicheTopSubs,
+        niche_adherence_score: nicheAdherence,
+        internal_concentration_score: internalConcentration,
+        name_conflict: conflict,
+        confidence_bucket: bucket,
+        enriched_at: new Date().toISOString(),
+      },
+    });
 
-    // Coleta tokens da playlist pra propor keywords no SUB dominante (se houver)
     if (dna.dominant_subgenre_id) {
       const m = tokenFreqBySub.get(dna.dominant_subgenre_id) ?? new Map();
       for (const t of tracks) {
@@ -258,6 +249,16 @@ Deno.serve(async (req) => {
       tokenFreqBySub.set(dna.dominant_subgenre_id, m);
     }
   }
+
+  // Aplica updates em paralelo (chunks de 25)
+  const UPD_CHUNK = 25;
+  for (let i = 0; i < updates.length; i += UPD_CHUNK) {
+    const slice = updates.slice(i, i + UPD_CHUNK);
+    await Promise.all(slice.map((u) =>
+      supabase.from("playlist_dna").update(u.patch).eq("playlist_id", u.playlist_id)
+    ));
+  }
+
 
   // ── Propor keywords novas ──────────────────────────────────────────────
   const runIdForProposals = crypto.randomUUID();
