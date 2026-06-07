@@ -111,12 +111,28 @@ Deno.serve(async (req) => {
     }
 
     // Token de app (client_credentials) — usado APENAS para playlists não-managed
-    // (descoberta via search_results / top-by-genre). Para managed playlists
-    // (nossas), usamos owner user token via getUserAccessToken(owner) abaixo,
-    // pois /v1/playlists/:id/tracks exige USER auth (client_credentials = 401).
-    let { token: appToken, appId: currentAppId, appName: currentAppName } = await getSpotifyTokenWithApp();
+    // (descoberta via search_results / top-by-genre). Para managed playlists usamos
+    // owner user token. Init é LAZY: se todas as playlists do lote forem managed,
+    // não precisamos buscar app token (e portanto não falhamos se nenhum app
+    // estiver com client_credentials válidos).
+    let appToken: string | null = null;
+    let currentAppId: string | null = null;
+    let currentAppName: string = "";
     const triedApps = new Set<string>();
-    if (currentAppId) triedApps.add(currentAppId);
+    const ensureAppToken = async (): Promise<boolean> => {
+      if (appToken) return true;
+      try {
+        const r = await getSpotifyTokenWithApp({ excludeAppIds: Array.from(triedApps) });
+        appToken = r.token;
+        currentAppId = r.appId;
+        currentAppName = r.appName;
+        if (r.appId) triedApps.add(r.appId);
+        return true;
+      } catch (e) {
+        console.warn(`[snapshot] sem app token disponível: ${(e as Error).message}`);
+        return false;
+      }
+    };
     // Cache owner-token por spotify_user_id pra evitar refresh em cada playlist.
     const ownerTokenCache = new Map<string, string>();
     const ownersWithoutToken = new Set<string>();
@@ -170,7 +186,7 @@ Deno.serve(async (req) => {
      *  - caso contrário                   → app token (client_credentials)
      *  Retorna também `isOwnerToken` pra o caller decidir se faz failover em 401.
      */
-    const resolveTokenFor = async (spId: string): Promise<{ token: string; isOwnerToken: boolean; ownerId: string | null }> => {
+    const resolveTokenFor = async (spId: string): Promise<{ token: string | null; isOwnerToken: boolean; ownerId: string | null }> => {
       const ownerId = managedOwnerBySpId.get(spId) ?? null;
       if (ownerId && !ownersWithoutToken.has(ownerId)) {
         const cached = ownerTokenCache.get(ownerId);
@@ -186,6 +202,7 @@ Deno.serve(async (req) => {
           console.warn(`[snapshot] owner ${ownerId} sem token válido (${(e as Error).message}); usando app token`);
         }
       }
+      await ensureAppToken();
       return { token: appToken, isOwnerToken: false, ownerId };
     };
 
