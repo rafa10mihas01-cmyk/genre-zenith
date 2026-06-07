@@ -185,6 +185,10 @@ export default function Sistema() {
               <CircuitBreakerHistoryCard />
             </section>
             <section>
+              <SectionHeader icon={ShieldAlert} title="Apps Spotify" subtitle="Quais apps estão saudáveis, em atenção ou bloqueados agora" />
+              <SpotifyAppsPanel />
+            </section>
+            <section>
               <SectionHeader icon={Workflow} title="Motor editorial" subtitle="Saúde do pipeline de curadoria" />
               <EngineHealthGrid />
             </section>
