@@ -15,7 +15,7 @@
 //   - force: ignora o hash match e força recálculo do delta (útil pra backfill / debug).
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getSpotifyToken, SpotifyCircuitOpenError, setSpotifyCtx } from "../_shared/spotify.ts";
+import { getSpotifyToken, getUserAccessToken, SpotifyCircuitOpenError, setSpotifyCtx } from "../_shared/spotify.ts";
 import { listPlaylistTracksRich } from "../_shared/spotify-playlist.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
 import {
