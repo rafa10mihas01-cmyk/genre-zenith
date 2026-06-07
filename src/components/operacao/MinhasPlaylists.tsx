@@ -129,9 +129,17 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const filterGenreId = searchParams.get("genero");
   const filterSize = (searchParams.get("tamanho") as "all" | "pequena" | "media" | "grande" | "top") || "all";
   const filterFase = (searchParams.get("fase") as "all" | "prontas" | "crescendo" | "novas" | "atencao") || "all";
+  const filterAppBlocked = searchParams.get("app") === "bloqueado";
   const showArchived = searchParams.get("arquivadas") === "1";
   const showCapacity = searchParams.get("aba") === "capacidade";
   const sortBy = (searchParams.get("sort") as "followers" | "recent" | "valuation") || "followers";
+
+  // Apps Spotify bloqueados pelo circuit breaker — usado pelo chip "Apps bloqueados".
+  const { data: blockedRows = [] } = useBlockedPlaylistIds();
+  const blockedSet = useMemo(() => new Set(blockedRows.map(r => r.playlist_id)), [blockedRows]);
+  const blockedAppName = blockedRows[0]?.app_name ?? null;
+  const blockedUntil = blockedRows[0]?.blocked_until ?? null;
+  const setFilterAppBlocked = (v: boolean) => updateParam("app", v ? "bloqueado" : null);
 
   const updateParam = useCallback((key: string, val: string | null) => {
     setSearchParams(prev => {
