@@ -35,6 +35,7 @@ import { EngineHealthGrid } from "@/components/cockpit/EngineHealthGrid";
 import { CapacidadePanel } from "@/components/sistema/CapacidadePanel";
 import { SpotifyPilotPanel } from "@/components/sistema/SpotifyPilotPanel";
 import { ManualDistribuicoesPanel } from "@/components/sistema/ManualDistribuicoesPanel";
+import { SpotifyAppsPanel } from "@/components/sistema/SpotifyAppsPanel";
 
 type SistemaTab = "saude" | "capacidade" | "aprendizado" | "alertas" | "motores" | "configuracoes" | "dev";
 type MotorSub = "robo" | "coleta" | "execucao" | "manual" | "fluxo" | "ao-vivo";
