@@ -347,6 +347,11 @@ Deno.serve(async (req) => {
         final_app_id: currentAppId,
         final_app_name: currentAppName,
       },
+      owner_token: {
+        used: owner_token_used,
+        failed: owner_token_failed,
+        owners_without_token: Array.from(ownersWithoutToken),
+      },
     };
 
     // Status:
