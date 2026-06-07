@@ -32,6 +32,7 @@ import { NewDealDialog } from "@/components/playlist-deals/NewDealDialog";
 import { cn } from "@/lib/utils";
 import { CampaignHub } from "@/components/campaign-hub/CampaignHub";
 import { OverviewTab } from "@/components/campaign-hub/tabs/OverviewTab";
+import { FinanceTab } from "@/components/campaign-hub/tabs/FinanceTab";
 import { RadioCollectedCard } from "@/components/campaign-hub/RadioCollectedCard";
 import { useRadioCollected } from "@/hooks/useRadioCollected";
 
@@ -922,6 +923,12 @@ export default function CampanhaExecucao() {
                 saving={savingClientPrice}
                 approved={!!camp.client_approved_at}
                 approvedAt={camp.client_approved_at ?? null}
+                showFinanceKpis={false}
+              />
+              <FinanceTab
+                campaignId={camp.id}
+                snapshot={snapshot}
+                clientPriceTotal={getClientPriceTotal(snapshot)}
               />
             </div>
           ),
