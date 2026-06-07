@@ -922,6 +922,12 @@ export default function CampanhaExecucao() {
                 saving={savingClientPrice}
                 approved={!!camp.client_approved_at}
                 approvedAt={camp.client_approved_at ?? null}
+                showFinanceKpis={false}
+              />
+              <FinanceTab
+                campaignId={camp.id}
+                snapshot={snapshot}
+                clientPriceTotal={getClientPriceTotal(snapshot)}
               />
             </div>
           ),
