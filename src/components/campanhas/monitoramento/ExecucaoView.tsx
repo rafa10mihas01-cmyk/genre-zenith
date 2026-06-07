@@ -328,6 +328,39 @@ export function ExecucaoView({
   if (!rows) return <Skeleton className="h-96 w-full" />;
 
   const isEcosystem = mode === "ecosystem";
+
+  // Linha virtual da Rádio Spotify (só na aba Ecossistema da visão interna).
+  // Lê campaign_radio_collected — não altera engine, snapshot nem financeiro.
+  // Nunca renderizada em portal do cliente ou compartilhamento público
+  // porque esta view (ExecucaoView) só vive dentro do hub interno da campanha.
+  const { data: radioData } = useRadioCollected(isEcosystem ? campaignId : undefined);
+  const hasRadio = isEcosystem && !!radioData && (
+    (radioData.start_plays_7d ?? 0) > 0 || (radioData.current_plays_7d ?? 0) > 0
+  );
+  const radioRow: GrowthRow | null = hasRadio && radioData ? {
+    campaign_id: campaignId,
+    playlist_id: "__radio__",
+    playlist_url: null,
+    current_name: "Rádio Spotify",
+    baseline_name: "Rádio Spotify",
+    baseline_plays: radioData.start_plays_7d ?? 0,
+    current_plays: radioData.current_plays_7d ?? 0,
+    delta: radioData.radio_delta ?? 0,
+    baseline_at: radioData.start_captured_at,
+    last_captured_at: radioData.last_captured_at,
+    first_seen_at: radioData.start_captured_at,
+    attributed_to: "radio",
+    attributed_curator_id: null,
+    is_baseline_conflict: false,
+  } : null;
+
+  const displayRows = radioRow ? [radioRow, ...filtered] : filtered;
+  const displayTotals = radioRow ? {
+    baseline: filteredTotals.baseline + (radioRow.baseline_plays ?? 0),
+    current: filteredTotals.current + (radioRow.current_plays ?? 0),
+    delta: filteredTotals.delta + (radioRow.delta ?? 0),
+  } : filteredTotals;
+
   const filtersBar = (
     <div className="flex items-center gap-2 flex-wrap">
       {!isEcosystem && (
