@@ -1,22 +1,21 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Radio, ListMusic, Users, Globe, ArrowRight } from "lucide-react";
+import { Radio, ListMusic, Users } from "lucide-react";
 import { formatBRL, formatInt } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { supabase } from "@/integrations/supabase/client";
-import { plannedRadioStreams, plannedRadioCost, plannedRadioPct } from "@/lib/plannedRadio";
+import { plannedRadioStreams, plannedRadioCost } from "@/lib/plannedRadio";
 import { cn } from "@/lib/utils";
 
 type Props = {
   campaignId: string;
   snapshot: CampaignSnapshot;
   clientPriceTotal: number;
-  /** Navega para a aba operacional onde a Rádio é monitorada. */
+  /** Mantido por compatibilidade — Rádio agora vive na Composição do custo. */
   onOpenRadioMonitoring?: () => void;
 };
 
-export function FinanceTab({ campaignId, snapshot, clientPriceTotal, onOpenRadioMonitoring }: Props) {
+export function FinanceTab({ campaignId, snapshot, clientPriceTotal }: Props) {
   const [curatorCost, setCuratorCost] = useState<number>(0);
   const [curatorStreams, setCuratorStreams] = useState<number>(0);
 
@@ -40,20 +39,27 @@ export function FinanceTab({ campaignId, snapshot, clientPriceTotal, onOpenRadio
     return () => { active = false; };
   }, [campaignId]);
 
-  // Ecossistema (inclui a Rádio — Rádio NÃO sai do Eco, é alocação dentro dele).
+  // 3 buckets operacionais:
+  //   1. Playlist Própria = Eco − Rádio (Rádio é alocação interna do Eco)
+  //   2. Rádio (planejada)
+  //   3. Curadores = bucket streamsExt do snapshot (renomeado) + deals reais
   const ecoCost = Math.max(0, snapshot.custoEco);
   const ecoStreams = Math.max(0, snapshot.streamsEco);
 
-  // Rádio (planejada) — alocação operacional dentro do Eco.
-  const radioPlannedStr = plannedRadioStreams(snapshot);
-  const radioPlannedCst = plannedRadioCost(snapshot);
-  const radioPct = plannedRadioPct(snapshot);
+  const radioCost = plannedRadioCost(snapshot);
+  const radioStreams = plannedRadioStreams(snapshot);
 
-  // Externo
+  const ownPlaylistsCost = Math.max(0, ecoCost - radioCost);
+  const ownPlaylistsStreams = Math.max(0, ecoStreams - radioStreams);
+
+  // streamsExt do snapshot = bucket interno renomeado pra "Curadores"
+  // somado aos deals reais (curator_deals) — preserva o total.
   const extCost = Math.max(0, snapshot.custoExt);
   const extStreams = Math.max(0, snapshot.streamsExt);
+  const curadoresCost = extCost + curatorCost;
+  const curadoresStreams = extStreams + curatorStreams;
 
-  const totalCost = ecoCost + extCost + curatorCost;
+  const totalCost = ownPlaylistsCost + radioCost + curadoresCost;
   const margem = clientPriceTotal - totalCost;
   const margemPct = clientPriceTotal > 0 ? Math.round((margem / clientPriceTotal) * 100) : 0;
 
@@ -75,7 +81,7 @@ export function FinanceTab({ campaignId, snapshot, clientPriceTotal, onOpenRadio
         />
       </section>
 
-      {/* BLOCO 2 — Composição do custo */}
+      {/* BLOCO 2 — Composição do custo (3 buckets reais) */}
       <Card>
         <CardContent className="p-5 space-y-3">
           <div className="flex items-baseline justify-between">
@@ -89,57 +95,22 @@ export function FinanceTab({ campaignId, snapshot, clientPriceTotal, onOpenRadio
           <div className="space-y-2">
             <CostBlock
               icon={ListMusic}
-              label="Ecossistema"
-              cost={ecoCost}
-              streams={ecoStreams}
+              label="Playlist Própria"
+              cost={ownPlaylistsCost}
+              streams={ownPlaylistsStreams}
             />
             <CostBlock
-              icon={Globe}
-              label="Externo"
-              cost={extCost}
-              streams={extStreams}
+              icon={Radio}
+              label="Rádio"
+              cost={radioCost}
+              streams={radioStreams}
             />
             <CostBlock
               icon={Users}
               label="Curadores"
-              cost={curatorCost}
-              streams={curatorStreams}
+              cost={curadoresCost}
+              streams={curadoresStreams}
             />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* BLOCO 3 — Rádio (incluída no Eco) */}
-      <Card>
-        <CardContent className="p-5">
-          <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div className="flex items-start gap-3 min-w-0">
-              <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
-                <Radio className="h-4 w-4 text-primary" />
-              </div>
-              <div className="min-w-0">
-                <h3 className="text-sm font-semibold">Rádio</h3>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Incluída no Ecossistema · {radioPct}% da meta
-                </p>
-                <div className="mt-3 flex flex-wrap items-baseline gap-x-6 gap-y-1">
-                  <div>
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Streams planejados</div>
-                    <div className="text-lg font-semibold tabular-nums">{formatInt(radioPlannedStr)}</div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Custo do Eco</div>
-                    <div className="text-lg font-semibold tabular-nums">{formatBRL(radioPlannedCst)}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            {onOpenRadioMonitoring && (
-              <Button variant="outline" size="sm" onClick={onOpenRadioMonitoring} className="shrink-0">
-                Ver monitoramento da Rádio
-                <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
-              </Button>
-            )}
           </div>
         </CardContent>
       </Card>
