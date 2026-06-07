@@ -44,7 +44,7 @@ export function IdentityField({ label, field, managedId, current, suggestion, sc
         return;
       }
       toast({ title: `${label} atualizado no Spotify` });
-      onApplied?.();
+      onApplied?.(suggestion, field);
     } finally {
       setApplying(false);
     }
