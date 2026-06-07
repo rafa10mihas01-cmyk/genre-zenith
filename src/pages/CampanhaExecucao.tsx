@@ -929,6 +929,7 @@ export default function CampanhaExecucao() {
                 campaignId={camp.id}
                 snapshot={snapshot}
                 clientPriceTotal={getClientPriceTotal(snapshot)}
+                onOpenRadioMonitoring={() => setTab("overview")}
               />
             </div>
           ),
