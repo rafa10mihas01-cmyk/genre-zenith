@@ -603,6 +603,11 @@ export default function CampanhaExecucao() {
 
   const delivered = camp?.total_delivered ?? 0;
 
+  // Rádio Spotify — baseline ancorada na ativação da campanha (atual - início).
+  const { data: radioCollected } = useRadioCollected(camp?.id);
+  const radioDelta = Math.max(0, radioCollected?.radio_delta ?? 0);
+
+
   // Soma dos plays_7d mais recentes por playlist em organic_plays_snapshots —
   // alimenta o label "coletado" da linha Rádio/Orgânico no plano completo.
   const radioCollectedTotal = useMemo(() => {
