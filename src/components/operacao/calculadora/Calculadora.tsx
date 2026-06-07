@@ -1282,6 +1282,79 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     </p>
                   </div>
 
+                  {/* Cobertura da meta — 3 canais reais: Eco / Rádio / Sobra
+                      (Curadores são geridos fora do snapshot via curator_deals).
+                      Torna explícita a sobra que hoje cai silenciosamente no
+                      bucket interno streamsExt. */}
+                  {(() => {
+                    const organicPct = active.splitOrganic ?? 0;
+                    const ecoOfMetaPct = Math.round(active.splitEco * (1 - organicPct / 100));
+                    const totalPlanned = ecoOfMetaPct + organicPct;
+                    const sobraPct = Math.max(0, 100 - totalPlanned);
+                    const hasSobra = sobraPct > 0;
+                    return (
+                      <div className={cn(
+                        "rounded-lg border px-3.5 py-3 space-y-2.5",
+                        hasSobra ? "border-amber-500/40 bg-amber-500/5" : "border-primary/30 bg-primary/5",
+                      )}>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/80 font-medium">
+                            Cobertura da meta
+                          </span>
+                          <span className={cn(
+                            "text-[11px] tabular-nums font-medium",
+                            hasSobra ? "text-amber-600 dark:text-amber-400" : "text-primary",
+                          )}>
+                            {totalPlanned}% planejado
+                          </span>
+                        </div>
+                        <div className="h-2 rounded-full bg-muted/40 overflow-hidden flex">
+                          <div className="h-full bg-primary" style={{ width: `${ecoOfMetaPct}%` }} />
+                          <div className="h-full bg-blue-500" style={{ width: `${organicPct}%` }} />
+                          {hasSobra && <div className="h-full bg-amber-500/60" style={{ width: `${sobraPct}%` }} />}
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-[11px]">
+                          <div className="flex flex-col">
+                            <span className="text-muted-foreground/70">Ecossistema</span>
+                            <span className="tabular-nums font-medium text-foreground">{ecoOfMetaPct}%</span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-muted-foreground/70">Rádio</span>
+                            <span className="tabular-nums font-medium text-foreground">{organicPct}%</span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-muted-foreground/70">Sobra</span>
+                            <span className={cn(
+                              "tabular-nums font-medium",
+                              hasSobra ? "text-amber-600 dark:text-amber-400" : "text-foreground",
+                            )}>{sobraPct}%</span>
+                          </div>
+                        </div>
+                        {hasSobra && (
+                          <div className="flex items-center justify-between gap-2 pt-2 border-t border-amber-500/20">
+                            <span className="text-[11px] text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
+                              <AlertTriangle className="h-3 w-3 shrink-0" />
+                              Faltam {sobraPct}% para completar a campanha
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setSplitEco(100)}
+                              className="text-[11px] font-medium text-primary hover:underline whitespace-nowrap"
+                            >
+                              Completar com Ecossistema
+                            </button>
+                          </div>
+                        )}
+                        {!hasSobra && (
+                          <p className="text-[10px] text-muted-foreground/70 leading-relaxed">
+                            Curadores são planejados à parte (deals individuais), fora desta divisão.
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+
 
 
                   <div>
