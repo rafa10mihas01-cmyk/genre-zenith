@@ -1062,10 +1062,10 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                   <CardTitle className="text-sm">Fonte da meta</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 gap-2">
                     <FonteBtn active={active.fonte === "manual"} onClick={() => setFonte("manual")} icon={TargetIcon} label="Manual" />
-                    <FonteBtn active={active.fonte === "top200"} onClick={() => setFonte("top200")} icon={Table2} label="Top 200" />
                     <FonteBtn active={active.fonte === "orcamento"} onClick={() => setFonte("orcamento")} icon={Wallet} label="Orçamento" />
+                    <FonteBtn active={active.fonte === "top200"} onClick={() => setFonte("top200")} icon={Table2} label="Top 200" />
                   </div>
 
 
