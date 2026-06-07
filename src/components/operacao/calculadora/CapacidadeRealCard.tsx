@@ -69,19 +69,22 @@ export function CapacidadeRealCard({ genre, dailyNeed, multiplier, clientProfile
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-muted-foreground">
           <Target className="h-3 w-3" />
-          Capacidade real entregável
+          Capacidade
         </div>
-        <span className={cn("text-[11px] font-medium tabular-nums", statusAccent)}>
-          {coverage}% da meta diária
-        </span>
+        {status === "enxuto" && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 text-primary px-2 py-0.5 text-[10px] font-medium">
+            <Check className="h-2.5 w-2.5" /> Capacidade suficiente
+          </span>
+        )}
       </div>
 
       <div className="mt-2 grid grid-cols-2 gap-2">
-        <Box label="Você pediu" value={`${formatInt(dailyNeed)}/dia`} accent="text-foreground" />
+        <Box label="Necessário" value={`${formatInt(dailyNeed)}/dia`} accent="text-foreground" />
         <Box
-          label="Sistema entrega"
+          label="Entrega"
           value={`${formatInt(Math.round(cap.coveredDaily))}/dia`}
           accent={statusAccent}
+          delta={dailyNeed > 0 ? Math.round((cap.coveredDaily / dailyNeed - 1) * 100) : null}
         />
       </div>
 
@@ -103,7 +106,7 @@ export function CapacidadeRealCard({ genre, dailyNeed, multiplier, clientProfile
           <span>
             Pool quase esgotado: <strong className="tabular-nums">{used}</strong> de{" "}
             <strong className="tabular-nums">{cap.poolSize}</strong> playlists, cobrindo {coverage}%.
-            Considere afrouxar o gênero (mais vizinhos) ou aumentar o split externo.
+            Considere afrouxar o gênero (mais vizinhos) ou aumentar o split de curadores.
           </span>
         </div>
       )}
@@ -156,11 +159,18 @@ export function CapacidadeRealCard({ genre, dailyNeed, multiplier, clientProfile
   );
 }
 
-function Box({ label, value, accent }: { label: string; value: string; accent?: string }) {
+function Box({ label, value, accent, delta }: { label: string; value: string; accent?: string; delta?: number | null }) {
   return (
     <div className="flex flex-col gap-0.5 rounded-md border border-border/40 bg-background/40 px-2.5 py-2">
       <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</span>
-      <span className={cn("text-[15px] font-semibold tabular-nums leading-none", accent)}>{value}</span>
+      <div className="flex items-baseline gap-1.5">
+        <span className={cn("text-[15px] font-semibold tabular-nums leading-none", accent)}>{value}</span>
+        {typeof delta === "number" && Number.isFinite(delta) && delta !== 0 && (
+          <span className={cn("text-[10px] font-medium tabular-nums", delta > 0 ? "text-primary" : "text-destructive")}>
+            {delta > 0 ? "+" : ""}{delta}%
+          </span>
+        )}
+      </div>
     </div>
   );
 }
