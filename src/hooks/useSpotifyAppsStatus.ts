@@ -59,3 +59,22 @@ export function useSpotifyAppForPlaylist(playlistId?: string | null) {
     },
   });
 }
+
+export type BlockedPlaylistRow = {
+  playlist_id: string;
+  app_id: string;
+  app_name: string;
+  blocked_until: string | null;
+};
+
+export function useBlockedPlaylistIds() {
+  return useQuery({
+    queryKey: ["blocked-playlist-ids"],
+    staleTime: 60_000,
+    queryFn: async (): Promise<BlockedPlaylistRow[]> => {
+      const { data, error } = await supabase.rpc("get_blocked_playlist_ids" as any);
+      if (error) throw error;
+      return (data ?? []) as BlockedPlaylistRow[];
+    },
+  });
+}
