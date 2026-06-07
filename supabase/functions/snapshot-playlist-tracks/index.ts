@@ -302,9 +302,22 @@ Deno.serve(async (req) => {
       },
     };
 
+    // Status:
+    //  - error   → nada foi processado E houve falhas (esteira travada)
+    //  - error   → auth breaker disparou (cascata 401)
+    //  - partial → houve falhas mas algum snapshot foi gravado/unchanged
+    //  - ok      → sem falhas
+    const processedSomething = inserted > 0 || unchanged > 0;
+    const healthStatus: "ok" | "partial" | "error" =
+      authBreakerTriggered || (failed > 0 && !processedSomething && list.length > 0)
+        ? "error"
+        : failed > 0
+          ? "partial"
+          : "ok";
+
     await reportCronHealth(sb, {
       job_name: "snapshot-playlist-tracks",
-      status: failed > 0 ? "partial" : "ok",
+      status: healthStatus,
       startedAt,
       metrics: {
         snapshot_count_per_run: inserted,
