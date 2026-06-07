@@ -616,30 +616,49 @@ function HeroGrowth({
   totals,
   filteredCount,
   lastCapturedAt,
+  radioDelta = 0,
+  hasRadio = false,
 }: {
   mode: "all" | "ecosystem" | "curators" | "organic";
   totals: { total: number; eco: number; curator: number; organic: number; n: number };
   filteredCount: number;
   lastCapturedAt: string | null;
+  radioDelta?: number;
+  hasRadio?: boolean;
 }) {
+  // Ecossistema interno: layout 3 colunas (Playlists / Rádio / Total)
+  // Rádio só aparece quando a campanha realmente tem entrega de rádio coletada.
+  if (mode === "ecosystem") {
+    const playlistsDelta = totals.eco;
+    const totalDelta = playlistsDelta + (hasRadio ? radioDelta : 0);
+    return (
+      <Card>
+        <CardContent className="p-0">
+          <div className={cn(
+            "grid divide-y lg:divide-y-0 lg:divide-x divide-border/50",
+            hasRadio ? "grid-cols-1 lg:grid-cols-3" : "grid-cols-1 lg:grid-cols-2",
+          )}>
+            <SecondaryMetric icon={Layers} label="Playlists" value={playlistsDelta} />
+            {hasRadio && <SecondaryMetric icon={RadioIcon} label="Rádio" value={radioDelta} />}
+            <SecondaryMetric icon={Activity} label="Total" value={totalDelta} />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const heroValue =
-    mode === "ecosystem" ? totals.eco
-    : mode === "curators" ? totals.curator
+    mode === "curators" ? totals.curator
     : mode === "organic" ? totals.organic
     : totals.total;
 
   const heroLabel =
-    mode === "ecosystem" ? "Crescimento ecossistema"
-    : mode === "curators" ? "Crescimento curadores"
+    mode === "curators" ? "Crescimento curadores"
     : mode === "organic" ? "Crescimento orgânico"
     : "Crescimento total";
 
   const sign = heroValue > 0 ? "+" : heroValue < 0 ? "" : "";
   const valueClass = heroValue > 0 ? "text-primary" : heroValue < 0 ? "text-destructive" : "text-foreground";
-
-  const lastLabel = lastCapturedAt
-    ? `${new Date(lastCapturedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} · ${new Date(lastCapturedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
-    : "—";
 
   return (
     <Card>
@@ -655,7 +674,6 @@ function HeroGrowth({
             <div
               className={cn(
                 "tabular-nums leading-none tracking-tight",
-                // Mais fino e menor — premium, não chamativo
                 "text-[40px] md:text-[44px] lg:text-[48px] font-medium",
                 valueClass,
               )}
