@@ -10650,6 +10650,13 @@ export type Database = {
           retry_after_sec: number
         }[]
       }
+      get_spotify_token_status: {
+        Args: never
+        Returns: {
+          expired: boolean
+          expires_at: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

@@ -45,7 +45,7 @@ export function SaudeSistema() {
       activeDeals,
       criticalUnread, warningUnread, lastNotif,
     ] = await Promise.all([
-      supabase.from("spotify_tokens").select("expires_at").eq("singleton_key", "app").maybeSingle(),
+      supabase.rpc("get_spotify_token_status").maybeSingle(),
       supabase.from("search_results").select("followers_verified_at").not("followers_verified_at", "is", null).order("followers_verified_at", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("playlist_execution_jobs").select("id", { count: "exact", head: true }).in("status", ["pending", "claimed"]),
       supabase.from("playlist_execution_jobs").select("id", { count: "exact", head: true }).eq("status", "failed").gte("updated_at", dayAgoIso),
