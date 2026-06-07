@@ -176,9 +176,20 @@ Deno.serve(async (req) => {
       duracao_ms: summary.duration_ms,
     });
 
+    // Status:
+    //  - error   → nada foi inserido apesar de haver gêneros pra processar
+    //  - partial → inseriu algo mas com alertas
+    //  - ok      → sem alertas
+    const refreshStatus: "ok" | "partial" | "error" =
+      summary.genres_processed > 0 && summary.rows_inserted_total === 0
+        ? "error"
+        : summary.alerts.length > 0
+          ? "partial"
+          : "ok";
+
     await reportCronHealth(sb, {
       job_name: "refresh-search-tracks",
-      status: summary.alerts.length > 0 ? "partial" : "ok",
+      status: refreshStatus,
       startedAt,
       metrics: {
         genres: summary.genres_processed,
