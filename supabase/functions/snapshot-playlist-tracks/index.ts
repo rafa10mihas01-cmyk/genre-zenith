@@ -13,7 +13,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { getSpotifyTokenWithApp, SpotifyAuthInvalidError, markAppAuthFailure } from "../_shared/spotify.ts";
+import { getSpotifyTokenWithApp, getUserAccessToken, SpotifyAuthInvalidError, markAppAuthFailure } from "../_shared/spotify.ts";
 import { listPlaylistTrackRefs, SpotifyApiError } from "../_shared/spotify-playlist.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 
@@ -46,10 +46,13 @@ Deno.serve(async (req) => {
     // 1. MINIMUM: todas as managed_playlists (com spotify_playlist_id) NÃO arquivadas
     const { data: managed } = await sb
       .from("managed_playlists")
-      .select("spotify_playlist_id")
+      .select("spotify_playlist_id, owner_spotify_user_id")
       .is("archived_at", null)
       .not("spotify_playlist_id", "is", null);
     const managedIds = new Set<string>((managed ?? []).map((m: any) => m.spotify_playlist_id));
+    // Mapa spotify_playlist_id → owner_spotify_user_id (pra escolher user token).
+    const managedOwnerBySpId = new Map<string, string | null>();
+    for (const m of (managed ?? []) as any[]) managedOwnerBySpId.set(m.spotify_playlist_id, m.owner_spotify_user_id ?? null);
 
     // 2. PLUS: leader + sample medium (por refresh_tier)
     const { data: targets } = await sb
