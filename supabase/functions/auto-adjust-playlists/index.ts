@@ -166,6 +166,32 @@ Deno.serve(async (req) => {
       errors: [] as string[],
     };
 
+    // ── HARD LOCK: bloqueia se houver faixa protegida por campanha ativa ──
+    const protectedTracks = await getProtectedTracksForPlaylist(supabase, {
+      spotify_playlist_id: c.spotify_playlist_id,
+    });
+    if (protectedTracks.length > 0) {
+      await logProtectedBlock(supabase, {
+        source: "auto-adjust-playlists",
+        spotify_playlist_id: c.spotify_playlist_id,
+        managed_playlist_id: null,
+        action: "replace+reorder",
+        blocked_tracks: protectedTracks.map((p) => p.spotify_track_id),
+        extra: { template_id: c.template_id },
+      });
+      results.push({
+        template_id: c.template_id,
+        name_before: c.name,
+        name_after: c.name,
+        replaced: 0,
+        status: "skipped_protected",
+        errors: [],
+        protected_count: protectedTracks.length,
+      });
+      continue;
+    }
+
+
     // Busca contexto: subgênero do gênero + pool de tracks frescas
     const [genreRow, tracksPool, currentTpl] = await Promise.all([
       supabase.from("genres").select("nome,slug").eq("id", c.genre_id).maybeSingle(),
