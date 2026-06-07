@@ -16,6 +16,7 @@ import {
   replacePlaylistTracks,
   setPlaylistDetails,
 } from "../_shared/spotify-playlist.ts";
+import { getProtectedTracksForPlaylist, logProtectedBlock } from "../_shared/protected-tracks.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -164,6 +165,32 @@ Deno.serve(async (req) => {
       actions_done: [] as string[],
       errors: [] as string[],
     };
+
+    // ── HARD LOCK: bloqueia se houver faixa protegida por campanha ativa ──
+    const protectedTracks = await getProtectedTracksForPlaylist(supabase, {
+      spotify_playlist_id: c.spotify_playlist_id,
+    });
+    if (protectedTracks.length > 0) {
+      await logProtectedBlock(supabase, {
+        source: "auto-adjust-playlists",
+        spotify_playlist_id: c.spotify_playlist_id,
+        managed_playlist_id: null,
+        action: "replace+reorder",
+        blocked_tracks: protectedTracks.map((p) => p.spotify_track_id),
+        extra: { template_id: c.template_id },
+      });
+      results.push({
+        template_id: c.template_id,
+        name_before: c.name,
+        name_after: c.name,
+        replaced: 0,
+        status: "skipped_protected",
+        errors: [],
+        protected_count: protectedTracks.length,
+      });
+      continue;
+    }
+
 
     // Busca contexto: subgênero do gênero + pool de tracks frescas
     const [genreRow, tracksPool, currentTpl] = await Promise.all([
