@@ -122,6 +122,10 @@ Deno.serve(async (req) => {
     const AUTH_STREAK_THRESHOLD = 5;
     let consecutiveAuthFailures = 0;
     let authBreakerTriggered = false;
+    // Quando 401 ocorre, fazemos failover e re-tentamos a MESMA playlist com outro app.
+    // Se o novo app TAMBÉM retorna 401 nessa mesma playlist, o problema é da playlist
+    // (privada/restrita pelo dono), não do token — tratamos como 404 (auto-archive em managed).
+    let lastFailoverPlaylistId: string | null = null;
     const quarantinedDuringRun: Array<{ app_id: string; app_name: string; reason: string }> = [];
     let failoverUsed = false;
 
@@ -180,9 +184,33 @@ Deno.serve(async (req) => {
         try {
           ids = await fetchRefs();
           consecutiveAuthFailures = 0; // sucesso reseta streak local
+          lastFailoverPlaylistId = null;
         } catch (e) {
           // ── AUTH_INVALID: incrementa streak, tenta failover na 1ª, aborta no threshold.
           if (e instanceof SpotifyAuthInvalidError) {
+            // Se acabamos de fazer failover por causa DESTA mesma playlist e ela
+            // 401 de novo com outro app, o problema é da playlist (privada/restrita),
+            // não do token. Tratamos como 404: auto-archive em managed, sem alimentar streak.
+            if (lastFailoverPlaylistId === t.id) {
+              lastFailoverPlaylistId = null;
+              consecutiveAuthFailures = 0;
+              if (managedIds.has(t.id)) {
+                await sb.from("managed_playlists")
+                  .update({
+                    archived_at: new Date().toISOString(),
+                    archived_reason: "spotify_401_persistent",
+                  })
+                  .eq("spotify_playlist_id", t.id)
+                  .is("archived_at", null);
+                auto_archived++;
+                console.log(`[snapshot] auto-archived 401-persistent playlist ${t.id}`);
+                continue;
+              }
+              failed++;
+              if (failed_ids.length < 10) failed_ids.push(`${t.id}:401-persistent`);
+              continue;
+            }
+
             consecutiveAuthFailures++;
             console.warn(`[snapshot] 401 on ${t.id} app=${currentAppName} streak=${consecutiveAuthFailures}`);
             if (consecutiveAuthFailures === 1) {
@@ -194,6 +222,7 @@ Deno.serve(async (req) => {
                 break;
               }
               // Retenta a mesma playlist com novo app (decrementa idx).
+              lastFailoverPlaylistId = t.id;
               idx--;
               continue;
             }
@@ -273,9 +302,22 @@ Deno.serve(async (req) => {
       },
     };
 
+    // Status:
+    //  - error   → nada foi processado E houve falhas (esteira travada)
+    //  - error   → auth breaker disparou (cascata 401)
+    //  - partial → houve falhas mas algum snapshot foi gravado/unchanged
+    //  - ok      → sem falhas
+    const processedSomething = inserted > 0 || unchanged > 0;
+    const healthStatus: "ok" | "partial" | "error" =
+      authBreakerTriggered || (failed > 0 && !processedSomething && list.length > 0)
+        ? "error"
+        : failed > 0
+          ? "partial"
+          : "ok";
+
     await reportCronHealth(sb, {
       job_name: "snapshot-playlist-tracks",
-      status: failed > 0 ? "partial" : "ok",
+      status: healthStatus,
       startedAt,
       metrics: {
         snapshot_count_per_run: inserted,
