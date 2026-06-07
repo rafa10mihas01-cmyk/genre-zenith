@@ -914,6 +914,7 @@ function SortHeader({
 
 function AttributionBadge({ attr, curatorName }: { attr: string; curatorName: string | null }) {
   if (attr === "ecosystem") return <Badge variant="outline" className="border-blue-500/40 text-blue-400">Ecossistema</Badge>;
+  if (attr === "radio") return <Badge variant="outline" className="border-primary/40 text-primary">Rádio</Badge>;
   if (attr.startsWith("curator:")) return <Badge variant="outline" className="border-purple-500/40 text-purple-400 truncate max-w-full">{curatorName ?? "Curador"}</Badge>;
   return <Badge variant="outline" className="border-pink-500/40 text-pink-400">Orgânico</Badge>;
 }
