@@ -21,7 +21,9 @@ interface Body {
   force?: boolean;
 }
 
-const PAGE_SIZE = 50;
+// Spotify restringiu /v1/search em ~2026-05: limit MÁX = 10 (antes 50).
+// Mantemos 10 como cap rígido — paginação compensa via offset (cap ~1000 total).
+const PAGE_SIZE = 10;
 const MAX_PAGES = 3;
 const PAGE_DELAY_MS = 200;
 const MARKET = "BR";
