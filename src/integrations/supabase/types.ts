@@ -6703,6 +6703,7 @@ export type Database = {
           classification_confidence: number | null
           classification_reasons: Json
           computed_at: string
+          confidence_bucket: string | null
           created_at: string
           dominant_genre_id: string | null
           dominant_genre_name: string | null
@@ -6710,9 +6711,16 @@ export type Database = {
           dominant_subgenre_id: string | null
           dominant_subgenre_name: string | null
           dominant_subgenre_pct: number | null
+          enriched_at: string | null
           genre_distribution: Json
           id: string
+          internal_concentration_score: number | null
           median_track_age_days: number | null
+          name_conflict: Json | null
+          niche_adherence_score: number | null
+          niche_top_artists: Json
+          niche_top_subgenres: Json
+          niche_top_tracks: Json
           playlist_id: string
           purity_score: number | null
           subgenre_distribution: Json
@@ -6728,6 +6736,7 @@ export type Database = {
           classification_confidence?: number | null
           classification_reasons?: Json
           computed_at?: string
+          confidence_bucket?: string | null
           created_at?: string
           dominant_genre_id?: string | null
           dominant_genre_name?: string | null
@@ -6735,9 +6744,16 @@ export type Database = {
           dominant_subgenre_id?: string | null
           dominant_subgenre_name?: string | null
           dominant_subgenre_pct?: number | null
+          enriched_at?: string | null
           genre_distribution?: Json
           id?: string
+          internal_concentration_score?: number | null
           median_track_age_days?: number | null
+          name_conflict?: Json | null
+          niche_adherence_score?: number | null
+          niche_top_artists?: Json
+          niche_top_subgenres?: Json
+          niche_top_tracks?: Json
           playlist_id: string
           purity_score?: number | null
           subgenre_distribution?: Json
@@ -6753,6 +6769,7 @@ export type Database = {
           classification_confidence?: number | null
           classification_reasons?: Json
           computed_at?: string
+          confidence_bucket?: string | null
           created_at?: string
           dominant_genre_id?: string | null
           dominant_genre_name?: string | null
@@ -6760,9 +6777,16 @@ export type Database = {
           dominant_subgenre_id?: string | null
           dominant_subgenre_name?: string | null
           dominant_subgenre_pct?: number | null
+          enriched_at?: string | null
           genre_distribution?: Json
           id?: string
+          internal_concentration_score?: number | null
           median_track_age_days?: number | null
+          name_conflict?: Json | null
+          niche_adherence_score?: number | null
+          niche_top_artists?: Json
+          niche_top_subgenres?: Json
+          niche_top_tracks?: Json
           playlist_id?: string
           purity_score?: number | null
           subgenre_distribution?: Json
@@ -6809,6 +6833,139 @@ export type Database = {
             referencedColumns: ["managed_playlist_id"]
           },
         ]
+      }
+      playlist_dna_lexicon_proposals: {
+        Row: {
+          already_existing: boolean
+          created_at: string
+          distinct_playlists: number
+          frequency: number
+          id: string
+          parent_genre_id: string | null
+          parent_genre_name: string | null
+          proposed_keyword: string
+          run_id: string | null
+          subgenre_id: string | null
+          subgenre_name: string | null
+        }
+        Insert: {
+          already_existing?: boolean
+          created_at?: string
+          distinct_playlists?: number
+          frequency?: number
+          id?: string
+          parent_genre_id?: string | null
+          parent_genre_name?: string | null
+          proposed_keyword: string
+          run_id?: string | null
+          subgenre_id?: string | null
+          subgenre_name?: string | null
+        }
+        Update: {
+          already_existing?: boolean
+          created_at?: string
+          distinct_playlists?: number
+          frequency?: number
+          id?: string
+          parent_genre_id?: string | null
+          parent_genre_name?: string | null
+          proposed_keyword?: string
+          run_id?: string | null
+          subgenre_id?: string | null
+          subgenre_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "playlist_dna_lexicon_proposals_parent_genre_id_fkey"
+            columns: ["parent_genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_dna_lexicon_proposals_parent_genre_id_fkey"
+            columns: ["parent_genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres_with_health"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_dna_lexicon_proposals_subgenre_id_fkey"
+            columns: ["subgenre_id"]
+            isOneToOne: false
+            referencedRelation: "subgenres"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      playlist_dna_quality_runs: {
+        Row: {
+          bucket_high: number
+          bucket_low: number
+          bucket_mid: number
+          confiavel: number
+          conflitos: number
+          coverage_by_genre: Json
+          created_at: string
+          finished_at: string | null
+          fraco: number
+          id: string
+          insufficient_no_tracks: number
+          lexicon_keywords_current: number
+          lexicon_keywords_proposed: number
+          notes: Json
+          started_at: string
+          top_confused: Json
+          top_hybrid: Json
+          top_pure: Json
+          total_classified: number
+          total_playlists: number
+        }
+        Insert: {
+          bucket_high?: number
+          bucket_low?: number
+          bucket_mid?: number
+          confiavel?: number
+          conflitos?: number
+          coverage_by_genre?: Json
+          created_at?: string
+          finished_at?: string | null
+          fraco?: number
+          id?: string
+          insufficient_no_tracks?: number
+          lexicon_keywords_current?: number
+          lexicon_keywords_proposed?: number
+          notes?: Json
+          started_at?: string
+          top_confused?: Json
+          top_hybrid?: Json
+          top_pure?: Json
+          total_classified?: number
+          total_playlists?: number
+        }
+        Update: {
+          bucket_high?: number
+          bucket_low?: number
+          bucket_mid?: number
+          confiavel?: number
+          conflitos?: number
+          coverage_by_genre?: Json
+          created_at?: string
+          finished_at?: string | null
+          fraco?: number
+          id?: string
+          insufficient_no_tracks?: number
+          lexicon_keywords_current?: number
+          lexicon_keywords_proposed?: number
+          notes?: Json
+          started_at?: string
+          top_confused?: Json
+          top_hybrid?: Json
+          top_pure?: Json
+          total_classified?: number
+          total_playlists?: number
+        }
+        Relationships: []
       }
       playlist_dna_runs: {
         Row: {
