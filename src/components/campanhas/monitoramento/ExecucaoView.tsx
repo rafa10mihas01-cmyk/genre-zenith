@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TrendingUp, Users, Layers, Activity, Search, Download, ArrowUpDown } from "lucide-react";
+import { TrendingUp, Users, Layers, Activity, Search, Download, ArrowUpDown, Radio as RadioIcon } from "lucide-react";
 import { formatInt } from "@/lib/campaignEngine";
 import { cn } from "@/lib/utils";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -14,6 +14,7 @@ import { usePlaylistCovers, type PlaylistMeta } from "@/hooks/usePlaylistCovers"
 import { PlaylistCell } from "./PlaylistCell";
 import { KpiBig } from "@/components/KpiBig";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useRadioCollected } from "@/hooks/useRadioCollected";
 
 type GrowthRow = {
   campaign_id: string;
