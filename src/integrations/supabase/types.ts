@@ -10520,6 +10520,18 @@ export type Database = {
         }[]
       }
       get_campaign_analytics_overview: { Args: never; Returns: Json }
+      get_campaign_radio_collected: {
+        Args: { _campaign_id: string }
+        Returns: {
+          campaign_id: string
+          current_plays_7d: number
+          last_captured_at: string
+          radio_delta: number
+          spotify_track_id: string
+          start_captured_at: string
+          start_plays_7d: number
+        }[]
+      }
       get_community_invite_by_code: {
         Args: { p_code: string }
         Returns: {
