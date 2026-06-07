@@ -9,6 +9,7 @@ import {
 
 // Header sticky com capa/título/KPIs (Commit 6 — cleanup final).
 import { CockpitHeader } from "./shared/CockpitHeader";
+import { SpotifyAppBlockedBanner } from "./shared/SpotifyAppBlockedBanner";
 
 // Tabs (Commits 4 e 5 da Fase 2) — cada aba consome o CockpitContext.
 import { PlanTab } from "./tabs/PlanTab";
@@ -95,6 +96,8 @@ export function PlaylistCockpit({
       <div className="mx-auto w-full max-w-[1600px] px-4 md:px-8 pt-4 md:pt-5 pb-[calc(88px+env(safe-area-inset-bottom,0px))] md:pb-8 space-y-4">
       {/* ============ 1. HEADER ============ */}
       <CockpitHeader />
+      <SpotifyAppBlockedBanner managedId={managedId} />
+
 
       {loading ? (
         <Card className="p-10 grid place-items-center">
