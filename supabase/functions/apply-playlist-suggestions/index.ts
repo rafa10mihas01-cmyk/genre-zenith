@@ -92,8 +92,40 @@ Deno.serve(async (req) => {
       }, 412);
     }
 
-    // 4) Adquire lock + POST /playlists/{id}/items — insere todas em bloco na posição 0 (topo)
-    //    Spotify aceita até 100 URIs por chamada; nosso limit é 50.
+    // 4) Adquire lock + POST /playlists/{id}/items
+    //    HARD LOCK: se houver faixa protegida, inserir APÓS o último slot protegido,
+    //    nunca empurrar protegidas pra baixo.
+    const protectedTracks = await getProtectedTracksForPlaylist(supabase, {
+      managed_playlist_id: pl.id,
+    });
+    let insertPosition = 0;
+    let protectedAuditBefore: Array<{ uri: string; position: number }> = [];
+    if (protectedTracks.length > 0) {
+      try {
+        const currentUris = await listPlaylistTrackUris(pl.spotify_playlist_id, token);
+        const protSet = protectedUriSet(protectedTracks);
+        let lastProtIdx = -1;
+        currentUris.forEach((u, i) => {
+          if (protSet.has(u)) {
+            lastProtIdx = i;
+            protectedAuditBefore.push({ uri: u, position: i });
+          }
+        });
+        if (lastProtIdx >= 0) insertPosition = lastProtIdx + 1;
+      } catch {
+        // se não conseguir listar, joga conservadoramente no final (não desloca nada)
+        insertPosition = 10_000;
+      }
+      await logProtectedBlock(supabase, {
+        source: "apply-playlist-suggestions",
+        spotify_playlist_id: pl.spotify_playlist_id,
+        managed_playlist_id: pl.id,
+        action: "shift_insert_position",
+        blocked_tracks: protectedTracks.map((p) => p.spotify_track_id),
+        extra: { original_position: 0, new_position: insertPosition },
+      });
+    }
+
     const lock = await acquirePlaylistLock(supabase, pl.id, "MANUAL_EDITOR", null);
     if (!lock.ok) {
       return jr(lockedResponseBody(lock), 423);
@@ -101,7 +133,7 @@ Deno.serve(async (req) => {
 
     let snapshot: string | null = null;
     try {
-      const res = await addPlaylistTracks(pl.spotify_playlist_id, uris, token, { position: 0 });
+      const res = await addPlaylistTracks(pl.spotify_playlist_id, uris, token, { position: insertPosition });
       snapshot = res.snapshot_id ?? null;
       await finishPlaylistOperation(supabase, lock, {
         status: "success",
