@@ -15,9 +15,31 @@ import { useCockpit } from "../context/CockpitContext";
 export function IdentityTab() {
   const {
     managedId, playlistName, coverUrl, spotifyPlaylistId, genreName, genreId,
-    diag, runDiagnose,
+    diag, setDiag,
   } = useCockpit();
   if (!diag) return null;
+
+  // Patch local após aplicar identidade no Spotify.
+  // NÃO dispara diagnose-managed-playlist — apenas reflete o novo nome/descrição
+  // já publicados. Inteligência (plano, sugestões, IA, benchmarks) só é
+  // recalculada quando o usuário clica explicitamente em "Diagnosticar".
+  const handleIdentityApplied = (value: string, field: "name" | "description") => {
+    setDiag((prev: any) => {
+      if (!prev) return prev;
+      if (field === "name") {
+        return {
+          ...prev,
+          name_current: value,
+          raw: { ...(prev.raw ?? {}), name_current: value },
+        };
+      }
+      return {
+        ...prev,
+        raw: { ...(prev.raw ?? {}), description_current: value },
+      };
+    });
+  };
+
 
   const nameScore = diag.name_score ?? null;
   const hasDescription = !!(diag.raw?.description_current && String(diag.raw.description_current).trim().length > 0);
@@ -95,7 +117,7 @@ export function IdentityTab() {
               current={diag.name_current ?? playlistName}
               suggestion={diag.name_suggestion}
               score={diag.name_score}
-              onApplied={runDiagnose}
+              onApplied={handleIdentityApplied}
             />
             <IdentityField
               label="Descrição"
@@ -103,7 +125,7 @@ export function IdentityTab() {
               managedId={managedId}
               current={diag.raw?.description_current || ""}
               suggestion={diag.raw?.suggested_description ?? null}
-              onApplied={runDiagnose}
+              onApplied={handleIdentityApplied}
             />
           </div>
         </div>
