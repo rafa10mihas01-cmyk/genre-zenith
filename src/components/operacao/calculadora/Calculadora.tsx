@@ -1259,13 +1259,13 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                         active={active.clientProfile === "artista"}
                         onClick={() => setClientProfile("artista")}
                         label="Artista / Empresário"
-                        tooltip="Meta contratada inclui o orgânico estimado. Eco+externo cobrem só a meta operacional (meta − orgânico). Custo cai proporcionalmente."
+                        tooltip="Meta contratada inclui o orgânico estimado. Eco+curadores cobrem só a meta operacional (meta − orgânico). Custo cai proporcionalmente."
                       />
                       <ModeBtn
                         active={active.clientProfile === "gravadora"}
                         onClick={() => setClientProfile("gravadora")}
                         label="Gravadora"
-                        tooltip="Meta contratada é só pago. Eco+externo cobrem a meta inteira; orgânico vem como bônus em cima. Custo calculado sobre a meta cheia."
+                        tooltip="Meta contratada é só pago. Eco+curadores cobrem a meta inteira; orgânico vem como bônus em cima. Custo calculado sobre a meta cheia."
                       />
                     </div>
                   </div>
@@ -1359,7 +1359,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                       </div>
                     ) : ecoCap.capacityTotal === 0 ? (
                       <div className="mt-3 rounded-md border border-destructive/40 bg-destructive/5 px-2.5 py-2 text-[11px] text-destructive">
-                        Sem playlists compatíveis com "{active.genre}". Toda a meta vai precisar vir do externo.
+                        Sem playlists compatíveis com "{active.genre}". Toda a meta vai precisar vir dos curadores.
                       </div>
                     ) : (
                       <div className={cn(
@@ -1421,7 +1421,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                                     <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Meta contratada</span>
                                     {result.streamsOrganic > 0 && (
                                       <span className="text-[10px] text-muted-foreground/70 mt-0.5">
-                                        operacional (eco+externo): <span className="tabular-nums text-muted-foreground">{formatCompact(result.metaOperacional)}</span>
+                                        operacional (eco+curadores): <span className="tabular-nums text-muted-foreground">{formatCompact(result.metaOperacional)}</span>
                                       </span>
                                     )}
                                   </div>
@@ -1470,7 +1470,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                           <div className="flex items-center justify-between gap-2 pt-1 border-t border-destructive/20">
                             <span className="text-[11px] text-destructive flex items-center gap-1">
                               <AlertTriangle className="h-3 w-3" />
-                              Faltam {formatInt(ecoNeeded - ecoCap.capacityTotal)} — sobe pro externo
+                              Faltam {formatInt(ecoNeeded - ecoCap.capacityTotal)} — sobe pros curadores
                             </span>
                             <button
                               type="button"

@@ -103,7 +103,7 @@ export function CapacidadeRealCard({ genre, dailyNeed, multiplier, clientProfile
           <span>
             Pool quase esgotado: <strong className="tabular-nums">{used}</strong> de{" "}
             <strong className="tabular-nums">{cap.poolSize}</strong> playlists, cobrindo {coverage}%.
-            Considere afrouxar o gênero (mais vizinhos) ou aumentar o split externo.
+            Considere afrouxar o gênero (mais vizinhos) ou aumentar o split de curadores.
           </span>
         </div>
       )}

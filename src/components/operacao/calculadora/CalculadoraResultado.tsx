@@ -87,7 +87,7 @@ export function CalculadoraResultado({ r }: { r: CampaignResult }) {
             tone="primary"
           />
           <SplitBar
-            label="Ecossistema externo"
+            label="Curadores"
             pct={r.metaOperacional > 0 ? Math.round((r.streamsExt / r.metaOperacional) * 100) : 0}
             streams={r.streamsExt}
             custo={r.custoExt}
