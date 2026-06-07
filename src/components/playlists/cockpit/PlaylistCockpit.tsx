@@ -96,6 +96,8 @@ export function PlaylistCockpit({
       <div className="mx-auto w-full max-w-[1600px] px-4 md:px-8 pt-4 md:pt-5 pb-[calc(88px+env(safe-area-inset-bottom,0px))] md:pb-8 space-y-4">
       {/* ============ 1. HEADER ============ */}
       <CockpitHeader />
+      <SpotifyAppBlockedBanner managedId={managedId} />
+
 
       {loading ? (
         <Card className="p-10 grid place-items-center">
