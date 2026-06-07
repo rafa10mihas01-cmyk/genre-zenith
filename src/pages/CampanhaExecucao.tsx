@@ -33,6 +33,8 @@ import { cn } from "@/lib/utils";
 import { CampaignHub } from "@/components/campaign-hub/CampaignHub";
 import { OverviewTab } from "@/components/campaign-hub/tabs/OverviewTab";
 import { RadioCollectedCard } from "@/components/campaign-hub/RadioCollectedCard";
+import { useRadioCollected } from "@/hooks/useRadioCollected";
+
 import { CampaignKpis } from "@/components/campaign-hub/CampaignKpis";
 import { Lock } from "lucide-react";
 import { OperacaoTab, type ExternalItemRow } from "@/components/campaign-hub/tabs/OperacaoTab";
@@ -601,6 +603,11 @@ export default function CampanhaExecucao() {
 
   const delivered = camp?.total_delivered ?? 0;
 
+  // Rádio Spotify — baseline ancorada na ativação da campanha (atual - início).
+  const { data: radioCollected } = useRadioCollected(camp?.id);
+  const radioDelta = Math.max(0, radioCollected?.radio_delta ?? 0);
+
+
   // Soma dos plays_7d mais recentes por playlist em organic_plays_snapshots —
   // alimenta o label "coletado" da linha Rádio/Orgânico no plano completo.
   const radioCollectedTotal = useMemo(() => {
@@ -732,8 +739,9 @@ export default function CampanhaExecucao() {
               ) : null}
               <RadioCollectedCard
                 campaignId={camp.id}
-                metaPlanned={snapshot.streamsOrganic ?? 0}
+                cppEco={snapshot.streamsEco > 0 ? snapshot.custoEco / snapshot.streamsEco : 0}
               />
+
               <OverviewTab
                 snapshot={snapshot}
                 delivered={delivered}
@@ -742,6 +750,8 @@ export default function CampanhaExecucao() {
                 
                 allocations={allocs}
                 snapshots={snaps}
+                radioDelta={radioDelta}
+
                 proofs={proofs.map(p => ({
                   id: p.id,
                   captured_at: p.captured_at,

@@ -1502,6 +1502,8 @@ export type Database = {
           plan_approved_at: string | null
           plan_approved_by: string | null
           public_plan_token: string
+          radio_plays_start: number | null
+          radio_plays_start_at: string | null
           recebido_em: string | null
           roadmap_token: string
           simulation_snapshot: Json | null
@@ -1555,6 +1557,8 @@ export type Database = {
           plan_approved_at?: string | null
           plan_approved_by?: string | null
           public_plan_token?: string
+          radio_plays_start?: number | null
+          radio_plays_start_at?: string | null
           recebido_em?: string | null
           roadmap_token?: string
           simulation_snapshot?: Json | null
@@ -1608,6 +1612,8 @@ export type Database = {
           plan_approved_at?: string | null
           plan_approved_by?: string | null
           public_plan_token?: string
+          radio_plays_start?: number | null
+          radio_plays_start_at?: string | null
           recebido_em?: string | null
           roadmap_token?: string
           simulation_snapshot?: Json | null
@@ -9507,11 +9513,11 @@ export type Database = {
         Row: {
           campaign_id: string | null
           current_plays_7d: number | null
-          delta_48h: number | null
           last_captured_at: string | null
-          prior_captured_at: string | null
-          prior_plays_7d: number | null
+          radio_delta: number | null
           spotify_track_id: string | null
+          start_captured_at: string | null
+          start_plays_7d: number | null
         }
         Relationships: []
       }

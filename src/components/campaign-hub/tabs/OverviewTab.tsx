@@ -37,6 +37,8 @@ type Props = {
   allocations?: EcoAllocation[];
   snapshots?: EcoSnap[];
   proofs?: ProofPreview[];
+  /** Plays entregues pela Rádio desde o início da campanha (current - start). */
+  radioDelta?: number;
   onJumpTab?: (tab: "playlists" | "proofs" | "curve" | "finance") => void;
   // Slot opcional que substitui o card "Curva de entrega" dentro do grid principal.
   // Usado pra subir o monitoramento ao lugar da curva planejada.
@@ -52,11 +54,12 @@ type Props = {
 
 export function OverviewTab({
   snapshot, delivered, daysElapsed, showFinance, hideDeliveryPlan = false, hideCurveShortcut = false, hideCurveCard = false, hideKpis = false, hideSplitRows = false,
-  allocations = [], snapshots = [], proofs = [], onJumpTab,
+  allocations = [], snapshots = [], proofs = [], radioDelta = 0, onJumpTab,
   curveSlot,
   splitLockedAt = null, lockedEcoStreams = null, ecoMaxPct = 70,
   canManageSplit = false, onLockSplit, onUnlockSplit,
 }: Props) {
+
   // Slot externo (ex: monitoramento) tem precedência sobre o card padrão de curva.
   const showCurveCard = !hideCurveCard && !curveSlot;
   const [planOpen, setPlanOpen] = useState(false);
@@ -78,10 +81,15 @@ export function OverviewTab({
   for (const s of snapshots) {
     if (!latestByPl.has(s.managed_playlist_id)) latestByPl.set(s.managed_playlist_id, s);
   }
-  const ecoDeliveredRaw = Array.from(latestByPl.values())
+  const ecoDeliveredPlaylists = Array.from(latestByPl.values())
     .reduce((acc, s) => acc + Number(s.plays_28d ?? s.plays_7d ?? 0), 0);
+  // Rádio entra no Ecossistema (mesma família de plays próprios), mas é
+  // mantida visualmente separada na linha de auditoria abaixo do SplitRow.
+  const radioDeliveredSafe = Math.max(0, Math.round(radioDelta));
+  const ecoDeliveredRaw = ecoDeliveredPlaylists + radioDeliveredSafe;
   const ecoDelivered = Math.min(ecoDeliveredRaw, delivered);
   const extDelivered = Math.max(0, delivered - ecoDelivered);
+
 
   // Valores fechados pela calculadora — única fonte da verdade.
   const ecoTarget = Math.max(0, Math.round(snapshot.streamsEco ?? 0));
@@ -176,15 +184,32 @@ export function OverviewTab({
       {/* Split eco/ext/org — extraído do Plano de entrega pra leitura imediata */}
       {!hideSplitRows && (
       <section className={cn("grid grid-cols-1 gap-3", orgTarget > 0 ? "md:grid-cols-3" : "md:grid-cols-2")}>
-        <SplitRow
-          tone="eco"
-          label="Ecossistema"
-          metaTotal={ecoTarget}
-          metaPct={ecoEffectivePct}
-          deliveredTotal={ecoDelivered}
-          perDayContract={Math.round(Math.max(0, ecoTarget - ecoDelivered) / daysRemaining)}
-          perDayReal={Math.round(ecoTarget / Math.max(1, snapshot.effectiveDays ?? snapshot.days))}
-        />
+        <div className="space-y-2">
+          <SplitRow
+            tone="eco"
+            label="Ecossistema"
+            metaTotal={ecoTarget}
+            metaPct={ecoEffectivePct}
+            deliveredTotal={ecoDelivered}
+            perDayContract={Math.round(Math.max(0, ecoTarget - ecoDelivered) / daysRemaining)}
+            perDayReal={Math.round(ecoTarget / Math.max(1, snapshot.effectiveDays ?? snapshot.days))}
+          />
+          {/* Auditoria — Rádio dentro do Ecossistema, separada visualmente */}
+          {(radioDeliveredSafe > 0 || ecoDeliveredPlaylists > 0) && (
+            <div className="rounded-md border border-border/40 bg-muted/10 px-3 py-2 text-[11px] tabular-nums flex items-center justify-between gap-3">
+              <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary/70" />
+                Playlists próprias
+              </span>
+              <span className="text-foreground/90">{formatInt(ecoDeliveredPlaylists)}</span>
+              <span className="inline-flex items-center gap-1.5 text-muted-foreground ml-3">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                Rádio
+              </span>
+              <span className="text-foreground/90">+{formatInt(radioDeliveredSafe)}</span>
+            </div>
+          )}
+        </div>
         <SplitRow
           tone="ext"
           label="Externo"
@@ -210,6 +235,7 @@ export function OverviewTab({
 
       {/* Plano de entrega — 2 cards: contratado vs real (diluído no effectiveDays) */}
       {!hideDeliveryPlan && (() => {
+
         const effDays = Math.max(1, snapshot.effectiveDays ?? snapshot.days);
         const realPerDay = Math.round(snapshot.meta / effDays);
         return (
