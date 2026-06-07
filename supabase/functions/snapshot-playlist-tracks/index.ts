@@ -184,9 +184,33 @@ Deno.serve(async (req) => {
         try {
           ids = await fetchRefs();
           consecutiveAuthFailures = 0; // sucesso reseta streak local
+          lastFailoverPlaylistId = null;
         } catch (e) {
           // ── AUTH_INVALID: incrementa streak, tenta failover na 1ª, aborta no threshold.
           if (e instanceof SpotifyAuthInvalidError) {
+            // Se acabamos de fazer failover por causa DESTA mesma playlist e ela
+            // 401 de novo com outro app, o problema é da playlist (privada/restrita),
+            // não do token. Tratamos como 404: auto-archive em managed, sem alimentar streak.
+            if (lastFailoverPlaylistId === t.id) {
+              lastFailoverPlaylistId = null;
+              consecutiveAuthFailures = 0;
+              if (managedIds.has(t.id)) {
+                await sb.from("managed_playlists")
+                  .update({
+                    archived_at: new Date().toISOString(),
+                    archived_reason: "spotify_401_persistent",
+                  })
+                  .eq("spotify_playlist_id", t.id)
+                  .is("archived_at", null);
+                auto_archived++;
+                console.log(`[snapshot] auto-archived 401-persistent playlist ${t.id}`);
+                continue;
+              }
+              failed++;
+              if (failed_ids.length < 10) failed_ids.push(`${t.id}:401-persistent`);
+              continue;
+            }
+
             consecutiveAuthFailures++;
             console.warn(`[snapshot] 401 on ${t.id} app=${currentAppName} streak=${consecutiveAuthFailures}`);
             if (consecutiveAuthFailures === 1) {
@@ -198,6 +222,7 @@ Deno.serve(async (req) => {
                 break;
               }
               // Retenta a mesma playlist com novo app (decrementa idx).
+              lastFailoverPlaylistId = t.id;
               idx--;
               continue;
             }
