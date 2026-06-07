@@ -9,6 +9,7 @@ import {
 
 // Header sticky com capa/título/KPIs (Commit 6 — cleanup final).
 import { CockpitHeader } from "./shared/CockpitHeader";
+import { SpotifyAppBlockedBanner } from "./shared/SpotifyAppBlockedBanner";
 
 // Tabs (Commits 4 e 5 da Fase 2) — cada aba consome o CockpitContext.
 import { PlanTab } from "./tabs/PlanTab";
