@@ -1282,74 +1282,57 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     </p>
                   </div>
 
-                  {/* Cobertura da meta — 3 canais reais: Eco / Rádio / Sobra
-                      (Curadores são geridos fora do snapshot via curator_deals).
-                      Torna explícita a sobra que hoje cai silenciosamente no
-                      bucket interno streamsExt. */}
+                  {/* DISTRIBUIÇÃO DA CAMPANHA — 3 canais reais (Eco / Curadores / Rádio).
+                      "Curadores" = bucket interno streamsExt (mantido por compatibilidade
+                      no engine; nomenclatura operacional alinhada à realidade). */}
                   {(() => {
-                    const organicPct = active.splitOrganic ?? 0;
-                    const ecoOfMetaPct = Math.round(active.splitEco * (1 - organicPct / 100));
-                    const totalPlanned = ecoOfMetaPct + organicPct;
-                    const sobraPct = Math.max(0, 100 - totalPlanned);
-                    const hasSobra = sobraPct > 0;
+                    const meta = result.meta || 0;
+                    const eco = result.streamsEco || 0;
+                    const curadores = result.streamsExt || 0;
+                    const radio = result.streamsOrganic || 0;
+                    const pct = (n: number) => (meta > 0 ? Math.round((n / meta) * 100) : 0);
+                    const total = eco + curadores + radio;
+                    const channels = [
+                      { key: "eco", label: "Eco", v: eco, p: pct(eco), dot: "bg-primary" },
+                      { key: "cur", label: "Curadores", v: curadores, p: pct(curadores), dot: "bg-amber-500" },
+                      { key: "rad", label: "Rádio", v: radio, p: pct(radio), dot: "bg-blue-500" },
+                    ];
                     return (
-                      <div className={cn(
-                        "rounded-lg border px-3.5 py-3 space-y-2.5",
-                        hasSobra ? "border-amber-500/40 bg-amber-500/5" : "border-primary/30 bg-primary/5",
-                      )}>
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/80 font-medium">
-                            Cobertura da meta
-                          </span>
-                          <span className={cn(
-                            "text-[11px] tabular-nums font-medium",
-                            hasSobra ? "text-amber-600 dark:text-amber-400" : "text-primary",
-                          )}>
-                            {totalPlanned}% planejado
-                          </span>
+                      <div className="rounded-xl border border-border bg-card/40 px-4 py-4 space-y-4">
+                        <div className="flex items-baseline justify-between">
+                          <div>
+                            <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/80 font-medium">
+                              Distribuição da campanha
+                            </div>
+                            <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/60 mt-1">Meta total</div>
+                          </div>
+                          <div className="text-[28px] font-semibold tabular-nums leading-none text-foreground">
+                            {formatCompact(meta)}
+                          </div>
                         </div>
                         <div className="h-2 rounded-full bg-muted/40 overflow-hidden flex">
-                          <div className="h-full bg-primary" style={{ width: `${ecoOfMetaPct}%` }} />
-                          <div className="h-full bg-blue-500" style={{ width: `${organicPct}%` }} />
-                          {hasSobra && <div className="h-full bg-amber-500/60" style={{ width: `${sobraPct}%` }} />}
+                          {channels.map(c => c.v > 0 && (
+                            <div key={c.key} className={cn("h-full", c.dot)} style={{ width: `${c.p}%` }} />
+                          ))}
                         </div>
-                        <div className="grid grid-cols-3 gap-2 text-[11px]">
-                          <div className="flex flex-col">
-                            <span className="text-muted-foreground/70">Ecossistema</span>
-                            <span className="tabular-nums font-medium text-foreground">{ecoOfMetaPct}%</span>
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="text-muted-foreground/70">Rádio</span>
-                            <span className="tabular-nums font-medium text-foreground">{organicPct}%</span>
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="text-muted-foreground/70">Sobra</span>
-                            <span className={cn(
-                              "tabular-nums font-medium",
-                              hasSobra ? "text-amber-600 dark:text-amber-400" : "text-foreground",
-                            )}>{sobraPct}%</span>
-                          </div>
+                        <div className="grid grid-cols-3 gap-3">
+                          {channels.map(c => (
+                            <div key={c.key} className="flex flex-col gap-1">
+                              <div className="flex items-center gap-1.5">
+                                <span className={cn("h-2 w-2 rounded-full", c.dot)} />
+                                <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{c.label}</span>
+                              </div>
+                              <div className="text-[17px] font-semibold tabular-nums leading-none text-foreground">{formatCompact(c.v)}</div>
+                              <div className="text-[11px] tabular-nums text-muted-foreground">{c.p}%</div>
+                            </div>
+                          ))}
                         </div>
-                        {hasSobra && (
-                          <div className="flex items-center justify-between gap-2 pt-2 border-t border-amber-500/20">
-                            <span className="text-[11px] text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
-                              <AlertTriangle className="h-3 w-3 shrink-0" />
-                              Faltam {sobraPct}% para completar a campanha
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => setSplitEco(100)}
-                              className="text-[11px] font-medium text-primary hover:underline whitespace-nowrap"
-                            >
-                              Completar com Ecossistema
-                            </button>
-                          </div>
-                        )}
-                        {!hasSobra && (
-                          <p className="text-[10px] text-muted-foreground/70 leading-relaxed">
-                            Curadores são planejados à parte (deals individuais), fora desta divisão.
-                          </p>
-                        )}
+                        <div className="flex items-baseline justify-between pt-3 border-t border-border/40">
+                          <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70">Total</span>
+                          <span className="text-[13px] font-medium tabular-nums text-foreground">
+                            {formatCompact(total)} <span className="text-muted-foreground">· 100%</span>
+                          </span>
+                        </div>
                       </div>
                     );
                   })()}
