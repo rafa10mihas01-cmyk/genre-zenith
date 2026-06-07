@@ -117,7 +117,7 @@ export function IdentityTab() {
               current={diag.name_current ?? playlistName}
               suggestion={diag.name_suggestion}
               score={diag.name_score}
-              onApplied={runDiagnose}
+              onApplied={handleIdentityApplied}
             />
             <IdentityField
               label="Descrição"
@@ -125,7 +125,7 @@ export function IdentityTab() {
               managedId={managedId}
               current={diag.raw?.description_current || ""}
               suggestion={diag.raw?.suggested_description ?? null}
-              onApplied={runDiagnose}
+              onApplied={handleIdentityApplied}
             />
           </div>
         </div>
