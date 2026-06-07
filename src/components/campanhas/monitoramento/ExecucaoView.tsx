@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TrendingUp, Users, Layers, Activity, Search, Download, ArrowUpDown } from "lucide-react";
+import { TrendingUp, Users, Layers, Activity, Search, Download, ArrowUpDown, Radio as RadioIcon } from "lucide-react";
 import { formatInt } from "@/lib/campaignEngine";
 import { cn } from "@/lib/utils";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -14,6 +14,7 @@ import { usePlaylistCovers, type PlaylistMeta } from "@/hooks/usePlaylistCovers"
 import { PlaylistCell } from "./PlaylistCell";
 import { KpiBig } from "@/components/KpiBig";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useRadioCollected } from "@/hooks/useRadioCollected";
 
 type GrowthRow = {
   campaign_id: string;
@@ -324,9 +325,44 @@ export function ExecucaoView({
     return latest;
   }, [rows]);
 
+  const isEcosystem = mode === "ecosystem";
+
+  // Linha virtual da Rádio Spotify (só na aba Ecossistema da visão interna).
+  // Lê campaign_radio_collected — não altera engine, snapshot nem financeiro.
+  // Nunca renderizada em portal do cliente ou compartilhamento público
+  // porque esta view (ExecucaoView) só vive dentro do hub interno da campanha.
+  const { data: radioData } = useRadioCollected(isEcosystem ? campaignId : undefined);
+
   if (!rows) return <Skeleton className="h-96 w-full" />;
 
-  const isEcosystem = mode === "ecosystem";
+  const hasRadio = isEcosystem && !!radioData && (
+    (radioData.start_plays_7d ?? 0) > 0 || (radioData.current_plays_7d ?? 0) > 0
+  );
+  const radioRow: GrowthRow | null = hasRadio && radioData ? {
+    campaign_id: campaignId,
+    playlist_id: "__radio__",
+    playlist_url: null,
+    current_name: "Rádio Spotify",
+    baseline_name: "Rádio Spotify",
+    baseline_plays: radioData.start_plays_7d ?? 0,
+    current_plays: radioData.current_plays_7d ?? 0,
+    delta: radioData.radio_delta ?? 0,
+    baseline_at: radioData.start_captured_at,
+    last_captured_at: radioData.last_captured_at,
+    first_seen_at: radioData.start_captured_at,
+    attributed_to: "radio",
+    attributed_curator_id: null,
+    is_baseline_conflict: false,
+  } : null;
+
+  const displayRows = radioRow ? [radioRow, ...filtered] : filtered;
+  const displayTotals = radioRow ? {
+    baseline: filteredTotals.baseline + (radioRow.baseline_plays ?? 0),
+    current: filteredTotals.current + (radioRow.current_plays ?? 0),
+    delta: filteredTotals.delta + (radioRow.delta ?? 0),
+  } : filteredTotals;
+
+
   const filtersBar = (
     <div className="flex items-center gap-2 flex-wrap">
       {!isEcosystem && (
@@ -390,6 +426,8 @@ export function ExecucaoView({
         totals={totals}
         filteredCount={filtered.length}
         lastCapturedAt={lastCapturedAt}
+        radioDelta={radioRow?.delta ?? 0}
+        hasRadio={hasRadio}
       />
 
       {/* Tabs — entre os dois cards (slot vindo do MonitoramentoTab) */}
@@ -489,15 +527,15 @@ export function ExecucaoView({
         ) : (
           <div className="flex items-end justify-between gap-4 mb-2 px-1">
             <div className="text-[13px] text-foreground font-semibold tabular-nums">
-              {filtered.length} {filtered.length === 1 ? "playlist" : "playlists"}
+              {displayRows.length} {displayRows.length === 1 ? "linha" : "linhas"}
             </div>
             <div className="flex items-center gap-4 md:gap-6 text-[11px] tabular-nums">
-              <span className="text-muted-foreground">Atual <span className="text-foreground font-semibold">{formatInt(filteredTotals.current)}</span></span>
+              <span className="text-muted-foreground">Atual <span className="text-foreground font-semibold">{formatInt(displayTotals.current)}</span></span>
               <span className="text-muted-foreground">Δ <span className={cn(
                 "font-semibold",
-                filteredTotals.delta > 0 ? "text-primary" : "text-muted-foreground",
+                displayTotals.delta > 0 ? "text-primary" : "text-muted-foreground",
               )}>
-                {filteredTotals.delta > 0 ? "+" : ""}{formatInt(filteredTotals.delta)}
+                {displayTotals.delta > 0 ? "+" : ""}{formatInt(displayTotals.delta)}
               </span></span>
               {isEcosystem && (
                 <Button variant="outline" size="sm" className="h-7 px-2.5 text-[11px]" onClick={exportCsv}>
@@ -514,7 +552,7 @@ export function ExecucaoView({
         <Card>
           <CardContent className="p-0">
             <VirtualTable
-              rows={filtered}
+              rows={displayRows}
               curators={curators}
               statuses={statuses}
               sort={sort}
@@ -523,7 +561,7 @@ export function ExecucaoView({
                 if (sort === k) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
                 else { setSort(k); setSortDir("desc"); }
               }}
-              onRowClick={onOpenHistory}
+              onRowClick={(pid) => { if (pid !== "__radio__") onOpenHistory?.(pid); }}
             />
           </CardContent>
         </Card>
@@ -578,30 +616,49 @@ function HeroGrowth({
   totals,
   filteredCount,
   lastCapturedAt,
+  radioDelta = 0,
+  hasRadio = false,
 }: {
   mode: "all" | "ecosystem" | "curators" | "organic";
   totals: { total: number; eco: number; curator: number; organic: number; n: number };
   filteredCount: number;
   lastCapturedAt: string | null;
+  radioDelta?: number;
+  hasRadio?: boolean;
 }) {
+  // Ecossistema interno: layout 3 colunas (Playlists / Rádio / Total)
+  // Rádio só aparece quando a campanha realmente tem entrega de rádio coletada.
+  if (mode === "ecosystem") {
+    const playlistsDelta = totals.eco;
+    const totalDelta = playlistsDelta + (hasRadio ? radioDelta : 0);
+    return (
+      <Card>
+        <CardContent className="p-0">
+          <div className={cn(
+            "grid divide-y lg:divide-y-0 lg:divide-x divide-border/50",
+            hasRadio ? "grid-cols-1 lg:grid-cols-3" : "grid-cols-1 lg:grid-cols-2",
+          )}>
+            <SecondaryMetric icon={Layers} label="Playlists" value={playlistsDelta} />
+            {hasRadio && <SecondaryMetric icon={RadioIcon} label="Rádio" value={radioDelta} />}
+            <SecondaryMetric icon={Activity} label="Total" value={totalDelta} />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const heroValue =
-    mode === "ecosystem" ? totals.eco
-    : mode === "curators" ? totals.curator
+    mode === "curators" ? totals.curator
     : mode === "organic" ? totals.organic
     : totals.total;
 
   const heroLabel =
-    mode === "ecosystem" ? "Crescimento ecossistema"
-    : mode === "curators" ? "Crescimento curadores"
+    mode === "curators" ? "Crescimento curadores"
     : mode === "organic" ? "Crescimento orgânico"
     : "Crescimento total";
 
   const sign = heroValue > 0 ? "+" : heroValue < 0 ? "" : "";
   const valueClass = heroValue > 0 ? "text-primary" : heroValue < 0 ? "text-destructive" : "text-foreground";
-
-  const lastLabel = lastCapturedAt
-    ? `${new Date(lastCapturedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} · ${new Date(lastCapturedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
-    : "—";
 
   return (
     <Card>
@@ -617,7 +674,6 @@ function HeroGrowth({
             <div
               className={cn(
                 "tabular-nums leading-none tracking-tight",
-                // Mais fino e menor — premium, não chamativo
                 "text-[40px] md:text-[44px] lg:text-[48px] font-medium",
                 valueClass,
               )}
@@ -813,13 +869,25 @@ function VirtualTable({
                   {vi.index + 1}
                 </div>
 
-                <PlaylistCell
-                  playlistId={r.playlist_id}
-                  name={r.current_name ?? r.baseline_name ?? meta?.name ?? null}
-                  url={r.playlist_url}
-                  coverUrl={meta?.cover_url ?? null}
-                  followers={meta?.followers ?? null}
-                />
+                {r.playlist_id === "__radio__" ? (
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-12 w-12 shrink-0 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center">
+                      <RadioIcon className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-medium text-foreground truncate">Rádio Spotify</div>
+                      <div className="text-xs text-muted-foreground">campaign_radio_collected</div>
+                    </div>
+                  </div>
+                ) : (
+                  <PlaylistCell
+                    playlistId={r.playlist_id}
+                    name={r.current_name ?? r.baseline_name ?? meta?.name ?? null}
+                    url={r.playlist_url}
+                    coverUrl={meta?.cover_url ?? null}
+                    followers={meta?.followers ?? null}
+                  />
+                )}
                 <AttributionBadge attr={r.attributed_to} curatorName={curName} />
                 <div className="text-right tabular-nums text-muted-foreground text-sm">{r.baseline_plays == null ? "—" : formatInt(Number(r.baseline_plays))}</div>
                 <div className="text-right tabular-nums text-foreground text-sm">{r.current_plays == null ? "—" : formatInt(Number(r.current_plays))}</div>
@@ -858,6 +926,7 @@ function SortHeader({
 
 function AttributionBadge({ attr, curatorName }: { attr: string; curatorName: string | null }) {
   if (attr === "ecosystem") return <Badge variant="outline" className="border-blue-500/40 text-blue-400">Ecossistema</Badge>;
+  if (attr === "radio") return <Badge variant="outline" className="border-primary/40 text-primary">Rádio</Badge>;
   if (attr.startsWith("curator:")) return <Badge variant="outline" className="border-purple-500/40 text-purple-400 truncate max-w-full">{curatorName ?? "Curador"}</Badge>;
   return <Badge variant="outline" className="border-pink-500/40 text-pink-400">Orgânico</Badge>;
 }
@@ -865,6 +934,7 @@ function AttributionBadge({ attr, curatorName }: { attr: string; curatorName: st
 function AttributionDot({ attr }: { attr: string }) {
   const cls =
     attr === "ecosystem" ? "bg-blue-400"
+    : attr === "radio" ? "bg-primary"
     : attr.startsWith("curator:") ? "bg-purple-400"
     : "bg-pink-400";
   return <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", cls)} aria-hidden />;
