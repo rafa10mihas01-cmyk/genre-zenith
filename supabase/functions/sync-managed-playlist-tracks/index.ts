@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
 
   try {
     // 1) Fonte da verdade: Spotify (com ISRC via external_ids — fields default do helper já inclui)
-    const token = await getSpotifyToken();
+    const token = await getSpotifyToken({ appId: ownerAppId });
     const rich = await listPlaylistTracksRich(pl.spotify_playlist_id, token, {
       max: 10000,
       fields: "items(added_at,track(id,name,duration_ms,external_ids,artists(name),album(images))),next",
