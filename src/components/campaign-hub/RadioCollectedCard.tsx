@@ -1,33 +1,37 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Radio, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { Radio } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { formatInt } from "@/lib/campaignEngine";
+import { formatBRL, formatInt } from "@/lib/campaignEngine";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 type RadioRow = {
   campaign_id: string;
+  start_plays_7d: number | null;
+  start_captured_at: string | null;
   current_plays_7d: number;
-  prior_plays_7d: number;
-  delta_48h: number;
   last_captured_at: string;
-  prior_captured_at: string | null;
+  radio_delta: number;
 };
 
 type Props = {
   campaignId: string;
-  /** Meta planejada da rádio (snapshot.streamsOrganic) — pode ser 0. */
+  /** CPP do Ecossistema próprio — Rádio herda esta tarifa. */
+  cppEco?: number;
+  /** Mantido p/ compat. Não usado: Rádio agora compara com baseline da campanha. */
   metaPlanned?: number;
 };
 
 /**
- * Card admin-interno: mostra plays REAIS de Rádio Spotify capturados pelo bot
- * (linha `spotify_playlist_id = 'radio'` dos sources do SfA), com delta 48h.
+ * Rádio Spotify — baseline ancorada na ativação da campanha.
  *
- * Cliente NÃO vê — fica só no CampanhaExecucao (não no PlanoCampanhaPublico).
+ * Pergunta que responde: "Quando a campanha começou, a Rádio estava em X.
+ * Hoje está em Y. Logo a Rádio entregou (Y − X) plays pra essa campanha."
+ *
+ * Custo: herda o mesmo CPP do Ecossistema (sem CPP próprio).
  */
-export function RadioCollectedCard({ campaignId, metaPlanned = 0 }: Props) {
+export function RadioCollectedCard({ campaignId, cppEco = 0 }: Props) {
   const [data, setData] = useState<RadioRow | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -48,16 +52,10 @@ export function RadioCollectedCard({ campaignId, metaPlanned = 0 }: Props) {
 
   if (loading || !data) return null;
 
-  const delta = data.delta_48h ?? 0;
-  const pctMeta = metaPlanned > 0
-    ? Math.min(999, Math.round((data.current_plays_7d / metaPlanned) * 100))
-    : null;
-  const DeltaIcon = delta > 0 ? TrendingUp : delta < 0 ? TrendingDown : Minus;
-  const deltaTone = delta > 0
-    ? "text-primary"
-    : delta < 0
-      ? "text-destructive"
-      : "text-muted-foreground";
+  const start = data.start_plays_7d ?? null;
+  const current = data.current_plays_7d ?? 0;
+  const delta = Math.max(0, data.radio_delta ?? 0);
+  const custoRadio = cppEco > 0 ? delta * cppEco : 0;
 
   return (
     <Card>
@@ -70,7 +68,7 @@ export function RadioCollectedCard({ campaignId, metaPlanned = 0 }: Props) {
             <div>
               <div className="text-sm font-semibold leading-none">Rádio Spotify</div>
               <div className="text-[11px] text-muted-foreground mt-1">
-                Coletado pelo bot · janela 7d
+                Entrega desde o início da campanha · janela 7d
               </div>
             </div>
           </div>
@@ -79,44 +77,49 @@ export function RadioCollectedCard({ campaignId, metaPlanned = 0 }: Props) {
           </span>
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           <div className="rounded-md border border-border/40 bg-background/40 px-3 py-2.5">
-            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Plays atuais</div>
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Início</div>
             <div className="text-[20px] font-semibold tabular-nums leading-none mt-1">
-              {formatInt(data.current_plays_7d)}
+              {start != null ? formatInt(start) : "—"}
             </div>
-          </div>
-
-          <div className="rounded-md border border-border/40 bg-background/40 px-3 py-2.5">
-            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Δ 48h</div>
-            <div className={`text-[20px] font-semibold tabular-nums leading-none mt-1 flex items-center gap-1 ${deltaTone}`}>
-              <DeltaIcon className="h-4 w-4" />
-              {delta > 0 ? "+" : ""}{formatInt(delta)}
-            </div>
-            {data.prior_captured_at && (
+            {data.start_captured_at && (
               <div className="text-[10px] text-muted-foreground/70 mt-1 truncate">
-                vs {formatDistanceToNow(new Date(data.prior_captured_at), { locale: ptBR, addSuffix: false })} atrás
+                {formatDistanceToNow(new Date(data.start_captured_at), { locale: ptBR, addSuffix: true })}
+              </div>
+            )}
+            {start == null && (
+              <div className="text-[10px] text-muted-foreground/70 mt-1">
+                aguardando baseline
               </div>
             )}
           </div>
 
           <div className="rounded-md border border-border/40 bg-background/40 px-3 py-2.5">
-            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
-              {metaPlanned > 0 ? "% da meta" : "Meta"}
-            </div>
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Atual</div>
             <div className="text-[20px] font-semibold tabular-nums leading-none mt-1">
-              {pctMeta != null ? `${pctMeta}%` : "—"}
+              {formatInt(current)}
             </div>
-            {metaPlanned > 0 && (
-              <div className="text-[10px] text-muted-foreground/70 mt-1">
-                de {formatInt(metaPlanned)}
-              </div>
-            )}
-            {metaPlanned === 0 && (
-              <div className="text-[10px] text-muted-foreground/70 mt-1">
-                não planejada
-              </div>
-            )}
+          </div>
+
+          <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2.5">
+            <div className="text-[10px] uppercase tracking-wide text-primary/80">Entregue</div>
+            <div className="text-[20px] font-semibold tabular-nums leading-none mt-1 text-primary">
+              +{formatInt(delta)}
+            </div>
+            <div className="text-[10px] text-muted-foreground/70 mt-1">
+              atual − início
+            </div>
+          </div>
+
+          <div className="rounded-md border border-border/40 bg-background/40 px-3 py-2.5">
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Custo</div>
+            <div className="text-[20px] font-semibold tabular-nums leading-none mt-1">
+              {cppEco > 0 ? formatBRL(custoRadio) : "—"}
+            </div>
+            <div className="text-[10px] text-muted-foreground/70 mt-1">
+              {cppEco > 0 ? `CPP eco R$ ${cppEco.toFixed(3)}` : "CPP eco indisponível"}
+            </div>
           </div>
         </div>
       </CardContent>
