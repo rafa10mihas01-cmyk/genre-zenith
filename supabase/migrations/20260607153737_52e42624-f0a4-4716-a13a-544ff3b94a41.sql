@@ -1,0 +1,1 @@
+ALTER VIEW public.campaign_radio_collected SET (security_invoker = on);
