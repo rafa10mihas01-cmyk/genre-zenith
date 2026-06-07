@@ -66,14 +66,15 @@ const sections: NavSection[] = [
         matchPaths: ["/prospeccao"],
         accent: "domain-curators",
       },
-      {
-        title: "Comunidade",
-        url: "/comunidade-admin",
-        icon: Users,
-        adminOnly: true,
-        matchPaths: ["/comunidade", "/comunidade/campanhas", "/comunidade/pontos", "/comunidade/conta"],
-        accent: "domain-community",
-      },
+      // Comunidade oculto do sidebar — acessível via Curadores (comunidade/prospecção).
+      // {
+      //   title: "Comunidade",
+      //   url: "/comunidade-admin",
+      //   icon: Users,
+      //   adminOnly: true,
+      //   matchPaths: ["/comunidade", "/comunidade/campanhas", "/comunidade/pontos", "/comunidade/conta"],
+      //   accent: "domain-community",
+      // },
       { title: "Campanhas", url: "/campanhas", icon: Target, accent: "domain-campaigns" },
       { title: "Financeiro", url: "/financeiro", icon: Wallet, accent: "domain-deals" },
       // Deals oculto do sidebar — acessível via Campanhas (aprovação/deals).
