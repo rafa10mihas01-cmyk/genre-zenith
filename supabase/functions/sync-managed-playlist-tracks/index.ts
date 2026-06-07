@@ -73,7 +73,32 @@ Deno.serve(async (req) => {
 
   // Propaga contexto pras chamadas Spotify deste request (listPlaylistTracksRich etc.)
   const ownerSpotifyId: string | null = (pl as any).owner_spotify_user_id ?? null;
+
+  // === Roteamento do app ANTES do guard ===
+  // Resolve o app real do owner via spotify_user_tokens. Sem isso o guard cai em
+  // getDefaultSpotifyAppId() (NexEngine 02 = is_default) e bloqueia o sync de
+  // playlists que pertencem a apps saudáveis quando o default está OPEN.
+  // Esta função roda em processo separado do diagnose, então o async-local ctx
+  // do caller NÃO atravessa o fetch HTTP — temos que reresolver aqui.
+  // Ver auditoria de 2026-06-07 (Fase 8.8.1).
+  let ownerAppId: string | null = null;
+  if (ownerSpotifyId) {
+    const { data: tokenRows } = await supabase
+      .from("spotify_user_tokens")
+      .select("app_id, is_default, updated_at")
+      .eq("spotify_user_id", ownerSpotifyId);
+    const rows = (tokenRows ?? []) as Array<{ app_id: string | null; is_default: boolean | null; updated_at: string | null }>;
+    const sorted = rows.slice().sort((a, b) => {
+      const da = a.is_default ? 1 : 0;
+      const db = b.is_default ? 1 : 0;
+      if (da !== db) return db - da;
+      return String(b.updated_at ?? "").localeCompare(String(a.updated_at ?? ""));
+    });
+    ownerAppId = sorted[0]?.app_id ?? null;
+  }
+
   setSpotifyCtx({
+    appId: ownerAppId,
     playlist_id: pl.id,
     owner_id: ownerSpotifyId,
     spotify_user_id: ownerSpotifyId,
@@ -92,7 +117,7 @@ Deno.serve(async (req) => {
 
   try {
     // 1) Fonte da verdade: Spotify (com ISRC via external_ids — fields default do helper já inclui)
-    const token = await getSpotifyToken();
+    const token = await getSpotifyToken({ appId: ownerAppId });
     const rich = await listPlaylistTracksRich(pl.spotify_playlist_id, token, {
       max: 10000,
       fields: "items(added_at,track(id,name,duration_ms,external_ids,artists(name),album(images))),next",

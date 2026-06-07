@@ -592,6 +592,8 @@ export async function getAppCredentials(
 export type GetSpotifyTokenOpts = {
   forceRefresh?: boolean;
   excludeAppIds?: string[];
+  /** Força usar um app específico (ex.: app do owner da playlist). Bypassa default global. */
+  appId?: string | null;
 };
 
 /** Versão estendida que retorna também o appId/appName usados. Útil pra failover. */
@@ -599,7 +601,9 @@ export async function getSpotifyTokenWithApp(
   opts: GetSpotifyTokenOpts = {},
 ): Promise<{ token: string; appId: string | null; appName: string }> {
   const supabase = db();
-  const creds = await getAppCredentials({ excludeAppIds: opts.excludeAppIds });
+  const creds = opts.appId
+    ? await getAppCredentials(opts.appId)
+    : await getAppCredentials({ excludeAppIds: opts.excludeAppIds });
   // Propaga app pra TODAS as chamadas Spotify subsequentes neste contexto async.
   enterCtx({ appId: creds.app_id, appName: creds.name });
   if (creds.app_id) appNameCache.set(creds.app_id, creds.name);
