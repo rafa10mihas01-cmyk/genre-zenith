@@ -16,6 +16,7 @@ import {
   replacePlaylistTracks,
   setPlaylistDetails,
 } from "../_shared/spotify-playlist.ts";
+import { getProtectedTracksForPlaylist, logProtectedBlock } from "../_shared/protected-tracks.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
