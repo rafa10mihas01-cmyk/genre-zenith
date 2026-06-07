@@ -1057,7 +1057,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
               </Card>
 
               {/* Fonte da meta */}
-              <Card>
+              <Card className="h-full">
                 <CardHeader>
                   <CardTitle className="text-sm">Fonte da meta</CardTitle>
                 </CardHeader>
