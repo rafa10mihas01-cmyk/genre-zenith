@@ -932,6 +932,8 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
 
 
 
+              {/* Música + Fonte da meta lado a lado (desktop) */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
               {/* Música */}
               <Card>
                 <CardHeader>
