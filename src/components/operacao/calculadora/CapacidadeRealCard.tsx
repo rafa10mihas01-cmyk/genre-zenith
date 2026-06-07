@@ -159,11 +159,18 @@ export function CapacidadeRealCard({ genre, dailyNeed, multiplier, clientProfile
   );
 }
 
-function Box({ label, value, accent }: { label: string; value: string; accent?: string }) {
+function Box({ label, value, accent, delta }: { label: string; value: string; accent?: string; delta?: number | null }) {
   return (
     <div className="flex flex-col gap-0.5 rounded-md border border-border/40 bg-background/40 px-2.5 py-2">
       <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</span>
-      <span className={cn("text-[15px] font-semibold tabular-nums leading-none", accent)}>{value}</span>
+      <div className="flex items-baseline gap-1.5">
+        <span className={cn("text-[15px] font-semibold tabular-nums leading-none", accent)}>{value}</span>
+        {typeof delta === "number" && Number.isFinite(delta) && delta !== 0 && (
+          <span className={cn("text-[10px] font-medium tabular-nums", delta > 0 ? "text-primary" : "text-destructive")}>
+            {delta > 0 ? "+" : ""}{delta}%
+          </span>
+        )}
+      </div>
     </div>
   );
 }
