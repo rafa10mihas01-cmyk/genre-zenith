@@ -13,7 +13,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { getSpotifyTokenWithApp, SpotifyAuthInvalidError, markAppAuthFailure } from "../_shared/spotify.ts";
+import { getSpotifyTokenWithApp, getUserAccessToken, SpotifyAuthInvalidError, markAppAuthFailure } from "../_shared/spotify.ts";
 import { listPlaylistTrackRefs, SpotifyApiError } from "../_shared/spotify-playlist.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 
@@ -46,10 +46,13 @@ Deno.serve(async (req) => {
     // 1. MINIMUM: todas as managed_playlists (com spotify_playlist_id) NÃO arquivadas
     const { data: managed } = await sb
       .from("managed_playlists")
-      .select("spotify_playlist_id")
+      .select("spotify_playlist_id, owner_spotify_user_id")
       .is("archived_at", null)
       .not("spotify_playlist_id", "is", null);
     const managedIds = new Set<string>((managed ?? []).map((m: any) => m.spotify_playlist_id));
+    // Mapa spotify_playlist_id → owner_spotify_user_id (pra escolher user token).
+    const managedOwnerBySpId = new Map<string, string | null>();
+    for (const m of (managed ?? []) as any[]) managedOwnerBySpId.set(m.spotify_playlist_id, m.owner_spotify_user_id ?? null);
 
     // 2. PLUS: leader + sample medium (por refresh_tier)
     const { data: targets } = await sb
@@ -107,10 +110,34 @@ Deno.serve(async (req) => {
       if (list.length >= Math.max(limit, managedIds.size + topByGenre.length)) break;
     }
 
-    // Token + appId iniciais (failover trocará durante o loop se necessário).
-    let { token, appId: currentAppId, appName: currentAppName } = await getSpotifyTokenWithApp();
+    // Token de app (client_credentials) — usado APENAS para playlists não-managed
+    // (descoberta via search_results / top-by-genre). Para managed playlists usamos
+    // owner user token. Init é LAZY: se todas as playlists do lote forem managed,
+    // não precisamos buscar app token (e portanto não falhamos se nenhum app
+    // estiver com client_credentials válidos).
+    let appToken: string | null = null;
+    let currentAppId: string | null = null;
+    let currentAppName: string = "";
     const triedApps = new Set<string>();
-    if (currentAppId) triedApps.add(currentAppId);
+    const ensureAppToken = async (): Promise<boolean> => {
+      if (appToken) return true;
+      try {
+        const r = await getSpotifyTokenWithApp({ excludeAppIds: Array.from(triedApps) });
+        appToken = r.token;
+        currentAppId = r.appId;
+        currentAppName = r.appName;
+        if (r.appId) triedApps.add(r.appId);
+        return true;
+      } catch (e) {
+        console.warn(`[snapshot] sem app token disponível: ${(e as Error).message}`);
+        return false;
+      }
+    };
+    // Cache owner-token por spotify_user_id pra evitar refresh em cada playlist.
+    const ownerTokenCache = new Map<string, string>();
+    const ownersWithoutToken = new Set<string>();
+    let owner_token_used = 0;
+    let owner_token_failed = 0;
 
     let inserted = 0;
     let unchanged = 0;
@@ -133,7 +160,7 @@ Deno.serve(async (req) => {
     const THROTTLE_MS = 400; // ~150 req/min, abaixo do limite ~180 do Spotify
     let rateLimitedHits = 0;
 
-    /** Tenta failover pro próximo app saudável. Retorna true se conseguiu, false se acabou o pool. */
+    /** Tenta failover pro próximo app saudável (só afeta APP TOKEN — playlists não-managed). */
     const tryFailover = async (reason: "AUTH_INVALID" | "AUTH_MISSING"): Promise<boolean> => {
       if (currentAppId) {
         await markAppAuthFailure(currentAppId, reason);
@@ -141,12 +168,12 @@ Deno.serve(async (req) => {
       }
       try {
         const next = await getSpotifyTokenWithApp({ excludeAppIds: Array.from(triedApps) });
-        token = next.token;
+        appToken = next.token;
         currentAppId = next.appId;
         currentAppName = next.appName;
         if (next.appId) triedApps.add(next.appId);
         failoverUsed = true;
-        console.warn(`[snapshot] failover → app=${currentAppName} (excluded=${Array.from(triedApps).join(",")})`);
+        console.warn(`[snapshot] app-token failover → app=${currentAppName} (excluded=${Array.from(triedApps).join(",")})`);
         return true;
       } catch (e) {
         console.error(`[snapshot] failover esgotado: ${(e as Error).message}`);
@@ -154,16 +181,49 @@ Deno.serve(async (req) => {
       }
     };
 
+    /** Resolve token apropriado pra UMA playlist:
+     *  - managed + owner com token OAuth  → user token (correto pra /tracks)
+     *  - caso contrário                   → app token (client_credentials)
+     *  Retorna também `isOwnerToken` pra o caller decidir se faz failover em 401.
+     */
+    const resolveTokenFor = async (spId: string): Promise<{ token: string | null; isOwnerToken: boolean; ownerId: string | null }> => {
+      const ownerId = managedOwnerBySpId.get(spId) ?? null;
+      if (ownerId && !ownersWithoutToken.has(ownerId)) {
+        const cached = ownerTokenCache.get(ownerId);
+        if (cached) return { token: cached, isOwnerToken: true, ownerId };
+        try {
+          const { token: ut } = await getUserAccessToken(ownerId);
+          ownerTokenCache.set(ownerId, ut);
+          owner_token_used++;
+          return { token: ut, isOwnerToken: true, ownerId };
+        } catch (e) {
+          owner_token_failed++;
+          ownersWithoutToken.add(ownerId);
+          console.warn(`[snapshot] owner ${ownerId} sem token válido (${(e as Error).message}); usando app token`);
+        }
+      }
+      await ensureAppToken();
+      return { token: appToken, isOwnerToken: false, ownerId };
+    };
+
     for (let idx = 0; idx < list.length; idx++) {
       if (authBreakerTriggered) break;
       const t = list[idx];
       if (idx > 0) await sleep(THROTTLE_MS);
 
-      // Helper: lista refs com 1 retry pra 429. 401 borbulha pro outer catch (failover).
+      // Resolve token apropriado pra ESTA playlist (owner token se for managed+OAuth).
+      const { token: callToken, isOwnerToken } = await resolveTokenFor(t.id);
+      if (!callToken) {
+        failed++;
+        if (failed_ids.length < 10) failed_ids.push(`${t.id}:no-token`);
+        continue;
+      }
+
+      // Helper: lista refs com 1 retry pra 429. 401 borbulha pro outer catch.
       const fetchRefs = async (): Promise<string[]> => {
         for (let attempt = 0; attempt < 2; attempt++) {
           try {
-            const refs = await listPlaylistTrackRefs(t.id, token);
+            const refs = await listPlaylistTrackRefs(t.id, callToken);
             return refs.map((r) => r.id).filter((x): x is string => !!x).slice(0, 50);
           } catch (e) {
             if (e instanceof SpotifyApiError && e.status === 429) {
@@ -186,8 +246,18 @@ Deno.serve(async (req) => {
           consecutiveAuthFailures = 0; // sucesso reseta streak local
           lastFailoverPlaylistId = null;
         } catch (e) {
-          // ── AUTH_INVALID: incrementa streak, tenta failover na 1ª, aborta no threshold.
+          // ── AUTH_INVALID
           if (e instanceof SpotifyAuthInvalidError) {
+            // Quando usamos OWNER TOKEN, 401 = problema do token do owner (re-auth necessário)
+            // OU restrição da própria playlist. Não acionamos failover de app (não ajudaria)
+            // nem alimentamos o streak global do app token.
+            if (isOwnerToken) {
+              console.warn(`[snapshot] 401 com owner token em ${t.id} — owner precisa reconectar`);
+              failed++;
+              if (failed_ids.length < 10) failed_ids.push(`${t.id}:401-owner`);
+              continue;
+            }
+
             // Se acabamos de fazer failover por causa DESTA mesma playlist e ela
             // 401 de novo com outro app, o problema é da playlist (privada/restrita),
             // não do token. Tratamos como 404: auto-archive em managed, sem alimentar streak.
@@ -221,7 +291,6 @@ Deno.serve(async (req) => {
                 if (failed_ids.length < 10) failed_ids.push(`${t.id}:401-no-failover`);
                 break;
               }
-              // Retenta a mesma playlist com novo app (decrementa idx).
               lastFailoverPlaylistId = t.id;
               idx--;
               continue;
@@ -299,6 +368,11 @@ Deno.serve(async (req) => {
         quarantined: quarantinedDuringRun,
         final_app_id: currentAppId,
         final_app_name: currentAppName,
+      },
+      owner_token: {
+        used: owner_token_used,
+        failed: owner_token_failed,
+        owners_without_token: Array.from(ownersWithoutToken),
       },
     };
 

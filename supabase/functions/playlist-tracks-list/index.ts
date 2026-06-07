@@ -3,7 +3,7 @@
 // Retorna: { ok, tracks: [{ spotify_track_id, name, artists, album_cover, duration_ms, added_at }] }
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getSpotifyToken, SpotifyCircuitOpenError } from "../_shared/spotify.ts";
+import { getSpotifyToken, getUserAccessToken, SpotifyCircuitOpenError, setSpotifyCtx } from "../_shared/spotify.ts";
 import {
   listPlaylistTracksRich,
   SpotifyApiError,
@@ -68,6 +68,7 @@ Deno.serve(async (req) => {
   // Aceita tanto playlists.id (canonical) quanto managed_playlists.id
   let spotifyPlaylistId: string | null = null;
   let managedPlaylistId: string | null = null;
+  let ownerSpotifyId: string | null = null;
   const { data: pl, error: plErr } = await supabase
     .from("playlists")
     .select("id, spotify_playlist_id")
@@ -79,21 +80,23 @@ Deno.serve(async (req) => {
   } else {
     const { data: mp, error: mpErr } = await supabase
       .from("managed_playlists")
-      .select("id, spotify_playlist_id")
+      .select("id, spotify_playlist_id, owner_spotify_user_id")
       .eq("id", playlist_id)
       .maybeSingle();
     if (mpErr) return jr({ ok: false, error: mpErr.message }, 500);
     spotifyPlaylistId = mp?.spotify_playlist_id ?? null;
     managedPlaylistId = mp?.id ?? null;
+    ownerSpotifyId = (mp as any)?.owner_spotify_user_id ?? null;
   }
-  // Mesmo vindo de `playlists`, tenta achar o managed equivalente pelo spotify_playlist_id pra ter cache.
+  // Mesmo vindo de `playlists`, tenta achar o managed equivalente pelo spotify_playlist_id pra ter cache + owner.
   if (!managedPlaylistId && spotifyPlaylistId) {
     const { data: mp2 } = await supabase
       .from("managed_playlists")
-      .select("id")
+      .select("id, owner_spotify_user_id")
       .eq("spotify_playlist_id", spotifyPlaylistId)
       .maybeSingle();
     managedPlaylistId = mp2?.id ?? null;
+    ownerSpotifyId = ownerSpotifyId ?? ((mp2 as any)?.owner_spotify_user_id ?? null);
   }
   if (!spotifyPlaylistId) {
     return jr({
@@ -126,7 +129,22 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const token = await getSpotifyToken();
+    // /v1/playlists/:id/items requer USER token (OAuth) — client_credentials retorna 401.
+    // Usa token do owner quando a playlist tem owner; só cai pra client_credentials se não houver.
+    let token: string;
+    if (ownerSpotifyId) {
+      const { token: userToken, row } = await getUserAccessToken(ownerSpotifyId);
+      token = userToken;
+      setSpotifyCtx({
+        appId: row?.app_id ?? null,
+        playlist_id: managedPlaylistId,
+        owner_id: ownerSpotifyId,
+        spotify_user_id: ownerSpotifyId,
+        function_name: "playlist-tracks-list",
+      });
+    } else {
+      token = await getSpotifyToken();
+    }
     const fetcher = makeThrottledFetcher();
     const rich = await listPlaylistTracksRich(spotifyPlaylistId, token, {
       max: 10000,
