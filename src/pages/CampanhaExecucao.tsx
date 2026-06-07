@@ -732,8 +732,9 @@ export default function CampanhaExecucao() {
               ) : null}
               <RadioCollectedCard
                 campaignId={camp.id}
-                metaPlanned={snapshot.streamsOrganic ?? 0}
+                cppEco={snapshot.streamsEco > 0 ? snapshot.custoEco / snapshot.streamsEco : 0}
               />
+
               <OverviewTab
                 snapshot={snapshot}
                 delivered={delivered}
