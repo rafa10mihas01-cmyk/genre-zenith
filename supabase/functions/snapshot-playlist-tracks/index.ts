@@ -213,6 +213,11 @@ Deno.serve(async (req) => {
 
       // Resolve token apropriado pra ESTA playlist (owner token se for managed+OAuth).
       const { token: callToken, isOwnerToken } = await resolveTokenFor(t.id);
+      if (!callToken) {
+        failed++;
+        if (failed_ids.length < 10) failed_ids.push(`${t.id}:no-token`);
+        continue;
+      }
 
       // Helper: lista refs com 1 retry pra 429. 401 borbulha pro outer catch.
       const fetchRefs = async (): Promise<string[]> => {
