@@ -81,10 +81,15 @@ export function OverviewTab({
   for (const s of snapshots) {
     if (!latestByPl.has(s.managed_playlist_id)) latestByPl.set(s.managed_playlist_id, s);
   }
-  const ecoDeliveredRaw = Array.from(latestByPl.values())
+  const ecoDeliveredPlaylists = Array.from(latestByPl.values())
     .reduce((acc, s) => acc + Number(s.plays_28d ?? s.plays_7d ?? 0), 0);
+  // Rádio entra no Ecossistema (mesma família de plays próprios), mas é
+  // mantida visualmente separada na linha de auditoria abaixo do SplitRow.
+  const radioDeliveredSafe = Math.max(0, Math.round(radioDelta));
+  const ecoDeliveredRaw = ecoDeliveredPlaylists + radioDeliveredSafe;
   const ecoDelivered = Math.min(ecoDeliveredRaw, delivered);
   const extDelivered = Math.max(0, delivered - ecoDelivered);
+
 
   // Valores fechados pela calculadora — única fonte da verdade.
   const ecoTarget = Math.max(0, Math.round(snapshot.streamsEco ?? 0));
