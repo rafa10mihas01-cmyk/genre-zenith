@@ -1742,13 +1742,16 @@ export default function CuratorPage() {
                             )}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-[12.5px] font-semibold leading-tight truncate group-hover:text-primary transition-colors">
                                 {p.playlist_name}
                               </span>
                               <span className="text-[9px] font-semibold uppercase tracking-wider shrink-0 px-1.5 py-0.5 rounded-full ring-1 leading-none text-primary bg-primary/10 ring-primary/20">
                                 Curador
                               </span>
+                              {Number(p.baseline_plays_prior ?? 0) > 0 && (
+                                <HistoricoPrevioBadge />
+                              )}
                             </div>
                             <div className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground tabular-nums">
                               {p.followers !== null && (
