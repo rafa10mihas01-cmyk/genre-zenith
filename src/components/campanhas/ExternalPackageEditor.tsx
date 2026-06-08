@@ -75,6 +75,7 @@ export function ExternalPackageEditor({
 }) {
   const [pkg, setPkg] = useState<PackageRow | null>(null);
   const [items, setItems] = useState<ItemRow[]>([]);
+  const [deliveryByCurator, setDeliveryByCurator] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
   const [reopenOpen, setReopenOpen] = useState(false);
@@ -106,6 +107,26 @@ export function ExternalPackageEditor({
       setPkg(p as any);
       setItems((its ?? []) as any);
       setCandidates(cand);
+
+      // Entregas reais por curador na campanha — soma deltas da view de crescimento.
+      // Fallback pra reconciled_total_plays quando o cron de deals ainda não rodou
+      // ou quando a fonte de verdade vem de campaign_playlist_collections (Plug/Manolo).
+      try {
+        const { data: rows } = await (supabase as any)
+          .from("vw_campaign_playlist_growth")
+          .select("attributed_curator_id, delta")
+          .eq("campaign_id", campaignId)
+          .not("attributed_curator_id", "is", null);
+        const map: Record<string, number> = {};
+        for (const r of (rows ?? []) as Array<{ attributed_curator_id: string; delta: number | null }>) {
+          const v = Math.max(0, Number(r.delta ?? 0));
+          map[r.attributed_curator_id] = (map[r.attributed_curator_id] ?? 0) + v;
+        }
+        setDeliveryByCurator(map);
+      } catch (e) {
+        console.warn("[ExternalPackageEditor] growth view fetch failed", e);
+      }
+
       onChanged?.();
     } catch (e: any) {
       toast({ title: "Erro ao carregar pacote", description: e.message ?? String(e), variant: "destructive" });
@@ -431,7 +452,7 @@ export function ExternalPackageEditor({
             {isDispatched ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {items.map((it) => (
-                  <CuratorCard key={it.id} item={it} />
+                  <CuratorCard key={it.id} item={it} deliveredOverride={deliveryByCurator[it.curator_id]} />
                 ))}
               </div>
             ) : (
@@ -608,7 +629,7 @@ export function ExternalPackageEditor({
   );
 }
 
-function CuratorCard({ item }: { item: ItemRow }) {
+function CuratorCard({ item, deliveredOverride }: { item: ItemRow; deliveredOverride?: number }) {
   const name = item.curators?.name ?? "—";
   const initials = name
     .split(/\s+/)
@@ -619,7 +640,10 @@ function CuratorCard({ item }: { item: ItemRow }) {
     .toUpperCase() || "—";
 
   const deal = item.curator_deals;
-  const delivered = Number(deal?.reconciled_total_plays ?? 0);
+  const reconciled = Number(deal?.reconciled_total_plays ?? 0);
+  // Prioriza a entrega vinda da view de crescimento da campanha (fonte de verdade
+  // pós-backfill A+B). Cai pro reconciled_total_plays só quando a view está vazia.
+  const delivered = (deliveredOverride && deliveredOverride > 0) ? deliveredOverride : reconciled;
   const planned = Math.max(0, Number(item.assigned_streams ?? 0));
   const pct = planned > 0 ? Math.min(100, Math.round((delivered / planned) * 100)) : 0;
 
