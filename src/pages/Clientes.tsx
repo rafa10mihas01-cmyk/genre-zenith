@@ -102,7 +102,7 @@ export default function Clientes() {
       <PageContainer>
 
       {/* KPIs — hierarquia cockpit: hero (Clientes) + secundários + quiet (histórico) */}
-      <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KpiBig
           tier="hero"
           icon={Users}
