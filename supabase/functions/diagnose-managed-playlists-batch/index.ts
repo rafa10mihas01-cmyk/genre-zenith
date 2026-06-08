@@ -87,11 +87,11 @@ Deno.serve(async (req) => {
         payload: { skip_ai: !useAi, source: "batch" },
       });
       if (enq.ok && (enq as any).skipped) {
-        results.push({ id: r.id, ok: true, skipped: true });
+        results.push({ id: r.id, ok: true, skipped: true, ai: useAi });
       } else if (enq.ok) {
-        results.push({ id: r.id, ok: true });
+        results.push({ id: r.id, ok: true, ai: useAi });
       } else {
-        results.push({ id: r.id, ok: false, error: enq.error });
+        results.push({ id: r.id, ok: false, error: enq.error, ai: useAi });
       }
     }
 
