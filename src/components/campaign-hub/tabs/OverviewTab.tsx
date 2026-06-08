@@ -88,9 +88,16 @@ export function OverviewTab({
   // Rádio entra no Ecossistema (mesma família de plays próprios), mas é
   // mantida visualmente separada na linha de auditoria abaixo do SplitRow.
   const radioDeliveredSafe = Math.max(0, Math.round(radioDelta));
-  const ecoDeliveredRaw = ecoDeliveredPlaylists + radioDeliveredSafe;
-  const ecoDelivered = Math.min(ecoDeliveredRaw, delivered);
-  const extDelivered = Math.max(0, delivered - ecoDelivered);
+  // Fonte de verdade: deliveryBreakdown (view vw_campaign_playlist_growth) quando disponível.
+  // Cai pro cálculo legado por campaign_eco_snapshots quando a view ainda não enviou nada.
+  const useBreakdown = !!deliveryBreakdown && (deliveryBreakdown.curators + deliveryBreakdown.ecosystem + deliveryBreakdown.organic) > 0;
+  const ecoDelivered = useBreakdown
+    ? deliveryBreakdown!.ecosystem + radioDeliveredSafe
+    : Math.min(ecoDeliveredPlaylists + radioDeliveredSafe, delivered);
+  const extDelivered = useBreakdown
+    ? deliveryBreakdown!.curators
+    : Math.max(0, delivered - ecoDelivered);
+  const orgDelivered = useBreakdown ? deliveryBreakdown!.organic : 0;
 
 
   // Valores fechados pela calculadora — única fonte da verdade.
