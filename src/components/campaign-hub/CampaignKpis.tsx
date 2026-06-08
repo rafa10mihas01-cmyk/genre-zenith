@@ -16,7 +16,7 @@ export function CampaignKpis({ snapshot, delivered, daysElapsed }: Props) {
   const adherence = plannedToDate > 0 ? Math.round((delivered / plannedToDate) * 100) : 0;
 
   return (
-    <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
+    <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
       <KpiBig
         tier="hero"
         icon={Activity}

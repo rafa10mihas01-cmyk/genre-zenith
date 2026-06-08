@@ -168,7 +168,7 @@ export default function Prospecao() {
 
       {/* Ativos: KPI grid original (mobile + desktop). Prospecção: funil único no mobile. */}
       {segment === "ativos" ? (
-        <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <KpiBig tier="hero" icon={Users} label="Curadores" value={formatNumber(kpisAtivos.curadores)} hint="Ativos na biblioteca" domain="curators" loading={loading} />
           <KpiBig icon={Activity} label="Deals ativos" value={formatNumber(kpisAtivos.dealsAtivos)} hint="Negociações em andamento" domain="campaigns" loading={loading} />
           <KpiBig icon={DollarSign} label="Receita" value={formatBRL(kpisAtivos.receita)} hint="Total investido em curadoria" domain="deals" loading={loading} />
@@ -187,7 +187,7 @@ export default function Prospecao() {
             </div>
           </section>
           {/* DESKTOP — KPIs completos */}
-          <section className="hidden lg:grid grid-cols-2 md:grid-cols-5 gap-3">
+          <section className="hidden lg:grid grid-cols-2 md:grid-cols-4 gap-3">
             <KpiBig tier="hero" icon={UserSearch} label="Leads" value={formatNumber(outreach.leads)} hint="Curadores na base de prospecção" domain="curators" loading={outreach.loading} />
             <KpiBig icon={Send} label="Contatados" value={formatNumber(outreach.contatados)} hint="Curadores que receberam abordagem" domain="campaigns" loading={outreach.loading} />
             <KpiBig icon={Mail} label="Taxa de resposta" value={`${taxaResposta.toFixed(0)}%`} hint={`${formatNumber(outreach.respondidos)} respostas`} domain="campaigns" loading={outreach.loading} />

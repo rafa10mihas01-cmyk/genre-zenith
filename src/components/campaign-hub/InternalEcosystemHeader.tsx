@@ -44,7 +44,7 @@ export function InternalEcosystemHeader({
   const fmtDeltaBRL = (n: number) => `${n > 0 ? "+" : ""}${formatBRL(n)} vs snapshot`;
 
   return (
-    <section className="grid grid-cols-2 md:grid-cols-6 gap-3">
+    <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
       <KpiBig
         tier="hero"
         icon={BarChart3}
