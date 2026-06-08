@@ -62,16 +62,31 @@ export default function CampanhaDetalhe() {
   const load = useCallback(async () => {
     if (!id) return;
     setLoading(true);
-    const [c, a] = await Promise.all([
+    const [c, a, g] = await Promise.all([
       supabase.from("campaigns").select("*").eq("id", id).maybeSingle(),
       supabase.from("campaign_allocations")
         .select("id, playlist_id, target_plays, delivered_plays, status, position, playlists(name, followers, cover_url)")
         .eq("campaign_id", id)
         .order("position"),
+      // Fonte de verdade — mesma usada por Execução / OverviewTab / Lista de Campanhas
+      supabase.from("vw_campaign_playlist_growth")
+        .select("attributed_to, delta")
+        .eq("campaign_id", id),
     ]);
     setLoading(false);
     if (c.error) toast({ title: "Erro", description: c.error.message, variant: "destructive" });
-    setCamp((c.data as any) ?? null);
+    const campData = (c.data as any) ?? null;
+    if (campData && Array.isArray(g.data)) {
+      // Curadores + Ecossistema (exclui orgânico) — alinhado à Execução
+      const deliveredFromView = (g.data as Array<{ attributed_to: string | null; delta: number | null }>).reduce((acc, r) => {
+        const at = r.attributed_to ?? "";
+        if (at === "organic") return acc;
+        if (at === "ecosystem" || at.startsWith("curator:")) return acc + Number(r.delta ?? 0);
+        return acc;
+      }, 0);
+      campData.total_delivered = deliveredFromView;
+    }
+    setCamp(campData);
     setAllocs((a.data as any) ?? []);
   }, [id]);
 
