@@ -745,6 +745,9 @@ function CuratorCard({ item, delivery }: { item: ItemRow; delivery?: CuratorDeli
             {hasPrior && <HistoricoPrevioBadge />}
           </div>
         )}
+        {hasPrior && (
+          <HistoricoPrevioRecommendation variant="long" className="pt-1" />
+        )}
       </div>
 
       {item.curator_deal_id ? (
