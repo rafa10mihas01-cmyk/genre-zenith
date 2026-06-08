@@ -9,7 +9,7 @@ import { PlaylistHistoryDrawer } from "./PlaylistHistoryDrawer";
 import { PrintThumbs } from "@/components/playlist-deals/PrintThumbs";
 import { SaudeView } from "./SaudeView";
 
-type Props = { campaignId: string };
+type Props = { campaignId: string; headerSlot?: React.ReactNode };
 
 type BaselineTone = "success" | "warning" | "muted";
 
