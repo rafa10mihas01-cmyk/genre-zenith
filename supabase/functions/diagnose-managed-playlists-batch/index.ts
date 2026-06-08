@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
 
     let query = supabase
       .from("managed_playlists")
-      .select("id, name, genre_id, last_diagnosis_at")
+      .select("id, name, genre_id, last_diagnosis_at, followers")
       .is("archived_at", null)
       .eq("diagnose_blocked", false)
       .or(`last_diagnosis_at.is.null,last_diagnosis_at.lt.${cutoff}`)
