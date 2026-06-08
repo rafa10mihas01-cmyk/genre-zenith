@@ -106,7 +106,7 @@ export function useCampaigns() {
 
       // Agrega entrega real por campanha via view (exclui organic).
       const deliveredByCamp = new Map<string, number>();
-      for (const r of (growthRows ?? []) as Array<{ campaign_id: string; attributed_to: string | null; delta: number | null }>) {
+      for (const r of ((growthRows ?? []) as unknown) as Array<{ campaign_id: string; attributed_to: string | null; delta: number | null }>) {
         const at = r.attributed_to ?? "";
         if (at === "organic") continue;
         if (!(at === "ecosystem" || at.startsWith("curator:"))) continue;
