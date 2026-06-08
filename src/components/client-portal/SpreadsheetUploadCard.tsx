@@ -477,9 +477,9 @@ export function SpreadsheetUploadCard({
               {recentUploads.slice(0, 5).map((u) => (
                 <li
                   key={u.id}
-                  className="flex items-center justify-between text-[12px] text-muted-foreground"
+                  className="flex items-center justify-between gap-2 text-[12px] text-muted-foreground"
                 >
-                  <span className="truncate">
+                  <span className="truncate shrink-0">
                     {new Date(u.created_at).toLocaleDateString("pt-BR", {
                       day: "2-digit",
                       month: "short",
@@ -487,9 +487,26 @@ export function SpreadsheetUploadCard({
                       minute: "2-digit",
                     })}
                   </span>
-                  <span>
+                  <span className="truncate text-right flex-1">
                     {u.rows_imported} playlists · {fmtNumber(u.total_streams)} streams
                   </span>
+                  {isAdmin && u.file_path && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground shrink-0"
+                      onClick={() => handleDownloadUpload(u)}
+                      disabled={downloadingId === u.id}
+                      title={u.file_name ?? "Baixar planilha original"}
+                    >
+                      {downloadingId === u.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Download className="h-3 w-3" />
+                      )}
+                    </Button>
+                  )}
                 </li>
               ))}
             </ul>
