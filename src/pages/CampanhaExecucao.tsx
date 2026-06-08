@@ -787,6 +787,7 @@ export default function CampanhaExecucao() {
                 allocations={allocs}
                 snapshots={snaps}
                 radioDelta={radioDelta}
+                deliveryBreakdown={deliveryBreakdown}
 
                 proofs={proofs.map(p => ({
                   id: p.id,
