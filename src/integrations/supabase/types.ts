@@ -4810,6 +4810,198 @@ export type Database = {
         }
         Relationships: []
       }
+      genre_reference_artists: {
+        Row: {
+          artist_name: string
+          artist_norm: string
+          authority_score: number
+          genre_id: string
+          genre_name: string
+          genres_present: number
+          id: string
+          playlists_in_genre: number
+          purity_pct: number
+          rank_in_genre: number | null
+          run_id: string
+          total_instances_all_genres: number
+          track_instances_in_genre: number
+        }
+        Insert: {
+          artist_name: string
+          artist_norm: string
+          authority_score?: number
+          genre_id: string
+          genre_name: string
+          genres_present?: number
+          id?: string
+          playlists_in_genre?: number
+          purity_pct?: number
+          rank_in_genre?: number | null
+          run_id: string
+          total_instances_all_genres?: number
+          track_instances_in_genre?: number
+        }
+        Update: {
+          artist_name?: string
+          artist_norm?: string
+          authority_score?: number
+          genre_id?: string
+          genre_name?: string
+          genres_present?: number
+          id?: string
+          playlists_in_genre?: number
+          purity_pct?: number
+          rank_in_genre?: number | null
+          run_id?: string
+          total_instances_all_genres?: number
+          track_instances_in_genre?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "genre_reference_artists_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "genre_reference_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      genre_reference_playlists: {
+        Row: {
+          authority_score: number
+          followers: number | null
+          genre_id: string
+          genre_name: string
+          id: string
+          internal_purity_pct: number
+          playlist_id: string
+          playlist_name: string | null
+          rank_in_genre: number | null
+          run_id: string
+          tracks_authority_in_genre: number
+          tracks_total: number
+        }
+        Insert: {
+          authority_score?: number
+          followers?: number | null
+          genre_id: string
+          genre_name: string
+          id?: string
+          internal_purity_pct?: number
+          playlist_id: string
+          playlist_name?: string | null
+          rank_in_genre?: number | null
+          run_id: string
+          tracks_authority_in_genre?: number
+          tracks_total?: number
+        }
+        Update: {
+          authority_score?: number
+          followers?: number | null
+          genre_id?: string
+          genre_name?: string
+          id?: string
+          internal_purity_pct?: number
+          playlist_id?: string
+          playlist_name?: string | null
+          rank_in_genre?: number | null
+          run_id?: string
+          tracks_authority_in_genre?: number
+          tracks_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "genre_reference_playlists_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "genre_reference_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      genre_reference_runs: {
+        Row: {
+          finished_at: string | null
+          id: string
+          notes: Json | null
+          started_at: string
+        }
+        Insert: {
+          finished_at?: string | null
+          id?: string
+          notes?: Json | null
+          started_at?: string
+        }
+        Update: {
+          finished_at?: string | null
+          id?: string
+          notes?: Json | null
+          started_at?: string
+        }
+        Relationships: []
+      }
+      genre_reference_tracks: {
+        Row: {
+          artist_name: string
+          authority_score: number
+          genre_id: string
+          genre_name: string
+          genres_present: number
+          id: string
+          instances_in_genre: number
+          playlists_in_genre: number
+          purity_pct: number
+          rank_in_genre: number | null
+          run_id: string
+          spotify_track_id: string | null
+          total_instances_all_genres: number
+          track_key: string
+          track_name: string
+        }
+        Insert: {
+          artist_name: string
+          authority_score?: number
+          genre_id: string
+          genre_name: string
+          genres_present?: number
+          id?: string
+          instances_in_genre?: number
+          playlists_in_genre?: number
+          purity_pct?: number
+          rank_in_genre?: number | null
+          run_id: string
+          spotify_track_id?: string | null
+          total_instances_all_genres?: number
+          track_key: string
+          track_name: string
+        }
+        Update: {
+          artist_name?: string
+          authority_score?: number
+          genre_id?: string
+          genre_name?: string
+          genres_present?: number
+          id?: string
+          instances_in_genre?: number
+          playlists_in_genre?: number
+          purity_pct?: number
+          rank_in_genre?: number | null
+          run_id?: string
+          spotify_track_id?: string | null
+          total_instances_all_genres?: number
+          track_key?: string
+          track_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "genre_reference_tracks_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "genre_reference_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       genre_seo_lexicon: {
         Row: {
           first_seen: string
