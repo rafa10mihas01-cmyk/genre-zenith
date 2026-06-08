@@ -231,7 +231,7 @@ export function OverviewTab({
         {orgTarget > 0 && (
           <SplitRow
             tone="org"
-            label="Orgânico"
+            label="Rádio"
             metaTotal={orgTarget}
             metaPct={orgPctOfMeta}
             deliveredTotal={0}
