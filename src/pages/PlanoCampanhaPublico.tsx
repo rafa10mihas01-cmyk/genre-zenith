@@ -141,6 +141,8 @@ export default function PlanoCampanhaPublico() {
   const [forecast, setForecast] = useState<ForecastPayload | null>(null);
   const [genresUsed, setGenresUsed] = useState<GenreUsed[]>([]);
   const [organicSummary, setOrganicSummary] = useState<{ total_plays?: number; by_kind?: Record<string, number> } | null>(null);
+  // Entregue real — fonte de verdade vw_campaign_playlist_growth (curadores + ecossistema, exclui orgânico)
+  const [deliveredFromView, setDeliveredFromView] = useState<number | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -264,6 +266,29 @@ export default function PlanoCampanhaPublico() {
     return () => { cancelled = true; };
   }, [clientToken]);
 
+  // Fonte de verdade do "Entregue" — mesma usada na Execução / OverviewTab / Lista de Campanhas.
+  // Substitui campaigns.total_delivered (legado).
+  useEffect(() => {
+    const campaignId = (camp as any)?.id;
+    if (!campaignId) { setDeliveredFromView(null); return; }
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("vw_campaign_playlist_growth")
+        .select("attributed_to, delta")
+        .eq("campaign_id", campaignId);
+      if (cancelled || error || !Array.isArray(data)) return;
+      const total = (data as Array<{ attributed_to: string | null; delta: number | null }>).reduce((acc, r) => {
+        const at = r.attributed_to ?? "";
+        if (at === "organic") return acc;
+        if (at === "ecosystem" || at.startsWith("curator:")) return acc + Number(r.delta ?? 0);
+        return acc;
+      }, 0);
+      setDeliveredFromView(total);
+    })();
+    return () => { cancelled = true; };
+  }, [(camp as any)?.id]);
+
   const snapshot = camp?.simulation_snapshot ?? null;
 
   const ecoPositionByAllocation = useMemo(() => {
@@ -364,7 +389,7 @@ export default function PlanoCampanhaPublico() {
 
   const isApproved = !!camp.client_approved_at;
   const isRejected = !!camp.client_rejected_at && !isApproved;
-  const delivered = camp.total_delivered ?? 0;
+  const delivered = deliveredFromView ?? (camp.total_delivered ?? 0);
   const lastUpdateAt = proofEvents[0]?.captured_at ?? camp.started_at;
 
   // View minimalista: só o mapa de distribuição (compartilhado via ?view=mapa)
