@@ -148,7 +148,7 @@ Deno.serve(async (req) => {
     const fetcher = makeThrottledFetcher();
     const rich = await listPlaylistTracksRich(spotifyPlaylistId, token, {
       max: 10000,
-      fields: "items(added_at,track(id,name,duration_ms,artists(name),album(images))),next",
+      fields: "items(added_at,track(id,name,duration_ms,artists(name),album(images)),item(id,name,duration_ms,artists(name),album(images))),next",
       fetcher,
     });
     const out = rich
