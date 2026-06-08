@@ -7018,6 +7018,138 @@ export type Database = {
         }
         Relationships: []
       }
+      playlist_dna_shadow: {
+        Row: {
+          avg_track_age_days: number | null
+          classification: string | null
+          classification_confidence: number | null
+          classification_reasons: Json | null
+          computed_at: string
+          confidence_bucket: string | null
+          dominant_genre_id: string | null
+          dominant_genre_name: string | null
+          dominant_genre_pct: number | null
+          dominant_subgenre_id: string | null
+          dominant_subgenre_name: string | null
+          dominant_subgenre_pct: number | null
+          genre_distribution: Json | null
+          id: string
+          median_track_age_days: number | null
+          playlist_id: string
+          purity_score: number | null
+          run_id: string
+          subgenre_distribution: Json | null
+          top_artists: Json | null
+          tracks_analyzed: number | null
+          tracks_matched: number | null
+          unique_artists_count: number | null
+        }
+        Insert: {
+          avg_track_age_days?: number | null
+          classification?: string | null
+          classification_confidence?: number | null
+          classification_reasons?: Json | null
+          computed_at?: string
+          confidence_bucket?: string | null
+          dominant_genre_id?: string | null
+          dominant_genre_name?: string | null
+          dominant_genre_pct?: number | null
+          dominant_subgenre_id?: string | null
+          dominant_subgenre_name?: string | null
+          dominant_subgenre_pct?: number | null
+          genre_distribution?: Json | null
+          id?: string
+          median_track_age_days?: number | null
+          playlist_id: string
+          purity_score?: number | null
+          run_id: string
+          subgenre_distribution?: Json | null
+          top_artists?: Json | null
+          tracks_analyzed?: number | null
+          tracks_matched?: number | null
+          unique_artists_count?: number | null
+        }
+        Update: {
+          avg_track_age_days?: number | null
+          classification?: string | null
+          classification_confidence?: number | null
+          classification_reasons?: Json | null
+          computed_at?: string
+          confidence_bucket?: string | null
+          dominant_genre_id?: string | null
+          dominant_genre_name?: string | null
+          dominant_genre_pct?: number | null
+          dominant_subgenre_id?: string | null
+          dominant_subgenre_name?: string | null
+          dominant_subgenre_pct?: number | null
+          genre_distribution?: Json | null
+          id?: string
+          median_track_age_days?: number | null
+          playlist_id?: string
+          purity_score?: number | null
+          run_id?: string
+          subgenre_distribution?: Json | null
+          top_artists?: Json | null
+          tracks_analyzed?: number | null
+          tracks_matched?: number | null
+          unique_artists_count?: number | null
+        }
+        Relationships: []
+      }
+      playlist_dna_shadow_runs: {
+        Row: {
+          failed: number | null
+          finished_at: string | null
+          hibrida: number | null
+          id: string
+          insufficient: number | null
+          lexicon_source: string | null
+          nicho: number | null
+          notes: Json | null
+          processed: number | null
+          proposals_applied: number | null
+          scope: string | null
+          started_at: string
+          tematica: number | null
+          tendencia: number | null
+          total_candidates: number | null
+        }
+        Insert: {
+          failed?: number | null
+          finished_at?: string | null
+          hibrida?: number | null
+          id?: string
+          insufficient?: number | null
+          lexicon_source?: string | null
+          nicho?: number | null
+          notes?: Json | null
+          processed?: number | null
+          proposals_applied?: number | null
+          scope?: string | null
+          started_at?: string
+          tematica?: number | null
+          tendencia?: number | null
+          total_candidates?: number | null
+        }
+        Update: {
+          failed?: number | null
+          finished_at?: string | null
+          hibrida?: number | null
+          id?: string
+          insufficient?: number | null
+          lexicon_source?: string | null
+          nicho?: number | null
+          notes?: Json | null
+          processed?: number | null
+          proposals_applied?: number | null
+          scope?: string | null
+          started_at?: string
+          tematica?: number | null
+          tendencia?: number | null
+          total_candidates?: number | null
+        }
+        Relationships: []
+      }
       playlist_drift_snapshots: {
         Row: {
           captured_at: string
