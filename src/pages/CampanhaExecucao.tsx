@@ -604,9 +604,12 @@ export default function CampanhaExecucao() {
   }, [camp, snapshot]);
 
   // Entrega real vinda da view de crescimento (fonte de verdade pós-backfill A+B).
-  // Inclui playlists vindas de planilhas (Plug/Manolo) que o cron `recalc_campaign_progress`
-  // não enxerga. Cai pro total_delivered legado quando a view está vazia.
-  const [deliveredFromView, setDeliveredFromView] = useState<number | null>(null);
+  // Separa por origem da atribuição:
+  //   - curator:<id> → entrega de curador (operação comercial)
+  //   - ecosystem    → playlists próprias
+  //   - organic      → playlists sem dono, detectadas pelo bot (NÃO entra no KPI principal)
+  // O header soma APENAS curadores + ecossistema. Orgânico aparece como subtexto auditável.
+  const [deliveryBreakdown, setDeliveryBreakdown] = useState<{ curators: number; ecosystem: number; organic: number } | null>(null);
   useEffect(() => {
     if (!camp?.id) return;
     let cancel = false;
@@ -614,12 +617,19 @@ export default function CampanhaExecucao() {
       try {
         const { data } = await (supabase as any)
           .from("vw_campaign_playlist_growth")
-          .select("delta")
+          .select("delta, attributed_to")
           .eq("campaign_id", camp.id);
         if (cancel) return;
-        const sum = ((data ?? []) as Array<{ delta: number | null }>)
-          .reduce((s, r) => s + Math.max(0, Number(r.delta ?? 0)), 0);
-        setDeliveredFromView(sum);
+        const acc = { curators: 0, ecosystem: 0, organic: 0 };
+        for (const r of (data ?? []) as Array<{ delta: number | null; attributed_to: string | null }>) {
+          const v = Math.max(0, Number(r.delta ?? 0));
+          if (v === 0) continue;
+          const tag = r.attributed_to ?? "";
+          if (tag.startsWith("curator:")) acc.curators += v;
+          else if (tag === "ecosystem") acc.ecosystem += v;
+          else acc.organic += v; // organic ou nulo — não conta no KPI
+        }
+        setDeliveryBreakdown(acc);
       } catch (e) {
         console.warn("[CampanhaExecucao] growth view fetch failed", e);
       }
@@ -627,8 +637,11 @@ export default function CampanhaExecucao() {
     return () => { cancel = true; };
   }, [camp?.id]);
 
-  const delivered = (deliveredFromView ?? 0) > 0
-    ? (deliveredFromView as number)
+  const operationalDelivered = deliveryBreakdown
+    ? deliveryBreakdown.curators + deliveryBreakdown.ecosystem
+    : 0;
+  const delivered = operationalDelivered > 0
+    ? operationalDelivered
     : (camp?.total_delivered ?? 0);
 
   // Rádio Spotify — baseline ancorada na ativação da campanha (atual - início).
