@@ -216,6 +216,8 @@ export type CuratorDealProgress = {
   progress_pct?: number | null;
   eta_days?: number | null;
   target_plays?: number | null;
+  /** Entrega de hoje (delta últimas 24h ou daily_avg como aproximação). */
+  today_plays?: number | null;
 };
 
 export function computeCuratorStats(
