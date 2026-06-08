@@ -729,6 +729,7 @@ export default function CampanhaExecucao() {
         onTabChange={setTab}
         
         delivered={delivered}
+        deliveryBreakdown={deliveryBreakdown}
         goal={snapshot.meta}
         daysElapsed={daysElapsed}
         daysTotal={snapshot.days}
