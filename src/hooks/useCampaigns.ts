@@ -104,14 +104,27 @@ export function useCampaigns() {
         clientEmailById.set(cl.id, cl.email ?? null);
       }
 
+      // Agrega entrega real por campanha via view (exclui organic).
+      const deliveredByCamp = new Map<string, number>();
+      for (const r of (growthRows ?? []) as Array<{ campaign_id: string; attributed_to: string | null; delta: number | null }>) {
+        const at = r.attributed_to ?? "";
+        if (at === "organic") continue;
+        if (!(at === "ecosystem" || at.startsWith("curator:"))) continue;
+        deliveredByCamp.set(r.campaign_id, (deliveredByCamp.get(r.campaign_id) ?? 0) + Number(r.delta ?? 0));
+      }
+
       return campaigns.map((c) => ({
         ...c,
+        // Sobrescreve total_delivered pra exibição da lista com a fonte de verdade.
+        // Não altera o campo no banco — só o que a lista renderiza.
+        total_delivered: deliveredByCamp.has(c.id) ? deliveredByCamp.get(c.id)! : c.total_delivered,
         baseline_pending: false,
         // Prioridade: valor da própria campaign > fallback do deal.
         baseline_captured_at: (c as any).baseline_captured_at ?? dealBaselineByCamp.get(c.id) ?? null,
         access_emails_count: accessCount.get(c.id) ?? 0,
         client_email: c.client_id ? clientEmailById.get(c.client_id) ?? null : null,
       }));
+
     },
   });
 
