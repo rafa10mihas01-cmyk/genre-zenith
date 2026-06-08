@@ -1785,7 +1785,8 @@ export default function CuratorPage() {
                     </li>
                   );
                 })}
-              </ul>
+                </ul>
+              </>
             )}
           </CardContent>
         </Card>
