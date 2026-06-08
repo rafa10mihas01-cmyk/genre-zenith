@@ -458,11 +458,14 @@ export function ExternalPackageEditor({
             )}
 
             {isDispatched ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {items.map((it) => (
-                  <CuratorCard key={it.id} item={it} deliveredOverride={deliveryByCurator[it.curator_id]} />
-                ))}
-              </div>
+              <>
+                <DeliveryTransparencyBanner deliveryByCurator={deliveryByCurator} />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {items.map((it) => (
+                    <CuratorCard key={it.id} item={it} delivery={deliveryByCurator[it.curator_id]} />
+                  ))}
+                </div>
+              </>
             ) : (
             <div className="overflow-x-auto rounded-md border border-border">
               <table className="w-full text-xs border-collapse">
