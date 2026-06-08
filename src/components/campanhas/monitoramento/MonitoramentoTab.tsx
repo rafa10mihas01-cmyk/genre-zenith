@@ -111,6 +111,7 @@ export function MonitoramentoTab({ campaignId, headerSlot }: Props) {
         runs={runs}
         runsLoading={runsLoading}
       />
+      {headerSlot}
 
       <Tabs value={subtab} onValueChange={setSubtab} className="space-y-4">
         <TabsContent value="visao" className="mt-0">
