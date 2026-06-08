@@ -86,7 +86,35 @@ export function SpreadsheetUploadCard({
   onUploaded,
   approved = true,
 }: Props) {
+  const { isAdmin } = useUserRole();
   const inputRef = useRef<HTMLInputElement>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  const handleDownloadUpload = async (u: Upload) => {
+    if (!u.file_path) {
+      toast.error("Arquivo original não disponível pra esse upload");
+      return;
+    }
+    setDownloadingId(u.id);
+    try {
+      const { data, error } = await supabase.storage
+        .from("label-spreadsheets")
+        .createSignedUrl(u.file_path, 60);
+      if (error || !data?.signedUrl) throw error ?? new Error("Falha ao gerar link");
+      const a = document.createElement("a");
+      a.href = data.signedUrl;
+      a.download = u.file_name ?? "planilha.xlsx";
+      a.target = "_blank";
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao baixar planilha");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [phase, setPhase] = useState<"idle" | "previewing" | "previewed" | "done">("idle");
