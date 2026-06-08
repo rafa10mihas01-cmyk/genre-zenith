@@ -18,7 +18,10 @@ import {
 } from "@/lib/externalPackage";
 import { Link } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Trash2, Users, AlertTriangle, CheckCircle2, Plus, Search, BarChart3, CalendarClock, DollarSign, Target, Lock, ExternalLink, Pencil } from "lucide-react";
+import { Loader2, Trash2, Users, AlertTriangle, CheckCircle2, Plus, Search, BarChart3, CalendarClock, DollarSign, Target, Lock, ExternalLink, Pencil, History, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+export type CuratorDelivery = { total: number; clean: number; prior: number };
 import { KpiBig } from "@/components/KpiBig";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
