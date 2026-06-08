@@ -87,6 +87,7 @@ type SpreadsheetUpload = {
   total_streams: number;
   status: string;
   file_name: string | null;
+  file_path?: string | null;
   is_baseline?: boolean | null;
 };
 
