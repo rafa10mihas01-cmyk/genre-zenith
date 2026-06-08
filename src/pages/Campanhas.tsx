@@ -671,148 +671,152 @@ function CampaignRow({ c }: { c: Campaign }) {
 
   const stop = (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); };
 
+  const eff = effectiveStatus(c as any);
+  const mode = (c as any).collection_mode as string | undefined;
+  const isSpreadsheet = mode === "spreadsheet";
+  const hasBaseline = !!c.baseline_captured_at;
+  const baselineChip = (() => {
+    if (isSpreadsheet) {
+      return hasBaseline ? (
+        <span
+          className="text-[10px] uppercase tracking-wider rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-primary"
+          title={`Baseline coletada em ${new Date(c.baseline_captured_at!).toLocaleString("pt-BR")}`}
+        >
+          Baseline ok
+        </span>
+      ) : (
+        <span
+          className="text-[10px] uppercase tracking-wider rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-amber-500"
+          title="Cliente ainda não enviou a primeira planilha (baseline)."
+        >
+          Baseline pendente
+        </span>
+      );
+    }
+    if (c.plan_approved_at && hasBaseline) {
+      return (
+        <span className="text-[10px] uppercase tracking-wider rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-primary">
+          Baseline ok
+        </span>
+      );
+    }
+    if (c.plan_approved_at && !hasBaseline) {
+      const bstatus = (c as any).baseline_status as string | null | undefined;
+      return (
+        <span
+          className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-amber-500"
+          title="Bot ainda não capturou a baseline. Coleta roda automaticamente no próximo ciclo do bot Spotify."
+        >
+          <span className="relative inline-flex h-1.5 w-1.5">
+            <span className="absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-60 animate-ping" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-500" />
+          </span>
+          {bstatus === "failed" ? "Baseline falhou" : "Aguardando baseline"}
+        </span>
+      );
+    }
+    return null;
+  })();
+
+  const daysChip =
+    daysLeft > 0
+      ? `${daysLeft}d restantes`
+      : daysLeft === 0
+        ? "Vence hoje"
+        : `${Math.abs(daysLeft)}d em atraso`;
+
   return (
     <div className="relative">
       <Link
         to={href}
-        className="rounded-2xl border border-border border-l-2 border-l-domain-campaigns/60 bg-card hover:bg-accent/30 hover:border-l-domain-campaigns transition-colors p-5 flex flex-col gap-4 h-full"
+        className="group block rounded-2xl border border-border/50 border-l-2 border-l-domain-campaigns/60 bg-card hover:bg-[hsl(var(--elevated))] hover:border-foreground/20 hover:border-l-domain-campaigns transition-colors flex flex-col h-full"
       >
-        <div className="min-w-0 pr-8">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            {(() => {
-              const eff = effectiveStatus(c as any);
-              return (
-                <>
-                  <StatusDot variant={STATUS_TONE[eff]} />
-                  <span className="text-xs uppercase tracking-wider text-muted-foreground">{STATUS_LABEL[eff]}</span>
-                </>
-              );
-            })()}
-            <CollectionSourceBadge collectionMode={(c as any).collection_mode} />
-            {(() => {
-              const mode = (c as any).collection_mode as string | undefined;
-              const isSpreadsheet = mode === "spreadsheet";
-              const hasBaseline = !!c.baseline_captured_at;
-              if (isSpreadsheet) {
-                return hasBaseline ? (
-                  <span
-                    className="text-[10px] uppercase tracking-wider rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-primary"
-                    title={`Baseline coletada em ${new Date(c.baseline_captured_at!).toLocaleString("pt-BR")}`}
-                  >
-                    Baseline ok
-                  </span>
-                ) : (
-                  <span
-                    className="text-[10px] uppercase tracking-wider rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-amber-500"
-                    title="Cliente ainda não enviou a primeira planilha (baseline)."
-                  >
-                    Baseline pendente
-                  </span>
-                );
-              }
-              if (c.plan_approved_at && hasBaseline) {
-                return (
-                  <span className="text-[10px] uppercase tracking-wider rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-primary">
-                    Baseline ok
-                  </span>
-                );
-              }
-              if (c.plan_approved_at && !hasBaseline) {
-                const bstatus = (c as any).baseline_status as string | null | undefined;
-                return (
-                  <span
-                    className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-amber-500"
-                    title="Bot ainda não capturou a baseline. Coleta roda automaticamente no próximo ciclo do bot Spotify."
-                  >
-                    <span className="relative inline-flex h-1.5 w-1.5">
-                      <span className="absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-60 animate-ping" />
-                      <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-500" />
-                    </span>
-                    {bstatus === "failed" ? "Baseline falhou" : "Aguardando baseline (bot)"}
-                  </span>
-                );
-              }
-              return null;
-            })()}
-
-            {c.status === "draft" && !!c.baseline_captured_at && (
-              <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-primary">
-                <span className="relative inline-flex h-1.5 w-1.5">
-                  <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-60 animate-ping" />
-                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
+        {/* Linha 1 — identidade */}
+        <div className="flex items-start gap-3 px-4 pt-3.5 pb-2.5 min-w-0 pr-10">
+          {c.cover_url ? (
+            <img
+              src={c.cover_url}
+              alt=""
+              loading="lazy"
+              className="h-10 w-10 rounded-md object-cover shrink-0"
+            />
+          ) : (
+            <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center shrink-0">
+              <Music2 className="h-4 w-4 text-muted-foreground" />
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start gap-2 min-w-0">
+              <div className="min-w-0 flex-1">
+                <div className="text-[14px] font-semibold text-foreground truncate leading-tight">
+                  {c.track_name}
+                </div>
+                <div className="text-[11.5px] text-muted-foreground truncate mt-0.5">
+                  {c.artist && <span>{c.artist}</span>}
+                  {c.artist && <span className="mx-1.5 opacity-50">·</span>}
+                  <span>{daysChip}</span>
+                </div>
+              </div>
+              <div className="shrink-0 mt-0.5 flex items-center gap-1.5">
+                <StatusDot variant={STATUS_TONE[eff]} />
+                <span className="text-[10.5px] uppercase tracking-wider text-muted-foreground">
+                  {STATUS_LABEL[eff]}
                 </span>
-                Pronto para aprovação
-              </span>
-            )}
-            {(c.client_decision_round ?? 1) > 1 && (
-              <span className="text-[10px] uppercase tracking-wider rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-amber-500">
-                Rodada {c.client_decision_round}
-              </span>
-            )}
-            {(c.access_emails_count ?? 0) > 0 && (
-              <span
-                className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider rounded border border-blue-500/40 bg-blue-500/10 px-1.5 py-0.5 text-blue-400"
-                title={`${c.access_emails_count} e-mail(s) com acesso ao portal do cliente`}
-              >
-                <Mail className="h-2.5 w-2.5" />
-                Acesso · {c.access_emails_count}
-              </span>
-            )}
-          </div>
-          <div className="flex items-start gap-3 min-w-0">
-            {c.cover_url ? (
-              <img
-                src={c.cover_url}
-                alt=""
-                loading="lazy"
-                className="h-12 w-12 rounded-md object-cover border border-border shrink-0"
-              />
-            ) : (
-              <div className="h-12 w-12 rounded-md bg-muted border border-border flex items-center justify-center shrink-0">
-                <Music2 className="h-5 w-5 text-muted-foreground" />
-              </div>
-            )}
-            <div className="min-w-0 flex-1">
-              <div className="font-semibold truncate">{c.track_name}</div>
-              {c.artist && <div className="text-sm text-muted-foreground truncate">{c.artist}</div>}
-              <div className="text-xs text-muted-foreground mt-0.5">
-                {daysLeft > 0 ? `${daysLeft}d restantes` : daysLeft === 0 ? "Vence hoje" : `${Math.abs(daysLeft)}d em atraso`}
               </div>
             </div>
+            {/* Chips — alinhados com nome */}
+            <div className="flex items-center gap-1.5 flex-wrap mt-2">
+              <CollectionSourceBadge collectionMode={mode} />
+              {baselineChip}
+              {c.status === "draft" && hasBaseline && (
+                <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-primary">
+                  <span className="relative inline-flex h-1.5 w-1.5">
+                    <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-60 animate-ping" />
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
+                  </span>
+                  Pronto p/ aprovação
+                </span>
+              )}
+              {(c.client_decision_round ?? 1) > 1 && (
+                <span className="text-[10px] uppercase tracking-wider rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-amber-500">
+                  Rodada {c.client_decision_round}
+                </span>
+              )}
+              {(c.access_emails_count ?? 0) > 0 && (
+                <span
+                  className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider rounded border border-blue-500/40 bg-blue-500/10 px-1.5 py-0.5 text-blue-400"
+                  title={`${c.access_emails_count} e-mail(s) com acesso ao portal do cliente`}
+                >
+                  <Mail className="h-2.5 w-2.5" />
+                  Acesso · {c.access_emails_count}
+                </span>
+              )}
+            </div>
           </div>
-          {c.client_email ? (
-            <div
-              className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground min-w-0"
-              title="E-mail do cliente cadastrado"
-            >
-              <AtSign className="h-3 w-3 shrink-0 text-primary/80" />
-              <span className="truncate">{c.client_email}</span>
-            </div>
-          ) : c.client_id ? (
-            <div className="mt-2 flex items-center gap-1.5 text-[11px] text-amber-500/90">
-              <AtSign className="h-3 w-3 shrink-0" />
-              <span>Cliente sem e-mail cadastrado</span>
-            </div>
-          ) : null}
         </div>
 
-        <div className="mt-auto space-y-3">
+        {/* Divisor sutil */}
+        <div className="mx-4 border-t border-border/40" />
+
+        {/* Linha 2 — métricas + progresso + footer */}
+        <div className="flex flex-col gap-3 px-4 py-3 min-w-0 mt-auto">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <div className="text-xs text-muted-foreground">Meta</div>
-              <div className="font-semibold tabular-nums">{c.goal_plays.toLocaleString()}</div>
+              <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-medium mb-0.5">Meta</div>
+              <div className="text-[14px] font-semibold tabular-nums">{c.goal_plays.toLocaleString()}</div>
             </div>
             <div>
-              <div className="text-xs text-muted-foreground">Entregue</div>
-              <div className="font-semibold tabular-nums">{c.total_delivered.toLocaleString()}</div>
+              <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-medium mb-0.5">Entregue</div>
+              <div className="text-[14px] font-semibold tabular-nums">{c.total_delivered.toLocaleString()}</div>
             </div>
           </div>
-          <div>
-            <div className="flex items-center justify-between text-xs mb-1">
-              <span className="text-muted-foreground">Progresso</span>
-              <span className="tabular-nums font-medium">{pct}%</span>
+
+          <div className="flex flex-col gap-1 min-w-0">
+            <div className="flex items-center justify-between text-[10.5px] text-muted-foreground">
+              <span className="uppercase tracking-[0.12em] font-medium">Progresso</span>
+              <span className="tabular-nums font-semibold text-foreground">{pct}%</span>
             </div>
-            <div className="h-2 rounded-full bg-muted overflow-hidden">
+            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
               <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
             </div>
           </div>
@@ -821,7 +825,7 @@ function CampaignRow({ c }: { c: Campaign }) {
           {clientUrl && (c.status === "draft" || c.status === "active") && (
             <div
               className={cn(
-                "rounded-lg border px-2.5 py-2 flex items-center justify-between gap-2",
+                "rounded-lg border px-2.5 py-1.5 flex items-center justify-between gap-2",
                 clientApproved
                   ? "border-primary/30 bg-primary/5"
                   : clientPendingAdjust
