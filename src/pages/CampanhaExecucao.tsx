@@ -780,10 +780,8 @@ export default function CampanhaExecucao() {
                 dealId={camp.deal_id ?? null}
               />
               {/* Removido: bloco de coleta via planilha. Movido pro topo do Monitoramento. */}
-              <RadioCollectedCard
-                campaignId={camp.id}
-                cppEco={snapshot.streamsEco > 0 ? snapshot.custoEco / snapshot.streamsEco : 0}
-              />
+              {/* RadioCollectedCard ocultado — redundante com a aba Monitoramento (Rádio). */}
+
 
               <OverviewTab
                 snapshot={snapshot}
