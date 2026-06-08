@@ -228,14 +228,14 @@ export function OverviewTab({
           perDayContract={Math.round(Math.max(0, extTarget - extDelivered) / daysRemaining)}
           perDayReal={Math.round(extTarget / Math.max(1, snapshot.effectiveDays ?? snapshot.days))}
         />
-        {(orgTarget > 0 || orgDelivered > 0) && (
+        {orgTarget > 0 && (
           <SplitRow
             tone="org"
             label="Orgânico"
             metaTotal={orgTarget}
             metaPct={orgPctOfMeta}
-            deliveredTotal={orgDelivered}
-            perDayContract={Math.round(Math.max(0, orgTarget - orgDelivered) / daysRemaining)}
+            deliveredTotal={0}
+            perDayContract={Math.round(orgTarget / Math.max(1, snapshot.days))}
             perDayReal={Math.round(orgTarget / Math.max(1, snapshot.effectiveDays ?? snapshot.days))}
           />
         )}
