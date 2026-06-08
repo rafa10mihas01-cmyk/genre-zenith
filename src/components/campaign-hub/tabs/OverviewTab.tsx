@@ -155,7 +155,7 @@ export function OverviewTab({
     <div className="space-y-6">
       {/* KPIs — padrão Curadores: hero (Entregue) + secundários + quiet (Duração) */}
       {!hideKpis && (
-      <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KpiBig
           tier="hero"
           icon={Activity}
