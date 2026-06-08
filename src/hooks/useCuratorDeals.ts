@@ -329,14 +329,100 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
     })),
   });
 
+  // Enriquecimento: pra deals vinculados a campanhas, somar a entrega real
+  // direto da vw_campaign_playlist_growth (mesma fonte usada pela lista de
+  // campanhas e pela tela de execução). Sobrescreve daily_avg / today / delivered
+  // quando o RPC retorna zero mas o view tem dados.
+  const campaignDealRefs = useMemo(
+    () => deals
+      .filter((d) => !!d.campaign_id && !!d.curator_id)
+      .map((d) => ({ deal_id: d.id, campaign_id: d.campaign_id as string, curator_id: d.curator_id as string, started_at: d.started_at })),
+    [deals],
+  );
+  const campaignIdsForView = useMemo(
+    () => Array.from(new Set(campaignDealRefs.map((r) => r.campaign_id))),
+    [campaignDealRefs],
+  );
+
+  const viewProgressQuery = useQuery({
+    queryKey: ["curator-deal-view-progress", campaignIdsForView.sort().join(",")],
+    enabled: campaignIdsForView.length > 0,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("vw_campaign_playlist_growth")
+        .select("campaign_id, attributed_curator_id, delta, last_captured_at")
+        .in("campaign_id", campaignIdsForView);
+      if (error) throw error;
+      return (data ?? []) as Array<{
+        campaign_id: string;
+        attributed_curator_id: string | null;
+        delta: number | null;
+        last_captured_at: string | null;
+      }>;
+    },
+  });
+
+  const viewProgressByDeal = useMemo(() => {
+    const rows = viewProgressQuery.data ?? [];
+    // Agrega por (campaign_id, curator_id)
+    type Agg = { delivered: number; today: number };
+    const agg = new Map<string, Agg>();
+    const todayKey = new Date().toISOString().slice(0, 10);
+    for (const r of rows) {
+      if (!r.attributed_curator_id) continue;
+      const k = `${r.campaign_id}:${r.attributed_curator_id}`;
+      const cur = agg.get(k) ?? { delivered: 0, today: 0 };
+      const delta = Number(r.delta ?? 0);
+      cur.delivered += delta;
+      if (r.last_captured_at && r.last_captured_at.slice(0, 10) === todayKey) {
+        cur.today += delta;
+      }
+      agg.set(k, cur);
+    }
+    // Mapeia pra deal_id
+    const out: Record<string, { delivered: number; today: number; daily_avg: number }> = {};
+    for (const ref of campaignDealRefs) {
+      const k = `${ref.campaign_id}:${ref.curator_id}`;
+      const a = agg.get(k);
+      if (!a) continue;
+      const startedMs = new Date(ref.started_at).getTime();
+      const days = Math.max(1, (Date.now() - startedMs) / 86_400_000);
+      out[ref.deal_id] = {
+        delivered: a.delivered,
+        today: a.today,
+        daily_avg: a.delivered / days,
+      };
+    }
+    return out;
+  }, [viewProgressQuery.data, campaignDealRefs]);
+
   const progressByDeal = useMemo(() => {
     const map: Record<string, CuratorDealProgress> = {};
     progressQueries.forEach((q, i) => {
       const id = dealIds[i];
-      if (id && q.data) map[id] = q.data as CuratorDealProgress;
+      if (!id) return;
+      const rpc = (q.data ?? null) as CuratorDealProgress | null;
+      const viewP = viewProgressByDeal[id];
+      // Se o view tem dado real, ele tem prioridade sobre o RPC zerado.
+      if (viewP && viewP.delivered > 0 && (!rpc || Number(rpc.delivered_curator ?? 0) === 0)) {
+        map[id] = {
+          ...(rpc ?? {}),
+          delivered_curator: viewP.delivered,
+          delivered_total: viewP.delivered,
+          daily_avg: viewP.daily_avg,
+          today_plays: viewP.today,
+        } as CuratorDealProgress;
+      } else if (rpc) {
+        // Mesmo com RPC válido, complementa today_plays se ele não veio.
+        map[id] = viewP
+          ? ({ ...rpc, today_plays: rpc.today_plays ?? viewP.today } as CuratorDealProgress)
+          : rpc;
+      }
     });
     return map;
-  }, [progressQueries, dealIds]);
+  }, [progressQueries, dealIds, viewProgressByDeal]);
+
 
   // Realtime: invalida cache quando snapshots mudam e recarrega status das músicas.
   // Também recarrega a lista quando deals são criados/alterados fora da tela atual
