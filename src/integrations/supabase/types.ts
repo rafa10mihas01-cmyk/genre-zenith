@@ -11633,20 +11633,15 @@ export type Database = {
         Returns: number
       }
       infer_collection_mode: { Args: { p_deal_id: string }; Returns: string }
-      ingest_campaign_collection_batch:
-        | {
-            Args: { p_campaign_id: string; p_intent: string; p_rows: Json }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_campaign_id: string
-              p_intent: string
-              p_rows: Json
-              p_snapshot_run_id?: string
-            }
-            Returns: Json
-          }
+      ingest_campaign_collection_batch: {
+        Args: {
+          p_campaign_id: string
+          p_intent: string
+          p_rows: Json
+          p_snapshot_run_id?: string
+        }
+        Returns: Json
+      }
       is_admin: { Args: never; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
       is_internal_operator: { Args: never; Returns: boolean }
@@ -11707,6 +11702,10 @@ export type Database = {
       }
       mark_spotify_app_auth_failure: {
         Args: { p_app_id: string; p_reason: string; p_retry_after_sec?: number }
+        Returns: Json
+      }
+      match_curator_campaign_playlists: {
+        Args: { p_campaign_id: string }
         Returns: Json
       }
       match_curator_playlist: {
