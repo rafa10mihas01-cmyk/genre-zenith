@@ -14,6 +14,7 @@ type Props = {
   camp: CampaignHubCampaign;
   mode: CampaignHubMode;
   delivered?: number;
+  deliveryBreakdown?: { curators: number; ecosystem: number; organic: number } | null;
   goal?: number;
   daysElapsed?: number;
   daysTotal?: number;
@@ -39,7 +40,7 @@ const STATUS_TONE: Record<string, string> = {
   cancelled: "bg-muted text-muted-foreground",
 };
 
-export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed = 0, daysTotal = 0, lastUpdateAt, extraActions, extraActionsAfter, hideProgress = false }: Props) {
+export function CampaignHero({ camp, mode, delivered = 0, deliveryBreakdown, goal = 0, daysElapsed = 0, daysTotal = 0, lastUpdateAt, extraActions, extraActionsAfter, hideProgress = false }: Props) {
   const pct = goal > 0 ? Math.min(100, Math.round((delivered / goal) * 100)) : 0;
   const daysLeft = Math.max(0, daysTotal - daysElapsed);
   const statusKey = camp.status ?? "draft";
@@ -189,6 +190,21 @@ export function CampaignHero({ camp, mode, delivered = 0, goal = 0, daysElapsed 
           <div className="h-1.5 rounded-full bg-muted overflow-hidden">
             <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
           </div>
+          {deliveryBreakdown && (deliveryBreakdown.curators + deliveryBreakdown.ecosystem + deliveryBreakdown.organic) > 0 && (
+            <div className="mt-1.5 flex items-center flex-wrap gap-x-3 gap-y-0.5 text-[10.5px] tabular-nums text-muted-foreground">
+              <span>Curadores <span className="text-foreground">{formatInt(deliveryBreakdown.curators)}</span></span>
+              <span className="opacity-40">·</span>
+              <span>Ecossistema <span className="text-foreground">{formatInt(deliveryBreakdown.ecosystem)}</span></span>
+              {deliveryBreakdown.organic > 0 && (
+                <>
+                  <span className="opacity-40">·</span>
+                  <span title="Crescimento em playlists sem dono detectado pelo bot. Não entra no KPI principal.">
+                    Orgânico detectado <span className="text-foreground/80">{formatInt(deliveryBreakdown.organic)}</span>
+                  </span>
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
 

@@ -17,6 +17,7 @@ type Props = {
   camp: CampaignHubCampaign;
   mode: CampaignHubMode;
   delivered?: number;
+  deliveryBreakdown?: { curators: number; ecosystem: number; organic: number } | null;
   goal?: number;
   daysElapsed?: number;
   daysTotal?: number;
@@ -32,7 +33,7 @@ type Props = {
 };
 
 export function CampaignHub({
-  camp, mode, delivered, goal, daysElapsed, daysTotal, lastUpdateAt,
+  camp, mode, delivered, deliveryBreakdown, goal, daysElapsed, daysTotal, lastUpdateAt,
   tab, onTabChange, slots, hiddenTabs = [], heroExtraActions, heroExtraActionsAfter, kpis, progressSection,
 }: Props) {
   const clientAllowedTabs: CampaignHubTabId[] = ["overview", "playlists", "monitoramento", "upload", "history"];
@@ -68,6 +69,7 @@ export function CampaignHub({
         camp={camp}
         mode={mode}
         delivered={delivered}
+        deliveryBreakdown={deliveryBreakdown}
         goal={goal}
         daysElapsed={daysElapsed}
         daysTotal={daysTotal}
