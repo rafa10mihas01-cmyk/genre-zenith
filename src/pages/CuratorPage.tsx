@@ -1827,6 +1827,9 @@ export default function CuratorPage() {
                 Músicas da campanha já presentes nesta playlist antes do início
               </DialogDescription>
             </DialogHeader>
+            {Number(curatorModalGroup?.sample.baseline_plays_prior ?? 0) > 0 && (
+              <HistoricoPrevioAlert />
+            )}
             <div className="space-y-2">
               {curatorModalGroup?.songsInside.length ? (
                 curatorModalGroup.songsInside.map((s) => (
