@@ -39,6 +39,8 @@ type Props = {
   proofs?: ProofPreview[];
   /** Plays entregues pela Rádio desde o início da campanha (current - start). */
   radioDelta?: number;
+  /** Quebra real vinda da view de crescimento — sobrescreve cálculo legado dos cards Eco/Ext/Org. */
+  deliveryBreakdown?: { curators: number; ecosystem: number; organic: number } | null;
   onJumpTab?: (tab: "playlists" | "proofs" | "curve" | "finance") => void;
   // Slot opcional que substitui o card "Curva de entrega" dentro do grid principal.
   // Usado pra subir o monitoramento ao lugar da curva planejada.
@@ -54,7 +56,7 @@ type Props = {
 
 export function OverviewTab({
   snapshot, delivered, daysElapsed, showFinance, hideDeliveryPlan = false, hideCurveShortcut = false, hideCurveCard = false, hideKpis = false, hideSplitRows = false,
-  allocations = [], snapshots = [], proofs = [], radioDelta = 0, onJumpTab,
+  allocations = [], snapshots = [], proofs = [], radioDelta = 0, deliveryBreakdown = null, onJumpTab,
   curveSlot,
   splitLockedAt = null, lockedEcoStreams = null, ecoMaxPct = 70,
   canManageSplit = false, onLockSplit, onUnlockSplit,
@@ -86,9 +88,16 @@ export function OverviewTab({
   // Rádio entra no Ecossistema (mesma família de plays próprios), mas é
   // mantida visualmente separada na linha de auditoria abaixo do SplitRow.
   const radioDeliveredSafe = Math.max(0, Math.round(radioDelta));
-  const ecoDeliveredRaw = ecoDeliveredPlaylists + radioDeliveredSafe;
-  const ecoDelivered = Math.min(ecoDeliveredRaw, delivered);
-  const extDelivered = Math.max(0, delivered - ecoDelivered);
+  // Fonte de verdade: deliveryBreakdown (view vw_campaign_playlist_growth) quando disponível.
+  // Cai pro cálculo legado por campaign_eco_snapshots quando a view ainda não enviou nada.
+  const useBreakdown = !!deliveryBreakdown && (deliveryBreakdown.curators + deliveryBreakdown.ecosystem + deliveryBreakdown.organic) > 0;
+  const ecoDelivered = useBreakdown
+    ? deliveryBreakdown!.ecosystem + radioDeliveredSafe
+    : Math.min(ecoDeliveredPlaylists + radioDeliveredSafe, delivered);
+  const extDelivered = useBreakdown
+    ? deliveryBreakdown!.curators
+    : Math.max(0, delivered - ecoDelivered);
+  const orgDelivered = useBreakdown ? deliveryBreakdown!.organic : 0;
 
 
   // Valores fechados pela calculadora — única fonte da verdade.
@@ -219,14 +228,14 @@ export function OverviewTab({
           perDayContract={Math.round(Math.max(0, extTarget - extDelivered) / daysRemaining)}
           perDayReal={Math.round(extTarget / Math.max(1, snapshot.effectiveDays ?? snapshot.days))}
         />
-        {orgTarget > 0 && (
+        {(orgTarget > 0 || orgDelivered > 0) && (
           <SplitRow
             tone="org"
             label="Orgânico"
             metaTotal={orgTarget}
             metaPct={orgPctOfMeta}
-            deliveredTotal={0}
-            perDayContract={Math.round(orgTarget / Math.max(1, snapshot.days))}
+            deliveredTotal={orgDelivered}
+            perDayContract={Math.round(Math.max(0, orgTarget - orgDelivered) / daysRemaining)}
             perDayReal={Math.round(orgTarget / Math.max(1, snapshot.effectiveDays ?? snapshot.days))}
           />
         )}
