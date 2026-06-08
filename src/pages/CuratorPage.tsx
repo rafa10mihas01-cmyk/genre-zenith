@@ -67,6 +67,7 @@ import { markCuratorPublicMode } from "@/lib/publicRouteMode";
 import { PasteUrlsDialog } from "@/components/curators/PasteUrlsDialog";
 import { AddSongToPlaylistDialog } from "@/components/curators/AddSongToPlaylistDialog";
 import { CuratorAccessGate, curatorAccessStorageKey } from "@/components/public/CuratorAccessGate";
+import { HistoricoPrevioBadge, HistoricoPrevioAlert, HistoricoPrevioCounter } from "@/components/campanhas/HistoricoPrevio";
 
 type Deal = {
   id: string;
