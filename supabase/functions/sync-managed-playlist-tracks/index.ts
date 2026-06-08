@@ -140,7 +140,7 @@ Deno.serve(async (req) => {
     }
     const rich = await listPlaylistTracksRich(pl.spotify_playlist_id, token, {
       max: 10000,
-      fields: "items(added_at,track(id,name,duration_ms,external_ids,artists(name),album(images))),next",
+      fields: "items(added_at,track(id,name,duration_ms,external_ids,artists(name),album(images)),item(id,name,duration_ms,external_ids,artists(name),album(images))),next",
     });
     const spotifyRows: SpotifyRow[] = rich
       .filter((t) => t.spotify_track_id)
