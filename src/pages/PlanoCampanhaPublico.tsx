@@ -141,6 +141,8 @@ export default function PlanoCampanhaPublico() {
   const [forecast, setForecast] = useState<ForecastPayload | null>(null);
   const [genresUsed, setGenresUsed] = useState<GenreUsed[]>([]);
   const [organicSummary, setOrganicSummary] = useState<{ total_plays?: number; by_kind?: Record<string, number> } | null>(null);
+  // Entregue real — fonte de verdade vw_campaign_playlist_growth (curadores + ecossistema, exclui orgânico)
+  const [deliveredFromView, setDeliveredFromView] = useState<number | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
