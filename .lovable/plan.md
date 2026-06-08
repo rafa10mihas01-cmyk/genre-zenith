@@ -1,199 +1,80 @@
-# Plano — Blindagem Spotify Fase A (com ajustes obrigatórios)
+## Objetivo
 
-Objetivo: garantir que um app Spotify com auth inválida **não derrube** diagnose/sync/playlists. Apenas infra — diagnose, score, benchmark, playlists, campanhas ficam intactos.
+Camada **visual e read-only** de "Histórico Prévio" usando o campo já existente `baseline_plays > 0` da `vw_campaign_playlist_growth`. Zero alteração em cálculo, KPI, atribuição, faturamento ou status `matched`.
 
 ---
 
-## 1. Migration — `spotify_apps` ganha estado de saúde + rastreabilidade
+## Escopo (4 superfícies)
 
-Adicionar 4 colunas + 3 funções SQL:
+### 1. Lista de playlists na execução da campanha (interno)
+**Arquivo:** `src/components/campaign-hub/tabs/OperacaoTab.tsx`
 
-```sql
-ALTER TABLE public.spotify_apps
-  ADD COLUMN auth_failure_count    int          NOT NULL DEFAULT 0,
-  ADD COLUMN last_auth_failure_at  timestamptz,
-  ADD COLUMN quarantined_until     timestamptz,
-  ADD COLUMN quarantine_reason     text;        -- AUTH_INVALID | AUTH_MISSING | RATE_LIMIT | SPOTIFY_5XX | MANUAL
+- Estender `Row` com `baseline_plays?: number`.
+- Buscar `baseline_plays` da view por `playlist_id` e enriquecer `internal` + `external`.
+- Em cada linha (`OperacaoRow`): badge âmbar **"HISTÓRICO PRÉVIO"** + microcopy `Recomendação: promover posição da faixa` quando `baseline_plays > 0`.
+- Tooltip no badge: *"Esta música já possuía atividade nesta playlist antes da campanha."*
 
-CREATE FUNCTION public.mark_spotify_app_auth_failure(
-  p_app_id uuid,
-  p_reason text,                          -- AUTH_MISSING | AUTH_INVALID | RATE_LIMIT | SPOTIFY_5XX | MANUAL
-  p_retry_after_sec int DEFAULT NULL      -- usado em RATE_LIMIT
-) RETURNS jsonb ...
--- Política por motivo (decidida pelo usuário):
---   AUTH_MISSING  → quarentena IMEDIATA 30min (threshold=1). Não há como o app
---                   recuperar dentro do request — falta token de usuário.
---   AUTH_INVALID  → incrementa auth_failure_count; quarentena 30min só ao
---                   atingir threshold=5. Pode ser flake de token expirando.
---   RATE_LIMIT    → quarentena com TTL = Retry-After do Spotify (clampeado
---                   2s..6h). Não conta como auth_failure.
---   SPOTIFY_5XX   → NÃO quarentena. Só registra last_auth_failure_at p/
---                   métrica. Caller decide retry/backoff.
---   MANUAL        → quarentena indefinida até reset humano.
--- Em todos os casos com quarentena: grava quarantine_reason + horário + contador.
+### 2. Lista de curadores (já feita parcialmente)
+**Arquivo:** `src/components/campanhas/ExternalPackageEditor.tsx`
 
-CREATE FUNCTION public.reset_spotify_app_auth_failures(p_app_id uuid) ...
--- chamada em sucesso 2xx: zera auth_failure_count. NÃO mexe em quarantined_until.
+- Já tem `HistoricoPrevioBadge` no `CuratorCard`.
+- Adicionar linha de recomendação abaixo do badge: *"Subir posição da música para validar ganho incremental."*
+- Trocar tom do badge de neutro pra **âmbar** (`bg-warning/10 text-warning border-warning/30`) conforme pedido.
 
-CREATE FUNCTION public.expire_spotify_app_quarantines() ...
--- UPDATE spotify_apps SET quarantine_reason=NULL WHERE quarantined_until < now()
+### 3. Portal do Curador
+**Arquivos:**
+- `src/pages/CuratorPortal*.tsx` (localizar via rg) — tela onde o curador vê as playlists vinculadas a um deal/campanha.
+- Buscar playlists com `baseline_plays > 0` para o `curator_id` logado dentro da campanha.
+
+Adicionar:
+- **Alerta no topo da playlist** (quando `baseline_plays > 0`):
+  *"ATENÇÃO: a música já estava presente nesta playlist antes da campanha. Para maximizar a entrega, recomendamos promover a faixa para uma posição superior dentro da playlist."*
+- **Contador no dashboard do curador:** `Playlists com histórico prévio: X` — botão/link expande lista filtrada.
+
+### 4. Resumo na campanha
+**Já existe** o `DeliveryTransparencyBanner` em `ExternalPackageEditor.tsx`:
 ```
-
-`status='quarantined_auto'` é derivado: `status='active' AND quarantined_until > now()`. Coluna `status` permanece para quarentena manual.
-
-### Tabela de política
-
-| Motivo | Threshold | TTL quarentena | Conta em auth_failure_count |
-|---|---|---|---|
-| `AUTH_MISSING` | 1 (imediato) | 30 min | não |
-| `AUTH_INVALID` | 5 consecutivos | 30 min | sim |
-| `RATE_LIMIT` | 1 (imediato) | `Retry-After` (2s–6h) | não |
-| `SPOTIFY_5XX` | — | **não quarentena** | não |
-| `MANUAL` | — | indefinida | não |
-
----
-
-## 2. `_shared/spotify.ts` — selector com failover + pré-validação
-
-### Novidades
-
-- **`SpotifyAuthInvalidError`** — subclasse de `SpotifyApiError` (para não quebrar `catch (e instanceof SpotifyApiError)` existentes). Carrega `appId` e `reason`.
-- **`SpotifyAuthMissingError`** — lançada **antes de qualquer fetch** quando um endpoint exige user token e o app escolhido não tem `spotify_user_tokens` válido. Reason = `AUTH_MISSING_USER_TOKEN`. Custo: 0ms, sem request, sem 401.
-- **`markAppAuthFailure(appId, reason)`** — chama RPC, fire-and-forget.
-
-### `getAppCredentials(opts?)` refatorada
-
-```ts
-getAppCredentials({ appId?, excludeAppIds?: string[] })
+Entrega total
+├─ Limpa
+└─ Histórico prévio
 ```
-
-- Chama `expire_spotify_app_quarantines()` (fail-silent, <5ms).
-- Filtra `status='active' AND (quarantined_until IS NULL OR quarantined_until < now())`.
-- Aplica `excludeAppIds` (failover).
-- Ordem preservada: `is_default DESC, created_at ASC`.
-- Se ninguém saudável → lança `NO_HEALTHY_SPOTIFY_APP`.
-
-### `getSpotifyToken({ excludeAppIds?, requireUserAuth? })` refatorada
-
-- Quando `requireUserAuth=true`:
-  - Após escolher app, consulta `spotify_user_tokens` daquele app.
-  - Se NENHUM token válido (ou todos expirados sem refresh): **lança `SpotifyAuthMissingError`** sem fazer request.
-- Caso contrário: comportamento atual (`client_credentials`).
-
-### Hook 401 nos wrappers
-
-`guardedSpotifyFetch` e o monkey-patch global: quando `r.status === 401` em `api.spotify.com` (não `accounts`) → `markAppAuthFailure(appId, 'AUTH_INVALID')` em fire-and-forget. Não muda o contrato (continua devolvendo o `Response`).
+Sem trabalho adicional aqui.
 
 ---
 
-## 3. `_shared/spotify-playlist.ts` — fail-fast em 401
+## Fonte de dados (sem migração)
 
-`defaultSpotifyFetch`: quando `r.status === 401` → lança **`SpotifyAuthInvalidError`** (não `SpotifyApiError` genérico). Callers que não tratam continuam funcionando (ainda é exception). Callers críticos (snapshot, diagnose) podem `catch` específico para failover.
+Tudo derivado de `vw_campaign_playlist_growth`:
+- `baseline_plays > 0` → marca histórico prévio
+- `attributed_curator_id` → escopo do curador
+- `delta` → continua somando normal (não muda nada)
 
-**Pré-validação adicional:** `listPlaylistTrackRefs` e variantes que tocam endpoints `/v1/playlists/{id}/items` aceitam parâmetro opcional `{ requiresUserAuth?: boolean }`. Se true e o token recebido for `client_credentials` (heurística: token sem `user_id` em cache, ou flag explícita do caller), aborta com `SpotifyAuthMissingError`.
-
----
-
-## 4. `snapshot-playlist-tracks/index.ts` — streak breaker + failover local
-
-```text
-let currentAppId = ...
-let token        = await getSpotifyToken({ requireUserAuth: true para playlists privadas })
-let consecutiveAuthFailures = 0
-let triedApps   = new Set([currentAppId])
-
-for playlist in list:
-  try:
-    refs = await fetchRefs(token)
-    consecutiveAuthFailures = 0
-  catch SpotifyAuthMissingError:
-    # falhou em 0ms — não chegou no Spotify
-    log AUTH_MISSING_USER_TOKEN { app, playlist }
-    markAppAuthFailure(currentAppId, 'AUTH_MISSING')
-    try failover (excludeAppIds=triedApps) → senão break AUTH_BREAKER_OPEN
-    continue (retenta mesma playlist)
-  catch SpotifyAuthInvalidError:
-    consecutiveAuthFailures++
-    markAppAuthFailure(currentAppId, 'AUTH_INVALID')
-    if consecutiveAuthFailures == 1:
-      try { token = await getSpotifyToken({ excludeAppIds: [...triedApps] }) }
-      catch NO_HEALTHY_SPOTIFY_APP: break AUTH_BREAKER_OPEN
-      triedApps.add(currentAppId = novo)
-      continue
-    if consecutiveAuthFailures >= 5:
-      break AUTH_BREAKER_OPEN
-```
-
-Resposta JSON ganha:
-```json
-"auth_breaker": {
-  "triggered": true|false,
-  "quarantined": [{ "app_id", "reason", "until" }],
-  "failover_used": true|false,
-  "final_app_id": "..."
-}
-```
+Para o portal do curador: nova query por `attributed_curator_id = <curator>` AND `campaign_id IN (deals ativos do curador)`.
 
 ---
 
-## 5. Teste obrigatório de failover (gate de deploy)
+## O que NÃO muda
 
-**Antes de marcar a Fase A como entregue**, rodar cenário controlado:
-
-1. Garantir 2+ apps `active` no pool (ex.: NexEngine 02 e 05).
-2. Forçar NexEngine 02 a ser escolhido primeiro (`is_default=true`) e remover/invalidar seu token (cenário do incidente).
-3. Disparar `snapshot-playlist-tracks` com uma playlist privada.
-4. **Resultado esperado:**
-   - ✓ 1 chamada → 401 → `markAppAuthFailure` → quarentena imediata (threshold 1 nesse teste, ou contador já em 4)
-   - ✓ failover para NexEngine 05
-   - ✓ snapshot conclui com `final_app_id = NexEngine 05`
-   - ✓ nenhum 429
-   - ✓ nenhum breaker global
-   - ✓ `spotify_apps[02].quarantine_reason = 'AUTH_INVALID'`
-   - ✓ `spotify_apps[02].quarantined_until = now()+30min`
-5. **Se qualquer item falhar → reverter, não liberar.**
-
-Documentar o resultado do teste no comentário do deploy.
+- `total_delivered`, `recalc_campaign_progress`, `is_baseline_conflict`
+- Atribuição (`curator:*` / `ecosystem` / `organic` continuam iguais)
+- Status `matched`, faturamento, deal state
+- KPI principal do header (266k continua sendo 266k)
 
 ---
 
-## 6. Arquivos tocados
+## Componentes novos / reusados
 
-| Arquivo | Mudança |
-|---|---|
-| `supabase/migrations/<ts>_spotify_app_health.sql` | 4 colunas + 3 funções |
-| `supabase/functions/_shared/spotify.ts` | `SpotifyAuthInvalidError`, `SpotifyAuthMissingError`, `markAppAuthFailure`, `getAppCredentials({excludeAppIds})`, `getSpotifyToken({excludeAppIds, requireUserAuth})`, hook 401 nos wrappers |
-| `supabase/functions/_shared/spotify-playlist.ts` | `defaultSpotifyFetch` joga `SpotifyAuthInvalidError` em 401; opção `requiresUserAuth` |
-| `supabase/functions/snapshot-playlist-tracks/index.ts` | streak counter, failover local, resposta com `auth_breaker` |
-
-**NÃO** toca: `diagnose-managed-playlist`, lógica de score/benchmark/playlists/campanhas, UI. Demais edge functions herdam o failover de `getSpotifyToken()` sem mudança de contrato.
+- Reusar `HistoricoPrevioBadge` (já existe em `ExternalPackageEditor.tsx`) → mover pra `src/components/campanhas/HistoricoPrevioBadge.tsx` pra ser compartilhado entre Curador (interno), Operação e Portal.
+- Novo: `HistoricoPrevioRecommendation` (linha de texto pequena cinza com ícone Sparkles).
+- Novo: `HistoricoPrevioCounter` (card de dashboard no portal do curador).
 
 ---
 
-## 7. Riscos e mitigação
+## Validação
 
-| Risco | Mitigação |
-|---|---|
-| `SpotifyAuthInvalidError` quebra caller que esperava `SpotifyApiError` | é subclasse — `instanceof SpotifyApiError` continua true |
-| Quarentena agressiva derruba pool inteiro em incidente Spotify-wide | threshold 5 + TTL 30min; se NENHUM app saudável, `getAppCredentials` faz fallback pra quarentenado (padrão atual `activeRows.length>0 ? activeRows : allRows`) |
-| Pré-validação adiciona 1 query extra | `expire_spotify_app_quarantines()` é UPDATE indexado <5ms |
-| `requireUserAuth` mal classificado pode falhar requests públicos válidos | flag opcional, default `false`; apenas `snapshot-playlist-tracks` ativa para playlists privadas |
-| Fase B (toasts/dashboard) fica de fora | confirmado pelo usuário — só executar após Fase A validada e teste passado |
+- Header continua 266.225 (curador + eco)
+- Carnívoro: 34 playlists com `baseline_plays > 0` recebem badge
+- Nenhum recalc de view rodado
+- Build limpo (tsc)
 
----
-
-## 8. Critério de sucesso resumido
-
-Cenário "5× 401 consecutivos" do incident:
-
-```text
-ANTES: 746 × 401 em 3 min → 429 → breaker global 12h
-DEPOIS: 1 × 401 → quarentena 30min (motivo registrado) → failover → operação continua
-```
-
-Ou (cenário mais comum):
-
-```text
-ANTES: snapshot dispara request em playlist privada com client_credentials → 401 garantido
-DEPOIS: SpotifyAuthMissingError em 0ms → failover para app com user token → 200 OK
-```
+Aprovado? Implemento as 4 superfícies em paralelo.

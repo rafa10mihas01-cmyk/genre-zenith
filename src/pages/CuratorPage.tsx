@@ -67,6 +67,7 @@ import { markCuratorPublicMode } from "@/lib/publicRouteMode";
 import { PasteUrlsDialog } from "@/components/curators/PasteUrlsDialog";
 import { AddSongToPlaylistDialog } from "@/components/curators/AddSongToPlaylistDialog";
 import { CuratorAccessGate, curatorAccessStorageKey } from "@/components/public/CuratorAccessGate";
+import { HistoricoPrevioBadge, HistoricoPrevioAlert, HistoricoPrevioCounter } from "@/components/campanhas/HistoricoPrevio";
 
 type Deal = {
   id: string;
@@ -105,6 +106,8 @@ type Playlist = {
   plays_7d?: number | null;
   plays_28d?: number | null;
   last_window_capture_at?: string | null;
+  /** Soma de plays_7d na captura de baseline da campanha. >0 = histórico prévio. */
+  baseline_plays_prior?: number | null;
 };
 
 type DealSong = {
@@ -1701,12 +1704,20 @@ export default function CuratorPage() {
                 </p>
               </div>
             ) : (
-              <ul
-                className={cn(
-                  "space-y-2 pr-1 -mr-1 scroll-smooth",
-                  curatorGroupedByPlaylist.length > 4 && "max-h-[280px] overflow-y-auto",
-                )}
-              >
+              <>
+                {/* Contador "Histórico prévio" — playlists onde a música já estava antes da campanha */}
+                {(() => {
+                  const priorCount = curatorGroupedByPlaylist.filter(
+                    (g) => Number(g.sample.baseline_plays_prior ?? 0) > 0,
+                  ).length;
+                  return <HistoricoPrevioCounter count={priorCount} className="mb-2" />;
+                })()}
+                <ul
+                  className={cn(
+                    "space-y-2 pr-1 -mr-1 scroll-smooth",
+                    curatorGroupedByPlaylist.length > 4 && "max-h-[280px] overflow-y-auto",
+                  )}
+                >
                 {curatorGroupedByPlaylist.map((g) => {
                   const p = g.sample;
                   return (
@@ -1731,13 +1742,16 @@ export default function CuratorPage() {
                             )}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-[12.5px] font-semibold leading-tight truncate group-hover:text-primary transition-colors">
                                 {p.playlist_name}
                               </span>
                               <span className="text-[9px] font-semibold uppercase tracking-wider shrink-0 px-1.5 py-0.5 rounded-full ring-1 leading-none text-primary bg-primary/10 ring-primary/20">
                                 Curador
                               </span>
+                              {Number(p.baseline_plays_prior ?? 0) > 0 && (
+                                <HistoricoPrevioBadge />
+                              )}
                             </div>
                             <div className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground tabular-nums">
                               {p.followers !== null && (
@@ -1774,7 +1788,8 @@ export default function CuratorPage() {
                     </li>
                   );
                 })}
-              </ul>
+                </ul>
+              </>
             )}
           </CardContent>
         </Card>
@@ -1812,6 +1827,9 @@ export default function CuratorPage() {
                 Músicas da campanha já presentes nesta playlist antes do início
               </DialogDescription>
             </DialogHeader>
+            {Number(curatorModalGroup?.sample.baseline_plays_prior ?? 0) > 0 && (
+              <HistoricoPrevioAlert />
+            )}
             <div className="space-y-2">
               {curatorModalGroup?.songsInside.length ? (
                 curatorModalGroup.songsInside.map((s) => (

@@ -255,6 +255,34 @@ Deno.serve(async (req) => {
     }
 
 
+    // Histórico prévio: para cada playlist do curador, buscar baseline_plays
+    // da view de crescimento da campanha. baseline_plays > 0 = música já tinha
+    // atividade naquela playlist antes da campanha (não bloqueia, só sinaliza).
+    const baselinePlaysByPid: Record<string, number> = {};
+    if ((deal as any).campaign_id) {
+      try {
+        const playlistIds = Array.from(
+          new Set(
+            ((playlists ?? []) as any[])
+              .map((p) => (p.spotify_playlist_id ?? "").trim())
+              .filter(Boolean),
+          ),
+        );
+        if (playlistIds.length > 0) {
+          const { data: growthRows } = await admin
+            .from("vw_campaign_playlist_growth")
+            .select("playlist_id, baseline_plays")
+            .eq("campaign_id", (deal as any).campaign_id)
+            .in("playlist_id", playlistIds);
+          for (const r of (growthRows ?? []) as Array<{ playlist_id: string | null; baseline_plays: number | null }>) {
+            const pid = (r.playlist_id ?? "").trim();
+            if (!pid) continue;
+            baselinePlaysByPid[pid] = Math.max(0, Number(r.baseline_plays ?? 0));
+          }
+        }
+      } catch (_e) { /* best-effort */ }
+    }
+
     return jr({
       ok: true,
       deal,
@@ -266,6 +294,7 @@ Deno.serve(async (req) => {
         plays_7d: latestByPlaylist[p.id]?.plays_7d ?? null,
         plays_28d: latestByPlaylist[p.id]?.plays_28d ?? null,
         last_window_capture_at: latestByPlaylist[p.id]?.captured_at ?? null,
+        baseline_plays_prior: baselinePlaysByPid[(p.spotify_playlist_id ?? "").trim()] ?? 0,
       })),
       songs: songs ?? [],
       progress: progressRpc ?? null,
