@@ -6,6 +6,8 @@ import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2, Download, 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserRole } from "@/hooks/useUserRole";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 type Upload = {
@@ -15,6 +17,7 @@ type Upload = {
   total_streams: number;
   status: string;
   file_name: string | null;
+  file_path?: string | null;
 };
 
 type Preview = {
@@ -83,7 +86,35 @@ export function SpreadsheetUploadCard({
   onUploaded,
   approved = true,
 }: Props) {
+  const { isAdmin } = useUserRole();
   const inputRef = useRef<HTMLInputElement>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  const handleDownloadUpload = async (u: Upload) => {
+    if (!u.file_path) {
+      toast.error("Arquivo original não disponível pra esse upload");
+      return;
+    }
+    setDownloadingId(u.id);
+    try {
+      const { data, error } = await supabase.storage
+        .from("label-spreadsheets")
+        .createSignedUrl(u.file_path, 60);
+      if (error || !data?.signedUrl) throw error ?? new Error("Falha ao gerar link");
+      const a = document.createElement("a");
+      a.href = data.signedUrl;
+      a.download = u.file_name ?? "planilha.xlsx";
+      a.target = "_blank";
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao baixar planilha");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [phase, setPhase] = useState<"idle" | "previewing" | "previewed" | "done">("idle");
@@ -446,9 +477,9 @@ export function SpreadsheetUploadCard({
               {recentUploads.slice(0, 5).map((u) => (
                 <li
                   key={u.id}
-                  className="flex items-center justify-between text-[12px] text-muted-foreground"
+                  className="flex items-center justify-between gap-2 text-[12px] text-muted-foreground"
                 >
-                  <span className="truncate">
+                  <span className="truncate shrink-0">
                     {new Date(u.created_at).toLocaleDateString("pt-BR", {
                       day: "2-digit",
                       month: "short",
@@ -456,9 +487,26 @@ export function SpreadsheetUploadCard({
                       minute: "2-digit",
                     })}
                   </span>
-                  <span>
+                  <span className="truncate text-right flex-1">
                     {u.rows_imported} playlists · {fmtNumber(u.total_streams)} streams
                   </span>
+                  {isAdmin && u.file_path && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground shrink-0"
+                      onClick={() => handleDownloadUpload(u)}
+                      disabled={downloadingId === u.id}
+                      title={u.file_name ?? "Baixar planilha original"}
+                    >
+                      {downloadingId === u.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Download className="h-3 w-3" />
+                      )}
+                    </Button>
+                  )}
                 </li>
               ))}
             </ul>
