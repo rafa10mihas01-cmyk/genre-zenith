@@ -45,7 +45,7 @@ async function syncOne(sb: any, _token: string, pl: { id: string; spotify_playli
       : await getSpotifyToken();
     const rich = await listPlaylistTracksRich(pl.spotify_playlist_id, token, {
       max: 10000,
-      fields: "items(added_at,track(id,name,duration_ms,external_ids,artists(name),album(images))),next",
+      fields: "items(added_at,track(id,name,duration_ms,external_ids,artists(name),album(images)),item(id,name,duration_ms,external_ids,artists(name),album(images))),next",
     });
     const rows = rich
       .filter((t) => t.spotify_track_id)
