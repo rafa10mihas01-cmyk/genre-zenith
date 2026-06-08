@@ -293,6 +293,90 @@ export type Database = {
         }
         Relationships: []
       }
+      artist_normalization_runs: {
+        Row: {
+          blind_genres_new: number | null
+          blind_genres_old: number | null
+          combos_detected: number | null
+          coverage_gain_pp: number | null
+          coverage_new_pct: number | null
+          coverage_old_pct: number | null
+          finished_at: string | null
+          id: string
+          notes: Json | null
+          started_at: string
+          total_track_lines: number | null
+          unique_combos: number | null
+          unique_individuals: number | null
+        }
+        Insert: {
+          blind_genres_new?: number | null
+          blind_genres_old?: number | null
+          combos_detected?: number | null
+          coverage_gain_pp?: number | null
+          coverage_new_pct?: number | null
+          coverage_old_pct?: number | null
+          finished_at?: string | null
+          id?: string
+          notes?: Json | null
+          started_at?: string
+          total_track_lines?: number | null
+          unique_combos?: number | null
+          unique_individuals?: number | null
+        }
+        Update: {
+          blind_genres_new?: number | null
+          blind_genres_old?: number | null
+          combos_detected?: number | null
+          coverage_gain_pp?: number | null
+          coverage_new_pct?: number | null
+          coverage_old_pct?: number | null
+          finished_at?: string | null
+          id?: string
+          notes?: Json | null
+          started_at?: string
+          total_track_lines?: number | null
+          unique_combos?: number | null
+          unique_individuals?: number | null
+        }
+        Relationships: []
+      }
+      artist_split_shadow: {
+        Row: {
+          artist_individual: string
+          artist_norm: string
+          created_at: string
+          id: number
+          original_combo: string
+          source_id: string
+          source_table: string
+          split_position: number
+          split_separator: string | null
+        }
+        Insert: {
+          artist_individual: string
+          artist_norm: string
+          created_at?: string
+          id?: number
+          original_combo: string
+          source_id: string
+          source_table: string
+          split_position: number
+          split_separator?: string | null
+        }
+        Update: {
+          artist_individual?: string
+          artist_norm?: string
+          created_at?: string
+          id?: number
+          original_combo?: string
+          source_id?: string
+          source_table?: string
+          split_position?: number
+          split_separator?: string | null
+        }
+        Relationships: []
+      }
       autopilot_runs: {
         Row: {
           cache_hits: Json
@@ -5041,6 +5125,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      genre_reference_artists_shadow: {
+        Row: {
+          artist_display: string
+          artist_norm: string
+          created_at: string
+          genre_id: string | null
+          genre_nome: string | null
+          id: number
+          is_anchor: boolean
+          occurrences: number
+          playlists_count: number
+          purity_pct: number | null
+          total_genre_appearances: number
+        }
+        Insert: {
+          artist_display: string
+          artist_norm: string
+          created_at?: string
+          genre_id?: string | null
+          genre_nome?: string | null
+          id?: number
+          is_anchor?: boolean
+          occurrences?: number
+          playlists_count?: number
+          purity_pct?: number | null
+          total_genre_appearances?: number
+        }
+        Update: {
+          artist_display?: string
+          artist_norm?: string
+          created_at?: string
+          genre_id?: string | null
+          genre_nome?: string | null
+          id?: number
+          is_anchor?: boolean
+          occurrences?: number
+          playlists_count?: number
+          purity_pct?: number | null
+          total_genre_appearances?: number
+        }
+        Relationships: []
       }
       genre_reference_playlists: {
         Row: {
