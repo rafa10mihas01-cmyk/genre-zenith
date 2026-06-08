@@ -14,7 +14,7 @@ import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { ExternalPackageEditor } from "@/components/campanhas/ExternalPackageEditor";
 import { BaselineAwaitingBanner } from "@/components/campanhas/BaselineAwaitingBanner";
 import { BotCollectionStatus } from "@/components/campanhas/BotCollectionStatus";
-import { SpreadsheetCollectionStatus } from "@/components/campanhas/SpreadsheetCollectionStatus";
+import { SpreadsheetUploadsCompactCard } from "@/components/campanhas/SpreadsheetUploadsCompactCard";
 import { MonitoramentoTab } from "@/components/campanhas/monitoramento/MonitoramentoTab";
 import { CampaignDailyPlan } from "@/components/campanhas/CampaignDailyPlan";
 import { PlaylistDailyPlanDialog } from "@/components/campanhas/PlaylistDailyPlanDialog";
@@ -732,13 +732,7 @@ export default function CampanhaExecucao() {
                 baselineCapturedAt={dealStatus.baselineCapturedAt}
                 dealId={camp.deal_id ?? null}
               />
-              {(camp as any).collection_mode === "spreadsheet" ? (
-                <SpreadsheetCollectionStatus
-                  lastUploadAt={lastSpreadsheetUploadAt}
-                  recentUploads={recentUploads}
-                  onOpenUpload={clientToken ? () => setUploadOpen(true) : undefined}
-                />
-              ) : null}
+              {/* Removido: bloco de coleta via planilha. Movido pro topo do Monitoramento. */}
               <RadioCollectedCard
                 campaignId={camp.id}
                 cppEco={snapshot.streamsEco > 0 ? snapshot.custoEco / snapshot.streamsEco : 0}
@@ -935,7 +929,19 @@ export default function CampanhaExecucao() {
             </div>
           ),
 
-          monitoramento: <MonitoramentoTab campaignId={camp.id} />,
+          monitoramento: (
+            <MonitoramentoTab
+              campaignId={camp.id}
+              headerSlot={
+                (camp as any).collection_mode === "spreadsheet" ? (
+                  <SpreadsheetUploadsCompactCard
+                    recentUploads={recentUploads}
+                    onOpenUpload={clientToken ? () => setUploadOpen(true) : undefined}
+                  />
+                ) : null
+              }
+            />
+          ),
 
 
           upload: clientToken ? (

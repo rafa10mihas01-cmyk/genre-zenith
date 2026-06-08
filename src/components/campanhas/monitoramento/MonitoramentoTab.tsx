@@ -9,7 +9,7 @@ import { PlaylistHistoryDrawer } from "./PlaylistHistoryDrawer";
 import { PrintThumbs } from "@/components/playlist-deals/PrintThumbs";
 import { SaudeView } from "./SaudeView";
 
-type Props = { campaignId: string };
+type Props = { campaignId: string; headerSlot?: React.ReactNode };
 
 type BaselineTone = "success" | "warning" | "muted";
 
@@ -21,7 +21,7 @@ type SnapshotRun = {
   print_count: number | null;
 };
 
-export function MonitoramentoTab({ campaignId }: Props) {
+export function MonitoramentoTab({ campaignId, headerSlot }: Props) {
   const [kpis, setKpis] = useState<{ status: string | null; capturedAt: string | null; playlists: number }>({
     status: null,
     capturedAt: null,
@@ -111,6 +111,7 @@ export function MonitoramentoTab({ campaignId }: Props) {
         runs={runs}
         runsLoading={runsLoading}
       />
+      {headerSlot}
 
       <Tabs value={subtab} onValueChange={setSubtab} className="space-y-4">
         <TabsContent value="visao" className="mt-0">
