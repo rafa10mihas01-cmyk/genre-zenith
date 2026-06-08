@@ -3981,6 +3981,119 @@ export type Database = {
           },
         ]
       }
+      dna_blind_test_playlists: {
+        Row: {
+          ambiguous_hits: number | null
+          artist_signals: number | null
+          cadastrado_genre_name: string | null
+          confidence_pct: number | null
+          created_at: string
+          error_reasons: string[] | null
+          id: string
+          is_correct: boolean | null
+          margin_pct: number | null
+          playlist_id: string
+          predicted_genre_id: string | null
+          predicted_genre_name: string | null
+          run_id: string
+          runner_up_genre_name: string | null
+          supporting_artists: Json | null
+          supporting_tracks: Json | null
+          track_signals: number | null
+          tracks_total: number | null
+          unclassifiable: boolean | null
+          unclassifiable_reason: string | null
+          votes: Json | null
+        }
+        Insert: {
+          ambiguous_hits?: number | null
+          artist_signals?: number | null
+          cadastrado_genre_name?: string | null
+          confidence_pct?: number | null
+          created_at?: string
+          error_reasons?: string[] | null
+          id?: string
+          is_correct?: boolean | null
+          margin_pct?: number | null
+          playlist_id: string
+          predicted_genre_id?: string | null
+          predicted_genre_name?: string | null
+          run_id: string
+          runner_up_genre_name?: string | null
+          supporting_artists?: Json | null
+          supporting_tracks?: Json | null
+          track_signals?: number | null
+          tracks_total?: number | null
+          unclassifiable?: boolean | null
+          unclassifiable_reason?: string | null
+          votes?: Json | null
+        }
+        Update: {
+          ambiguous_hits?: number | null
+          artist_signals?: number | null
+          cadastrado_genre_name?: string | null
+          confidence_pct?: number | null
+          created_at?: string
+          error_reasons?: string[] | null
+          id?: string
+          is_correct?: boolean | null
+          margin_pct?: number | null
+          playlist_id?: string
+          predicted_genre_id?: string | null
+          predicted_genre_name?: string | null
+          run_id?: string
+          runner_up_genre_name?: string | null
+          supporting_artists?: Json | null
+          supporting_tracks?: Json | null
+          track_signals?: number | null
+          tracks_total?: number | null
+          unclassifiable?: boolean | null
+          unclassifiable_reason?: string | null
+          votes?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dna_blind_test_playlists_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "dna_blind_test_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dna_blind_test_runs: {
+        Row: {
+          accuracy_pct: number | null
+          finished_at: string | null
+          id: string
+          reference_run_id: string | null
+          sample_per_genre: number
+          started_at: string
+          target_genres: string[]
+          totals: Json | null
+        }
+        Insert: {
+          accuracy_pct?: number | null
+          finished_at?: string | null
+          id?: string
+          reference_run_id?: string | null
+          sample_per_genre?: number
+          started_at?: string
+          target_genres?: string[]
+          totals?: Json | null
+        }
+        Update: {
+          accuracy_pct?: number | null
+          finished_at?: string | null
+          id?: string
+          reference_run_id?: string | null
+          sample_per_genre?: number
+          started_at?: string
+          target_genres?: string[]
+          totals?: Json | null
+        }
+        Relationships: []
+      }
       editorial_history: {
         Row: {
           artist_name: string | null
