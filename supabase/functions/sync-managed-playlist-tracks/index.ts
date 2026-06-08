@@ -142,7 +142,7 @@ Deno.serve(async (req) => {
       max: 10000,
       fields: "items(added_at,track(id,name,duration_ms,external_ids,artists(name),album(images)),item(id,name,duration_ms,external_ids,artists(name),album(images))),next",
     });
-    const spotifyRows: SpotifyRow[] = rich
+    const spotifyRowsRaw: SpotifyRow[] = rich
       .filter((t) => t.spotify_track_id)
       .map((t) => ({
         playlist_id: pl.id,
@@ -155,6 +155,15 @@ Deno.serve(async (req) => {
         duration_ms: t.duration_ms,
         isrc: t.isrc,
       }));
+    // Dedup por spotify_track_id — Spotify permite a mesma track em várias posições,
+    // mas nosso UNIQUE(playlist_id, spotify_track_id) não. Mantém a primeira ocorrência.
+    const seenTrackIds = new Set<string>();
+    const spotifyRows: SpotifyRow[] = [];
+    for (const r of spotifyRowsRaw) {
+      if (seenTrackIds.has(r.spotify_track_id)) continue;
+      seenTrackIds.add(r.spotify_track_id);
+      spotifyRows.push(r);
+    }
 
     // 2) Hash de identidade (ISRC preferido, fallback spotify_track_id) — estável entre re-uploads
     const newHash = await computeIdentityHash(spotifyRows);
