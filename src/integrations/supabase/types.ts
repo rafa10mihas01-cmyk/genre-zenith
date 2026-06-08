@@ -10207,6 +10207,7 @@ export type Database = {
       }
       system_flags: {
         Row: {
+          ai_editorial_tier: string
           apify_blocked: boolean
           apify_blocked_at: string | null
           apify_blocked_reason: string | null
@@ -10222,6 +10223,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ai_editorial_tier?: string
           apify_blocked?: boolean
           apify_blocked_at?: string | null
           apify_blocked_reason?: string | null
@@ -10237,6 +10239,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ai_editorial_tier?: string
           apify_blocked?: boolean
           apify_blocked_at?: string | null
           apify_blocked_reason?: string | null
