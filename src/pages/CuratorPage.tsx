@@ -105,6 +105,8 @@ type Playlist = {
   plays_7d?: number | null;
   plays_28d?: number | null;
   last_window_capture_at?: string | null;
+  /** Soma de plays_7d na captura de baseline da campanha. >0 = histórico prévio. */
+  baseline_plays_prior?: number | null;
 };
 
 type DealSong = {
