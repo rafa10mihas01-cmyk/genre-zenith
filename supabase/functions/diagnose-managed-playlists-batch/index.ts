@@ -77,12 +77,14 @@ Deno.serve(async (req) => {
     // Em vez de chamar diagnose-managed-playlist diretamente em loop sequencial,
     // enfileira jobs DIAGNOSE_ENGINE (priority 1). O playlist-queue-processor
     // executa em paralelo controlado (um por playlist), com retry/backoff.
-    const results: Array<{ id: string; ok: boolean; skipped?: boolean; error?: string }> = [];
+    const editorialTier = await getEditorialTier(supabase);
+    const results: Array<{ id: string; ok: boolean; skipped?: boolean; error?: string; ai?: boolean }> = [];
     for (const r of rows) {
+      const useAi = shouldUseEditorialAI((r as any).followers, editorialTier);
       const enq = await enqueuePlaylistJob(supabase, {
         playlist_id: r.id,
         operation_type: "DIAGNOSE_ENGINE",
-        payload: { skip_ai: true, source: "batch" },
+        payload: { skip_ai: !useAi, source: "batch" },
       });
       if (enq.ok && (enq as any).skipped) {
         results.push({ id: r.id, ok: true, skipped: true });
