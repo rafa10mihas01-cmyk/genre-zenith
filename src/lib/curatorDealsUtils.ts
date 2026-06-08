@@ -341,6 +341,7 @@ export function computeCuratorStats(
   let latestPlaysFinal = latestPlays;
   let velFinal = vel;
   let etaFinal = eta;
+  let todayPlaysFinal = todayPlays;
   if (progressOverride) {
     const delivered = Number(progressOverride.delivered_curator ?? 0);
     const latestRaw = progressOverride.latest_total;
@@ -357,7 +358,19 @@ export function computeCuratorStats(
       target > 0 && earnedFinal >= target ? 0 :
       (velFinal && velFinal > 0 ? Math.ceil(Math.max(0, target - earnedFinal) / velFinal) : null)
     );
+    // Hoje: usa override quando informado; fallback pra daily_avg (entrega média diária)
+    // pra evitar mostrar "0%" quando há entrega real mas sem logs manuais.
+    const todayOverride = progressOverride.today_plays;
+    if (todayOverride != null && Number.isFinite(Number(todayOverride))) {
+      todayPlaysFinal = Math.max(0, Math.round(Number(todayOverride)));
+    } else if (todayPlays === 0 && dailyAvg > 0) {
+      todayPlaysFinal = Math.round(dailyAvg);
+    }
   }
+
+  const todayPctFinal =
+    dailyGoal > 0 ? Math.min(100, Math.round((todayPlaysFinal / dailyGoal) * 100)) : 0;
+
 
   return {
     earned: earnedFinal,
