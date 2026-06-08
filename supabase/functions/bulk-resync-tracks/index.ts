@@ -53,6 +53,11 @@ Deno.serve(async (req) => {
       const my = i++;
       const id = ids[my];
       try {
+        // Hard-reset: estas playlists têm tracks_count=0 mas podem ter linhas órfãs
+        // em managed_playlist_tracks (parser quebrado deixou estado misto).
+        // Limpar antes evita colisão de UNIQUE(playlist_id, position) no upsert.
+        await sb.from("managed_playlist_tracks").delete().eq("playlist_id", id);
+        await sb.from("managed_playlists").update({ tracks_hash: null }).eq("id", id);
         const res = await fetch(`${SUPABASE_URL}/functions/v1/sync-managed-playlist-tracks`, {
           method: "POST",
           headers: {
