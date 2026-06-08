@@ -603,7 +603,33 @@ export default function CampanhaExecucao() {
     return Math.max(1, Math.min(snapshot.days, Math.ceil(elapsedMs / 86400_000)));
   }, [camp, snapshot]);
 
-  const delivered = camp?.total_delivered ?? 0;
+  // Entrega real vinda da view de crescimento (fonte de verdade pós-backfill A+B).
+  // Inclui playlists vindas de planilhas (Plug/Manolo) que o cron `recalc_campaign_progress`
+  // não enxerga. Cai pro total_delivered legado quando a view está vazia.
+  const [deliveredFromView, setDeliveredFromView] = useState<number | null>(null);
+  useEffect(() => {
+    if (!camp?.id) return;
+    let cancel = false;
+    (async () => {
+      try {
+        const { data } = await (supabase as any)
+          .from("vw_campaign_playlist_growth")
+          .select("delta")
+          .eq("campaign_id", camp.id);
+        if (cancel) return;
+        const sum = ((data ?? []) as Array<{ delta: number | null }>)
+          .reduce((s, r) => s + Math.max(0, Number(r.delta ?? 0)), 0);
+        setDeliveredFromView(sum);
+      } catch (e) {
+        console.warn("[CampanhaExecucao] growth view fetch failed", e);
+      }
+    })();
+    return () => { cancel = true; };
+  }, [camp?.id]);
+
+  const delivered = (deliveredFromView ?? 0) > 0
+    ? (deliveredFromView as number)
+    : (camp?.total_delivered ?? 0);
 
   // Rádio Spotify — baseline ancorada na ativação da campanha (atual - início).
   const { data: radioCollected } = useRadioCollected(camp?.id);
