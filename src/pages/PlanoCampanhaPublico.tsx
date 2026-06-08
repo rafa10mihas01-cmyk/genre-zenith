@@ -366,7 +366,7 @@ export default function PlanoCampanhaPublico() {
 
   const isApproved = !!camp.client_approved_at;
   const isRejected = !!camp.client_rejected_at && !isApproved;
-  const delivered = camp.total_delivered ?? 0;
+  const delivered = deliveredFromView ?? (camp.total_delivered ?? 0);
   const lastUpdateAt = proofEvents[0]?.captured_at ?? camp.started_at;
 
   // View minimalista: só o mapa de distribuição (compartilhado via ?view=mapa)
