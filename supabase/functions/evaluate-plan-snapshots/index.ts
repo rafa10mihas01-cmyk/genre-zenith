@@ -8,6 +8,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
+import { getEditorialTier, shouldUseEditorialAI } from "../_shared/editorial-flag.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -76,8 +77,15 @@ async function ensureFreshDiagnose(supabase: any, managedId: string): Promise<{ 
     .maybeSingle();
   if (recent) return { reused: true };
 
-  // Roda diagnose batch (sem AI — só refresca estado Spotify)
+  // Roda diagnose; usa AI editorial conforme feature flag (system_flags.ai_editorial_tier)
   try {
+    const tier = await getEditorialTier(supabase);
+    const { data: mp } = await supabase
+      .from("managed_playlists")
+      .select("followers")
+      .eq("id", managedId)
+      .maybeSingle();
+    const useAi = shouldUseEditorialAI(mp?.followers ?? 0, tier);
     const r = await fetch(`${SUPABASE_URL}/functions/v1/diagnose-managed-playlist`, {
       method: "POST",
       headers: {
@@ -85,7 +93,7 @@ async function ensureFreshDiagnose(supabase: any, managedId: string): Promise<{ 
         Authorization: `Bearer ${SERVICE_KEY}`,
         apikey: SERVICE_KEY,
       },
-      body: JSON.stringify({ playlist_id: managedId, source: "cron", skip_ai: true }),
+      body: JSON.stringify({ playlist_id: managedId, source: "cron", skip_ai: !useAi }),
     });
     const txt = await r.text();
     if (!r.ok) return { reused: false, error: `diagnose ${r.status}: ${txt.slice(0, 200)}` };

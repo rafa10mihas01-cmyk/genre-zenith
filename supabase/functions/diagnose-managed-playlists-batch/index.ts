@@ -7,6 +7,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 import { enqueuePlaylistJob } from "../_shared/playlist-queue.ts";
+import { getEditorialTier, shouldUseEditorialAI } from "../_shared/editorial-flag.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -36,7 +37,7 @@ Deno.serve(async (req) => {
 
     let query = supabase
       .from("managed_playlists")
-      .select("id, name, genre_id, last_diagnosis_at")
+      .select("id, name, genre_id, last_diagnosis_at, followers")
       .is("archived_at", null)
       .eq("diagnose_blocked", false)
       .or(`last_diagnosis_at.is.null,last_diagnosis_at.lt.${cutoff}`)
@@ -76,19 +77,21 @@ Deno.serve(async (req) => {
     // Em vez de chamar diagnose-managed-playlist diretamente em loop sequencial,
     // enfileira jobs DIAGNOSE_ENGINE (priority 1). O playlist-queue-processor
     // executa em paralelo controlado (um por playlist), com retry/backoff.
-    const results: Array<{ id: string; ok: boolean; skipped?: boolean; error?: string }> = [];
+    const editorialTier = await getEditorialTier(supabase);
+    const results: Array<{ id: string; ok: boolean; skipped?: boolean; error?: string; ai?: boolean }> = [];
     for (const r of rows) {
+      const useAi = shouldUseEditorialAI((r as any).followers, editorialTier);
       const enq = await enqueuePlaylistJob(supabase, {
         playlist_id: r.id,
         operation_type: "DIAGNOSE_ENGINE",
-        payload: { skip_ai: true, source: "batch" },
+        payload: { skip_ai: !useAi, source: "batch" },
       });
       if (enq.ok && (enq as any).skipped) {
-        results.push({ id: r.id, ok: true, skipped: true });
+        results.push({ id: r.id, ok: true, skipped: true, ai: useAi });
       } else if (enq.ok) {
-        results.push({ id: r.id, ok: true });
+        results.push({ id: r.id, ok: true, ai: useAi });
       } else {
-        results.push({ id: r.id, ok: false, error: enq.error });
+        results.push({ id: r.id, ok: false, error: enq.error, ai: useAi });
       }
     }
 

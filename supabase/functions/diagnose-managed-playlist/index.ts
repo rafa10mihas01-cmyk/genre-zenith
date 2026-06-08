@@ -335,7 +335,12 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json().catch(() => ({}));
     const playlistId: string = body?.playlist_id;
-    const skipAi: boolean = body?.skip_ai === true || body?.source === "batch" || body?.source === "cron";
+    // skip_ai vem sempre explícito do caller (resolvido via system_flags.ai_editorial_tier
+    // em diagnose-managed-playlists-batch / playlist-queue-processor / evaluate-plan-snapshots).
+    // Fallback: se o caller não passar nada, mantém compat antigo (batch/cron sem AI).
+    const skipAi: boolean = typeof body?.skip_ai === "boolean"
+      ? body.skip_ai
+      : (body?.source === "batch" || body?.source === "cron");
     const forceBlocked: boolean = body?.force === true || body?.force_blocked === true;
     if (!playlistId) return jr({ ok: false, error: "playlist_id obrigatório" }, 400);
 

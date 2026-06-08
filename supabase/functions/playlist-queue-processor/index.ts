@@ -16,6 +16,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 import { backoffSecondsForAttempt, enqueuePlaylistJob } from "../_shared/playlist-queue.ts";
+import { getEditorialTier, shouldUseEditorialAI } from "../_shared/editorial-flag.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -52,7 +53,8 @@ const HANDLERS: Record<string, { fn: string; body: (job: Job) => Record<string, 
   },
   DIAGNOSE_ENGINE: {
     fn: "diagnose-managed-playlist",
-    body: (j) => ({ playlist_id: j.playlist_id, skip_ai: true, source: "queue", ...j.payload }),
+    // skip_ai resolvido dinamicamente em invokeHandler() via feature flag.
+    body: (j) => ({ playlist_id: j.playlist_id, source: "queue", ...j.payload }),
   },
   BRAIN_CALC: {
     fn: "playlist-brain-calc",
@@ -65,14 +67,21 @@ async function invokeHandler(job: Job, sb: any): Promise<HandlerOutcome> {
   if (!handler) return { ok: false, error: `no_handler:${job.operation_type}` };
 
   // FASE 2 — Skip DIAGNOSE_ENGINE / BRAIN_CALC quando playlist está diagnose_blocked.
+  // Mesma query também resolve `skip_ai` pela feature flag (system_flags.ai_editorial_tier).
+  let resolvedBody = handler.body(job);
   if (job.operation_type === "DIAGNOSE_ENGINE" || job.operation_type === "BRAIN_CALC") {
     const { data: mp } = await sb
       .from("managed_playlists")
-      .select("diagnose_blocked")
+      .select("diagnose_blocked, followers")
       .eq("id", job.playlist_id)
       .maybeSingle();
     if (mp?.diagnose_blocked === true) {
       return { ok: true, error: "diagnose_blocked_skip" } as HandlerOutcome;
+    }
+    if (job.operation_type === "DIAGNOSE_ENGINE" && resolvedBody.skip_ai === undefined) {
+      const tier = await getEditorialTier(sb);
+      const useAi = shouldUseEditorialAI(mp?.followers ?? 0, tier);
+      resolvedBody = { ...resolvedBody, skip_ai: !useAi };
     }
   }
 
@@ -86,7 +95,7 @@ async function invokeHandler(job: Job, sb: any): Promise<HandlerOutcome> {
         apikey: SERVICE_KEY,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(handler.body(job)),
+      body: JSON.stringify(resolvedBody),
     });
   } catch (e) {
     return { ok: false, error: `network: ${(e as Error).message}` };
