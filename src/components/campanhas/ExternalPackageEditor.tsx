@@ -78,7 +78,7 @@ export function ExternalPackageEditor({
 }) {
   const [pkg, setPkg] = useState<PackageRow | null>(null);
   const [items, setItems] = useState<ItemRow[]>([]);
-  const [deliveryByCurator, setDeliveryByCurator] = useState<Record<string, number>>({});
+  const [deliveryByCurator, setDeliveryByCurator] = useState<Record<string, CuratorDelivery>>({});
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
   const [reopenOpen, setReopenOpen] = useState(false);
