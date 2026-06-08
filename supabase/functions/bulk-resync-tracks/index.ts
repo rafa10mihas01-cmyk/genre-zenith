@@ -3,7 +3,8 @@
 // internamente. Retorna lista { id, ok, before, after, error }.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { requireTeamAccess } from "../_shared/auth.ts";
+// One-off: auth via SERVICE_ROLE bearer apenas (sem requireTeamAccess pra evitar
+// dependência de JWT de usuário que expira em sessões longas).
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
