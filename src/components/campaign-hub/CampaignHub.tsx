@@ -69,6 +69,7 @@ export function CampaignHub({
         camp={camp}
         mode={mode}
         delivered={delivered}
+        deliveryBreakdown={deliveryBreakdown}
         goal={goal}
         daysElapsed={daysElapsed}
         daysTotal={daysTotal}
