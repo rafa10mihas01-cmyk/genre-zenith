@@ -732,13 +732,7 @@ export default function CampanhaExecucao() {
                 baselineCapturedAt={dealStatus.baselineCapturedAt}
                 dealId={camp.deal_id ?? null}
               />
-              {(camp as any).collection_mode === "spreadsheet" ? (
-                <SpreadsheetCollectionStatus
-                  lastUploadAt={lastSpreadsheetUploadAt}
-                  recentUploads={recentUploads}
-                  onOpenUpload={clientToken ? () => setUploadOpen(true) : undefined}
-                />
-              ) : null}
+              {/* Removido: bloco de coleta via planilha. Movido pro topo do Monitoramento. */}
               <RadioCollectedCard
                 campaignId={camp.id}
                 cppEco={snapshot.streamsEco > 0 ? snapshot.custoEco / snapshot.streamsEco : 0}
