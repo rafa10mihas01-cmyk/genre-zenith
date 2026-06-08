@@ -266,6 +266,29 @@ export default function PlanoCampanhaPublico() {
     return () => { cancelled = true; };
   }, [clientToken]);
 
+  // Fonte de verdade do "Entregue" — mesma usada na Execução / OverviewTab / Lista de Campanhas.
+  // Substitui campaigns.total_delivered (legado).
+  useEffect(() => {
+    const campaignId = (camp as any)?.id;
+    if (!campaignId) { setDeliveredFromView(null); return; }
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("vw_campaign_playlist_growth")
+        .select("attributed_to, delta")
+        .eq("campaign_id", campaignId);
+      if (cancelled || error || !Array.isArray(data)) return;
+      const total = (data as Array<{ attributed_to: string | null; delta: number | null }>).reduce((acc, r) => {
+        const at = r.attributed_to ?? "";
+        if (at === "organic") return acc;
+        if (at === "ecosystem" || at.startsWith("curator:")) return acc + Number(r.delta ?? 0);
+        return acc;
+      }, 0);
+      setDeliveredFromView(total);
+    })();
+    return () => { cancelled = true; };
+  }, [(camp as any)?.id]);
+
   const snapshot = camp?.simulation_snapshot ?? null;
 
   const ecoPositionByAllocation = useMemo(() => {
