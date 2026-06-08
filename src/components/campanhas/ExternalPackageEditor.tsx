@@ -735,6 +735,15 @@ function CuratorCard({ item, delivery }: { item: ItemRow; delivery?: CuratorDeli
         <div className="w-full h-1.5 bg-elevated rounded-full overflow-hidden">
           <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
         </div>
+        {delivery && delivery.total > 0 && (
+          <div className="flex items-center justify-between gap-2 text-[10px] pt-1">
+            <span className="text-muted-foreground tabular-nums">
+              <span className="text-foreground">{formatInt(cleanDelivered)}</span> limpos
+              {hasPrior && <> · <span className="text-foreground">{formatInt(priorDelivered)}</span> hist.</>}
+            </span>
+            {hasPrior && <HistoricoPrevioBadge />}
+          </div>
+        )}
       </div>
 
       {item.curator_deal_id ? (
