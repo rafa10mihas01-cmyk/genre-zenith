@@ -640,7 +640,7 @@ export function ExternalPackageEditor({
   );
 }
 
-function CuratorCard({ item, deliveredOverride }: { item: ItemRow; deliveredOverride?: number }) {
+function CuratorCard({ item, delivery }: { item: ItemRow; delivery?: CuratorDelivery }) {
   const name = item.curators?.name ?? "—";
   const initials = name
     .split(/\s+/)
@@ -654,7 +654,10 @@ function CuratorCard({ item, deliveredOverride }: { item: ItemRow; deliveredOver
   const reconciled = Number(deal?.reconciled_total_plays ?? 0);
   // Prioriza a entrega vinda da view de crescimento da campanha (fonte de verdade
   // pós-backfill A+B). Cai pro reconciled_total_plays só quando a view está vazia.
-  const delivered = (deliveredOverride && deliveredOverride > 0) ? deliveredOverride : reconciled;
+  const delivered = (delivery && delivery.total > 0) ? delivery.total : reconciled;
+  const cleanDelivered = delivery?.clean ?? 0;
+  const priorDelivered = delivery?.prior ?? 0;
+  const hasPrior = priorDelivered > 0;
   const planned = Math.max(0, Number(item.assigned_streams ?? 0));
   const pct = planned > 0 ? Math.min(100, Math.round((delivered / planned) * 100)) : 0;
 
