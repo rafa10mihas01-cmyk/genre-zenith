@@ -136,7 +136,7 @@ function DealRowImpl(props: DealRowProps) {
     >
 
       {/* Linha 1 — identidade */}
-      <div className="flex items-start gap-3 px-4 pt-3.5 pb-2.5 min-w-0">
+      <div className="flex items-start gap-3 px-4 pt-3.5 pb-2 min-w-0">
         {cover ? (
           <img
             src={cover}
@@ -180,45 +180,46 @@ function DealRowImpl(props: DealRowProps) {
               className="shrink-0 mt-1"
             />
           </div>
-          {/* Linha de chips — abaixo do nome pra não comer espaço */}
-          <div className="flex items-center gap-1.5 flex-wrap mt-2">
-            {(() => {
-              // Verdade: se tem campaign_id, é Campanha (independente do campo `origin`)
-              const fromCampaign = !!deal.campaign_id || deal.origin === "campaign";
-              return (
-                <span
-                  className={cn(
-                    "inline-flex items-center h-5 px-2 rounded-full text-[10px] font-semibold uppercase tracking-wide border",
-                    fromCampaign
-                      ? "bg-primary/10 text-primary border-primary/30"
-                      : "bg-muted text-muted-foreground border-border",
-                  )}
-                  title={fromCampaign ? "Deal criado via aprovação de campanha" : "Deal criado manualmente"}
-                >
-                  {fromCampaign ? "Campanha" : "Manual"}
-                </span>
-              );
-            })()}
-            {props.campaignCollectionMode === "bot" && (
-              <span
-                className="inline-flex items-center h-5 px-2 rounded-full text-[10px] font-semibold uppercase tracking-wide border bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                title="Coleta automática via API do Spotify"
-              >
-                Coleta Spotify
-              </span>
-            )}
-            {props.campaignCollectionMode === "spreadsheet" && (
-              <span
-                className="inline-flex items-center h-5 px-2 rounded-full text-[10px] font-semibold uppercase tracking-wide border bg-amber-500/10 text-amber-400 border-amber-500/30"
-                title="Coleta via importação de planilha Excel"
-              >
-                Coleta Excel
-              </span>
-            )}
-            <DealDeliveryBadge row={resolvedDelivery} />
-          </div>
         </button>
       </div>
+
+      {/* Linha de chips — alinhada à borda do card pra não "boiar" no meio */}
+      <div className="flex items-center gap-1.5 flex-wrap px-4 pb-2.5 min-w-0">
+        {(() => {
+          const fromCampaign = !!deal.campaign_id || deal.origin === "campaign";
+          return (
+            <span
+              className={cn(
+                "inline-flex items-center h-5 px-2 rounded-full text-[10px] font-semibold uppercase tracking-wide border",
+                fromCampaign
+                  ? "bg-primary/10 text-primary border-primary/30"
+                  : "bg-muted text-muted-foreground border-border",
+              )}
+              title={fromCampaign ? "Deal criado via aprovação de campanha" : "Deal criado manualmente"}
+            >
+              {fromCampaign ? "Campanha" : "Manual"}
+            </span>
+          );
+        })()}
+        {props.campaignCollectionMode === "bot" && (
+          <span
+            className="inline-flex items-center h-5 px-2 rounded-full text-[10px] font-semibold uppercase tracking-wide border bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+            title="Coleta automática via API do Spotify"
+          >
+            Coleta Spotify
+          </span>
+        )}
+        {props.campaignCollectionMode === "spreadsheet" && (
+          <span
+            className="inline-flex items-center h-5 px-2 rounded-full text-[10px] font-semibold uppercase tracking-wide border bg-amber-500/10 text-amber-400 border-amber-500/30"
+            title="Coleta via importação de planilha Excel"
+          >
+            Coleta Excel
+          </span>
+        )}
+        <DealDeliveryBadge row={resolvedDelivery} />
+      </div>
+
 
 
       {/* Divisor sutil */}
