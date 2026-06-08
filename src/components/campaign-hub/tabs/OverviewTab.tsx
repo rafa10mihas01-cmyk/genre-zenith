@@ -56,7 +56,7 @@ type Props = {
 
 export function OverviewTab({
   snapshot, delivered, daysElapsed, showFinance, hideDeliveryPlan = false, hideCurveShortcut = false, hideCurveCard = false, hideKpis = false, hideSplitRows = false,
-  allocations = [], snapshots = [], proofs = [], radioDelta = 0, onJumpTab,
+  allocations = [], snapshots = [], proofs = [], radioDelta = 0, deliveryBreakdown = null, onJumpTab,
   curveSlot,
   splitLockedAt = null, lockedEcoStreams = null, ecoMaxPct = 70,
   canManageSplit = false, onLockSplit, onUnlockSplit,
