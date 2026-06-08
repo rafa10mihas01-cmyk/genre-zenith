@@ -79,25 +79,26 @@ export function OverviewTab({
   const restante = Math.max(0, snapshot.meta - delivered);
   const ritmoNecessario = Math.round(restante / daysRemaining);
 
+  // Última snapshot por playlist — mantida APENAS pra montar Top playlists
+  // (delivered/delta24 por playlist específica). NÃO é mais usada pra
+  // agregados eco/ext — esses vêm exclusivamente de deliveryBreakdown
+  // (vw_campaign_playlist_growth, mesma fonte da execução).
   const latestByPl = new Map<string, EcoSnap>();
   for (const s of snapshots) {
     if (!latestByPl.has(s.managed_playlist_id)) latestByPl.set(s.managed_playlist_id, s);
   }
+  // Auditoria visual: playlists próprias (somente exibido na linha auxiliar abaixo
+  // do SplitRow eco). Mantido em separado pra não contaminar o cálculo agregado.
   const ecoDeliveredPlaylists = Array.from(latestByPl.values())
     .reduce((acc, s) => acc + Number(s.plays_28d ?? s.plays_7d ?? 0), 0);
-  // Rádio entra no Ecossistema (mesma família de plays próprios), mas é
-  // mantida visualmente separada na linha de auditoria abaixo do SplitRow.
   const radioDeliveredSafe = Math.max(0, Math.round(radioDelta));
-  // Fonte de verdade: deliveryBreakdown (view vw_campaign_playlist_growth) quando disponível.
-  // Cai pro cálculo legado por campaign_eco_snapshots quando a view ainda não enviou nada.
-  const useBreakdown = !!deliveryBreakdown && (deliveryBreakdown.curators + deliveryBreakdown.ecosystem + deliveryBreakdown.organic) > 0;
-  const ecoDelivered = useBreakdown
-    ? deliveryBreakdown!.ecosystem + radioDeliveredSafe
-    : Math.min(ecoDeliveredPlaylists + radioDeliveredSafe, delivered);
-  const extDelivered = useBreakdown
-    ? deliveryBreakdown!.curators
-    : Math.max(0, delivered - ecoDelivered);
-  const orgDelivered = useBreakdown ? deliveryBreakdown!.organic : 0;
+
+  // FONTE ÚNICA: vw_campaign_playlist_growth via prop deliveryBreakdown.
+  // Sem fallback legado — quando a view não tem dados, mostramos 0.
+  const ecoDelivered = (deliveryBreakdown?.ecosystem ?? 0) + radioDeliveredSafe;
+  const extDelivered = deliveryBreakdown?.curators ?? 0;
+  const orgDelivered = deliveryBreakdown?.organic ?? 0;
+
 
 
   // Valores fechados pela calculadora — única fonte da verdade.

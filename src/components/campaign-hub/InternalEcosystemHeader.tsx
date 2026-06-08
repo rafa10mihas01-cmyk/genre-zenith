@@ -5,33 +5,20 @@ import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import type { EcoAllocation } from "./types";
 import { KpiBig } from "@/components/KpiBig";
 
-type EcoSnap = {
-  managed_playlist_id: string;
-  plays_24h: number | null;
-  plays_7d: number | null;
-  plays_28d: number | null;
-  captured_at: string;
-};
-
+/**
+ * Header do Ecossistema (planejamento). Mostra apenas valores de PLANO
+ * (allocations + snapshot). A entrega REAL é responsabilidade dos
+ * componentes de execução que consomem vw_campaign_playlist_growth —
+ * este header não deve mais somar campaign_eco_snapshots.plays_28d.
+ */
 export function InternalEcosystemHeader({
   snapshot,
   allocations,
-  snaps,
 }: {
   snapshot: CampaignSnapshot;
   allocations: EcoAllocation[];
-  snaps: EcoSnap[];
 }) {
-  const latestByPl = new Map<string, EcoSnap>();
-  for (const s of snaps) {
-    if (!latestByPl.has(s.managed_playlist_id)) latestByPl.set(s.managed_playlist_id, s);
-  }
-
   const planned = allocations.reduce((s, a) => s + Number(a.planned_streams || 0), 0);
-  const delivered = allocations.reduce((s, a) => {
-    const sn = latestByPl.get(a.managed_playlist_id);
-    return s + Number(sn?.plays_28d ?? sn?.plays_7d ?? sn?.plays_24h ?? 0);
-  }, 0);
 
   const days = Math.max(1, snapshot.days || 1);
   const cpsInt = snapshot.streamsEco > 0 ? snapshot.custoEco / snapshot.streamsEco : 0;
@@ -85,5 +72,3 @@ export function InternalEcosystemHeader({
     </section>
   );
 }
-
-
