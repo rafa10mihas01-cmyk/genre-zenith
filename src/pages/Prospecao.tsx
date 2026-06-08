@@ -187,7 +187,7 @@ export default function Prospecao() {
             </div>
           </section>
           {/* DESKTOP — KPIs completos */}
-          <section className="hidden lg:grid grid-cols-2 md:grid-cols-5 gap-3">
+          <section className="hidden lg:grid grid-cols-2 md:grid-cols-4 gap-3">
             <KpiBig tier="hero" icon={UserSearch} label="Leads" value={formatNumber(outreach.leads)} hint="Curadores na base de prospecção" domain="curators" loading={outreach.loading} />
             <KpiBig icon={Send} label="Contatados" value={formatNumber(outreach.contatados)} hint="Curadores que receberam abordagem" domain="campaigns" loading={outreach.loading} />
             <KpiBig icon={Mail} label="Taxa de resposta" value={`${taxaResposta.toFixed(0)}%`} hint={`${formatNumber(outreach.respondidos)} respostas`} domain="campaigns" loading={outreach.loading} />
