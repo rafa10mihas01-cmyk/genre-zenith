@@ -39,6 +39,8 @@ type Props = {
   proofs?: ProofPreview[];
   /** Plays entregues pela Rádio desde o início da campanha (current - start). */
   radioDelta?: number;
+  /** Quebra real vinda da view de crescimento — sobrescreve cálculo legado dos cards Eco/Ext/Org. */
+  deliveryBreakdown?: { curators: number; ecosystem: number; organic: number } | null;
   onJumpTab?: (tab: "playlists" | "proofs" | "curve" | "finance") => void;
   // Slot opcional que substitui o card "Curva de entrega" dentro do grid principal.
   // Usado pra subir o monitoramento ao lugar da curva planejada.
