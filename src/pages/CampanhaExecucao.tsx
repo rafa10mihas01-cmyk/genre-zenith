@@ -929,7 +929,19 @@ export default function CampanhaExecucao() {
             </div>
           ),
 
-          monitoramento: <MonitoramentoTab campaignId={camp.id} />,
+          monitoramento: (
+            <MonitoramentoTab
+              campaignId={camp.id}
+              headerSlot={
+                (camp as any).collection_mode === "spreadsheet" ? (
+                  <SpreadsheetUploadsCompactCard
+                    recentUploads={recentUploads}
+                    onOpenUpload={clientToken ? () => setUploadOpen(true) : undefined}
+                  />
+                ) : null
+              }
+            />
+          ),
 
 
           upload: clientToken ? (
