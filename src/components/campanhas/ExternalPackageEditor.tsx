@@ -20,6 +20,7 @@ import { Link } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, Trash2, Users, AlertTriangle, CheckCircle2, Plus, Search, BarChart3, CalendarClock, DollarSign, Target, Lock, ExternalLink, Pencil, History, Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { HistoricoPrevioBadge, HistoricoPrevioRecommendation } from "@/components/campanhas/HistoricoPrevio";
 
 export type CuratorDelivery = { total: number; clean: number; prior: number };
 import { KpiBig } from "@/components/KpiBig";
