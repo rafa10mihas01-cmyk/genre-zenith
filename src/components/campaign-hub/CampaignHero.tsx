@@ -190,6 +190,21 @@ export function CampaignHero({ camp, mode, delivered = 0, deliveryBreakdown, goa
           <div className="h-1.5 rounded-full bg-muted overflow-hidden">
             <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
           </div>
+          {deliveryBreakdown && (deliveryBreakdown.curators + deliveryBreakdown.ecosystem + deliveryBreakdown.organic) > 0 && (
+            <div className="mt-1.5 flex items-center flex-wrap gap-x-3 gap-y-0.5 text-[10.5px] tabular-nums text-muted-foreground">
+              <span>Curadores <span className="text-foreground">{formatInt(deliveryBreakdown.curators)}</span></span>
+              <span className="opacity-40">·</span>
+              <span>Ecossistema <span className="text-foreground">{formatInt(deliveryBreakdown.ecosystem)}</span></span>
+              {deliveryBreakdown.organic > 0 && (
+                <>
+                  <span className="opacity-40">·</span>
+                  <span title="Crescimento em playlists sem dono detectado pelo bot. Não entra no KPI principal.">
+                    Orgânico detectado <span className="text-foreground/80">{formatInt(deliveryBreakdown.organic)}</span>
+                  </span>
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
 
