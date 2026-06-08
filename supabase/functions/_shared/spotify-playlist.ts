@@ -404,7 +404,11 @@ export async function listPlaylistTracksRich(
 ): Promise<RichTrack[]> {
   const fetcher = opts.fetcher ?? defaultSpotifyFetch;
   const max = Math.max(1, opts.max ?? 1000);
-  const fields = opts.fields ?? "items(added_at,track(id,uri,name,duration_ms,popularity,external_ids,artists(name),album(name,release_date,images))),next";
+  // Spotify mudou o shape do payload em 2026: cada entry pode vir como `.track`
+  // (legado) OU `.item` (novo). Pedimos ambos no fields mask e o parser aceita
+  // qualquer um — sem isso, o mask filtra só `track(...)` e 100% das tracks
+  // são descartadas em playlists no formato novo.
+  const fields = opts.fields ?? "items(added_at,track(id,uri,name,duration_ms,popularity,external_ids,artists(name),album(name,release_date,images)),item(id,uri,name,duration_ms,popularity,external_ids,artists(name),album(name,release_date,images))),next";
   const out: RichTrack[] = [];
   let url: string | null =
     `https://api.spotify.com/v1/playlists/${playlistId}/items?fields=${encodeURIComponent(fields)}&limit=100`;
@@ -412,9 +416,9 @@ export async function listPlaylistTracksRich(
   while (url && out.length < max) {
     const j: any = await fetcher(url, { method: "GET" }, token);
     for (const it of j.items ?? []) {
-      const tr = it?.track;
+      const tr = it?.track ?? it?.item;
       pos++;
-      if (!tr) continue;
+      if (!tr || !tr.id) continue;
       const artistNames: string[] = Array.isArray(tr.artists)
         ? tr.artists.map((a: any) => a?.name).filter((n: any) => typeof n === "string" && n.length)
         : [];
