@@ -1,0 +1,1 @@
+TRUNCATE TABLE public.anchor_playlists_audit;
