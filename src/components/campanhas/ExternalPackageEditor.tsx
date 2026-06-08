@@ -759,5 +759,94 @@ function CuratorCard({ item, delivery }: { item: ItemRow; delivery?: CuratorDeli
   );
 }
 
+function HistoricoPrevioBadge() {
+  return (
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-medium uppercase tracking-wide border border-border bg-elevated/40 text-muted-foreground cursor-help">
+            <History className="h-2.5 w-2.5" />
+            Histórico prévio
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-[260px] text-[11px] leading-relaxed">
+          Esta entrega inclui playlists que já possuíam atividade da música na baseline.
+          O crescimento continua sendo contabilizado normalmente.
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
 
+function DeliveryTransparencyBanner({ deliveryByCurator }: { deliveryByCurator: Record<string, CuratorDelivery> }) {
+  const totals = Object.values(deliveryByCurator).reduce(
+    (acc, d) => {
+      acc.total += d.total;
+      acc.clean += d.clean;
+      acc.prior += d.prior;
+      return acc;
+    },
+    { total: 0, clean: 0, prior: 0 },
+  );
+
+  if (totals.total === 0) return null;
+
+  const pctClean = totals.total > 0 ? Math.round((totals.clean / totals.total) * 100) : 0;
+  const pctPrior = 100 - pctClean;
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <h4 className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+              Entrega total
+            </h4>
+            <TooltipProvider delayDuration={150}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-[300px] text-[11px] leading-relaxed">
+                  Camada de transparência. Não altera KPI, faturamento, atribuição
+                  ou o total entregue da campanha. Apenas separa visualmente playlists
+                  que já possuíam atividade da música antes do início da campanha.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          <p className="text-2xl font-semibold tabular-nums text-foreground leading-tight mt-0.5">
+            {formatInt(totals.total)}
+          </p>
+        </div>
+        <div className="flex items-center gap-4 text-right">
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1 justify-end">
+              <CheckCircle2 className="h-3 w-3 text-primary" /> Limpa
+            </p>
+            <p className="text-base font-semibold tabular-nums text-foreground">{formatInt(totals.clean)}</p>
+            <p className="text-[10px] text-muted-foreground tabular-nums">{pctClean}%</p>
+          </div>
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1 justify-end">
+              <History className="h-3 w-3" /> Histórico prévio
+            </p>
+            <p className="text-base font-semibold tabular-nums text-foreground">{formatInt(totals.prior)}</p>
+            <p className="text-[10px] text-muted-foreground tabular-nums">{pctPrior}%</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex h-1.5 rounded-full overflow-hidden bg-elevated">
+        <div className="h-full bg-primary transition-all" style={{ width: `${pctClean}%` }} />
+        <div className="h-full bg-muted-foreground/40 transition-all" style={{ width: `${pctPrior}%` }} />
+      </div>
+
+      <p className="text-[10.5px] text-muted-foreground leading-relaxed">
+        "Histórico prévio" identifica playlists com <span className="text-foreground">baseline_plays &gt; 0</span> — já possuíam
+        atividade da música antes da campanha. O crescimento (delta) continua sendo contabilizado normalmente na entrega total.
+      </p>
+    </div>
+  );
+}
 
