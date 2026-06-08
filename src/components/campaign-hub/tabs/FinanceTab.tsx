@@ -39,21 +39,16 @@ export function FinanceTab({ campaignId, snapshot, clientPriceTotal }: Props) {
     return () => { active = false; };
   }, [campaignId]);
 
-  // 3 buckets operacionais:
-  //   1. Playlist Própria = Eco − Rádio (Rádio é alocação interna do Eco)
-  //   2. Rádio (planejada)
-  //   3. Curadores = bucket streamsExt do snapshot (renomeado) + deals reais
-  const ecoCost = Math.max(0, snapshot.custoEco);
-  const ecoStreams = Math.max(0, snapshot.streamsEco);
+  // 3 buckets INDEPENDENTES do snapshot (não subtrair — são alocações distintas):
+  //   1. Playlist Própria = streamsEco / custoEco
+  //   2. Rádio            = streamsOrganic / custoOrganic (via plannedRadio)
+  //   3. Curadores        = streamsExt / custoExt + deals reais (curator_deals)
+  const ownPlaylistsCost = Math.max(0, snapshot.custoEco);
+  const ownPlaylistsStreams = Math.max(0, snapshot.streamsEco);
 
   const radioCost = plannedRadioCost(snapshot);
   const radioStreams = plannedRadioStreams(snapshot);
 
-  const ownPlaylistsCost = Math.max(0, ecoCost - radioCost);
-  const ownPlaylistsStreams = Math.max(0, ecoStreams - radioStreams);
-
-  // streamsExt do snapshot = bucket interno renomeado pra "Curadores"
-  // somado aos deals reais (curator_deals) — preserva o total.
   const extCost = Math.max(0, snapshot.custoExt);
   const extStreams = Math.max(0, snapshot.streamsExt);
   const curadoresCost = extCost + curatorCost;
