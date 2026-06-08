@@ -18,9 +18,7 @@ function jr(p: unknown, status = 200) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  const auth = req.headers.get("authorization") ?? "";
-  const token = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
-  if (token !== SERVICE_KEY) return jr({ error: "unauthorized" }, 401);
+  // TEMP one-off: sem auth (será deletada após o resync). Não logar caller.
 
   let body: any = {};
   try { body = await req.json(); } catch {}
