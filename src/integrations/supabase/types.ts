@@ -230,6 +230,69 @@ export type Database = {
         }
         Relationships: []
       }
+      anchor_playlists_audit: {
+        Row: {
+          anchor_genre: string
+          authority_score: number | null
+          classification: string
+          computed_at: string
+          foreign_breakdown: Json | null
+          foreign_pct: number | null
+          id: string
+          own_pct: number | null
+          phase22_purity_pct: number | null
+          playlist_id: string
+          reference_run_id: string
+          top_contaminant: string | null
+          top_contaminant_pct: number | null
+          tracks_foreign: number
+          tracks_own: number
+          tracks_total: number
+          tracks_unknown: number
+          unknown_pct: number | null
+        }
+        Insert: {
+          anchor_genre: string
+          authority_score?: number | null
+          classification: string
+          computed_at?: string
+          foreign_breakdown?: Json | null
+          foreign_pct?: number | null
+          id?: string
+          own_pct?: number | null
+          phase22_purity_pct?: number | null
+          playlist_id: string
+          reference_run_id: string
+          top_contaminant?: string | null
+          top_contaminant_pct?: number | null
+          tracks_foreign: number
+          tracks_own: number
+          tracks_total: number
+          tracks_unknown: number
+          unknown_pct?: number | null
+        }
+        Update: {
+          anchor_genre?: string
+          authority_score?: number | null
+          classification?: string
+          computed_at?: string
+          foreign_breakdown?: Json | null
+          foreign_pct?: number | null
+          id?: string
+          own_pct?: number | null
+          phase22_purity_pct?: number | null
+          playlist_id?: string
+          reference_run_id?: string
+          top_contaminant?: string | null
+          top_contaminant_pct?: number | null
+          tracks_foreign?: number
+          tracks_own?: number
+          tracks_total?: number
+          tracks_unknown?: number
+          unknown_pct?: number | null
+        }
+        Relationships: []
+      }
       autopilot_runs: {
         Row: {
           cache_hits: Json
