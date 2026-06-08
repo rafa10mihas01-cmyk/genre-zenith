@@ -117,13 +117,18 @@ export function ExternalPackageEditor({
       try {
         const { data: rows } = await (supabase as any)
           .from("vw_campaign_playlist_growth")
-          .select("attributed_curator_id, delta")
+          .select("attributed_curator_id, delta, baseline_plays")
           .eq("campaign_id", campaignId)
           .not("attributed_curator_id", "is", null);
-        const map: Record<string, number> = {};
-        for (const r of (rows ?? []) as Array<{ attributed_curator_id: string; delta: number | null }>) {
+        const map: Record<string, CuratorDelivery> = {};
+        for (const r of (rows ?? []) as Array<{ attributed_curator_id: string; delta: number | null; baseline_plays: number | null }>) {
           const v = Math.max(0, Number(r.delta ?? 0));
-          map[r.attributed_curator_id] = (map[r.attributed_curator_id] ?? 0) + v;
+          if (v === 0) continue;
+          const cur = map[r.attributed_curator_id] ?? { total: 0, clean: 0, prior: 0 };
+          cur.total += v;
+          if (Number(r.baseline_plays ?? 0) > 0) cur.prior += v;
+          else cur.clean += v;
+          map[r.attributed_curator_id] = cur;
         }
         setDeliveryByCurator(map);
       } catch (e) {
