@@ -610,6 +610,7 @@ export default function CampanhaExecucao() {
   //   - organic      → playlists sem dono, detectadas pelo bot (NÃO entra no KPI principal)
   // O header soma APENAS curadores + ecossistema. Orgânico aparece como subtexto auditável.
   const [deliveryBreakdown, setDeliveryBreakdown] = useState<{ curators: number; ecosystem: number; organic: number } | null>(null);
+  const [priorPlaylistIds, setPriorPlaylistIds] = useState<Set<string>>(new Set());
   useEffect(() => {
     if (!camp?.id) return;
     let cancel = false;
@@ -617,19 +618,25 @@ export default function CampanhaExecucao() {
       try {
         const { data } = await (supabase as any)
           .from("vw_campaign_playlist_growth")
-          .select("delta, attributed_to")
+          .select("delta, attributed_to, playlist_id, baseline_plays")
           .eq("campaign_id", camp.id);
         if (cancel) return;
         const acc = { curators: 0, ecosystem: 0, organic: 0 };
-        for (const r of (data ?? []) as Array<{ delta: number | null; attributed_to: string | null }>) {
+        const prior = new Set<string>();
+        for (const r of (data ?? []) as Array<{ delta: number | null; attributed_to: string | null; playlist_id: string | null; baseline_plays: number | null }>) {
           const v = Math.max(0, Number(r.delta ?? 0));
-          if (v === 0) continue;
           const tag = r.attributed_to ?? "";
-          if (tag.startsWith("curator:")) acc.curators += v;
-          else if (tag === "ecosystem") acc.ecosystem += v;
-          else acc.organic += v; // organic ou nulo — não conta no KPI
+          if (v > 0) {
+            if (tag.startsWith("curator:")) acc.curators += v;
+            else if (tag === "ecosystem") acc.ecosystem += v;
+            else acc.organic += v; // organic ou nulo — não conta no KPI
+          }
+          if (Number(r.baseline_plays ?? 0) > 0 && r.playlist_id) {
+            prior.add(r.playlist_id);
+          }
         }
         setDeliveryBreakdown(acc);
+        setPriorPlaylistIds(prior);
       } catch (e) {
         console.warn("[CampanhaExecucao] growth view fetch failed", e);
       }
