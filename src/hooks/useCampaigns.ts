@@ -70,13 +70,21 @@ export function useCampaigns() {
       const ids = campaigns.map((c) => c.id);
       const clientIds = Array.from(new Set(campaigns.map((c) => c.client_id).filter(Boolean) as string[]));
 
-      const [{ data: deals }, { data: accessEmails }, { data: clients }] = await Promise.all([
+      const [{ data: deals }, { data: accessEmails }, { data: clients }, { data: growthRows }] = await Promise.all([
         supabase.from("curator_deals").select("campaign_id, baseline_captured_at").in("campaign_id", ids),
         supabase.from("campaign_access_emails").select("campaign_id").in("campaign_id", ids),
         clientIds.length > 0
           ? supabase.from("clients").select("id, email").in("id", clientIds)
           : Promise.resolve({ data: [] as Array<{ id: string; email: string | null }> } as any),
+        // FONTE DE VERDADE da lista = view vw_campaign_playlist_growth.
+        // Somamos só os buckets que contam pra entrega (curadores + ecossistema),
+        // excluindo "organic" (rádio). Mesma regra usada na tela de execução.
+        supabase
+          .from("vw_campaign_playlist_growth" as any)
+          .select("campaign_id, attributed_to, delta")
+          .in("campaign_id", ids),
       ]);
+
 
       const dealBaselineByCamp = new Map<string, string | null>();
       for (const d of deals ?? []) {
