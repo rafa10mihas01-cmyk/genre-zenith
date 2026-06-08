@@ -53,7 +53,8 @@ const HANDLERS: Record<string, { fn: string; body: (job: Job) => Record<string, 
   },
   DIAGNOSE_ENGINE: {
     fn: "diagnose-managed-playlist",
-    body: (j) => ({ playlist_id: j.playlist_id, skip_ai: true, source: "queue", ...j.payload }),
+    // skip_ai resolvido dinamicamente em invokeHandler() via feature flag.
+    body: (j) => ({ playlist_id: j.playlist_id, source: "queue", ...j.payload }),
   },
   BRAIN_CALC: {
     fn: "playlist-brain-calc",
