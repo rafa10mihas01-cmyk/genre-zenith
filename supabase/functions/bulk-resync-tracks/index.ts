@@ -18,8 +18,9 @@ function jr(p: unknown, status = 200) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  const guard = await requireTeamAccess(req);
-  if (!guard.ok) return guard.resp;
+  const auth = req.headers.get("authorization") ?? "";
+  const token = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
+  if (token !== SERVICE_KEY) return jr({ error: "unauthorized" }, 401);
 
   let body: any = {};
   try { body = await req.json(); } catch {}
