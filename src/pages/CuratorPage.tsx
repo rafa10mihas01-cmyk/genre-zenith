@@ -1704,12 +1704,20 @@ export default function CuratorPage() {
                 </p>
               </div>
             ) : (
-              <ul
-                className={cn(
-                  "space-y-2 pr-1 -mr-1 scroll-smooth",
-                  curatorGroupedByPlaylist.length > 4 && "max-h-[280px] overflow-y-auto",
-                )}
-              >
+              <>
+                {/* Contador "Histórico prévio" — playlists onde a música já estava antes da campanha */}
+                {(() => {
+                  const priorCount = curatorGroupedByPlaylist.filter(
+                    (g) => Number(g.sample.baseline_plays_prior ?? 0) > 0,
+                  ).length;
+                  return <HistoricoPrevioCounter count={priorCount} className="mb-2" />;
+                })()}
+                <ul
+                  className={cn(
+                    "space-y-2 pr-1 -mr-1 scroll-smooth",
+                    curatorGroupedByPlaylist.length > 4 && "max-h-[280px] overflow-y-auto",
+                  )}
+                >
                 {curatorGroupedByPlaylist.map((g) => {
                   const p = g.sample;
                   return (
