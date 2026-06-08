@@ -95,7 +95,7 @@ async function invokeHandler(job: Job, sb: any): Promise<HandlerOutcome> {
         apikey: SERVICE_KEY,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(handler.body(job)),
+      body: JSON.stringify(resolvedBody),
     });
   } catch (e) {
     return { ok: false, error: `network: ${(e as Error).message}` };
