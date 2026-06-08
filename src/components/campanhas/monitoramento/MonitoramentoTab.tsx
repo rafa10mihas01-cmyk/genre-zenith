@@ -233,17 +233,31 @@ function BaselineStatus({
               Nenhum print vinculado a esta campanha ainda.
             </div>
           ) : (
-            runs.map((run) => {
+            runs.map((run, idx) => {
               const urls = run.print_urls ?? [];
               const dt = run.created_at ? new Date(run.created_at) : null;
               const label = dt
                 ? dt.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
                 : "Coleta";
+              // A baseline é a coleta mais antiga (runs vêm em DESC, então é a última).
+              const isBaseline = idx === runs.length - 1 && !!capturedAt;
               return (
-                <div key={run.run_id} className="rounded-lg border border-border/60 bg-card/40 p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-[12px] font-semibold tabular-nums">{label}</div>
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                <div
+                  key={run.run_id}
+                  className={`rounded-lg border p-3 ${
+                    isBaseline ? "border-primary/40 bg-primary/5" : "border-border/60 bg-card/40"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2 gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="text-[12px] font-semibold tabular-nums truncate">{label}</div>
+                      {isBaseline && (
+                        <span className="text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded border border-primary/50 text-primary leading-none shrink-0">
+                          baseline
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
                       {urls.length} {urls.length === 1 ? "print" : "prints"}
                     </div>
                   </div>
