@@ -705,17 +705,58 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 3b) Atualiza campaigns.total_delivered = soma (por playlist) do
-    //     último upload incremental MENOS a baseline. Baseline sozinha
-    //     deixa total_delivered = 0 — o ponto de partida não é entrega.
+    // 3b) Atualiza campaigns.total_delivered.
+    //
+    //     REGRA OPERACIONAL (fix 08/06/2026):
+    //     ENTREGA DA CAMPANHA = SOMENTE playlists oficialmente VINCULADAS
+    //     à campanha (ecossistema OU curador contratado), que possuam
+    //     BASELINE e COLETA ATUAL. Tudo que aparecer na planilha mas não
+    //     pertence ao contrato é DESCOBERTA ORGÂNICA e NÃO entra no KPI.
+    //
+    //     Fontes oficiais de vínculo:
+    //       a) campaign_eco_allocations  → managed_playlists.spotify_playlist_id
+    //       b) curator_playlists (deal da campanha) com match_status='curator'
+    //          (organic = playlist da planilha sem contrato → não conta).
     if (campaignIdForUpdate) {
+      // (1) Conjunto de spotify_playlist_id VINCULADOS à campanha.
+      const linkedPids = new Set<string>();
+
+      const { data: ecoLinks } = await admin
+        .from("campaign_eco_allocations")
+        .select("managed_playlists!inner(spotify_playlist_id)")
+        .eq("campaign_id", campaignIdForUpdate);
+      for (const row of (ecoLinks ?? []) as any[]) {
+        const pid = row.managed_playlists?.spotify_playlist_id;
+        if (typeof pid === "string" && pid.length > 0) linkedPids.add(pid);
+      }
+
+      const { data: campaignDeals } = await admin
+        .from("curator_deals")
+        .select("id")
+        .eq("campaign_id", campaignIdForUpdate);
+      const dealIds = (campaignDeals ?? []).map((d: any) => d.id).filter(Boolean);
+      if (dealIds.length > 0) {
+        const { data: curLinks } = await admin
+          .from("curator_playlists")
+          .select("spotify_playlist_id, match_status")
+          .in("deal_id", dealIds);
+        for (const row of (curLinks ?? []) as any[]) {
+          const pid = row.spotify_playlist_id;
+          if (typeof pid === "string" && pid.length > 0 && row.match_status === "curator") {
+            linkedPids.add(pid);
+          }
+        }
+      }
+
+      // (2) Coleta baseline / último incremental das linhas da planilha,
+      //     considerando TODOS os deals da campanha (não só este upload).
+      const dealIdsForRows = dealIds.length > 0 ? dealIds : [dealId];
       const { data: allRows } = await admin
         .from("label_spreadsheet_rows")
         .select("streams, playlist_spotify_id, upload_id, label_spreadsheet_uploads!inner(is_baseline, created_at)")
-        .eq("deal_id", dealId);
+        .in("deal_id", dealIdsForRows);
 
       const baselineByPlaylist = new Map<string, number>();
-      // Map<playlist_spotify_id, { streams, createdAt }>
       const latestByPlaylist = new Map<string, { streams: number; t: number }>();
       for (const row of (allRows ?? []) as any[]) {
         const pid = row.playlist_spotify_id as string | null;
@@ -731,11 +772,24 @@ Deno.serve(async (req) => {
         }
       }
 
+      // (3) Σ delta APENAS para playlists vinculadas com baseline E atual.
       let delivered = 0;
+      let countLinkedValid = 0;
+      let droppedOrganic = 0;
+      let droppedLinkedNoBaseline = 0;
       for (const [pid, { streams }] of latestByPlaylist) {
+        if (!linkedPids.has(pid)) { droppedOrganic += streams; continue; }
+        if (!baselineByPlaylist.has(pid)) { droppedLinkedNoBaseline += streams; continue; }
         const base = baselineByPlaylist.get(pid) ?? 0;
-        delivered += Math.max(0, streams - base);
+        const d = Math.max(0, streams - base);
+        if (d > 0) countLinkedValid++;
+        delivered += d;
       }
+      console.log(
+        `[total_delivered] campaign=${campaignIdForUpdate} delivered=${delivered} ` +
+        `linked_valid=${countLinkedValid} dropped_organic=${droppedOrganic} ` +
+        `dropped_linked_no_baseline=${droppedLinkedNoBaseline}`,
+      );
 
       await admin
         .from("campaigns")
