@@ -15,6 +15,7 @@ type Upload = {
   total_streams: number;
   status: string;
   file_name: string | null;
+  file_path?: string | null;
 };
 
 type Preview = {
