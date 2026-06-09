@@ -88,12 +88,12 @@ export function CuratorDealAccessManager({ dealId, slug, publicToken }: Props) {
         <Button
           variant="outline"
           size="sm"
-          className="rounded-full gap-1.5 h-9"
+          className="rounded-full gap-1.5 h-9 px-2.5 sm:px-3"
           aria-label="Acesso do curador"
           title="Acesso do curador"
         >
           <Headphones className="h-4 w-4" />
-          Acesso do curador
+          <span className="hidden sm:inline">Acesso do curador</span>
         </Button>
       </DialogTrigger>
 
