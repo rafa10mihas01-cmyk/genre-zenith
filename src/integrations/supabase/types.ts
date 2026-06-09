@@ -1522,6 +1522,8 @@ export type Database = {
           captured_at: string
           collection_run_id: string | null
           created_at: string
+          excluded: boolean
+          exclusion_reason: string | null
           first_seen_at: string | null
           id: string
           is_baseline: boolean
@@ -1533,12 +1535,15 @@ export type Database = {
           proof_screenshot_urls: string[]
           snapshot_run_id: string | null
           source: string
+          upload_id: string | null
         }
         Insert: {
           campaign_id: string
           captured_at?: string
           collection_run_id?: string | null
           created_at?: string
+          excluded?: boolean
+          exclusion_reason?: string | null
           first_seen_at?: string | null
           id?: string
           is_baseline?: boolean
@@ -1550,12 +1555,15 @@ export type Database = {
           proof_screenshot_urls?: string[]
           snapshot_run_id?: string | null
           source?: string
+          upload_id?: string | null
         }
         Update: {
           campaign_id?: string
           captured_at?: string
           collection_run_id?: string | null
           created_at?: string
+          excluded?: boolean
+          exclusion_reason?: string | null
           first_seen_at?: string | null
           id?: string
           is_baseline?: boolean
@@ -1567,6 +1575,7 @@ export type Database = {
           proof_screenshot_urls?: string[]
           snapshot_run_id?: string | null
           source?: string
+          upload_id?: string | null
         }
         Relationships: [
           {
@@ -1610,6 +1619,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_snapshot_prints"
             referencedColumns: ["run_id"]
+          },
+          {
+            foreignKeyName: "campaign_playlist_collections_upload_id_fkey"
+            columns: ["upload_id"]
+            isOneToOne: false
+            referencedRelation: "label_spreadsheet_uploads"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -5692,13 +5708,19 @@ export type Database = {
           file_path: string
           id: string
           is_baseline: boolean
+          quarantine_reason: string | null
+          quarantine_signals: Json | null
+          quarantined_at: string | null
           reference_date: string
           rows_imported: number
           song_id: string | null
           status: string
+          superseded_by: string | null
           total_streams: number
+          upload_mode: string
           uploaded_by: string | null
           uploaded_via: string
+          window_kind: string | null
         }
         Insert: {
           content_hash: string
@@ -5709,13 +5731,19 @@ export type Database = {
           file_path: string
           id?: string
           is_baseline?: boolean
+          quarantine_reason?: string | null
+          quarantine_signals?: Json | null
+          quarantined_at?: string | null
           reference_date?: string
           rows_imported?: number
           song_id?: string | null
           status?: string
+          superseded_by?: string | null
           total_streams?: number
+          upload_mode?: string
           uploaded_by?: string | null
           uploaded_via?: string
+          window_kind?: string | null
         }
         Update: {
           content_hash?: string
@@ -5726,13 +5754,19 @@ export type Database = {
           file_path?: string
           id?: string
           is_baseline?: boolean
+          quarantine_reason?: string | null
+          quarantine_signals?: Json | null
+          quarantined_at?: string | null
           reference_date?: string
           rows_imported?: number
           song_id?: string | null
           status?: string
+          superseded_by?: string | null
           total_streams?: number
+          upload_mode?: string
           uploaded_by?: string | null
           uploaded_via?: string
+          window_kind?: string | null
         }
         Relationships: [
           {
@@ -5747,6 +5781,13 @@ export type Database = {
             columns: ["song_id"]
             isOneToOne: false
             referencedRelation: "curator_deal_songs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "label_spreadsheet_uploads_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "label_spreadsheet_uploads"
             referencedColumns: ["id"]
           },
         ]
@@ -11646,6 +11687,10 @@ export type Database = {
           spotify_playlist_id: string
           valuation_score: number
         }[]
+      }
+      evaluate_upload_quarantine: {
+        Args: { p_content_hash: string; p_deal_id: string; p_rows: Json }
+        Returns: Json
       }
       expire_spotify_app_quarantines: { Args: never; Returns: number }
       expire_stale_medium_templates: {
