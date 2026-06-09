@@ -326,8 +326,8 @@ Deno.serve(async (req) => {
       : "send_curator_playlist_rows";
     if (s4aSongUrl) s.song_spotify_url = s4aSongUrl;
   }
-  if (eligible.length) {
-    const events = (eligible as any[]).map((s) => ({
+  if (claimedEligible.length) {
+    const events = (claimedEligible as any[]).map((s) => ({
       bot_name: callerBotName,
       session_id: callerSession,
       deal_id: s.deal_id,
