@@ -35,7 +35,16 @@ import {
   POSITION_PCT,
   ecoPlanTotalMultiplier,
   MIN_PLAYLIST_SAVES_FOR_CAMPAIGN,
+  ECO_CURVE_LOSS_COMPENSATION,
 } from "@/lib/campaignOperationalPlan";
+
+// ─── Free First (anti-canibalização local da Calculadora) ─────────────
+// Quando true, particiona o pool em Grupo A (livres) e Grupo B (ocupadas
+// por outras campanhas active/approved cuja janela sobrepõe a desta).
+// A é consumido sozinho até cobrir ~95% da meta diária; B só entra se sobrar gap.
+// Espelha a regra já existente em approve-campaign-plan/replan-campaign-eco.
+// Setar false desliga a regra e restaura comportamento anterior (sem mudanças).
+const CALCULATOR_FREE_FIRST_ENABLED = true;
 import type { EcoAllocationPlan } from "@/lib/campaignSnapshot";
 import { TrackPresencePanel } from "@/components/campanhas/TrackPresencePanel";
 
