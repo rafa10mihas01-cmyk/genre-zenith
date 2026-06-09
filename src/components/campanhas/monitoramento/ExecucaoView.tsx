@@ -679,21 +679,24 @@ function HeroGrowth({
         <div
           className={cn(
             "grid divide-y lg:divide-y-0 lg:divide-x divide-border/50",
-            mode === "all" ? "grid-cols-1 lg:grid-cols-[1.4fr_1fr_1fr_1fr]" : "grid-cols-1",
+            mode === "all" ? "grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]" : "grid-cols-1",
           )}
         >
           {/* Hero principal — número fino premium + label embaixo */}
-          <div className="px-6 py-5 lg:py-6 flex flex-col justify-center">
+          <div className={cn(
+            "px-4 py-3 md:px-6 md:py-5 lg:py-6 flex flex-col justify-center",
+            mode === "all" && "col-span-2 lg:col-span-1 border-b border-border/50 lg:border-b-0",
+          )}>
             <div
               className={cn(
                 "tabular-nums leading-none tracking-tight",
-                "text-[40px] md:text-[44px] lg:text-[48px] font-medium",
+                "text-[32px] md:text-[44px] lg:text-[48px] font-medium",
                 valueClass,
               )}
             >
               {sign}{formatInt(heroValue)}
             </div>
-            <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold mt-3 flex items-center gap-1.5">
+            <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold mt-2 md:mt-3 flex items-center gap-1.5">
               {heroLabel}
               <Activity className="h-3 w-3 text-primary/60 animate-pulse" />
             </div>
@@ -704,7 +707,7 @@ function HeroGrowth({
             <>
               <SecondaryMetric icon={Layers} label="Ecossistema" value={totals.eco} />
               <SecondaryMetric icon={Users} label="Curadores" value={totals.curator} />
-              <SecondaryMetric icon={Activity} label="Orgânico" value={totals.organic} />
+              <SecondaryMetric icon={Activity} label="Orgânico" value={totals.organic} className="col-span-2 lg:col-span-1 border-t border-border/50 lg:border-t-0" />
             </>
           )}
         </div>
@@ -717,26 +720,29 @@ function SecondaryMetric({
   icon: Icon,
   label,
   value,
+  className,
 }: {
   icon: any;
   label: string;
   value: number;
+  className?: string;
 }) {
   const sign = value > 0 ? "+" : "";
   return (
-    <div className="px-6 py-5 lg:py-6 flex flex-col justify-center">
+    <div className={cn("px-4 py-3 md:px-6 md:py-5 lg:py-6 flex flex-col justify-center", className)}>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[12px] text-muted-foreground font-normal">
+        <span className="text-[11px] md:text-[12px] text-muted-foreground font-normal">
           {label}
         </span>
         <Icon className="h-3.5 w-3.5 text-muted-foreground/60" />
       </div>
-      <div className="text-[22px] md:text-[24px] font-medium tabular-nums text-foreground leading-none mt-3">
+      <div className="text-[18px] md:text-[24px] font-medium tabular-nums text-foreground leading-none mt-1.5 md:mt-3">
         {sign}{formatInt(value)}
       </div>
     </div>
   );
 }
+
 
 
 
