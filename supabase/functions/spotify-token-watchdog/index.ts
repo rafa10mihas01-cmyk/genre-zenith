@@ -111,11 +111,22 @@ Deno.serve(async (req) => {
         }
         try {
           await sb.rpc("create_notification", {
-            p_type: "error",
-            p_title: "Spotify token falhou refresh ⚠️",
-            p_message: `Conta ${acc.spotify_user_id} precisa reconectar (HTTP ${r.status}).`,
+            p_type: "warning",
+            p_title: "Conexão Spotify expirada",
+            p_message:
+              "Uma conta Spotify perdeu acesso e precisa ser reconectada. " +
+              "Impacto: enriquecimento e coletas dessa conta estão pausados. " +
+              "Ação: abra Configurações e reconecte a conta.",
             p_action_url: "/configuracoes",
-            p_metadata: { account: acc.spotify_user_id, http: r.status },
+            p_metadata: {
+              domain: "system",
+              severity: "high",
+              kind: "spotify_token_failed",
+              action_required: true,
+              account_id: acc.id,
+            },
+            p_dedupe_key: `spotify_token_failed:${acc.id}`,
+            p_cooldown_minutes: 360,
           });
         } catch (e) {
           console.error("[spotify-token-watchdog] notification rpc failed:", (e as Error)?.message ?? e);
