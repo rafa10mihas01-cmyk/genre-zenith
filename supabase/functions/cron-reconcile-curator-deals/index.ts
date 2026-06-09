@@ -161,7 +161,7 @@ Deno.serve(async (req) => {
     // ficam congeladas — o cron não toca mais nelas.
     const { data: deals, error } = await supabase
       .from("curator_deals")
-      .select("id, user_id, song_name, curator_name, started_at, ends_at, target_plays, closed_at")
+      .select("id, user_id, campaign_id, song_name, curator_name, started_at, ends_at, target_plays, closed_at")
       .is("closed_at", null)
       .or(`ends_at.is.null,ends_at.gte.${cutoff}`);
 
@@ -177,7 +177,22 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`[cron-reconcile] ${results.length} deals processados via RPC get_curator_deal_progress`);
+    // Growth Engine (P1.1): sincroniza campaigns.total_delivered de cada
+    // campanha distinta tocada. recompute_campaign_total_delivered também
+    // reescreve reconciled_total_plays de TODOS os deals da campanha, então
+    // os valores acima ficam consistentes com a fonte única.
+    const campaignIds = Array.from(new Set(
+      (deals ?? []).map((d: any) => d.campaign_id).filter(Boolean),
+    ));
+    for (const cid of campaignIds) {
+      const { error: recErr } = await supabase.rpc(
+        "recompute_campaign_total_delivered",
+        { p_campaign_id: cid },
+      );
+      if (recErr) console.error("recompute campaign error", cid, recErr);
+    }
+
+    console.log(`[cron-reconcile] ${results.length} deals, ${campaignIds.length} campaigns sincronizadas via Growth Engine`);
 
     const errCount = results.filter((r: any) => r.error).length;
     await reportCronHealth(supabase, {
