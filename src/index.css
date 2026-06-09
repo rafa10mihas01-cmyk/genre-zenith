@@ -593,10 +593,15 @@
   .animate-tab-in {
     animation: nx-tab-in 140ms ease-out both;
   }
-  /* scrollbar discreta (estilo Spotify) */
+  /* scrollbar discreta (estilo Spotify) — invisível por padrão, aparece só ao passar o mouse/scroll */
+  .nx-scroll { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+  .nx-scroll:hover { scrollbar-color: hsl(var(--border)) transparent; }
   .nx-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
-  .nx-scroll::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 8px; }
+  .nx-scroll::-webkit-scrollbar-track { background: transparent; }
+  .nx-scroll::-webkit-scrollbar-thumb { background: transparent; border-radius: 8px; transition: background 150ms ease; }
+  .nx-scroll:hover::-webkit-scrollbar-thumb { background: hsl(var(--border)); }
   .nx-scroll::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.4); }
+
 }
 
 @keyframes nx-fade-in {
