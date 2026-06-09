@@ -215,7 +215,7 @@ export async function auditCampaignFlow(
       }
 
       const { data: portalPls } = await admin
-        .from("curator_playlists")
+        .from("v_curator_playlists_operational")
         .select("id, spotify_playlist_id, deal_id")
         .in("deal_id", dealIds);
       const portalCount = (portalPls ?? []).filter((p: any) => !!p.spotify_playlist_id).length;

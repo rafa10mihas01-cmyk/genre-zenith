@@ -204,7 +204,7 @@ Deno.serve(async (req) => {
   const whitelistsByDeal = new Map<string, any[]>();
   if (dealIds.length) {
     const { data: wl } = await supabase
-      .from("curator_playlists")
+      .from("v_curator_playlists_operational")
       .select("id, deal_id, song_id, playlist_name, spotify_url, spotify_playlist_id")
       .in("deal_id", dealIds)
       .in("match_status", ["curator", "baseline"]) // baseline = seed de campanha (managed playlists)

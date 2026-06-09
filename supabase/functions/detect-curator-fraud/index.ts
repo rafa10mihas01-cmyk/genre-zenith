@@ -54,7 +54,7 @@ function similarity(a: string, b: string): number {
 
 async function detectForDeal(supabase: any, deal: Deal) {
   const { data: allPlaylists, error: e2 } = await supabase
-    .from("curator_playlists")
+    .from("v_curator_playlists_operational")
     .select(
       "id, deal_id, playlist_name, spotify_owner_id, spotify_owner_name, added_at_spotify, match_status, streams_7d, streams_28d, streams_total, followers",
     )
