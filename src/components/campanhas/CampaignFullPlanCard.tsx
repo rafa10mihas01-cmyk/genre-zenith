@@ -142,7 +142,7 @@ export function CampaignFullPlanCard({
     }
   }
 
-  const plans = useMemo<DailyPlaylistPlan[]>(
+  const rawPlans = useMemo<DailyPlaylistPlan[]>(
     () => buildEcoPlaylistPlan(snapshot, allocations, {
       engagementMultiplier,
       startedAt,
@@ -150,6 +150,19 @@ export function CampaignFullPlanCard({
     }),
     [snapshot, allocations, engagementMultiplier, startedAt, positionByAllocation],
   );
+  // Piso de partida por playlist: o primeiro dia ativo nunca pode ser < 500.
+  // Não recalcula a curva — apenas eleva o D1-ativo se vier abaixo do piso.
+  const MIN_PLAYLIST_DAILY = 500;
+  const plans = useMemo<DailyPlaylistPlan[]>(() => {
+    return rawPlans.map((p) => {
+      const daily = [...p.daily];
+      const firstIdx = daily.findIndex((v) => v > 0);
+      if (firstIdx >= 0 && daily[firstIdx] < MIN_PLAYLIST_DAILY) {
+        daily[firstIdx] = MIN_PLAYLIST_DAILY;
+      }
+      return { ...p, daily };
+    });
+  }, [rawPlans]);
 
   const spotifyByAllocation = useMemo(() => {
     const m = new Map<string, string | null>();
@@ -246,6 +259,13 @@ export function CampaignFullPlanCard({
       allocated += v;
     }
     arr[lastIdx] = Math.max(0, radioTotal - allocated);
+    // Piso de partida: primeiro dia ativo da rádio nunca pode ser < 1.000.
+    // Não recalcula a curva — só eleva o D1-ativo se vier abaixo do piso.
+    const MIN_RADIO_DAILY = 1000;
+    const firstIdx = arr.findIndex((v) => v > 0);
+    if (firstIdx >= 0 && arr[firstIdx] < MIN_RADIO_DAILY) {
+      arr[firstIdx] = MIN_RADIO_DAILY;
+    }
     return arr;
   }, [snapshot.curva, days, radioTotal]);
   const radioCollected = radioCollectedTotal != null && radioCollectedTotal > 0;
