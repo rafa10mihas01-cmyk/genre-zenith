@@ -304,6 +304,18 @@ Deno.serve(async (req) => {
       }
     }
 
+    // 7.b) Enfileira tracks novas para enriquecimento assíncrono (cache).
+    // Não bloqueia o sync — worker drena em background.
+    try {
+      const newIds = toInsert.map((r: any) => r.spotify_track_id).filter(Boolean);
+      if (newIds.length) {
+        const { enqueueEnrichment } = await import("../_shared/spotify-cache.ts");
+        await enqueueEnrichment("track", newIds, "sync_new", 4);
+      }
+    } catch (e) {
+      console.warn("[sync] enqueueEnrichment falhou:", (e as Error)?.message);
+    }
+
     // 8) Atualiza metadata da playlist (hash + count)
     await supabase
       .from("managed_playlists")
