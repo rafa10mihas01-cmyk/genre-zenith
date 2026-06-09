@@ -366,9 +366,9 @@ export function ExecucaoView({
 
 
   const filtersBar = (
-    <div className="flex items-center gap-2 flex-wrap">
+    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:flex-wrap">
       {!isEcosystem && (
-        <div className="relative flex-1 min-w-[180px]">
+        <div className="relative w-full sm:flex-1 sm:min-w-[180px]">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             value={q}
@@ -378,46 +378,57 @@ export function ExecucaoView({
           />
         </div>
       )}
-      {!scopeLocked && (
-        <Select value={scope} onValueChange={(v) => setScope(v as any)}>
-          <SelectTrigger className="h-9 w-[180px] shrink-0"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas atribuições</SelectItem>
-            <SelectItem value="ecosystem">Ecossistema</SelectItem>
-            <SelectItem value="curator">Curadores</SelectItem>
-            <SelectItem value="organic">Orgânico</SelectItem>
-          </SelectContent>
-        </Select>
-      )}
-      {(mode === "all" || mode === "curators") && (
-        <Select value={curatorFilter} onValueChange={setCuratorFilter}>
-          <SelectTrigger className="h-9 w-[180px] shrink-0"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos curadores</SelectItem>
-            {curatorOptions.map((c) => (
-              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      )}
-      {!isEcosystem && (
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="h-9 w-[160px] shrink-0"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos status</SelectItem>
-            <SelectItem value="matched">Matched</SelectItem>
-            <SelectItem value="pending_match">Pending</SelectItem>
-            <SelectItem value="baseline_conflict">Conflito baseline</SelectItem>
-            <SelectItem value="not_found_yet">Not found</SelectItem>
-            <SelectItem value="no_data">Sem dados</SelectItem>
-          </SelectContent>
-        </Select>
-      )}
-      <Button variant="outline" size="sm" className="h-9 px-3 shrink-0 ml-auto" onClick={exportCsv}>
-        <Download className="h-4 w-4 mr-1.5" /> Exportar CSV
-      </Button>
+      <div className="grid grid-cols-2 gap-2 sm:contents">
+        {!scopeLocked && (
+          <Select value={scope} onValueChange={(v) => setScope(v as any)}>
+            <SelectTrigger className="h-9 w-full sm:w-[180px] sm:shrink-0"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas atribuições</SelectItem>
+              <SelectItem value="ecosystem">Ecossistema</SelectItem>
+              <SelectItem value="curator">Curadores</SelectItem>
+              <SelectItem value="organic">Orgânico</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
+        {(mode === "all" || mode === "curators") && (
+          <Select value={curatorFilter} onValueChange={setCuratorFilter}>
+            <SelectTrigger className="h-9 w-full sm:w-[180px] sm:shrink-0"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos curadores</SelectItem>
+              {curatorOptions.map((c) => (
+                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        {!isEcosystem && (
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-9 w-full sm:w-[160px] sm:shrink-0"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos status</SelectItem>
+              <SelectItem value="matched">Matched</SelectItem>
+              <SelectItem value="pending_match">Pending</SelectItem>
+              <SelectItem value="baseline_conflict">Conflito baseline</SelectItem>
+              <SelectItem value="not_found_yet">Not found</SelectItem>
+              <SelectItem value="no_data">Sem dados</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
+        <Button
+          variant="outline"
+          size="sm"
+          aria-label="Exportar CSV"
+          className="h-9 w-full sm:w-auto sm:px-3 sm:shrink-0 sm:ml-auto"
+          onClick={exportCsv}
+        >
+          <Download className="h-4 w-4 sm:mr-1.5" />
+          <span className="hidden sm:inline">Exportar CSV</span>
+          <span className="sm:hidden ml-1.5">CSV</span>
+        </Button>
+      </div>
     </div>
   );
+
 
 
   return (
