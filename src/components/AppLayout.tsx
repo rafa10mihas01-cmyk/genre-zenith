@@ -96,9 +96,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       {/* Loading global: barra fina no topo. Splash já está em App.tsx. */}
       <TopProgressBar />
 
-      <div className="min-h-screen flex w-full bg-background">
+      <div className="min-h-dvh flex w-full bg-background">
         <AppSidebar />
-        <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden shadow-[-1px_0_0_rgba(255,255,255,0.04)]">
+        <div className="flex-1 flex flex-col min-w-0 h-dvh overflow-hidden shadow-[-1px_0_0_rgba(255,255,255,0.04)]">
+
           {/* TOPBAR GLOBAL — fixo fora da área de scroll. Mobile: cobre safe-area/notch. */}
           <header
             className="shrink-0 flex items-center gap-2 lg:gap-3 border-b border-border z-50 px-3 md:px-4 transition-none w-full min-w-0 overflow-hidden
