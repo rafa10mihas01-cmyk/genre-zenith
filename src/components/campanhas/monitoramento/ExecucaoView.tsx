@@ -118,21 +118,23 @@ export function ExecucaoView({
         growthByPid.set(g.playlist_id, g);
       }
 
-      // Materializar lista canônica respeitando precedência Curador > Ecossistema > Orgânico
+      // Materializar lista canônica usando a view de crescimento como fonte oficial.
+      // A view já resolve precedência e impede playlist interna de virar curador.
       const list: GrowthRow[] = [];
       for (const pid of allIds) {
         const g = growthByPid.get(pid);
         const reg = curatorRegByPlaylist.get(pid);
-        const attribution: string = reg
-          ? `curator:${reg.curator_id}`
-          : ecoIds.has(pid)
-            ? "ecosystem"
-            : "organic";
+        const attribution: string = g?.attributed_to ?? (
+          ecoIds.has(pid) ? "ecosystem" : reg ? `curator:${reg.curator_id}` : "organic"
+        );
+        const curatorId = attribution.startsWith("curator:")
+          ? (g?.attributed_curator_id ?? reg?.curator_id ?? null)
+          : null;
         if (g) {
           list.push({
             ...g,
             attributed_to: attribution,
-            attributed_curator_id: reg ? reg.curator_id : null,
+            attributed_curator_id: curatorId,
           });
         } else {
           // Playlist vinculada à campanha mas SEM coleta ainda. Aparece com "Sem dados".
@@ -149,7 +151,7 @@ export function ExecucaoView({
             last_captured_at: null,
             first_seen_at: null,
             attributed_to: attribution,
-            attributed_curator_id: reg ? reg.curator_id : null,
+            attributed_curator_id: curatorId,
             is_baseline_conflict: reg?.status === "baseline_conflict" ? true : null,
           });
         }
