@@ -585,6 +585,21 @@ Deno.serve(async (req) => {
       if (rowsErr) console.error("rows insert error", rowsErr);
     }
 
+    // 🚫 Upload quarentenado: ainda gravou upload + rows pra auditoria, mas NÃO propaga
+    //    snapshots, collections, total_delivered nem proofs. O cliente vê o aviso.
+    if (willQuarantine) {
+      return jr({
+        ok: true,
+        mode: "commit",
+        quarantined: true,
+        quarantine: evalResult,
+        message: evalResult.reason === "partial_window_detected"
+          ? "Essa planilha parece ser de janela curta (últimos 7d). Foi arquivada e NÃO afeta os totais."
+          : "Planilha em quarentena: regressão massiva detectada. Os totais anteriores foram preservados.",
+        upload: uploadRow,
+      });
+    }
+
     // 3) Snapshots + delivery_proofs — só para linhas que casaram com
     //    uma playlist nossa (matched_playlist_id é UUID real). Sem isso,
     //    a inserção quebrava inteira (playlist_id é UUID) e nada do
