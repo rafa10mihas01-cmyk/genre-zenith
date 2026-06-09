@@ -49,89 +49,94 @@ type MetricsSnapshotRow = {
  * Aposentado aqui: get_performance_dataset (baseado em playlist_templates antigas).
  */
 export default function Performance() {
-  const [dataset, setDataset] = useState<DatasetRow[]>([]);
-  const [genres, setGenres] = useState<GenreRow[]>([]);
-  const [loading, setLoading] = useState(false);
+  const qc = useQueryClient();
   const [tracking, setTracking] = useState(false);
-  const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useScreenField<string>("/performance", "tab", "visao");
 
-  async function load() {
-    setLoading(true);
-    const [{ data: playlists, error: playlistsError }, { data: gs }, { data: pb }] = await Promise.all([
-      supabase
-        .from("managed_playlists")
-        .select("id, genre_id, name, spotify_playlist_id, spotify_url, followers, tracks_count, imported_at, updated_at, last_metrics_at")
-        .is("archived_at", null)
-        .order("imported_at", { ascending: false }),
-      supabase.from("genres").select("id, nome").order("nome"),
-      supabase
-        .from("playlist_brain")
-        .select("updated_at")
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-    ]);
+  const PERF_KEY = ["performance_dataset"] as const;
 
-    if (playlistsError) {
-      toast.error(`Falha ao carregar playlists atuais: ${playlistsError.message}`);
-      setLoading(false);
-      return;
-    }
+  const query = useQuery({
+    queryKey: PERF_KEY,
+    queryFn: async () => {
+      const [{ data: playlists, error: playlistsError }, { data: gs }, { data: pb }] = await Promise.all([
+        supabase
+          .from("managed_playlists")
+          .select("id, genre_id, name, spotify_playlist_id, spotify_url, followers, tracks_count, imported_at, updated_at, last_metrics_at")
+          .is("archived_at", null)
+          .order("imported_at", { ascending: false }),
+        supabase.from("genres").select("id, nome").order("nome"),
+        supabase
+          .from("playlist_brain")
+          .select("updated_at")
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
 
-    const currentPlaylists = ((playlists ?? []) as ManagedPlaylistRow[]);
-    const spotifyIds = currentPlaylists.map((p) => p.spotify_playlist_id).filter(Boolean);
-    const { data: snapshots } = spotifyIds.length > 0
-      ? await supabase
-          .from("playlist_metrics_snapshots")
-          .select("spotify_playlist_id, followers, total_tracks, collected_at")
-          .in("spotify_playlist_id", spotifyIds)
-          .order("collected_at", { ascending: true })
-          .limit(10000)
-      : { data: [] as MetricsSnapshotRow[] };
+      if (playlistsError) {
+        toast.error(`Falha ao carregar playlists atuais: ${playlistsError.message}`);
+        throw playlistsError;
+      }
 
-    const snapshotsByPlaylist = new Map<string, MetricsSnapshotRow[]>();
-    ((snapshots ?? []) as MetricsSnapshotRow[]).forEach((snapshot) => {
-      const list = snapshotsByPlaylist.get(snapshot.spotify_playlist_id) ?? [];
-      list.push(snapshot);
-      snapshotsByPlaylist.set(snapshot.spotify_playlist_id, list);
-    });
+      const currentPlaylists = ((playlists ?? []) as ManagedPlaylistRow[]);
+      const spotifyIds = currentPlaylists.map((p) => p.spotify_playlist_id).filter(Boolean);
+      const { data: snapshots } = spotifyIds.length > 0
+        ? await supabase
+            .from("playlist_metrics_snapshots")
+            .select("spotify_playlist_id, followers, total_tracks, collected_at")
+            .in("spotify_playlist_id", spotifyIds)
+            .order("collected_at", { ascending: true })
+            .limit(10000)
+        : { data: [] as MetricsSnapshotRow[] };
 
-    const liveDataset: DatasetRow[] = currentPlaylists.map((playlist) => {
-      const history = snapshotsByPlaylist.get(playlist.spotify_playlist_id) ?? [];
-      const first = history[0];
-      const last = history[history.length - 1];
-      const followersStart = first?.followers ?? playlist.followers ?? 0;
-      const followersNow = last?.followers ?? playlist.followers ?? 0;
-      const growth = followersNow - followersStart;
-      const firstDate = first?.collected_at ?? playlist.imported_at;
-      const lastDate = last?.collected_at ?? playlist.last_metrics_at ?? playlist.updated_at;
-      const hours = Math.max(0, (new Date(lastDate).getTime() - new Date(firstDate).getTime()) / 36e5);
+      const snapshotsByPlaylist = new Map<string, MetricsSnapshotRow[]>();
+      ((snapshots ?? []) as MetricsSnapshotRow[]).forEach((snapshot) => {
+        const list = snapshotsByPlaylist.get(snapshot.spotify_playlist_id) ?? [];
+        list.push(snapshot);
+        snapshotsByPlaylist.set(snapshot.spotify_playlist_id, list);
+      });
+
+      const liveDataset: DatasetRow[] = currentPlaylists.map((playlist) => {
+        const history = snapshotsByPlaylist.get(playlist.spotify_playlist_id) ?? [];
+        const first = history[0];
+        const last = history[history.length - 1];
+        const followersStart = first?.followers ?? playlist.followers ?? 0;
+        const followersNow = last?.followers ?? playlist.followers ?? 0;
+        const growth = followersNow - followersStart;
+        const firstDate = first?.collected_at ?? playlist.imported_at;
+        const lastDate = last?.collected_at ?? playlist.last_metrics_at ?? playlist.updated_at;
+        const hours = Math.max(0, (new Date(lastDate).getTime() - new Date(firstDate).getTime()) / 36e5);
+
+        return {
+          template_id: playlist.id,
+          genre_id: playlist.genre_id,
+          nome: playlist.name,
+          spotify_playlist_id: playlist.spotify_playlist_id,
+          spotify_url: playlist.spotify_url,
+          followers_start: followersStart,
+          followers_now: followersNow,
+          crescimento_absoluto: growth,
+          crescimento_percentual: followersStart > 0 ? Number(((growth / followersStart) * 100).toFixed(2)) : null,
+          tempo_horas: hours > 0 ? hours : null,
+          total_tracks: last?.total_tracks ?? playlist.tracks_count ?? null,
+          created_on_spotify_at: playlist.imported_at,
+          last_snapshot_at: last?.collected_at ?? playlist.last_metrics_at,
+        };
+      });
 
       return {
-        template_id: playlist.id,
-        genre_id: playlist.genre_id,
-        nome: playlist.name,
-        spotify_playlist_id: playlist.spotify_playlist_id,
-        spotify_url: playlist.spotify_url,
-        followers_start: followersStart,
-        followers_now: followersNow,
-        crescimento_absoluto: growth,
-        crescimento_percentual: followersStart > 0 ? Number(((growth / followersStart) * 100).toFixed(2)) : null,
-        tempo_horas: hours > 0 ? hours : null,
-        total_tracks: last?.total_tracks ?? playlist.tracks_count ?? null,
-        created_on_spotify_at: playlist.imported_at,
-        last_snapshot_at: last?.collected_at ?? playlist.last_metrics_at,
+        dataset: liveDataset,
+        genres: ((gs as GenreRow[]) ?? []),
+        lastUpdate: ((pb as any)?.updated_at as string | undefined) ?? null,
       };
-    });
+    },
+  });
 
-    setDataset(liveDataset);
-    setGenres((gs as GenreRow[]) ?? []);
-    setLastUpdate(((pb as any)?.updated_at as string | undefined) ?? null);
-    setLoading(false);
-  }
-
-  useEffect(() => { load(); }, []);
+  const dataset = query.data?.dataset ?? [];
+  const genres = query.data?.genres ?? [];
+  const lastUpdate = query.data?.lastUpdate ?? null;
+  const loading = query.isLoading && !query.data;
+  const load = () => qc.invalidateQueries({ queryKey: PERF_KEY });
 
   useSetSidebarKpis([
     {
