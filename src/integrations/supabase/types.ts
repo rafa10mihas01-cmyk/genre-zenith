@@ -11223,6 +11223,7 @@ export type Database = {
           current_name: string | null
           current_plays: number | null
           delta: number | null
+          excluded_from_kpis: boolean | null
           first_seen_at: string | null
           is_baseline_conflict: boolean | null
           last_captured_at: string | null
@@ -11257,27 +11258,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_financial_summary"
             referencedColumns: ["campaign_id"]
-          },
-          {
-            foreignKeyName: "curator_campaign_playlists_curator_id_fkey"
-            columns: ["attributed_curator_id"]
-            isOneToOne: false
-            referencedRelation: "curators"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "curator_campaign_playlists_curator_id_fkey"
-            columns: ["attributed_curator_id"]
-            isOneToOne: false
-            referencedRelation: "v_curator_balance"
-            referencedColumns: ["curator_id"]
-          },
-          {
-            foreignKeyName: "curator_campaign_playlists_curator_id_fkey"
-            columns: ["attributed_curator_id"]
-            isOneToOne: false
-            referencedRelation: "v_curator_finance"
-            referencedColumns: ["curator_id"]
           },
         ]
       }
