@@ -94,7 +94,7 @@ export function PlaylistCockpit({
   return (
     <CockpitProvider value={ctxValue}>
     <div className="h-full min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain nx-scroll">
-      <div className="mx-auto w-full max-w-[1600px] px-4 md:px-8 pt-4 md:pt-5 pb-[calc(88px+env(safe-area-inset-bottom,0px))] md:pb-8 space-y-4">
+      <div className="mx-auto w-full max-w-[1600px] px-2 md:px-3 lg:px-4 pt-4 md:pt-5 pb-[calc(88px+env(safe-area-inset-bottom,0px))] md:pb-8 space-y-4">
       {/* ============ 1. HEADER ============ */}
       <CockpitHeader />
       <SpotifyAppBlockedBanner managedId={managedId} />
