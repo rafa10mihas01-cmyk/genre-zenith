@@ -11312,7 +11312,6 @@ export type Database = {
       }
       vw_campaign_playlist_growth: {
         Row: {
-          attributed_curator_id: string | null
           attributed_to: string | null
           baseline_at: string | null
           baseline_name: string | null
@@ -11320,10 +11319,9 @@ export type Database = {
           campaign_id: string | null
           current_name: string | null
           current_plays: number | null
+          delivery_accumulated: number | null
           delta: number | null
-          excluded_from_kpis: boolean | null
           first_seen_at: string | null
-          is_baseline_conflict: boolean | null
           last_captured_at: string | null
           playlist_id: string | null
           playlist_url: string | null
@@ -11701,6 +11699,37 @@ export type Database = {
         }[]
       }
       extract_spotify_playlist_id: { Args: { p_url: string }; Returns: string }
+      fn_campaign_delivery_accumulated: {
+        Args: { p_campaign_id: string }
+        Returns: {
+          curator_plays: number
+          eco_plays: number
+          organic_plays: number
+          total_plays: number
+        }[]
+      }
+      fn_curator_delivery_accumulated: {
+        Args: { p_campaign_id: string }
+        Returns: {
+          curator_id: string
+          delivery_accumulated: number
+          playlists_count: number
+        }[]
+      }
+      fn_deal_delivery_accumulated: {
+        Args: { p_deal_id: string }
+        Returns: number
+      }
+      fn_playlist_delivery_accumulated: {
+        Args: { p_campaign_id: string }
+        Returns: {
+          current_reading: number
+          delivery_accumulated: number
+          last_reading_at: string
+          playlist_id: string
+          readings_count: number
+        }[]
+      }
       generate_community_invite_slug: {
         Args: { p_email: string; p_id: string; p_note: string }
         Returns: string

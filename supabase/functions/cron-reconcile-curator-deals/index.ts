@@ -19,32 +19,24 @@ type DealProgress = {
 };
 
 async function reconcileDeal(supabase: any, deal: any) {
-  // ÚNICA fonte de verdade: a mesma RPC que painel/CuratorPage consomem.
-  const { data: progress, error: rpcErr } = await supabase.rpc(
-    "get_curator_deal_progress",
+  // Growth Engine (P1.1): fonte ÚNICA = fn_deal_delivery_accumulated.
+  // Σ deltas positivos das playlists atribuídas ao curador do deal na campanha,
+  // ignorando uploads quarentenados. Nunca decresce, nunca negativo.
+  const { data: deliveredVal, error: rpcErr } = await supabase.rpc(
+    "fn_deal_delivery_accumulated",
     { p_deal_id: deal.id },
   );
   if (rpcErr) throw rpcErr;
 
-  const p = (progress ?? {}) as DealProgress;
-  const delivered = Number(p.delivered_curator ?? 0);
-  const deliveredTotal = Number(p.delivered_total ?? 0);
-  const progressPct = p.progress_pct != null ? Number(p.progress_pct) : null;
-  const etaDays = p.eta_days != null ? Number(p.eta_days) : null;
-  const latestCapturedAt = p.last_capture_at ?? null;
+  const delivered = Number(deliveredVal ?? 0);
 
-  // Atualiza somente os campos espelho. Sem cálculos próprios.
-  const updatePayload: Record<string, unknown> = {
-    reconciled_total_plays: delivered,
-    last_reconciled_at: new Date().toISOString(),
-  };
-  // Campos opcionais — só seta se existirem na tabela. Postgres ignora colunas
-  // inexistentes via PostgREST? Não — precisaríamos saber. Mantemos apenas
-  // reconciled_total_plays/last_reconciled_at, que sabemos existir. Os demais
-  // (progress_pct/eta_days/delivered_total) são derivados dinamicamente da RPC
-  // e não precisam ser materializados.
-
-  await supabase.from("curator_deals").update(updatePayload).eq("id", deal.id);
+  await supabase
+    .from("curator_deals")
+    .update({
+      reconciled_total_plays: delivered,
+      last_reconciled_at: new Date().toISOString(),
+    })
+    .eq("id", deal.id);
 
   // ===== FIX C: detecta baseline ausente e notifica =====
   {
@@ -63,10 +55,6 @@ async function reconcileDeal(supabase: any, deal: any) {
   return {
     deal_id: deal.id,
     delivered,
-    delivered_total: deliveredTotal,
-    progress_pct: progressPct,
-    eta_days: etaDays,
-    latest_capture_at: latestCapturedAt,
     milestone,
   };
 }
@@ -173,7 +161,7 @@ Deno.serve(async (req) => {
     // ficam congeladas — o cron não toca mais nelas.
     const { data: deals, error } = await supabase
       .from("curator_deals")
-      .select("id, user_id, song_name, curator_name, started_at, ends_at, target_plays, closed_at")
+      .select("id, user_id, campaign_id, song_name, curator_name, started_at, ends_at, target_plays, closed_at")
       .is("closed_at", null)
       .or(`ends_at.is.null,ends_at.gte.${cutoff}`);
 
@@ -189,7 +177,22 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`[cron-reconcile] ${results.length} deals processados via RPC get_curator_deal_progress`);
+    // Growth Engine (P1.1): sincroniza campaigns.total_delivered de cada
+    // campanha distinta tocada. recompute_campaign_total_delivered também
+    // reescreve reconciled_total_plays de TODOS os deals da campanha, então
+    // os valores acima ficam consistentes com a fonte única.
+    const campaignIds = Array.from(new Set(
+      (deals ?? []).map((d: any) => d.campaign_id).filter(Boolean),
+    ));
+    for (const cid of campaignIds) {
+      const { error: recErr } = await supabase.rpc(
+        "recompute_campaign_total_delivered",
+        { p_campaign_id: cid },
+      );
+      if (recErr) console.error("recompute campaign error", cid, recErr);
+    }
+
+    console.log(`[cron-reconcile] ${results.length} deals, ${campaignIds.length} campaigns sincronizadas via Growth Engine`);
 
     const errCount = results.filter((r: any) => r.error).length;
     await reportCronHealth(supabase, {
