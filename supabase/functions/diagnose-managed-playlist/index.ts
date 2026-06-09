@@ -1233,6 +1233,22 @@ Deno.serve(async (req) => {
       try {
         const token = await getSpotifyToken({ appId: ownerAppId });
         const candArtistIds = new Map<string, string>(); // trackId → artistId
+        if (useSinglePath) {
+          const allIds = rawCandidates.map((c) => c.id);
+          const trResults = await fetchAllSingle(allIds, (id) => fetchSingleTrack(token, id));
+          for (const tr of trResults) {
+            if (!tr?.id) continue;
+            const imgs = tr.album?.images ?? [];
+            const cover = imgs[0]?.url ?? imgs[imgs.length - 1]?.url ?? null;
+            if (cover) coverMap.set(tr.id, cover);
+            candMeta.set(tr.id, {
+              popularity: typeof tr.popularity === "number" ? tr.popularity : null,
+              artistPop: null,
+              cover,
+            });
+            if (tr.artists?.[0]?.id) candArtistIds.set(tr.id, tr.artists[0].id);
+          }
+        } else {
         for (let i = 0; i < rawCandidates.length; i += 50) {
           const ids = rawCandidates.slice(i, i + 50).map((c) => c.id);
           const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`, { headers: { Authorization: `Bearer ${token}` } }, { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, function_name: 'diagnose-managed-playlist' });
@@ -1253,8 +1269,16 @@ Deno.serve(async (req) => {
             if (tr.artists?.[0]?.id) candArtistIds.set(tr.id, tr.artists[0].id);
           }
         }
+        }
         const uniqueArtistIds = uniq(Array.from(candArtistIds.values()));
         const artistPopMap = new Map<string, number | null>();
+        if (useSinglePath) {
+          const arResults = await fetchAllSingle(uniqueArtistIds, (id) => fetchSingleArtist(token, id));
+          for (const ar of arResults) {
+            if (!ar?.id) continue;
+            artistPopMap.set(ar.id, typeof ar.popularity === "number" ? ar.popularity : null);
+          }
+        } else {
         for (let i = 0; i < uniqueArtistIds.length; i += 50) {
           const ids = uniqueArtistIds.slice(i, i + 50);
           const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/artists?ids=${ids.join(",")}`, { headers: { Authorization: `Bearer ${token}` } }, { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, function_name: 'diagnose-managed-playlist' });
@@ -1267,11 +1291,13 @@ Deno.serve(async (req) => {
             artistPopMap.set(ar.id, typeof ar.popularity === "number" ? ar.popularity : null);
           }
         }
+        }
         for (const [tid, aid] of candArtistIds.entries()) {
           const cur = candMeta.get(tid);
           if (cur) cur.artistPop = artistPopMap.get(aid) ?? null;
         }
-        tel.end("spotify_candidates_tracks_and_artists", "ok", `${candMeta.size} cands · ${uniqueArtistIds.length} artistas`);
+        tel.end("spotify_candidates_tracks_and_artists", "ok", `${candMeta.size} cands · ${uniqueArtistIds.length} artistas${useSinglePath ? " [single-path]" : ""}`);
+
       } catch (e) {
         tel.noteThrow(e);
         tel.end("spotify_candidates_tracks_and_artists", "error", (e as Error)?.message);
