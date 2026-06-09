@@ -3652,7 +3652,7 @@ export type Database = {
           id: string
           image_url: string | null
           is_baseline: boolean
-          is_observational: boolean | null
+          is_observational: boolean
           last_paste_at: string | null
           match_reason: string | null
           match_status: string
@@ -3678,7 +3678,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_baseline?: boolean
-          is_observational?: boolean | null
+          is_observational?: boolean
           last_paste_at?: string | null
           match_reason?: string | null
           match_status?: string
@@ -3704,7 +3704,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_baseline?: boolean
-          is_observational?: boolean | null
+          is_observational?: boolean
           last_paste_at?: string | null
           match_reason?: string | null
           match_status?: string
