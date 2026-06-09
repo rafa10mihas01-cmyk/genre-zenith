@@ -745,102 +745,29 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 3b) Atualiza campaigns.total_delivered.
-    //
-    //     REGRA OPERACIONAL (fix 08/06/2026):
-    //     ENTREGA DA CAMPANHA = SOMENTE playlists oficialmente VINCULADAS
-    //     à campanha (ecossistema OU curador contratado), que possuam
-    //     BASELINE e COLETA ATUAL. Tudo que aparecer na planilha mas não
-    //     pertence ao contrato é DESCOBERTA ORGÂNICA e NÃO entra no KPI.
-    //
-    //     Fontes oficiais de vínculo:
-    //       a) campaign_eco_allocations  → managed_playlists.spotify_playlist_id
-    //       b) curator_playlists (deal da campanha) com match_status='curator'
-    //          (organic = playlist da planilha sem contrato → não conta).
+    // 3b) Atualiza campaigns.total_delivered via Growth Engine (P1.1).
+    //     Fonte ÚNICA = fn_campaign_delivery_accumulated → curadores + eco +
+    //     orgânico, sempre delivery_accumulated (Σ deltas positivos por
+    //     playlist, ignorando uploads quarentenados). A RPC também sincroniza
+    //     curator_deals.reconciled_total_plays de TODOS os deals da campanha.
     if (campaignIdForUpdate) {
-      // (1) Conjunto de spotify_playlist_id VINCULADOS à campanha.
-      const linkedPids = new Set<string>();
-
-      const { data: ecoLinks } = await admin
-        .from("campaign_eco_allocations")
-        .select("managed_playlists!inner(spotify_playlist_id)")
-        .eq("campaign_id", campaignIdForUpdate);
-      for (const row of (ecoLinks ?? []) as any[]) {
-        const pid = row.managed_playlists?.spotify_playlist_id;
-        if (typeof pid === "string" && pid.length > 0) linkedPids.add(pid);
-      }
-
-      const { data: campaignDeals } = await admin
-        .from("curator_deals")
-        .select("id")
-        .eq("campaign_id", campaignIdForUpdate);
-      const dealIds = (campaignDeals ?? []).map((d: any) => d.id).filter(Boolean);
-      if (dealIds.length > 0) {
-        const { data: curLinks } = await admin
-          .from("curator_playlists")
-          .select("spotify_playlist_id, match_status")
-          .in("deal_id", dealIds);
-        for (const row of (curLinks ?? []) as any[]) {
-          const pid = row.spotify_playlist_id;
-          if (typeof pid === "string" && pid.length > 0 && row.match_status === "curator") {
-            linkedPids.add(pid);
-          }
-        }
-      }
-
-      // (2) Coleta baseline / último incremental das linhas da planilha,
-      //     considerando TODOS os deals da campanha (não só este upload).
-      const dealIdsForRows = dealIds.length > 0 ? dealIds : [dealId];
-      const { data: allRows } = await admin
-        .from("label_spreadsheet_rows")
-        .select("streams, playlist_spotify_id, upload_id, label_spreadsheet_uploads!inner(is_baseline, created_at, quarantined_at)")
-        .in("deal_id", dealIdsForRows);
-
-      const baselineByPlaylist = new Map<string, number>();
-      // 🔒 Monotonicidade: latestByPlaylist guarda o MAIOR streams já observado
-      //    em uploads válidos (ignora quarentenados). Sem isso, um upload novo
-      //    com janela curta derrubaria a entrega histórica da campanha.
-      const latestByPlaylist = new Map<string, { streams: number; t: number }>();
-      for (const row of (allRows ?? []) as any[]) {
-        const pid = row.playlist_spotify_id as string | null;
-        if (!pid) continue;
-        const upload = row.label_spreadsheet_uploads as any;
-        if (upload?.quarantined_at) continue; // ignora upload em quarentena
-        const streams = Number(row.streams || 0);
-        if (upload?.is_baseline) {
-          baselineByPlaylist.set(pid, Math.max(baselineByPlaylist.get(pid) ?? 0, streams));
-        } else {
-          const cur = latestByPlaylist.get(pid);
-          // pega o MAIOR valor, não o mais recente
-          if (!cur || streams > cur.streams) {
-            latestByPlaylist.set(pid, { streams, t: new Date(upload?.created_at ?? 0).getTime() });
-          }
-        }
-      }
-
-      // (3) Σ delta APENAS para playlists vinculadas com baseline E atual.
-      let delivered = 0;
-      let countLinkedValid = 0;
-      let droppedOrganic = 0;
-      let droppedLinkedNoBaseline = 0;
-      for (const [pid, { streams }] of latestByPlaylist) {
-        if (!linkedPids.has(pid)) { droppedOrganic += streams; continue; }
-        if (!baselineByPlaylist.has(pid)) { droppedLinkedNoBaseline += streams; continue; }
-        const base = baselineByPlaylist.get(pid) ?? 0;
-        const d = Math.max(0, streams - base);
-        if (d > 0) countLinkedValid++;
-        delivered += d;
-      }
-      console.log(
-        `[total_delivered] campaign=${campaignIdForUpdate} delivered=${delivered} ` +
-        `linked_valid=${countLinkedValid} dropped_organic=${droppedOrganic} ` +
-        `dropped_linked_no_baseline=${droppedLinkedNoBaseline}`,
+      const { error: recErr } = await admin.rpc(
+        "recompute_campaign_total_delivered",
+        { p_campaign_id: campaignIdForUpdate },
       );
-
-      await admin
-        .from("campaigns")
-        .update({ total_delivered: delivered })
-        .eq("id", campaignIdForUpdate);
+      if (recErr) {
+        console.error("[total_delivered] recompute error", recErr);
+      } else {
+        const { data: row } = await admin
+          .from("campaigns")
+          .select("total_delivered")
+          .eq("id", campaignIdForUpdate)
+          .maybeSingle();
+        console.log(
+          `[total_delivered] campaign=${campaignIdForUpdate} ` +
+          `delivered=${row?.total_delivered ?? 0} via=growth_engine`,
+        );
+      }
     }
 
     // 3c) Espelho em campaign_playlist_collections — fonte de verdade da aba
