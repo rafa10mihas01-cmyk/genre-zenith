@@ -90,33 +90,28 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // 4) Dedup: já notificou nas últimas 24h?
-      const { count: recentNotif } = await sb
-        .from("notifications")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", curator.user_id)
-        .gte("created_at", oneDayAgo)
-        .contains("metadata", { kind: NOTIF_KIND, deal_id: deal.id });
-
-      if ((recentNotif ?? 0) > 0) {
-        skippedAlreadyNotified++;
-        continue;
-      }
-
-      // 5) Insere notificação
-      const { error: nErr } = await sb.from("notifications").insert({
-        user_id: curator.user_id,
-        type: NOTIF_TYPE,
-        title: NOTIF_TITLE,
-        message: NOTIF_MESSAGE,
-        action_url: `/curador/${deal.public_token}`,
-        read: false,
-        metadata: {
+      // 4) Insere via RPC com dedupe nativo (1 alerta por deal por 24h)
+      const dedupe = `deal_stale:${deal.id}`;
+      const songName = deal.song_name ?? "deal";
+      const { error: nErr } = await sb.rpc("create_notification" as any, {
+        p_type: NOTIF_TYPE,
+        p_title: NOTIF_TITLE,
+        p_message:
+          `O deal "${songName}" está há mais de 3 dias sem nova entrega registrada. ` +
+          `Ação: acesse o portal e atualize o progresso.`,
+        p_action_url: `/curador/${deal.public_token}`,
+        p_metadata: {
+          domain: "curator",
+          severity: "medium",
           kind: NOTIF_KIND,
+          action_required: true,
+          user_id: curator.user_id,
           deal_id: deal.id,
           song_name: deal.song_name,
           started_at: deal.started_at,
         },
+        p_dedupe_key: dedupe,
+        p_cooldown_minutes: 60 * 24,
       });
 
       if (nErr) {
@@ -204,32 +199,26 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Dedup: já existe notificação desse kind pra esse deal?
-      const { count: exists } = await sb
-        .from("notifications")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", curator.user_id)
-        .contains("metadata", { kind: spec.kind, deal_id: deal.id });
-
-      if ((exists ?? 0) > 0) {
-        deadlineSkipped++;
-        continue;
-      }
-
-      const { error: insErr } = await sb.from("notifications").insert({
-        user_id: curator.user_id,
-        type: spec.type,
-        title: spec.title,
-        message: spec.message(deal.song_name ?? "deal", ends),
-        action_url: `/curador/${deal.public_token}`,
-        read: false,
-        metadata: {
+      // Dedup nativo: 1 alerta por (kind+deal) — RPC ignora repetições.
+      const dedupe = `${spec.kind}:${deal.id}`;
+      const { error: insErr } = await sb.rpc("create_notification" as any, {
+        p_type: spec.type,
+        p_title: spec.title,
+        p_message: spec.message(deal.song_name ?? "deal", ends),
+        p_action_url: `/curador/${deal.public_token}`,
+        p_metadata: {
+          domain: "curator",
+          severity: spec.type === "critical" ? "high" : spec.type === "warning" ? "medium" : "info",
           kind: spec.kind,
+          action_required: spec.type !== "info",
+          user_id: curator.user_id,
           deal_id: deal.id,
           song_name: deal.song_name,
           ends_at: deal.ends_at,
           days_to_deadline: diffDays,
         },
+        p_dedupe_key: dedupe,
+        p_cooldown_minutes: 60 * 24 * 30,
       });
       if (insErr) failed++;
       else deadlineNotified++;

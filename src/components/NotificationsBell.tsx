@@ -364,6 +364,17 @@ export function NotificationsBell() {
           )}
         </div>
 
+        <div className="border-t border-border px-4 py-2">
+          <button
+            onClick={() => { setOpen(false); nav("/sistema?tab=alertas"); }}
+            className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors text-center py-1"
+          >
+            Ver todas no histórico →
+          </button>
+        </div>
+
+
+
       </PopoverContent>
     </Popover>
     <AlertPreferencesDialog open={prefsOpen} onOpenChange={setPrefsOpen} />

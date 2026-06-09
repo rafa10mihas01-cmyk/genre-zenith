@@ -47,6 +47,7 @@ Deno.serve(async (req) => {
     status: "ok" | "stale" | "never_ran";
     last_run: string | null;
     notified: boolean;
+    resolved: boolean;
   }> = [];
 
   for (const job of CRITICAL_CRONS) {
@@ -71,35 +72,114 @@ Deno.serve(async (req) => {
         ? "never_ran"
         : "stale";
 
+    const dedupe = `cron-stale:${job}`;
+
     if (!isStale) {
-      results.push({ job, status, last_run: lastRunIso, notified: false });
+      // Cron voltou ao normal → fecha incidente aberto
+      const { data: resolvedCount } = await admin.rpc(
+        "resolve_notifications_by_dedupe" as any,
+        {
+          p_dedupe_key: dedupe,
+          p_resolution_message: "Cron voltou a rodar normalmente.",
+        },
+      );
+      results.push({
+        job,
+        status,
+        last_run: lastRunIso,
+        notified: false,
+        resolved: Number(resolvedCount ?? 0) > 0,
+      });
       continue;
     }
 
     const hoursIdle = lastRunMs
       ? Math.round((now - lastRunMs) / (60 * 60 * 1000))
       : null;
+    const friendly = ({
+      "playlist-queue-processor": "Processamento de playlists",
+      "sync-managed-playlists": "Sincronização de playlists",
+      "wave1-enrich-batch": "Enriquecimento Spotify",
+      "execution-planner": "Planejamento de execução",
+      "reap-zombie-jobs": "Limpeza de jobs travados",
+    } as Record<string, string>)[job] ?? job;
+
     const message = hoursIdle != null
-      ? `Última execução há ${hoursIdle}h. Verifique o agendamento.`
-      : `Sem registros de execução. Verifique se o cron está habilitado.`;
+      ? `O serviço "${friendly}" não roda há ${hoursIdle} hora${hoursIdle === 1 ? "" : "s"}. ` +
+        `Impacto: novas adições e coletas estão pausadas. ` +
+        `Ação: verifique a aba Saúde do sistema.`
+      : `O serviço "${friendly}" nunca rodou nesta instância. ` +
+        `Impacto: a função pode estar desabilitada. ` +
+        `Ação: verifique o agendamento.`;
 
     const { error: notifErr } = await admin.rpc("create_notification", {
-      p_type: "warning",
-      p_title: `Cron crítico inativo: ${job}`,
+      p_type: "critical",
+      p_title: `${friendly} pausado`,
       p_message: message,
       p_action_url: "/sistema?tab=saude",
-      p_metadata: { job, last_run: lastRunIso, hours_idle: hoursIdle },
-      p_dedupe_key: `cron-stale:${job}`,
+      p_metadata: {
+        domain: "system",
+        severity: "high",
+        kind: "cron_stale",
+        action_required: true,
+        job,
+        hours_idle: hoursIdle,
+      },
+      p_dedupe_key: dedupe,
       p_cooldown_minutes: COOLDOWN_MINUTES,
     });
 
     if (notifErr) {
       console.error(`[monitor-critical-crons] notify failed for ${job}:`, notifErr);
-      results.push({ job, status, last_run: lastRunIso, notified: false });
+      results.push({ job, status, last_run: lastRunIso, notified: false, resolved: false });
       continue;
     }
 
-    results.push({ job, status, last_run: lastRunIso, notified: true });
+    results.push({ job, status, last_run: lastRunIso, notified: true, resolved: false });
+  }
+
+  // ============================================================
+  // Spotify Circuit Breaker — alerta operacional dedupado
+  // ============================================================
+  try {
+    const { data: breakers } = await admin
+      .from("spotify_circuit_breaker")
+      .select("app_id, status, blocked_until, retry_after_sec");
+
+    for (const b of breakers ?? []) {
+      const dedupe = `spotify_circuit_open:${b.app_id}`;
+      if (b.status === "open" && b.blocked_until) {
+        const until = new Date(b.blocked_until as string);
+        const hh = String(until.getHours()).padStart(2, "0");
+        const mm = String(until.getMinutes()).padStart(2, "0");
+        await admin.rpc("create_notification", {
+          p_type: "critical",
+          p_title: "Spotify pausou um aplicativo temporariamente",
+          p_message:
+            `O Spotify bloqueou um app por excesso de requisições. ` +
+            `Impacto: novas adições estão pausadas neste app. ` +
+            `Ação: nenhuma — retomada automática às ${hh}:${mm}.`,
+          p_action_url: "/sistema?tab=saude",
+          p_metadata: {
+            domain: "system",
+            severity: "high",
+            kind: "spotify_circuit_open",
+            action_required: false,
+            app_id: b.app_id,
+            blocked_until: b.blocked_until,
+          },
+          p_dedupe_key: dedupe,
+          p_cooldown_minutes: 60,
+        });
+      } else {
+        await admin.rpc("resolve_notifications_by_dedupe" as any, {
+          p_dedupe_key: dedupe,
+          p_resolution_message: "Spotify liberou o app. Adições retomadas.",
+        });
+      }
+    }
+  } catch (e) {
+    console.error("[monitor-critical-crons] circuit-breaker check failed:", e);
   }
 
   await admin.from("cron_health").insert({
@@ -108,6 +188,7 @@ Deno.serve(async (req) => {
     metrics: {
       checked: results.length,
       notified: results.filter((r) => r.notified).length,
+      resolved: results.filter((r) => r.resolved).length,
     },
   });
 

@@ -43,7 +43,7 @@ export interface NotificationRow {
   metadata?: NotificationMeta | null;
 }
 
-const LIMIT = 30;
+const LIMIT = 50;
 const QUERY_KEY = ["notifications"] as const;
 
 // Anti-flood de toasts: 60s por dedupe_key
@@ -80,6 +80,7 @@ export function useNotifications() {
       const { data, error } = await supabase
         .from("notifications")
         .select("id, type, title, message, action_url, read, created_at, metadata")
+        .eq("status", "open")
         .order("created_at", { ascending: false })
         .limit(LIMIT);
       if (error) throw error;
@@ -149,14 +150,15 @@ export function useNotifications() {
 
   const markAllRead = useCallback(async () => {
     const previous = qc.getQueryData<NotificationRow[]>(QUERY_KEY) ?? [];
-    const unreadIds = previous.filter((i) => !i.read).map((i) => i.id);
-    if (unreadIds.length === 0) return;
     qc.setQueryData<NotificationRow[]>(QUERY_KEY, (prev) =>
       (prev ?? []).map((p) => ({ ...p, read: true })),
     );
-    const { error } = await supabase.from("notifications").update({ read: true }).in("id", unreadIds);
+    // RPC global: marca TODAS as não-lidas (não só as 50 em cache).
+    const { error } = await supabase.rpc("mark_all_notifications_read" as any, {
+      p_user_id: user?.id ?? null,
+    });
     if (error) qc.setQueryData(QUERY_KEY, previous);
-  }, [qc]);
+  }, [qc, user]);
 
   const refresh = useCallback(async () => {
     await qc.invalidateQueries({ queryKey: QUERY_KEY });

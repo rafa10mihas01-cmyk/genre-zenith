@@ -52,19 +52,29 @@ Deno.serve(async (req) => {
       .in("id", ids);
     if (updErr) throw updErr;
 
-    // 4) Notifica no cockpit (best-effort — não bloqueia se falhar)
-    const notifications = (expired ?? [])
-      .filter((c) => !!c.curator_id)
-      .map((c) => ({
-        user_id: c.curator_id,
-        type: "warning" as const,
-        title: "Rascunho expirou",
-        message: `Campanha "${c.track_name}"${c.artist ? ` — ${c.artist}` : ""} expirou após 48h. Inventário liberado.`,
-        metadata: { kind: "campaign_expired", domain: "campanhas", campaign_id: c.id, expires_at: c.expires_at },
-      }));
-
-    if (notifications.length > 0) {
-      await supabase.from("notifications").insert(notifications);
+    // 4) Notifica no cockpit via RPC com dedupe por campanha (best-effort)
+    for (const c of expired ?? []) {
+      if (!c.curator_id) continue;
+      const trackName = c.track_name ?? "campanha";
+      await supabase.rpc("create_notification" as any, {
+        p_type: "warning",
+        p_title: "Rascunho cancelado automaticamente",
+        p_message:
+          `A campanha "${trackName}"${c.artist ? ` — ${c.artist}` : ""} foi descartada por inatividade (48h sem aprovação). ` +
+          `Impacto: o inventário voltou a ficar disponível. ` +
+          `Ação: nenhuma.`,
+        p_action_url: "/campanhas",
+        p_metadata: {
+          domain: "system",
+          severity: "medium",
+          kind: "campaign_expired",
+          user_id: c.curator_id,
+          campaign_id: c.id,
+          expires_at: c.expires_at,
+        },
+        p_dedupe_key: `campaign_expired:${c.id}`,
+        p_cooldown_minutes: 60 * 24 * 30,
+      });
     }
 
     return new Response(
