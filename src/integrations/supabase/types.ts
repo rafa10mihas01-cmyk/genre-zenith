@@ -11357,6 +11357,49 @@ export type Database = {
         Args: { p_key: string; p_limit?: number; p_window_seconds?: number }
         Returns: Json
       }
+      claim_collect_queue: {
+        Args: { p_limit: number; p_overfetch?: number }
+        Returns: {
+          artist_candidates: string[]
+          auto_collect: boolean
+          auto_collect_error: string | null
+          auto_collect_interval_minutes: number
+          auto_collect_status: string
+          baseline_plays: number
+          client_id: string | null
+          client_token: string
+          created_at: string
+          daily_goal: number
+          deal_id: string
+          duration_days: number
+          ends_at: string | null
+          id: string
+          last_auto_collect_at: string | null
+          last_print_at: string | null
+          next_auto_collect_at: string | null
+          position: number
+          queued_at: string | null
+          ramp_up_days: number
+          slug: string | null
+          smartlink_url: string | null
+          song_artist: string | null
+          song_cover_url: string | null
+          song_name: string
+          song_spotify_url: string
+          spotify_artist_id: string | null
+          spotify_artist_url: string | null
+          spotify_track_id: string | null
+          started_at: string | null
+          target_plays: number | null
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "curator_deal_songs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       claim_next_playlist_job: {
         Args: { _claimed_by: string }
         Returns: {
