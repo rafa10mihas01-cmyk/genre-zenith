@@ -449,30 +449,30 @@ export function ExecucaoView({
       {/* RESULTADO DA CAMPANHA — Atual / Variação / Playlists + sparkline (apenas Visão geral) */}
       {mode === "all" && (
         <Card>
-          <CardContent className="p-5 md:p-6">
-            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold mb-4">
+          <CardContent className="p-3 md:p-5 lg:p-6">
+            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold mb-2.5 md:mb-4">
               Resultado da campanha
             </div>
-            <div className="flex flex-col lg:flex-row lg:items-center gap-6 lg:gap-8 lg:divide-x lg:divide-border/50">
-              <div className="grid grid-cols-3 gap-6 md:gap-10 flex-1">
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[12px] text-muted-foreground">Atual</span>
-                  <span className="text-[20px] sm:text-[24px] lg:text-[28px] font-medium tabular-nums text-foreground leading-none">
+            <div className="flex flex-col lg:flex-row lg:items-center gap-3 md:gap-6 lg:gap-8 lg:divide-x lg:divide-border/50">
+              <div className="grid grid-cols-3 gap-2 md:gap-10 flex-1">
+                <div className="flex flex-col gap-0.5 md:gap-1.5">
+                  <span className="text-[10px] md:text-[12px] text-muted-foreground">Atual</span>
+                  <span className="text-[18px] sm:text-[24px] lg:text-[28px] font-medium tabular-nums text-foreground leading-none">
                     {formatInt(filteredTotals.current)}
                   </span>
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[12px] text-muted-foreground">Variação</span>
+                <div className="flex flex-col gap-0.5 md:gap-1.5">
+                  <span className="text-[10px] md:text-[12px] text-muted-foreground">Variação</span>
                   <span className={cn(
-                    "text-[20px] sm:text-[24px] lg:text-[28px] font-medium tabular-nums leading-none",
+                    "text-[18px] sm:text-[24px] lg:text-[28px] font-medium tabular-nums leading-none",
                     filteredTotals.delta > 0 ? "text-primary" : "text-foreground",
                   )}>
                     {filteredTotals.delta > 0 ? "+" : ""}{formatInt(filteredTotals.delta)}
                   </span>
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[12px] text-muted-foreground">Playlists monitoradas</span>
-                  <span className="text-[20px] sm:text-[24px] lg:text-[28px] font-medium tabular-nums text-foreground leading-none">
+                <div className="flex flex-col gap-0.5 md:gap-1.5">
+                  <span className="text-[10px] md:text-[12px] text-muted-foreground leading-tight">Playlists<span className="hidden md:inline"> monitoradas</span></span>
+                  <span className="text-[18px] sm:text-[24px] lg:text-[28px] font-medium tabular-nums text-foreground leading-none">
                     {formatInt(filtered.length)}
                   </span>
                 </div>
@@ -484,6 +484,7 @@ export function ExecucaoView({
 
           </CardContent>
         </Card>
+
       )}
 
       {totals.conflictCount > 0 && mode === "all" && (
@@ -679,21 +680,24 @@ function HeroGrowth({
         <div
           className={cn(
             "grid divide-y lg:divide-y-0 lg:divide-x divide-border/50",
-            mode === "all" ? "grid-cols-1 lg:grid-cols-[1.4fr_1fr_1fr_1fr]" : "grid-cols-1",
+            mode === "all" ? "grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]" : "grid-cols-1",
           )}
         >
           {/* Hero principal — número fino premium + label embaixo */}
-          <div className="px-6 py-5 lg:py-6 flex flex-col justify-center">
+          <div className={cn(
+            "px-4 py-3 md:px-6 md:py-5 lg:py-6 flex flex-col justify-center",
+            mode === "all" && "col-span-2 lg:col-span-1 border-b border-border/50 lg:border-b-0",
+          )}>
             <div
               className={cn(
                 "tabular-nums leading-none tracking-tight",
-                "text-[40px] md:text-[44px] lg:text-[48px] font-medium",
+                "text-[32px] md:text-[44px] lg:text-[48px] font-medium",
                 valueClass,
               )}
             >
               {sign}{formatInt(heroValue)}
             </div>
-            <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold mt-3 flex items-center gap-1.5">
+            <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold mt-2 md:mt-3 flex items-center gap-1.5">
               {heroLabel}
               <Activity className="h-3 w-3 text-primary/60 animate-pulse" />
             </div>
@@ -704,7 +708,7 @@ function HeroGrowth({
             <>
               <SecondaryMetric icon={Layers} label="Ecossistema" value={totals.eco} />
               <SecondaryMetric icon={Users} label="Curadores" value={totals.curator} />
-              <SecondaryMetric icon={Activity} label="Orgânico" value={totals.organic} />
+              <SecondaryMetric icon={Activity} label="Orgânico" value={totals.organic} className="col-span-2 lg:col-span-1 border-t border-border/50 lg:border-t-0" />
             </>
           )}
         </div>
@@ -717,26 +721,29 @@ function SecondaryMetric({
   icon: Icon,
   label,
   value,
+  className,
 }: {
   icon: any;
   label: string;
   value: number;
+  className?: string;
 }) {
   const sign = value > 0 ? "+" : "";
   return (
-    <div className="px-6 py-5 lg:py-6 flex flex-col justify-center">
+    <div className={cn("px-4 py-3 md:px-6 md:py-5 lg:py-6 flex flex-col justify-center", className)}>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[12px] text-muted-foreground font-normal">
+        <span className="text-[11px] md:text-[12px] text-muted-foreground font-normal">
           {label}
         </span>
         <Icon className="h-3.5 w-3.5 text-muted-foreground/60" />
       </div>
-      <div className="text-[22px] md:text-[24px] font-medium tabular-nums text-foreground leading-none mt-3">
+      <div className="text-[18px] md:text-[24px] font-medium tabular-nums text-foreground leading-none mt-1.5 md:mt-3">
         {sign}{formatInt(value)}
       </div>
     </div>
   );
 }
+
 
 
 
