@@ -34,6 +34,9 @@ import {
   getReservationsByPlaylist,
   reservationsToDailyCap,
   ECO_BUDGET_ENABLED,
+  PLANNER_FREE_FIRST_ENABLED,
+  getOccupiedPlaylistIds,
+  partitionByOccupancy,
 } from "../_shared/eco-budget.ts";
 import { getGenreNeighbors } from "../_shared/genre-affinity.ts";
 import { MIN_PLAYLIST_SAVES_FOR_CAMPAIGN } from "../_shared/eco-constants.ts";
