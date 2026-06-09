@@ -17,6 +17,12 @@ import { POSITION_PCT } from "./computeEcoPlan.ts";
 export const ECO_BUDGET_ENABLED =
   (Deno.env.get("ECO_BUDGET_ENABLED") ?? "true").toLowerCase() !== "false";
 
+// Anti-canibalização: Grupo A (livres) é consumido antes do Grupo B (ocupadas).
+// "Ocupada" = está em outra campanha ativa OU em curator deal ativo cuja janela
+// sobrepõe a janela alvo. Default: ligado. Rollback: env var = "false".
+export const PLANNER_FREE_FIRST_ENABLED =
+  (Deno.env.get("PLANNER_FREE_FIRST_ENABLED") ?? "true").toLowerCase() !== "false";
+
 const ACTIVE_STATUSES = ["active", "approved"] as const;
 const ACTIVE_ALLOC_STATUSES = ["pending", "approved", "dispatched"] as const;
 
