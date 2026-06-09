@@ -94,7 +94,7 @@ export function PlaylistCockpit({
   return (
     <CockpitProvider value={ctxValue}>
     <div className="h-full min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain nx-scroll">
-      <div className="mx-auto w-full max-w-[1600px] px-4 md:px-8 pt-4 md:pt-5 pb-[calc(88px+env(safe-area-inset-bottom,0px))] md:pb-8 space-y-4">
+      <div className="mx-auto w-full max-w-[1600px] px-2 md:px-3 lg:px-4 pt-4 md:pt-5 pb-[calc(88px+env(safe-area-inset-bottom,0px))] md:pb-8 space-y-4">
       {/* ============ 1. HEADER ============ */}
       <CockpitHeader />
       <SpotifyAppBlockedBanner managedId={managedId} />
@@ -119,7 +119,7 @@ export function PlaylistCockpit({
 
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-            <div className="sticky top-0 z-30 -mx-4 md:-mx-8 px-4 md:px-8 py-3 bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border">
+            <div className="sticky top-0 z-30 -mx-2 md:-mx-3 lg:-mx-4 px-2 md:px-3 lg:px-4 py-3 bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border">
             <TabsList
               className={cn(
                 "grid w-full bg-transparent p-0 h-auto gap-2",
