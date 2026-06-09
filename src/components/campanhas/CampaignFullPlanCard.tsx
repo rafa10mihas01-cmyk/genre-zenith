@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -67,6 +68,7 @@ export function CampaignFullPlanCard({
   radioGoal,
   radioCollectedTotal = null,
 }: Props) {
+  const isMobile = useIsMobile();
   const [showZeros, setShowZeros] = useState(false);
   const [mode, setMode] = useState<"diario" | "acumulado">("diario");
   const [copied, setCopied] = useState(false);
@@ -326,7 +328,7 @@ export function CampaignFullPlanCard({
   if (plans.length === 0) return null;
 
   const footerValues = mode === "diario" ? dailyTotals : cumulativeTotals;
-  const playlistColumnWidth = 300;
+  const playlistColumnWidth = isMobile ? 56 : 300;
   const totalColumnWidth = 80;
   const positionColumnWidth = 52;
   const dayColumnWidth = 56;
