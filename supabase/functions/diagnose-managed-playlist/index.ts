@@ -409,6 +409,62 @@ Deno.serve(async (req) => {
     // === TELEMETRIA (Fase 0A) — passiva, não altera fluxo ===
     const tel = new DiagnoseTelemetry();
 
+    // === EXPERIMENTAL (Recovery 1) — single-path enrichment ===
+    // Ativa fetch /v1/tracks/{id} e /v1/artists/{id} (200) em vez do batch
+    // /v1/tracks?ids= (403). Default: ADRENALINA (2fkWRA6qFJi8JZpvlVuXOO).
+    const SINGLE_PATH_TARGET = (Deno.env.get("DIAGNOSE_SINGLE_PATH_TARGET") ?? "2fkWRA6qFJi8JZpvlVuXOO").trim();
+    const SINGLE_PATH_FORCE = (Deno.env.get("DIAGNOSE_SINGLE_PATH") ?? "").toLowerCase() === "true";
+    const useSinglePath =
+      SINGLE_PATH_FORCE || ((pl as any).spotify_playlist_id === SINGLE_PATH_TARGET);
+    const singlePathStats = {
+      enabled: useSinglePath,
+      tracks_attempted: 0, tracks_ok: 0, tracks_403: 0, tracks_other_err: 0,
+      artists_attempted: 0, artists_ok: 0, artists_403: 0, artists_other_err: 0,
+    };
+    async function fetchSingleTrack(token: string, id: string) {
+      singlePathStats.tracks_attempted++;
+      const r = await guardedSpotifyFetch(
+        `https://api.spotify.com/v1/tracks/${id}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+        { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, function_name: 'diagnose-managed-playlist' },
+      );
+      tel.noteSpotifyStatus(r.status);
+      if (r.status === 403) { singlePathStats.tracks_403++; return null; }
+      if (!r.ok) { singlePathStats.tracks_other_err++; return null; }
+      singlePathStats.tracks_ok++;
+      return await r.json();
+    }
+    async function fetchSingleArtist(token: string, id: string) {
+      singlePathStats.artists_attempted++;
+      const r = await guardedSpotifyFetch(
+        `https://api.spotify.com/v1/artists/${id}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+        { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, function_name: 'diagnose-managed-playlist' },
+      );
+      tel.noteSpotifyStatus(r.status);
+      if (r.status === 403) { singlePathStats.artists_403++; return null; }
+      if (!r.ok) { singlePathStats.artists_other_err++; return null; }
+      singlePathStats.artists_ok++;
+      return await r.json();
+    }
+    // Paralelismo controlado: 2 in-flight, 150ms stall (~13 req/s). Spotify-friendly.
+    async function fetchAllSingle<T>(ids: string[], fn: (id: string) => Promise<T | null>, concurrency = 2, stallMs = 150): Promise<Array<T | null>> {
+
+      const out: Array<T | null> = new Array(ids.length).fill(null);
+      let i = 0;
+      async function worker() {
+        while (i < ids.length) {
+          const idx = i++;
+          out[idx] = await fn(ids[idx]);
+          if (stallMs > 0) await new Promise((r) => setTimeout(r, stallMs));
+        }
+      }
+      await Promise.all(Array.from({ length: Math.min(concurrency, ids.length) }, () => worker()));
+      return out;
+    }
+
+
+
     // 1) Snapshot fresco das faixas atuais (best-effort — se falhar, segue com cache)
     // Passa skip_lock=true porque já seguramos o lock DIAGNOSE_ENGINE.
     const authHeader = req.headers.get("Authorization") ?? `Bearer ${SERVICE_KEY}`;
@@ -645,6 +701,31 @@ Deno.serve(async (req) => {
       tel.start("spotify_current_tracks_and_artists");
       try {
         const token = await getSpotifyToken({ appId: ownerAppId });
+        if (useSinglePath) {
+          // EXPERIMENTAL: single-path /v1/tracks/{id} (batch ?ids= retorna 403)
+          const trResults = await fetchAllSingle(trackIds, (id) => fetchSingleTrack(token, id));
+          for (const tr of trResults) {
+            if (!tr?.id) continue;
+            spotMeta.set(tr.id, {
+              popularity: typeof tr.popularity === "number" ? tr.popularity : null,
+              release_date: tr.album?.release_date ?? null,
+              artist_id: tr.artists?.[0]?.id ?? null,
+            });
+          }
+          const artistIds = uniq(
+            Array.from(spotMeta.values()).map((m) => m.artist_id).filter(Boolean) as string[],
+          );
+          const arResults = await fetchAllSingle(artistIds, (id) => fetchSingleArtist(token, id));
+          for (const ar of arResults) {
+            if (!ar?.id) continue;
+            artistMeta.set(ar.id, {
+              popularity: typeof ar.popularity === "number" ? ar.popularity : null,
+              followers: ar.followers?.total ?? null,
+              genres: Array.isArray(ar.genres) ? ar.genres.map((g: string) => String(g).toLowerCase()) : [],
+            });
+          }
+          run403s += singlePathStats.tracks_403 + singlePathStats.artists_403;
+        } else {
         // /v1/tracks?ids= (até 50)
         for (let i = 0; i < trackIds.length; i += 50) {
           const ids = trackIds.slice(i, i + 50);
@@ -682,7 +763,9 @@ Deno.serve(async (req) => {
             });
           }
         }
-        tel.end("spotify_current_tracks_and_artists", "ok", `${spotMeta.size} tracks · ${artistMeta.size} artistas`);
+        }
+        tel.end("spotify_current_tracks_and_artists", "ok", `${spotMeta.size} tracks · ${artistMeta.size} artistas${useSinglePath ? " [single-path]" : ""}`);
+
       } catch (e) {
         tel.noteThrow(e);
         tel.end("spotify_current_tracks_and_artists", "error", (e as Error)?.message);
@@ -1152,6 +1235,22 @@ Deno.serve(async (req) => {
       try {
         const token = await getSpotifyToken({ appId: ownerAppId });
         const candArtistIds = new Map<string, string>(); // trackId → artistId
+        if (useSinglePath) {
+          const allIds = rawCandidates.map((c) => c.id);
+          const trResults = await fetchAllSingle(allIds, (id) => fetchSingleTrack(token, id));
+          for (const tr of trResults) {
+            if (!tr?.id) continue;
+            const imgs = tr.album?.images ?? [];
+            const cover = imgs[0]?.url ?? imgs[imgs.length - 1]?.url ?? null;
+            if (cover) coverMap.set(tr.id, cover);
+            candMeta.set(tr.id, {
+              popularity: typeof tr.popularity === "number" ? tr.popularity : null,
+              artistPop: null,
+              cover,
+            });
+            if (tr.artists?.[0]?.id) candArtistIds.set(tr.id, tr.artists[0].id);
+          }
+        } else {
         for (let i = 0; i < rawCandidates.length; i += 50) {
           const ids = rawCandidates.slice(i, i + 50).map((c) => c.id);
           const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`, { headers: { Authorization: `Bearer ${token}` } }, { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, function_name: 'diagnose-managed-playlist' });
@@ -1172,8 +1271,16 @@ Deno.serve(async (req) => {
             if (tr.artists?.[0]?.id) candArtistIds.set(tr.id, tr.artists[0].id);
           }
         }
+        }
         const uniqueArtistIds = uniq(Array.from(candArtistIds.values()));
         const artistPopMap = new Map<string, number | null>();
+        if (useSinglePath) {
+          const arResults = await fetchAllSingle(uniqueArtistIds, (id) => fetchSingleArtist(token, id));
+          for (const ar of arResults) {
+            if (!ar?.id) continue;
+            artistPopMap.set(ar.id, typeof ar.popularity === "number" ? ar.popularity : null);
+          }
+        } else {
         for (let i = 0; i < uniqueArtistIds.length; i += 50) {
           const ids = uniqueArtistIds.slice(i, i + 50);
           const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/artists?ids=${ids.join(",")}`, { headers: { Authorization: `Bearer ${token}` } }, { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, function_name: 'diagnose-managed-playlist' });
@@ -1186,11 +1293,13 @@ Deno.serve(async (req) => {
             artistPopMap.set(ar.id, typeof ar.popularity === "number" ? ar.popularity : null);
           }
         }
+        }
         for (const [tid, aid] of candArtistIds.entries()) {
           const cur = candMeta.get(tid);
           if (cur) cur.artistPop = artistPopMap.get(aid) ?? null;
         }
-        tel.end("spotify_candidates_tracks_and_artists", "ok", `${candMeta.size} cands · ${uniqueArtistIds.length} artistas`);
+        tel.end("spotify_candidates_tracks_and_artists", "ok", `${candMeta.size} cands · ${uniqueArtistIds.length} artistas${useSinglePath ? " [single-path]" : ""}`);
+
       } catch (e) {
         tel.noteThrow(e);
         tel.end("spotify_candidates_tracks_and_artists", "error", (e as Error)?.message);
@@ -1782,6 +1891,17 @@ Deno.serve(async (req) => {
       if (candidateIds.length > 0) {
         try {
           const token = await getSpotifyToken({ appId: ownerAppId });
+          if (useSinglePath) {
+            const trResults = await fetchAllSingle(candidateIds, (id) => fetchSingleTrack(token, id));
+            for (const tr of trResults) {
+              if (!tr?.id) continue;
+              const prev = meta.get(tr.id) ?? {};
+              meta.set(tr.id, { ...prev, ...tr });
+              const imgs = tr.album?.images ?? [];
+              const cover = imgs[0]?.url ?? imgs[imgs.length - 1]?.url ?? null;
+              if (cover) coverMap.set(tr.id, cover);
+            }
+          } else {
           for (let i = 0; i < candidateIds.length; i += 50) {
             const slice = candidateIds.slice(i, i + 50);
             const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/tracks?ids=${slice.join(",")}`, { headers: { Authorization: `Bearer ${token}` } }, { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, function_name: 'diagnose-managed-playlist' });
@@ -1797,6 +1917,8 @@ Deno.serve(async (req) => {
               if (cover) coverMap.set(tr.id, cover);
             }
           }
+          }
+
         } catch (e) {
           if (e instanceof SpotifyCircuitOpenError) throw e;
           /* segue sem metadata extra */
@@ -2493,7 +2615,7 @@ Deno.serve(async (req) => {
       console.error("[diagnose] streak update failed:", (e as Error).message);
     }
 
-    return jr({ ok: true, diagnosis: diag, error: dErr?.message, sync: syncRes, _403_observed: run403s, _telemetry: tel.report() });
+    return jr({ ok: true, diagnosis: diag, error: dErr?.message, sync: syncRes, _403_observed: run403s, _telemetry: tel.report(), _single_path: singlePathStats });
   } catch (e) {
     // Circuit breaker aberto: aborta com erro claro em vez de degradar.
     if (e instanceof SpotifyCircuitOpenError) {
