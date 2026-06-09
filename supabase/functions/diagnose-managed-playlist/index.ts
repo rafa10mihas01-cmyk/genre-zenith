@@ -19,6 +19,7 @@ import {
 } from "../_shared/playlist-lock.ts";
 import { buildRoadmap, derivePhase, bloatedRemovalBudget } from "../_shared/lifecycle.ts";
 import { getProtectedTracksForPlaylist } from "../_shared/protected-tracks.ts";
+import { getTrackCacheBatch, getArtistCacheBatch } from "../_shared/spotify-cache.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
