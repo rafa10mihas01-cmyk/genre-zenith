@@ -533,6 +533,12 @@ Deno.serve(async (req) => {
     daily_tolerance: ECO_DAILY_TOLERANCE,
     eco_budget_enabled: ECO_BUDGET_ENABLED,
     playlists_dropped_by_budget: droppedByBudget,
+    free_first_enabled: PLANNER_FREE_FIRST_ENABLED,
+    group_a_primary_available: groupAStats.primary,
+    group_a_neighbor_available: groupAStats.neighbor,
+    group_b_primary_occupied: groupBStats.primary,
+    group_b_neighbor_occupied: groupBStats.neighbor,
+    used_from_group_b: groupBStats.usedFromB,
   };
 
 
