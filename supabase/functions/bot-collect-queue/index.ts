@@ -271,17 +271,20 @@ Deno.serve(async (req) => {
   }
 
 
-  // Marca elegíveis como queued para evitar dupla execução
-  const ids = eligible.map((s: any) => s.id);
-  if (ids.length) {
-    await supabase
-      .from("curator_deal_songs")
-      .update({
-        auto_collect_status: "queued",
-        auto_collect_error: "Entregue ao robô; aguardando print/snapshot",
-        queued_at: new Date().toISOString(),
-      })
-      .in("id", ids);
+  // Claim atômico via RPC: FOR UPDATE SKIP LOCKED garante que cada song só seja
+  // entregue a um caller, mesmo com workers paralelos do VPS (w0, w1, ...) batendo
+  // na edge no mesmo instante. Sem isso, race condition entre SELECT e UPDATE
+  // entregava a mesma música pra 2 workers → 2 prints duplicados (caso 09/06/2026).
+  const candidateIds = eligible.map((s: any) => s.id);
+  let ids: string[] = [];
+  let claimedEligible: any[] = [];
+  if (candidateIds.length) {
+    const { data: claimedRows, error: claimErr } = await supabase
+      .rpc("claim_collect_queue", { p_ids: candidateIds });
+    if (claimErr) return jr({ error: `claim_failed: ${claimErr.message}` }, 500);
+    const claimedSet = new Set((claimedRows ?? []).map((r: any) => r.id));
+    ids = Array.from(claimedSet) as string[];
+    claimedEligible = (eligible as any[]).filter((s) => claimedSet.has(s.id));
   }
 
 
