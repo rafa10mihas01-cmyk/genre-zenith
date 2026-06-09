@@ -673,7 +673,7 @@ export function DealHistorySheet({
                 <TabsList
                   className={cn(
                     asPage
-                      ? "w-full grid grid-cols-4 bg-[hsl(var(--elevated))] p-1 h-auto rounded-xl gap-1"
+                      ? "w-full grid grid-cols-4 bg-transparent p-0 h-auto gap-2"
                       : "bg-transparent p-0 h-auto gap-0 grid grid-cols-4 w-full sm:w-full",
                   )}
                 >
@@ -682,51 +682,57 @@ export function DealHistorySheet({
                     aria-label="Resumo"
                     className={cn(
                       asPage
-                        ? "flex items-center justify-center gap-1.5 rounded-lg data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground h-9 px-1 min-w-0"
+                        ? "flex flex-col items-center justify-center gap-1 rounded-xl border border-border bg-card data-[state=active]:border-primary/60 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-muted-foreground h-[68px] px-1 min-w-0 transition-colors"
                         : "gap-1.5 bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row",
                     )}
                   >
-                    <BarChart3 className="h-3.5 w-3.5 shrink-0" />
-                    <span className={cn(asPage ? "text-[12px] sm:text-sm truncate" : "hidden sm:inline text-sm")}>Resumo</span>
+                    <BarChart3 className={cn("shrink-0", asPage ? "h-4 w-4" : "h-3.5 w-3.5")} />
+                    <span className={cn(asPage ? "text-[12px] font-medium truncate leading-none" : "hidden sm:inline text-sm")}>Resumo</span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="playlists"
                     aria-label="Curador"
                     className={cn(
                       asPage
-                        ? "flex items-center justify-center gap-1.5 rounded-lg data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground h-9 px-1 min-w-0"
+                        ? "flex flex-col items-center justify-center gap-1 rounded-xl border border-border bg-card data-[state=active]:border-primary/60 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-muted-foreground h-[68px] px-1 min-w-0 transition-colors"
                         : "gap-1.5 bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border",
                     )}
                   >
-                    <ListMusic className="h-3.5 w-3.5 shrink-0" />
-                    <span className={cn(asPage ? "text-[12px] sm:text-sm truncate" : "hidden sm:inline text-sm")}>Curador</span>
-                    <span className="hidden sm:inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-muted text-muted-foreground text-[10px] font-bold tabular-nums shrink-0">{curatorTotal}</span>
+                    <ListMusic className={cn("shrink-0", asPage ? "h-4 w-4" : "h-3.5 w-3.5")} />
+                    <span className={cn(asPage ? "text-[12px] font-medium truncate leading-none" : "hidden sm:inline text-sm")}>Curador</span>
+                    {asPage
+                      ? <span className="text-[11px] font-bold tabular-nums leading-none">{curatorTotal}</span>
+                      : <span className="hidden sm:inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-muted text-muted-foreground text-[10px] font-bold tabular-nums shrink-0">{curatorTotal}</span>}
                   </TabsTrigger>
                   <TabsTrigger
                     value="algoritmo"
                     aria-label="Algoritmo"
                     className={cn(
                       asPage
-                        ? "flex items-center justify-center gap-1.5 rounded-lg data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground h-9 px-1 min-w-0"
+                        ? "flex flex-col items-center justify-center gap-1 rounded-xl border border-border bg-card data-[state=active]:border-primary/60 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-muted-foreground h-[68px] px-1 min-w-0 transition-colors"
                         : "gap-1.5 bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border",
                     )}
                   >
-                    <Sparkles className="h-3.5 w-3.5 shrink-0" />
-                    <span className={cn(asPage ? "text-[12px] sm:text-sm truncate" : "hidden sm:inline text-sm")}>Algoritmo</span>
-                    <span className="hidden sm:inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-muted text-muted-foreground text-[10px] font-bold tabular-nums shrink-0">{algoTotal}</span>
+                    <Sparkles className={cn("shrink-0", asPage ? "h-4 w-4" : "h-3.5 w-3.5")} />
+                    <span className={cn(asPage ? "text-[12px] font-medium truncate leading-none" : "hidden sm:inline text-sm")}>Algoritmo</span>
+                    {asPage
+                      ? <span className="text-[11px] font-bold tabular-nums leading-none">{algoTotal}</span>
+                      : <span className="hidden sm:inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-muted text-muted-foreground text-[10px] font-bold tabular-nums shrink-0">{algoTotal}</span>}
                   </TabsTrigger>
                   <TabsTrigger
                     value="historico"
                     aria-label="Histórico"
                     className={cn(
                       asPage
-                        ? "flex items-center justify-center gap-1.5 rounded-lg data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground h-9 px-1 min-w-0"
+                        ? "flex flex-col items-center justify-center gap-1 rounded-xl border border-border bg-card data-[state=active]:border-primary/60 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-muted-foreground h-[68px] px-1 min-w-0 transition-colors"
                         : "gap-1.5 bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_0_hsl(var(--primary))] text-muted-foreground rounded-none h-12 sm:h-10 px-2 sm:px-3 flex-col sm:flex-row sm:border-l sm:border-border",
                     )}
                   >
-                    <Clock className="h-3.5 w-3.5 shrink-0" />
-                    <span className={cn(asPage ? "text-[12px] sm:text-sm truncate" : "hidden sm:inline text-sm")}>Histórico</span>
-                    <span className="hidden sm:inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-muted text-muted-foreground text-[10px] font-bold tabular-nums shrink-0">{reversedLogs.length}</span>
+                    <Clock className={cn("shrink-0", asPage ? "h-4 w-4" : "h-3.5 w-3.5")} />
+                    <span className={cn(asPage ? "text-[12px] font-medium truncate leading-none" : "hidden sm:inline text-sm")}>Histórico</span>
+                    {asPage
+                      ? <span className="text-[11px] font-bold tabular-nums leading-none">{reversedLogs.length}</span>
+                      : <span className="hidden sm:inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-muted text-muted-foreground text-[10px] font-bold tabular-nums shrink-0">{reversedLogs.length}</span>}
                   </TabsTrigger>
                 </TabsList>
               </div>
