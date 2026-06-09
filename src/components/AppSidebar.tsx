@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SidebarSmartPanel } from "@/components/SidebarSmartPanel";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { preloadFor } from "@/lib/route-preload";
 
 /**
  * Sidebar reorganizada (Fase A do plano de reorganização).
@@ -219,7 +220,7 @@ export function AppSidebar() {
                             active && "bg-sidebar-accent !text-sidebar-foreground font-medium",
                           )}
                         >
-                          <NavLink to={item.url} end={item.end} onClick={handleNav} className="flex items-center gap-3 px-3">
+                          <NavLink to={item.url} end={item.end} onClick={handleNav} onMouseEnter={() => preloadFor(item.url)} onFocus={() => preloadFor(item.url)} className="flex items-center gap-3 px-3">
                             {active && !collapsed && (
                               <span
                                 className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r"
@@ -252,7 +253,7 @@ export function AppSidebar() {
                             active && "bg-sidebar-accent !text-sidebar-foreground font-medium",
                           )}
                         >
-                          <NavLink to={item.url} onClick={handleNav} className="flex items-center justify-center px-3">
+                          <NavLink to={item.url} onClick={handleNav} onMouseEnter={() => preloadFor(item.url)} onFocus={() => preloadFor(item.url)} className="flex items-center justify-center px-3">
                             <item.icon className={cn("h-[18px] w-[18px] shrink-0", active ? "text-primary" : "text-sidebar-foreground/60")} />
                           </NavLink>
                         </SidebarMenuButton>
