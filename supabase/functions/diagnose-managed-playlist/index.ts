@@ -447,8 +447,8 @@ Deno.serve(async (req) => {
       singlePathStats.artists_ok++;
       return await r.json();
     }
-    // Paralelismo controlado: até 6 in-flight; pequeno stall entre chamadas pra rate-limit.
-    async function fetchAllSingle<T>(ids: string[], fn: (id: string) => Promise<T | null>, concurrency = 6, stallMs = 60): Promise<Array<T | null>> {
+    // Paralelismo controlado: até 3 in-flight; 250ms stall por chamada (≈12 req/s).
+    async function fetchAllSingle<T>(ids: string[], fn: (id: string) => Promise<T | null>, concurrency = 3, stallMs = 250): Promise<Array<T | null>> {
       const out: Array<T | null> = new Array(ids.length).fill(null);
       let i = 0;
       async function worker() {
@@ -461,6 +461,7 @@ Deno.serve(async (req) => {
       await Promise.all(Array.from({ length: Math.min(concurrency, ids.length) }, () => worker()));
       return out;
     }
+
 
 
     // 1) Snapshot fresco das faixas atuais (best-effort — se falhar, segue com cache)
