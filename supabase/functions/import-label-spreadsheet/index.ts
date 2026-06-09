@@ -866,6 +866,15 @@ Deno.serve(async (req) => {
             console.error(`[mirror] RPC error campaign=${campaignIdForUpdate}`, rpcErr.message, rpcErr.details ?? "", rpcErr.hint ?? "");
           } else {
             console.log(`[mirror] RPC ok campaign=${campaignIdForUpdate}`, JSON.stringify(rpcData));
+            // Vincula collections recém criadas ao upload (pra view enxergar quarentena depois)
+            try {
+              await admin
+                .from("campaign_playlist_collections")
+                .update({ upload_id: uploadId })
+                .eq("campaign_id", campaignIdForUpdate)
+                .is("upload_id", null)
+                .gte("captured_at", new Date(Date.now() - 5 * 60 * 1000).toISOString());
+            } catch (_) {}
           }
         } catch (e) {
           console.error(`[mirror] exception campaign=${campaignIdForUpdate}`, (e as Error).message);
