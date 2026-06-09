@@ -793,22 +793,28 @@ Deno.serve(async (req) => {
       const dealIdsForRows = dealIds.length > 0 ? dealIds : [dealId];
       const { data: allRows } = await admin
         .from("label_spreadsheet_rows")
-        .select("streams, playlist_spotify_id, upload_id, label_spreadsheet_uploads!inner(is_baseline, created_at)")
+        .select("streams, playlist_spotify_id, upload_id, label_spreadsheet_uploads!inner(is_baseline, created_at, quarantined_at)")
         .in("deal_id", dealIdsForRows);
 
       const baselineByPlaylist = new Map<string, number>();
+      // 🔒 Monotonicidade: latestByPlaylist guarda o MAIOR streams já observado
+      //    em uploads válidos (ignora quarentenados). Sem isso, um upload novo
+      //    com janela curta derrubaria a entrega histórica da campanha.
       const latestByPlaylist = new Map<string, { streams: number; t: number }>();
       for (const row of (allRows ?? []) as any[]) {
         const pid = row.playlist_spotify_id as string | null;
         if (!pid) continue;
         const upload = row.label_spreadsheet_uploads as any;
+        if (upload?.quarantined_at) continue; // ignora upload em quarentena
         const streams = Number(row.streams || 0);
         if (upload?.is_baseline) {
           baselineByPlaylist.set(pid, Math.max(baselineByPlaylist.get(pid) ?? 0, streams));
         } else {
-          const t = new Date(upload?.created_at ?? 0).getTime();
           const cur = latestByPlaylist.get(pid);
-          if (!cur || t > cur.t) latestByPlaylist.set(pid, { streams, t });
+          // pega o MAIOR valor, não o mais recente
+          if (!cur || streams > cur.streams) {
+            latestByPlaylist.set(pid, { streams, t: new Date(upload?.created_at ?? 0).getTime() });
+          }
         }
       }
 
