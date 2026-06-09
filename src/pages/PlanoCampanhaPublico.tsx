@@ -193,7 +193,30 @@ export default function PlanoCampanhaPublico() {
         }
       } catch { /* ignore */ }
 
-      // 2) Pergunta ao backend se essa campanha exige PIN.
+      // 2) Bypass admin — se o operador logado for admin, troca a sessão
+      //    por um JWT do portal e libera direto, sem pedir PIN.
+      try {
+        const { data: sess } = await supabase.auth.getSession();
+        if (sess?.session?.access_token) {
+          const { data: bp } = await supabase.functions.invoke("admin-campaign-access", {
+            body: { token },
+          });
+          const adminJwt = (bp as any)?.jwt as string | undefined;
+          const adminEmail = (bp as any)?.email as string | undefined;
+          if (adminJwt) {
+            try {
+              localStorage.setItem(
+                `campaign_access_jwt:${token}`,
+                JSON.stringify({ jwt: adminJwt, email: adminEmail ?? "admin", exp: Date.now() + 86400_000 }),
+              );
+            } catch { /* ignore */ }
+            if (!cancelled) { setGateAuthed(true); setGateChecked(true); }
+            return;
+          }
+        }
+      } catch { /* ignore — cai no fluxo normal */ }
+
+      // 3) Pergunta ao backend se essa campanha exige PIN.
       const { data } = await supabase.functions.invoke("check-campaign-access", {
         body: { token },
       });
