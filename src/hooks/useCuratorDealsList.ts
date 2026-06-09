@@ -1,38 +1,23 @@
 // useCuratorDealsList — versão LEVE do useCuratorDeals.
-// Carrega APENAS deals + curators + balances (3 queries) — sem logs, songs,
-// playlists ou alerts. Use em telas que listam/filtram deals mas não precisam
-// do histórico carregado (ex.: /financeiro).
-//
-// Para detalhe de um deal específico, use useCuratorDealDetail(dealId).
-// Para a tela master (/playlist-deals) com tudo carregado, continua valendo
-// o useCuratorDeals tradicional.
-import { useCallback, useEffect, useRef, useState } from "react";
+// Refatorado para React Query: cache compartilhado entre /deals e /financeiro,
+// volta instantâneo.
+import { useCallback, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import type { CuratorDeal } from "@/lib/curatorDealsUtils";
 import type { Curator, CuratorBalance } from "@/hooks/useCuratorDeals";
 
+const KEY = ["curator_deals_list"] as const;
+
 export function useCuratorDealsList() {
   const { user } = useAuth();
-  const [deals, setDeals] = useState<CuratorDeal[]>([]);
-  const [curators, setCurators] = useState<Curator[]>([]);
-  const [balances, setBalances] = useState<CuratorBalance[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const hasLoadedRef = useRef(false);
+  const qc = useQueryClient();
 
-  const load = useCallback(async () => {
-    if (!user) {
-      hasLoadedRef.current = false;
-      setDeals([]);
-      setCurators([]);
-      setBalances([]);
-      setLoading(false);
-      return;
-    }
-    if (!hasLoadedRef.current) setLoading(true);
-    setError(null);
-    try {
+  const query = useQuery({
+    queryKey: KEY,
+    enabled: !!user,
+    queryFn: async () => {
       const [dealsRes, curatorsRes, balancesRes] = await Promise.all([
         supabase
           .from("curator_deals")
@@ -50,20 +35,18 @@ export function useCuratorDealsList() {
       if (dealsRes.error) throw dealsRes.error;
       if (curatorsRes.error) throw curatorsRes.error;
       if (balancesRes.error) throw balancesRes.error;
-      setDeals((dealsRes.data ?? []) as CuratorDeal[]);
-      setCurators((curatorsRes.data ?? []) as Curator[]);
-      setBalances((balancesRes.data ?? []) as CuratorBalance[]);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      hasLoadedRef.current = true;
-      setLoading(false);
-    }
-  }, [user]);
+      return {
+        deals: (dealsRes.data ?? []) as CuratorDeal[],
+        curators: (curatorsRes.data ?? []) as Curator[],
+        balances: (balancesRes.data ?? []) as CuratorBalance[],
+      };
+    },
+  });
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  const reload = useCallback(
+    () => qc.invalidateQueries({ queryKey: KEY }),
+    [qc],
+  );
 
   // Realtime mínimo: só re-puxa a lista quando deals mudam.
   useEffect(() => {
@@ -73,15 +56,20 @@ export function useCuratorDealsList() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "curator_deals" },
-        () => {
-          load();
-        },
+        () => { reload(); },
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, load]);
+  }, [user, reload]);
 
-  return { deals, curators, balances, loading, error, reload: load };
+  return {
+    deals: query.data?.deals ?? [],
+    curators: query.data?.curators ?? [],
+    balances: query.data?.balances ?? [],
+    loading: query.isLoading && !query.data,
+    error: query.error ? (query.error as Error).message : null,
+    reload,
+  };
 }

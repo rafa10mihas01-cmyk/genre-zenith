@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, keepPreviousData } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
@@ -71,11 +71,13 @@ const CampaignInventory = lazy(() => import("./pages/CampaignInventory"));
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 2 * 60_000,           // 2 min (antes: 1 min)
-      gcTime: 10 * 60_000,             // 10 min (antes: 5 min)
-      refetchOnWindowFocus: false,     // antes: true
+      staleTime: 5 * 60_000,           // antes 2min — cache mais longo evita refetch ao voltar
+      gcTime: 30 * 60_000,             // mantém cache por sessão inteira
+      refetchOnWindowFocus: false,
       refetchOnReconnect: true,
+      refetchOnMount: false,           // se cache fresco, não pisca
       retry: 1,
+      placeholderData: keepPreviousData, // troca de parâmetro mantém dado anterior
     },
   },
 });
