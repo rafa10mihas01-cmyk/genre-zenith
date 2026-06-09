@@ -6177,6 +6177,9 @@ export type Database = {
           message: string
           metadata: Json
           read: boolean
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
           title: string
           type: Database["public"]["Enums"]["notification_type"]
           user_id: string | null
@@ -6188,6 +6191,9 @@ export type Database = {
           message: string
           metadata?: Json
           read?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
           title: string
           type?: Database["public"]["Enums"]["notification_type"]
           user_id?: string | null
@@ -6199,6 +6205,9 @@ export type Database = {
           message?: string
           metadata?: Json
           read?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
           title?: string
           type?: Database["public"]["Enums"]["notification_type"]
           user_id?: string | null
@@ -11873,6 +11882,10 @@ export type Database = {
         Args: { _action_type: string }
         Returns: Database["public"]["Enums"]["curatorial_action_type"]
       }
+      mark_all_notifications_read: {
+        Args: { p_user_id?: string }
+        Returns: number
+      }
       mark_spotify_app_auth_failure: {
         Args: { p_app_id: string; p_reason: string; p_retry_after_sec?: number }
         Returns: Json
@@ -12033,6 +12046,10 @@ export type Database = {
           has_spotify: boolean
           song_id: string
         }[]
+      }
+      resolve_notifications_by_dedupe: {
+        Args: { p_dedupe_key: string; p_resolution_message?: string }
+        Returns: number
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
