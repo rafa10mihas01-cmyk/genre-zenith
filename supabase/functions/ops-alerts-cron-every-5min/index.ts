@@ -35,47 +35,53 @@ Deno.serve(async (req) => {
     const ONE_HOUR_MS = 60 * 60 * 1000;
 
     for (const hb of latestByBot.values()) {
-      if (hb.status !== "online") continue;
-      if (!hb.last_collect_at) continue;
+      const dedupe_key = `bot_silent:${hb.bot_name}`;
+
+      if (hb.status !== "online" || !hb.last_collect_at) {
+        // Bot voltou ao normal → fecha alerta aberto, se existir
+        await supabase.rpc("resolve_notifications_by_dedupe" as any, {
+          p_dedupe_key: dedupe_key,
+          p_resolution_message: "Robô voltou ao estado normal.",
+        });
+        continue;
+      }
       const lastCollectMs = new Date(hb.last_collect_at).getTime();
       const ageMs = now - lastCollectMs;
-      if (ageMs <= ONE_HOUR_MS) continue;
+      if (ageMs <= ONE_HOUR_MS) {
+        await supabase.rpc("resolve_notifications_by_dedupe" as any, {
+          p_dedupe_key: dedupe_key,
+          p_resolution_message: "Robô voltou a coletar normalmente.",
+        });
+        continue;
+      }
 
       const hours = Math.floor(ageMs / ONE_HOUR_MS);
-      const bucket = Math.floor(ageMs / ONE_HOUR_MS); // dedupe per hourly bucket
-      const dedupe_key = `bot_silent:${hb.bot_name}:${bucket}h`;
+      const title = "Robô parado sem coletar";
+      const message =
+        `O robô "${hb.bot_name}" está ativo mas não coleta há ${hours} hora${hours === 1 ? "" : "s"}. ` +
+        `Impacto: a fila do Spotify pode estar travada. ` +
+        `Ação: verifique a aba Saúde do sistema.`;
 
-      // Skip if already inserted in last 6h with same dedupe_key
-      const sinceIso = new Date(now - 6 * ONE_HOUR_MS).toISOString();
-      const { data: existing } = await supabase
-        .from("notifications")
-        .select("id")
-        .eq("metadata->>dedupe_key", dedupe_key)
-        .gte("created_at", sinceIso)
-        .limit(1);
-      if (existing && existing.length > 0) continue;
-
-      const title = "Bot online mas sem coletar";
-      const message = `${hb.bot_name} está online mas sem coletar há ${hours}h (último: ${new Date(hb.last_collect_at).toISOString()})`;
-
-      const { error: insErr } = await supabase.from("notifications").insert({
-        type: "warning",
-        title,
-        message,
-        action_url: "/sistema?tab=saude",
-        metadata: {
-          dedupe_key,
-          domain: "sistema",
+      const { error: insErr } = await supabase.rpc("create_notification" as any, {
+        p_type: "warning",
+        p_title: title,
+        p_message: message,
+        p_action_url: "/sistema?tab=saude",
+        p_metadata: {
+          domain: "bot",
+          severity: "medium",
           kind: "bot_silent",
+          action_required: true,
           bot_name: hb.bot_name,
           hostname: hb.hostname,
           worker_id: hb.worker_id,
-          last_collect_at: hb.last_collect_at,
           hours_silent: hours,
         },
+        p_dedupe_key: dedupe_key,
+        p_cooldown_minutes: 360, // 6h
       });
       if (insErr) {
-        console.error("insert notification failed", insErr);
+        console.error("notify failed", insErr);
         continue;
       }
       alerts.push({ bot: hb.bot_name, hours });
