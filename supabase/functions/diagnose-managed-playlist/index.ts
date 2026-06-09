@@ -1809,35 +1809,18 @@ Deno.serve(async (req) => {
       }
       if (candidateIds.length > 0) {
         try {
-          const token = await getSpotifyToken({ appId: ownerAppId });
-          if (useSinglePath) {
-            const trResults = await fetchAllSingle(candidateIds, (id) => fetchSingleTrack(token, id));
-            for (const tr of trResults) {
-              if (!tr?.id) continue;
-              const prev = meta.get(tr.id) ?? {};
-              meta.set(tr.id, { ...prev, ...tr });
-              const imgs = tr.album?.images ?? [];
-              const cover = imgs[0]?.url ?? imgs[imgs.length - 1]?.url ?? null;
-              if (cover) coverMap.set(tr.id, cover);
-            }
-          } else {
-          for (let i = 0; i < candidateIds.length; i += 50) {
-            const slice = candidateIds.slice(i, i + 50);
-            const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/tracks?ids=${slice.join(",")}`, { headers: { Authorization: `Bearer ${token}` } }, { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, function_name: 'diagnose-managed-playlist' });
-          if (r.status === 403) run403s++;
-            if (!r.ok) continue;
-            const j = await r.json();
-            for (const tr of j.tracks ?? []) {
-              if (!tr?.id) continue;
-              const prev = meta.get(tr.id) ?? {};
-              meta.set(tr.id, { ...prev, ...tr });
-              const imgs = tr.album?.images ?? [];
-              const cover = imgs[0]?.url ?? imgs[imgs.length - 1]?.url ?? null;
-              if (cover) coverMap.set(tr.id, cover);
-            }
+          // CACHE-FIRST. Cover continua vindo de search_tracks pré-carregado acima.
+          const trackCache = await getTrackCacheBatch(candidateIds);
+          for (const [id, row] of trackCache.entries()) {
+            const prev = meta.get(id) ?? {};
+            meta.set(id, {
+              ...prev,
+              id,
+              name: row.name ?? (prev as any).name,
+              popularity: row.popularity ?? (prev as any).popularity,
+              album: { ...(prev as any).album, release_date: row.release_date ?? (prev as any).album?.release_date },
+            } as any);
           }
-          }
-
         } catch (e) {
           if (e instanceof SpotifyCircuitOpenError) throw e;
           /* segue sem metadata extra */
