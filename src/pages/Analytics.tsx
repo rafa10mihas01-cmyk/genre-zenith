@@ -2,7 +2,8 @@
 // Lê DIRETO do motor vivo: curator_deals + curator_deal_snapshots.
 // Aposentou: campaigns.total_delivered, campaign_allocations,
 // v_playlist_delivery_history, v_campaign_velocity, RPC get_campaign_analytics_overview.
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
@@ -29,61 +30,59 @@ import {
 } from "@/lib/dealsAnalytics";
 
 export default function Analytics() {
-  const [deals, setDeals] = useState<Deal[]>([]);
-  const [snapshots30d, setSnapshots30d] = useState<Snapshot[]>([]);
-  const [snapshots7d, setSnapshots7d] = useState<Snapshot[]>([]);
-  const [playlistsMeta, setPlaylistsMeta] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
+  const qc = useQueryClient();
+  const ANALYTICS_KEY = ["analytics_deals_overview"] as const;
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const since30 = isoSinceDays(30);
-    const since7 = isoSinceDays(7);
+  const query = useQuery({
+    queryKey: ANALYTICS_KEY,
+    queryFn: async () => {
+      const since30 = isoSinceDays(30);
+      const since7 = isoSinceDays(7);
 
-    const [dealsRes, snap30Res, snap7Res] = await Promise.all([
-      supabase
-        .from("curator_deals")
-        .select("id, state, song_artist, song_name, target_plays, baseline_plays, cost, started_at, ends_at"),
-      supabase
-        .from("curator_deal_snapshots")
-        .select("deal_id, playlist_id, plays, captured_at")
-        .gte("captured_at", since30)
-        .order("captured_at", { ascending: true })
-        .limit(10000),
-      supabase
-        .from("curator_deal_snapshots")
-        .select("deal_id, playlist_id, plays, captured_at")
-        .gte("captured_at", since7)
-        .order("captured_at", { ascending: true })
-        .limit(5000),
-    ]);
+      const [dealsRes, snap30Res, snap7Res] = await Promise.all([
+        supabase
+          .from("curator_deals")
+          .select("id, state, song_artist, song_name, target_plays, baseline_plays, cost, started_at, ends_at"),
+        supabase
+          .from("curator_deal_snapshots")
+          .select("deal_id, playlist_id, plays, captured_at")
+          .gte("captured_at", since30)
+          .order("captured_at", { ascending: true })
+          .limit(10000),
+        supabase
+          .from("curator_deal_snapshots")
+          .select("deal_id, playlist_id, plays, captured_at")
+          .gte("captured_at", since7)
+          .order("captured_at", { ascending: true })
+          .limit(5000),
+      ]);
 
-    setDeals(((dealsRes.data ?? []) as unknown as Deal[]));
-    const s30 = ((snap30Res.data ?? []) as unknown as Snapshot[]);
-    setSnapshots30d(s30);
-    setSnapshots7d(((snap7Res.data ?? []) as unknown as Snapshot[]));
+      const deals = ((dealsRes.data ?? []) as unknown as Deal[]);
+      const snapshots30d = ((snap30Res.data ?? []) as unknown as Snapshot[]);
+      const snapshots7d = ((snap7Res.data ?? []) as unknown as Snapshot[]);
 
-    // Busca nomes das playlists envolvidas (snapshots.playlist_id → curator_playlists.id)
-    const ids = [...new Set(s30.map((s) => s.playlist_id).filter(Boolean))] as string[];
-    if (ids.length > 0) {
-      const { data: pls } = await supabase
-        // Separação operacional × observacional
-        .from("v_curator_playlists_operational")
-        .select("id, playlist_name")
-        .in("id", ids);
-      const map: Record<string, string> = {};
-      for (const p of (pls ?? []) as { id: string; playlist_name: string | null }[]) {
-        if (p.playlist_name) map[p.id] = p.playlist_name;
+      const ids = [...new Set(snapshots30d.map((s) => s.playlist_id).filter(Boolean))] as string[];
+      let playlistsMeta: Record<string, string> = {};
+      if (ids.length > 0) {
+        const { data: pls } = await supabase
+          .from("v_curator_playlists_operational")
+          .select("id, playlist_name")
+          .in("id", ids);
+        for (const p of (pls ?? []) as { id: string; playlist_name: string | null }[]) {
+          if (p.playlist_name) playlistsMeta[p.id] = p.playlist_name;
+        }
       }
-      setPlaylistsMeta(map);
-    } else {
-      setPlaylistsMeta({});
-    }
 
-    setLoading(false);
-  }, []);
+      return { deals, snapshots30d, snapshots7d, playlistsMeta };
+    },
+  });
 
-  useEffect(() => { load(); }, [load]);
+  const deals = query.data?.deals ?? [];
+  const snapshots30d = query.data?.snapshots30d ?? [];
+  const snapshots7d = query.data?.snapshots7d ?? [];
+  const playlistsMeta = query.data?.playlistsMeta ?? {};
+  const loading = query.isLoading && !query.data;
+  const load = () => qc.invalidateQueries({ queryKey: ANALYTICS_KEY });
 
   // ─── KPIs ───
   const activeDeals = useMemo(() => deals.filter((d) => d.state === "active"), [deals]);
