@@ -808,86 +808,88 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
 
 
 
-          {/* Fonte de coleta — Spotify (bot) vs Excel (planilha). Evita gastar crédito do bot quando não temos acesso. */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Fonte de coleta</CardTitle>
-              <CardDescription className="text-xs">
-                Como os números entram no sistema durante a campanha.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {([
-                  { id: "bot",         title: "Spotify" },
-                  { id: "spreadsheet", title: "Excel"   },
-                ] as const).map(opt => {
-                  const active = collectionMode === opt.id;
-                  return (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setCollectionMode(opt.id)}
-                      className={cn(
-                        "group relative overflow-hidden rounded-xl border px-4 py-8 flex items-center justify-center transition-all duration-300",
-                        active
-                          ? "border-primary/60 bg-primary/5 ring-1 ring-primary/40"
-                          : "border-border hover:border-foreground/30 hover:bg-accent/30",
-                      )}
-                    >
-                      <span
+          {/* Fonte de coleta + Sessão lado a lado. Cada coluna empilha suas opções verticalmente. */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-stretch">
+            {/* Fonte de coleta — Spotify (bot) vs Excel (planilha). Evita gastar crédito do bot quando não temos acesso. */}
+            <Card className="h-full flex flex-col">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Fonte de coleta</CardTitle>
+                <CardDescription className="text-xs">
+                  Como os números entram no sistema durante a campanha.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0 flex-1 flex flex-col">
+                <div className="grid grid-cols-1 gap-3 flex-1">
+                  {([
+                    { id: "bot",         title: "Spotify" },
+                    { id: "spreadsheet", title: "Excel"   },
+                  ] as const).map(opt => {
+                    const active = collectionMode === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setCollectionMode(opt.id)}
                         className={cn(
-                          "text-2xl font-semibold tracking-tight transition-transform duration-300 group-hover:scale-110",
-                          active ? "text-primary" : "text-foreground",
+                          "group relative overflow-hidden rounded-xl border px-4 py-6 flex items-center justify-center transition-all duration-300",
+                          active
+                            ? "border-primary/60 bg-primary/5 ring-1 ring-primary/40"
+                            : "border-border hover:border-foreground/30 hover:bg-accent/30",
                         )}
                       >
-                        {opt.title}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
+                        <span
+                          className={cn(
+                            "text-2xl font-semibold tracking-tight transition-transform duration-300 group-hover:scale-110",
+                            active ? "text-primary" : "text-foreground",
+                          )}
+                        >
+                          {opt.title}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
 
+            <Card className="h-full flex flex-col">
+              <CardHeader>
+                <CardTitle className="text-base">Sessão</CardTitle>
+                <CardDescription>Cliente e curador valem pra todas as músicas desta sessão.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex-1 flex flex-col gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">
+                    Cliente
+                  </Label>
+                  <Select value={clientId || "__none__"} onValueChange={v => setClientId(v === "__none__" ? "" : v)}>
+                    <SelectTrigger className="text-muted-foreground/80 data-[state=open]:text-foreground [&>span]:flex-1 [&>span]:text-center [&[data-state=closed]>span]:text-muted-foreground/60">
+                      <SelectValue placeholder="Selecione um cliente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sem cliente</SelectItem>
+                      {clientsList.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">
+                    Curador {campaignType !== "ecosystem" && <span className="text-destructive normal-case">*</span>}
+                  </Label>
+                  <Select value={curatorId || "__none__"} onValueChange={v => setCuratorId(v === "__none__" ? "" : v)}>
+                    <SelectTrigger className="text-muted-foreground/80 data-[state=open]:text-foreground [&>span]:flex-1 [&>span]:text-center [&[data-state=closed]>span]:text-muted-foreground/60">
+                      <SelectValue placeholder="Selecione um curador" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sem curador (modo legado)</SelectItem>
+                      {curatorsList.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Sessão</CardTitle>
-              <CardDescription>Cliente e curador valem pra todas as músicas desta sessão.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">
-                  Cliente
-                </Label>
-                <Select value={clientId || "__none__"} onValueChange={v => setClientId(v === "__none__" ? "" : v)}>
-                  <SelectTrigger className="text-muted-foreground/80 data-[state=open]:text-foreground [&>span]:flex-1 [&>span]:text-center [&[data-state=closed]>span]:text-muted-foreground/60">
-                    <SelectValue placeholder="Selecione um cliente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Sem cliente</SelectItem>
-                    {clientsList.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">
-                  Curador {campaignType !== "ecosystem" && <span className="text-destructive normal-case">*</span>}
-                </Label>
-                <Select value={curatorId || "__none__"} onValueChange={v => setCuratorId(v === "__none__" ? "" : v)}>
-                  <SelectTrigger className="text-muted-foreground/80 data-[state=open]:text-foreground [&>span]:flex-1 [&>span]:text-center [&[data-state=closed]>span]:text-muted-foreground/60">
-                    <SelectValue placeholder="Selecione um curador" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Sem curador (modo legado)</SelectItem>
-                    {curatorsList.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
 
           <Button
             size="lg"
