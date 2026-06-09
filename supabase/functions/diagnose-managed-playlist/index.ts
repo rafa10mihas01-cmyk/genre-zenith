@@ -699,6 +699,31 @@ Deno.serve(async (req) => {
       tel.start("spotify_current_tracks_and_artists");
       try {
         const token = await getSpotifyToken({ appId: ownerAppId });
+        if (useSinglePath) {
+          // EXPERIMENTAL: single-path /v1/tracks/{id} (batch ?ids= retorna 403)
+          const trResults = await fetchAllSingle(trackIds, (id) => fetchSingleTrack(token, id));
+          for (const tr of trResults) {
+            if (!tr?.id) continue;
+            spotMeta.set(tr.id, {
+              popularity: typeof tr.popularity === "number" ? tr.popularity : null,
+              release_date: tr.album?.release_date ?? null,
+              artist_id: tr.artists?.[0]?.id ?? null,
+            });
+          }
+          const artistIds = uniq(
+            Array.from(spotMeta.values()).map((m) => m.artist_id).filter(Boolean) as string[],
+          );
+          const arResults = await fetchAllSingle(artistIds, (id) => fetchSingleArtist(token, id));
+          for (const ar of arResults) {
+            if (!ar?.id) continue;
+            artistMeta.set(ar.id, {
+              popularity: typeof ar.popularity === "number" ? ar.popularity : null,
+              followers: ar.followers?.total ?? null,
+              genres: Array.isArray(ar.genres) ? ar.genres.map((g: string) => String(g).toLowerCase()) : [],
+            });
+          }
+          run403s += singlePathStats.tracks_403 + singlePathStats.artists_403;
+        } else {
         // /v1/tracks?ids= (até 50)
         for (let i = 0; i < trackIds.length; i += 50) {
           const ids = trackIds.slice(i, i + 50);
@@ -736,7 +761,9 @@ Deno.serve(async (req) => {
             });
           }
         }
-        tel.end("spotify_current_tracks_and_artists", "ok", `${spotMeta.size} tracks · ${artistMeta.size} artistas`);
+        }
+        tel.end("spotify_current_tracks_and_artists", "ok", `${spotMeta.size} tracks · ${artistMeta.size} artistas${useSinglePath ? " [single-path]" : ""}`);
+
       } catch (e) {
         tel.noteThrow(e);
         tel.end("spotify_current_tracks_and_artists", "error", (e as Error)?.message);
