@@ -34,6 +34,9 @@ import {
   getReservationsByPlaylist,
   reservationsToDailyCap,
   ECO_BUDGET_ENABLED,
+  PLANNER_FREE_FIRST_ENABLED,
+  getOccupiedPlaylistIds,
+  partitionByOccupancy,
 } from "../_shared/eco-budget.ts";
 import { getGenreNeighbors } from "../_shared/genre-affinity.ts";
 import { MIN_PLAYLIST_SAVES_FOR_CAMPAIGN } from "../_shared/eco-constants.ts";
@@ -312,23 +315,66 @@ Deno.serve(async (req) => {
   let gapAfterPrimary = 0;
   let usedNeighbors = false;
 
+  // ─── Anti-canibalização: particiona candidatas em Grupo A (livres) e B (ocupadas).
+  // Consome SEMPRE A primeiro; B só entra se A não cobre a necessidade.
+  let occupiedMap = new Map<string, import("../_shared/eco-budget.ts").OccupancyInfo>();
+  let groupAStats = { primary: 0, neighbor: 0 };
+  let groupBStats = { primary: 0, neighbor: 0, usedFromB: 0 };
+  if (PLANNER_FREE_FIRST_ENABLED && candidateIds.length > 0) {
+    occupiedMap = await getOccupiedPlaylistIds(admin, {
+      excludeCampaignId: campaignId,
+      playlistIds: candidateIds,
+      windowStart: campaignStartedAt.toISOString(),
+      windowEnd: campaignEndsAt.toISOString(),
+    });
+    groupAStats.primary = primaryFresh.filter(p => !occupiedMap.has(p.id)).length;
+    groupAStats.neighbor = neighborFresh.filter(p => !occupiedMap.has(p.id)).length;
+    groupBStats.primary = primaryFresh.length - groupAStats.primary;
+    groupBStats.neighbor = neighborFresh.length - groupAStats.neighbor;
+  }
+
   if (strategy === "daily_need" && dailyNeedRemaining > 0) {
-    // 1ª fase: distribui SÓ primárias contra a necessidade diária (com orçamento).
-    const primDist = primaryFresh.length > 0
-      ? distributeByDailyNeed(primaryFresh, dailyNeedRemaining, mult, ECO_DAILY_TOLERANCE, { maxCapById, currentPositionById })
+    // 1ª fase: primárias.
+    // Particiona em A (livres) e B (ocupadas). Tenta cobrir SÓ com A; se sobrar
+    // gap relevante, tenta complementar com B (ordenado por menor ocupação).
+    const primParts = PLANNER_FREE_FIRST_ENABLED
+      ? partitionByOccupancy(primaryFresh, occupiedMap)
+      : { groupA: primaryFresh, groupB: [] as typeof primaryFresh };
+
+    const distA = primParts.groupA.length > 0
+      ? distributeByDailyNeed(primParts.groupA, dailyNeedRemaining, mult, ECO_DAILY_TOLERANCE, { maxCapById, currentPositionById })
       : { positions: new Map<string, number>(), coveredDaily: 0, details: [] };
-    coveredDailyByPrimary = primDist.coveredDaily;
+    for (const [k, v] of distA.positions) allPositions.set(k, v);
+    coveredDailyByPrimary = distA.coveredDaily;
+
+    let gapAfterA = Math.max(0, dailyNeedRemaining - coveredDailyByPrimary);
+    if (gapAfterA > 0 && primParts.groupB.length > 0) {
+      const distB = distributeByDailyNeed(primParts.groupB, gapAfterA, mult, ECO_DAILY_TOLERANCE, { maxCapById, currentPositionById });
+      for (const [k, v] of distB.positions) allPositions.set(k, v);
+      coveredDailyByPrimary += distB.coveredDaily;
+      groupBStats.usedFromB += distB.positions.size;
+    }
     gapAfterPrimary = Math.max(0, dailyNeedRemaining - coveredDailyByPrimary);
     const gapPct = dailyNeedRemaining > 0 ? gapAfterPrimary / dailyNeedRemaining : 0;
-
-    for (const [k, v] of primDist.positions) allPositions.set(k, v);
     coveredDailyByNew = coveredDailyByPrimary;
 
-    // 2ª fase: vizinhos SÓ se sobrou gap relevante.
+    // 2ª fase: vizinhos SÓ se sobrou gap relevante (mesma cascata A→B).
     if (gapPct > NEIGHBOR_GAP_THRESHOLD && neighborFresh.length > 0) {
-      const neighDist = distributeByDailyNeed(neighborFresh, gapAfterPrimary, mult, ECO_DAILY_TOLERANCE, { maxCapById, currentPositionById });
-      for (const [k, v] of neighDist.positions) allPositions.set(k, v);
-      coveredDailyByNew += neighDist.coveredDaily;
+      const neighParts = PLANNER_FREE_FIRST_ENABLED
+        ? partitionByOccupancy(neighborFresh, occupiedMap)
+        : { groupA: neighborFresh, groupB: [] as typeof neighborFresh };
+      const nDistA = neighParts.groupA.length > 0
+        ? distributeByDailyNeed(neighParts.groupA, gapAfterPrimary, mult, ECO_DAILY_TOLERANCE, { maxCapById, currentPositionById })
+        : { positions: new Map<string, number>(), coveredDaily: 0, details: [] };
+      for (const [k, v] of nDistA.positions) allPositions.set(k, v);
+      coveredDailyByNew += nDistA.coveredDaily;
+      let gapAfterNA = Math.max(0, gapAfterPrimary - nDistA.coveredDaily);
+      if (gapAfterNA > 0 && neighParts.groupB.length > 0) {
+        const nDistB = distributeByDailyNeed(neighParts.groupB, gapAfterNA, mult, ECO_DAILY_TOLERANCE, { maxCapById, currentPositionById });
+        for (const [k, v] of nDistB.positions) allPositions.set(k, v);
+        coveredDailyByNew += nDistB.coveredDaily;
+        groupBStats.usedFromB += nDistB.positions.size;
+      }
       usedNeighbors = true;
       positionStrategy = "daily_need_with_neighbors";
     } else {
@@ -487,6 +533,12 @@ Deno.serve(async (req) => {
     daily_tolerance: ECO_DAILY_TOLERANCE,
     eco_budget_enabled: ECO_BUDGET_ENABLED,
     playlists_dropped_by_budget: droppedByBudget,
+    free_first_enabled: PLANNER_FREE_FIRST_ENABLED,
+    group_a_primary_available: groupAStats.primary,
+    group_a_neighbor_available: groupAStats.neighbor,
+    group_b_primary_occupied: groupBStats.primary,
+    group_b_neighbor_occupied: groupBStats.neighbor,
+    used_from_group_b: groupBStats.usedFromB,
   };
 
 
