@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 import {
   Sparkles, Loader2, TrendingUp, Activity, Eye, ListMusic,
 } from "lucide-react";
@@ -119,33 +120,55 @@ export function PlaylistCockpit({
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
             <div className="sticky top-0 z-30 -mx-4 md:-mx-8 px-4 md:px-8 py-3 bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border-b border-border">
-            <div className="overflow-x-auto nx-scroll -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <TabsList className="inline-flex w-max items-center justify-start gap-1 h-auto rounded-2xl bg-elevated/80 p-1.5 text-muted-foreground whitespace-nowrap">
-              <TabsTrigger value="plano" className="h-9 gap-1.5 rounded-xl px-3 text-sm shrink-0 data-[state=active]:bg-background">
-                <Sparkles className="h-3.5 w-3.5" /> <span className="sm:hidden">Plano</span><span className="hidden sm:inline">Plano de ação</span>
-                {(buckets.remove.length + buckets.demote.length + buckets.promote.length + buckets.add.length) > 0 && (
-                  <Badge variant="outline" className="ml-1 h-4 px-1 text-[10px] tabular-nums">
-                    {buckets.remove.length + buckets.demote.length + buckets.promote.length + buckets.add.length}
-                  </Badge>
-                )}
+            <TabsList
+              className={cn(
+                "grid w-full bg-transparent p-0 h-auto gap-2",
+                market ? "grid-cols-5" : "grid-cols-4",
+              )}
+            >
+              <TabsTrigger
+                value="plano"
+                className="flex flex-col items-center justify-center gap-1 rounded-xl border border-border bg-card data-[state=active]:border-primary/60 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-muted-foreground h-[68px] px-1 min-w-0 transition-colors"
+              >
+                <Sparkles className="h-4 w-4 shrink-0" />
+                <span className="text-[12px] font-medium truncate leading-none">Plano</span>
+                <span className="text-[11px] font-bold tabular-nums leading-none">
+                  {buckets.remove.length + buckets.demote.length + buckets.promote.length + buckets.add.length}
+                </span>
               </TabsTrigger>
               {market && (
-                <TabsTrigger value="mercado" className="h-9 gap-1.5 rounded-xl px-3 text-sm shrink-0 data-[state=active]:bg-background">
-                  <TrendingUp className="h-3.5 w-3.5" /> Mercado
+                <TabsTrigger
+                  value="mercado"
+                  className="flex flex-col items-center justify-center gap-1 rounded-xl border border-border bg-card data-[state=active]:border-primary/60 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-muted-foreground h-[68px] px-1 min-w-0 transition-colors"
+                >
+                  <TrendingUp className="h-4 w-4 shrink-0" />
+                  <span className="text-[12px] font-medium truncate leading-none">Mercado</span>
                 </TabsTrigger>
               )}
-              <TabsTrigger value="editor" className="h-9 gap-1.5 rounded-xl px-3 text-sm shrink-0 data-[state=active]:bg-background">
-                <ListMusic className="h-3.5 w-3.5" /> <span className="sm:hidden">Editar</span><span className="hidden sm:inline">Editar manualmente</span>
+              <TabsTrigger
+                value="editor"
+                className="flex flex-col items-center justify-center gap-1 rounded-xl border border-border bg-card data-[state=active]:border-primary/60 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-muted-foreground h-[68px] px-1 min-w-0 transition-colors"
+              >
+                <ListMusic className="h-4 w-4 shrink-0" />
+                <span className="text-[12px] font-medium truncate leading-none">Editar</span>
               </TabsTrigger>
-              <TabsTrigger value="identidade" className="h-9 gap-1.5 rounded-xl px-3 text-sm shrink-0 data-[state=active]:bg-background">
-                <Eye className="h-3.5 w-3.5" /> Identidade
+              <TabsTrigger
+                value="identidade"
+                className="flex flex-col items-center justify-center gap-1 rounded-xl border border-border bg-card data-[state=active]:border-primary/60 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-muted-foreground h-[68px] px-1 min-w-0 transition-colors"
+              >
+                <Eye className="h-4 w-4 shrink-0" />
+                <span className="text-[12px] font-medium truncate leading-none">Identidade</span>
               </TabsTrigger>
-              <TabsTrigger value="estrategia" className="h-9 gap-1.5 rounded-xl px-3 text-sm shrink-0 data-[state=active]:bg-background">
-                <Activity className="h-3.5 w-3.5" /> Estratégia
+              <TabsTrigger
+                value="estrategia"
+                className="flex flex-col items-center justify-center gap-1 rounded-xl border border-border bg-card data-[state=active]:border-primary/60 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-muted-foreground h-[68px] px-1 min-w-0 transition-colors"
+              >
+                <Activity className="h-4 w-4 shrink-0" />
+                <span className="text-[12px] font-medium truncate leading-none">Estratégia</span>
               </TabsTrigger>
             </TabsList>
             </div>
-            </div>
+
 
             {/* ============ PLANO DE AÇÃO ============ */}
             <TabsContent value="plano" className="space-y-6 mt-0">
