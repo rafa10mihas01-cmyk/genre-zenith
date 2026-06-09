@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PageLoader } from "@/components/PageLoader";
+import { KpiRowSkeleton, HeroCardSkeleton } from "@/components/skeletons";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatBRL, formatInt } from "@/lib/campaignEngine";
@@ -711,7 +711,15 @@ export default function CampanhaExecucao() {
   }, [proofs, snaps, allocs]);
 
   if (loading) {
-    return <PageLoader />;
+    // Skeleton in-shell (Linear-style): sidebar/topbar permanecem, só conteúdo
+    // mostra placeholder do tamanho real. Sem spinner full-page.
+    return (
+      <PageContainer>
+        <PageHeader domain="campaigns" title="Carregando campanha…" subtitle="Buscando entrega e progresso" />
+        <KpiRowSkeleton />
+        <HeroCardSkeleton height={280} />
+      </PageContainer>
+    );
   }
 
 

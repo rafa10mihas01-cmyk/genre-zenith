@@ -1,84 +1,132 @@
+# Fase 2 — Zero Loading Experience
 
-# Proposta técnica — Prioridade absoluta para playlists livres
+Objetivo: nenhuma tela operacional pode ficar branca, com spinner full-page ou perder conteúdo ao voltar. Padrão de referência: Linear / Notion / Stripe.
 
-Regra simples, sem score, sem penalidade, sem fórmula. Só ordem de consumo: **livres primeiro, ocupadas só se sobrar meta**.
+Nada de regra de negócio, banco, planner, queries de cálculo. Só camada de cache e UI de carregamento.
 
 ---
 
-## 1. A nova lógica em 4 passos
+## Auditoria — estado atual
 
-Ao montar (ou replanejar) um plano:
+Páginas/hook ainda no padrão antigo (`useState + useEffect + setLoading`):
 
-1. **Listar elegíveis** — mesmo conjunto de hoje (managed_playlists do gênero/afinidade, ativas, sem cooldown).
+| Arquivo | Sintoma visual hoje |
+|---|---|
+| `src/pages/CampanhaExecucao.tsx` | `<PageLoader />` full-page a cada visita |
+| `src/pages/CampanhaDetalhe.tsx` | `Skeleton h-64` + reset total ao voltar |
+| `src/pages/Analytics.tsx` | spinner/empty na entrada |
+| `src/pages/Performance.tsx` | idem |
+| `src/pages/Valuation.tsx` | idem |
+| `src/hooks/useClients.ts` | refetch full ao voltar pra `/clientes` e `/clientes/:id` |
+| `src/hooks/useCuratorDealsList.ts` | reload do `/deals` e `/financeiro` |
+| `src/hooks/useCuratorDealDetail.ts` | spinner no `/deals/:id` |
+| `src/hooks/useRadioCollected.ts` | flicker dentro do hub de campanha |
+| `src/pages/ClienteDetalhe.tsx` | `useEffect` próprio carrega `clientCampaigns` (skeleton "Carregando cliente…") |
 
-2. **Particionar em Grupo A e Grupo B**, olhando a janela `[started_at, started_at + days]` da campanha alvo:
+Páginas já saudáveis (React Query): Home, Sistema, Catálogo, Prospecao (curadores), Campanhas (lista), PlaylistDeals (lista) — preservar.
 
-   - **Grupo A (livres):** playlist NÃO está em nenhuma campanha ativa concorrente E NÃO está em nenhum curator deal ativo concorrente cuja janela intersecta.
-   - **Grupo B (ocupadas):** está em pelo menos uma das duas situações acima.
+---
 
-3. **Consumir Grupo A primeiro**, ordenado pelo score/fit que já existe hoje, até atingir a meta de streams da campanha.
+## Plano de implementação
 
-4. **Só se Grupo A não bastar**, começar a usar Grupo B — ordenado pela **menor ocupação atual** (soma de streams já reservados por outras campanhas + deals, ascendente). Para o assim que a meta for atingida.
+### 1. Defaults globais do QueryClient (`src/App.tsx`)
 
-Nada mais muda: score, fit, capacidade por posição, dispatch, tudo igual.
-
-## 2. Como o planner enxerga "ocupada"
-
-Único acréscimo de leitura — passa a consultar **duas fontes** ao classificar a playlist (hoje só consulta a primeira):
-
+```ts
+defaultOptions: {
+  queries: {
+    staleTime: 5 * 60_000,           // antes 2min — reduz refetch ao voltar
+    gcTime: 30 * 60_000,             // antes 10min — mantém cache por sessão
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
+    refetchOnMount: false,           // se há cache fresco, não pisca
+    retry: 1,
+    placeholderData: keepPreviousData, // troca de parâmetro mantém dado anterior
+  },
+}
 ```
-ocupada = EXISTS (
-  campaign_eco_allocations  → camp.status IN ('active','approved')
-                              AND alloc.status IN ('pending','approved','dispatched')
-                              AND janela sobrepõe
-) OR EXISTS (
-  curator_playlists JOIN curator_deals
-                              → deal.state IN ('active','collecting')
-                              AND deal.closed_at IS NULL
-                              AND janela sobrepõe
-)
-```
 
-Tudo via `mp.spotify_playlist_id ↔ cp.spotify_playlist_id` (mesmo mapping da auditoria).
+Impacto: ao voltar de qualquer detalhe → lista, a tela aparece com dados em cache e revalida silenciosamente. Hooks que precisam de refetch real (notificações, financeiro on-demand) já sobrescrevem localmente.
 
-## 3. Simulação real — Carnívoro × Toma Botadão
+### 2. Migrar hooks legados para React Query
 
-Dados do banco hoje:
+Cada hook abaixo vira `useQuery` mantendo a mesma assinatura externa (zero breaking change nos consumidores):
 
-| Item | Valor |
-|---|---:|
-| Meta de streams Carnívoro | **1.925.944** |
-| Inventário do gênero | 646 playlists |
-| Playlists ocupadas (camp ativa ou deal ativo) | 69 |
-| **Grupo A — livres no gênero** | **577 playlists** |
-| Capacidade teórica do Grupo A na janela de 30d | **~4.076.071 streams (2,1× a meta)** |
+- `useClients` → `useQuery(['clients'])` + `useMutation` para create/update/archive/delete (mantém `clients`, `loading`, `reload`, etc.).
+- `useCuratorDealsList` → `useQuery(['curator_deals_list'])`.
+- `useCuratorDealDetail` → `useQuery(['curator_deal_detail', dealId])` com `placeholderData: keepPreviousData`.
+- `useRadioCollected` → `useQuery(['radio_collected', campaignId])`.
 
-Conclusão: **Grupo A sozinho cobre 100% da meta com folga.** Grupo B nem precisa ser tocado.
+Mutations invalidam só a key afetada (não derruba o cache geral).
 
-| Métrica | Plano atual | Plano com nova regra |
-|---|---:|---:|
-| Playlists no plano | 24 | 24 |
-| Playlists reusadas de Toma Botadão | **20** | **0** |
-| Playlists com curator deal ativo (música ≠) | **13** | **0** |
-| Playlists novas (do inventário livre) | 4 | **24** |
-| Ocupação média | ~360% | ≤ 100% |
-| Ocupação máxima (pior) | 671% | ≤ 100% |
-| Meta atingida | sim | sim |
+### 3. Páginas — eliminar `setLoading` + spinner full-page
 
-→ **20 playlists deixariam de ser reutilizadas.** **20 playlists novas entrariam** no plano (vindas das 577 livres).
+- **`CampanhaDetalhe.tsx`**: trocar `useState`/`useEffect` por dois `useQuery` (`campaign` e `allocations`). Manter render parcial: header/KPIs aparecem com `placeholderData`; só Allocations mostra skeleton local se vazio.
+- **`CampanhaExecucao.tsx`**: hoje retorna `<PageLoader />` global em `loading`. Refatorar para:
+  - Hub/CampaignKpis renderizam com `data ?? lastKnown` (via React Query cache).
+  - Substituir `<PageLoader />` por skeleton **interno** ao hub (header da campanha permanece visível). Manter todas as queries de banco como estão — só envelopar o fetch atual num `useQuery(['campaign_execucao', id])`.
+- **`Analytics.tsx`, `Performance.tsx`, `Valuation.tsx`**: trocar `useState({data, loading})` por `useQuery`. Conteúdo renderiza com `placeholderData`; KPIs mostram esqueleto fino em vez de spinner central.
+- **`ClienteDetalhe.tsx`**: matar `useEffect` que busca `clientCampaigns` — virar `useQuery(['client_campaigns', id])`. Header e KPIs continuam imediatos pela `useClients` (já cacheado).
 
-## 4. Onde mexe no código (sem implementar)
+### 4. Skeletons consistentes (`src/components/skeletons/`)
 
-- `supabase/functions/_shared/eco-budget.ts` — expandir pra também ler `curator_playlists + curator_deals` (hoje só lê `campaign_eco_allocations`). Retornar `Set<playlist_id>` de ocupadas + mapa `playlist_id → reserved_total` (pra ordenar Grupo B).
-- `supabase/functions/_shared/computeEcoPlan.ts` — em `distributeByDailyNeed`, antes do loop de seleção, **particionar** o array de candidatas em `groupA` e `groupB`. Concatenar `[...groupA_sortedByScore, ...groupB_sortedByOccupancyAsc]`. Resto do algoritmo intacto.
-- `supabase/functions/approve-campaign-plan/index.ts` + `replan-campaign-eco/index.ts` — nada a alterar além de passar `started_at` e `days` (já passam).
-- `system_flags`: nova chave `planner_free_first_enabled` (default `true`). Desligar volta ao comportamento atual sem deploy.
-- `campaign_plan_history.meta` — logar `{group_a_used, group_b_used, group_a_available}` pra auditoria visível no histórico do plano.
+Criar 4 skeletons reutilizáveis, todos com o **mesmo tamanho do conteúdo real** (sem layout shift):
 
-**Não muda:** score, fit, fórmula de capacidade, posições, engine de dispatch, UI.
+- `KpiRowSkeleton` (4 cards 90px altura).
+- `TableRowsSkeleton` (n linhas h-12).
+- `HeroCardSkeleton` (altura do hero do deal/campanha).
+- `ChartSkeleton` (200px com shimmer suave).
 
-**Rollback:** flag off em `system_flags`.
+Substituir todos os `Loading...`, `Spinner...`, `Loader2 animate-spin` em página por skeletons posicionais.
 
-**Casos extremos previstos:**
-- Gênero estreito onde Grupo A < meta: loga warning, completa do Grupo B pela menor ocupação. Nunca bloqueia a campanha.
-- Replanejamento de campanha já ativa: playlists já dispatched dela mesma não entram em nenhum grupo (ficam fixas, como hoje).
+### 5. Preload adicional em hover dentro das listas
+
+Estender `route-preload.ts` para detalhes:
+- Hover em linha de `Campanhas` → `import('@/pages/CampanhaDetalhe')` + `import('@/pages/CampanhaExecucao')`.
+- Hover em linha de `Clientes` → `import('@/pages/ClienteDetalhe')`.
+- Hover em row de `Deals` → `import('@/pages/DealDetail')`.
+
+Sem efeito visual; chunk já vem cacheado no clique.
+
+### 6. CampanhaExecucao — caso especial
+
+A página tem 1.500+ linhas com 20+ `useState`. Não vou reescrevê-la inteira (alto risco). Mudança mínima e segura:
+1. Envelopar a `loadCampaign` numa `useQuery(['campaign_execucao', id], loader, { staleTime: 60_000, placeholderData: keepPreviousData })`.
+2. Setar estados locais (`camp`, `allocs`, `snaps`, `proofs`) a partir do `data` da query, mantendo `setX` apenas para mutações otimistas locais.
+3. Remover `if (loading) return <PageLoader/>` → mostrar Hub com dado anterior (ou skeleton hero quando absolutamente vazio na 1ª visita).
+
+### 7. Validação
+
+Para cada rota da tabela acima:
+
+1. Visitar pela 1ª vez → skeleton local aparece (não spinner full-page).
+2. Sair e voltar em < 5 min → tela aparece **instantânea**, com revalidação em background (sem flicker).
+3. Trocar de ID (ex.: outro curador, outra campanha) → dado anterior fica enquanto o novo carrega (keepPreviousData).
+
+---
+
+## Detalhes técnicos
+
+- **Compat**: hooks mantêm exatamente os mesmos campos (`loading`, `reload`, etc.) pra não tocar consumidores. `loading` passa a ser `isLoading && !data`.
+- **Mutations**: usam `queryClient.invalidateQueries({ queryKey: [...] })` em vez de `reload()` manual; expomos `reload()` como `() => qc.invalidateQueries(...)` por compatibilidade.
+- **Edge**: `CampanhaExecucao` tem subscriptions/realtime (canal `campaign-progress`) — manter intacto; só substituímos a função de fetch inicial.
+- **Erro fica visível**: query com `isError` mostra inline (não derruba shell).
+- **Sem mexer**: planner, edge functions, regras de cálculo (CPP, baseline, dominância), Spotify helpers.
+
+---
+
+## Fora desta fase (pra Fase 3 se quiser)
+
+- Suspense queries (React 19) — exigiria upgrade de patterns.
+- Optimistic UI em mutations financeiras (risco operacional).
+- Streaming SSR / prefetch via Link prefetch (precisa de roteador novo).
+
+---
+
+## Critérios de aceite
+
+- Nenhuma rota protegida usa `<PageLoader />` como fallback de página inteira.
+- Voltar da detalhe pra lista é instantâneo (cache hit visível).
+- Trocar de `/curadores/:id` ou `/deals/:id` mantém o conteúdo anterior até o novo chegar.
+- Build limpo; nenhum hook quebra consumidores existentes.
+
+Posso prosseguir com a implementação?

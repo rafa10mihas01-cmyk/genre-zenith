@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBackOrFallback } from "@/hooks/useBackOrFallback";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
@@ -56,43 +57,61 @@ const CAMPAIGN_TYPE_LABEL: Record<string, string> = {
 export default function CampanhaDetalhe() {
   const { id } = useParams<{ id: string }>();
   const goBack = useBackOrFallback("/campanhas");
-  const [camp, setCamp] = useState<Campaign | null>(null);
-  const [allocs, setAllocs] = useState<Allocation[]>([]);
-  const [loading, setLoading] = useState(true);
+  const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!id) return;
-    setLoading(true);
-    const [c, a, g] = await Promise.all([
-      supabase.from("campaigns").select("*").eq("id", id).maybeSingle(),
-      supabase.from("campaign_allocations")
-        .select("id, playlist_id, target_plays, delivered_plays, status, position, playlists(name, followers, cover_url)")
-        .eq("campaign_id", id)
-        .order("position"),
-      // Fonte de verdade — mesma usada por Execução / OverviewTab / Lista de Campanhas
-      supabase.from("vw_campaign_playlist_growth")
-        .select("attributed_to, delta")
-        .eq("campaign_id", id),
-    ]);
-    setLoading(false);
-    if (c.error) toast({ title: "Erro", description: c.error.message, variant: "destructive" });
-    const campData = (c.data as any) ?? null;
-    if (campData && Array.isArray(g.data)) {
-      // Curadores + Ecossistema (exclui orgânico) — alinhado à Execução
-      const deliveredFromView = (g.data as Array<{ attributed_to: string | null; delta: number | null }>).reduce((acc, r) => {
-        const at = r.attributed_to ?? "";
-        if (at === "organic") return acc;
-        if (at === "ecosystem" || at.startsWith("curator:")) return acc + Number(r.delta ?? 0);
-        return acc;
-      }, 0);
-      campData.total_delivered = deliveredFromView;
-    }
-    setCamp(campData);
-    setAllocs((a.data as any) ?? []);
-  }, [id]);
+  const detailKey = ["campaign_detail", id] as const;
 
-  useEffect(() => { load(); }, [load]);
+  const detailQuery = useQuery({
+    queryKey: detailKey,
+    enabled: !!id,
+    queryFn: async () => {
+      const [c, a, g] = await Promise.all([
+        supabase.from("campaigns").select("*").eq("id", id!).maybeSingle(),
+        supabase.from("campaign_allocations")
+          .select("id, playlist_id, target_plays, delivered_plays, status, position, playlists(name, followers, cover_url)")
+          .eq("campaign_id", id!)
+          .order("position"),
+        supabase.from("vw_campaign_playlist_growth")
+          .select("attributed_to, delta")
+          .eq("campaign_id", id!),
+      ]);
+      if (c.error) throw c.error;
+      const campData = (c.data as any) ?? null;
+      if (campData && Array.isArray(g.data)) {
+        const deliveredFromView = (g.data as Array<{ attributed_to: string | null; delta: number | null }>).reduce((acc, r) => {
+          const at = r.attributed_to ?? "";
+          if (at === "organic") return acc;
+          if (at === "ecosystem" || at.startsWith("curator:")) return acc + Number(r.delta ?? 0);
+          return acc;
+        }, 0);
+        campData.total_delivered = deliveredFromView;
+      }
+      return {
+        camp: campData as Campaign | null,
+        allocs: ((a.data as any) ?? []) as Allocation[],
+      };
+    },
+  });
+
+  const camp = detailQuery.data?.camp ?? null;
+  const allocs = detailQuery.data?.allocs ?? [];
+  const loading = detailQuery.isLoading && !detailQuery.data;
+
+  const load = useCallback(
+    () => qc.invalidateQueries({ queryKey: detailKey }),
+    [qc, detailKey],
+  );
+
+  // Setters de compat (mantém call-sites simples como setCamp / setAllocs).
+  const setCamp = useCallback(
+    (updater: (c: Campaign | null) => Campaign | null) => {
+      qc.setQueryData(detailKey, (old: any) =>
+        old ? { ...old, camp: updater(old.camp) } : old,
+      );
+    },
+    [qc, detailKey],
+  );
 
   async function recalc() {
     if (!id) return;

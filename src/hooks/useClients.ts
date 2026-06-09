@@ -1,5 +1,8 @@
 // useClients — biblioteca de clientes do usuário (espelha useCuratorDeals.curators).
-import { useCallback, useEffect, useState } from "react";
+// Refatorado para React Query: cache compartilhado entre /clientes e /clientes/:id,
+// elimina spinner full-page ao voltar.
+import { useCallback, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -9,7 +12,7 @@ export type Client = {
   id: string;
   user_id: string;
   name: string;
-  contact: string | null; // legado, mantido por compatibilidade
+  contact: string | null;
   notes: string | null;
   archived_at: string | null;
   created_at: string;
@@ -54,7 +57,6 @@ export type NewClientInput = {
   brand_color?: string | null;
 };
 
-// Helper: monta o payload de update apenas com chaves presentes em `input`.
 function buildUpdatePayload(input: Partial<NewClientInput>) {
   const keys: (keyof NewClientInput)[] = [
     "name","contact","notes","client_type","company","email","phone","instagram",
@@ -71,41 +73,35 @@ function buildUpdatePayload(input: Partial<NewClientInput>) {
   return out;
 }
 
+const CLIENTS_KEY = ["clients"] as const;
+
 export function useClients() {
   const { user } = useAuth();
-  const [clients, setClients] = useState<Client[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  // G-cliente (Onda 1): rastreia quais IDs estão em enrichment ativo pra UI mostrar badge.
+  const qc = useQueryClient();
   const [enrichingIds, setEnrichingIds] = useState<Set<string>>(new Set());
 
-  const load = useCallback(async () => {
-    if (!user) {
-      setClients([]);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    try {
-      const { data, error: err } = await supabase
+  const query = useQuery({
+    queryKey: CLIENTS_KEY,
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
         .from("clients")
         .select("*")
         .order("created_at", { ascending: false });
-      if (err) throw err;
-      setClients((data ?? []) as Client[]);
-      setError(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
+      if (error) throw error;
+      return (data ?? []) as Client[];
+    },
+  });
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  const clients = query.data ?? [];
+  const loading = query.isLoading && !query.data;
+  const error = query.error ? (query.error as Error).message : null;
 
-  // Gap 5: enriquecimento opcional via /v1/artists/{id} a partir da spotify_artist_url.
+  const reload = useCallback(
+    () => qc.invalidateQueries({ queryKey: CLIENTS_KEY }),
+    [qc],
+  );
+
   const enrichSpotifyIfPossible = useCallback(async (clientId: string, url: string | null | undefined) => {
     if (!url) return;
     if (!/artist\/[A-Za-z0-9]{22}/.test(url)) {
@@ -120,7 +116,6 @@ export function useClients() {
     try {
       await supabase.functions.invoke("enrich-client-spotify", { body: { client_id: clientId } });
     } catch (e) {
-      // Enrichment é best-effort — falha não interrompe o fluxo do cliente.
       console.warn("[useClients] enrich-client-spotify falhou:", e);
     } finally {
       setEnrichingIds((prev) => {
@@ -142,57 +137,55 @@ export function useClients() {
         name: input.name,
         ...buildUpdatePayload({ ...input, name: undefined }),
       };
-      const { data, error: err } = await supabase
+      const { data, error } = await supabase
         .from("clients")
         .insert(payload as any)
         .select()
         .single();
-      if (err) throw err;
+      if (error) throw error;
       const created = data as Client;
       await enrichSpotifyIfPossible(created.id, input.spotify_artist_url);
-      await load();
+      await reload();
       return created;
     },
-    [user, load, enrichSpotifyIfPossible],
+    [user, reload, enrichSpotifyIfPossible],
   );
 
   const updateClient = useCallback(
     async (id: string, input: Partial<NewClientInput>) => {
-      const { error: err } = await supabase
+      const { error } = await supabase
         .from("clients")
         .update(buildUpdatePayload(input) as any)
         .eq("id", id);
-      if (err) throw err;
-      // Onda 3: re-enriquece sempre que veio uma spotify_artist_url no update —
-      // cobre tanto mudança de URL quanto retry de enrich que falhou antes.
+      if (error) throw error;
       if (input.spotify_artist_url) {
         await enrichSpotifyIfPossible(id, input.spotify_artist_url);
       }
-      await load();
+      await reload();
     },
-    [load, enrichSpotifyIfPossible],
+    [reload, enrichSpotifyIfPossible],
   );
 
   const archiveClient = useCallback(
     async (id: string, archive = true) => {
-      const { error: err } = await supabase
+      const { error } = await supabase
         .from("clients")
         .update({ archived_at: archive ? new Date().toISOString() : null })
         .eq("id", id);
-      if (err) throw err;
-      await load();
+      if (error) throw error;
+      await reload();
     },
-    [load],
+    [reload],
   );
 
   const deleteClient = useCallback(
     async (id: string) => {
-      const { error: err } = await supabase.from("clients").delete().eq("id", id);
-      if (err) throw err;
-      await load();
+      const { error } = await supabase.from("clients").delete().eq("id", id);
+      if (error) throw error;
+      await reload();
     },
-    [load],
+    [reload],
   );
 
-  return { clients, loading, error, addClient, updateClient, archiveClient, deleteClient, reload: load, isEnriching };
+  return { clients, loading, error, addClient, updateClient, archiveClient, deleteClient, reload, isEnriching };
 }
