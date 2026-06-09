@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import { useBackOrFallback } from "@/hooks/useBackOrFallback";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
@@ -54,6 +55,7 @@ const CAMPAIGN_TYPE_LABEL: Record<string, string> = {
 
 export default function CampanhaDetalhe() {
   const { id } = useParams<{ id: string }>();
+  const goBack = useBackOrFallback("/campanhas");
   const [camp, setCamp] = useState<Campaign | null>(null);
   const [allocs, setAllocs] = useState<Allocation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -153,7 +155,7 @@ export default function CampanhaDetalhe() {
       <>
         <PageHeader kicker="Operação" title="Campanha não encontrada" subtitle="Voltar para a lista" icon={Target} />
         <PageContainer>
-          <Link to="/campanhas" className="text-primary"><ArrowLeft className="inline h-4 w-4 mr-1" /> Voltar</Link>
+          <button type="button" onClick={goBack} className="text-primary inline-flex items-center"><ArrowLeft className="inline h-4 w-4 mr-1" /> Voltar</button>
         </PageContainer>
       </>
     );
@@ -190,9 +192,9 @@ export default function CampanhaDetalhe() {
       />
 
       <PageContainer>
-        <Link to="/campanhas" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-6">
-          <ArrowLeft className="h-4 w-4 mr-1" /> Todas as campanhas
-        </Link>
+        <button type="button" onClick={goBack} className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-6">
+          <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
+        </button>
 
         {/* Resumo */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
