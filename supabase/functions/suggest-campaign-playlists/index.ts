@@ -120,10 +120,31 @@ Deno.serve(async (req) => {
       };
     }).sort((a, b) => b._composite - a._composite);
 
-    // 4) corte por capacity_target (se vier), respeitando maxResults
+    // 3b) Anti-canibalização — particiona em Grupo A (livres) e Grupo B (ocupadas).
+    // Só ativa quando UI passou campaign_window. Sem janela, comportamento legado.
+    let occupiedMap: Map<string, import("../_shared/eco-budget.ts").OccupancyInfo> = new Map();
+    let orderedForOutput = ranked;
+    let groupASize = ranked.length;
+    let groupBSize = 0;
+    if (PLANNER_FREE_FIRST_ENABLED && windowStart && windowEnd && ranked.length > 0) {
+      occupiedMap = await getOccupiedPlaylistIds(sb, {
+        excludeCampaignId: excludeCampaignId || "00000000-0000-0000-0000-000000000000",
+        playlistIds: ranked.map(r => r.id),
+        windowStart: windowStart.toISOString(),
+        windowEnd: windowEnd.toISOString(),
+      });
+      const parts = partitionByOccupancy(ranked, occupiedMap);
+      orderedForOutput = [...parts.groupA, ...parts.groupB];
+      groupASize = parts.groupA.length;
+      groupBSize = parts.groupB.length;
+    }
+
+    // 4) corte por capacity_target (se vier), respeitando maxResults.
+    // CRÍTICO: o corte agora respeita a ordem A→B; só "atravessa" pra B se
+    // capacityTarget ainda não foi atingido com A.
     const out: typeof ranked = [];
     let acc = 0;
-    for (const r of ranked) {
+    for (const r of orderedForOutput) {
       if (out.length >= maxResults) break;
       out.push(r);
       acc += r.followers;
@@ -145,7 +166,19 @@ Deno.serve(async (req) => {
       neighbors,
       capacity_total: acc,
       capacity_target: capacityTarget,
-      playlists: out.map(({ _composite, ...rest }) => rest),
+      free_first_enabled: PLANNER_FREE_FIRST_ENABLED && !!windowStart && !!windowEnd,
+      group_a_total: groupASize,
+      group_b_total: groupBSize,
+      playlists: out.map(({ _composite, ...rest }) => {
+        const occ = occupiedMap.get(rest.id);
+        return {
+          ...rest,
+          is_free: !occ || (occ.camps === 0 && occ.deals === 0),
+          occupancy: occ
+            ? { active_campaigns: occ.camps, active_deals: occ.deals, reserved_streams: occ.reservedStreams }
+            : { active_campaigns: 0, active_deals: 0, reserved_streams: 0 },
+        };
+      }),
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
