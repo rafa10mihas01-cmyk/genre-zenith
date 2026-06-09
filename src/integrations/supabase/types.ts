@@ -6214,6 +6214,54 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications_archive_phase1: {
+        Row: {
+          action_url: string | null
+          archived_at: string | null
+          created_at: string | null
+          id: string | null
+          message: string | null
+          metadata: Json | null
+          read: boolean | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string | null
+          title: string | null
+          type: Database["public"]["Enums"]["notification_type"] | null
+          user_id: string | null
+        }
+        Insert: {
+          action_url?: string | null
+          archived_at?: string | null
+          created_at?: string | null
+          id?: string | null
+          message?: string | null
+          metadata?: Json | null
+          read?: boolean | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string | null
+          title?: string | null
+          type?: Database["public"]["Enums"]["notification_type"] | null
+          user_id?: string | null
+        }
+        Update: {
+          action_url?: string | null
+          archived_at?: string | null
+          created_at?: string | null
+          id?: string | null
+          message?: string | null
+          metadata?: Json | null
+          read?: boolean | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string | null
+          title?: string | null
+          type?: Database["public"]["Enums"]["notification_type"] | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       organic_plays_snapshots: {
         Row: {
           captured_at: string
