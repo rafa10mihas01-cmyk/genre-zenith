@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { formatInt } from "@/lib/campaignEngine";
 import { toast } from "@/hooks/use-toast";
 import { PUBLIC_DOMAIN } from "@/lib/curatorPublicUrl";
+import { openAdminPortal } from "@/lib/openAdminPortal";
 import type { CampaignHubCampaign, CampaignHubMode } from "./types";
 
 type Props = {
