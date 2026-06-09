@@ -819,7 +819,7 @@ export default function CampanhaExecucao() {
                 onLockSplit={handleLockSplit}
                 onUnlockSplit={handleUnlockSplit}
                 curveSlot={
-                  <div className="space-y-4">
+                  <div className="flex flex-col gap-4 h-full">
                     <CampaignGatesCard
                       clientApprovedAt={camp.client_approved_at ?? null}
                       planApprovedAt={(camp as any).plan_approved_at ?? null}
@@ -835,10 +835,12 @@ export default function CampanhaExecucao() {
                       dispatching={dispatching}
                     />
                     {(camp as any).collection_mode !== "spreadsheet" && (
-                      <BotCollectionStatus
-                        campaignId={camp.id}
-                        dealId={camp.deal_id ?? null}
-                      />
+                      <div className="flex-1 flex flex-col [&>*]:flex-1">
+                        <BotCollectionStatus
+                          campaignId={camp.id}
+                          dealId={camp.deal_id ?? null}
+                        />
+                      </div>
                     )}
                     {(() => {
                       const baseline = recentUploads.find((u) => u.is_baseline);
@@ -853,6 +855,7 @@ export default function CampanhaExecucao() {
                     })()}
                   </div>
                 }
+
               />
             </div>
           ),
