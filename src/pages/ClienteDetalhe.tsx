@@ -113,7 +113,6 @@ export default function ClienteDetalhe() {
   const { deals, songs, loading: loadingDeals } = useCuratorDeals();
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const campaignsQuery = useQuery({
     queryKey: ["client_campaigns", id],
