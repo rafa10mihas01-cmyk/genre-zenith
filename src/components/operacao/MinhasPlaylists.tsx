@@ -1552,6 +1552,46 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         </DropdownMenu>
         {/* Estado: alterna Ativas/Lixeira. Contagens já aparecem nos cards de fase acima — evitar duplicar. */}
         <div className="sm:ml-auto flex items-center gap-1.5 shrink-0">
+          {/* Apps Spotify bloqueados — botão circular igual à régua de ações (mobile: só ícone + badge). */}
+          {!showArchived && !showCapacity && blockedRows.length > 0 && (
+            <Tooltip delayDuration={150}>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => setFilterAppBlocked(!filterAppBlocked)}
+                  aria-pressed={filterAppBlocked}
+                  aria-label={`Apps bloqueados (${blockedRows.length})`}
+                  title={`Apps bloqueados (${blockedRows.length})`}
+                  className={cn(
+                    "relative h-9 w-9 sm:w-auto sm:px-3 rounded-full text-[11px] sm:text-xs font-medium border transition-colors tabular-nums shrink-0 inline-flex items-center justify-center gap-1.5",
+                    filterAppBlocked
+                      ? "bg-destructive/15 border-destructive/50 text-destructive"
+                      : "bg-elevated border-destructive/40 text-destructive/90 hover:bg-destructive/10",
+                  )}
+                >
+                  <AlertCircle className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                  <span className="hidden sm:inline">Apps bloqueados ({blockedRows.length})</span>
+                  <span
+                    aria-hidden
+                    className="sm:hidden absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-destructive text-[10px] font-bold leading-none text-destructive-foreground inline-flex items-center justify-center tabular-nums"
+                  >
+                    {blockedRows.length}
+                  </span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[280px] text-[12px] leading-snug">
+                <div className="font-semibold">{blockedAppName ?? "App Spotify"} bloqueado</div>
+                {blockedUntil && (
+                  <div className="text-muted-foreground mt-0.5">
+                    Até {new Date(blockedUntil).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                  </div>
+                )}
+                <div className="text-muted-foreground mt-1">
+                  {blockedRows.length} playlist{blockedRows.length === 1 ? "" : "s"} afetada{blockedRows.length === 1 ? "" : "s"}. Toque pra filtrar.
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          )}
           {showArchived ? (
             <Link
               to="/catalogo"
