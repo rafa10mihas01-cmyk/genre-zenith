@@ -368,7 +368,7 @@ Deno.serve(async (req) => {
         session: callerSession,
         user_agent: callerUserAgent,
       },
-      dispatched_correlation_ids: (eligible as any[]).map((s) => s.correlation_id),
+      dispatched_correlation_ids: (claimedEligible as any[]).map((s) => s.correlation_id),
       dispatched_song_ids: ids,
     },
   });
