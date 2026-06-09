@@ -80,6 +80,7 @@ export function useNotifications() {
       const { data, error } = await supabase
         .from("notifications")
         .select("id, type, title, message, action_url, read, created_at, metadata")
+        .eq("status", "open")
         .order("created_at", { ascending: false })
         .limit(LIMIT);
       if (error) throw error;
