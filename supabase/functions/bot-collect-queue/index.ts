@@ -271,17 +271,20 @@ Deno.serve(async (req) => {
   }
 
 
-  // Marca elegíveis como queued para evitar dupla execução
-  const ids = eligible.map((s: any) => s.id);
-  if (ids.length) {
-    await supabase
-      .from("curator_deal_songs")
-      .update({
-        auto_collect_status: "queued",
-        auto_collect_error: "Entregue ao robô; aguardando print/snapshot",
-        queued_at: new Date().toISOString(),
-      })
-      .in("id", ids);
+  // Claim atômico via RPC: FOR UPDATE SKIP LOCKED garante que cada song só seja
+  // entregue a um caller, mesmo com workers paralelos do VPS (w0, w1, ...) batendo
+  // na edge no mesmo instante. Sem isso, race condition entre SELECT e UPDATE
+  // entregava a mesma música pra 2 workers → 2 prints duplicados (caso 09/06/2026).
+  const candidateIds = eligible.map((s: any) => s.id);
+  let ids: string[] = [];
+  let claimedEligible: any[] = [];
+  if (candidateIds.length) {
+    const { data: claimedRows, error: claimErr } = await supabase
+      .rpc("claim_collect_queue", { p_ids: candidateIds });
+    if (claimErr) return jr({ error: `claim_failed: ${claimErr.message}` }, 500);
+    const claimedSet = new Set((claimedRows ?? []).map((r: any) => r.id));
+    ids = Array.from(claimedSet) as string[];
+    claimedEligible = (eligible as any[]).filter((s) => claimedSet.has(s.id));
   }
 
 
@@ -289,7 +292,7 @@ Deno.serve(async (req) => {
   // Cada song dispatchada recebe um correlation_id único. O bot DEVE devolver esse
   // mesmo id em todos os eventos/uploads/snapshots dessa execução. Sem id, perdemos
   // capacidade de rastrear onde a coleta morreu.
-  for (const s of eligible as any[]) {
+  for (const s of claimedEligible as any[]) {
     s.correlation_id = crypto.randomUUID();
     const client = s?.curator_deals?.campaigns?.clients;
     const clientId = s?.curator_deals?.campaigns?.client_id ?? null;
@@ -323,8 +326,8 @@ Deno.serve(async (req) => {
       : "send_curator_playlist_rows";
     if (s4aSongUrl) s.song_spotify_url = s4aSongUrl;
   }
-  if (eligible.length) {
-    const events = (eligible as any[]).map((s) => ({
+  if (claimedEligible.length) {
+    const events = (claimedEligible as any[]).map((s) => ({
       bot_name: callerBotName,
       session_id: callerSession,
       deal_id: s.deal_id,
@@ -365,7 +368,7 @@ Deno.serve(async (req) => {
         session: callerSession,
         user_agent: callerUserAgent,
       },
-      dispatched_correlation_ids: (eligible as any[]).map((s) => s.correlation_id),
+      dispatched_correlation_ids: (claimedEligible as any[]).map((s) => s.correlation_id),
       dispatched_song_ids: ids,
     },
   });
@@ -385,6 +388,6 @@ Deno.serve(async (req) => {
     ok: true,
     count: ids.length,
     blocked_no_whitelist: blocked.length,
-    queue: eligible,
+    queue: claimedEligible,
   });
 });

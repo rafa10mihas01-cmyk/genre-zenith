@@ -11357,6 +11357,12 @@ export type Database = {
         Args: { p_key: string; p_limit?: number; p_window_seconds?: number }
         Returns: Json
       }
+      claim_collect_queue: {
+        Args: { p_ids: string[] }
+        Returns: {
+          id: string
+        }[]
+      }
       claim_next_playlist_job: {
         Args: { _claimed_by: string }
         Returns: {
