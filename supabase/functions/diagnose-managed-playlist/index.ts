@@ -447,8 +447,9 @@ Deno.serve(async (req) => {
       singlePathStats.artists_ok++;
       return await r.json();
     }
-    // Paralelismo controlado: até 3 in-flight; 250ms stall por chamada (≈12 req/s).
-    async function fetchAllSingle<T>(ids: string[], fn: (id: string) => Promise<T | null>, concurrency = 3, stallMs = 250): Promise<Array<T | null>> {
+    // Paralelismo controlado: 2 in-flight, 150ms stall (~13 req/s). Spotify-friendly.
+    async function fetchAllSingle<T>(ids: string[], fn: (id: string) => Promise<T | null>, concurrency = 2, stallMs = 150): Promise<Array<T | null>> {
+
       const out: Array<T | null> = new Array(ids.length).fill(null);
       let i = 0;
       async function worker() {
