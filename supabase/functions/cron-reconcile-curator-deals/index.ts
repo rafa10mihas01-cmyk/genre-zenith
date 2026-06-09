@@ -80,40 +80,54 @@ async function checkDealMilestones(
   const target = Number(deal.target_plays ?? 0) || 0;
 
   if (target > 0 && delivered >= target) {
-    const { data: existing } = await supabase
-      .from("notifications").select("id")
-      .eq("metadata->>kind", "goal_reached")
-      .eq("metadata->>deal_id", deal.id).limit(1);
-    if (!existing || existing.length === 0) {
-      await supabase.from("notifications").insert({
-        type: "success",
-        title: `Meta batida: ${deal.song_name}`,
-        message: `Curador "${deal.curator_name}" entregou ${delivered.toLocaleString("pt-BR")} de ${target.toLocaleString("pt-BR")} plays.`,
-        action_url: `/playlist-deals?deal=${deal.id}`,
-        metadata: { kind: "goal_reached", deal_id: deal.id, delivered, target },
-      });
-      result.goal = true;
-    }
+    const dedupe = `goal_reached:${deal.id}`;
+    const { error } = await supabase.rpc("create_notification" as any, {
+      p_type: "info",
+      p_title: `Meta atingida — ${deal.song_name}`,
+      p_message:
+        `O curador ${deal.curator_name} completou a entrega: ` +
+        `${delivered.toLocaleString("pt-BR")} de ${target.toLocaleString("pt-BR")} plays. ` +
+        `Ação: nenhuma.`,
+      p_action_url: `/playlist-deals?deal=${deal.id}`,
+      p_metadata: {
+        domain: "curator",
+        severity: "info",
+        kind: "goal_reached",
+        deal_id: deal.id,
+        delivered,
+        target,
+      },
+      p_dedupe_key: dedupe,
+      p_cooldown_minutes: 60 * 24 * 30, // 30 dias — meta só dispara 1x
+    });
+    if (!error) result.goal = true;
   }
 
   if (deal.ends_at) {
     const ends = new Date(deal.ends_at);
     if (ends < new Date() && delivered < target) {
-      const { data: existing } = await supabase
-        .from("notifications").select("id")
-        .eq("metadata->>kind", "deal_overdue")
-        .eq("metadata->>deal_id", deal.id).limit(1);
-      if (!existing || existing.length === 0) {
-        const remaining = Math.max(target - delivered, 0);
-        await supabase.from("notifications").insert({
-          type: "warning",
-          title: `Deal atrasado: ${deal.song_name}`,
-          message: `Prazo venceu em ${ends.toLocaleDateString("pt-BR")} e faltam ${remaining.toLocaleString("pt-BR")} plays para a meta.`,
-          action_url: `/playlist-deals?deal=${deal.id}`,
-          metadata: { kind: "deal_overdue", deal_id: deal.id, delivered, target, ends_at: deal.ends_at },
-        });
-        result.overdue = true;
-      }
+      const remaining = Math.max(target - delivered, 0);
+      const { error } = await supabase.rpc("create_notification" as any, {
+        p_type: "warning",
+        p_title: `Prazo vencido — ${deal.song_name}`,
+        p_message:
+          `O deal encerrou em ${ends.toLocaleDateString("pt-BR")} com ` +
+          `${remaining.toLocaleString("pt-BR")} plays pendentes para a meta. ` +
+          `Ação: revise o resultado no portal.`,
+        p_action_url: `/playlist-deals?deal=${deal.id}`,
+        p_metadata: {
+          domain: "curator",
+          severity: "medium",
+          kind: "deal_overdue",
+          deal_id: deal.id,
+          delivered,
+          target,
+          ends_at: deal.ends_at,
+        },
+        p_dedupe_key: `deal_overdue:${deal.id}`,
+        p_cooldown_minutes: 60 * 24 * 7,
+      });
+      if (!error) result.overdue = true;
     }
   }
 
