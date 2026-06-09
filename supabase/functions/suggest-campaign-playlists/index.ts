@@ -47,6 +47,17 @@ Deno.serve(async (req) => {
     const maxResults = Number.isFinite(Number(body?.max_results))
       ? Math.max(1, Math.min(200, Number(body.max_results))) : 50;
 
+    // Anti-canibalização (Grupo A/B). Opcional: se a UI passar a janela da
+    // campanha alvo (started_at + days), separamos playlists LIVRES de OCUPADAS
+    // e devolvemos primeiro as livres. Sem isso, comportamento legado.
+    const campaignWindow = body?.campaign_window ?? null;
+    const excludeCampaignId: string = String(body?.exclude_campaign_id ?? "").trim();
+    const windowStart = campaignWindow?.started_at ? new Date(campaignWindow.started_at) : null;
+    const windowDays = Number.isFinite(Number(campaignWindow?.days))
+      ? Math.max(1, Number(campaignWindow.days)) : null;
+    const windowEnd = windowStart && windowDays
+      ? new Date(windowStart.getTime() + windowDays * 86400000) : null;
+
     const sb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
     // 1) pool de gêneros (primário + vizinhos)
