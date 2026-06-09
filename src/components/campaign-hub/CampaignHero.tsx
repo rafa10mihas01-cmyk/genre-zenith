@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { formatInt } from "@/lib/campaignEngine";
 import { toast } from "@/hooks/use-toast";
 import { PUBLIC_DOMAIN } from "@/lib/curatorPublicUrl";
+import { openAdminPortal } from "@/lib/openAdminPortal";
 import type { CampaignHubCampaign, CampaignHubMode } from "./types";
 
 type Props = {
@@ -155,11 +156,9 @@ export function CampaignHero({ camp, mode, delivered = 0, deliveryBreakdown, goa
                       <Button variant="default" size="sm" onClick={shareWhatsApp}>
                         <MessageCircle className="h-3.5 w-3.5 mr-1.5" /> WhatsApp
                       </Button>
-                      <a href={clientUrl} target="_blank" rel="noreferrer">
-                        <Button variant="outline" size="sm" className="w-full">
-                          <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Abrir portal
-                        </Button>
-                      </a>
+                      <Button variant="outline" size="sm" className="w-full" onClick={() => openAdminPortal(camp.public_plan_token!)}>
+                        <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Abrir portal
+                      </Button>
                     </div>
                   </PopoverContent>
                 </Popover>
