@@ -424,19 +424,11 @@ export function CampaignFullPlanCard({
                             <span className="truncate">Rádio · Autoplay · Mixes</span>
                             {radioUrl && <ExternalLink className="h-3 w-3 flex-shrink-0 opacity-70" />}
                           </TitleEl>
-                          <div className="text-[11px] text-muted-foreground tabular-nums">
-                            {radioCollected ? (
-                              <>
-                                <span className="text-primary font-medium uppercase tracking-wider">coletado</span>
-                                {" · "}{formatInt(Math.round(radioCollectedTotal ?? 0))} plays reais
-                              </>
-                            ) : (
-                              <>
-                                <span className="uppercase tracking-wider text-primary/80">planejada</span>
-                                {" · "}{Math.round(((snapshot.splitOrganicPct ?? 15)))}% da meta · alocação operacional
-                              </>
-                            )}
-                          </div>
+                          {radioCollected && (
+                            <div className="text-[11px] text-muted-foreground tabular-nums">
+                              {formatInt(Math.round(radioCollectedTotal ?? 0))} plays
+                            </div>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -530,7 +522,7 @@ export function CampaignFullPlanCard({
                               <PlaylistJobBadge agg={jobAgg} />
                             </div>
                             <div className="text-[11px] text-muted-foreground tabular-nums truncate">
-                              {formatInt(p.followers)} saves · cap {formatInt(p.capDia)}/dia
+                              {formatInt(p.followers)} saves
                             </div>
                           </div>
                         </div>
