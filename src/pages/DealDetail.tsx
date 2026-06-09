@@ -21,6 +21,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { useCuratorDealDetail } from "@/hooks/useCuratorDealDetail";
+import { useBackOrFallback } from "@/hooks/useBackOrFallback";
 // Perf: DealHistorySheet tem 1.412 linhas + 20 useEffect/useState. Carregar
 // sob demanda corta o JS inicial da página em ~80% e mostra o hero/KPI antes.
 const DealHistorySheet = lazy(() =>
@@ -52,7 +53,7 @@ export default function DealDetail() {
     reload,
   } = useCuratorDealDetail(dealId);
 
-  const back = () => navigate("/playlist-deals");
+  const back = useBackOrFallback("/deals");
 
   const stats = useMemo(() => {
     if (!deal) return null;
