@@ -388,6 +388,6 @@ Deno.serve(async (req) => {
     ok: true,
     count: ids.length,
     blocked_no_whitelist: blocked.length,
-    queue: eligible,
+    queue: claimedEligible,
   });
 });
