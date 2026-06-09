@@ -64,11 +64,9 @@ export function ShareLinkCard({ token, trackName, artist, approved }: Props) {
               <MessageCircle className="h-3.5 w-3.5 mr-1.5" /> Enviar por WhatsApp
             </Button>
           </a>
-          <a href={url} target="_blank" rel="noreferrer">
-            <Button size="sm" variant="ghost" className="h-8 text-xs">
-              <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Abrir portal
-            </Button>
-          </a>
+          <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => openAdminPortal(token)}>
+            <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Abrir portal
+          </Button>
         </div>
       </CardContent>
     </Card>
