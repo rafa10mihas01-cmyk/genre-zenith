@@ -292,7 +292,7 @@ Deno.serve(async (req) => {
   // Cada song dispatchada recebe um correlation_id único. O bot DEVE devolver esse
   // mesmo id em todos os eventos/uploads/snapshots dessa execução. Sem id, perdemos
   // capacidade de rastrear onde a coleta morreu.
-  for (const s of eligible as any[]) {
+  for (const s of claimedEligible as any[]) {
     s.correlation_id = crypto.randomUUID();
     const client = s?.curator_deals?.campaigns?.clients;
     const clientId = s?.curator_deals?.campaigns?.client_id ?? null;
