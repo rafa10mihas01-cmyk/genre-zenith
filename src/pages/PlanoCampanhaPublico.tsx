@@ -181,6 +181,26 @@ export default function PlanoCampanhaPublico() {
     if (!token || isMapView) return;
     let cancelled = false;
     (async () => {
+      // 0) Admin bypass via hash (#admin_jwt=...) — o operador abriu o portal
+      //    pelo botão "Abrir portal" do hub interno, que pré-autenticou.
+      try {
+        const hash = window.location.hash || "";
+        const match = hash.match(/[#&]admin_jwt=([^&]+)/);
+        if (match) {
+          const adminJwt = decodeURIComponent(match[1]);
+          try {
+            localStorage.setItem(
+              `campaign_access_jwt:${token}`,
+              JSON.stringify({ jwt: adminJwt, email: "admin", exp: Date.now() + 86400_000 }),
+            );
+          } catch { /* ignore */ }
+          // Remove o hash da URL pra não vazar em prints/histórico.
+          try { window.history.replaceState(null, "", window.location.pathname + window.location.search); } catch { /* ignore */ }
+          if (!cancelled) { setGateAuthed(true); setGateChecked(true); }
+          return;
+        }
+      } catch { /* ignore */ }
+
       // 1) JWT salvo ainda válido? Se sim, libera sem pedir nada.
       try {
         const raw = localStorage.getItem(`campaign_access_jwt:${token}`);
