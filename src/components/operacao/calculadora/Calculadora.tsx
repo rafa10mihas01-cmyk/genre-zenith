@@ -874,17 +874,17 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">
-                    Curador {campaignType !== "ecosystem" && <span className="text-destructive normal-case">*</span>}
+                    Curador
                   </Label>
-                  <Select value={curatorId || "__none__"} onValueChange={v => setCuratorId(v === "__none__" ? "" : v)}>
-                    <SelectTrigger className="text-muted-foreground/80 data-[state=open]:text-foreground [&>span]:flex-1 [&>span]:text-center [&[data-state=closed]>span]:text-muted-foreground/60">
-                      <SelectValue placeholder="Selecione um curador" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Sem curador (modo legado)</SelectItem>
-                      {curatorsList.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <div
+                    aria-disabled="true"
+                    className="flex h-10 w-full items-center justify-center rounded-md border border-dashed border-border/60 bg-background/40 px-3 py-2 text-sm text-muted-foreground/80 select-none"
+                  >
+                    Definido após a aprovação
+                  </div>
+                  <p className="text-[11px] text-muted-foreground/60 leading-snug pt-1">
+                    Os curadores serão criados como deals na aba Curadores após o planejamento ser aprovado.
+                  </p>
                 </div>
               </CardContent>
             </Card>
