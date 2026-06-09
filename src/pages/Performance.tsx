@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BarChart3, RefreshCw, Activity } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { AnalyticsTabs } from "@/components/AnalyticsTabs";
