@@ -113,20 +113,23 @@ export function MonitoramentoTab({ campaignId, headerSlot }: Props) {
       />
       {headerSlot}
 
+      {/* Mantemos UMA instância de cada view montada e alternamos com display:none.
+          Isso elimina o flicker/remount ao trocar de subtab — o estado interno,
+          cache e DOM permanecem; só a visibilidade muda. */}
       <Tabs value={subtab} onValueChange={setSubtab} className="space-y-4">
-        <TabsContent value="visao" className="mt-0">
+        <div className={subtab === "visao" ? "" : "hidden"}>
           <ExecucaoView campaignId={campaignId} onOpenHistory={setDrawerPlaylistId} mode="all" tabsSlot={tabsList} />
-        </TabsContent>
-        <TabsContent value="curadores" className="mt-0">
+        </div>
+        <div className={subtab === "curadores" ? "" : "hidden"}>
           <ExecucaoView campaignId={campaignId} onOpenHistory={setDrawerPlaylistId} mode="curators" tabsSlot={tabsList} />
-        </TabsContent>
-        <TabsContent value="ecossistema" className="mt-0">
+        </div>
+        <div className={subtab === "ecossistema" ? "" : "hidden"}>
           <ExecucaoView campaignId={campaignId} onOpenHistory={setDrawerPlaylistId} mode="ecosystem" tabsSlot={tabsList} />
-        </TabsContent>
-        <TabsContent value="saude" className="mt-0 space-y-4">
+        </div>
+        <div className={subtab === "saude" ? "space-y-4" : "hidden space-y-4"}>
           {tabsList}
           <SaudeView campaignId={campaignId} />
-        </TabsContent>
+        </div>
       </Tabs>
 
 
