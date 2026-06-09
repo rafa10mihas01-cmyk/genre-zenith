@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useScreenField } from "@/lib/screen-state";
 import { Link, useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
@@ -110,8 +111,8 @@ function pipelineStage(c: import("@/hooks/useCampaigns").Campaign): PipelineFilt
 export default function Campanhas() {
   const navigate = useNavigate();
   const { items, loading, recalcAll } = useCampaigns();
-  const [filter, setFilter] = useState<PipelineFilter>("all");
-  const [tab, setTab] = useState<"lista" | "financeiro">("financeiro");
+  const [filter, setFilter] = useScreenField<PipelineFilter>("/campanhas", "filter", "all");
+  const [tab, setTab] = useScreenField<"lista" | "financeiro">("/campanhas", "tab", "financeiro");
 
   const filtered = useMemo(
     () => filter === "all" ? items : items.filter(i => pipelineStage(i) === filter),

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { useBackOrFallback } from "@/hooks/useBackOrFallback";
 import { supabase } from "@/integrations/supabase/client";
 import { PageContainer } from "@/components/PageContainer";
 import { PageHeader } from "@/components/PageHeader";
@@ -93,6 +94,7 @@ type SpreadsheetUpload = {
 
 export default function CampanhaExecucao() {
   const { id } = useParams<{ id: string }>();
+  const goBack = useBackOrFallback("/campanhas");
   const [camp, setCamp] = useState<CampaignHubCampaign | null>(null);
   const [allocs, setAllocs] = useState<EcoAllocation[]>([]);
   const [snaps, setSnaps] = useState<EcoSnap[]>([]);
@@ -717,9 +719,9 @@ export default function CampanhaExecucao() {
     return (
       <PageContainer>
         <PageHeader domain="campaigns" title="Execução" subtitle="Campanha não encontrada ou sem snapshot" />
-        <Link to="/campanhas" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mt-4">
-          <ArrowLeft className="h-4 w-4" /> Voltar para campanhas
-        </Link>
+        <button type="button" onClick={goBack} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mt-4">
+          <ArrowLeft className="h-4 w-4" /> Voltar
+        </button>
       </PageContainer>
     );
   }

@@ -201,8 +201,8 @@ export default function ClienteDetalhe() {
       <PageContainer>
         <PageHeader
         domain="clients" title="Cliente não encontrado" subtitle="O cliente solicitado não existe ou foi removido" />
-        <Button variant="outline" asChild className="gap-2">
-          <Link to="/clientes"><ArrowLeft className="h-4 w-4" /> Voltar para clientes</Link>
+        <Button variant="outline" onClick={() => { if (window.history.state?.idx === 0) navigate("/clientes", { replace: true }); else navigate(-1); }} className="gap-2">
+          <ArrowLeft className="h-4 w-4" /> Voltar
         </Button>
       </PageContainer>
     );

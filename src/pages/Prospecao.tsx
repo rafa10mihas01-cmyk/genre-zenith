@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useScreenField } from "@/lib/screen-state";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { RefreshCw, Handshake, UserSearch, Users, Activity, DollarSign, TrendingUp, Send, Mail, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -37,7 +38,7 @@ function FunilStep({
 }
 
 export default function Prospecao() {
-  const [segment, setSegment] = useState<Segment>("ativos");
+  const [segment, setSegment] = useScreenField<Segment>("/curadores", "segment", "ativos");
   const {
     curators, balances, deals, loading,
     addCurator, updateCurator, addCuratorPurchase, archiveCurator, deleteCurator, pauseCurator,
