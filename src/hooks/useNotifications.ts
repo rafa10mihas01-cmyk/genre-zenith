@@ -43,7 +43,7 @@ export interface NotificationRow {
   metadata?: NotificationMeta | null;
 }
 
-const LIMIT = 30;
+const LIMIT = 50;
 const QUERY_KEY = ["notifications"] as const;
 
 // Anti-flood de toasts: 60s por dedupe_key
