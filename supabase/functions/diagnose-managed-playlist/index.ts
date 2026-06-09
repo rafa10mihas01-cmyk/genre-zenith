@@ -2613,7 +2613,7 @@ Deno.serve(async (req) => {
       console.error("[diagnose] streak update failed:", (e as Error).message);
     }
 
-    return jr({ ok: true, diagnosis: diag, error: dErr?.message, sync: syncRes, _403_observed: run403s, _telemetry: tel.report() });
+    return jr({ ok: true, diagnosis: diag, error: dErr?.message, sync: syncRes, _403_observed: run403s, _telemetry: tel.report(), _single_path: singlePathStats });
   } catch (e) {
     // Circuit breaker aberto: aborta com erro claro em vez de degradar.
     if (e instanceof SpotifyCircuitOpenError) {
