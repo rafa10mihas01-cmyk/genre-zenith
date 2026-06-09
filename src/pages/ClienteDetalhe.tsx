@@ -1,6 +1,7 @@
 // ClienteDetalhe — página dedicada do cliente. Substitui o antigo drawer lateral.
 // Mostra ficha completa + extrato (músicas, deals, financeiro, observações).
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
@@ -112,36 +113,35 @@ export default function ClienteDetalhe() {
   const { deals, songs, loading: loadingDeals } = useCuratorDeals();
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [clientCampaigns, setClientCampaigns] = useState<Array<{
-    id: string;
-    track_name: string;
-    artist: string | null;
-    status: string;
-    campaign_type: string | null;
-    created_at: string;
-    valor_cobrado: number | null;
-    valor_recebido: number | null;
-    recebido_em: string | null;
-    deadline: string | null;
-  }>>([]);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const client = useMemo(() => clients.find((c) => c.id === id), [clients, id]);
-
-  // Carrega campanhas vinculadas a este cliente (campaigns.client_id)
-  useEffect(() => {
-    if (!id) return;
-    let cancelled = false;
-    (async () => {
+  const campaignsQuery = useQuery({
+    queryKey: ["client_campaigns", id],
+    enabled: !!id,
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("campaigns")
         .select("id, track_name, artist, status, campaign_type, created_at, valor_cobrado, valor_recebido, recebido_em, deadline")
-        .eq("client_id", id)
+        .eq("client_id", id!)
         .order("created_at", { ascending: false });
-      if (cancelled || error || !data) return;
-      setClientCampaigns(data as any);
-    })();
-    return () => { cancelled = true; };
-  }, [id]);
+      if (error) throw error;
+      return (data ?? []) as Array<{
+        id: string;
+        track_name: string;
+        artist: string | null;
+        status: string;
+        campaign_type: string | null;
+        created_at: string;
+        valor_cobrado: number | null;
+        valor_recebido: number | null;
+        recebido_em: string | null;
+        deadline: string | null;
+      }>;
+    },
+  });
+  const clientCampaigns = campaignsQuery.data ?? [];
+
+  const client = useMemo(() => clients.find((c) => c.id === id), [clients, id]);
 
   const clientSongs = useMemo(
     () => songs.filter((s: any) => s.client_id === id),
