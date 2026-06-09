@@ -810,18 +810,25 @@ Deno.serve(async (req) => {
         .maybeSingle();
       const recipientUserId = (curatorUser as any)?.user_id ?? null;
       if (recipientUserId) {
-        await admin.from("notifications").insert({
-          user_id: recipientUserId,
-          type: "info",
-          title: "Novo deal criado",
-          message:
-            "Novo deal criado — acesse seu portal para registrar as playlists",
-          metadata: {
-            category: "new_deal",
+        const curatorName = (curatorUser as any)?.name ?? "curador";
+        await admin.rpc("create_notification" as any, {
+          p_type: "info",
+          p_title: "Nova parceria disponível",
+          p_message:
+            `Um novo deal foi criado para ${curatorName}. ` +
+            `Ação: acesse o portal para registrar suas playlists.`,
+          p_action_url: `/playlist-deals?deal=${newDealId}`,
+          p_metadata: {
+            domain: "curator",
+            severity: "info",
+            kind: "new_deal",
+            action_required: true,
             deal_id: newDealId,
             campaign_id: campaignId,
             curator_id: campaign.curator_id,
           },
+          p_dedupe_key: `new_deal:${newDealId}`,
+          p_cooldown_minutes: 60 * 24,
         });
         notification_sent = true;
       }
