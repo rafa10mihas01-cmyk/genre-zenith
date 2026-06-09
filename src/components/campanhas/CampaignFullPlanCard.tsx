@@ -259,6 +259,13 @@ export function CampaignFullPlanCard({
       allocated += v;
     }
     arr[lastIdx] = Math.max(0, radioTotal - allocated);
+    // Piso de partida: primeiro dia ativo da rádio nunca pode ser < 1.000.
+    // Não recalcula a curva — só eleva o D1-ativo se vier abaixo do piso.
+    const MIN_RADIO_DAILY = 1000;
+    const firstIdx = arr.findIndex((v) => v > 0);
+    if (firstIdx >= 0 && arr[firstIdx] < MIN_RADIO_DAILY) {
+      arr[firstIdx] = MIN_RADIO_DAILY;
+    }
     return arr;
   }, [snapshot.curva, days, radioTotal]);
   const radioCollected = radioCollectedTotal != null && radioCollectedTotal > 0;
