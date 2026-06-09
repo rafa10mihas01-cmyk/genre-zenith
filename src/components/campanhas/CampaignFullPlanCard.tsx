@@ -522,7 +522,7 @@ export function CampaignFullPlanCard({
                               <PlaylistJobBadge agg={jobAgg} />
                             </div>
                             <div className="text-[11px] text-muted-foreground tabular-nums truncate">
-                              {formatInt(p.followers)} saves · cap {formatInt(p.capDia)}/dia
+                              {formatInt(p.followers)} saves
                             </div>
                           </div>
                         </div>
