@@ -68,6 +68,7 @@ export function CampaignFullPlanCard({
   radioGoal,
   radioCollectedTotal = null,
 }: Props) {
+  const isMobile = useIsMobile();
   const [showZeros, setShowZeros] = useState(false);
   const [mode, setMode] = useState<"diario" | "acumulado">("diario");
   const [copied, setCopied] = useState(false);
