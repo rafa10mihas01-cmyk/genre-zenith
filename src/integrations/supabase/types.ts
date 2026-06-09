@@ -9655,6 +9655,57 @@ export type Database = {
         }
         Relationships: []
       }
+      spotify_artist_cache: {
+        Row: {
+          created_at: string
+          enriched_at: string | null
+          fetch_error: string | null
+          fetch_status: string
+          followers: number | null
+          genres: string[]
+          genres_refreshed_at: string | null
+          image_url: string | null
+          name: string | null
+          popularity: number | null
+          raw: Json | null
+          refreshed_at: string | null
+          source_app_id: string | null
+          spotify_artist_id: string
+        }
+        Insert: {
+          created_at?: string
+          enriched_at?: string | null
+          fetch_error?: string | null
+          fetch_status?: string
+          followers?: number | null
+          genres?: string[]
+          genres_refreshed_at?: string | null
+          image_url?: string | null
+          name?: string | null
+          popularity?: number | null
+          raw?: Json | null
+          refreshed_at?: string | null
+          source_app_id?: string | null
+          spotify_artist_id: string
+        }
+        Update: {
+          created_at?: string
+          enriched_at?: string | null
+          fetch_error?: string | null
+          fetch_status?: string
+          followers?: number | null
+          genres?: string[]
+          genres_refreshed_at?: string | null
+          image_url?: string | null
+          name?: string | null
+          popularity?: number | null
+          raw?: Json | null
+          refreshed_at?: string | null
+          source_app_id?: string | null
+          spotify_artist_id?: string
+        }
+        Relationships: []
+      }
       spotify_call_log: {
         Row: {
           app_id: string | null
@@ -9826,6 +9877,57 @@ export type Database = {
           email?: string
           id?: string
           note?: string | null
+        }
+        Relationships: []
+      }
+      spotify_enrichment_queue: {
+        Row: {
+          attempts: number
+          claimed_at: string | null
+          claimed_by: string | null
+          created_at: string
+          done_at: string | null
+          id: string
+          kind: string
+          last_error: string | null
+          max_attempts: number
+          priority: number
+          reason: string
+          ref_id: string
+          scheduled_for: string
+          status: string
+        }
+        Insert: {
+          attempts?: number
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          done_at?: string | null
+          id?: string
+          kind: string
+          last_error?: string | null
+          max_attempts?: number
+          priority?: number
+          reason?: string
+          ref_id: string
+          scheduled_for?: string
+          status?: string
+        }
+        Update: {
+          attempts?: number
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          done_at?: string | null
+          id?: string
+          kind?: string
+          last_error?: string | null
+          max_attempts?: number
+          priority?: number
+          reason?: string
+          ref_id?: string
+          scheduled_for?: string
+          status?: string
         }
         Relationships: []
       }
@@ -10040,6 +10142,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      spotify_track_cache: {
+        Row: {
+          album_id: string | null
+          artist_ids: string[]
+          created_at: string
+          duration_ms: number | null
+          enriched_at: string | null
+          explicit: boolean | null
+          fetch_error: string | null
+          fetch_status: string
+          isrc: string | null
+          name: string | null
+          popularity: number | null
+          popularity_refreshed_at: string | null
+          raw: Json | null
+          release_date: string | null
+          source_app_id: string | null
+          spotify_track_id: string
+        }
+        Insert: {
+          album_id?: string | null
+          artist_ids?: string[]
+          created_at?: string
+          duration_ms?: number | null
+          enriched_at?: string | null
+          explicit?: boolean | null
+          fetch_error?: string | null
+          fetch_status?: string
+          isrc?: string | null
+          name?: string | null
+          popularity?: number | null
+          popularity_refreshed_at?: string | null
+          raw?: Json | null
+          release_date?: string | null
+          source_app_id?: string | null
+          spotify_track_id: string
+        }
+        Update: {
+          album_id?: string | null
+          artist_ids?: string[]
+          created_at?: string
+          duration_ms?: number | null
+          enriched_at?: string | null
+          explicit?: boolean | null
+          fetch_error?: string | null
+          fetch_status?: string
+          isrc?: string | null
+          name?: string | null
+          popularity?: number | null
+          popularity_refreshed_at?: string | null
+          raw?: Json | null
+          release_date?: string | null
+          source_app_id?: string | null
+          spotify_track_id?: string
+        }
+        Relationships: []
       }
       spotify_user_tokens: {
         Row: {
@@ -11219,6 +11378,31 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "playlist_operation_queue"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_spotify_enrichment_jobs: {
+        Args: { _limit?: number; _worker: string }
+        Returns: {
+          attempts: number
+          claimed_at: string | null
+          claimed_by: string | null
+          created_at: string
+          done_at: string | null
+          id: string
+          kind: string
+          last_error: string | null
+          max_attempts: number
+          priority: number
+          reason: string
+          ref_id: string
+          scheduled_for: string
+          status: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "spotify_enrichment_queue"
           isOneToOne: false
           isSetofReturn: true
         }
