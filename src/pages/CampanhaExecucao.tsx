@@ -892,11 +892,29 @@ export default function CampanhaExecucao() {
                 allocations={allocs as unknown as Parameters<typeof CampaignFullPlanSummary>[0]["allocations"]}
                 engagementMultiplier={camp.engagement_multiplier ?? 35}
               />
-              <Tabs value={distributionTab} onValueChange={setDistributionTab} className="space-y-4">
-                <TabsList>
-                  <TabsTrigger value="mapa">Cronograma</TabsTrigger>
-                  <TabsTrigger value="console">Distribuição</TabsTrigger>
-                  <TabsTrigger value="status">Acompanhamento</TabsTrigger>
+              <Tabs value={distributionTab} onValueChange={setDistributionTab} className="space-y-3">
+                <TabsList className="grid grid-cols-3 w-full bg-transparent p-0 h-auto gap-2">
+                  <TabsTrigger
+                    value="mapa"
+                    className="flex flex-col items-center justify-center gap-1 rounded-xl border border-border bg-card data-[state=active]:border-primary/60 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-muted-foreground h-[68px] px-1 min-w-0 transition-colors"
+                  >
+                    <CalendarDays className="h-4 w-4 shrink-0" />
+                    <span className="text-[12px] font-medium truncate leading-none">Cronograma</span>
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="console"
+                    className="flex flex-col items-center justify-center gap-1 rounded-xl border border-border bg-card data-[state=active]:border-primary/60 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-muted-foreground h-[68px] px-1 min-w-0 transition-colors"
+                  >
+                    <Share2 className="h-4 w-4 shrink-0" />
+                    <span className="text-[12px] font-medium truncate leading-none">Distribuição</span>
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="status"
+                    className="flex flex-col items-center justify-center gap-1 rounded-xl border border-border bg-card data-[state=active]:border-primary/60 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-muted-foreground h-[68px] px-1 min-w-0 transition-colors"
+                  >
+                    <Activity className="h-4 w-4 shrink-0" />
+                    <span className="text-[12px] font-medium truncate leading-none">Acompanhamento</span>
+                  </TabsTrigger>
                 </TabsList>
                 <TabsContent value="mapa" forceMount className="mt-0 space-y-4 data-[state=inactive]:hidden">
                   <div className="flex items-center justify-end gap-3 flex-wrap">
