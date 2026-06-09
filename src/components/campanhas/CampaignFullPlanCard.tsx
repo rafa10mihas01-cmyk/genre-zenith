@@ -306,6 +306,11 @@ export function CampaignFullPlanCard({
   if (plans.length === 0) return null;
 
   const footerValues = mode === "diario" ? dailyTotals : cumulativeTotals;
+  const playlistColumnWidth = 300;
+  const totalColumnWidth = 80;
+  const positionColumnWidth = 52;
+  const dayColumnWidth = 56;
+  const tableWidth = playlistColumnWidth + positionColumnWidth + totalColumnWidth + days * dayColumnWidth;
 
   return (
     <Card className="mt-4">
@@ -359,10 +364,18 @@ export function CampaignFullPlanCard({
 
         <div className="rounded-lg border border-border overflow-hidden">
           <div className="max-h-[80vh] overflow-auto scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <table className="text-[11px] border-separate border-spacing-0 min-w-full">
+            <table className="text-[11px] border-separate border-spacing-0 table-fixed" style={{ width: tableWidth }}>
+              <colgroup>
+                <col style={{ width: playlistColumnWidth }} />
+                <col style={{ width: positionColumnWidth }} />
+                <col style={{ width: totalColumnWidth }} />
+                {Array.from({ length: days }, (_, i) => (
+                  <col key={i} style={{ width: dayColumnWidth }} />
+                ))}
+              </colgroup>
               <thead className="sticky top-0 z-20 bg-card text-muted-foreground">
                 <tr>
-                  <th className="sticky left-0 z-30 bg-card text-left font-medium py-2 px-3 border-b border-r border-border w-14 md:w-auto md:min-w-[200px]">
+                  <th className="sticky left-0 z-30 bg-card text-left font-medium py-2 px-3 border-b border-r border-border w-[300px] max-w-[300px]">
                     <span className="hidden md:inline">Playlist</span>
                   </th>
                   <th className="text-center font-medium py-2 px-2 border-b border-border w-14">
@@ -388,7 +401,7 @@ export function CampaignFullPlanCard({
                   {Array.from({ length: days }, (_, i) => (
                     <th
                       key={i}
-                      className="text-right font-medium py-2 px-1.5 border-b border-border whitespace-nowrap min-w-[48px]"
+                      className="text-right font-medium py-2 px-1.5 border-b border-border whitespace-nowrap w-14"
                     >
                       <div className="tabular-nums">D{i + 1}</div>
                       <div className="text-[9px] text-muted-foreground/70 font-normal">
