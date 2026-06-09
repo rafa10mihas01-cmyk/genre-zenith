@@ -35,7 +35,16 @@ import {
   POSITION_PCT,
   ecoPlanTotalMultiplier,
   MIN_PLAYLIST_SAVES_FOR_CAMPAIGN,
+  ECO_CURVE_LOSS_COMPENSATION,
 } from "@/lib/campaignOperationalPlan";
+
+// ─── Free First (anti-canibalização local da Calculadora) ─────────────
+// Quando true, particiona o pool em Grupo A (livres) e Grupo B (ocupadas
+// por outras campanhas active/approved cuja janela sobrepõe a desta).
+// A é consumido sozinho até cobrir ~95% da meta diária; B só entra se sobrar gap.
+// Espelha a regra já existente em approve-campaign-plan/replan-campaign-eco.
+// Setar false desliga a regra e restaura comportamento anterior (sem mudanças).
+const CALCULATOR_FREE_FIRST_ENABLED = true;
 import type { EcoAllocationPlan } from "@/lib/campaignSnapshot";
 import { TrackPresencePanel } from "@/components/campanhas/TrackPresencePanel";
 
@@ -537,13 +546,93 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
         .filter(p => (p.followers ?? 0) >= MIN_PLAYLIST_SAVES_FOR_CAMPAIGN)
         .map(p => ({ id: p.id, followers: p.followers ?? 0, source: "neighbor" as const }));
 
-      const realPlan = planRealCapacity(
-        [...corePool, ...neighborPool],
-        dailyNeed,
-        song.engagementMultiplier ?? 35,
-        undefined,
-        { mode },
-      );
+      // ─── Free First: detecta playlists OCUPADAS por outras campanhas
+      // active/approved cuja janela sobrepõe a janela desta nova campanha.
+      // Particiona Grupo A (livres) e Grupo B (ocupadas) e consome A primeiro.
+      // A própria campanha ainda não existe no banco (closeOne cria depois),
+      // então não há risco de auto-filtrar.
+      const occupiedSet = new Set<string>();
+      const startMs = new Date(song.startDateISO).getTime();
+      const winStartMs = isNaN(startMs) ? Date.now() : startMs;
+      const winEndMs = winStartMs + Math.max(1, planDays) * 86400000;
+      if (CALCULATOR_FREE_FIRST_ENABLED) {
+        const candidateIds = [...corePool, ...neighborPool].map(p => p.id);
+        if (candidateIds.length > 0) {
+          try {
+            const { data: occRows } = await supabase
+              .from("campaign_eco_allocations")
+              .select("managed_playlist_id, campaigns!inner(status, started_at, simulation_snapshot)")
+              .in("managed_playlist_id", candidateIds)
+              .in("status", ["pending", "approved", "dispatched"]);
+            for (const row of (occRows ?? []) as any[]) {
+              const c = row?.campaigns;
+              if (!c || !["active", "approved"].includes(c.status)) continue;
+              if (!c.started_at) continue;
+              const cs = new Date(c.started_at).getTime();
+              if (!Number.isFinite(cs)) continue;
+              const snap = c.simulation_snapshot ?? {};
+              const dd = Math.max(1, Number(snap.effectiveDays ?? snap.days ?? 30));
+              const ce = cs + dd * 86400000;
+              // overlap test (semi-aberto)
+              if (ce <= winStartMs || cs >= winEndMs) continue;
+              if (row.managed_playlist_id) occupiedSet.add(row.managed_playlist_id);
+            }
+          } catch (e) {
+            // Degradação segura: sem occupied → comportamento legado.
+            console.warn("[Calculadora] FreeFirst: falha ao buscar ocupadas, seguindo sem partição", e);
+          }
+        }
+      }
+
+      const isFreeFirstActive = CALCULATOR_FREE_FIRST_ENABLED && occupiedSet.size > 0;
+      let realPlan: ReturnType<typeof planRealCapacity>;
+      if (isFreeFirstActive) {
+        const coreA = corePool.filter(p => !occupiedSet.has(p.id));
+        const coreB = corePool.filter(p => occupiedSet.has(p.id));
+        const neighA = neighborPool.filter(p => !occupiedSet.has(p.id));
+        const neighB = neighborPool.filter(p => occupiedSet.has(p.id));
+
+        // Fase A: só livres.
+        const planA = planRealCapacity(
+          [...coreA, ...neighA],
+          dailyNeed,
+          song.engagementMultiplier ?? 35,
+          undefined,
+          { mode },
+        );
+        let combinedAllocs = [...planA.allocations];
+        let coveredDaily = planA.coveredDaily;
+        let remainingDaily = planA.remaining; // já em escala compensada (×1.15)
+
+        // Fase B: só se ainda faltar gap após esgotar A.
+        const stopThresholdCompensated = dailyNeed * ECO_CURVE_LOSS_COMPENSATION * 0.05;
+        if (remainingDaily > stopThresholdCompensated && (coreB.length > 0 || neighB.length > 0)) {
+          const newDailyNeed = remainingDaily / ECO_CURVE_LOSS_COMPENSATION;
+          const planB = planRealCapacity(
+            [...coreB, ...neighB],
+            newDailyNeed,
+            song.engagementMultiplier ?? 35,
+            undefined,
+            { mode },
+          );
+          combinedAllocs.push(...planB.allocations);
+          coveredDaily += planB.coveredDaily;
+          remainingDaily = planB.remaining;
+        }
+
+        realPlan = { allocations: combinedAllocs, coveredDaily, remaining: remainingDaily };
+        console.info(
+          `[Calculadora] FreeFirst ON: grupoA=${coreA.length + neighA.length} (usadas=${planA.allocations.length}) | grupoB=${coreB.length + neighB.length} (usadas=${combinedAllocs.length - planA.allocations.length}) | ocupadas detectadas=${occupiedSet.size}`,
+        );
+      } else {
+        realPlan = planRealCapacity(
+          [...corePool, ...neighborPool],
+          dailyNeed,
+          song.engagementMultiplier ?? 35,
+          undefined,
+          { mode },
+        );
+      }
 
       // Converte RealCapacityAlloc → EcoAllocationPlan. planned_streams usa o
       // multiplicador de plano (rampa) pra bater com o buildEcoPlan do servidor.
