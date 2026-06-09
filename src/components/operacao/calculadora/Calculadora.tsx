@@ -803,14 +803,10 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
 
       {/* ============== STEP 1 — SESSÃO ============== */}
       {step === 1 && (
-        <div className="space-y-5">
-          {/* Tipo da campanha: fixado em "ecosystem" — externa/híbrida desativadas por enquanto */}
-
-
-
-          {/* Fonte de coleta + Sessão lado a lado. Cada coluna empilha suas opções verticalmente. */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-stretch">
-            {/* Fonte de coleta — Spotify (bot) vs Excel (planilha). Evita gastar crédito do bot quando não temos acesso. */}
+        <div className="flex flex-col gap-5 min-h-[calc(100vh-340px)]">
+          {/* Fonte de coleta + Sessão lado a lado. Ambas as colunas crescem pra preencher a altura disponível. */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-stretch flex-1">
+            {/* Fonte de coleta — Spotify (bot) vs Excel (planilha). */}
             <Card className="h-full flex flex-col">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Fonte de coleta</CardTitle>
@@ -819,7 +815,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-0 flex-1 flex flex-col">
-                <div className="grid grid-cols-1 gap-3 flex-1">
+                <div className="grid grid-cols-1 gap-4 flex-1">
                   {([
                     { id: "bot",         title: "Spotify" },
                     { id: "spreadsheet", title: "Excel"   },
@@ -831,7 +827,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                         type="button"
                         onClick={() => setCollectionMode(opt.id)}
                         className={cn(
-                          "group relative overflow-hidden rounded-xl border px-4 py-6 flex items-center justify-center transition-all duration-300",
+                          "group relative overflow-hidden rounded-xl border px-4 flex items-center justify-center transition-all duration-300 min-h-[120px]",
                           active
                             ? "border-primary/60 bg-primary/5 ring-1 ring-primary/40"
                             : "border-border hover:border-foreground/30 hover:bg-accent/30",
@@ -857,7 +853,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                 <CardTitle className="text-base">Sessão</CardTitle>
                 <CardDescription>Cliente e curador valem pra todas as músicas desta sessão.</CardDescription>
               </CardHeader>
-              <CardContent className="flex-1 flex flex-col gap-4">
+              <CardContent className="flex-1 flex flex-col justify-center gap-5">
                 <div className="space-y-1.5">
                   <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">
                     Cliente
@@ -890,11 +886,10 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
             </Card>
           </div>
 
-
           <Button
             size="lg"
             variant="solid"
-            className="w-full"
+            className="w-full mt-auto"
             onClick={() => setStep(2)}
             disabled={!canGoStep2 || (campaignType !== "ecosystem" && !curatorId)}
           >
