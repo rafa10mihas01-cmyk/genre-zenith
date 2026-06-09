@@ -12,6 +12,7 @@ import ScrollManager from "@/components/ScrollManager";
 import ScreenStateManager from "@/components/ScreenStateManager";
 import { LoadingProvider, useBootGate } from "@/contexts/LoadingContext";
 import { SplashLoader } from "@/components/SplashLoader";
+import { RouteSuspenseFallback } from "@/components/RouteSuspenseFallback";
 import RootRoute from "./components/RootRoute";
 
 // ---------------------------------------------------------------------------
@@ -79,9 +80,14 @@ const queryClient = new QueryClient({
   },
 });
 
+// Suspense interno fica DENTRO do AppLayout — quando uma rota lazy carrega,
+// sidebar+topbar permanecem montados; só a área de conteúdo mostra fallback.
+// Resolve "tela branca entre rotas" / desmonte do shell.
 const Protected = ({ children }: { children: React.ReactNode }) => (
   <ProtectedRoute>
-    <AppLayout>{children}</AppLayout>
+    <AppLayout>
+      <Suspense fallback={<RouteSuspenseFallback />}>{children}</Suspense>
+    </AppLayout>
   </ProtectedRoute>
 );
 
