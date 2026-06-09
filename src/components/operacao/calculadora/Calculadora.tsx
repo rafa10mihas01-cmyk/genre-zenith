@@ -892,100 +892,178 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
 
       {/* ============== STEP 1 — SESSÃO ============== */}
       {step === 1 && (
-        <div className="flex flex-col gap-5 min-h-[calc(100vh-340px)]">
-          {/* Fonte de coleta + Sessão lado a lado. Ambas as colunas crescem pra preencher a altura disponível. */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-stretch flex-1">
-            {/* Fonte de coleta — Spotify (bot) vs Excel (planilha). */}
-            <Card className="h-full flex flex-col">
+        <div className="flex flex-col gap-6">
+          {/* Duas colunas equilibradas: fonte de coleta + sessão. Alturas casam naturalmente. */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
+            {/* ─── Fonte de coleta ─── */}
+            <Card className="flex flex-col">
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Fonte de coleta</CardTitle>
-                <CardDescription className="text-xs">
-                  Como os números entram no sistema durante a campanha.
-                </CardDescription>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-base">Fonte de coleta</CardTitle>
+                    <CardDescription className="text-xs mt-1">
+                      Como os números entram no sistema durante a campanha.
+                    </CardDescription>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground border-border/60 shrink-0">
+                    Etapa 1
+                  </Badge>
+                </div>
               </CardHeader>
-              <CardContent className="pt-0 flex-1 flex flex-col">
-                <div className="grid grid-cols-1 gap-4 flex-1">
-                  {([
-                    { id: "bot",         title: "Spotify" },
-                    { id: "spreadsheet", title: "Excel"   },
-                  ] as const).map(opt => {
-                    const active = collectionMode === opt.id;
-                    return (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => setCollectionMode(opt.id)}
+              <CardContent className="pt-0 flex-1 flex flex-col gap-3">
+                {([
+                  {
+                    id: "bot" as const,
+                    title: "Spotify",
+                    icon: Music,
+                    description: "Bot oficial coleta saves, plays e posição direto da playlist a cada ciclo.",
+                    tag: "Automático",
+                  },
+                  {
+                    id: "spreadsheet" as const,
+                    title: "Excel",
+                    icon: FileText,
+                    description: "Curador envia planilha periódica com prints — útil pra playlists fora da rede.",
+                    tag: "Manual",
+                  },
+                ]).map(opt => {
+                  const active = collectionMode === opt.id;
+                  const Icon = opt.icon;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setCollectionMode(opt.id)}
+                      className={cn(
+                        "group relative overflow-hidden rounded-xl border px-4 py-4 text-left transition-all duration-200 flex items-start gap-3",
+                        active
+                          ? "border-primary/50 bg-primary/[0.04] ring-1 ring-primary/30"
+                          : "border-border/70 hover:border-foreground/25 hover:bg-accent/20",
+                      )}
+                    >
+                      <span
                         className={cn(
-                          "group relative overflow-hidden rounded-xl border px-4 flex items-center justify-center transition-all duration-300 min-h-[120px]",
-                          active
-                            ? "border-primary/60 bg-primary/5 ring-1 ring-primary/40"
-                            : "border-border hover:border-foreground/30 hover:bg-accent/30",
+                          "shrink-0 grid place-items-center h-10 w-10 rounded-lg transition-colors",
+                          active ? "bg-primary/15 text-primary" : "bg-muted/40 text-muted-foreground group-hover:text-foreground",
                         )}
                       >
-                        <span
-                          className={cn(
-                            "text-2xl font-semibold tracking-tight transition-transform duration-300 group-hover:scale-110",
-                            active ? "text-primary" : "text-foreground",
-                          )}
-                        >
-                          {opt.title}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={cn("text-[15px] font-semibold tracking-tight", active ? "text-foreground" : "text-foreground")}>
+                            {opt.title}
+                          </span>
+                          <span className={cn(
+                            "text-[10px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded",
+                            active ? "bg-primary/15 text-primary" : "bg-muted/40 text-muted-foreground",
+                          )}>
+                            {opt.tag}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1 leading-snug">
+                          {opt.description}
+                        </p>
+                      </div>
+                      {active && (
+                        <CheckCircle2 className="absolute top-3 right-3 h-4 w-4 text-primary" />
+                      )}
+                    </button>
+                  );
+                })}
               </CardContent>
             </Card>
 
-            <Card className="h-full flex flex-col">
-              <CardHeader>
-                <CardTitle className="text-base">Sessão</CardTitle>
-                <CardDescription>Cliente e curador valem pra todas as músicas desta sessão.</CardDescription>
-              </CardHeader>
-              <CardContent className="flex-1 flex flex-col justify-center gap-5">
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">
-                    Cliente
-                  </Label>
-                  <Select value={clientId || "__none__"} onValueChange={v => setClientId(v === "__none__" ? "" : v)}>
-                    <SelectTrigger className="text-muted-foreground/80 data-[state=open]:text-foreground [&>span]:flex-1 [&>span]:text-center [&[data-state=closed]>span]:text-muted-foreground/60">
-                      <SelectValue placeholder="Selecione um cliente" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Sem cliente</SelectItem>
-                      {clientsList.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">
-                    Curador
-                  </Label>
-                  <div
-                    aria-disabled="true"
-                    className="flex h-10 w-full items-center justify-center rounded-md border border-dashed border-border/60 bg-background/40 px-3 py-2 text-sm text-muted-foreground/80 select-none"
-                  >
-                    Definido após a aprovação
+            {/* ─── Sessão ─── */}
+            <Card className="flex flex-col">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-base">Sessão</CardTitle>
+                    <CardDescription className="text-xs mt-1">
+                      Cliente e curador valem pra todas as músicas desta sessão.
+                    </CardDescription>
                   </div>
-                  <p className="text-[11px] text-muted-foreground/60 leading-snug pt-1">
-                    Os curadores serão criados como deals na aba Curadores após o planejamento ser aprovado.
-                  </p>
+                  <Badge variant="outline" className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground border-border/60 shrink-0">
+                    Etapa 1
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0 flex-1 flex flex-col gap-4">
+                {/* Cliente — campo ativo */}
+                <div className="rounded-xl border border-border/70 bg-background/40 p-4">
+                  <div className="flex items-start gap-3">
+                    <span className="shrink-0 grid place-items-center h-10 w-10 rounded-lg bg-muted/40 text-muted-foreground">
+                      <Users className="h-5 w-5" />
+                    </span>
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div>
+                        <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">
+                          Cliente
+                        </Label>
+                        <p className="text-[11px] text-muted-foreground/70 leading-snug mt-0.5">
+                          Dono do plano. Aparece em curva, relatórios e fechamento.
+                        </p>
+                      </div>
+                      <Select value={clientId || "__none__"} onValueChange={v => setClientId(v === "__none__" ? "" : v)}>
+                        <SelectTrigger className="h-10 text-sm">
+                          <SelectValue placeholder="Selecione um cliente" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Sem cliente</SelectItem>
+                          {clientsList.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Curador — bloco informativo, definido após aprovação */}
+                <div className="rounded-xl border border-dashed border-border/60 bg-background/20 p-4">
+                  <div className="flex items-start gap-3">
+                    <span className="shrink-0 grid place-items-center h-10 w-10 rounded-lg bg-muted/30 text-muted-foreground/70">
+                      <Layers className="h-5 w-5" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">
+                          Curador
+                        </Label>
+                        <span className="text-[10px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded bg-muted/40 text-muted-foreground">
+                          Pós-aprovação
+                        </span>
+                      </div>
+                      <p className="text-sm text-foreground/85 mt-1.5 leading-snug">
+                        Definido após a aprovação do planejamento.
+                      </p>
+                      <p className="text-[11px] text-muted-foreground/70 leading-snug mt-1">
+                        Os curadores serão criados como deals na aba Curadores — um ou vários por música, conforme a divisão real do trabalho.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          <Button
-            size="lg"
-            variant="solid"
-            className="w-full mt-auto"
-            onClick={() => setStep(2)}
-            disabled={!canGoStep2 || (campaignType !== "ecosystem" && !curatorId)}
-          >
-            Avançar pra Músicas <ArrowRight className="h-4 w-4 ml-2" />
-          </Button>
+          {/* Rodapé de ação — alinhado à direita, texto-guia à esquerda */}
+          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
+            <p className="text-xs text-muted-foreground/70">
+              Você pode voltar e editar estas escolhas em qualquer momento antes de aprovar o plano.
+            </p>
+            <Button
+              size="lg"
+              variant="solid"
+              className="sm:min-w-[260px]"
+              onClick={() => setStep(2)}
+              disabled={!canGoStep2 || (campaignType !== "ecosystem" && !curatorId)}
+            >
+              Avançar pra Músicas <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+          </div>
         </div>
       )}
+
 
 
       {/* ============== STEP 2 — MÚSICAS ============== */}
