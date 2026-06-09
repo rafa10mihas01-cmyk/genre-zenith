@@ -167,7 +167,7 @@ async function processTrack(
   let curator_playlist_count = 0;
   if (ids.length > 0) {
     const { count } = await supabase
-      .from("curator_playlists")
+      .from("v_curator_playlists_operational")
       .select("id", { count: "exact", head: true })
       .in("song_id", ids);
     curator_playlist_count = count ?? 0;
@@ -239,7 +239,7 @@ Deno.serve(async (req) => {
 
     // Calcular threshold de presença alta (percentil 80) sobre faixas conhecidas
     const { data: presenceStats } = await supabase
-      .from("curator_playlists")
+      .from("v_curator_playlists_operational")
       .select("song_id");
     const presenceMap = new Map<string, number>();
     for (const r of (presenceStats ?? []) as any[]) {

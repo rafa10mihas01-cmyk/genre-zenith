@@ -160,7 +160,7 @@ async function processForTracks(
       for (let i = 0; i < songIds.length; i += 500) {
         const chunk = songIds.slice(i, i + 500);
         const { data: cps } = await supabase
-          .from("curator_playlists")
+          .from("v_curator_playlists_operational")
           .select("song_id, spotify_playlist_id, spotify_owner_name")
           .in("song_id", chunk)
           .not("spotify_playlist_id", "is", null);

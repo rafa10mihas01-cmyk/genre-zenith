@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
     const targetPlays = Number(deal.target_plays ?? 0) || dailyGoal * days;
 
     const { data: playlists, error: plErr } = await admin
-      .from("curator_playlists")
+      .from("v_curator_playlists_operational")
       .select("id, playlist_name, followers, match_status, spotify_playlist_id, image_url, spotify_url")
       .eq("deal_id", dealId)
       .in("match_status", ["curator", "baseline"])

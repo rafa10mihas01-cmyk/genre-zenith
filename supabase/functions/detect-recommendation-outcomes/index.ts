@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
     const presence = new Set<string>(); // "trackId|playlistId"
     if (playlistIds.length && trackIds.length) {
       const { data: cps } = await supabase
-        .from("curator_playlists")
+        .from("v_curator_playlists_operational")
         .select("song_id, spotify_playlist_id")
         .in("spotify_playlist_id", playlistIds as any);
       const songIds = Array.from(new Set((cps ?? []).map((r: any) => r.song_id).filter(Boolean)));

@@ -62,7 +62,7 @@ async function processPlaylist(
 
   if (kind === "curator") {
     const { data } = await supabase
-      .from("curator_playlists")
+      .from("v_curator_playlists_operational")
       .select("id, song_id, playlist_name, spotify_owner_name, image_url, followers")
       .eq("spotify_playlist_id", spotifyPlaylistId);
     songRows = data ?? [];
@@ -269,7 +269,7 @@ Deno.serve(async (req) => {
     const PAGE = 1000;
     for (let from = 0; from < 50000; from += PAGE) {
       const { data, error } = await supabase
-        .from("curator_playlists")
+        .from("v_curator_playlists_operational")
         .select("spotify_playlist_id")
         .not("spotify_playlist_id", "is", null)
         .range(from, from + PAGE - 1);

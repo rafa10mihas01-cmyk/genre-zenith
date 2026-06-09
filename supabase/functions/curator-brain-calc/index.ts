@@ -56,7 +56,7 @@ async function calcOne(supabase: any, curatorId: string) {
         ((await supabase.from("curator_deals").select("id").eq("curator_id", curatorId)).data ?? []).map((d: any) => d.id),
       ),
     supabase
-      .from("curator_playlists")
+      .from("v_curator_playlists_operational")
       .select("spotify_playlist_id, followers")
       .in("deal_id",
         ((await supabase.from("curator_deals").select("id").eq("curator_id", curatorId)).data ?? []).map((d: any) => d.id),
