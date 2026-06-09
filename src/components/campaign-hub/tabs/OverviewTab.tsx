@@ -368,9 +368,10 @@ export function OverviewTab({
 
 
       {/* Grid principal: Curva (ou slot) + Top playlists */}
-      <div className={cn("grid grid-cols-1 gap-4 items-start", (showCurveCard || curveSlot) ? "lg:grid-cols-3" : "")}>
+      <div className={cn("grid grid-cols-1 gap-4", (showCurveCard || curveSlot) ? "lg:grid-cols-3" : "")}>
         {curveSlot ? (
-          <div className="lg:col-span-2">{curveSlot}</div>
+          <div className="lg:col-span-2 flex flex-col gap-4 [&>*:last-child]:flex-1">{curveSlot}</div>
+
         ) : showCurveCard ? (
         <Card className="lg:col-span-2">
           <CardContent className="p-5">
