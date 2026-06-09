@@ -327,7 +327,7 @@ export function CampaignFullPlanCard({
   if (plans.length === 0) return null;
 
   const footerValues = mode === "diario" ? dailyTotals : cumulativeTotals;
-  const playlistColumnWidth = 300;
+  const playlistColumnWidth = isMobile ? 56 : 300;
   const totalColumnWidth = 80;
   const positionColumnWidth = 52;
   const dayColumnWidth = 56;
