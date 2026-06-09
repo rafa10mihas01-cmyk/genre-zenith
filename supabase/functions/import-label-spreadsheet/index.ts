@@ -461,38 +461,58 @@ Deno.serve(async (req) => {
       auto_fixes_total: Object.values(autoFixes).reduce((a, b) => a + b, 0),
     };
 
+    // 🛡️ Avaliador de quarentena — chamado também no preview pra UI sinalizar antes do commit.
+    //    Compara com o último upload válido: hash duplicado, janela parcial (S4A 7d/24h),
+    //    regressão massiva (>50% playlists caíram, ou média < 50%).
+    const evalRows = matched
+      .filter((r) => typeof r.playlist_spotify_id === "string" && r.playlist_spotify_id.length > 0)
+      .map((r) => ({ playlist_spotify_id: r.playlist_spotify_id, streams: r.streams }));
+    const { data: evalData } = await admin.rpc("evaluate_upload_quarantine", {
+      p_deal_id: dealId,
+      p_content_hash: hash,
+      p_rows: evalRows,
+    });
+    const evalResult = (evalData ?? { decision: "accept", mode: "periodic" }) as {
+      decision: "accept" | "quarantine" | "reject" | "review";
+      reason?: string;
+      mode?: string;
+      window_kind?: string | null;
+      signals?: Record<string, unknown>;
+      duplicate_of?: string;
+    };
+
     if (mode === "preview") {
-      return jr({ ok: true, mode: "preview", summary: previewSummary });
+      return jr({
+        ok: true,
+        mode: "preview",
+        summary: { ...previewSummary, quarantine: evalResult },
+      });
     }
 
     // ----- COMMIT -----
 
-    const today = new Date().toISOString().slice(0, 10);
-    const { data: existingUpload } = await admin
-      .from("label_spreadsheet_uploads")
-      .select("id, rows_imported, total_streams, created_at")
-      .eq("deal_id", dealId)
-      .eq("content_hash", hash)
-      .eq("reference_date", today)
-      .maybeSingle();
-    if (existingUpload) {
+    if (evalResult.decision === "reject") {
       return jr({
-        ok: true,
-        mode: "commit",
-        duplicate: true,
-        message: "Essa mesma planilha já foi enviada hoje.",
-        upload: existingUpload,
-      });
+        ok: false,
+        error: "Essa mesma planilha já foi enviada antes. Envie a versão mais recente.",
+        quarantine: evalResult,
+      }, 200);
     }
 
+    const today = new Date().toISOString().slice(0, 10);
+
     // 🎯 Primeiro upload do deal vira BASELINE automaticamente.
-    // Sem isso, o cálculo de "delivered" conta tudo desde o início como
-    // entrega — inflando o progresso. Marcamos uma vez só.
     const { count: prevUploadsCount } = await admin
       .from("label_spreadsheet_uploads")
       .select("id", { count: "exact", head: true })
       .eq("deal_id", dealId);
     const isBaseline = (prevUploadsCount ?? 0) === 0;
+
+    // Modo final do upload
+    const willQuarantine = evalResult.decision === "quarantine";
+    const uploadMode = willQuarantine
+      ? "partial_window"
+      : (isBaseline ? "baseline" : (evalResult.mode ?? "periodic"));
 
     const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
     const filePath = `${dealId}/${Date.now()}-${safeName}`;
@@ -520,9 +540,14 @@ Deno.serve(async (req) => {
         content_hash: hash,
         rows_imported: rows.length,
         total_streams: totalStreams,
-        status: "imported",
+        status: willQuarantine ? "quarantined" : "imported",
         reference_date: today,
-        is_baseline: isBaseline,
+        is_baseline: isBaseline && !willQuarantine,
+        upload_mode: uploadMode,
+        window_kind: evalResult.window_kind ?? null,
+        quarantined_at: willQuarantine ? new Date().toISOString() : null,
+        quarantine_reason: willQuarantine ? (evalResult.reason ?? null) : null,
+        quarantine_signals: willQuarantine ? (evalResult.signals ?? null) : null,
       })
       .select()
       .single();
@@ -558,6 +583,21 @@ Deno.serve(async (req) => {
         .from("label_spreadsheet_rows")
         .insert(chunk);
       if (rowsErr) console.error("rows insert error", rowsErr);
+    }
+
+    // 🚫 Upload quarentenado: ainda gravou upload + rows pra auditoria, mas NÃO propaga
+    //    snapshots, collections, total_delivered nem proofs. O cliente vê o aviso.
+    if (willQuarantine) {
+      return jr({
+        ok: true,
+        mode: "commit",
+        quarantined: true,
+        quarantine: evalResult,
+        message: evalResult.reason === "partial_window_detected"
+          ? "Essa planilha parece ser de janela curta (últimos 7d). Foi arquivada e NÃO afeta os totais."
+          : "Planilha em quarentena: regressão massiva detectada. Os totais anteriores foram preservados.",
+        upload: uploadRow,
+      });
     }
 
     // 3) Snapshots + delivery_proofs — só para linhas que casaram com
@@ -753,22 +793,28 @@ Deno.serve(async (req) => {
       const dealIdsForRows = dealIds.length > 0 ? dealIds : [dealId];
       const { data: allRows } = await admin
         .from("label_spreadsheet_rows")
-        .select("streams, playlist_spotify_id, upload_id, label_spreadsheet_uploads!inner(is_baseline, created_at)")
+        .select("streams, playlist_spotify_id, upload_id, label_spreadsheet_uploads!inner(is_baseline, created_at, quarantined_at)")
         .in("deal_id", dealIdsForRows);
 
       const baselineByPlaylist = new Map<string, number>();
+      // 🔒 Monotonicidade: latestByPlaylist guarda o MAIOR streams já observado
+      //    em uploads válidos (ignora quarentenados). Sem isso, um upload novo
+      //    com janela curta derrubaria a entrega histórica da campanha.
       const latestByPlaylist = new Map<string, { streams: number; t: number }>();
       for (const row of (allRows ?? []) as any[]) {
         const pid = row.playlist_spotify_id as string | null;
         if (!pid) continue;
         const upload = row.label_spreadsheet_uploads as any;
+        if (upload?.quarantined_at) continue; // ignora upload em quarentena
         const streams = Number(row.streams || 0);
         if (upload?.is_baseline) {
           baselineByPlaylist.set(pid, Math.max(baselineByPlaylist.get(pid) ?? 0, streams));
         } else {
-          const t = new Date(upload?.created_at ?? 0).getTime();
           const cur = latestByPlaylist.get(pid);
-          if (!cur || t > cur.t) latestByPlaylist.set(pid, { streams, t });
+          // pega o MAIOR valor, não o mais recente
+          if (!cur || streams > cur.streams) {
+            latestByPlaylist.set(pid, { streams, t: new Date(upload?.created_at ?? 0).getTime() });
+          }
         }
       }
 
@@ -826,6 +872,15 @@ Deno.serve(async (req) => {
             console.error(`[mirror] RPC error campaign=${campaignIdForUpdate}`, rpcErr.message, rpcErr.details ?? "", rpcErr.hint ?? "");
           } else {
             console.log(`[mirror] RPC ok campaign=${campaignIdForUpdate}`, JSON.stringify(rpcData));
+            // Vincula collections recém criadas ao upload (pra view enxergar quarentena depois)
+            try {
+              await admin
+                .from("campaign_playlist_collections")
+                .update({ upload_id: uploadId })
+                .eq("campaign_id", campaignIdForUpdate)
+                .is("upload_id", null)
+                .gte("captured_at", new Date(Date.now() - 5 * 60 * 1000).toISOString());
+            } catch (_) {}
           }
         } catch (e) {
           console.error(`[mirror] exception campaign=${campaignIdForUpdate}`, (e as Error).message);
