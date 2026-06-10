@@ -153,6 +153,7 @@ export default function PlanoCampanhaPublico() {
     return (allowed as string[]).includes(t ?? "") ? (t as CampaignHubTabId) : "overview";
   });
   const [livePlaylists, setLivePlaylists] = useState<MonitoredPlaylist[]>([]);
+  const [livePlaylistsLoading, setLivePlaylistsLoading] = useState(true);
   const [snapshotHistory, setSnapshotHistory] = useState<PrintsHistoryEntry[]>([]);
 
   const [evolutionSeries, setEvolutionSeries] = useState<EvolutionSeriesPoint[]>([]);
