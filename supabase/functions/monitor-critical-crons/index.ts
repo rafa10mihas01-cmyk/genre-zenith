@@ -188,16 +188,29 @@ Deno.serve(async (req) => {
   // ============================================================
   try {
     const sinceIso = new Date(Date.now() - SPOTIFY_403_WINDOW_MS).toISOString();
+    // FASE APP-03: ignora 403 de endpoints de descoberta restritos pelo Spotify
+    // (/v1/tracks e /v1/users/{id}/playlists). Esses 403s são quota/política da
+    // plataforma, não falha de escopo do app — não devem gerar incidente.
     const { data: rows } = await admin
       .from("spotify_call_log")
-      .select("app_id")
+      .select("app_id, endpoint")
       .eq("http_status", 403)
       .gte("created_at", sinceIso);
+
+    const isRestricted = (ep: string | null): boolean => {
+      if (!ep) return false;
+      if (ep === "api.spotify.com/v1/tracks") return true;
+      if (ep === "api.spotify.com/v1/tracks/:id") return true;
+      if (/^api\.spotify\.com\/v1\/users\/[^/]+\/playlists\/?$/.test(ep)) return true;
+      return false;
+    };
 
     const counts = new Map<string, number>();
     for (const r of rows ?? []) {
       const id = (r as any).app_id as string | null;
+      const ep = (r as any).endpoint as string | null;
       if (!id) continue;
+      if (isRestricted(ep)) continue;
       counts.set(id, (counts.get(id) ?? 0) + 1);
     }
 

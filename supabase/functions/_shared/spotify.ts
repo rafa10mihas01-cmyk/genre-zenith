@@ -239,6 +239,27 @@ function isCircuitBypassUrl(rawUrl: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
+// FASE APP-03 — Endpoints de descoberta com quota restrita pelo Spotify
+// (Web API mudanças nov/2024). Tratamos 401/403 nesses endpoints como
+// "modo degradado" — não geram incidente, não abrem breaker, não marcam
+// auth-failure no app. Os consumidores (engine-health, expand-from-winners)
+// já tratam ausência desses dados sem quebrar a operação.
+// ---------------------------------------------------------------------------
+export function isRestrictedDiscoveryEndpoint(rawUrl: string): boolean {
+  try {
+    const u = new URL(rawUrl);
+    if (u.hostname !== "api.spotify.com") return false;
+    // /v1/tracks (catálogo agregado) e /v1/tracks/{id}
+    if (u.pathname === "/v1/tracks" || /^\/v1\/tracks\/[A-Za-z0-9]{22}$/.test(u.pathname)) return true;
+    // /v1/users/{id}/playlists (descoberta de playlists públicas de usuário)
+    if (/^\/v1\/users\/[^/]+\/playlists\/?$/.test(u.pathname)) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Telemetria — log fail-silent em `spotify_call_log`.
 // Usado pelo guardedSpotifyFetch e pelo monkey-patch global do fetch.
 // Mantém o caller ileso (nunca lança) mas grita no console em falha
@@ -358,7 +379,10 @@ export async function guardedSpotifyFetch(
       } catch { /* ignore */ }
     }
     // Hook AUTH_INVALID em 401 + reset em 2xx (debounced).
-    if (r.status === 401 && !bypass && merged.app_id) {
+    // FASE APP-03: 401/403 em endpoints restritos NÃO marcam falha de auth
+    // (não é problema do app — é restrição de quota do Spotify).
+    const restricted = isRestrictedDiscoveryEndpoint(url);
+    if (r.status === 401 && !bypass && !restricted && merged.app_id) {
       fireAndForget(markAppAuthFailure(merged.app_id, "AUTH_INVALID"));
     } else if (r.ok && merged.app_id) {
       fireAndForget(resetAppAuthFailures(merged.app_id));
@@ -439,7 +463,9 @@ export function installSpotifyCircuitFetchGuard() {
         } catch { /* ignore */ }
       }
       // Hook AUTH_INVALID: 401 em api.spotify.com (não em accounts) → conta falha do app.
-      if (r.status === 401 && !bypass && merged.app_id) {
+      // FASE APP-03: pula endpoints restritos (descoberta) — 401/403 lá é quota do Spotify, não falha do app.
+      const restricted = isRestrictedDiscoveryEndpoint(rawUrl);
+      if (r.status === 401 && !bypass && !restricted && merged.app_id) {
         fireAndForget(markAppAuthFailure(merged.app_id, "AUTH_INVALID"));
       } else if (r.ok && merged.app_id) {
         // Sucesso 2xx → reseta contador (debounce 60s pra evitar RPC spam).

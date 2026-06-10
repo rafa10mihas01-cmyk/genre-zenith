@@ -1,6 +1,6 @@
 // Painel operacional: estado dos apps Spotify (Fase 8.9 — visibilidade).
 // Mostra status agregado por app: nível, playlists vinculadas, circuit breaker.
-import { ShieldAlert, ShieldCheck, ShieldQuestion, RefreshCw, Loader2 } from "lucide-react";
+import { ShieldAlert, ShieldCheck, ShieldQuestion, RefreshCw, Loader2, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -98,6 +98,14 @@ export function SpotifyAppsPanel() {
           <Button variant="ghost" size="sm" onClick={() => refetch()} disabled={isFetching}>
             {isFetching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
           </Button>
+        </div>
+
+        <div className="flex items-start gap-2 px-4 py-2.5 border-b border-border bg-muted/30 text-[11px] text-muted-foreground">
+          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+          <span>
+            Spotify limitou recursos de descoberta automática (catálogo agregado e listagem pública de usuários).
+            Campanhas, curadores, imports, growth engine e monitoramento continuam funcionando normalmente.
+          </span>
         </div>
 
         <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 items-center px-4 py-2 border-b border-border bg-elevated/40 text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
