@@ -1,9 +1,17 @@
 // useDealTodayPlaylistBreakdown — Mostra a contribuição de plays "hoje"
-// por playlist do deal. Calcula delta = último snapshot de hoje
-// menos o último snapshot de qualquer dia anterior (ou baseline) para a
-// mesma playlist. Permite o usuário auditar os números do card.
-// Também devolve plays_24h/7d/28d do snapshot mais recente para suporte
-// à aba "Performance" (janela oficial do Spotify for Artists).
+// por playlist do deal.
+//
+// FONTE OFICIAL (pós P2.1/P2.2): vw_campaign_playlist_growth — mesma view
+// que alimenta o portal do cliente, indexada por (campaign_id, spotify_playlist_id).
+// A tabela legada `curator_deal_snapshots` ficou vazia após a migração do
+// Growth Engine e não deve mais ser usada para métricas por playlist.
+//
+// Mapeamento:
+//   today_plays      = last_import_delta   (entrega da última importação válida)
+//   total_delivered  = delivery_accumulated (Δ entrega acumulada, oficial)
+//   plays_7d         = current_plays        (último plays/7d do S4A)
+//   plays_28d        = null                 (não disponível por playlist)
+//   baseline_total   = baseline_plays
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -45,8 +53,6 @@ const EMPTY: TodayBreakdown = {
   rows: [],
 };
 
-// Soma tratando null como "sem dado": se nenhuma linha tiver valor,
-// retorna null (para exibir "—" em vez de 0).
 function sumNullable(vals: Array<number | null>): number | null {
   let sum = 0;
   let has = false;
@@ -59,139 +65,125 @@ function sumNullable(vals: Array<number | null>): number | null {
   return has ? sum : null;
 }
 
-type SnapshotRow = {
-  playlist_id: string | null;
-  plays: number | null;
-  plays_24h: number | null;
-  plays_7d: number | null;
-  plays_28d: number | null;
-  captured_at: string;
-  is_baseline: boolean | null;
-};
-
-type PlaylistMetaRow = {
-  id: string;
-  playlist_name: string | null;
-  spotify_url: string | null;
-  spotify_owner_name: string | null;
-  image_url: string | null;
-  match_status: string | null;
-  is_baseline: boolean | null;
-};
-
 export function useDealTodayPlaylistBreakdown(dealId: string | null | undefined) {
   return useQuery({
-    queryKey: ["deal-today-playlist-breakdown", dealId],
+    queryKey: ["deal-today-playlist-breakdown", dealId, "growth-engine-v2"],
     enabled: !!dealId,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
     queryFn: async (): Promise<TodayBreakdown> => {
       if (!dealId) return EMPTY;
 
-      const snaps: SnapshotRow[] = [];
-      const pageSize = 1000;
-      for (let from = 0; from < 20_000; from += pageSize) {
-        const { data, error } = await supabase
-          .from("curator_deal_snapshots")
-          .select("playlist_id, plays, plays_24h, plays_7d, plays_28d, captured_at, is_baseline")
-          .eq("deal_id", dealId)
-          .order("captured_at", { ascending: true })
-          .range(from, from + pageSize - 1);
-        if (error) throw error;
-        snaps.push(...((data ?? []) as SnapshotRow[]));
-        if (!data || data.length < pageSize) break;
-      }
+      // 1) Deal → campaign_id
+      const { data: deal, error: dealErr } = await supabase
+        .from("curator_deals")
+        .select("id, campaign_id")
+        .eq("id", dealId)
+        .maybeSingle();
+      if (dealErr) throw dealErr;
+      if (!deal) return EMPTY;
 
-      const todayKey = new Date().toISOString().slice(0, 10);
-
-      type LastSnap = {
-        plays: number;
-        at: string;
-        plays_24h: number | null;
-        plays_7d: number | null;
-        plays_28d: number | null;
-      };
-      type Bucket = {
-        last: LastSnap | null;
-        todayLast: LastSnap | null;
-        prev: { plays: number; at: string } | null;
-        baseline: { plays: number; at: string } | null;
-      };
-      const map = new Map<string, Bucket>();
-      for (const s of snaps) {
-        if (!s.playlist_id) continue;
-        const day = String(s.captured_at).slice(0, 10);
-        const lastSnap: LastSnap = {
-          plays: Number(s.plays ?? 0),
-          at: s.captured_at,
-          plays_24h: s.plays_24h != null ? Number(s.plays_24h) : null,
-          plays_7d: s.plays_7d != null ? Number(s.plays_7d) : null,
-          plays_28d: s.plays_28d != null ? Number(s.plays_28d) : null,
-        };
-        const b = map.get(s.playlist_id) ?? { last: null, todayLast: null, prev: null, baseline: null };
-        if (!b.last || s.captured_at > b.last.at) b.last = lastSnap;
-        if (s.is_baseline && (!b.baseline || s.captured_at > b.baseline.at)) {
-          b.baseline = { plays: Number(s.plays ?? 0), at: s.captured_at };
-        }
-        if (day === todayKey) {
-          if (!b.todayLast || s.captured_at > b.todayLast.at) b.todayLast = lastSnap;
-        } else {
-          if (!b.prev || s.captured_at > b.prev.at) {
-            b.prev = { plays: Number(s.plays ?? 0), at: s.captured_at };
-          }
-        }
-        map.set(s.playlist_id, b);
-      }
-
-      const playlistIds = Array.from(map.keys()).filter((id) => !!map.get(id)!.last);
-      if (playlistIds.length === 0) return EMPTY;
-
-      const { data: playlists } = await supabase
-        // Separação operacional × observacional
+      // 2) Playlists cadastradas no deal (cadastro operacional)
+      const { data: plays, error: plErr } = await supabase
         .from("v_curator_playlists_operational")
-        .select("id, playlist_name, spotify_url, spotify_owner_name, image_url, match_status, is_baseline")
-        .in("id", playlistIds);
+        .select(
+          "id, spotify_playlist_id, spotify_url, playlist_name, spotify_owner_name, image_url, match_status, is_baseline",
+        )
+        .eq("deal_id", dealId)
+        .limit(2000);
+      if (plErr) throw plErr;
+      const playlists = plays ?? [];
+      if (playlists.length === 0) return EMPTY;
 
-      const plMap = new Map(((playlists ?? []) as PlaylistMetaRow[]).map((p) => [p.id, p]));
+      // 3) Growth oficial por (campaign_id, spotify_playlist_id)
+      const spotifyIds = Array.from(
+        new Set(
+          playlists
+            .map((p: any) => p.spotify_playlist_id)
+            .filter((id: string | null) => !!id),
+        ),
+      ) as string[];
 
-      const rows: TodayPlaylistRow[] = playlistIds.map((pid) => {
-        const b = map.get(pid)!;
-        const pl = plMap.get(pid);
-        const last = b.last!;
-        const todayLast = b.todayLast;
-        const prev = b.prev;
-        const previousTotal = prev ? prev.plays : 0;
-        const delta = todayLast ? Math.max(0, todayLast.plays - previousTotal) : 0;
-        const baselineTotal = b.baseline?.plays ?? 0;
-        const totalDelivered = Math.max(0, last.plays - baselineTotal);
+      let growthMap = new Map<
+        string,
+        {
+          delivery_accumulated: number;
+          last_import_delta: number | null;
+          current_plays: number | null;
+          baseline_plays: number | null;
+          last_captured_at: string | null;
+          baseline_at: string | null;
+        }
+      >();
+
+      if (spotifyIds.length > 0 && deal.campaign_id) {
+        const { data: growth, error: gErr } = await supabase
+          .from("vw_campaign_playlist_growth")
+          .select(
+            "playlist_id, delivery_accumulated, last_import_delta, current_plays, baseline_plays, last_captured_at, baseline_at",
+          )
+          .eq("campaign_id", deal.campaign_id)
+          .in("playlist_id", spotifyIds);
+        if (gErr) throw gErr;
+        for (const g of growth ?? []) {
+          if (!g.playlist_id) continue;
+          growthMap.set(g.playlist_id, {
+            delivery_accumulated: Number(g.delivery_accumulated ?? 0),
+            last_import_delta:
+              g.last_import_delta != null ? Number(g.last_import_delta) : null,
+            current_plays: g.current_plays != null ? Number(g.current_plays) : null,
+            baseline_plays:
+              g.baseline_plays != null ? Number(g.baseline_plays) : null,
+            last_captured_at: g.last_captured_at ?? null,
+            baseline_at: g.baseline_at ?? null,
+          });
+        }
+      }
+
+      const rows: TodayPlaylistRow[] = playlists.map((p: any) => {
+        const g = p.spotify_playlist_id ? growthMap.get(p.spotify_playlist_id) : null;
+        const totalDelivered = g?.delivery_accumulated ?? 0;
+        const today = g?.last_import_delta ?? 0;
+        const baseline = g?.baseline_plays ?? 0;
+        const current = g?.current_plays ?? baseline;
         return {
-          playlist_id: pid,
-          playlist_name: pl?.playlist_name ?? "(playlist removida)",
-          spotify_url: pl?.spotify_url ?? null,
-          spotify_owner_name: pl?.spotify_owner_name ?? null,
-          image_url: pl?.image_url ?? null,
-          match_status: pl?.match_status ?? "curator",
-          is_baseline: !!pl?.is_baseline,
-          today_plays: delta,
-          last_total: last.plays,
-          previous_total: previousTotal,
-          last_captured_at: last.at,
-          previous_captured_at: prev?.at ?? null,
-          plays_24h: last.plays_24h,
-          plays_7d: last.plays_7d,
-          plays_28d: last.plays_28d,
+          playlist_id: p.id,
+          playlist_name: p.playlist_name ?? "(playlist removida)",
+          spotify_url: p.spotify_url ?? null,
+          spotify_owner_name: p.spotify_owner_name ?? null,
+          image_url: p.image_url ?? null,
+          match_status: p.match_status ?? "curator",
+          is_baseline: !!p.is_baseline,
+          today_plays: today,
+          last_total: current,
+          previous_total: Math.max(0, current - (today ?? 0)),
+          last_captured_at: g?.last_captured_at ?? "",
+          previous_captured_at: null,
+          plays_24h: null,
+          plays_7d: g?.current_plays ?? null,
+          plays_28d: null,
           total_delivered: totalDelivered,
-          baseline_total: baselineTotal,
+          baseline_total: baseline,
         };
       });
 
-      rows.sort((a, b) => b.total_delivered - a.total_delivered || b.today_plays - a.today_plays);
-      const total_today = rows.reduce((s, r) => s + r.today_plays, 0);
-      const total_24h = sumNullable(rows.map((r) => r.plays_24h));
+      rows.sort(
+        (a, b) =>
+          b.total_delivered - a.total_delivered || b.today_plays - a.today_plays,
+      );
+
+      const total_today = rows.reduce((s, r) => s + (r.today_plays ?? 0), 0);
       const total_7d = sumNullable(rows.map((r) => r.plays_7d));
-      const total_28d = sumNullable(rows.map((r) => r.plays_28d));
       const total_delivered = rows.reduce((s, r) => s + r.total_delivered, 0);
-      return { total_today, total_24h, total_7d, total_28d, total_delivered, rows };
+
+      return {
+        total_today,
+        total_24h: null,
+        total_7d,
+        total_28d: null,
+        total_delivered,
+        rows,
+      };
     },
   });
 }
