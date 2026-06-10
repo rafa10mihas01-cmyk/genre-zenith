@@ -668,11 +668,7 @@ export default function PlanoCampanhaPublico() {
                   snapshots={snaps}
                   stage={isApproved ? "live" : isRejected ? "rejected" : "approval"}
                 />
-                {genresUsed.length > 0 && (
-                  <div className="-mt-2">
-                    <GenresUsedChip genres={genresUsed} />
-                  </div>
-                )}
+                {/* Chip de gêneros removido a pedido — info técnica não relevante pro cliente */}
                 {(() => {
                   const valorCobrado = snapshot.clientPriceTotal && snapshot.clientPriceTotal > 0
                     ? snapshot.clientPriceTotal
