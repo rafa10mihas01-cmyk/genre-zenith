@@ -122,7 +122,7 @@ export function SaudeSistema() {
       },
     });
 
-    const allFailures: Failure[] = (recentHardFailedJobs.data ?? []).map((j: any) => ({
+    const allFailures: Failure[] = hardFailures.slice(0, 10).map((j: any) => ({
       id: `job-${j.id}`,
       source: humanizeFunctionName(j.job_type),
       message: humanizeError(j.last_error),
