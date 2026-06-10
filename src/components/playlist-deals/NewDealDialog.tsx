@@ -1179,25 +1179,72 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
   // Render
   // ============================================================
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto bg-card border-border/60 rounded-2xl shadow-2xl p-6">
-        <DialogHeader>
-          <div className="flex items-start justify-between gap-3">
-            <div className="space-y-1.5 flex-1 min-w-0">
-              <DialogTitle>{isEdit ? "Editar deal" : "Novo Deal"}</DialogTitle>
-              <DialogDescription>
-                {isEdit
-                  ? "Atualize as músicas, metas diárias e durações."
-                  : step === 1
-                    ? "Selecione ou cadastre o curador (saldo de plays comprado)."
-                    : "Adicione as músicas — meta = combinado/dia × dias."}
-              </DialogDescription>
-            </div>
-            {!isEdit && (
-              <DraftIndicator lastSavedAt={draft.lastSavedAt} className="mt-1 mr-6 shrink-0" />
+    <FormModal
+      open={open}
+      onOpenChange={handleOpenChange}
+      title={isEdit ? "Editar deal" : "Novo Deal"}
+      description={
+        <span className="flex items-start justify-between gap-3">
+          <span>
+            {isEdit
+              ? "Atualize as músicas, metas diárias e durações."
+              : step === 1
+                ? "Selecione ou cadastre o curador (saldo de plays comprado)."
+                : "Adicione as músicas — meta = combinado/dia × dias."}
+          </span>
+          {!isEdit && (
+            <DraftIndicator lastSavedAt={draft.lastSavedAt} className="shrink-0" />
+          )}
+        </span>
+      }
+      icon={<Handshake className="h-4 w-4" />}
+      iconTone="deals"
+      size="lg"
+      preventClose={submitting}
+      footer={
+        step === 1 ? (
+          <>
+            <Button type="button" variant="ghost" onClick={() => handleOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={handleAdvanceToStep2}
+              disabled={
+                submitting ||
+                (curatorMode === "select" && !selectedCuratorId) ||
+                (curatorMode === "new" && !newCuratorName.trim())
+              }
+              className="gap-1.5"
+            >
+              {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+              Avançar
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </>
+        ) : (
+          <div className="flex w-full items-center justify-between gap-2">
+            {!isEdit ? (
+              <Button type="button" variant="ghost" onClick={() => setStep(1)} disabled={submitting} className="gap-1.5">
+                <ChevronLeft className="h-4 w-4" /> Voltar
+              </Button>
+            ) : (
+              <span />
             )}
+            <div className="flex gap-2">
+              <Button type="button" variant="ghost" onClick={() => handleOpenChange(false)} disabled={submitting}>
+                Cancelar
+              </Button>
+              <Button type="button" onClick={onSubmit} disabled={submitting}>
+                {submitting && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+                {isEdit ? "Salvar alterações" : "Salvar deal"}
+              </Button>
+            </div>
           </div>
-        </DialogHeader>
+        )
+      }
+    >
+
 
         {/* Banner: rascunho disponível ao reabrir */}
         {!isEdit && draft.hasDraft && !draftDecided && (
