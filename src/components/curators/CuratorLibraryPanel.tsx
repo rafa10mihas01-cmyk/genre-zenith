@@ -473,20 +473,59 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
             <DialogTitle>Adicionar crédito</DialogTitle>
             <DialogDescription>Nova compra com {curator.name}.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label>Plays comprados</Label>
-              <Input inputMode="numeric" value={buyPlays} onChange={(e) => setBuyPlays(e.target.value)} placeholder="Ex.: 500000" />
-            </div>
-            <div>
-              <Label>Valor pago (R$)</Label>
-              <Input inputMode="decimal" value={buyAmount} onChange={(e) => setBuyAmount(e.target.value)} placeholder="Ex.: 1500,00" />
-            </div>
-            <div>
-              <Label>Nota (opcional)</Label>
-              <Input value={buyNote} onChange={(e) => setBuyNote(e.target.value)} placeholder="Ex.: pacote junho, pix" />
-            </div>
-          </div>
+          {(() => {
+            const playsNum = Number(String(buyPlays).replace(/\D/g, "")) || 0;
+            const amountNum = Number(String(buyAmount).replace(/\./g, "").replace(",", ".")) || 0;
+            const fmtInt = (n: number) => n.toLocaleString("pt-BR");
+            const fmtBRL = (n: number) =>
+              n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+            const playsExtenso = (n: number) => {
+              if (n <= 0) return null;
+              if (n >= 1_000_000) return `${(n / 1_000_000).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} milhão${n >= 2_000_000 ? "ões" : ""}`;
+              if (n >= 1_000) return `${(n / 1_000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mil`;
+              return `${n}`;
+            };
+            const cpp = playsNum > 0 && amountNum > 0 ? (amountNum / playsNum) * 1000 : null;
+            return (
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="buy-plays">Plays comprados</Label>
+                  <Input
+                    id="buy-plays"
+                    inputMode="numeric"
+                    value={buyPlays}
+                    onChange={(e) => setBuyPlays(e.target.value.replace(/\D/g, ""))}
+                    placeholder="Ex.: 500000"
+                  />
+                  <p className="text-[11px] text-muted-foreground min-h-[14px]">
+                    {playsNum > 0 ? `= ${fmtInt(playsNum)} plays · ${playsExtenso(playsNum)}` : "Digite a quantidade de plays"}
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="buy-amount">Valor pago (R$)</Label>
+                  <Input
+                    id="buy-amount"
+                    inputMode="decimal"
+                    value={buyAmount}
+                    onChange={(e) => setBuyAmount(e.target.value)}
+                    placeholder="Ex.: 1500,00"
+                  />
+                  <p className="text-[11px] text-muted-foreground min-h-[14px]">
+                    {amountNum > 0 ? `= ${fmtBRL(amountNum)}` : "Use vírgula para centavos"}
+                  </p>
+                </div>
+                {cpp != null && (
+                  <div className="rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
+                    CPP estimado: <span className="text-foreground font-medium">{fmtBRL(cpp)}</span> por mil plays
+                  </div>
+                )}
+                <div className="space-y-1.5">
+                  <Label htmlFor="buy-note">Nota (opcional)</Label>
+                  <Input id="buy-note" value={buyNote} onChange={(e) => setBuyNote(e.target.value)} placeholder="Ex.: pacote junho, pix" />
+                </div>
+              </div>
+            );
+          })()}
           <DialogFooter>
             <Button variant="ghost" onClick={() => setBuyOpen(false)}>Cancelar</Button>
             <Button onClick={handleBuy} disabled={buying}>
