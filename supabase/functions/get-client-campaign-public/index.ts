@@ -381,6 +381,7 @@ Deno.serve(async (req) => {
         plays_28d: plays28d,
         status,
         source: "curator" as const,
+        spotify_playlist_id: spId || null,
       };
     });
 
