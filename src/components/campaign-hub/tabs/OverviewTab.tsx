@@ -137,7 +137,7 @@ export function OverviewTab({
     try { await onUnlockSplit(); } finally { setSavingLock(false); }
   };
 
-  // Top 5 playlists no ar por entrega
+  // Top playlists no ar — só as que já estão entregando (delivered > 0)
   const topPlaylists = allocations
     .filter(a => a.status === "active" || a.status === "dispatched" || a.status === "done")
     .map(a => ({
@@ -145,8 +145,9 @@ export function OverviewTab({
       delivered: Number(latestByPl.get(a.managed_playlist_id)?.plays_28d ?? latestByPl.get(a.managed_playlist_id)?.plays_7d ?? 0),
       delta24: latestByPl.get(a.managed_playlist_id)?.plays_24h ?? 0,
     }))
+    .filter(x => x.delivered > 0)
     .sort((x, y) => y.delivered - x.delivered)
-    .slice(0, 5);
+    .slice(0, 10);
 
   const recentProofs = [...proofs]
     .sort((a, b) => new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime())
