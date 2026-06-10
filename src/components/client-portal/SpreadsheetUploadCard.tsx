@@ -237,31 +237,28 @@ export function SpreadsheetUploadCard({
   return (
     <Card className="border-border/60 bg-card">
       <CardContent className="p-5 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <FileSpreadsheet className="h-4 w-4 text-primary shrink-0" />
-              <h3 className="text-sm font-semibold text-foreground">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 flex items-start gap-3">
+            <div className="h-9 w-9 rounded-lg bg-primary/10 ring-1 ring-primary/20 flex items-center justify-center shrink-0">
+              <FileSpreadsheet className="h-4 w-4 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-[15px] font-semibold text-foreground leading-tight">
                 Atualizar dados da campanha
               </h3>
+              <p className="text-[12px] text-muted-foreground mt-1 leading-snug">
+                Suba a planilha mais recente (.xlsx da distribuidora ou .csv do Spotify for Artists).
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground mt-1 max-w-md">
-              Suba a planilha mais recente (.xlsx da distribuidora ou .csv do Spotify for Artists).
-              O sistema reconhece as colunas, cruza com playlists e curadores conhecidos e atualiza o painel.
-            </p>
           </div>
-          <div className="flex items-center justify-between sm:flex-col sm:items-end sm:text-right shrink-0 rounded-md border border-border/50 sm:border-0 bg-muted/30 sm:bg-transparent px-3 py-2 sm:p-0">
-            <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+          <div className="shrink-0 rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-right min-w-[120px]">
+            <div className="text-[9.5px] uppercase tracking-[0.14em] text-muted-foreground">
               Última atualização
             </div>
             <div
               className={cn(
-                "text-sm font-medium sm:mt-0.5 tabular-nums",
-                never
-                  ? "text-muted-foreground"
-                  : stale
-                  ? "text-amber-500"
-                  : "text-foreground",
+                "text-[14px] font-semibold tabular-nums leading-tight mt-0.5",
+                never ? "text-muted-foreground" : stale ? "text-amber-500" : "text-success",
               )}
             >
               {never
@@ -272,6 +269,11 @@ export function SpreadsheetUploadCard({
                 ? "Ontem"
                 : `Há ${days} dias`}
             </div>
+            {lastUploadAt && (
+              <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
+                {new Date(lastUploadAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+              </div>
+            )}
           </div>
         </div>
 
@@ -469,46 +471,74 @@ export function SpreadsheetUploadCard({
         )}
 
         {recentUploads.length > 0 && (
-          <div className="pt-3 border-t border-border/60">
-            <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-2">
-              Últimas atualizações
+          <div className="rounded-lg border border-border/60 bg-muted/10 overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/60 bg-muted/20">
+              <div className="text-[10.5px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">
+                Histórico de importações
+              </div>
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground tabular-nums">
+                {recentUploads.length} registros
+              </div>
             </div>
-            <ul className="space-y-1.5">
-              {recentUploads.slice(0, 5).map((u) => (
-                <li
-                  key={u.id}
-                  className="flex items-center justify-between gap-2 text-[12px] text-muted-foreground"
-                >
-                  <span className="truncate shrink-0">
-                    {new Date(u.created_at).toLocaleDateString("pt-BR", {
-                      day: "2-digit",
-                      month: "short",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </span>
-                  <span className="truncate text-right flex-1">
-                    {u.rows_imported} playlists · {fmtNumber(u.total_streams)} streams
-                  </span>
-                  {isAdmin && u.file_path && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground shrink-0"
-                      onClick={() => handleDownloadUpload(u)}
-                      disabled={downloadingId === u.id}
-                      title={u.file_name ?? "Baixar planilha original"}
-                    >
-                      {downloadingId === u.id ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
+            <ul className="divide-y divide-border/40">
+              {recentUploads.slice(0, 5).map((u, idx) => {
+                const d = new Date(u.created_at);
+                const dateStr = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+                const timeStr = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+                const isLatest = idx === 0;
+                return (
+                  <li
+                    key={u.id}
+                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/20 transition-colors"
+                  >
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      {isLatest ? (
+                        <span className="h-1.5 w-1.5 rounded-full bg-success shrink-0" />
                       ) : (
-                        <Download className="h-3 w-3" />
+                        <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/30 shrink-0" />
                       )}
-                    </Button>
-                  )}
-                </li>
-              ))}
+                      <div className="min-w-0">
+                        <div className="text-[12.5px] font-medium text-foreground tabular-nums leading-tight">
+                          {dateStr}
+                        </div>
+                        <div className="text-[10.5px] text-muted-foreground tabular-nums leading-tight">
+                          {timeStr}
+                          {isLatest && <span className="ml-1.5 text-success font-medium uppercase tracking-wide text-[9.5px]">· atual</span>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0 hidden sm:block">
+                      <div className="text-[12.5px] font-semibold text-foreground tabular-nums leading-tight">
+                        {fmtNumber(u.total_streams)}
+                      </div>
+                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground leading-tight">streams</div>
+                    </div>
+                    <div className="text-right shrink-0 min-w-[80px]">
+                      <div className="text-[12.5px] font-semibold text-foreground tabular-nums leading-tight">
+                        {u.rows_imported}
+                      </div>
+                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground leading-tight">playlists</div>
+                    </div>
+                    {isAdmin && u.file_path && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground shrink-0"
+                        onClick={() => handleDownloadUpload(u)}
+                        disabled={downloadingId === u.id}
+                        title={u.file_name ?? "Baixar planilha original"}
+                      >
+                        {downloadingId === u.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Download className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}
