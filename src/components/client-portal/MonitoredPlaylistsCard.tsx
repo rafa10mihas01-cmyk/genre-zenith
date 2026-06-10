@@ -390,21 +390,30 @@ export function MonitoredPlaylistsCard({
   return (
     <Card className="border-border">
       <CardContent className="p-5 sm:p-6 space-y-5">
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div className="min-w-0">
-            <h2 className="text-[15px] font-semibold inline-flex items-center gap-2 tracking-tight">
-              <ListMusic className="h-4 w-4 text-muted-foreground" />
-              Playlists monitoradas
-            </h2>
-            <p className="text-[12px] text-muted-foreground mt-1 leading-snug">
-              {entregandoCount} de {sorted.length} entregando agora
-            </p>
+        <div className="space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-[15px] font-semibold inline-flex items-center gap-2 tracking-tight">
+                <ListMusic className="h-4 w-4 text-muted-foreground" />
+                Playlists monitoradas
+              </h2>
+              <p className="text-[12px] text-muted-foreground mt-1 leading-snug">
+                {entregandoCount} de {sorted.length} entregando agora
+              </p>
+            </div>
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary bg-primary/10 ring-1 ring-primary/20 rounded-full px-2.5 py-1 tabular-nums shrink-0 whitespace-nowrap">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-75 animate-ping" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
+              </span>
+              {sorted.length} ativas
+            </span>
           </div>
-          <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
             <Button
               variant="outline"
               size="sm"
-              className="h-8 text-[11px] gap-1.5"
+              className="h-9 text-[12px] gap-1.5 w-full sm:w-auto"
               onClick={handleExportCSV}
               disabled={sorted.length === 0}
             >
@@ -414,20 +423,13 @@ export function MonitoredPlaylistsCard({
             <Button
               variant="default"
               size="sm"
-              className="h-8 text-[11px] gap-1.5"
+              className="h-9 text-[12px] gap-1.5 w-full sm:w-auto"
               onClick={handleExportExcel}
               disabled={sorted.length === 0}
             >
               <FileSpreadsheet className="h-3.5 w-3.5" />
               Exportar Excel
             </Button>
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary bg-primary/10 ring-1 ring-primary/20 rounded-full px-2.5 py-1 tabular-nums">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-75 animate-ping" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
-              </span>
-              {sorted.length} ativas
-            </span>
           </div>
         </div>
 
