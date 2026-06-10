@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import {
   Activity, Workflow, Music2, HeartPulse, Bot, Bell, ListPlus,
-  Settings as SettingsIcon, Server, Brain, FlaskConical, Wrench, Flag, ShieldAlert, Gauge, ClipboardCheck,
+  Settings as SettingsIcon, Server, Brain, FlaskConical, Wrench, Flag, ShieldAlert, Gauge, ClipboardCheck, ChevronRight,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
@@ -38,6 +38,8 @@ import { SpotifyPilotPanel } from "@/components/sistema/SpotifyPilotPanel";
 import { ManualDistribuicoesPanel } from "@/components/sistema/ManualDistribuicoesPanel";
 import { SpotifyAppsPanel } from "@/components/sistema/SpotifyAppsPanel";
 import { ExecutiveStatusBar } from "@/components/sistema/ExecutiveStatusBar";
+import { AttentionInbox } from "@/components/sistema/AttentionInbox";
+import { OperationalSummary } from "@/components/sistema/OperationalSummary";
 
 type SistemaTab = "saude" | "capacidade" | "aprendizado" | "alertas" | "motores" | "configuracoes" | "dev";
 type MotorSub = "robo" | "coleta" | "execucao" | "manual" | "fluxo" | "ao-vivo";
@@ -170,31 +172,48 @@ export default function Sistema() {
       <div className="min-h-[480px] animate-tab-in">
         {activeTab === "saude" && (
           <div className="space-y-8">
+            {/* PRIORIDADE 1 — incidentes que exigem ação imediata */}
             <ExecutiveStatusBar />
-            <SystemKpis />
-            <section>
-              <SectionHeader icon={HeartPulse} title="Saúde geral" subtitle="KPIs agregados do sistema" />
-              <SaudeSistema />
-            </section>
-            <section>
-              <SectionHeader icon={Activity} title="Saúde operacional" subtitle="Status dos motores principais" />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <OperationalHealthCard />
-                <BrainFreshnessCard />
+            <AttentionInbox />
+
+            {/* PRIORIDADE 2 — operação (resumo em uma olhada) */}
+            <OperationalSummary />
+
+            {/* PRIORIDADE 3 — diagnóstico técnico e analítico (final da página) */}
+            <details className="group">
+              <summary className="cursor-pointer list-none flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground font-bold hover:text-foreground py-2">
+                <ChevronRight className="h-3.5 w-3.5 transition-transform group-open:rotate-90" />
+                Diagnóstico detalhado
+              </summary>
+              <div className="space-y-8 mt-4">
+                <SystemKpis />
+                <section>
+                  <SectionHeader icon={HeartPulse} title="Saúde geral" subtitle="KPIs agregados do sistema" />
+                  <SaudeSistema />
+                </section>
+                <section>
+                  <SectionHeader icon={Activity} title="Saúde operacional" subtitle="Status dos motores principais" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <OperationalHealthCard />
+                    <BrainFreshnessCard />
+                  </div>
+                </section>
+                <section>
+                  <SectionHeader icon={ShieldAlert} title="Circuit breaker" subtitle="Aberturas do CB do Spotify nos últimos 30 dias" />
+                  <CircuitBreakerHistoryCard />
+                </section>
+                <section>
+                  <SectionHeader icon={ShieldAlert} title="Apps Spotify" subtitle="Quais apps estão saudáveis, em atenção ou bloqueados agora" />
+                  <SpotifyAppsPanel />
+                </section>
+                <section>
+                  <SectionHeader icon={Workflow} title="Motor editorial" subtitle="Saúde do pipeline de curadoria" />
+                  <EngineHealthGrid />
+                </section>
               </div>
-            </section>
-            <section>
-              <SectionHeader icon={ShieldAlert} title="Circuit breaker" subtitle="Aberturas do CB do Spotify nos últimos 30 dias" />
-              <CircuitBreakerHistoryCard />
-            </section>
-            <section>
-              <SectionHeader icon={ShieldAlert} title="Apps Spotify" subtitle="Quais apps estão saudáveis, em atenção ou bloqueados agora" />
-              <SpotifyAppsPanel />
-            </section>
-            <section>
-              <SectionHeader icon={Workflow} title="Motor editorial" subtitle="Saúde do pipeline de curadoria" />
-              <EngineHealthGrid />
-            </section>
+            </details>
+
+            {/* PRIORIDADE 4 — logs (sempre por último) */}
             <section>
               <SectionHeader icon={Activity} title="Atividade recente" subtitle="Últimos eventos da coleta" />
               <AtividadeRecente />

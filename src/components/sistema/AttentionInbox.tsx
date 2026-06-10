@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { timeAgo } from "@/lib/format";
 import { humanizeError, humanizeFunctionName } from "@/lib/operationalCopy";
-import { getNotificationCopy } from "@/lib/notificationCopy";
+import { friendlyNotification } from "@/lib/notificationCopy";
 
 type Incident = {
   id: string;
@@ -29,30 +29,29 @@ export function AttentionInbox() {
     let cancelled = false;
     const load = async () => {
       const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
-      const [notifs, vpsRes, cbRes] = await Promise.all([
+      const [notifs, vpsRes] = await Promise.all([
         supabase
           .from("notifications")
-          .select("id, type, kind, title, message, action_url, payload, created_at, dedupe_key")
+          .select("*")
           .eq("status", "open")
           .in("type", ["critical", "warning"])
           .order("type", { ascending: true })
           .order("created_at", { ascending: false })
           .limit(20),
-        supabase.from("vps_nodes").select("id, name, last_heartbeat_at, status"),
-        supabase.from("spotify_circuit_breaker").select("app_label, blocked_until").gt("blocked_until", new Date().toISOString()),
+        supabase.from("vps_nodes").select("id, hostname, last_heartbeat_at, status"),
       ]);
 
       const list: Incident[] = [];
 
       // VPS offline (derivado em tempo real)
-      const vpsRows = (vpsRes.data ?? []) as Array<{ id: string; name?: string; last_heartbeat_at: string | null; status: string }>;
+      const vpsRows = (vpsRes.data ?? []) as Array<{ id: string; hostname?: string | null; last_heartbeat_at: string | null; status: string }>;
       vpsRows
         .filter((v) => v.status === "active" && (!v.last_heartbeat_at || v.last_heartbeat_at < fifteenMinAgo))
         .forEach((v) =>
           list.push({
             id: `vps:${v.id}`,
             severity: "critical",
-            title: `Servidor de coleta offline${v.name ? ` — ${v.name}` : ""}`,
+            title: `Servidor de coleta offline${v.hostname ? ` — ${v.hostname}` : ""}`,
             impact: "As coletas que dependem desse servidor estão paradas.",
             actionUrl: "/sistema?tab=dev",
             actionLabel: "Ver infraestrutura",
@@ -60,30 +59,16 @@ export function AttentionInbox() {
           })
         );
 
-      // Spotify bloqueado (circuit breaker)
-      const cbRows = (cbRes.data ?? []) as Array<{ app_label: string | null; blocked_until: string }>;
-      cbRows.forEach((c) =>
-        list.push({
-          id: `cb:${c.app_label}:${c.blocked_until}`,
-          severity: "critical",
-          title: `Spotify bloqueado${c.app_label ? ` (${c.app_label})` : ""}`,
-          impact: `Liberação automática ${timeAgo(c.blocked_until).replace(/^há/, "em")} (aprox.).`,
-          actionUrl: "/sistema?tab=saude",
-          actionLabel: "Ver apps Spotify",
-          when: c.blocked_until,
-        })
-      );
-
       // Notificações abertas
       (notifs.data ?? []).forEach((n: any) => {
-        const copy = getNotificationCopy(n.kind, n.payload ?? undefined);
+        const copy = friendlyNotification(n);
         list.push({
           id: `notif:${n.id}`,
           severity: n.type === "critical" ? "critical" : "warning",
-          title: copy?.title ?? n.title ?? humanizeFunctionName(n.kind),
-          impact: copy?.impact ?? copy?.description ?? humanizeError(n.message),
-          actionUrl: copy?.actionUrl ?? n.action_url ?? undefined,
-          actionLabel: copy?.actionLabel ?? "Resolver",
+          title: copy.title ?? humanizeFunctionName(n.kind),
+          impact: copy.impact ?? copy.message ?? humanizeError(n.message),
+          actionUrl: copy.actionUrl ?? n.action_url ?? undefined,
+          actionLabel: copy.actionLabel ?? "Resolver",
           when: n.created_at,
         });
       });
