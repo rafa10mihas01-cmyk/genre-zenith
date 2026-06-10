@@ -146,6 +146,26 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [curator.id]);
 
+  const handleDeletePurchase = async () => {
+    if (!purchaseToDelete) return;
+    setDeletingPurchase(true);
+    try {
+      const { error } = await supabase
+        .from("curator_purchases")
+        .delete()
+        .eq("id", purchaseToDelete.id);
+      if (error) throw error;
+      toast.success("Compra removida");
+      setPurchaseToDelete(null);
+      loadPurchases();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error("Erro ao remover compra", { description: msg });
+    } finally {
+      setDeletingPurchase(false);
+    }
+  };
+
   const handleBuy = async () => {
     if (!onAddPurchase) return;
     const plays = parseInt(buyPlays.replace(/\D/g, ""), 10) || 0;
