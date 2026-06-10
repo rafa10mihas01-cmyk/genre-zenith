@@ -281,6 +281,63 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
         );
       })()}
 
+      {/* Histórico de compras */}
+      {(onAddPurchase || purchases.length > 0) && (
+        <div className="rounded-2xl border border-border bg-card p-5">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">
+              Histórico de compras
+            </div>
+            <span className="text-[11px] text-muted-foreground tabular-nums">
+              {purchases.length > 0 ? `${purchases.length} última${purchases.length > 1 ? "s" : ""}` : ""}
+            </span>
+          </div>
+          {purchasesLoading ? (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground py-6 justify-center">
+              <Loader2 className="size-3.5 animate-spin" /> Carregando histórico…
+            </div>
+          ) : purchases.length === 0 ? (
+            <div className="text-center py-6 text-xs text-muted-foreground border border-dashed border-border/40 rounded-xl">
+              Nenhuma compra registrada ainda.
+            </div>
+          ) : (
+            <div className="divide-y divide-border/40">
+              {purchases.map((p) => {
+                const date = new Date(p.purchased_at);
+                const dateStr = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
+                const timeStr = date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+                const cppPer1k = p.plays_purchased > 0 ? (Number(p.amount) / p.plays_purchased) * 1000 : null;
+                return (
+                  <div key={p.id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline gap-2 flex-wrap">
+                        <span className="text-sm font-semibold tabular-nums">
+                          {Number(p.plays_purchased).toLocaleString("pt-BR")} plays
+                        </span>
+                        <span className="text-[11px] text-muted-foreground tabular-nums">{formatBRL(Number(p.amount))}</span>
+                        {cppPer1k != null && (
+                          <span className="text-[10.5px] text-muted-foreground/70 tabular-nums">
+                            · {formatBRL(cppPer1k)}/mil
+                          </span>
+                        )}
+                      </div>
+                      {p.note && (
+                        <div className="text-[11px] text-muted-foreground/80 truncate mt-0.5">{p.note}</div>
+                      )}
+                    </div>
+                    <div className="text-[10.5px] text-muted-foreground/70 tabular-nums whitespace-nowrap text-right">
+                      <div>{dateStr}</div>
+                      <div>{timeStr}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+
       {/* Catálogo — card próprio com header, filtro e lista (12 visíveis, resto scroll) */}
       <div className="rounded-2xl border border-border bg-card p-5">
         <div className="flex items-center justify-between gap-2 flex-wrap">
