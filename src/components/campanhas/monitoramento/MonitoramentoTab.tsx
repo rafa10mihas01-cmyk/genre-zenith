@@ -198,7 +198,7 @@ const TONE_TEXT: Record<BaselineTone, string> = {
 };
 
 function BaselineStatus({
-  tone, label, capturedAt, playlists, runs, runsLoading,
+  tone, label, capturedAt, playlists, runs, runsLoading, spreadsheetUploads,
 }: {
   tone: BaselineTone;
   label: string;
@@ -206,7 +206,37 @@ function BaselineStatus({
   playlists: number;
   runs: SnapshotRun[];
   runsLoading: boolean;
+  spreadsheetUploads?: MonitoramentoSpreadsheetUpload[];
 }) {
+  const { isAdmin } = useUserRole();
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  const handleDownloadUpload = async (u: MonitoramentoSpreadsheetUpload) => {
+    if (!u.file_path) {
+      toast.error("Arquivo original não disponível pra esse upload");
+      return;
+    }
+    setDownloadingId(u.id);
+    try {
+      const { data, error } = await supabase.storage
+        .from("label-spreadsheets")
+        .createSignedUrl(u.file_path, 60);
+      if (error || !data?.signedUrl) throw error ?? new Error("Falha ao gerar link");
+      const a = document.createElement("a");
+      a.href = data.signedUrl;
+      a.download = u.file_name ?? "planilha.xlsx";
+      a.target = "_blank";
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao baixar planilha");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
   const totalPrints = runs.reduce((acc, r) => acc + (r.print_urls?.length ?? 0), 0);
   const latestRunAt = runs[0]?.created_at ?? null;
 
