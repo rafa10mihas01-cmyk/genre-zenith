@@ -83,9 +83,31 @@ Deno.serve(async (req) => {
   }
 
   // Gate por PIN — só no portal completo. Modo mapa (?view=mapa) é sempre público.
+  let gateEmail: string | null = null;
+  let jwtCampaignId: string | null = null;
+  {
+    const auth = req.headers.get("authorization") || req.headers.get("Authorization") || "";
+    let jwtRaw = "";
+    if (auth.toLowerCase().startsWith("bearer ")) jwtRaw = auth.slice(7).trim();
+    if (!jwtRaw) jwtRaw = (req.headers.get("x-portal-jwt") || "").trim();
+    if (jwtRaw) {
+      try {
+        const { verifyAccessJwt } = await import("../_shared/campaign-access-jwt.ts");
+        const p = await verifyAccessJwt(jwtRaw);
+        if (p) { gateEmail = p.email ?? null; jwtCampaignId = p.campaign_id ?? null; }
+      } catch (_) { /* noop */ }
+    }
+  }
   if (!isMapView) {
     const gate = await gateCampaignAccess(req, supabase, campRaw.id);
-    if (!gate.ok) return jr({ error: gate.error }, gate.status ?? 401);
+    if (!gate.ok) {
+      console.log("[AUDIT_PORTAL] get-shared-campaign-plan GATE_DENIED", JSON.stringify({
+        campaign_id: campRaw.id, campaign_token: token, email: gateEmail,
+        jwt_campaign_id: jwtCampaignId, error: gate.error, status: gate.status,
+      }));
+      return jr({ error: gate.error }, gate.status ?? 401);
+    }
+    if (gate.email) gateEmail = gate.email;
   }
 
   // 🎯 client_type define se mostramos "expansão orgânica" no portal.
@@ -309,6 +331,22 @@ Deno.serve(async (req) => {
       }
     }
   } catch (_) { /* organic_summary é opcional */ }
+
+  console.log("[AUDIT_PORTAL] get-shared-campaign-plan OK", JSON.stringify({
+    campaign_id: campRaw.id,
+    campaign_token: token,
+    email: gateEmail,
+    is_admin: gateEmail ? gateEmail.endsWith("@nexengine") || gateEmail.includes("admin") : false,
+    jwt_campaign_id: jwtCampaignId,
+    allocations_count: (allocs ?? []).length,
+    playlists_count: (allocs ?? []).length,
+    proofs_count: proofs.length,
+    organic_count: Object.keys(organicSummary.by_kind ?? {}).length,
+    organic_total_plays: organicSummary.total_plays,
+    snapshot_count: (snaps ?? []).length,
+    collection_mode: collectionMode,
+    has_forecast: Boolean(forecast),
+  }));
 
   return jr({
     campaign: camp,

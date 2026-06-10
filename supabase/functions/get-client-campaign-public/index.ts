@@ -585,6 +585,41 @@ Deno.serve(async (req) => {
       lastSpreadsheetUploadAt = recentUploads[0]?.created_at ?? null;
     }
 
+    // ----- [AUDIT_PORTAL] log temporário -----
+    try {
+      const auth = req.headers.get("authorization") || req.headers.get("Authorization") || "";
+      let jwtRaw = "";
+      if (auth.toLowerCase().startsWith("bearer ")) jwtRaw = auth.slice(7).trim();
+      if (!jwtRaw) jwtRaw = (req.headers.get("x-portal-jwt") || "").trim();
+      let auditEmail: string | null = null;
+      let auditJwtCampaign: string | null = null;
+      if (jwtRaw) {
+        try {
+          const { verifyAccessJwt } = await import("../_shared/campaign-access-jwt.ts");
+          const p = await verifyAccessJwt(jwtRaw);
+          if (p) { auditEmail = p.email ?? null; auditJwtCampaign = p.campaign_id ?? null; }
+        } catch (_) { /* noop */ }
+      }
+      console.log("[AUDIT_PORTAL] get-client-campaign-public OK", JSON.stringify({
+        deal_id: dealId,
+        campaign_id: (linkedCamp?.id as string | undefined) ?? (dealRow?.campaign_id as string | undefined) ?? null,
+        campaign_token: publicPlanToken || null,
+        client_token: clientToken || null,
+        email: auditEmail,
+        is_admin: auditEmail ? (auditEmail.endsWith("@nexengine") || auditEmail.includes("admin")) : false,
+        jwt_campaign_id: auditJwtCampaign,
+        playlists_count: safePlaylists.length,
+        playlists_curator: safePlaylists.filter((p: AnyRec) => p.source === "curator").length,
+        playlists_engine: safePlaylists.filter((p: AnyRec) => p.source === "engine").length,
+        proofs_count: 0,
+        organic_count: 0,
+        snapshot_count: safeSnapshotHistory.length,
+        delivered,
+        target,
+        pct,
+      }));
+    } catch (_) { /* noop */ }
+
     return jr({
       ok: true,
       deal: safeDeal,
