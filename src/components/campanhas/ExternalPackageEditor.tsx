@@ -103,13 +103,27 @@ export function ExternalPackageEditor({
           .single(),
         supabase
           .from("campaign_external_package_items")
-          .select("id, curator_id, assigned_streams, assigned_cost, cost_per_stream, curator_deal_id, curators(name, contact), curator_deals(state, reconciled_total_plays, ends_at, closed_status)")
+          .select("id, curator_id, assigned_streams, assigned_cost, cost_per_stream, curator_deal_id, curators(name, contact)")
           .eq("package_id", packageId)
           .order("assigned_streams", { ascending: false }),
         fetchCuratorCandidates(),
       ]);
+      const dealIds = ((its ?? []) as any[]).map((it) => it.curator_deal_id).filter(Boolean);
+      const dealById = new Map<string, ItemRow["curator_deals"]>();
+      if (dealIds.length > 0) {
+        const { data: dealsData } = await supabase
+          .from("curator_deals")
+          .select("id, state, reconciled_total_plays, ends_at, closed_status")
+          .in("id", dealIds);
+        for (const d of (dealsData ?? []) as any[]) {
+          dealById.set(d.id, d);
+        }
+      }
       setPkg(p as any);
-      setItems((its ?? []) as any);
+      setItems(((its ?? []) as any[]).map((it) => ({
+        ...it,
+        curator_deals: it.curator_deal_id ? dealById.get(it.curator_deal_id) ?? null : null,
+      })) as any);
       setCandidates(cand);
 
       // Entregas reais por curador na campanha — soma deltas da view de crescimento.
