@@ -22,14 +22,8 @@ import {
 
 import { useCuratorBrainsByIds } from "@/hooks/useCuratorBrain";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { FormModal } from "@/components/ui/form-modal";
+import { Handshake } from "lucide-react";
 import {
   Popover,
   PopoverContent,
