@@ -1009,14 +1009,7 @@ export default function CampanhaExecucao() {
           monitoramento: (
             <MonitoramentoTab
               campaignId={camp.id}
-              headerSlot={
-                (camp as any).collection_mode === "spreadsheet" ? (
-                  <SpreadsheetUploadsCompactCard
-                    recentUploads={recentUploads}
-                    onOpenUpload={clientToken ? () => setUploadOpen(true) : undefined}
-                  />
-                ) : null
-              }
+              headerSlot={null /* Card "Planilhas da gravadora" removido — redundante com o botão de upload do cabeçalho. Vale pra TODAS as campanhas (novas e existentes). */}
             />
           ),
 
