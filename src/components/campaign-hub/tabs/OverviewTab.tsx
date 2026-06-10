@@ -152,9 +152,6 @@ export function OverviewTab({
     .sort((x, y) => (y.delivered - x.delivered) || (y.a.planned_streams - x.a.planned_streams))
     .slice(0, 10);
 
-  const recentProofs = [...proofs]
-    .sort((a, b) => new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime())
-    .slice(0, 4);
 
   return (
     <div className="space-y-6">
