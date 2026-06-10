@@ -495,7 +495,8 @@ export default function PlanoCampanhaPublico() {
   if (viewParam === "mapa") {
     return (
       <div className="min-h-screen bg-background">
-        <div className="max-w-7xl mx-auto p-4 md:p-6">
+        <div className="max-w-7xl mx-auto px-2 py-4 md:px-6 md:py-6">
+
           <div className="flex items-center justify-between mb-4 print:hidden">
             <NexEngineLogo variant="dark" className="h-7 w-auto" />
             <span className="text-[11px] text-muted-foreground">Mapa de distribuição · somente leitura</span>
@@ -551,7 +552,8 @@ export default function PlanoCampanhaPublico() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto p-4 md:p-6">
+      <div className="max-w-7xl mx-auto px-2 py-4 md:px-6 md:py-6">
+
         <div className="flex items-center justify-between mb-4 print:hidden">
           <NexEngineLogo variant="dark" className="h-7 w-auto" />
           <span className="text-[11px] text-muted-foreground">Portal do cliente · somente leitura</span>

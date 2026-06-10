@@ -80,10 +80,11 @@ export function CampaignHub({
       />
 
       {kpis && (
-        <div className="shrink-0 px-4 pt-4 pb-2 md:px-6">
+        <div className="shrink-0 px-1 pt-4 pb-2 md:px-6">
           {kpis}
         </div>
       )}
+
 
       <Tabs
         value={activeTab}
@@ -93,10 +94,13 @@ export function CampaignHub({
           mode === "internal" ? "overflow-y-auto overflow-x-hidden overscroll-contain" : "overflow-visible",
         )}
       >
-        <div className={cn("shrink-0 px-4 md:px-6 bg-background")}>
-          {/* Mobile: grid de cards quadrados (mesmo padrão do catálogo) */}
+        <div className={cn("shrink-0 px-2 md:px-6 bg-background")}>
+          {/* Mobile: grid dinâmico — todas as abas visíveis cabem numa única régua */}
           <div className="sm:hidden pt-2 pb-3">
-            <TabsList className="grid grid-cols-3 gap-1.5 h-auto bg-transparent p-0 rounded-none w-full">
+            <TabsList
+              className="grid gap-1.5 h-auto bg-transparent p-0 rounded-none w-full"
+              style={{ gridTemplateColumns: `repeat(${Math.max(visible.length, 1)}, minmax(0, 1fr))` }}
+            >
               {visible.map((t) => {
                 const Icon = t.icon;
                 return (
@@ -105,18 +109,19 @@ export function CampaignHub({
                     value={t.id}
                     aria-label={t.label}
                     className={cn(
-                      "flex flex-col items-center justify-center gap-1 rounded-xl border px-1 py-2 h-auto transition-colors leading-none",
+                      "flex flex-col items-center justify-center gap-1 rounded-xl border px-0.5 py-2 h-auto transition-colors leading-none",
                       "border-border bg-card text-muted-foreground hover:text-foreground",
                       "data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none",
                     )}
                   >
                     <Icon className="w-4 h-4" />
-                    <span className="text-[10px] font-medium leading-none truncate max-w-full">{t.label}</span>
+                    <span className="text-[9.5px] font-medium leading-none truncate max-w-full">{t.label}</span>
                   </TabsTrigger>
                 );
               })}
             </TabsList>
           </div>
+
 
           {/* Desktop / tablet: underline tabs */}
           <div className="hidden sm:block border-b border-border">
@@ -145,14 +150,14 @@ export function CampaignHub({
         </div>
 
         {progressSection && (
-          <div className="px-4 pt-3 md:px-6">
+          <div className="px-1 pt-3 md:px-6">
             {progressSection}
           </div>
         )}
 
 
 
-        <div className="px-4 pt-6 pb-[calc(64px+env(safe-area-inset-bottom)+24px)] md:px-6 lg:pb-8">
+        <div className="px-1 pt-6 pb-[calc(64px+env(safe-area-inset-bottom)+24px)] md:px-6 lg:pb-8">
           {visible.map((t) => (
             <TabsContent
               key={t.id}
@@ -164,6 +169,7 @@ export function CampaignHub({
             </TabsContent>
           ))}
         </div>
+
       </Tabs>
     </div>
   );
