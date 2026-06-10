@@ -250,27 +250,56 @@ Deno.serve(async (req) => {
   const signedUrlKind = "signed" as const;
   const signed = { signedUrl };
 
-  // ========== AGRUPAMENTO MULTI-PART ==========
+  // ========== AGRUPAMENTO MULTI-PART (idempotente por correlation_id) ==========
   let batchInfo: Record<string, unknown> | undefined;
 
   if (parsed && dealId) {
-    // upsert do batch
-    // Procura batch ATIVO (pending) pra essa chave. Se não existe ou já está
-    // complete/processed/error, abre um novo — assim cada execução do robô
-    // tem seu próprio batch e não empilha em cima do anterior.
-    let existingQuery = supabase
-      .from("bot_print_batches")
-      .select("id, received_parts, total_parts, print_paths, print_urls, status, dom_payload")
-      .eq("deal_id", dealId)
-      .eq("batch_key", parsed.key)
-      .eq("status", "pending");
-    existingQuery = songId
-      ? existingQuery.eq("song_id", songId)
-      : existingQuery.is("song_id", null);
-    const { data: existing } = await existingQuery
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    // Cada correlation_id representa UMA execução do worker. Constraint UNIQUE
+    // no banco garante 1 batch por correlation_id; aqui dedupamos antes.
+    let existing: any = null;
+    if (correlationId) {
+      const { data } = await supabase
+        .from("bot_print_batches")
+        .select("id, received_parts, total_parts, print_paths, print_urls, status, dom_payload")
+        .eq("correlation_id", correlationId)
+        .maybeSingle();
+      existing = data ?? null;
+    } else {
+      let q = supabase
+        .from("bot_print_batches")
+        .select("id, received_parts, total_parts, print_paths, print_urls, status, dom_payload")
+        .eq("deal_id", dealId)
+        .eq("batch_key", parsed.key)
+        .eq("status", "pending");
+      q = songId ? q.eq("song_id", songId) : q.is("song_id", null);
+      const { data } = await q.order("created_at", { ascending: false }).limit(1).maybeSingle();
+      existing = data ?? null;
+    }
+
+    // Replay de batch já terminal → idempotente, não duplica.
+    if (existing && (existing.status === "complete" || existing.status === "processed" || existing.status === "error")) {
+      void supabase.from("collection_logs").insert({
+        acao: "bot_print_duplicate_dropped",
+        status: "warning",
+        mensagem: `correlation_id=${correlationId} já tinha batch ${existing.id} (${existing.status}). Upload aceito mas batch NÃO duplicado.`,
+      });
+      return jr({
+        ok: true,
+        path,
+        signed_url: signed.signedUrl,
+        signed_url_kind: signedUrlKind,
+        expires_in: SIGNED_URL_TTL,
+        batch: {
+          batch_id: existing.id,
+          received_parts: existing.received_parts,
+          total_parts: existing.total_parts,
+          complete: true,
+          dom_count: Array.isArray(existing.dom_payload) ? existing.dom_payload.length : 0,
+          correlation_id: correlationId || null,
+          idempotent_replay: true,
+        },
+      });
+    }
 
     let batchId: string;
     let receivedParts: number;
@@ -278,11 +307,7 @@ Deno.serve(async (req) => {
     let printUrls: string[];
     let mergedDom: any[] = [];
 
-    // Se chegou part 1 e já existe um pending, descarta o velho (provável retry/reset
-    // do bot) e abre novo. Se chegou part 1 sem nada existente, idem: abre novo.
-    const shouldOpenNew = !existing || parsed.part === 1;
-
-    if (shouldOpenNew) {
+    if (!existing) {
       const { data: created, error: bErr } = await supabase
         .from("bot_print_batches")
         .insert({
@@ -300,6 +325,32 @@ Deno.serve(async (req) => {
         .select("id")
         .single();
       if (bErr) {
+        // Race: outra request inseriu o mesmo correlation_id em paralelo.
+        if ((bErr as any).code === "23505" && correlationId) {
+          const { data: raceRow } = await supabase
+            .from("bot_print_batches")
+            .select("id, received_parts, total_parts, status, dom_payload")
+            .eq("correlation_id", correlationId)
+            .maybeSingle();
+          if (raceRow) {
+            return jr({
+              ok: true,
+              path,
+              signed_url: signed.signedUrl,
+              signed_url_kind: signedUrlKind,
+              expires_in: SIGNED_URL_TTL,
+              batch: {
+                batch_id: raceRow.id,
+                received_parts: raceRow.received_parts,
+                total_parts: raceRow.total_parts,
+                complete: raceRow.status === "complete" || raceRow.status === "processed",
+                dom_count: Array.isArray(raceRow.dom_payload) ? raceRow.dom_payload.length : 0,
+                correlation_id: correlationId,
+                idempotent_replay: true,
+              },
+            });
+          }
+        }
         console.error("batch insert err", bErr);
       }
       batchId = created?.id ?? "";
@@ -312,14 +363,11 @@ Deno.serve(async (req) => {
       printPaths = [...(existing.print_paths as string[] ?? []), path];
       printUrls = [...(existing.print_urls as string[] ?? []), signed.signedUrl];
       receivedParts = (existing.received_parts ?? 0) + 1;
-      // Merge dom_payload deduplicando por url
       const prevDom = (existing.dom_payload as any[]) ?? [];
       const seenUrls = new Set(prevDom.map((d) => d?.url).filter(Boolean));
       const newOnes = domPlaylists.filter((d) => d?.url && !seenUrls.has(d.url));
       mergedDom = [...prevDom, ...newOnes];
 
-      // A5 — Overshoot detector: parte recebida sem nenhuma playlist nova
-      // = print redundante (bot ignorou §3.1 do contrato). Loga pra auditoria.
       if (newOnes.length === 0 && parsed.part > 1) {
         void supabase.from("collection_logs").insert({
           acao: "bot_print_overshoot",
@@ -336,7 +384,6 @@ Deno.serve(async (req) => {
         status: isComplete ? "complete" : "pending",
         completed_at: isComplete ? new Date().toISOString() : null,
       };
-      // Se chegou correlation_id agora e batch ainda não tinha, fixa.
       if (correlationId) updatePatch.correlation_id = correlationId;
       await supabase
         .from("bot_print_batches")
