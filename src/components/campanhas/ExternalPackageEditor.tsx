@@ -116,20 +116,25 @@ export function ExternalPackageEditor({
       // Fallback pra reconciled_total_plays quando o cron de deals ainda não rodou
       // ou quando a fonte de verdade vem de campaign_playlist_collections (Plug/Manolo).
       try {
+        // Growth Engine: `attributed_to` é texto ('curator:<uuid>' | 'ecosystem' | 'organic').
         const { data: rows } = await (supabase as any)
           .from("vw_campaign_playlist_growth")
-          .select("attributed_curator_id, delta, baseline_plays")
+          .select("attributed_to, delta, baseline_plays")
           .eq("campaign_id", campaignId)
-          .not("attributed_curator_id", "is", null);
+          .like("attributed_to", "curator:%");
         const map: Record<string, CuratorDelivery> = {};
-        for (const r of (rows ?? []) as Array<{ attributed_curator_id: string; delta: number | null; baseline_plays: number | null }>) {
+        for (const r of (rows ?? []) as Array<{ attributed_to: string; delta: number | null; baseline_plays: number | null }>) {
+          const curatorId = (r.attributed_to ?? "").startsWith("curator:")
+            ? r.attributed_to.slice("curator:".length)
+            : null;
+          if (!curatorId) continue;
           const v = Math.max(0, Number(r.delta ?? 0));
           if (v === 0) continue;
-          const cur = map[r.attributed_curator_id] ?? { total: 0, clean: 0, prior: 0 };
+          const cur = map[curatorId] ?? { total: 0, clean: 0, prior: 0 };
           cur.total += v;
           if (Number(r.baseline_plays ?? 0) > 0) cur.prior += v;
           else cur.clean += v;
-          map[r.attributed_curator_id] = cur;
+          map[curatorId] = cur;
         }
         setDeliveryByCurator(map);
       } catch (e) {
