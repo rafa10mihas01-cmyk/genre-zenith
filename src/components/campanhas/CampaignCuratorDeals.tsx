@@ -8,6 +8,7 @@ import { formatInt } from "@/lib/campaignEngine";
 
 type Deal = {
   id: string;
+  curator_id: string | null;
   curator_name: string;
   song_name: string;
   target_plays: number;
