@@ -324,19 +324,43 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={close}>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-center justify-between gap-3">
-            <DialogTitle>Nova campanha · {step}/3</DialogTitle>
-            <DraftIndicator lastSavedAt={lastSavedAt} />
-          </div>
-          <DialogDescription>
+    <FormModal
+      open={open}
+      onOpenChange={close}
+      title={`Nova campanha · ${step}/3`}
+      description={
+        <span className="flex items-center justify-between gap-3">
+          <span>
             {step === 1 && "Música, meta e prazo."}
             {step === 2 && "Revisar distribuição."}
             {step === 3 && "Ativar."}
-          </DialogDescription>
-        </DialogHeader>
+          </span>
+          <DraftIndicator lastSavedAt={lastSavedAt} />
+        </span>
+      }
+      icon={<Megaphone className="h-4 w-4" />}
+      iconTone="campanhas"
+      size="xl"
+      preventClose={busy}
+      footer={
+        <div className="flex w-full items-center justify-between gap-2">
+          <Button variant="ghost" onClick={() => step > 1 ? setStep((step - 1) as any) : close(false)} disabled={busy}>
+            {step > 1 ? <><ChevronLeft className="h-4 w-4 mr-1" /> Voltar</> : "Cancelar"}
+          </Button>
+          {step < 3 ? (
+            <Button onClick={goNext} disabled={busy || loadingSugg}>
+              Avançar <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          ) : (
+            <Button onClick={submit} disabled={busy}>
+              {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Salvar rascunho
+            </Button>
+          )}
+        </div>
+      }
+    >
+
 
         {showDraftBanner && (
           <DraftBanner onRestore={handleRestore} onDiscard={handleDiscardDraft} />
