@@ -299,7 +299,63 @@ function BaselineStatus({
 
 
 
-        <div className="border-t border-border/60 px-4 py-4 bg-background/40 space-y-3 max-h-[60vh] overflow-y-auto overscroll-contain">
+        <div className="border-t border-border/60 px-4 py-4 bg-background/40 space-y-4 max-h-[60vh] overflow-y-auto overscroll-contain">
+
+          {/* Planilhas enviadas (só aparece no modo manual/planilha — automático não passa essa prop). */}
+          {spreadsheetUploads && spreadsheetUploads.length > 0 && (
+            <div className="rounded-lg border border-border/60 bg-card/40 p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <FileSpreadsheet className="h-3.5 w-3.5 text-domain-campaigns" />
+                <div className="text-[12px] font-semibold text-foreground">Planilhas enviadas</div>
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground ml-auto">
+                  {spreadsheetUploads.length} {spreadsheetUploads.length === 1 ? "envio" : "envios"}
+                </span>
+              </div>
+              {/* ~5 visíveis (cada item ~32px) — resto com scroll. */}
+              <ul className="space-y-1 max-h-[180px] overflow-y-auto overscroll-contain pr-1">
+                {spreadsheetUploads.map((u) => {
+                  const dt = new Date(u.created_at);
+                  return (
+                    <li
+                      key={u.id}
+                      className="flex items-center gap-2 text-[12px] text-muted-foreground rounded-md px-2 py-1.5 hover:bg-muted/20"
+                    >
+                      <span className="tabular-nums shrink-0 w-[120px] text-foreground/80">
+                        {dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                      {u.is_baseline && (
+                        <span className="text-[9.5px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded border border-primary/40 text-primary leading-none shrink-0">
+                          baseline
+                        </span>
+                      )}
+                      <span className="flex-1 text-right tabular-nums truncate">
+                        {u.rows_imported} playlists · {new Intl.NumberFormat("pt-BR").format(Math.round(u.total_streams))} streams
+                      </span>
+                      {isAdmin && u.file_path && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground shrink-0"
+                          onClick={() => handleDownloadUpload(u)}
+                          disabled={downloadingId === u.id}
+                          title={u.file_name ?? "Baixar planilha original"}
+                        >
+                          {downloadingId === u.id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Download className="h-3 w-3" />
+                          )}
+                        </Button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+
+
 
           {runsLoading ? (
             <div className="text-[12px] text-muted-foreground">Carregando prints…</div>
