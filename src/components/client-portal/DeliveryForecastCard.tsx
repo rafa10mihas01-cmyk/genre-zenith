@@ -540,6 +540,25 @@ export function DeliveryForecastCard({ forecast, organicSummary, spotifyTrackId 
 
                 />
               )}
+
+              {/* Marcador HOJE: separa passado real do futuro projetado */}
+              {data.todayDay != null && data.todayMarkValue != null && data.todayDay >= 1 && (
+                <ReferenceDot
+                  yAxisId="left"
+                  x={`D${data.todayDay}`} y={data.todayMarkValue}
+                  r={4.5}
+                  fill="hsl(var(--background))"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={2.5}
+                  label={{
+                    value: isNarrow ? "Hoje" : `Hoje · ${formatPlays(data.todayMarkValue)}`,
+                    position: "top",
+                    offset: 10,
+                    fill: "hsl(var(--primary))",
+                    fontSize: isNarrow ? 9.5 : 10.5, fontWeight: 600,
+                  }}
+                />
+              )}
             </ComposedChart>
           </ResponsiveContainer>
         </div>
