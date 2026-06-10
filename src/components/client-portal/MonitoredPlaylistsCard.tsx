@@ -149,7 +149,7 @@ export function MonitoredPlaylistsCard({
     const rows = exportRows();
     if (rows.length === 0) return;
     const baseName = sanitizeFileName(clientName || "cliente");
-    exportCSV(`playlists-${baseName}-${isoDate()}.csv`, rows);
+    exportCSV(`Playlists-${baseName}-${isoDate()}.csv`, rows);
   }
 
   async function handleExportExcel() {
@@ -335,11 +335,7 @@ export function MonitoredPlaylistsCard({
       excelRow.height = 18;
     });
 
-    // ===== Filtros automáticos =====
-    ws.autoFilter = {
-      from: { row: headerRowIdx, column: 1 },
-      to:   { row: headerRowIdx + rows.length, column: cols.length },
-    };
+    // Sem autoFilter — exportação limpa, só os nomes nas colunas.
 
     // Gera arquivo e dispara download.
     const buf = await wb.xlsx.writeBuffer();
@@ -350,7 +346,7 @@ export function MonitoredPlaylistsCard({
     const a = document.createElement("a");
     const baseName = sanitizeFileName(clientName || "cliente");
     a.href = url;
-    a.download = `playlists-${baseName}-${isoDate()}.xlsx`;
+    a.download = `Playlists-${baseName}-${isoDate()}.xlsx`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
