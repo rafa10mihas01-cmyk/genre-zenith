@@ -750,6 +750,7 @@ export default function PlanoCampanhaPublico() {
             playlists: (
               <MonitoredPlaylistsCard
                 playlists={livePlaylists}
+                loading={livePlaylistsLoading}
                 clientName={camp.artist || undefined}
                 campaignName={camp.track_name || undefined}
                 artistName={camp.artist || undefined}
