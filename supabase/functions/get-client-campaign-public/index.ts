@@ -381,6 +381,7 @@ Deno.serve(async (req) => {
         plays_28d: plays28d,
         status,
         source: "curator" as const,
+        spotify_playlist_id: spId || null,
       };
     });
 
@@ -440,6 +441,7 @@ Deno.serve(async (req) => {
             status: grown > 0 ? "Crescendo" : "Nova",
             source: "engine" as const,
             planned: Number(a.planned_streams ?? 0),
+            spotify_playlist_id: spotifyId || null,
           });
         }
 

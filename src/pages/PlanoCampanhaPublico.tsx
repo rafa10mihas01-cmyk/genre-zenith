@@ -741,7 +741,10 @@ export default function PlanoCampanhaPublico() {
               </div>
             ),
             playlists: (
-              <MonitoredPlaylistsCard playlists={livePlaylists} />
+              <MonitoredPlaylistsCard
+                playlists={livePlaylists}
+                clientName={camp.artist || undefined}
+              />
             ),
             proofs: isApproved ? (
               <PrintsHistoryCard

@@ -2,8 +2,11 @@
 // Mesma UI da página antiga /campanha/:token — recebe a lista
 // já sanitizada (curator + engine) vinda do payload público.
 import { Card, CardContent } from "@/components/ui/card";
-import { ListMusic, CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ListMusic, CheckCircle2, FileSpreadsheet, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { exportCSV } from "@/lib/export";
+import * as XLSX from "xlsx";
 
 export type MonitoredPlaylist = {
   name: string;
@@ -16,6 +19,7 @@ export type MonitoredPlaylist = {
   plays_7d?: number | null;
   plays_28d?: number | null;
   last_import_delta?: number | null;
+  spotify_playlist_id?: string | null;
 };
 
 
@@ -39,7 +43,35 @@ const STATUS_LABEL: Record<"entregando" | "aguardando", string> = {
   aguardando: "Aguardando",
 };
 
-export function MonitoredPlaylistsCard({ playlists }: { playlists: MonitoredPlaylist[] }) {
+function sanitizeFileName(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function isoDate(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function exportExcel(filename: string, rows: Record<string, unknown>[]) {
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Playlists");
+  XLSX.writeFile(wb, filename.endsWith(".xlsx") ? filename : `${filename}.xlsx`);
+}
+
+export function MonitoredPlaylistsCard({
+  playlists,
+  clientName,
+}: {
+  playlists: MonitoredPlaylist[];
+  clientName?: string;
+}) {
   if (!playlists || playlists.length === 0) {
     return (
       <Card className="border-border">
@@ -65,6 +97,34 @@ export function MonitoredPlaylistsCard({ playlists }: { playlists: MonitoredPlay
   });
   const entregandoCount = sorted.filter((p) => clientStatus(p) === "entregando").length;
 
+  function buildRows() {
+    return sorted.map((p) => ({
+      PLAYLIST: p.name,
+      URL: p.spotify_playlist_id
+        ? `https://open.spotify.com/playlist/${p.spotify_playlist_id}`
+        : "",
+      "ENTREGA ACUMULADA": p.delivered ?? 0,
+      "ÚLTIMA IMPORTAÇÃO": p.last_import_delta ?? "",
+      "7D": p.plays_7d ?? "",
+      "28D": p.plays_28d ?? "",
+      STATUS: p.status,
+    }));
+  }
+
+  function handleExportExcel() {
+    const rows = buildRows();
+    if (rows.length === 0) return;
+    const baseName = sanitizeFileName(clientName || "cliente");
+    exportExcel(`playlists-${baseName}-${isoDate()}`, rows);
+  }
+
+  function handleExportCSV() {
+    const rows = buildRows();
+    if (rows.length === 0) return;
+    const baseName = sanitizeFileName(clientName || "cliente");
+    exportCSV(`playlists-${baseName}-${isoDate()}.csv`, rows);
+  }
+
   return (
     <Card className="border-border">
       <CardContent className="p-5 sm:p-6 space-y-5">
@@ -78,13 +138,35 @@ export function MonitoredPlaylistsCard({ playlists }: { playlists: MonitoredPlay
               {entregandoCount} de {sorted.length} entregando agora
             </p>
           </div>
-          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary bg-primary/10 ring-1 ring-primary/20 rounded-full px-2.5 py-1 tabular-nums shrink-0">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-75 animate-ping" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
+          <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-[11px] gap-1.5"
+              onClick={handleExportCSV}
+              disabled={sorted.length === 0}
+            >
+              <FileText className="h-3.5 w-3.5" />
+              Exportar CSV
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              className="h-8 text-[11px] gap-1.5"
+              onClick={handleExportExcel}
+              disabled={sorted.length === 0}
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5" />
+              Exportar Excel
+            </Button>
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary bg-primary/10 ring-1 ring-primary/20 rounded-full px-2.5 py-1 tabular-nums">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-75 animate-ping" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
+              </span>
+              {sorted.length} ativas
             </span>
-            {sorted.length} ativas
-          </span>
+          </div>
         </div>
 
         <div className="flex items-start gap-2 rounded-xl bg-muted/30 border border-border/60 px-3 py-2.5">
