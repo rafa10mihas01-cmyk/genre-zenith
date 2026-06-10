@@ -142,6 +142,13 @@ Deno.serve(async (req) => {
       await sb.from("spotify_user_tokens").update({
         access_token, refresh_token, expires_at, updated_at: new Date().toISOString(),
       }).eq("id", acc.id);
+      // Auto-resolve notificação anterior de falha (se existir)
+      try {
+        await sb.rpc("resolve_notifications_by_dedupe" as any, {
+          p_dedupe_key: `spotify_token_failed:${acc.id}`,
+          p_resolution_message: "Conta Spotify reconectou normalmente.",
+        });
+      } catch { /* ignore */ }
       okCount++;
       results.push({ account: acc.spotify_user_id, ok: true, expires_at });
     } catch (e) {
