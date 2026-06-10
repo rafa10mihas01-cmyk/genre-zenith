@@ -88,8 +88,8 @@ export function SaudeSistema() {
 
     const allFailures: Failure[] = (recentFailedJobs.data ?? []).map((j: any) => ({
       id: `job-${j.id}`,
-      source: `Execução: ${j.job_type}`,
-      message: j.last_error ?? "Erro desconhecido",
+      source: humanizeFunctionName(j.job_type),
+      message: humanizeError(j.last_error),
       created_at: j.updated_at,
     }));
     setFailures(allFailures);
