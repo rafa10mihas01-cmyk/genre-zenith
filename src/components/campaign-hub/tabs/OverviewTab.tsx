@@ -404,41 +404,95 @@ export function OverviewTab({
 
         <Card>
           <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-sm font-semibold">Playlists no ar</div>
-              <span className="text-xs text-muted-foreground tabular-nums">{topPlaylists.length}/{allocations.length}</span>
-            </div>
-            {topPlaylists.length === 0 ? (
-              <div className="text-xs text-muted-foreground py-6 text-center">
-                Nenhuma playlist ativa ainda.
-              </div>
-            ) : (
-              <ul className="space-y-2.5">
-                {topPlaylists.map(({ a, delivered: d, delta24 }) => {
-                  const pl = a.managed_playlists;
-                  const p = a.planned_streams > 0 ? Math.min(100, Math.round((d / a.planned_streams) * 100)) : 0;
-                  return (
-                    <li key={a.id} className="flex items-center gap-2.5">
-                      {pl?.cover_url ? (
-                        <img src={pl.cover_url} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
-                      ) : (
-                        <div className="w-8 h-8 rounded bg-muted grid place-items-center shrink-0">
-                          <Music className="h-3.5 w-3.5 text-muted-foreground" />
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <div className="text-xs font-medium truncate leading-tight">{pl?.name ?? "—"}</div>
-                        <div className="h-1 rounded-full bg-muted overflow-hidden mt-1">
-                          <div className="h-full bg-primary" style={{ width: `${p}%` }} />
-                        </div>
+            {(() => {
+              // Override do portal do cliente (fonte: engine view)
+              if (topDeliveringPlaylists !== undefined) {
+                const delivering = topDeliveringPlaylists
+                  .filter((p) => p.delivered > 0)
+                  .sort((a, b) => b.delivered - a.delivered);
+                const top = delivering.slice(0, 5);
+                return (
+                  <>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="text-sm font-semibold">Playlists entregando</div>
+                      <span className="text-xs text-success font-medium tabular-nums">{delivering.length} ativas</span>
+                    </div>
+                    {top.length === 0 ? (
+                      <div className="text-xs text-muted-foreground py-6 text-center">
+                        Aguardando primeira entrega.
                       </div>
-                      <DeltaInline value={delta24} />
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-            {onJumpTab && allocations.length > 0 && (
+                    ) : (
+                      <ul className="space-y-2.5">
+                        {top.map((p, i) => {
+                          const max = top[0]?.delivered ?? 0;
+                          const pct = max > 0 ? Math.min(100, Math.round((p.delivered / max) * 100)) : 0;
+                          return (
+                            <li key={`${p.name}-${i}`} className="flex items-center gap-2.5">
+                              {p.image_url ? (
+                                <img src={p.image_url} alt="" className="w-8 h-8 rounded object-cover shrink-0 ring-1 ring-success/30" />
+                              ) : (
+                                <div className="w-8 h-8 rounded bg-muted grid place-items-center shrink-0">
+                                  <Music className="h-3.5 w-3.5 text-muted-foreground" />
+                                </div>
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <div className="text-xs font-medium truncate leading-tight">{p.name}</div>
+                                <div className="h-1 rounded-full bg-muted overflow-hidden mt-1">
+                                  <div className="h-full bg-success" style={{ width: `${pct}%` }} />
+                                </div>
+                              </div>
+                              <div className="text-[12px] font-semibold tabular-nums text-success shrink-0">
+                                +{formatInt(p.delivered)}
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </>
+                );
+              }
+              // Comportamento original (interno)
+              return (
+                <>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="text-sm font-semibold">Playlists no ar</div>
+                    <span className="text-xs text-muted-foreground tabular-nums">{topPlaylists.length}/{allocations.length}</span>
+                  </div>
+                  {topPlaylists.length === 0 ? (
+                    <div className="text-xs text-muted-foreground py-6 text-center">
+                      Nenhuma playlist entregando ainda.
+                    </div>
+                  ) : (
+                    <ul className="space-y-2.5">
+                      {topPlaylists.map(({ a, delivered: d, delta24 }) => {
+                        const pl = a.managed_playlists;
+                        const p = a.planned_streams > 0 ? Math.min(100, Math.round((d / a.planned_streams) * 100)) : 0;
+                        return (
+                          <li key={a.id} className="flex items-center gap-2.5">
+                            {pl?.cover_url ? (
+                              <img src={pl.cover_url} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
+                            ) : (
+                              <div className="w-8 h-8 rounded bg-muted grid place-items-center shrink-0">
+                                <Music className="h-3.5 w-3.5 text-muted-foreground" />
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <div className="text-xs font-medium truncate leading-tight">{pl?.name ?? "—"}</div>
+                              <div className="h-1 rounded-full bg-muted overflow-hidden mt-1">
+                                <div className="h-full bg-primary" style={{ width: `${p}%` }} />
+                              </div>
+                            </div>
+                            <DeltaInline value={delta24} />
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </>
+              );
+            })()}
+            {onJumpTab && (allocations.length > 0 || (topDeliveringPlaylists?.length ?? 0) > 0) && (
               <div className="mt-3 text-right">
                 <Button variant="ghost" size="sm" onClick={() => onJumpTab("playlists")} className="h-7 text-xs">
                   Ver todas <ArrowRight className="h-3 w-3 ml-1" />
