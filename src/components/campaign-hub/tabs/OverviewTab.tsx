@@ -8,6 +8,50 @@ import { useState } from "react";
 import type { EcoAllocation } from "../types";
 import { KpiBig } from "@/components/KpiBig";
 
+type CompactItem = { name: string; image_url: string | null; delivered: number; planned?: number | null };
+function CompactPlaylistList({
+  title, counterLabel, items, emptyText,
+}: { title: string; counterLabel: string; items: CompactItem[]; emptyText: string }) {
+  return (
+    <>
+      <div className="flex items-center justify-between mb-4">
+        <div className="text-sm font-semibold">{title}</div>
+        <span className="text-xs text-primary font-medium tabular-nums">{counterLabel}</span>
+      </div>
+      {items.length === 0 ? (
+        <div className="text-xs text-muted-foreground py-6 text-center">{emptyText}</div>
+      ) : (
+        <ul className="space-y-1">
+          {items.slice(0, 8).map((p, i) => {
+            const planned = Number(p.planned ?? 0);
+            const pct = planned > 0 ? Math.min(100, Math.round((p.delivered / planned) * 100)) : 0;
+            return (
+              <li key={`${p.name}-${i}`} className="flex items-center gap-3 px-1 py-1.5 rounded-md hover:bg-muted/20 transition-colors">
+                {p.image_url ? (
+                  <img src={p.image_url} alt="" className="w-9 h-9 rounded object-cover shrink-0 ring-1 ring-border" />
+                ) : (
+                  <div className="w-9 h-9 rounded bg-muted grid place-items-center shrink-0">
+                    <Music className="h-3.5 w-3.5 text-muted-foreground" />
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13px] font-medium truncate leading-tight text-foreground">{p.name}</div>
+                  {planned > 0 && (
+                    <div className="h-1 rounded-full bg-muted/60 overflow-hidden mt-1.5">
+                      <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
+                    </div>
+                  )}
+                </div>
+                <div className="text-right text-[13px] font-semibold tabular-nums text-primary shrink-0">+{formatInt(p.delivered)}</div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </>
+  );
+}
+
 type EcoSnap = {
   managed_playlist_id: string;
   plays_24h: number | null;
