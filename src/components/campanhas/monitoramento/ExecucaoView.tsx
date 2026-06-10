@@ -25,6 +25,7 @@ type GrowthRow = {
   baseline_plays: number | null;
   current_plays: number | null;
   delta: number;
+  last_import_delta: number | null;
   baseline_at: string | null;
   last_captured_at: string | null;
   first_seen_at: string | null;
