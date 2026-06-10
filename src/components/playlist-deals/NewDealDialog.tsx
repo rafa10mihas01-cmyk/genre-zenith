@@ -1615,26 +1615,6 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
                 </div>
               </div>
             )}
-
-            <DialogFooter className="gap-2 sm:gap-2">
-              <Button type="button" variant="ghost" onClick={() => handleOpenChange(false)}>
-                Cancelar
-              </Button>
-              <Button
-                type="button"
-                onClick={handleAdvanceToStep2}
-                disabled={
-                  submitting ||
-                  (curatorMode === "select" && !selectedCuratorId) ||
-                  (curatorMode === "new" && !newCuratorName.trim())
-                }
-                className="gap-1.5"
-              >
-                {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                Avançar
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </DialogFooter>
           </div>
         )}
 
