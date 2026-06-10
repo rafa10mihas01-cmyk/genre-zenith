@@ -100,6 +100,14 @@ export function SpotifyAppsPanel() {
           </Button>
         </div>
 
+        <div className="flex items-start gap-2 px-4 py-2.5 border-b border-border bg-muted/30 text-[11px] text-muted-foreground">
+          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+          <span>
+            Spotify limitou recursos de descoberta automática (catálogo agregado e listagem pública de usuários).
+            Campanhas, curadores, imports, growth engine e monitoramento continuam funcionando normalmente.
+          </span>
+        </div>
+
         <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 items-center px-4 py-2 border-b border-border bg-elevated/40 text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
           <div>App</div>
           <div>Estado</div>
