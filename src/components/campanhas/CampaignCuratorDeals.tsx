@@ -73,7 +73,7 @@ export function CampaignCuratorDeals({ campaignId }: Props) {
       }
       const { data: dealRows } = await supabase
         .from("curator_deals")
-        .select("id, curator_name, song_name, target_plays, reconciled_total_plays, last_reconciled_at")
+        .select("id, curator_id, curator_name, song_name, target_plays, reconciled_total_plays, last_reconciled_at")
         .in("id", dealIds);
       const ds = (dealRows ?? []) as Deal[];
 
