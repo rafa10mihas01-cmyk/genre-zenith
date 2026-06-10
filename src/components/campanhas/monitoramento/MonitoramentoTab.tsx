@@ -152,6 +152,7 @@ export function MonitoramentoTab({ campaignId, headerSlot, spreadsheetUploads }:
         playlists={kpis.playlists}
         runs={runs}
         runsLoading={runsLoading}
+        spreadsheetUploads={spreadsheetUploads}
       />
       {headerSlot}
 
