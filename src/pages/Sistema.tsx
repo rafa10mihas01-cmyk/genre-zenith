@@ -13,6 +13,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { timeAgo } from "@/lib/format";
+import { humanizeError, humanizeFunctionName } from "@/lib/operationalCopy";
 
 import { AoVivoPainel } from "@/components/sistema/AoVivoPainel";
 import { FluxoVisual } from "@/components/sistema/fluxo/FluxoVisual";
@@ -36,6 +37,7 @@ import { CapacidadePanel } from "@/components/sistema/CapacidadePanel";
 import { SpotifyPilotPanel } from "@/components/sistema/SpotifyPilotPanel";
 import { ManualDistribuicoesPanel } from "@/components/sistema/ManualDistribuicoesPanel";
 import { SpotifyAppsPanel } from "@/components/sistema/SpotifyAppsPanel";
+import { ExecutiveStatusBar } from "@/components/sistema/ExecutiveStatusBar";
 
 type SistemaTab = "saude" | "capacidade" | "aprendizado" | "alertas" | "motores" | "configuracoes" | "dev";
 type MotorSub = "robo" | "coleta" | "execucao" | "manual" | "fluxo" | "ao-vivo";
@@ -168,6 +170,7 @@ export default function Sistema() {
       <div className="min-h-[480px] animate-tab-in">
         {activeTab === "saude" && (
           <div className="space-y-8">
+            <ExecutiveStatusBar />
             <SystemKpis />
             <section>
               <SectionHeader icon={HeartPulse} title="Saúde geral" subtitle="KPIs agregados do sistema" />
@@ -326,15 +329,17 @@ function AtividadeRecente() {
             l.status === "sucesso" ? "text-primary bg-primary/10"
             : l.status === "erro" ? "text-destructive bg-destructive/10"
             : "text-warning bg-warning/10";
+          const friendlyAction = humanizeFunctionName(l.acao);
+          const friendlyMessage = l.status === "erro" ? humanizeError(l.mensagem) : l.mensagem;
           return (
             <li key={l.id} className="flex items-center gap-3 px-4 py-3">
               <span className={cn("h-7 w-7 rounded-full flex items-center justify-center shrink-0", tone)}>
                 <Activity className="h-3.5 w-3.5" />
               </span>
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold leading-tight truncate">{l.acao}</div>
-                {l.mensagem && (
-                  <div className="text-[11px] text-muted-foreground truncate mt-0.5">{l.mensagem}</div>
+                <div className="text-sm font-semibold leading-tight truncate">{friendlyAction}</div>
+                {friendlyMessage && (
+                  <div className="text-[11px] text-muted-foreground truncate mt-0.5">{friendlyMessage}</div>
                 )}
               </div>
               <span className="text-[11px] text-muted-foreground shrink-0 tabular-nums">

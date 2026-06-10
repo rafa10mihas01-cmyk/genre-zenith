@@ -8,16 +8,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useSpotifyAppsStatus, type AppLevel, type SpotifyAppStatusRow } from "@/hooks/useSpotifyAppsStatus";
 import { cn } from "@/lib/utils";
 
-function fmtUtc(iso: string | null) {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  return `${d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "UTC" })} ${d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} UTC`;
-}
 
-const LEVEL_META: Record<AppLevel, { label: string; icon: typeof ShieldAlert; cls: string; dot: string }> = {
-  blocked:   { label: "BLOQUEADO", icon: ShieldAlert,    cls: "text-destructive border-destructive/40 bg-destructive/10", dot: "bg-destructive" },
-  attention: { label: "ATENÇÃO",   icon: ShieldQuestion, cls: "text-warning border-warning/40 bg-warning/10",             dot: "bg-warning" },
-  healthy:   { label: "OK",        icon: ShieldCheck,    cls: "text-primary border-primary/30 bg-primary/5",              dot: "bg-primary" },
+const LEVEL_META: Record<AppLevel, { label: string; icon: typeof ShieldAlert; cls: string; dot: string; helper: string }> = {
+  blocked:   { label: "Aguardando liberação", icon: ShieldAlert,    cls: "text-destructive border-destructive/40 bg-destructive/10", dot: "bg-destructive", helper: "Spotify bloqueou temporariamente. Liberação automática." },
+  attention: { label: "Em observação",        icon: ShieldQuestion, cls: "text-warning border-warning/40 bg-warning/10",             dot: "bg-warning",     helper: "Algumas falhas recentes — monitorando." },
+  healthy:   { label: "Tudo certo",           icon: ShieldCheck,    cls: "text-primary border-primary/30 bg-primary/5",              dot: "bg-primary",     helper: "Operando normalmente." },
 };
 
 function LevelBadge({ level }: { level: AppLevel }) {
@@ -31,6 +26,12 @@ function LevelBadge({ level }: { level: AppLevel }) {
   );
 }
 
+function fmtLocal(iso: string | null) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
 function Row({ row }: { row: SpotifyAppStatusRow }) {
   const m = LEVEL_META[row.level];
   return (
@@ -40,10 +41,7 @@ function Row({ row }: { row: SpotifyAppStatusRow }) {
         <div className="min-w-0">
           <div className="text-sm font-medium truncate">{row.app_name}</div>
           <div className="text-[11px] text-muted-foreground">
-            auth_failure_count: <span className="tabular-nums">{row.auth_failure_count}</span>
-            {row.app_status !== "active" && (
-              <> · status: <span className="text-foreground">{row.app_status}</span></>
-            )}
+            {m.helper}
           </div>
         </div>
       </div>
@@ -57,13 +55,12 @@ function Row({ row }: { row: SpotifyAppStatusRow }) {
           <Tooltip>
             <TooltipTrigger asChild>
               <div className="text-destructive font-medium cursor-help">
-                {fmtUtc(row.blocked_until)}
+                Liberação {fmtLocal(row.blocked_until)}
               </div>
             </TooltipTrigger>
-            <TooltipContent side="left" className="text-xs">
-              <div>Circuit breaker: <span className="font-medium">{row.circuit_status}</span></div>
-              {row.last_429_at && <div>Último 429: {fmtUtc(row.last_429_at)}</div>}
-              <div>Retry after: {row.retry_after_sec}s</div>
+            <TooltipContent side="left" className="text-xs max-w-[260px]">
+              <div>Spotify bloqueou novas chamadas temporariamente para proteger a conta.</div>
+              <div className="text-muted-foreground mt-1">A liberação acontece automaticamente.</div>
             </TooltipContent>
           </Tooltip>
         ) : (
@@ -89,12 +86,12 @@ export function SpotifyAppsPanel() {
             <h3 className="text-sm font-semibold">Apps Spotify</h3>
             {blocked > 0 && (
               <Badge variant="outline" className="border-destructive/40 text-destructive text-[10px]">
-                {blocked} bloqueado{blocked > 1 ? "s" : ""}
+                {blocked} aguardando liberação
               </Badge>
             )}
             {attention > 0 && (
               <Badge variant="outline" className="border-warning/40 text-warning text-[10px]">
-                {attention} em atenção
+                {attention} em observação
               </Badge>
             )}
           </div>
@@ -105,9 +102,9 @@ export function SpotifyAppsPanel() {
 
         <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 items-center px-4 py-2 border-b border-border bg-elevated/40 text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
           <div>App</div>
-          <div>Status</div>
+          <div>Estado</div>
           <div className="text-right">Playlists</div>
-          <div className="text-right min-w-[140px]">Bloqueado até</div>
+          <div className="text-right min-w-[140px]">Próxima liberação</div>
         </div>
 
         {isLoading ? (

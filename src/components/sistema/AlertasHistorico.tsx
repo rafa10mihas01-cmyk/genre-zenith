@@ -1,9 +1,11 @@
 // Alertas — histórico paginado de notificações operacionais com ciclo de vida.
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { AlertCircle, AlertTriangle, Info, Filter, CheckCheck, CheckCircle2 } from "lucide-react";
+import { AlertCircle, AlertTriangle, Info, Filter, CheckCheck, CheckCircle2, ChevronDown, ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { timeAgo } from "@/lib/format";
 import {
@@ -14,6 +16,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { NotificationDomain, NotificationType } from "@/hooks/useNotifications";
+import { friendlyNotification } from "@/lib/notificationCopy";
+import { humanizeError } from "@/lib/operationalCopy";
 
 const DOMAIN_LABEL: Record<string, string> = {
   bot: "Robô",
@@ -196,7 +200,10 @@ function StatCard({ label, value, tone }: { label: string; value: number; tone: 
 }
 
 function Item({ n }: { n: Row }) {
+  const [open, setOpen] = useState(false);
   const isResolved = n.status === "resolved";
+  const friendly = friendlyNotification(n as any);
+
   const Icon = isResolved
     ? CheckCircle2
     : n.type === "critical"
@@ -220,6 +227,15 @@ function Item({ n }: { n: Row }) {
     : "bg-primary";
   const domain = (n.metadata?.domain as NotificationDomain) ?? "geral";
   const occ = n.metadata?.occurrences ?? 1;
+  const actionHref = friendly.actionUrl ?? n.action_url ?? null;
+  const actionLabel = friendly.actionLabel ?? (actionHref ? "Abrir" : null);
+
+  // Nível 2: sistema funcionando? ação necessária?
+  const showStatusRow = !isResolved && (
+    typeof friendly.systemWorking === "boolean" ||
+    typeof friendly.actionRequired === "boolean" ||
+    friendly.nextAttempt
+  );
 
   return (
     <li className="flex gap-3 px-4 py-3">
@@ -235,7 +251,7 @@ function Item({ n }: { n: Row }) {
               ? "font-semibold text-foreground"
               : "text-muted-foreground"
           )}>
-            {n.title}
+            {friendly.title}
           </p>
           {isResolved && (
             <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 font-medium shrink-0">
@@ -253,13 +269,54 @@ function Item({ n }: { n: Row }) {
             </span>
           )}
         </div>
-        <p className="text-xs text-muted-foreground mt-0.5">{n.message}</p>
+
+        {/* Nível 2 — o que aconteceu + impacto */}
+        {(friendly.message || friendly.impact) && (
+          <p className="text-xs text-muted-foreground mt-1">
+            {friendly.message}
+            {friendly.impact && (
+              <> <span className="text-foreground/70">Impacto:</span> {friendly.impact}</>
+            )}
+          </p>
+        )}
+
         {isResolved && n.metadata?.resolution_message && (
           <p className="text-xs text-emerald-500/80 mt-1 italic">
             ✓ {n.metadata.resolution_message}
           </p>
         )}
-        <div className="flex items-center gap-2 mt-1">
+
+        {/* Nível 2 — status estruturado */}
+        {showStatusRow && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-[11px]">
+            {typeof friendly.systemWorking === "boolean" && (
+              <span className={cn(
+                "inline-flex items-center gap-1",
+                friendly.systemWorking ? "text-success" : "text-destructive",
+              )}>
+                <span className="font-semibold">Sistema:</span>
+                {friendly.systemWorking ? "funcionando" : "afetado"}
+              </span>
+            )}
+            {typeof friendly.actionRequired === "boolean" && (
+              <span className={cn(
+                "inline-flex items-center gap-1",
+                friendly.actionRequired ? "text-warning" : "text-muted-foreground",
+              )}>
+                <span className="font-semibold">Ação:</span>
+                {friendly.actionRequired ? "necessária" : "não precisa"}
+              </span>
+            )}
+            {friendly.nextAttempt && (
+              <span className="text-muted-foreground">
+                <span className="font-semibold">Próxima tentativa:</span> {friendly.nextAttempt}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Linha inferior — domínio, tempo, ações */}
+        <div className="flex items-center gap-2 mt-2 flex-wrap">
           <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70 font-medium">
             {DOMAIN_LABEL[domain] ?? domain}
           </span>
@@ -271,8 +328,85 @@ function Item({ n }: { n: Row }) {
               <span className="text-[11px] text-emerald-500/70">resolvido {timeAgo(n.resolved_at)}</span>
             </>
           )}
+
+          <div className="flex-1" />
+
+          {actionHref && actionLabel && !isResolved && (
+            actionHref.startsWith("/") ? (
+              <Link
+                to={actionHref}
+                className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+              >
+                {actionLabel} <ArrowRight className="h-3 w-3" />
+              </Link>
+            ) : (
+              <a
+                href={actionHref}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+              >
+                {actionLabel} <ArrowRight className="h-3 w-3" />
+              </a>
+            )
+          )}
+
+          <Collapsible open={open} onOpenChange={setOpen}>
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/80 hover:text-foreground"
+              >
+                Ver detalhes
+                <ChevronDown className={cn("h-3 w-3 transition-transform", open && "rotate-180")} />
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="w-full mt-2">
+              <TechnicalDetails n={n} />
+            </CollapsibleContent>
+          </Collapsible>
         </div>
       </div>
     </li>
+  );
+}
+
+// Nível 3 — só pra equipe técnica, escondido por padrão.
+function TechnicalDetails({ n }: { n: Row }) {
+  const meta = n.metadata ?? {};
+  return (
+    <div className="rounded-md border border-border bg-muted/20 p-3 space-y-2">
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+        <DetailRow label="Título original" value={n.title} />
+        <DetailRow label="Severidade" value={n.type} />
+        <DetailRow label="Status" value={n.status} />
+        <DetailRow label="Tipo interno" value={(meta as any).kind ?? "—"} />
+        <DetailRow label="Chave de dedup" value={(meta as any).dedupe_key ?? "—"} />
+        <DetailRow label="Origem" value={(meta as any).source ?? "—"} />
+        <DetailRow label="Criado em" value={new Date(n.created_at).toLocaleString("pt-BR")} />
+        {n.resolved_at && <DetailRow label="Resolvido em" value={new Date(n.resolved_at).toLocaleString("pt-BR")} />}
+      </div>
+      {n.message && n.message !== friendlyNotification(n as any).message && (
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-0.5">Mensagem original</div>
+          <p className="text-[11px] text-muted-foreground break-words">{humanizeError(n.message)}</p>
+        </div>
+      )}
+      <details className="text-[10px]">
+        <summary className="cursor-pointer text-muted-foreground hover:text-foreground select-none">Payload bruto (JSON)</summary>
+        <pre className="mt-1 p-2 rounded bg-background border border-border overflow-auto max-h-40 text-[10px] leading-tight">
+{JSON.stringify(meta, null, 2)}
+        </pre>
+      </details>
+    </div>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="flex flex-col">
+      <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">{label}</span>
+      <span className="text-foreground/90 break-words">{value}</span>
+    </div>
   );
 }

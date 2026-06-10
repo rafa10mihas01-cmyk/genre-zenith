@@ -9,13 +9,26 @@
  * 3. Se nada bater, devolve o texto original.
  */
 import type { NotificationRow } from "@/hooks/useNotifications";
+import { formatRelativeFuture, humanizeError, humanizeFunctionName } from "@/lib/operationalCopy";
 
 export type FriendlyTone = "critical" | "warning" | "info" | "success";
 
-interface FriendlyCopy {
+export interface FriendlyCopy {
   title: string;
   message?: string;
   tone?: FriendlyTone;
+  /** Frase curta de impacto na operação. */
+  impact?: string;
+  /** O sistema continua funcionando apesar desse alerta? */
+  systemWorking?: boolean;
+  /** Precisa fazer algo manualmente? */
+  actionRequired?: boolean;
+  /** Quando o sistema vai tentar novamente (texto humano). */
+  nextAttempt?: string;
+  /** Texto do botão de ação (se houver). */
+  actionLabel?: string;
+  /** Para onde levar quando clicar (sobrescreve action_url da notificação). */
+  actionUrl?: string;
 }
 
 type Rewriter = (n: NotificationRow) => FriendlyCopy;
@@ -27,44 +40,138 @@ const BY_KIND: Record<string, Rewriter> = {
       title: hours
         ? `Sistema de coleta sem atividade há ${hours}h`
         : "Sistema de coleta sem atividade",
-      message: "A coleta automática de dados está ligada mas parou de receber informações novas. Verifique a saúde do sistema.",
+      message: "A coleta automática de dados está ligada, mas parou de receber informações novas.",
       tone: "warning",
+      impact: "Métricas novas podem demorar mais para aparecer.",
+      systemWorking: true,
+      actionRequired: true,
+      actionLabel: "Abrir saúde do sistema",
+      actionUrl: "/sistema?tab=saude",
     };
   },
   ops_bot_events_silent: () => ({
     title: "Coleta automática sem atividade",
     message: "A coleta de dados está sem registrar eventos novos.",
     tone: "warning",
+    impact: "Métricas novas podem demorar mais para aparecer.",
+    systemWorking: true,
+    actionRequired: false,
   }),
   ops_heartbeat_missing: () => ({
     title: "Sistema de coleta parado",
-    message: "O sistema de coleta deixou de enviar sinais de vida. Pode estar offline.",
+    message: "O sistema de coleta deixou de enviar sinal de vida. Pode estar offline.",
     tone: "critical",
+    impact: "Nenhuma nova coleta de métricas até voltar ao ar.",
+    systemWorking: false,
+    actionRequired: true,
+    actionLabel: "Abrir saúde do sistema",
+    actionUrl: "/sistema?tab=saude",
+  }),
+  vps_offline: (n) => ({
+    title: "Servidor de coleta offline",
+    message: "Um servidor parou de enviar sinal de vida há mais de 15 minutos.",
+    tone: "critical",
+    impact: "Coletas atribuídas a esse servidor estão pausadas.",
+    systemWorking: (n.metadata as any)?.has_backup ?? true,
+    actionRequired: true,
+    actionLabel: "Ver servidores",
+    actionUrl: "/sistema?tab=saude",
   }),
   spotify_token_invalid: () => ({
     title: "Conta Spotify precisa ser reconectada",
-    message: "Uma das contas conectadas perdeu a autorização. Reconecte em Configurações.",
+    message: "Uma das contas conectadas perdeu a autorização.",
     tone: "critical",
+    impact: "Coletas que dependem dessa conta estão paradas.",
+    systemWorking: true,
+    actionRequired: true,
+    actionLabel: "Reconectar conta",
+    actionUrl: "/configuracoes",
   }),
   spotify_token_refresh_failed: () => ({
     title: "Conta Spotify precisa ser reconectada",
-    message: "Não foi possível renovar o acesso de uma conta Spotify. Reconecte em Configurações.",
+    message: "Não foi possível renovar o acesso de uma conta Spotify.",
     tone: "critical",
+    impact: "Coletas que dependem dessa conta estão paradas.",
+    systemWorking: true,
+    actionRequired: true,
+    actionLabel: "Reconectar conta",
+    actionUrl: "/configuracoes",
+  }),
+  spotify_circuit_open: (n) => {
+    const until = (n.metadata as any)?.blocked_until ?? (n.metadata as any)?.retry_at;
+    return {
+      title: "Spotify temporariamente bloqueado",
+      message: "Spotify bloqueou novas consultas. O sistema está aguardando liberação automática.",
+      tone: "warning",
+      impact: "Algumas coletas podem atrasar alguns minutos.",
+      systemWorking: true,
+      actionRequired: false,
+      nextAttempt: formatRelativeFuture(until),
+    };
+  },
+  spotify_403_burst: () => ({
+    title: "Conta Spotify sem permissão",
+    message: "Uma conta Spotify recebeu muitas respostas de 'sem permissão' seguidas.",
+    tone: "critical",
+    impact: "Algumas coletas estão sendo rejeitadas pelo Spotify.",
+    systemWorking: true,
+    actionRequired: true,
+    actionLabel: "Reconectar conta",
+    actionUrl: "/configuracoes",
+  }),
+  cron_stale: (n) => {
+    const fn = (n.metadata as any)?.function_name ?? (n.metadata as any)?.cron_name;
+    return {
+      title: fn ? `Rotina automática atrasada: ${humanizeFunctionName(fn)}` : "Rotina automática atrasada",
+      message: "Uma tarefa automática está sem executar há mais tempo do que o esperado.",
+      tone: "warning",
+      impact: "Tarefas dependentes podem ficar desatualizadas.",
+      systemWorking: true,
+      actionRequired: false,
+    };
+  },
+  jobs_scheduler_retry: () => ({
+    title: "Recuperação automática de tarefas executada",
+    message: "O sistema reagendou tarefas que estavam travadas.",
+    tone: "info",
+    impact: "Nenhum impacto — recuperação preventiva.",
+    systemWorking: true,
+    actionRequired: false,
+  }),
+  email_queue_stuck: (n) => ({
+    title: "Fila de e-mails parada",
+    message: `Mensagens pendentes não estão sendo enviadas${(n.metadata as any)?.backlog ? ` (${(n.metadata as any).backlog} na fila)` : ""}.`,
+    tone: "critical",
+    impact: "Convites e relatórios não estão chegando aos destinatários.",
+    systemWorking: false,
+    actionRequired: true,
+    actionLabel: "Abrir saúde do sistema",
+    actionUrl: "/sistema?tab=saude",
   }),
   snapshot_suspicious: () => ({
     title: "Dados inconsistentes em uma playlist",
     message: "Um registro recente parece fora do padrão e foi marcado para revisão manual.",
     tone: "warning",
+    impact: "O registro foi isolado — nenhum efeito em outras playlists.",
+    systemWorking: true,
+    actionRequired: false,
   }),
   playlist_not_matched: () => ({
     title: "Playlist não identificada em um deal",
     message: "Recebemos dados de uma playlist que não está vinculada a nenhum deal ativo.",
     tone: "warning",
+    impact: "Esses dados não foram contabilizados em nenhum deal.",
+    systemWorking: true,
+    actionRequired: true,
+    actionLabel: "Ver curadores",
+    actionUrl: "/curadores",
   }),
   curator_no_playlists: () => ({
     title: "Curador sem playlists cadastradas",
     message: "Um curador foi consultado mas não tem playlists registradas para coleta.",
     tone: "info",
+    systemWorking: true,
+    actionRequired: false,
   }),
   algorithmic_in: () => ({
     title: "Música entrou em playlist algorítmica",
@@ -231,7 +338,7 @@ export function friendlyNotification(n: NotificationRow): FriendlyCopy {
 
   return {
     title: softenTechnicalText(n.title),
-    message: softenTechnicalText(n.message),
+    message: humanizeError(softenTechnicalText(n.message)),
   };
 }
 

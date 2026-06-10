@@ -5,6 +5,7 @@ import { Bot, Loader2, RefreshCw, Clock, ListChecks, ShieldCheck } from "lucide-
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { timeAgo } from "@/lib/format";
+import { humanizeError } from "@/lib/operationalCopy";
 
 type BotHealth = {
   last_heartbeat?: string;
@@ -75,7 +76,7 @@ export function BotSaudeCard() {
     <div>
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-bold flex items-center gap-1.5">
-          <Bot className="h-3 w-3" /> Bot Spotify
+          <Bot className="h-3 w-3" /> Sistema de coleta Spotify
         </h3>
         <Button size="sm" variant="ghost" onClick={load} disabled={refreshing} className="h-6 gap-1 text-[11px]">
           <RefreshCw className={cn("h-3 w-3", refreshing && "animate-spin")} /> Atualizar
@@ -84,20 +85,21 @@ export function BotSaudeCard() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Cell
           icon={Bot}
-          label="Heartbeat"
+          label="Sinal de vida"
           ok={hbOk}
-          okText={data.status ?? "online"}
+          okText={hbOk ? "ativo" : "sem sinal"}
           errText={data.last_heartbeat ? "sem sinal" : "nunca rodou"}
-          detail={data.last_heartbeat ? timeAgo(data.last_heartbeat) : "—"}
+          detail={data.last_heartbeat ? `último há ${timeAgo(data.last_heartbeat)}` : "—"}
         />
         <Cell
           icon={ShieldCheck}
           label="Sessão Spotify"
           ok={hbOk && data.spotify_valid}
-          okText="Válida"
-          errText="Inválida"
-          detail={data.message ?? (data.spotify_valid ? "logado" : "reautenticar")}
+          okText="Conta conectada"
+          errText="Reconectar necessária"
+          detail={data.spotify_valid ? "tudo certo" : humanizeError(data.message ?? "reautenticar")}
         />
+
         <Cell
           icon={ListChecks}
           label="Fila de execução"

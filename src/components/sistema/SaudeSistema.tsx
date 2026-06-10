@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { timeAgo, formatNumber } from "@/lib/format";
 import { BotSaudeCard } from "./BotSaudeCard";
+import { humanizeError, humanizeFunctionName } from "@/lib/operationalCopy";
 
 type Health = {
   spotify: { ok: boolean; expires_at?: string; expired?: boolean; last_verified?: string };
@@ -87,8 +88,8 @@ export function SaudeSistema() {
 
     const allFailures: Failure[] = (recentFailedJobs.data ?? []).map((j: any) => ({
       id: `job-${j.id}`,
-      source: `Execução: ${j.job_type}`,
-      message: j.last_error ?? "Erro desconhecido",
+      source: humanizeFunctionName(j.job_type),
+      message: humanizeError(j.last_error),
       created_at: j.updated_at,
     }));
     setFailures(allFailures);
