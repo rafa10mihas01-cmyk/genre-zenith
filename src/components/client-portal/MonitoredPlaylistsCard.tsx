@@ -68,10 +68,19 @@ function exportExcel(filename: string, rows: Record<string, unknown>[]) {
 export function MonitoredPlaylistsCard({
   playlists,
   clientName,
+  collectionMode = "bot",
 }: {
   playlists: MonitoredPlaylist[];
   clientName?: string;
+  /**
+   * "bot"         = coleta automática via S4A → mostra 7D/28D
+   * "spreadsheet" = importação manual de planilha → esconde 7D/28D
+   *                 (essas janelas só existem quando o bot coleta)
+   */
+  collectionMode?: "bot" | "spreadsheet";
 }) {
+  const isManual = collectionMode === "spreadsheet";
+
   if (!playlists || playlists.length === 0) {
     return (
       <Card className="border-border">
@@ -98,17 +107,24 @@ export function MonitoredPlaylistsCard({
   const entregandoCount = sorted.filter((p) => clientStatus(p) === "entregando").length;
 
   function buildRows() {
-    return sorted.map((p) => ({
-      PLAYLIST: p.name,
-      URL: p.spotify_playlist_id
-        ? `https://open.spotify.com/playlist/${p.spotify_playlist_id}`
-        : "",
-      "ENTREGA ACUMULADA": p.delivered ?? 0,
-      "ÚLTIMA IMPORTAÇÃO": p.last_import_delta ?? "",
-      "7D": p.plays_7d ?? "",
-      "28D": p.plays_28d ?? "",
-      STATUS: p.status,
-    }));
+    return sorted.map((p) => {
+      const base: Record<string, unknown> = {
+        PLAYLIST: p.name,
+        URL: p.spotify_playlist_id
+          ? `https://open.spotify.com/playlist/${p.spotify_playlist_id}`
+          : "",
+        "ENTREGA ACUMULADA": p.delivered ?? 0,
+        "ÚLTIMA IMPORTAÇÃO": p.last_import_delta ?? "",
+      };
+      // 7D/28D só fazem sentido no fluxo automático (S4A).
+      // No fluxo manual (planilha) essas colunas não existem na fonte.
+      if (!isManual) {
+        base["7D"] = p.plays_7d ?? "";
+        base["28D"] = p.plays_28d ?? "";
+      }
+      base["STATUS"] = p.status;
+      return base;
+    });
   }
 
   function handleExportExcel() {
