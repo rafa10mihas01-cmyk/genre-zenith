@@ -149,7 +149,7 @@ export function MonitoredPlaylistsCard({
     const rows = exportRows();
     if (rows.length === 0) return;
     const baseName = sanitizeFileName(clientName || "cliente");
-    exportCSV(`playlists-${baseName}-${isoDate()}.csv`, rows);
+    exportCSV(`Playlists-${baseName}-${isoDate()}.csv`, rows);
   }
 
   async function handleExportExcel() {
