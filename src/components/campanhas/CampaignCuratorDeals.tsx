@@ -8,6 +8,7 @@ import { formatInt } from "@/lib/campaignEngine";
 
 type Deal = {
   id: string;
+  curator_id: string | null;
   curator_name: string;
   song_name: string;
   target_plays: number;
@@ -72,7 +73,7 @@ export function CampaignCuratorDeals({ campaignId }: Props) {
       }
       const { data: dealRows } = await supabase
         .from("curator_deals")
-        .select("id, curator_name, song_name, target_plays, reconciled_total_plays, last_reconciled_at")
+        .select("id, curator_id, curator_name, song_name, target_plays, reconciled_total_plays, last_reconciled_at")
         .in("id", dealIds);
       const ds = (dealRows ?? []) as Deal[];
 
@@ -106,12 +107,14 @@ export function CampaignCuratorDeals({ campaignId }: Props) {
       </div>
 
       {deals.map((d) => {
+        const isInternal = !d.curator_id;
         const pct = d.target_plays > 0 ? Math.min(100, (d.reconciled_total_plays / d.target_plays) * 100) : 0;
         const tone = toneFor(pct);
         const history = historyByDeal.get(d.id) ?? [];
         const nonBaseline = history.filter((h) => !h.is_baseline);
         const sparkValues = nonBaseline.slice(-7).map((h) => h.total_plays);
-        const initial = (d.curator_name?.trim()?.[0] ?? "C").toUpperCase();
+        const displayName = isInternal ? "Deal interno da campanha" : d.curator_name;
+        const initial = (displayName?.trim()?.[0] ?? "C").toUpperCase();
 
         return (
           <Card
@@ -121,53 +124,69 @@ export function CampaignCuratorDeals({ campaignId }: Props) {
             <CardContent className="p-4 space-y-3">
               {/* Header em uma linha — avatar + nome + chip da música + status */}
               <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-md bg-domain-curators/15 border border-domain-curators/25 flex items-center justify-center text-[11px] font-bold text-domain-curators shrink-0">
+                <div className={cn(
+                  "h-8 w-8 rounded-md border flex items-center justify-center text-[11px] font-bold shrink-0",
+                  isInternal
+                    ? "bg-muted/30 border-border/60 text-muted-foreground"
+                    : "bg-domain-curators/15 border-domain-curators/25 text-domain-curators",
+                )}>
                   {initial}
                 </div>
                 <div className="min-w-0 flex-1 flex items-center gap-2 flex-wrap">
-                  <span className="text-[13px] font-semibold text-foreground truncate">
-                    {d.curator_name}
+                  <span className={cn(
+                    "text-[13px] font-semibold truncate",
+                    isInternal ? "text-muted-foreground italic" : "text-foreground",
+                  )}>
+                    {displayName}
                   </span>
                   <span className="text-muted-foreground/40 text-xs shrink-0">·</span>
                   <span className="px-1.5 py-0.5 rounded-md bg-elevated border border-border/60 text-[10.5px] text-muted-foreground truncate max-w-[180px]">
                     {d.song_name}
                   </span>
                 </div>
-                <div className={cn(
-                  "shrink-0 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10.5px] font-medium tabular-nums",
-                  pct >= 80
-                    ? "border-success/30 text-success bg-success/5"
-                    : pct >= 40
-                    ? "border-warning/30 text-warning bg-warning/5"
-                    : "border-destructive/30 text-destructive bg-destructive/5",
-                )}>
-                  <span className={cn("h-1.5 w-1.5 rounded-full", tone.bar)} />
-                  {Math.round(pct)}% · {tone.label}
-                </div>
-              </div>
-
-              {/* Progresso — número grande + sparkline */}
-              <div className="flex items-end gap-4">
-                <div className="flex-1 min-w-0 space-y-1.5">
-                  <div className="flex items-baseline justify-between gap-3 tabular-nums">
-                    <span className={cn("text-[22px] font-semibold leading-none", tone.text)}>
-                      {formatInt(d.reconciled_total_plays)}
-                    </span>
-                    <span className="text-[11px] text-muted-foreground">
-                      / {formatInt(d.target_plays)} plays
-                    </span>
+                {!isInternal && (
+                  <div className={cn(
+                    "shrink-0 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10.5px] font-medium tabular-nums",
+                    pct >= 80
+                      ? "border-success/30 text-success bg-success/5"
+                      : pct >= 40
+                      ? "border-warning/30 text-warning bg-warning/5"
+                      : "border-destructive/30 text-destructive bg-destructive/5",
+                  )}>
+                    <span className={cn("h-1.5 w-1.5 rounded-full", tone.bar)} />
+                    {Math.round(pct)}% · {tone.label}
                   </div>
-                  <div className="h-2 w-full rounded-full bg-foreground/5 overflow-hidden">
-                    <div
-                      className={cn("h-full transition-[width] duration-500", tone.bar)}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </div>
-                {sparkValues.length >= 2 && (
-                  <Sparkline values={sparkValues} colorClass={tone.text} />
                 )}
               </div>
+
+              {/* Progresso — número grande + sparkline (oculto para deals internos sem curador) */}
+              {isInternal ? (
+                <div className="text-[11px] text-muted-foreground italic">
+                  Sem curador atribuído — entrega contabilizada pelo orgânico/ecossistema da campanha.
+                </div>
+              ) : (
+                <div className="flex items-end gap-4">
+                  <div className="flex-1 min-w-0 space-y-1.5">
+                    <div className="flex items-baseline justify-between gap-3 tabular-nums">
+                      <span className={cn("text-[22px] font-semibold leading-none", tone.text)}>
+                        {formatInt(d.reconciled_total_plays)}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground">
+                        / {formatInt(d.target_plays)} plays
+                      </span>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-foreground/5 overflow-hidden">
+                      <div
+                        className={cn("h-full transition-[width] duration-500", tone.bar)}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                  {sparkValues.length >= 2 && (
+                    <Sparkline values={sparkValues} colorClass={tone.text} />
+                  )}
+                </div>
+              )}
 
               {/* Linha sutil — último update + estado vazio */}
               <div className="flex items-center justify-between gap-3 text-[10.5px] text-muted-foreground">
