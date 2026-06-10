@@ -307,6 +307,7 @@ export async function confirmExternalPackage(args: {
       .update({
         target_plays: it.assigned_streams,
         daily_goal: Math.ceil(it.assigned_streams / snapshot.days),
+        duration_days: snapshot.days,
       })
       .eq("deal_id", dealId);
 
@@ -385,6 +386,7 @@ export async function updatePackageItem(
       .update({
         target_plays: patch.assigned_streams,
         daily_goal: dailyGoal,
+        duration_days: days,
       })
       .eq("deal_id", linkedDeal.id);
   }
