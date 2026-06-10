@@ -60,6 +60,7 @@ import { PrintsHistoryCard, type PrintsHistoryEntry } from "@/components/client-
 import type { CampaignHubCampaign, CampaignHubTabId, EcoAllocation } from "@/components/campaign-hub/types";
 import { EvolutionChart, type EvolutionSeriesPoint } from "@/components/client-portal/EvolutionChart";
 import { DeliveryForecastCard, type ForecastPayload } from "@/components/client-portal/DeliveryForecastCard";
+import { MusicStreamsCard } from "@/components/client-portal/MusicStreamsCard";
 import { GenresUsedChip, type GenreUsed } from "@/components/campanhas/GenresUsedChip";
 import { PlanHistoryTab } from "@/components/campaign-hub/tabs/PlanHistoryTab";
 
