@@ -24,7 +24,7 @@ export function FinanceTab({ campaignId, snapshot, clientPriceTotal }: Props) {
     void (async () => {
       const { data } = await supabase
         .from("curator_deals")
-        .select("cost, reconciled_streams_7d, reconciled_total_plays, curator_id")
+        .select("cost, reconciled_total_plays, curator_id")
         .eq("campaign_id", campaignId);
       if (!active) return;
       const rows = (data ?? []).filter((d: any) => d.curator_id != null);
