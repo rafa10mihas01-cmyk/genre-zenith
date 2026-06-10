@@ -127,6 +127,28 @@ export function DeliveryForecastCard({ forecast, organicSummary, spotifyTrackId 
       ? fresh.map(p => ({ day: p.day, cumulative: p.cumulative }))
       : (Array.isArray(curve) ? curve : []);
     const days = src.length;
+  const organicTotal = Math.max(0, Number(organicSummary?.total_plays ?? 0));
+  const showOrganic = organicTotal > 0;
+
+  // Streams REAIS da música (raw_chart_daily) entre o início da campanha e hoje.
+  // Usados pra desenhar o trecho passado da linha sólida com a verdade do chart.
+  const realStreamsMap = useRealTrackStreams(spotifyTrackId ?? null, forecast.startedAt ?? null);
+
+
+  const data = useMemo(() => {
+    const baseline = Math.max(0, baselineStreamsDay ?? 0);
+    const target = top200StreamsDay && top200StreamsDay > 0 ? top200StreamsDay : null;
+
+    // Recalcula a forma da curva LOCALMENTE a partir de meta + effectiveDays.
+    const totalDays = Array.isArray(curve) && curve.length > 0
+      ? curve.length
+      : (forecast.totalDays ?? 0);
+    const meta = goalPlays > 0 ? goalPlays : 0;
+    const fresh = meta > 0 && totalDays > 0 ? recomputeCurva(meta, totalDays) : [];
+    const src = fresh.length > 0
+      ? fresh.map(p => ({ day: p.day, cumulative: p.cumulative }))
+      : (Array.isArray(curve) ? curve : []);
+    const days = src.length;
     if (days < 2) return null;
 
     // Entrega diária da campanha = diferença do acumulado.
@@ -137,28 +159,66 @@ export function DeliveryForecastCard({ forecast, organicSummary, spotifyTrackId 
 
     // Janela de saída suave = últimos 16% (alinhado ao envelope do motor).
     const outroDays = Math.max(1, Math.round(days * 0.16));
-    const outroStart = days - outroDays; // índice 0-based inclusivo
+    const outroStart = days - outroDays;
 
-    // Curva 1: trackPlays/dia da MÚSICA = baseline + entrega DAQUELE dia.
-    // Acompanha o ritmo diário da campanha (não acumula). Sobe nos dias
-    // de alta entrega, desce nos dias fracos, volta ao baseline no fim.
+    // Índice do "hoje" relativo a startedAt (0-based). null se não souber.
+    let todayIdx: number | null = null;
+    if (forecast.startedAt) {
+      const startMs = new Date(forecast.startedAt.slice(0, 10) + "T00:00:00Z").getTime();
+      const todayMs = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00Z").getTime();
+      const diff = Math.floor((todayMs - startMs) / 86_400_000);
+      if (Number.isFinite(diff) && diff >= 0) todayIdx = Math.min(days - 1, diff);
+    }
+
+    // Curva 1: trackPlays/dia da música.
+    // Passado (i <= todayIdx): valor REAL do raw_chart_daily quando disponível.
+    // Futuro (i > todayIdx): projeta a partir do valor real de HOJE + entrega/dia.
     const trackPlays: number[] = new Array(days).fill(0);
-    let peakValue = baseline;
-    for (let i = 0; i < days; i++) {
-      const v = baseline + (delivery[i] || 0);
+    const realByIdx = new Map<number, number>();
+    if (forecast.startedAt && realStreamsMap.size > 0) {
+      const startMs = new Date(forecast.startedAt.slice(0, 10) + "T00:00:00Z").getTime();
+      for (const [dateStr, sd] of realStreamsMap) {
+        const dMs = new Date(dateStr + "T00:00:00Z").getTime();
+        const idx = Math.floor((dMs - startMs) / 86_400_000);
+        if (idx >= 0 && idx < days) realByIdx.set(idx, sd);
+      }
+    }
+
+    // Preenche passado com REAL; se faltar dia, repete o último conhecido (ou baseline).
+    let lastKnown = baseline;
+    const pastEnd = todayIdx ?? -1;
+    for (let i = 0; i <= pastEnd; i++) {
+      if (realByIdx.has(i)) lastKnown = realByIdx.get(i)!;
+      else if (i === 0) lastKnown = baseline;
+      trackPlays[i] = lastKnown;
+    }
+    // Garante que D1 nunca some — ancora no baseline se a busca real não tiver dado.
+    if (pastEnd >= 0 && !realByIdx.has(0)) trackPlays[0] = baseline;
+
+    // Projeção do futuro: parte do valor real de HOJE (não do baseline antigo)
+    // e soma a entrega diária. Estabiliza ao tocar o teto natural.
+    const todayValue = pastEnd >= 0 ? trackPlays[pastEnd] : baseline;
+    let peakValue = Math.max(baseline, todayValue);
+    for (let i = pastEnd + 1; i < days; i++) {
+      const v = todayValue + (delivery[i] || 0);
       trackPlays[i] = v;
       if (v > peakValue) peakValue = v;
     }
-    // Saída suave: nos últimos `outroDays`, smoothstep do valor atual → baseline.
-    const valueAtOutroStart = trackPlays[Math.max(0, outroStart - 1)] ?? baseline;
-    for (let j = 0; j < outroDays; j++) {
-      const i = outroStart + j;
-      const t = (j + 1) / outroDays;
-      trackPlays[i] = baseline + (valueAtOutroStart - baseline) * (1 - S(t));
+    // Outro suave: smoothstep do valor → todayValue (ancora de saída no real atual).
+    if (pastEnd < outroStart) {
+      const valueAtOutroStart = trackPlays[Math.max(0, outroStart - 1)] ?? todayValue;
+      for (let j = 0; j < outroDays; j++) {
+        const i = outroStart + j;
+        if (i <= pastEnd) continue;
+        const t = (j + 1) / outroDays;
+        trackPlays[i] = todayValue + (valueAtOutroStart - todayValue) * (1 - S(t));
+      }
     }
 
+    // Atualiza pico considerando a curva inteira (passado real + futuro projetado).
+    for (let i = 0; i < days; i++) if (trackPlays[i] > peakValue) peakValue = trackPlays[i];
 
-    // Primeiro dia em que a curva 1 cruza o target.
+    // Marcador de target (Top X): primeiro dia em que cruza.
     let markDay: number | null = null;
     let markValue: number | null = null;
     if (target != null) {
@@ -171,8 +231,7 @@ export function DeliveryForecastCard({ forecast, organicSummary, spotifyTrackId 
       }
     }
 
-    // Curva 3 (opcional): plays orgânicos coletados — distribui o total
-    // capturado uniformemente do dia 7 em diante (proxy diário).
+    // Orgânico coletado (proxy diário a partir do dia 7).
     const organicStartDay = 7;
     const organicDaysCount = Math.max(0, days - (organicStartDay - 1));
     const organicPerDay = showOrganic && organicDaysCount > 0
@@ -191,8 +250,10 @@ export function DeliveryForecastCard({ forecast, organicSummary, spotifyTrackId 
     }));
 
     const deliveryTotal = delivery.reduce((s, v) => s + v, 0);
-    return { points, markDay, markValue, baseline, target, peakValue, deliveryTotal };
-  }, [curve, top200StreamsDay, baselineStreamsDay, showOrganic, organicTotal, goalPlays, forecast.totalDays]);
+    const todayDay = todayIdx != null ? todayIdx + 1 : null;
+    const todayMarkValue = todayIdx != null ? Math.round(trackPlays[todayIdx]) : null;
+    return { points, markDay, markValue, baseline, target, peakValue, deliveryTotal, todayDay, todayMarkValue };
+  }, [curve, top200StreamsDay, baselineStreamsDay, showOrganic, organicTotal, goalPlays, forecast.totalDays, forecast.startedAt, realStreamsMap]);
   // Projeção de posição no chart (puramente ilustrativa, não afeta a curva).
   const projection = useChartProjection(spotifyTrackId ?? null, data?.peakValue ?? null);
 
