@@ -66,7 +66,7 @@ export function CampaignAccessGate({ token, onAuthed }: Props) {
       if (!e) e = error.message;
     }
     if (e) {
-      if (e === "rate_limited") toast.error("Limite de 3 códigos por hora. Tente novamente mais tarde.");
+      if (e === "rate_limited") toast.error("Muitas tentativas. Tente novamente mais tarde.");
       else if (e === "campaign_closed") toast.error("Esta campanha foi encerrada.");
       else toast.error("Não foi possível enviar o código.");
       return;
