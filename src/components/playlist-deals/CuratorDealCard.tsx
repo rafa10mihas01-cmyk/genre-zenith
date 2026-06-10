@@ -67,6 +67,7 @@ export function CuratorDealCard({
     },
     { curator: 0, algo: 0 },
   );
+  const priorCount = dealPlaylists.filter((p) => p.is_baseline).length;
   const hasWhitelist = plBreakdown.curator > 0;
 
   // Ramp-up: dias desde o início até hoje vs ramp_up_days do deal
@@ -292,6 +293,15 @@ export function CuratorDealCard({
               <span className="text-muted-foreground">Curador</span>
               <span className="tabular-nums font-semibold text-foreground">{plBreakdown.curator}</span>
             </span>
+          </div>
+        )}
+        {priorCount > 0 && (
+          <div className="rounded-md border border-warning/40 bg-warning/10 px-2.5 py-1.5 flex items-center gap-2 text-[11px]">
+            <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0" />
+            <span className="text-warning font-semibold uppercase tracking-wide">
+              {priorCount} {priorCount === 1 ? "playlist" : "playlists"} c/ histórico prévio
+            </span>
+            <span className="text-muted-foreground truncate">— curador precisa subir posição</span>
           </div>
         )}
         {/* Algoritmo / Ecossistema intencionalmente omitidos do card — visíveis só no histórico/sheet. */}

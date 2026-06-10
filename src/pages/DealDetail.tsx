@@ -28,7 +28,8 @@ const DealHistorySheet = lazy(() =>
   import("@/components/playlist-deals/DealHistorySheet").then((m) => ({ default: m.DealHistorySheet })),
 );
 import { CuratorDealAccessManager } from "@/components/playlist-deals/CuratorDealAccessManager";
-import { computeCuratorStats } from "@/lib/curatorDealsUtils";
+import { computeCuratorStats, dedupeCuratorPlaylists } from "@/lib/curatorDealsUtils";
+import { HistoricoPrevioAlert } from "@/components/campanhas/HistoricoPrevio";
 
 const fmtPlays = (n: number) => {
   if (!n || !Number.isFinite(n)) return "0";
@@ -58,6 +59,15 @@ export default function DealDetail() {
     if (!deal) return null;
     return computeCuratorStats(deal, logs, playlists, progress);
   }, [deal, logs, playlists, progress]);
+
+  const priorCount = useMemo(() => {
+    if (!deal) return 0;
+    const dealPlaylists = dedupeCuratorPlaylists(
+      playlists.filter((p) => p.deal_id === deal.id),
+      songs,
+    );
+    return dealPlaylists.filter((p) => p.is_baseline).length;
+  }, [deal, playlists, songs]);
 
 
   return (
@@ -205,6 +215,10 @@ export default function DealDetail() {
               </div>
             );
           })()}
+
+          {priorCount > 0 && (
+            <HistoricoPrevioAlert count={priorCount} className="mb-4" />
+          )}
 
           <Suspense fallback={<div className="rounded-2xl border border-border/50 bg-card h-[480px] animate-pulse" />}>
             <DealHistorySheet
