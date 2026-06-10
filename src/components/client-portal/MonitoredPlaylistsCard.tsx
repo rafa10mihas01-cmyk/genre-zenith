@@ -12,7 +12,7 @@ export type MonitoredPlaylist = {
   name: string;
   image_url: string | null;
   delivered: number;
-  status: "Nova" | "Crescendo" | "Destaque" | "Estável";
+  status: "Nova" | "Crescendo" | "Destaque" | "Estável" | "Aguardando coleta";
   source?: "curator" | "engine";
   planned?: number;
   plays_24h?: number | null;
