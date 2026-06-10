@@ -108,28 +108,6 @@ export function DeliveryForecastCard({ forecast, organicSummary, spotifyTrackId 
   const organicTotal = Math.max(0, Number(organicSummary?.total_plays ?? 0));
   const showOrganic = organicTotal > 0;
 
-
-
-  const data = useMemo(() => {
-    const baseline = Math.max(0, baselineStreamsDay ?? 0);
-    const target = top200StreamsDay && top200StreamsDay > 0 ? top200StreamsDay : null;
-
-    // Recalcula a forma da curva LOCALMENTE a partir de meta + effectiveDays,
-    // aplicando o envelope ATUAL do campaignEngine. Ignora `curve` vindo do
-    // backend (que pode estar com snapshot antigo). Snapshot continua fonte
-    // de verdade só pra meta/custos/split — a forma é sempre fresca.
-    const totalDays = Array.isArray(curve) && curve.length > 0
-      ? curve.length
-      : (forecast.totalDays ?? 0);
-    const meta = goalPlays > 0 ? goalPlays : 0;
-    const fresh = meta > 0 && totalDays > 0 ? recomputeCurva(meta, totalDays) : [];
-    const src = fresh.length > 0
-      ? fresh.map(p => ({ day: p.day, cumulative: p.cumulative }))
-      : (Array.isArray(curve) ? curve : []);
-    const days = src.length;
-  const organicTotal = Math.max(0, Number(organicSummary?.total_plays ?? 0));
-  const showOrganic = organicTotal > 0;
-
   // Streams REAIS da música (raw_chart_daily) entre o início da campanha e hoje.
   // Usados pra desenhar o trecho passado da linha sólida com a verdade do chart.
   const realStreamsMap = useRealTrackStreams(spotifyTrackId ?? null, forecast.startedAt ?? null);
