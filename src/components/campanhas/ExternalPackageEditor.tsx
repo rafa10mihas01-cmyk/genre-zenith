@@ -13,12 +13,13 @@ import {
   updatePackageItem,
   removePackageItem,
   addPackageItem,
+  repairExternalPackageLinks,
   fetchCuratorCandidates,
   type CuratorCandidate,
 } from "@/lib/externalPackage";
 import { Link } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Trash2, Users, AlertTriangle, CheckCircle2, Plus, Search, BarChart3, CalendarClock, DollarSign, Target, Lock, ExternalLink, Pencil, History, Info } from "lucide-react";
+import { Loader2, Trash2, Users, AlertTriangle, CheckCircle2, Plus, BarChart3, CalendarClock, DollarSign, Target, ExternalLink, Pencil, History, Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { HistoricoPrevioBadge, HistoricoPrevioRecommendation } from "@/components/campanhas/HistoricoPrevio";
 
@@ -67,14 +68,12 @@ export function ExternalPackageEditor({
   snapshot,
   onChanged,
   renderTabsRow,
-  onNewDeal,
   headerExtra,
 }: {
   campaignId: string;
   snapshot: CampaignSnapshot;
   onChanged?: () => void;
   renderTabsRow?: (extra?: React.ReactNode, ctx?: { isDispatched: boolean }) => React.ReactNode;
-  onNewDeal?: () => void;
   headerExtra?: React.ReactNode;
 }) {
   const [pkg, setPkg] = useState<PackageRow | null>(null);
@@ -95,6 +94,7 @@ export function ExternalPackageEditor({
     setLoading(true);
     try {
       const { packageId } = await ensureExternalPackageDraft(campaignId, snapshot);
+      await repairExternalPackageLinks(packageId);
       const [{ data: p }, { data: its }, cand] = await Promise.all([
         supabase
           .from("campaign_external_packages")
@@ -194,7 +194,7 @@ export function ExternalPackageEditor({
     setConfirming(true);
     try {
       const { dealsCreated } = await confirmExternalPackage({ packageId: pkg.id, campaignId, snapshot });
-      toast({ title: "Pacote confirmado", description: `${dealsCreated} deals criados em status proposto.` });
+      toast({ title: "Pacote confirmado", description: `${dealsCreated} deals criados; itens existentes foram vinculados ao financeiro.` });
       load();
       onChanged?.();
     } catch (e: any) {
@@ -316,16 +316,6 @@ export function ExternalPackageEditor({
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
-              {onNewDeal && (
-                <Button
-                  size="sm"
-                  onClick={onNewDeal}
-                  className="h-10 px-4 gap-1.5 font-semibold"
-                >
-                  <Plus className="h-4 w-4" />
-                  Novo deal
-                </Button>
-              )}
               <Button
                 size="sm"
                 variant="outline"

@@ -25,11 +25,10 @@ import { CampaignExecutionStatus } from "@/components/campanhas/CampaignExecutio
 import { CampaignDistributionConsole } from "@/components/campanhas/CampaignDistributionConsole";
 import { CampaignManualQueue } from "@/components/campanhas/CampaignManualQueue";
 import { TrackActionsPanel } from "@/components/campanhas/TrackActionsPanel";
-import { ArrowLeft, Loader2, Save, Upload, Rocket, CheckCircle2, RefreshCw, Plus, CalendarDays, Share2, Activity } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Upload, Rocket, CheckCircle2, RefreshCw, CalendarDays, Share2, Activity } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 
 import { Badge } from "@/components/ui/badge";
-import { NewDealDialog } from "@/components/playlist-deals/NewDealDialog";
 import { cn } from "@/lib/utils";
 import { CampaignHub } from "@/components/campaign-hub/CampaignHub";
 import { OverviewTab } from "@/components/campaign-hub/tabs/OverviewTab";
@@ -121,7 +120,6 @@ export default function CampanhaExecucao() {
   const [lastSpreadsheetUploadAt, setLastSpreadsheetUploadAt] = useState<string | null>(null);
   const [recentUploads, setRecentUploads] = useState<SpreadsheetUpload[]>([]);
   const [externalItems, setExternalItems] = useState<ExternalItemRow[]>([]);
-  const [newDealOpen, setNewDealOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [organicRows, setOrganicRows] = useState<OrganicRow[]>([]);
   const [dispatching, setDispatching] = useState(false);
@@ -914,7 +912,6 @@ export default function CampanhaExecucao() {
                 campaignId={camp.id}
                 snapshot={snapshot}
                 onChanged={() => setPlanRefreshKey(k => k + 1)}
-                onNewDeal={() => setNewDealOpen(true)}
                 headerExtra={<GenresUsedFromAllocs allocs={allocs} compact />}
                 renderTabsRow={(extra, ctx) => {
                   // Pacote despachado: header já carrega CTAs + chip de gêneros — não renderiza linha extra.
@@ -923,14 +920,6 @@ export default function CampanhaExecucao() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <GenresUsedFromAllocs allocs={allocs} compact />
                       <div className="ml-auto flex items-center gap-2 flex-wrap">
-                        <Button
-                          size="sm"
-                          onClick={() => setNewDealOpen(true)}
-                          className="gap-1.5"
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                          Novo deal
-                        </Button>
                         {extra}
                       </div>
                     </div>
@@ -1092,12 +1081,6 @@ export default function CampanhaExecucao() {
         engagementMultiplier={camp.engagement_multiplier ?? 35}
       />
 
-      <NewDealDialog
-        open={newDealOpen}
-        onOpenChange={setNewDealOpen}
-        campaignId={camp.id}
-        onSaved={() => setPlanRefreshKey(k => k + 1)}
-      />
     </PageContainer>
   );
 }

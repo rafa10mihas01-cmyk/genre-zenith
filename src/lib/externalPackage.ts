@@ -212,6 +212,75 @@ export async function addPackageItem(args: {
 }
 
 /**
+ * Repara divergência pacote ↔ deal quando um deal já existe apontando para o
+ * item, mas o item/pacote ficou sem o link visual. Não cria deal novo aqui.
+ */
+export async function repairExternalPackageLinks(packageId: string): Promise<{ linked: number; dispatched: boolean }> {
+  const [{ data: pkg, error: pkgErr }, { data: items, error: itemsErr }] = await Promise.all([
+    supabase
+      .from("campaign_external_packages")
+      .select("id, campaign_id, status, confirmed_at")
+      .eq("id", packageId)
+      .maybeSingle(),
+    supabase
+      .from("campaign_external_package_items")
+      .select("id, curator_deal_id, assigned_streams, assigned_cost, source_purchase_id")
+      .eq("package_id", packageId),
+  ]);
+  if (pkgErr) throw pkgErr;
+  if (itemsErr) throw itemsErr;
+
+  const rows = items ?? [];
+  const itemIds = rows.map((it) => it.id);
+  if (!pkg?.id || itemIds.length === 0) return { linked: 0, dispatched: false };
+
+  const { data: deals, error: dealsErr } = await supabase
+    .from("curator_deals")
+    .select("id, external_package_item_id")
+    .in("external_package_item_id", itemIds);
+  if (dealsErr) throw dealsErr;
+
+  const dealByItem = new Map<string, string>();
+  for (const d of (deals ?? []) as Array<{ id: string; external_package_item_id: string | null }>) {
+    if (d.external_package_item_id) dealByItem.set(d.external_package_item_id, d.id);
+  }
+
+  let linked = 0;
+  for (const it of rows as Array<{ id: string; curator_deal_id: string | null; source_purchase_id: string | null }>) {
+    const dealId = dealByItem.get(it.id);
+    if (!dealId) continue;
+    if (it.curator_deal_id !== dealId) {
+      await supabase.from("campaign_external_package_items").update({ curator_deal_id: dealId }).eq("id", it.id);
+      linked++;
+    }
+    if (it.source_purchase_id) {
+      await supabase.from("curator_purchases").update({ deal_id: dealId }).eq("id", it.source_purchase_id);
+    }
+  }
+
+  const allLinked = rows.length > 0 && rows.every((it: any) => Boolean(it.curator_deal_id ?? dealByItem.get(it.id)));
+  if (allLinked && pkg.status === "draft") {
+    const realCost = rows.reduce((s: number, it: any) => s + Number(it.assigned_cost ?? 0), 0);
+    const realStreams = rows.reduce((s: number, it: any) => s + Number(it.assigned_streams ?? 0), 0);
+    await supabase
+      .from("campaign_external_packages")
+      .update({
+        status: "dispatched",
+        confirmed_at: pkg.confirmed_at ?? new Date().toISOString(),
+        target_cost: +realCost.toFixed(2),
+        target_streams: realStreams,
+      })
+      .eq("id", packageId);
+  }
+  const primaryDealId = rows.map((it: any) => it.curator_deal_id ?? dealByItem.get(it.id)).find(Boolean);
+  if (allLinked && primaryDealId && (pkg as any).campaign_id) {
+    await supabase.from("campaigns").update({ deal_id: primaryDealId }).eq("id", (pkg as any).campaign_id);
+  }
+
+  return { linked, dispatched: allLinked };
+}
+
+/**
  * Confirma o pacote: gera curator_deals para cada item e marca como dispatched.
  */
 export async function confirmExternalPackage(args: {
@@ -234,21 +303,23 @@ export async function confirmExternalPackage(args: {
   endsAt.setDate(endsAt.getDate() + snapshot.days);
 
   let created = 0;
+  const linkedDealIds: string[] = [];
   for (const it of items ?? []) {
     if (!it.assigned_streams || it.assigned_streams <= 0) continue;
 
-    // 1) Se o item já tem deal linkado, pula (idempotente).
-    if (it.curator_deal_id) continue;
+    // 1) Se o item já tem deal linkado, reutiliza e sincroniza abaixo.
+    let dealId = it.curator_deal_id as string | undefined;
 
     // 2) Checa se já existe deal para esse item (proteção contra race —
     // outra requisição pode ter criado o deal entre o fetch e o insert).
-    const { data: existingDeal } = await supabase
-      .from("curator_deals")
-      .select("id")
-      .eq("external_package_item_id", it.id)
-      .maybeSingle();
-
-    let dealId = existingDeal?.id as string | undefined;
+    if (!dealId) {
+      const { data: existingDeal } = await supabase
+        .from("curator_deals")
+        .select("id")
+        .eq("external_package_item_id", it.id)
+        .maybeSingle();
+      dealId = existingDeal?.id as string | undefined;
+    }
 
     if (!dealId) {
       // 3) Insere. UNIQUE em external_package_item_id garante atomicidade:
@@ -294,6 +365,30 @@ export async function confirmExternalPackage(args: {
       }
     }
 
+    if (!dealId) continue;
+    linkedDealIds.push(dealId);
+
+    const dailyGoal = Math.ceil(it.assigned_streams / Math.max(1, snapshot.days));
+    await supabase
+      .from("curator_deals")
+      .update({
+        curator_id: it.curator_id,
+        curator_name: (it as any).curators?.name ?? "Curador",
+        campaign_id: campaignId,
+        external_package_item_id: it.id,
+        song_spotify_url: snapshot.music.trackUrl ?? "",
+        song_name: snapshot.music.title ?? "Sem título",
+        song_artist: snapshot.music.artist,
+        song_cover_url: snapshot.music.coverUrl,
+        target_plays: it.assigned_streams,
+        cost: it.assigned_cost,
+        daily_goal: dailyGoal,
+        ends_at: endsAt.toISOString(),
+        ramp_up_days: 5,
+        target_days: Math.max(1, snapshot.effectiveDays || snapshot.days || 1),
+      })
+      .eq("id", dealId);
+
     await supabase
       .from("campaign_external_package_items")
       .update({ curator_deal_id: dealId })
@@ -306,7 +401,7 @@ export async function confirmExternalPackage(args: {
       .from("curator_deal_songs")
       .update({
         target_plays: it.assigned_streams,
-        daily_goal: Math.ceil(it.assigned_streams / snapshot.days),
+        daily_goal: dailyGoal,
         duration_days: snapshot.days,
       })
       .eq("deal_id", dealId);
@@ -341,6 +436,14 @@ export async function confirmExternalPackage(args: {
       target_streams: realStreams,
     })
     .eq("id", packageId);
+
+  const primaryDealId = linkedDealIds[0];
+  if (primaryDealId) {
+    await supabase
+      .from("campaigns")
+      .update({ deal_id: primaryDealId })
+      .eq("id", campaignId);
+  }
 
   return { dealsCreated: created };
 }
@@ -398,25 +501,33 @@ export async function removePackageItem(itemId: string) {
 }
 
 /**
- * Reabre um pacote já confirmado: apaga os curator_deals que ainda estão em
- * status 'proposto' (segurança — não toca em deals já aceitos/em execução),
- * limpa curator_deal_id dos items e devolve o pacote para 'draft'.
+ * Reabre um pacote só quando todos os deals vinculados ainda estão em estado
+ * inicial. Se algum já entrou em coleta/execução, o pacote vira fonte única e
+ * não pode ser deslinkado por aqui.
  */
 export async function reopenExternalPackage(packageId: string): Promise<{ dealsRemoved: number }> {
   const { data: items, error: itemsErr } = await supabase
     .from("campaign_external_package_items")
-    .select("id, curator_deal_id")
+    .select("id, curator_deal_id, curator_deals(state)")
     .eq("package_id", packageId);
   if (itemsErr) throw itemsErr;
 
   const dealIds = (items ?? []).map(i => i.curator_deal_id).filter(Boolean) as string[];
+  const lockedDeal = (items ?? []).find((i: any) => {
+    const state = i.curator_deals?.state;
+    return i.curator_deal_id && state !== "awaiting_playlists" && state !== "awaiting_baseline";
+  });
+  if (lockedDeal) {
+    throw new Error("Este pacote já tem deal em execução. Ajuste volumes e custos pelo pacote sem reabrir/desvincular.");
+  }
+
   let removed = 0;
   if (dealIds.length > 0) {
     const { data: deleted, error: delErr } = await supabase
       .from("curator_deals")
       .delete()
       .in("id", dealIds)
-      .eq("state", "proposto")
+      .in("state", ["awaiting_playlists", "awaiting_baseline"])
       .select("id");
     if (delErr) throw delErr;
     removed = deleted?.length ?? 0;
