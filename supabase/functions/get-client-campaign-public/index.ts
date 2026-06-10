@@ -167,14 +167,17 @@ Deno.serve(async (req) => {
     dealRow = deal as AnyRec;
 
     // Gate por PIN — busca a campanha desse deal e exige JWT se necessário.
-    const { data: linkedCamp } = await admin
-      .from("campaigns")
-      .select("id, client_approved_at")
-      .eq("deal_id", dealId!)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (linkedCamp?.id) {
+    if (!linkedCamp) {
+      const { data: linkedCampByDeal } = await admin
+        .from("campaigns")
+        .select("id, client_approved_at")
+        .eq("deal_id", dealId!)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      linkedCamp = (linkedCampByDeal as AnyRec | null) ?? null;
+    }
+    if (linkedCamp?.id && !publicPlanToken) {
       const gate = await gateCampaignAccess(req, admin, linkedCamp.id);
       if (!gate.ok) return jr({ ok: false, error: gate.error }, gate.status ?? 401);
     }
@@ -220,7 +223,7 @@ Deno.serve(async (req) => {
       : [
         {
           id: "deal",
-          client_token: token,
+          client_token: clientToken || publicPlanToken,
           song_name: String(dealRow.song_name ?? ""),
           song_artist: (dealRow.song_artist as string | null) ?? null,
           song_cover_url: (dealRow.song_cover_url as string | null) ?? null,
