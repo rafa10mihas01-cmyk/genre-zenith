@@ -4,8 +4,7 @@ import { Radio, ListMusic, Users } from "lucide-react";
 import { formatBRL, formatInt } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { supabase } from "@/integrations/supabase/client";
-import { plannedRadioStreams, plannedRadioCost } from "@/lib/plannedRadio";
-import { cn } from "@/lib/utils";
+import { usePricingSettings } from "@/hooks/usePricingSettings";
 
 type Props = {
   campaignId: string;
@@ -16,6 +15,7 @@ type Props = {
 };
 
 export function FinanceTab({ campaignId, snapshot, clientPriceTotal }: Props) {
+  const { settings } = usePricingSettings();
   const [curatorCost, setCuratorCost] = useState<number>(0);
   const [curatorStreams, setCuratorStreams] = useState<number>(0);
 
@@ -39,24 +39,26 @@ export function FinanceTab({ campaignId, snapshot, clientPriceTotal }: Props) {
     return () => { active = false; };
   }, [campaignId]);
 
-  // 3 buckets INDEPENDENTES do snapshot (não subtrair — são alocações distintas):
-  //   1. Playlist Própria = streamsEco / custoEco
-  //   2. Rádio            = streamsOrganic / custoOrganic (via plannedRadio)
-  //   3. Curadores        = streamsExt / custoExt + deals reais (curator_deals)
-  const ownPlaylistsCost = Math.max(0, snapshot.custoEco);
+  // 3 buckets INDEPENDENTES:
+  //   1. Playlist Própria = streamsEco × pricing.eco (R$ 0,01/stream = 10k/milhão)
+  //   2. Rádio            = streamsOrganic × pricing.eco (mesma taxa do eco)
+  //   3. Curadores        = SOMA dos curator_deals reais (cada curador tem seu preço próprio)
+  //                         Sem deal = custo zero. Não usa estimativa genérica.
+  const cppEco = settings.cost_per_stream_eco;
+
   const ownPlaylistsStreams = Math.max(0, snapshot.streamsEco);
+  const ownPlaylistsCost = ownPlaylistsStreams * cppEco;
 
-  const radioCost = plannedRadioCost(snapshot);
   const radioStreams = plannedRadioStreams(snapshot);
+  const radioCost = radioStreams * cppEco;
 
-  const extCost = Math.max(0, snapshot.custoExt);
-  const extStreams = Math.max(0, snapshot.streamsExt);
-  const curadoresCost = extCost + curatorCost;
-  const curadoresStreams = extStreams + curatorStreams;
+  const curadoresCost = curatorCost;
+  const curadoresStreams = curatorStreams;
 
   const totalCost = ownPlaylistsCost + radioCost + curadoresCost;
   const margem = clientPriceTotal - totalCost;
   const margemPct = clientPriceTotal > 0 ? Math.round((margem / clientPriceTotal) * 100) : 0;
+
 
   return (
     <div className="space-y-6">
