@@ -494,6 +494,21 @@ Deno.serve(async (req) => {
       }
     } catch (_) { /* não bloqueia o portal se isso falhar */ }
 
+    // Recalcula delivered/pct a partir do Growth Engine (curador + ecossistema).
+    // get_curator_deal_progress.delivered_curator ainda retorna 0 em campanhas
+    // novas onde a coleta veio só por importação, causando KPI zerado no portal.
+    const deliveredFromPlaylists = safePlaylists.reduce(
+      (s, p) => s + Number((p as AnyRec).delivered ?? 0),
+      0,
+    );
+    if (deliveredFromPlaylists > delivered) {
+      delivered = deliveredFromPlaylists;
+      pct = target > 0
+        ? Math.max(0, Math.min(100, Math.round((delivered / target) * 100)))
+        : 0;
+    }
+
+
     const startedAt = (activeSong?.started_at as string | null)
       ?? (dealRow.started_at as string)
       ?? (dealRow.created_at as string);
