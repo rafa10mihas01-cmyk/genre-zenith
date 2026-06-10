@@ -312,16 +312,7 @@ export function CuratorEditDialog({ curator, open, onOpenChange, onSave, onAddPu
             <Label htmlFor="cur-notes" className="text-foreground">Notas internas</Label>
             <Textarea id="cur-notes" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} className="bg-background border-border" />
           </section>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-            Cancelar
-          </Button>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Salvando…" : hasPendingPurchase ? "Salvar e registrar" : "Salvar"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </FormModal>
   );
 }
