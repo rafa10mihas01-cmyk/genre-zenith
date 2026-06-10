@@ -26,8 +26,16 @@ function sanitizeSnapshot(raw: any): Record<string, unknown> | null {
   for (const k of allowed) {
     if (raw[k] !== undefined) out[k] = raw[k];
   }
+  // Expõe apenas o spotifyTrackId da música — necessário pra cards de leitura
+  // pública (ex.: MusicStreamsCard lendo raw_chart_daily). Demais campos
+  // de music ficam fora pra evitar vazamento de baseline/top200 internos.
+  const m = raw.music && typeof raw.music === "object" ? raw.music : null;
+  if (m && typeof m.spotifyTrackId === "string" && m.spotifyTrackId.length > 0) {
+    out.music = { spotifyTrackId: m.spotifyTrackId };
+  }
   return out;
 }
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
