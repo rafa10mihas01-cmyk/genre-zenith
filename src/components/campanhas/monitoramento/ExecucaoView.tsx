@@ -867,6 +867,14 @@ function VirtualTable({
                           <span className="tabular-nums">{Intl.NumberFormat("pt-BR").format(meta.followers)}</span>
                         </>
                       )}
+                      {r.attributed_to.startsWith("curator:") && Number(r.baseline_plays ?? 0) > 0 && (
+                        <span
+                          className="ml-1 shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wide border border-amber-500/40 text-amber-400 bg-amber-500/5"
+                          title="Música já estava nesta playlist antes da campanha. Curador deve subir a posição."
+                        >
+                          subir posição
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="text-right shrink-0 leading-tight">
