@@ -173,7 +173,7 @@ export function MonitoredPlaylistsCard({
     const baseCols: Col[] = [
       { header: "POS", key: "POS", width: 6 },
       { header: "PLAYLIST", key: "PLAYLIST", width: 42 },
-      { header: "LINK", key: "URL", width: 18 },
+      { header: "LINK", key: "URL", width: 56 },
       { header: "ENTREGA ACUMULADA", key: "ENTREGA ACUMULADA", width: 20 },
       { header: "ÚLTIMA IMPORTAÇÃO", key: "ÚLTIMA IMPORTAÇÃO", width: 20 },
     ];
@@ -279,16 +279,13 @@ export function MonitoredPlaylistsCard({
 
         if (c.key === "URL") {
           const url = (raw as string) || "";
-          if (url) {
-            cell.value = { text: "Abrir Playlist", hyperlink: url };
-            cell.font = {
-              name: "Calibri", size: 11, color: { argb: "FF1DB954" }, underline: true,
-            };
-          } else {
-            cell.value = "—";
-            cell.font = { name: "Calibri", size: 11, color: { argb: "FF6B7280" } };
-          }
-          cell.alignment = { vertical: "middle", horizontal: "center" };
+          cell.value = url || "—";
+          cell.font = {
+            name: "Calibri",
+            size: 11,
+            color: { argb: url ? "FF111111" : "FF6B7280" },
+          };
+          cell.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
         } else if (c.key === "STATUS") {
           const st = String(raw ?? "");
           cell.value = st || "—";
