@@ -332,6 +332,22 @@ Deno.serve(async (req) => {
     }
   } catch (_) { /* organic_summary é opcional */ }
 
+  console.log("[AUDIT_PORTAL] get-shared-campaign-plan OK", JSON.stringify({
+    campaign_id: campRaw.id,
+    campaign_token: token,
+    email: gateEmail,
+    is_admin: gateEmail ? gateEmail.endsWith("@nexengine") || gateEmail.includes("admin") : false,
+    jwt_campaign_id: jwtCampaignId,
+    allocations_count: (allocs ?? []).length,
+    playlists_count: (allocs ?? []).length,
+    proofs_count: proofs.length,
+    organic_count: Object.keys(organicSummary.by_kind ?? {}).length,
+    organic_total_plays: organicSummary.total_plays,
+    snapshot_count: (snaps ?? []).length,
+    collection_mode: collectionMode,
+    has_forecast: Boolean(forecast),
+  }));
+
   return jr({
     campaign: camp,
     allocations: allocs ?? [],
