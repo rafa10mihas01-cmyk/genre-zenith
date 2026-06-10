@@ -15,6 +15,7 @@ export type MonitoredPlaylist = {
   plays_24h?: number | null;
   plays_7d?: number | null;
   plays_28d?: number | null;
+  last_import_delta?: number | null;
 };
 
 
