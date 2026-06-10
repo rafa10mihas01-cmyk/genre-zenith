@@ -119,15 +119,6 @@ export function AttentionInbox() {
 
       if (!cancelled) setItems(final);
     };
-
-      // Crítico primeiro, mais recente primeiro
-      list.sort((a, b) => {
-        if (a.severity !== b.severity) return a.severity === "critical" ? -1 : 1;
-        return a.when < b.when ? 1 : -1;
-      });
-
-      if (!cancelled) setItems(list);
-    };
     load();
     const t = setInterval(load, 30_000);
     return () => {
