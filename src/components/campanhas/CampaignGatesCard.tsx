@@ -1,4 +1,4 @@
-import { Check, Lock, Rocket, Loader2, CheckCircle2, Clock, Radio } from "lucide-react";
+import { Check, Lock, Rocket, Loader2, CheckCircle2, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { CollectionSourceBadge } from "@/components/campanhas/CollectionSourceBadge";
@@ -70,16 +70,13 @@ export type CampaignGatesCardProps = {
   baselineCapturedAt?: string | null;
   baselineTotalStreams?: number | null;
   baselinePlaylistsCount?: number | null;
-  /** Streams já entregues — usado pra marcar a etapa final "Em entrega". */
+  /** Mantido por compatibilidade com chamadas antigas. */
   delivered?: number;
   onApprovePlan: () => void;
   onDispatch: () => void;
   approvingPlan: boolean;
   dispatching: boolean;
 };
-
-const fmt = (iso: string) =>
-  new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 
 export function CampaignGatesCard({
   clientApprovedAt,
@@ -94,7 +91,6 @@ export function CampaignGatesCard({
   baselineCapturedAt = null,
   baselineTotalStreams = null,
   baselinePlaylistsCount = null,
-  delivered = 0,
   onApprovePlan,
   onDispatch,
   approvingPlan,
