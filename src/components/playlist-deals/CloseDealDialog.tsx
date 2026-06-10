@@ -2,14 +2,8 @@ import { useEffect, useState } from "react";
 import { CheckCircle2, XCircle, Loader2, FileDown } from "lucide-react";
 import { toast } from "sonner";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { FormModal } from "@/components/ui/form-modal";
+import { Handshake } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
