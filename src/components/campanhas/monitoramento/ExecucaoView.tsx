@@ -148,6 +148,7 @@ export function ExecucaoView({
             baseline_plays: null,
             current_plays: null,
             delta: 0,
+            last_import_delta: null,
             baseline_at: null,
             last_captured_at: null,
             first_seen_at: null,
