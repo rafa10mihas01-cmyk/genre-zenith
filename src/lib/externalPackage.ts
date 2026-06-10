@@ -337,15 +337,38 @@ export async function updatePackageItem(
   itemId: string,
   patch: { assigned_streams: number; cost_per_stream: number },
 ) {
+  const assignedCost = +(patch.assigned_streams * patch.cost_per_stream).toFixed(2);
   const { error } = await supabase
     .from("campaign_external_package_items")
     .update({
       assigned_streams: patch.assigned_streams,
       cost_per_stream: patch.cost_per_stream,
-      assigned_cost: +(patch.assigned_streams * patch.cost_per_stream).toFixed(2),
+      assigned_cost: assignedCost,
     })
     .eq("id", itemId);
   if (error) throw error;
+
+  // Cascata: se o item já tem deal vinculado, atualiza o deal pra refletir
+  // o novo target/custo (evita divergência item ↔ deal).
+  const { data: linkedDeal } = await supabase
+    .from("curator_deals")
+    .select("id, ends_at, created_at")
+    .eq("external_package_item_id", itemId)
+    .maybeSingle();
+
+  if (linkedDeal?.id) {
+    const start = new Date(linkedDeal.created_at as string).getTime();
+    const end = new Date(linkedDeal.ends_at as string).getTime();
+    const days = Math.max(1, Math.ceil((end - start) / 86_400_000));
+    await supabase
+      .from("curator_deals")
+      .update({
+        target_plays: patch.assigned_streams,
+        cost: assignedCost,
+        daily_goal: Math.ceil(patch.assigned_streams / days),
+      })
+      .eq("id", linkedDeal.id);
+  }
 }
 
 export async function removePackageItem(itemId: string) {
