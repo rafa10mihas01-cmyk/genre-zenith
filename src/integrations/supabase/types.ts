@@ -3675,6 +3675,9 @@ export type Database = {
           playlist_name: string
           position_in_paste: number | null
           song_id: string | null
+          spotify_dead: boolean
+          spotify_dead_at: string | null
+          spotify_dead_reason: string | null
           spotify_owner_id: string | null
           spotify_owner_name: string | null
           spotify_playlist_id: string | null
@@ -3701,6 +3704,9 @@ export type Database = {
           playlist_name: string
           position_in_paste?: number | null
           song_id?: string | null
+          spotify_dead?: boolean
+          spotify_dead_at?: string | null
+          spotify_dead_reason?: string | null
           spotify_owner_id?: string | null
           spotify_owner_name?: string | null
           spotify_playlist_id?: string | null
@@ -3727,6 +3733,9 @@ export type Database = {
           playlist_name?: string
           position_in_paste?: number | null
           song_id?: string | null
+          spotify_dead?: boolean
+          spotify_dead_at?: string | null
+          spotify_dead_reason?: string | null
           spotify_owner_id?: string | null
           spotify_owner_name?: string | null
           spotify_playlist_id?: string | null

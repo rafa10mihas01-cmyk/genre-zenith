@@ -75,7 +75,12 @@ Deno.serve(async (req) => {
     }
 
     // Carrega curator_playlists alvo
-    let q = admin.from("curator_playlists").select("id, spotify_playlist_id, image_url, followers");
+    // FASE APP-05: filtra playlists já marcadas como spotify_dead pra parar
+    // de consultar IDs que o Spotify confirmou que não existem mais (404).
+    let q = admin
+      .from("curator_playlists")
+      .select("id, spotify_playlist_id, image_url, followers, spotify_dead")
+      .eq("spotify_dead", false);
     if (onlyIds && onlyIds.length > 0) {
       q = q.in("spotify_playlist_id", onlyIds);
     } else if (effectiveDealId) {
@@ -107,10 +112,15 @@ Deno.serve(async (req) => {
     let updated = 0;
     let gone = 0;
     let failed = 0;
+    const goneIds = new Set<string>();
     for (const cp of targets as any[]) {
       const r = byId.get(cp.spotify_playlist_id);
       if (!r) continue;
-      if (r.gone) { gone++; continue; }
+      if (r.gone) {
+        gone++;
+        goneIds.add(cp.spotify_playlist_id);
+        continue;
+      }
       if (r.error) { failed++; continue; }
       const patch: Record<string, unknown> = {};
       if (r.cover) patch.image_url = r.cover;
@@ -124,7 +134,23 @@ Deno.serve(async (req) => {
       updated++;
     }
 
-    return jr({ ok: true, enriched: updated, gone, failed, total_candidates: targets.length });
+    // FASE APP-05: marca playlists 404/400 como mortas pra não tentar de novo
+    let marked_dead = 0;
+    if (goneIds.size > 0) {
+      const { error: deadErr, count } = await admin
+        .from("curator_playlists")
+        .update({
+          spotify_dead: true,
+          spotify_dead_at: new Date().toISOString(),
+          spotify_dead_reason: "spotify_404_not_found",
+        }, { count: "exact" })
+        .in("spotify_playlist_id", Array.from(goneIds))
+        .eq("spotify_dead", false);
+      if (!deadErr) marked_dead = count ?? 0;
+    }
+
+
+    return jr({ ok: true, enriched: updated, gone, marked_dead, failed, total_candidates: targets.length });
   } catch (e) {
     return jr({ ok: false, error: (e as Error).message }, 500);
   }

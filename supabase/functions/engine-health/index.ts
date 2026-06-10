@@ -130,41 +130,22 @@ async function buildHealth(supabase: any, genreId: string) {
     }
   }
 
-  // 4) Recencia variance + fresh_pct (precisa release_date via Spotify)
+  // 4) Recencia variance + fresh_pct
+  // FASE APP-05: /v1/tracks foi restringido pelo Spotify (403). Metadata é
+  // opcional — pulamos o fetch e tratamos como dado ausente (status warn).
+  // Mantemos apenas o teste de token pra validar conectividade do app.
   const recenciaScores: number[] = [];
-  let freshUnder365 = 0;
+  const freshUnder365 = 0;
   let releaseFetched = 0;
   const releaseMap = new Map<string, string | null>();
-  if (top40Ids.length > 0) {
-    try {
-      const token = await getSpotifyToken();
-      for (let i = 0; i < top40Ids.length; i += 50) {
-        const slice = top40Ids.slice(i, i + 50);
-        const r = await guardedSpotifyFetch(
-          `https://api.spotify.com/v1/tracks?ids=${slice.join(",")}`,
-          { headers: { Authorization: `Bearer ${token}` } },
-        );
-        if (!r.ok) continue;
-        const j = await r.json();
-        for (const tr of j.tracks ?? []) {
-          if (!tr?.id) continue;
-          releaseMap.set(tr.id, tr.album?.release_date ?? null);
-        }
-      }
-    } catch (_e) { /* segue sem metadata */ }
-    const now = Date.now();
-    for (const id of top40Ids) {
-      const rd = releaseMap.get(id);
-      if (rd == null) continue;
-      releaseFetched += 1;
-      const ageDays = Math.max(0, (now - new Date(rd).getTime()) / 86400_000);
-      recenciaScores.push(recenciaBuckets(ageDays));
-      if (ageDays < 365) freshUnder365 += 1;
-    }
+  let tokenOk = false;
+  try {
+    await getSpotifyToken();
+    tokenOk = true;
+  } catch (_e) {
+    tokenOk = false;
   }
-  const freshPct = releaseFetched > 0
-    ? (freshUnder365 / releaseFetched) * 100
-    : 0;
+  const freshPct = 0;
 
   // 5) Pool ages
   const snapshotRow = await supabase
@@ -181,8 +162,10 @@ async function buildHealth(supabase: any, genreId: string) {
     : 999;
 
   // 6) Diversidade — comparação entre as duas últimas runs em editorial_history
+  // FASE APP-05: tracks_under_365d_pct dependia de /v1/tracks (restrito). Mantemos
+  // só o cover_repeat_rate, que é puramente interno.
   let coverRepeatRate = 0;
-  let tracksUnder365dPct = 0;
+  const tracksUnder365dPct = 0;
   const { data: histRows } = await supabase
     .from("editorial_history")
     .select("track_id, run_date")
@@ -204,39 +187,6 @@ async function buildHealth(supabase: any, genreId: string) {
       const prevSet = new Set(previous);
       const repeats = latest.filter((id) => prevSet.has(id)).length;
       coverRepeatRate = (repeats / latest.length) * 100;
-    }
-    // fresh-rate dos finais (release < 365d), reaproveita releaseMap qd possível
-    if (latest.length > 0) {
-      const missing = latest.filter((id) => !releaseMap.has(id));
-      if (missing.length > 0) {
-        try {
-          const token = await getSpotifyToken();
-          for (let i = 0; i < missing.length; i += 50) {
-            const slice = missing.slice(i, i + 50);
-            const r = await guardedSpotifyFetch(
-              `https://api.spotify.com/v1/tracks?ids=${slice.join(",")}`,
-              { headers: { Authorization: `Bearer ${token}` } },
-            );
-            if (!r.ok) continue;
-            const j = await r.json();
-            for (const tr of j.tracks ?? []) {
-              if (!tr?.id) continue;
-              releaseMap.set(tr.id, tr.album?.release_date ?? null);
-            }
-          }
-        } catch (_e) { /* ok */ }
-      }
-      const now = Date.now();
-      let fresh = 0;
-      let known = 0;
-      for (const id of latest) {
-        const rd = releaseMap.get(id);
-        if (rd == null) continue;
-        known += 1;
-        const ageDays = (now - new Date(rd).getTime()) / 86400_000;
-        if (ageDays < 365) fresh += 1;
-      }
-      tracksUnder365dPct = known > 0 ? (fresh / known) * 100 : 0;
     }
   }
 
