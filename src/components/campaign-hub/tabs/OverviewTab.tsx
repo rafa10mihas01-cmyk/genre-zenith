@@ -458,7 +458,7 @@ export function OverviewTab({
                   </div>
                   {topPlaylists.length === 0 ? (
                     <div className="text-xs text-muted-foreground py-6 text-center">
-                      Nenhuma playlist entregando ainda.
+                      Nenhuma playlist alocada ainda.
                     </div>
                   ) : (
                     <ul className="space-y-2.5">
