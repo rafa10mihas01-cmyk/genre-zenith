@@ -386,28 +386,7 @@ export function DuplicateDealDialog({
               {targetPlays > 0 ? formatNumber(targetPlays) : "—"} plays
             </span>
           </div>
-        </div>
-
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
-            disabled={submitting}
-          >
-            Cancelar
-          </Button>
-          <Button
-            type="button"
-            onClick={() => handleSubmit(false)}
-            disabled={!canSubmit || submitting}
-            className="gap-2"
-          >
-            {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            Criar deal duplicado
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </FormModal>
   );
 }
