@@ -1090,6 +1090,13 @@ function CuratorTiles({
   onToggleStatus: (status: string) => void;
 }) {
   const list = useCuratorSummary(rows, curators, statuses);
+  const preCampaignCount = useMemo(() => {
+    return (rows ?? []).filter((r) => {
+      if (!r.attributed_to.startsWith("curator:")) return false;
+      if (curatorFilter !== "all" && r.attributed_curator_id !== curatorFilter) return false;
+      return Number(r.baseline_plays ?? 0) > 0;
+    }).length;
+  }, [rows, curatorFilter]);
   const totals = useMemo(() => {
     const target = curatorFilter === "all" ? list : list.filter((c) => c.id === curatorFilter);
     return target.reduce(
@@ -1107,7 +1114,7 @@ function CuratorTiles({
   if (list.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
       <KpiTile label="Playlists" value={totals.playlists} />
       <KpiTile
         label="Matched"
@@ -1122,6 +1129,13 @@ function CuratorTiles({
         accent="amber"
         active={statusFilter === "pending_match"}
         onClick={() => onToggleStatus("pending_match")}
+      />
+      <KpiTile
+        label="Pré-campanha"
+        value={preCampaignCount}
+        accent="amber"
+        active={statusFilter === "pre_campaign"}
+        onClick={() => onToggleStatus("pre_campaign")}
       />
       <KpiTile
         label="Conflito"
