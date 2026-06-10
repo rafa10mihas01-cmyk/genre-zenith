@@ -261,11 +261,13 @@ export function MonitoredPlaylistsCard({
                     ) : (
                       <div className="text-[14px] font-semibold tabular-nums text-muted-foreground/60 leading-none">—</div>
                     )}
-                    <div className="flex items-center gap-1.5 text-[9.5px] tabular-nums text-muted-foreground">
-                      <span>7d <span className="text-foreground/80 font-medium">{p.plays_7d != null ? formatPlays(p.plays_7d) : "—"}</span></span>
-                      <span className="text-border">·</span>
-                      <span>28d <span className="text-foreground/80 font-medium">{p.plays_28d != null ? formatPlays(p.plays_28d) : "—"}</span></span>
-                    </div>
+                    {!isManual && (
+                      <div className="flex items-center gap-1.5 text-[9.5px] tabular-nums text-muted-foreground">
+                        <span>7d <span className="text-foreground/80 font-medium">{p.plays_7d != null ? formatPlays(p.plays_7d) : "—"}</span></span>
+                        <span className="text-border">·</span>
+                        <span>28d <span className="text-foreground/80 font-medium">{p.plays_28d != null ? formatPlays(p.plays_28d) : "—"}</span></span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </li>
