@@ -319,103 +319,115 @@ Deno.serve(async (req) => {
       delivered: Math.max(0, h.total_plays - baseline),
     }));
 
-    // 5) Playlists do curador — agrega de TODOS os deals "irmãos" da mesma
-    // música/artista (curadores diferentes podem ter deals separados pra
-    // mesma faixa; banco mantém separado, mas o cliente vê unificado).
-    const songNameNorm = String(dealRow.song_name ?? "").trim();
-    const songArtistNorm = String(dealRow.song_artist ?? "").trim();
-    let siblingDealsQuery = admin
-      .from("curator_deals")
-      .select("id, song_name, song_artist");
-    if (songNameNorm) siblingDealsQuery = siblingDealsQuery.ilike("song_name", songNameNorm);
-    if (songArtistNorm) siblingDealsQuery = siblingDealsQuery.ilike("song_artist", songArtistNorm);
-    const { data: siblingDealsRaw } = await siblingDealsQuery;
-    const allDealIds = Array.from(new Set([
-      dealId!,
-      ...((siblingDealsRaw ?? []) as AnyRec[]).map((d) => String(d.id)),
-    ]));
-
-    const { data: playlistsRaw } = await admin
-      // Separação operacional × observacional
-      .from("v_curator_playlists_operational")
-      .select("id, deal_id, playlist_name, image_url, added_at, added_at_spotify, is_baseline, song_id, spotify_playlist_id, streams_7d, streams_28d, streams_total")
-      .in("deal_id", allDealIds)
-      .eq("match_status", "curator")
-      .eq("is_baseline", false)
-      .order("added_at", { ascending: true });
-    const playlistsFiltered = ((playlistsRaw ?? []) as AnyRec[]).filter((p) => {
-      // Só filtra por song_id quando a playlist pertence ao deal principal
-      // (deals irmãos têm song_ids próprios que não batem com o atual).
-      if (!selectedSongId || !activeSong) return true;
-      if (String(p.deal_id) !== dealId) return true;
-      const sid = p.song_id as string | null;
-      return !sid || sid === selectedSongId;
-    });
-
-    // P2.1 — delivered por playlist vem do Growth Engine
-    // (vw_campaign_playlist_growth.delivery_accumulated), indexado por
-    // spotify_playlist_id. Substitui get_curator_deal_progress.per_playlist,
-    // que ficou vazio após a migração P1.
+    // 5) Playlists do curador — FONTE OFICIAL: vw_campaign_playlist_growth
+    // (mesma usada pelo cockpit interno). O caminho antigo
+    // (v_curator_playlists_operational + match_status='curator') ficava VAZIO
+    // em campanhas onde a coleta veio 100% por importação/snapshot, porque
+    // essas playlists não recebem match_status='curator' na view operacional —
+    // a atribuição correta vive em vw_campaign_playlist_growth.attributed_to.
     const campaignIdsForDeals = new Set<string>();
     if (dealRow.campaign_id) campaignIdsForDeals.add(String(dealRow.campaign_id));
     {
       const { data: campsForDeals } = await admin
         .from("campaigns")
         .select("id, deal_id")
-        .in("deal_id", allDealIds);
+        .eq("deal_id", dealId!);
       for (const c of (campsForDeals ?? []) as AnyRec[]) {
         if (c.id) campaignIdsForDeals.add(String(c.id));
       }
     }
-    const deliveredBySpotifyId = new Map<string, number>();
-    const lastImportBySpotifyId = new Map<string, number | null>();
+
+    type CuratorGrowthRow = {
+      playlist_id: string;
+      delivery_accumulated: number;
+      last_import_delta: number | null;
+      current_plays: number | null;
+      current_name: string | null;
+      baseline_name: string | null;
+      baseline_at: string | null;
+      first_seen_at: string | null;
+      playlist_url: string | null;
+    };
+    const curatorGrowth: CuratorGrowthRow[] = [];
     if (campaignIdsForDeals.size > 0) {
       const { data: growthRows } = await admin
         .from("vw_campaign_playlist_growth")
-        .select("playlist_id, delivery_accumulated, last_import_delta")
-        .in("campaign_id", Array.from(campaignIdsForDeals));
+        .select(
+          "playlist_id, delivery_accumulated, last_import_delta, current_plays, current_name, baseline_name, baseline_at, first_seen_at, playlist_url, attributed_to",
+        )
+        .in("campaign_id", Array.from(campaignIdsForDeals))
+        .like("attributed_to", "curator:%");
+      const byPid = new Map<string, CuratorGrowthRow>();
       for (const g of (growthRows ?? []) as AnyRec[]) {
         const k = String(g.playlist_id ?? "");
         if (!k) continue;
-        // se o mesmo spotify_playlist_id aparece em múltiplas campanhas,
-        // somamos a entrega atribuída de cada uma.
-        deliveredBySpotifyId.set(
-          k,
-          (deliveredBySpotifyId.get(k) ?? 0) + Number(g.delivery_accumulated ?? 0),
-        );
-        // P2.2 — última importação: somar entre campanhas, mantendo null se
-        // todas as linhas forem null (apenas 1 importação ainda).
-        const inc = g.last_import_delta == null ? null : Number(g.last_import_delta);
-        const cur = lastImportBySpotifyId.get(k);
-        if (inc == null && cur === undefined) {
-          lastImportBySpotifyId.set(k, null);
+        const prev = byPid.get(k);
+        const inc: CuratorGrowthRow = {
+          playlist_id: k,
+          delivery_accumulated: Number(g.delivery_accumulated ?? 0),
+          last_import_delta: g.last_import_delta == null ? null : Number(g.last_import_delta),
+          current_plays: g.current_plays == null ? null : Number(g.current_plays),
+          current_name: (g.current_name as string | null) ?? null,
+          baseline_name: (g.baseline_name as string | null) ?? null,
+          baseline_at: (g.baseline_at as string | null) ?? null,
+          first_seen_at: (g.first_seen_at as string | null) ?? null,
+          playlist_url: (g.playlist_url as string | null) ?? null,
+        };
+        if (!prev) {
+          byPid.set(k, inc);
         } else {
-          lastImportBySpotifyId.set(k, (cur ?? 0) + (inc ?? 0));
+          // mesmo playlist_id em campanhas diferentes do mesmo deal — soma.
+          prev.delivery_accumulated += inc.delivery_accumulated;
+          if (inc.last_import_delta != null) {
+            prev.last_import_delta = (prev.last_import_delta ?? 0) + inc.last_import_delta;
+          }
+          if (inc.current_plays != null) {
+            prev.current_plays = Math.max(prev.current_plays ?? 0, inc.current_plays);
+          }
         }
+      }
+      curatorGrowth.push(...byPid.values());
+    }
+
+    // Enriquecimento de metadados (nome/cover) via curator_playlist_library.
+    const spIds = curatorGrowth.map((c) => c.playlist_id);
+    const libByPid = new Map<string, AnyRec>();
+    if (spIds.length > 0) {
+      const { data: libRows } = await admin
+        .from("curator_playlist_library")
+        .select("spotify_playlist_id, playlist_name, image_url")
+        .in("spotify_playlist_id", spIds);
+      for (const r of (libRows ?? []) as AnyRec[]) {
+        libByPid.set(String(r.spotify_playlist_id), r);
       }
     }
 
-    const safePlaylists: AnyRec[] = playlistsFiltered.map((p) => {
-      const spId = String(p.spotify_playlist_id ?? "");
-      const grown = spId ? (deliveredBySpotifyId.get(spId) ?? 0) : 0;
-      const lastImport = spId && lastImportBySpotifyId.has(spId)
-        ? lastImportBySpotifyId.get(spId)!
-        : null;
-      const plays7d = p.streams_7d == null ? null : Number(p.streams_7d);
-      const plays28d = p.streams_28d == null ? null : Number(p.streams_28d);
-      const status: "Nova" | "Crescendo" | "Destaque" | "Estável" =
-        grown > 0 ? pickPlaylistStatus(p, grown) : "Nova";
+    const safePlaylists: AnyRec[] = curatorGrowth.map((c) => {
+      const lib = libByPid.get(c.playlist_id) ?? {};
+      const ageDays = c.first_seen_at
+        ? (Date.now() - new Date(c.first_seen_at).getTime()) / (1000 * 60 * 60 * 24)
+        : 999;
+      let status: "Nova" | "Crescendo" | "Destaque" | "Estável";
+      if (ageDays <= 7) status = "Nova";
+      else if (c.delivery_accumulated >= 5000) status = "Destaque";
+      else if (c.delivery_accumulated >= 500) status = "Crescendo";
+      else status = "Estável";
       return {
-        name: String(p.playlist_name ?? "Playlist"),
-        image_url: (p.image_url as string) ?? null,
-        delivered: grown,
-        last_import_delta: lastImport,
+        name: String(
+          (lib.playlist_name as string | undefined) ??
+            c.current_name ??
+            c.baseline_name ??
+            "Playlist",
+        ),
+        image_url: (lib.image_url as string | null) ?? null,
+        delivered: c.delivery_accumulated,
+        last_import_delta: c.last_import_delta,
         plays_24h: null,
-        plays_7d: plays7d,
-        plays_28d: plays28d,
+        plays_7d: c.current_plays,
+        plays_28d: null,
         status,
         source: "curator" as const,
-        spotify_playlist_id: spId || null,
+        spotify_playlist_id: c.playlist_id,
       };
     });
 
