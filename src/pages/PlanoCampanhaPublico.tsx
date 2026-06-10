@@ -734,6 +734,12 @@ export default function PlanoCampanhaPublico() {
 
                   );
                 })()}
+                {snapshot?.music?.spotifyTrackId && (
+                  <MusicStreamsCard
+                    spotifyTrackId={snapshot.music.spotifyTrackId}
+                    startedAt={forecast?.startedAt ?? (camp as any)?.started_at ?? null}
+                  />
+                )}
                 {forecast && <DeliveryForecastCard forecast={forecast} organicSummary={organicSummary} spotifyTrackId={snapshot?.music?.spotifyTrackId ?? null} />}
                 {isApproved && evolutionSeries.length > 1 && (
                   <EvolutionChart
