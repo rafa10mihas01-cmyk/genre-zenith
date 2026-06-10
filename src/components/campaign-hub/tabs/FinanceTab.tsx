@@ -31,7 +31,7 @@ export function FinanceTab({ campaignId, snapshot, clientPriceTotal }: Props) {
       setCuratorCost(rows.reduce((s, d: any) => s + (Number(d.cost) || 0), 0));
       setCuratorStreams(
         rows.reduce(
-          (s, d: any) => s + (Number(d.reconciled_streams_7d) || Number(d.reconciled_total_plays) || 0),
+          (s, d: any) => s + (Number(d.reconciled_total_plays) || 0),
           0,
         ),
       );
