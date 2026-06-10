@@ -735,17 +735,18 @@ function SecondaryMetric({
 }) {
   const sign = value > 0 ? "+" : "";
   return (
-    <div className={cn("px-4 py-3 md:px-6 md:py-5 lg:py-6 flex flex-col justify-center", className)}>
+    <div className={cn("px-4 py-3 md:px-5 md:py-3.5 lg:py-4 flex flex-col justify-center", className)}>
       <div className="flex items-center justify-between gap-2">
         <span className="text-[11px] md:text-[12px] text-muted-foreground font-normal">
           {label}
         </span>
         <Icon className="h-3.5 w-3.5 text-muted-foreground/60" />
       </div>
-      <div className="text-[18px] md:text-[24px] font-medium tabular-nums text-foreground leading-none mt-1.5 md:mt-3">
+      <div className="text-[16px] md:text-[18px] lg:text-[20px] font-medium tabular-nums text-foreground leading-none mt-1.5 md:mt-2">
         {sign}{formatInt(value)}
       </div>
     </div>
+
   );
 }
 
