@@ -40,7 +40,7 @@ type SnapshotRun = {
   print_count: number | null;
 };
 
-export function MonitoramentoTab({ campaignId, headerSlot }: Props) {
+export function MonitoramentoTab({ campaignId, headerSlot, spreadsheetUploads }: Props) {
   const [kpis, setKpis] = useState<{ status: string | null; capturedAt: string | null; playlists: number }>({
     status: null,
     capturedAt: null,
