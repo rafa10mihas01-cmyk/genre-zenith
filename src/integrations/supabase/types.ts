@@ -3207,6 +3207,7 @@ export type Database = {
           cycle_months: number | null
           daily_goal: number
           ends_at: string | null
+          external_package_item_id: string | null
           final_report_url: string | null
           id: string
           last_reconciled_at: string | null
@@ -3253,6 +3254,7 @@ export type Database = {
           cycle_months?: number | null
           daily_goal?: number
           ends_at?: string | null
+          external_package_item_id?: string | null
           final_report_url?: string | null
           id?: string
           last_reconciled_at?: string | null
@@ -3299,6 +3301,7 @@ export type Database = {
           cycle_months?: number | null
           daily_goal?: number
           ends_at?: string | null
+          external_package_item_id?: string | null
           final_report_url?: string | null
           id?: string
           last_reconciled_at?: string | null
@@ -3377,6 +3380,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_curator_finance"
             referencedColumns: ["curator_id"]
+          },
+          {
+            foreignKeyName: "curator_deals_external_package_item_id_fkey"
+            columns: ["external_package_item_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_external_package_items"
+            referencedColumns: ["id"]
           },
         ]
       }
