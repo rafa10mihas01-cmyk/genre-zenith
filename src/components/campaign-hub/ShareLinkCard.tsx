@@ -19,13 +19,39 @@ export function ShareLinkCard({ token, trackName, artist, approved }: Props) {
   const url = `${PUBLIC_DOMAIN}/p/plano/${token}`;
 
   async function copy() {
-    try {
-      await navigator.clipboard.writeText(url);
+    const done = () => {
       setCopied(true);
       toast({ title: "Link copiado", description: "Cole no WhatsApp ou e-mail pro cliente." });
       setTimeout(() => setCopied(false), 1800);
+    };
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(url);
+        done();
+        return;
+      }
+      throw new Error("no-clipboard-api");
     } catch {
-      toast({ title: "Não consegui copiar", description: url, variant: "destructive" });
+      // Fallback mobile/iframe: textarea + execCommand("copy")
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = url;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.top = "0";
+        ta.style.left = "0";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        ta.setSelectionRange(0, url.length);
+        const ok = document.execCommand("copy");
+        document.body.removeChild(ta);
+        if (ok) { done(); return; }
+        throw new Error("execCommand-failed");
+      } catch {
+        toast({ title: "Não consegui copiar", description: url, variant: "destructive" });
+      }
     }
   }
 
