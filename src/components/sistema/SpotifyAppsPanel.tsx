@@ -8,11 +8,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useSpotifyAppsStatus, type AppLevel, type SpotifyAppStatusRow } from "@/hooks/useSpotifyAppsStatus";
 import { cn } from "@/lib/utils";
 
-function fmtUtc(iso: string | null) {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  return `${d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "UTC" })} ${d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} UTC`;
-}
 
 const LEVEL_META: Record<AppLevel, { label: string; icon: typeof ShieldAlert; cls: string; dot: string; helper: string }> = {
   blocked:   { label: "Aguardando liberação", icon: ShieldAlert,    cls: "text-destructive border-destructive/40 bg-destructive/10", dot: "bg-destructive", helper: "Spotify bloqueou temporariamente. Liberação automática." },
