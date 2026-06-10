@@ -2,7 +2,8 @@
 
 ## Core
 Design System fixo: bg #050505, sidebar #000, card #111, hover #1A1A1A, primary #1DB954 (verde Spotify), text #FFF / #9CA3AF. Fonte Inter (títulos 600, body 400). Padding página 24px, gap seções 32px, padding card 20px, radius 16px. Sombras quase invisíveis.
-Toda página DEVE usar `<PageHeader>` (`@/components/PageHeader`) com title (substantivo) + subtitle (verbo/função). PROIBIDO emojis, saudações ("Bom dia", "Olá"), linguagem emocional ou headers customizados.
+Toda página DEVE usar `<PageHeader>` (`@/components/PageHeader`) com title (substantivo) + subtitle (verbo/função). PROIBIDO emojis, saudações, linguagem emocional ou headers customizados.
+Todo modal de FORMULÁRIO (criar/editar/configurar com inputs) DEVE usar `FormModal` (`@/components/ui/form-modal`) — nunca `<Dialog>` cru. Header com ícone tonal (cor de domínio) + descrição, body scrollável, footer fixo com Cancelar (ghost) à esquerda do CTA primário. Helpers: `FormGrid`, `FormField`, `FormSection`. Viewer/print/confirm sem inputs podem continuar como `Dialog`.
 Logo oficial NexEngine = arquivos em `src/assets/nexengine-*.png` renderizados por `<NexEngineLogo variant="auto|light|dark|mark" />`. Não recriar SVG, não substituir por ícones genéricos. Marca d'água para capas: `src/assets/nexengine-watermark.png`.
 Backend é Lovable Cloud (nunca dizer "Supabase" ao usuário).
 Edge functions sensíveis (IA cara, Spotify, dados) DEVEM usar `requireTeamAccess` de `_shared/auth.ts` (aceita service_role + admin/curador). Nunca implementar guard local.
