@@ -100,11 +100,32 @@ export function CampaignAccessGate({ token, onAuthed }: Props) {
     }
     const jwt = (data as any)?.jwt as string;
     if (!jwt) { toast.error("Erro inesperado."); return; }
+    // Antes de liberar, garante que o JWT VAI persistir. Sem isso o usuário
+    // entra agora, dá refresh, perde sessão, pede OTP de novo → loop.
+    let persisted = false;
     try {
-      localStorage.setItem(accessStorageKey(token), JSON.stringify({ jwt, email: email.trim().toLowerCase(), exp: Date.now() + 86400_000 }));
+      localStorage.setItem(
+        accessStorageKey(token),
+        JSON.stringify({ jwt, email: email.trim().toLowerCase(), exp: Date.now() + 86400_000 }),
+      );
+      persisted = true;
     } catch { /* ignore */ }
+    logPortalAuth({
+      email: email.trim().toLowerCase(),
+      endpoint: "verify-campaign-otp",
+      auth_status: persisted ? "ok" : "ok_no_persistence",
+      jwt_present: true,
+      localstorage_available: persisted,
+      token,
+    });
+    if (!persisted) {
+      setStorageOk(false);
+      toast.error("Não foi possível salvar sua sessão neste navegador. Abra o link no Chrome ou Safari.");
+      return;
+    }
     onAuthed(jwt, email.trim().toLowerCase());
   }
+
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
