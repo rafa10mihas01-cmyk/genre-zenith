@@ -20,7 +20,25 @@ type Incident = {
   actionUrl?: string;
   actionLabel?: string;
   when: string;
+  count?: number;
 };
+
+// Apenas falhas de infraestrutura / operação técnica entram aqui.
+// Eventos de negócio (deal encerrado, campanha encerrada, meta atingida,
+// decisões de campanha, etc.) NÃO são incidentes e vão pra /alertas.
+const INFRA_DOMAINS = new Set(["system", "bot", "infra", "spotify"]);
+const BUSINESS_KINDS = new Set([
+  "campaign_plan_decision",
+  "deal_overdue",
+  "deal_stale_no_snapshot",
+  "deadline_overdue",
+  "deadline_d_minus_5",
+  "algorithmic_in",
+  "deal_closed",
+  "campaign_closed",
+  "goal_reached",
+  "curator_response",
+]);
 
 export function AttentionInbox() {
   const [items, setItems] = useState<Incident[] | null>(null);
@@ -59,13 +77,19 @@ export function AttentionInbox() {
           })
         );
 
-      // Notificações abertas
+      // Notificações abertas — só falhas técnicas reais
       (notifs.data ?? []).forEach((n: any) => {
+        const meta = (n.metadata ?? {}) as Record<string, any>;
+        const domain = String(meta.domain ?? "").toLowerCase();
+        const kind = String(meta.kind ?? "");
+        // Exclui eventos de negócio e domínios não-infra
+        if (BUSINESS_KINDS.has(kind)) return;
+        if (domain && !INFRA_DOMAINS.has(domain)) return;
         const copy = friendlyNotification(n);
         list.push({
           id: `notif:${n.id}`,
           severity: n.type === "critical" ? "critical" : "warning",
-          title: copy.title ?? humanizeFunctionName(n.kind),
+          title: copy.title ?? humanizeFunctionName(kind),
           impact: copy.impact ?? copy.message ?? humanizeError(n.message),
           actionUrl: copy.actionUrl ?? n.action_url ?? undefined,
           actionLabel: copy.actionLabel ?? "Resolver",
@@ -73,13 +97,27 @@ export function AttentionInbox() {
         });
       });
 
+      // Consolida alertas repetidos do mesmo tipo (mesmo título)
+      const grouped = new Map<string, Incident>();
+      for (const inc of list) {
+        const key = `${inc.severity}::${inc.title}`;
+        const existing = grouped.get(key);
+        if (!existing) {
+          grouped.set(key, { ...inc, count: 1 });
+        } else {
+          existing.count = (existing.count ?? 1) + 1;
+          if (inc.when > existing.when) existing.when = inc.when;
+        }
+      }
+      const final = Array.from(grouped.values());
+
       // Crítico primeiro, mais recente primeiro
-      list.sort((a, b) => {
+      final.sort((a, b) => {
         if (a.severity !== b.severity) return a.severity === "critical" ? -1 : 1;
         return a.when < b.when ? 1 : -1;
       });
 
-      if (!cancelled) setItems(list);
+      if (!cancelled) setItems(final);
     };
     load();
     const t = setInterval(load, 30_000);
@@ -133,7 +171,9 @@ export function AttentionInbox() {
             <li key={i.id} className="px-5 py-3 flex items-start gap-3">
               <Icon className={cn("h-4 w-4 mt-0.5 shrink-0", tone)} />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-foreground leading-snug">{i.title}</p>
+                <p className="text-sm font-semibold text-foreground leading-snug">
+                  {i.count && i.count > 1 ? `${i.count}× ` : ""}{i.title}
+                </p>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{i.impact}</p>
                 <p className="text-[10px] text-muted-foreground/70 mt-1 tabular-nums">{timeAgo(i.when)}</p>
               </div>
