@@ -56,21 +56,21 @@ export function CircuitBreakerHistoryCard() {
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">
           <ShieldAlert className="h-4 w-4 text-amber-500" />
-          Circuit breaker — últimos 30 dias
+          Bloqueios temporários do Spotify — últimos 30 dias
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-3 gap-3 text-xs">
           <div>
-            <div className="text-muted-foreground">Aberturas</div>
+            <div className="text-muted-foreground">Bloqueios</div>
             <div className="text-xl font-semibold">{total}</div>
           </div>
           <div>
-            <div className="text-muted-foreground">Bloqueio médio</div>
-            <div className="text-xl font-semibold">{avgBlock}s</div>
+            <div className="text-muted-foreground">Pausa média</div>
+            <div className="text-xl font-semibold">{avgBlock < 60 ? `${avgBlock}s` : `${Math.round(avgBlock / 60)} min`}</div>
           </div>
           <div>
-            <div className="text-muted-foreground">Funções afetadas</div>
+            <div className="text-muted-foreground">Áreas afetadas</div>
             <div className="text-xl font-semibold">{Object.keys(bySource).length}</div>
           </div>
         </div>
@@ -79,17 +79,17 @@ export function CircuitBreakerHistoryCard() {
           <div className="text-xs text-muted-foreground">Carregando…</div>
         ) : total === 0 ? (
           <div className="text-xs text-muted-foreground">
-            Nenhuma abertura nos últimos 30 dias. Dados começam a partir de agora.
+            Nenhum bloqueio nos últimos 30 dias — Spotify está respondendo normalmente.
           </div>
         ) : (
           <>
             {topSources.length > 0 && (
               <div className="space-y-1">
-                <div className="text-xs text-muted-foreground">Top funções</div>
+                <div className="text-xs text-muted-foreground">Onde aconteceu</div>
                 <div className="flex flex-wrap gap-1.5">
                   {topSources.map(([name, count]) => (
                     <Badge key={name} variant="outline" className="text-xs">
-                      {name} · {count}
+                      {humanizeFunctionName(name)} · {count}
                     </Badge>
                   ))}
                 </div>
@@ -97,15 +97,15 @@ export function CircuitBreakerHistoryCard() {
             )}
             <div className="space-y-1 max-h-64 overflow-y-auto pr-1 nx-scroll">
               {rows.slice(0, 10).map((r) => (
-                <div key={r.id} className="flex items-center justify-between text-xs border-b border-border/40 py-1.5">
-                  <div className="flex flex-col">
-                    <span className="font-medium">{r.source_function ?? "—"}</span>
+                <div key={r.id} className="flex items-center justify-between text-xs border-b border-border/40 py-1.5 gap-3">
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-medium truncate">{humanizeFunctionName(r.source_function)}</span>
                     {r.caused_by && (
-                      <span className="text-muted-foreground truncate max-w-[300px]">{r.caused_by}</span>
+                      <span className="text-muted-foreground truncate max-w-[300px]">{humanizeError(r.caused_by)}</span>
                     )}
                   </div>
-                  <div className="text-right text-muted-foreground">
-                    <div>{r.retry_after_sec}s</div>
+                  <div className="text-right text-muted-foreground shrink-0">
+                    <div>pausa de {r.retry_after_sec < 60 ? `${r.retry_after_sec}s` : `${Math.round(r.retry_after_sec / 60)} min`}</div>
                     <div>{formatDistanceToNow(new Date(r.opened_at), { addSuffix: true, locale: ptBR })}</div>
                   </div>
                 </div>
