@@ -1,6 +1,6 @@
 // Painel operacional: estado dos apps Spotify (Fase 8.9 — visibilidade).
 // Mostra status agregado por app: nível, playlists vinculadas, circuit breaker.
-import { ShieldAlert, ShieldCheck, ShieldQuestion, RefreshCw, Loader2 } from "lucide-react";
+import { ShieldAlert, ShieldCheck, ShieldQuestion, RefreshCw, Loader2, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
