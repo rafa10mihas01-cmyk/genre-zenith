@@ -173,7 +173,7 @@ export function MonitoredPlaylistsCard({
     const baseCols: Col[] = [
       { header: "POS", key: "POS", width: 6 },
       { header: "PLAYLIST", key: "PLAYLIST", width: 42 },
-      { header: "LINK", key: "URL", width: 18 },
+      { header: "LINK", key: "URL", width: 56 },
       { header: "ENTREGA ACUMULADA", key: "ENTREGA ACUMULADA", width: 20 },
       { header: "ÚLTIMA IMPORTAÇÃO", key: "ÚLTIMA IMPORTAÇÃO", width: 20 },
     ];
