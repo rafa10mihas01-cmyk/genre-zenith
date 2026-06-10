@@ -90,7 +90,6 @@ export function SaudeSistema() {
     const tokenExpiry = tokenRes.data?.expires_at;
     const tokenExpired = tokenExpiry ? new Date(tokenExpiry) <= new Date() : true;
     const pendingCount = pendingJobs.count ?? 0;
-    const hardFailedCount = hardFailedJobs.count ?? 0;
     const openBreakerCount = openBreakers.count ?? 0;
     const critCount = criticalUnread.count ?? 0;
     const warnCount = warningUnread.count ?? 0;
