@@ -295,17 +295,23 @@ export default function PlanoCampanhaPublico() {
   useEffect(() => {
     if (!clientToken) return;
     let cancelled = false;
+    setLivePlaylistsLoading(true);
     (async () => {
       const { data } = await supabase.functions.invoke("get-client-campaign-public", {
         body: { client_token: clientToken },
         headers: portalHeaders(token),
       });
-      if (cancelled || !data || (data as { ok?: boolean }).ok === false) return;
+      if (cancelled) return;
+      if (!data || (data as { ok?: boolean }).ok === false) {
+        setLivePlaylistsLoading(false);
+        return;
+      }
       const payload = data as { playlists?: MonitoredPlaylist[]; snapshot_history?: PrintsHistoryEntry[]; snapshotHistory?: PrintsHistoryEntry[]; series?: EvolutionSeriesPoint[] };
       setLivePlaylists(Array.isArray(payload.playlists) ? payload.playlists : []);
       const hist = payload.snapshot_history ?? payload.snapshotHistory ?? [];
       setSnapshotHistory(Array.isArray(hist) ? hist : []);
       setEvolutionSeries(Array.isArray(payload.series) ? payload.series : []);
+      setLivePlaylistsLoading(false);
     })();
     return () => { cancelled = true; };
   }, [clientToken]);
