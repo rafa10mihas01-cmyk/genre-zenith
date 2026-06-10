@@ -1,6 +1,6 @@
 // Public endpoint: gera código OTP de 6 dígitos pro portal do cliente.
 // Valida que o e-mail está autorizado pra campanha (campaign_access_emails).
-// Rate limit: 3 pedidos por e-mail+campanha por hora.
+// Rate limit: 10 pedidos por e-mail+campanha por hora.
 //
 // Envio do email: renderiza o template e enfileira DIRETO via rpc('enqueue_email'),
 // sem passar pelo gateway de send-transactional-email (que rejeita com
@@ -53,11 +53,6 @@ Deno.serve(async (req) => {
     return jr({ error: "invalid_email" }, 400);
   }
 
-  const emailRl = await checkRateLimit(`requestCampaignOtp:em:${emailRaw}`, 3600, 3);
-  if (!emailRl.allowed) {
-    return jr({ error: "rate_limited", message: "Limite de 3 códigos por hora. Tente mais tarde." }, 429);
-  }
-
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
   const { data: camp, error: cErr } = await supabase
@@ -68,6 +63,11 @@ Deno.serve(async (req) => {
   if (cErr) return jr({ error: cErr.message }, 500);
   if (!camp) return jr({ error: "not_found" }, 404);
   if (camp.status === "completed") return jr({ error: "campaign_closed" }, 404);
+
+  const emailRl = await checkRateLimit(`requestCampaignOtp:em:${camp.id}:${emailRaw}`, 3600, 10);
+  if (!emailRl.allowed) {
+    return jr({ error: "rate_limited", message: "Limite de códigos por hora. Tente mais tarde." }, 429);
+  }
 
   // Autorização: (a) email está em campaign_access_emails OU
   // (b) bate com o email do cliente dono da campanha (clients.email).
