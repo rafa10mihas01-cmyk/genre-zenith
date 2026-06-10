@@ -340,6 +340,7 @@ Deno.serve(async (req) => {
       playlist_id: string;
       playlist_url: string | null;
       first_seen_at: string | null;
+      registered_at: string | null;
     };
     const contracted: ContractedPlaylist[] = [];
     if (campaignIdsForDeals.size > 0) {
@@ -357,7 +358,27 @@ Deno.serve(async (req) => {
           playlist_id: k,
           playlist_url: (r.playlist_url as string | null) ?? null,
           first_seen_at: (r.matched_at as string | null) ?? (r.registered_at as string | null) ?? null,
+          registered_at: (r.registered_at as string | null) ?? null,
         });
+      }
+    }
+
+    // Baseline: playlists onde a música JÁ ESTAVA antes do deal começar.
+    // Carregamos por deal_id (+ song_id quando disponível) pra sinalizar
+    // "Pré-campanha · subiu posição" no portal do cliente.
+    const baselinePlaylistIds = new Set<string>();
+    {
+      let bq = admin
+        .from("curator_deal_baseline_playlists")
+        .select("spotify_playlist_id, song_id")
+        .eq("deal_id", dealId!);
+      if (selectedSongId && activeSong) {
+        bq = bq.eq("song_id", selectedSongId);
+      }
+      const { data: baselineRows } = await bq;
+      for (const r of (baselineRows ?? []) as AnyRec[]) {
+        const k = String(r.spotify_playlist_id ?? "");
+        if (k) baselinePlaylistIds.add(k);
       }
     }
 
@@ -448,6 +469,8 @@ Deno.serve(async (req) => {
         status,
         source: "curator" as const,
         spotify_playlist_id: c.playlist_id,
+        registered_at: c.registered_at,
+        is_pre_campaign: baselinePlaylistIds.has(c.playlist_id),
       };
     });
 

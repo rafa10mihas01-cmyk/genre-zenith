@@ -20,6 +20,8 @@ export type MonitoredPlaylist = {
   plays_28d?: number | null;
   last_import_delta?: number | null;
   spotify_playlist_id?: string | null;
+  registered_at?: string | null;
+  is_pre_campaign?: boolean;
 };
 
 function formatPlays(n: number | null | undefined): string {
@@ -476,7 +478,7 @@ export function MonitoredPlaylistsCard({
                     )} title={p.name}>
                       {p.name}
                     </p>
-                    <div className="flex items-center gap-2 mt-1 text-[10px] tabular-nums text-muted-foreground">
+                    <div className="flex items-center gap-x-2 gap-y-1 mt-1 text-[10px] tabular-nums text-muted-foreground flex-wrap">
                       <span className={cn(
                         "inline-flex items-center gap-1 font-medium",
                         delivering ? "text-success" : "text-muted-foreground/70"
@@ -491,7 +493,25 @@ export function MonitoredPlaylistsCard({
                       <span>últ. import: <span className={cn("font-medium", p.last_import_delta != null && p.last_import_delta > 0 ? "text-foreground" : "text-muted-foreground/70")}>
                         {p.last_import_delta == null ? "—" : `+${formatPlays(p.last_import_delta)}`}
                       </span></span>
+                      {p.registered_at && (
+                        <>
+                          <span className="text-border">·</span>
+                          <span>cadastrada {new Date(p.registered_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>
+                        </>
+                      )}
+                      {p.is_pre_campaign && (
+                        <span
+                          className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[9.5px] font-semibold text-amber-400"
+                          title="Esta música já estava nesta playlist antes da campanha começar. O curador se comprometeu a subir a posição da faixa."
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="h-2.5 w-2.5">
+                            <path d="M12 19V5M5 12l7-7 7 7" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                          Pré-campanha · subiu posição
+                        </span>
+                      )}
                     </div>
+
                   </div>
 
                   <div className="text-right shrink-0 flex flex-col items-end gap-0.5">
