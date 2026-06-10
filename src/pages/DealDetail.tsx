@@ -60,6 +60,15 @@ export default function DealDetail() {
     return computeCuratorStats(deal, logs, playlists, progress);
   }, [deal, logs, playlists, progress]);
 
+  const priorCount = useMemo(() => {
+    if (!deal) return 0;
+    const dealPlaylists = dedupeCuratorPlaylists(
+      playlists.filter((p) => p.deal_id === deal.id),
+      songs,
+    );
+    return dealPlaylists.filter((p) => p.is_baseline).length;
+  }, [deal, playlists, songs]);
+
 
   return (
     <PageContainer>
