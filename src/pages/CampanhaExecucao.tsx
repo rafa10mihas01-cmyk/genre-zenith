@@ -36,6 +36,7 @@ import { OverviewTab } from "@/components/campaign-hub/tabs/OverviewTab";
 import { FinanceTab } from "@/components/campaign-hub/tabs/FinanceTab";
 import { RadioCollectedCard } from "@/components/campaign-hub/RadioCollectedCard";
 import { useRadioCollected } from "@/hooks/useRadioCollected";
+import { usePlaylistCovers } from "@/hooks/usePlaylistCovers";
 
 import { CampaignKpis } from "@/components/campaign-hub/CampaignKpis";
 import { Lock } from "lucide-react";
