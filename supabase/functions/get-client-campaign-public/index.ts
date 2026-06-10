@@ -333,10 +333,11 @@ Deno.serve(async (req) => {
       }
     }
     const deliveredBySpotifyId = new Map<string, number>();
+    const lastImportBySpotifyId = new Map<string, number | null>();
     if (campaignIdsForDeals.size > 0) {
       const { data: growthRows } = await admin
         .from("vw_campaign_playlist_growth")
-        .select("playlist_id, delivery_accumulated")
+        .select("playlist_id, delivery_accumulated, last_import_delta")
         .in("campaign_id", Array.from(campaignIdsForDeals));
       for (const g of (growthRows ?? []) as AnyRec[]) {
         const k = String(g.playlist_id ?? "");
@@ -347,12 +348,24 @@ Deno.serve(async (req) => {
           k,
           (deliveredBySpotifyId.get(k) ?? 0) + Number(g.delivery_accumulated ?? 0),
         );
+        // P2.2 — última importação: somar entre campanhas, mantendo null se
+        // todas as linhas forem null (apenas 1 importação ainda).
+        const inc = g.last_import_delta == null ? null : Number(g.last_import_delta);
+        const cur = lastImportBySpotifyId.get(k);
+        if (inc == null && cur === undefined) {
+          lastImportBySpotifyId.set(k, null);
+        } else {
+          lastImportBySpotifyId.set(k, (cur ?? 0) + (inc ?? 0));
+        }
       }
     }
 
     const safePlaylists: AnyRec[] = playlistsFiltered.map((p) => {
       const spId = String(p.spotify_playlist_id ?? "");
       const grown = spId ? (deliveredBySpotifyId.get(spId) ?? 0) : 0;
+      const lastImport = spId && lastImportBySpotifyId.has(spId)
+        ? lastImportBySpotifyId.get(spId)!
+        : null;
       const plays7d = p.streams_7d == null ? null : Number(p.streams_7d);
       const plays28d = p.streams_28d == null ? null : Number(p.streams_28d);
       const status: "Nova" | "Crescendo" | "Destaque" | "Estável" =
@@ -361,6 +374,7 @@ Deno.serve(async (req) => {
         name: String(p.playlist_name ?? "Playlist"),
         image_url: (p.image_url as string) ?? null,
         delivered: grown,
+        last_import_delta: lastImport,
         plays_24h: null,
         plays_7d: plays7d,
         plays_28d: plays28d,

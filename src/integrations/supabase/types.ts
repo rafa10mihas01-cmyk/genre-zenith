@@ -11323,6 +11323,7 @@ export type Database = {
           delta: number | null
           first_seen_at: string | null
           last_captured_at: string | null
+          last_import_delta: number | null
           playlist_id: string | null
           playlist_url: string | null
         }
@@ -11725,6 +11726,7 @@ export type Database = {
         Returns: {
           current_reading: number
           delivery_accumulated: number
+          last_import_delta: number
           last_reading_at: string
           playlist_id: string
           readings_count: number

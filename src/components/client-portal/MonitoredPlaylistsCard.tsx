@@ -15,6 +15,7 @@ export type MonitoredPlaylist = {
   plays_24h?: number | null;
   plays_7d?: number | null;
   plays_28d?: number | null;
+  last_import_delta?: number | null;
 };
 
 
@@ -125,11 +126,17 @@ export function MonitoredPlaylistsCard({ playlists }: { playlists: MonitoredPlay
                         <div className="text-[14px] font-semibold tabular-nums text-foreground leading-none">
                           +{formatPlays(p.delivered)}
                         </div>
-                        <div className="text-[9px] uppercase tracking-wider text-muted-foreground">entregues</div>
+                        <div className="text-[9px] uppercase tracking-wider text-muted-foreground">entregue acumulado</div>
                       </>
                     ) : (
                       <div className="text-[14px] font-semibold tabular-nums text-muted-foreground/70 leading-none">—</div>
                     )}
+                    <div className="text-[10px] tabular-nums text-muted-foreground" title="Entrega da importação válida mais recente em relação à anterior">
+                      última importação:{" "}
+                      <span className={cn("font-medium", p.last_import_delta != null && p.last_import_delta > 0 ? "text-foreground" : "text-muted-foreground/70")}>
+                        {p.last_import_delta == null ? "—" : `+${formatPlays(p.last_import_delta)}`}
+                      </span>
+                    </div>
                     <div className="flex items-center justify-end gap-2 pt-0.5 text-[10px] tabular-nums text-muted-foreground">
                       <span>7d: <span className="text-foreground/80">{p.plays_7d != null ? formatPlays(p.plays_7d) : "—"}</span></span>
                       <span className="text-border">·</span>

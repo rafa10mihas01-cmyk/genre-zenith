@@ -25,6 +25,7 @@ type GrowthRow = {
   baseline_plays: number | null;
   current_plays: number | null;
   delta: number;
+  last_import_delta: number | null;
   baseline_at: string | null;
   last_captured_at: string | null;
   first_seen_at: string | null;
@@ -147,6 +148,7 @@ export function ExecucaoView({
             baseline_plays: null,
             current_plays: null,
             delta: 0,
+            last_import_delta: null,
             baseline_at: null,
             last_captured_at: null,
             first_seen_at: null,
@@ -289,7 +291,7 @@ export function ExecucaoView({
   );
 
   const exportCsv = () => {
-    const head = ["playlist_id", "playlist", "atribuicao", "curador", "status", "baseline", "atual", "delta", "first_seen", "ultima_coleta"];
+    const head = ["playlist_id", "playlist", "atribuicao", "curador", "status", "baseline", "atual", "delta_acumulada", "ultima_importacao", "first_seen", "ultima_coleta"];
     const lines = [head.join(",")];
     for (const r of filtered) {
       const cur = r.attributed_curator_id ? curators[r.attributed_curator_id]?.name ?? "" : "";
@@ -305,6 +307,7 @@ export function ExecucaoView({
           r.baseline_plays ?? 0,
           r.current_plays ?? 0,
           r.delta,
+          r.last_import_delta ?? "",
           r.first_seen_at ?? "",
           r.last_captured_at ?? "",
         ].join(",")
@@ -349,6 +352,7 @@ export function ExecucaoView({
     baseline_plays: radioData.start_plays_7d ?? 0,
     current_plays: radioData.current_plays_7d ?? 0,
     delta: radioData.radio_delta ?? 0,
+    last_import_delta: null,
     baseline_at: radioData.start_captured_at,
     last_captured_at: radioData.last_captured_at,
     first_seen_at: radioData.start_captured_at,
@@ -784,13 +788,14 @@ function VirtualTable({
   return (
     <div>
       {/* Header — só desktop. Mobile usa layout em linha sem cabeçalho. */}
-      <div className="hidden md:grid grid-cols-[44px_minmax(220px,2fr)_120px_110px_110px_120px_140px_150px] gap-3 px-4 py-2.5 text-[10px] uppercase tracking-[0.08em] text-muted-foreground border-b border-border bg-card/40">
+      <div className="hidden md:grid grid-cols-[44px_minmax(220px,2fr)_120px_100px_100px_110px_120px_130px_150px] gap-3 px-4 py-2.5 text-[10px] uppercase tracking-[0.08em] text-muted-foreground border-b border-border bg-card/40">
         <div className="text-right">#</div>
         <SortHeader label="Playlist" k="name" sort={sort} dir={sortDir} onSort={onSort} />
         <div>Atribuição</div>
         <SortHeader label="Baseline" k="baseline" sort={sort} dir={sortDir} onSort={onSort} className="text-right justify-end" />
         <SortHeader label="Atual" k="current" sort={sort} dir={sortDir} onSort={onSort} className="text-right justify-end" />
-        <SortHeader label="Δ" k="delta" sort={sort} dir={sortDir} onSort={onSort} className="text-right justify-end" />
+        <SortHeader label="Δ Acumulada" k="delta" sort={sort} dir={sortDir} onSort={onSort} className="text-right justify-end" />
+        <div className="text-right" title="Entrega capturada na importação válida mais recente em relação à anterior. Mostra '—' quando há apenas uma importação.">Última Importação</div>
         <div>Status</div>
         <div>Última coleta</div>
       </div>
@@ -867,7 +872,9 @@ function VirtualTable({
                       {r.baseline_plays == null && r.current_plays == null ? "—" : (Number(r.delta) > 0 ? "+" : "") + formatInt(Number(r.delta ?? 0))}
                     </div>
                     <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
-                      {r.current_plays == null ? "sem dados" : formatInt(Number(r.current_plays))}
+                      {r.last_import_delta == null
+                        ? (r.current_plays == null ? "sem dados" : formatInt(Number(r.current_plays)))
+                        : `última: ${Number(r.last_import_delta) > 0 ? "+" : ""}${formatInt(Number(r.last_import_delta))}`}
                     </div>
                   </div>
                 </div>
@@ -879,7 +886,7 @@ function VirtualTable({
                 key={vi.key}
                 onClick={() => onRowClick?.(r.playlist_id)}
                 className={cn(
-                  "grid grid-cols-[44px_minmax(220px,2fr)_120px_110px_110px_120px_140px_150px] gap-3 items-center px-4 border-b border-border/40 hover:bg-accent/40 transition-colors",
+                  "grid grid-cols-[44px_minmax(220px,2fr)_120px_100px_100px_110px_120px_130px_150px] gap-3 items-center px-4 border-b border-border/40 hover:bg-accent/40 transition-colors",
                   isEven ? "bg-transparent" : "bg-card/30",
                   onRowClick && "cursor-pointer",
                 )}
@@ -913,6 +920,19 @@ function VirtualTable({
                 <div className="text-right tabular-nums text-foreground text-sm">{r.current_plays == null ? "—" : formatInt(Number(r.current_plays))}</div>
                 <div className={cn("text-right tabular-nums font-semibold text-sm", Number(r.delta) > 0 ? "text-primary" : "text-muted-foreground")}>
                   {r.baseline_plays == null && r.current_plays == null ? "—" : (Number(r.delta) > 0 ? "+" : "") + formatInt(Number(r.delta ?? 0))}
+                </div>
+                <div
+                  className={cn(
+                    "text-right tabular-nums text-sm",
+                    r.last_import_delta != null && Number(r.last_import_delta) > 0
+                      ? "text-foreground font-medium"
+                      : "text-muted-foreground",
+                  )}
+                  title="Entrega da importação válida mais recente comparada à anterior"
+                >
+                  {r.last_import_delta == null
+                    ? "—"
+                    : (Number(r.last_import_delta) > 0 ? "+" : "") + formatInt(Number(r.last_import_delta))}
                 </div>
                 <div>{r.baseline_plays == null && r.current_plays == null ? <Badge variant="outline" className="border-muted-foreground/30 text-muted-foreground">sem dados</Badge> : st ? <MatchStatusBadge status={st} /> : <span className="text-xs text-muted-foreground">—</span>}</div>
                 <div className="text-muted-foreground text-xs">
