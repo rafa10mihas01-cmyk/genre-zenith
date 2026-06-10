@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
     const { data: deal, error: dealErr } = await admin
       .from("curator_deals")
       .select(
-        "id, song_name, song_artist, song_cover_url, target_plays, daily_goal, baseline_plays, started_at, ends_at, created_at, closed_at, state, spotify_owner_id",
+        "id, campaign_id, song_name, song_artist, song_cover_url, target_plays, daily_goal, baseline_plays, started_at, ends_at, created_at, closed_at, state, spotify_owner_id",
       )
       .eq("id", dealId!)
       .maybeSingle();
@@ -323,6 +323,7 @@ Deno.serve(async (req) => {
     // spotify_playlist_id. Substitui get_curator_deal_progress.per_playlist,
     // que ficou vazio após a migração P1.
     const campaignIdsForDeals = new Set<string>();
+    if (dealRow.campaign_id) campaignIdsForDeals.add(String(dealRow.campaign_id));
     {
       const { data: campsForDeals } = await admin
         .from("campaigns")
@@ -393,48 +394,49 @@ Deno.serve(async (req) => {
         .select("id")
         .eq("deal_id", dealId!)
         .maybeSingle();
-      const campaignId = campRow?.id as string | undefined;
+      const campaignId = (dealRow.campaign_id as string | undefined) ?? (campRow?.id as string | undefined);
       if (campaignId) {
         const { data: ecoAllocs } = await admin
           .from("campaign_eco_allocations")
-          .select("managed_playlist_id, planned_streams, status, managed_playlists(name, cover_url, followers)")
+          .select("managed_playlist_id, planned_streams, status, managed_playlists(name, cover_url, followers, spotify_playlist_id)")
           .eq("campaign_id", campaignId);
-        const ecoIds = (ecoAllocs ?? [])
-          .map((a: AnyRec) => String(a.managed_playlist_id ?? ""))
+        const ecoSpotifyIds = (ecoAllocs ?? [])
+          .map((a: AnyRec) => String(((a.managed_playlists as AnyRec) ?? {}).spotify_playlist_id ?? ""))
           .filter(Boolean);
-        // Plays entregues por playlist: pega snapshot mais recente (28d > 7d > 24h)
-        const deliveredByEco = new Map<string, number>();
-        const plays24hByEco = new Map<string, number | null>();
-        const plays7dByEco = new Map<string, number | null>();
-        if (ecoIds.length > 0) {
-          const { data: snaps } = await admin
-            .from("campaign_eco_snapshots")
-            .select("managed_playlist_id, plays_24h, plays_7d, plays_28d, captured_at")
+        // P2.3 — Ecossistema também deve vir do Growth Engine oficial.
+        // `campaign_eco_snapshots` é legado e está vazio para Carnívoro; por isso
+        // o portal mostrava ENGINE zerado mesmo com entrega em vw_campaign_playlist_growth.
+        const ecoGrowthBySpotifyId = new Map<string, { delivered: number; last_import_delta: number | null; current_plays: number | null }>();
+        if (ecoSpotifyIds.length > 0) {
+          const { data: ecoGrowth } = await admin
+            .from("vw_campaign_playlist_growth")
+            .select("playlist_id, delivery_accumulated, last_import_delta, current_plays, attributed_to")
             .eq("campaign_id", campaignId)
-            .in("managed_playlist_id", ecoIds)
-            .order("captured_at", { ascending: false })
-            .limit(500);
-          for (const s of (snaps ?? []) as AnyRec[]) {
-            const k = String(s.managed_playlist_id);
-            if (deliveredByEco.has(k)) continue;
-            deliveredByEco.set(
-              k,
-              Number(s.plays_28d ?? s.plays_7d ?? s.plays_24h ?? 0),
-            );
-            plays24hByEco.set(k, s.plays_24h == null ? null : Number(s.plays_24h));
-            plays7dByEco.set(k, s.plays_7d == null ? null : Number(s.plays_7d));
+            .in("playlist_id", ecoSpotifyIds)
+            .eq("attributed_to", "ecosystem");
+          for (const g of (ecoGrowth ?? []) as AnyRec[]) {
+            const k = String(g.playlist_id ?? "");
+            if (!k) continue;
+            ecoGrowthBySpotifyId.set(k, {
+              delivered: Number(g.delivery_accumulated ?? 0),
+              last_import_delta: g.last_import_delta == null ? null : Number(g.last_import_delta),
+              current_plays: g.current_plays == null ? null : Number(g.current_plays),
+            });
           }
         }
         for (const a of (ecoAllocs ?? []) as AnyRec[]) {
           const mp = (a.managed_playlists as AnyRec) ?? {};
-          const k = String(a.managed_playlist_id ?? "");
-          const grown = deliveredByEco.get(k) ?? 0;
+          const spotifyId = String(mp.spotify_playlist_id ?? "");
+          const growth = spotifyId ? ecoGrowthBySpotifyId.get(spotifyId) : undefined;
+          const grown = growth?.delivered ?? 0;
           safePlaylists.push({
             name: String(mp.name ?? "Playlist Engine"),
             image_url: (mp.cover_url as string) ?? null,
             delivered: grown,
-            plays_24h: plays24hByEco.get(k) ?? null,
-            plays_7d: plays7dByEco.get(k) ?? null,
+            last_import_delta: growth?.last_import_delta ?? null,
+            plays_24h: null,
+            plays_7d: growth?.current_plays ?? null,
+            plays_28d: null,
             status: grown > 0 ? "Crescendo" : "Nova",
             source: "engine" as const,
             planned: Number(a.planned_streams ?? 0),
