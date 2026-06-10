@@ -270,16 +270,7 @@ export function NewCuratorDialog({ open, onOpenChange, onCreate }: Props) {
             />
           </section>
         </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-            Cancelar
-          </Button>
-          <Button onClick={handleSave} disabled={saving || !name.trim()}>
-            {saving ? "Criando…" : "Criar curador"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </FormModal>
   );
 }
