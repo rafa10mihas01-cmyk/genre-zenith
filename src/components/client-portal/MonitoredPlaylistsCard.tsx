@@ -2,8 +2,11 @@
 // Mesma UI da página antiga /campanha/:token — recebe a lista
 // já sanitizada (curator + engine) vinda do payload público.
 import { Card, CardContent } from "@/components/ui/card";
-import { ListMusic, CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ListMusic, CheckCircle2, FileSpreadsheet, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { exportCSV } from "@/lib/export";
+import * as XLSX from "xlsx";
 
 export type MonitoredPlaylist = {
   name: string;
@@ -16,6 +19,7 @@ export type MonitoredPlaylist = {
   plays_7d?: number | null;
   plays_28d?: number | null;
   last_import_delta?: number | null;
+  spotify_playlist_id?: string | null;
 };
 
 
@@ -39,7 +43,35 @@ const STATUS_LABEL: Record<"entregando" | "aguardando", string> = {
   aguardando: "Aguardando",
 };
 
-export function MonitoredPlaylistsCard({ playlists }: { playlists: MonitoredPlaylist[] }) {
+function sanitizeFileName(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function isoDate(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function exportExcel(filename: string, rows: Record<string, unknown>[]) {
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Playlists");
+  XLSX.writeFile(wb, filename.endsWith(".xlsx") ? filename : `${filename}.xlsx`);
+}
+
+export function MonitoredPlaylistsCard({
+  playlists,
+  clientName,
+}: {
+  playlists: MonitoredPlaylist[];
+  clientName?: string;
+}) {
   if (!playlists || playlists.length === 0) {
     return (
       <Card className="border-border">
