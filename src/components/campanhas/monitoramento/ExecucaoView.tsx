@@ -291,7 +291,7 @@ export function ExecucaoView({
   );
 
   const exportCsv = () => {
-    const head = ["playlist_id", "playlist", "atribuicao", "curador", "status", "baseline", "atual", "delta", "first_seen", "ultima_coleta"];
+    const head = ["playlist_id", "playlist", "atribuicao", "curador", "status", "baseline", "atual", "delta_acumulada", "ultima_importacao", "first_seen", "ultima_coleta"];
     const lines = [head.join(",")];
     for (const r of filtered) {
       const cur = r.attributed_curator_id ? curators[r.attributed_curator_id]?.name ?? "" : "";
@@ -307,6 +307,7 @@ export function ExecucaoView({
           r.baseline_plays ?? 0,
           r.current_plays ?? 0,
           r.delta,
+          r.last_import_delta ?? "",
           r.first_seen_at ?? "",
           r.last_captured_at ?? "",
         ].join(",")
