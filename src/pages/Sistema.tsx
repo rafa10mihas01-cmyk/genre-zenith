@@ -13,7 +13,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { timeAgo } from "@/lib/format";
-import { humanizeError, humanizeFunctionName } from "@/lib/operationalCopy";
+import { humanizeError, humanizeFunctionName, humanizeLogMessage } from "@/lib/operationalCopy";
 
 import { AoVivoPainel } from "@/components/sistema/AoVivoPainel";
 import { FluxoVisual } from "@/components/sistema/fluxo/FluxoVisual";
@@ -348,17 +348,20 @@ function AtividadeRecente() {
             l.status === "sucesso" ? "text-primary bg-primary/10"
             : l.status === "erro" ? "text-destructive bg-destructive/10"
             : "text-warning bg-warning/10";
-          const friendlyAction = humanizeFunctionName(l.acao);
-          const friendlyMessage = l.status === "erro" ? humanizeError(l.mensagem) : l.mensagem;
+          const friendly = humanizeLogMessage(l.acao, l.status, l.mensagem);
+          const hasTechnical = l.mensagem && (l.mensagem.startsWith("{") || l.mensagem.startsWith("[") || /\n\s*at\s/.test(l.mensagem));
           return (
-            <li key={l.id} className="flex items-center gap-3 px-4 py-3">
-              <span className={cn("h-7 w-7 rounded-full flex items-center justify-center shrink-0", tone)}>
+            <li key={l.id} className="flex items-start gap-3 px-4 py-3">
+              <span className={cn("h-7 w-7 rounded-full flex items-center justify-center shrink-0 mt-0.5", tone)}>
                 <Activity className="h-3.5 w-3.5" />
               </span>
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold leading-tight truncate">{friendlyAction}</div>
-                {friendlyMessage && (
-                  <div className="text-[11px] text-muted-foreground truncate mt-0.5">{friendlyMessage}</div>
+                <div className="text-sm text-foreground leading-snug">{friendly}</div>
+                {hasTechnical && (
+                  <details className="mt-1">
+                    <summary className="text-[10px] text-muted-foreground/70 cursor-pointer hover:text-foreground">Ver detalhes técnicos</summary>
+                    <pre className="text-[10px] text-muted-foreground mt-1 p-2 bg-muted/30 rounded overflow-x-auto max-h-32">{l.mensagem}</pre>
+                  </details>
                 )}
               </div>
               <span className="text-[11px] text-muted-foreground shrink-0 tabular-nums">
