@@ -823,12 +823,17 @@ export default function CampanhaExecucao() {
                     <CampaignGatesCard
                       clientApprovedAt={camp.client_approved_at ?? null}
                       planApprovedAt={(camp as any).plan_approved_at ?? null}
+                      planFrozenAt={(camp as any).snapshot_locked_at ?? null}
                       ecoDispatchedAt={camp.eco_dispatched_at ?? null}
                       collectionMode={(camp as any).collection_mode ?? null}
                       status={camp.status}
                       baselineReady={baselineGate.required > 0 && baselineGate.collected >= baselineGate.required}
                       baselineCollected={baselineGate.collected}
                       baselineRequired={baselineGate.required}
+                      baselineCapturedAt={baselineGate.capturedAt}
+                      baselineTotalStreams={recentUploads.find((u) => u.is_baseline)?.total_streams ?? null}
+                      baselinePlaylistsCount={recentUploads.find((u) => u.is_baseline)?.rows_imported ?? null}
+                      delivered={delivered}
                       onApprovePlan={handleApprovePlan}
                       onDispatch={handleDispatchEco}
                       approvingPlan={approvingPlan}
@@ -842,17 +847,6 @@ export default function CampanhaExecucao() {
                         />
                       </div>
                     )}
-                    {(() => {
-                      const baseline = recentUploads.find((u) => u.is_baseline);
-                      return baseline ? (
-                        <BaselineCard
-                          capturedAt={baseline.created_at}
-                          totalStreams={baseline.total_streams}
-                          playlistsDetected={baseline.rows_imported}
-                          onClick={() => setTab("monitoramento")}
-                        />
-                      ) : null;
-                    })()}
                   </div>
                 }
 
