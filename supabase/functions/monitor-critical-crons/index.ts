@@ -51,19 +51,28 @@ Deno.serve(async (req) => {
   }> = [];
 
   for (const job of CRITICAL_CRONS) {
-    const { data: rows, error } = await admin
-      .from("cron_health")
-      .select("ran_at")
-      .eq("job_name", job)
-      .order("ran_at", { ascending: false })
-      .limit(1);
+    // Fonte de verdade: pg_cron job_run_details (último sucesso HTTP do scheduler).
+    // Fallback: cron_health (heartbeat manual escrito por algumas funções).
+    const { data: lastSuccessIso, error: rpcErr } = await admin.rpc(
+      "get_cron_last_success" as any,
+      { p_fn_name: job },
+    );
+    let lastRunIso: string | null = (lastSuccessIso as string | null) ?? null;
 
-    if (error) {
-      console.error(`[monitor-critical-crons] lookup failed for ${job}:`, error);
-      continue;
+    if (!lastRunIso) {
+      const { data: rows } = await admin
+        .from("cron_health")
+        .select("ran_at")
+        .eq("job_name", job)
+        .order("ran_at", { ascending: false })
+        .limit(1);
+      lastRunIso = (rows?.[0]?.ran_at as string | undefined) ?? null;
     }
 
-    const lastRunIso = (rows?.[0]?.ran_at as string | undefined) ?? null;
+    if (rpcErr) {
+      console.error(`[monitor-critical-crons] rpc failed for ${job}:`, rpcErr);
+    }
+
     const lastRunMs = lastRunIso ? new Date(lastRunIso).getTime() : null;
     const isStale = lastRunMs == null || now - lastRunMs > STALE_THRESHOLD_MS;
     const status: "ok" | "stale" | "never_ran" = !isStale
