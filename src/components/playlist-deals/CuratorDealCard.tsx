@@ -295,6 +295,15 @@ export function CuratorDealCard({
             </span>
           </div>
         )}
+        {priorCount > 0 && (
+          <div className="rounded-md border border-warning/40 bg-warning/10 px-2.5 py-1.5 flex items-center gap-2 text-[11px]">
+            <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0" />
+            <span className="text-warning font-semibold uppercase tracking-wide">
+              {priorCount} {priorCount === 1 ? "playlist" : "playlists"} c/ histórico prévio
+            </span>
+            <span className="text-muted-foreground truncate">— curador precisa subir posição</span>
+          </div>
+        )}
         {/* Algoritmo / Ecossistema intencionalmente omitidos do card — visíveis só no histórico/sheet. */}
         {!isClosed && songs.length > 0 && (
           <BotStatusRow songs={songs} awaitingPlaylists={!hasWhitelist} />
