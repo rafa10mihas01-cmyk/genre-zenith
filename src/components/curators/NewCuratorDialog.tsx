@@ -269,7 +269,6 @@ export function NewCuratorDialog({ open, onOpenChange, onCreate }: Props) {
               className="bg-background border-border"
             />
           </section>
-        </div>
       </div>
     </FormModal>
   );
