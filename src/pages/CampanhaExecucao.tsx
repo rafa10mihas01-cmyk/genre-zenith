@@ -36,6 +36,7 @@ import { OverviewTab } from "@/components/campaign-hub/tabs/OverviewTab";
 import { FinanceTab } from "@/components/campaign-hub/tabs/FinanceTab";
 import { RadioCollectedCard } from "@/components/campaign-hub/RadioCollectedCard";
 import { useRadioCollected } from "@/hooks/useRadioCollected";
+import { usePlaylistCovers } from "@/hooks/usePlaylistCovers";
 
 import { CampaignKpis } from "@/components/campaign-hub/CampaignKpis";
 import { Lock } from "lucide-react";
@@ -671,6 +672,16 @@ export default function CampanhaExecucao() {
   const { data: radioCollected } = useRadioCollected(camp?.id);
   const radioDelta = Math.max(0, radioCollected?.radio_delta ?? 0);
 
+  // IDs Spotify de toda playlist com entrega — pra buscar capas em curator_playlists
+  const growthSpotifyIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const r of playlistGrowthRows) {
+      if (r.playlist_id && Math.max(0, Number(r.delta ?? 0)) > 0) ids.add(r.playlist_id);
+    }
+    return Array.from(ids);
+  }, [playlistGrowthRows]);
+  const coverMap = usePlaylistCovers(growthSpotifyIds);
+
   const topDeliveringPlaylists = useMemo(() => {
     const allocBySpotifyId = new Map<string, EcoAllocation>();
     for (const a of allocs) {
@@ -685,9 +696,11 @@ export default function CampanhaExecucao() {
       })
       .map((r) => {
         const alloc = r.playlist_id ? allocBySpotifyId.get(r.playlist_id) : undefined;
+        const fallbackCover = r.playlist_id ? coverMap[r.playlist_id]?.cover_url ?? null : null;
+        const fallbackName = r.playlist_id ? coverMap[r.playlist_id]?.name ?? null : null;
         return {
-          name: alloc?.managed_playlists?.name ?? r.current_name ?? "Playlist",
-          image_url: alloc?.managed_playlists?.cover_url ?? null,
+          name: alloc?.managed_playlists?.name ?? fallbackName ?? r.current_name ?? "Playlist",
+          image_url: alloc?.managed_playlists?.cover_url ?? fallbackCover ?? null,
           delivered: Math.max(0, Number(r.delta ?? 0)),
           planned: alloc?.planned_streams ?? null,
           current: r.current_plays ?? null,
@@ -695,7 +708,7 @@ export default function CampanhaExecucao() {
           lastDelta: r.last_import_delta ?? r.delta ?? null,
         };
       });
-  }, [allocs, playlistGrowthRows]);
+  }, [allocs, playlistGrowthRows, coverMap]);
 
 
   // Soma dos plays_7d mais recentes por playlist em organic_plays_snapshots —
