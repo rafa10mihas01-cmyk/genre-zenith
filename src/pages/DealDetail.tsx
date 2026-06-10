@@ -216,6 +216,10 @@ export default function DealDetail() {
             );
           })()}
 
+          {priorCount > 0 && (
+            <HistoricoPrevioAlert count={priorCount} className="mb-4" />
+          )}
+
           <Suspense fallback={<div className="rounded-2xl border border-border/50 bg-card h-[480px] animate-pulse" />}>
             <DealHistorySheet
               asPage
