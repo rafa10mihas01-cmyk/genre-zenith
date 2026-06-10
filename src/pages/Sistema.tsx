@@ -170,6 +170,7 @@ export default function Sistema() {
       <div className="min-h-[480px] animate-tab-in">
         {activeTab === "saude" && (
           <div className="space-y-8">
+            <ExecutiveStatusBar />
             <SystemKpis />
             <section>
               <SectionHeader icon={HeartPulse} title="Saúde geral" subtitle="KPIs agregados do sistema" />
