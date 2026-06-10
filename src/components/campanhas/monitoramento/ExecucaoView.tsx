@@ -930,7 +930,17 @@ function VirtualTable({
                     followers={meta?.followers ?? null}
                   />
                 )}
-                <AttributionBadge attr={r.attributed_to} curatorName={curName} />
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <AttributionBadge attr={r.attributed_to} curatorName={curName} />
+                  {r.attributed_to.startsWith("curator:") && Number(r.baseline_plays ?? 0) > 0 && (
+                    <span
+                      className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wide border border-amber-500/40 text-amber-400 bg-amber-500/5"
+                      title="Música já estava nesta playlist antes da campanha. Curador deve subir a posição."
+                    >
+                      subir pos.
+                    </span>
+                  )}
+                </div>
                 <div className="text-right tabular-nums text-muted-foreground text-sm">{r.baseline_plays == null ? "—" : formatInt(Number(r.baseline_plays))}</div>
                 <div className="text-right tabular-nums text-foreground text-sm">{r.current_plays == null ? "—" : formatInt(Number(r.current_plays))}</div>
                 <div className={cn("text-right tabular-nums font-semibold text-sm", Number(r.delta) > 0 ? "text-primary" : "text-muted-foreground")}>
