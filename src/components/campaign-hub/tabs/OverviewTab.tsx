@@ -8,6 +8,50 @@ import { useState } from "react";
 import type { EcoAllocation } from "../types";
 import { KpiBig } from "@/components/KpiBig";
 
+type CompactItem = { name: string; image_url: string | null; delivered: number; planned?: number | null };
+function CompactPlaylistList({
+  title, counterLabel, items, emptyText,
+}: { title: string; counterLabel: string; items: CompactItem[]; emptyText: string }) {
+  return (
+    <>
+      <div className="flex items-center justify-between mb-4">
+        <div className="text-sm font-semibold">{title}</div>
+        <span className="text-xs text-primary font-medium tabular-nums">{counterLabel}</span>
+      </div>
+      {items.length === 0 ? (
+        <div className="text-xs text-muted-foreground py-6 text-center">{emptyText}</div>
+      ) : (
+        <ul className="space-y-1">
+          {items.slice(0, 8).map((p, i) => {
+            const planned = Number(p.planned ?? 0);
+            const pct = planned > 0 ? Math.min(100, Math.round((p.delivered / planned) * 100)) : 0;
+            return (
+              <li key={`${p.name}-${i}`} className="flex items-center gap-3 px-1 py-1.5 rounded-md hover:bg-muted/20 transition-colors">
+                {p.image_url ? (
+                  <img src={p.image_url} alt="" className="w-9 h-9 rounded object-cover shrink-0 ring-1 ring-border" />
+                ) : (
+                  <div className="w-9 h-9 rounded bg-muted grid place-items-center shrink-0">
+                    <Music className="h-3.5 w-3.5 text-muted-foreground" />
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13px] font-medium truncate leading-tight text-foreground">{p.name}</div>
+                  {planned > 0 && (
+                    <div className="h-1 rounded-full bg-muted/60 overflow-hidden mt-1.5">
+                      <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
+                    </div>
+                  )}
+                </div>
+                <div className="text-right text-[13px] font-semibold tabular-nums text-primary shrink-0">+{formatInt(p.delivered)}</div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </>
+  );
+}
+
 type EcoSnap = {
   managed_playlist_id: string;
   plays_24h: number | null;
@@ -409,110 +453,32 @@ export function OverviewTab({
                   .sort((a, b) => b.delivered - a.delivered);
                 const top = delivering.slice(0, 10);
                 return (
-                  <>
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <div className="text-sm font-semibold">Playlists no ar</div>
-                        <div className="text-xs text-muted-foreground">Entrega real por playlist</div>
-                      </div>
-                      <span className="text-xs text-primary font-medium tabular-nums">{delivering.length}/{topDeliveringPlaylists.length}</span>
-                    </div>
-                    {top.length === 0 ? (
-                      <div className="text-xs text-muted-foreground py-6 text-center">
-                        Aguardando primeira entrega.
-                      </div>
-                    ) : (
-                      <div className="space-y-1">
-                        <div className="grid grid-cols-[44px_minmax(220px,1fr)_96px_96px_64px_72px] gap-3 px-1 text-[10px] uppercase tracking-wider text-muted-foreground tabular-nums">
-                          <span />
-                          <span>Playlist</span>
-                          <span className="text-right">Entregue</span>
-                          <span className="text-right">Meta</span>
-                          <span className="text-right">%</span>
-                          <span className="text-right">Última</span>
-                        </div>
-                        {top.map((p, i) => {
-                          const planned = Number(p.planned ?? 0);
-                          const pct = planned > 0 ? Math.min(100, Math.round((p.delivered / planned) * 100)) : 0;
-                          return (
-                            <div key={`${p.name}-${i}`} className="grid grid-cols-[44px_minmax(220px,1fr)_96px_96px_64px_72px] items-center gap-3 rounded-lg px-1 py-2 hover:bg-muted/20 transition-colors">
-                              {p.image_url ? (
-                                <img src={p.image_url} alt="" className="w-10 h-10 rounded object-cover shrink-0 ring-1 ring-border" />
-                              ) : (
-                                <div className="w-10 h-10 rounded bg-muted grid place-items-center shrink-0">
-                                  <Music className="h-3.5 w-3.5 text-muted-foreground" />
-                                </div>
-                              )}
-                              <div className="min-w-0 flex-1">
-                                <div className="text-sm font-medium truncate leading-tight text-foreground">{p.name}</div>
-                                <div className="h-1.5 rounded-full bg-muted/70 overflow-hidden mt-2">
-                                  <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
-                                </div>
-                              </div>
-                              <div className="text-right text-sm font-semibold tabular-nums text-primary">+{formatInt(p.delivered)}</div>
-                              <div className="text-right text-xs tabular-nums text-muted-foreground">{planned > 0 ? formatInt(planned) : "—"}</div>
-                              <div className="text-right text-xs tabular-nums text-foreground">{planned > 0 ? `${pct}%` : "—"}</div>
-                              <div className="text-right text-xs tabular-nums text-muted-foreground">{p.lastDelta != null && p.lastDelta > 0 ? `+${formatInt(p.lastDelta)}` : "—"}</div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </>
+                  <CompactPlaylistList
+                    title="Playlists entregando"
+                    counterLabel={`${delivering.length} ativas`}
+                    items={top.map((p) => ({
+                      name: p.name,
+                      image_url: p.image_url,
+                      delivered: p.delivered,
+                      planned: Number(p.planned ?? 0),
+                    }))}
+                    emptyText="Aguardando primeira entrega."
+                  />
                 );
               }
               // Comportamento original (interno)
               return (
-                <>
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <div className="text-sm font-semibold">Playlists no ar</div>
-                      <div className="text-xs text-muted-foreground">Entrega real por playlist</div>
-                    </div>
-                    <span className="text-xs text-muted-foreground tabular-nums">{topPlaylists.length}/{allocations.length}</span>
-                  </div>
-                  {topPlaylists.length === 0 ? (
-                    <div className="text-xs text-muted-foreground py-6 text-center">
-                      Nenhuma playlist entregando agora.
-                    </div>
-                  ) : (
-                    <div className="space-y-1">
-                      <div className="grid grid-cols-[44px_minmax(220px,1fr)_96px_96px_64px_72px] gap-3 px-1 text-[10px] uppercase tracking-wider text-muted-foreground tabular-nums">
-                        <span />
-                        <span>Playlist</span>
-                        <span className="text-right">Entregue</span>
-                        <span className="text-right">Meta</span>
-                        <span className="text-right">%</span>
-                        <span className="text-right">24h</span>
-                      </div>
-                      {topPlaylists.map(({ a, delivered: d, delta24 }) => {
-                        const pl = a.managed_playlists;
-                        const p = a.planned_streams > 0 ? Math.min(100, Math.round((d / a.planned_streams) * 100)) : 0;
-                        return (
-                          <div key={a.id} className="grid grid-cols-[44px_minmax(220px,1fr)_96px_96px_64px_72px] items-center gap-3 rounded-lg px-1 py-2 hover:bg-muted/20 transition-colors">
-                            {pl?.cover_url ? (
-                              <img src={pl.cover_url} alt="" className="w-10 h-10 rounded object-cover shrink-0 ring-1 ring-border" />
-                            ) : (
-                              <div className="w-10 h-10 rounded bg-muted grid place-items-center shrink-0">
-                                <Music className="h-3.5 w-3.5 text-muted-foreground" />
-                              </div>
-                            )}
-                            <div className="min-w-0 flex-1">
-                              <div className="text-sm font-medium truncate leading-tight text-foreground">{pl?.name ?? "—"}</div>
-                              <div className="h-1.5 rounded-full bg-muted/70 overflow-hidden mt-2">
-                                <div className="h-full bg-primary" style={{ width: `${p}%` }} />
-                              </div>
-                            </div>
-                            <div className="text-right text-sm font-semibold tabular-nums text-primary">+{formatInt(d)}</div>
-                            <div className="text-right text-xs tabular-nums text-muted-foreground">{formatInt(a.planned_streams)}</div>
-                            <div className="text-right text-xs tabular-nums text-foreground">{p}%</div>
-                            <div className="text-right"><DeltaInline value={delta24} /></div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </>
+                <CompactPlaylistList
+                  title="Playlists entregando"
+                  counterLabel={`${topPlaylists.length} ativas`}
+                  items={topPlaylists.map(({ a, delivered: d }) => ({
+                    name: a.managed_playlists?.name ?? "—",
+                    image_url: a.managed_playlists?.cover_url ?? null,
+                    delivered: d,
+                    planned: a.planned_streams,
+                  }))}
+                  emptyText="Nenhuma playlist entregando agora."
+                />
               );
             })()}
             {onJumpTab && (allocations.length > 0 || (topDeliveringPlaylists?.length ?? 0) > 0) && (
