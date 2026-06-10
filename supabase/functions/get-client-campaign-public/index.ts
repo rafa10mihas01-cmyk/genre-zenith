@@ -71,8 +71,9 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => ({}));
-    const token = typeof body?.client_token === "string" ? body.client_token.trim() : "";
-    if (!token || token.length < 6) {
+    const clientToken = typeof body?.client_token === "string" ? body.client_token.trim() : "";
+    const publicPlanToken = typeof body?.public_plan_token === "string" ? body.public_plan_token.trim() : "";
+    if ((!clientToken || clientToken.length < 6) && (!publicPlanToken || publicPlanToken.length < 16)) {
       return jr({ ok: false, error: "client_token obrigatório" }, 400);
     }
 
@@ -80,47 +81,77 @@ Deno.serve(async (req) => {
       auth: { persistSession: false },
     });
 
-    // 1) Tenta resolver como token/slug POR MÚSICA primeiro.
-    // Aceita tanto client_token (hex) quanto slug amigável.
-    const looksLikeToken = /^[a-f0-9]{20,}$/i.test(token);
-    let songQuery = admin
-      .from("curator_deal_songs")
-      .select(
-        "id, deal_id, song_name, song_artist, song_cover_url, target_plays, daily_goal, baseline_plays, started_at, ends_at, smartlink_url, client_id, client_token, slug",
-      );
-    songQuery = looksLikeToken
-      ? songQuery.eq("client_token", token)
-      : songQuery.eq("slug", token);
-    let { data: songRow } = await songQuery.maybeSingle();
+    let dealId: string | null = null;
+    let selectedSongId: string | null = null;
+    let dealRow: AnyRec | null = null;
+    let linkedCamp: AnyRec | null = null;
+    let songRow: AnyRec | null = null;
 
-    // Fallback: se não achou por slug, tenta como token mesmo assim
-    if (!songRow && !looksLikeToken) {
-      const { data: byToken } = await admin
+    if (publicPlanToken) {
+      const { data: campaignByToken } = await admin
+        .from("campaigns")
+        .select("id, deal_id, client_approved_at")
+        .eq("public_plan_token", publicPlanToken)
+        .maybeSingle();
+      if (!campaignByToken?.deal_id) return jr({ ok: false, error: "not_found" }, 404);
+
+      const gate = await gateCampaignAccess(req, admin, campaignByToken.id);
+      if (!gate.ok) return jr({ ok: false, error: gate.error }, gate.status ?? 401);
+
+      linkedCamp = campaignByToken as AnyRec;
+      dealId = String(campaignByToken.deal_id);
+
+      const { data: firstSong } = await admin
         .from("curator_deal_songs")
         .select(
           "id, deal_id, song_name, song_artist, song_cover_url, target_plays, daily_goal, baseline_plays, started_at, ends_at, smartlink_url, client_id, client_token, slug",
         )
-        .eq("client_token", token)
+        .eq("deal_id", dealId)
+        .order("created_at", { ascending: true })
+        .limit(1)
         .maybeSingle();
-      songRow = byToken;
-    }
-
-    let dealId: string | null = null;
-    let selectedSongId: string | null = null;
-    let dealRow: AnyRec | null = null;
-
-    if (songRow) {
-      selectedSongId = String(songRow.id);
-      dealId = String(songRow.deal_id);
+      songRow = (firstSong as AnyRec | null) ?? null;
+      if (songRow) selectedSongId = String(songRow.id);
     } else {
-      // 2) Fallback legado: token do deal inteiro
-      const { data: legacyDeal } = await admin
-        .from("curator_deals")
-        .select("id")
-        .eq("client_token", token)
-        .maybeSingle();
-      if (!legacyDeal) return jr({ ok: false, error: "not_found" }, 404);
-      dealId = String(legacyDeal.id);
+      // 1) Tenta resolver como token/slug POR MÚSICA primeiro.
+      // Aceita tanto client_token (hex) quanto slug amigável.
+      const looksLikeToken = /^[a-f0-9]{20,}$/i.test(clientToken);
+      let songQuery = admin
+        .from("curator_deal_songs")
+        .select(
+          "id, deal_id, song_name, song_artist, song_cover_url, target_plays, daily_goal, baseline_plays, started_at, ends_at, smartlink_url, client_id, client_token, slug",
+        );
+      songQuery = looksLikeToken
+        ? songQuery.eq("client_token", clientToken)
+        : songQuery.eq("slug", clientToken);
+      const { data: songByClientToken } = await songQuery.maybeSingle();
+      songRow = (songByClientToken as AnyRec | null) ?? null;
+
+      // Fallback: se não achou por slug, tenta como token mesmo assim
+      if (!songRow && !looksLikeToken) {
+        const { data: byToken } = await admin
+          .from("curator_deal_songs")
+          .select(
+            "id, deal_id, song_name, song_artist, song_cover_url, target_plays, daily_goal, baseline_plays, started_at, ends_at, smartlink_url, client_id, client_token, slug",
+          )
+          .eq("client_token", clientToken)
+          .maybeSingle();
+        songRow = (byToken as AnyRec | null) ?? null;
+      }
+
+      if (songRow) {
+        selectedSongId = String(songRow.id);
+        dealId = String(songRow.deal_id);
+      } else {
+        // 2) Fallback legado: token do deal inteiro
+        const { data: legacyDeal } = await admin
+          .from("curator_deals")
+          .select("id")
+          .eq("client_token", clientToken)
+          .maybeSingle();
+        if (!legacyDeal) return jr({ ok: false, error: "not_found" }, 404);
+        dealId = String(legacyDeal.id);
+      }
     }
 
     const { data: deal, error: dealErr } = await admin
@@ -136,14 +167,17 @@ Deno.serve(async (req) => {
     dealRow = deal as AnyRec;
 
     // Gate por PIN — busca a campanha desse deal e exige JWT se necessário.
-    const { data: linkedCamp } = await admin
-      .from("campaigns")
-      .select("id, client_approved_at")
-      .eq("deal_id", dealId!)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (linkedCamp?.id) {
+    if (!linkedCamp) {
+      const { data: linkedCampByDeal } = await admin
+        .from("campaigns")
+        .select("id, client_approved_at")
+        .eq("deal_id", dealId!)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      linkedCamp = (linkedCampByDeal as AnyRec | null) ?? null;
+    }
+    if (linkedCamp?.id && !publicPlanToken) {
       const gate = await gateCampaignAccess(req, admin, linkedCamp.id);
       if (!gate.ok) return jr({ ok: false, error: gate.error }, gate.status ?? 401);
     }
@@ -189,7 +223,7 @@ Deno.serve(async (req) => {
       : [
         {
           id: "deal",
-          client_token: token,
+          client_token: clientToken || publicPlanToken,
           song_name: String(dealRow.song_name ?? ""),
           song_artist: (dealRow.song_artist as string | null) ?? null,
           song_cover_url: (dealRow.song_cover_url as string | null) ?? null,
