@@ -67,6 +67,7 @@ export function CuratorDealCard({
     },
     { curator: 0, algo: 0 },
   );
+  const priorCount = dealPlaylists.filter((p) => p.is_baseline).length;
   const hasWhitelist = plBreakdown.curator > 0;
 
   // Ramp-up: dias desde o início até hoje vs ramp_up_days do deal
