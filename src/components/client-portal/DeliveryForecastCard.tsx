@@ -19,6 +19,35 @@ import {
 import { recomputeCurva } from "@/lib/campaignEngine";
 import { useChartProjection } from "@/hooks/useChartProjection";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { supabase } from "@/integrations/supabase/client";
+
+// Hook: streams_day REAIS da música (raw_chart_daily) entre startedAt e hoje.
+// Retorna Map<YYYY-MM-DD, streams_day>. Vazio quando faltar trackId/startedAt.
+function useRealTrackStreams(spotifyTrackId?: string | null, startedAt?: string | null) {
+  const [map, setMap] = useState<Map<string, number>>(new Map());
+  useEffect(() => {
+    let cancel = false;
+    if (!spotifyTrackId || !startedAt) { setMap(new Map()); return; }
+    (async () => {
+      const startDate = startedAt.slice(0, 10);
+      const { data } = await supabase
+        .from("raw_chart_daily")
+        .select("chart_date,streams_day")
+        .eq("spotify_track_id", spotifyTrackId)
+        .eq("chart_name", "top200_br")
+        .gte("chart_date", startDate)
+        .order("chart_date", { ascending: true });
+      if (cancel) return;
+      const m = new Map<string, number>();
+      for (const r of ((data ?? []) as Array<{ chart_date: string; streams_day: number }>)) {
+        m.set(r.chart_date, r.streams_day);
+      }
+      setMap(m);
+    })();
+    return () => { cancel = true; };
+  }, [spotifyTrackId, startedAt]);
+  return map;
+}
 
 function useNarrow(breakpoint = 640) {
   const [narrow, setNarrow] = useState(false);
