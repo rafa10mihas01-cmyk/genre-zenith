@@ -47,7 +47,7 @@ import { CampaignAccessManager } from "@/components/campanhas/CampaignAccessMana
 import { type ProofEvent } from "@/components/campaign-hub/ProofsTimeline";
 
 import { SpreadsheetUploadCard } from "@/components/client-portal/SpreadsheetUploadCard";
-import { BaselineCard } from "@/components/campanhas/BaselineCard";
+
 
 import { OrganicCollectedSection, type OrganicRow } from "@/components/campanhas/OrganicCollectedSection";
 import type { CampaignHubCampaign, CampaignHubTabId, EcoAllocation } from "@/components/campaign-hub/types";
