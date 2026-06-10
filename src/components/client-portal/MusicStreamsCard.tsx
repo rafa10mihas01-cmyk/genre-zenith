@@ -77,11 +77,11 @@ export function MusicStreamsCard({ spotifyTrackId, startedAt }: Props) {
     : "text-muted-foreground";
 
   const Stat = ({ label, value, accent }: { label: string; value: React.ReactNode; accent?: boolean }) => (
-    <div className="min-w-0">
-      <div className="text-[10.5px] uppercase tracking-[0.08em] text-muted-foreground font-medium truncate">
+    <div className="min-w-0 text-center sm:text-left">
+      <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground font-medium truncate">
         {label}
       </div>
-      <div className={`mt-1 tabular-nums font-semibold leading-tight ${accent ? "text-[18px]" : "text-[16px]"} text-foreground`}>
+      <div className={`mt-1 tabular-nums font-semibold leading-tight ${accent ? "text-[17px] sm:text-[18px]" : "text-[15px] sm:text-[16px]"} text-foreground`}>
         {value}
       </div>
     </div>
@@ -89,7 +89,7 @@ export function MusicStreamsCard({ spotifyTrackId, startedAt }: Props) {
 
   return (
     <Card>
-      <CardContent className="space-y-3">
+      <CardContent className="p-4 sm:p-6 space-y-3">
         <div className="min-w-0">
           <h2 className="text-[13px] font-semibold inline-flex items-center gap-1.5 tracking-tight">
             <Music2 className="h-3.5 w-3.5 text-muted-foreground" />
@@ -100,15 +100,15 @@ export function MusicStreamsCard({ spotifyTrackId, startedAt }: Props) {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-6">
           <Stat label="Hoje" value={fmt(today)} accent />
-          <Stat label="Início da campanha" value={fmt(startVal)} />
-          <Stat label="Pico desde o início" value={fmt(peak)} />
-          <div className="min-w-0">
-            <div className="text-[10.5px] uppercase tracking-[0.08em] text-muted-foreground font-medium truncate">
+          <Stat label="Início" value={fmt(startVal)} />
+          <Stat label="Pico" value={fmt(peak)} />
+          <div className="min-w-0 text-center sm:text-left">
+            <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground font-medium truncate">
               Variação
             </div>
-            <div className={`mt-1 inline-flex items-center gap-1 tabular-nums font-semibold leading-tight text-[18px] ${varColor}`}>
+            <div className={`mt-1 inline-flex items-center justify-center sm:justify-start gap-1 tabular-nums font-semibold leading-tight text-[17px] sm:text-[18px] ${varColor}`}>
               <VarIcon className="h-4 w-4" />
               {variation >= 0 ? "+" : ""}{variation.toFixed(1)}%
             </div>
@@ -118,3 +118,4 @@ export function MusicStreamsCard({ spotifyTrackId, startedAt }: Props) {
     </Card>
   );
 }
+
