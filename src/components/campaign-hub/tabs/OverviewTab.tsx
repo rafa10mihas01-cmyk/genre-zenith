@@ -45,8 +45,8 @@ type Props = {
   // Slot opcional que substitui o card "Curva de entrega" dentro do grid principal.
   // Usado pra subir o monitoramento ao lugar da curva planejada.
   curveSlot?: React.ReactNode;
-  /** Override do "Playlists no ar" — quando passado, usa essas linhas em vez de derivar de allocations+snapshots. Ideal pro portal do cliente que tem a fonte de verdade no engine view. */
-  topDeliveringPlaylists?: Array<{ name: string; image_url: string | null; delivered: number; planned?: number | null }>;
+  /** Override do "Playlists no ar" — fonte real por playlist já reconciliada. */
+  topDeliveringPlaylists?: Array<{ name: string; image_url: string | null; delivered: number; planned?: number | null; current?: number | null; baseline?: number | null; lastDelta?: number | null }>;
   // Rebalanceamento eco/ext em runtime
   splitLockedAt?: string | null;
   lockedEcoStreams?: number | null;
