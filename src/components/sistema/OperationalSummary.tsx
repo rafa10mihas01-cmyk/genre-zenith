@@ -40,7 +40,7 @@ export function OperationalSummary() {
         supabase.from("bot_heartbeats").select("created_at").order("created_at", { ascending: false }).limit(1).maybeSingle(),
         supabase.from("playlist_execution_jobs").select("id", { count: "exact", head: true }).in("status", ["pending", "claimed"]),
         supabase.from("playlist_execution_jobs").select("id", { count: "exact", head: true }).eq("status", "failed").gte("updated_at", new Date(Date.now() - 24 * 3600_000).toISOString()),
-        supabase.from("cron_health").select("name, last_run_at, expected_interval_minutes"),
+        supabase.from("cron_health").select("job_name, status, ran_at").gte("ran_at", new Date(Date.now() - 6 * 3600_000).toISOString()),
         supabase.from("vps_nodes").select("status, last_heartbeat_at"),
       ]);
 
@@ -78,19 +78,15 @@ export function OperationalSummary() {
           : `${failed} com falha`,
       };
 
-      // Crons
-      const cronRows = (cronStale.data ?? []) as Array<{ name: string; last_run_at: string | null; expected_interval_minutes: number | null }>;
-      const stale = cronRows.filter((c) => {
-        if (!c.last_run_at) return true;
-        const intervalMs = (c.expected_interval_minutes ?? 60) * 60_000;
-        return new Date(c.last_run_at).getTime() < Date.now() - intervalMs * 3;
-      }).length;
-      const cronTone: Tone = stale > 0 ? "bad" : "ok";
+      // Crons — conta jobs distintos com status 'error' nas últimas 6h
+      const cronRows = (cronStale.data ?? []) as Array<{ job_name: string; status: string; ran_at: string }>;
+      const failedJobs = new Set(cronRows.filter((c) => c.status === "error").map((c) => c.job_name));
+      const cronTone: Tone = failedJobs.size > 0 ? "bad" : "ok";
       const crons: Row = {
         icon: Workflow,
         label: "Crons",
         tone: cronTone,
-        detail: cronTone === "ok" ? "Todos rodando" : `${stale} parad${stale === 1 ? "o" : "os"}`,
+        detail: cronTone === "ok" ? "Todos rodando" : `${failedJobs.size} com falha`,
       };
 
       // VPS
