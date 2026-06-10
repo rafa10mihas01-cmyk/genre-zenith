@@ -514,6 +514,7 @@ export function OverviewTab({
                       image_url: p.image_url,
                       delivered: p.delivered,
                       planned: Number(p.planned ?? 0),
+                      lastDelta: p.lastDelta ?? null,
                     }))}
                     emptyText="Aguardando primeira entrega."
                   />
