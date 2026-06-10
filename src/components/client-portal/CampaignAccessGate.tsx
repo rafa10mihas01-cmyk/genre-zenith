@@ -1,26 +1,43 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
-import { Loader2, Mail, KeyRound } from "lucide-react";
+import { Loader2, Mail, KeyRound, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { isLocalStorageAvailable, logPortalAuth, portalStorageKey } from "@/lib/portalSession";
 
 interface Props {
   token: string;
   onAuthed: (jwt: string, email: string) => void;
 }
 
-const STORAGE_PREFIX = "campaign_access_jwt:";
-export const accessStorageKey = (token: string) => `${STORAGE_PREFIX}${token}`;
+// Mantido por compat — outros arquivos importam essa função.
+export const accessStorageKey = (token: string) => portalStorageKey(token);
 
 export function CampaignAccessGate({ token, onAuthed }: Props) {
   const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
+  const [storageOk, setStorageOk] = useState(true);
+
+  useEffect(() => {
+    const ok = isLocalStorageAvailable();
+    setStorageOk(ok);
+    if (!ok) {
+      logPortalAuth({
+        endpoint: "gate.mount",
+        auth_status: "localstorage_blocked",
+        jwt_present: false,
+        localstorage_available: false,
+        token,
+      });
+    }
+  }, [token]);
+
 
   async function requestCode() {
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
