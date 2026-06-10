@@ -255,21 +255,7 @@ export function CloseDealDialog({
               </div>
             </div>
           </label>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={busy}>
-            Cancelar
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={busy || (status === "cancelled" && !reason.trim())}
-          >
-            {busy ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
-            {busy ? "Encerrando..." : "Encerrar deal"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </FormModal>
   );
 }
