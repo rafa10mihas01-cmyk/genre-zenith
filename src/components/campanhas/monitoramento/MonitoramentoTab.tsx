@@ -2,14 +2,33 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Activity, ChevronDown, Image as ImageIcon, Users, Layers, HeartPulse, BarChart3, CheckCircle2 } from "lucide-react";
+import { Activity, ChevronDown, Image as ImageIcon, Users, Layers, HeartPulse, BarChart3, CheckCircle2, FileSpreadsheet, Download, Loader2 } from "lucide-react";
 import { ExecucaoView } from "./ExecucaoView";
 import { PlaylistHistoryDrawer } from "./PlaylistHistoryDrawer";
 import { PrintThumbs } from "@/components/playlist-deals/PrintThumbs";
 import { SaudeView } from "./SaudeView";
+import { useUserRole } from "@/hooks/useUserRole";
+import { toast } from "sonner";
 
-type Props = { campaignId: string; headerSlot?: React.ReactNode };
+export type MonitoramentoSpreadsheetUpload = {
+  id: string;
+  created_at: string;
+  rows_imported: number;
+  total_streams: number;
+  file_name: string | null;
+  file_path?: string | null;
+  is_baseline?: boolean | null;
+};
+
+type Props = {
+  campaignId: string;
+  headerSlot?: React.ReactNode;
+  /** Quando passado (modo planilha), lista de uploads aparece dentro do expand da Baseline. */
+  spreadsheetUploads?: MonitoramentoSpreadsheetUpload[];
+};
+
 
 type BaselineTone = "success" | "warning" | "muted";
 
