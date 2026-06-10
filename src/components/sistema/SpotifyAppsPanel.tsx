@@ -107,9 +107,9 @@ export function SpotifyAppsPanel() {
 
         <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 items-center px-4 py-2 border-b border-border bg-elevated/40 text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
           <div>App</div>
-          <div>Status</div>
+          <div>Estado</div>
           <div className="text-right">Playlists</div>
-          <div className="text-right min-w-[140px]">Bloqueado até</div>
+          <div className="text-right min-w-[140px]">Próxima liberação</div>
         </div>
 
         {isLoading ? (
