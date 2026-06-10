@@ -787,13 +787,14 @@ function VirtualTable({
   return (
     <div>
       {/* Header — só desktop. Mobile usa layout em linha sem cabeçalho. */}
-      <div className="hidden md:grid grid-cols-[44px_minmax(220px,2fr)_120px_110px_110px_120px_140px_150px] gap-3 px-4 py-2.5 text-[10px] uppercase tracking-[0.08em] text-muted-foreground border-b border-border bg-card/40">
+      <div className="hidden md:grid grid-cols-[44px_minmax(220px,2fr)_120px_100px_100px_110px_120px_130px_150px] gap-3 px-4 py-2.5 text-[10px] uppercase tracking-[0.08em] text-muted-foreground border-b border-border bg-card/40">
         <div className="text-right">#</div>
         <SortHeader label="Playlist" k="name" sort={sort} dir={sortDir} onSort={onSort} />
         <div>Atribuição</div>
         <SortHeader label="Baseline" k="baseline" sort={sort} dir={sortDir} onSort={onSort} className="text-right justify-end" />
         <SortHeader label="Atual" k="current" sort={sort} dir={sortDir} onSort={onSort} className="text-right justify-end" />
-        <SortHeader label="Δ" k="delta" sort={sort} dir={sortDir} onSort={onSort} className="text-right justify-end" />
+        <SortHeader label="Δ Acumulada" k="delta" sort={sort} dir={sortDir} onSort={onSort} className="text-right justify-end" />
+        <div className="text-right" title="Entrega capturada na importação válida mais recente em relação à anterior. Mostra '—' quando há apenas uma importação.">Última Importação</div>
         <div>Status</div>
         <div>Última coleta</div>
       </div>
