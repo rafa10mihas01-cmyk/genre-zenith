@@ -18,7 +18,11 @@ const CRITICAL_CRONS = [
   "ops-alerts-cron-every-5min",
 ] as const;
 
-const STALE_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2h
+const DEFAULT_STALE_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2h
+const STALE_THRESHOLD_BY_JOB: Partial<Record<(typeof CRITICAL_CRONS)[number], number>> = {
+  "sync-managed-playlists": 8 * 60 * 60 * 1000,
+  "reap-zombie-jobs": 60 * 60 * 1000,
+};
 const COOLDOWN_MINUTES = 6 * 60; // 6h entre re-notificações
 const SPOTIFY_403_THRESHOLD = 100; // 403s em 1h por app → alerta
 const SPOTIFY_403_WINDOW_MS = 60 * 60 * 1000;
@@ -74,7 +78,8 @@ Deno.serve(async (req) => {
     }
 
     const lastRunMs = lastRunIso ? new Date(lastRunIso).getTime() : null;
-    const isStale = lastRunMs == null || now - lastRunMs > STALE_THRESHOLD_MS;
+    const staleThresholdMs = STALE_THRESHOLD_BY_JOB[job] ?? DEFAULT_STALE_THRESHOLD_MS;
+    const isStale = lastRunMs == null || now - lastRunMs > staleThresholdMs;
     const status: "ok" | "stale" | "never_ran" = !isStale
       ? "ok"
       : lastRunMs == null
