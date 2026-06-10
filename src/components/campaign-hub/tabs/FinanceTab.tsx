@@ -5,6 +5,8 @@ import { formatBRL, formatInt } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { supabase } from "@/integrations/supabase/client";
 import { usePricingSettings } from "@/hooks/usePricingSettings";
+import { plannedRadioStreams } from "@/lib/plannedRadio";
+import { cn } from "@/lib/utils";
 
 type Props = {
   campaignId: string;
