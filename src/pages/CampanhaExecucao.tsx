@@ -25,11 +25,10 @@ import { CampaignExecutionStatus } from "@/components/campanhas/CampaignExecutio
 import { CampaignDistributionConsole } from "@/components/campanhas/CampaignDistributionConsole";
 import { CampaignManualQueue } from "@/components/campanhas/CampaignManualQueue";
 import { TrackActionsPanel } from "@/components/campanhas/TrackActionsPanel";
-import { ArrowLeft, Loader2, Save, Upload, Rocket, CheckCircle2, RefreshCw, Plus, CalendarDays, Share2, Activity } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Upload, Rocket, CheckCircle2, RefreshCw, CalendarDays, Share2, Activity } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 
 import { Badge } from "@/components/ui/badge";
-import { NewDealDialog } from "@/components/playlist-deals/NewDealDialog";
 import { cn } from "@/lib/utils";
 import { CampaignHub } from "@/components/campaign-hub/CampaignHub";
 import { OverviewTab } from "@/components/campaign-hub/tabs/OverviewTab";
@@ -121,7 +120,6 @@ export default function CampanhaExecucao() {
   const [lastSpreadsheetUploadAt, setLastSpreadsheetUploadAt] = useState<string | null>(null);
   const [recentUploads, setRecentUploads] = useState<SpreadsheetUpload[]>([]);
   const [externalItems, setExternalItems] = useState<ExternalItemRow[]>([]);
-  const [newDealOpen, setNewDealOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [organicRows, setOrganicRows] = useState<OrganicRow[]>([]);
   const [dispatching, setDispatching] = useState(false);
@@ -445,24 +443,41 @@ export default function CampanhaExecucao() {
     if (extPkg?.id) {
       const { data: items } = await supabase
         .from("campaign_external_package_items")
-        .select("id, assigned_streams, assigned_cost, curator_deal_id, curators(name), curator_deals(reconciled_total_plays, state)")
+        .select("id, assigned_streams, assigned_cost, curator_deal_id, curators(name)")
         .eq("package_id", extPkg.id)
         .order("assigned_streams", { ascending: false });
+      const itemRows = (items ?? []) as unknown as Array<{
+        id: string;
+        assigned_streams: number;
+        assigned_cost: number;
+        curator_deal_id: string | null;
+        curators: { name: string } | null;
+      }>;
+      const dealIds = itemRows.map((it) => it.curator_deal_id).filter((dealId): dealId is string => !!dealId);
+      const dealById = new Map<string, { reconciled_total_plays: number | null; state: string | null }>();
+      if (dealIds.length > 0) {
+        const { data: dealRows } = await supabase
+          .from("curator_deals")
+          .select("id, reconciled_total_plays, state")
+          .in("id", dealIds);
+        for (const d of (dealRows ?? []) as any[]) {
+          dealById.set(d.id, { reconciled_total_plays: d.reconciled_total_plays, state: d.state });
+        }
+      }
       const mapped: ExternalItemRow[] = ((items ?? []) as unknown as Array<{
         id: string;
         assigned_streams: number;
         assigned_cost: number;
         curator_deal_id: string | null;
         curators: { name: string } | null;
-        curator_deals: { reconciled_total_plays: number | null; state: string | null } | null;
       }>).map((it) => ({
         id: it.id,
         curator_name: it.curators?.name ?? "Curador",
         assigned_streams: Number(it.assigned_streams ?? 0),
         assigned_cost: Number(it.assigned_cost ?? 0),
         curator_deal_id: it.curator_deal_id,
-        delivered_plays: Number(it.curator_deals?.reconciled_total_plays ?? 0),
-        state: it.curator_deals?.state ?? "pending",
+        delivered_plays: Number((it.curator_deal_id ? dealById.get(it.curator_deal_id)?.reconciled_total_plays : 0) ?? 0),
+        state: (it.curator_deal_id ? dealById.get(it.curator_deal_id)?.state : null) ?? "pending",
       }));
       setExternalItems(mapped);
     } else {
@@ -914,7 +929,6 @@ export default function CampanhaExecucao() {
                 campaignId={camp.id}
                 snapshot={snapshot}
                 onChanged={() => setPlanRefreshKey(k => k + 1)}
-                onNewDeal={() => setNewDealOpen(true)}
                 headerExtra={<GenresUsedFromAllocs allocs={allocs} compact />}
                 renderTabsRow={(extra, ctx) => {
                   // Pacote despachado: header já carrega CTAs + chip de gêneros — não renderiza linha extra.
@@ -923,14 +937,6 @@ export default function CampanhaExecucao() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <GenresUsedFromAllocs allocs={allocs} compact />
                       <div className="ml-auto flex items-center gap-2 flex-wrap">
-                        <Button
-                          size="sm"
-                          onClick={() => setNewDealOpen(true)}
-                          className="gap-1.5"
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                          Novo deal
-                        </Button>
                         {extra}
                       </div>
                     </div>
@@ -1092,12 +1098,6 @@ export default function CampanhaExecucao() {
         engagementMultiplier={camp.engagement_multiplier ?? 35}
       />
 
-      <NewDealDialog
-        open={newDealOpen}
-        onOpenChange={setNewDealOpen}
-        campaignId={camp.id}
-        onSaved={() => setPlanRefreshKey(k => k + 1)}
-      />
     </PageContainer>
   );
 }

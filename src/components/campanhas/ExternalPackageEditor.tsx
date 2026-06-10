@@ -13,12 +13,13 @@ import {
   updatePackageItem,
   removePackageItem,
   addPackageItem,
+  repairExternalPackageLinks,
   fetchCuratorCandidates,
   type CuratorCandidate,
 } from "@/lib/externalPackage";
 import { Link } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Trash2, Users, AlertTriangle, CheckCircle2, Plus, Search, BarChart3, CalendarClock, DollarSign, Target, Lock, ExternalLink, Pencil, History, Info } from "lucide-react";
+import { Loader2, Trash2, Users, AlertTriangle, CheckCircle2, Plus, BarChart3, CalendarClock, DollarSign, Target, ExternalLink, Pencil, History, Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { HistoricoPrevioBadge, HistoricoPrevioRecommendation } from "@/components/campanhas/HistoricoPrevio";
 
@@ -67,14 +68,12 @@ export function ExternalPackageEditor({
   snapshot,
   onChanged,
   renderTabsRow,
-  onNewDeal,
   headerExtra,
 }: {
   campaignId: string;
   snapshot: CampaignSnapshot;
   onChanged?: () => void;
   renderTabsRow?: (extra?: React.ReactNode, ctx?: { isDispatched: boolean }) => React.ReactNode;
-  onNewDeal?: () => void;
   headerExtra?: React.ReactNode;
 }) {
   const [pkg, setPkg] = useState<PackageRow | null>(null);
@@ -95,6 +94,7 @@ export function ExternalPackageEditor({
     setLoading(true);
     try {
       const { packageId } = await ensureExternalPackageDraft(campaignId, snapshot);
+      await repairExternalPackageLinks(packageId);
       const [{ data: p }, { data: its }, cand] = await Promise.all([
         supabase
           .from("campaign_external_packages")
@@ -103,13 +103,27 @@ export function ExternalPackageEditor({
           .single(),
         supabase
           .from("campaign_external_package_items")
-          .select("id, curator_id, assigned_streams, assigned_cost, cost_per_stream, curator_deal_id, curators(name, contact), curator_deals(state, reconciled_total_plays, ends_at, closed_status)")
+          .select("id, curator_id, assigned_streams, assigned_cost, cost_per_stream, curator_deal_id, curators(name, contact)")
           .eq("package_id", packageId)
           .order("assigned_streams", { ascending: false }),
         fetchCuratorCandidates(),
       ]);
+      const dealIds = ((its ?? []) as any[]).map((it) => it.curator_deal_id).filter(Boolean);
+      const dealById = new Map<string, ItemRow["curator_deals"]>();
+      if (dealIds.length > 0) {
+        const { data: dealsData } = await supabase
+          .from("curator_deals")
+          .select("id, state, reconciled_total_plays, ends_at, closed_status")
+          .in("id", dealIds);
+        for (const d of (dealsData ?? []) as any[]) {
+          dealById.set(d.id, d);
+        }
+      }
       setPkg(p as any);
-      setItems((its ?? []) as any);
+      setItems(((its ?? []) as any[]).map((it) => ({
+        ...it,
+        curator_deals: it.curator_deal_id ? dealById.get(it.curator_deal_id) ?? null : null,
+      })) as any);
       setCandidates(cand);
 
       // Entregas reais por curador na campanha — soma deltas da view de crescimento.
@@ -194,7 +208,7 @@ export function ExternalPackageEditor({
     setConfirming(true);
     try {
       const { dealsCreated } = await confirmExternalPackage({ packageId: pkg.id, campaignId, snapshot });
-      toast({ title: "Pacote confirmado", description: `${dealsCreated} deals criados em status proposto.` });
+      toast({ title: "Pacote confirmado", description: `${dealsCreated} deals criados; itens existentes foram vinculados ao financeiro.` });
       load();
       onChanged?.();
     } catch (e: any) {
@@ -316,16 +330,6 @@ export function ExternalPackageEditor({
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
-              {onNewDeal && (
-                <Button
-                  size="sm"
-                  onClick={onNewDeal}
-                  className="h-10 px-4 gap-1.5 font-semibold"
-                >
-                  <Plus className="h-4 w-4" />
-                  Novo deal
-                </Button>
-              )}
               <Button
                 size="sm"
                 variant="outline"
