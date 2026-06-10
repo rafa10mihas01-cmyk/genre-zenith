@@ -93,12 +93,8 @@ export function SpreadsheetUploadsCompactCard({ recentUploads, onOpenUpload }: P
               </div>
             </div>
           </div>
-          {onOpenUpload && (
-            <Button variant="outline" size="sm" onClick={onOpenUpload} className="shrink-0">
-              <UploadIcon className="h-3.5 w-3.5 mr-2" />
-              Subir nova planilha
-            </Button>
-          )}
+          {/* Botão "Subir nova planilha" removido — função já existe no cabeçalho da página (botão de upload). */}
+
         </div>
 
         {recentUploads.length > 0 && (
