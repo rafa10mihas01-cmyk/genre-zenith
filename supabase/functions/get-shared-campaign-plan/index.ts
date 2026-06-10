@@ -109,6 +109,7 @@ Deno.serve(async (req) => {
     artist: campRaw.artist,
     cover_url: campRaw.cover_url,
     spotify_track_url: campRaw.spotify_track_url,
+    spotify_track_id: campRaw.spotify_track_id,
     goal_plays: campRaw.goal_plays,
     status: campRaw.status,
     started_at: campRaw.started_at,
