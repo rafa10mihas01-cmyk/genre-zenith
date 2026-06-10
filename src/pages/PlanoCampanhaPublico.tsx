@@ -352,6 +352,10 @@ export default function PlanoCampanhaPublico() {
         .select("attributed_to, delta")
         .eq("campaign_id", campaignId);
       if (cancelled || error || !Array.isArray(data)) return;
+      if (data.length === 0) {
+        setDeliveredFromView(null);
+        return;
+      }
       const total = (data as Array<{ attributed_to: string | null; delta: number | null }>).reduce((acc, r) => {
         const at = r.attributed_to ?? "";
         if (at === "organic") return acc;
