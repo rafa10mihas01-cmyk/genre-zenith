@@ -295,17 +295,6 @@ export function CampaignGatesCard({
                     : "Bloqueado"
           }
         />
-        <Step
-          title="Em entrega"
-          state={state6}
-          meta={
-            deliveryDone
-              ? `${formatInt(delivered)} streams`
-              : state6 === "current"
-                ? "Aguardando 1ª leitura"
-                : "Pendente"
-          }
-        />
       </div>
 
       {/* CTA */}
