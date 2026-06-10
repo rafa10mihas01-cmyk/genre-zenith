@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { formatInt, formatBRL } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { cn } from "@/lib/utils";
-import { Music, Camera, TrendingUp, TrendingDown, Minus, ArrowRight, ExternalLink, ChevronDown, Target, Activity, Gauge, CalendarDays } from "lucide-react";
+import { Music, TrendingUp, TrendingDown, Minus, ArrowRight, ExternalLink, ChevronDown, Target, Activity, Gauge, CalendarDays } from "lucide-react";
 import { useState } from "react";
 import type { EcoAllocation } from "../types";
 import { KpiBig } from "@/components/KpiBig";
@@ -140,7 +140,8 @@ export function OverviewTab({
     try { await onUnlockSplit(); } finally { setSavingLock(false); }
   };
 
-  // Top playlists no ar — só as que já estão entregando (delivered > 0)
+  // Top playlists no ar — todas as ativas/dispatched/done, ordenadas por delivered desc, depois por planned desc.
+  // Mostra mesmo quando ainda não houve leitura, pra cliente enxergar o inventário no ar.
   const topPlaylists = allocations
     .filter(a => a.status === "active" || a.status === "dispatched" || a.status === "done")
     .map(a => ({
@@ -148,13 +149,9 @@ export function OverviewTab({
       delivered: Number(latestByPl.get(a.managed_playlist_id)?.plays_28d ?? latestByPl.get(a.managed_playlist_id)?.plays_7d ?? 0),
       delta24: latestByPl.get(a.managed_playlist_id)?.plays_24h ?? 0,
     }))
-    .filter(x => x.delivered > 0)
-    .sort((x, y) => y.delivered - x.delivered)
+    .sort((x, y) => (y.delivered - x.delivered) || (y.a.planned_streams - x.a.planned_streams))
     .slice(0, 10);
 
-  const recentProofs = [...proofs]
-    .sort((a, b) => new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime())
-    .slice(0, 4);
 
   return (
     <div className="space-y-6">
@@ -461,7 +458,7 @@ export function OverviewTab({
                   </div>
                   {topPlaylists.length === 0 ? (
                     <div className="text-xs text-muted-foreground py-6 text-center">
-                      Nenhuma playlist entregando ainda.
+                      Nenhuma playlist alocada ainda.
                     </div>
                   ) : (
                     <ul className="space-y-2.5">
@@ -503,63 +500,6 @@ export function OverviewTab({
         </Card>
       </div>
 
-      {/* Últimas provas */}
-      <Card>
-        <CardContent className="p-5">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Camera className="h-4 w-4 text-muted-foreground" />
-              <div className="text-sm font-semibold">Últimas provas</div>
-            </div>
-            {onJumpTab && proofs.length > 0 && (
-              <Button variant="ghost" size="sm" onClick={() => onJumpTab("proofs")} className="h-7 text-xs">
-                Timeline completa <ArrowRight className="h-3 w-3 ml-1" />
-              </Button>
-            )}
-          </div>
-          {recentProofs.length === 0 ? (
-            <div className="text-xs text-muted-foreground py-6 text-center">
-              Sem provas capturadas ainda.
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              {recentProofs.map((p) => (
-                <a
-                  key={p.id}
-                  href={p.screenshot_url ?? undefined}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={cn(
-                    "group rounded-lg overflow-hidden border border-border bg-muted/30 block",
-                    !p.screenshot_url && "pointer-events-none",
-                  )}
-                >
-                  <div className="aspect-video bg-muted relative overflow-hidden">
-                    {p.screenshot_url ? (
-                      <img src={p.screenshot_url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                    ) : (
-                      <div className="w-full h-full grid place-items-center">
-                        <TrendingUp className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-2">
-                    <div className="text-[11px] font-medium truncate">{p.playlist_name}</div>
-                    <div className="text-[10px] text-muted-foreground flex items-center justify-between mt-0.5">
-                      <span>{timeAgo(p.captured_at)}</span>
-                      {p.delta_plays != null && p.delta_plays !== 0 && (
-                        <span className={cn("tabular-nums", p.delta_plays > 0 ? "text-primary" : "text-destructive")}>
-                          {p.delta_plays > 0 ? "+" : ""}{formatInt(p.delta_plays)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </a>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Financeiro só interno: custo NexEngine x venda pro cliente x margem */}
       {showFinance && (() => {

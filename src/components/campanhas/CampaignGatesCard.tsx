@@ -151,11 +151,9 @@ export function CampaignGatesCard({
   // Header status pill.
   const headerStatus: { label: string; tone: "live" | "ok" | "wait" } = isClosed
     ? { label: "Encerrada", tone: "ok" }
-    : deliveryDone
-      ? { label: "Em entrega", tone: "live" }
-      : dispatchDone
-        ? { label: "Coletando", tone: "live" }
-        : { label: "Em preparo", tone: "wait" };
+    : dispatchDone
+      ? { label: isSpreadsheet ? "Coletando (Excel)" : "Coletando" , tone: "live" }
+      : { label: "Em preparo", tone: "wait" };
 
   return (
     <div className="rounded-2xl border border-border bg-card p-6">
@@ -293,17 +291,6 @@ export function CampaignGatesCard({
                   : state5 === "current"
                     ? "Ativa agora"
                     : "Bloqueado"
-          }
-        />
-        <Step
-          title="Em entrega"
-          state={state6}
-          meta={
-            deliveryDone
-              ? `${formatInt(delivered)} streams`
-              : state6 === "current"
-                ? "Aguardando 1ª leitura"
-                : "Pendente"
           }
         />
       </div>
