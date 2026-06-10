@@ -145,14 +145,28 @@ export function CuratorEditDialog({ curator, open, onOpenChange, onSave, onAddPu
   const hasPendingPurchase = (parseNum(purchaseAmount) ?? 0) > 0 || (parseNum(purchasePlays) ?? 0) > 0;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg bg-card border border-border text-foreground max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-foreground">Editar curador</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-5 py-2">
-          {/* Identificação */}
-          <section className="space-y-3">
+    <FormModal
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Editar curador"
+      icon={<Pencil className="h-4 w-4" />}
+      iconTone="curadores"
+      size="md"
+      preventClose={saving}
+      footer={
+        <>
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? "Salvando…" : hasPendingPurchase ? "Salvar e registrar" : "Salvar"}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-5">
+        {/* Identificação */}
+        <section className="space-y-3">
             <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">Identificação</div>
             <div className="space-y-1.5">
               <Label htmlFor="cur-name" className="text-foreground">Nome / apelido</Label>
