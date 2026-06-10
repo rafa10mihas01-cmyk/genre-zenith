@@ -38,21 +38,38 @@ export function SaudeSistema() {
     try {
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const todayIso = today.toISOString();
-    const dayAgoIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const twoHoursAgoIso = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
 
     const [
       tokenRes, lastVerified,
-      pendingJobs, failedJobs, doneJobsToday, lastDoneJob, recentFailedJobs,
+      pendingJobs, hardFailedJobs, doneJobsToday, lastDoneJob, recentHardFailedJobs,
+      openBreakers,
       activeDeals,
       criticalUnread, warningUnread, lastNotif,
     ] = await Promise.all([
       supabase.rpc("get_spotify_token_status").maybeSingle(),
       supabase.from("search_results").select("followers_verified_at").not("followers_verified_at", "is", null).order("followers_verified_at", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("playlist_execution_jobs").select("id", { count: "exact", head: true }).in("status", ["pending", "claimed"]),
-      supabase.from("playlist_execution_jobs").select("id", { count: "exact", head: true }).eq("status", "failed").gte("updated_at", dayAgoIso),
+      // CRÍTICO de verdade: falhou nas últimas 2h E já estourou as tentativas.
+      // Não conta jobs antigos, abandonados, ou que ainda vão re-tentar sozinhos.
+      supabase.from("playlist_execution_jobs")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "failed")
+        .gte("updated_at", twoHoursAgoIso)
+        .filter("attempts", "gte", "max_attempts"),
       supabase.from("playlist_execution_jobs").select("id", { count: "exact", head: true }).eq("status", "done").gte("completed_at", todayIso),
       supabase.from("playlist_execution_jobs").select("completed_at").eq("status", "done").order("completed_at", { ascending: false }).limit(1).maybeSingle(),
-      supabase.from("playlist_execution_jobs").select("id, last_error, updated_at, job_type").eq("status", "failed").gte("updated_at", dayAgoIso).order("updated_at", { ascending: false }).limit(10),
+      supabase.from("playlist_execution_jobs")
+        .select("id, last_error, updated_at, job_type, attempts, max_attempts")
+        .eq("status", "failed")
+        .gte("updated_at", twoHoursAgoIso)
+        .filter("attempts", "gte", "max_attempts")
+        .order("updated_at", { ascending: false })
+        .limit(10),
+      // Circuit breaker aberto AGORA (status='open' ou blocked_until > now).
+      supabase.from("spotify_circuit_breaker")
+        .select("app_id", { count: "exact", head: true })
+        .or(`status.eq.open,blocked_until.gt.${new Date().toISOString()}`),
       supabase.from("curator_deals").select("id", { count: "exact", head: true }).is("closed_at", null),
       supabase.from("notifications").select("id", { count: "exact", head: true }).eq("read", false).eq("type", "critical"),
       supabase.from("notifications").select("id", { count: "exact", head: true }).eq("read", false).eq("type", "warning"),
@@ -62,16 +79,25 @@ export function SaudeSistema() {
     const tokenExpiry = tokenRes.data?.expires_at;
     const tokenExpired = tokenExpiry ? new Date(tokenExpiry) <= new Date() : true;
     const pendingCount = pendingJobs.count ?? 0;
-    const failedCount = failedJobs.count ?? 0;
+    const hardFailedCount = hardFailedJobs.count ?? 0;
+    const openBreakerCount = openBreakers.count ?? 0;
     const critCount = criticalUnread.count ?? 0;
     const warnCount = warningUnread.count ?? 0;
+
+    // Execução só é vermelha se: falha dura recente OU breaker aberto agora
+    // OU token expirado OU notificação crítica não lida.
+    // Falha histórica de incidente já encerrado NÃO pinta de vermelho.
+    const execOk = hardFailedCount === 0 && openBreakerCount === 0;
+    const execErrText = openBreakerCount > 0
+      ? `${openBreakerCount} app(s) bloqueado(s)`
+      : `${hardFailedCount} falha(s) sem retry`;
 
     setHealth({
       spotify: { ok: !tokenExpired, expires_at: tokenExpiry, expired: tokenExpired, last_verified: (lastVerified.data as any)?.followers_verified_at ?? undefined },
       execucao: {
-        ok: failedCount === 0,
+        ok: execOk,
         pending: pendingCount,
-        failed: failedCount,
+        failed: hardFailedCount,
         lastDone: lastDoneJob.data?.completed_at ?? undefined,
       },
       alertas: {
@@ -86,7 +112,7 @@ export function SaudeSistema() {
       },
     });
 
-    const allFailures: Failure[] = (recentFailedJobs.data ?? []).map((j: any) => ({
+    const allFailures: Failure[] = (recentHardFailedJobs.data ?? []).map((j: any) => ({
       id: `job-${j.id}`,
       source: humanizeFunctionName(j.job_type),
       message: humanizeError(j.last_error),
