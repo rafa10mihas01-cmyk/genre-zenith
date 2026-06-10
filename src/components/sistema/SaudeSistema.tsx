@@ -42,7 +42,7 @@ export function SaudeSistema() {
 
     const [
       tokenRes, lastVerified,
-      pendingJobs, hardFailedJobs, doneJobsToday, lastDoneJob, recentHardFailedJobs,
+      pendingJobs, recentFailedJobsRaw, doneJobsToday, lastDoneJob,
       openBreakers,
       activeDeals,
       criticalUnread, warningUnread, lastNotif,
@@ -50,22 +50,16 @@ export function SaudeSistema() {
       supabase.rpc("get_spotify_token_status").maybeSingle(),
       supabase.from("search_results").select("followers_verified_at").not("followers_verified_at", "is", null).order("followers_verified_at", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("playlist_execution_jobs").select("id", { count: "exact", head: true }).in("status", ["pending", "claimed"]),
-      // CRÍTICO de verdade: falhou nas últimas 2h E já estourou as tentativas.
-      // Não conta jobs antigos, abandonados, ou que ainda vão re-tentar sozinhos.
-      supabase.from("playlist_execution_jobs")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "failed")
-        .gte("updated_at", twoHoursAgoIso)
-        .filter("attempts", "gte", "max_attempts"),
-      supabase.from("playlist_execution_jobs").select("id", { count: "exact", head: true }).eq("status", "done").gte("completed_at", todayIso),
-      supabase.from("playlist_execution_jobs").select("completed_at").eq("status", "done").order("completed_at", { ascending: false }).limit(1).maybeSingle(),
+      // Falhas nas últimas 2h (filtragem attempts >= max_attempts feita em JS,
+      // já que PostgREST não compara coluna com coluna).
       supabase.from("playlist_execution_jobs")
         .select("id, last_error, updated_at, job_type, attempts, max_attempts")
         .eq("status", "failed")
         .gte("updated_at", twoHoursAgoIso)
-        .filter("attempts", "gte", "max_attempts")
         .order("updated_at", { ascending: false })
-        .limit(10),
+        .limit(50),
+      supabase.from("playlist_execution_jobs").select("id", { count: "exact", head: true }).eq("status", "done").gte("completed_at", todayIso),
+      supabase.from("playlist_execution_jobs").select("completed_at").eq("status", "done").order("completed_at", { ascending: false }).limit(1).maybeSingle(),
       // Circuit breaker aberto AGORA (status='open' ou blocked_until > now).
       supabase.from("spotify_circuit_breaker")
         .select("app_id", { count: "exact", head: true })
@@ -75,6 +69,23 @@ export function SaudeSistema() {
       supabase.from("notifications").select("id", { count: "exact", head: true }).eq("read", false).eq("type", "warning"),
       supabase.from("notifications").select("created_at").eq("read", false).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     ]);
+
+    // Falha "dura" = estourou as tentativas E NÃO é circuit-breaker já encerrado.
+    const now = Date.now();
+    const hardFailures = (recentFailedJobsRaw.data ?? []).filter((j: any) => {
+      const attempts = Number(j.attempts ?? 0);
+      const max = Number(j.max_attempts ?? 0);
+      if (max <= 0 || attempts < max) return false; // ainda vai re-tentar
+      const err = String(j.last_error ?? "");
+      // SPOTIFY_CIRCUIT_OPEN: blocked_until=2026-06-09T23:57:21.834+00:00 retry_after=...
+      const m = err.match(/SPOTIFY_CIRCUIT_OPEN.*blocked_until=([0-9T:.+\-Z]+)/);
+      if (m) {
+        const until = Date.parse(m[1]);
+        if (Number.isFinite(until) && until <= now) return false; // breaker já fechou
+      }
+      return true;
+    });
+    const hardFailedCount = hardFailures.length;
 
     const tokenExpiry = tokenRes.data?.expires_at;
     const tokenExpired = tokenExpiry ? new Date(tokenExpiry) <= new Date() : true;
