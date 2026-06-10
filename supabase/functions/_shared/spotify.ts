@@ -239,6 +239,27 @@ function isCircuitBypassUrl(rawUrl: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
+// FASE APP-03 — Endpoints de descoberta com quota restrita pelo Spotify
+// (Web API mudanças nov/2024). Tratamos 401/403 nesses endpoints como
+// "modo degradado" — não geram incidente, não abrem breaker, não marcam
+// auth-failure no app. Os consumidores (engine-health, expand-from-winners)
+// já tratam ausência desses dados sem quebrar a operação.
+// ---------------------------------------------------------------------------
+export function isRestrictedDiscoveryEndpoint(rawUrl: string): boolean {
+  try {
+    const u = new URL(rawUrl);
+    if (u.hostname !== "api.spotify.com") return false;
+    // /v1/tracks (catálogo agregado) e /v1/tracks/{id}
+    if (u.pathname === "/v1/tracks" || /^\/v1\/tracks\/[A-Za-z0-9]{22}$/.test(u.pathname)) return true;
+    // /v1/users/{id}/playlists (descoberta de playlists públicas de usuário)
+    if (/^\/v1\/users\/[^/]+\/playlists\/?$/.test(u.pathname)) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Telemetria — log fail-silent em `spotify_call_log`.
 // Usado pelo guardedSpotifyFetch e pelo monkey-patch global do fetch.
 // Mantém o caller ileso (nunca lança) mas grita no console em falha
