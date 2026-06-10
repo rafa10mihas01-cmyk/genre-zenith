@@ -32,7 +32,7 @@ function formatPlays(n: number | null | undefined): string {
 }
 
 function clientStatus(p: MonitoredPlaylist): "entregando" | "aguardando" {
-  if (p.status === "Nova" || p.delivered <= 0) return "aguardando";
+  if (p.status === "Aguardando coleta" || p.status === "Nova" || p.delivered <= 0) return "aguardando";
   return "entregando";
 }
 
