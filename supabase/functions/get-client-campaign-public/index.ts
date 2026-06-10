@@ -319,12 +319,11 @@ Deno.serve(async (req) => {
       delivered: Math.max(0, h.total_plays - baseline),
     }));
 
-    // 5) Playlists do curador — FONTE OFICIAL: vw_campaign_playlist_growth
-    // (mesma usada pelo cockpit interno). O caminho antigo
-    // (v_curator_playlists_operational + match_status='curator') ficava VAZIO
-    // em campanhas onde a coleta veio 100% por importação/snapshot, porque
-    // essas playlists não recebem match_status='curator' na view operacional —
-    // a atribuição correta vive em vw_campaign_playlist_growth.attributed_to.
+    // 5) Playlists do curador — FONTE OFICIAL DE EXIBIÇÃO: curator_campaign_playlists
+    // (lista CONTRATADA pelo curador). Crescimento/entrega vem de
+    // vw_campaign_playlist_growth via LEFT JOIN — playlists sem match na view
+    // ficam visíveis com status "Aguardando coleta" e delivered=0.
+    // Importante: NÃO ocultamos playlists só porque ainda não tem coleta.
     const campaignIdsForDeals = new Set<string>();
     if (dealRow.campaign_id) campaignIdsForDeals.add(String(dealRow.campaign_id));
     {
@@ -337,46 +336,63 @@ Deno.serve(async (req) => {
       }
     }
 
-    type CuratorGrowthRow = {
+    type ContractedPlaylist = {
       playlist_id: string;
+      playlist_url: string | null;
+      first_seen_at: string | null;
+    };
+    const contracted: ContractedPlaylist[] = [];
+    if (campaignIdsForDeals.size > 0) {
+      const { data: ccpRows } = await admin
+        .from("curator_campaign_playlists")
+        .select("playlist_id, playlist_url, registered_at, matched_at")
+        .in("campaign_id", Array.from(campaignIdsForDeals))
+        .eq("excluded_from_kpis", false);
+      const seen = new Set<string>();
+      for (const r of (ccpRows ?? []) as AnyRec[]) {
+        const k = String(r.playlist_id ?? "");
+        if (!k || seen.has(k)) continue;
+        seen.add(k);
+        contracted.push({
+          playlist_id: k,
+          playlist_url: (r.playlist_url as string | null) ?? null,
+          first_seen_at: (r.matched_at as string | null) ?? (r.registered_at as string | null) ?? null,
+        });
+      }
+    }
+
+    type CuratorGrowthRow = {
       delivery_accumulated: number;
       last_import_delta: number | null;
       current_plays: number | null;
       current_name: string | null;
       baseline_name: string | null;
-      baseline_at: string | null;
       first_seen_at: string | null;
-      playlist_url: string | null;
     };
-    const curatorGrowth: CuratorGrowthRow[] = [];
+    const growthByPid = new Map<string, CuratorGrowthRow>();
     if (campaignIdsForDeals.size > 0) {
       const { data: growthRows } = await admin
         .from("vw_campaign_playlist_growth")
         .select(
-          "playlist_id, delivery_accumulated, last_import_delta, current_plays, current_name, baseline_name, baseline_at, first_seen_at, playlist_url, attributed_to",
+          "playlist_id, delivery_accumulated, last_import_delta, current_plays, current_name, baseline_name, first_seen_at, attributed_to",
         )
         .in("campaign_id", Array.from(campaignIdsForDeals))
         .like("attributed_to", "curator:%");
-      const byPid = new Map<string, CuratorGrowthRow>();
       for (const g of (growthRows ?? []) as AnyRec[]) {
         const k = String(g.playlist_id ?? "");
         if (!k) continue;
-        const prev = byPid.get(k);
+        const prev = growthByPid.get(k);
         const inc: CuratorGrowthRow = {
-          playlist_id: k,
           delivery_accumulated: Number(g.delivery_accumulated ?? 0),
           last_import_delta: g.last_import_delta == null ? null : Number(g.last_import_delta),
           current_plays: g.current_plays == null ? null : Number(g.current_plays),
           current_name: (g.current_name as string | null) ?? null,
           baseline_name: (g.baseline_name as string | null) ?? null,
-          baseline_at: (g.baseline_at as string | null) ?? null,
           first_seen_at: (g.first_seen_at as string | null) ?? null,
-          playlist_url: (g.playlist_url as string | null) ?? null,
         };
         if (!prev) {
-          byPid.set(k, inc);
+          growthByPid.set(k, inc);
         } else {
-          // mesmo playlist_id em campanhas diferentes do mesmo deal — soma.
           prev.delivery_accumulated += inc.delivery_accumulated;
           if (inc.last_import_delta != null) {
             prev.last_import_delta = (prev.last_import_delta ?? 0) + inc.last_import_delta;
@@ -386,11 +402,11 @@ Deno.serve(async (req) => {
           }
         }
       }
-      curatorGrowth.push(...byPid.values());
     }
 
-    // Enriquecimento de metadados (nome/cover) via curator_playlist_library.
-    const spIds = curatorGrowth.map((c) => c.playlist_id);
+    // Enriquecimento de metadados (nome/cover) via curator_playlist_library —
+    // cobre TODAS as contratadas, inclusive as sem coleta ainda.
+    const spIds = contracted.map((c) => c.playlist_id);
     const libByPid = new Map<string, AnyRec>();
     if (spIds.length > 0) {
       const { data: libRows } = await admin
@@ -402,28 +418,32 @@ Deno.serve(async (req) => {
       }
     }
 
-    const safePlaylists: AnyRec[] = curatorGrowth.map((c) => {
+    const safePlaylists: AnyRec[] = contracted.map((c) => {
       const lib = libByPid.get(c.playlist_id) ?? {};
-      const ageDays = c.first_seen_at
-        ? (Date.now() - new Date(c.first_seen_at).getTime()) / (1000 * 60 * 60 * 24)
+      const g = growthByPid.get(c.playlist_id);
+      const delivered = g?.delivery_accumulated ?? 0;
+      const firstSeen = g?.first_seen_at ?? c.first_seen_at;
+      const ageDays = firstSeen
+        ? (Date.now() - new Date(firstSeen).getTime()) / (1000 * 60 * 60 * 24)
         : 999;
-      let status: "Nova" | "Crescendo" | "Destaque" | "Estável";
-      if (ageDays <= 7) status = "Nova";
-      else if (c.delivery_accumulated >= 5000) status = "Destaque";
-      else if (c.delivery_accumulated >= 500) status = "Crescendo";
+      let status: "Nova" | "Crescendo" | "Destaque" | "Estável" | "Aguardando coleta";
+      if (!g) status = "Aguardando coleta";
+      else if (ageDays <= 7) status = "Nova";
+      else if (delivered >= 5000) status = "Destaque";
+      else if (delivered >= 500) status = "Crescendo";
       else status = "Estável";
       return {
         name: String(
           (lib.playlist_name as string | undefined) ??
-            c.current_name ??
-            c.baseline_name ??
+            g?.current_name ??
+            g?.baseline_name ??
             "Playlist",
         ),
         image_url: (lib.image_url as string | null) ?? null,
-        delivered: c.delivery_accumulated,
-        last_import_delta: c.last_import_delta,
+        delivered,
+        last_import_delta: g?.last_import_delta ?? null,
         plays_24h: null,
-        plays_7d: c.current_plays,
+        plays_7d: g?.current_plays ?? null,
         plays_28d: null,
         status,
         source: "curator" as const,
