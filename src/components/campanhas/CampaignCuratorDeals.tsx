@@ -159,28 +159,34 @@ export function CampaignCuratorDeals({ campaignId }: Props) {
                 )}
               </div>
 
-              {/* Progresso — número grande + sparkline */}
-              <div className="flex items-end gap-4">
-                <div className="flex-1 min-w-0 space-y-1.5">
-                  <div className="flex items-baseline justify-between gap-3 tabular-nums">
-                    <span className={cn("text-[22px] font-semibold leading-none", tone.text)}>
-                      {formatInt(d.reconciled_total_plays)}
-                    </span>
-                    <span className="text-[11px] text-muted-foreground">
-                      / {formatInt(d.target_plays)} plays
-                    </span>
-                  </div>
-                  <div className="h-2 w-full rounded-full bg-foreground/5 overflow-hidden">
-                    <div
-                      className={cn("h-full transition-[width] duration-500", tone.bar)}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
+              {/* Progresso — número grande + sparkline (oculto para deals internos sem curador) */}
+              {isInternal ? (
+                <div className="text-[11px] text-muted-foreground italic">
+                  Sem curador atribuído — entrega contabilizada pelo orgânico/ecossistema da campanha.
                 </div>
-                {sparkValues.length >= 2 && (
-                  <Sparkline values={sparkValues} colorClass={tone.text} />
-                )}
-              </div>
+              ) : (
+                <div className="flex items-end gap-4">
+                  <div className="flex-1 min-w-0 space-y-1.5">
+                    <div className="flex items-baseline justify-between gap-3 tabular-nums">
+                      <span className={cn("text-[22px] font-semibold leading-none", tone.text)}>
+                        {formatInt(d.reconciled_total_plays)}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground">
+                        / {formatInt(d.target_plays)} plays
+                      </span>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-foreground/5 overflow-hidden">
+                      <div
+                        className={cn("h-full transition-[width] duration-500", tone.bar)}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                  {sparkValues.length >= 2 && (
+                    <Sparkline values={sparkValues} colorClass={tone.text} />
+                  )}
+                </div>
+              )}
 
               {/* Linha sutil — último update + estado vazio */}
               <div className="flex items-center justify-between gap-3 text-[10.5px] text-muted-foreground">
