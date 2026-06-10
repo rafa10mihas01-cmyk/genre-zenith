@@ -65,16 +65,18 @@ function nowPtBr(): string {
 
 // Paleta de status (preenchimento da célula STATUS).
 const STATUS_FILL: Record<string, string> = {
-  "Destaque":  "FF1DB954", // verde marca
-  "Crescendo": "FF22C55E", // verde
-  "Estável":   "FF6B7280", // cinza
-  "Nova":      "FFF59E0B", // âmbar
+  "Destaque":          "FF1DB954", // verde marca
+  "Crescendo":         "FF22C55E", // verde
+  "Estável":           "FF6B7280", // cinza
+  "Nova":              "FFF59E0B", // âmbar
+  "Aguardando coleta": "FF3F3F46", // cinza escuro
 };
 const STATUS_FONT: Record<string, string> = {
-  "Destaque":  "FFFFFFFF",
-  "Crescendo": "FFFFFFFF",
-  "Estável":   "FFFFFFFF",
-  "Nova":      "FF111111",
+  "Destaque":          "FFFFFFFF",
+  "Crescendo":         "FFFFFFFF",
+  "Estável":           "FFFFFFFF",
+  "Nova":              "FF111111",
+  "Aguardando coleta": "FFFFFFFF",
 };
 
 export function MonitoredPlaylistsCard({
