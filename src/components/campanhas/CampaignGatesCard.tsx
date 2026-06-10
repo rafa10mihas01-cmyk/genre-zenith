@@ -2,42 +2,56 @@ import { Check, Lock, Rocket, Loader2, CheckCircle2, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { CollectionSourceBadge } from "@/components/campanhas/CollectionSourceBadge";
+import { formatInt } from "@/lib/campaignEngine";
 
 type GateState = "done" | "current" | "locked";
 
-type GateProps = {
-  index: number;
+type StepProps = {
   title: string;
-  hint: string;
   state: GateState;
   meta?: string | null;
+  badge?: React.ReactNode;
 };
 
-function GateNode({ index, title, hint, state, meta }: GateProps) {
+function Step({ title, state, meta, badge }: StepProps) {
   return (
-    <div className="flex items-start gap-3 min-w-0 flex-1">
+    <div className="relative z-10 flex flex-col items-center text-center min-w-0 flex-1 px-2">
       <div
         className={cn(
-          "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm font-semibold",
-          state === "done" && "bg-primary/15 border-primary/40 text-primary",
-          state === "current" && "bg-primary text-primary-foreground border-primary",
-          state === "locked" && "bg-muted/40 border-border text-muted-foreground",
+          "w-8 h-8 rounded-full flex items-center justify-center mb-3 shrink-0 transition-colors",
+          state === "done" && "bg-primary text-primary-foreground",
+          state === "current" && "bg-primary text-primary-foreground ring-4 ring-primary/20",
+          state === "locked" && "bg-muted border border-border text-muted-foreground",
         )}
       >
-        {state === "done" ? <Check className="h-4 w-4" /> : state === "locked" ? <Lock className="h-3.5 w-3.5" /> : index}
+        {state === "done" ? (
+          <Check className="w-4 h-4" strokeWidth={3} />
+        ) : state === "current" ? (
+          <span className="w-2 h-2 rounded-full bg-primary-foreground animate-pulse" />
+        ) : (
+          <Lock className="w-3 h-3" />
+        )}
       </div>
-      <div className="min-w-0">
-        <div className="text-sm font-medium text-foreground truncate">{title}</div>
-        <div className="text-xs text-muted-foreground truncate">{meta ?? hint}</div>
-      </div>
-    </div>
-  );
-}
-
-function Connector({ filled }: { filled: boolean }) {
-  return (
-    <div className="hidden md:block flex-1 mx-2">
-      <div className={cn("h-px w-full", filled ? "bg-primary/50" : "bg-border")} />
+      <p
+        className={cn(
+          "text-xs font-semibold truncate max-w-full",
+          state === "locked" ? "text-muted-foreground" : "text-foreground",
+        )}
+      >
+        {title}
+      </p>
+      {badge ? (
+        <div className="mt-2">{badge}</div>
+      ) : meta ? (
+        <p
+          className={cn(
+            "text-[10px] mt-1 truncate max-w-full",
+            state === "current" ? "text-primary" : "text-muted-foreground",
+          )}
+        >
+          {meta}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -45,12 +59,19 @@ function Connector({ filled }: { filled: boolean }) {
 export type CampaignGatesCardProps = {
   clientApprovedAt: string | null;
   planApprovedAt: string | null;
+  /** Quando o plano foi congelado (snapshot_locked_at). */
+  planFrozenAt?: string | null;
   ecoDispatchedAt: string | null;
   collectionMode?: string | null;
   status?: string | null;
   baselineReady?: boolean;
   baselineCollected?: number;
   baselineRequired?: number;
+  baselineCapturedAt?: string | null;
+  baselineTotalStreams?: number | null;
+  baselinePlaylistsCount?: number | null;
+  /** Streams já entregues — usado pra marcar a etapa final "Em entrega". */
+  delivered?: number;
   onApprovePlan: () => void;
   onDispatch: () => void;
   approvingPlan: boolean;
@@ -63,12 +84,17 @@ const fmt = (iso: string) =>
 export function CampaignGatesCard({
   clientApprovedAt,
   planApprovedAt,
+  planFrozenAt = null,
   ecoDispatchedAt,
   collectionMode,
   status,
   baselineReady = true,
   baselineCollected = 0,
   baselineRequired = 0,
+  baselineCapturedAt = null,
+  baselineTotalStreams = null,
+  baselinePlaylistsCount = null,
+  delivered = 0,
   onApprovePlan,
   onDispatch,
   approvingPlan,
@@ -79,104 +105,218 @@ export function CampaignGatesCard({
   const isClosed = status === "completed" || status === "cancelled";
 
   const clientDone = !!clientApprovedAt || isLive || isClosed;
-  // Don't infer plan/dispatch from isLive — a campaign can be active without these timestamps
-  // (recovery scenario), and we must keep the CTAs visible so the user can finish the flow.
   const planDone = !!planApprovedAt || isClosed;
-  // Spreadsheet campaigns don't have an eco dispatch — once plan approved + active, the third gate represents "coleta ativa".
+  // Plano congelado: snapshot_locked_at OU já tem dispatch/baseline (pré-requisito).
+  const frozenDone =
+    !!planFrozenAt || !!ecoDispatchedAt || !!baselineCapturedAt || isClosed;
+  const baselineDone = baselineReady || isClosed;
   const dispatchDone =
     !!ecoDispatchedAt ||
     (isSpreadsheet && planDone && (isLive || isClosed)) ||
     status === "completed";
+  const deliveryDone = delivered > 0 || isClosed;
 
   const state1: GateState = clientDone ? "done" : "current";
   const state2: GateState = planDone ? "done" : clientDone ? "current" : "locked";
-  const state3: GateState = dispatchDone ? "done" : planDone && (isSpreadsheet || baselineReady) ? "current" : "locked";
+  const state3: GateState = frozenDone ? "done" : planDone ? "current" : "locked";
+  const state4: GateState = baselineDone
+    ? "done"
+    : frozenDone
+      ? "current"
+      : "locked";
+  const state5: GateState = dispatchDone
+    ? "done"
+    : baselineDone || (isSpreadsheet && planDone)
+      ? "current"
+      : "locked";
+  const state6: GateState = deliveryDone
+    ? "done"
+    : dispatchDone
+      ? "current"
+      : "locked";
 
-  // Hide CTAs only when the gate is genuinely completed (or campaign closed).
+  // CTA visível: aprovar plano (gate 2) ou iniciar distribuição (gate 5).
   const nextAction: "plan" | "dispatch" | null = isClosed
     ? null
     : dispatchDone
       ? null
       : planDone
-        ? (isSpreadsheet || baselineReady ? "dispatch" : null)
+        ? isSpreadsheet || baselineReady
+          ? "dispatch"
+          : null
         : clientDone
           ? "plan"
           : null;
 
+  // Header status pill.
+  const headerStatus: { label: string; tone: "live" | "ok" | "wait" } = isClosed
+    ? { label: "Encerrada", tone: "ok" }
+    : deliveryDone
+      ? { label: "Em entrega", tone: "live" }
+      : dispatchDone
+        ? { label: "Coletando", tone: "live" }
+        : { label: "Em preparo", tone: "wait" };
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
-      <div className="flex items-start justify-between gap-3 mb-4 flex-wrap">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap mb-1">
-            <div className="text-sm font-semibold text-foreground">Portões da campanha</div>
-            {collectionMode && <CollectionSourceBadge collectionMode={collectionMode} />}
+    <div className="rounded-2xl border border-border bg-card p-6">
+      {/* Header */}
+      <div className="flex justify-between items-start gap-3 mb-8 flex-wrap">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h3 className="text-sm font-semibold tracking-tight text-foreground">
+              Portões da campanha
+            </h3>
+            {collectionMode ? <CollectionSourceBadge collectionMode={collectionMode} /> : null}
           </div>
-          <div className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground mt-1">
             {isClosed
               ? "Campanha encerrada."
               : isLive
                 ? isSpreadsheet
-                  ? "Campanha no ar — coleta via planilha (cliente envia atualizações no portal)."
-                  : "Campanha no ar — coleta ativa nas playlists."
+                  ? "Cliente envia atualizações via planilha no portal."
+                  : "Coleta automática rodando nas playlists."
                 : nextAction === "dispatch"
                   ? "Baseline capturada. Falta apenas iniciar a distribuição."
                   : nextAction === "plan"
-                    ? "Cliente já aprovou. Confirme o plano internamente para liberar a distribuição."
-                  : planDone && !isSpreadsheet && !baselineReady
-                    ? `Aguardando baseline: ${baselineCollected}/${baselineRequired} playlist(s) coletada(s).`
-                    : "Aguardando o cliente aprovar o plano público."}
-          </div>
+                    ? "Cliente aprovou. Confirme o plano internamente pra liberar a distribuição."
+                    : planDone && !isSpreadsheet && !baselineReady
+                      ? `Aguardando baseline: ${baselineCollected}/${baselineRequired} playlist(s).`
+                      : "Aguardando aprovação do cliente."}
+          </p>
         </div>
-        {(dispatchDone || isLive) && (
-          <div className="hidden sm:flex items-center gap-1.5 text-xs text-primary shrink-0">
-            <CheckCircle2 className="h-3.5 w-3.5" /> {isClosed ? "Encerrada" : "No ar"}
-          </div>
-        )}
+        <div
+          className={cn(
+            "flex items-center gap-1.5 text-xs font-medium shrink-0",
+            headerStatus.tone === "live" && "text-primary",
+            headerStatus.tone === "ok" && "text-primary",
+            headerStatus.tone === "wait" && "text-muted-foreground",
+          )}
+        >
+          <span
+            className={cn(
+              "w-1.5 h-1.5 rounded-full",
+              headerStatus.tone === "live" && "bg-primary animate-pulse",
+              headerStatus.tone === "ok" && "bg-primary",
+              headerStatus.tone === "wait" && "bg-muted-foreground",
+            )}
+          />
+          {headerStatus.label}
+        </div>
       </div>
 
-      <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-0">
-        <GateNode
-          index={1}
-          state={state1}
+      {/* Pipeline */}
+      <div className="relative flex justify-between items-start">
+        {/* Conector base (cinza) */}
+        <div className="absolute top-4 left-[8%] right-[8%] h-[2px] bg-border z-0" />
+        {/* Conector preenchido (verde) — proporcional aos steps concluídos */}
+        <div
+          className="absolute top-4 left-[8%] h-[2px] bg-primary z-0 transition-all"
+          style={{
+            width: `${(([state1, state2, state3, state4, state5, state6].filter((s) => s === "done").length / 5) * 84).toFixed(2)}%`,
+          }}
+        />
+
+        <Step
           title="Cliente aprovou"
-          hint="Aprovação no portal público"
-          meta={clientApprovedAt ? `há ${relTime(clientApprovedAt)} — ${fmt(clientApprovedAt)}` : isLive ? "Concluído" : "Aguardando"}
+          state={state1}
+          meta={
+            clientApprovedAt
+              ? `há ${relTime(clientApprovedAt)} — ${fmtShort(clientApprovedAt)}`
+              : isLive
+                ? "Concluído"
+                : "Aguardando"
+          }
         />
-        <Connector filled={clientDone} />
-        <GateNode
-          index={2}
+        <Step
+          title="Plano interno"
           state={state2}
-          title="Plano interno aprovado"
-          hint="Cria o deal e trava o plano"
-          meta={planApprovedAt ? `há ${relTime(planApprovedAt)} — ${fmt(planApprovedAt)}` : isLive ? "Concluído" : clientDone ? "Pronto pra você aprovar" : "Bloqueado"}
+          meta={
+            planApprovedAt
+              ? `há ${relTime(planApprovedAt)} — ${fmtShort(planApprovedAt)}`
+              : clientDone
+                ? "Pronto pra aprovar"
+                : "Bloqueado"
+          }
         />
-        <Connector filled={planDone} />
-        <GateNode
-          index={3}
+        <Step
+          title="Plano congelado"
           state={state3}
-          title={isSpreadsheet ? "Coleta ativa" : "Distribuição iniciada"}
-          hint={isSpreadsheet ? "Cliente envia planilhas no portal" : "Inserção nas playlists"}
+          meta={
+            planFrozenAt
+              ? `há ${relTime(planFrozenAt)} — ${fmtShort(planFrozenAt)}`
+              : frozenDone
+                ? "Congelado"
+                : planDone
+                  ? "Próximo passo"
+                  : "Bloqueado"
+          }
+        />
+        <Step
+          title="Baseline capturada"
+          state={state4}
+          meta={
+            baselineDone
+              ? baselineCapturedAt
+                ? `há ${relTime(baselineCapturedAt)}`
+                : "Capturada"
+              : frozenDone
+                ? `${baselineCollected}/${baselineRequired || "—"}`
+                : "Bloqueado"
+          }
+          badge={
+            baselineDone && (baselineTotalStreams || baselinePlaylistsCount) ? (
+              <div className="px-2 py-1 rounded-md bg-background border border-border tabular-nums">
+                {baselineTotalStreams ? (
+                  <div className="text-[9px] font-bold text-foreground">
+                    {compact(baselineTotalStreams)} streams
+                  </div>
+                ) : null}
+                {baselinePlaylistsCount ? (
+                  <div className="text-[8px] text-muted-foreground">
+                    {formatInt(baselinePlaylistsCount)} playlists
+                  </div>
+                ) : null}
+              </div>
+            ) : null
+          }
+        />
+        <Step
+          title={isSpreadsheet ? "Coleta Excel" : "Coleta Spotify"}
+          state={state5}
           meta={
             ecoDispatchedAt
-              ? `há ${relTime(ecoDispatchedAt)} — ${fmt(ecoDispatchedAt)}`
+              ? `há ${relTime(ecoDispatchedAt)}`
               : isSpreadsheet && (isLive || isClosed)
                 ? "Recebendo planilhas"
-                : isLive
-                  ? "Em andamento"
-                  : planDone && !isSpreadsheet && !baselineReady ? `${baselineCollected}/${baselineRequired} baseline` : planDone ? "Pronto pra iniciar" : "Bloqueado"
+                : dispatchDone
+                  ? "Rodando"
+                  : state5 === "current"
+                    ? "Ativa agora"
+                    : "Bloqueado"
+          }
+        />
+        <Step
+          title="Em entrega"
+          state={state6}
+          meta={
+            deliveryDone
+              ? `${formatInt(delivered)} streams`
+              : state6 === "current"
+                ? "Aguardando 1ª leitura"
+                : "Pendente"
           }
         />
       </div>
 
-      {nextAction && (
-        <div className="mt-5 pt-4 border-t border-border flex items-center justify-between gap-3 flex-wrap">
+      {/* CTA */}
+      {nextAction ? (
+        <div className="mt-6 pt-4 border-t border-border flex items-center justify-between gap-3 flex-wrap">
           <div className="text-xs text-muted-foreground flex items-center gap-1.5 min-w-0">
             <Clock className="h-3.5 w-3.5 shrink-0" />
             <span className="truncate">
               {nextAction === "dispatch"
                 ? "A inserção começa no próximo ciclo (~1min)."
-                : "Aprovar plano cria o deal do curador e libera o passo 3."}
+                : "Aprovar plano cria o deal do curador e libera os próximos passos."}
             </span>
           </div>
           {nextAction === "plan" ? (
@@ -201,7 +341,7 @@ export function CampaignGatesCard({
             </Button>
           )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -214,4 +354,14 @@ function relTime(iso: string): string {
   if (h < 48) return `${h}h`;
   const d = Math.round(h / 24);
   return `${d}d`;
+}
+
+function fmtShort(iso: string): string {
+  return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+}
+
+function compact(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(".0", "")}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(".0", "")}k`;
+  return String(n);
 }
