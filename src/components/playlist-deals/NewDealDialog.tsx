@@ -2019,39 +2019,8 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
                 })}
               </div>
             </div>
-
-            <DialogFooter className="gap-2 sm:gap-2 sm:justify-between">
-              {!isEdit ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setStep(1)}
-                  disabled={submitting}
-                  className="gap-1.5"
-                >
-                  <ChevronLeft className="h-4 w-4" /> Voltar
-                </Button>
-              ) : (
-                <span />
-              )}
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => handleOpenChange(false)}
-                  disabled={submitting}
-                >
-                  Cancelar
-                </Button>
-                <Button type="button" onClick={onSubmit} disabled={submitting}>
-                  {submitting && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
-                  {isEdit ? "Salvar alterações" : "Salvar deal"}
-                </Button>
-              </div>
-            </DialogFooter>
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+    </FormModal>
   );
 }
