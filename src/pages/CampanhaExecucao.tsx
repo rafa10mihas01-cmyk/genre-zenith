@@ -671,6 +671,32 @@ export default function CampanhaExecucao() {
   const { data: radioCollected } = useRadioCollected(camp?.id);
   const radioDelta = Math.max(0, radioCollected?.radio_delta ?? 0);
 
+  const topDeliveringPlaylists = useMemo(() => {
+    const allocBySpotifyId = new Map<string, EcoAllocation>();
+    for (const a of allocs) {
+      const spid = a.managed_playlists?.spotify_playlist_id;
+      if (spid) allocBySpotifyId.set(spid, a);
+    }
+    return playlistGrowthRows
+      .filter((r) => Math.max(0, Number(r.delta ?? 0)) > 0)
+      .filter((r) => {
+        const tag = r.attributed_to ?? "";
+        return tag === "ecosystem" || tag.startsWith("curator:") || (!!r.playlist_id && allocBySpotifyId.has(r.playlist_id));
+      })
+      .map((r) => {
+        const alloc = r.playlist_id ? allocBySpotifyId.get(r.playlist_id) : undefined;
+        return {
+          name: alloc?.managed_playlists?.name ?? r.current_name ?? "Playlist",
+          image_url: alloc?.managed_playlists?.cover_url ?? null,
+          delivered: Math.max(0, Number(r.delta ?? 0)),
+          planned: alloc?.planned_streams ?? null,
+          current: r.current_plays ?? null,
+          baseline: r.baseline_plays ?? null,
+          lastDelta: r.last_import_delta ?? r.delta ?? null,
+        };
+      });
+  }, [allocs, playlistGrowthRows]);
+
 
   // Soma dos plays_7d mais recentes por playlist em organic_plays_snapshots —
   // alimenta o label "coletado" da linha Rádio/Orgânico no plano completo.
