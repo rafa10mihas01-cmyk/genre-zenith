@@ -248,7 +248,7 @@ export function CampaignGatesCard({
               ? baselineCapturedAt
                 ? `há ${relTime(baselineCapturedAt)}`
                 : "Capturada"
-              : frozenDone
+              : planDone
                 ? `${baselineCollected}/${baselineRequired || "—"}`
                 : "Bloqueado"
           }
@@ -270,31 +270,16 @@ export function CampaignGatesCard({
           }
         />
         <Step
-          title={isSpreadsheet ? "Coleta Excel" : "Coleta Spotify"}
-          state={state5}
-          meta={
-            ecoDispatchedAt
-              ? `há ${relTime(ecoDispatchedAt)}`
-              : isSpreadsheet && (isLive || isClosed)
-                ? "Recebendo planilhas"
-                : dispatchDone
-                  ? "Rodando"
-                  : state5 === "current"
-                    ? "Ativa agora"
-                    : "Bloqueado"
-          }
-        />
-        <Step
           title="No ar"
-          state={state6}
+          state={state5}
           meta={
             isClosed
               ? "Encerrada"
               : isAir
                 ? "Ativa"
-                : dispatchDone
-                  ? "Subindo"
-                  : "Aguardando"
+                : state5 === "current"
+                  ? "Aguardando subir"
+                  : "Bloqueado"
           }
         />
       </div>
