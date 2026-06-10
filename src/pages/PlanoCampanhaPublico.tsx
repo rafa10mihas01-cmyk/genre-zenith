@@ -45,20 +45,15 @@ import { distributeEcoPositions, chartTierFromTopPosition } from "@/lib/campaign
 import { ClientHeroCard } from "@/components/campaign-hub/ClientHeroCard";
 import { SpreadsheetUploadCard } from "@/components/client-portal/SpreadsheetUploadCard";
 import { CampaignAccessGate, accessStorageKey } from "@/components/client-portal/CampaignAccessGate";
+import {
+  portalHeaders,
+  clearPortalSession,
+  isPortalAuthError,
+  isLocalStorageAvailable,
+  logPortalAuth,
+  getPortalJwt,
+} from "@/lib/portalSession";
 
-// Lê JWT salvo do gate e devolve cabeçalho Authorization. Sem JWT → objeto vazio.
-function portalHeaders(token: string | undefined): Record<string, string> {
-  if (!token) return {};
-  try {
-    const raw = localStorage.getItem(`campaign_access_jwt:${token}`);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as { jwt?: string; exp?: number };
-    if (parsed?.jwt && parsed?.exp && parsed.exp > Date.now()) {
-      return { Authorization: `Bearer ${parsed.jwt}` };
-    }
-  } catch { /* ignore */ }
-  return {};
-}
 import { MonitoredPlaylistsCard, type MonitoredPlaylist } from "@/components/client-portal/MonitoredPlaylistsCard";
 import { AlgorithmicImpactCard } from "@/components/client-portal/AlgorithmicImpactCard";
 import { PrintsHistoryCard, type PrintsHistoryEntry } from "@/components/client-portal/PrintsHistoryCard";
