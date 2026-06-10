@@ -62,17 +62,19 @@ export function FinanceTab({ campaignId, snapshot, clientPriceTotal }: Props) {
     <div className="space-y-6">
       {/* BLOCO 1 — KPIs */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <CompactKpi label="Cliente paga" value={formatBRL(clientPriceTotal)} />
-        <CompactKpi label="Seu custo" value={formatBRL(totalCost)} />
+        <CompactKpi label="Cliente paga" value={formatBRL(clientPriceTotal)} accent="revenue" />
+        <CompactKpi label="Seu custo" value={formatBRL(totalCost)} accent="cost" />
         <CompactKpi
           label="Margem"
           value={formatBRL(margem)}
           tone={margem > 0 ? "positive" : margem < 0 ? "negative" : "neutral"}
+          accent="margin"
         />
         <CompactKpi
           label="% Margem"
           value={`${margemPct}%`}
           tone={margemPct > 0 ? "positive" : margemPct < 0 ? "negative" : "neutral"}
+          accent="margin"
         />
       </section>
 
@@ -114,16 +116,39 @@ export function FinanceTab({ campaignId, snapshot, clientPriceTotal }: Props) {
 }
 
 function CompactKpi({
-  label, value, tone = "neutral",
-}: { label: string; value: string; tone?: "positive" | "negative" | "neutral" }) {
+  label, value, tone = "neutral", accent,
+}: {
+  label: string;
+  value: string;
+  tone?: "positive" | "negative" | "neutral";
+  accent?: "revenue" | "cost" | "margin";
+}) {
+  const accentBar =
+    accent === "revenue"
+      ? "before:bg-[hsl(217_91%_60%)]"
+      : accent === "cost"
+        ? "before:bg-[hsl(38_92%_55%)]"
+        : accent === "margin"
+          ? "before:bg-primary"
+          : "before:bg-border";
   return (
-    <div className="rounded-md border border-border/40 bg-background/40 px-4 py-3">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className={cn(
-        "text-xl font-semibold tabular-nums mt-1",
-        tone === "positive" && "text-primary",
-        tone === "negative" && "text-destructive",
-      )}>
+    <div
+      className={cn(
+        "relative overflow-hidden rounded-lg border border-border bg-card px-4 py-3.5",
+        "before:absolute before:inset-y-0 before:left-0 before:w-[3px]",
+        accentBar,
+      )}
+    >
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+        {label}
+      </div>
+      <div
+        className={cn(
+          "text-xl font-semibold tabular-nums mt-1 text-foreground",
+          tone === "positive" && "text-primary",
+          tone === "negative" && "text-destructive",
+        )}
+      >
         {value}
       </div>
     </div>
