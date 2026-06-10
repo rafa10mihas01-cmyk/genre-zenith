@@ -1,7 +1,8 @@
 // CuratorLibraryPanel — corpo reutilizável da biblioteca + saldo do curador.
 // Renderiza KPIs, saldo e catálogo. Sem Sheet/Dialog wrapper — usado tanto pelo
 // CuratorLibrarySheet (drawer legado) quanto pela página dedicada /curadores/:id.
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Plus,
   ExternalLink,
