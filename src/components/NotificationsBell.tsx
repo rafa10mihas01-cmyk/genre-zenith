@@ -14,7 +14,7 @@ import {
   type NotificationDomain,
 } from "@/hooks/useNotifications";
 import { timeAgo } from "@/lib/format";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { enablePush, disablePush, pushEnabled, pushSupport } from "@/lib/browserPush";
 import { toast } from "sonner";
@@ -82,6 +82,7 @@ export function NotificationsBell() {
   const [pushAvail, setPushAvail] = useState(true);
   const [prefsOpen, setPrefsOpen] = useState(false);
   const nav = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     setPushOn(pushEnabled());
@@ -152,10 +153,14 @@ export function NotificationsBell() {
 
   const handleClick = async (n: NotificationRow) => {
     if (!n.read) await markRead(n.id);
-    if (n.action_url) {
+    const copy = friendlyNotification(n);
+    const currentUrl = `${location.pathname}${location.search}`;
+    const actionUrl = copy.actionUrl ?? n.action_url;
+    const targetUrl = actionUrl === currentUrl ? "/sistema?tab=alertas" : actionUrl;
+    if (targetUrl) {
       setOpen(false);
-      if (n.action_url.startsWith("http")) window.open(n.action_url, "_blank");
-      else nav(n.action_url);
+      if (targetUrl.startsWith("http")) window.open(targetUrl, "_blank");
+      else nav(targetUrl);
     }
   };
 

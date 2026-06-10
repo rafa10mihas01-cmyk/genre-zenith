@@ -3,7 +3,7 @@
 // (critical/warning), VPS offline e apps Spotify bloqueados.
 // Se não há nada: mostra estado verde compacto.
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { AlertOctagon, AlertTriangle, CheckCircle2, Loader2, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -40,19 +40,24 @@ const BUSINESS_KINDS = new Set([
   "curator_response",
 ]);
 
+const RECENT_INCIDENT_WINDOW_MS = 24 * 60 * 60 * 1000;
+
 export function AttentionInbox() {
   const [items, setItems] = useState<Incident[] | null>(null);
+  const location = useLocation();
 
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+      const oneDayAgo = new Date(Date.now() - RECENT_INCIDENT_WINDOW_MS).toISOString();
       const [notifs, vpsRes] = await Promise.all([
         supabase
           .from("notifications")
           .select("*")
           .eq("status", "open")
           .in("type", ["critical", "warning"])
+          .gte("created_at", oneDayAgo)
           .order("type", { ascending: true })
           .order("created_at", { ascending: false })
           .limit(20),
@@ -84,15 +89,18 @@ export function AttentionInbox() {
         const kind = String(meta.kind ?? "");
         // Exclui eventos de negócio e domínios não-infra
         if (BUSINESS_KINDS.has(kind)) return;
-        if (domain && !INFRA_DOMAINS.has(domain)) return;
+        if (!domain || !INFRA_DOMAINS.has(domain)) return;
         const copy = friendlyNotification(n);
+        const rawActionUrl = copy.actionUrl ?? n.action_url ?? undefined;
+        const currentUrl = `${location.pathname}${location.search}`;
+        const actionUrl = rawActionUrl === currentUrl ? "/sistema?tab=alertas" : rawActionUrl;
         list.push({
           id: `notif:${n.id}`,
           severity: n.type === "critical" ? "critical" : "warning",
           title: copy.title ?? humanizeFunctionName(kind),
           impact: copy.impact ?? copy.message ?? humanizeError(n.message),
-          actionUrl: copy.actionUrl ?? n.action_url ?? undefined,
-          actionLabel: copy.actionLabel ?? "Resolver",
+          actionUrl,
+          actionLabel: actionUrl === "/sistema?tab=alertas" ? "Detalhes" : copy.actionLabel ?? "Resolver",
           when: n.created_at,
         });
       });
@@ -125,7 +133,7 @@ export function AttentionInbox() {
       cancelled = true;
       clearInterval(t);
     };
-  }, []);
+  }, [location.pathname, location.search]);
 
   if (items === null) {
     return (

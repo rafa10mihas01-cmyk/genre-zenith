@@ -128,6 +128,8 @@ const BY_KIND: Record<string, Rewriter> = {
       impact: "Tarefas dependentes podem ficar desatualizadas.",
       systemWorking: true,
       actionRequired: false,
+      actionLabel: "Ver motores",
+      actionUrl: "/sistema?tab=motores",
     };
   },
   jobs_scheduler_retry: () => ({
