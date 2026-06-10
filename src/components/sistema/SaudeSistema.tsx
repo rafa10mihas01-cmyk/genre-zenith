@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { timeAgo, formatNumber } from "@/lib/format";
 import { BotSaudeCard } from "./BotSaudeCard";
+import { humanizeError, humanizeFunctionName } from "@/lib/operationalCopy";
 
 type Health = {
   spotify: { ok: boolean; expires_at?: string; expired?: boolean; last_verified?: string };
