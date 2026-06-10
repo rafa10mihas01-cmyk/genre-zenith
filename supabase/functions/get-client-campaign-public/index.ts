@@ -368,6 +368,7 @@ Deno.serve(async (req) => {
     // "Pré-campanha · subiu posição" no portal do cliente.
     const baselinePlaylistIds = new Set<string>();
     {
+      // Fonte primária: curator_deal_baseline_playlists (quando populada).
       let bq = admin
         .from("curator_deal_baseline_playlists")
         .select("spotify_playlist_id, song_id")
@@ -378,6 +379,24 @@ Deno.serve(async (req) => {
       const { data: baselineRows } = await bq;
       for (const r of (baselineRows ?? []) as AnyRec[]) {
         const k = String(r.spotify_playlist_id ?? "");
+        if (k) baselinePlaylistIds.add(k);
+      }
+
+      // Fallback: deriva da primeira coleta marcada como is_baseline em
+      // curator_deal_snapshots — cobre deals antigos sem registro explícito.
+      let sq = admin
+        .from("curator_deal_snapshots")
+        .select("plays, playlist_id, song_id, curator_playlists!inner(spotify_playlist_id)")
+        .eq("deal_id", dealId!)
+        .eq("is_baseline", true)
+        .gt("plays", 0);
+      if (selectedSongId && activeSong) {
+        sq = sq.eq("song_id", selectedSongId);
+      }
+      const { data: snapBaseline } = await sq;
+      for (const r of (snapBaseline ?? []) as AnyRec[]) {
+        const pl = (r.curator_playlists ?? {}) as AnyRec;
+        const k = String(pl.spotify_playlist_id ?? "");
         if (k) baselinePlaylistIds.add(k);
       }
     }
