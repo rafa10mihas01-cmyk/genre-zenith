@@ -91,12 +91,12 @@ export function SpotifyAppsPanel() {
             <h3 className="text-sm font-semibold">Apps Spotify</h3>
             {blocked > 0 && (
               <Badge variant="outline" className="border-destructive/40 text-destructive text-[10px]">
-                {blocked} bloqueado{blocked > 1 ? "s" : ""}
+                {blocked} aguardando liberação
               </Badge>
             )}
             {attention > 0 && (
               <Badge variant="outline" className="border-warning/40 text-warning text-[10px]">
-                {attention} em atenção
+                {attention} em observação
               </Badge>
             )}
           </div>
