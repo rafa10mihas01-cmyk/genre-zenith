@@ -236,6 +236,10 @@ export function ExecucaoView({
         const hasData = r.baseline_plays != null || r.current_plays != null;
         if (statusFilter === "no_data") {
           if (hasData) return false;
+        } else if (statusFilter === "pre_campaign") {
+          // Música já estava nessa playlist antes da campanha — curador deve subir posição.
+          if (!r.attributed_to.startsWith("curator:")) return false;
+          if (!(Number(r.baseline_plays ?? 0) > 0)) return false;
         } else {
           const st = r.attributed_curator_id ? statuses[`${r.attributed_curator_id}::${r.playlist_id}`] ?? "pending_match" : null;
           if (st !== statusFilter) return false;
