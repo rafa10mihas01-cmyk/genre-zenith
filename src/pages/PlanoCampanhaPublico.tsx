@@ -288,17 +288,16 @@ export default function PlanoCampanhaPublico() {
   // Só carrega dados depois que o gate liberou (mapa libera de cara).
   useEffect(() => { if (gateAuthed) load(); /* eslint-disable-next-line */ }, [token, gateAuthed]);
 
-  // Após termos o client_token (resolvido pela edge get-shared-campaign-plan),
-  // buscamos o payload público sanitizado para alimentar as listas de
-  // "Playlists monitoradas" e "Histórico de prints" — mesma UI da página
-  // antiga /campanha/:token, sem duplicar lógica.
+  // Carrega o payload público sanitizado em paralelo ao plano principal.
+  // Antes dependia do client_token vindo de get-shared-campaign-plan; isso
+  // criava cascata e deixava a aba Curadores presa no skeleton.
   useEffect(() => {
-    if (!clientToken) return;
+    if (!token || !gateAuthed || isMapView) return;
     let cancelled = false;
     setLivePlaylistsLoading(true);
     (async () => {
       const { data } = await supabase.functions.invoke("get-client-campaign-public", {
-        body: { client_token: clientToken },
+        body: { public_plan_token: token },
         headers: portalHeaders(token),
       });
       if (cancelled) return;
@@ -314,7 +313,7 @@ export default function PlanoCampanhaPublico() {
       setLivePlaylistsLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [clientToken]);
+  }, [token, gateAuthed, isMapView]);
 
   // Fonte de verdade do "Entregue" — mesma usada na Execução / OverviewTab / Lista de Campanhas.
   // Substitui campaigns.total_delivered (legado).
