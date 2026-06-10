@@ -123,6 +123,26 @@ Deno.serve(async (req) => {
     clientType = (cli?.client_type as string | null) ?? null;
   }
 
+  // Total entregue visível ao cliente: fonte de verdade é o Growth Engine
+  // (curadores + ecossistema). `campaigns.total_delivered` é legado/cache e
+  // pode chegar zerado no portal, apesar das playlists já terem coleta.
+  let operationalDelivered: number | null = null;
+  try {
+    const { data: growthRows } = await supabase
+      .from("vw_campaign_playlist_growth")
+      .select("attributed_to, delta, delivery_accumulated")
+      .eq("campaign_id", campRaw.id);
+    let total = 0;
+    for (const r of (growthRows ?? []) as Array<{ attributed_to?: string | null; delta?: number | null; delivery_accumulated?: number | null }>) {
+      const at = r.attributed_to ?? "";
+      if (at === "organic") continue;
+      if (at === "ecosystem" || at.startsWith("curator:")) {
+        total += Math.max(0, Number(r.delta ?? r.delivery_accumulated ?? 0));
+      }
+    }
+    operationalDelivered = total;
+  } catch (_) { /* fallback para campaigns.total_delivered */ }
+
   // Payload sanitizado — sem custos, sem margens, sem campos internos.
   const camp = {
     id: campRaw.id,
@@ -136,7 +156,7 @@ Deno.serve(async (req) => {
     status: campRaw.status,
     started_at: campRaw.started_at,
     deadline: campRaw.deadline,
-    total_delivered: campRaw.total_delivered,
+    total_delivered: operationalDelivered ?? Number(campRaw.total_delivered ?? 0),
     client_approved_at: campRaw.client_approved_at,
     client_rejected_at: campRaw.client_rejected_at,
     client_adjustment_request: campRaw.client_adjustment_request,
