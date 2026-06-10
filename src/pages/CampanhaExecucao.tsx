@@ -67,6 +67,16 @@ type EcoSnap = {
   source?: string | null;
 };
 
+type PlaylistGrowthRow = {
+  playlist_id: string | null;
+  current_name: string | null;
+  attributed_to: string | null;
+  delta: number | null;
+  current_plays: number | null;
+  baseline_plays: number | null;
+  last_import_delta: number | null;
+};
+
 type DeliveryProof = {
   id: string;
   playlist_id: string;
@@ -612,6 +622,7 @@ export default function CampanhaExecucao() {
   //   - organic      → playlists sem dono, detectadas pelo bot (NÃO entra no KPI principal)
   // O header soma APENAS curadores + ecossistema. Orgânico aparece como subtexto auditável.
   const [deliveryBreakdown, setDeliveryBreakdown] = useState<{ curators: number; ecosystem: number; organic: number } | null>(null);
+  const [playlistGrowthRows, setPlaylistGrowthRows] = useState<PlaylistGrowthRow[]>([]);
   const [priorPlaylistIds, setPriorPlaylistIds] = useState<Set<string>>(new Set());
   useEffect(() => {
     if (!camp?.id) return;
@@ -620,12 +631,13 @@ export default function CampanhaExecucao() {
       try {
         const { data } = await (supabase as any)
           .from("vw_campaign_playlist_growth")
-          .select("delta, attributed_to, playlist_id, baseline_plays")
+          .select("playlist_id, current_name, attributed_to, delta, current_plays, baseline_plays, last_import_delta")
           .eq("campaign_id", camp.id);
         if (cancel) return;
         const acc = { curators: 0, ecosystem: 0, organic: 0 };
         const prior = new Set<string>();
-        for (const r of (data ?? []) as Array<{ delta: number | null; attributed_to: string | null; playlist_id: string | null; baseline_plays: number | null }>) {
+        const rows = (data ?? []) as PlaylistGrowthRow[];
+        for (const r of rows) {
           const v = Math.max(0, Number(r.delta ?? 0));
           const tag = r.attributed_to ?? "";
           if (v > 0) {
@@ -638,9 +650,11 @@ export default function CampanhaExecucao() {
           }
         }
         setDeliveryBreakdown(acc);
+        setPlaylistGrowthRows(rows);
         setPriorPlaylistIds(prior);
       } catch (e) {
         console.warn("[CampanhaExecucao] growth view fetch failed", e);
+        setPlaylistGrowthRows([]);
       }
     })();
     return () => { cancel = true; };
@@ -656,6 +670,32 @@ export default function CampanhaExecucao() {
   // Rádio Spotify — baseline ancorada na ativação da campanha (atual - início).
   const { data: radioCollected } = useRadioCollected(camp?.id);
   const radioDelta = Math.max(0, radioCollected?.radio_delta ?? 0);
+
+  const topDeliveringPlaylists = useMemo(() => {
+    const allocBySpotifyId = new Map<string, EcoAllocation>();
+    for (const a of allocs) {
+      const spid = a.managed_playlists?.spotify_playlist_id;
+      if (spid) allocBySpotifyId.set(spid, a);
+    }
+    return playlistGrowthRows
+      .filter((r) => Math.max(0, Number(r.delta ?? 0)) > 0)
+      .filter((r) => {
+        const tag = r.attributed_to ?? "";
+        return tag === "ecosystem" || tag.startsWith("curator:") || (!!r.playlist_id && allocBySpotifyId.has(r.playlist_id));
+      })
+      .map((r) => {
+        const alloc = r.playlist_id ? allocBySpotifyId.get(r.playlist_id) : undefined;
+        return {
+          name: alloc?.managed_playlists?.name ?? r.current_name ?? "Playlist",
+          image_url: alloc?.managed_playlists?.cover_url ?? null,
+          delivered: Math.max(0, Number(r.delta ?? 0)),
+          planned: alloc?.planned_streams ?? null,
+          current: r.current_plays ?? null,
+          baseline: r.baseline_plays ?? null,
+          lastDelta: r.last_import_delta ?? r.delta ?? null,
+        };
+      });
+  }, [allocs, playlistGrowthRows]);
 
 
   // Soma dos plays_7d mais recentes por playlist em organic_plays_snapshots —
@@ -829,6 +869,7 @@ export default function CampanhaExecucao() {
                 hideCurveCard
                 allocations={allocs}
                 snapshots={snaps}
+                topDeliveringPlaylists={topDeliveringPlaylists}
                 radioDelta={radioDelta}
                 deliveryBreakdown={deliveryBreakdown}
 
