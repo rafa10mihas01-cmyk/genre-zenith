@@ -115,6 +115,33 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
   const [buyNote, setBuyNote] = useState("");
   const [buying, setBuying] = useState(false);
 
+  type PurchaseRow = {
+    id: string;
+    plays_purchased: number;
+    amount: number;
+    note: string | null;
+    purchased_at: string;
+  };
+  const [purchases, setPurchases] = useState<PurchaseRow[]>([]);
+  const [purchasesLoading, setPurchasesLoading] = useState(true);
+
+  const loadPurchases = async () => {
+    setPurchasesLoading(true);
+    const { data, error } = await supabase
+      .from("curator_purchases")
+      .select("id, plays_purchased, amount, note, purchased_at")
+      .eq("curator_id", curator.id)
+      .order("purchased_at", { ascending: false })
+      .limit(20);
+    if (!error && data) setPurchases(data as PurchaseRow[]);
+    setPurchasesLoading(false);
+  };
+
+  useEffect(() => {
+    loadPurchases();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [curator.id]);
+
   const handleBuy = async () => {
     if (!onAddPurchase) return;
     const plays = parseInt(buyPlays.replace(/\D/g, ""), 10) || 0;
