@@ -135,7 +135,23 @@ export function CampaignAccessGate({ token, onAuthed }: Props) {
         </div>
         <Card>
           <CardContent className="p-6 space-y-5">
+            {!storageOk && (
+              <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-200 flex gap-2">
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                <div className="space-y-2">
+                  <p>
+                    <strong>Seu navegador está bloqueando o armazenamento necessário para manter sua sessão.</strong>
+                  </p>
+                  <p className="text-amber-100/80">
+                    Por isso, mesmo após digitar o código, a página vai pedir tudo de novo no próximo refresh.
+                    Abra este link diretamente no <strong>Chrome</strong> ou <strong>Safari</strong> — saia do
+                    navegador interno do WhatsApp, Instagram ou Gmail antes de continuar.
+                  </p>
+                </div>
+              </div>
+            )}
             {step === "email" ? (
+
               <>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Mail className="h-4 w-4" /> Acesso ao portal da campanha
