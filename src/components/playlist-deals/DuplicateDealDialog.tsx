@@ -2,14 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Search, Music2, Copy as CopyIcon } from "lucide-react";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { FormModal } from "@/components/ui/form-modal";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
