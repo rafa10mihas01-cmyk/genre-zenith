@@ -2,14 +2,33 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Activity, ChevronDown, Image as ImageIcon, Users, Layers, HeartPulse, BarChart3, CheckCircle2 } from "lucide-react";
+import { Activity, ChevronDown, Image as ImageIcon, Users, Layers, HeartPulse, BarChart3, CheckCircle2, FileSpreadsheet, Download, Loader2 } from "lucide-react";
 import { ExecucaoView } from "./ExecucaoView";
 import { PlaylistHistoryDrawer } from "./PlaylistHistoryDrawer";
 import { PrintThumbs } from "@/components/playlist-deals/PrintThumbs";
 import { SaudeView } from "./SaudeView";
+import { useUserRole } from "@/hooks/useUserRole";
+import { toast } from "sonner";
 
-type Props = { campaignId: string; headerSlot?: React.ReactNode };
+export type MonitoramentoSpreadsheetUpload = {
+  id: string;
+  created_at: string;
+  rows_imported: number;
+  total_streams: number;
+  file_name: string | null;
+  file_path?: string | null;
+  is_baseline?: boolean | null;
+};
+
+type Props = {
+  campaignId: string;
+  headerSlot?: React.ReactNode;
+  /** Quando passado (modo planilha), lista de uploads aparece dentro do expand da Baseline. */
+  spreadsheetUploads?: MonitoramentoSpreadsheetUpload[];
+};
+
 
 type BaselineTone = "success" | "warning" | "muted";
 
@@ -21,7 +40,7 @@ type SnapshotRun = {
   print_count: number | null;
 };
 
-export function MonitoramentoTab({ campaignId, headerSlot }: Props) {
+export function MonitoramentoTab({ campaignId, headerSlot, spreadsheetUploads }: Props) {
   const [kpis, setKpis] = useState<{ status: string | null; capturedAt: string | null; playlists: number }>({
     status: null,
     capturedAt: null,
@@ -133,6 +152,7 @@ export function MonitoramentoTab({ campaignId, headerSlot }: Props) {
         playlists={kpis.playlists}
         runs={runs}
         runsLoading={runsLoading}
+        spreadsheetUploads={spreadsheetUploads}
       />
       {headerSlot}
 
@@ -178,7 +198,7 @@ const TONE_TEXT: Record<BaselineTone, string> = {
 };
 
 function BaselineStatus({
-  tone, label, capturedAt, playlists, runs, runsLoading,
+  tone, label, capturedAt, playlists, runs, runsLoading, spreadsheetUploads,
 }: {
   tone: BaselineTone;
   label: string;
@@ -186,7 +206,37 @@ function BaselineStatus({
   playlists: number;
   runs: SnapshotRun[];
   runsLoading: boolean;
+  spreadsheetUploads?: MonitoramentoSpreadsheetUpload[];
 }) {
+  const { isAdmin } = useUserRole();
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  const handleDownloadUpload = async (u: MonitoramentoSpreadsheetUpload) => {
+    if (!u.file_path) {
+      toast.error("Arquivo original não disponível pra esse upload");
+      return;
+    }
+    setDownloadingId(u.id);
+    try {
+      const { data, error } = await supabase.storage
+        .from("label-spreadsheets")
+        .createSignedUrl(u.file_path, 60);
+      if (error || !data?.signedUrl) throw error ?? new Error("Falha ao gerar link");
+      const a = document.createElement("a");
+      a.href = data.signedUrl;
+      a.download = u.file_name ?? "planilha.xlsx";
+      a.target = "_blank";
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao baixar planilha");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
   const totalPrints = runs.reduce((acc, r) => acc + (r.print_urls?.length ?? 0), 0);
   const latestRunAt = runs[0]?.created_at ?? null;
 
@@ -249,7 +299,63 @@ function BaselineStatus({
 
 
 
-        <div className="border-t border-border/60 px-4 py-4 bg-background/40 space-y-3 max-h-[60vh] overflow-y-auto overscroll-contain">
+        <div className="border-t border-border/60 px-4 py-4 bg-background/40 space-y-4 max-h-[60vh] overflow-y-auto overscroll-contain">
+
+          {/* Planilhas enviadas (só aparece no modo manual/planilha — automático não passa essa prop). */}
+          {spreadsheetUploads && spreadsheetUploads.length > 0 && (
+            <div className="rounded-lg border border-border/60 bg-card/40 p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <FileSpreadsheet className="h-3.5 w-3.5 text-domain-campaigns" />
+                <div className="text-[12px] font-semibold text-foreground">Planilhas enviadas</div>
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground ml-auto">
+                  {spreadsheetUploads.length} {spreadsheetUploads.length === 1 ? "envio" : "envios"}
+                </span>
+              </div>
+              {/* ~5 visíveis (cada item ~32px) — resto com scroll. */}
+              <ul className="space-y-1 max-h-[180px] overflow-y-auto overscroll-contain pr-1">
+                {spreadsheetUploads.map((u) => {
+                  const dt = new Date(u.created_at);
+                  return (
+                    <li
+                      key={u.id}
+                      className="flex items-center gap-2 text-[12px] text-muted-foreground rounded-md px-2 py-1.5 hover:bg-muted/20"
+                    >
+                      <span className="tabular-nums shrink-0 w-[120px] text-foreground/80">
+                        {dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                      {u.is_baseline && (
+                        <span className="text-[9.5px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded border border-primary/40 text-primary leading-none shrink-0">
+                          baseline
+                        </span>
+                      )}
+                      <span className="flex-1 text-right tabular-nums truncate">
+                        {u.rows_imported} playlists · {new Intl.NumberFormat("pt-BR").format(Math.round(u.total_streams))} streams
+                      </span>
+                      {isAdmin && u.file_path && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground shrink-0"
+                          onClick={() => handleDownloadUpload(u)}
+                          disabled={downloadingId === u.id}
+                          title={u.file_name ?? "Baixar planilha original"}
+                        >
+                          {downloadingId === u.id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Download className="h-3 w-3" />
+                          )}
+                        </Button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+
+
 
           {runsLoading ? (
             <div className="text-[12px] text-muted-foreground">Carregando prints…</div>
