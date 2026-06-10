@@ -693,6 +693,7 @@ export function ClientFormDialog({
   const [logoUrl, setLogoUrl] = useState("");
   const [brandColor, setBrandColor] = useState("");
   const [saving, setSaving] = useState(false);
+  const [tab, setTab] = useState("identidade");
 
   // sincroniza ao abrir
   useEffect(() => {
