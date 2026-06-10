@@ -1,4 +1,4 @@
-import { Check, Lock, Rocket, Loader2, CheckCircle2, Clock, Radio } from "lucide-react";
+import { Check, Lock, Rocket, Loader2, CheckCircle2, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { CollectionSourceBadge } from "@/components/campanhas/CollectionSourceBadge";
@@ -70,16 +70,13 @@ export type CampaignGatesCardProps = {
   baselineCapturedAt?: string | null;
   baselineTotalStreams?: number | null;
   baselinePlaylistsCount?: number | null;
-  /** Streams já entregues — usado pra marcar a etapa final "Em entrega". */
+  /** Mantido por compatibilidade com chamadas antigas. */
   delivered?: number;
   onApprovePlan: () => void;
   onDispatch: () => void;
   approvingPlan: boolean;
   dispatching: boolean;
 };
-
-const fmt = (iso: string) =>
-  new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 
 export function CampaignGatesCard({
   clientApprovedAt,
@@ -94,7 +91,6 @@ export function CampaignGatesCard({
   baselineCapturedAt = null,
   baselineTotalStreams = null,
   baselinePlaylistsCount = null,
-  delivered = 0,
   onApprovePlan,
   onDispatch,
   approvingPlan,
@@ -114,26 +110,15 @@ export function CampaignGatesCard({
     !!ecoDispatchedAt ||
     (isSpreadsheet && planDone && (isLive || isClosed)) ||
     status === "completed";
-  const deliveryDone = delivered > 0 || isClosed;
-
-  // Ordem do fluxo (pedido do produto):
-  // 1) Plano interno → 2) Cliente aprovou → 3) Plano congelado →
-  // 4) Baseline capturada → 5) Coleta → 6) No ar
-  const state1: GateState = planDone ? "done" : "current";
-  const state2: GateState = clientDone ? "done" : planDone ? "current" : "locked";
-  const state3: GateState = frozenDone ? "done" : clientDone ? "current" : "locked";
-  const state4: GateState = baselineDone
-    ? "done"
-    : frozenDone
-      ? "current"
-      : "locked";
-  const state5: GateState = dispatchDone
-    ? "done"
-    : baselineDone || (isSpreadsheet && planDone)
-      ? "current"
-      : "locked";
   const isAir = isLive || dispatchDone;
-  const state6: GateState = isAir ? "done" : dispatchDone ? "current" : "locked";
+  // Ordem final dos Portões:
+  // 1) Plano congelado → 2) Aprovação cliente → 3) Aprovação interna →
+  // 4) Coleta baseline → 5) No ar
+  const state1: GateState = frozenDone ? "done" : "current";
+  const state2: GateState = clientDone ? "done" : frozenDone ? "current" : "locked";
+  const state3: GateState = planDone ? "done" : clientDone ? "current" : "locked";
+  const state4: GateState = baselineDone ? "done" : planDone ? "current" : "locked";
+  const state5: GateState = isAir ? "done" : baselineDone ? "current" : "locked";
 
   // CTA visível: aprovar plano (gate 2) ou iniciar distribuição (gate 5).
   const nextAction: "plan" | "dispatch" | null = isClosed
@@ -151,8 +136,8 @@ export function CampaignGatesCard({
   // Header status pill.
   const headerStatus: { label: string; tone: "live" | "ok" | "wait" } = isClosed
     ? { label: "Encerrada", tone: "ok" }
-    : dispatchDone
-      ? { label: isSpreadsheet ? "Coletando (Excel)" : "Coletando" , tone: "live" }
+    : isAir
+      ? { label: "No ar", tone: "live" }
       : { label: "Em preparo", tone: "wait" };
 
   return (
@@ -174,9 +159,9 @@ export function CampaignGatesCard({
                   ? "Cliente envia atualizações via planilha no portal."
                   : "Coleta automática rodando nas playlists."
                 : nextAction === "dispatch"
-                  ? "Baseline capturada. Falta apenas iniciar a distribuição."
+                  ? "Baseline capturada. Falta colocar a campanha no ar."
                   : nextAction === "plan"
-                    ? "Cliente aprovou. Confirme o plano internamente pra liberar a distribuição."
+                    ? "Cliente aprovou. Falta a aprovação interna."
                     : planDone && !isSpreadsheet && !baselineReady
                       ? `Aguardando baseline: ${baselineCollected}/${baselineRequired} playlist(s).`
                       : "Aguardando aprovação do cliente."}
@@ -202,48 +187,50 @@ export function CampaignGatesCard({
         </div>
       </div>
 
-      {/* Pipeline — 6 etapas, régua única, fecha em "No ar" */}
+      {/* Pipeline — 5 etapas, régua única, fecha em "No ar" */}
       <div className="relative flex justify-between items-start">
         {/* Conector base (cinza) */}
         <div className="absolute top-4 left-[8%] right-[8%] h-[2px] bg-border z-0" />
-        {/* Conector preenchido (verde) — proporcional aos 5 segmentos entre os 6 nós */}
+        {/* Conector preenchido (verde) — proporcional aos 4 segmentos entre os 5 nós */}
         <div
           className="absolute top-4 left-[8%] h-[2px] bg-primary z-0 transition-all"
           style={{
-            width: `${(([state1, state2, state3, state4, state5, state6].filter((s) => s === "done").length / 5) * 84).toFixed(2)}%`,
+            width: `${(Math.max([state1, state2, state3, state4, state5].filter((s) => s === "done").length - 1, 0) / 4 * 84).toFixed(2)}%`,
           }}
         />
 
         <Step
-          title="Plano interno"
+          title="Plano congelado"
           state={state1}
           meta={
-            planApprovedAt
-              ? `há ${relTime(planApprovedAt)} — ${fmtShort(planApprovedAt)}`
-              : "Pronto pra aprovar"
+            planFrozenAt
+              ? `há ${relTime(planFrozenAt)} — ${fmtShort(planFrozenAt)}`
+              : frozenDone
+                ? "Congelado"
+                : "Primeiro portão"
           }
         />
         <Step
-          title="Cliente aprovou"
+          title="Aprovação cliente"
           state={state2}
           meta={
             clientApprovedAt
               ? `há ${relTime(clientApprovedAt)} — ${fmtShort(clientApprovedAt)}`
               : isLive
                 ? "Concluído"
-                : planDone
+                : frozenDone
                   ? "Aguardando"
                   : "Bloqueado"
           }
         />
         <Step
-          title="Plano congelado"
+          title="Aprovação interna"
           state={state3}
           meta={
-            planFrozenAt
-              ? `há ${relTime(planFrozenAt)} — ${fmtShort(planFrozenAt)}`
-              : frozenDone
-                ? "Congelado"
+            planApprovedAt
+              ? `há ${relTime(planApprovedAt)} — ${fmtShort(planApprovedAt)}`
+              : planDone
+                ? "Aprovado"
                 : clientDone
                   ? "Próximo passo"
                   : "Bloqueado"
@@ -257,7 +244,7 @@ export function CampaignGatesCard({
               ? baselineCapturedAt
                 ? `há ${relTime(baselineCapturedAt)}`
                 : "Capturada"
-              : frozenDone
+              : planDone
                 ? `${baselineCollected}/${baselineRequired || "—"}`
                 : "Bloqueado"
           }
@@ -279,31 +266,16 @@ export function CampaignGatesCard({
           }
         />
         <Step
-          title={isSpreadsheet ? "Coleta Excel" : "Coleta Spotify"}
-          state={state5}
-          meta={
-            ecoDispatchedAt
-              ? `há ${relTime(ecoDispatchedAt)}`
-              : isSpreadsheet && (isLive || isClosed)
-                ? "Recebendo planilhas"
-                : dispatchDone
-                  ? "Rodando"
-                  : state5 === "current"
-                    ? "Ativa agora"
-                    : "Bloqueado"
-          }
-        />
-        <Step
           title="No ar"
-          state={state6}
+          state={state5}
           meta={
             isClosed
               ? "Encerrada"
               : isAir
                 ? "Ativa"
-                : dispatchDone
-                  ? "Subindo"
-                  : "Aguardando"
+                : state5 === "current"
+                  ? "Aguardando subir"
+                  : "Bloqueado"
           }
         />
       </div>
