@@ -338,7 +338,7 @@ export function friendlyNotification(n: NotificationRow): FriendlyCopy {
 
   return {
     title: softenTechnicalText(n.title),
-    message: softenTechnicalText(n.message),
+    message: humanizeError(softenTechnicalText(n.message)),
   };
 }
 
