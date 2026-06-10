@@ -32,8 +32,10 @@ function formatPlays(n: number | null | undefined): string {
 }
 
 function clientStatus(p: MonitoredPlaylist): "entregando" | "aguardando" {
-  if (p.status === "Aguardando coleta" || p.status === "Nova" || p.delivered <= 0) return "aguardando";
-  return "entregando";
+  // Regra única: se já entrou play, está entregando — independente de idade
+  // ou de o backend ter rotulado como "Nova" / "Aguardando coleta".
+  if ((p.delivered ?? 0) > 0 || (p.last_import_delta ?? 0) > 0) return "entregando";
+  return "aguardando";
 }
 
 const STATUS_LABEL: Record<"entregando" | "aguardando", string> = {
