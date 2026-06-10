@@ -44,14 +44,6 @@ Deno.serve(async (req) => {
 
   if (!deal) return jr({ ok: false, error: "not_found" }, 404);
 
-  if (!deal.curator_id) return jr({ ok: true, required: false });
-
-  const { data: curator } = await admin
-    .from("curators")
-    .select("email")
-    .eq("id", deal.curator_id)
-    .maybeSingle();
-
-  const required = !!(curator?.email && curator.email.trim().length > 0);
-  return jr({ ok: true, required });
+  // OTP gate temporariamente desabilitado — portal do curador abre só com token.
+  return jr({ ok: true, required: false });
 });
