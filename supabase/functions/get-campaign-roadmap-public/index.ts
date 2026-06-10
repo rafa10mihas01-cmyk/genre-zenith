@@ -116,20 +116,31 @@ Deno.serve(async (req) => {
   // valor estimado (radioGoal = meta × splitOrganicPct%).
   let organicTotalPlays = 0;
   try {
-    const { data: organicRows } = await supabase
-      .from("organic_plays_snapshots")
-      .select("spotify_playlist_id, playlist_name, plays_7d, plays_28d, plays_24h, captured_at")
+    // organic_plays_snapshots não tem campaign_id — só deal_id.
+    // Pega TODOS os curator_deals dessa campanha (mesmo critério da página interna).
+    const { data: dealsForCampaign } = await supabase
+      .from("curator_deals")
+      .select("id")
       .eq("campaign_id", campRaw.id);
-    const latest = new Map<string, { plays: number; at: string }>();
-    for (const r of (organicRows ?? []) as any[]) {
-      const key = r.spotify_playlist_id ?? `name:${r.playlist_name ?? ""}`;
-      const prev = latest.get(key);
-      const at = String(r.captured_at ?? "");
-      if (!prev || at > prev.at) {
-        latest.set(key, { plays: Number(r.plays_7d ?? r.plays_28d ?? r.plays_24h ?? 0), at });
+    const dealIds = ((dealsForCampaign ?? []) as Array<{ id: string }>).map((d) => d.id);
+    if (dealIds.length > 0) {
+      const { data: organicRows } = await supabase
+        .from("organic_plays_snapshots")
+        .select("spotify_playlist_id, playlist_name, plays_7d, plays_28d, plays_24h, captured_at")
+        .in("deal_id", dealIds)
+        .order("captured_at", { ascending: false })
+        .limit(2000);
+      const latest = new Map<string, { plays: number; at: string }>();
+      for (const r of (organicRows ?? []) as any[]) {
+        const key = r.spotify_playlist_id ?? `name:${r.playlist_name ?? ""}`;
+        const prev = latest.get(key);
+        const at = String(r.captured_at ?? "");
+        if (!prev || at > prev.at) {
+          latest.set(key, { plays: Number(r.plays_7d ?? r.plays_28d ?? r.plays_24h ?? 0), at });
+        }
       }
+      for (const v of latest.values()) organicTotalPlays += v.plays;
     }
-    for (const v of latest.values()) organicTotalPlays += v.plays;
   } catch (_) { /* organic_summary é opcional */ }
 
   // Forecast — curva acumulada PLANEJADA (sem preço, sem nomes de playlist).
