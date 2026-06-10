@@ -99,9 +99,10 @@ Deno.serve(async (req) => {
     const friendly = ({
       "playlist-queue-processor": "Processamento de playlists",
       "sync-managed-playlists": "Sincronização de playlists",
-      "wave1-enrich-batch": "Enriquecimento Spotify",
+      "process-email-queue": "Envio de e-mails",
       "execution-planner": "Planejamento de execução",
       "reap-zombie-jobs": "Limpeza de jobs travados",
+      "ops-alerts-cron-every-5min": "Monitor de robôs",
     } as Record<string, string>)[job] ?? job;
 
     const message = hoursIdle != null
