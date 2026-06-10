@@ -1,4 +1,4 @@
-import { Check, Lock, Rocket, Loader2, CheckCircle2, Clock } from "lucide-react";
+import { Check, Lock, Rocket, Loader2, CheckCircle2, Clock, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { CollectionSourceBadge } from "@/components/campanhas/CollectionSourceBadge";
@@ -116,9 +116,12 @@ export function CampaignGatesCard({
     status === "completed";
   const deliveryDone = delivered > 0 || isClosed;
 
-  const state1: GateState = clientDone ? "done" : "current";
-  const state2: GateState = planDone ? "done" : clientDone ? "current" : "locked";
-  const state3: GateState = frozenDone ? "done" : planDone ? "current" : "locked";
+  // Ordem do fluxo (pedido do produto):
+  // 1) Plano interno → 2) Cliente aprovou → 3) Plano congelado →
+  // 4) Baseline capturada → 5) Coleta → 6) No ar
+  const state1: GateState = planDone ? "done" : "current";
+  const state2: GateState = clientDone ? "done" : planDone ? "current" : "locked";
+  const state3: GateState = frozenDone ? "done" : clientDone ? "current" : "locked";
   const state4: GateState = baselineDone
     ? "done"
     : frozenDone
@@ -129,11 +132,8 @@ export function CampaignGatesCard({
     : baselineDone || (isSpreadsheet && planDone)
       ? "current"
       : "locked";
-  const state6: GateState = deliveryDone
-    ? "done"
-    : dispatchDone
-      ? "current"
-      : "locked";
+  const isAir = isLive || dispatchDone;
+  const state6: GateState = isAir ? "done" : dispatchDone ? "current" : "locked";
 
   // CTA visível: aprovar plano (gate 2) ou iniciar distribuição (gate 5).
   const nextAction: "plan" | "dispatch" | null = isClosed
@@ -202,11 +202,11 @@ export function CampaignGatesCard({
         </div>
       </div>
 
-      {/* Pipeline */}
+      {/* Pipeline — 6 etapas, régua única, fecha em "No ar" */}
       <div className="relative flex justify-between items-start">
         {/* Conector base (cinza) */}
         <div className="absolute top-4 left-[8%] right-[8%] h-[2px] bg-border z-0" />
-        {/* Conector preenchido (verde) — proporcional aos steps concluídos */}
+        {/* Conector preenchido (verde) — proporcional aos 5 segmentos entre os 6 nós */}
         <div
           className="absolute top-4 left-[8%] h-[2px] bg-primary z-0 transition-all"
           style={{
@@ -215,25 +215,25 @@ export function CampaignGatesCard({
         />
 
         <Step
-          title="Cliente aprovou"
+          title="Plano interno"
           state={state1}
+          meta={
+            planApprovedAt
+              ? `há ${relTime(planApprovedAt)} — ${fmtShort(planApprovedAt)}`
+              : "Pronto pra aprovar"
+          }
+        />
+        <Step
+          title="Cliente aprovou"
+          state={state2}
           meta={
             clientApprovedAt
               ? `há ${relTime(clientApprovedAt)} — ${fmtShort(clientApprovedAt)}`
               : isLive
                 ? "Concluído"
-                : "Aguardando"
-          }
-        />
-        <Step
-          title="Plano interno"
-          state={state2}
-          meta={
-            planApprovedAt
-              ? `há ${relTime(planApprovedAt)} — ${fmtShort(planApprovedAt)}`
-              : clientDone
-                ? "Pronto pra aprovar"
-                : "Bloqueado"
+                : planDone
+                  ? "Aguardando"
+                  : "Bloqueado"
           }
         />
         <Step
@@ -244,7 +244,7 @@ export function CampaignGatesCard({
               ? `há ${relTime(planFrozenAt)} — ${fmtShort(planFrozenAt)}`
               : frozenDone
                 ? "Congelado"
-                : planDone
+                : clientDone
                   ? "Próximo passo"
                   : "Bloqueado"
           }
@@ -291,6 +291,19 @@ export function CampaignGatesCard({
                   : state5 === "current"
                     ? "Ativa agora"
                     : "Bloqueado"
+          }
+        />
+        <Step
+          title="No ar"
+          state={state6}
+          meta={
+            isClosed
+              ? "Encerrada"
+              : isAir
+                ? "Ativa"
+                : dispatchDone
+                  ? "Subindo"
+                  : "Aguardando"
           }
         />
       </div>

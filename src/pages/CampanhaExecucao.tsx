@@ -793,12 +793,40 @@ export default function CampanhaExecucao() {
               {/* RadioCollectedCard ocultado — redundante com a aba Monitoramento (Rádio). */}
 
 
+              {/* Pipeline em régua única, full-width acima de tudo */}
+              <CampaignGatesCard
+                clientApprovedAt={camp.client_approved_at ?? null}
+                planApprovedAt={(camp as any).plan_approved_at ?? null}
+                planFrozenAt={(camp as any).snapshot_locked_at ?? null}
+                ecoDispatchedAt={camp.eco_dispatched_at ?? null}
+                collectionMode={(camp as any).collection_mode ?? null}
+                status={camp.status}
+                baselineReady={baselineGate.required > 0 && baselineGate.collected >= baselineGate.required}
+                baselineCollected={baselineGate.collected}
+                baselineRequired={baselineGate.required}
+                baselineCapturedAt={baselineGate.capturedAt}
+                baselineTotalStreams={recentUploads.find((u) => u.is_baseline)?.total_streams ?? null}
+                baselinePlaylistsCount={recentUploads.find((u) => u.is_baseline)?.rows_imported ?? null}
+                delivered={delivered}
+                onApprovePlan={handleApprovePlan}
+                onDispatch={handleDispatchEco}
+                approvingPlan={approvingPlan}
+                dispatching={dispatching}
+              />
+
+              {(camp as any).collection_mode !== "spreadsheet" && (
+                <BotCollectionStatus
+                  campaignId={camp.id}
+                  dealId={camp.deal_id ?? null}
+                />
+              )}
+
               <OverviewTab
                 snapshot={snapshot}
                 delivered={delivered}
                 daysElapsed={daysElapsed}
                 showFinance={false}
-                
+                hideCurveCard
                 allocations={allocs}
                 snapshots={snaps}
                 radioDelta={radioDelta}
@@ -818,38 +846,6 @@ export default function CampanhaExecucao() {
                 canManageSplit={true}
                 onLockSplit={handleLockSplit}
                 onUnlockSplit={handleUnlockSplit}
-                curveSlot={
-                  <div className="flex flex-col gap-4 h-full">
-                    <CampaignGatesCard
-                      clientApprovedAt={camp.client_approved_at ?? null}
-                      planApprovedAt={(camp as any).plan_approved_at ?? null}
-                      planFrozenAt={(camp as any).snapshot_locked_at ?? null}
-                      ecoDispatchedAt={camp.eco_dispatched_at ?? null}
-                      collectionMode={(camp as any).collection_mode ?? null}
-                      status={camp.status}
-                      baselineReady={baselineGate.required > 0 && baselineGate.collected >= baselineGate.required}
-                      baselineCollected={baselineGate.collected}
-                      baselineRequired={baselineGate.required}
-                      baselineCapturedAt={baselineGate.capturedAt}
-                      baselineTotalStreams={recentUploads.find((u) => u.is_baseline)?.total_streams ?? null}
-                      baselinePlaylistsCount={recentUploads.find((u) => u.is_baseline)?.rows_imported ?? null}
-                      delivered={delivered}
-                      onApprovePlan={handleApprovePlan}
-                      onDispatch={handleDispatchEco}
-                      approvingPlan={approvingPlan}
-                      dispatching={dispatching}
-                    />
-                    {(camp as any).collection_mode !== "spreadsheet" && (
-                      <div className="flex-1 flex flex-col [&>*]:flex-1">
-                        <BotCollectionStatus
-                          campaignId={camp.id}
-                          dealId={camp.deal_id ?? null}
-                        />
-                      </div>
-                    )}
-                  </div>
-                }
-
               />
             </div>
           ),
