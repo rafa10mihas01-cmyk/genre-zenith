@@ -351,6 +351,7 @@ export function ExecucaoView({
     baseline_plays: radioData.start_plays_7d ?? 0,
     current_plays: radioData.current_plays_7d ?? 0,
     delta: radioData.radio_delta ?? 0,
+    last_import_delta: null,
     baseline_at: radioData.start_captured_at,
     last_captured_at: radioData.last_captured_at,
     first_seen_at: radioData.start_captured_at,
