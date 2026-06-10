@@ -20,6 +20,8 @@ export type MonitoredPlaylist = {
   plays_28d?: number | null;
   last_import_delta?: number | null;
   spotify_playlist_id?: string | null;
+  registered_at?: string | null;
+  is_pre_campaign?: boolean;
 };
 
 function formatPlays(n: number | null | undefined): string {
