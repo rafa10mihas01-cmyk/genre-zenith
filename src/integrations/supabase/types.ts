@@ -11808,6 +11808,7 @@ export type Database = {
           status: string
         }[]
       }
+      get_cron_last_success: { Args: { p_fn_name: string }; Returns: string }
       get_cron_secret: { Args: never; Returns: string }
       get_curator_deal_breakdown: { Args: { p_deal_id: string }; Returns: Json }
       get_curator_deal_progress: {
