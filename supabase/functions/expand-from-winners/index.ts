@@ -187,11 +187,32 @@ async function expandGenre(
   return stats;
 }
 
+// FASE APP-05: pausado por restrição do Spotify (endpoint /v1/users/{id}/playlists
+// passou a exigir Extended Quota Mode). 99% das chamadas retornavam 403, sem
+// benefício operacional. Código preservado pra reativação futura.
+const PAUSED_BY_SPOTIFY_RESTRICTION = true;
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
   const startedAt = Date.now();
+
+  if (PAUSED_BY_SPOTIFY_RESTRICTION) {
+    await reportCronHealth(supabase, {
+      job_name: "expand-from-winners",
+      status: "ok",
+      startedAt,
+      message: "paused_by_spotify_restriction",
+      metrics: { paused: true, reason: "spotify_endpoint_restricted" },
+    }).catch(() => {});
+    return new Response(JSON.stringify({
+      ok: true,
+      paused: true,
+      reason: "paused_by_spotify_restriction",
+      detail: "Endpoint /v1/users/{id}/playlists requer Extended Quota Mode. Função pausada pela FASE APP-05.",
+    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  }
 
   try {
     let body: any = {};
