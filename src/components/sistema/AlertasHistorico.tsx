@@ -1,9 +1,11 @@
 // Alertas — histórico paginado de notificações operacionais com ciclo de vida.
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { AlertCircle, AlertTriangle, Info, Filter, CheckCheck, CheckCircle2 } from "lucide-react";
+import { AlertCircle, AlertTriangle, Info, Filter, CheckCheck, CheckCircle2, ChevronDown, ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { timeAgo } from "@/lib/format";
 import {
@@ -14,6 +16,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { NotificationDomain, NotificationType } from "@/hooks/useNotifications";
+import { friendlyNotification } from "@/lib/notificationCopy";
+import { humanizeError } from "@/lib/operationalCopy";
 
 const DOMAIN_LABEL: Record<string, string> = {
   bot: "Robô",
