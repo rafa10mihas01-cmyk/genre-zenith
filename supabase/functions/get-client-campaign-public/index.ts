@@ -304,7 +304,7 @@ Deno.serve(async (req) => {
     const { data: playlistsRaw } = await admin
       // Separação operacional × observacional
       .from("v_curator_playlists_operational")
-      .select("id, deal_id, playlist_name, image_url, added_at, added_at_spotify, is_baseline, song_id")
+      .select("id, deal_id, playlist_name, image_url, added_at, added_at_spotify, is_baseline, song_id, spotify_playlist_id, streams_7d, streams_28d, streams_total")
       .in("deal_id", allDealIds)
       .eq("match_status", "curator")
       .eq("is_baseline", false)
@@ -318,32 +318,53 @@ Deno.serve(async (req) => {
       return !sid || sid === selectedSongId;
     });
 
-    // delivered: per_playlist do deal principal + busca progress dos irmãos
-    const perPlaylist = ((prog.per_playlist as AnyRec[]) ?? []) as AnyRec[];
-    const deliveredByPlaylist = new Map<string, number>();
-    for (const p of perPlaylist) {
-      deliveredByPlaylist.set(String(p.playlist_id), Number(p.delivered ?? 0));
+    // P2.1 — delivered por playlist vem do Growth Engine
+    // (vw_campaign_playlist_growth.delivery_accumulated), indexado por
+    // spotify_playlist_id. Substitui get_curator_deal_progress.per_playlist,
+    // que ficou vazio após a migração P1.
+    const campaignIdsForDeals = new Set<string>();
+    {
+      const { data: campsForDeals } = await admin
+        .from("campaigns")
+        .select("id, deal_id")
+        .in("deal_id", allDealIds);
+      for (const c of (campsForDeals ?? []) as AnyRec[]) {
+        if (c.id) campaignIdsForDeals.add(String(c.id));
+      }
     }
-    for (const sibId of allDealIds) {
-      if (sibId === dealId) continue;
-      const { data: sibProg } = await admin.rpc("get_curator_deal_progress", {
-        p_deal_id: sibId,
-      });
-      const sibPer = ((sibProg as AnyRec)?.per_playlist as AnyRec[]) ?? [];
-      for (const p of sibPer) {
-        deliveredByPlaylist.set(String(p.playlist_id), Number(p.delivered ?? 0));
+    const deliveredBySpotifyId = new Map<string, number>();
+    if (campaignIdsForDeals.size > 0) {
+      const { data: growthRows } = await admin
+        .from("vw_campaign_playlist_growth")
+        .select("playlist_id, delivery_accumulated")
+        .in("campaign_id", Array.from(campaignIdsForDeals));
+      for (const g of (growthRows ?? []) as AnyRec[]) {
+        const k = String(g.playlist_id ?? "");
+        if (!k) continue;
+        // se o mesmo spotify_playlist_id aparece em múltiplas campanhas,
+        // somamos a entrega atribuída de cada uma.
+        deliveredBySpotifyId.set(
+          k,
+          (deliveredBySpotifyId.get(k) ?? 0) + Number(g.delivery_accumulated ?? 0),
+        );
       }
     }
 
     const safePlaylists: AnyRec[] = playlistsFiltered.map((p) => {
-      const grown = deliveredByPlaylist.get(String(p.id)) ?? 0;
+      const spId = String(p.spotify_playlist_id ?? "");
+      const grown = spId ? (deliveredBySpotifyId.get(spId) ?? 0) : 0;
+      const plays7d = p.streams_7d == null ? null : Number(p.streams_7d);
+      const plays28d = p.streams_28d == null ? null : Number(p.streams_28d);
+      const status: "Nova" | "Crescendo" | "Destaque" | "Estável" =
+        grown > 0 ? pickPlaylistStatus(p, grown) : "Nova";
       return {
         name: String(p.playlist_name ?? "Playlist"),
         image_url: (p.image_url as string) ?? null,
         delivered: grown,
         plays_24h: null,
-        plays_7d: null,
-        status: pickPlaylistStatus(p, grown),
+        plays_7d: plays7d,
+        plays_28d: plays28d,
+        status,
         source: "curator" as const,
       };
     });
