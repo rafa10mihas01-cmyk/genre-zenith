@@ -21,17 +21,26 @@ function jr(p: unknown, status = 200) {
 // Tudo que envolve custo interno, margem, preço de compra ou multiplicadores fica fora.
 function sanitizeSnapshot(raw: any): Record<string, unknown> | null {
   if (!raw || typeof raw !== "object") return null;
-  const allowed = ["clientPriceTotal", "meta", "days", "effectiveDays", "curva", "splitOrganicPct"];
+  // `modo` é necessário pra buildEcoPlaylistPlan calcular startDay/ecoFloorDay
+  // igual ao painel interno. Sem ele, o plano público acaba com posições
+  // diferentes e os valores das linhas não batem com o que o operador vê.
+  const allowed = ["clientPriceTotal", "meta", "days", "effectiveDays", "curva", "splitOrganicPct", "modo"];
   const out: Record<string, unknown> = {};
   for (const k of allowed) {
     if (raw[k] !== undefined) out[k] = raw[k];
   }
-  // Expõe apenas o spotifyTrackId da música — necessário pra cards de leitura
-  // pública (ex.: MusicStreamsCard lendo raw_chart_daily). Demais campos
-  // de music ficam fora pra evitar vazamento de baseline/top200 internos.
+  // Dentro de `music`, expõe apenas o que o cliente precisa: spotifyTrackId
+  // (cards de leitura pública) + top200Position/top200StreamsDay/baselineStreamsDay
+  // (chartTier — define a posição final de cada playlist no plano).
   const m = raw.music && typeof raw.music === "object" ? raw.music : null;
-  if (m && typeof m.spotifyTrackId === "string" && m.spotifyTrackId.length > 0) {
-    out.music = { spotifyTrackId: m.spotifyTrackId };
+  if (m) {
+    const safe: Record<string, unknown> = {};
+    if (typeof m.spotifyTrackId === "string" && m.spotifyTrackId.length > 0) safe.spotifyTrackId = m.spotifyTrackId;
+    if (m.top200Position != null) safe.top200Position = m.top200Position;
+    if (m.top200Pos != null && safe.top200Position == null) safe.top200Position = m.top200Pos;
+    if (m.top200StreamsDay != null) safe.top200StreamsDay = m.top200StreamsDay;
+    if (m.baselineStreamsDay != null) safe.baselineStreamsDay = m.baselineStreamsDay;
+    if (Object.keys(safe).length > 0) out.music = safe;
   }
   return out;
 }
