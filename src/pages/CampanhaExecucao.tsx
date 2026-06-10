@@ -869,6 +869,7 @@ export default function CampanhaExecucao() {
                 hideCurveCard
                 allocations={allocs}
                 snapshots={snaps}
+                topDeliveringPlaylists={topDeliveringPlaylists}
                 radioDelta={radioDelta}
                 deliveryBreakdown={deliveryBreakdown}
 
