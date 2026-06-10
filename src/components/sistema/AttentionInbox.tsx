@@ -171,7 +171,9 @@ export function AttentionInbox() {
             <li key={i.id} className="px-5 py-3 flex items-start gap-3">
               <Icon className={cn("h-4 w-4 mt-0.5 shrink-0", tone)} />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-foreground leading-snug">{i.title}</p>
+                <p className="text-sm font-semibold text-foreground leading-snug">
+                  {i.count && i.count > 1 ? `${i.count}× ` : ""}{i.title}
+                </p>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{i.impact}</p>
                 <p className="text-[10px] text-muted-foreground/70 mt-1 tabular-nums">{timeAgo(i.when)}</p>
               </div>
