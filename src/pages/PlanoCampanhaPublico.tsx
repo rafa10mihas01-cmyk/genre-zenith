@@ -704,6 +704,12 @@ export default function PlanoCampanhaPublico() {
                   hideSplitRows
                   allocations={allocs}
                   snapshots={snaps}
+                  topDeliveringPlaylists={livePlaylists.map(p => ({
+                    name: p.name,
+                    image_url: p.image_url,
+                    delivered: p.delivered,
+                    planned: p.planned ?? null,
+                  }))}
                   proofs={isApproved ? proofs.map(p => ({
                     id: p.id,
                     captured_at: p.captured_at,
