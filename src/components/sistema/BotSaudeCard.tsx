@@ -5,6 +5,7 @@ import { Bot, Loader2, RefreshCw, Clock, ListChecks, ShieldCheck } from "lucide-
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { timeAgo } from "@/lib/format";
+import { humanizeError } from "@/lib/operationalCopy";
 
 type BotHealth = {
   last_heartbeat?: string;
