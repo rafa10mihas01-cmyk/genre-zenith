@@ -480,8 +480,8 @@ export function SpreadsheetUploadCard({
                 {recentUploads.length} registros
               </div>
             </div>
-            <ul className="divide-y divide-border/40">
-              {recentUploads.slice(0, 5).map((u, idx) => {
+            <ul className="divide-y divide-border/40 max-h-[212px] overflow-y-auto">
+              {recentUploads.map((u, idx) => {
                 const d = new Date(u.created_at);
                 const dateStr = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
                 const timeStr = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
