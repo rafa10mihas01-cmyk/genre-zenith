@@ -744,6 +744,8 @@ export default function PlanoCampanhaPublico() {
               <MonitoredPlaylistsCard
                 playlists={livePlaylists}
                 clientName={camp.artist || undefined}
+                campaignName={camp.track_name || undefined}
+                artistName={camp.artist || undefined}
                 collectionMode={collectionMode}
               />
             ),
