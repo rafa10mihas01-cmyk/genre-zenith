@@ -28,7 +28,8 @@ const DealHistorySheet = lazy(() =>
   import("@/components/playlist-deals/DealHistorySheet").then((m) => ({ default: m.DealHistorySheet })),
 );
 import { CuratorDealAccessManager } from "@/components/playlist-deals/CuratorDealAccessManager";
-import { computeCuratorStats } from "@/lib/curatorDealsUtils";
+import { computeCuratorStats, dedupeCuratorPlaylists } from "@/lib/curatorDealsUtils";
+import { HistoricoPrevioAlert } from "@/components/campanhas/HistoricoPrevio";
 
 const fmtPlays = (n: number) => {
   if (!n || !Number.isFinite(n)) return "0";
