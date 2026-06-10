@@ -80,10 +80,11 @@ export function CampaignHub({
       />
 
       {kpis && (
-        <div className="shrink-0 px-4 pt-4 pb-2 md:px-6">
+        <div className="shrink-0 px-1 pt-4 pb-2 md:px-6">
           {kpis}
         </div>
       )}
+
 
       <Tabs
         value={activeTab}
@@ -149,14 +150,14 @@ export function CampaignHub({
         </div>
 
         {progressSection && (
-          <div className="px-4 pt-3 md:px-6">
+          <div className="px-1 pt-3 md:px-6">
             {progressSection}
           </div>
         )}
 
 
 
-        <div className="px-4 pt-6 pb-[calc(64px+env(safe-area-inset-bottom)+24px)] md:px-6 lg:pb-8">
+        <div className="px-1 pt-6 pb-[calc(64px+env(safe-area-inset-bottom)+24px)] md:px-6 lg:pb-8">
           {visible.map((t) => (
             <TabsContent
               key={t.id}
@@ -168,6 +169,7 @@ export function CampaignHub({
             </TabsContent>
           ))}
         </div>
+
       </Tabs>
     </div>
   );
