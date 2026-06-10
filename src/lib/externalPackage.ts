@@ -299,6 +299,17 @@ export async function confirmExternalPackage(args: {
       .update({ curator_deal_id: dealId })
       .eq("id", it.id);
 
+    // Mantém a música principal do deal na mesma língua do pacote. O trigger
+    // cria essa linha a partir do deal; se o deal já existia/foi recuperado,
+    // este sync evita alvo antigo preso em curator_deal_songs.
+    await supabase
+      .from("curator_deal_songs")
+      .update({
+        target_plays: it.assigned_streams,
+        daily_goal: Math.ceil(it.assigned_streams / snapshot.days),
+      })
+      .eq("deal_id", dealId);
+
     // Linka a compra de origem ao deal — marca como consumida.
     if ((it as any).source_purchase_id) {
       await supabase
@@ -360,14 +371,22 @@ export async function updatePackageItem(
     const start = new Date(linkedDeal.created_at as string).getTime();
     const end = new Date(linkedDeal.ends_at as string).getTime();
     const days = Math.max(1, Math.ceil((end - start) / 86_400_000));
+    const dailyGoal = Math.ceil(patch.assigned_streams / days);
     await supabase
       .from("curator_deals")
       .update({
         target_plays: patch.assigned_streams,
         cost: assignedCost,
-        daily_goal: Math.ceil(patch.assigned_streams / days),
+        daily_goal: dailyGoal,
       })
       .eq("id", linkedDeal.id);
+    await supabase
+      .from("curator_deal_songs")
+      .update({
+        target_plays: patch.assigned_streams,
+        daily_goal: dailyGoal,
+      })
+      .eq("deal_id", linkedDeal.id);
   }
 }
 
