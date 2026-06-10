@@ -21,7 +21,7 @@ function jr(p: unknown, status = 200) {
 // Tudo que envolve custo interno, margem, preço de compra ou multiplicadores fica fora.
 function sanitizeSnapshot(raw: any): Record<string, unknown> | null {
   if (!raw || typeof raw !== "object") return null;
-  const allowed = ["clientPriceTotal", "meta", "days", "effectiveDays", "curva"];
+  const allowed = ["clientPriceTotal", "meta", "days", "effectiveDays", "curva", "splitOrganicPct"];
   const out: Record<string, unknown> = {};
   for (const k of allowed) {
     if (raw[k] !== undefined) out[k] = raw[k];
