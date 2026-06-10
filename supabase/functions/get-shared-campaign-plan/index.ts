@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
   // Lê só o estritamente necessário pro portal do cliente.
   const { data: campRaw, error: cErr } = await supabase
     .from("campaigns")
-    .select("id, deal_id, client_id, track_name, artist, cover_url, spotify_track_url, goal_plays, status, started_at, deadline, simulation_snapshot, total_delivered, client_approved_at, client_rejected_at, client_adjustment_request, collection_mode, engagement_multiplier")
+    .select("id, deal_id, client_id, track_name, artist, cover_url, spotify_track_url, spotify_track_id, goal_plays, status, started_at, deadline, simulation_snapshot, total_delivered, client_approved_at, client_rejected_at, client_adjustment_request, collection_mode, engagement_multiplier")
     .eq("public_plan_token", token)
     .maybeSingle();
 
