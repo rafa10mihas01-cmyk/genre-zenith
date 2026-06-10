@@ -247,8 +247,8 @@ Deno.serve(async (req) => {
     const target = Number(
       activeSong?.target_plays ?? prog.target_plays ?? dealRow.target_plays ?? 0,
     );
-    const delivered = Number(prog.delivered_curator ?? 0);
-    const pct = Math.max(0, Math.min(100, Number(prog.progress_pct ?? 0)));
+    let delivered = Number(prog.delivered_curator ?? 0);
+    let pct = Math.max(0, Math.min(100, Number(prog.progress_pct ?? 0)));
 
     // 4) Histórico — filtra por song_id se aplicável
     let histQuery = admin
