@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ListMusic, CheckCircle2, FileSpreadsheet, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { exportCSV } from "@/lib/export";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 export type MonitoredPlaylist = {
   name: string;
@@ -21,8 +21,6 @@ export type MonitoredPlaylist = {
   last_import_delta?: number | null;
   spotify_playlist_id?: string | null;
 };
-
-
 
 function formatPlays(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(Number(n))) return "0";
@@ -58,24 +56,41 @@ function isoDate(): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-function exportExcel(filename: string, rows: Record<string, unknown>[]) {
-  const ws = XLSX.utils.json_to_sheet(rows);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Playlists");
-  XLSX.writeFile(wb, filename.endsWith(".xlsx") ? filename : `${filename}.xlsx`);
+function nowPtBr(): string {
+  return new Date().toLocaleString("pt-BR", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
 }
+
+// Paleta de status (preenchimento da célula STATUS).
+const STATUS_FILL: Record<string, string> = {
+  "Destaque":  "FF1DB954", // verde marca
+  "Crescendo": "FF22C55E", // verde
+  "Estável":   "FF6B7280", // cinza
+  "Nova":      "FFF59E0B", // âmbar
+};
+const STATUS_FONT: Record<string, string> = {
+  "Destaque":  "FFFFFFFF",
+  "Crescendo": "FFFFFFFF",
+  "Estável":   "FFFFFFFF",
+  "Nova":      "FF111111",
+};
 
 export function MonitoredPlaylistsCard({
   playlists,
   clientName,
+  campaignName,
+  artistName,
   collectionMode = "bot",
 }: {
   playlists: MonitoredPlaylist[];
   clientName?: string;
+  campaignName?: string;
+  artistName?: string;
   /**
    * "bot"         = coleta automática via S4A → mostra 7D/28D
    * "spreadsheet" = importação manual de planilha → esconde 7D/28D
-   *                 (essas janelas só existem quando o bot coleta)
    */
   collectionMode?: "bot" | "spreadsheet";
 }) {
@@ -97,7 +112,7 @@ export function MonitoredPlaylistsCard({
     );
   }
 
-  // Ordenação: entregando primeiro (delivered desc), aguardando depois
+  // Ordenação na UI: entregando primeiro (delivered desc), aguardando depois
   const sorted = [...playlists].sort((a, b) => {
     const sa = clientStatus(a) === "entregando" ? 1 : 0;
     const sb = clientStatus(b) === "entregando" ? 1 : 0;
@@ -106,39 +121,243 @@ export function MonitoredPlaylistsCard({
   });
   const entregandoCount = sorted.filter((p) => clientStatus(p) === "entregando").length;
 
-  function buildRows() {
-    return sorted.map((p) => {
-      const base: Record<string, unknown> = {
+  // Dados pra export (ordenados só por delivered desc, conforme prompt).
+  function exportRows() {
+    return [...playlists]
+      .sort((a, b) => (b.delivered ?? 0) - (a.delivered ?? 0))
+      .map((p, idx) => ({
+        POS: idx + 1,
         PLAYLIST: p.name,
         URL: p.spotify_playlist_id
           ? `https://open.spotify.com/playlist/${p.spotify_playlist_id}`
           : "",
-        "ENTREGA ACUMULADA": p.delivered ?? 0,
-        "ÚLTIMA IMPORTAÇÃO": p.last_import_delta ?? "",
-      };
-      // 7D/28D só fazem sentido no fluxo automático (S4A).
-      // No fluxo manual (planilha) essas colunas não existem na fonte.
-      if (!isManual) {
-        base["7D"] = p.plays_7d ?? "";
-        base["28D"] = p.plays_28d ?? "";
-      }
-      base["STATUS"] = p.status;
-      return base;
-    });
+        "ENTREGA ACUMULADA": Number(p.delivered ?? 0),
+        "ÚLTIMA IMPORTAÇÃO":
+          p.last_import_delta == null ? null : Number(p.last_import_delta),
+        ...(isManual
+          ? {}
+          : {
+              "7D": p.plays_7d == null ? null : Number(p.plays_7d),
+              "28D": p.plays_28d == null ? null : Number(p.plays_28d),
+            }),
+        STATUS: p.status,
+      }));
   }
 
-  function handleExportExcel() {
-    const rows = buildRows();
-    if (rows.length === 0) return;
-    const baseName = sanitizeFileName(clientName || "cliente");
-    exportExcel(`playlists-${baseName}-${isoDate()}`, rows);
-  }
-
+  // CSV continua simples — só ordenado e com POS.
   function handleExportCSV() {
-    const rows = buildRows();
+    const rows = exportRows();
     if (rows.length === 0) return;
     const baseName = sanitizeFileName(clientName || "cliente");
     exportCSV(`playlists-${baseName}-${isoDate()}.csv`, rows);
+  }
+
+  async function handleExportExcel() {
+    const rows = exportRows();
+    if (rows.length === 0) return;
+
+    const wb = new ExcelJS.Workbook();
+    wb.creator = "NexEngine";
+    wb.created = new Date();
+    const ws = wb.addWorksheet("Playlists", {
+      views: [{ state: "frozen", ySplit: 9 }], // congela cabeçalho exec + header da tabela
+    });
+
+    const totalDelivered = rows.reduce(
+      (sum, r) => sum + (Number(r["ENTREGA ACUMULADA"]) || 0),
+      0,
+    );
+
+    // Define colunas (chaves bate com keys de rows).
+    type Col = { header: string; key: string; width: number };
+    const baseCols: Col[] = [
+      { header: "POS", key: "POS", width: 6 },
+      { header: "PLAYLIST", key: "PLAYLIST", width: 42 },
+      { header: "LINK", key: "URL", width: 18 },
+      { header: "ENTREGA ACUMULADA", key: "ENTREGA ACUMULADA", width: 20 },
+      { header: "ÚLTIMA IMPORTAÇÃO", key: "ÚLTIMA IMPORTAÇÃO", width: 20 },
+    ];
+    if (!isManual) {
+      baseCols.push({ header: "7D", key: "7D", width: 12 });
+      baseCols.push({ header: "28D", key: "28D", width: 12 });
+    }
+    baseCols.push({ header: "STATUS", key: "STATUS", width: 14 });
+
+    // Remove colunas totalmente vazias (exceto URL/POS/PLAYLIST/STATUS, sempre fixas).
+    const fixedKeys = new Set(["POS", "PLAYLIST", "URL", "STATUS", "ENTREGA ACUMULADA"]);
+    const cols = baseCols.filter((c) => {
+      if (fixedKeys.has(c.key)) return true;
+      return rows.some((r) => {
+        const v = (r as Record<string, unknown>)[c.key];
+        return v != null && v !== "";
+      });
+    });
+
+    // ===== Cabeçalho executivo (linhas 1–7) =====
+    const lastColLetter = ws.getColumn(cols.length).letter;
+    const mergeRange = (row: number) => `A${row}:${lastColLetter}${row}`;
+
+    // Linha 1: título grande
+    ws.mergeCells(mergeRange(1));
+    const titleCell = ws.getCell("A1");
+    titleCell.value = "Relatório de Playlists Monitoradas";
+    titleCell.font = { name: "Calibri", size: 16, bold: true, color: { argb: "FFFFFFFF" } };
+    titleCell.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
+    titleCell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF0F0F0F" },
+    };
+    ws.getRow(1).height = 26;
+
+    // Linhas 2–6: metadados (label | valor)
+    const meta: [string, string | number][] = [
+      ["Campanha", campaignName || "—"],
+      ["Artista", artistName || clientName || "—"],
+      ["Data da exportação", nowPtBr()],
+      ["Quantidade de playlists", rows.length],
+      ["Entrega acumulada total", totalDelivered],
+    ];
+
+    meta.forEach(([label, value], i) => {
+      const row = i + 2;
+      ws.mergeCells(`A${row}:B${row}`);
+      ws.mergeCells(`C${row}:${lastColLetter}${row}`);
+      const labelCell = ws.getCell(`A${row}`);
+      const valueCell = ws.getCell(`C${row}`);
+      labelCell.value = label;
+      labelCell.font = { name: "Calibri", size: 10, bold: true, color: { argb: "FFB3B3B3" } };
+      labelCell.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
+      labelCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF171717" } };
+      valueCell.value = value;
+      valueCell.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FFFFFFFF" } };
+      valueCell.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
+      valueCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF171717" } };
+      if (label === "Quantidade de playlists") {
+        valueCell.numFmt = "#,##0";
+      } else if (label === "Entrega acumulada total") {
+        valueCell.numFmt = "#,##0";
+      }
+      ws.getRow(row).height = 18;
+    });
+
+    // Linha 7: separador
+    ws.getRow(7).height = 8;
+
+    // ===== Cabeçalho da tabela (linha 8) =====
+    const headerRowIdx = 8;
+    const headerRow = ws.getRow(headerRowIdx);
+    cols.forEach((c, i) => {
+      const cell = headerRow.getCell(i + 1);
+      cell.value = c.header;
+      cell.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FFFFFFFF" } };
+      cell.alignment = { vertical: "middle", horizontal: "center" };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F0F0F" } };
+      cell.border = {
+        top:    { style: "thin", color: { argb: "FF2A2A2A" } },
+        bottom: { style: "thin", color: { argb: "FF2A2A2A" } },
+        left:   { style: "thin", color: { argb: "FF2A2A2A" } },
+        right:  { style: "thin", color: { argb: "FF2A2A2A" } },
+      };
+    });
+    headerRow.height = 22;
+
+    // Aplica larguras das colunas
+    cols.forEach((c, i) => {
+      ws.getColumn(i + 1).width = c.width;
+    });
+
+    // ===== Linhas de dados =====
+    const firstDataRow = headerRowIdx + 1;
+    rows.forEach((r, rIdx) => {
+      const excelRow = ws.getRow(firstDataRow + rIdx);
+      const zebra = rIdx % 2 === 1;
+
+      cols.forEach((c, cIdx) => {
+        const cell = excelRow.getCell(cIdx + 1);
+        const raw = (r as Record<string, unknown>)[c.key];
+
+        if (c.key === "URL") {
+          const url = (raw as string) || "";
+          if (url) {
+            cell.value = { text: "Abrir Playlist", hyperlink: url };
+            cell.font = {
+              name: "Calibri", size: 11, color: { argb: "FF1DB954" }, underline: true,
+            };
+          } else {
+            cell.value = "—";
+            cell.font = { name: "Calibri", size: 11, color: { argb: "FF6B7280" } };
+          }
+          cell.alignment = { vertical: "middle", horizontal: "center" };
+        } else if (c.key === "STATUS") {
+          const st = String(raw ?? "");
+          cell.value = st || "—";
+          const bg = STATUS_FILL[st];
+          const fg = STATUS_FONT[st] ?? "FFFFFFFF";
+          if (bg) {
+            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: bg } };
+            cell.font = { name: "Calibri", size: 10, bold: true, color: { argb: fg } };
+          } else {
+            cell.font = { name: "Calibri", size: 10, color: { argb: "FF111111" } };
+          }
+          cell.alignment = { vertical: "middle", horizontal: "center" };
+        } else if (
+          c.key === "ENTREGA ACUMULADA" ||
+          c.key === "ÚLTIMA IMPORTAÇÃO" ||
+          c.key === "7D" ||
+          c.key === "28D" ||
+          c.key === "POS"
+        ) {
+          cell.value = raw == null || raw === "" ? null : Number(raw);
+          cell.numFmt = "#,##0";
+          cell.alignment = { vertical: "middle", horizontal: "right" };
+          cell.font = {
+            name: "Calibri",
+            size: 11,
+            bold: c.key === "ENTREGA ACUMULADA",
+            color: { argb: "FF111111" },
+          };
+        } else {
+          cell.value = (raw as string | number | null) ?? "";
+          cell.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
+          cell.font = { name: "Calibri", size: 11, color: { argb: "FF111111" } };
+        }
+
+        // Zebra (não sobrescreve fill de STATUS).
+        if (zebra && c.key !== "STATUS") {
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FFF5F5F5" },
+          };
+        }
+        cell.border = {
+          bottom: { style: "hair", color: { argb: "FFE5E5E5" } },
+        };
+      });
+      excelRow.height = 18;
+    });
+
+    // ===== Filtros automáticos =====
+    ws.autoFilter = {
+      from: { row: headerRowIdx, column: 1 },
+      to:   { row: headerRowIdx + rows.length, column: cols.length },
+    };
+
+    // Gera arquivo e dispara download.
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const baseName = sanitizeFileName(clientName || "cliente");
+    a.href = url;
+    a.download = `playlists-${baseName}-${isoDate()}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
   return (
