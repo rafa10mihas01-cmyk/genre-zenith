@@ -120,19 +120,36 @@ export function CloseDealDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o && !busy) onClose(); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <div className="flex items-center justify-between gap-2">
-            <DialogTitle>Encerrar deal</DialogTitle>
-            <DraftIndicator lastSavedAt={draft.lastSavedAt} />
-          </div>
-          <DialogDescription className="text-xs">
-            {deal.curator_name} · {deal.song_name}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4">
+    <FormModal
+      open={open}
+      onOpenChange={(o) => { if (!o && !busy) onClose(); }}
+      title="Encerrar deal"
+      description={
+        <span className="flex items-center justify-between gap-2">
+          <span>{deal.curator_name} · {deal.song_name}</span>
+          <DraftIndicator lastSavedAt={draft.lastSavedAt} />
+        </span>
+      }
+      icon={<Handshake className="h-4 w-4" />}
+      iconTone="deals"
+      size="md"
+      preventClose={busy}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={busy || (status === "cancelled" && !reason.trim())}
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
+            {busy ? "Encerrando..." : "Encerrar deal"}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
           {draft.hasDraft && (
             <DraftBanner onRestore={handleRestoreDraft} onDiscard={draft.clearDraft} />
           )}
