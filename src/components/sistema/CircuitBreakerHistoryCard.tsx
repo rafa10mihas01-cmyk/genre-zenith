@@ -1,4 +1,4 @@
-// Gap 22 — Dashboard de aberturas do circuit breaker do Spotify (últimos 30 dias).
+// Histórico de bloqueios temporários do Spotify (últimos 30 dias).
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ShieldAlert } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { humanizeFunctionName, humanizeError } from "@/lib/operationalCopy";
 
 type LogRow = {
   id: string;
