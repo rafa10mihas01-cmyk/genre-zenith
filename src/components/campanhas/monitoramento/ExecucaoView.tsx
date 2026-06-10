@@ -236,6 +236,10 @@ export function ExecucaoView({
         const hasData = r.baseline_plays != null || r.current_plays != null;
         if (statusFilter === "no_data") {
           if (hasData) return false;
+        } else if (statusFilter === "pre_campaign") {
+          // Música já estava nessa playlist antes da campanha — curador deve subir posição.
+          if (!r.attributed_to.startsWith("curator:")) return false;
+          if (!(Number(r.baseline_plays ?? 0) > 0)) return false;
         } else {
           const st = r.attributed_curator_id ? statuses[`${r.attributed_curator_id}::${r.playlist_id}`] ?? "pending_match" : null;
           if (st !== statusFilter) return false;
@@ -412,6 +416,7 @@ export function ExecucaoView({
               <SelectItem value="all">Todos status</SelectItem>
               <SelectItem value="matched">Matched</SelectItem>
               <SelectItem value="pending_match">Pending</SelectItem>
+              <SelectItem value="pre_campaign">Pré-campanha (subir posição)</SelectItem>
               <SelectItem value="baseline_conflict">Conflito baseline</SelectItem>
               <SelectItem value="not_found_yet">Not found</SelectItem>
               <SelectItem value="no_data">Sem dados</SelectItem>
@@ -862,6 +867,14 @@ function VirtualTable({
                           <span className="tabular-nums">{Intl.NumberFormat("pt-BR").format(meta.followers)}</span>
                         </>
                       )}
+                      {r.attributed_to.startsWith("curator:") && Number(r.baseline_plays ?? 0) > 0 && (
+                        <span
+                          className="ml-1 shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wide border border-amber-500/40 text-amber-400 bg-amber-500/5"
+                          title="Música já estava nesta playlist antes da campanha. Curador deve subir a posição."
+                        >
+                          subir posição
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="text-right shrink-0 leading-tight">
@@ -917,7 +930,17 @@ function VirtualTable({
                     followers={meta?.followers ?? null}
                   />
                 )}
-                <AttributionBadge attr={r.attributed_to} curatorName={curName} />
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <AttributionBadge attr={r.attributed_to} curatorName={curName} />
+                  {r.attributed_to.startsWith("curator:") && Number(r.baseline_plays ?? 0) > 0 && (
+                    <span
+                      className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wide border border-amber-500/40 text-amber-400 bg-amber-500/5"
+                      title="Música já estava nesta playlist antes da campanha. Curador deve subir a posição."
+                    >
+                      subir pos.
+                    </span>
+                  )}
+                </div>
                 <div className="text-right tabular-nums text-muted-foreground text-sm">{r.baseline_plays == null ? "—" : formatInt(Number(r.baseline_plays))}</div>
                 <div className="text-right tabular-nums text-foreground text-sm">{r.current_plays == null ? "—" : formatInt(Number(r.current_plays))}</div>
                 <div className={cn("text-right tabular-nums font-semibold text-sm", Number(r.delta) > 0 ? "text-primary" : "text-muted-foreground")}>
@@ -1085,6 +1108,13 @@ function CuratorTiles({
   onToggleStatus: (status: string) => void;
 }) {
   const list = useCuratorSummary(rows, curators, statuses);
+  const preCampaignCount = useMemo(() => {
+    return (rows ?? []).filter((r) => {
+      if (!r.attributed_to.startsWith("curator:")) return false;
+      if (curatorFilter !== "all" && r.attributed_curator_id !== curatorFilter) return false;
+      return Number(r.baseline_plays ?? 0) > 0;
+    }).length;
+  }, [rows, curatorFilter]);
   const totals = useMemo(() => {
     const target = curatorFilter === "all" ? list : list.filter((c) => c.id === curatorFilter);
     return target.reduce(
@@ -1102,7 +1132,7 @@ function CuratorTiles({
   if (list.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
       <KpiTile label="Playlists" value={totals.playlists} />
       <KpiTile
         label="Matched"
@@ -1117,6 +1147,13 @@ function CuratorTiles({
         accent="amber"
         active={statusFilter === "pending_match"}
         onClick={() => onToggleStatus("pending_match")}
+      />
+      <KpiTile
+        label="Pré-campanha"
+        value={preCampaignCount}
+        accent="amber"
+        active={statusFilter === "pre_campaign"}
+        onClick={() => onToggleStatus("pre_campaign")}
       />
       <KpiTile
         label="Conflito"
