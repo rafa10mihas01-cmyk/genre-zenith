@@ -27,6 +27,28 @@ const TONE: Record<ExecutiveStatus, string> = {
   urgent: "border-destructive/40 bg-destructive/5 text-destructive",
 };
 
+const INFRA_DOMAINS = new Set(["system", "bot", "infra", "spotify"]);
+const BUSINESS_KINDS = new Set([
+  "campaign_plan_decision",
+  "deal_overdue",
+  "deal_stale_no_snapshot",
+  "deadline_overdue",
+  "deadline_d_minus_5",
+  "algorithmic_in",
+  "deal_closed",
+  "campaign_closed",
+  "goal_reached",
+  "curator_response",
+]);
+
+function isOperationalAlert(n: { metadata?: Record<string, unknown> | null }) {
+  const meta = n.metadata ?? {};
+  const domain = String(meta.domain ?? "").toLowerCase();
+  const kind = String(meta.kind ?? "");
+  if (BUSINESS_KINDS.has(kind)) return false;
+  return !!domain && INFRA_DOMAINS.has(domain);
+}
+
 export function ExecutiveStatusBar() {
   const [summary, setSummary] = useState<Summary | null>(null);
 
@@ -34,9 +56,15 @@ export function ExecutiveStatusBar() {
     let cancelled = false;
     const load = async () => {
       const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
-      const [crit, warn, vps] = await Promise.all([
-        supabase.from("notifications").select("id", { count: "exact", head: true }).eq("status", "open").eq("type", "critical"),
-        supabase.from("notifications").select("id", { count: "exact", head: true }).eq("status", "open").eq("type", "warning"),
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const [notifs, vps] = await Promise.all([
+        supabase
+          .from("notifications")
+          .select("id, type, metadata")
+          .eq("status", "open")
+          .in("type", ["critical", "warning"])
+          .gte("created_at", oneDayAgo)
+          .limit(200),
         supabase.from("vps_nodes").select("last_heartbeat_at, status"),
       ]);
       const vpsRows = (vps.data ?? []) as Array<{ last_heartbeat_at: string | null; status: string }>;
@@ -48,8 +76,9 @@ export function ExecutiveStatusBar() {
         spotifyBlocked = cb.data?.length ?? 0;
       } catch { /* ok */ }
 
-      const criticalOpen = crit.count ?? 0;
-      const warningOpen = warn.count ?? 0;
+      const operationalAlerts = ((notifs.data ?? []) as Array<{ type: string; metadata?: Record<string, unknown> | null }>).filter(isOperationalAlert);
+      const criticalOpen = operationalAlerts.filter((n) => n.type === "critical").length;
+      const warningOpen = operationalAlerts.filter((n) => n.type === "warning").length;
       const status = deriveExecutiveStatus({ criticalOpen, warningOpen, spotifyBlocked, vpsOffline });
 
       if (!cancelled) setSummary({ status, criticalOpen, warningOpen, spotifyBlocked, vpsOffline });
