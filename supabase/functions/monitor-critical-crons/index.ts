@@ -1,12 +1,8 @@
 // monitor-critical-crons
-// Roda a cada hora via pg_cron. Verifica os crons críticos em cron_health:
-// se a última execução foi há mais de 2 horas (ou nunca aconteceu),
-// dispara notificação warning via RPC create_notification.
-//
-// Crons monitorados:
-//   - playlist-queue-processor
-//   - sync-managed-playlists
-//   - wave1-enrich-batch
+// Roda a cada hora via pg_cron. Verifica:
+//   1) Crons críticos em cron_health (alerta se "stale" > 2h)
+//   2) Spotify circuit breakers (alerta se "open")
+//   3) Spotify 403 em massa por app (alerta se > THRESHOLD em 1h)
 //
 // Dedupe: usa p_dedupe_key + p_cooldown_minutes nativos da RPC
 // (cooldown de 6h por cron para não floodar o sino).
@@ -16,13 +12,17 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 const CRITICAL_CRONS = [
   "playlist-queue-processor",
   "sync-managed-playlists",
-  "wave1-enrich-batch",
+  "process-email-queue",
   "execution-planner",
   "reap-zombie-jobs",
+  "ops-alerts-cron-every-5min",
 ] as const;
 
 const STALE_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2h
 const COOLDOWN_MINUTES = 6 * 60; // 6h entre re-notificações
+const SPOTIFY_403_THRESHOLD = 100; // 403s em 1h por app → alerta
+const SPOTIFY_403_WINDOW_MS = 60 * 60 * 1000;
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -99,9 +99,10 @@ Deno.serve(async (req) => {
     const friendly = ({
       "playlist-queue-processor": "Processamento de playlists",
       "sync-managed-playlists": "Sincronização de playlists",
-      "wave1-enrich-batch": "Enriquecimento Spotify",
+      "process-email-queue": "Envio de e-mails",
       "execution-planner": "Planejamento de execução",
       "reap-zombie-jobs": "Limpeza de jobs travados",
+      "ops-alerts-cron-every-5min": "Monitor de robôs",
     } as Record<string, string>)[job] ?? job;
 
     const message = hoursIdle != null
@@ -181,6 +182,63 @@ Deno.serve(async (req) => {
   } catch (e) {
     console.error("[monitor-critical-crons] circuit-breaker check failed:", e);
   }
+
+  // ============================================================
+  // Spotify 403 em massa por app — sinaliza escopo perdido / playlist alheia
+  // ============================================================
+  try {
+    const sinceIso = new Date(Date.now() - SPOTIFY_403_WINDOW_MS).toISOString();
+    const { data: rows } = await admin
+      .from("spotify_call_log")
+      .select("app_id")
+      .eq("http_status", 403)
+      .gte("created_at", sinceIso);
+
+    const counts = new Map<string, number>();
+    for (const r of rows ?? []) {
+      const id = (r as any).app_id as string | null;
+      if (!id) continue;
+      counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+
+    // Resolve apps que NÃO estão mais em excesso
+    const { data: appsAll } = await admin.from("spotify_apps").select("id, name");
+    for (const app of appsAll ?? []) {
+      const n = counts.get(app.id) ?? 0;
+      const dedupe = `spotify_403_excess:${app.id}`;
+      if (n >= SPOTIFY_403_THRESHOLD) {
+        await admin.rpc("create_notification", {
+          p_type: "critical",
+          p_title: `App Spotify ${app.name ?? ""} com excesso de erros de permissão`,
+          p_message:
+            `${n} chamadas Spotify recusadas (HTTP 403) na última hora para o app "${app.name ?? app.id}". ` +
+            `Impacto: o app pode ter perdido escopo OAuth ou estar tentando agir em playlists alheias. ` +
+            `Ação: revise as contas/playlists vinculadas a este app.`,
+          p_action_url: "/sistema?tab=saude",
+          p_metadata: {
+            domain: "system",
+            severity: "high",
+            kind: "spotify_403_excess",
+            action_required: true,
+            app_id: app.id,
+            app_name: app.name,
+            count_1h: n,
+          },
+          p_dedupe_key: dedupe,
+          p_cooldown_minutes: 360,
+        });
+      } else {
+        await admin.rpc("resolve_notifications_by_dedupe" as any, {
+          p_dedupe_key: dedupe,
+          p_resolution_message: "Erros 403 normalizaram.",
+        });
+      }
+    }
+  } catch (e) {
+    console.error("[monitor-critical-crons] 403 check failed:", e);
+  }
+
+
 
   await admin.from("cron_health").insert({
     job_name: "monitor-critical-crons",

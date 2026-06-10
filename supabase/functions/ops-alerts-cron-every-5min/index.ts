@@ -87,6 +87,59 @@ Deno.serve(async (req) => {
       alerts.push({ bot: hb.bot_name, hours });
     }
 
+    // ============================================================
+    // Monitor de VPS heartbeat — vps_nodes.last_heartbeat_at
+    // ============================================================
+    const VPS_OFFLINE_MS = 15 * 60 * 1000; // 15min sem heartbeat = offline
+    const { data: vpsRows } = await supabase
+      .from("vps_nodes")
+      .select("id, hostname, status, last_heartbeat_at");
+
+    for (const v of vpsRows ?? []) {
+      const dedupe_key = `vps_offline:${v.id}`;
+      const lastMs = v.last_heartbeat_at ? new Date(v.last_heartbeat_at as string).getTime() : null;
+      const ageMs = lastMs != null ? now - lastMs : null;
+      const isOffline = lastMs == null || (ageMs != null && ageMs > VPS_OFFLINE_MS);
+
+      if (!isOffline) {
+        await supabase.rpc("resolve_notifications_by_dedupe" as any, {
+          p_dedupe_key: dedupe_key,
+          p_resolution_message: `VPS ${v.hostname ?? v.id} voltou a responder.`,
+        });
+        continue;
+      }
+
+      const mins = ageMs != null ? Math.floor(ageMs / 60000) : null;
+      const ageLabel = mins == null
+        ? "nunca enviou heartbeat"
+        : mins < 60
+          ? `há ${mins} minutos`
+          : `há ${Math.floor(mins / 60)}h${String(mins % 60).padStart(2, "0")}`;
+
+      await supabase.rpc("create_notification" as any, {
+        p_type: "critical",
+        p_title: `VPS ${v.hostname ?? v.id} fora do ar`,
+        p_message:
+          `A VPS "${v.hostname ?? v.id}" não envia heartbeat ${ageLabel}. ` +
+          `Impacto: o robô parou de coletar e executar jobs. ` +
+          `Ação: verifique PM2/SSH na VPS e reinicie o processo do bot.`,
+        p_action_url: "/sistema?tab=saude",
+        p_metadata: {
+          domain: "bot",
+          severity: "critical",
+          kind: "vps_offline",
+          action_required: true,
+          vps_id: v.id,
+          hostname: v.hostname,
+          last_heartbeat_at: v.last_heartbeat_at,
+          minutes_silent: mins,
+        },
+        p_dedupe_key: dedupe_key,
+        p_cooldown_minutes: 60,
+      });
+      alerts.push({ vps: v.hostname ?? v.id, minutes_silent: mins });
+    }
+
     await reportCronHealth(supabase, {
       job_name: "ops-alerts-cron-every-5min",
       status: "ok",
