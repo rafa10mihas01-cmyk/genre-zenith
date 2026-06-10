@@ -48,10 +48,6 @@ Deno.serve(async (req) => {
 
   if (!camp) return jr({ ok: false, error: "not_found" }, 404);
 
-  const { count } = await admin
-    .from("campaign_access_emails")
-    .select("id", { count: "exact", head: true })
-    .eq("campaign_id", camp.id);
-
-  return jr({ ok: true, required: (count ?? 0) > 0 });
+  // OTP gate temporariamente desabilitado — portal abre só com token.
+  return jr({ ok: true, required: false });
 });
