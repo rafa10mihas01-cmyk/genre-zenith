@@ -44,21 +44,16 @@ import { CampaignDailyPlan } from "@/components/campanhas/CampaignDailyPlan";
 import { distributeEcoPositions, chartTierFromTopPosition } from "@/lib/campaignOperationalPlan";
 import { ClientHeroCard } from "@/components/campaign-hub/ClientHeroCard";
 import { SpreadsheetUploadCard } from "@/components/client-portal/SpreadsheetUploadCard";
-import { CampaignAccessGate, accessStorageKey } from "@/components/client-portal/CampaignAccessGate";
+import { CampaignAccessGate } from "@/components/client-portal/CampaignAccessGate";
+import {
+  portalHeaders,
+  clearPortalSession,
+  isPortalAuthError,
+  isLocalStorageAvailable,
+  logPortalAuth,
+  getPortalJwt,
+} from "@/lib/portalSession";
 
-// Lê JWT salvo do gate e devolve cabeçalho Authorization. Sem JWT → objeto vazio.
-function portalHeaders(token: string | undefined): Record<string, string> {
-  if (!token) return {};
-  try {
-    const raw = localStorage.getItem(`campaign_access_jwt:${token}`);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as { jwt?: string; exp?: number };
-    if (parsed?.jwt && parsed?.exp && parsed.exp > Date.now()) {
-      return { Authorization: `Bearer ${parsed.jwt}` };
-    }
-  } catch { /* ignore */ }
-  return {};
-}
 import { MonitoredPlaylistsCard, type MonitoredPlaylist } from "@/components/client-portal/MonitoredPlaylistsCard";
 import { AlgorithmicImpactCard } from "@/components/client-portal/AlgorithmicImpactCard";
 import { PrintsHistoryCard, type PrintsHistoryEntry } from "@/components/client-portal/PrintsHistoryCard";
@@ -250,6 +245,28 @@ export default function PlanoCampanhaPublico() {
     return () => { cancelled = true; };
   }, [token, isMapView]);
 
+  // Handler único — qualquer endpoint do portal que devolver erro de auth
+  // dispara esse caminho: limpa JWT cacheado, força gate e loga diagnóstico.
+  // NUNCA renderiza dashboard parcial zerado.
+  function handlePortalAuthError(endpoint: string, status: string) {
+    clearPortalSession(token);
+    setGateAuthed(false);
+    setGateRequired(true);
+    setLoading(false);
+    setLivePlaylistsLoading(false);
+    setLivePlaylists([]);
+    setSnapshotHistory([]);
+    setEvolutionSeries([]);
+    logPortalAuth({
+      campaign_id: (camp as any)?.id ?? null,
+      endpoint,
+      auth_status: status,
+      jwt_present: Boolean(getPortalJwt(token)),
+      localstorage_available: isLocalStorageAvailable(),
+      token,
+    });
+  }
+
   async function load() {
     if (!token) return;
     setLoading(true);
@@ -259,11 +276,8 @@ export default function PlanoCampanhaPublico() {
     });
     const payload = data as SharedCampaignPlanResponse | null;
     // Sessão expirada/inválida → derruba JWT cacheado e força gate de novo.
-    if ((payload?.error === "auth_required" || payload?.error === "invalid_session" || payload?.error === "wrong_campaign") && token) {
-      try { localStorage.removeItem(accessStorageKey(token)); } catch { /* ignore */ }
-      setGateAuthed(false);
-      setGateRequired(true);
-      setLoading(false);
+    if (isPortalAuthError(payload?.error) && token) {
+      handlePortalAuthError("get-shared-campaign-plan", payload!.error!);
       return;
     }
     if (error || payload?.error) {
@@ -301,11 +315,20 @@ export default function PlanoCampanhaPublico() {
         headers: portalHeaders(token),
       });
       if (cancelled) return;
-      if (!data || (data as { ok?: boolean }).ok === false) {
+      const payload = data as { ok?: boolean; error?: string; playlists?: MonitoredPlaylist[]; snapshot_history?: PrintsHistoryEntry[]; snapshotHistory?: PrintsHistoryEntry[]; series?: EvolutionSeriesPoint[] } | null;
+      // CRÍTICO — erro de auth aqui NÃO pode silenciosamente zerar listas
+      // como acontecia antes. Tratamos igual ao load() pra evitar dashboard
+      // parcial com playlists vazias / gráfico zerado / histórico ausente.
+      if (payload && payload.ok === false && isPortalAuthError(payload.error)) {
+        handlePortalAuthError("get-client-campaign-public", payload.error!);
+        return;
+      }
+      if (!payload || payload.ok === false) {
+        // Falha não-auth (rate limit, not_found etc) → mantém o que já tinha
+        // e marca como "carregado" pra não travar skeleton infinito.
         setLivePlaylistsLoading(false);
         return;
       }
-      const payload = data as { playlists?: MonitoredPlaylist[]; snapshot_history?: PrintsHistoryEntry[]; snapshotHistory?: PrintsHistoryEntry[]; series?: EvolutionSeriesPoint[] };
       setLivePlaylists(Array.isArray(payload.playlists) ? payload.playlists : []);
       const hist = payload.snapshot_history ?? payload.snapshotHistory ?? [];
       setSnapshotHistory(Array.isArray(hist) ? hist : []);
@@ -314,6 +337,7 @@ export default function PlanoCampanhaPublico() {
     })();
     return () => { cancelled = true; };
   }, [token, gateAuthed, isMapView]);
+
 
   // Fonte de verdade do "Entregue" — mesma usada na Execução / OverviewTab / Lista de Campanhas.
   // Substitui campaigns.total_delivered (legado).

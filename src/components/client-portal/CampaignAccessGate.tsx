@@ -1,28 +1,49 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
-import { Loader2, Mail, KeyRound } from "lucide-react";
+import { Loader2, Mail, KeyRound, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { isLocalStorageAvailable, logPortalAuth, portalStorageKey } from "@/lib/portalSession";
 
 interface Props {
   token: string;
   onAuthed: (jwt: string, email: string) => void;
 }
 
-const STORAGE_PREFIX = "campaign_access_jwt:";
-export const accessStorageKey = (token: string) => `${STORAGE_PREFIX}${token}`;
+// Mantido por compat — outros arquivos importam essa função.
+export const accessStorageKey = (token: string) => portalStorageKey(token);
 
 export function CampaignAccessGate({ token, onAuthed }: Props) {
   const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
+  const [storageOk, setStorageOk] = useState(true);
+
+  useEffect(() => {
+    const ok = isLocalStorageAvailable();
+    setStorageOk(ok);
+    if (!ok) {
+      logPortalAuth({
+        endpoint: "gate.mount",
+        auth_status: "localstorage_blocked",
+        jwt_present: false,
+        localstorage_available: false,
+        token,
+      });
+    }
+  }, [token]);
+
 
   async function requestCode() {
+    if (!storageOk) {
+      toast.error("Abra o link no Chrome ou Safari antes de pedir o código.");
+      return;
+    }
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
       toast.error("E-mail inválido");
       return;
@@ -83,11 +104,32 @@ export function CampaignAccessGate({ token, onAuthed }: Props) {
     }
     const jwt = (data as any)?.jwt as string;
     if (!jwt) { toast.error("Erro inesperado."); return; }
+    // Antes de liberar, garante que o JWT VAI persistir. Sem isso o usuário
+    // entra agora, dá refresh, perde sessão, pede OTP de novo → loop.
+    let persisted = false;
     try {
-      localStorage.setItem(accessStorageKey(token), JSON.stringify({ jwt, email: email.trim().toLowerCase(), exp: Date.now() + 86400_000 }));
+      localStorage.setItem(
+        accessStorageKey(token),
+        JSON.stringify({ jwt, email: email.trim().toLowerCase(), exp: Date.now() + 86400_000 }),
+      );
+      persisted = true;
     } catch { /* ignore */ }
+    logPortalAuth({
+      email: email.trim().toLowerCase(),
+      endpoint: "verify-campaign-otp",
+      auth_status: persisted ? "ok" : "ok_no_persistence",
+      jwt_present: true,
+      localstorage_available: persisted,
+      token,
+    });
+    if (!persisted) {
+      setStorageOk(false);
+      toast.error("Não foi possível salvar sua sessão neste navegador. Abra o link no Chrome ou Safari.");
+      return;
+    }
     onAuthed(jwt, email.trim().toLowerCase());
   }
+
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -97,7 +139,23 @@ export function CampaignAccessGate({ token, onAuthed }: Props) {
         </div>
         <Card>
           <CardContent className="p-6 space-y-5">
+            {!storageOk && (
+              <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-200 flex gap-2">
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                <div className="space-y-2">
+                  <p>
+                    <strong>Seu navegador está bloqueando o armazenamento necessário para manter sua sessão.</strong>
+                  </p>
+                  <p className="text-amber-100/80">
+                    Por isso, mesmo após digitar o código, a página vai pedir tudo de novo no próximo refresh.
+                    Abra este link diretamente no <strong>Chrome</strong> ou <strong>Safari</strong> — saia do
+                    navegador interno do WhatsApp, Instagram ou Gmail antes de continuar.
+                  </p>
+                </div>
+              </div>
+            )}
             {step === "email" ? (
+
               <>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Mail className="h-4 w-4" /> Acesso ao portal da campanha
