@@ -689,23 +689,24 @@ function HeroGrowth({
         >
           {/* Hero principal — número fino premium + label embaixo */}
           <div className={cn(
-            "px-4 py-3 md:px-6 md:py-5 lg:py-6 flex flex-col justify-center",
+            "px-4 py-3 md:px-5 md:py-3.5 lg:py-4 flex flex-col justify-center",
             mode === "all" && "col-span-2 lg:col-span-1 border-b border-border/50 lg:border-b-0",
           )}>
             <div
               className={cn(
                 "tabular-nums leading-none tracking-tight",
-                "text-[32px] md:text-[44px] lg:text-[48px] font-medium",
+                "text-[28px] md:text-[32px] lg:text-[34px] font-medium",
                 valueClass,
               )}
             >
               {sign}{formatInt(heroValue)}
             </div>
-            <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold mt-2 md:mt-3 flex items-center gap-1.5">
+            <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold mt-2 flex items-center gap-1.5">
               {heroLabel}
               <Activity className="h-3 w-3 text-primary/60 animate-pulse" />
             </div>
           </div>
+
 
           {/* 3 colunas secundárias com divisores verticais — só na visão geral */}
           {mode === "all" && (
