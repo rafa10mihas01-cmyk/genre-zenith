@@ -16,7 +16,9 @@ import {
   Archive,
   ArchiveRestore,
   Trash2,
+  Users,
 } from "lucide-react";
+import { FormModal, FormGrid, FormField } from "@/components/ui/form-modal";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -691,6 +693,7 @@ export function ClientFormDialog({
   const [logoUrl, setLogoUrl] = useState("");
   const [brandColor, setBrandColor] = useState("");
   const [saving, setSaving] = useState(false);
+  const [tab, setTab] = useState("identidade");
 
   // sincroniza ao abrir
   useEffect(() => {
@@ -762,261 +765,271 @@ export function ClientFormDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{client ? "Editar cliente" : "Novo cliente"}</DialogTitle>
-          <DialogDescription>
-            Ficha completa do contratante. Quanto mais preenchida, melhor o time monta a campanha e o financeiro.
-          </DialogDescription>
-        </DialogHeader>
-
-        <Tabs defaultValue="identidade" className="mt-2">
-          <TabsList className="w-full justify-start">
-            <TabsTrigger value="identidade">Identidade</TabsTrigger>
-            <TabsTrigger value="contato">Contato</TabsTrigger>
-            <TabsTrigger value="perfil">Perfil artístico</TabsTrigger>
-            <TabsTrigger value="comercial">Comercial</TabsTrigger>
-            <TabsTrigger value="notas">Notas</TabsTrigger>
+    <FormModal
+      open={open}
+      onOpenChange={(v) => !v && onClose()}
+      title={client ? "Editar cliente" : "Novo cliente"}
+      description="Ficha completa do contratante. Quanto mais preenchida, melhor o time monta a campanha e o financeiro."
+      icon={<Users className="h-4 w-4" />}
+      iconTone="clientes"
+      size="lg"
+      preventClose={saving}
+      topSlot={
+        <Tabs value={tab} onValueChange={setTab} className="px-5 pt-3">
+          <TabsList className="w-full justify-start bg-transparent border-b border-border/60 rounded-none h-auto p-0 gap-1">
+            {[
+              { v: "identidade", l: "Identidade" },
+              { v: "contato", l: "Contato" },
+              { v: "perfil", l: "Perfil artístico" },
+              { v: "comercial", l: "Comercial" },
+              { v: "notas", l: "Notas" },
+            ].map((t) => (
+              <TabsTrigger
+                key={t.v}
+                value={t.v}
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground text-muted-foreground px-3 py-2 text-[13px]"
+              >
+                {t.l}
+              </TabsTrigger>
+            ))}
           </TabsList>
-
-          {/* ----- Identidade ----- */}
-          <TabsContent value="identidade" className="space-y-3 pt-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="space-y-1.5 md:col-span-2">
-                <Label htmlFor="client-name">Nome *</Label>
-                <Input
-                  id="client-name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Ex: Miguel Universal, Label XYZ"
-                  autoFocus
-                  maxLength={120}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="client-type">Tipo</Label>
-                <Select value={clientType} onValueChange={(v) => setClientType(v as ClientType)}>
-                  <SelectTrigger id="client-type"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {CLIENT_TYPE_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="client-company">Empresa / Label</Label>
-                <Input
-                  id="client-company"
-                  value={company}
-                  onChange={(e) => setCompany(e.target.value)}
-                  placeholder="Ex: Sony Music"
-                  maxLength={120}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="client-tags">Tags (separadas por vírgula)</Label>
-                <Input
-                  id="client-tags"
-                  value={tagsText}
-                  onChange={(e) => setTagsText(e.target.value)}
-                  placeholder="vip, recorrente, em alta"
-                  maxLength={300}
-                />
-              </div>
-              <div className="space-y-1.5 md:col-span-2">
-                <Label htmlFor="client-logo">URL do logo (usado no PDF de relatório)</Label>
-                <Input
-                  id="client-logo"
-                  type="url"
-                  value={logoUrl}
-                  onChange={(e) => setLogoUrl(e.target.value)}
-                  placeholder="https://exemplo.com/logo.png"
-                  maxLength={500}
-                />
-                {logoUrl.trim() && (
-                  <img
-                    src={logoUrl.trim()}
-                    alt="Preview do logo"
-                    className="mt-2 h-12 w-auto rounded border border-border bg-elevated/40 p-1 object-contain"
-                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-                  />
-                )}
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="client-brand-color">Cor de destaque (hex)</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="client-brand-color-picker"
-                    type="color"
-                    value={/^#[0-9a-fA-F]{6}$/.test(brandColor) ? brandColor : "#1db954"}
-                    onChange={(e) => setBrandColor(e.target.value)}
-                    className="h-10 w-14 p-1 cursor-pointer"
-                  />
-                  <Input
-                    id="client-brand-color"
-                    value={brandColor}
-                    onChange={(e) => setBrandColor(e.target.value)}
-                    placeholder="#2d4a7a"
-                    maxLength={7}
-                  />
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Usada no cabeçalho e bordas do PDF. Vazio = padrão NexEngine.
-                </p>
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* ----- Contato ----- */}
-          <TabsContent value="contato" className="space-y-3 pt-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="client-email">E-mail</Label>
-                <Input
-                  id="client-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="contato@artista.com"
-                  maxLength={255}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="client-phone">WhatsApp / Telefone</Label>
-                <Input
-                  id="client-phone"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+55 11 99999-9999"
-                  maxLength={40}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="client-instagram">Instagram</Label>
-                <Input
-                  id="client-instagram"
-                  value={instagram}
-                  onChange={(e) => setInstagram(e.target.value)}
-                  placeholder="@usuario"
-                  maxLength={60}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="client-spotify">Spotify do artista (URL)</Label>
-                <Input
-                  id="client-spotify"
-                  value={spotifyUrl}
-                  onChange={(e) => setSpotifyUrl(e.target.value)}
-                  placeholder="https://open.spotify.com/artist/…"
-                  maxLength={300}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="client-city">Cidade</Label>
-                <Input
-                  id="client-city"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  placeholder="São Paulo"
-                  maxLength={80}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="client-country">País</Label>
-                <Input
-                  id="client-country"
-                  value={country}
-                  onChange={(e) => setCountry(e.target.value)}
-                  placeholder="Brasil"
-                  maxLength={60}
-                />
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* ----- Perfil artístico ----- */}
-          <TabsContent value="perfil" className="space-y-3 pt-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="client-genre">Gênero principal</Label>
-                <Input
-                  id="client-genre"
-                  value={primaryGenre}
-                  onChange={(e) => setPrimaryGenre(e.target.value)}
-                  placeholder="Funk, Sertanejo, Pop…"
-                  maxLength={60}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="client-listeners">Ouvintes mensais (Spotify)</Label>
-                <Input
-                  id="client-listeners"
-                  type="number"
-                  min={0}
-                  value={monthlyListeners}
-                  onChange={(e) => setMonthlyListeners(e.target.value)}
-                  placeholder="125000"
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  Snapshot do momento — usado pra dimensionar campanhas.
-                </p>
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* ----- Comercial ----- */}
-          <TabsContent value="comercial" className="space-y-3 pt-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="client-doc">Documento (CNPJ / CPF)</Label>
-                <Input
-                  id="client-doc"
-                  value={document}
-                  onChange={(e) => setDocument(e.target.value)}
-                  placeholder="00.000.000/0000-00"
-                  maxLength={30}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="client-payment">Condição de pagamento</Label>
-                <Input
-                  id="client-payment"
-                  value={paymentTerms}
-                  onChange={(e) => setPaymentTerms(e.target.value)}
-                  placeholder="50% início + 50% entrega · PIX"
-                  maxLength={120}
-                />
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* ----- Notas ----- */}
-          <TabsContent value="notas" className="space-y-3 pt-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="client-notes">Observações internas</Label>
-              <Textarea
-                id="client-notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Preferências, histórico, alertas, pessoas-chave do time…"
-                rows={8}
-                maxLength={2000}
-              />
-            </div>
-          </TabsContent>
         </Tabs>
-
-        <DialogFooter className="mt-4">
-          <Button variant="outline" onClick={onClose} disabled={saving}>
+      }
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>
             Cancelar
           </Button>
           <Button onClick={submit} disabled={saving}>
             {saving ? "Salvando…" : client ? "Salvar" : "Criar cliente"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </>
+      }
+    >
+      <Tabs value={tab} onValueChange={setTab}>
+        {/* ----- Identidade ----- */}
+        <TabsContent value="identidade" className="m-0 space-y-4">
+          <FormGrid cols={2}>
+            <FormField label="Nome" htmlFor="client-name" required span="full">
+              <Input
+                id="client-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Ex: Miguel Universal, Label XYZ"
+                autoFocus
+                maxLength={120}
+              />
+            </FormField>
+            <FormField label="Tipo" htmlFor="client-type">
+              <Select value={clientType} onValueChange={(v) => setClientType(v as ClientType)}>
+                <SelectTrigger id="client-type"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {CLIENT_TYPE_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+            <FormField label="Empresa / Label" htmlFor="client-company">
+              <Input
+                id="client-company"
+                value={company}
+                onChange={(e) => setCompany(e.target.value)}
+                placeholder="Ex: Sony Music"
+                maxLength={120}
+              />
+            </FormField>
+            <FormField
+              label="Tags"
+              htmlFor="client-tags"
+              span="full"
+              hint="Separadas por vírgula"
+            >
+              <Input
+                id="client-tags"
+                value={tagsText}
+                onChange={(e) => setTagsText(e.target.value)}
+                placeholder="vip, recorrente, em alta"
+                maxLength={300}
+              />
+            </FormField>
+            <FormField
+              label="URL do logo"
+              htmlFor="client-logo"
+              span="full"
+              hint="Usado no PDF de relatório"
+            >
+              <Input
+                id="client-logo"
+                type="url"
+                value={logoUrl}
+                onChange={(e) => setLogoUrl(e.target.value)}
+                placeholder="https://exemplo.com/logo.png"
+                maxLength={500}
+              />
+              {logoUrl.trim() && (
+                <img
+                  src={logoUrl.trim()}
+                  alt="Preview do logo"
+                  className="mt-2 h-12 w-auto rounded border border-border bg-elevated/40 p-1 object-contain"
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                />
+              )}
+            </FormField>
+            <FormField
+              label="Cor de destaque (hex)"
+              htmlFor="client-brand-color"
+              span="full"
+              hint="Usada no cabeçalho e bordas do PDF. Vazio = padrão NexEngine."
+            >
+              <div className="flex items-center gap-2">
+                <Input
+                  id="client-brand-color-picker"
+                  type="color"
+                  value={/^#[0-9a-fA-F]{6}$/.test(brandColor) ? brandColor : "#1db954"}
+                  onChange={(e) => setBrandColor(e.target.value)}
+                  className="h-10 w-14 p-1 cursor-pointer shrink-0"
+                />
+                <Input
+                  id="client-brand-color"
+                  value={brandColor}
+                  onChange={(e) => setBrandColor(e.target.value)}
+                  placeholder="#2d4a7a"
+                  maxLength={7}
+                />
+              </div>
+            </FormField>
+          </FormGrid>
+        </TabsContent>
+
+        {/* ----- Contato ----- */}
+        <TabsContent value="contato" className="m-0">
+          <FormGrid cols={2}>
+            <FormField label="E-mail" htmlFor="client-email">
+              <Input
+                id="client-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="contato@artista.com"
+                maxLength={255}
+              />
+            </FormField>
+            <FormField label="WhatsApp / Telefone" htmlFor="client-phone">
+              <Input
+                id="client-phone"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+55 11 99999-9999"
+                maxLength={40}
+              />
+            </FormField>
+            <FormField label="Instagram" htmlFor="client-instagram">
+              <Input
+                id="client-instagram"
+                value={instagram}
+                onChange={(e) => setInstagram(e.target.value)}
+                placeholder="@usuario"
+                maxLength={60}
+              />
+            </FormField>
+            <FormField label="Spotify do artista (URL)" htmlFor="client-spotify">
+              <Input
+                id="client-spotify"
+                value={spotifyUrl}
+                onChange={(e) => setSpotifyUrl(e.target.value)}
+                placeholder="https://open.spotify.com/artist/…"
+                maxLength={300}
+              />
+            </FormField>
+            <FormField label="Cidade" htmlFor="client-city">
+              <Input
+                id="client-city"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                placeholder="São Paulo"
+                maxLength={80}
+              />
+            </FormField>
+            <FormField label="País" htmlFor="client-country">
+              <Input
+                id="client-country"
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                placeholder="Brasil"
+                maxLength={60}
+              />
+            </FormField>
+          </FormGrid>
+        </TabsContent>
+
+        {/* ----- Perfil artístico ----- */}
+        <TabsContent value="perfil" className="m-0">
+          <FormGrid cols={2}>
+            <FormField label="Gênero principal" htmlFor="client-genre">
+              <Input
+                id="client-genre"
+                value={primaryGenre}
+                onChange={(e) => setPrimaryGenre(e.target.value)}
+                placeholder="Funk, Sertanejo, Pop…"
+                maxLength={60}
+              />
+            </FormField>
+            <FormField
+              label="Ouvintes mensais (Spotify)"
+              htmlFor="client-listeners"
+              hint="Snapshot do momento — usado pra dimensionar campanhas."
+            >
+              <Input
+                id="client-listeners"
+                type="number"
+                min={0}
+                value={monthlyListeners}
+                onChange={(e) => setMonthlyListeners(e.target.value)}
+                placeholder="125000"
+              />
+            </FormField>
+          </FormGrid>
+        </TabsContent>
+
+        {/* ----- Comercial ----- */}
+        <TabsContent value="comercial" className="m-0">
+          <FormGrid cols={2}>
+            <FormField label="Documento (CNPJ / CPF)" htmlFor="client-doc">
+              <Input
+                id="client-doc"
+                value={document}
+                onChange={(e) => setDocument(e.target.value)}
+                placeholder="00.000.000/0000-00"
+                maxLength={30}
+              />
+            </FormField>
+            <FormField label="Condição de pagamento" htmlFor="client-payment">
+              <Input
+                id="client-payment"
+                value={paymentTerms}
+                onChange={(e) => setPaymentTerms(e.target.value)}
+                placeholder="50% início + 50% entrega · PIX"
+                maxLength={120}
+              />
+            </FormField>
+          </FormGrid>
+        </TabsContent>
+
+        {/* ----- Notas ----- */}
+        <TabsContent value="notas" className="m-0">
+          <FormField label="Observações internas" htmlFor="client-notes">
+            <Textarea
+              id="client-notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Preferências, histórico, alertas, pessoas-chave do time…"
+              rows={8}
+              maxLength={2000}
+            />
+          </FormField>
+        </TabsContent>
+      </Tabs>
+    </FormModal>
   );
 }
