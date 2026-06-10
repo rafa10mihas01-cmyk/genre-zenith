@@ -453,41 +453,41 @@ export function ExecucaoView({
       {/* RESULTADO DA CAMPANHA — Atual / Variação / Playlists + sparkline (apenas Visão geral) */}
       {mode === "all" && (
         <Card>
-          <CardContent className="p-3 md:p-5 lg:p-6">
-            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold mb-2.5 md:mb-4">
+          <CardContent className="p-3 md:p-4 lg:px-5 lg:py-3.5">
+            <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold mb-2 md:mb-2.5">
               Resultado da campanha
             </div>
-            <div className="flex flex-col lg:flex-row lg:items-center gap-3 md:gap-6 lg:gap-8 lg:divide-x lg:divide-border/50">
-              <div className="grid grid-cols-3 gap-2 md:gap-10 flex-1">
-                <div className="flex flex-col gap-0.5 md:gap-1.5">
-                  <span className="text-[10px] md:text-[12px] text-muted-foreground">Atual</span>
-                  <span className="text-[18px] sm:text-[24px] lg:text-[28px] font-medium tabular-nums text-foreground leading-none">
+            <div className="flex flex-col lg:flex-row lg:items-center gap-3 md:gap-5 lg:gap-6 lg:divide-x lg:divide-border/50">
+              <div className="grid grid-cols-3 gap-2 md:gap-8 flex-1">
+                <div className="flex flex-col gap-0.5 md:gap-1">
+                  <span className="text-[10px] md:text-[11px] text-muted-foreground">Atual</span>
+                  <span className="text-[16px] sm:text-[18px] lg:text-[20px] font-medium tabular-nums text-foreground leading-none">
                     {formatInt(filteredTotals.current)}
                   </span>
                 </div>
-                <div className="flex flex-col gap-0.5 md:gap-1.5">
-                  <span className="text-[10px] md:text-[12px] text-muted-foreground">Variação</span>
+                <div className="flex flex-col gap-0.5 md:gap-1">
+                  <span className="text-[10px] md:text-[11px] text-muted-foreground">Variação</span>
                   <span className={cn(
-                    "text-[18px] sm:text-[24px] lg:text-[28px] font-medium tabular-nums leading-none",
+                    "text-[16px] sm:text-[18px] lg:text-[20px] font-medium tabular-nums leading-none",
                     filteredTotals.delta > 0 ? "text-primary" : "text-foreground",
                   )}>
                     {filteredTotals.delta > 0 ? "+" : ""}{formatInt(filteredTotals.delta)}
                   </span>
                 </div>
-                <div className="flex flex-col gap-0.5 md:gap-1.5">
-                  <span className="text-[10px] md:text-[12px] text-muted-foreground leading-tight">Playlists<span className="hidden md:inline"> monitoradas</span></span>
-                  <span className="text-[18px] sm:text-[24px] lg:text-[28px] font-medium tabular-nums text-foreground leading-none">
+                <div className="flex flex-col gap-0.5 md:gap-1">
+                  <span className="text-[10px] md:text-[11px] text-muted-foreground leading-tight">Playlists<span className="hidden md:inline"> monitoradas</span></span>
+                  <span className="text-[16px] sm:text-[18px] lg:text-[20px] font-medium tabular-nums text-foreground leading-none">
                     {formatInt(filtered.length)}
                   </span>
                 </div>
               </div>
-              <div className="w-full lg:w-[420px] shrink-0 lg:pl-8">
+              <div className="w-full lg:w-[360px] shrink-0 lg:pl-6">
                 <GrowthSparkline />
               </div>
             </div>
-
           </CardContent>
         </Card>
+
 
       )}
 
@@ -689,23 +689,24 @@ function HeroGrowth({
         >
           {/* Hero principal — número fino premium + label embaixo */}
           <div className={cn(
-            "px-4 py-3 md:px-6 md:py-5 lg:py-6 flex flex-col justify-center",
+            "px-4 py-3 md:px-5 md:py-3.5 lg:py-4 flex flex-col justify-center",
             mode === "all" && "col-span-2 lg:col-span-1 border-b border-border/50 lg:border-b-0",
           )}>
             <div
               className={cn(
                 "tabular-nums leading-none tracking-tight",
-                "text-[32px] md:text-[44px] lg:text-[48px] font-medium",
+                "text-[28px] md:text-[32px] lg:text-[34px] font-medium",
                 valueClass,
               )}
             >
               {sign}{formatInt(heroValue)}
             </div>
-            <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold mt-2 md:mt-3 flex items-center gap-1.5">
+            <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold mt-2 flex items-center gap-1.5">
               {heroLabel}
               <Activity className="h-3 w-3 text-primary/60 animate-pulse" />
             </div>
           </div>
+
 
           {/* 3 colunas secundárias com divisores verticais — só na visão geral */}
           {mode === "all" && (
@@ -734,17 +735,18 @@ function SecondaryMetric({
 }) {
   const sign = value > 0 ? "+" : "";
   return (
-    <div className={cn("px-4 py-3 md:px-6 md:py-5 lg:py-6 flex flex-col justify-center", className)}>
+    <div className={cn("px-4 py-3 md:px-5 md:py-3.5 lg:py-4 flex flex-col justify-center", className)}>
       <div className="flex items-center justify-between gap-2">
         <span className="text-[11px] md:text-[12px] text-muted-foreground font-normal">
           {label}
         </span>
         <Icon className="h-3.5 w-3.5 text-muted-foreground/60" />
       </div>
-      <div className="text-[18px] md:text-[24px] font-medium tabular-nums text-foreground leading-none mt-1.5 md:mt-3">
+      <div className="text-[16px] md:text-[18px] lg:text-[20px] font-medium tabular-nums text-foreground leading-none mt-1.5 md:mt-2">
         {sign}{formatInt(value)}
       </div>
     </div>
+
   );
 }
 
