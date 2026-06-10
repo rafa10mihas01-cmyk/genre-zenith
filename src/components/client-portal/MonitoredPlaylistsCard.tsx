@@ -34,13 +34,9 @@ function clientStatus(p: MonitoredPlaylist): "entregando" | "aguardando" {
   return "entregando";
 }
 
-const STATUS_STYLES: Record<"entregando" | "aguardando", string> = {
-  entregando: "bg-success/10 text-success border-success/20",
-  aguardando: "bg-muted text-muted-foreground border-border",
-};
 const STATUS_LABEL: Record<"entregando" | "aguardando", string> = {
   entregando: "Entregando",
-  aguardando: "Aguardando atualização",
+  aguardando: "Aguardando",
 };
 
 export function MonitoredPlaylistsCard({ playlists }: { playlists: MonitoredPlaylist[] }) {
