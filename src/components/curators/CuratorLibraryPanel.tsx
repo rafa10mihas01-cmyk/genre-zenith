@@ -156,6 +156,7 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
       toast.success("Crédito adicionado");
       setBuyPlays(""); setBuyAmount(""); setBuyNote("");
       setBuyOpen(false);
+      loadPurchases();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       toast.error("Erro ao adicionar crédito", { description: msg });
