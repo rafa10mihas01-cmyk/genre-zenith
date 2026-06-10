@@ -716,22 +716,6 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
           </div>
         )}
 
-        <DialogFooter className="flex items-center justify-between gap-2">
-          <Button variant="ghost" onClick={() => step > 1 ? setStep((step - 1) as any) : close(false)} disabled={busy}>
-            {step > 1 ? <><ChevronLeft className="h-4 w-4 mr-1" /> Voltar</> : "Cancelar"}
-          </Button>
-          {step < 3 ? (
-            <Button onClick={goNext} disabled={busy || loadingSugg}>
-              Avançar <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
-          ) : (
-            <Button onClick={submit} disabled={busy}>
-              {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Salvar rascunho
-            </Button>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </FormModal>
   );
 }
