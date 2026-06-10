@@ -1,132 +1,187 @@
-# Fase 2 — Zero Loading Experience
+## Objetivo
 
-Objetivo: nenhuma tela operacional pode ficar branca, com spinner full-page ou perder conteúdo ao voltar. Padrão de referência: Linear / Notion / Stripe.
+Padronizar TODOS os modais/dialogs/sheets do sistema seguindo o mesmo padrão visual do modal **"Importar planilha de streams"** (limpo, com header bem definido, ícone, descrição, conteúdo respirado e rodapé fixo com ações). Hoje cada modal foi feito de um jeito (alguns sem padding, outros com header gigante cortando, sem rodapé fixo, scroll quebrado, campos espremidos).
 
-Nada de regra de negócio, banco, planner, queries de cálculo. Só camada de cache e UI de carregamento.
-
----
-
-## Auditoria — estado atual
-
-Páginas/hook ainda no padrão antigo (`useState + useEffect + setLoading`):
-
-| Arquivo | Sintoma visual hoje |
-|---|---|
-| `src/pages/CampanhaExecucao.tsx` | `<PageLoader />` full-page a cada visita |
-| `src/pages/CampanhaDetalhe.tsx` | `Skeleton h-64` + reset total ao voltar |
-| `src/pages/Analytics.tsx` | spinner/empty na entrada |
-| `src/pages/Performance.tsx` | idem |
-| `src/pages/Valuation.tsx` | idem |
-| `src/hooks/useClients.ts` | refetch full ao voltar pra `/clientes` e `/clientes/:id` |
-| `src/hooks/useCuratorDealsList.ts` | reload do `/deals` e `/financeiro` |
-| `src/hooks/useCuratorDealDetail.ts` | spinner no `/deals/:id` |
-| `src/hooks/useRadioCollected.ts` | flicker dentro do hub de campanha |
-| `src/pages/ClienteDetalhe.tsx` | `useEffect` próprio carrega `clientCampaigns` (skeleton "Carregando cliente…") |
-
-Páginas já saudáveis (React Query): Home, Sistema, Catálogo, Prospecao (curadores), Campanhas (lista), PlaylistDeals (lista) — preservar.
+Antes de mexer em nada eu listo tudo, defino o padrão e a gente faz em **ondas pequenas** pra você revisar cada uma. Sem mudar lógica de negócio, apenas estrutura visual do modal.
 
 ---
 
-## Plano de implementação
+## Padrão proposto — `FormModal`
 
-### 1. Defaults globais do QueryClient (`src/App.tsx`)
+Componente novo em `src/components/ui/form-modal.tsx` que encapsula o shadcn `Dialog` com a estrutura abaixo:
 
-```ts
-defaultOptions: {
-  queries: {
-    staleTime: 5 * 60_000,           // antes 2min — reduz refetch ao voltar
-    gcTime: 30 * 60_000,             // antes 10min — mantém cache por sessão
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: true,
-    refetchOnMount: false,           // se há cache fresco, não pisca
-    retry: 1,
-    placeholderData: keepPreviousData, // troca de parâmetro mantém dado anterior
-  },
-}
+```text
+┌─────────────────────────────────────────┐
+│ [ícone]  Título do modal           [×] │  ← header fixo (não scrolla)
+│          Descrição curta de 1 linha     │
+├─────────────────────────────────────────┤
+│ [abas opcionais]                        │  ← se houver
+├─────────────────────────────────────────┤
+│                                         │
+│   conteúdo do formulário                │  ← scrolla
+│   (campos com label em cima, gap 16)    │
+│   grid 2 colunas em ≥sm                 │
+│                                         │
+├─────────────────────────────────────────┤
+│                   [Cancelar] [Confirmar]│  ← rodapé fixo
+└─────────────────────────────────────────┘
 ```
 
-Impacto: ao voltar de qualquer detalhe → lista, a tela aparece com dados em cache e revalida silenciosamente. Hooks que precisam de refetch real (notificações, financeiro on-demand) já sobrescrevem localmente.
+API mínima:
 
-### 2. Migrar hooks legados para React Query
+```tsx
+<FormModal
+  open={open}
+  onOpenChange={setOpen}
+  icon={<Users className="h-4 w-4" />}
+  iconTone="campaigns" // domain color (campaigns/curators/clients/...)
+  title="Novo cliente"
+  description="Ficha completa do contratante."
+  size="md"            // sm | md | lg | xl
+  tabs={...}           // opcional
+  footer={
+    <>
+      <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+      <Button onClick={onSubmit} disabled={loading}>Criar cliente</Button>
+    </>
+  }
+>
+  {/* campos */}
+</FormModal>
+```
 
-Cada hook abaixo vira `useQuery` mantendo a mesma assinatura externa (zero breaking change nos consumidores):
+Regras visuais fixas (puxando do Design System já memorizado):
+- Padding header `20px`, conteúdo `24px`, footer `16px 24px`.
+- Header com fundo `card`, border-bottom `border/60`, ícone `9x9 rounded-lg` com `bg-primary/10 ring-1 ring-primary/20` ou cor de domínio.
+- Conteúdo com `max-h-[70vh] overflow-y-auto` (scroll só no meio).
+- Rodapé `sticky bottom-0` com fundo `card` e border-top.
+- Botão primário sempre à direita, secundário (Cancelar) à esquerda dele.
+- Label em cima do input (não inline), `text-[12px] font-medium text-foreground`, gap `6px` pro input.
+- Grid `grid-cols-1 sm:grid-cols-2 gap-4` por padrão; campos full-width usam `sm:col-span-2`.
+- Mobile: full-screen drawer abaixo de 640px (vira sheet bottom).
 
-- `useClients` → `useQuery(['clients'])` + `useMutation` para create/update/archive/delete (mantém `clients`, `loading`, `reload`, etc.).
-- `useCuratorDealsList` → `useQuery(['curator_deals_list'])`.
-- `useCuratorDealDetail` → `useQuery(['curator_deal_detail', dealId])` com `placeholderData: keepPreviousData`.
-- `useRadioCollected` → `useQuery(['radio_collected', campaignId])`.
-
-Mutations invalidam só a key afetada (não derruba o cache geral).
-
-### 3. Páginas — eliminar `setLoading` + spinner full-page
-
-- **`CampanhaDetalhe.tsx`**: trocar `useState`/`useEffect` por dois `useQuery` (`campaign` e `allocations`). Manter render parcial: header/KPIs aparecem com `placeholderData`; só Allocations mostra skeleton local se vazio.
-- **`CampanhaExecucao.tsx`**: hoje retorna `<PageLoader />` global em `loading`. Refatorar para:
-  - Hub/CampaignKpis renderizam com `data ?? lastKnown` (via React Query cache).
-  - Substituir `<PageLoader />` por skeleton **interno** ao hub (header da campanha permanece visível). Manter todas as queries de banco como estão — só envelopar o fetch atual num `useQuery(['campaign_execucao', id])`.
-- **`Analytics.tsx`, `Performance.tsx`, `Valuation.tsx`**: trocar `useState({data, loading})` por `useQuery`. Conteúdo renderiza com `placeholderData`; KPIs mostram esqueleto fino em vez de spinner central.
-- **`ClienteDetalhe.tsx`**: matar `useEffect` que busca `clientCampaigns` — virar `useQuery(['client_campaigns', id])`. Header e KPIs continuam imediatos pela `useClients` (já cacheado).
-
-### 4. Skeletons consistentes (`src/components/skeletons/`)
-
-Criar 4 skeletons reutilizáveis, todos com o **mesmo tamanho do conteúdo real** (sem layout shift):
-
-- `KpiRowSkeleton` (4 cards 90px altura).
-- `TableRowsSkeleton` (n linhas h-12).
-- `HeroCardSkeleton` (altura do hero do deal/campanha).
-- `ChartSkeleton` (200px com shimmer suave).
-
-Substituir todos os `Loading...`, `Spinner...`, `Loader2 animate-spin` em página por skeletons posicionais.
-
-### 5. Preload adicional em hover dentro das listas
-
-Estender `route-preload.ts` para detalhes:
-- Hover em linha de `Campanhas` → `import('@/pages/CampanhaDetalhe')` + `import('@/pages/CampanhaExecucao')`.
-- Hover em linha de `Clientes` → `import('@/pages/ClienteDetalhe')`.
-- Hover em row de `Deals` → `import('@/pages/DealDetail')`.
-
-Sem efeito visual; chunk já vem cacheado no clique.
-
-### 6. CampanhaExecucao — caso especial
-
-A página tem 1.500+ linhas com 20+ `useState`. Não vou reescrevê-la inteira (alto risco). Mudança mínima e segura:
-1. Envelopar a `loadCampaign` numa `useQuery(['campaign_execucao', id], loader, { staleTime: 60_000, placeholderData: keepPreviousData })`.
-2. Setar estados locais (`camp`, `allocs`, `snaps`, `proofs`) a partir do `data` da query, mantendo `setX` apenas para mutações otimistas locais.
-3. Remover `if (loading) return <PageLoader/>` → mostrar Hub com dado anterior (ou skeleton hero quando absolutamente vazio na 1ª visita).
-
-### 7. Validação
-
-Para cada rota da tabela acima:
-
-1. Visitar pela 1ª vez → skeleton local aparece (não spinner full-page).
-2. Sair e voltar em < 5 min → tela aparece **instantânea**, com revalidação em background (sem flicker).
-3. Trocar de ID (ex.: outro curador, outra campanha) → dado anterior fica enquanto o novo carrega (keepPreviousData).
+Acessibilidade: focus trap (já vem do Radix), Esc fecha, Enter submete quando único botão primário.
 
 ---
 
-## Detalhes técnicos
+## Inventário (mapeamento completo)
 
-- **Compat**: hooks mantêm exatamente os mesmos campos (`loading`, `reload`, etc.) pra não tocar consumidores. `loading` passa a ser `isLoading && !data`.
-- **Mutations**: usam `queryClient.invalidateQueries({ queryKey: [...] })` em vez de `reload()` manual; expomos `reload()` como `() => qc.invalidateQueries(...)` por compatibilidade.
-- **Edge**: `CampanhaExecucao` tem subscriptions/realtime (canal `campaign-progress`) — manter intacto; só substituímos a função de fetch inicial.
-- **Erro fica visível**: query com `isError` mostra inline (não derruba shell).
-- **Sem mexer**: planner, edge functions, regras de cálculo (CPP, baseline, dominância), Spotify helpers.
+Encontrei **~50 arquivos** com `DialogContent` / `SheetContent` / `AlertDialogContent`. Separei em 4 categorias.
+
+### 🔵 Categoria A — Formulários de cadastro/edição (alta prioridade, padrão direto)
+São os que mais precisam do padrão FormModal:
+
+1. `curators/NewCuratorDialog.tsx` — Novo curador
+2. `curators/CuratorEditDialog.tsx` — Editar curador
+3. `curators/AddSongToPlaylistDialog.tsx` — Adicionar música
+4. `curators/PasteUrlsDialog.tsx` — Colar URLs
+5. `campanhas/NewCampaignDialog.tsx` — Nova campanha
+6. `playlist-deals/NewDealDialog.tsx` — Novo deal
+7. `playlist-deals/CloseDealDialog.tsx` — Fechar deal
+8. `playlist-deals/DuplicateDealDialog.tsx` — Duplicar deal
+9. `playlist-deals/LogPrintDialog.tsx` — Logar print
+10. `playlist-deals/ImportFromLibraryDialog.tsx` — Importar da biblioteca
+11. `playlist-deals/PastePlaylistsDialog.tsx` — Colar playlists
+12. `financeiro/DealPaymentDialog.tsx` — Pagamento
+13. `sistema/PedirRemocaoDialog.tsx` — Pedir remoção
+14. `operacao/EmailPreviewDialog.tsx` — Preview email
+15. `operacao/MaintenanceCalendarDialog.tsx` — Calendário manutenção
+16. `AlertPreferencesDialog.tsx` — Preferências alerta
+17. `campaign-hub/SwapPlaylistDialog.tsx` — Trocar playlist
+18. **`pages/ClienteDetalhe.tsx`** — Novo cliente (o da imagem, mais bagunçado)
+19. `pages/Settings.tsx` (modais inline) — vários
+20. `pages/Campanhas.tsx` (modais inline)
+21. `pages/Infraestrutura.tsx` (modais inline)
+22. `pages/ComunidadeAdmin.tsx` (modais inline)
+23. `campanhas/CampaignAccessManager.tsx`
+24. `playlist-deals/CuratorDealAccessManager.tsx`
+25. `settings/EquipeTab.tsx`
+26. `settings/SpotifyAppsManager.tsx`
+
+### 🟢 Categoria B — Visualização/Detalhe (Sheet lateral, padrão derivado)
+Pequena adaptação do mesmo padrão, mas em formato Sheet:
+
+27. `curators/CuratorLibrarySheet.tsx`
+28. `curators/CuratorLibraryPanel.tsx`
+29. `operacao/CuradorDetailSheet.tsx`
+30. `playlist-deals/DealHistorySheet.tsx`
+31. `playlist-deals/DealLogDetailDialog.tsx`
+32. `campanhas/monitoramento/PlaylistHistoryDrawer.tsx`
+33. `sistema/fluxo/FluxoNodeDrawer.tsx`
+34. `campaign-hub/ProofsTimeline.tsx`
+35. `campanhas/monitoramento/ProofThumb.tsx`
+36. `playlist-deals/PrintThumbs.tsx`
+
+### 🟡 Categoria C — Tools/Editor (modais maiores, full-screen)
+Manter cheios mas aplicar o header padronizado:
+
+37. `campanhas/ExternalPackageEditor.tsx`
+38. `campanhas/CampaignDistributionConsole.tsx`
+39. `campanhas/PlaylistDailyPlanDialog.tsx`
+40. `playlists/PlaylistEditorTab.tsx`
+41. `operacao/calculadora/Calculadora.tsx`
+42. `operacao/MinhasPlaylists.tsx`
+43. `performance/SeoScorePanel.tsx`
+44. `playlist-deals/CuradoresTab.tsx`, `ClientesLibraryTab.tsx`, `CuradoresLibraryTab.tsx`, `FinanceiroTab.tsx` (dialogs internos)
+45. `pages/CampanhaExecucao.tsx`, `pages/PlanoCampanhaPublico.tsx`, `pages/CuratorPage.tsx`, `pages/comunidade/Campanhas.tsx`
+
+### ⚪ Categoria D — Padronizados ou intencionalmente diferentes (não mexer)
+- `ui/dialog.tsx`, `ui/sheet.tsx`, `ui/alert-dialog.tsx`, `ui/command.tsx`, `ui/sidebar.tsx` (primitivos shadcn)
+- `PageManual.tsx` (manual de página, padrão próprio recente)
+- `client-portal/SpreadsheetUploadCard.tsx` (já é a referência)
 
 ---
 
-## Fora desta fase (pra Fase 3 se quiser)
+## Execução em ondas
 
-- Suspense queries (React 19) — exigiria upgrade de patterns.
-- Optimistic UI em mutations financeiras (risco operacional).
-- Streaming SSR / prefetch via Link prefetch (precisa de roteador novo).
+Pra você revisar entre cada onda:
+
+**Onda 0 — Fundação** (1 PR, sem mexer em nada existente)
+- Criar `src/components/ui/form-modal.tsx` com a API acima.
+- Adicionar `FormField`, `FormSection`, `FormFooter` como helpers internos.
+- Documentar em comentário no topo do arquivo.
+
+**Onda 1 — Categoria A.1 (cadastros mais críticos, 6 modais)**
+- `ClienteDetalhe.tsx` (o da imagem)
+- `NewCuratorDialog`, `CuratorEditDialog`
+- `NewCampaignDialog`, `NewDealDialog`, `CloseDealDialog`
+
+**Onda 2 — Categoria A.2 (cadastros restantes, ~10 modais)**
+
+**Onda 3 — Categoria A.3 (modais inline de páginas, ~6)**
+
+**Onda 4 — Categoria B (sheets/drawers, ~10)** — adaptação do padrão
+
+**Onda 5 — Categoria C (tools/editor, ~10)** — só header/footer, manter conteúdo
+
+Cada onda = só refatoração visual. Zero mudança em hooks, queries, validação, lógica de submit. Os componentes mantêm exatamente os mesmos props externos.
 
 ---
 
-## Critérios de aceite
+## Critérios de aceite (por modal)
 
-- Nenhuma rota protegida usa `<PageLoader />` como fallback de página inteira.
-- Voltar da detalhe pra lista é instantâneo (cache hit visível).
-- Trocar de `/curadores/:id` ou `/deals/:id` mantém o conteúdo anterior até o novo chegar.
-- Build limpo; nenhum hook quebra consumidores existentes.
+- [ ] Header com ícone + título + descrição cabe sem cortar (testar mobile 375px e desktop 1440px).
+- [ ] Conteúdo scrolla; header e footer ficam fixos.
+- [ ] Botão primário sempre à direita, com cor `primary` (verde).
+- [ ] Labels acima dos inputs, nunca inline.
+- [ ] Grid 2 colunas no desktop quando faz sentido; 1 coluna no mobile.
+- [ ] Submit por Enter funciona quando único botão primário.
+- [ ] Esc fecha. Click fora fecha (exceto durante loading).
+- [ ] Sem regressão: smoke test em cada modal (abre → preenche → salva → fecha).
 
-Posso prosseguir com a implementação?
+---
+
+## O que NÃO entra no escopo
+
+- Lógica de negócio (queries, validações, submits) — fica intocada.
+- Mudança de campos do formulário — só apresentação.
+- Backend, edge functions, RLS, tabelas.
+- Modais já bons: `SpreadsheetUploadCard` (referência), `PageManual`.
+
+---
+
+## Próximo passo
+
+Se aprovar, começo pela **Onda 0** (só criar o `FormModal`, sem mexer em modal existente). Aí você revisa o componente novo isolado e a gente segue pra Onda 1 com os 6 modais mais críticos.
+
+Quer assim? Ou prefere já começar direto pela Onda 1 (Cliente + 5 outros) usando o FormModal recém-criado tudo no mesmo PR?
