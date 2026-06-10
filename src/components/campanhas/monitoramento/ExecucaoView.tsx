@@ -883,7 +883,7 @@ function VirtualTable({
                 key={vi.key}
                 onClick={() => onRowClick?.(r.playlist_id)}
                 className={cn(
-                  "grid grid-cols-[44px_minmax(220px,2fr)_120px_110px_110px_120px_140px_150px] gap-3 items-center px-4 border-b border-border/40 hover:bg-accent/40 transition-colors",
+                  "grid grid-cols-[44px_minmax(220px,2fr)_120px_100px_100px_110px_120px_130px_150px] gap-3 items-center px-4 border-b border-border/40 hover:bg-accent/40 transition-colors",
                   isEven ? "bg-transparent" : "bg-card/30",
                   onRowClick && "cursor-pointer",
                 )}
@@ -917,6 +917,19 @@ function VirtualTable({
                 <div className="text-right tabular-nums text-foreground text-sm">{r.current_plays == null ? "—" : formatInt(Number(r.current_plays))}</div>
                 <div className={cn("text-right tabular-nums font-semibold text-sm", Number(r.delta) > 0 ? "text-primary" : "text-muted-foreground")}>
                   {r.baseline_plays == null && r.current_plays == null ? "—" : (Number(r.delta) > 0 ? "+" : "") + formatInt(Number(r.delta ?? 0))}
+                </div>
+                <div
+                  className={cn(
+                    "text-right tabular-nums text-sm",
+                    r.last_import_delta != null && Number(r.last_import_delta) > 0
+                      ? "text-foreground font-medium"
+                      : "text-muted-foreground",
+                  )}
+                  title="Entrega da importação válida mais recente comparada à anterior"
+                >
+                  {r.last_import_delta == null
+                    ? "—"
+                    : (Number(r.last_import_delta) > 0 ? "+" : "") + formatInt(Number(r.last_import_delta))}
                 </div>
                 <div>{r.baseline_plays == null && r.current_plays == null ? <Badge variant="outline" className="border-muted-foreground/30 text-muted-foreground">sem dados</Badge> : st ? <MatchStatusBadge status={st} /> : <span className="text-xs text-muted-foreground">—</span>}</div>
                 <div className="text-muted-foreground text-xs">
