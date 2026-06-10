@@ -407,44 +407,56 @@ export function OverviewTab({
                 const delivering = topDeliveringPlaylists
                   .filter((p) => p.delivered > 0)
                   .sort((a, b) => b.delivered - a.delivered);
-                const top = delivering.slice(0, 5);
+                const top = delivering.slice(0, 10);
                 return (
                   <>
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="text-sm font-semibold">Playlists entregando</div>
-                      <span className="text-xs text-success font-medium tabular-nums">{delivering.length} ativas</span>
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <div className="text-sm font-semibold">Playlists no ar</div>
+                        <div className="text-xs text-muted-foreground">Entrega real por playlist</div>
+                      </div>
+                      <span className="text-xs text-primary font-medium tabular-nums">{delivering.length}/{topDeliveringPlaylists.length}</span>
                     </div>
                     {top.length === 0 ? (
                       <div className="text-xs text-muted-foreground py-6 text-center">
                         Aguardando primeira entrega.
                       </div>
                     ) : (
-                      <ul className="space-y-2.5">
+                      <div className="space-y-1">
+                        <div className="grid grid-cols-[44px_minmax(220px,1fr)_96px_96px_64px_72px] gap-3 px-1 text-[10px] uppercase tracking-wider text-muted-foreground tabular-nums">
+                          <span />
+                          <span>Playlist</span>
+                          <span className="text-right">Entregue</span>
+                          <span className="text-right">Meta</span>
+                          <span className="text-right">%</span>
+                          <span className="text-right">Última</span>
+                        </div>
                         {top.map((p, i) => {
-                          const max = top[0]?.delivered ?? 0;
-                          const pct = max > 0 ? Math.min(100, Math.round((p.delivered / max) * 100)) : 0;
+                          const planned = Number(p.planned ?? 0);
+                          const pct = planned > 0 ? Math.min(100, Math.round((p.delivered / planned) * 100)) : 0;
                           return (
-                            <li key={`${p.name}-${i}`} className="flex items-center gap-2.5">
+                            <div key={`${p.name}-${i}`} className="grid grid-cols-[44px_minmax(220px,1fr)_96px_96px_64px_72px] items-center gap-3 rounded-lg px-1 py-2 hover:bg-muted/20 transition-colors">
                               {p.image_url ? (
-                                <img src={p.image_url} alt="" className="w-8 h-8 rounded object-cover shrink-0 ring-1 ring-success/30" />
+                                <img src={p.image_url} alt="" className="w-10 h-10 rounded object-cover shrink-0 ring-1 ring-border" />
                               ) : (
-                                <div className="w-8 h-8 rounded bg-muted grid place-items-center shrink-0">
+                                <div className="w-10 h-10 rounded bg-muted grid place-items-center shrink-0">
                                   <Music className="h-3.5 w-3.5 text-muted-foreground" />
                                 </div>
                               )}
                               <div className="min-w-0 flex-1">
-                                <div className="text-xs font-medium truncate leading-tight">{p.name}</div>
-                                <div className="h-1 rounded-full bg-muted overflow-hidden mt-1">
-                                  <div className="h-full bg-success" style={{ width: `${pct}%` }} />
+                                <div className="text-sm font-medium truncate leading-tight text-foreground">{p.name}</div>
+                                <div className="h-1.5 rounded-full bg-muted/70 overflow-hidden mt-2">
+                                  <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
                                 </div>
                               </div>
-                              <div className="text-[12px] font-semibold tabular-nums text-success shrink-0">
-                                +{formatInt(p.delivered)}
-                              </div>
-                            </li>
+                              <div className="text-right text-sm font-semibold tabular-nums text-primary">+{formatInt(p.delivered)}</div>
+                              <div className="text-right text-xs tabular-nums text-muted-foreground">{planned > 0 ? formatInt(planned) : "—"}</div>
+                              <div className="text-right text-xs tabular-nums text-foreground">{planned > 0 ? `${pct}%` : "—"}</div>
+                              <div className="text-right text-xs tabular-nums text-muted-foreground">{p.lastDelta != null && p.lastDelta > 0 ? `+${formatInt(p.lastDelta)}` : "—"}</div>
+                            </div>
                           );
                         })}
-                      </ul>
+                      </div>
                     )}
                   </>
                 );
@@ -452,39 +464,53 @@ export function OverviewTab({
               // Comportamento original (interno)
               return (
                 <>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="text-sm font-semibold">Playlists no ar</div>
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <div className="text-sm font-semibold">Playlists no ar</div>
+                      <div className="text-xs text-muted-foreground">Entrega real por playlist</div>
+                    </div>
                     <span className="text-xs text-muted-foreground tabular-nums">{topPlaylists.length}/{allocations.length}</span>
                   </div>
                   {topPlaylists.length === 0 ? (
                     <div className="text-xs text-muted-foreground py-6 text-center">
-                      Nenhuma playlist alocada ainda.
+                      Nenhuma playlist entregando agora.
                     </div>
                   ) : (
-                    <ul className="space-y-2.5">
+                    <div className="space-y-1">
+                      <div className="grid grid-cols-[44px_minmax(220px,1fr)_96px_96px_64px_72px] gap-3 px-1 text-[10px] uppercase tracking-wider text-muted-foreground tabular-nums">
+                        <span />
+                        <span>Playlist</span>
+                        <span className="text-right">Entregue</span>
+                        <span className="text-right">Meta</span>
+                        <span className="text-right">%</span>
+                        <span className="text-right">24h</span>
+                      </div>
                       {topPlaylists.map(({ a, delivered: d, delta24 }) => {
                         const pl = a.managed_playlists;
                         const p = a.planned_streams > 0 ? Math.min(100, Math.round((d / a.planned_streams) * 100)) : 0;
                         return (
-                          <li key={a.id} className="flex items-center gap-2.5">
+                          <div key={a.id} className="grid grid-cols-[44px_minmax(220px,1fr)_96px_96px_64px_72px] items-center gap-3 rounded-lg px-1 py-2 hover:bg-muted/20 transition-colors">
                             {pl?.cover_url ? (
-                              <img src={pl.cover_url} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
+                              <img src={pl.cover_url} alt="" className="w-10 h-10 rounded object-cover shrink-0 ring-1 ring-border" />
                             ) : (
-                              <div className="w-8 h-8 rounded bg-muted grid place-items-center shrink-0">
+                              <div className="w-10 h-10 rounded bg-muted grid place-items-center shrink-0">
                                 <Music className="h-3.5 w-3.5 text-muted-foreground" />
                               </div>
                             )}
                             <div className="min-w-0 flex-1">
-                              <div className="text-xs font-medium truncate leading-tight">{pl?.name ?? "—"}</div>
-                              <div className="h-1 rounded-full bg-muted overflow-hidden mt-1">
+                              <div className="text-sm font-medium truncate leading-tight text-foreground">{pl?.name ?? "—"}</div>
+                              <div className="h-1.5 rounded-full bg-muted/70 overflow-hidden mt-2">
                                 <div className="h-full bg-primary" style={{ width: `${p}%` }} />
                               </div>
                             </div>
-                            <DeltaInline value={delta24} />
-                          </li>
+                            <div className="text-right text-sm font-semibold tabular-nums text-primary">+{formatInt(d)}</div>
+                            <div className="text-right text-xs tabular-nums text-muted-foreground">{formatInt(a.planned_streams)}</div>
+                            <div className="text-right text-xs tabular-nums text-foreground">{p}%</div>
+                            <div className="text-right"><DeltaInline value={delta24} /></div>
+                          </div>
                         );
                       })}
-                    </ul>
+                    </div>
                   )}
                 </>
               );
