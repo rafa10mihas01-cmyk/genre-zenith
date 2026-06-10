@@ -1705,12 +1705,20 @@ export default function CuratorPage() {
               </div>
             ) : (
               <>
-                {/* Contador "Histórico prévio" — playlists onde a música já estava antes da campanha */}
+                {/* Histórico prévio — alerta forte + contador compacto.
+                    Playlists onde a música já estava antes da campanha começar:
+                    curador precisa SUBIR a posição da faixa pra entrega contar. */}
                 {(() => {
                   const priorCount = curatorGroupedByPlaylist.filter(
                     (g) => Number(g.sample.baseline_plays_prior ?? 0) > 0,
                   ).length;
-                  return <HistoricoPrevioCounter count={priorCount} className="mb-2" />;
+                  if (priorCount === 0) return null;
+                  return (
+                    <div className="mb-3 space-y-2">
+                      <HistoricoPrevioAlert count={priorCount} />
+                      <HistoricoPrevioCounter count={priorCount} />
+                    </div>
+                  );
                 })()}
                 <ul
                   className={cn(

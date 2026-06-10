@@ -57,21 +57,31 @@ export function HistoricoPrevioRecommendation({
  * Alerta destacado para o portal do curador.
  * Card âmbar com instrução clara de promoção da faixa.
  */
-export function HistoricoPrevioAlert({ className }: { className?: string }) {
+export function HistoricoPrevioAlert({
+  count,
+  className,
+}: {
+  count?: number;
+  className?: string;
+}) {
   return (
     <div
       className={cn(
-        "rounded-lg border border-warning/30 bg-warning/5 p-3 flex items-start gap-2.5 text-[12px] leading-relaxed",
+        "rounded-lg border-2 border-warning/50 bg-warning/10 p-4 flex items-start gap-3 text-[12.5px] leading-relaxed",
         className,
       )}
     >
-      <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
-      <div className="space-y-1 min-w-0">
-        <p className="font-semibold text-warning">
-          ATENÇÃO: a música já estava presente nesta playlist antes da campanha.
+      <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
+      <div className="space-y-1.5 min-w-0">
+        <p className="font-semibold text-warning text-[13px] uppercase tracking-wide">
+          {count && count > 0
+            ? `${count} ${count === 1 ? "playlist precisa" : "playlists precisam"} de ação: subir posição`
+            : "Atenção: subir posição"}
         </p>
-        <p className="text-muted-foreground">
-          Para maximizar a entrega, recomendamos promover a faixa para uma posição superior dentro da playlist.
+        <p className="text-foreground/90">
+          A música já estava nestas playlists antes da campanha começar.
+          <strong className="text-warning"> Promova a faixa para uma posição superior</strong> —
+          se a posição não subir, o ganho pode não ser contabilizado como entrega.
         </p>
       </div>
     </div>
