@@ -107,12 +107,14 @@ export function CampaignCuratorDeals({ campaignId }: Props) {
       </div>
 
       {deals.map((d) => {
+        const isInternal = !d.curator_id;
         const pct = d.target_plays > 0 ? Math.min(100, (d.reconciled_total_plays / d.target_plays) * 100) : 0;
         const tone = toneFor(pct);
         const history = historyByDeal.get(d.id) ?? [];
         const nonBaseline = history.filter((h) => !h.is_baseline);
         const sparkValues = nonBaseline.slice(-7).map((h) => h.total_plays);
-        const initial = (d.curator_name?.trim()?.[0] ?? "C").toUpperCase();
+        const displayName = isInternal ? "Deal interno da campanha" : d.curator_name;
+        const initial = (displayName?.trim()?.[0] ?? "C").toUpperCase();
 
         return (
           <Card
@@ -122,29 +124,39 @@ export function CampaignCuratorDeals({ campaignId }: Props) {
             <CardContent className="p-4 space-y-3">
               {/* Header em uma linha — avatar + nome + chip da música + status */}
               <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-md bg-domain-curators/15 border border-domain-curators/25 flex items-center justify-center text-[11px] font-bold text-domain-curators shrink-0">
+                <div className={cn(
+                  "h-8 w-8 rounded-md border flex items-center justify-center text-[11px] font-bold shrink-0",
+                  isInternal
+                    ? "bg-muted/30 border-border/60 text-muted-foreground"
+                    : "bg-domain-curators/15 border-domain-curators/25 text-domain-curators",
+                )}>
                   {initial}
                 </div>
                 <div className="min-w-0 flex-1 flex items-center gap-2 flex-wrap">
-                  <span className="text-[13px] font-semibold text-foreground truncate">
-                    {d.curator_name}
+                  <span className={cn(
+                    "text-[13px] font-semibold truncate",
+                    isInternal ? "text-muted-foreground italic" : "text-foreground",
+                  )}>
+                    {displayName}
                   </span>
                   <span className="text-muted-foreground/40 text-xs shrink-0">·</span>
                   <span className="px-1.5 py-0.5 rounded-md bg-elevated border border-border/60 text-[10.5px] text-muted-foreground truncate max-w-[180px]">
                     {d.song_name}
                   </span>
                 </div>
-                <div className={cn(
-                  "shrink-0 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10.5px] font-medium tabular-nums",
-                  pct >= 80
-                    ? "border-success/30 text-success bg-success/5"
-                    : pct >= 40
-                    ? "border-warning/30 text-warning bg-warning/5"
-                    : "border-destructive/30 text-destructive bg-destructive/5",
-                )}>
-                  <span className={cn("h-1.5 w-1.5 rounded-full", tone.bar)} />
-                  {Math.round(pct)}% · {tone.label}
-                </div>
+                {!isInternal && (
+                  <div className={cn(
+                    "shrink-0 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10.5px] font-medium tabular-nums",
+                    pct >= 80
+                      ? "border-success/30 text-success bg-success/5"
+                      : pct >= 40
+                      ? "border-warning/30 text-warning bg-warning/5"
+                      : "border-destructive/30 text-destructive bg-destructive/5",
+                  )}>
+                    <span className={cn("h-1.5 w-1.5 rounded-full", tone.bar)} />
+                    {Math.round(pct)}% · {tone.label}
+                  </div>
+                )}
               </div>
 
               {/* Progresso — número grande + sparkline */}
