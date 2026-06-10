@@ -87,6 +87,68 @@ export function humanizeError(raw?: string | null): string {
   return s;
 }
 
+// ---------- 2b. Mensagens de logs técnicos (collection_logs) → linguagem humana ----------
+
+/**
+ * Converte um par (acao, mensagem) — onde mensagem pode ser JSON cru, string com
+ * `key=value`, payload técnico ou stack trace — em UMA frase operacional curta.
+ * Nunca devolve JSON, nunca devolve nomes internos.
+ */
+export function humanizeLogMessage(acao?: string | null, status?: string | null, mensagem?: string | null): string {
+  const action = humanizeFunctionName(acao ?? "");
+  const raw = (mensagem ?? "").trim();
+  const isError = status === "erro" || status === "error" || status === "failed";
+
+  if (isError && raw) return humanizeError(raw);
+
+  // Tenta interpretar payload JSON pra extrair sinais relevantes
+  if (raw.startsWith("{") || raw.startsWith("[")) {
+    try {
+      const obj = JSON.parse(raw);
+      if (obj && typeof obj === "object") {
+        const dispatched = Array.isArray(obj.dispatched) ? obj.dispatched : null;
+        if (obj.noop === true || (dispatched && dispatched.length === 0)) {
+          return `${action} sem pendências.`;
+        }
+        if (dispatched && dispatched.length > 0) {
+          return `${action}: ${dispatched.length} rotina${dispatched.length === 1 ? "" : "s"} executada${dispatched.length === 1 ? "" : "s"}.`;
+        }
+        if (typeof obj.checked === "number") {
+          const fail = obj.fail ?? 0;
+          if (fail === 0) return `${action}: ${obj.checked} verificad${obj.checked === 1 ? "o" : "os"}, tudo OK.`;
+          return `${action}: ${obj.checked} verificad${obj.checked === 1 ? "o" : "os"}, ${fail} com falha.`;
+        }
+      }
+      return `${action} executad${action.endsWith("a") ? "a" : "o"}.`;
+    } catch {
+      return `${action} executad${action.endsWith("a") ? "a" : "o"}.`;
+    }
+  }
+
+  // Padrão "key=value key=value"
+  if (/=/.test(raw) && !/\s/.test(raw.split("=")[0])) {
+    const m = raw.match(/(\w+)=(\d+)/g);
+    if (m && m.length > 0) {
+      const parts: string[] = [];
+      for (const kv of m.slice(0, 3)) {
+        const [k, v] = kv.split("=");
+        const num = Number(v);
+        if (num === 0) continue;
+        parts.push(`${num} ${k.replace(/_/g, " ")}`);
+      }
+      if (parts.length === 0) return `${action} sem pendências.`;
+      return `${action}: ${parts.join(", ")}.`;
+    }
+  }
+
+  // Linha humana curta — devolve com a ação como prefixo
+  if (raw && raw.length < 120 && !/[{}\[\]]/.test(raw)) {
+    return `${action}: ${raw}`;
+  }
+  if (!raw) return `${action} executad${action.endsWith("a") ? "a" : "o"}.`;
+  return `${action} executad${action.endsWith("a") ? "a" : "o"}.`;
+}
+
 // ---------- 3. Status executivo (Nível 1) ----------
 
 export type ExecutiveStatus = "ok" | "attention" | "urgent";
