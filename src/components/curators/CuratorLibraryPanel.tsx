@@ -125,6 +125,9 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
   };
   const [purchases, setPurchases] = useState<PurchaseRow[]>([]);
   const [purchasesLoading, setPurchasesLoading] = useState(true);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [purchaseToDelete, setPurchaseToDelete] = useState<PurchaseRow | null>(null);
+  const [deletingPurchase, setDeletingPurchase] = useState(false);
 
   const loadPurchases = async () => {
     setPurchasesLoading(true);
