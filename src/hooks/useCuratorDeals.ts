@@ -349,14 +349,17 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
     enabled: campaignIdsForView.length > 0,
     staleTime: 30_000,
     queryFn: async () => {
+      // Growth Engine: vw_campaign_playlist_growth expõe `attributed_to` como
+      // texto ('curator:<uuid>' | 'ecosystem' | 'organic'). A coluna
+      // `attributed_curator_id` NÃO existe — parsing manual.
       const { data, error } = await (supabase as any)
         .from("vw_campaign_playlist_growth")
-        .select("campaign_id, attributed_curator_id, delta, last_captured_at")
+        .select("campaign_id, attributed_to, delta, last_captured_at")
         .in("campaign_id", campaignIdsForView);
       if (error) throw error;
       return (data ?? []) as Array<{
         campaign_id: string;
-        attributed_curator_id: string | null;
+        attributed_to: string | null;
         delta: number | null;
         last_captured_at: string | null;
       }>;
@@ -365,13 +368,15 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
 
   const viewProgressByDeal = useMemo(() => {
     const rows = viewProgressQuery.data ?? [];
-    // Agrega por (campaign_id, curator_id)
     type Agg = { delivered: number; today: number };
     const agg = new Map<string, Agg>();
     const todayKey = new Date().toISOString().slice(0, 10);
     for (const r of rows) {
-      if (!r.attributed_curator_id) continue;
-      const k = `${r.campaign_id}:${r.attributed_curator_id}`;
+      const at = r.attributed_to ?? "";
+      if (!at.startsWith("curator:")) continue;
+      const curatorId = at.slice("curator:".length);
+      if (!curatorId) continue;
+      const k = `${r.campaign_id}:${curatorId}`;
       const cur = agg.get(k) ?? { delivered: 0, today: 0 };
       const delta = Number(r.delta ?? 0);
       cur.delivered += delta;
@@ -380,7 +385,6 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
       }
       agg.set(k, cur);
     }
-    // Mapeia pra deal_id
     const out: Record<string, { delivered: number; today: number; daily_avg: number }> = {};
     for (const ref of campaignDealRefs) {
       const k = `${ref.campaign_id}:${ref.curator_id}`;
