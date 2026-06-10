@@ -28,7 +28,10 @@ function jr(p: unknown, status = 200) {
 function sanitizeSnapshotPublic(raw: unknown): Record<string, unknown> | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
-  const allowed = ["meta", "days", "effectiveDays", "curva", "splitOrganicPct", "music"];
+  // `modo` é essencial pro buildEcoPlaylistPlan (startDay/ecoFloorDay).
+  // Sem ele, o público recalcula posições diferentes do interno e as linhas
+  // da planilha aparecem com valores que não batem.
+  const allowed = ["meta", "days", "effectiveDays", "curva", "splitOrganicPct", "music", "modo"];
   const out: Record<string, unknown> = {};
   for (const k of allowed) {
     if (r[k] !== undefined) out[k] = r[k];
