@@ -9,13 +9,26 @@
  * 3. Se nada bater, devolve o texto original.
  */
 import type { NotificationRow } from "@/hooks/useNotifications";
+import { formatRelativeFuture, humanizeError, humanizeFunctionName } from "@/lib/operationalCopy";
 
 export type FriendlyTone = "critical" | "warning" | "info" | "success";
 
-interface FriendlyCopy {
+export interface FriendlyCopy {
   title: string;
   message?: string;
   tone?: FriendlyTone;
+  /** Frase curta de impacto na operação. */
+  impact?: string;
+  /** O sistema continua funcionando apesar desse alerta? */
+  systemWorking?: boolean;
+  /** Precisa fazer algo manualmente? */
+  actionRequired?: boolean;
+  /** Quando o sistema vai tentar novamente (texto humano). */
+  nextAttempt?: string;
+  /** Texto do botão de ação (se houver). */
+  actionLabel?: string;
+  /** Para onde levar quando clicar (sobrescreve action_url da notificação). */
+  actionUrl?: string;
 }
 
 type Rewriter = (n: NotificationRow) => FriendlyCopy;
