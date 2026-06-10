@@ -871,7 +871,9 @@ function VirtualTable({
                       {r.baseline_plays == null && r.current_plays == null ? "—" : (Number(r.delta) > 0 ? "+" : "") + formatInt(Number(r.delta ?? 0))}
                     </div>
                     <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
-                      {r.current_plays == null ? "sem dados" : formatInt(Number(r.current_plays))}
+                      {r.last_import_delta == null
+                        ? (r.current_plays == null ? "sem dados" : formatInt(Number(r.current_plays)))
+                        : `última: ${Number(r.last_import_delta) > 0 ? "+" : ""}${formatInt(Number(r.last_import_delta))}`}
                     </div>
                   </div>
                 </div>
