@@ -26,8 +26,16 @@ function sanitizeSnapshot(raw: any): Record<string, unknown> | null {
   for (const k of allowed) {
     if (raw[k] !== undefined) out[k] = raw[k];
   }
+  // Expõe apenas o spotifyTrackId da música — necessário pra cards de leitura
+  // pública (ex.: MusicStreamsCard lendo raw_chart_daily). Demais campos
+  // de music ficam fora pra evitar vazamento de baseline/top200 internos.
+  const m = raw.music && typeof raw.music === "object" ? raw.music : null;
+  if (m && typeof m.spotifyTrackId === "string" && m.spotifyTrackId.length > 0) {
+    out.music = { spotifyTrackId: m.spotifyTrackId };
+  }
   return out;
 }
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -59,7 +67,7 @@ Deno.serve(async (req) => {
   // Lê só o estritamente necessário pro portal do cliente.
   const { data: campRaw, error: cErr } = await supabase
     .from("campaigns")
-    .select("id, deal_id, client_id, track_name, artist, cover_url, spotify_track_url, goal_plays, status, started_at, deadline, simulation_snapshot, total_delivered, client_approved_at, client_rejected_at, client_adjustment_request, collection_mode, engagement_multiplier")
+    .select("id, deal_id, client_id, track_name, artist, cover_url, spotify_track_url, spotify_track_id, goal_plays, status, started_at, deadline, simulation_snapshot, total_delivered, client_approved_at, client_rejected_at, client_adjustment_request, collection_mode, engagement_multiplier")
     .eq("public_plan_token", token)
     .maybeSingle();
 
@@ -101,6 +109,7 @@ Deno.serve(async (req) => {
     artist: campRaw.artist,
     cover_url: campRaw.cover_url,
     spotify_track_url: campRaw.spotify_track_url,
+    spotify_track_id: campRaw.spotify_track_id,
     goal_plays: campRaw.goal_plays,
     status: campRaw.status,
     started_at: campRaw.started_at,

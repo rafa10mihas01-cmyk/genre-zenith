@@ -734,13 +734,17 @@ export default function PlanoCampanhaPublico() {
 
                   );
                 })()}
-                {snapshot?.music?.spotifyTrackId && (
-                  <MusicStreamsCard
-                    spotifyTrackId={snapshot.music.spotifyTrackId}
-                    startedAt={forecast?.startedAt ?? (camp as any)?.started_at ?? null}
-                  />
-                )}
-                {forecast && <DeliveryForecastCard forecast={forecast} organicSummary={organicSummary} spotifyTrackId={snapshot?.music?.spotifyTrackId ?? null} />}
+                {(() => {
+                  const tid = snapshot?.music?.spotifyTrackId ?? (camp as any)?.spotify_track_id ?? null;
+                  if (!tid) return null;
+                  return (
+                    <MusicStreamsCard
+                      spotifyTrackId={tid}
+                      startedAt={forecast?.startedAt ?? (camp as any)?.started_at ?? null}
+                    />
+                  );
+                })()}
+                {forecast && <DeliveryForecastCard forecast={forecast} organicSummary={organicSummary} spotifyTrackId={snapshot?.music?.spotifyTrackId ?? (camp as any)?.spotify_track_id ?? null} />}
                 {isApproved && evolutionSeries.length > 1 && (
                   <EvolutionChart
                     series={evolutionSeries}
