@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   TrendingUp,
   Sparkles,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -124,6 +125,9 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
   };
   const [purchases, setPurchases] = useState<PurchaseRow[]>([]);
   const [purchasesLoading, setPurchasesLoading] = useState(true);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [purchaseToDelete, setPurchaseToDelete] = useState<PurchaseRow | null>(null);
+  const [deletingPurchase, setDeletingPurchase] = useState(false);
 
   const loadPurchases = async () => {
     setPurchasesLoading(true);
@@ -141,6 +145,26 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
     loadPurchases();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [curator.id]);
+
+  const handleDeletePurchase = async () => {
+    if (!purchaseToDelete) return;
+    setDeletingPurchase(true);
+    try {
+      const { error } = await supabase
+        .from("curator_purchases")
+        .delete()
+        .eq("id", purchaseToDelete.id);
+      if (error) throw error;
+      toast.success("Compra removida");
+      setPurchaseToDelete(null);
+      loadPurchases();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error("Erro ao remover compra", { description: msg });
+    } finally {
+      setDeletingPurchase(false);
+    }
+  };
 
   const handleBuy = async () => {
     if (!onAddPurchase) return;
@@ -281,61 +305,136 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
         );
       })()}
 
-      {/* Histórico de compras */}
+      {/* Histórico de compras — colapsável, scroll após 5 itens */}
       {(onAddPurchase || purchases.length > 0) && (
-        <div className="rounded-2xl border border-border bg-card p-5">
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">
-              Histórico de compras
+        <div className="rounded-2xl border border-border bg-card">
+          <button
+            type="button"
+            onClick={() => setHistoryOpen((v) => !v)}
+            className="w-full flex items-center justify-between gap-2 p-5 hover:bg-accent/30 transition-colors rounded-2xl text-left"
+            aria-expanded={historyOpen}
+          >
+            <div className="flex items-center gap-2">
+              <ChevronDown
+                className={cn(
+                  "size-3.5 text-muted-foreground transition-transform shrink-0",
+                  historyOpen ? "rotate-0" : "-rotate-90",
+                )}
+              />
+              <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">
+                Histórico de compras
+              </div>
             </div>
             <span className="text-[11px] text-muted-foreground tabular-nums">
               {purchases.length > 0 ? `${purchases.length} última${purchases.length > 1 ? "s" : ""}` : ""}
             </span>
-          </div>
-          {purchasesLoading ? (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground py-6 justify-center">
-              <Loader2 className="size-3.5 animate-spin" /> Carregando histórico…
-            </div>
-          ) : purchases.length === 0 ? (
-            <div className="text-center py-6 text-xs text-muted-foreground border border-dashed border-border/40 rounded-xl">
-              Nenhuma compra registrada ainda.
-            </div>
-          ) : (
-            <div className="divide-y divide-border/40">
-              {purchases.map((p) => {
-                const date = new Date(p.purchased_at);
-                const dateStr = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
-                const timeStr = date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-                const cppPer1k = p.plays_purchased > 0 ? (Number(p.amount) / p.plays_purchased) * 1000 : null;
-                return (
-                  <div key={p.id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-baseline gap-2 flex-wrap">
-                        <span className="text-sm font-semibold tabular-nums">
-                          {Number(p.plays_purchased).toLocaleString("pt-BR")} plays
-                        </span>
-                        <span className="text-[11px] text-muted-foreground tabular-nums">{formatBRL(Number(p.amount))}</span>
-                        {cppPer1k != null && (
-                          <span className="text-[10.5px] text-muted-foreground/70 tabular-nums">
-                            · {formatBRL(cppPer1k)}/mil
-                          </span>
-                        )}
+          </button>
+          {historyOpen && (
+            <div className="px-5 pb-5">
+              {purchasesLoading ? (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground py-6 justify-center">
+                  <Loader2 className="size-3.5 animate-spin" /> Carregando histórico…
+                </div>
+              ) : purchases.length === 0 ? (
+                <div className="text-center py-6 text-xs text-muted-foreground border border-dashed border-border/40 rounded-xl">
+                  Nenhuma compra registrada ainda.
+                </div>
+              ) : (
+                <div
+                  className={cn(
+                    "divide-y divide-border/40",
+                    purchases.length > 5 && "max-h-[320px] overflow-y-auto pr-1",
+                  )}
+                >
+                  {purchases.map((p) => {
+                    const date = new Date(p.purchased_at);
+                    const dateStr = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
+                    const timeStr = date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+                    const cppPer1k = p.plays_purchased > 0 ? (Number(p.amount) / p.plays_purchased) * 1000 : null;
+                    return (
+                      <div key={p.id} className="group flex items-center justify-between gap-3 py-2.5 first:pt-0">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-baseline gap-2 flex-wrap">
+                            <span className="text-sm font-semibold tabular-nums">
+                              {Number(p.plays_purchased).toLocaleString("pt-BR")} plays
+                            </span>
+                            <span className="text-[11px] text-muted-foreground tabular-nums">{formatBRL(Number(p.amount))}</span>
+                            {cppPer1k != null && (
+                              <span className="text-[10.5px] text-muted-foreground/70 tabular-nums">
+                                · {formatBRL(cppPer1k)}/mil
+                              </span>
+                            )}
+                          </div>
+                          {p.note && (
+                            <div className="text-[11px] text-muted-foreground/80 truncate mt-0.5">{p.note}</div>
+                          )}
+                        </div>
+                        <div className="text-[10.5px] text-muted-foreground/70 tabular-nums whitespace-nowrap text-right">
+                          <div>{dateStr}</div>
+                          <div>{timeStr}</div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-7 text-muted-foreground/60 hover:text-destructive opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity shrink-0"
+                          onClick={() => setPurchaseToDelete(p)}
+                          aria-label="Remover compra"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
                       </div>
-                      {p.note && (
-                        <div className="text-[11px] text-muted-foreground/80 truncate mt-0.5">{p.note}</div>
-                      )}
-                    </div>
-                    <div className="text-[10.5px] text-muted-foreground/70 tabular-nums whitespace-nowrap text-right">
-                      <div>{dateStr}</div>
-                      <div>{timeStr}</div>
-                    </div>
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>
       )}
+
+      <AlertDialog open={!!purchaseToDelete} onOpenChange={(o) => !o && setPurchaseToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover esta compra?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {purchaseToDelete && (
+                <>
+                  Você está prestes a remover{" "}
+                  <span className="font-semibold text-foreground tabular-nums">
+                    {Number(purchaseToDelete.plays_purchased).toLocaleString("pt-BR")} plays
+                  </span>{" "}
+                  no valor de{" "}
+                  <span className="font-semibold text-foreground tabular-nums">
+                    {formatBRL(Number(purchaseToDelete.amount))}
+                  </span>
+                  . Essa ação não pode ser desfeita e o saldo do curador será recalculado.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingPurchase}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeletePurchase();
+              }}
+              disabled={deletingPurchase}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingPurchase ? (
+                <>
+                  <Loader2 className="size-3.5 mr-2 animate-spin" /> Removendo…
+                </>
+              ) : (
+                "Remover"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
 
 
       {/* Catálogo — card próprio com header, filtro e lista (12 visíveis, resto scroll) */}
