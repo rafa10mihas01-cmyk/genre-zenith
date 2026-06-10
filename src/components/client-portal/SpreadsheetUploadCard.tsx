@@ -237,31 +237,28 @@ export function SpreadsheetUploadCard({
   return (
     <Card className="border-border/60 bg-card">
       <CardContent className="p-5 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <FileSpreadsheet className="h-4 w-4 text-primary shrink-0" />
-              <h3 className="text-sm font-semibold text-foreground">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 flex items-start gap-3">
+            <div className="h-9 w-9 rounded-lg bg-primary/10 ring-1 ring-primary/20 flex items-center justify-center shrink-0">
+              <FileSpreadsheet className="h-4 w-4 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-[15px] font-semibold text-foreground leading-tight">
                 Atualizar dados da campanha
               </h3>
+              <p className="text-[12px] text-muted-foreground mt-1 leading-snug">
+                Suba a planilha mais recente (.xlsx da distribuidora ou .csv do Spotify for Artists).
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground mt-1 max-w-md">
-              Suba a planilha mais recente (.xlsx da distribuidora ou .csv do Spotify for Artists).
-              O sistema reconhece as colunas, cruza com playlists e curadores conhecidos e atualiza o painel.
-            </p>
           </div>
-          <div className="flex items-center justify-between sm:flex-col sm:items-end sm:text-right shrink-0 rounded-md border border-border/50 sm:border-0 bg-muted/30 sm:bg-transparent px-3 py-2 sm:p-0">
-            <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+          <div className="shrink-0 rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-right min-w-[120px]">
+            <div className="text-[9.5px] uppercase tracking-[0.14em] text-muted-foreground">
               Última atualização
             </div>
             <div
               className={cn(
-                "text-sm font-medium sm:mt-0.5 tabular-nums",
-                never
-                  ? "text-muted-foreground"
-                  : stale
-                  ? "text-amber-500"
-                  : "text-foreground",
+                "text-[14px] font-semibold tabular-nums leading-tight mt-0.5",
+                never ? "text-muted-foreground" : stale ? "text-amber-500" : "text-success",
               )}
             >
               {never
@@ -272,6 +269,11 @@ export function SpreadsheetUploadCard({
                 ? "Ontem"
                 : `Há ${days} dias`}
             </div>
+            {lastUploadAt && (
+              <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
+                {new Date(lastUploadAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+              </div>
+            )}
           </div>
         </div>
 
