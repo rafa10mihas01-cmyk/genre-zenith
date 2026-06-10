@@ -73,10 +73,22 @@ export function MonitoramentoTab({ campaignId, headerSlot, spreadsheetUploads }:
     if (!campaignId) return;
     setRunsLoading(true);
     (async () => {
+      const { data: campaign } = await supabase
+        .from("campaigns")
+        .select("deal_id")
+        .eq("id", campaignId)
+        .maybeSingle();
+      const officialDealId = (campaign as { deal_id?: string | null } | null)?.deal_id ?? null;
+      if (!officialDealId) {
+        setRuns([]);
+        setRunsLoading(false);
+        return;
+      }
       const { data } = await supabase
         .from("v_snapshot_prints" as any)
         .select("run_id, created_at, completed_at, print_urls, print_count")
         .eq("campaign_id", campaignId)
+        .eq("deal_id", officialDealId)
         .order("created_at", { ascending: false })
         .limit(50);
       setRuns(((data ?? []) as unknown as SnapshotRun[]).filter((r) => (r.print_urls?.length ?? 0) > 0));
