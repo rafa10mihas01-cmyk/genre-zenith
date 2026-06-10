@@ -443,24 +443,41 @@ export default function CampanhaExecucao() {
     if (extPkg?.id) {
       const { data: items } = await supabase
         .from("campaign_external_package_items")
-        .select("id, assigned_streams, assigned_cost, curator_deal_id, curators(name), curator_deals(reconciled_total_plays, state)")
+        .select("id, assigned_streams, assigned_cost, curator_deal_id, curators(name)")
         .eq("package_id", extPkg.id)
         .order("assigned_streams", { ascending: false });
+      const itemRows = (items ?? []) as unknown as Array<{
+        id: string;
+        assigned_streams: number;
+        assigned_cost: number;
+        curator_deal_id: string | null;
+        curators: { name: string } | null;
+      }>;
+      const dealIds = itemRows.map((it) => it.curator_deal_id).filter((dealId): dealId is string => !!dealId);
+      const dealById = new Map<string, { reconciled_total_plays: number | null; state: string | null }>();
+      if (dealIds.length > 0) {
+        const { data: dealRows } = await supabase
+          .from("curator_deals")
+          .select("id, reconciled_total_plays, state")
+          .in("id", dealIds);
+        for (const d of (dealRows ?? []) as any[]) {
+          dealById.set(d.id, { reconciled_total_plays: d.reconciled_total_plays, state: d.state });
+        }
+      }
       const mapped: ExternalItemRow[] = ((items ?? []) as unknown as Array<{
         id: string;
         assigned_streams: number;
         assigned_cost: number;
         curator_deal_id: string | null;
         curators: { name: string } | null;
-        curator_deals: { reconciled_total_plays: number | null; state: string | null } | null;
       }>).map((it) => ({
         id: it.id,
         curator_name: it.curators?.name ?? "Curador",
         assigned_streams: Number(it.assigned_streams ?? 0),
         assigned_cost: Number(it.assigned_cost ?? 0),
         curator_deal_id: it.curator_deal_id,
-        delivered_plays: Number(it.curator_deals?.reconciled_total_plays ?? 0),
-        state: it.curator_deals?.state ?? "pending",
+        delivered_plays: Number((it.curator_deal_id ? dealById.get(it.curator_deal_id)?.reconciled_total_plays : 0) ?? 0),
+        state: (it.curator_deal_id ? dealById.get(it.curator_deal_id)?.state : null) ?? "pending",
       }));
       setExternalItems(mapped);
     } else {
