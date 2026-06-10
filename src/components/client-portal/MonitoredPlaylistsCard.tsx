@@ -60,6 +60,15 @@ export function MonitoredPlaylistsCard({ playlists }: { playlists: MonitoredPlay
     );
   }
 
+  // Ordenação: entregando primeiro (delivered desc), aguardando depois
+  const sorted = [...playlists].sort((a, b) => {
+    const sa = clientStatus(a) === "entregando" ? 1 : 0;
+    const sb = clientStatus(b) === "entregando" ? 1 : 0;
+    if (sa !== sb) return sb - sa;
+    return (b.delivered ?? 0) - (a.delivered ?? 0);
+  });
+  const entregandoCount = sorted.filter((p) => clientStatus(p) === "entregando").length;
+
   return (
     <Card className="border-border">
       <CardContent className="p-5 sm:p-6 space-y-5">
@@ -70,7 +79,7 @@ export function MonitoredPlaylistsCard({ playlists }: { playlists: MonitoredPlay
               Playlists monitoradas
             </h2>
             <p className="text-[12px] text-muted-foreground mt-1 leading-snug">
-              Playlists que estão entregando plays para a campanha
+              {entregandoCount} de {sorted.length} entregando agora
             </p>
           </div>
           <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary bg-primary/10 ring-1 ring-primary/20 rounded-full px-2.5 py-1 tabular-nums shrink-0">
@@ -78,7 +87,7 @@ export function MonitoredPlaylistsCard({ playlists }: { playlists: MonitoredPlay
               <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-75 animate-ping" />
               <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
             </span>
-            {playlists.length} ativas
+            {sorted.length} ativas
           </span>
         </div>
 
@@ -89,66 +98,85 @@ export function MonitoredPlaylistsCard({ playlists }: { playlists: MonitoredPlay
           </p>
         </div>
 
-        <ul className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
-          {playlists.map((p, i) => {
+        {/* ~10 linhas visíveis, demais com scroll. Cada item ~56px. */}
+        <ul className="space-y-1.5 max-h-[600px] overflow-y-auto pr-1">
+          {sorted.map((p, i) => {
             const st = clientStatus(p);
-            // Para o cliente, toda playlist no portal é apresentada como "Engine".
-            // A distinção engine vs curador continua no banco (p.source) para uso interno.
+            const delivering = st === "entregando";
             return (
               <li
                 key={`${p.name}-${i}`}
-                className="rounded-xl border border-border bg-card p-3 transition-all hover:border-primary/30 hover:bg-muted/30"
+                className={cn(
+                  "rounded-lg border bg-card px-3 py-2 transition-all hover:bg-muted/30",
+                  delivering ? "border-success/30" : "border-border"
+                )}
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="relative h-11 w-11 rounded-md overflow-hidden bg-muted ring-1 ring-border shrink-0">
+                  <div className={cn(
+                    "relative h-10 w-10 rounded-md overflow-hidden bg-muted ring-1 shrink-0",
+                    delivering ? "ring-success/40" : "ring-border"
+                  )}>
                     {p.image_url ? (
                       <img src={p.image_url} alt={p.name} className="h-full w-full object-cover" loading="lazy" />
                     ) : (
                       <div className="h-full w-full flex items-center justify-center">
-                        <ListMusic className="h-4 w-4 text-muted-foreground" />
+                        <ListMusic className="h-3.5 w-3.5 text-muted-foreground" />
                       </div>
                     )}
+                    {delivering && (
+                      <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+                        <span className="absolute inline-flex h-full w-full rounded-full bg-success opacity-75 animate-ping" />
+                        <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
+                      </span>
+                    )}
                   </div>
+
                   <div className="min-w-0 flex-1">
-                    <p className="text-[13.5px] font-medium truncate" title={p.name}>{p.name}</p>
-                    <div className="flex items-center gap-1.5 mt-1 min-w-0 flex-wrap">
-                      <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded border whitespace-nowrap", STATUS_STYLES[st])}>
+                    <p className={cn(
+                      "text-[12px] font-medium truncate leading-tight",
+                      delivering ? "text-foreground" : "text-muted-foreground"
+                    )} title={p.name}>
+                      {p.name}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1 text-[10px] tabular-nums text-muted-foreground">
+                      <span className={cn(
+                        "inline-flex items-center gap-1 font-medium",
+                        delivering ? "text-success" : "text-muted-foreground/70"
+                      )}>
+                        <span className={cn(
+                          "h-1.5 w-1.5 rounded-full",
+                          delivering ? "bg-success" : "bg-muted-foreground/40"
+                        )} />
                         {STATUS_LABEL[st]}
                       </span>
-                      <span className="text-[9.5px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border whitespace-nowrap text-primary border-primary/40 bg-primary/10">
-                        Engine
-                      </span>
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0 space-y-1">
-                    {p.delivered > 0 ? (
-                      <>
-                        <div className="text-[14px] font-semibold tabular-nums text-foreground leading-none">
-                          +{formatPlays(p.delivered)}
-                        </div>
-                        <div className="text-[9px] uppercase tracking-wider text-muted-foreground">entregue acumulado</div>
-                      </>
-                    ) : (
-                      <div className="text-[14px] font-semibold tabular-nums text-muted-foreground/70 leading-none">—</div>
-                    )}
-                    <div className="text-[10px] tabular-nums text-muted-foreground" title="Entrega da importação válida mais recente em relação à anterior">
-                      última importação:{" "}
-                      <span className={cn("font-medium", p.last_import_delta != null && p.last_import_delta > 0 ? "text-foreground" : "text-muted-foreground/70")}>
-                        {p.last_import_delta == null ? "—" : `+${formatPlays(p.last_import_delta)}`}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-end gap-2 pt-0.5 text-[10px] tabular-nums text-muted-foreground">
-                      <span>7d: <span className="text-foreground/80">{p.plays_7d != null ? formatPlays(p.plays_7d) : "—"}</span></span>
                       <span className="text-border">·</span>
-                      <span>28d: <span className="text-foreground/80">{p.plays_28d != null ? formatPlays(p.plays_28d) : "—"}</span></span>
+                      <span>últ. import: <span className={cn("font-medium", p.last_import_delta != null && p.last_import_delta > 0 ? "text-foreground" : "text-muted-foreground/70")}>
+                        {p.last_import_delta == null ? "—" : `+${formatPlays(p.last_import_delta)}`}
+                      </span></span>
                     </div>
                   </div>
 
+                  <div className="text-right shrink-0 flex flex-col items-end gap-0.5">
+                    {p.delivered > 0 ? (
+                      <div className={cn(
+                        "text-[15px] font-bold tabular-nums leading-none",
+                        delivering ? "text-success" : "text-foreground"
+                      )}>
+                        +{formatPlays(p.delivered)}
+                      </div>
+                    ) : (
+                      <div className="text-[14px] font-semibold tabular-nums text-muted-foreground/60 leading-none">—</div>
+                    )}
+                    <div className="flex items-center gap-1.5 text-[9.5px] tabular-nums text-muted-foreground">
+                      <span>7d <span className="text-foreground/80 font-medium">{p.plays_7d != null ? formatPlays(p.plays_7d) : "—"}</span></span>
+                      <span className="text-border">·</span>
+                      <span>28d <span className="text-foreground/80 font-medium">{p.plays_28d != null ? formatPlays(p.plays_28d) : "—"}</span></span>
+                    </div>
+                  </div>
                 </div>
               </li>
             );
           })}
-
         </ul>
       </CardContent>
     </Card>
