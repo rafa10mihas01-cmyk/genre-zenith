@@ -1,12 +1,8 @@
 // monitor-critical-crons
-// Roda a cada hora via pg_cron. Verifica os crons críticos em cron_health:
-// se a última execução foi há mais de 2 horas (ou nunca aconteceu),
-// dispara notificação warning via RPC create_notification.
-//
-// Crons monitorados:
-//   - playlist-queue-processor
-//   - sync-managed-playlists
-//   - wave1-enrich-batch
+// Roda a cada hora via pg_cron. Verifica:
+//   1) Crons críticos em cron_health (alerta se "stale" > 2h)
+//   2) Spotify circuit breakers (alerta se "open")
+//   3) Spotify 403 em massa por app (alerta se > THRESHOLD em 1h)
 //
 // Dedupe: usa p_dedupe_key + p_cooldown_minutes nativos da RPC
 // (cooldown de 6h por cron para não floodar o sino).
@@ -16,13 +12,17 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 const CRITICAL_CRONS = [
   "playlist-queue-processor",
   "sync-managed-playlists",
-  "wave1-enrich-batch",
+  "process-email-queue",
   "execution-planner",
   "reap-zombie-jobs",
+  "ops-alerts-cron-every-5min",
 ] as const;
 
 const STALE_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2h
 const COOLDOWN_MINUTES = 6 * 60; // 6h entre re-notificações
+const SPOTIFY_403_THRESHOLD = 100; // 403s em 1h por app → alerta
+const SPOTIFY_403_WINDOW_MS = 60 * 60 * 1000;
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
