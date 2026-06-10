@@ -40,6 +40,10 @@ export function CampaignAccessGate({ token, onAuthed }: Props) {
 
 
   async function requestCode() {
+    if (!storageOk) {
+      toast.error("Abra o link no Chrome ou Safari antes de pedir o código.");
+      return;
+    }
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
       toast.error("E-mail inválido");
       return;
