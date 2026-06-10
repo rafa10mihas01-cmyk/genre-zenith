@@ -44,7 +44,7 @@ import { CampaignDailyPlan } from "@/components/campanhas/CampaignDailyPlan";
 import { distributeEcoPositions, chartTierFromTopPosition } from "@/lib/campaignOperationalPlan";
 import { ClientHeroCard } from "@/components/campaign-hub/ClientHeroCard";
 import { SpreadsheetUploadCard } from "@/components/client-portal/SpreadsheetUploadCard";
-import { CampaignAccessGate, accessStorageKey } from "@/components/client-portal/CampaignAccessGate";
+import { CampaignAccessGate } from "@/components/client-portal/CampaignAccessGate";
 import {
   portalHeaders,
   clearPortalSession,
