@@ -140,7 +140,8 @@ export function OverviewTab({
     try { await onUnlockSplit(); } finally { setSavingLock(false); }
   };
 
-  // Top playlists no ar — só as que já estão entregando (delivered > 0)
+  // Top playlists no ar — todas as ativas/dispatched/done, ordenadas por delivered desc, depois por planned desc.
+  // Mostra mesmo quando ainda não houve leitura, pra cliente enxergar o inventário no ar.
   const topPlaylists = allocations
     .filter(a => a.status === "active" || a.status === "dispatched" || a.status === "done")
     .map(a => ({
@@ -148,8 +149,7 @@ export function OverviewTab({
       delivered: Number(latestByPl.get(a.managed_playlist_id)?.plays_28d ?? latestByPl.get(a.managed_playlist_id)?.plays_7d ?? 0),
       delta24: latestByPl.get(a.managed_playlist_id)?.plays_24h ?? 0,
     }))
-    .filter(x => x.delivered > 0)
-    .sort((x, y) => y.delivered - x.delivered)
+    .sort((x, y) => (y.delivered - x.delivered) || (y.a.planned_streams - x.a.planned_streams))
     .slice(0, 10);
 
   const recentProofs = [...proofs]
