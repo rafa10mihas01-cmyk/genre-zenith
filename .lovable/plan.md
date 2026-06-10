@@ -1,187 +1,76 @@
-## Objetivo
+# Padronização de todos os modais para `FormModal`
 
-Padronizar TODOS os modais/dialogs/sheets do sistema seguindo o mesmo padrão visual do modal **"Importar planilha de streams"** (limpo, com header bem definido, ícone, descrição, conteúdo respirado e rodapé fixo com ações). Hoje cada modal foi feito de um jeito (alguns sem padding, outros com header gigante cortando, sem rodapé fixo, scroll quebrado, campos espremidos).
+Você está certo — eu criei o componente `FormModal` e migrei só o de Cliente. Tem ~50 dialogs no sistema. Vou migrar **todos os que são formulário** (criar/editar entidade, configuração, ação com inputs), seguindo o mesmo padrão visual do modal de Cliente.
 
-Antes de mexer em nada eu listo tudo, defino o padrão e a gente faz em **ondas pequenas** pra você revisar cada uma. Sem mudar lógica de negócio, apenas estrutura visual do modal.
+## Critério de migração
 
----
+**Migra** (é formulário): tem inputs/selects/textarea e botão de salvar/criar/aplicar.
+**Não migra** (é viewer/confirm/preview): só mostra conteúdo, confirma ação ou exibe print/timeline. Esses continuam usando `Dialog` puro porque o padrão de header+footer fixo não se aplica.
 
-## Padrão proposto — `FormModal`
+## Inventário (28 modais de formulário identificados)
 
-Componente novo em `src/components/ui/form-modal.tsx` que encapsula o shadcn `Dialog` com a estrutura abaixo:
+### Onda 1 — Operação principal (entidades top-level)
+1. `NewCampaignDialog.tsx` — Nova campanha
+2. `NewCuratorDialog.tsx` — Novo curador
+3. `CuratorEditDialog.tsx` — Editar curador
+4. `NewDealDialog.tsx` — Novo deal
+5. `DuplicateDealDialog.tsx` — Duplicar deal
+6. `CloseDealDialog.tsx` — Fechar deal (tem form de motivo/data)
+7. `PlaylistEditorTab.tsx` (dialog interno) — Editar playlist
 
-```text
-┌─────────────────────────────────────────┐
-│ [ícone]  Título do modal           [×] │  ← header fixo (não scrolla)
-│          Descrição curta de 1 linha     │
-├─────────────────────────────────────────┤
-│ [abas opcionais]                        │  ← se houver
-├─────────────────────────────────────────┤
-│                                         │
-│   conteúdo do formulário                │  ← scrolla
-│   (campos com label em cima, gap 16)    │
-│   grid 2 colunas em ≥sm                 │
-│                                         │
-├─────────────────────────────────────────┤
-│                   [Cancelar] [Confirmar]│  ← rodapé fixo
-└─────────────────────────────────────────┘
-```
+### Onda 2 — Curadoria & comunidade
+8. `PasteUrlsDialog.tsx` — Colar URLs (curadores)
+9. `AddSongToPlaylistDialog.tsx`
+10. `PastePlaylistsDialog.tsx`
+11. `ImportFromLibraryDialog.tsx`
+12. `SwapPlaylistDialog.tsx`
+13. `PlaylistDailyPlanDialog.tsx`
 
-API mínima:
+### Onda 3 — Campanhas & monitoramento
+14. `CampaignDistributionConsole.tsx` (dialogs internos de form)
+15. `ExternalPackageEditor.tsx`
+16. `CampaignAccessManager.tsx` (form de adicionar acesso)
+17. `CuratorDealAccessManager.tsx` (form de adicionar acesso)
 
-```tsx
-<FormModal
-  open={open}
-  onOpenChange={setOpen}
-  icon={<Users className="h-4 w-4" />}
-  iconTone="campaigns" // domain color (campaigns/curators/clients/...)
-  title="Novo cliente"
-  description="Ficha completa do contratante."
-  size="md"            // sm | md | lg | xl
-  tabs={...}           // opcional
-  footer={
-    <>
-      <Button variant="ghost" onClick={onClose}>Cancelar</Button>
-      <Button onClick={onSubmit} disabled={loading}>Criar cliente</Button>
-    </>
-  }
->
-  {/* campos */}
-</FormModal>
-```
+### Onda 4 — Financeiro & sistema
+18. `DealPaymentDialog.tsx` — Registrar pagamento
+19. `PedirRemocaoDialog.tsx` — Pedido de remoção
+20. `AlertPreferencesDialog.tsx` — Preferências de alerta
+21. `MaintenanceCalendarDialog.tsx` (se tiver form)
+22. `EmailPreviewDialog.tsx` (se tiver form de envio)
 
-Regras visuais fixas (puxando do Design System já memorizado):
-- Padding header `20px`, conteúdo `24px`, footer `16px 24px`.
-- Header com fundo `card`, border-bottom `border/60`, ícone `9x9 rounded-lg` com `bg-primary/10 ring-1 ring-primary/20` ou cor de domínio.
-- Conteúdo com `max-h-[70vh] overflow-y-auto` (scroll só no meio).
-- Rodapé `sticky bottom-0` com fundo `card` e border-top.
-- Botão primário sempre à direita, secundário (Cancelar) à esquerda dele.
-- Label em cima do input (não inline), `text-[12px] font-medium text-foreground`, gap `6px` pro input.
-- Grid `grid-cols-1 sm:grid-cols-2 gap-4` por padrão; campos full-width usam `sm:col-span-2`.
-- Mobile: full-screen drawer abaixo de 640px (vira sheet bottom).
+### Onda 5 — Settings & infra
+23. `SpotifyAppsManager.tsx` (form de adicionar app)
+24. `EquipeTab.tsx` (form de convidar membro)
+25. `Infraestrutura.tsx` (dialogs de form)
+26. `Settings.tsx` (dialogs de form)
+27. `ComunidadeAdmin.tsx` (dialogs de form)
+28. `CuratorPage.tsx` (dialogs de form, se houver)
 
-Acessibilidade: focus trap (já vem do Radix), Esc fecha, Enter submete quando único botão primário.
+### Fica de fora (não é formulário)
+- `LogPrintDialog`, `DealLogDetailDialog`, `PrintThumbs`, `ProofThumb`, `ProofsTimeline`, `PlanoCampanhaPublico` (viewer), `Calculadora` (UI completa custom).
 
----
+## Padrão aplicado a cada modal
 
-## Inventário (mapeamento completo)
+Pra cada um, a mudança é mecânica e **só visual** — zero alteração de lógica/submit/validação:
 
-Encontrei **~50 arquivos** com `DialogContent` / `SheetContent` / `AlertDialogContent`. Separei em 4 categorias.
+- Trocar `Dialog`+`DialogContent`+`DialogHeader`+`DialogFooter` por `<FormModal>`.
+- Mover título/descrição pra props `title`/`description`.
+- Adicionar `icon` + `iconTone` da cor de domínio (clientes=azul, curadores=roxo, campanhas=âmbar, deals=verde, comunidade=rosa, playlists=cinza-azul, sistema=cinza).
+- Mover botões Cancelar/Confirmar pra prop `footer` (botão primário à direita).
+- Quando tiver abas, mover `<TabsList>` pra prop `topSlot` com estilo underline (igual ao Cliente).
+- Substituir grids manuais de campos por `<FormGrid cols={1|2}>` + `<FormField label hint>`.
+- `preventClose={saving}` durante submit.
+- `size` conforme densidade: `sm` (1 campo), `md` (2-4 campos), `lg` (form com abas), `xl` (raro).
 
-### 🔵 Categoria A — Formulários de cadastro/edição (alta prioridade, padrão direto)
-São os que mais precisam do padrão FormModal:
+## Detalhe técnico
 
-1. `curators/NewCuratorDialog.tsx` — Novo curador
-2. `curators/CuratorEditDialog.tsx` — Editar curador
-3. `curators/AddSongToPlaylistDialog.tsx` — Adicionar música
-4. `curators/PasteUrlsDialog.tsx` — Colar URLs
-5. `campanhas/NewCampaignDialog.tsx` — Nova campanha
-6. `playlist-deals/NewDealDialog.tsx` — Novo deal
-7. `playlist-deals/CloseDealDialog.tsx` — Fechar deal
-8. `playlist-deals/DuplicateDealDialog.tsx` — Duplicar deal
-9. `playlist-deals/LogPrintDialog.tsx` — Logar print
-10. `playlist-deals/ImportFromLibraryDialog.tsx` — Importar da biblioteca
-11. `playlist-deals/PastePlaylistsDialog.tsx` — Colar playlists
-12. `financeiro/DealPaymentDialog.tsx` — Pagamento
-13. `sistema/PedirRemocaoDialog.tsx` — Pedir remoção
-14. `operacao/EmailPreviewDialog.tsx` — Preview email
-15. `operacao/MaintenanceCalendarDialog.tsx` — Calendário manutenção
-16. `AlertPreferencesDialog.tsx` — Preferências alerta
-17. `campaign-hub/SwapPlaylistDialog.tsx` — Trocar playlist
-18. **`pages/ClienteDetalhe.tsx`** — Novo cliente (o da imagem, mais bagunçado)
-19. `pages/Settings.tsx` (modais inline) — vários
-20. `pages/Campanhas.tsx` (modais inline)
-21. `pages/Infraestrutura.tsx` (modais inline)
-22. `pages/ComunidadeAdmin.tsx` (modais inline)
-23. `campanhas/CampaignAccessManager.tsx`
-24. `playlist-deals/CuratorDealAccessManager.tsx`
-25. `settings/EquipeTab.tsx`
-26. `settings/SpotifyAppsManager.tsx`
+- O `FormModal` já existe em `src/components/ui/form-modal.tsx` com `FormGrid`, `FormField`, `FormSection`. Não precisa criar nada novo.
+- Headers/footers ficam fixos; só o miolo scrolla — resolve o problema do modal gigante que não cabia na tela.
+- Tokens (`bg-card`, `border-border/60`, `text-foreground`, `text-muted-foreground`) — não introduzir cor hardcoded.
 
-### 🟢 Categoria B — Visualização/Detalhe (Sheet lateral, padrão derivado)
-Pequena adaptação do mesmo padrão, mas em formato Sheet:
+## Entrega
 
-27. `curators/CuratorLibrarySheet.tsx`
-28. `curators/CuratorLibraryPanel.tsx`
-29. `operacao/CuradorDetailSheet.tsx`
-30. `playlist-deals/DealHistorySheet.tsx`
-31. `playlist-deals/DealLogDetailDialog.tsx`
-32. `campanhas/monitoramento/PlaylistHistoryDrawer.tsx`
-33. `sistema/fluxo/FluxoNodeDrawer.tsx`
-34. `campaign-hub/ProofsTimeline.tsx`
-35. `campanhas/monitoramento/ProofThumb.tsx`
-36. `playlist-deals/PrintThumbs.tsx`
+Vou executar **as 5 ondas em sequência num único turno**, em paralelo dentro de cada onda quando possível, e te aviso ao final com a lista do que mudou. Se algum modal tiver lógica fora do padrão (ex: stepper multi-passo), eu mantenho a estrutura interna e só troco o wrapper — sem mexer no comportamento.
 
-### 🟡 Categoria C — Tools/Editor (modais maiores, full-screen)
-Manter cheios mas aplicar o header padronizado:
-
-37. `campanhas/ExternalPackageEditor.tsx`
-38. `campanhas/CampaignDistributionConsole.tsx`
-39. `campanhas/PlaylistDailyPlanDialog.tsx`
-40. `playlists/PlaylistEditorTab.tsx`
-41. `operacao/calculadora/Calculadora.tsx`
-42. `operacao/MinhasPlaylists.tsx`
-43. `performance/SeoScorePanel.tsx`
-44. `playlist-deals/CuradoresTab.tsx`, `ClientesLibraryTab.tsx`, `CuradoresLibraryTab.tsx`, `FinanceiroTab.tsx` (dialogs internos)
-45. `pages/CampanhaExecucao.tsx`, `pages/PlanoCampanhaPublico.tsx`, `pages/CuratorPage.tsx`, `pages/comunidade/Campanhas.tsx`
-
-### ⚪ Categoria D — Padronizados ou intencionalmente diferentes (não mexer)
-- `ui/dialog.tsx`, `ui/sheet.tsx`, `ui/alert-dialog.tsx`, `ui/command.tsx`, `ui/sidebar.tsx` (primitivos shadcn)
-- `PageManual.tsx` (manual de página, padrão próprio recente)
-- `client-portal/SpreadsheetUploadCard.tsx` (já é a referência)
-
----
-
-## Execução em ondas
-
-Pra você revisar entre cada onda:
-
-**Onda 0 — Fundação** (1 PR, sem mexer em nada existente)
-- Criar `src/components/ui/form-modal.tsx` com a API acima.
-- Adicionar `FormField`, `FormSection`, `FormFooter` como helpers internos.
-- Documentar em comentário no topo do arquivo.
-
-**Onda 1 — Categoria A.1 (cadastros mais críticos, 6 modais)**
-- `ClienteDetalhe.tsx` (o da imagem)
-- `NewCuratorDialog`, `CuratorEditDialog`
-- `NewCampaignDialog`, `NewDealDialog`, `CloseDealDialog`
-
-**Onda 2 — Categoria A.2 (cadastros restantes, ~10 modais)**
-
-**Onda 3 — Categoria A.3 (modais inline de páginas, ~6)**
-
-**Onda 4 — Categoria B (sheets/drawers, ~10)** — adaptação do padrão
-
-**Onda 5 — Categoria C (tools/editor, ~10)** — só header/footer, manter conteúdo
-
-Cada onda = só refatoração visual. Zero mudança em hooks, queries, validação, lógica de submit. Os componentes mantêm exatamente os mesmos props externos.
-
----
-
-## Critérios de aceite (por modal)
-
-- [ ] Header com ícone + título + descrição cabe sem cortar (testar mobile 375px e desktop 1440px).
-- [ ] Conteúdo scrolla; header e footer ficam fixos.
-- [ ] Botão primário sempre à direita, com cor `primary` (verde).
-- [ ] Labels acima dos inputs, nunca inline.
-- [ ] Grid 2 colunas no desktop quando faz sentido; 1 coluna no mobile.
-- [ ] Submit por Enter funciona quando único botão primário.
-- [ ] Esc fecha. Click fora fecha (exceto durante loading).
-- [ ] Sem regressão: smoke test em cada modal (abre → preenche → salva → fecha).
-
----
-
-## O que NÃO entra no escopo
-
-- Lógica de negócio (queries, validações, submits) — fica intocada.
-- Mudança de campos do formulário — só apresentação.
-- Backend, edge functions, RLS, tabelas.
-- Modais já bons: `SpreadsheetUploadCard` (referência), `PageManual`.
-
----
-
-## Próximo passo
-
-Se aprovar, começo pela **Onda 0** (só criar o `FormModal`, sem mexer em modal existente). Aí você revisa o componente novo isolado e a gente segue pra Onda 1 com os 6 modais mais críticos.
-
-Quer assim? Ou prefere já começar direto pela Onda 1 (Cliente + 5 outros) usando o FormModal recém-criado tudo no mesmo PR?
+Confirma que quero seguir com todos os 28 ou prefere que eu faça primeiro a Onda 1 pra você validar o padrão antes?

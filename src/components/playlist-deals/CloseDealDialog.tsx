@@ -2,14 +2,8 @@ import { useEffect, useState } from "react";
 import { CheckCircle2, XCircle, Loader2, FileDown } from "lucide-react";
 import { toast } from "sonner";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { FormModal } from "@/components/ui/form-modal";
+import { Handshake } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -126,19 +120,36 @@ export function CloseDealDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o && !busy) onClose(); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <div className="flex items-center justify-between gap-2">
-            <DialogTitle>Encerrar deal</DialogTitle>
-            <DraftIndicator lastSavedAt={draft.lastSavedAt} />
-          </div>
-          <DialogDescription className="text-xs">
-            {deal.curator_name} · {deal.song_name}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4">
+    <FormModal
+      open={open}
+      onOpenChange={(o) => { if (!o && !busy) onClose(); }}
+      title="Encerrar deal"
+      description={
+        <span className="flex items-center justify-between gap-2">
+          <span>{deal.curator_name} · {deal.song_name}</span>
+          <DraftIndicator lastSavedAt={draft.lastSavedAt} />
+        </span>
+      }
+      icon={<Handshake className="h-4 w-4" />}
+      iconTone="deals"
+      size="md"
+      preventClose={busy}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={busy || (status === "cancelled" && !reason.trim())}
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
+            {busy ? "Encerrando..." : "Encerrar deal"}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
           {draft.hasDraft && (
             <DraftBanner onRestore={handleRestoreDraft} onDiscard={draft.clearDraft} />
           )}
@@ -244,21 +255,7 @@ export function CloseDealDialog({
               </div>
             </div>
           </label>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={busy}>
-            Cancelar
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={busy || (status === "cancelled" && !reason.trim())}
-          >
-            {busy ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
-            {busy ? "Encerrando..." : "Encerrar deal"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </FormModal>
   );
 }

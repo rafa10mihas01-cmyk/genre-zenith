@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Pencil } from "lucide-react";
+import { FormModal } from "@/components/ui/form-modal";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -144,14 +145,28 @@ export function CuratorEditDialog({ curator, open, onOpenChange, onSave, onAddPu
   const hasPendingPurchase = (parseNum(purchaseAmount) ?? 0) > 0 || (parseNum(purchasePlays) ?? 0) > 0;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg bg-card border border-border text-foreground max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-foreground">Editar curador</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-5 py-2">
-          {/* Identificação */}
-          <section className="space-y-3">
+    <FormModal
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Editar curador"
+      icon={<Pencil className="h-4 w-4" />}
+      iconTone="curadores"
+      size="md"
+      preventClose={saving}
+      footer={
+        <>
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? "Salvando…" : hasPendingPurchase ? "Salvar e registrar" : "Salvar"}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-5">
+        {/* Identificação */}
+        <section className="space-y-3">
             <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">Identificação</div>
             <div className="space-y-1.5">
               <Label htmlFor="cur-name" className="text-foreground">Nome / apelido</Label>
@@ -297,16 +312,7 @@ export function CuratorEditDialog({ curator, open, onOpenChange, onSave, onAddPu
             <Label htmlFor="cur-notes" className="text-foreground">Notas internas</Label>
             <Textarea id="cur-notes" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} className="bg-background border-border" />
           </section>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-            Cancelar
-          </Button>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Salvando…" : hasPendingPurchase ? "Salvar e registrar" : "Salvar"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </FormModal>
   );
 }

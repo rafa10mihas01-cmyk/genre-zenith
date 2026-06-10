@@ -2,14 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Search, Music2, Copy as CopyIcon } from "lucide-react";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { FormModal } from "@/components/ui/form-modal";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -240,20 +233,37 @@ export function DuplicateDealDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <CopyIcon className="h-4 w-4" /> Duplicar deal para outra música
-          </DialogTitle>
-          <DialogDescription>
-            {sourceDeal
-              ? `Cria um deal novo para ${sourceDeal.curator_name} com os mesmos parâmetros, mudando só a música.`
-              : null}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4 py-2">
+    <FormModal
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Duplicar deal para outra música"
+      description={
+        sourceDeal
+          ? `Cria um deal novo para ${sourceDeal.curator_name} com os mesmos parâmetros, mudando só a música.`
+          : undefined
+      }
+      icon={<CopyIcon className="h-4 w-4" />}
+      iconTone="deals"
+      size="lg"
+      preventClose={submitting}
+      footer={
+        <>
+          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            onClick={() => handleSubmit(false)}
+            disabled={!canSubmit || submitting}
+            className="gap-2"
+          >
+            {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+            Criar deal duplicado
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
           <div className="rounded-xl border border-border/60 bg-card/50 px-3 py-2.5 text-[12.5px]">
             <div className="text-muted-foreground uppercase tracking-wider text-[10px] font-semibold mb-1">
               Curador
@@ -376,28 +386,7 @@ export function DuplicateDealDialog({
               {targetPlays > 0 ? formatNumber(targetPlays) : "—"} plays
             </span>
           </div>
-        </div>
-
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
-            disabled={submitting}
-          >
-            Cancelar
-          </Button>
-          <Button
-            type="button"
-            onClick={() => handleSubmit(false)}
-            disabled={!canSubmit || submitting}
-            className="gap-2"
-          >
-            {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            Criar deal duplicado
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </FormModal>
   );
 }

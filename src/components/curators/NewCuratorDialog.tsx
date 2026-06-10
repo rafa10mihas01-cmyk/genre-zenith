@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { UserPlus } from "lucide-react";
+import { FormModal } from "@/components/ui/form-modal";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -86,22 +87,31 @@ export function NewCuratorDialog({ open, onOpenChange, onCreate }: Props) {
   };
 
   return (
-    <Dialog
+    <FormModal
       open={open}
       onOpenChange={(o) => {
         if (!o) reset();
         onOpenChange(o);
       }}
+      title="Novo curador"
+      description="Cadastro completo. Só o nome é obrigatório — o resto pode ser preenchido depois."
+      icon={<UserPlus className="h-4 w-4" />}
+      iconTone="curadores"
+      size="md"
+      preventClose={saving}
+      footer={
+        <>
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button onClick={handleSave} disabled={saving || !name.trim()}>
+            {saving ? "Criando…" : "Criar curador"}
+          </Button>
+        </>
+      }
     >
-      <DialogContent className="max-w-lg bg-card border border-border text-foreground max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-foreground">Novo curador</DialogTitle>
-          <DialogDescription className="text-muted-foreground">
-            Cadastro completo. Só o nome é obrigatório — o resto pode ser preenchido depois.
-          </DialogDescription>
-        </DialogHeader>
+      <div className="space-y-5">
 
-        <div className="space-y-5 py-2">
           {/* Identificação */}
           <section className="space-y-3">
             <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">
@@ -259,17 +269,7 @@ export function NewCuratorDialog({ open, onOpenChange, onCreate }: Props) {
               className="bg-background border-border"
             />
           </section>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-            Cancelar
-          </Button>
-          <Button onClick={handleSave} disabled={saving || !name.trim()}>
-            {saving ? "Criando…" : "Criar curador"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </FormModal>
   );
 }
