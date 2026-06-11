@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      _audit_post_baseline_migration: {
+        Row: {
+          campaign_id: string
+          campaign_name: string | null
+          delta_abs: number
+          delta_pct: number | null
+          entregue_antes: number
+          entregue_depois: number
+          id: string
+          origem: string | null
+          per_playlist: Json
+          playlists_afetadas: number
+          ran_at: string
+        }
+        Insert: {
+          campaign_id: string
+          campaign_name?: string | null
+          delta_abs: number
+          delta_pct?: number | null
+          entregue_antes: number
+          entregue_depois: number
+          id?: string
+          origem?: string | null
+          per_playlist?: Json
+          playlists_afetadas: number
+          ran_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          campaign_name?: string | null
+          delta_abs?: number
+          delta_pct?: number | null
+          entregue_antes?: number
+          entregue_depois?: number
+          id?: string
+          origem?: string | null
+          per_playlist?: Json
+          playlists_afetadas?: number
+          ran_at?: string
+        }
+        Relationships: []
+      }
       _audit_pre_window_migration: {
         Row: {
           campaign_id: string
@@ -11361,6 +11403,47 @@ export type Database = {
           last_seen: string | null
         }
         Relationships: []
+      }
+      vw_campaign_playlist_delivery_origin: {
+        Row: {
+          attributed_to: string | null
+          campaign_id: string | null
+          current_name: string | null
+          delivery_accumulated: number | null
+          delivery_origin: string | null
+          has_real_baseline: boolean | null
+          playlist_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_radio_collected"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_campaign_velocity"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_financial_summary"
+            referencedColumns: ["campaign_id"]
+          },
+        ]
       }
       vw_campaign_playlist_growth: {
         Row: {
