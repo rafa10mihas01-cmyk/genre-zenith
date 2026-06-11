@@ -523,7 +523,7 @@ export function SpreadsheetUploadCard({
                       </div>
                       <div className="text-[10px] uppercase tracking-wide text-muted-foreground leading-tight">playlists</div>
                     </div>
-                    {isAdmin && u.file_path && (
+                    {u.file_path && (
                       <Button
                         type="button"
                         variant="ghost"
