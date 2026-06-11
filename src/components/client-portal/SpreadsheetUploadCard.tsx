@@ -289,7 +289,7 @@ export function SpreadsheetUploadCard({
                 Esta será a baseline
               </div>
               <div className="text-[12px] text-muted-foreground leading-relaxed">
-                A primeira planilha registra o estado atual antes da campanha começar. As próximas (a cada 2 dias) serão usadas para calcular a entrega real.
+                A primeira planilha registra o estado atual antes da campanha começar. As próximas (envie diariamente) serão usadas para calcular a entrega real.
               </div>
             </div>
           </div>
