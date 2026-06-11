@@ -11724,6 +11724,7 @@ export type Database = {
         Returns: {
           curator_plays: number
           eco_plays: number
+          observed_plays: number
           organic_plays: number
           total_plays: number
         }[]
