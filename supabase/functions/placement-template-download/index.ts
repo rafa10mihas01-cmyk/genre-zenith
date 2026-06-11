@@ -108,7 +108,7 @@ Deno.serve(async (req) => {
       ["CURRENT POSITION  → posição da faixa dentro da playlist"],
       ["STREAMS           → total de streams gerados pela playlist"],
       [""],
-      ["Frequência recomendada: subir uma nova planilha a cada 2 dias."],
+      ["Frequência recomendada: subir uma nova planilha todos os dias."],
     ];
     const ws2 = XLSX.utils.aoa_to_sheet(instr);
     ws2["!cols"] = [{ wch: 80 }];
