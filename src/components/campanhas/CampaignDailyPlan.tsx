@@ -301,7 +301,7 @@ export function CampaignDailyPlan({
                 name: p.playlistName,
                 detail: `${formatInt(p.followers)} saves · entrada D${p.startDay}`,
                 today: p.streamsToday,
-                total: p.totalStreams,
+                total: ecoAllocations.find(a => a.id === p.allocationId)?.planned_streams ?? p.totalStreams,
                 badge: p.startDay === selectedDay ? "Entrada" : "Ativa",
               }))}
             />
