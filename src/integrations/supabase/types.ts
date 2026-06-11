@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      _audit_pre_window_migration: {
+        Row: {
+          campaign_id: string
+          captured_at: string
+          curador_eco_pre: number | null
+          observed_pre: number | null
+          track_name: string | null
+        }
+        Insert: {
+          campaign_id: string
+          captured_at?: string
+          curador_eco_pre?: number | null
+          observed_pre?: number | null
+          track_name?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          captured_at?: string
+          curador_eco_pre?: number | null
+          observed_pre?: number | null
+          track_name?: string | null
+        }
+        Relationships: []
+      }
       _io_stats_snapshots: {
         Row: {
           id: number
@@ -1536,6 +1560,7 @@ export type Database = {
           snapshot_run_id: string | null
           source: string
           upload_id: string | null
+          window_days: number
         }
         Insert: {
           campaign_id: string
@@ -1556,6 +1581,7 @@ export type Database = {
           snapshot_run_id?: string | null
           source?: string
           upload_id?: string | null
+          window_days?: number
         }
         Update: {
           campaign_id?: string
@@ -1576,6 +1602,7 @@ export type Database = {
           snapshot_run_id?: string | null
           source?: string
           upload_id?: string | null
+          window_days?: number
         }
         Relationships: [
           {
@@ -1636,6 +1663,7 @@ export type Database = {
           baseline_captured_at: string | null
           baseline_status: string
           campaign_type: string
+          canonical_window_days: number
           client_adjustment_request: string | null
           client_approved_at: string | null
           client_approved_by: string | null
@@ -1691,6 +1719,7 @@ export type Database = {
           baseline_captured_at?: string | null
           baseline_status?: string
           campaign_type?: string
+          canonical_window_days?: number
           client_adjustment_request?: string | null
           client_approved_at?: string | null
           client_approved_by?: string | null
@@ -1746,6 +1775,7 @@ export type Database = {
           baseline_captured_at?: string | null
           baseline_status?: string
           campaign_type?: string
+          canonical_window_days?: number
           client_adjustment_request?: string | null
           client_approved_at?: string | null
           client_approved_by?: string | null
@@ -5739,6 +5769,7 @@ export type Database = {
           upload_mode: string
           uploaded_by: string | null
           uploaded_via: string
+          window_days: number
           window_kind: string | null
         }
         Insert: {
@@ -5762,6 +5793,7 @@ export type Database = {
           upload_mode?: string
           uploaded_by?: string | null
           uploaded_via?: string
+          window_days?: number
           window_kind?: string | null
         }
         Update: {
@@ -5785,6 +5817,7 @@ export type Database = {
           upload_mode?: string
           uploaded_by?: string | null
           uploaded_via?: string
+          window_days?: number
           window_kind?: string | null
         }
         Relationships: [
