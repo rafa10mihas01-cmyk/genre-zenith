@@ -127,7 +127,7 @@ export function PlaylistDailyPlanDialog({
         </DialogHeader>
 
         <div className="grid grid-cols-4 gap-2 mt-2">
-          <Stat label="Total planejado" value={formatInt(plan.totalStreams)} />
+          <Stat label="Total planejado" value={formatInt(allocation.planned_streams)} />
           <Stat label="Início" value={`D${plan.startDay}`} hint={dateLabel(startedAt, plan.startDay)} />
           <Stat label="Dias ativos" value={`${activeDays}/${snapshot.days}`} />
           <Stat label="Pico" value={formatInt(peakDay.v)} hint={`D${peakDay.i + 1}`} />

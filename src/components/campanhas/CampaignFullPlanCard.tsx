@@ -572,7 +572,7 @@ export function CampaignFullPlanCard({
                         {pos != null ? `#${pos}` : "—"}
                       </td>
                       <td className="text-right tabular-nums font-semibold py-0 px-2 border-b border-border/30 leading-tight">
-                        {formatInt(p.totalStreams)}
+                        {formatInt(allocations.find(a => a.id === p.allocationId)?.planned_streams ?? p.totalStreams)}
                       </td>
                       {Array.from({ length: days }, (_, i) => {
                         const v = cellValue(p, i);
