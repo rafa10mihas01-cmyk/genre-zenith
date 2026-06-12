@@ -1011,6 +1011,13 @@ Deno.serve(async (req) => {
       sId = domHit.id;
       sUrl = domHit.url;
     }
+    const managedHit = sId && !sId.startsWith("algo:")
+      ? managedById.get(sId)
+      : preResolvedManaged;
+    if (managedHit && !sId) {
+      sId = managedHit.spotify_playlist_id;
+      sUrl = managedHit.spotify_url ?? `https://open.spotify.com/playlist/${managedHit.spotify_playlist_id}`;
+    }
     if (sId) processedSpotifyIds.add(sId);
     if (sName) processedNames.add(norm(sName));
 
@@ -1047,6 +1054,16 @@ Deno.serve(async (req) => {
             .eq("id", playlistId);
         }
       }
+    } else if (managedHit && sId) {
+      const { data: existingEco } = await supabase
+        .from("curator_playlists")
+        .select("id")
+        .eq("deal_id", deal_id)
+        .eq("spotify_playlist_id", sId)
+        .eq("match_reason", "ecosystem_managed_playlist")
+        .maybeSingle();
+      playlistId = existingEco?.id ?? null;
+      matchMethod = "ecosystem";
     } else if (sId) {
       const { data: organic } = await supabase
         .from("curator_playlists")
@@ -1090,6 +1107,31 @@ Deno.serve(async (req) => {
         }
         playlistId = created.id;
         matchMethod = domHit ? "dom_created" : "created";
+      } else if (managedHit && sId) {
+        const { data: created, error: cErr } = await supabase
+          .from("curator_playlists")
+          .insert({
+            deal_id,
+            song_id: song_id ?? null,
+            spotify_url: sUrl || managedHit.spotify_url || `https://open.spotify.com/playlist/${sId}`,
+            spotify_playlist_id: sId,
+            playlist_name: managedHit.name ?? sName ?? "Playlist Ecossistema",
+            followers: managedHit.followers ?? null,
+            spotify_owner_name: pl.made_by ?? "Ecossistema",
+            is_baseline: isBaseline,
+            match_status: "organic",
+            match_reason: "ecosystem_managed_playlist",
+            position_in_paste: typeof pl.position === "number" ? pl.position : null,
+            last_paste_at: new Date().toISOString(),
+          })
+          .select("id")
+          .single();
+        if (cErr) {
+          skipped++;
+          continue;
+        }
+        playlistId = created.id;
+        matchMethod = "ecosystem";
       } else {
         // Não-whitelist: NÃO insere em curator_playlists.
         // Classifica e grava em organic_plays_snapshots quando temos sId real.
