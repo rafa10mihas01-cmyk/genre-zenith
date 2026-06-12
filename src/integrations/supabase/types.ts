@@ -11023,6 +11023,49 @@ export type Database = {
         }
         Relationships: []
       }
+      v_curator_library: {
+        Row: {
+          curator_id: string | null
+          first_seen_at: string | null
+          followers: number | null
+          image_url: string | null
+          is_ecosystem: boolean | null
+          last_used_at: string | null
+          playlist_name: string | null
+          spotify_dead: boolean | null
+          spotify_owner_id: string | null
+          spotify_owner_name: string | null
+          spotify_playlist_id: string | null
+          spotify_url: string | null
+          streams_7d_total: number | null
+          streams_lifetime_total: number | null
+          times_used: number | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curator_deals_curator_id_fkey"
+            columns: ["curator_id"]
+            isOneToOne: false
+            referencedRelation: "curators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curator_deals_curator_id_fkey"
+            columns: ["curator_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_balance"
+            referencedColumns: ["curator_id"]
+          },
+          {
+            foreignKeyName: "curator_deals_curator_id_fkey"
+            columns: ["curator_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_finance"
+            referencedColumns: ["curator_id"]
+          },
+        ]
+      }
       v_curator_playlists_observational: {
         Row: {
           added_at: string | null
