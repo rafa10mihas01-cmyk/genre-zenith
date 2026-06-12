@@ -80,7 +80,7 @@ export function useCuratorLibrary(curatorId: string | null) {
     }
     setLoading(true);
     try {
-      const [libRes, statsRes, perfRes] = await Promise.all([
+      const [libRes, statsRes, perfRes, ecoRes] = await Promise.all([
         supabase
           .from("curator_playlist_library")
           .select("*")
@@ -97,6 +97,13 @@ export function useCuratorLibrary(curatorId: string | null) {
           .select("*")
           .eq("curator_id", curatorId)
           .limit(2000),
+        // Onda 2 sombra: cruza com v_curator_library pra marcar playlists do ecossistema
+        supabase
+          .from("v_curator_library" as never)
+          .select("spotify_playlist_id, is_ecosystem")
+          .eq("curator_id", curatorId)
+          .eq("is_ecosystem", true)
+          .limit(5000),
       ]);
       if (libRes.error) throw libRes.error;
       const libItems = (libRes.data ?? []) as CuratorLibraryPlaylist[];
