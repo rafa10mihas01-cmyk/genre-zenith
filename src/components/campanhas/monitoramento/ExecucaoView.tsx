@@ -34,6 +34,32 @@ type GrowthRow = {
   is_baseline_conflict: boolean | null;
 };
 
+type CollectionRow = {
+  playlist_id: string;
+  playlist_url: string | null;
+  playlist_name_at_capture: string | null;
+  plays_7d: number | null;
+  captured_at: string | null;
+  is_baseline: boolean | null;
+  first_seen_at: string | null;
+  created_at: string | null;
+  upload_id: string | null;
+  excluded: boolean | null;
+  window_days: number | null;
+};
+
+type UploadMeta = {
+  id: string;
+  created_at: string | null;
+  reference_date: string | null;
+  quarantined_at: string | null;
+};
+
+type AccRow = {
+  delivery_accumulated: number;
+  last_import_delta: number | null;
+};
+
 type CuratorMeta = { id: string; name: string | null };
 type SortKey = "delta" | "current" | "baseline" | "name";
 
@@ -67,39 +93,114 @@ export function ExecucaoView({
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   useEffect(() => {
+    let cancelled = false;
+    const PAGE_SIZE = 1000;
+
+    const fetchAllCollections = async () => {
+      const out: CollectionRow[] = [];
+      for (let from = 0; ; from += PAGE_SIZE) {
+        const { data, error } = await supabase
+          .from("campaign_playlist_collections")
+          .select("playlist_id, playlist_url, playlist_name_at_capture, plays_7d, captured_at, is_baseline, first_seen_at, created_at, upload_id, excluded, window_days")
+          .eq("campaign_id", campaignId)
+          .order("created_at", { ascending: true })
+          .range(from, from + PAGE_SIZE - 1);
+        if (error) throw error;
+        out.push(...((data ?? []) as CollectionRow[]));
+        if ((data?.length ?? 0) < PAGE_SIZE) break;
+      }
+      return out;
+    };
+
+    const collectionSortKey = (r: CollectionRow, uploads: Map<string, UploadMeta>) => {
+      const u = r.upload_id ? uploads.get(r.upload_id) : null;
+      return `${u?.reference_date ?? r.captured_at?.slice(0, 10) ?? "0000-00-00"}|${u?.created_at ?? r.created_at ?? r.captured_at ?? ""}`;
+    };
+
+    const pickLatest = (items: CollectionRow[], uploads: Map<string, UploadMeta>) => {
+      return [...items].sort((a, b) => collectionSortKey(b, uploads).localeCompare(collectionSortKey(a, uploads)))[0] ?? null;
+    };
+
+    const buildAccumulated = (
+      collections: CollectionRow[],
+      uploads: Map<string, UploadMeta>,
+      allowed: Set<string>,
+      canonicalWindowDays: number,
+    ) => {
+      const byPlaylist = new Map<string, CollectionRow[]>();
+      for (const c of collections) {
+        if (c.window_days !== canonicalWindowDays) continue;
+        if (!c.is_baseline && !allowed.has(c.playlist_id)) continue;
+        const arr = byPlaylist.get(c.playlist_id) ?? [];
+        arr.push(c);
+        byPlaylist.set(c.playlist_id, arr);
+      }
+
+      const acc = new Map<string, AccRow>();
+      for (const [pid, list] of byPlaylist) {
+        const ordered = [...list].sort((a, b) => collectionSortKey(a, uploads).localeCompare(collectionSortKey(b, uploads)));
+        const hasBaseline = ordered.some((r) => !!r.is_baseline);
+        let prev: number | null = null;
+        let total = 0;
+        let lastImportDelta: number | null = null;
+        ordered.forEach((row, idx) => {
+          const plays = Number(row.plays_7d ?? 0);
+          const delta = idx === 0
+            ? (hasBaseline ? 0 : plays)
+            : Math.max(0, plays - (prev ?? plays));
+          total += delta;
+          lastImportDelta = idx === 0 && hasBaseline ? null : delta;
+          prev = plays;
+        });
+        acc.set(pid, { delivery_accumulated: total, last_import_delta: lastImportDelta });
+      }
+      return acc;
+    };
+
     (async () => {
       // ─────────────────────────────────────────────────────────────
       // FONTE DE VERDADE: campaign_playlist_collections + curator_campaign_playlists + campaign_eco_allocations
-      // A view de crescimento é apenas ENRIQUECIMENTO. Toda playlist vinculada à campanha aparece.
+      // A tela calcula o crescimento localmente para não depender da view pesada que pode estourar timeout.
       // ─────────────────────────────────────────────────────────────
-      const [collRes, ccpRes, ecoRes, growthRes] = await Promise.all([
-        supabase
-          .from("campaign_playlist_collections")
-          .select("playlist_id")
-          .eq("campaign_id", campaignId),
+      try {
+      const [campaignRes, collections, ccpRes, ecoRes] = await Promise.all([
+        supabase.from("campaigns").select("canonical_window_days").eq("id", campaignId).maybeSingle(),
+        fetchAllCollections(),
         supabase
           .from("curator_campaign_playlists")
-          .select("playlist_id, curator_id, status, playlist_url")
+          .select("playlist_id, curator_id, status, playlist_url, excluded_from_kpis")
           .eq("campaign_id", campaignId),
         supabase
           .from("campaign_eco_allocations")
           .select("managed_playlist_id, managed_playlists!inner(spotify_playlist_id)")
           .eq("campaign_id", campaignId),
-        (supabase as any)
-          .from("vw_campaign_playlist_growth")
-          .select("*")
-          .eq("campaign_id", campaignId),
       ]);
 
+      const uploadIds = Array.from(new Set(collections.map((c) => c.upload_id).filter((id): id is string => !!id)));
+      const { data: uploadRows, error: uploadErr } = uploadIds.length > 0
+        ? await supabase
+          .from("label_spreadsheet_uploads")
+          .select("id, created_at, reference_date, quarantined_at")
+          .in("id", uploadIds)
+        : { data: [] as UploadMeta[], error: null };
+      if (uploadErr) throw uploadErr;
+
+      const uploads = new Map<string, UploadMeta>(((uploadRows ?? []) as UploadMeta[]).map((u) => [u.id, u]));
+      const validCollections = collections.filter((c) => {
+        if (c.excluded) return false;
+        const u = c.upload_id ? uploads.get(c.upload_id) : null;
+        return !u?.quarantined_at;
+      });
+
       // Conjunto canônico de playlist_ids da campanha
-      const collIds = new Set<string>(((collRes.data ?? []) as any[]).map((r) => r.playlist_id));
-      const curatorRegByPlaylist = new Map<string, { curator_id: string; status: string; playlist_url: string | null }>();
+      const collIds = new Set<string>(validCollections.map((r) => r.playlist_id));
+      const curatorRegByPlaylist = new Map<string, { curator_id: string; status: string; playlist_url: string | null; excluded_from_kpis: boolean | null }>();
       for (const r of (ccpRes.data ?? []) as any[]) {
         // precedência: matched > pending_match > baseline_conflict > resto
         const cur = curatorRegByPlaylist.get(r.playlist_id);
         const rank = (s: string) => (s === "matched" ? 1 : s === "pending_match" ? 2 : s === "baseline_conflict" ? 3 : 4);
         if (!cur || rank(r.status) < rank(cur.status)) {
-          curatorRegByPlaylist.set(r.playlist_id, { curator_id: r.curator_id, status: r.status, playlist_url: r.playlist_url });
+          curatorRegByPlaylist.set(r.playlist_id, { curator_id: r.curator_id, status: r.status, playlist_url: r.playlist_url, excluded_from_kpis: r.excluded_from_kpis ?? false });
         }
       }
       const ecoIds = new Set<string>(
@@ -127,31 +228,58 @@ export function ExecucaoView({
         ...ecoIds,
       ]);
 
-      const growthByPid = new Map<string, GrowthRow>();
-      for (const g of ((growthRes.data ?? []) as unknown) as GrowthRow[]) {
-        growthByPid.set(g.playlist_id, g);
+      const byPlaylist = new Map<string, CollectionRow[]>();
+      for (const c of validCollections) {
+        const arr = byPlaylist.get(c.playlist_id) ?? [];
+        arr.push(c);
+        byPlaylist.set(c.playlist_id, arr);
       }
+      const allowedForAcc = new Set<string>([
+        ...Array.from(curatorRegByPlaylist.entries())
+          .filter(([, r]) => !r.excluded_from_kpis)
+          .map(([pid]) => pid),
+        ...ecoIds,
+        ...validCollections.filter((c) => !!c.is_baseline).map((c) => c.playlist_id),
+      ]);
+      const canonicalWindowDays = Number((campaignRes.data as any)?.canonical_window_days ?? 7);
+      const accumulated = buildAccumulated(validCollections, uploads, allowedForAcc, canonicalWindowDays);
 
-      // Materializar lista canônica usando a view de crescimento como fonte oficial.
-      // A view já resolve precedência e impede playlist interna de virar curador.
+      // Materializar lista canônica usando as coletas já importadas como fonte oficial.
       const list: GrowthRow[] = [];
       for (const pid of allIds) {
-        const g = growthByPid.get(pid);
+        const collected = byPlaylist.get(pid) ?? [];
+        const baseline = pickLatest(collected.filter((c) => !!c.is_baseline), uploads);
+        const latest = pickLatest(collected, uploads);
+        const firstSeenAt = collected.reduce<string | null>((min, c) => {
+          const v = c.first_seen_at ?? c.captured_at ?? null;
+          if (!v) return min;
+          return !min || v < min ? v : min;
+        }, null);
+        const acc = accumulated.get(pid);
         const reg = curatorRegByPlaylist.get(pid);
         const attribution: string = (ecoIds.has(pid) || internalOwnedIds.has(pid))
           ? "ecosystem"
-          : (g?.attributed_to ?? (
-            reg ? `curator:${reg.curator_id}` : "organic"
-          )
-        );
+          : (reg && (!reg.excluded_from_kpis || reg.status === "baseline_conflict") ? `curator:${reg.curator_id}` : "organic");
         const curatorId = attribution.startsWith("curator:")
-          ? (g?.attributed_curator_id ?? reg?.curator_id ?? null)
+          ? (reg?.curator_id ?? null)
           : null;
-        if (g) {
+        if (latest || baseline) {
           list.push({
-            ...g,
+            campaign_id: campaignId,
+            playlist_id: pid,
+            playlist_url: latest?.playlist_url ?? baseline?.playlist_url ?? reg?.playlist_url ?? null,
+            current_name: latest?.playlist_name_at_capture ?? baseline?.playlist_name_at_capture ?? null,
+            baseline_name: baseline?.playlist_name_at_capture ?? null,
+            baseline_plays: baseline?.plays_7d ?? null,
+            current_plays: latest?.plays_7d ?? null,
+            delta: acc?.delivery_accumulated ?? 0,
+            last_import_delta: acc?.last_import_delta ?? null,
+            baseline_at: baseline?.captured_at ?? null,
+            last_captured_at: latest?.captured_at ?? null,
+            first_seen_at: firstSeenAt,
             attributed_to: attribution,
             attributed_curator_id: curatorId,
+            is_baseline_conflict: reg?.status === "baseline_conflict" ? true : null,
           });
         } else {
           // Playlist vinculada à campanha mas SEM coleta ainda. Aparece com "Sem dados".
@@ -174,6 +302,7 @@ export function ExecucaoView({
           });
         }
       }
+      if (cancelled) return;
       setRows(list);
 
       // Curadores: pegar TODOS os curadores vinculados à campanha (não só os com crescimento)
@@ -218,7 +347,12 @@ export function ExecucaoView({
           rendered: list.length,
         });
       }
+      } catch (error) {
+        console.error("[Monitoramento V2] Falha ao carregar execução", error);
+        if (!cancelled) setRows([]);
+      }
     })();
+    return () => { cancelled = true; };
   }, [campaignId]);
 
   const totals = useMemo(() => {
