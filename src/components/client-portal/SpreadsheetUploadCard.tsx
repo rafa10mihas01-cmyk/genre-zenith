@@ -235,8 +235,8 @@ export function SpreadsheetUploadCard({
   };
 
   return (
-    <Card className="border-border/60 bg-card">
-      <CardContent className="p-5 space-y-4">
+    <Card className="border-border/60 bg-card overflow-hidden">
+      <CardContent className="p-4 sm:p-5 space-y-4 min-w-0">
         {/* Header: no mobile vira stack (título em cima, badge embaixo full-width).
             No desktop volta a ficar lado a lado. */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
