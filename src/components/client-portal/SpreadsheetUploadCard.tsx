@@ -18,6 +18,8 @@ type Upload = {
   status: string;
   file_name: string | null;
   file_path?: string | null;
+  is_baseline?: boolean | null;
+  reference_date?: string | null;
 };
 
 type Preview = {
@@ -490,6 +492,9 @@ export function SpreadsheetUploadCard({
                 const dateStr = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
                 const timeStr = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
                 const isLatest = idx === 0;
+                const refStr = u.reference_date
+                  ? new Date(u.reference_date + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })
+                  : null;
                 return (
                   <li
                     key={u.id}
@@ -502,11 +507,20 @@ export function SpreadsheetUploadCard({
                         <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/30 shrink-0" />
                       )}
                       <div className="min-w-0">
-                        <div className="text-[12.5px] font-medium text-foreground tabular-nums leading-tight">
+                        <div className="text-[12.5px] font-medium text-foreground tabular-nums leading-tight flex items-center gap-1.5 flex-wrap">
                           {dateStr}
+                          {refStr && (
+                            <span
+                              className="inline-flex items-center px-1.5 py-0.5 rounded border border-amber-500/40 text-amber-400 bg-amber-500/5 text-[9.5px] uppercase tracking-wide font-semibold tabular-nums"
+                              title="Data de referência da planilha (a que dia os números se referem)"
+                            >
+                              ref. {refStr}
+                            </span>
+                          )}
                         </div>
                         <div className="text-[10.5px] text-muted-foreground tabular-nums leading-tight">
                           {timeStr}
+                          {u.is_baseline && <span className="ml-1.5 text-amber-400 font-medium uppercase tracking-wide text-[9.5px]">· baseline</span>}
                           {isLatest && <span className="ml-1.5 text-success font-medium uppercase tracking-wide text-[9.5px]">· atual</span>}
                         </div>
                       </div>
