@@ -555,6 +555,7 @@ export function ExecucaoView({
               curators={curators}
               statuses={statuses}
               curatorFilter={curatorFilter}
+              campaignId={campaignId}
               onPickCurator={(id) => {
                 if (!scopeLocked) setScope("curator");
                 setCuratorFilter(id);
