@@ -487,7 +487,14 @@ export function SpreadsheetUploadCard({
               </div>
             </div>
             <ul className="divide-y divide-border/40 max-h-[212px] overflow-y-auto">
-              {recentUploads.map((u, idx) => {
+              {[...recentUploads]
+                .sort((a, b) => {
+                  const ar = a.reference_date ?? a.created_at.slice(0, 10);
+                  const br = b.reference_date ?? b.created_at.slice(0, 10);
+                  if (ar !== br) return br.localeCompare(ar);
+                  return b.created_at.localeCompare(a.created_at);
+                })
+                .map((u, idx) => {
                 const d = new Date(u.created_at);
                 const dateStr = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
                 const timeStr = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
