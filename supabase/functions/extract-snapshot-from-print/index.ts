@@ -617,6 +617,28 @@ Deno.serve(async (req) => {
   const whitelistActive = whitelist.size > 0;
   console.log(`[extract] whitelist deal=${deal_id} size=${whitelist.size} active=${whitelistActive}`);
 
+  // Campanhas internas também têm playlists próprias em managed_playlists.
+  // Elas não pertencem à whitelist do curador, mas DEVEM ser atribuídas ao Ecossistema.
+  const { data: dealRowForEco } = await supabase
+    .from("curator_deals")
+    .select("campaign_id, source")
+    .eq("id", deal_id)
+    .maybeSingle();
+  const ecoCampaignId = (dealRowForEco as any)?.campaign_id ?? null;
+  const isCampaignInternal = !!ecoCampaignId && (dealRowForEco as any)?.source === "campaign_internal";
+  const { data: managedRows } = isCampaignInternal
+    ? await supabase
+        .from("managed_playlists")
+        .select("id, spotify_playlist_id, spotify_url, name, followers")
+        .is("archived_at", null)
+    : { data: [] as any[] };
+  const managedById = new Map<string, any>();
+  const managedByName = new Map<string, any>();
+  for (const mp of managedRows ?? []) {
+    if (mp.spotify_playlist_id) managedById.set(mp.spotify_playlist_id, mp);
+    if (mp.name) managedByName.set(norm(mp.name), mp);
+  }
+
   if (!whitelistActive) {
     if (batch_id) {
       await supabase
@@ -862,7 +884,10 @@ Deno.serve(async (req) => {
     const plays = Math.max(0, parseInt(String(pl.plays ?? 0)) || 0);
     const preResolvedFromUrl = extractId(pl.spotify_url ?? "");
     const preResolvedFromDom = !preResolvedFromUrl && sName ? domByName.get(norm(sName))?.id ?? null : null;
-    const preResolvedIdForKind = preResolvedFromUrl ?? preResolvedFromDom ?? null;
+    const preResolvedFromEcoName = !preResolvedFromUrl && !preResolvedFromDom && sName
+      ? managedByName.get(norm(sName))?.spotify_playlist_id ?? null
+      : null;
+    const preResolvedIdForKind = preResolvedFromUrl ?? preResolvedFromDom ?? preResolvedFromEcoName ?? null;
     const isAlgo = isAlgorithmic(sName, pl.made_by ?? null, preResolvedIdForKind);
     const isEditorial = isSpotifyEditorial(sName, pl.made_by ?? null, preResolvedIdForKind);
     // O histórico/base representa o total observado no Spotify for Artists.
@@ -874,6 +899,9 @@ Deno.serve(async (req) => {
     // para classificar whitelist do curador sem descartar as demais 100 linhas.
     let preResolvedId = preResolvedIdForKind;
     const isWhitelistedCurator = !!preResolvedId && !preResolvedId.startsWith("algo:") && whitelist.has(preResolvedId);
+    const preResolvedManaged = preResolvedId && !preResolvedId.startsWith("algo:")
+      ? managedById.get(preResolvedId)
+      : sName ? managedByName.get(norm(sName)) : null;
     // ECOSSISTEMA COMPLETO: não descartamos mais linhas fora da whitelist.
     // Whitelist agora apenas marca origem (curator vs organic). Captura permanece 100%.
 
