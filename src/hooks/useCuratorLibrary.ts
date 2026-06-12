@@ -3,9 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export interface CuratorLibraryPlaylist {
+  /** Pode ser id real de curator_playlist_library OU sintético `${curator_id}:${spotify_playlist_id}` quando vier só da view. */
   id: string;
   curator_id: string;
-  user_id: string;
+  user_id: string | null;
   spotify_playlist_id: string | null;
   spotify_url: string;
   playlist_name: string;
@@ -17,12 +18,13 @@ export interface CuratorLibraryPlaylist {
   notes: string | null;
   times_used: number;
   last_used_at: string | null;
-  first_seen_at: string;
-  created_at: string;
-  updated_at: string;
-  /** Onda 2 (sombra): true se a playlist está no ecossistema (managed_playlists ativa).
-   *  Vem da view v_curator_library, cruzada por spotify_playlist_id. */
+  first_seen_at: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  /** True se a playlist está no ecossistema (managed_playlists ativa). Vem direto da view. */
   is_ecosystem?: boolean;
+  /** True se a row é só reflexo da view (sem registro físico em curator_playlist_library). */
+  is_synthetic?: boolean;
 }
 
 export interface CuratorLibraryStats {
@@ -80,12 +82,19 @@ export function useCuratorLibrary(curatorId: string | null) {
     }
     setLoading(true);
     try {
-      const [libRes, statsRes, perfRes, ecoRes] = await Promise.all([
+      const [viewRes, legacyRes, statsRes, perfRes] = await Promise.all([
+        // Onda 4: fonte de verdade = view agregada a partir de curator_playlists
         supabase
-          .from("curator_playlist_library")
+          .from("v_curator_library" as never)
           .select("*")
           .eq("curator_id", curatorId)
           .order("last_used_at", { ascending: false, nullsFirst: false })
+          .limit(2000),
+        // Legacy: notes/status/id físico, indexados por spotify_playlist_id
+        supabase
+          .from("curator_playlist_library")
+          .select("id, spotify_playlist_id, status, notes, user_id, created_at, updated_at, first_seen_at")
+          .eq("curator_id", curatorId)
           .limit(2000),
         supabase
           .from("curator_playlist_library_stats" as never)
@@ -97,24 +106,67 @@ export function useCuratorLibrary(curatorId: string | null) {
           .select("*")
           .eq("curator_id", curatorId)
           .limit(2000),
-        // Onda 2 sombra: cruza com v_curator_library pra marcar playlists do ecossistema
-        supabase
-          .from("v_curator_library" as never)
-          .select("spotify_playlist_id, is_ecosystem")
-          .eq("curator_id", curatorId)
-          .eq("is_ecosystem", true)
-          .limit(5000),
       ]);
-      if (libRes.error) throw libRes.error;
-      const ecoIds = new Set(
-        (((ecoRes.data ?? []) as { spotify_playlist_id: string | null }[])
-          .map((r) => r.spotify_playlist_id)
-          .filter(Boolean)) as string[],
-      );
-      const libItems = ((libRes.data ?? []) as CuratorLibraryPlaylist[]).map((it) => ({
-        ...it,
-        is_ecosystem: it.spotify_playlist_id ? ecoIds.has(it.spotify_playlist_id) : false,
-      }));
+      if (viewRes.error) throw viewRes.error;
+
+      // Index legacy por spotify_playlist_id pra hidratar id/status/notes.
+      type LegacyRow = {
+        id: string;
+        spotify_playlist_id: string | null;
+        status: CuratorLibraryPlaylist["status"] | null;
+        notes: string | null;
+        user_id: string | null;
+        created_at: string | null;
+        updated_at: string | null;
+        first_seen_at: string | null;
+      };
+      const legacyBySpid = new Map<string, LegacyRow>();
+      for (const row of ((legacyRes.data ?? []) as LegacyRow[])) {
+        if (row.spotify_playlist_id) legacyBySpid.set(row.spotify_playlist_id, row);
+      }
+
+      type ViewRow = {
+        curator_id: string;
+        user_id: string | null;
+        spotify_playlist_id: string | null;
+        playlist_name: string | null;
+        spotify_url: string | null;
+        image_url: string | null;
+        spotify_owner_id: string | null;
+        spotify_owner_name: string | null;
+        followers: number | null;
+        times_used: number | null;
+        last_used_at: string | null;
+        first_seen_at: string | null;
+        is_ecosystem: boolean | null;
+        spotify_dead: boolean | null;
+      };
+
+      const libItems: CuratorLibraryPlaylist[] = ((viewRes.data ?? []) as ViewRow[]).map((v) => {
+        const legacy = v.spotify_playlist_id ? legacyBySpid.get(v.spotify_playlist_id) : undefined;
+        const syntheticId = `${v.curator_id}:${v.spotify_playlist_id ?? "no-spid"}`;
+        return {
+          id: legacy?.id ?? syntheticId,
+          curator_id: v.curator_id,
+          user_id: legacy?.user_id ?? v.user_id ?? null,
+          spotify_playlist_id: v.spotify_playlist_id,
+          spotify_url: v.spotify_url ?? (v.spotify_playlist_id ? `https://open.spotify.com/playlist/${v.spotify_playlist_id}` : ""),
+          playlist_name: v.playlist_name ?? "Playlist",
+          followers: v.followers ?? null,
+          image_url: v.image_url ?? null,
+          spotify_owner_id: v.spotify_owner_id ?? null,
+          spotify_owner_name: v.spotify_owner_name ?? null,
+          status: legacy?.status ?? "active",
+          notes: legacy?.notes ?? null,
+          times_used: Number(v.times_used ?? 0),
+          last_used_at: v.last_used_at,
+          first_seen_at: legacy?.first_seen_at ?? v.first_seen_at ?? null,
+          created_at: legacy?.created_at ?? null,
+          updated_at: legacy?.updated_at ?? null,
+          is_ecosystem: !!v.is_ecosystem,
+          is_synthetic: !legacy,
+        };
+      });
       setItems(libItems);
       setStats((statsRes.data ?? []) as CuratorLibraryStats[]);
       setPerformance((perfRes.data ?? []) as CuratorLibraryPerformance[]);
@@ -237,6 +289,12 @@ export function useCuratorLibrary(curatorId: string | null) {
 
   const updateStatus = useCallback(
     async (id: string, status: CuratorLibraryPlaylist["status"]) => {
+      // Id sintético = item veio só da view (sem row física). Notes/status precisam
+      // de uma row em curator_playlist_library — informa e sai.
+      if (id.includes(":")) {
+        toast.info("Status só pode ser editado em playlists adicionadas manualmente à biblioteca.");
+        return;
+      }
       const { error } = await supabase
         .from("curator_playlist_library")
         .update({ status })
@@ -249,6 +307,10 @@ export function useCuratorLibrary(curatorId: string | null) {
 
   const remove = useCallback(
     async (id: string) => {
+      if (id.includes(":")) {
+        toast.info("Esta playlist veio dos deals do curador — não pode ser removida da biblioteca.");
+        return;
+      }
       const { error } = await supabase
         .from("curator_playlist_library")
         .delete()
