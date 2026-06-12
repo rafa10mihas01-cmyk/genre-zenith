@@ -253,7 +253,8 @@ export function ImportFromLibraryDialog({
                   const current = getExistingForTarget(key);
                   const isCurator = current?.status === "curator";
                   const isOrganic = !!current && !isCurator;
-                  const blocked = isCurator; // só bloqueia se já é curador
+                  const isEcosystem = !!p.is_ecosystem;
+                  const blocked = isCurator || isEcosystem; // ecossistema também bloqueia
                   const isSelected = selected.has(p.id);
                   return (
                     <li
@@ -266,6 +267,7 @@ export function ImportFromLibraryDialog({
                           : "cursor-pointer hover:bg-muted/30",
                         isSelected && "bg-primary/5",
                       )}
+                      title={isEcosystem ? "Playlist do ecossistema NexEngine — não pode ser declarada como playlist do curador" : undefined}
                     >
                       <div
                         className={cn(
@@ -282,6 +284,11 @@ export function ImportFromLibraryDialog({
                           <span className="text-sm text-foreground truncate">
                             {p.playlist_name}
                           </span>
+                          {isEcosystem && (
+                            <Badge className="shrink-0 text-[10px] h-4 px-1.5 bg-primary/15 text-primary border-0">
+                              ecossistema
+                            </Badge>
+                          )}
                           {isCurator && (
                             <Badge className="shrink-0 text-[10px] h-4 px-1.5 bg-muted/40 text-muted-foreground border-0">
                               já no deal
