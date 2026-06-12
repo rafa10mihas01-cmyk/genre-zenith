@@ -449,29 +449,36 @@ export function ExecucaoView({
     );
   }, [filtered]);
 
+  // Covers/nomes enriquecidos pra todas as playlists da campanha — usados no
+  // dropdown do "Buscar playlist" pra mostrar nome real + thumb mesmo quando
+  // current_name/baseline_name vierem nulos do bot.
+  const allPlaylistIds = useMemo(() => (rows ?? []).map((r) => r.playlist_id), [rows]);
+  const allCovers = usePlaylistCovers(allPlaylistIds);
+
   // Sugestões do input "Buscar playlist": só playlists já cadastradas na
   // campanha que respeitam os filtros ativos (atribuição/curador/status),
   // filtradas por substring do texto digitado. Limita a 50 pra não pesar.
   const searchSuggestions = useMemo(() => {
-    if (!rows) return [] as { id: string; name: string }[];
+    if (!rows) return [] as { id: string; name: string; cover: string | null }[];
     const qn = q.trim().toLowerCase();
     const seen = new Set<string>();
-    const out: { id: string; name: string }[] = [];
+    const out: { id: string; name: string; cover: string | null }[] = [];
     for (const r of rows) {
       if (!passesNonQuery(r)) continue;
       if (seen.has(r.playlist_id)) continue;
-      const name = r.current_name ?? r.baseline_name ?? r.playlist_id;
+      const meta = allCovers[r.playlist_id];
+      const name = r.current_name ?? r.baseline_name ?? meta?.name ?? r.playlist_id;
       if (qn) {
         const hay = (name + " " + r.playlist_id).toLowerCase();
         if (!hay.includes(qn)) continue;
       }
       seen.add(r.playlist_id);
-      out.push({ id: r.playlist_id, name });
+      out.push({ id: r.playlist_id, name, cover: meta?.cover_url ?? null });
     }
     out.sort((a, b) => a.name.localeCompare(b.name));
     return out.slice(0, 50);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, q, scope, curatorFilter, statusFilter, statuses]);
+  }, [rows, q, scope, curatorFilter, statusFilter, statuses, allCovers]);
   const [searchOpen, setSearchOpen] = useState(false);
 
   const curatorOptions = useMemo(
