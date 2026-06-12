@@ -1217,7 +1217,21 @@ Deno.serve(async (req) => {
       plays_28d: w28,
     });
     if (insErr) skipped++;
-    else inserted++;
+    else {
+      inserted++;
+      if (ecoCampaignId && managedHit?.id && sId) {
+        await supabase.from("campaign_eco_snapshots").upsert({
+          campaign_id: ecoCampaignId,
+          managed_playlist_id: managedHit.id,
+          spotify_playlist_id: sId,
+          plays_24h: w24,
+          plays_7d: w7 ?? plays,
+          plays_28d: w28,
+          source: "spotify_for_artists",
+          correlation_id: correlation_id ?? null,
+        }, { onConflict: "campaign_id,managed_playlist_id,captured_at", ignoreDuplicates: true });
+      }
+    }
   }
 
   // 3.1. Complemento DOM: o bot pode mandar 100 links do HTML mesmo quando
