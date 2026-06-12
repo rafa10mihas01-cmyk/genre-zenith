@@ -77,6 +77,26 @@ type PlaylistGrowthRow = {
   last_import_delta: number | null;
 };
 
+type CollectionGrowthRow = {
+  playlist_id: string;
+  playlist_url: string | null;
+  playlist_name_at_capture: string | null;
+  plays_7d: number | null;
+  captured_at: string | null;
+  is_baseline: boolean | null;
+  created_at: string | null;
+  upload_id: string | null;
+  excluded: boolean | null;
+  window_days: number | null;
+};
+
+type UploadGrowthMeta = {
+  id: string;
+  created_at: string | null;
+  reference_date: string | null;
+  quarantined_at: string | null;
+};
+
 type DeliveryProof = {
   id: string;
   playlist_id: string;
