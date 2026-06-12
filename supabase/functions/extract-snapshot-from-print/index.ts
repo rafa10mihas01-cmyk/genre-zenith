@@ -617,6 +617,28 @@ Deno.serve(async (req) => {
   const whitelistActive = whitelist.size > 0;
   console.log(`[extract] whitelist deal=${deal_id} size=${whitelist.size} active=${whitelistActive}`);
 
+  // Campanhas internas também têm playlists próprias em managed_playlists.
+  // Elas não pertencem à whitelist do curador, mas DEVEM ser atribuídas ao Ecossistema.
+  const { data: dealRowForEco } = await supabase
+    .from("curator_deals")
+    .select("campaign_id, source")
+    .eq("id", deal_id)
+    .maybeSingle();
+  const ecoCampaignId = (dealRowForEco as any)?.campaign_id ?? null;
+  const isCampaignInternal = !!ecoCampaignId && (dealRowForEco as any)?.source === "campaign_internal";
+  const { data: managedRows } = isCampaignInternal
+    ? await supabase
+        .from("managed_playlists")
+        .select("id, spotify_playlist_id, spotify_url, name, followers")
+        .is("archived_at", null)
+    : { data: [] as any[] };
+  const managedById = new Map<string, any>();
+  const managedByName = new Map<string, any>();
+  for (const mp of managedRows ?? []) {
+    if (mp.spotify_playlist_id) managedById.set(mp.spotify_playlist_id, mp);
+    if (mp.name) managedByName.set(norm(mp.name), mp);
+  }
+
   if (!whitelistActive) {
     if (batch_id) {
       await supabase
@@ -862,7 +884,10 @@ Deno.serve(async (req) => {
     const plays = Math.max(0, parseInt(String(pl.plays ?? 0)) || 0);
     const preResolvedFromUrl = extractId(pl.spotify_url ?? "");
     const preResolvedFromDom = !preResolvedFromUrl && sName ? domByName.get(norm(sName))?.id ?? null : null;
-    const preResolvedIdForKind = preResolvedFromUrl ?? preResolvedFromDom ?? null;
+    const preResolvedFromEcoName = !preResolvedFromUrl && !preResolvedFromDom && sName
+      ? managedByName.get(norm(sName))?.spotify_playlist_id ?? null
+      : null;
+    const preResolvedIdForKind = preResolvedFromUrl ?? preResolvedFromDom ?? preResolvedFromEcoName ?? null;
     const isAlgo = isAlgorithmic(sName, pl.made_by ?? null, preResolvedIdForKind);
     const isEditorial = isSpotifyEditorial(sName, pl.made_by ?? null, preResolvedIdForKind);
     // O histórico/base representa o total observado no Spotify for Artists.
@@ -874,6 +899,9 @@ Deno.serve(async (req) => {
     // para classificar whitelist do curador sem descartar as demais 100 linhas.
     let preResolvedId = preResolvedIdForKind;
     const isWhitelistedCurator = !!preResolvedId && !preResolvedId.startsWith("algo:") && whitelist.has(preResolvedId);
+    const preResolvedManaged = preResolvedId && !preResolvedId.startsWith("algo:")
+      ? managedById.get(preResolvedId)
+      : sName ? managedByName.get(norm(sName)) : null;
     // ECOSSISTEMA COMPLETO: não descartamos mais linhas fora da whitelist.
     // Whitelist agora apenas marca origem (curator vs organic). Captura permanece 100%.
 
@@ -983,6 +1011,13 @@ Deno.serve(async (req) => {
       sId = domHit.id;
       sUrl = domHit.url;
     }
+    const managedHit = sId && !sId.startsWith("algo:")
+      ? managedById.get(sId)
+      : preResolvedManaged;
+    if (managedHit && !sId) {
+      sId = managedHit.spotify_playlist_id;
+      sUrl = managedHit.spotify_url ?? `https://open.spotify.com/playlist/${managedHit.spotify_playlist_id}`;
+    }
     if (sId) processedSpotifyIds.add(sId);
     if (sName) processedNames.add(norm(sName));
 
@@ -1019,6 +1054,16 @@ Deno.serve(async (req) => {
             .eq("id", playlistId);
         }
       }
+    } else if (managedHit && sId) {
+      const { data: existingEco } = await supabase
+        .from("curator_playlists")
+        .select("id")
+        .eq("deal_id", deal_id)
+        .eq("spotify_playlist_id", sId)
+        .eq("match_reason", "ecosystem_managed_playlist")
+        .maybeSingle();
+      playlistId = existingEco?.id ?? null;
+      matchMethod = "ecosystem";
     } else if (sId) {
       const { data: organic } = await supabase
         .from("curator_playlists")
@@ -1062,6 +1107,31 @@ Deno.serve(async (req) => {
         }
         playlistId = created.id;
         matchMethod = domHit ? "dom_created" : "created";
+      } else if (managedHit && sId) {
+        const { data: created, error: cErr } = await supabase
+          .from("curator_playlists")
+          .insert({
+            deal_id,
+            song_id: song_id ?? null,
+            spotify_url: sUrl || managedHit.spotify_url || `https://open.spotify.com/playlist/${sId}`,
+            spotify_playlist_id: sId,
+            playlist_name: managedHit.name ?? sName ?? "Playlist Ecossistema",
+            followers: managedHit.followers ?? null,
+            spotify_owner_name: pl.made_by ?? "Ecossistema",
+            is_baseline: isBaseline,
+            match_status: "organic",
+            match_reason: "ecosystem_managed_playlist",
+            position_in_paste: typeof pl.position === "number" ? pl.position : null,
+            last_paste_at: new Date().toISOString(),
+          })
+          .select("id")
+          .single();
+        if (cErr) {
+          skipped++;
+          continue;
+        }
+        playlistId = created.id;
+        matchMethod = "ecosystem";
       } else {
         // Não-whitelist: NÃO insere em curator_playlists.
         // Classifica e grava em organic_plays_snapshots quando temos sId real.
@@ -1147,7 +1217,21 @@ Deno.serve(async (req) => {
       plays_28d: w28,
     });
     if (insErr) skipped++;
-    else inserted++;
+    else {
+      inserted++;
+      if (ecoCampaignId && managedHit?.id && sId) {
+        await supabase.from("campaign_eco_snapshots").upsert({
+          campaign_id: ecoCampaignId,
+          managed_playlist_id: managedHit.id,
+          spotify_playlist_id: sId,
+          plays_24h: w24,
+          plays_7d: w7 ?? plays,
+          plays_28d: w28,
+          source: "spotify_for_artists",
+          correlation_id: correlation_id ?? null,
+        }, { onConflict: "campaign_id,managed_playlist_id,captured_at", ignoreDuplicates: true });
+      }
+    }
   }
 
   // 3.1. Complemento DOM: o bot pode mandar 100 links do HTML mesmo quando
