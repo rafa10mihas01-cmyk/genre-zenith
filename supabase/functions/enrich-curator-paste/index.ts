@@ -365,7 +365,11 @@ Deno.serve(async (req) => {
 
         // 3) Upsert na curator_playlists (se não for dry_run)
         let isNew = false;
-        if (!dryRun && meta.id) {
+        const isEco = meta.id ? ecoIds.has(meta.id) : false;
+        if (isEco) {
+          // Onda 1: playlist pertence ao ecossistema — não grava como curator_playlist.
+          cls.match_reason = `ecossistema · ${cls.match_reason}`;
+        } else if (!dryRun && meta.id) {
           const { data: foundExisting } = await supabase
             .from("curator_playlists")
             .select("id")
@@ -396,13 +400,17 @@ Deno.serve(async (req) => {
             is_baseline: cls.match_status === "baseline",
           };
 
-          if (foundExisting) {
-            await supabase
-              .from("curator_playlists")
-              .update(payload)
-              .eq("id", foundExisting.id);
-          } else {
-            await supabase.from("curator_playlists").insert(payload);
+          const { error: writeErr } = foundExisting
+            ? await supabase.from("curator_playlists").update(payload).eq("id", foundExisting.id)
+            : await supabase.from("curator_playlists").insert(payload);
+          if (writeErr) {
+            // Onda 1: trigger pode bloquear se playlist virou ecossistema entre o load e o insert.
+            if (writeErr.message?.includes("PLAYLIST_IS_ECOSYSTEM")) {
+              cls.match_reason = `ecossistema · ${cls.match_reason}`;
+              isNew = false;
+            } else {
+              throw writeErr;
+            }
           }
         }
 
