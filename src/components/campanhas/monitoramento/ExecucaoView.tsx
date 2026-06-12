@@ -593,9 +593,14 @@ export function ExecucaoView({
                     key={s.id}
                     type="button"
                     onMouseDown={(e) => { e.preventDefault(); setQ(s.name); setSearchOpen(false); }}
-                    className="block w-full text-left px-3 py-2 text-sm hover:bg-elevated/60 truncate"
+                    className="flex items-center gap-2 w-full text-left px-2.5 py-2 text-sm hover:bg-elevated/60"
                   >
-                    {s.name}
+                    {s.cover ? (
+                      <img src={s.cover} alt="" className="h-8 w-8 rounded object-cover shrink-0" loading="lazy" />
+                    ) : (
+                      <div className="h-8 w-8 rounded bg-elevated shrink-0" />
+                    )}
+                    <span className="truncate">{s.name}</span>
                   </button>
                 ))
               )}
