@@ -20,6 +20,7 @@ export type MonitoramentoSpreadsheetUpload = {
   file_name: string | null;
   file_path?: string | null;
   is_baseline?: boolean | null;
+  reference_date?: string | null;
 };
 
 type Props = {
@@ -326,8 +327,18 @@ function BaselineStatus({
               </div>
               {/* ~5 visíveis (cada item ~32px) — resto com scroll. */}
               <ul className="space-y-1 max-h-[180px] overflow-y-auto overscroll-contain pr-1">
-                {spreadsheetUploads.map((u) => {
+                {[...spreadsheetUploads]
+                  .sort((a, b) => {
+                    const ar = a.reference_date ?? a.created_at.slice(0, 10);
+                    const br = b.reference_date ?? b.created_at.slice(0, 10);
+                    if (ar !== br) return br.localeCompare(ar);
+                    return b.created_at.localeCompare(a.created_at);
+                  })
+                  .map((u) => {
                   const dt = new Date(u.created_at);
+                  const refStr = u.reference_date
+                    ? new Date(u.reference_date + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })
+                    : null;
                   return (
                     <li
                       key={u.id}
@@ -336,6 +347,14 @@ function BaselineStatus({
                       <span className="tabular-nums shrink-0 w-[120px] text-foreground/80">
                         {dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                       </span>
+                      {refStr && (
+                        <span
+                          className="inline-flex items-center px-1.5 py-0.5 rounded border border-amber-500/40 text-amber-400 bg-amber-500/5 text-[9.5px] uppercase tracking-wide font-semibold tabular-nums leading-none shrink-0"
+                          title="Data de referência da planilha (a que dia os números se referem)"
+                        >
+                          ref. {refStr}
+                        </span>
+                      )}
                       {u.is_baseline && (
                         <span className="text-[9.5px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded border border-primary/40 text-primary leading-none shrink-0">
                           baseline
