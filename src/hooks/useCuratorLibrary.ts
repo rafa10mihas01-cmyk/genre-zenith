@@ -20,6 +20,9 @@ export interface CuratorLibraryPlaylist {
   first_seen_at: string;
   created_at: string;
   updated_at: string;
+  /** Onda 2 (sombra): true se a playlist está no ecossistema (managed_playlists ativa).
+   *  Vem da view v_curator_library, cruzada por spotify_playlist_id. */
+  is_ecosystem?: boolean;
 }
 
 export interface CuratorLibraryStats {
@@ -77,7 +80,7 @@ export function useCuratorLibrary(curatorId: string | null) {
     }
     setLoading(true);
     try {
-      const [libRes, statsRes, perfRes] = await Promise.all([
+      const [libRes, statsRes, perfRes, ecoRes] = await Promise.all([
         supabase
           .from("curator_playlist_library")
           .select("*")
@@ -94,9 +97,24 @@ export function useCuratorLibrary(curatorId: string | null) {
           .select("*")
           .eq("curator_id", curatorId)
           .limit(2000),
+        // Onda 2 sombra: cruza com v_curator_library pra marcar playlists do ecossistema
+        supabase
+          .from("v_curator_library" as never)
+          .select("spotify_playlist_id, is_ecosystem")
+          .eq("curator_id", curatorId)
+          .eq("is_ecosystem", true)
+          .limit(5000),
       ]);
       if (libRes.error) throw libRes.error;
-      const libItems = (libRes.data ?? []) as CuratorLibraryPlaylist[];
+      const ecoIds = new Set(
+        (((ecoRes.data ?? []) as { spotify_playlist_id: string | null }[])
+          .map((r) => r.spotify_playlist_id)
+          .filter(Boolean)) as string[],
+      );
+      const libItems = ((libRes.data ?? []) as CuratorLibraryPlaylist[]).map((it) => ({
+        ...it,
+        is_ecosystem: it.spotify_playlist_id ? ecoIds.has(it.spotify_playlist_id) : false,
+      }));
       setItems(libItems);
       setStats((statsRes.data ?? []) as CuratorLibraryStats[]);
       setPerformance((perfRes.data ?? []) as CuratorLibraryPerformance[]);

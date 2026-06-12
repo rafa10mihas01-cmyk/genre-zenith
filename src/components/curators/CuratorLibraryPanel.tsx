@@ -549,6 +549,11 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
                           {PERF_LABEL[perfClass]}
                         </Badge>
                       )}
+                      {p.is_ecosystem && (
+                        <Badge className="text-[10px] h-4 px-1.5 bg-primary/15 text-primary border-0" title="Esta playlist está no ecossistema NexEngine — ownership permanente. Não pode ser declarada como playlist do curador.">
+                          ecossistema
+                        </Badge>
+                      )}
                       {p.status === "burned" && (
                         <Badge variant="destructive" className="text-[10px] h-4 px-1.5">queimada</Badge>
                       )}
