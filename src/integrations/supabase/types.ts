@@ -3756,6 +3756,7 @@ export type Database = {
           match_status: string
           playlist_name: string
           position_in_paste: number | null
+          promoted_to_ecosystem_at: string | null
           song_id: string | null
           spotify_dead: boolean
           spotify_dead_at: string | null
@@ -3785,6 +3786,7 @@ export type Database = {
           match_status?: string
           playlist_name: string
           position_in_paste?: number | null
+          promoted_to_ecosystem_at?: string | null
           song_id?: string | null
           spotify_dead?: boolean
           spotify_dead_at?: string | null
@@ -3814,6 +3816,7 @@ export type Database = {
           match_status?: string
           playlist_name?: string
           position_in_paste?: number | null
+          promoted_to_ecosystem_at?: string | null
           song_id?: string | null
           spotify_dead?: boolean
           spotify_dead_at?: string | null
@@ -11599,6 +11602,19 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      claim_playlist_for_deal: {
+        Args: {
+          _deal_id: string
+          _followers?: number
+          _image_url?: string
+          _playlist_name: string
+          _spotify_owner_id?: string
+          _spotify_owner_name?: string
+          _spotify_playlist_id: string
+          _spotify_url: string
+        }
+        Returns: Json
       }
       claim_spotify_enrichment_jobs: {
         Args: { _limit?: number; _worker: string }
