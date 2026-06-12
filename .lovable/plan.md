@@ -1,76 +1,106 @@
-# Padronização de todos os modais para `FormModal`
+# Plano — Ownership de Playlists por Campanha (3 ondas)
 
-Você está certo — eu criei o componente `FormModal` e migrei só o de Cliente. Tem ~50 dialogs no sistema. Vou migrar **todos os que são formulário** (criar/editar entidade, configuração, ação com inputs), seguindo o mesmo padrão visual do modal de Cliente.
+## Objetivo
+Eliminar o conceito de "biblioteca permanente do curador". Playlist passa a ter ownership **por campanha**. Ecossistema (`managed_playlists`) continua sendo o único ownership permanente. Resolve multi-dono (Êxtase/Trovão), simplifica match, mantém auditoria limpa.
 
-## Critério de migração
+## Modelo alvo
 
-**Migra** (é formulário): tem inputs/selects/textarea e botão de salvar/criar/aplicar.
-**Não migra** (é viewer/confirm/preview): só mostra conteúdo, confirma ação ou exibe print/timeline. Esses continuam usando `Dialog` puro porque o padrão de header+footer fixo não se aplica.
+```text
+managed_playlists          → ownership permanente (ecossistema)
+curator_playlists          → ownership por campanha (UNIQUE campaign_id + spotify_playlist_id)
+v_curator_library          → VIEW agregando curator_playlists (substitui tabela física)
+curator_playlist_library   → mantida apenas como _notes editorial (sem curator_id único)
+```
 
-## Inventário (28 modais de formulário identificados)
+Regras:
+1. Playlist no ecossistema **não pode** virar `curator_playlist` (trigger bloqueia).
+2. Mesma playlist em 2 campanhas ativas de curadores diferentes = permitido (cada campanha tem seu próprio ownership).
+3. Mesma playlist + mesma campanha = `UNIQUE` (uma campanha não pode declarar a mesma playlist 2x).
+4. Promoção pra ecossistema marca `promoted_to_ecosystem_at` e bloqueia futuras declarações como `curator_playlist`.
 
-### Onda 1 — Operação principal (entidades top-level)
-1. `NewCampaignDialog.tsx` — Nova campanha
-2. `NewCuratorDialog.tsx` — Novo curador
-3. `CuratorEditDialog.tsx` — Editar curador
-4. `NewDealDialog.tsx` — Novo deal
-5. `DuplicateDealDialog.tsx` — Duplicar deal
-6. `CloseDealDialog.tsx` — Fechar deal (tem form de motivo/data)
-7. `PlaylistEditorTab.tsx` (dialog interno) — Editar playlist
+## Onda 1 — Fundação transacional (sem quebrar nada)
 
-### Onda 2 — Curadoria & comunidade
-8. `PasteUrlsDialog.tsx` — Colar URLs (curadores)
-9. `AddSongToPlaylistDialog.tsx`
-10. `PastePlaylistsDialog.tsx`
-11. `ImportFromLibraryDialog.tsx`
-12. `SwapPlaylistDialog.tsx`
-13. `PlaylistDailyPlanDialog.tsx`
+**Migration:**
+- `ALTER TABLE curator_playlists ADD COLUMN promoted_to_ecosystem_at timestamptz`.
+- `CREATE UNIQUE INDEX curator_playlists_campaign_spid_uq ON curator_playlists(campaign_id, spotify_playlist_id) WHERE campaign_id IS NOT NULL AND spotify_playlist_id IS NOT NULL`.
+- `CREATE FUNCTION claim_playlist_for_campaign(_campaign_id, _curator_id, _spotify_playlist_id, _name, _followers)` — SECURITY DEFINER, transacional:
+  1. Se existir em `managed_playlists` ativa → retorna `{status: 'ecosystem', managed_playlist_id}`.
+  2. Tenta INSERT em `curator_playlists`. Se conflito do unique → retorna `{status: 'conflict', existing_curator_id, campaign_id}`.
+  3. Sucesso → retorna `{status: 'claimed', curator_playlist_id}`.
+- `CREATE TRIGGER trg_block_curator_playlist_if_eco BEFORE INSERT ON curator_playlists` — bloqueia se `spotify_playlist_id` existe em `managed_playlists` ativa.
+- `CREATE TRIGGER trg_promote_to_ecosystem AFTER INSERT ON managed_playlists` — marca `promoted_to_ecosystem_at = now()` em todos `curator_playlists` com mesmo `spotify_playlist_id`.
 
-### Onda 3 — Campanhas & monitoramento
-14. `CampaignDistributionConsole.tsx` (dialogs internos de form)
-15. `ExternalPackageEditor.tsx`
-16. `CampaignAccessManager.tsx` (form de adicionar acesso)
-17. `CuratorDealAccessManager.tsx` (form de adicionar acesso)
+**Código:**
+- `PasteUrlsDialog.tsx`, `PastePlaylistsDialog.tsx`, importadores de paste/XLSX → trocar INSERT direto por RPC `claim_playlist_for_campaign`. UI mostra conflito ("playlist já está em campanha X do curador Y").
+- `extract-snapshot-from-print/index.ts` → confirmar ordem de match: 1) `managed_playlists` → `campaign_eco_snapshots`; 2) `curator_playlists` por `(campaign_id, spotify_playlist_id)`; 3) fallback editorial/organic. Remover desempate por nome.
 
-### Onda 4 — Financeiro & sistema
-18. `DealPaymentDialog.tsx` — Registrar pagamento
-19. `PedirRemocaoDialog.tsx` — Pedido de remoção
-20. `AlertPreferencesDialog.tsx` — Preferências de alerta
-21. `MaintenanceCalendarDialog.tsx` (se tiver form)
-22. `EmailPreviewDialog.tsx` (se tiver form de envio)
+**Risco:** baixo (tudo aditivo, nada quebrado). Validar com 1 paste real antes de seguir.
 
-### Onda 5 — Settings & infra
-23. `SpotifyAppsManager.tsx` (form de adicionar app)
-24. `EquipeTab.tsx` (form de convidar membro)
-25. `Infraestrutura.tsx` (dialogs de form)
-26. `Settings.tsx` (dialogs de form)
-27. `ComunidadeAdmin.tsx` (dialogs de form)
-28. `CuratorPage.tsx` (dialogs de form, se houver)
+## Onda 2 — View substitui tabela (sombra)
 
-### Fica de fora (não é formulário)
-- `LogPrintDialog`, `DealLogDetailDialog`, `PrintThumbs`, `ProofThumb`, `ProofsTimeline`, `PlanoCampanhaPublico` (viewer), `Calculadora` (UI completa custom).
+**Migration:**
+- `CREATE VIEW v_curator_library` agregando de `curator_playlists`:
+  ```sql
+  SELECT
+    cp.curator_id,
+    cp.spotify_playlist_id,
+    MAX(cp.playlist_name) as playlist_name,
+    MAX(cp.followers) as followers,
+    COUNT(DISTINCT cp.deal_id) as times_used,
+    MAX(cp.created_at) as last_used_at,
+    BOOL_OR(cp.promoted_to_ecosystem_at IS NOT NULL) as is_ecosystem
+  FROM curator_playlists cp
+  WHERE cp.curator_id IS NOT NULL
+  GROUP BY cp.curator_id, cp.spotify_playlist_id;
+  ```
+- `CREATE VIEW v_curator_library_stats` e `v_curator_library_performance` reaproveitando lógica das views atuais, apontando pra `v_curator_library`.
 
-## Padrão aplicado a cada modal
+**Código:**
+- `src/hooks/useCuratorLibrary.ts` → trocar `from("curator_playlist_library")` por `from("v_curator_library")`. Manter shape do retorno.
+- Telas: `CuratorLibraryPanel`, `CuratorLibrarySheet`, `ImportFromLibraryDialog` — funcionam sem mudança (mesmo shape).
+- Mutations `addManual`, `updateStatus`, `remove` → temporariamente desabilitadas ou redirecionadas pra `curator_playlist_library_notes` (notes/status apenas).
 
-Pra cada um, a mudança é mecânica e **só visual** — zero alteração de lógica/submit/validação:
+**Risco:** médio. Rodar em paralelo: view + tabela coexistem 1 semana. Smoke test: comparar contagens.
 
-- Trocar `Dialog`+`DialogContent`+`DialogHeader`+`DialogFooter` por `<FormModal>`.
-- Mover título/descrição pra props `title`/`description`.
-- Adicionar `icon` + `iconTone` da cor de domínio (clientes=azul, curadores=roxo, campanhas=âmbar, deals=verde, comunidade=rosa, playlists=cinza-azul, sistema=cinza).
-- Mover botões Cancelar/Confirmar pra prop `footer` (botão primário à direita).
-- Quando tiver abas, mover `<TabsList>` pra prop `topSlot` com estilo underline (igual ao Cliente).
-- Substituir grids manuais de campos por `<FormGrid cols={1|2}>` + `<FormField label hint>`.
-- `preventClose={saving}` durante submit.
-- `size` conforme densidade: `sm` (1 campo), `md` (2-4 campos), `lg` (form com abas), `xl` (raro).
+## Onda 3 — Limpeza (drop legado)
 
-## Detalhe técnico
+**Pré-condição:** Onda 2 estável por 7 dias, zero erros de leitura.
 
-- O `FormModal` já existe em `src/components/ui/form-modal.tsx` com `FormGrid`, `FormField`, `FormSection`. Não precisa criar nada novo.
-- Headers/footers ficam fixos; só o miolo scrolla — resolve o problema do modal gigante que não cabia na tela.
-- Tokens (`bg-card`, `border-border/60`, `text-foreground`, `text-muted-foreground`) — não introduzir cor hardcoded.
+**Migration:**
+- `DROP VIEW curator_playlist_library_stats, curator_playlist_performance` (versões antigas).
+- `ALTER TABLE curator_playlist_library RENAME TO curator_playlist_notes`.
+- `ALTER TABLE curator_playlist_notes DROP COLUMN times_used, last_used_at, followers, image_url` (campos derivados agora vêm da view).
+- Manter apenas: `curator_id`, `spotify_playlist_id`, `notes`, `status`, `created_at`.
 
-## Entrega
+**Código:**
+- Limpar referências a colunas removidas.
+- Atualizar `AUDIT_06_PLAN.md` marcando dívida resolvida.
 
-Vou executar **as 5 ondas em sequência num único turno**, em paralelo dentro de cada onda quando possível, e te aviso ao final com a lista do que mudou. Se algum modal tiver lógica fora do padrão (ex: stepper multi-passo), eu mantenho a estrutura interna e só troco o wrapper — sem mexer no comportamento.
+**Risco:** alto se houver leitura escondida. Mitigação: `grep -r "curator_playlist_library"` antes do drop.
 
-Confirma que quero seguir com todos os 28 ou prefere que eu faça primeiro a Onda 1 pra você validar o padrão antes?
+## Detalhes técnicos
+
+**Tabelas afetadas:**
+- `curator_playlists` (4648 linhas) — ganha unique + coluna `promoted_to_ecosystem_at`.
+- `curator_playlist_library` (449 linhas) — vira view, depois `_notes`.
+- `managed_playlists` (898 linhas) — ganha trigger de promoção.
+- `curator_deal_baseline_playlists` — sem mudança.
+
+**Edge functions tocadas:**
+- `extract-snapshot-from-print` — confirmar ordem de match já corrigida na sessão anterior, remover fallback por nome quando id existir.
+- `bot-ingest-snapshot`, `analyze-deal-prints` — auditar uso de `curator_playlist_library`.
+
+**Arquivos frontend:**
+- `src/hooks/useCuratorLibrary.ts`
+- `src/components/curators/PasteUrlsDialog.tsx`
+- `src/components/playlist-deals/PastePlaylistsDialog.tsx`
+- `src/components/playlist-deals/ImportFromLibraryDialog.tsx`
+- `src/components/curators/CuratorLibraryPanel.tsx`
+
+**Conflitos atuais a resolver antes da Onda 1:**
+- 5 playlists em 3 curadores no `library` — não bloqueia (vira histórico).
+- 15+ playlists do ecossistema duplicadas no `library` — trigger da Onda 1 impede novas duplicatas; legado fica até Onda 3.
+
+## Decisão pendente
+
+Confirmo: começo pela Onda 1 (migration + RPC + triggers) sem tocar em UI ainda?
