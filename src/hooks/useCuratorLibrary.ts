@@ -289,6 +289,12 @@ export function useCuratorLibrary(curatorId: string | null) {
 
   const updateStatus = useCallback(
     async (id: string, status: CuratorLibraryPlaylist["status"]) => {
+      // Id sintético = item veio só da view (sem row física). Notes/status precisam
+      // de uma row em curator_playlist_library — informa e sai.
+      if (id.includes(":")) {
+        toast.info("Status só pode ser editado em playlists adicionadas manualmente à biblioteca.");
+        return;
+      }
       const { error } = await supabase
         .from("curator_playlist_library")
         .update({ status })
@@ -301,6 +307,10 @@ export function useCuratorLibrary(curatorId: string | null) {
 
   const remove = useCallback(
     async (id: string) => {
+      if (id.includes(":")) {
+        toast.info("Esta playlist veio dos deals do curador — não pode ser removida da biblioteca.");
+        return;
+      }
       const { error } = await supabase
         .from("curator_playlist_library")
         .delete()
