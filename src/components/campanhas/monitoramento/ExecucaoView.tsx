@@ -449,6 +449,31 @@ export function ExecucaoView({
     );
   }, [filtered]);
 
+  // Sugestões do input "Buscar playlist": só playlists já cadastradas na
+  // campanha que respeitam os filtros ativos (atribuição/curador/status),
+  // filtradas por substring do texto digitado. Limita a 50 pra não pesar.
+  const searchSuggestions = useMemo(() => {
+    if (!rows) return [] as { id: string; name: string }[];
+    const qn = q.trim().toLowerCase();
+    const seen = new Set<string>();
+    const out: { id: string; name: string }[] = [];
+    for (const r of rows) {
+      if (!passesNonQuery(r)) continue;
+      if (seen.has(r.playlist_id)) continue;
+      const name = r.current_name ?? r.baseline_name ?? r.playlist_id;
+      if (qn) {
+        const hay = (name + " " + r.playlist_id).toLowerCase();
+        if (!hay.includes(qn)) continue;
+      }
+      seen.add(r.playlist_id);
+      out.push({ id: r.playlist_id, name });
+    }
+    out.sort((a, b) => a.name.localeCompare(b.name));
+    return out.slice(0, 50);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, q, scope, curatorFilter, statusFilter, statuses]);
+  const [searchOpen, setSearchOpen] = useState(false);
+
   const curatorOptions = useMemo(
     () =>
       Object.values(curators)
