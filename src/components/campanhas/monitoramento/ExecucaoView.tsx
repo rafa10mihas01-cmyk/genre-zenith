@@ -1270,11 +1270,16 @@ function CuratorPills({
       })}
       {ecoCount !== null && ecoCount > 0 && (
         <button
-          onClick={goToEcosystem}
-          className="shrink-0 inline-flex items-center gap-2 h-8 px-3 rounded-full text-[12px] font-medium transition-colors border bg-card text-muted-foreground border-border hover:text-foreground hover:bg-accent/60"
-          title="Ver playlists do ecossistema"
+          onClick={() => onPickCurator("__ecosystem__")}
+          className={cn(
+            "shrink-0 inline-flex items-center gap-2 h-8 px-3 rounded-full text-[12px] font-medium transition-colors border",
+            ecosystemActive
+              ? "bg-accent text-foreground border-emerald-500/60"
+              : "bg-card text-muted-foreground border-border hover:text-foreground hover:bg-accent/60",
+          )}
+          title="Filtrar pelas playlists do ecossistema"
         >
-          <Layers className="h-3 w-3 text-emerald-400" />
+          <Layers className={cn("h-3 w-3", ecosystemActive ? "text-emerald-400" : "text-emerald-400/70")} />
           Ecossistema
           <span className="text-[10px] tabular-nums text-subtle-foreground">{ecoCount}</span>
         </button>
