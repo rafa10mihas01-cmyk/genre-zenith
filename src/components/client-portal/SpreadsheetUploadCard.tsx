@@ -359,12 +359,12 @@ export function SpreadsheetUploadCard({
                   <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Top playlists</div>
                   <ul className="space-y-1">
                     {preview.top_playlists.slice(0, 3).map((p, i) => (
-                      <li key={i} className="flex items-center justify-between text-[12px]">
-                        <span className="truncate flex items-center gap-1.5">
+                      <li key={i} className="flex items-center justify-between gap-2 text-[12px] min-w-0">
+                        <span className="flex items-center gap-1.5 min-w-0 flex-1">
                           {p.is_internal && <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />}
-                          <span className="truncate">{p.name}</span>
+                          <span className="truncate min-w-0">{p.name}</span>
                         </span>
-                        <span className="text-muted-foreground tabular-nums shrink-0 ml-2">{fmtNumber(p.streams)}</span>
+                        <span className="text-muted-foreground tabular-nums shrink-0">{fmtNumber(p.streams)}</span>
                       </li>
                     ))}
                   </ul>
