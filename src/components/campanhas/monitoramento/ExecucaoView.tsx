@@ -1210,7 +1210,6 @@ function CuratorPills({
   campaignId?: string;
 }) {
   const list = useCuratorSummary(rows, curators, statuses);
-  const [, setParams] = useSearchParams();
   const [ecoCount, setEcoCount] = useState<number | null>(null);
 
   useEffect(() => {
@@ -1228,14 +1227,7 @@ function CuratorPills({
 
   if (list.length === 0 && !ecoCount) return null;
   const total = list.reduce((s, c) => s + c.playlists, 0);
-
-  const goToEcosystem = () => {
-    setParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.set("subtab", "ecossistema");
-      return next;
-    }, { replace: true });
-  };
+  const ecosystemActive = curatorFilter === "__ecosystem__";
 
   return (
     <div className="flex items-center gap-2 overflow-x-auto scrollbar-thin min-w-0">
