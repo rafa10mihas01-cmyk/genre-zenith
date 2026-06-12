@@ -347,7 +347,7 @@ export default function CampanhaExecucao() {
 
       const { data: uploads } = await supabase
         .from("label_spreadsheet_uploads")
-        .select("id, created_at, rows_imported, total_streams, status, file_name, file_path, is_baseline")
+        .select("id, created_at, rows_imported, total_streams, status, file_name, file_path, is_baseline, reference_date")
         .eq("deal_id", dealId)
         .order("created_at", { ascending: false })
         .limit(10);
