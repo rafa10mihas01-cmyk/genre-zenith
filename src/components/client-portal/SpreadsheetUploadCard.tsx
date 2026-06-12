@@ -18,6 +18,8 @@ type Upload = {
   status: string;
   file_name: string | null;
   file_path?: string | null;
+  is_baseline?: boolean | null;
+  reference_date?: string | null;
 };
 
 type Preview = {
