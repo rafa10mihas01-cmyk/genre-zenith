@@ -570,7 +570,7 @@ Deno.serve(async (req) => {
         rows_imported: rows.length,
         total_streams: totalStreams,
         status: willQuarantine ? "quarantined" : "imported",
-        reference_date: today,
+        reference_date: referenceDate,
         is_baseline: isBaseline && !willQuarantine,
         upload_mode: uploadMode,
         window_kind: evalResult.window_kind ?? null,
