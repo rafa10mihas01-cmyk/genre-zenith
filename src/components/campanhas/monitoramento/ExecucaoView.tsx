@@ -953,8 +953,10 @@ function VirtualTable({
                     followers={meta?.followers ?? null}
                   />
                 )}
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <AttributionBadge attr={r.attributed_to} curatorName={curName} />
+                <div className="flex flex-wrap items-center gap-1 min-w-0">
+                  <div className="min-w-0 max-w-full">
+                    <AttributionBadge attr={r.attributed_to} curatorName={curName} />
+                  </div>
                   {r.attributed_to.startsWith("curator:") && Number(r.baseline_plays ?? 0) > 0 && (
                     <span
                       className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wide border border-amber-500/40 text-amber-400 bg-amber-500/5"
