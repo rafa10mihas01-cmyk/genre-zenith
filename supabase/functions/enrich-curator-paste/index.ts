@@ -231,6 +231,17 @@ Deno.serve(async (req) => {
       .filter((p) => p.match_status === "curator" || p.match_status === "baseline")
       .map((p) => p.playlist_name);
 
+    // Onda 1: carrega IDs do ecossistema ativo pra impedir gravar como curator_playlist.
+    const { data: ecoRows } = await supabase
+      .from("managed_playlists")
+      .select("spotify_playlist_id")
+      .is("archived_at", null);
+    const ecoIds = new Set(
+      (ecoRows ?? [])
+        .map((r) => r.spotify_playlist_id)
+        .filter((v): v is string => !!v),
+    );
+
     // Quota check: bloqueia se usuário estourou cap mensal.
     const quota = await checkAiQuota(userId);
     if (!quota.allowed) return aiQuotaResponse(corsHeaders);
