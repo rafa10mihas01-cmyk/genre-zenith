@@ -834,7 +834,7 @@ export default function CampanhaExecucao() {
                   <Upload className="h-4 w-4" />
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+              <DialogContent className="w-[calc(100vw-1rem)] max-w-3xl max-h-[90vh] overflow-y-auto overflow-x-hidden p-4 sm:p-6">
                 <DialogHeader>
                   <DialogTitle>Importar planilha de streams</DialogTitle>
                 </DialogHeader>
