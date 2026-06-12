@@ -20,6 +20,9 @@ export interface CuratorLibraryPlaylist {
   first_seen_at: string;
   created_at: string;
   updated_at: string;
+  /** Onda 2 (sombra): true se a playlist está no ecossistema (managed_playlists ativa).
+   *  Vem da view v_curator_library, cruzada por spotify_playlist_id. */
+  is_ecosystem?: boolean;
 }
 
 export interface CuratorLibraryStats {
