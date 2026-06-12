@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -244,11 +243,17 @@ export function ExecucaoView({
   const filtered = useMemo(() => {
     if (!rows) return [];
     const qn = q.trim().toLowerCase();
+    // Pílula "Ecossistema" dentro da aba Curadores usa um filtro sentinel.
+    const ecosystemPillActive = curatorFilter === "__ecosystem__";
     let out = rows.filter((r) => {
-      if (scope === "ecosystem" && r.attributed_to !== "ecosystem") return false;
-      if (scope === "curator" && !r.attributed_to.startsWith("curator:")) return false;
-      if (scope === "organic" && (r.attributed_to === "ecosystem" || r.attributed_to.startsWith("curator:"))) return false;
-      if (curatorFilter !== "all" && r.attributed_curator_id !== curatorFilter) return false;
+      if (ecosystemPillActive) {
+        if (r.attributed_to !== "ecosystem") return false;
+      } else {
+        if (scope === "ecosystem" && r.attributed_to !== "ecosystem") return false;
+        if (scope === "curator" && !r.attributed_to.startsWith("curator:")) return false;
+        if (scope === "organic" && (r.attributed_to === "ecosystem" || r.attributed_to.startsWith("curator:"))) return false;
+        if (curatorFilter !== "all" && r.attributed_curator_id !== curatorFilter) return false;
+      }
       if (statusFilter !== "all") {
         const hasData = r.baseline_plays != null || r.current_plays != null;
         if (statusFilter === "no_data") {
@@ -1204,7 +1209,6 @@ function CuratorPills({
   campaignId?: string;
 }) {
   const list = useCuratorSummary(rows, curators, statuses);
-  const [, setParams] = useSearchParams();
   const [ecoCount, setEcoCount] = useState<number | null>(null);
 
   useEffect(() => {
@@ -1222,14 +1226,7 @@ function CuratorPills({
 
   if (list.length === 0 && !ecoCount) return null;
   const total = list.reduce((s, c) => s + c.playlists, 0);
-
-  const goToEcosystem = () => {
-    setParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.set("subtab", "ecossistema");
-      return next;
-    }, { replace: true });
-  };
+  const ecosystemActive = curatorFilter === "__ecosystem__";
 
   return (
     <div className="flex items-center gap-2 overflow-x-auto scrollbar-thin min-w-0">
@@ -1272,11 +1269,16 @@ function CuratorPills({
       })}
       {ecoCount !== null && ecoCount > 0 && (
         <button
-          onClick={goToEcosystem}
-          className="shrink-0 inline-flex items-center gap-2 h-8 px-3 rounded-full text-[12px] font-medium transition-colors border bg-card text-muted-foreground border-border hover:text-foreground hover:bg-accent/60"
-          title="Ver playlists do ecossistema"
+          onClick={() => onPickCurator("__ecosystem__")}
+          className={cn(
+            "shrink-0 inline-flex items-center gap-2 h-8 px-3 rounded-full text-[12px] font-medium transition-colors border",
+            ecosystemActive
+              ? "bg-accent text-foreground border-emerald-500/60"
+              : "bg-card text-muted-foreground border-border hover:text-foreground hover:bg-accent/60",
+          )}
+          title="Filtrar pelas playlists do ecossistema"
         >
-          <Layers className="h-3 w-3 text-emerald-400" />
+          <Layers className={cn("h-3 w-3", ecosystemActive ? "text-emerald-400" : "text-emerald-400/70")} />
           Ecossistema
           <span className="text-[10px] tabular-nums text-subtle-foreground">{ecoCount}</span>
         </button>
