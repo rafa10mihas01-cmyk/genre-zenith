@@ -244,11 +244,17 @@ export function ExecucaoView({
   const filtered = useMemo(() => {
     if (!rows) return [];
     const qn = q.trim().toLowerCase();
+    // Pílula "Ecossistema" dentro da aba Curadores usa um filtro sentinel.
+    const ecosystemPillActive = curatorFilter === "__ecosystem__";
     let out = rows.filter((r) => {
-      if (scope === "ecosystem" && r.attributed_to !== "ecosystem") return false;
-      if (scope === "curator" && !r.attributed_to.startsWith("curator:")) return false;
-      if (scope === "organic" && (r.attributed_to === "ecosystem" || r.attributed_to.startsWith("curator:"))) return false;
-      if (curatorFilter !== "all" && r.attributed_curator_id !== curatorFilter) return false;
+      if (ecosystemPillActive) {
+        if (r.attributed_to !== "ecosystem") return false;
+      } else {
+        if (scope === "ecosystem" && r.attributed_to !== "ecosystem") return false;
+        if (scope === "curator" && !r.attributed_to.startsWith("curator:")) return false;
+        if (scope === "organic" && (r.attributed_to === "ecosystem" || r.attributed_to.startsWith("curator:"))) return false;
+        if (curatorFilter !== "all" && r.attributed_curator_id !== curatorFilter) return false;
+      }
       if (statusFilter !== "all") {
         const hasData = r.baseline_plays != null || r.current_plays != null;
         if (statusFilter === "no_data") {
