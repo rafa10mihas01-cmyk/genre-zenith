@@ -565,13 +565,35 @@ export function ExecucaoView({
     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:flex-wrap">
       {!isEcosystem && (
         <div className="relative w-full sm:flex-1 sm:min-w-[180px]">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
           <Input
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={(e) => { setQ(e.target.value); setSearchOpen(true); }}
+            onFocus={() => setSearchOpen(true)}
+            onBlur={() => { setTimeout(() => setSearchOpen(false), 150); }}
             placeholder="Buscar playlist..."
             className="pl-8 h-9"
           />
+          {searchOpen && (
+            <div className="absolute z-50 left-0 right-0 top-full mt-1 rounded-lg border border-border bg-card shadow-lg max-h-72 overflow-y-auto">
+              {searchSuggestions.length === 0 ? (
+                <div className="px-3 py-2 text-xs text-muted-foreground">
+                  Nenhuma playlist encontrada nos filtros atuais.
+                </div>
+              ) : (
+                searchSuggestions.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); setQ(s.name); setSearchOpen(false); }}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-elevated/60 truncate"
+                  >
+                    {s.name}
+                  </button>
+                ))
+              )}
+            </div>
+          )}
         </div>
       )}
       <div className="grid grid-cols-2 gap-2 sm:contents">
