@@ -106,7 +106,15 @@ export function useCuratorLibrary(curatorId: string | null) {
           .limit(5000),
       ]);
       if (libRes.error) throw libRes.error;
-      const libItems = (libRes.data ?? []) as CuratorLibraryPlaylist[];
+      const ecoIds = new Set(
+        (((ecoRes.data ?? []) as { spotify_playlist_id: string | null }[])
+          .map((r) => r.spotify_playlist_id)
+          .filter(Boolean)) as string[],
+      );
+      const libItems = ((libRes.data ?? []) as CuratorLibraryPlaylist[]).map((it) => ({
+        ...it,
+        is_ecosystem: it.spotify_playlist_id ? ecoIds.has(it.spotify_playlist_id) : false,
+      }));
       setItems(libItems);
       setStats((statsRes.data ?? []) as CuratorLibraryStats[]);
       setPerformance((perfRes.data ?? []) as CuratorLibraryPerformance[]);
