@@ -374,33 +374,40 @@ export function ExecucaoView({
     return t;
   }, [rows]);
 
+  // Predicado dos filtros NÃO-textuais (atribuição/curador/status). Usado em
+  // `filtered` (lista renderizada) e em `searchSuggestions` (autocomplete do
+  // input "Buscar playlist..." — só sugere playlists que já estão na campanha
+  // e que respeitam os filtros atuais).
+  const passesNonQuery = (r: GrowthRow): boolean => {
+    const ecosystemPillActive = curatorFilter === "__ecosystem__";
+    if (ecosystemPillActive) {
+      if (r.attributed_to !== "ecosystem") return false;
+    } else {
+      if (scope === "ecosystem" && r.attributed_to !== "ecosystem") return false;
+      if (scope === "curator" && !r.attributed_to.startsWith("curator:")) return false;
+      if (scope === "organic" && (r.attributed_to === "ecosystem" || r.attributed_to.startsWith("curator:"))) return false;
+      if (curatorFilter !== "all" && r.attributed_curator_id !== curatorFilter) return false;
+    }
+    if (statusFilter !== "all") {
+      const hasData = r.baseline_plays != null || r.current_plays != null;
+      if (statusFilter === "no_data") {
+        if (hasData) return false;
+      } else if (statusFilter === "pre_campaign") {
+        if (!r.attributed_to.startsWith("curator:")) return false;
+        if (!(Number(r.baseline_plays ?? 0) > 0)) return false;
+      } else {
+        const st = r.attributed_curator_id ? statuses[`${r.attributed_curator_id}::${r.playlist_id}`] ?? "pending_match" : null;
+        if (st !== statusFilter) return false;
+      }
+    }
+    return true;
+  };
+
   const filtered = useMemo(() => {
     if (!rows) return [];
     const qn = q.trim().toLowerCase();
-    // Pílula "Ecossistema" dentro da aba Curadores usa um filtro sentinel.
-    const ecosystemPillActive = curatorFilter === "__ecosystem__";
     let out = rows.filter((r) => {
-      if (ecosystemPillActive) {
-        if (r.attributed_to !== "ecosystem") return false;
-      } else {
-        if (scope === "ecosystem" && r.attributed_to !== "ecosystem") return false;
-        if (scope === "curator" && !r.attributed_to.startsWith("curator:")) return false;
-        if (scope === "organic" && (r.attributed_to === "ecosystem" || r.attributed_to.startsWith("curator:"))) return false;
-        if (curatorFilter !== "all" && r.attributed_curator_id !== curatorFilter) return false;
-      }
-      if (statusFilter !== "all") {
-        const hasData = r.baseline_plays != null || r.current_plays != null;
-        if (statusFilter === "no_data") {
-          if (hasData) return false;
-        } else if (statusFilter === "pre_campaign") {
-          // Música já estava nessa playlist antes da campanha — curador deve subir posição.
-          if (!r.attributed_to.startsWith("curator:")) return false;
-          if (!(Number(r.baseline_plays ?? 0) > 0)) return false;
-        } else {
-          const st = r.attributed_curator_id ? statuses[`${r.attributed_curator_id}::${r.playlist_id}`] ?? "pending_match" : null;
-          if (st !== statusFilter) return false;
-        }
-      }
+      if (!passesNonQuery(r)) return false;
       if (qn) {
         const name = (r.current_name ?? r.baseline_name ?? "").toLowerCase();
         if (!name.includes(qn) && !r.playlist_id.toLowerCase().includes(qn)) return false;
