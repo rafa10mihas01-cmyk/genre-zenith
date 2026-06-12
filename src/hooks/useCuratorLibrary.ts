@@ -3,9 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export interface CuratorLibraryPlaylist {
+  /** Pode ser id real de curator_playlist_library OU sintético `${curator_id}:${spotify_playlist_id}` quando vier só da view. */
   id: string;
   curator_id: string;
-  user_id: string;
+  user_id: string | null;
   spotify_playlist_id: string | null;
   spotify_url: string;
   playlist_name: string;
@@ -17,12 +18,13 @@ export interface CuratorLibraryPlaylist {
   notes: string | null;
   times_used: number;
   last_used_at: string | null;
-  first_seen_at: string;
-  created_at: string;
-  updated_at: string;
-  /** Onda 2 (sombra): true se a playlist está no ecossistema (managed_playlists ativa).
-   *  Vem da view v_curator_library, cruzada por spotify_playlist_id. */
+  first_seen_at: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  /** True se a playlist está no ecossistema (managed_playlists ativa). Vem direto da view. */
   is_ecosystem?: boolean;
+  /** True se a row é só reflexo da view (sem registro físico em curator_playlist_library). */
+  is_synthetic?: boolean;
 }
 
 export interface CuratorLibraryStats {
