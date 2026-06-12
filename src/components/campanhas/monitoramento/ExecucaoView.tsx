@@ -374,33 +374,40 @@ export function ExecucaoView({
     return t;
   }, [rows]);
 
+  // Predicado dos filtros NÃO-textuais (atribuição/curador/status). Usado em
+  // `filtered` (lista renderizada) e em `searchSuggestions` (autocomplete do
+  // input "Buscar playlist..." — só sugere playlists que já estão na campanha
+  // e que respeitam os filtros atuais).
+  const passesNonQuery = (r: GrowthRow): boolean => {
+    const ecosystemPillActive = curatorFilter === "__ecosystem__";
+    if (ecosystemPillActive) {
+      if (r.attributed_to !== "ecosystem") return false;
+    } else {
+      if (scope === "ecosystem" && r.attributed_to !== "ecosystem") return false;
+      if (scope === "curator" && !r.attributed_to.startsWith("curator:")) return false;
+      if (scope === "organic" && (r.attributed_to === "ecosystem" || r.attributed_to.startsWith("curator:"))) return false;
+      if (curatorFilter !== "all" && r.attributed_curator_id !== curatorFilter) return false;
+    }
+    if (statusFilter !== "all") {
+      const hasData = r.baseline_plays != null || r.current_plays != null;
+      if (statusFilter === "no_data") {
+        if (hasData) return false;
+      } else if (statusFilter === "pre_campaign") {
+        if (!r.attributed_to.startsWith("curator:")) return false;
+        if (!(Number(r.baseline_plays ?? 0) > 0)) return false;
+      } else {
+        const st = r.attributed_curator_id ? statuses[`${r.attributed_curator_id}::${r.playlist_id}`] ?? "pending_match" : null;
+        if (st !== statusFilter) return false;
+      }
+    }
+    return true;
+  };
+
   const filtered = useMemo(() => {
     if (!rows) return [];
     const qn = q.trim().toLowerCase();
-    // Pílula "Ecossistema" dentro da aba Curadores usa um filtro sentinel.
-    const ecosystemPillActive = curatorFilter === "__ecosystem__";
     let out = rows.filter((r) => {
-      if (ecosystemPillActive) {
-        if (r.attributed_to !== "ecosystem") return false;
-      } else {
-        if (scope === "ecosystem" && r.attributed_to !== "ecosystem") return false;
-        if (scope === "curator" && !r.attributed_to.startsWith("curator:")) return false;
-        if (scope === "organic" && (r.attributed_to === "ecosystem" || r.attributed_to.startsWith("curator:"))) return false;
-        if (curatorFilter !== "all" && r.attributed_curator_id !== curatorFilter) return false;
-      }
-      if (statusFilter !== "all") {
-        const hasData = r.baseline_plays != null || r.current_plays != null;
-        if (statusFilter === "no_data") {
-          if (hasData) return false;
-        } else if (statusFilter === "pre_campaign") {
-          // Música já estava nessa playlist antes da campanha — curador deve subir posição.
-          if (!r.attributed_to.startsWith("curator:")) return false;
-          if (!(Number(r.baseline_plays ?? 0) > 0)) return false;
-        } else {
-          const st = r.attributed_curator_id ? statuses[`${r.attributed_curator_id}::${r.playlist_id}`] ?? "pending_match" : null;
-          if (st !== statusFilter) return false;
-        }
-      }
+      if (!passesNonQuery(r)) return false;
       if (qn) {
         const name = (r.current_name ?? r.baseline_name ?? "").toLowerCase();
         if (!name.includes(qn) && !r.playlist_id.toLowerCase().includes(qn)) return false;
@@ -441,6 +448,31 @@ export function ExecucaoView({
       { baseline: 0, current: 0, delta: 0 }
     );
   }, [filtered]);
+
+  // Sugestões do input "Buscar playlist": só playlists já cadastradas na
+  // campanha que respeitam os filtros ativos (atribuição/curador/status),
+  // filtradas por substring do texto digitado. Limita a 50 pra não pesar.
+  const searchSuggestions = useMemo(() => {
+    if (!rows) return [] as { id: string; name: string }[];
+    const qn = q.trim().toLowerCase();
+    const seen = new Set<string>();
+    const out: { id: string; name: string }[] = [];
+    for (const r of rows) {
+      if (!passesNonQuery(r)) continue;
+      if (seen.has(r.playlist_id)) continue;
+      const name = r.current_name ?? r.baseline_name ?? r.playlist_id;
+      if (qn) {
+        const hay = (name + " " + r.playlist_id).toLowerCase();
+        if (!hay.includes(qn)) continue;
+      }
+      seen.add(r.playlist_id);
+      out.push({ id: r.playlist_id, name });
+    }
+    out.sort((a, b) => a.name.localeCompare(b.name));
+    return out.slice(0, 50);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, q, scope, curatorFilter, statusFilter, statuses]);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const curatorOptions = useMemo(
     () =>
@@ -533,13 +565,35 @@ export function ExecucaoView({
     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:flex-wrap">
       {!isEcosystem && (
         <div className="relative w-full sm:flex-1 sm:min-w-[180px]">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
           <Input
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={(e) => { setQ(e.target.value); setSearchOpen(true); }}
+            onFocus={() => setSearchOpen(true)}
+            onBlur={() => { setTimeout(() => setSearchOpen(false), 150); }}
             placeholder="Buscar playlist..."
             className="pl-8 h-9"
           />
+          {searchOpen && (
+            <div className="absolute z-50 left-0 right-0 top-full mt-1 rounded-lg border border-border bg-card shadow-lg max-h-72 overflow-y-auto">
+              {searchSuggestions.length === 0 ? (
+                <div className="px-3 py-2 text-xs text-muted-foreground">
+                  Nenhuma playlist encontrada nos filtros atuais.
+                </div>
+              ) : (
+                searchSuggestions.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); setQ(s.name); setSearchOpen(false); }}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-elevated/60 truncate"
+                  >
+                    {s.name}
+                  </button>
+                ))
+              )}
+            </div>
+          )}
         </div>
       )}
       <div className="grid grid-cols-2 gap-2 sm:contents">
