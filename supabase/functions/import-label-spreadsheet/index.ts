@@ -573,7 +573,12 @@ Deno.serve(async (req) => {
         reference_date: referenceDate,
         is_baseline: isBaseline && !willQuarantine,
         upload_mode: uploadMode,
-        window_kind: evalResult.window_kind ?? null,
+        window_kind: (() => {
+          const allowed = new Set(["all_time", "last_28d", "last_7d", "last_24h", "unknown"]);
+          const wk = evalResult.window_kind;
+          if (!wk) return null;
+          return allowed.has(wk) ? wk : "unknown";
+        })(),
         quarantined_at: willQuarantine ? new Date().toISOString() : null,
         quarantine_reason: willQuarantine ? (evalResult.reason ?? null) : null,
         quarantine_signals: willQuarantine ? (evalResult.signals ?? null) : null,
