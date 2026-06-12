@@ -1193,16 +1193,43 @@ function CuratorPills({
   statuses,
   curatorFilter,
   onPickCurator,
+  campaignId,
 }: {
   rows: GrowthRow[];
   curators: Record<string, CuratorMeta>;
   statuses: Record<string, string>;
   curatorFilter: string;
   onPickCurator: (curatorId: string) => void;
+  campaignId?: string;
 }) {
   const list = useCuratorSummary(rows, curators, statuses);
-  if (list.length === 0) return null;
+  const [, setParams] = useSearchParams();
+  const [ecoCount, setEcoCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!campaignId) return;
+    let cancel = false;
+    (async () => {
+      const { count } = await supabase
+        .from("campaign_eco_allocations")
+        .select("id", { count: "exact", head: true })
+        .eq("campaign_id", campaignId);
+      if (!cancel) setEcoCount(count ?? 0);
+    })();
+    return () => { cancel = true; };
+  }, [campaignId]);
+
+  if (list.length === 0 && !ecoCount) return null;
   const total = list.reduce((s, c) => s + c.playlists, 0);
+
+  const goToEcosystem = () => {
+    setParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("subtab", "ecossistema");
+      return next;
+    }, { replace: true });
+  };
+
   return (
     <div className="flex items-center gap-2 overflow-x-auto scrollbar-thin min-w-0">
       <button
@@ -1242,6 +1269,17 @@ function CuratorPills({
           </button>
         );
       })}
+      {ecoCount !== null && ecoCount > 0 && (
+        <button
+          onClick={goToEcosystem}
+          className="shrink-0 inline-flex items-center gap-2 h-8 px-3 rounded-full text-[12px] font-medium transition-colors border bg-card text-muted-foreground border-border hover:text-foreground hover:bg-accent/60"
+          title="Ver playlists do ecossistema"
+        >
+          <Layers className="h-3 w-3 text-emerald-400" />
+          Ecossistema
+          <span className="text-[10px] tabular-nums text-subtle-foreground">{ecoCount}</span>
+        </button>
+      )}
     </div>
   );
 }
