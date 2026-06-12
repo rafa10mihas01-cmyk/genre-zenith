@@ -1,14 +1,11 @@
-// Fallback de Suspense interno — renderizado DENTRO do AppLayout para não
-// desmontar sidebar/topbar enquanto o chunk da rota carrega.
-// Visualmente neutro: um skeleton sutil que ocupa a área de conteúdo.
+// Fallback de Suspense interno — renderizado DENTRO do AppLayout.
+//
+// IMPORTANTE: retorna `null` de propósito. Antes, mostrava uma barrinha
+// animada que piscava em TODA troca de rota (mesmo com chunk já em cache),
+// causando o "flicker horrível" na transição entre telas. Com `null`, o
+// React mantém o conteúdo anterior em tela até o novo chunk resolver —
+// transição limpa, sem flash. A TopProgressBar global já cobre o feedback
+// de loading em carregamentos realmente longos.
 export function RouteSuspenseFallback() {
-  return (
-    <div className="flex items-center justify-center min-h-[40vh] w-full">
-      <div className="flex flex-col items-center gap-3 opacity-60">
-        <div className="h-1 w-32 overflow-hidden rounded-full bg-elevated">
-          <div className="h-full w-full origin-left rounded-full bg-gradient-to-r from-transparent via-primary to-transparent animate-nx-indeterminate" />
-        </div>
-      </div>
-    </div>
-  );
+  return null;
 }
