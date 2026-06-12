@@ -111,10 +111,11 @@ export function MonitoramentoTab({ campaignId, headerSlot, spreadsheetUploads }:
     setParams(next, { replace: true });
   };
 
+  // Ecossistema saiu como subtab principal — agora aparece como pílula dentro de Curadores.
+  // A rota subtab=ecossistema continua válida (pílula navega pra cá), só não tem trigger no menu.
   const tabsDef = [
     { v: "visao", label: "Visão geral", Icon: BarChart3 },
     { v: "curadores", label: "Curadores", Icon: Users },
-    { v: "ecossistema", label: "Ecossistema", Icon: Layers },
     { v: "saude", label: "Saúde", Icon: HeartPulse },
   ];
 
