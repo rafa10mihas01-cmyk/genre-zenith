@@ -664,27 +664,130 @@ export default function CampanhaExecucao() {
   useEffect(() => {
     if (!camp?.id) return;
     let cancel = false;
+    const PAGE_SIZE = 1000;
+
+    const fetchAllCollections = async () => {
+      const out: CollectionGrowthRow[] = [];
+      for (let from = 0; ; from += PAGE_SIZE) {
+        const { data, error } = await supabase
+          .from("campaign_playlist_collections")
+          .select("playlist_id, playlist_url, playlist_name_at_capture, plays_7d, captured_at, is_baseline, created_at, upload_id, excluded, window_days")
+          .eq("campaign_id", camp.id)
+          .order("created_at", { ascending: true })
+          .range(from, from + PAGE_SIZE - 1);
+        if (error) throw error;
+        out.push(...((data ?? []) as CollectionGrowthRow[]));
+        if ((data?.length ?? 0) < PAGE_SIZE) break;
+      }
+      return out;
+    };
+
+    const sortKey = (r: CollectionGrowthRow, uploads: Map<string, UploadGrowthMeta>) => {
+      const u = r.upload_id ? uploads.get(r.upload_id) : null;
+      return `${u?.reference_date ?? r.captured_at?.slice(0, 10) ?? "0000-00-00"}|${u?.created_at ?? r.created_at ?? r.captured_at ?? ""}`;
+    };
+
+    const latest = (items: CollectionGrowthRow[], uploads: Map<string, UploadGrowthMeta>) =>
+      [...items].sort((a, b) => sortKey(b, uploads).localeCompare(sortKey(a, uploads)))[0] ?? null;
+
     (async () => {
       try {
-        const { data } = await (supabase as any)
-          .from("vw_campaign_playlist_growth")
-          .select("playlist_id, current_name, attributed_to, delta, current_plays, baseline_plays, last_import_delta")
-          .eq("campaign_id", camp.id);
+        const [collections, ccpRes, ecoRes] = await Promise.all([
+          fetchAllCollections(),
+          supabase
+            .from("curator_campaign_playlists")
+            .select("playlist_id, curator_id, status, excluded_from_kpis")
+            .eq("campaign_id", camp.id),
+          supabase
+            .from("campaign_eco_allocations")
+            .select("managed_playlist_id, managed_playlists!inner(spotify_playlist_id)")
+            .eq("campaign_id", camp.id),
+        ]);
+
+        const uploadIds = Array.from(new Set(collections.map((c) => c.upload_id).filter((id): id is string => !!id)));
+        const { data: uploadRows, error: uploadErr } = uploadIds.length > 0
+          ? await supabase
+            .from("label_spreadsheet_uploads")
+            .select("id, created_at, reference_date, quarantined_at")
+            .in("id", uploadIds)
+          : { data: [] as UploadGrowthMeta[], error: null };
+        if (uploadErr) throw uploadErr;
+
         if (cancel) return;
+        const uploads = new Map<string, UploadGrowthMeta>(((uploadRows ?? []) as UploadGrowthMeta[]).map((u) => [u.id, u]));
+        const validCollections = collections.filter((c) => {
+          if (c.excluded) return false;
+          const u = c.upload_id ? uploads.get(c.upload_id) : null;
+          return !u?.quarantined_at;
+        });
+
+        const ecoIds = new Set<string>(
+          ((ecoRes.data ?? []) as any[])
+            .map((r) => r.managed_playlists?.spotify_playlist_id)
+            .filter(Boolean)
+        );
+        const curatorByPlaylist = new Map<string, { curator_id: string; status: string; excluded_from_kpis: boolean }>();
+        for (const r of (ccpRes.data ?? []) as any[]) {
+          const cur = curatorByPlaylist.get(r.playlist_id);
+          const rank = (s: string) => (s === "matched" ? 1 : s === "pending_match" ? 2 : s === "baseline_conflict" ? 3 : 4);
+          if (!cur || rank(r.status) < rank(cur.status)) {
+            curatorByPlaylist.set(r.playlist_id, {
+              curator_id: r.curator_id,
+              status: r.status,
+              excluded_from_kpis: !!r.excluded_from_kpis,
+            });
+          }
+        }
+
+        const byPlaylist = new Map<string, CollectionGrowthRow[]>();
+        for (const row of validCollections) {
+          if (row.window_days !== 7) continue;
+          const arr = byPlaylist.get(row.playlist_id) ?? [];
+          arr.push(row);
+          byPlaylist.set(row.playlist_id, arr);
+        }
+
         const acc = { curators: 0, ecosystem: 0, organic: 0 };
         const prior = new Set<string>();
-        const rows = (data ?? []) as PlaylistGrowthRow[];
-        for (const r of rows) {
-          const v = Math.max(0, Number(r.delta ?? 0));
-          const tag = r.attributed_to ?? "";
+        const rows: PlaylistGrowthRow[] = [];
+        for (const [playlistId, list] of byPlaylist) {
+          const ordered = [...list].sort((a, b) => sortKey(a, uploads).localeCompare(sortKey(b, uploads)));
+          const hasBaseline = ordered.some((r) => !!r.is_baseline);
+          let prev: number | null = null;
+          let delta = 0;
+          let lastImportDelta: number | null = null;
+          ordered.forEach((row, idx) => {
+            const plays = Number(row.plays_7d ?? 0);
+            const d = idx === 0 ? (hasBaseline ? 0 : plays) : Math.max(0, plays - (prev ?? plays));
+            delta += d;
+            lastImportDelta = idx === 0 && hasBaseline ? null : d;
+            prev = plays;
+          });
+          const baseline = latest(list.filter((r) => !!r.is_baseline), uploads);
+          const current = latest(list, uploads);
+          const curator = curatorByPlaylist.get(playlistId);
+          const tag = ecoIds.has(playlistId)
+            ? "ecosystem"
+            : (curator && (!curator.excluded_from_kpis || curator.status === "baseline_conflict") ? `curator:${curator.curator_id}` : "organic");
+
+          const v = Math.max(0, delta);
           if (v > 0) {
             if (tag.startsWith("curator:")) acc.curators += v;
             else if (tag === "ecosystem") acc.ecosystem += v;
-            else acc.organic += v; // organic ou nulo — não conta no KPI
+            else acc.organic += v;
           }
-          if (Number(r.baseline_plays ?? 0) > 0 && r.playlist_id) {
-            prior.add(r.playlist_id);
+          if (Number(baseline?.plays_7d ?? 0) > 0) {
+            prior.add(playlistId);
           }
+          rows.push({
+            playlist_id: playlistId,
+            current_name: current?.playlist_name_at_capture ?? baseline?.playlist_name_at_capture ?? null,
+            attributed_to: tag,
+            delta,
+            current_plays: current?.plays_7d ?? null,
+            baseline_plays: baseline?.plays_7d ?? null,
+            last_import_delta: lastImportDelta,
+          });
         }
         setDeliveryBreakdown(acc);
         setPlaylistGrowthRows(rows);
