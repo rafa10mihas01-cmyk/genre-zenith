@@ -108,6 +108,19 @@ export function ExecucaoView({
           .filter(Boolean)
       );
 
+      const candidateOwnedIds = Array.from(new Set([...collIds, ...curatorRegByPlaylist.keys()].filter(Boolean)));
+      const { data: ownedRows } = candidateOwnedIds.length > 0
+        ? await supabase
+          .from("managed_playlists")
+          .select("spotify_playlist_id")
+          .in("spotify_playlist_id", candidateOwnedIds)
+        : { data: [] as any[] };
+      const internalOwnedIds = new Set<string>(
+        ((ownedRows ?? []) as any[])
+          .map((r) => r.spotify_playlist_id)
+          .filter(Boolean)
+      );
+
       const allIds = new Set<string>([
         ...collIds,
         ...curatorRegByPlaylist.keys(),
@@ -125,8 +138,11 @@ export function ExecucaoView({
       for (const pid of allIds) {
         const g = growthByPid.get(pid);
         const reg = curatorRegByPlaylist.get(pid);
-        const attribution: string = g?.attributed_to ?? (
-          ecoIds.has(pid) ? "ecosystem" : reg ? `curator:${reg.curator_id}` : "organic"
+        const attribution: string = (ecoIds.has(pid) || internalOwnedIds.has(pid))
+          ? "ecosystem"
+          : (g?.attributed_to ?? (
+            reg ? `curator:${reg.curator_id}` : "organic"
+          )
         );
         const curatorId = attribution.startsWith("curator:")
           ? (g?.attributed_curator_id ?? reg?.curator_id ?? null)
@@ -161,7 +177,7 @@ export function ExecucaoView({
       setRows(list);
 
       // Curadores: pegar TODOS os curadores vinculados à campanha (não só os com crescimento)
-      const allCuratorIds = Array.from(new Set(Array.from(curatorRegByPlaylist.values()).map((v) => v.curator_id)));
+      const allCuratorIds = Array.from(new Set(list.map((r) => r.attributed_curator_id).filter((id): id is string => !!id)));
       if (allCuratorIds.length > 0) {
         const { data: cs } = await supabase.from("curators").select("id, name").in("id", allCuratorIds);
         const cmap: Record<string, CuratorMeta> = {};
