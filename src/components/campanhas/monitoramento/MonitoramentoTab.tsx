@@ -39,6 +39,8 @@ type SnapshotRun = {
   completed_at: string | null;
   print_urls: string[] | null;
   print_count: number | null;
+  status?: string | null;
+  error?: string | null;
 };
 
 export function MonitoramentoTab({ campaignId, headerSlot, spreadsheetUploads }: Props) {
@@ -86,13 +88,34 @@ export function MonitoramentoTab({ campaignId, headerSlot, spreadsheetUploads }:
         return;
       }
       const { data } = await supabase
-        .from("v_snapshot_prints" as any)
-        .select("run_id, created_at, completed_at, print_urls, print_count")
-        .eq("campaign_id", campaignId)
+        .from("bot_print_batches")
+        .select("id, created_at, completed_at, print_urls, total_parts, status, error")
         .eq("deal_id", officialDealId)
+        .is("superseded_by", null)
+        .in("status", ["complete", "processed", "error"])
         .order("created_at", { ascending: false })
-        .limit(50);
-      setRuns(((data ?? []) as unknown as SnapshotRun[]).filter((r) => (r.print_urls?.length ?? 0) > 0));
+        .limit(1);
+      const latest = ((data ?? []) as Array<{
+        id: string;
+        created_at: string | null;
+        completed_at: string | null;
+        print_urls: unknown;
+        total_parts: number | null;
+        status: string | null;
+        error: string | null;
+      }>).map((r) => {
+        const urls = Array.isArray(r.print_urls) ? (r.print_urls as string[]) : [];
+        return {
+          run_id: r.id,
+          created_at: r.created_at,
+          completed_at: r.completed_at,
+          print_urls: urls,
+          print_count: r.total_parts ?? urls.length,
+          status: r.status,
+          error: r.error,
+        } satisfies SnapshotRun;
+      });
+      setRuns(latest.filter((r) => (r.print_urls?.length ?? 0) > 0));
       setRunsLoading(false);
     })();
   }, [campaignId]);
@@ -403,13 +426,13 @@ function BaselineStatus({
               const label = dt
                 ? dt.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
                 : "Coleta";
-              // A baseline é a coleta mais antiga (runs vêm em DESC, então é a última).
-              const isBaseline = idx === runs.length - 1 && !!capturedAt;
+              const isError = run.status === "error";
+              const isBaseline = !!capturedAt && !!run.created_at && Math.abs(new Date(run.created_at).getTime() - new Date(capturedAt).getTime()) < 5 * 60_000;
               return (
                 <div
                   key={run.run_id}
                   className={`rounded-lg border p-3 ${
-                    isBaseline ? "border-primary/40 bg-primary/5" : "border-border/60 bg-card/40"
+                    isError ? "border-destructive/40 bg-destructive/5" : isBaseline ? "border-primary/40 bg-primary/5" : "border-border/60 bg-card/40"
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2 gap-2">
@@ -420,11 +443,21 @@ function BaselineStatus({
                           baseline
                         </span>
                       )}
+                      {isError && (
+                        <span className="text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded border border-destructive/50 text-destructive leading-none shrink-0">
+                          erro
+                        </span>
+                      )}
                     </div>
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
                       {urls.length} {urls.length === 1 ? "print" : "prints"}
                     </div>
                   </div>
+                  {isError && run.error && (
+                    <div className="mb-2 text-[11px] text-muted-foreground truncate">
+                      {run.error === "no_curator_whitelist" ? "Coleta recebida; processamento travado por regra de whitelist já corrigida." : run.error}
+                    </div>
+                  )}
                   <PrintThumbs urls={urls} size="md" />
                 </div>
               );
