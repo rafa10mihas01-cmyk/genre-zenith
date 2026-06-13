@@ -27,13 +27,13 @@ async function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms));
 
 async function listUrisSafe(playlistId: string, ownerId: string): Promise<{ uris: string[]; via: string; error?: string }> {
   try {
-    const { token } = await getUserAccessToken(ownerId);
+    const { token } = await getUserToken(ownerId);
     try {
       const uris = await listPlaylistTrackUris(playlistId, token);
       return { uris, via: "owner_token" };
     } catch (e) {
       if (e instanceof SpotifyApiError && e.status === 401) {
-        const refreshed = await forceRefreshUserAccessToken(ownerId);
+        const refreshed = await forceRefreshUserToken(ownerId);
         const uris = await listPlaylistTrackUris(playlistId, refreshed.token);
         return { uris, via: "owner_token_refreshed" };
       }
@@ -188,7 +188,7 @@ Deno.serve(async (req) => {
   // ---------- 7) Cleanup opcional ----------
   if (cleanup && trackPresent) {
     try {
-      const { token } = await getUserAccessToken(mp.owner_spotify_user_id);
+      const { token } = await getUserToken(mp.owner_spotify_user_id);
       const r = await removePlaylistTracks(mp.spotify_playlist_id, [trackUri], token);
       evidence.cleanup = { ok: true, snapshot_id: r.snapshot_id };
     } catch (e) {
