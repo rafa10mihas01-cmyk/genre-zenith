@@ -1212,6 +1212,13 @@ export type Database = {
             foreignKeyName: "campaign_eco_allocations_managed_playlist_id_fkey"
             columns: ["managed_playlist_id"]
             isOneToOne: false
+            referencedRelation: "v_catalog_playlist_occupancy"
+            referencedColumns: ["managed_playlist_id"]
+          },
+          {
+            foreignKeyName: "campaign_eco_allocations_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
             referencedRelation: "v_playlist_vps_assignment"
             referencedColumns: ["managed_playlist_id"]
           },
@@ -1292,6 +1299,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "managed_playlists"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_eco_snapshots_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_playlist_occupancy"
+            referencedColumns: ["managed_playlist_id"]
           },
           {
             foreignKeyName: "campaign_eco_snapshots_managed_playlist_id_fkey"
@@ -1904,6 +1918,214 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      catalog_distribution_batches: {
+        Row: {
+          catalog_track_id: string
+          created_at: string
+          id: string
+          placements_created: number
+          skipped_already_present: number
+          skipped_no_capacity: number
+          total_eligible_playlists: number
+          triggered_by: string | null
+        }
+        Insert: {
+          catalog_track_id: string
+          created_at?: string
+          id?: string
+          placements_created?: number
+          skipped_already_present?: number
+          skipped_no_capacity?: number
+          total_eligible_playlists?: number
+          triggered_by?: string | null
+        }
+        Update: {
+          catalog_track_id?: string
+          created_at?: string
+          id?: string
+          placements_created?: number
+          skipped_already_present?: number
+          skipped_no_capacity?: number
+          total_eligible_playlists?: number
+          triggered_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_distribution_batches_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_placements: {
+        Row: {
+          added_at: string | null
+          catalog_track_id: string
+          created_at: string
+          distribution_batch_id: string | null
+          id: string
+          managed_playlist_id: string
+          position: number | null
+          removed_at: string | null
+          removed_reason: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          added_at?: string | null
+          catalog_track_id: string
+          created_at?: string
+          distribution_batch_id?: string | null
+          id?: string
+          managed_playlist_id: string
+          position?: number | null
+          removed_at?: string | null
+          removed_reason?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          added_at?: string | null
+          catalog_track_id?: string
+          created_at?: string
+          distribution_batch_id?: string | null
+          id?: string
+          managed_playlist_id?: string
+          position?: number | null
+          removed_at?: string | null
+          removed_reason?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_placements_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_tracks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_placements_distribution_batch_id_fkey"
+            columns: ["distribution_batch_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_distribution_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_placements_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "managed_playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_placements_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_playlist_occupancy"
+            referencedColumns: ["managed_playlist_id"]
+          },
+          {
+            foreignKeyName: "catalog_placements_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_playlist_vps_assignment"
+            referencedColumns: ["managed_playlist_id"]
+          },
+        ]
+      }
+      catalog_track_baselines: {
+        Row: {
+          captured_at: string
+          catalog_track_id: string
+          created_at: string
+          id: string
+          monthly_listeners: number | null
+          popularity: number | null
+          raw_payload: Json | null
+          streams: number | null
+        }
+        Insert: {
+          captured_at?: string
+          catalog_track_id: string
+          created_at?: string
+          id?: string
+          monthly_listeners?: number | null
+          popularity?: number | null
+          raw_payload?: Json | null
+          streams?: number | null
+        }
+        Update: {
+          captured_at?: string
+          catalog_track_id?: string
+          created_at?: string
+          id?: string
+          monthly_listeners?: number | null
+          popularity?: number | null
+          raw_payload?: Json | null
+          streams?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_track_baselines_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: true
+            referencedRelation: "catalog_tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_tracks: {
+        Row: {
+          added_at: string
+          added_by: string | null
+          artist_name: string
+          cover_url: string | null
+          created_at: string
+          id: string
+          isrc: string | null
+          notes: string | null
+          spotify_track_id: string
+          spotify_uri: string | null
+          status: string
+          track_name: string
+          updated_at: string
+        }
+        Insert: {
+          added_at?: string
+          added_by?: string | null
+          artist_name: string
+          cover_url?: string | null
+          created_at?: string
+          id?: string
+          isrc?: string | null
+          notes?: string | null
+          spotify_track_id: string
+          spotify_uri?: string | null
+          status?: string
+          track_name: string
+          updated_at?: string
+        }
+        Update: {
+          added_at?: string
+          added_by?: string | null
+          artist_name?: string
+          cover_url?: string | null
+          created_at?: string
+          id?: string
+          isrc?: string | null
+          notes?: string | null
+          spotify_track_id?: string
+          spotify_uri?: string | null
+          status?: string
+          track_name?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       chart_position_benchmarks: {
         Row: {
@@ -6085,6 +6307,13 @@ export type Database = {
             foreignKeyName: "managed_playlist_tracks_playlist_id_fkey"
             columns: ["playlist_id"]
             isOneToOne: false
+            referencedRelation: "v_catalog_playlist_occupancy"
+            referencedColumns: ["managed_playlist_id"]
+          },
+          {
+            foreignKeyName: "managed_playlist_tracks_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
             referencedRelation: "v_playlist_vps_assignment"
             referencedColumns: ["managed_playlist_id"]
           },
@@ -6097,6 +6326,7 @@ export type Database = {
           archived_followers: number | null
           archived_reason: string | null
           canonical_playlist_id: string | null
+          catalog_capacity: number
           cover_url: string | null
           created_at: string
           curator_id: string | null
@@ -6113,6 +6343,7 @@ export type Database = {
           id: string
           imported_at: string
           imported_by: string | null
+          is_catalog: boolean
           last_diagnosis_at: string | null
           last_maintenance_at: string | null
           last_maintenance_intensity:
@@ -6151,6 +6382,7 @@ export type Database = {
           archived_followers?: number | null
           archived_reason?: string | null
           canonical_playlist_id?: string | null
+          catalog_capacity?: number
           cover_url?: string | null
           created_at?: string
           curator_id?: string | null
@@ -6167,6 +6399,7 @@ export type Database = {
           id?: string
           imported_at?: string
           imported_by?: string | null
+          is_catalog?: boolean
           last_diagnosis_at?: string | null
           last_maintenance_at?: string | null
           last_maintenance_intensity?:
@@ -6205,6 +6438,7 @@ export type Database = {
           archived_followers?: number | null
           archived_reason?: string | null
           canonical_playlist_id?: string | null
+          catalog_capacity?: number
           cover_url?: string | null
           created_at?: string
           curator_id?: string | null
@@ -6221,6 +6455,7 @@ export type Database = {
           id?: string
           imported_at?: string
           imported_by?: string | null
+          is_catalog?: boolean
           last_diagnosis_at?: string | null
           last_maintenance_at?: string | null
           last_maintenance_intensity?:
@@ -7000,6 +7235,13 @@ export type Database = {
             foreignKeyName: "plan_execution_snapshots_playlist_id_fkey"
             columns: ["playlist_id"]
             isOneToOne: false
+            referencedRelation: "v_catalog_playlist_occupancy"
+            referencedColumns: ["managed_playlist_id"]
+          },
+          {
+            foreignKeyName: "plan_execution_snapshots_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
             referencedRelation: "v_playlist_vps_assignment"
             referencedColumns: ["managed_playlist_id"]
           },
@@ -7071,6 +7313,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "managed_playlists"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_adjustment_impacts_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_playlist_occupancy"
+            referencedColumns: ["managed_playlist_id"]
           },
           {
             foreignKeyName: "playlist_adjustment_impacts_playlist_id_fkey"
@@ -7475,6 +7724,13 @@ export type Database = {
             foreignKeyName: "playlist_cooldowns_playlist_id_fkey"
             columns: ["playlist_id"]
             isOneToOne: false
+            referencedRelation: "v_catalog_playlist_occupancy"
+            referencedColumns: ["managed_playlist_id"]
+          },
+          {
+            foreignKeyName: "playlist_cooldowns_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
             referencedRelation: "v_playlist_vps_assignment"
             referencedColumns: ["managed_playlist_id"]
           },
@@ -7595,6 +7851,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "managed_playlists"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_diagnoses_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_playlist_occupancy"
+            referencedColumns: ["managed_playlist_id"]
           },
           {
             foreignKeyName: "playlist_diagnoses_playlist_id_fkey"
@@ -7733,6 +7996,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "managed_playlists"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_dna_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: true
+            referencedRelation: "v_catalog_playlist_occupancy"
+            referencedColumns: ["managed_playlist_id"]
           },
           {
             foreignKeyName: "playlist_dna_playlist_id_fkey"
@@ -8094,6 +8364,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "managed_playlists"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_pds_playlist"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_playlist_occupancy"
+            referencedColumns: ["managed_playlist_id"]
           },
           {
             foreignKeyName: "fk_pds_playlist"
@@ -8684,6 +8961,13 @@ export type Database = {
             foreignKeyName: "playlist_operation_queue_playlist_id_fkey"
             columns: ["playlist_id"]
             isOneToOne: false
+            referencedRelation: "v_catalog_playlist_occupancy"
+            referencedColumns: ["managed_playlist_id"]
+          },
+          {
+            foreignKeyName: "playlist_operation_queue_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
             referencedRelation: "v_playlist_vps_assignment"
             referencedColumns: ["managed_playlist_id"]
           },
@@ -8830,6 +9114,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "managed_playlists"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_seo_experiments_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_playlist_occupancy"
+            referencedColumns: ["managed_playlist_id"]
           },
           {
             foreignKeyName: "playlist_seo_experiments_playlist_id_fkey"
@@ -11203,6 +11494,16 @@ export type Database = {
           status?: string | null
           total_delivered?: number | null
           track_name?: string | null
+        }
+        Relationships: []
+      }
+      v_catalog_playlist_occupancy: {
+        Row: {
+          active_placements: number | null
+          available_slots: number | null
+          catalog_capacity: number | null
+          managed_playlist_id: string | null
+          playlist_name: string | null
         }
         Relationships: []
       }
