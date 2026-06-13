@@ -27,6 +27,7 @@ import {
   getUserAccessToken,
   forceRefreshUserAccessToken,
   guardedSpotifyFetch,
+  setSpotifyCtx as legacySetSpotifyCtx,
   SpotifyCircuitOpenError,
   type SpotifyUserToken,
 } from "./spotify.ts";
@@ -214,6 +215,11 @@ export async function getAppToken(_opts: SpotifyCallContext = {}): Promise<strin
   return await getSpotifyToken();
 }
 
+/** Força refresh do app token (client-credentials). Equivalente a getSpotifyToken(true). */
+export async function forceRefreshAppToken(_opts: SpotifyCallContext = {}): Promise<string> {
+  return await getSpotifyToken(true);
+}
+
 /** Token de usuário (OAuth). Mantém assinatura do helper legado. */
 export async function getUserToken(
   userId?: string,
@@ -226,6 +232,13 @@ export async function forceRefreshUserToken(
 ): Promise<{ token: string; row: SpotifyUserToken }> {
   return await forceRefreshUserAccessToken(userId);
 }
+
+/**
+ * Patch do contexto global de logging (spotify_call_log).
+ * Re-export do helper legado — permite que callers da camada client
+ * enriqueçam o log sem precisar importar `_shared/spotify.ts`.
+ */
+export const setSpotifyCtx = legacySetSpotifyCtx;
 
 // ---------------------------------------------------------------------------
 // Re-exports úteis (evita import cruzado de _shared/spotify.ts nos consumers
