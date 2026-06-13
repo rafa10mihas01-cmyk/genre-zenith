@@ -1,16 +1,60 @@
 // Catálogo — segunda esteira operacional (paralela a Campanhas).
-// Distribui músicas em massa na rede de playlists do ecossistema.
-// 3 abas: Músicas · Playlists · Histórico.
+// Estrutura igual à página de Clientes: PageHeader com ações no topo,
+// KPIs hero logo abaixo e tabs por último.
 import { useSearchParams } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus, RefreshCw, Music2, Layers, Gauge, CircleSlash } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
+import { Button } from "@/components/ui/button";
+import { KpiBig } from "@/components/KpiBig";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { supabase } from "@/integrations/supabase/client";
 import { MusicasTab } from "@/components/catalogo/MusicasTab";
 import { PlaylistsTab } from "@/components/catalogo/PlaylistsTab";
 import { HistoricoTab } from "@/components/catalogo/HistoricoTab";
 
 const VALID_TABS = ["musicas", "playlists", "historico"] as const;
 type TabId = (typeof VALID_TABS)[number];
+
+type Summary = {
+  total_tracks: number;
+  total_playlists: number;
+  active_placements: number;
+  capacity_total: number;
+  capacity_used: number;
+  capacity_available: number;
+};
+
+async function fetchSummary(): Promise<Summary> {
+  const [tracksRes, playlistsRes, placementsRes, occupancyRes] = await Promise.all([
+    supabase.from("catalog_tracks").select("id", { count: "exact", head: true }).eq("status", "active"),
+    supabase.from("managed_playlists").select("id", { count: "exact", head: true }).eq("is_catalog", true),
+    supabase.from("catalog_placements").select("id", { count: "exact", head: true }).eq("status", "active"),
+    supabase.from("v_catalog_playlist_occupancy").select("catalog_capacity, active_placements, available_slots"),
+  ]);
+  const totals = (occupancyRes.data ?? []).reduce(
+    (acc, row: { catalog_capacity?: number; active_placements?: number; available_slots?: number }) => {
+      acc.cap += row.catalog_capacity ?? 0;
+      acc.used += row.active_placements ?? 0;
+      acc.avail += row.available_slots ?? 0;
+      return acc;
+    },
+    { cap: 0, used: 0, avail: 0 },
+  );
+  return {
+    total_tracks: tracksRes.count ?? 0,
+    total_playlists: playlistsRes.count ?? 0,
+    active_placements: placementsRes.count ?? 0,
+    capacity_total: totals.cap,
+    capacity_used: totals.used,
+    capacity_available: totals.avail,
+  };
+}
+
+function fmt(n: number | null | undefined) {
+  return typeof n === "number" ? n.toLocaleString("pt-BR") : "—";
+}
 
 export default function Catalogo() {
   const [params, setParams] = useSearchParams();
@@ -23,32 +67,97 @@ export default function Catalogo() {
     setParams(p, { replace: true });
   };
 
+  const qc = useQueryClient();
+  const summaryQ = useQuery({ queryKey: ["catalog", "summary"], queryFn: fetchSummary, staleTime: 30_000 });
+  const s = summaryQ.data;
+  const pct = s && s.capacity_total > 0 ? Math.round((s.capacity_used / s.capacity_total) * 100) : null;
+
+  const openAdd = () => window.dispatchEvent(new Event("catalogo:add-track"));
+  const reload = () => qc.invalidateQueries({ queryKey: ["catalog"] });
+
   return (
-    <PageContainer>
+    <>
       <PageHeader
         domain="playlists"
         title="Catálogo"
         subtitle="Distribuir músicas em massa na rede de playlists"
         manualKey="catalogo"
+        actions={
+          <div className="flex items-center gap-2">
+            <Button size="sm" className="h-9 gap-1.5 rounded-full" onClick={openAdd}>
+              <Plus className="h-4 w-4" /> Adicionar música
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="rounded-full h-9 w-9"
+              onClick={reload}
+              disabled={summaryQ.isFetching}
+              aria-label="Recarregar"
+              title="Recarregar"
+            >
+              <RefreshCw className={`h-4 w-4 ${summaryQ.isFetching ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
+        }
       />
 
-      <Tabs value={tab} onValueChange={setTab} className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="musicas">Músicas</TabsTrigger>
-          <TabsTrigger value="playlists">Playlists</TabsTrigger>
-          <TabsTrigger value="historico">Histórico</TabsTrigger>
-        </TabsList>
+      <PageContainer>
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <KpiBig
+            tier="hero"
+            icon={Music2}
+            label="Músicas no catálogo"
+            value={fmt(s?.total_tracks)}
+            hint={`${fmt(s?.total_playlists)} playlists na rede`}
+            domain="playlists"
+            loading={summaryQ.isLoading}
+          />
+          <KpiBig
+            icon={Layers}
+            label="Placements ativos"
+            value={fmt(s?.active_placements)}
+            hint="Faixas distribuídas hoje"
+            domain="campaigns"
+            loading={summaryQ.isLoading}
+          />
+          <KpiBig
+            icon={Gauge}
+            label="Capacidade utilizada"
+            value={fmt(s?.capacity_used)}
+            hint={pct != null ? `${pct}% de ${fmt(s?.capacity_total)}` : "—"}
+            domain="deals"
+            loading={summaryQ.isLoading}
+          />
+          <KpiBig
+            tier="quiet"
+            icon={CircleSlash}
+            label="Capacidade disponível"
+            value={fmt(s?.capacity_available)}
+            hint="Slots livres na rede"
+            domain="system"
+            loading={summaryQ.isLoading}
+          />
+        </section>
 
-        <TabsContent value="musicas" className="space-y-6">
-          <MusicasTab />
-        </TabsContent>
-        <TabsContent value="playlists" className="space-y-6">
-          <PlaylistsTab />
-        </TabsContent>
-        <TabsContent value="historico" className="space-y-6">
-          <HistoricoTab />
-        </TabsContent>
-      </Tabs>
-    </PageContainer>
+        <Tabs value={tab} onValueChange={setTab} className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="musicas">Músicas</TabsTrigger>
+            <TabsTrigger value="playlists">Playlists</TabsTrigger>
+            <TabsTrigger value="historico">Histórico</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="musicas" className="space-y-6">
+            <MusicasTab />
+          </TabsContent>
+          <TabsContent value="playlists" className="space-y-6">
+            <PlaylistsTab />
+          </TabsContent>
+          <TabsContent value="historico" className="space-y-6">
+            <HistoricoTab />
+          </TabsContent>
+        </Tabs>
+      </PageContainer>
+    </>
   );
 }
