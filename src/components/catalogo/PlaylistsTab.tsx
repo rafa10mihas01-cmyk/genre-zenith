@@ -1,5 +1,6 @@
 // PlaylistsTab — ocupação por playlist do catálogo.
 // Desktop: tabela. Mobile: cards compactos com capa + barra de ocupação.
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ListMusic } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
