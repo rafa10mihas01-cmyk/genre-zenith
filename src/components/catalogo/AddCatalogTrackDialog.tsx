@@ -529,10 +529,8 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
             )}
             {step === "done" && renderStepDone()}
             {step === "error" && renderStepError()}
-          </CardContent>
-        </Card>
 
-        <DialogFooter className="gap-2 sm:gap-2 px-0">
+        <DialogFooter className="gap-2 sm:gap-2 pt-2">
           {step === "idle" || step === "resolving" ? (
             <>
               <Button variant="outline" onClick={() => handleClose(false)} disabled={isBusy}>Cancelar</Button>
@@ -574,6 +572,8 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
             </>
           )}
         </DialogFooter>
+          </CardContent>
+        </Card>
       </DialogContent>
     </Dialog>
   );
