@@ -3,12 +3,12 @@
 // KPIs hero logo abaixo e tabs por último.
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, RefreshCw, Music2, Layers, Gauge, CircleSlash } from "lucide-react";
+import { Plus, RefreshCw, Music2, Layers, Gauge, CircleSlash, History } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
 import { KpiBig } from "@/components/KpiBig";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { MusicasTab } from "@/components/catalogo/MusicasTab";
 import { PlaylistsTab } from "@/components/catalogo/PlaylistsTab";
