@@ -286,5 +286,10 @@ export {
   refreshUserToken,
   getSpotifyTokenWithApp,
   markAppAuthFailure,
+  withSpotifyCtx,
+  installSpotifyCircuitFetchGuard,
+  getAppCredentials,
+  SPOTIFY_USER_SCOPES,
+  SPOTIFY_USER_SCOPES_LIST,
 } from "./spotify.ts";
 export type { SpotifyUserToken } from "./spotify.ts";
