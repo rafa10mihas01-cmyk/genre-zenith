@@ -170,20 +170,22 @@ export async function spotifyFetch(
   const appIdForGuard = opts.appId ?? "global";
 
   // Forward de campos de observabilidade ao guardedSpotifyFetch (SpotifyCallCtx).
-  // Quando algum dos campos enriquecidos é passado, monta ctx object; caso
-  // contrário, mantém o atalho string ("global"|appId) — comportamento idêntico.
+  // Só monta ctx object quando o caller passou pelo menos um campo enriquecido
+  // (playlist_id/owner_id/spotify_user_id/functionName/appId). Caso contrário
+  // mantém o atalho string ("global") — preservando merge com setSpotifyCtx.
   const hasRichCtx =
-    opts.playlist_id != null ||
-    opts.owner_id != null ||
-    opts.spotify_user_id != null ||
-    fnName != null;
-  const guardCtx = hasRichCtx
+    opts.playlist_id !== undefined ||
+    opts.owner_id !== undefined ||
+    opts.spotify_user_id !== undefined ||
+    opts.functionName !== undefined ||
+    opts.appId !== undefined;
+  const guardCtx: unknown = hasRichCtx
     ? {
-        appId: opts.appId ?? undefined,
-        playlist_id: opts.playlist_id ?? null,
-        owner_id: opts.owner_id ?? null,
-        spotify_user_id: opts.spotify_user_id ?? null,
-        function_name: fnName ?? null,
+        ...(opts.appId !== undefined ? { appId: opts.appId ?? undefined } : {}),
+        ...(opts.playlist_id !== undefined ? { playlist_id: opts.playlist_id } : {}),
+        ...(opts.owner_id !== undefined ? { owner_id: opts.owner_id } : {}),
+        ...(opts.spotify_user_id !== undefined ? { spotify_user_id: opts.spotify_user_id } : {}),
+        ...(opts.functionName !== undefined ? { function_name: opts.functionName } : {}),
       }
     : appIdForGuard;
 
