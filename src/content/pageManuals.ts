@@ -368,6 +368,8 @@ export const PAGE_MANUALS: Record<string, PageManualData> = {
           "de novo deal — NUNCA edite manualmente os totais.",
       },
     ],
+  },
+
   // ────────────────────────────────────────────────────────────────────
   // CATÁLOGO
   // ────────────────────────────────────────────────────────────────────
