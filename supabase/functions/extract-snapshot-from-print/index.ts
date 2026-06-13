@@ -639,7 +639,10 @@ Deno.serve(async (req) => {
     if (mp.name) managedByName.set(norm(mp.name), mp);
   }
 
-  if (!whitelistActive) {
+  // Deals internos de campanha não têm whitelist de curador; eles devem capturar o
+  // ecossistema/orgânico completo do S4A. O bloqueio por whitelist vale só para
+  // deals de curador externo.
+  if (!whitelistActive && !isCampaignInternal) {
     if (batch_id) {
       await supabase
         .from("bot_print_batches")
