@@ -8,7 +8,7 @@
 // Idempotente. Pode ser chamada inline pelo importer ou via curl pra backfill.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { getSpotifyToken } from "../_shared/spotify.ts";
+import { getAppToken } from "../_shared/spotify-client.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
       return jr({ ok: true, enriched: 0, total_candidates: cps?.length ?? 0, skipped: true });
     }
 
-    const token = await getSpotifyToken();
+    const token = await getAppToken();
 
     // Dedupe por spotify_playlist_id (várias campanhas podem ter o mesmo id)
     const uniqueIds = Array.from(new Set(targets.map((t: any) => t.spotify_playlist_id as string)));

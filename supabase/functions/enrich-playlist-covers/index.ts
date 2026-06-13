@@ -2,7 +2,7 @@
 // que não estão em curator_playlists e salva em spotify_playlist_cache.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getSpotifyToken, guardedSpotifyFetch } from "../_shared/spotify.ts";
+import { getAppToken, spotifyFetch } from "../_shared/spotify-client.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const token = await getSpotifyToken();
+    const token = await getAppToken();
     const rows: Array<{
       spotify_playlist_id: string;
       image_url: string | null;
@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
       const results = await Promise.all(
         chunk.map(async (id): Promise<typeof rows[number] | null> => {
           try {
-            const r = await guardedSpotifyFetch(
+            const r = await spotifyFetch(
               `https://api.spotify.com/v1/playlists/${id}?fields=images,followers(total),owner(display_name)`,
               { headers: { Authorization: `Bearer ${token}` } },
             );

@@ -4,7 +4,7 @@
 // POST { template_ids?: string[], limit?: number }
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getSpotifyToken } from "../_shared/spotify.ts";
+import { getAppToken, forceRefreshAppToken } from "../_shared/spotify-client.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 import { getPlaylistMeta, SpotifyApiError } from "../_shared/spotify-playlist.ts";
@@ -97,7 +97,7 @@ Deno.serve(async (req) => {
   if (targets.length === 0) return jr({ ok: true, processed: 0, snapshots: [] });
 
   let token: string;
-  try { token = await getSpotifyToken(); } catch (e) {
+  try { token = await getAppToken(); } catch (e) {
     return jr({ error: `spotify_token: ${(e as Error).message}` }, 500);
   }
 
@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
       let meta = await fetchPlaylistMeta(token, target.spotify_playlist_id).catch(async (e) => {
         if ((e as Error).message === "UNAUTH" && !unauthRetried) {
           unauthRetried = true;
-          token = await getSpotifyToken(true);
+          token = await forceRefreshAppToken();
           return fetchPlaylistMeta(token, target.spotify_playlist_id);
         }
         throw e;

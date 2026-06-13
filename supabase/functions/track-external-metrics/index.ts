@@ -3,7 +3,7 @@
 // Escreve em playlist_metrics_snapshots (mesma tabela usada pra próprias).
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getSpotifyToken } from "../_shared/spotify.ts";
+import { getAppToken, forceRefreshAppToken } from "../_shared/spotify-client.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 import { getPlaylistMeta, SpotifyApiError } from "../_shared/spotify-playlist.ts";
@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
   if (!pls?.length) return jr({ ok: true, processed: 0 });
 
   let token: string;
-  try { token = await getSpotifyToken(); }
+  try { token = await getAppToken(); }
   catch (e) { return jr({ error: `spotify_token: ${(e as Error).message}` }, 500); }
 
   let ok = 0, failed = 0, unauthRetried = false;
@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
       let meta = await fetchMeta(token, p.spotify_playlist_id).catch(async (e) => {
         if ((e as Error).message === "UNAUTH" && !unauthRetried) {
           unauthRetried = true;
-          token = await getSpotifyToken(true);
+          token = await forceRefreshAppToken();
           return fetchMeta(token, p.spotify_playlist_id);
         }
         throw e;
