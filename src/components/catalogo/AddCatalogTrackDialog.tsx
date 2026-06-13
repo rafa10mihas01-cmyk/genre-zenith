@@ -495,7 +495,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-lg max-h-[90dvh] overflow-y-auto p-5 sm:p-6 gap-4">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
