@@ -8,7 +8,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
-import { getSpotifyToken, guardedSpotifyFetch, SpotifyCircuitOpenError, setSpotifyCtx } from "../_shared/spotify.ts";
+import { spotifyFetch, SpotifyCircuitOpenError, setSpotifyCtx } from "../_shared/spotify-client.ts";
 import {
   acquirePlaylistLock,
   releasePlaylistLock,
