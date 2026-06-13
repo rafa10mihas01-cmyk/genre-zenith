@@ -59,6 +59,8 @@ type PreviewPlaylist = {
   cover_url: string | null;
   followers: number | null;
   available_slots?: number;
+  tracks_count?: number;
+  projected_position?: number;
 };
 
 type PreviewResult = {
@@ -401,17 +403,33 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
         )}
 
         {eligibleCount > 0 && (
-          <details className="text-sm">
-            <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+          <details className="text-sm" open>
+            <summary className="cursor-pointer text-muted-foreground hover:text-foreground select-none">
               Ver as {eligibleCount} playlists compatíveis
             </summary>
-            <div className="mt-2 max-h-48 overflow-y-auto space-y-1 pr-1">
+            <div className="mt-2 max-h-64 overflow-y-auto space-y-1.5 pr-1">
               {preview.eligible?.map((p) => (
-                <div key={p.id} className="flex items-center justify-between gap-2 text-xs py-1 border-b border-border last:border-0">
-                  <span className="truncate">{p.name}</span>
-                  <span className="text-muted-foreground tabular-nums shrink-0">
-                    {fmtNum(p.followers)} fãs · {p.available_slots ?? 0} vagas
-                  </span>
+                <div
+                  key={p.id}
+                  className="flex items-center justify-between gap-3 text-xs py-2 px-2 rounded-md bg-muted/20 border border-border"
+                >
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="truncate text-sm text-foreground">{p.name}</div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">Catálogo</Badge>
+                      <span className="text-muted-foreground tabular-nums">
+                        entra na posição <span className="font-medium text-foreground">#{p.projected_position ?? "?"}</span>
+                      </span>
+                      <span className="text-muted-foreground">·</span>
+                      <span className="text-muted-foreground tabular-nums">
+                        {fmtNum(p.tracks_count)} faixas
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0 space-y-0.5">
+                    <div className="text-muted-foreground tabular-nums">{fmtNum(p.followers)} fãs</div>
+                    <div className="text-muted-foreground tabular-nums">{p.available_slots ?? 0} vagas</div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -493,7 +511,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-lg max-h-[90dvh] overflow-y-auto p-5 sm:p-6 gap-4">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
