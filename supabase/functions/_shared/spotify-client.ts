@@ -273,5 +273,11 @@ export const setSpotifyCtx = legacySetSpotifyCtx;
 // que migrarem para esta camada).
 // ---------------------------------------------------------------------------
 
-export { SpotifyCircuitOpenError, refreshUserToken } from "./spotify.ts";
+export {
+  SpotifyCircuitOpenError,
+  SpotifyAuthInvalidError,
+  refreshUserToken,
+  getSpotifyTokenWithApp,
+  markAppAuthFailure,
+} from "./spotify.ts";
 export type { SpotifyUserToken } from "./spotify.ts";
