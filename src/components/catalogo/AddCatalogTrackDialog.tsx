@@ -409,26 +409,39 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
           </div>
         </div>
 
-        <div className="p-3 rounded-lg bg-muted/30 border border-border/60 space-y-1 text-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Pool do gênero <span className="capitalize font-medium text-foreground">{preview.genre_name}</span></span>
-            <span className="tabular-nums">{preview.pool_total ?? 0} playlists</span>
+        {/* Pool do gênero — bloco compacto, duas seções claras */}
+        <div className="rounded-xl border border-border/60 bg-muted/20 overflow-hidden text-xs">
+          <div className="px-3 py-2 border-b border-border/60 flex items-center justify-between">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              Pool · <span className="text-foreground capitalize font-medium normal-case">{preview.genre_name}</span>
+            </span>
+            <span className="tabular-nums text-foreground font-medium">{preview.pool_total ?? 0} playlists</span>
           </div>
-          <div className="flex items-center justify-between pl-3 text-muted-foreground">
-            <span>· Híbridas (ativas, reserva 1-18)</span>
-            <span className="tabular-nums">{preview.pool_hybrid ?? 0}</span>
+          <div className="px-3 py-2 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                Híbridas
+              </span>
+              <span className="tabular-nums">{preview.pool_hybrid ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />
+                Catálogo puro
+              </span>
+              <span className="tabular-nums">{preview.pool_catalog_pure ?? 0}</span>
+            </div>
           </div>
-          <div className="flex items-center justify-between pl-3 text-muted-foreground">
-            <span>· Catálogo puro (arquivadas)</span>
-            <span className="tabular-nums">{preview.pool_catalog_pure ?? 0}</span>
-          </div>
-          <div className="flex items-center justify-between pt-1 border-t border-border/40 mt-1">
-            <span className="text-muted-foreground">Capacidade livre total</span>
-            <span className="tabular-nums font-medium text-foreground">{fmtNum(preview.capacity_free)} vagas</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Capacidade utilizada</span>
-            <span className="tabular-nums">{fmtNum(preview.capacity_used)} / {fmtNum(preview.capacity_total)}</span>
+          <div className="px-3 py-2 border-t border-border/60 bg-background/40 space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Capacidade livre</span>
+              <span className="tabular-nums font-medium text-foreground">{fmtNum(preview.capacity_free)} vagas</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Utilizada</span>
+              <span className="tabular-nums text-muted-foreground">{fmtNum(preview.capacity_used)} / {fmtNum(preview.capacity_total)}</span>
+            </div>
           </div>
         </div>
 
@@ -447,34 +460,37 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
         )}
 
         {catalogPureList.length > 0 && (
-          <details className="text-sm rounded-xl border border-border bg-card overflow-hidden" open>
-            <summary className="cursor-pointer select-none list-none flex items-center gap-2 px-3 py-2.5 bg-sky-500/10 border-b border-sky-500/30 hover:bg-sky-500/15 transition-colors">
+          <details className="text-sm rounded-xl border border-border bg-card overflow-hidden group">
+            <summary className="cursor-pointer select-none list-none flex items-center gap-2 px-3 py-2.5 bg-sky-500/10 hover:bg-sky-500/15 transition-colors">
               <span className="h-2 w-2 rounded-full bg-sky-400 shrink-0" />
               <span className="font-semibold text-foreground text-[13px] uppercase tracking-wide">Catálogo puro</span>
               <span className="text-[11px] text-muted-foreground tabular-nums ml-auto">
                 {catalogPureList.length} · posição real
               </span>
+              <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
             </summary>
-            <div className="max-h-[32vh] overflow-y-auto overflow-x-hidden space-y-2 p-2">
+            <div className="max-h-[32vh] overflow-y-auto overflow-x-hidden space-y-2 p-2 border-t border-sky-500/30">
               {catalogPureList.map((p) => renderPlaylistRow(p, "catalog_pure"))}
             </div>
           </details>
         )}
 
         {hybridList.length > 0 && (
-          <details className="text-sm rounded-xl border border-border bg-card overflow-hidden" open>
-            <summary className="cursor-pointer select-none list-none flex items-center gap-2 px-3 py-2.5 bg-amber-500/10 border-b border-amber-500/30 hover:bg-amber-500/15 transition-colors">
+          <details className="text-sm rounded-xl border border-border bg-card overflow-hidden group">
+            <summary className="cursor-pointer select-none list-none flex items-center gap-2 px-3 py-2.5 bg-amber-500/10 hover:bg-amber-500/15 transition-colors">
               <span className="h-2 w-2 rounded-full bg-amber-400 shrink-0" />
               <span className="font-semibold text-foreground text-[13px] uppercase tracking-wide">Híbridas</span>
               <span className="text-[11px] text-muted-foreground tabular-nums ml-auto">
                 {hybridList.length} · entra ≥#19
               </span>
+              <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
             </summary>
-            <div className="max-h-[32vh] overflow-y-auto overflow-x-hidden space-y-2 p-2">
+            <div className="max-h-[32vh] overflow-y-auto overflow-x-hidden space-y-2 p-2 border-t border-amber-500/30">
               {hybridList.map((p) => renderPlaylistRow(p, "hybrid"))}
             </div>
           </details>
         )}
+
 
       </div>
     );
