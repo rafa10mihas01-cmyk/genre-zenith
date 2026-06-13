@@ -7,7 +7,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
-import { getSpotifyToken, SpotifyCircuitOpenError, withSpotifyCtx } from "../_shared/spotify.ts";
+import { getAppToken, SpotifyCircuitOpenError, withSpotifyCtx } from "../_shared/spotify-client.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 import { getPlaylistMeta } from "../_shared/spotify-playlist.ts";
 import { enqueuePlaylistJob } from "../_shared/playlist-queue.ts";
@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
     if (error) throw new Error(error.message);
 
     if (pls && pls.length > 0) {
-      const token = await getSpotifyToken();
+      const token = await getAppToken();
       const CONCURRENCY = 1;
       const BATCH_DELAY_MS = 5000;
       const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));

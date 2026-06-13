@@ -15,7 +15,7 @@
 //   - force: ignora o hash match e força recálculo do delta (útil pra backfill / debug).
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getSpotifyToken, getUserAccessToken, SpotifyCircuitOpenError, setSpotifyCtx } from "../_shared/spotify.ts";
+import { getAppToken, getUserToken, SpotifyCircuitOpenError, setSpotifyCtx } from "../_shared/spotify-client.ts";
 import { listPlaylistTracksRich } from "../_shared/spotify-playlist.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
 import {
@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
     // Usamos o token do owner da playlist; só caímos pra client_credentials se não houver owner.
     let token: string;
     if (ownerSpotifyId) {
-      const { token: userToken, row } = await getUserAccessToken(ownerSpotifyId);
+      const { token: userToken, row } = await getUserToken(ownerSpotifyId);
       token = userToken;
       // Atualiza ctx com o app_id real do token escolhido (pode diferir do ownerAppId resolvido acima).
       if (row?.app_id && row.app_id !== ownerAppId) {
@@ -136,7 +136,7 @@ Deno.serve(async (req) => {
         });
       }
     } else {
-      token = await getSpotifyToken({ appId: ownerAppId });
+      token = await getAppToken({ appId: ownerAppId });
     }
     const rich = await listPlaylistTracksRich(pl.spotify_playlist_id, token, {
       max: 10000,
