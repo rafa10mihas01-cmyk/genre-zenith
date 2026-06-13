@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -219,7 +220,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
     if (!resolved?.track) return null;
     const t = resolved.track;
     return (
-      <div className="flex gap-3 p-3 nx-subcard">
+      <div className="flex gap-3 rounded-lg border border-border/60 bg-muted/30 p-3 min-w-0">
         {t.cover_url ? (
           <img
             src={t.cover_url}
@@ -274,7 +275,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
     const existing = resolved.existing;
     const others = detected?.other_matches ?? [];
     return (
-      <div className="space-y-3">
+      <div className="space-y-3 min-w-0">
         {renderTrackCard(false)}
 
         {existing && (
