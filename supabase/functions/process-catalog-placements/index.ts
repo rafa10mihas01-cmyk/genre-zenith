@@ -251,5 +251,6 @@ Deno.serve(async (req) => {
     active: cntActive,
     already_present: cntAlready,
     failed: cntFailed,
+    skipped_transient: cntSkipped,
   });
 });
