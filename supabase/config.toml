@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.portal-auth-debug]
 verify_jwt = false
+
+[functions.distribute-catalog-track]
+verify_jwt = false
