@@ -1,5 +1,6 @@
 // PlaylistsTab — ocupação por playlist do catálogo.
 // Desktop: tabela. Mobile: cards compactos com capa + barra de ocupação.
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ListMusic } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,8 +36,18 @@ async function fetchOccupancy(): Promise<Row[]> {
 }
 
 function Cover({ url, alt }: { url: string | null; alt: string }) {
-  if (url) {
-    return <img src={url} alt={alt} className="h-10 w-10 rounded object-cover flex-shrink-0" loading="lazy" />;
+  const [err, setErr] = useState(false);
+  if (url && !err) {
+    return (
+      <img
+        src={url}
+        alt={alt}
+        className="h-10 w-10 rounded object-cover flex-shrink-0"
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        onError={() => setErr(true)}
+      />
+    );
   }
   return (
     <div className="h-10 w-10 rounded bg-muted flex items-center justify-center flex-shrink-0">
