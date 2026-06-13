@@ -14,8 +14,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { loadGateContext, scoreAndGate } from "../_shared/discovery-scoring.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
-import { getSpotifyToken, guardedSpotifyFetch, setSpotifyCtx } from "../_shared/spotify.ts";
-import { getAppToken } from "../_shared/spotify-client.ts";
+import { getAppToken, forceRefreshAppToken, spotifyFetch, setSpotifyCtx } from "../_shared/spotify-client.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -27,12 +26,16 @@ async function fetchUserPlaylists(token: string, ownerId: string, limit = 50): P
   // Spotify só expõe playlists públicas de usuários comuns.
   // Para owner_type='label' ou ownerId 'spotify', o endpoint pode falhar.
   const url = `https://api.spotify.com/v1/users/${encodeURIComponent(ownerId)}/playlists?limit=${limit}`;
-  const ctx = { spotify_user_id: ownerId, owner_id: ownerId, function_name: "expand-from-winners" } as const;
-  const r = await guardedSpotifyFetch(url, { headers: { Authorization: `Bearer ${token}` } }, ctx);
+  const callOpts = {
+    functionName: "expand-from-winners",
+    operation: "fetch_user_playlists",
+    meta: { spotify_user_id: ownerId, owner_id: ownerId },
+  };
+  const r = await spotifyFetch(url, { headers: { Authorization: `Bearer ${token}` } }, callOpts);
   if (r.status === 404 || r.status === 403) return [];
   if (r.status === 401) {
-    const t2 = await getSpotifyToken(true);
-    const r2 = await guardedSpotifyFetch(url, { headers: { Authorization: `Bearer ${t2}` } }, ctx);
+    const t2 = await forceRefreshAppToken({ functionName: "expand-from-winners", operation: "refresh_on_401" });
+    const r2 = await spotifyFetch(url, { headers: { Authorization: `Bearer ${t2}` } }, callOpts);
     if (!r2.ok) return [];
     const j2 = await r2.json();
     return j2.items ?? [];
