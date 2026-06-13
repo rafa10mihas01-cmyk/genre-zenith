@@ -2936,6 +2936,30 @@ export type Database = {
           },
         ]
       }
+      curator_deal_plan_archive: {
+        Row: {
+          archive_id: string
+          archive_reason: string
+          archived_at: string
+          original_id: string
+          original_row: Json
+        }
+        Insert: {
+          archive_id?: string
+          archive_reason: string
+          archived_at?: string
+          original_id: string
+          original_row: Json
+        }
+        Update: {
+          archive_id?: string
+          archive_reason?: string
+          archived_at?: string
+          original_id?: string
+          original_row?: Json
+        }
+        Relationships: []
+      }
       curator_deal_snapshots: {
         Row: {
           ai_confidence: number | null
@@ -3748,6 +3772,7 @@ export type Database = {
           deal_id: string
           followers: number | null
           frozen_at: string | null
+          frozen_reason: string | null
           id: string
           image_url: string | null
           is_baseline: boolean
@@ -3779,6 +3804,7 @@ export type Database = {
           deal_id: string
           followers?: number | null
           frozen_at?: string | null
+          frozen_reason?: string | null
           id?: string
           image_url?: string | null
           is_baseline?: boolean
@@ -3810,6 +3836,7 @@ export type Database = {
           deal_id?: string
           followers?: number | null
           frozen_at?: string | null
+          frozen_reason?: string | null
           id?: string
           image_url?: string | null
           is_baseline?: boolean
