@@ -3747,6 +3747,7 @@ export type Database = {
           canonical_playlist_id: string | null
           deal_id: string
           followers: number | null
+          frozen_at: string | null
           id: string
           image_url: string | null
           is_baseline: boolean
@@ -3777,6 +3778,7 @@ export type Database = {
           canonical_playlist_id?: string | null
           deal_id: string
           followers?: number | null
+          frozen_at?: string | null
           id?: string
           image_url?: string | null
           is_baseline?: boolean
@@ -3807,6 +3809,7 @@ export type Database = {
           canonical_playlist_id?: string | null
           deal_id?: string
           followers?: number | null
+          frozen_at?: string | null
           id?: string
           image_url?: string | null
           is_baseline?: boolean
@@ -3852,6 +3855,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      curator_playlists_archive: {
+        Row: {
+          archive_id: string
+          archive_reason: string
+          archived_at: string
+          original_id: string
+          original_row: Json
+        }
+        Insert: {
+          archive_id?: string
+          archive_reason: string
+          archived_at?: string
+          original_id: string
+          original_row: Json
+        }
+        Update: {
+          archive_id?: string
+          archive_reason?: string
+          archived_at?: string
+          original_id?: string
+          original_row?: Json
+        }
+        Relationships: []
       }
       curator_playlists_ghost_repoint_map: {
         Row: {
