@@ -369,4 +369,39 @@ export const PAGE_MANUALS: Record<string, PageManualData> = {
       },
     ],
   },
+
+  // ────────────────────────────────────────────────────────────────────
+  // CATÁLOGO
+  // ────────────────────────────────────────────────────────────────────
+  catalogo: {
+    title: "Catálogo",
+    subtitle: "Segunda esteira de distribuição — em massa, paralela a Campanhas.",
+    sections: [
+      {
+        heading: "O que você encontra aqui",
+        body: [
+          "• Músicas — todas as faixas registradas no catálogo + KPIs operacionais (totais, capacidade, placements ativos).",
+          "• Playlists — ocupação por playlist do catálogo (capacidade · ocupadas · disponíveis).",
+          "• Histórico — auditoria de cada distribuição executada.",
+        ],
+      },
+      {
+        heading: "Como funciona a distribuição",
+        body: [
+          "• Cola URL, URI ou Spotify ID da música.",
+          "• O sistema resolve a faixa, cria baseline T0 (se nova) e distribui para todas as playlists do catálogo com vaga.",
+          "• As únicas barreiras: música já presente naquela playlist OU playlist sem capacidade. Nada mais bloqueia.",
+          "• Sem filtros de score, followers, performance ou elegibilidade — toda playlist do catálogo participa.",
+        ],
+      },
+      {
+        heading: "Catálogo ≠ Campanha",
+        body: [
+          "• Catálogo é distribuição em massa, sem custo por música, usando a infraestrutura própria.",
+          "• Campanha continua sendo o produto premium, planejado e orientado por metas. As duas esteiras coexistem — promover uma música pra campanha não a remove do catálogo.",
+        ],
+      },
+    ],
+  },
 };
+

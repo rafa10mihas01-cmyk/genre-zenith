@@ -54,6 +54,7 @@ const ComunidadeAdmin = lazy(() => import("./pages/ComunidadeAdmin"));
 const Campanhas = lazy(() => import("./pages/Campanhas"));
 const CampanhaDetalhe = lazy(() => import("./pages/CampanhaDetalhe"));
 const CampanhaExecucao = lazy(() => import("./pages/CampanhaExecucao"));
+const Catalogo = lazy(() => import("./pages/Catalogo"));
 
 const PlanoCampanhaPublico = lazy(() => import("./pages/PlanoCampanhaPublico"));
 const MapaCampanhaPublico = lazy(() => import("./pages/MapaCampanhaPublico"));
@@ -144,10 +145,10 @@ const App = () => (
                 <Route path="/cerebro/:slug" element={<Navigate to="/analytics" replace />} />
                 <Route path="/criacao" element={<Navigate to="/analytics" replace />} />
                 <Route path="/inteligencia" element={<Navigate to="/analytics" replace />} />
-                <Route path="/catalogo" element={<Protected><Operacao /></Protected>} />
+                <Route path="/catalogo" element={<Protected><Catalogo /></Protected>} />
                 <Route path="/prospeccao" element={<Protected><Prospecao /></Protected>} />
-                <Route path="/operacao" element={<Navigate to="/catalogo" replace />} />
-                <Route path="/playlists" element={<Navigate to="/catalogo" replace />} />
+                <Route path="/operacao" element={<Protected><Operacao /></Protected>} />
+                <Route path="/playlists" element={<Navigate to="/operacao" replace />} />
                 <Route path="/playlists/:id" element={<Protected><PlaylistDetail /></Protected>} />
                 <Route path="/performance" element={<Protected><Performance /></Protected>} />
                <Route path="/playlist-deals" element={<Navigate to="/deals" replace />} />
