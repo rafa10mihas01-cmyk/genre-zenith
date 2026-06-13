@@ -63,6 +63,7 @@ Deno.serve(async (req) => {
       typeof body?.spotify_track_id === "string" ? body.spotify_track_id :
       typeof body?.url === "string" ? body.url :
       typeof body?.uri === "string" ? body.uri : "";
+    const genreId = typeof body?.genre_id === "string" ? body.genre_id.trim() : "";
 
     const trackId = resolveTrackId(inputRaw);
     if (!trackId) {
@@ -71,6 +72,9 @@ Deno.serve(async (req) => {
         error: "invalid_input",
         message: "Envie um Spotify track ID (22 chars), URI (spotify:track:...) ou URL (open.spotify.com/track/...).",
       }, 400);
+    }
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(genreId)) {
+      return jr({ ok: false, error: "invalid_genre_id", message: "genre_id (uuid) é obrigatório." }, 400);
     }
 
     // Auth: capturamos o user pra preencher `added_by` (best-effort).
