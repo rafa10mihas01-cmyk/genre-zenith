@@ -6400,6 +6400,172 @@ export type Database = {
         }
         Relationships: []
       }
+      observed_playlist_snapshots: {
+        Row: {
+          captured_at: string
+          correlation_id: string | null
+          created_at: string
+          deal_id: string | null
+          id: string
+          observed_playlist_id: string
+          plays_24h: number | null
+          plays_28d: number | null
+          plays_7d: number | null
+          song_id: string | null
+          source: string | null
+          spotify_track_id: string | null
+        }
+        Insert: {
+          captured_at?: string
+          correlation_id?: string | null
+          created_at?: string
+          deal_id?: string | null
+          id?: string
+          observed_playlist_id: string
+          plays_24h?: number | null
+          plays_28d?: number | null
+          plays_7d?: number | null
+          song_id?: string | null
+          source?: string | null
+          spotify_track_id?: string | null
+        }
+        Update: {
+          captured_at?: string
+          correlation_id?: string | null
+          created_at?: string
+          deal_id?: string | null
+          id?: string
+          observed_playlist_id?: string
+          plays_24h?: number | null
+          plays_28d?: number | null
+          plays_7d?: number | null
+          song_id?: string | null
+          source?: string | null
+          spotify_track_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "observed_playlist_snapshots_observed_playlist_id_fkey"
+            columns: ["observed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "observed_playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "observed_playlist_snapshots_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deal_songs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      observed_playlists: {
+        Row: {
+          created_at: string
+          enriched_at: string | null
+          enrichment_status: string
+          first_observed_at: string
+          followers: number | null
+          id: string
+          image_url: string | null
+          last_observed_at: string
+          notes: string | null
+          observation_count: number
+          owner_type: string | null
+          playlist_name: string | null
+          promoted_at: string | null
+          promoted_to_curator_playlist_id: string | null
+          spotify_owner_id: string | null
+          spotify_owner_name: string | null
+          spotify_playlist_id: string
+          total_plays_observed: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          enriched_at?: string | null
+          enrichment_status?: string
+          first_observed_at?: string
+          followers?: number | null
+          id?: string
+          image_url?: string | null
+          last_observed_at?: string
+          notes?: string | null
+          observation_count?: number
+          owner_type?: string | null
+          playlist_name?: string | null
+          promoted_at?: string | null
+          promoted_to_curator_playlist_id?: string | null
+          spotify_owner_id?: string | null
+          spotify_owner_name?: string | null
+          spotify_playlist_id: string
+          total_plays_observed?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          enriched_at?: string | null
+          enrichment_status?: string
+          first_observed_at?: string
+          followers?: number | null
+          id?: string
+          image_url?: string | null
+          last_observed_at?: string
+          notes?: string | null
+          observation_count?: number
+          owner_type?: string | null
+          playlist_name?: string | null
+          promoted_at?: string | null
+          promoted_to_curator_playlist_id?: string | null
+          spotify_owner_id?: string | null
+          spotify_owner_name?: string | null
+          spotify_playlist_id?: string
+          total_plays_observed?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "observed_playlists_promoted_to_curator_playlist_id_fkey"
+            columns: ["promoted_to_curator_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "curator_playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "observed_playlists_promoted_to_curator_playlist_id_fkey"
+            columns: ["promoted_to_curator_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_playlists_observational"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "observed_playlists_promoted_to_curator_playlist_id_fkey"
+            columns: ["promoted_to_curator_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_playlists_operational"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      observed_playlists_blocklist: {
+        Row: {
+          created_at: string
+          id: string
+          reason: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          reason: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reason?: string
+        }
+        Relationships: []
+      }
       organic_plays_snapshots: {
         Row: {
           captured_at: string
