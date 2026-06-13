@@ -159,9 +159,16 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // 2) Insere na posição salva (sem recalcular)
+      // 2) Insere na posição salva (sem recalcular). Se a posição estourar
+      //    o tamanho atual da playlist (caso clássico após catálogo
+      //    propagar pra playlists menores), clampa pra refs.length —
+      //    equivalente a "no fim", que é o comportamento desejado pra
+      //    catálogo de fundo. Spotify devolve 400 "Index out of bounds"
+      //    quando position > tracks_total.
       const insertOpts: { position?: number } = {};
-      if (typeof p.position === "number" && p.position >= 0) insertOpts.position = p.position;
+      if (typeof p.position === "number" && p.position >= 0) {
+        insertOpts.position = Math.min(p.position, refs.length);
+      }
       const addRes = await addPlaylistTracks(p.spotify_playlist_id, [uri], token, insertOpts);
 
       // 3) Confirma reconsultando
