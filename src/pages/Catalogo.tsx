@@ -84,8 +84,16 @@ export default function Catalogo() {
         manualKey="catalogo"
         actions={
           <div className="flex items-center gap-2">
-            <Button size="sm" className="h-9 gap-1.5 rounded-full" onClick={openAdd}>
-              <Plus className="h-4 w-4" /> Adicionar música
+            {/* Mobile: só ícone +  · Desktop: ícone + label */}
+            <Button
+              size="sm"
+              className="h-9 w-9 sm:w-auto sm:gap-1.5 rounded-full p-0 sm:px-3"
+              onClick={openAdd}
+              aria-label="Adicionar música"
+              title="Adicionar música"
+            >
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">Adicionar música</span>
             </Button>
             <Button
               variant="outline"
