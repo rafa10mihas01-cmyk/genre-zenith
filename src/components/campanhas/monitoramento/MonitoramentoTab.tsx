@@ -428,27 +428,27 @@ function BaselineStatus({
               <ImageIcon className="h-3.5 w-3.5" />
               Nenhum print vinculado a esta campanha ainda.
             </div>
-          ) : (
-            <div className="space-y-3">
-              {capturedAt && (
-                <div className="rounded-lg border border-primary/40 bg-primary/5 p-3">
-                  <div className="flex items-center justify-between mb-2 gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="text-[12px] font-semibold tabular-nums truncate">
-                        {new Date(capturedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-                      </div>
-                      <span className="text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded border border-primary/50 text-primary leading-none shrink-0">
-                        baseline
-                      </span>
+          ) : (() => {
+            const baselineCard = capturedAt ? (
+              <div className="rounded-lg border border-primary/40 bg-primary/5 p-3">
+                <div className="flex items-center justify-between mb-2 gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="text-[12px] font-semibold tabular-nums truncate">
+                      {new Date(capturedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                     </div>
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
-                      {playlists} playlists
-                    </div>
+                    <span className="text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded border border-primary/50 text-primary leading-none shrink-0">
+                      baseline
+                    </span>
                   </div>
-                  <div className="text-[11px] text-muted-foreground">Registro inicial da campanha.</div>
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
+                    {playlists} playlists
+                  </div>
                 </div>
-              )}
-              {runs.map((run) => {
+                <div className="text-[11px] text-muted-foreground">Registro inicial da campanha.</div>
+              </div>
+            ) : null;
+
+            const renderRun = (run: SnapshotRun) => {
               const urls = run.print_urls ?? [];
               const dt = run.created_at ? new Date(run.created_at) : null;
               const label = dt
@@ -489,9 +489,35 @@ function BaselineStatus({
                   <PrintThumbs urls={urls} size="md" />
                 </div>
               );
-            })}
-            </div>
-          )}
+            };
+
+            // newest first
+            const runsDesc = [...runs].sort((a, b) => {
+              const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
+              const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+              return tb - ta;
+            });
+            const visible = runsDesc.slice(0, 2);
+            const hidden = runsDesc.slice(2);
+
+            return (
+              <div className="space-y-3">
+                {baselineCard}
+                {visible.map(renderRun)}
+                {hidden.length > 0 && (
+                  <details className="group rounded-lg border border-border/60 bg-card/20">
+                    <summary className="cursor-pointer list-none px-3 py-2 text-[11px] uppercase tracking-wider text-muted-foreground hover:text-foreground flex items-center justify-between">
+                      <span>Mostrar {hidden.length} coleta{hidden.length === 1 ? "" : "s"} anterior{hidden.length === 1 ? "" : "es"}</span>
+                      <span className="text-[10px] group-open:rotate-180 transition-transform">▾</span>
+                    </summary>
+                    <div className="p-3 pt-0 space-y-3">
+                      {hidden.map(renderRun)}
+                    </div>
+                  </details>
+                )}
+              </div>
+            );
+          })()}
         </div>
       </details>
     </Card>
