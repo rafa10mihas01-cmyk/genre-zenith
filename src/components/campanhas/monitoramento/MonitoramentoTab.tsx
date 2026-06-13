@@ -43,6 +43,11 @@ type SnapshotRun = {
   error?: string | null;
 };
 
+type CampaignBaselineRow = {
+  baseline_status?: string | null;
+  baseline_captured_at?: string | null;
+};
+
 export function MonitoramentoTab({ campaignId, headerSlot, spreadsheetUploads }: Props) {
   const [kpis, setKpis] = useState<{ status: string | null; capturedAt: string | null; playlists: number }>({
     status: null,
@@ -64,9 +69,10 @@ export function MonitoramentoTab({ campaignId, headerSlot, spreadsheetUploads }:
           .eq("campaign_id", campaignId)
           .eq("is_baseline", true),
       ]);
+      const campaign = c as CampaignBaselineRow | null;
       setKpis({
-        status: (c as any)?.baseline_status ?? null,
-        capturedAt: (c as any)?.baseline_captured_at ?? null,
+        status: campaign?.baseline_status ?? null,
+        capturedAt: campaign?.baseline_captured_at ?? null,
         playlists: count ?? 0,
       });
     })();
