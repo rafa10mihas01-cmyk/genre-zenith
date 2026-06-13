@@ -74,7 +74,7 @@ export function PlaylistsTab() {
   return (
     <>
       {/* Mobile: lista de cards compactos */}
-      <div className="md:hidden border border-border rounded-2xl overflow-hidden bg-card divide-y divide-border">
+      <div className="md:hidden border border-border rounded-2xl overflow-y-auto bg-card divide-y divide-border max-h-[65vh]">
         {rows.map((r) => {
           const pct = r.catalog_capacity > 0
             ? Math.min(100, Math.round((r.active_placements / r.catalog_capacity) * 100))
@@ -103,7 +103,7 @@ export function PlaylistsTab() {
       </div>
 
       {/* Desktop: tabela completa */}
-      <div className="hidden md:block border border-border rounded-2xl overflow-hidden bg-card">
+      <div className="hidden md:block border border-border rounded-2xl overflow-y-auto bg-card max-h-[70vh]">
         <Table>
           <TableHeader>
             <TableRow>

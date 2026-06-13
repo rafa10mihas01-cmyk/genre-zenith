@@ -82,7 +82,7 @@ export function HistoricoTab() {
   return (
     <>
       {/* Mobile: cards compactos */}
-      <div className="md:hidden border border-border rounded-2xl overflow-hidden bg-card divide-y divide-border">
+      <div className="md:hidden border border-border rounded-2xl overflow-y-auto bg-card divide-y divide-border max-h-[65vh]">
         {rows.map((r) => (
           <div key={r.id} className="p-3 flex items-center gap-3 min-w-0">
             <Cover url={r.track?.cover_url ?? null} alt={r.track?.track_name ?? ""} />
@@ -103,7 +103,7 @@ export function HistoricoTab() {
       </div>
 
       {/* Desktop: tabela completa */}
-      <div className="hidden md:block border border-border rounded-2xl overflow-hidden bg-card">
+      <div className="hidden md:block border border-border rounded-2xl overflow-y-auto bg-card max-h-[70vh]">
         <Table>
           <TableHeader>
             <TableRow>
