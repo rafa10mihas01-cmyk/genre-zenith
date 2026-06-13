@@ -512,23 +512,27 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-lg max-h-[90dvh] overflow-y-auto p-5 sm:p-6 gap-4">
+      <DialogContent className="w-[calc(100vw-1rem)] max-w-3xl max-h-[90vh] overflow-y-auto overflow-x-hidden p-4 sm:p-6 gap-4">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
 
-        {(step === "idle" || step === "resolving") && renderStepIdleOrResolving()}
-        {step === "metadata" && renderStepMetadata()}
-        {(step === "previewing" || step === "preview" || step === "distributing") && (
-          step === "previewing"
-            ? <div className="py-8 flex items-center justify-center text-sm text-muted-foreground gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Calculando preview…</div>
-            : renderStepPreview()
-        )}
-        {step === "done" && renderStepDone()}
-        {step === "error" && renderStepError()}
+        <Card className="border-border/60 bg-card overflow-hidden">
+          <CardContent className="p-4 sm:p-5 space-y-4 min-w-0">
+            {(step === "idle" || step === "resolving") && renderStepIdleOrResolving()}
+            {step === "metadata" && renderStepMetadata()}
+            {(step === "previewing" || step === "preview" || step === "distributing") && (
+              step === "previewing"
+                ? <div className="py-8 flex items-center justify-center text-sm text-muted-foreground gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Calculando preview…</div>
+                : renderStepPreview()
+            )}
+            {step === "done" && renderStepDone()}
+            {step === "error" && renderStepError()}
+          </CardContent>
+        </Card>
 
-        <DialogFooter className="gap-2 sm:gap-2">
+        <DialogFooter className="gap-2 sm:gap-2 px-0">
           {step === "idle" || step === "resolving" ? (
             <>
               <Button variant="outline" onClick={() => handleClose(false)} disabled={isBusy}>Cancelar</Button>
