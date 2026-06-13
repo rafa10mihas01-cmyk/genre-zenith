@@ -6,7 +6,7 @@
 // compatíveis, já presentes, sem capacidade, e capacidade total do gênero.
 // Botão final invoca `distribute-catalog-track` com o genre_id confirmado.
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, CheckCircle2, AlertTriangle, ArrowLeft, Music, Info, RefreshCw } from "lucide-react";
+import { Loader2, CheckCircle2, AlertTriangle, ArrowLeft, Music, Info, RefreshCw, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
