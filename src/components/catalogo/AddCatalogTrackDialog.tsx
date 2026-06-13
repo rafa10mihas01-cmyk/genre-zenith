@@ -59,6 +59,8 @@ type PreviewPlaylist = {
   cover_url: string | null;
   followers: number | null;
   available_slots?: number;
+  tracks_count?: number;
+  projected_position?: number;
 };
 
 type PreviewResult = {
