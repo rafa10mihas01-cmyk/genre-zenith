@@ -15,6 +15,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { loadGateContext, scoreAndGate } from "../_shared/discovery-scoring.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 import { getSpotifyToken, guardedSpotifyFetch, setSpotifyCtx } from "../_shared/spotify.ts";
+import { getAppToken } from "../_shared/spotify-client.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -94,7 +95,7 @@ async function expandGenre(
     .select("spotify_user_id");
   const blocklist = new Set<string>((blocklistRows ?? []).map((r: any) => String(r.spotify_user_id).toLowerCase()));
 
-  const token = await getSpotifyToken();
+  const token = await getAppToken({ functionName: "expand-from-winners", operation: "expand_initial_token" });
 
   // 2) IDs já existentes nesse gênero (para dedupe rápido)
   const { data: existing } = await supabase

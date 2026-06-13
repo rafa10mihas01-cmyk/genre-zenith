@@ -3,7 +3,8 @@
 // Retorna: { ok, tracks: [{ spotify_track_id, name, artists, album_cover, duration_ms, added_at }] }
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getSpotifyToken, getUserAccessToken, SpotifyCircuitOpenError, setSpotifyCtx } from "../_shared/spotify.ts";
+import { setSpotifyCtx } from "../_shared/spotify.ts";
+import { getAppToken, getUserToken, SpotifyCircuitOpenError } from "../_shared/spotify-client.ts";
 import {
   listPlaylistTracksRich,
   SpotifyApiError,
@@ -133,7 +134,7 @@ Deno.serve(async (req) => {
     // Usa token do owner quando a playlist tem owner; só cai pra client_credentials se não houver.
     let token: string;
     if (ownerSpotifyId) {
-      const { token: userToken, row } = await getUserAccessToken(ownerSpotifyId);
+      const { token: userToken, row } = await getUserToken(ownerSpotifyId);
       token = userToken;
       setSpotifyCtx({
         appId: row?.app_id ?? null,
@@ -143,7 +144,7 @@ Deno.serve(async (req) => {
         function_name: "playlist-tracks-list",
       });
     } else {
-      token = await getSpotifyToken();
+      token = await getAppToken({ functionName: "playlist-tracks-list", operation: "list_tracks_app_token" });
     }
     const fetcher = makeThrottledFetcher();
     const rich = await listPlaylistTracksRich(spotifyPlaylistId, token, {
