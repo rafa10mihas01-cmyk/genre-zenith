@@ -253,7 +253,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
   };
 
   const renderStepIdleOrResolving = () => (
-    <div className="space-y-3">
+    <div className="space-y-2">
       <Label htmlFor="track-input" className="text-[12px]">Spotify URL, URI ou Track ID</Label>
       <Input
         id="track-input"
@@ -261,16 +261,16 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
         onChange={(e) => setInput(e.target.value)}
         placeholder="https://open.spotify.com/track/..."
         autoFocus
+        autoComplete="off"
+        spellCheck={false}
         disabled={step === "resolving"}
         onKeyDown={(e) => {
           if (e.key === "Enter" && step === "idle" && input.trim()) doResolve();
         }}
       />
-      <p className="text-[11px] text-muted-foreground">
-        O sistema busca a faixa no Spotify e sugere um gênero. Você confirma antes de distribuir.
-      </p>
     </div>
   );
+
 
   const renderStepMetadata = () => {
     if (!resolved) return null;
@@ -394,18 +394,18 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
-          <div className="p-3 rounded-lg bg-primary/5 border border-primary/30">
-            <div className="text-[11px] text-muted-foreground uppercase tracking-wider">Compatíveis</div>
-            <div className="text-2xl font-semibold tabular-nums text-primary">{eligibleCount}</div>
+        <div className="grid grid-cols-3 gap-2 text-sm">
+          <div className="p-2.5 rounded-lg bg-primary/5 border border-primary/30 min-w-0">
+            <div className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider leading-tight">Compatíveis</div>
+            <div className="text-lg sm:text-2xl font-semibold tabular-nums text-primary leading-none mt-1">{eligibleCount}</div>
           </div>
-          <div className="p-3 rounded-lg bg-muted/30 border border-border/60">
-            <div className="text-[11px] text-muted-foreground uppercase tracking-wider">Já presentes</div>
-            <div className="text-2xl font-semibold tabular-nums">{presentCount}</div>
+          <div className="p-2.5 rounded-lg bg-muted/30 border border-border/60 min-w-0">
+            <div className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider leading-tight">Já presentes</div>
+            <div className="text-lg sm:text-2xl font-semibold tabular-nums leading-none mt-1">{presentCount}</div>
           </div>
-          <div className="p-3 rounded-lg bg-muted/30 border border-border/60">
-            <div className="text-[11px] text-muted-foreground uppercase tracking-wider">Sem vaga</div>
-            <div className="text-2xl font-semibold tabular-nums">{noCapCount}</div>
+          <div className="p-2.5 rounded-lg bg-muted/30 border border-border/60 min-w-0">
+            <div className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider leading-tight">Sem vaga</div>
+            <div className="text-lg sm:text-2xl font-semibold tabular-nums leading-none mt-1">{noCapCount}</div>
           </div>
         </div>
 
@@ -447,26 +447,35 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
         )}
 
         {catalogPureList.length > 0 && (
-          <details className="text-sm" open>
-            <summary className="cursor-pointer text-muted-foreground hover:text-foreground select-none">
-              <span className="font-medium text-foreground">Catálogo puro</span> · {catalogPureList.length} playlist(s) · posição real
+          <details className="text-sm rounded-xl border border-border bg-card overflow-hidden" open>
+            <summary className="cursor-pointer select-none list-none flex items-center gap-2 px-3 py-2.5 bg-sky-500/10 border-b border-sky-500/30 hover:bg-sky-500/15 transition-colors">
+              <span className="h-2 w-2 rounded-full bg-sky-400 shrink-0" />
+              <span className="font-semibold text-foreground text-[13px] uppercase tracking-wide">Catálogo puro</span>
+              <span className="text-[11px] text-muted-foreground tabular-nums ml-auto">
+                {catalogPureList.length} · posição real
+              </span>
             </summary>
-            <div className="mt-2 max-h-[32vh] overflow-y-auto overflow-x-hidden space-y-2 pr-1">
+            <div className="max-h-[32vh] overflow-y-auto overflow-x-hidden space-y-2 p-2">
               {catalogPureList.map((p) => renderPlaylistRow(p, "catalog_pure"))}
             </div>
           </details>
         )}
 
         {hybridList.length > 0 && (
-          <details className="text-sm" open>
-            <summary className="cursor-pointer text-muted-foreground hover:text-foreground select-none">
-              <span className="font-medium text-foreground">Híbridas</span> · {hybridList.length} playlist(s) · reserva 1-18 para campanhas, catálogo entra ≥#19
+          <details className="text-sm rounded-xl border border-border bg-card overflow-hidden" open>
+            <summary className="cursor-pointer select-none list-none flex items-center gap-2 px-3 py-2.5 bg-amber-500/10 border-b border-amber-500/30 hover:bg-amber-500/15 transition-colors">
+              <span className="h-2 w-2 rounded-full bg-amber-400 shrink-0" />
+              <span className="font-semibold text-foreground text-[13px] uppercase tracking-wide">Híbridas</span>
+              <span className="text-[11px] text-muted-foreground tabular-nums ml-auto">
+                {hybridList.length} · entra ≥#19
+              </span>
             </summary>
-            <div className="mt-2 max-h-[32vh] overflow-y-auto overflow-x-hidden space-y-2 pr-1">
+            <div className="max-h-[32vh] overflow-y-auto overflow-x-hidden space-y-2 p-2">
               {hybridList.map((p) => renderPlaylistRow(p, "hybrid"))}
             </div>
           </details>
         )}
+
       </div>
     );
   };
@@ -533,12 +542,13 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
 
   const description =
     step === "idle" || step === "resolving"
-      ? "Cole a URL, URI ou Track ID da faixa. O sistema busca os metadados antes de distribuir."
+      ? "Cole a URL do Spotify para buscar a faixa."
       : step === "metadata"
-        ? "Confirme o gênero antes de visualizar o impacto da distribuição."
+        ? "Confirme o gênero antes do preview."
         : step === "preview" || step === "previewing" || step === "distributing"
           ? "Revise o impacto antes de criar os placements."
           : undefined;
+
 
   const isBusy = step === "resolving" || step === "previewing" || step === "distributing";
 

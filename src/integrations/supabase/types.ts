@@ -11564,10 +11564,14 @@ export type Database = {
       v_catalog_playlist_occupancy: {
         Row: {
           active_placements: number | null
+          archived_at: string | null
           available_slots: number | null
+          campaign_reserved_slots: number | null
           catalog_capacity: number | null
+          cover_url: string | null
           managed_playlist_id: string | null
           playlist_name: string | null
+          tracks_count: number | null
         }
         Relationships: []
       }
