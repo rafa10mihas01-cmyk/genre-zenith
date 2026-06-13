@@ -169,6 +169,24 @@ export async function spotifyFetch(
   const fnName = opts.functionName ?? DEFAULT_FN_NAME;
   const appIdForGuard = opts.appId ?? "global";
 
+  // Forward de campos de observabilidade ao guardedSpotifyFetch (SpotifyCallCtx).
+  // Quando algum dos campos enriquecidos é passado, monta ctx object; caso
+  // contrário, mantém o atalho string ("global"|appId) — comportamento idêntico.
+  const hasRichCtx =
+    opts.playlist_id != null ||
+    opts.owner_id != null ||
+    opts.spotify_user_id != null ||
+    fnName != null;
+  const guardCtx = hasRichCtx
+    ? {
+        appId: opts.appId ?? undefined,
+        playlist_id: opts.playlist_id ?? null,
+        owner_id: opts.owner_id ?? null,
+        spotify_user_id: opts.spotify_user_id ?? null,
+        function_name: fnName ?? null,
+      }
+    : appIdForGuard;
+
   let status: SpotifyCallStatus = "ok";
   let httpStatus: number | null = null;
   let retryAfterSec: number | null = null;
@@ -176,7 +194,7 @@ export async function spotifyFetch(
   let errorMsg: string | null = null;
 
   try {
-    const r = await guardedSpotifyFetch(url, init, appIdForGuard);
+    const r = await guardedSpotifyFetch(url, init, guardCtx as never);
     httpStatus = r.status;
     if (!r.ok) {
       status = "http_error";
