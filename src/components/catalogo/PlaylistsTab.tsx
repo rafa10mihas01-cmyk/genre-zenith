@@ -103,7 +103,7 @@ export function PlaylistsTab() {
       </div>
 
       {/* Desktop: tabela completa */}
-      <div className="hidden md:block border border-border rounded-2xl overflow-hidden bg-card">
+      <div className="hidden md:block border border-border rounded-2xl overflow-y-auto bg-card max-h-[70vh]">
         <Table>
           <TableHeader>
             <TableRow>
