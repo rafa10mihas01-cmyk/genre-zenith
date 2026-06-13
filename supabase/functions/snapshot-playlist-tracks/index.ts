@@ -13,7 +13,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { getSpotifyTokenWithApp, getUserAccessToken, SpotifyAuthInvalidError, markAppAuthFailure } from "../_shared/spotify.ts";
+import { getSpotifyTokenWithApp, getUserToken, SpotifyAuthInvalidError, markAppAuthFailure } from "../_shared/spotify-client.ts";
 import { listPlaylistTrackRefs, SpotifyApiError } from "../_shared/spotify-playlist.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 
@@ -181,7 +181,7 @@ Deno.serve(async (req) => {
       }
     };
 
-    /** Classifica erro de getUserAccessToken como permanente (owner nunca terá token
+    /** Classifica erro de getUserToken como permanente (owner nunca terá token
      *  até reconectar OAuth) ou transitório (rede, 5xx, etc.).
      *  Permanente:
      *   - "Nenhuma conta Spotify conectada" → não há row em spotify_user_tokens
@@ -211,7 +211,7 @@ Deno.serve(async (req) => {
         let lastErr: unknown = null;
         for (let attempt = 0; attempt < 2; attempt++) {
           try {
-            const { token: ut } = await getUserAccessToken(ownerId);
+            const { token: ut } = await getUserToken(ownerId);
             ownerTokenCache.set(ownerId, ut);
             owner_token_used++;
             return { token: ut, isOwnerToken: true, ownerId };
