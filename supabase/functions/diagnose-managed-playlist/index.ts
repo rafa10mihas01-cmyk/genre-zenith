@@ -8,7 +8,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
-import { getSpotifyToken, guardedSpotifyFetch, SpotifyCircuitOpenError, setSpotifyCtx } from "../_shared/spotify.ts";
+import { spotifyFetch, SpotifyCircuitOpenError, setSpotifyCtx } from "../_shared/spotify-client.ts";
 import {
   acquirePlaylistLock,
   releasePlaylistLock,
@@ -424,10 +424,10 @@ Deno.serve(async (req) => {
     };
     async function fetchSingleTrack(token: string, id: string) {
       singlePathStats.tracks_attempted++;
-      const r = await guardedSpotifyFetch(
+      const r = await spotifyFetch(
         `https://api.spotify.com/v1/tracks/${id}`,
         { headers: { Authorization: `Bearer ${token}` } },
-        { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, function_name: 'diagnose-managed-playlist' },
+        { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, functionName: 'diagnose-managed-playlist' },
       );
       tel.noteSpotifyStatus(r.status);
       if (r.status === 403) { singlePathStats.tracks_403++; return null; }
@@ -437,10 +437,10 @@ Deno.serve(async (req) => {
     }
     async function fetchSingleArtist(token: string, id: string) {
       singlePathStats.artists_attempted++;
-      const r = await guardedSpotifyFetch(
+      const r = await spotifyFetch(
         `https://api.spotify.com/v1/artists/${id}`,
         { headers: { Authorization: `Bearer ${token}` } },
-        { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, function_name: 'diagnose-managed-playlist' },
+        { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, functionName: 'diagnose-managed-playlist' },
       );
       tel.noteSpotifyStatus(r.status);
       if (r.status === 403) { singlePathStats.artists_403++; return null; }

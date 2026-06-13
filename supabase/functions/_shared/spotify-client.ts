@@ -72,6 +72,14 @@ export type SpotifyFetchOptions = SpotifyCallContext & {
    * o token continua sendo o do app default.
    */
   appId?: string | null;
+  /**
+   * Campos de observabilidade forwarded ao `guardedSpotifyFetch` legado,
+   * enriquecendo `spotify_call_log` por-call (sobrescrevem o ctx armazenado).
+   * Mantém paridade com o contrato antigo usado em diagnose-managed-playlist.
+   */
+  playlist_id?: string | null;
+  owner_id?: string | null;
+  spotify_user_id?: string | null;
 };
 
 // ---------------------------------------------------------------------------
@@ -161,6 +169,26 @@ export async function spotifyFetch(
   const fnName = opts.functionName ?? DEFAULT_FN_NAME;
   const appIdForGuard = opts.appId ?? "global";
 
+  // Forward de campos de observabilidade ao guardedSpotifyFetch (SpotifyCallCtx).
+  // Só monta ctx object quando o caller passou pelo menos um campo enriquecido
+  // (playlist_id/owner_id/spotify_user_id/functionName/appId). Caso contrário
+  // mantém o atalho string ("global") — preservando merge com setSpotifyCtx.
+  const hasRichCtx =
+    opts.playlist_id !== undefined ||
+    opts.owner_id !== undefined ||
+    opts.spotify_user_id !== undefined ||
+    opts.functionName !== undefined ||
+    opts.appId !== undefined;
+  const guardCtx: unknown = hasRichCtx
+    ? {
+        ...(opts.appId !== undefined ? { appId: opts.appId ?? undefined } : {}),
+        ...(opts.playlist_id !== undefined ? { playlist_id: opts.playlist_id } : {}),
+        ...(opts.owner_id !== undefined ? { owner_id: opts.owner_id } : {}),
+        ...(opts.spotify_user_id !== undefined ? { spotify_user_id: opts.spotify_user_id } : {}),
+        ...(opts.functionName !== undefined ? { function_name: opts.functionName } : {}),
+      }
+    : appIdForGuard;
+
   let status: SpotifyCallStatus = "ok";
   let httpStatus: number | null = null;
   let retryAfterSec: number | null = null;
@@ -168,7 +196,7 @@ export async function spotifyFetch(
   let errorMsg: string | null = null;
 
   try {
-    const r = await guardedSpotifyFetch(url, init, appIdForGuard);
+    const r = await guardedSpotifyFetch(url, init, guardCtx as never);
     httpStatus = r.status;
     if (!r.ok) {
       status = "http_error";
