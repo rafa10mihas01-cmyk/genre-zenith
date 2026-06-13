@@ -1,4 +1,4 @@
-// MusicasTab — lista de faixas do catálogo.
+// MusicasTab — lista de faixas do catálogo com métricas de distribuição.
 // KPIs + botão "Adicionar música" vivem na página pai (Catalogo.tsx);
 // o dialog é aberto via evento global `catalogo:add-track`.
 import { useEffect, useState } from "react";
@@ -20,20 +20,68 @@ type CatalogTrack = {
   added_at: string;
 };
 
-async function fetchTracks(): Promise<CatalogTrack[]> {
-  const { data, error } = await supabase
-    .from("catalog_tracks")
-    .select("id, spotify_track_id, track_name, artist_name, cover_url, isrc, status, added_at")
-    .order("added_at", { ascending: false })
-    .limit(200);
-  if (error) throw error;
-  return (data ?? []) as CatalogTrack[];
+type DistributionStats = {
+  catalog_track_id: string;
+  placements_total: number;
+  placements_pending: number;
+  placements_active: number;
+  placements_failed: number;
+};
+
+async function fetchTracksWithStats(): Promise<Array<CatalogTrack & { stats: DistributionStats | null }>> {
+  const [tracksRes, statsRes] = await Promise.all([
+    supabase
+      .from("catalog_tracks")
+      .select("id, spotify_track_id, track_name, artist_name, cover_url, isrc, status, added_at")
+      .order("added_at", { ascending: false })
+      .limit(200),
+    supabase
+      .from("v_catalog_track_distribution_stats")
+      .select("catalog_track_id, placements_total, placements_pending, placements_active, placements_failed"),
+  ]);
+  if (tracksRes.error) throw tracksRes.error;
+  if (statsRes.error) throw statsRes.error;
+  const statsMap = new Map<string, DistributionStats>(
+    (statsRes.data ?? []).map((s: any) => [s.catalog_track_id, s as DistributionStats]),
+  );
+  return (tracksRes.data ?? []).map((t: any) => ({
+    ...(t as CatalogTrack),
+    stats: statsMap.get(t.id) ?? null,
+  }));
+}
+
+function StatCell({ stats }: { stats: DistributionStats | null }) {
+  if (!stats || stats.placements_total === 0) {
+    return <span className="text-xs text-subtle-foreground">—</span>;
+  }
+  return (
+    <div className="flex items-center gap-2 text-xs font-mono">
+      <span className="text-foreground">{stats.placements_active}</span>
+      <span className="text-subtle-foreground">/</span>
+      <span className="text-foreground-body">{stats.placements_total}</span>
+      {stats.placements_pending > 0 && (
+        <span className="text-amber-400" title={`${stats.placements_pending} pendentes`}>
+          •{stats.placements_pending}
+        </span>
+      )}
+      {stats.placements_failed > 0 && (
+        <span className="text-rose-400" title={`${stats.placements_failed} falhas`}>
+          ✕{stats.placements_failed}
+        </span>
+      )}
+    </div>
+  );
 }
 
 export function MusicasTab() {
   const [addOpen, setAddOpen] = useState(false);
   const qc = useQueryClient();
-  const tracksQ = useQuery({ queryKey: ["catalog", "tracks"], queryFn: fetchTracks, staleTime: 30_000 });
+  const tracksQ = useQuery({
+    queryKey: ["catalog", "tracks"],
+    queryFn: fetchTracksWithStats,
+    staleTime: 15_000,
+    refetchInterval: 20_000, // mantém métricas vivas enquanto o worker roda
+  });
 
   useEffect(() => {
     const open = () => setAddOpen(true);
@@ -66,6 +114,7 @@ export function MusicasTab() {
                 <TableHead>Artista</TableHead>
                 <TableHead>ISRC</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Distribuição</TableHead>
                 <TableHead>Adicionada em</TableHead>
               </TableRow>
             </TableHeader>
@@ -92,6 +141,9 @@ export function MusicasTab() {
                     {t.isrc ?? "—"}
                   </TableCell>
                   <TableCell className="text-muted-foreground text-xs capitalize">{t.status}</TableCell>
+                  <TableCell>
+                    <StatCell stats={t.stats} />
+                  </TableCell>
                   <TableCell className="text-muted-foreground text-xs">
                     {new Date(t.added_at).toLocaleDateString("pt-BR")}
                   </TableCell>
