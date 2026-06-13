@@ -344,11 +344,11 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
     const presentCount = preview.already_present_count ?? 0;
     const noCapCount = preview.no_capacity_count ?? 0;
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 min-w-0">
         {renderTrackCard(true)}
 
         {preview.track_exists && (
-          <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-sm">
+          <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-[12px]">
             <Info className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
             <div>
               <div className="font-medium">Música já existe no catálogo.</div>
@@ -359,22 +359,22 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
           </div>
         )}
 
-        <div className="grid grid-cols-3 gap-2 text-sm">
-          <div className="p-3 rounded-lg bg-primary/10 border border-primary/30">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
+          <div className="p-3 rounded-lg bg-primary/5 border border-primary/30">
             <div className="text-[11px] text-muted-foreground uppercase tracking-wider">Compatíveis</div>
             <div className="text-2xl font-semibold tabular-nums text-primary">{eligibleCount}</div>
           </div>
-          <div className="p-3 rounded-lg bg-muted/40">
+          <div className="p-3 rounded-lg bg-muted/30 border border-border/60">
             <div className="text-[11px] text-muted-foreground uppercase tracking-wider">Já presentes</div>
             <div className="text-2xl font-semibold tabular-nums">{presentCount}</div>
           </div>
-          <div className="p-3 rounded-lg bg-muted/40">
+          <div className="p-3 rounded-lg bg-muted/30 border border-border/60">
             <div className="text-[11px] text-muted-foreground uppercase tracking-wider">Sem vaga</div>
             <div className="text-2xl font-semibold tabular-nums">{noCapCount}</div>
           </div>
         </div>
 
-        <div className="p-3 rounded-lg bg-muted/30 border border-border space-y-1 text-xs">
+        <div className="p-3 rounded-lg bg-muted/30 border border-border/60 space-y-1 text-xs">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Pool do gênero <span className="capitalize font-medium text-foreground">{preview.genre_name}</span></span>
             <span className="tabular-nums">{preview.genre_pool_total ?? 0} playlists</span>
