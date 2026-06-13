@@ -3,12 +3,12 @@
 // KPIs hero logo abaixo e tabs por último.
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, RefreshCw, Music2, Layers, Gauge, CircleSlash } from "lucide-react";
+import { Plus, RefreshCw, Music2, Layers, Gauge, CircleSlash, History } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
 import { KpiBig } from "@/components/KpiBig";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { MusicasTab } from "@/components/catalogo/MusicasTab";
 import { PlaylistsTab } from "@/components/catalogo/PlaylistsTab";
@@ -148,23 +148,71 @@ export default function Catalogo() {
           />
         </section>
 
-        <Tabs value={tab} onValueChange={setTab} className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="musicas">Músicas</TabsTrigger>
-            <TabsTrigger value="playlists">Playlists</TabsTrigger>
-            <TabsTrigger value="historico">Histórico</TabsTrigger>
-          </TabsList>
+        {(() => {
+          const TABS = [
+            { id: "musicas" as const, label: "Músicas", icon: Music2 },
+            { id: "playlists" as const, label: "Playlists", icon: Layers },
+            { id: "historico" as const, label: "Histórico", icon: History },
+          ];
+          return (
+            <>
+              {/* Mobile: grid de cards */}
+              <div className="grid grid-cols-3 gap-1.5 sm:hidden">
+                {TABS.map((t) => {
+                  const Icon = t.icon;
+                  const active = tab === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => setTab(t.id)}
+                      className={cn(
+                        "rounded-xl border px-1 py-2 flex flex-col items-center justify-center gap-1 transition-colors",
+                        active
+                          ? "border-primary/60 bg-primary/10 text-foreground"
+                          : "border-border bg-card text-muted-foreground hover:text-foreground",
+                      )}
+                      aria-pressed={active}
+                    >
+                      <Icon className={cn("h-4 w-4", active && "text-primary")} />
+                      <span className="text-[11px] font-medium leading-none text-center">{t.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
 
-          <TabsContent value="musicas" className="space-y-6">
-            <MusicasTab />
-          </TabsContent>
-          <TabsContent value="playlists" className="space-y-6">
-            <PlaylistsTab />
-          </TabsContent>
-          <TabsContent value="historico" className="space-y-6">
-            <HistoricoTab />
-          </TabsContent>
-        </Tabs>
+              {/* Desktop: rail clássico */}
+              <div className="hidden sm:flex items-center gap-1 border-b border-border overflow-x-auto overflow-y-hidden scrollbar-none -mx-4 px-4 lg:mx-0 lg:px-0">
+                {TABS.map((t) => {
+                  const Icon = t.icon;
+                  const active = tab === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => setTab(t.id)}
+                      className={cn(
+                        "px-3 lg:px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap shrink-0",
+                        active
+                          ? "border-primary text-foreground"
+                          : "border-transparent text-muted-foreground hover:text-foreground",
+                      )}
+                      aria-pressed={active}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {t.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          );
+        })()}
+
+        <div>
+          {tab === "musicas" && <MusicasTab />}
+          {tab === "playlists" && <PlaylistsTab />}
+          {tab === "historico" && <HistoricoTab />}
+        </div>
+
       </PageContainer>
     </>
   );
