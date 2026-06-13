@@ -157,7 +157,7 @@ Deno.serve(async (req) => {
       spotify_artist_id, spotify_artist_url,
       auto_collect_status, last_auto_collect_at, next_auto_collect_at,
       auto_collect_interval_minutes, last_print_at,
-      curator_deals!inner ( id, curator_name, song_name, user_id, closed_at, state, source, token_revoked_at, token_expires_at, curator_id, campaign_id, curators ( paused_at ), campaigns!curator_deals_campaign_id_fkey ( client_id, collection_mode, clients ( spotify_artist_id, spotify_artist_url ) ) ),
+      curator_deals!inner ( id, curator_name, song_name, user_id, closed_at, state, source, token_revoked_at, token_expires_at, curator_id, campaign_id, curators ( paused_at ), campaigns!curator_deals_campaign_id_fkey ( client_id, collection_mode, deal_id, clients ( spotify_artist_id, spotify_artist_url ) ) ),
       curator_playlists ( id, playlist_name, spotify_url, spotify_playlist_id )
     `)
     .eq("auto_collect", true)
@@ -192,7 +192,15 @@ Deno.serve(async (req) => {
     // 05/06/2026 (caso Carnívoro: Manolo + Plug bloqueados indevidamente).
     if (
       s?.curator_deals?.campaigns?.collection_mode === "spreadsheet" &&
-      (s?.curator_deals?.source === "campaign_internal" || !!s?.curator_deals?.campaign_id)
+      s?.curator_deals?.source === "campaign_internal"
+    ) return false;
+    // Em campanha com múltiplos deals, o shadow "Campanha" só coleta se for o
+    // deal oficial da campanha. Isso impede dois coletores S4A para a mesma música.
+    const officialDealId = s?.curator_deals?.campaigns?.deal_id ?? null;
+    if (
+      s?.curator_deals?.source === "campaign_internal" &&
+      officialDealId &&
+      officialDealId !== s.deal_id
     ) return false;
     const exp = s?.curator_deals?.token_expires_at;
     if (!exp) return true;
@@ -219,7 +227,7 @@ Deno.serve(async (req) => {
     }
   }
 
-  const isCampaignInternal = (s: any) => s?.curator_deals?.source === "campaign_internal" || !!s?.curator_deals?.campaign_id;
+  const isCampaignInternal = (s: any) => s?.curator_deals?.source === "campaign_internal";
   const eligibleAll = candidates.filter((s: any) => isCampaignInternal(s) || dealsWithWhitelist.has(s.deal_id));
   // Respeita o `limit` pedido pelo bot — over-fetch acima é só pra atravessar
   // deals filtrados (spreadsheet/pausado), não pra inflar o batch entregue.
