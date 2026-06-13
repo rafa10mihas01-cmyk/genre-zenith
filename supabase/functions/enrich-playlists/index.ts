@@ -2,7 +2,7 @@
 // Logs granulares por playlist + retry com backoff em 429/5xx + telemetria completa.
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getSpotifyToken } from "../_shared/spotify.ts";
+import { getAppToken, forceRefreshAppToken } from "../_shared/spotify-client.ts";
 import { getPlaylistMeta, SpotifyApiError } from "../_shared/spotify-playlist.ts";
 import { classifyOwner } from "../_shared/labels.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
@@ -253,7 +253,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    let token = await getSpotifyToken();
+    let token = await getAppToken();
     let enriched = 0, tracksSaved = 0, errors = 0, skipped = 0, phase2Flagged = 0, phase2Cleared = 0;
     const CONCURRENCY = 3;
     const BATCH_DELAY_MS = 200;
@@ -298,7 +298,7 @@ Deno.serve(async (req) => {
           const msg = (e as Error).message;
           if (msg === "TOKEN_EXPIRED") {
             console.log(`[enrich] token expirado, refresh (tent ${attempts})`);
-            token = await getSpotifyToken(true);
+            token = await forceRefreshAppToken();
             continue;
           }
           if (msg.startsWith("RATE_LIMIT:")) {

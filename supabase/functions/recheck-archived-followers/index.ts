@@ -9,7 +9,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
-import { getSpotifyToken, SpotifyCircuitOpenError } from "../_shared/spotify.ts";
+import { getAppToken, SpotifyCircuitOpenError } from "../_shared/spotify-client.ts";
 import { getPlaylistMeta } from "../_shared/spotify-playlist.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 
@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
       return jr({ ok: true, checked: 0, updated: 0, newly_eligible: 0 });
     }
 
-    const token = await getSpotifyToken();
+    const token = await getAppToken();
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
     for (const p of pls) {

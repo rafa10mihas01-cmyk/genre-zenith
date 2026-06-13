@@ -7,7 +7,7 @@
 
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getSpotifyToken, getUserAccessToken } from "../_shared/spotify.ts";
+import { getAppToken, getUserToken } from "../_shared/spotify-client.ts";
 import { listPlaylistTracksRich } from "../_shared/spotify-playlist.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 import {
@@ -41,8 +41,8 @@ async function syncOne(sb: any, _token: string, pl: { id: string; spotify_playli
     // Usa token do owner; só cai pra client_credentials se a playlist não tem owner.
     const ownerId = pl.owner_spotify_user_id ?? null;
     const token = ownerId
-      ? (await getUserAccessToken(ownerId)).token
-      : await getSpotifyToken();
+      ? (await getUserToken(ownerId)).token
+      : await getAppToken();
     const rich = await listPlaylistTracksRich(pl.spotify_playlist_id, token, {
       max: 10000,
       fields: "items(added_at,track(id,name,duration_ms,external_ids,artists(name),album(images)),item(id,name,duration_ms,external_ids,artists(name),album(images))),next",
