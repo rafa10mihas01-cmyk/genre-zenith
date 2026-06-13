@@ -530,7 +530,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
               </Button>
               <Button
                 onClick={doDistribute}
-                disabled={isBusy || step === "previewing"}
+                disabled={isBusy}
                 className="gap-2"
               >
                 {step === "distributing" && <Loader2 className="h-4 w-4 animate-spin" />}
