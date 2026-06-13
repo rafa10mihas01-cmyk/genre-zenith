@@ -408,14 +408,14 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
             <summary className="cursor-pointer text-muted-foreground hover:text-foreground select-none">
               Ver as {eligibleCount} playlists compatíveis
             </summary>
-            <div className="mt-2 max-h-64 overflow-y-auto space-y-1.5 pr-1">
+            <div className="mt-2 max-h-[42vh] overflow-y-auto overflow-x-hidden space-y-2 pr-1">
               {preview.eligible?.map((p) => (
                 <div
                   key={p.id}
-                  className="flex items-center justify-between gap-3 text-xs py-2 px-2 rounded-md bg-muted/20 border border-border"
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5 min-w-0"
                 >
                   <div className="min-w-0 flex-1 space-y-1">
-                    <div className="truncate text-sm text-foreground">{p.name}</div>
+                    <div className="truncate text-[13px] font-medium text-foreground leading-tight max-w-full">{p.name}</div>
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">Catálogo</Badge>
                       <span className="text-muted-foreground tabular-nums">
@@ -427,9 +427,9 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
                       </span>
                     </div>
                   </div>
-                  <div className="text-right shrink-0 space-y-0.5">
+                  <div className="flex sm:block items-center gap-2 text-left sm:text-right shrink-0 space-y-0 sm:space-y-0.5">
                     <div className="text-muted-foreground tabular-nums">{fmtNum(p.followers)} fãs</div>
-                    <div className="text-muted-foreground tabular-nums">{p.available_slots ?? 0} vagas</div>
+                    <div className="hidden sm:block text-muted-foreground tabular-nums">{p.available_slots ?? 0} vagas</div>
                   </div>
                 </div>
               ))}
