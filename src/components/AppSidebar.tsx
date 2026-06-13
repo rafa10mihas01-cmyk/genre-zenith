@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Home, Sparkles, BarChart3, Settings, LogOut, ListMusic, Handshake,
-  Server, Target, ChevronRight, User, Brain, UserSearch, Wallet,
+  Server, Target, ChevronRight, User, Brain, UserSearch, Wallet, Library,
 } from "lucide-react";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
 import {
@@ -77,6 +77,7 @@ const sections: NavSection[] = [
       //   accent: "domain-community",
       // },
       { title: "Campanhas", url: "/campanhas", icon: Target, accent: "domain-campaigns" },
+      { title: "Catálogo", url: "/catalogo", icon: Library, accent: "domain-playlists" },
       { title: "Financeiro", url: "/financeiro", icon: Wallet, accent: "domain-deals" },
       // Deals oculto do sidebar — acessível via Campanhas (aprovação/deals).
       // {
@@ -90,9 +91,9 @@ const sections: NavSection[] = [
 
       {
         title: "Playlists",
-        url: "/catalogo",
+        url: "/operacao",
         icon: ListMusic,
-        matchPaths: ["/playlists", "/operacao"],
+        matchPaths: ["/playlists"],
         accent: "domain-playlists",
       },
     ],
