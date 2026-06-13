@@ -589,7 +589,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
                 {step === "distributing" && <Loader2 className="h-4 w-4 animate-spin" />}
                 {step === "distributing"
                   ? "Distribuindo…"
-                  : `Distribuir ${preview?.eligible_count ?? 0} placements`}
+                  : `Distribuir ${(preview?.eligible_hybrid?.length ?? 0) + (preview?.eligible_catalog_pure?.length ?? 0)} placements`}
               </Button>
             </>
           ) : step === "done" ? (
