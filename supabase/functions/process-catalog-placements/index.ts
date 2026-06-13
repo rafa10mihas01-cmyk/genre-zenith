@@ -222,7 +222,7 @@ Deno.serve(async (req) => {
           error_code: code,
           error_message: msg,
         });
-        // não conta como failed nem active — fica pendente
+        cntSkipped++;
         continue;
       }
 
