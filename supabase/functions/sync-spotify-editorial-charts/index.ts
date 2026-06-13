@@ -15,7 +15,7 @@
 // =====================================================================
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getSpotifyToken, guardedSpotifyFetch } from "../_shared/spotify.ts";
+import { getAppToken, spotifyFetch } from "../_shared/spotify-client.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -39,7 +39,7 @@ function chunk<T>(arr: T[], size: number): T[][] {
 
 async function fetchTracksBatch(ids: string[], token: string) {
   const url = `https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`;
-  const r = await guardedSpotifyFetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const r = await spotifyFetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (!r.ok) throw new Error(`Spotify ${r.status}: ${(await r.text()).slice(0, 200)}`);
   const j = await r.json();
   return j.tracks ?? [];
@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
       return jr({ ok: true, message: "nada pra enriquecer", chart: chartName });
     }
 
-    const token = await getSpotifyToken();
+    const token = await getAppToken();
     let enriched = 0;
     let failed = 0;
 

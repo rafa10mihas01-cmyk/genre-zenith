@@ -13,7 +13,7 @@
 // Retorno: { ok, tracks: [{ spotify_track_id, nome_musica, artista, posicao_na_playlist }], saved }
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getSpotifyToken } from "../_shared/spotify.ts";
+import { getAppToken } from "../_shared/spotify-client.ts";
 import { listPlaylistTracksRich } from "../_shared/spotify-playlist.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
 
@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
   try {
-    const token = await getSpotifyToken();
+    const token = await getAppToken();
     const tracks = await fetchPlaylistTracks(body.playlist_id, token, max);
 
     let saved = 0;

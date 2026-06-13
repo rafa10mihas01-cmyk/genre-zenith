@@ -4,7 +4,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
-import { getSpotifyToken, SpotifyCircuitOpenError, guardedSpotifyFetch } from "../_shared/spotify.ts";
+import { getAppToken, SpotifyCircuitOpenError, spotifyFetch } from "../_shared/spotify-client.ts";
 import { listPlaylistTracksRich } from "../_shared/spotify-playlist.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -21,7 +21,7 @@ async function spotifyFetch(token: string, url: string): Promise<any> {
   // NOTE: guard global trata breaker. SpotifyCircuitOpenError → abort imediato, sem retry.
   let r: Response;
   try {
-    r = await guardedSpotifyFetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    r = await spotifyFetch(url, { headers: { Authorization: `Bearer ${token}` } });
   } catch (e) {
     if (e instanceof SpotifyCircuitOpenError) throw e;
     throw e;
@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
 
     if (picked.length === 0) return jr({ ok: true, processed: 0, saved: 0, errors: [] });
 
-    const token = await getSpotifyToken();
+    const token = await getAppToken();
     let saved = 0;
     const errors: Array<{ id: string; name: string | null; error: string }> = [];
 

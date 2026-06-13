@@ -15,7 +15,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { getSpotifyToken } from "../_shared/spotify.ts";
+import { getAppToken } from "../_shared/spotify-client.ts";
 import { getPlaylistMeta, SpotifyApiError } from "../_shared/spotify-playlist.ts";
 import { recencyFactor } from "../_shared/recency.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
       return true;
     });
 
-    const token = await getSpotifyToken();
+    const token = await getAppToken();
 
     let processed = 0;
     let failed = 0;
