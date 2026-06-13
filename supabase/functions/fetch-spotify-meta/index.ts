@@ -3,7 +3,7 @@
 // scrape de og:description da página pública pra extrair o artista
 // quando o oEmbed não traz no formato "Title - Artist".
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
-import { guardedSpotifyFetch } from "../_shared/spotify.ts";
+import { spotifyFetch } from "../_shared/spotify-client.ts";
 
 function jr(p: unknown, status = 200) {
   return new Response(JSON.stringify(p), {
@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
           const oembedUrl = `https://open.spotify.com/oembed?url=${encodeURIComponent(tryUrl)}`;
-          const oembedRes = await guardedSpotifyFetch(oembedUrl, { headers: { "User-Agent": UA } });
+          const oembedRes = await spotifyFetch(oembedUrl, { headers: { "User-Agent": UA } });
           if (oembedRes.ok) {
             const data = await oembedRes.json().catch(() => ({}));
             title = data?.title ?? title;
@@ -152,7 +152,7 @@ Deno.serve(async (req) => {
     if ((!parsedArtist && type === "track") || !thumbnail_url) {
       try {
         const pageUrl = `https://open.spotify.com/${type}/${id}`;
-        const pageRes = await guardedSpotifyFetch(pageUrl, {
+        const pageRes = await spotifyFetch(pageUrl, {
           headers: { "User-Agent": UA, "Accept-Language": "en-US,en;q=0.9" },
         });
         if (pageRes.ok) {

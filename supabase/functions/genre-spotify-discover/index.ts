@@ -7,7 +7,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
-import { getSpotifyToken, SpotifyCircuitOpenError, guardedSpotifyFetch } from "../_shared/spotify.ts";
+import { getAppToken, SpotifyCircuitOpenError, spotifyFetch } from "../_shared/spotify-client.ts";
 import { getPlaylistMeta } from "../_shared/spotify-playlist.ts";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -48,11 +48,11 @@ function defaultTerms(slug: string, nome: string): string[] {
 }
 
 async function spotifyFetch(token: string, url: string): Promise<any> {
-  // Passa pelo circuit breaker explicitamente (guardedSpotifyFetch).
+  // Passa pelo circuit breaker explicitamente (spotifyFetch).
   // Se breaker estiver aberto, lança SpotifyCircuitOpenError — propagamos sem retry.
   let r: Response;
   try {
-    r = await guardedSpotifyFetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    r = await spotifyFetch(url, { headers: { Authorization: `Bearer ${token}` } });
   } catch (e) {
     if (e instanceof SpotifyCircuitOpenError) throw e;
     throw e;
@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
     }
     stats.terms_used = termRows.length;
 
-    const token = await getSpotifyToken();
+    const token = await getAppToken();
     const gateCtx = await loadGateContext(supabase, genreId);
 
     const seenPlaylistIds = new Set<string>();

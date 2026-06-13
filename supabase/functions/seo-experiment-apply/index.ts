@@ -3,7 +3,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
-import { getUserAccessToken } from "../_shared/spotify.ts";
+import { getUserToken } from "../_shared/spotify-client.ts";
 import { setPlaylistDetails, SpotifyApiError } from "../_shared/spotify-playlist.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
       spotifyUserId = (acc as any)?.spotify_user_id ?? undefined;
     }
 
-    const { token } = await getUserAccessToken(spotifyUserId);
+    const { token } = await getUserToken(spotifyUserId);
 
     const payload: Record<string, string> = {};
     if (exp.field === "name") payload.name = exp.version_after;

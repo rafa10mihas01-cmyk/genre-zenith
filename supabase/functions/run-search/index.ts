@@ -7,7 +7,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
-import { getSpotifyToken, guardedSpotifyFetch } from "../_shared/spotify.ts";
+import { getAppToken, spotifyFetch } from "../_shared/spotify-client.ts";
 import { deprecationGate } from "../_shared/_deprecation.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -42,7 +42,7 @@ async function spotifySearch(
   const url =
     `https://api.spotify.com/v1/search?q=${encodeURIComponent(term)}` +
     `&type=track,playlist&market=${MARKET}&limit=${PAGE_SIZE}&offset=${offset}`;
-  const r = await guardedSpotifyFetch(url, { headers: { Authorization: `Bearer ${token}` }, signal });
+  const r = await spotifyFetch(url, { headers: { Authorization: `Bearer ${token}` }, signal });
   if (r.status === 429) {
     const ra = Number(r.headers.get("retry-after") ?? "1");
     return { ok: false, status: 429, retryAfter: Number.isFinite(ra) ? ra : 1, body: "" };
@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
   try {
     await supabase.from("genres").update({ status: "coletando" }).eq("id", body.genre_id);
 
-    const token = await getSpotifyToken();
+    const token = await getAppToken();
 
     const allTracks: any[] = [];
     const allPlaylists: any[] = [];
