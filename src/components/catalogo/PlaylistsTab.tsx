@@ -20,19 +20,11 @@ type Row = {
 async function fetchOccupancy(): Promise<Row[]> {
   const { data, error } = await supabase
     .from("v_catalog_playlist_occupancy")
-    .select("managed_playlist_id, playlist_name, catalog_capacity, active_placements, available_slots")
+    .select("managed_playlist_id, playlist_name, catalog_capacity, active_placements, available_slots, cover_url")
     .order("active_placements", { ascending: false })
     .limit(1000);
   if (error) throw error;
-  const base = (data ?? []) as Omit<Row, "cover_url">[];
-  if (base.length === 0) return [];
-  const ids = base.map((r) => r.managed_playlist_id);
-  const { data: covers } = await supabase
-    .from("managed_playlists")
-    .select("id, cover_url")
-    .in("id", ids);
-  const map = new Map<string, string | null>((covers ?? []).map((c: { id: string; cover_url: string | null }) => [c.id, c.cover_url]));
-  return base.map((r) => ({ ...r, cover_url: map.get(r.managed_playlist_id) ?? null }));
+  return (data ?? []) as Row[];
 }
 
 function Cover({ url, alt }: { url: string | null; alt: string }) {
