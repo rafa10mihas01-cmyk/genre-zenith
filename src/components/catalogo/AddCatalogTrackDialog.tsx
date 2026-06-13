@@ -60,8 +60,10 @@ type PreviewPlaylist = {
   cover_url: string | null;
   followers: number | null;
   available_slots?: number;
-  tracks_count?: number;
+  real_tracks?: number;
+  campaign_reserved_slots?: number;
   projected_position?: number;
+  kind?: "hybrid" | "catalog_pure";
 };
 
 type PreviewResult = {
@@ -71,17 +73,18 @@ type PreviewResult = {
   track_exists?: boolean;
   genre_id?: string;
   genre_name?: string;
-  genre_pool_total?: number;
-  genre_capacity_total?: number;
-  genre_capacity_used?: number;
-  genre_capacity_free?: number;
-  eligible?: PreviewPlaylist[];
+  pool_total?: number;
+  pool_hybrid?: number;
+  pool_catalog_pure?: number;
+  capacity_total?: number;
+  capacity_used?: number;
+  capacity_free?: number;
+  eligible_hybrid?: PreviewPlaylist[];
+  eligible_catalog_pure?: PreviewPlaylist[];
   already_present?: PreviewPlaylist[];
   no_capacity?: PreviewPlaylist[];
-  eligible_count?: number;
-  already_present_count?: number;
-  no_capacity_count?: number;
 };
+
 
 type DistributeResult = {
   ok: boolean;
