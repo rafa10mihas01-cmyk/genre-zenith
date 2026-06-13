@@ -63,6 +63,7 @@ Deno.serve(async (req) => {
       typeof body?.spotify_track_id === "string" ? body.spotify_track_id :
       typeof body?.url === "string" ? body.url :
       typeof body?.uri === "string" ? body.uri : "";
+    const genreId = typeof body?.genre_id === "string" ? body.genre_id.trim() : "";
 
     const trackId = resolveTrackId(inputRaw);
     if (!trackId) {
@@ -71,6 +72,9 @@ Deno.serve(async (req) => {
         error: "invalid_input",
         message: "Envie um Spotify track ID (22 chars), URI (spotify:track:...) ou URL (open.spotify.com/track/...).",
       }, 400);
+    }
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(genreId)) {
+      return jr({ ok: false, error: "invalid_genre_id", message: "genre_id (uuid) é obrigatório." }, 400);
     }
 
     // Auth: capturamos o user pra preencher `added_by` (best-effort).
@@ -154,14 +158,15 @@ Deno.serve(async (req) => {
     const sb = createClient(SUPABASE_URL, SERVICE_KEY);
     const { data: rpcData, error: rpcErr } = await sb.rpc("distribute_catalog_track", {
       p_spotify_track_id: trackId,
+      p_genre_id: genreId,
       p_spotify_uri: spotifyUri,
       p_isrc: isrc,
       p_track_name: trackName,
       p_artist_name: artistName,
       p_cover_url: coverUrl,
       p_baseline_popularity: popularity,
-      p_baseline_monthly_listeners: artistFollowers, // proxy: followers do artista
-      p_baseline_streams: null, // Spotify API não expõe streams
+      p_baseline_monthly_listeners: artistFollowers,
+      p_baseline_streams: null,
       p_baseline_raw: baselineRaw,
       p_added_by: addedBy,
     });

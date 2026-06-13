@@ -1720,6 +1720,7 @@ export type Database = {
           baseline_status: string
           campaign_type: string
           canonical_window_days: number
+          catalog_track_id: string | null
           client_adjustment_request: string | null
           client_approved_at: string | null
           client_approved_by: string | null
@@ -1776,6 +1777,7 @@ export type Database = {
           baseline_status?: string
           campaign_type?: string
           canonical_window_days?: number
+          catalog_track_id?: string | null
           client_adjustment_request?: string | null
           client_approved_at?: string | null
           client_approved_by?: string | null
@@ -1832,6 +1834,7 @@ export type Database = {
           baseline_status?: string
           campaign_type?: string
           canonical_window_days?: number
+          catalog_track_id?: string | null
           client_adjustment_request?: string | null
           client_approved_at?: string | null
           client_approved_by?: string | null
@@ -1882,6 +1885,13 @@ export type Database = {
           valor_recebido?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "campaigns_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_tracks"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "campaigns_client_id_fkey"
             columns: ["client_id"]
@@ -2086,6 +2096,7 @@ export type Database = {
           artist_name: string
           cover_url: string | null
           created_at: string
+          genre_id: string | null
           id: string
           isrc: string | null
           notes: string | null
@@ -2101,6 +2112,7 @@ export type Database = {
           artist_name: string
           cover_url?: string | null
           created_at?: string
+          genre_id?: string | null
           id?: string
           isrc?: string | null
           notes?: string | null
@@ -2116,6 +2128,7 @@ export type Database = {
           artist_name?: string
           cover_url?: string | null
           created_at?: string
+          genre_id?: string | null
           id?: string
           isrc?: string | null
           notes?: string | null
@@ -2125,7 +2138,22 @@ export type Database = {
           track_name?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "catalog_tracks_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_tracks_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres_with_health"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       chart_position_benchmarks: {
         Row: {
@@ -4926,6 +4954,39 @@ export type Database = {
           {
             foreignKeyName: "genre_affinities_genre_b_id_fkey"
             columns: ["genre_b_id"]
+            isOneToOne: false
+            referencedRelation: "genres_with_health"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      genre_aliases: {
+        Row: {
+          alias: string
+          created_at: string
+          genre_id: string
+        }
+        Insert: {
+          alias: string
+          created_at?: string
+          genre_id: string
+        }
+        Update: {
+          alias?: string
+          created_at?: string
+          genre_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "genre_aliases_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "genre_aliases_genre_id_fkey"
+            columns: ["genre_id"]
             isOneToOne: false
             referencedRelation: "genres_with_health"
             referencedColumns: ["id"]
@@ -12390,6 +12451,7 @@ export type Database = {
           p_baseline_raw?: Json
           p_baseline_streams?: number
           p_cover_url?: string
+          p_genre_id: string
           p_isrc?: string
           p_spotify_track_id: string
           p_spotify_uri?: string
@@ -12798,6 +12860,10 @@ export type Database = {
           slots_remaining: number
           spotify_user_id: string
         }[]
+      }
+      preview_distribute_catalog_track: {
+        Args: { p_genre_id: string; p_spotify_track_id: string }
+        Returns: Json
       }
       priority_from_performance: {
         Args: { p_class: string }
