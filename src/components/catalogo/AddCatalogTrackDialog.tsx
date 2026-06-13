@@ -274,15 +274,15 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
     const existing = resolved.existing;
     const others = detected?.other_matches ?? [];
     return (
-      <div className="space-y-4">
+      <div className="space-y-3">
         {renderTrackCard(false)}
 
         {existing && (
-          <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-sm">
-            <Info className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+          <div className="flex items-start gap-2 p-3 nx-subcard border-amber-500/30 text-[12px]">
+            <Info className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
             <div className="min-w-0">
-              <div className="font-medium">Esta música já existe no catálogo.</div>
-              <div className="text-xs text-muted-foreground mt-0.5">
+              <div className="font-medium leading-tight">Esta música já existe no catálogo.</div>
+              <div className="text-[11px] text-muted-foreground mt-0.5">
                 Gênero atual: <span className="capitalize font-medium">{existing.current_genre_name ?? "(não definido)"}</span>.
                 Será atualizado se você escolher outro. Placements existentes serão preservados.
               </div>
@@ -290,8 +290,8 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
           </div>
         )}
 
-        <div className="space-y-2">
-          <Label>Gênero da música</Label>
+        <div className="space-y-1.5">
+          <Label className="text-[12px]">Gênero da música</Label>
           <Select value={selectedGenreId} onValueChange={setSelectedGenreId}>
             <SelectTrigger>
               <SelectValue placeholder="Selecione o gênero" />
@@ -304,19 +304,19 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
           </Select>
 
           {detected?.suggested_genre_name ? (
-            <div className="text-xs text-muted-foreground space-y-1">
+            <div className="text-[11px] text-muted-foreground space-y-1 pt-1">
               <div>
-                Detectado pelo Spotify: <span className="font-medium capitalize">{detected.suggested_genre_name}</span>
+                Detectado pelo Spotify: <span className="font-medium capitalize text-foreground">{detected.suggested_genre_name}</span>
               </div>
               {others.length > 0 && (
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span>Outras opções detectadas:</span>
+                <div className="flex items-center gap-1 flex-wrap">
+                  <span>Outras opções:</span>
                   {others.map((o) => (
                     <button
                       key={o.genre_id}
                       type="button"
                       onClick={() => setSelectedGenreId(o.genre_id)}
-                      className="px-2 py-0.5 rounded bg-muted hover:bg-muted/70 capitalize text-xs"
+                      className="px-1.5 py-0.5 rounded bg-muted hover:bg-muted/70 capitalize text-[10px]"
                     >
                       {o.genre_name}
                     </button>
@@ -325,7 +325,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
               )}
             </div>
           ) : (
-            <div className="text-xs text-muted-foreground">
+            <div className="text-[11px] text-muted-foreground pt-1">
               Nenhum gênero detectado automaticamente
               {resolved.spotify_genres_raw?.length ? (
                 <> (Spotify retornou: {resolved.spotify_genres_raw.join(", ")})</>
