@@ -2,6 +2,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { refreshUserToken, type SpotifyUserToken } from "../_shared/spotify.ts";
+import { spotifyFetch } from "../_shared/spotify-client.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -17,7 +18,7 @@ async function call(token: string, method: string, url: string, body?: unknown) 
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
   };
   if (body !== undefined) init.body = JSON.stringify(body);
-  const r = await fetch(url, init);
+  const r = await spotifyFetch(url, init, { functionName: "spotify-me-playlist-test", operation: "me_playlist_test" });
   const txt = await r.text();
   let parsed: unknown = txt;
   try { parsed = txt ? JSON.parse(txt) : null; } catch { /* */ }

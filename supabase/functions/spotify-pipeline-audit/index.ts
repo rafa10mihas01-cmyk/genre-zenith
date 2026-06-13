@@ -10,7 +10,7 @@
 // Auth: service-role bearer (Lovable preview injeta automaticamente).
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getUserAccessToken, forceRefreshUserAccessToken } from "../_shared/spotify.ts";
+import { getUserToken, forceRefreshUserToken } from "../_shared/spotify-client.ts";
 import { listPlaylistTrackUris, removePlaylistTracks, SpotifyApiError } from "../_shared/spotify-playlist.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -27,13 +27,13 @@ async function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms));
 
 async function listUrisSafe(playlistId: string, ownerId: string): Promise<{ uris: string[]; via: string; error?: string }> {
   try {
-    const { token } = await getUserAccessToken(ownerId);
+    const { token } = await getUserToken(ownerId);
     try {
       const uris = await listPlaylistTrackUris(playlistId, token);
       return { uris, via: "owner_token" };
     } catch (e) {
       if (e instanceof SpotifyApiError && e.status === 401) {
-        const refreshed = await forceRefreshUserAccessToken(ownerId);
+        const refreshed = await forceRefreshUserToken(ownerId);
         const uris = await listPlaylistTrackUris(playlistId, refreshed.token);
         return { uris, via: "owner_token_refreshed" };
       }
@@ -188,7 +188,7 @@ Deno.serve(async (req) => {
   // ---------- 7) Cleanup opcional ----------
   if (cleanup && trackPresent) {
     try {
-      const { token } = await getUserAccessToken(mp.owner_spotify_user_id);
+      const { token } = await getUserToken(mp.owner_spotify_user_id);
       const r = await removePlaylistTracks(mp.spotify_playlist_id, [trackUri], token);
       evidence.cleanup = { ok: true, snapshot_id: r.snapshot_id };
     } catch (e) {

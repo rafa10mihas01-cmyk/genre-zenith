@@ -1,6 +1,6 @@
 // spotify-resolution-test — Resolve token via getUserAccessToken para cada owner duplicado
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { getUserAccessToken } from "../_shared/spotify.ts";
+import { getUserToken } from "../_shared/spotify-client.ts";
 
 const EXPECTED: Record<string, string> = {
   "223kkcpliwfmurqsdn3e2uutq": "821cb0cc-001b-4d2f-a0c0-66cafe055e72", // 05
@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
   const results = [];
   for (const [userId, expected] of Object.entries(EXPECTED)) {
     try {
-      const { row } = await getUserAccessToken(userId);
+      const { row } = await getUserToken(userId);
       results.push({
         spotify_user_id: userId,
         display_name: row.display_name,
