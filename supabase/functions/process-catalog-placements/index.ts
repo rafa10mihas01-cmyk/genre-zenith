@@ -130,6 +130,7 @@ Deno.serve(async (req) => {
   let cntActive = 0;
   let cntAlready = 0;
   let cntFailed = 0;
+  let cntSkipped = 0;
 
   for (const p of pending) {
     const uri = p.spotify_uri ?? `spotify:track:${p.spotify_track_id}`;
