@@ -3,7 +3,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
-import { getSpotifyToken } from "../_shared/spotify.ts";
+import { getAppToken } from "../_shared/spotify-client.ts";
 import { getPlaylistMeta } from "../_shared/spotify-playlist.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
     let tracks_count = 0;
     let description: string | null = null;
     try {
-      const token = await getSpotifyToken();
+      const token = await getAppToken();
       const meta = await getPlaylistMeta(playlistId, token, {
         fields: "name,description,images,followers(total),tracks(total)",
       });

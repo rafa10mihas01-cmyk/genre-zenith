@@ -7,7 +7,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
-import { getUserAccessToken, guardedSpotifyFetch } from "../_shared/spotify.ts";
+import { getUserToken, spotifyFetch } from "../_shared/spotify-client.ts";
 import { getPlaylistMeta } from "../_shared/spotify-playlist.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
     const { SpotifyCircuitOpenError } = await import("../_shared/spotify.ts");
 
     // 1) token OAuth da conta padrão (Baile Hits Oficial hoje)
-    const { token, row } = await getUserAccessToken(body?.spotify_user_id ?? undefined);
+    const { token, row } = await getUserToken(body?.spotify_user_id ?? undefined);
     const ownerId = row.spotify_user_id;
 
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
       spotifyCalls++;
       let r: Response;
       try {
-        r = await guardedSpotifyFetch(url, { headers: { Authorization: `Bearer ${token}` } });
+        r = await spotifyFetch(url, { headers: { Authorization: `Bearer ${token}` } });
       } catch (e) {
         if (e instanceof SpotifyCircuitOpenError) rate429Count++;
         throw e;
