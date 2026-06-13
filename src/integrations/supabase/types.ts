@@ -12381,6 +12381,22 @@ export type Database = {
           spotify_playlist_id: string
         }[]
       }
+      distribute_catalog_track: {
+        Args: {
+          p_added_by?: string
+          p_artist_name?: string
+          p_baseline_monthly_listeners?: number
+          p_baseline_popularity?: number
+          p_baseline_raw?: Json
+          p_baseline_streams?: number
+          p_cover_url?: string
+          p_isrc?: string
+          p_spotify_track_id: string
+          p_spotify_uri?: string
+          p_track_name?: string
+        }
+        Returns: Json
+      }
       enqueue_baseline_collection: {
         Args: { p_campaign_id: string }
         Returns: undefined
