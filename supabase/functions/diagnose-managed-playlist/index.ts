@@ -424,10 +424,10 @@ Deno.serve(async (req) => {
     };
     async function fetchSingleTrack(token: string, id: string) {
       singlePathStats.tracks_attempted++;
-      const r = await guardedSpotifyFetch(
+      const r = await spotifyFetch(
         `https://api.spotify.com/v1/tracks/${id}`,
         { headers: { Authorization: `Bearer ${token}` } },
-        { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, function_name: 'diagnose-managed-playlist' },
+        { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, functionName: 'diagnose-managed-playlist' },
       );
       tel.noteSpotifyStatus(r.status);
       if (r.status === 403) { singlePathStats.tracks_403++; return null; }
