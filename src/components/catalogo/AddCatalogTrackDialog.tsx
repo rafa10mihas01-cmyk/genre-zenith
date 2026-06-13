@@ -253,7 +253,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
   };
 
   const renderStepIdleOrResolving = () => (
-    <div className="space-y-3">
+    <div className="space-y-2">
       <Label htmlFor="track-input" className="text-[12px]">Spotify URL, URI ou Track ID</Label>
       <Input
         id="track-input"
@@ -261,16 +261,16 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
         onChange={(e) => setInput(e.target.value)}
         placeholder="https://open.spotify.com/track/..."
         autoFocus
+        autoComplete="off"
+        spellCheck={false}
         disabled={step === "resolving"}
         onKeyDown={(e) => {
           if (e.key === "Enter" && step === "idle" && input.trim()) doResolve();
         }}
       />
-      <p className="text-[11px] text-muted-foreground">
-        O sistema busca a faixa no Spotify e sugere um gênero. Você confirma antes de distribuir.
-      </p>
     </div>
   );
+
 
   const renderStepMetadata = () => {
     if (!resolved) return null;
