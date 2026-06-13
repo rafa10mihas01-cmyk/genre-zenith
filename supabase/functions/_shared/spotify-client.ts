@@ -72,6 +72,14 @@ export type SpotifyFetchOptions = SpotifyCallContext & {
    * o token continua sendo o do app default.
    */
   appId?: string | null;
+  /**
+   * Campos de observabilidade forwarded ao `guardedSpotifyFetch` legado,
+   * enriquecendo `spotify_call_log` por-call (sobrescrevem o ctx armazenado).
+   * Mantém paridade com o contrato antigo usado em diagnose-managed-playlist.
+   */
+  playlist_id?: string | null;
+  owner_id?: string | null;
+  spotify_user_id?: string | null;
 };
 
 // ---------------------------------------------------------------------------
