@@ -184,7 +184,7 @@ Deno.serve(async (req) => {
     //    Não bloqueia a request — a UI consulta as métricas via view.
     try {
       const placementsCreated = (rpcData as any)?.placements_created ?? 0;
-      const catalogTrackId = (rpcData as any)?.catalog_track_id ?? null;
+      const catalogTrackId = (rpcData as any)?.track?.id ?? null;
       if (placementsCreated > 0 && catalogTrackId) {
         const workerUrl = `${SUPABASE_URL}/functions/v1/process-catalog-placements`;
         // Não await — apenas dispara.
