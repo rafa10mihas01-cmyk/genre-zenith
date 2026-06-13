@@ -180,6 +180,28 @@ Deno.serve(async (req) => {
       }, 500);
     }
 
+    // 4) Dispara o worker que efetiva os placements no Spotify (fire-and-forget).
+    //    Não bloqueia a request — a UI consulta as métricas via view.
+    try {
+      const placementsCreated = (rpcData as any)?.placements_created ?? 0;
+      const catalogTrackId = (rpcData as any)?.track?.id ?? null;
+      if (placementsCreated > 0 && catalogTrackId) {
+        const workerUrl = `${SUPABASE_URL}/functions/v1/process-catalog-placements`;
+        // Não await — apenas dispara.
+        fetch(workerUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${SERVICE_KEY}`,
+            "apikey": SERVICE_KEY,
+          },
+          body: JSON.stringify({ catalog_track_id: catalogTrackId }),
+        }).catch((e) => console.error("[distribute-catalog-track] worker dispatch failed:", e));
+      }
+    } catch (e) {
+      console.error("[distribute-catalog-track] worker dispatch error:", e);
+    }
+
     return jr(rpcData);
   } catch (e) {
     const msg = (e as Error)?.message ?? String(e);
