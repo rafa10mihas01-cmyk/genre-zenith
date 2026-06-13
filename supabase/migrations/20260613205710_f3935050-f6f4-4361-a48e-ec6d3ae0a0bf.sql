@@ -1,0 +1,1 @@
+ALTER VIEW public.v_catalog_playlist_occupancy SET (security_invoker = on);
