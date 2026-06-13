@@ -14,7 +14,7 @@
 // Concorrência baixa (2 in-flight, ~150ms stall) pra ficar Spotify-friendly.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getSpotifyToken, SpotifyCircuitOpenError } from "../_shared/spotify.ts";
+import { getAppToken, SpotifyCircuitOpenError } from "../_shared/spotify-client.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
 
   let token: string;
   try {
-    token = await getSpotifyToken();
+    token = await getAppToken();
   } catch (e) {
     // Sem token → libera jobs (volta pra pending) e devolve
     await releaseJobs(sb, list.map((j) => j.id), `token_error: ${String((e as Error)?.message ?? e)}`);

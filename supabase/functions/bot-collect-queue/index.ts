@@ -4,7 +4,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { recordMetric } from "../_shared/ops-metrics.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
-import { getSpotifyToken } from "../_shared/spotify.ts";
+import { getAppToken } from "../_shared/spotify-client.ts";
 
 // Resolve spotify_artist_id automaticamente via Spotify API quando o cliente
 // não tem cadastrado. Tenta casar pelo nome (song_artist) e cacheia no client.
@@ -16,7 +16,7 @@ async function resolveArtistIdFromTrack(
   songId: string | null = null,
 ): Promise<{ artistId: string | null; artistUrl: string | null }> {
   try {
-    const token = await getSpotifyToken();
+    const token = await getAppToken();
     const res = await fetch(`https://api.spotify.com/v1/tracks/${trackId}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
