@@ -1,7 +1,7 @@
 // Auto-link managed_playlists.account_id by matching the Spotify playlist
 // owner.id against connected spotify_user_tokens.spotify_user_id.
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getSpotifyToken } from "../_shared/spotify.ts";
+import { getAppToken } from "../_shared/spotify-client.ts";
 import { getPlaylistMeta, SpotifyApiError } from "../_shared/spotify-playlist.ts";
 
 const corsHeaders = {
@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const appToken = await getSpotifyToken();
+    const appToken = await getAppToken();
     let linked = 0;
     let scanned = 0;
     const errors: string[] = [];

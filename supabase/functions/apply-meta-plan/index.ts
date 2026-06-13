@@ -17,7 +17,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
-import { getUserAccessToken, getSpotifyToken } from "../_shared/spotify.ts";
+import { getUserToken, getAppToken } from "../_shared/spotify-client.ts";
 import {
   addPlaylistTracks,
   findPlaylistTrackIndex,
@@ -50,13 +50,13 @@ const tokenCache = new Map<string, string>();
 async function tokenForOwner(spId: string): Promise<{ token: string; ownerId: string | null }> {
   let ownerId: string | null = null;
   try {
-    const appToken = await getSpotifyToken();
+    const appToken = await getAppToken();
     const meta = await getPlaylistMeta(spId, appToken, { fields: "owner(id)" });
     ownerId = meta.owner_id;
   } catch { /* */ }
   const key = ownerId ?? "_default";
   if (tokenCache.has(key)) return { token: tokenCache.get(key)!, ownerId };
-  const r = await getUserAccessToken(ownerId ?? undefined);
+  const r = await getUserToken(ownerId ?? undefined);
   tokenCache.set(key, r.token);
   return { token: r.token, ownerId };
 }

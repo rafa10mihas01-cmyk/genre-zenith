@@ -7,7 +7,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
-import { getUserAccessToken, getSpotifyToken } from "../_shared/spotify.ts";
+import { getUserToken, getAppToken } from "../_shared/spotify-client.ts";
 import { addPlaylistTracks, getPlaylistMeta, listPlaylistTrackUris, SpotifyApiError } from "../_shared/spotify-playlist.ts";
 import { getProtectedTracksForPlaylist, protectedUriSet, logProtectedBlock } from "../_shared/protected-tracks.ts";
 import {
@@ -74,14 +74,14 @@ Deno.serve(async (req) => {
     //    Descobre o owner via API pública, depois acha o token correspondente.
     let ownerId: string | null = null;
     try {
-      const appToken = await getSpotifyToken();
+      const appToken = await getAppToken();
       const meta = await getPlaylistMeta(pl.spotify_playlist_id, appToken);
       ownerId = meta.owner_id;
     } catch { /* segue sem ownerId, cai no default */ }
 
     let token: string;
     try {
-      const r = await getUserAccessToken(ownerId ?? undefined);
+      const r = await getUserToken(ownerId ?? undefined);
       token = r.token;
     } catch (e) {
       return jr({

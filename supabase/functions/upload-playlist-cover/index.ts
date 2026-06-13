@@ -3,7 +3,7 @@
 // → { ok: true }
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getUserAccessToken } from "../_shared/spotify.ts";
+import { getUserToken } from "../_shared/spotify-client.ts";
 import { uploadPlaylistCover } from "../_shared/spotify-playlist.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
 // WASM puro — funciona no edge runtime do Deno (sem libs nativas)
@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
 
   let token: string;
   try {
-    const t = await getUserAccessToken(tpl.spotify_owner_id ?? undefined);
+    const t = await getUserToken(tpl.spotify_owner_id ?? undefined);
     token = t.token;
   } catch (e) {
     return jr({ error: (e as Error).message }, 400);

@@ -15,7 +15,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
-import { getUserAccessToken, getSpotifyToken } from "../_shared/spotify.ts";
+import { getUserToken, getAppToken } from "../_shared/spotify-client.ts";
 import {
   addPlaylistTracks,
   findPlaylistTrackIndex,
@@ -258,14 +258,14 @@ Deno.serve(async (req) => {
   if (!ownerId) {
     // fallback: lê do Spotify
     try {
-      const appToken = await getSpotifyToken();
+      const appToken = await getAppToken();
       const meta = await getPlaylistMeta(pl.spotify_playlist_id, appToken, { fields: "owner(id)" });
       ownerId = meta.owner_id;
     } catch { /* */ }
   }
   let token: string;
   try {
-    const r = await getUserAccessToken(ownerId ?? undefined);
+    const r = await getUserToken(ownerId ?? undefined);
     token = r.token;
   } catch (e) {
     return jr({
