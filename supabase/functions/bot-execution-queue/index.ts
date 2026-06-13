@@ -6,7 +6,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 import { reorderPlaylistTracks, listPlaylistTrackUris, listPlaylistTrackRefs, findPlaylistTrackIndex, addPlaylistTracks, removePlaylistTracks } from "../_shared/spotify-playlist.ts";
-import { getUserAccessToken, forceRefreshUserAccessToken, installSpotifyCircuitFetchGuard } from "../_shared/spotify.ts";
+import { getUserToken, forceRefreshUserToken, installSpotifyCircuitFetchGuard } from "../_shared/spotify-client.ts";
 import { SpotifyApiError } from "../_shared/spotify-playlist.ts";
 import { classifyManualReason, enqueueManual } from "../_shared/manual-fallback.ts";
 
@@ -152,7 +152,7 @@ Deno.serve(async (req) => {
       const ownerId = mp?.owner_spotify_user_id ?? null;
       if (!ownerId) throw new Error("owner_spotify_user_id não encontrado em managed_playlists");
 
-      let { token } = await getUserAccessToken(ownerId);
+      let { token } = await getUserToken(ownerId);
 
       // Em playlists privadas/colaborativas, leitura também precisa do token do dono.
       // Retry uma vez com refresh forçado em 401 (token pode estar stale no cache).
@@ -162,7 +162,7 @@ Deno.serve(async (req) => {
       } catch (ge) {
         if (ge instanceof SpotifyApiError && ge.status === 401) {
           console.log(JSON.stringify({ evt: "reorder.token_refresh", job_id: j.id }));
-          const refreshed = await forceRefreshUserAccessToken(ownerId);
+          const refreshed = await forceRefreshUserToken(ownerId);
           token = refreshed.token;
           uris = await listPlaylistTrackUris(j.spotify_playlist_id, token);
         } else {
@@ -254,7 +254,7 @@ Deno.serve(async (req) => {
       const managedId = mp!.id as string;
       const currentCount = Number(mp?.tracks_count ?? 0);
 
-      const { token } = await getUserAccessToken(ownerId);
+      const { token } = await getUserToken(ownerId);
       const trackUri = `spotify:track:${j.spotify_track_id}`;
 
       console.log(JSON.stringify({
@@ -291,7 +291,7 @@ Deno.serve(async (req) => {
           preRefs = await listPlaylistTrackRefs(j.spotify_playlist_id, activeToken);
         } catch (ge) {
           if (ge instanceof SpotifyApiError && ge.status === 401) {
-            const refreshed = await forceRefreshUserAccessToken(ownerId);
+            const refreshed = await forceRefreshUserToken(ownerId);
             activeToken = refreshed.token;
             preRefs = await listPlaylistTrackRefs(j.spotify_playlist_id, activeToken);
           } else { throw ge; }
@@ -376,7 +376,7 @@ Deno.serve(async (req) => {
             } catch (ge) {
               if (ge instanceof SpotifyApiError && ge.status === 401) {
                 console.log(JSON.stringify({ evt: "post_add_reorder.token_refresh", job_id: j.id }));
-                const refreshed = await forceRefreshUserAccessToken(ownerId);
+                const refreshed = await forceRefreshUserToken(ownerId);
                 activeToken = refreshed.token;
                 uris = await listPlaylistTrackUris(j.spotify_playlist_id, activeToken);
               } else {
