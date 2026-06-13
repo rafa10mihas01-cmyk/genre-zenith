@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
 
     if (mode === "ping") {
       const force = url.searchParams.get("force") === "1";
-      const token = await getSpotifyToken(force);
+      const token = force ? await forceRefreshAppToken() : await getAppToken();
       const ping = await fetch("https://api.spotify.com/v1/search?q=artist%3AAnitta&type=artist&limit=1", {
         headers: { Authorization: `Bearer ${token}` },
       });
