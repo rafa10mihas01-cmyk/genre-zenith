@@ -60,8 +60,10 @@ type PreviewPlaylist = {
   cover_url: string | null;
   followers: number | null;
   available_slots?: number;
-  tracks_count?: number;
+  real_tracks?: number;
+  campaign_reserved_slots?: number;
   projected_position?: number;
+  kind?: "hybrid" | "catalog_pure";
 };
 
 type PreviewResult = {
@@ -71,17 +73,18 @@ type PreviewResult = {
   track_exists?: boolean;
   genre_id?: string;
   genre_name?: string;
-  genre_pool_total?: number;
-  genre_capacity_total?: number;
-  genre_capacity_used?: number;
-  genre_capacity_free?: number;
-  eligible?: PreviewPlaylist[];
+  pool_total?: number;
+  pool_hybrid?: number;
+  pool_catalog_pure?: number;
+  capacity_total?: number;
+  capacity_used?: number;
+  capacity_free?: number;
+  eligible_hybrid?: PreviewPlaylist[];
+  eligible_catalog_pure?: PreviewPlaylist[];
   already_present?: PreviewPlaylist[];
   no_capacity?: PreviewPlaylist[];
-  eligible_count?: number;
-  already_present_count?: number;
-  no_capacity_count?: number;
 };
+
 
 type DistributeResult = {
   ok: boolean;
@@ -340,9 +343,41 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
 
   const renderStepPreview = () => {
     if (!preview || !resolved) return null;
-    const eligibleCount = preview.eligible_count ?? 0;
-    const presentCount = preview.already_present_count ?? 0;
-    const noCapCount = preview.no_capacity_count ?? 0;
+    const hybridList = preview.eligible_hybrid ?? [];
+    const catalogPureList = preview.eligible_catalog_pure ?? [];
+    const eligibleCount = hybridList.length + catalogPureList.length;
+    const presentCount = preview.already_present?.length ?? 0;
+    const noCapCount = preview.no_capacity?.length ?? 0;
+
+    const renderPlaylistRow = (p: PreviewPlaylist, kind: "hybrid" | "catalog_pure") => (
+      <div
+        key={p.id}
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5 min-w-0"
+      >
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="truncate text-[13px] font-medium text-foreground leading-tight max-w-full">{p.name}</div>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {kind === "hybrid" ? (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-amber-500/40 text-amber-500">Híbrida · reserva 1-18</Badge>
+            ) : (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">Catálogo puro</Badge>
+            )}
+            <span className="text-muted-foreground tabular-nums">
+              posição <span className="font-medium text-foreground">#{p.projected_position ?? "?"}</span>
+            </span>
+            <span className="text-muted-foreground">·</span>
+            <span className="text-muted-foreground tabular-nums">
+              {fmtNum(p.real_tracks)} faixas
+            </span>
+          </div>
+        </div>
+        <div className="flex sm:block items-center gap-2 text-left sm:text-right shrink-0 space-y-0 sm:space-y-0.5">
+          <div className="text-muted-foreground tabular-nums">{fmtNum(p.followers)} fãs</div>
+          <div className="hidden sm:block text-muted-foreground tabular-nums">{p.available_slots ?? 0} vagas</div>
+        </div>
+      </div>
+    );
+
     return (
       <div className="space-y-4 min-w-0">
         {renderTrackCard(true)}
@@ -377,15 +412,23 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
         <div className="p-3 rounded-lg bg-muted/30 border border-border/60 space-y-1 text-xs">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Pool do gênero <span className="capitalize font-medium text-foreground">{preview.genre_name}</span></span>
-            <span className="tabular-nums">{preview.genre_pool_total ?? 0} playlists</span>
+            <span className="tabular-nums">{preview.pool_total ?? 0} playlists</span>
           </div>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between pl-3 text-muted-foreground">
+            <span>· Híbridas (ativas, reserva 1-18)</span>
+            <span className="tabular-nums">{preview.pool_hybrid ?? 0}</span>
+          </div>
+          <div className="flex items-center justify-between pl-3 text-muted-foreground">
+            <span>· Catálogo puro (arquivadas)</span>
+            <span className="tabular-nums">{preview.pool_catalog_pure ?? 0}</span>
+          </div>
+          <div className="flex items-center justify-between pt-1 border-t border-border/40 mt-1">
             <span className="text-muted-foreground">Capacidade livre total</span>
-            <span className="tabular-nums font-medium text-foreground">{fmtNum(preview.genre_capacity_free)} vagas</span>
+            <span className="tabular-nums font-medium text-foreground">{fmtNum(preview.capacity_free)} vagas</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Capacidade utilizada</span>
-            <span className="tabular-nums">{fmtNum(preview.genre_capacity_used)} / {fmtNum(preview.genre_capacity_total)}</span>
+            <span className="tabular-nums">{fmtNum(preview.capacity_used)} / {fmtNum(preview.capacity_total)}</span>
           </div>
         </div>
 
@@ -395,7 +438,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
             <div className="min-w-0">
               <div className="font-medium">Nenhuma playlist compatível com vaga em <span className="capitalize">{preview.genre_name}</span>.</div>
               <div className="text-xs text-muted-foreground mt-0.5">
-                {preview.genre_pool_total === 0
+                {preview.pool_total === 0
                   ? "Esse gênero não tem playlists cadastradas no catálogo."
                   : "Todas as playlists do gênero estão lotadas ou já contêm a faixa. A faixa será registrada sem placements."}
               </div>
@@ -403,42 +446,31 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
           </div>
         )}
 
-        {eligibleCount > 0 && (
+        {catalogPureList.length > 0 && (
           <details className="text-sm" open>
             <summary className="cursor-pointer text-muted-foreground hover:text-foreground select-none">
-              Ver as {eligibleCount} playlists compatíveis
+              <span className="font-medium text-foreground">Catálogo puro</span> · {catalogPureList.length} playlist(s) · posição real
             </summary>
-            <div className="mt-2 max-h-[42vh] overflow-y-auto overflow-x-hidden space-y-2 pr-1">
-              {preview.eligible?.map((p) => (
-                <div
-                  key={p.id}
-                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5 min-w-0"
-                >
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <div className="truncate text-[13px] font-medium text-foreground leading-tight max-w-full">{p.name}</div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">Catálogo</Badge>
-                      <span className="text-muted-foreground tabular-nums">
-                        entra na posição <span className="font-medium text-foreground">#{p.projected_position ?? "?"}</span>
-                      </span>
-                      <span className="text-muted-foreground">·</span>
-                      <span className="text-muted-foreground tabular-nums">
-                        {fmtNum(p.tracks_count)} faixas
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex sm:block items-center gap-2 text-left sm:text-right shrink-0 space-y-0 sm:space-y-0.5">
-                    <div className="text-muted-foreground tabular-nums">{fmtNum(p.followers)} fãs</div>
-                    <div className="hidden sm:block text-muted-foreground tabular-nums">{p.available_slots ?? 0} vagas</div>
-                  </div>
-                </div>
-              ))}
+            <div className="mt-2 max-h-[32vh] overflow-y-auto overflow-x-hidden space-y-2 pr-1">
+              {catalogPureList.map((p) => renderPlaylistRow(p, "catalog_pure"))}
+            </div>
+          </details>
+        )}
+
+        {hybridList.length > 0 && (
+          <details className="text-sm" open>
+            <summary className="cursor-pointer text-muted-foreground hover:text-foreground select-none">
+              <span className="font-medium text-foreground">Híbridas</span> · {hybridList.length} playlist(s) · reserva 1-18 para campanhas, catálogo entra ≥#19
+            </summary>
+            <div className="mt-2 max-h-[32vh] overflow-y-auto overflow-x-hidden space-y-2 pr-1">
+              {hybridList.map((p) => renderPlaylistRow(p, "hybrid"))}
             </div>
           </details>
         )}
       </div>
     );
   };
+
 
   const renderStepDone = () => {
     if (!distributed) return null;
@@ -557,7 +589,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
                 {step === "distributing" && <Loader2 className="h-4 w-4 animate-spin" />}
                 {step === "distributing"
                   ? "Distribuindo…"
-                  : `Distribuir ${preview?.eligible_count ?? 0} placements`}
+                  : `Distribuir ${(preview?.eligible_hybrid?.length ?? 0) + (preview?.eligible_catalog_pure?.length ?? 0)} placements`}
               </Button>
             </>
           ) : step === "done" ? (

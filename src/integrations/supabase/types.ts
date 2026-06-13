@@ -6386,6 +6386,7 @@ export type Database = {
           archived_at: string | null
           archived_followers: number | null
           archived_reason: string | null
+          campaign_reserved_slots: number
           canonical_playlist_id: string | null
           catalog_capacity: number
           cover_url: string | null
@@ -6442,6 +6443,7 @@ export type Database = {
           archived_at?: string | null
           archived_followers?: number | null
           archived_reason?: string | null
+          campaign_reserved_slots?: number
           canonical_playlist_id?: string | null
           catalog_capacity?: number
           cover_url?: string | null
@@ -6498,6 +6500,7 @@ export type Database = {
           archived_at?: string | null
           archived_followers?: number | null
           archived_reason?: string | null
+          campaign_reserved_slots?: number
           canonical_playlist_id?: string | null
           catalog_capacity?: number
           cover_url?: string | null
