@@ -3,7 +3,7 @@
 // → { ok, spotify_playlist_id, spotify_url, tracks_added, tracks_failed }
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getUserAccessToken, guardedSpotifyFetch } from "../_shared/spotify.ts";
+import { getUserToken, spotifyFetch } from "../_shared/spotify-client.ts";
 import {
   addPlaylistTracks,
   createPlaylist,
@@ -59,7 +59,7 @@ async function searchTrackUri(token: string, nome: string, artista: string): Pro
   // 🎯 Busca top 5 e escolhe pela maior popularidade — evita remix/cover errado
   const q = `track:${nome} artist:${artista}`;
   const url = `https://api.spotify.com/v1/search?type=track&limit=5&q=${encodeURIComponent(q)}`;
-  const r = await guardedSpotifyFetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const r = await spotifyFetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (!r.ok) return null;
   const j = await r.json();
   const items: any[] = j?.tracks?.items ?? [];
@@ -146,7 +146,7 @@ Deno.serve(async (req) => {
   let token: string;
   let ownerId: string;
   try {
-    const t = await getUserAccessToken(chosenUserId);
+    const t = await getUserToken(chosenUserId);
     token = t.token;
     ownerId = t.row.spotify_user_id;
   } catch (e) {

@@ -5,7 +5,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
-import { getUserAccessToken, getSpotifyToken, guardedSpotifyFetch, forceRefreshUserAccessToken } from "../_shared/spotify.ts";
+import { getUserToken, getAppToken, spotifyFetch, forceRefreshUserToken } from "../_shared/spotify-client.ts";
 import { getPlaylistMeta } from "../_shared/spotify-playlist.ts";
 import decodePng from "npm:@jsquash/png@3.1.0/decode.js";
 import decodeJpeg from "npm:@jsquash/jpeg@1.5.0/decode.js";
@@ -92,7 +92,7 @@ async function fetchAsCleanJpeg(url: string): Promise<EncodedCover> {
 }
 
 async function fetchSpotifyCoverUrl(spotifyPlaylistId: string, token: string): Promise<string | null> {
-  const r = await guardedSpotifyFetch(`https://api.spotify.com/v1/playlists/${spotifyPlaylistId}/images`, {
+  const r = await spotifyFetch(`https://api.spotify.com/v1/playlists/${spotifyPlaylistId}/images`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!r.ok) return null;
@@ -146,14 +146,14 @@ Deno.serve(async (req) => {
     // descobre dono
     let ownerId: string | null = null;
     try {
-      const appToken = await getSpotifyToken();
+      const appToken = await getAppToken();
       const meta = await getPlaylistMeta(pl.spotify_playlist_id, appToken, { fields: "owner(id)" });
       ownerId = meta.owner_id;
     } catch { /* */ }
 
     let token: string;
     try {
-      const r = await getUserAccessToken(ownerId ?? undefined);
+      const r = await getUserToken(ownerId ?? undefined);
       token = r.token;
     } catch (e) {
       return jr({
@@ -184,7 +184,7 @@ Deno.serve(async (req) => {
     const b64 = uint8ToBase64(jpeg.bytes);
     console.log(`[cover] PUT ${pl.spotify_playlist_id} owner=${ownerId ?? "?"} ${jpeg.width}x${jpeg.height} q=${jpeg.quality} ${jpeg.bytes.byteLength}b base64=${b64.length}c`);
 
-    let resp = await guardedSpotifyFetch(`https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}/images`, {
+    let resp = await spotifyFetch(`https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}/images`, {
       method: "PUT",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "image/jpeg" },
       body: b64,
@@ -196,9 +196,9 @@ Deno.serve(async (req) => {
     if (resp.status === 401 && ownerId) {
       try {
         console.log(`[cover] 401 recebido — forçando refresh do token de ${ownerId} e retry`);
-        const refreshed = await forceRefreshUserAccessToken(ownerId);
+        const refreshed = await forceRefreshUserToken(ownerId);
         token = refreshed.token;
-        resp = await guardedSpotifyFetch(`https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}/images`, {
+        resp = await spotifyFetch(`https://api.spotify.com/v1/playlists/${pl.spotify_playlist_id}/images`, {
           method: "PUT",
           headers: { Authorization: `Bearer ${token}`, "Content-Type": "image/jpeg" },
           body: b64,
