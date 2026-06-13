@@ -7,7 +7,7 @@
 // Sem body = roda 1 owner por app (05/06/07/08).
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { refreshUserToken, type SpotifyUserToken } from "../_shared/spotify.ts";
+import { refreshUserToken, type SpotifyUserToken } from "../_shared/spotify-client.ts";
 import { spotifyFetch } from "../_shared/spotify-client.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;

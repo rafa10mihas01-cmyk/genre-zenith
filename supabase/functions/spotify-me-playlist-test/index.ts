@@ -1,7 +1,7 @@
 // One-off raw test: POST /v1/me/playlists for a given (app_id, spotify_user_id).
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { refreshUserToken, type SpotifyUserToken } from "../_shared/spotify.ts";
+import { refreshUserToken, type SpotifyUserToken } from "../_shared/spotify-client.ts";
 import { spotifyFetch } from "../_shared/spotify-client.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
