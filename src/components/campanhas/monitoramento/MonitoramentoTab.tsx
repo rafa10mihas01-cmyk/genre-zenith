@@ -99,8 +99,8 @@ export function MonitoramentoTab({ campaignId, headerSlot, spreadsheetUploads }:
         .eq("deal_id", officialDealId)
         .is("superseded_by", null)
         .in("status", ["complete", "processed", "error"])
-        .order("created_at", { ascending: false })
-        .limit(1);
+        .order("created_at", { ascending: true })
+        .limit(120);
       const latest = ((data ?? []) as Array<{
         id: string;
         created_at: string | null;
@@ -280,8 +280,11 @@ function BaselineStatus({
     }
   };
 
-  const totalPrints = runs.reduce((acc, r) => acc + (r.print_urls?.length ?? 0), 0);
-  const latestRunAt = runs[0]?.created_at ?? null;
+  const latestRunAt = runs.reduce<string | null>((latest, run) => {
+    if (!run.created_at) return latest;
+    if (!latest) return run.created_at;
+    return new Date(run.created_at).getTime() > new Date(latest).getTime() ? run.created_at : latest;
+  }, null);
 
   const dateLabel = capturedAt
     ? new Date(capturedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })
@@ -426,7 +429,26 @@ function BaselineStatus({
               Nenhum print vinculado a esta campanha ainda.
             </div>
           ) : (
-            runs.map((run, idx) => {
+            <div className="space-y-3">
+              {capturedAt && (
+                <div className="rounded-lg border border-primary/40 bg-primary/5 p-3">
+                  <div className="flex items-center justify-between mb-2 gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="text-[12px] font-semibold tabular-nums truncate">
+                        {new Date(capturedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      </div>
+                      <span className="text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded border border-primary/50 text-primary leading-none shrink-0">
+                        baseline
+                      </span>
+                    </div>
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
+                      {playlists} playlists
+                    </div>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">Registro inicial da campanha.</div>
+                </div>
+              )}
+              {runs.map((run) => {
               const urls = run.print_urls ?? [];
               const dt = run.created_at ? new Date(run.created_at) : null;
               const label = dt
@@ -467,7 +489,8 @@ function BaselineStatus({
                   <PrintThumbs urls={urls} size="md" />
                 </div>
               );
-            })
+            })}
+            </div>
           )}
         </div>
       </details>
