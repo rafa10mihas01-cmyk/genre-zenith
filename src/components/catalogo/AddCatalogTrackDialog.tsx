@@ -219,29 +219,29 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
     if (!resolved?.track) return null;
     const t = resolved.track;
     return (
-      <div className="flex gap-3 p-3 rounded-xl bg-muted/30 border border-border">
+      <div className="flex gap-3 p-3 nx-subcard">
         {t.cover_url ? (
           <img
             src={t.cover_url}
             alt={t.track_name}
-            className={compact ? "h-12 w-12 rounded shrink-0 object-cover" : "h-20 w-20 rounded-lg shrink-0 object-cover"}
+            className={compact ? "h-10 w-10 rounded-md shrink-0 object-cover ring-1 ring-border" : "h-16 w-16 rounded-md shrink-0 object-cover ring-1 ring-border"}
           />
         ) : (
-          <div className={compact ? "h-12 w-12 rounded shrink-0 bg-muted flex items-center justify-center" : "h-20 w-20 rounded-lg shrink-0 bg-muted flex items-center justify-center"}>
-            <Music className="h-5 w-5 text-muted-foreground" />
+          <div className={compact ? "h-10 w-10 rounded-md shrink-0 bg-muted flex items-center justify-center" : "h-16 w-16 rounded-md shrink-0 bg-muted flex items-center justify-center"}>
+            <Music className="h-4 w-4 text-muted-foreground" />
           </div>
         )}
         <div className="min-w-0 flex-1 space-y-0.5">
-          <div className="font-semibold truncate">{t.track_name}</div>
-          <div className="text-sm text-muted-foreground truncate">{t.artist_name}</div>
+          <div className="text-[13px] font-semibold leading-tight truncate">{t.track_name}</div>
+          <div className="text-[11px] text-muted-foreground truncate">{t.artist_name}</div>
           {!compact && (
-            <div className="text-xs text-muted-foreground font-mono pt-1 space-x-2">
+            <div className="text-[10px] text-muted-foreground font-mono pt-1 space-x-2 truncate">
               {t.isrc && <span>ISRC: {t.isrc}</span>}
               <span>ID: {t.spotify_track_id}</span>
             </div>
           )}
           {compact && selectedGenre && (
-            <Badge variant="secondary" className="text-xs mt-1 capitalize">{selectedGenre.nome}</Badge>
+            <Badge variant="secondary" className="text-[10px] mt-1 capitalize h-4 px-1.5 py-0">{selectedGenre.nome}</Badge>
           )}
         </div>
       </div>
@@ -250,7 +250,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
 
   const renderStepIdleOrResolving = () => (
     <div className="space-y-3">
-      <Label htmlFor="track-input">Spotify URL, URI ou Track ID</Label>
+      <Label htmlFor="track-input" className="text-[12px]">Spotify URL, URI ou Track ID</Label>
       <Input
         id="track-input"
         value={input}
@@ -262,8 +262,8 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
           if (e.key === "Enter" && step === "idle" && input.trim()) doResolve();
         }}
       />
-      <p className="text-xs text-muted-foreground">
-        O sistema vai buscar a faixa no Spotify e sugerir um gênero. Você confirma antes de distribuir.
+      <p className="text-[11px] text-muted-foreground">
+        O sistema busca a faixa no Spotify e sugere um gênero. Você confirma antes de distribuir.
       </p>
     </div>
   );
