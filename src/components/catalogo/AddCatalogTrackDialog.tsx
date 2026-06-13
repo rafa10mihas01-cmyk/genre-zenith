@@ -542,12 +542,13 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
 
   const description =
     step === "idle" || step === "resolving"
-      ? "Cole a URL, URI ou Track ID da faixa. O sistema busca os metadados antes de distribuir."
+      ? "Cole a URL do Spotify para buscar a faixa."
       : step === "metadata"
-        ? "Confirme o gênero antes de visualizar o impacto da distribuição."
+        ? "Confirme o gênero antes do preview."
         : step === "preview" || step === "previewing" || step === "distributing"
           ? "Revise o impacto antes de criar os placements."
           : undefined;
+
 
   const isBusy = step === "resolving" || step === "previewing" || step === "distributing";
 
