@@ -207,6 +207,24 @@ Deno.serve(async (req) => {
         : "exception");
       const msg = trim(e?.message ?? String(e));
 
+      // Erros TRANSITÓRIOS — mantém placement em 'pending' pra retry futuro.
+      // Não polui o status definitivo, mas registra no log de auditoria.
+      const isTransient =
+        status === 429 ||
+        status === 500 || status === 502 || status === 503 || status === 504 ||
+        code === "spotify_circuit_open";
+
+      if (isTransient) {
+        await sb.from("catalog_placement_execution_log").insert({
+          ...logBase,
+          outcome: "skipped",
+          error_code: code,
+          error_message: msg,
+        });
+        // não conta como failed nem active — fica pendente
+        continue;
+      }
+
       await sb.from("catalog_placements")
         .update({ status: "failed", removed_reason: trim(`${code}: ${msg}`, 480) })
         .eq("id", p.id);
