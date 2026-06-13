@@ -2075,40 +2075,64 @@ export type Database = {
       catalog_placements: {
         Row: {
           added_at: string | null
+          attempts: number
           catalog_track_id: string
           created_at: string
           distribution_batch_id: string | null
           id: string
+          last_error_code: string | null
+          lease_expires_at: string | null
+          locked_at: string | null
+          locked_by: string | null
           managed_playlist_id: string
+          max_attempts: number
           position: number | null
+          priority: number
           removed_at: string | null
           removed_reason: string | null
+          scheduled_for: string
           status: string
           updated_at: string
         }
         Insert: {
           added_at?: string | null
+          attempts?: number
           catalog_track_id: string
           created_at?: string
           distribution_batch_id?: string | null
           id?: string
+          last_error_code?: string | null
+          lease_expires_at?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
           managed_playlist_id: string
+          max_attempts?: number
           position?: number | null
+          priority?: number
           removed_at?: string | null
           removed_reason?: string | null
+          scheduled_for?: string
           status?: string
           updated_at?: string
         }
         Update: {
           added_at?: string | null
+          attempts?: number
           catalog_track_id?: string
           created_at?: string
           distribution_batch_id?: string | null
           id?: string
+          last_error_code?: string | null
+          lease_expires_at?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
           managed_playlist_id?: string
+          max_attempts?: number
           position?: number | null
+          priority?: number
           removed_at?: string | null
           removed_reason?: string | null
+          scheduled_for?: string
           status?: string
           updated_at?: string
         }
@@ -12358,6 +12382,36 @@ export type Database = {
           id: string
         }[]
       }
+      claim_next_catalog_placements: {
+        Args: { _limit?: number; _worker: string }
+        Returns: {
+          added_at: string | null
+          attempts: number
+          catalog_track_id: string
+          created_at: string
+          distribution_batch_id: string | null
+          id: string
+          last_error_code: string | null
+          lease_expires_at: string | null
+          locked_at: string | null
+          locked_by: string | null
+          managed_playlist_id: string
+          max_attempts: number
+          position: number | null
+          priority: number
+          removed_at: string | null
+          removed_reason: string | null
+          scheduled_for: string
+          status: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "catalog_placements"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       claim_next_playlist_job: {
         Args: { _claimed_by: string }
         Returns: {
@@ -13037,6 +13091,7 @@ export type Database = {
           read_ct: number
         }[]
       }
+      reap_zombie_catalog_placements: { Args: never; Returns: number }
       reap_zombie_playlist_jobs: { Args: never; Returns: number }
       recalc_campaign_progress: {
         Args: { p_campaign_id?: string }
