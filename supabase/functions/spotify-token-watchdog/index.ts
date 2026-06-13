@@ -3,7 +3,7 @@
 // 📊 Audit #10 A.1: heartbeat sempre logado (mesmo quando 0 contas a refrescar).
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getAppCredentials } from "../_shared/spotify.ts";
+import { getAppCredentials } from "../_shared/spotify-client.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -138,7 +138,7 @@ Deno.serve(async (req) => {
       const access_token: string = j.access_token;
       const expires_at = new Date(Date.now() + (j.expires_in ?? 3600) * 1000).toISOString();
       const refresh_token: string = j.refresh_token ?? acc.refresh_token;
-      // 🔧 Audit #10 B.2: atualiza updated_at também (afeta ordering em getUserAccessToken)
+      // 🔧 Audit #10 B.2: atualiza updated_at também (afeta ordering em getUserToken)
       await sb.from("spotify_user_tokens").update({
         access_token, refresh_token, expires_at, updated_at: new Date().toISOString(),
       }).eq("id", acc.id);
