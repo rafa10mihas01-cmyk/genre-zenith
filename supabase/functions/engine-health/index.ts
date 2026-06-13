@@ -10,7 +10,7 @@
 
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getSpotifyToken, guardedSpotifyFetch } from "../_shared/spotify.ts";
+import { getAppToken } from "../_shared/spotify-client.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -140,7 +140,7 @@ async function buildHealth(supabase: any, genreId: string) {
   const releaseMap = new Map<string, string | null>();
   let tokenOk = false;
   try {
-    await getSpotifyToken();
+    await getAppToken({ functionName: "engine-health", operation: "health_check_token" });
     tokenOk = true;
   } catch (_e) {
     tokenOk = false;
