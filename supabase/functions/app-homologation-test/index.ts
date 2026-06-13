@@ -52,7 +52,7 @@ async function call(token: string, method: string, url: string, body?: unknown):
   };
   if (body !== undefined) init.body = JSON.stringify(body);
   try {
-    const r = await fetch(url, init);
+    const r = await spotifyFetch(url, init, { functionName: "app-homologation-test", operation: "homologation_step" });
     const txt = await r.text();
     let parsed: unknown = txt;
     try { parsed = txt ? JSON.parse(txt) : null; } catch { /* keep text */ }
