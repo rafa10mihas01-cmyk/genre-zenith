@@ -238,8 +238,15 @@ export async function spotifyFetch(
 // Helpers de token (re-export instrumentado, mantendo API conhecida)
 // ---------------------------------------------------------------------------
 
-/** Client-credentials token (app-only). Fase 1: usa app default. */
-export async function getAppToken(_opts: SpotifyCallContext = {}): Promise<string> {
+/**
+ * Client-credentials token (app-only).
+ * Aceita `appId` opcional pra escolher app específico (delegado ao legado
+ * `getSpotifyToken({ appId })`), preservando comportamento existente.
+ */
+export async function getAppToken(
+  opts: SpotifyCallContext & { appId?: string | null } = {},
+): Promise<string> {
+  if (opts.appId) return await getSpotifyToken({ appId: opts.appId });
   return await getSpotifyToken();
 }
 
