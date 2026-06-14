@@ -121,6 +121,8 @@ Deno.serve(async (req) => {
       "execution-planner": "Planejamento de execução",
       "reap-zombie-jobs": "Limpeza de jobs travados",
       "ops-alerts-cron-every-5min": "Monitor de robôs",
+      "process-catalog-placements": "Worker do catálogo",
+      "reap-catalog-placements": "Reap de placements do catálogo",
     } as Record<string, string>)[job] ?? job;
 
     const message = hoursIdle != null
