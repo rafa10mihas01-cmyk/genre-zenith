@@ -16,6 +16,8 @@ const CRITICAL_CRONS = [
   "execution-planner",
   "reap-zombie-jobs",
   "ops-alerts-cron-every-5min",
+  "process-catalog-placements",
+  "reap-catalog-placements",
 ] as const;
 
 const DEFAULT_STALE_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2h
