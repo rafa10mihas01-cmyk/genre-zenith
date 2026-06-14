@@ -499,7 +499,7 @@ Deno.serve(async (req) => {
           const invalidIds = invalid.map((i) => i.queue_id);
           await supabase
             .from("catalog_snapshot_queue")
-            .update({ status: "pending", worker_id: null, lease_expires_at: null })
+            .update({ status: "pending", locked_by: null, locked_at: null, lease_expires_at: null })
             .in("id", invalidIds);
         }
         catalogClaimed = valid;
