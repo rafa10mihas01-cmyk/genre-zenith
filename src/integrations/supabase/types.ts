@@ -12701,6 +12701,14 @@ export type Database = {
           phone: string
         }[]
       }
+      admin_get_curator_payment: {
+        Args: { _curator_id: string }
+        Returns: {
+          document: string
+          pix_key: string
+          pix_type: string
+        }[]
+      }
       admin_get_curator_pii: {
         Args: { _curator_id: string }
         Returns: {
@@ -12709,6 +12717,15 @@ export type Database = {
           pix_key: string
           pix_type: string
         }[]
+      }
+      admin_set_curator_payment: {
+        Args: {
+          _curator_id: string
+          _document: string
+          _pix_key: string
+          _pix_type: string
+        }
+        Returns: undefined
       }
       apply_playlist_cooldown: {
         Args: {
