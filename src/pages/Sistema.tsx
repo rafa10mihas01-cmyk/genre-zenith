@@ -329,7 +329,7 @@ function AtividadeRecente() {
         .from("collection_logs")
         .select("id,acao,status,mensagem,created_at")
         .order("created_at", { ascending: false })
-        .limit(15);
+        .limit(50);
       if (!cancelled) setRows((data ?? []) as LogRow[]);
     }
     load();
