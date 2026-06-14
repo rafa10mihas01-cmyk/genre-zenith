@@ -2462,12 +2462,16 @@ export type Database = {
           added_at: string
           added_by: string | null
           artist_name: string
+          auto_collect_interval_minutes: number
           cover_url: string | null
           created_at: string
           genre_id: string | null
           id: string
           isrc: string | null
+          last_auto_collect_at: string | null
+          next_auto_collect_at: string | null
           notes: string | null
+          spotify_artist_id: string | null
           spotify_track_id: string
           spotify_uri: string | null
           status: string
@@ -2478,12 +2482,16 @@ export type Database = {
           added_at?: string
           added_by?: string | null
           artist_name: string
+          auto_collect_interval_minutes?: number
           cover_url?: string | null
           created_at?: string
           genre_id?: string | null
           id?: string
           isrc?: string | null
+          last_auto_collect_at?: string | null
+          next_auto_collect_at?: string | null
           notes?: string | null
+          spotify_artist_id?: string | null
           spotify_track_id: string
           spotify_uri?: string | null
           status?: string
@@ -2494,12 +2502,16 @@ export type Database = {
           added_at?: string
           added_by?: string | null
           artist_name?: string
+          auto_collect_interval_minutes?: number
           cover_url?: string | null
           created_at?: string
           genre_id?: string | null
           id?: string
           isrc?: string | null
+          last_auto_collect_at?: string | null
+          next_auto_collect_at?: string | null
           notes?: string | null
+          spotify_artist_id?: string | null
           spotify_track_id?: string
           spotify_uri?: string | null
           status?: string
@@ -12781,6 +12793,8 @@ export type Database = {
           attempts: number
           catalog_track_id: string
           id: string
+          lease_expires_at: string
+          priority: number
           reason: string
           spotify_track_id: string
         }[]
@@ -13045,6 +13059,7 @@ export type Database = {
         Args: { p_campaign_id: string }
         Returns: undefined
       }
+      enqueue_catalog_snapshots_due: { Args: never; Returns: Json }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
