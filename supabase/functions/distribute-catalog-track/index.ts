@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
       note: "baseline-empty-awaiting-bot",
     };
 
-    // 3) Invoca a RPC atômica
+    // 3) Invoca a RPC atômica — baseline vai vazia (será preenchida pelo bot).
     const sb = createClient(SUPABASE_URL, SERVICE_KEY);
     const { data: rpcData, error: rpcErr } = await sb.rpc("distribute_catalog_track", {
       p_spotify_track_id: trackId,
@@ -143,12 +143,23 @@ Deno.serve(async (req) => {
       p_track_name: trackName,
       p_artist_name: artistName,
       p_cover_url: coverUrl,
-      p_baseline_popularity: popularity,
-      p_baseline_monthly_listeners: artistFollowers,
+      p_baseline_popularity: null,
+      p_baseline_monthly_listeners: null,
       p_baseline_streams: null,
       p_baseline_raw: baselineRaw,
       p_added_by: addedBy,
     });
+
+    // Persiste spotify_artist_id (necessário pro bot montar a URL S4A na próxima coleta)
+    if (primaryArtistId) {
+      try {
+        await sb
+          .from("catalog_tracks")
+          .update({ spotify_artist_id: primaryArtistId })
+          .eq("spotify_track_id", trackId)
+          .is("spotify_artist_id", null);
+      } catch { /* best effort */ }
+    }
 
     if (rpcErr) {
       return jr({
