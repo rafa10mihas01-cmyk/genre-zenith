@@ -142,7 +142,7 @@ Deno.serve(async (req) => {
   // Quando vier screenshot_url, cria 1 linha em bot_print_batches (= a coleta)
   // e referencia via snapshot_run_id. NÃO grava mais screenshot_url na linha.
   let snapshotRunId: string | null = null;
-  if (screenshotUrls.length > 0) {
+  if (screenshotUrls.length > 0 && !isCatalogMode) {
     // Resolve deal_id pela música (FK obrigatória em bot_print_batches)
     const { data: songMeta } = await supabase
       .from("curator_deal_songs")
@@ -177,11 +177,13 @@ Deno.serve(async (req) => {
   const { data: snap, error: snapErr } = await supabase
     .from("song_snapshots")
     .insert({
-      song_id,
+      song_id: song_id ?? null,
+      catalog_track_id: catalog_track_id ?? null,
       spotify_song_id: spotify_song_id ?? null,
       correlation_id: correlation_id ?? null,
       captured_at: captured_at ?? new Date().toISOString(),
       time_window: typeof timeWindow === "string" ? timeWindow : "7d",
+
       total_plays_28d: toInt(total_plays_28d),
       screenshot_url: null,
       snapshot_run_id: snapshotRunId,
