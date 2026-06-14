@@ -186,11 +186,11 @@ Deno.serve(async (req) => {
     }, 422);
   }
 
-  const dSeg = safeSeg(dealId, "no-deal");
-  const sSeg = safeSeg(songId, "no-song");
   const lSeg = safeSeg(label, "print");
   const ts = new Date().toISOString().replace(/[:.]/g, "-");
-  const path = `${dSeg}/${sSeg}/${ts}-${lSeg}.png`;
+  const path = isCatalogMode
+    ? `catalog/${safeSeg(catalogTrackId, "no-track")}/${ts}-${lSeg}.png`
+    : `${safeSeg(dealId, "no-deal")}/${safeSeg(songId, "no-song")}/${ts}-${lSeg}.png`;
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
