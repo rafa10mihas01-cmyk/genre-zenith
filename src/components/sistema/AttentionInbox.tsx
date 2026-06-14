@@ -94,13 +94,14 @@ export function AttentionInbox() {
         const rawActionUrl = copy.actionUrl ?? n.action_url ?? undefined;
         const currentUrl = `${location.pathname}${location.search}`;
         const actionUrl = rawActionUrl === currentUrl ? "/sistema?tab=alertas" : rawActionUrl;
+        const isSpotifyWait = kind === "spotify_circuit_open";
         list.push({
           id: `notif:${n.id}`,
-          severity: n.type === "critical" ? "critical" : "warning",
+          severity: isSpotifyWait ? "warning" : n.type === "critical" ? "critical" : "warning",
           title: copy.title ?? humanizeFunctionName(kind),
           impact: copy.impact ?? copy.message ?? humanizeError(n.message),
           actionUrl,
-          actionLabel: actionUrl === "/sistema?tab=alertas" ? "Detalhes" : copy.actionLabel ?? "Resolver",
+          actionLabel: isSpotifyWait ? "Acompanhar" : actionUrl === "/sistema?tab=alertas" ? "Detalhes" : copy.actionLabel ?? "Resolver",
           when: n.created_at,
         });
       });
