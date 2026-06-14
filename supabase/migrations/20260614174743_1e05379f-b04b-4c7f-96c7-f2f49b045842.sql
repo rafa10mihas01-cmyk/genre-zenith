@@ -1,0 +1,1 @@
+ALTER VIEW public.v_catalog_track_performance SET (security_invoker = true);
