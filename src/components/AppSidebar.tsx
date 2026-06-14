@@ -39,6 +39,7 @@ type NavItem = {
   children?: SubItem[];
   /** Outras rotas que devem marcar este item como ativo (aliases legados). */
   matchPaths?: string[];
+  accent?: string;
 };
 type NavSection = { label: string; items: NavItem[] };
 
