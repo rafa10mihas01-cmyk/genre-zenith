@@ -192,7 +192,7 @@ Deno.serve(async (req) => {
     .from("song_snapshots")
     .insert({
       song_id: song_id ?? null,
-      catalog_track_id: catalog_track_id ?? null,
+      catalog_track_id: effectiveCatalogTrackId || null,
       spotify_song_id: spotify_song_id ?? null,
       correlation_id: correlation_id ?? null,
       captured_at: captured_at ?? new Date().toISOString(),
@@ -379,7 +379,7 @@ Deno.serve(async (req) => {
   }
 
   console.log(
-    `[bot-ingest-song-snapshot] saved snapshot=${snap.id} mode=${isCatalogMode ? "catalog" : "deal"} ref=${song_id ?? catalog_track_id} playlists=${playlists.length} total_28d=${total_plays_28d ?? "-"} bumped=${bumpedDealSong} catalog_closed=${catalogQueueClosed} next=${nextAt ?? "-"}`,
+    `[bot-ingest-song-snapshot] saved snapshot=${snap.id} mode=${isCatalogMode ? "catalog" : "deal"} ref=${song_id ?? effectiveCatalogTrackId} playlists=${playlists.length} total_28d=${total_plays_28d ?? "-"} bumped=${bumpedDealSong} catalog_closed=${catalogQueueClosed} next=${nextAt ?? "-"}`,
   );
 
   return jr({
