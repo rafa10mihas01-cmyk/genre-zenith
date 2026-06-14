@@ -117,6 +117,7 @@ Deno.serve(async (req) => {
       dealId = body?.deal_id || dealId;
       songId = body?.song_id || songId;
       label = body?.label || label;
+      catalogTrackId = body?.catalog_track_id || catalogTrackId;
       correlationId = body?.correlation_id || correlationId;
       if (Array.isArray(body?.dom_playlists)) domPlaylists = body.dom_playlists;
     } else {
