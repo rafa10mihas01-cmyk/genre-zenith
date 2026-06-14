@@ -303,9 +303,9 @@ export function AppSidebar() {
         ))}
       </SidebarContent>
 
-      <SidebarSmartPanel />
-
-      <SidebarFooter className="border-t border-sidebar-border p-2">
+      <div className="mt-auto bg-sidebar-accent/40 border-t border-sidebar-border">
+        <SidebarSmartPanel />
+        <SidebarFooter className="border-t border-sidebar-border/30 p-2">
         {collapsed ? (
           <div className="flex flex-col items-center gap-1">
             <Button
