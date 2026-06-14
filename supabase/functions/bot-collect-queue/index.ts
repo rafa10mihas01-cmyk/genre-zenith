@@ -157,6 +157,7 @@ Deno.serve(async (req) => {
       spotify_artist_id, spotify_artist_url,
       auto_collect_status, last_auto_collect_at, next_auto_collect_at,
       auto_collect_interval_minutes, last_print_at,
+      collect_attempt_count, collect_error_code, collect_paused_until,
       curator_deals!inner ( id, curator_name, song_name, user_id, closed_at, state, source, token_revoked_at, token_expires_at, curator_id, campaign_id, curators ( paused_at ), campaigns!curator_deals_campaign_id_fkey ( client_id, collection_mode, deal_id, clients ( spotify_artist_id, spotify_artist_url ) ) ),
       curator_playlists ( id, playlist_name, spotify_url, spotify_playlist_id )
     `)
@@ -165,7 +166,7 @@ Deno.serve(async (req) => {
     .is("curator_deals.closed_at", null)
     .is("curator_deals.token_revoked_at", null)
     .in("curator_deals.state", ["awaiting_playlists", "collecting", "active"])
-
+    .or(`collect_paused_until.is.null,collect_paused_until.lte.${new Date().toISOString()}`)
     .or(`next_auto_collect_at.is.null,next_auto_collect_at.lte.${new Date().toISOString()}`)
     .order("next_auto_collect_at", { ascending: true, nullsFirst: true })
     // Over-fetch: o filtro JS abaixo descarta deals em modo planilha, curador pausado
