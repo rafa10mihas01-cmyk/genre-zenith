@@ -69,6 +69,9 @@ Deno.serve(async (req) => {
   let dealId = url.searchParams.get("deal_id") ?? "";
   let songId = url.searchParams.get("song_id") ?? "";
   let label = url.searchParams.get("label") ?? "";
+  // Modo catálogo: coleta de catalog_tracks NÃO tem deal_id. Aceitamos
+  // catalog_track_id como alternativa pra salvar o print scopado por catálogo.
+  let catalogTrackId = url.searchParams.get("catalog_track_id") ?? "";
   let correlationId =
     req.headers.get("x-correlation-id") ?? url.searchParams.get("correlation_id") ?? "";
 
@@ -85,6 +88,7 @@ Deno.serve(async (req) => {
       dealId = (form.get("deal_id") as string) || dealId;
       songId = (form.get("song_id") as string) || songId;
       label = (form.get("label") as string) || label;
+      catalogTrackId = (form.get("catalog_track_id") as string) || catalogTrackId;
       correlationId = (form.get("correlation_id") as string) || correlationId;
       const domRaw = form.get("dom_playlists");
       if (typeof domRaw === "string" && domRaw.trim()) {
@@ -113,6 +117,7 @@ Deno.serve(async (req) => {
       dealId = body?.deal_id || dealId;
       songId = body?.song_id || songId;
       label = body?.label || label;
+      catalogTrackId = body?.catalog_track_id || catalogTrackId;
       correlationId = body?.correlation_id || correlationId;
       if (Array.isArray(body?.dom_playlists)) domPlaylists = body.dom_playlists;
     } else {
@@ -146,12 +151,15 @@ Deno.serve(async (req) => {
 
   if (!bytes || bytes.length === 0) return jr({ error: "empty_file" }, 400);
   if (bytes.length > 8 * 1024 * 1024) return jr({ error: "file_too_large_8mb" }, 413);
-  if (!dealId) {
+  if (!dealId && !catalogTrackId) {
     return jr({
-      error: "deal_id_required",
-      detail: "Print sem deal_id vira órfão e não aparece em nenhuma coleta.",
+      error: "deal_id_or_catalog_track_id_required",
+      detail: "Print sem deal_id nem catalog_track_id vira órfão e não aparece em nenhuma coleta.",
     }, 400);
   }
+
+  // Catalog mode = não tem deal, é coleta do catálogo. Pula gates/batches de deal.
+  const isCatalogMode = !dealId && !!catalogTrackId;
 
   const parsed = parsePartLabel(label);
 
@@ -178,11 +186,11 @@ Deno.serve(async (req) => {
     }, 422);
   }
 
-  const dSeg = safeSeg(dealId, "no-deal");
-  const sSeg = safeSeg(songId, "no-song");
   const lSeg = safeSeg(label, "print");
   const ts = new Date().toISOString().replace(/[:.]/g, "-");
-  const path = `${dSeg}/${sSeg}/${ts}-${lSeg}.png`;
+  const path = isCatalogMode
+    ? `catalog/${safeSeg(catalogTrackId, "no-track")}/${ts}-${lSeg}.png`
+    : `${safeSeg(dealId, "no-deal")}/${safeSeg(songId, "no-song")}/${ts}-${lSeg}.png`;
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
