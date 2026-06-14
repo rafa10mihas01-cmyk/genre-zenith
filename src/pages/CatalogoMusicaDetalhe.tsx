@@ -54,7 +54,7 @@ type Placement = {
   scheduled_for: string;
   attempts: number;
   last_error_code: string | null;
-  managed_playlists: { name: string; cover_url: string | null; followers: number | null; spotify_playlist_id: string | null } | null;
+  managed_playlists: { name: string; cover_url: string | null; followers: number | null; spotify_playlist_id: string | null; archived_at: string | null; execution_mode: string | null } | null;
 };
 type Attribution = {
   spotify_playlist_id: string;
@@ -91,7 +91,7 @@ async function fetchDetail(id: string) {
     supabase.from("catalog_tracks").select("id, spotify_track_id, track_name, artist_name, cover_url, isrc, status, added_at").eq("id", id).maybeSingle(),
     supabase.from("catalog_track_baselines").select("captured_at, popularity, monthly_listeners, streams").eq("catalog_track_id", id).maybeSingle(),
     supabase.from("v_catalog_track_telemetry").select("baseline_at, baseline_plays_28d, last_captured_at, last_plays_28d, growth_abs, growth_pct, playlists_present_count, total_plays_7d_from_playlists, snapshots_count").eq("catalog_track_id", id).maybeSingle(),
-    supabase.from("catalog_placements").select("id, status, position, added_at, scheduled_for, attempts, last_error_code, managed_playlists:managed_playlist_id(name, cover_url, followers, spotify_playlist_id)").eq("catalog_track_id", id).order("status", { ascending: true }),
+    supabase.from("catalog_placements").select("id, status, position, added_at, scheduled_for, attempts, last_error_code, managed_playlists:managed_playlist_id(name, cover_url, followers, spotify_playlist_id, archived_at, execution_mode)").eq("catalog_track_id", id).order("status", { ascending: true }),
     supabase.from("v_catalog_track_playlist_attribution").select("spotify_playlist_id, name, owner, spotify_url, first_seen_at, last_seen_at, observations, current_position, current_plays_7d, status").eq("catalog_track_id", id).order("current_plays_7d", { ascending: false, nullsFirst: false }),
     supabase.from("catalog_snapshot_queue").select("status, scheduled_for, attempts, max_attempts, last_error, locked_at").eq("catalog_track_id", id).order("scheduled_for", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("song_snapshots").select("id, captured_at, total_plays_28d, processing_error").eq("catalog_track_id", id).order("captured_at", { ascending: true }).limit(60),
@@ -228,6 +228,10 @@ function sortPlacementsGroup(items: Placement[]) {
   });
 }
 
+function isOperationalPlacement(p: Placement) {
+  return !p.managed_playlists?.archived_at && p.managed_playlists?.execution_mode !== "DISABLED";
+}
+
 function MobilePlacementsSummary({ summary }: { summary: ReturnType<typeof summarizePlacementsGroup> }) {
   return (
     <div className="grid grid-cols-4 gap-[1px] overflow-hidden rounded-lg border border-border bg-border">
@@ -255,8 +259,8 @@ function MobilePlacementsGroups({ placements }: { placements: Placement[] }) {
   const [openHibrido, setOpenHibrido] = useState(false);
   const [openCatalogo, setOpenCatalogo] = useState(false);
 
-  const hibrido = sortPlacementsGroup(placements.filter((p) => p.position != null && p.position <= 19));
-  const catalogo = sortPlacementsGroup(placements.filter((p) => p.position == null || p.position > 19));
+  const hibrido = sortPlacementsGroup(placements.filter(isOperationalPlacement));
+  const catalogo = sortPlacementsGroup(placements.filter((p) => !isOperationalPlacement(p)));
   const hibridoSummary = summarizePlacementsGroup(hibrido);
   const catalogoSummary = summarizePlacementsGroup(catalogo);
 
@@ -272,7 +276,7 @@ function MobilePlacementsGroups({ placements }: { placements: Placement[] }) {
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-[#1DB954] shadow-[0_0_8px_rgba(29,185,84,0.5)]" />
             <span className="text-xs font-semibold text-foreground uppercase tracking-wider">Híbrido</span>
-            <span className="text-[10px] font-mono tabular-nums text-muted-foreground bg-black/30 border border-border rounded px-1.5 py-0.5">≤ #19</span>
+            <span className="text-[10px] font-mono tabular-nums text-muted-foreground bg-black/30 border border-border rounded px-1.5 py-0.5">ativas</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold tabular-nums text-foreground">{hibridoSummary.total}</span>
@@ -285,7 +289,7 @@ function MobilePlacementsGroups({ placements }: { placements: Placement[] }) {
         {openHibrido && (
           <div className="divide-y divide-border border-t border-border bg-black/20">
             {hibrido.length === 0 ? (
-              <div className="px-4 py-6 text-center text-xs text-muted-foreground">Nenhum placement no top 19.</div>
+              <div className="px-4 py-6 text-center text-xs text-muted-foreground">Nenhum placement ativo.</div>
             ) : (
               hibrido.map((p) => <MobilePlacementsRow key={p.id} p={p} />)
             )}
@@ -303,7 +307,7 @@ function MobilePlacementsGroups({ placements }: { placements: Placement[] }) {
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60" />
             <span className="text-xs font-semibold text-foreground uppercase tracking-wider">Catálogo</span>
-            <span className="text-[10px] font-mono tabular-nums text-muted-foreground bg-black/30 border border-border rounded px-1.5 py-0.5">{'>'} #19</span>
+            <span className="text-[10px] font-mono tabular-nums text-muted-foreground bg-black/30 border border-border rounded px-1.5 py-0.5">arquivadas</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold tabular-nums text-foreground">{catalogoSummary.total}</span>
