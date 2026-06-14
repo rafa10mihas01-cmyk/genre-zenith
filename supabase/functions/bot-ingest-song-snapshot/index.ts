@@ -85,6 +85,8 @@ Deno.serve(async (req) => {
 
   const {
     song_id,
+    catalog_track_id,
+    queue_id,
     spotify_song_id,
     correlation_id,
     captured_at,
@@ -96,9 +98,16 @@ Deno.serve(async (req) => {
     bot_metadata,
   } = body ?? {};
 
-  // Validação mínima
-  if (!song_id || typeof song_id !== "string") {
-    return jr({ error: "song_id required (uuid)" }, 400);
+  // Modo catálogo: payload sem song_id mas com catalog_track_id (uuid).
+  // Pula toda a lógica que depende de curator_deal_songs (batch FK, collections RPC, bump deal).
+  const isCatalogMode = !song_id && typeof catalog_track_id === "string" && catalog_track_id.length > 0;
+
+  // Validação: aceita song_id OU catalog_track_id
+  if (!song_id && !catalog_track_id) {
+    return jr({ error: "song_id or catalog_track_id required (uuid)" }, 400);
+  }
+  if (song_id && typeof song_id !== "string") {
+    return jr({ error: "song_id must be string (uuid)" }, 400);
   }
   if (!Array.isArray(playlists)) {
     return jr({ error: "playlists array required (may be empty)" }, 400);
@@ -108,6 +117,7 @@ Deno.serve(async (req) => {
       return jr({ error: "each playlist must have a non-empty name" }, 400);
     }
   }
+
 
   const screenshotUrls = [
     ...(Array.isArray(print_urls) ? print_urls : []),
