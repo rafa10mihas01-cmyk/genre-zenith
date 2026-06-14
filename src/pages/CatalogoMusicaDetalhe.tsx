@@ -372,7 +372,13 @@ export default function CatalogoMusicaDetalhe() {
   const snapshots = q.data.snapshots;
   const batches = q.data.batches;
 
-  const baselineOk = !!b && (b.popularity != null || b.monthly_listeners != null || b.streams != null);
+  const baselineSnapshot = snapshots[0] ?? null;
+  const baselineCapturedAt = tel?.baseline_at ?? baselineSnapshot?.captured_at ?? b?.captured_at ?? null;
+  const baselineStreams = tel?.baseline_plays_28d ?? baselineSnapshot?.total_plays_28d ?? b?.streams ?? null;
+  const baselineOk = !!baselineCapturedAt && (baselineStreams != null || !!baselineSnapshot || !!b);
+  const currentStreams = tel?.last_plays_28d ?? snapshots.at(-1)?.total_plays_28d ?? null;
+  const snapshotsCount = tel?.snapshots_count ?? snapshots.length;
+  const queueActive = queue && (queue.status === "pending" || queue.status === "processing" || queue.status === "retry");
 
   return (
     <>
@@ -434,7 +440,7 @@ export default function CatalogoMusicaDetalhe() {
           <section className="grid grid-cols-2 gap-[1px] bg-border border border-border rounded-xl overflow-hidden">
             <div className="bg-card p-3.5 flex flex-col gap-1">
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Streams 28D</span>
-              <span className={cn("text-xl font-bold tabular-nums tracking-tighter", tel?.last_plays_28d != null ? "text-foreground" : "text-muted-foreground/40")}>{tel?.last_plays_28d != null ? fmt(tel.last_plays_28d) : "—"}</span>
+              <span className={cn("text-xl font-bold tabular-nums tracking-tighter", currentStreams != null ? "text-foreground" : "text-muted-foreground/40")}>{fmt(currentStreams)}</span>
             </div>
             <div className="bg-card p-3.5 flex flex-col gap-1">
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Δ Baseline</span>
@@ -448,8 +454,8 @@ export default function CatalogoMusicaDetalhe() {
             </div>
             <div className="bg-card p-3.5 flex flex-col gap-1">
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Snapshots</span>
-              <span className={cn("text-xl font-bold tabular-nums tracking-tighter", tel?.snapshots_count ? "text-foreground" : "text-muted-foreground/40")}>
-                {tel?.snapshots_count ? fmt(tel.snapshots_count) : "—"}
+              <span className={cn("text-xl font-bold tabular-nums tracking-tighter", snapshotsCount > 0 ? "text-foreground" : "text-muted-foreground/40")}>
+                {snapshotsCount > 0 ? fmt(snapshotsCount) : "—"}
               </span>
             </div>
           </section>
@@ -459,7 +465,7 @@ export default function CatalogoMusicaDetalhe() {
             <div className="flex items-center justify-between mb-2.5">
               <h3 className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Baseline T0</h3>
               <span className="text-[9px] text-muted-foreground/60 font-mono tracking-tighter px-1.5 border border-white/5 rounded bg-black/20">
-                {b?.captured_at ? new Date(b.captured_at).toLocaleDateString("pt-BR") : "—"}
+                {baselineCapturedAt ? new Date(baselineCapturedAt).toLocaleDateString("pt-BR") : "—"}
               </span>
             </div>
             <div className="grid grid-cols-3 gap-1.5">
@@ -473,7 +479,7 @@ export default function CatalogoMusicaDetalhe() {
               </div>
               <div className="bg-black/20 border border-border rounded-lg p-2.5 flex flex-col items-center">
                 <span className="text-[9px] uppercase font-bold text-muted-foreground mb-1">Streams</span>
-                <span className={cn("text-sm font-bold tabular-nums", b?.streams != null ? "text-foreground" : "text-muted-foreground/40")}>{fmt(b?.streams)}</span>
+                <span className={cn("text-sm font-bold tabular-nums", baselineStreams != null ? "text-foreground" : "text-muted-foreground/40")}>{fmt(baselineStreams)}</span>
               </div>
             </div>
           </section>
@@ -483,7 +489,7 @@ export default function CatalogoMusicaDetalhe() {
             <div className="p-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="relative flex h-2 w-2">
-                  {queue && (queue.status === "pending" || queue.status === "processing") && (
+                  {queueActive && (
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1DB954] opacity-40" />
                   )}
                   <span className={cn("relative inline-flex rounded-full h-2 w-2", queue?.status === "failed" ? "bg-rose-500" : queue ? "bg-[#1DB954]" : "bg-muted-foreground/40")} />
@@ -496,7 +502,7 @@ export default function CatalogoMusicaDetalhe() {
                 <span className="text-[10px] text-muted-foreground/60">{rel(tel?.last_captured_at)}</span>
               )}
             </div>
-            {queue && (
+            {queueActive && (
               <div className="p-3 flex items-center justify-between text-[11px]">
                 <span className="text-muted-foreground uppercase tracking-wider font-bold">Tentativas</span>
                 <span className="font-mono tabular-nums text-foreground">{queue.attempts}/{queue.max_attempts}</span>
@@ -542,10 +548,10 @@ export default function CatalogoMusicaDetalhe() {
 
         {/* KPIs desktop */}
         <section className="hidden sm:grid grid-cols-2 md:grid-cols-4 gap-3">
-          <KpiBig tier="hero" icon={Music2} label="Streams 28d (atual)" value={fmt(tel?.last_plays_28d)} hint={tel?.baseline_plays_28d != null ? `Baseline ${fmt(tel.baseline_plays_28d)}` : "Sem baseline ainda"} domain="playlists" />
+          <KpiBig tier="hero" icon={Music2} label="Streams 28d (atual)" value={fmt(currentStreams)} hint={baselineStreams != null ? `Baseline ${fmt(baselineStreams)}` : "Sem baseline ainda"} domain="playlists" />
           <KpiBig icon={TrendingUp} label="Δ vs baseline" value={tel?.growth_abs != null ? `${tel.growth_abs >= 0 ? "+" : ""}${fmt(tel.growth_abs)}` : "—"} hint={tel?.growth_pct != null ? `${tel.growth_pct >= 0 ? "+" : ""}${tel.growth_pct}%` : "Aguardando 2º snapshot"} domain="campaigns" />
           <KpiBig icon={Layers} label="Playlists detectadas" value={fmt(tel?.playlists_present_count)} hint={`${fmt(tel?.total_plays_7d_from_playlists)} plays 7d (VPS)`} domain="deals" />
-          <KpiBig tier="quiet" icon={Activity} label="Snapshots" value={fmt(tel?.snapshots_count)} hint={`Última: ${rel(tel?.last_captured_at)}`} domain="system" />
+          <KpiBig tier="quiet" icon={Activity} label="Snapshots" value={fmt(snapshotsCount)} hint={`Última: ${rel(tel?.last_captured_at ?? snapshots.at(-1)?.captured_at)}`} domain="system" />
         </section>
 
         {/* BASELINE + COLETA desktop */}
@@ -558,22 +564,22 @@ export default function CatalogoMusicaDetalhe() {
               </div>
               {baselineOk ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <AlertTriangle className="h-4 w-4 text-amber-500" />}
             </div>
-            {b ? (
+            {baselineOk ? (
               <div className="grid grid-cols-3 gap-3">
                 <div className="rounded-lg border border-border p-3">
                   <div className="text-[11px] uppercase text-muted-foreground">Popularity</div>
-                  <div className="text-lg font-semibold font-mono">{b.popularity ?? "—"}</div>
+                  <div className="text-lg font-semibold font-mono">{b?.popularity ?? "—"}</div>
                 </div>
                 <div className="rounded-lg border border-border p-3">
                   <div className="text-[11px] uppercase text-muted-foreground">Ouvintes/mês</div>
-                  <div className="text-lg font-semibold font-mono">{fmt(b.monthly_listeners)}</div>
+                  <div className="text-lg font-semibold font-mono">{fmt(b?.monthly_listeners)}</div>
                 </div>
                 <div className="rounded-lg border border-border p-3">
                   <div className="text-[11px] uppercase text-muted-foreground">Streams</div>
-                  <div className="text-lg font-semibold font-mono">{fmt(b.streams)}</div>
+                  <div className="text-lg font-semibold font-mono">{fmt(baselineStreams)}</div>
                 </div>
                 <div className="col-span-3 text-[11px] text-muted-foreground">
-                  Capturada {new Date(b.captured_at).toLocaleString("pt-BR")}
+                  Capturada {baselineCapturedAt ? new Date(baselineCapturedAt).toLocaleString("pt-BR") : "—"}
                 </div>
               </div>
             ) : (
@@ -589,7 +595,7 @@ export default function CatalogoMusicaDetalhe() {
               </div>
               <RefreshCw className="h-4 w-4 text-muted-foreground" />
             </div>
-            {queue ? (
+            {queueActive ? (
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between"><span className="text-muted-foreground">Status</span><StatusDot status={queue.status === "pending" || queue.status === "processing" ? queue.status : queue.status === "failed" ? "failed" : "pending"} /></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Agendada para</span><span className="font-mono text-xs">{new Date(queue.scheduled_for).toLocaleString("pt-BR")}</span></div>
