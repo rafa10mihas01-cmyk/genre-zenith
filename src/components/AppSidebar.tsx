@@ -57,7 +57,6 @@ const sections: NavSection[] = [
         title: "Clientes",
         url: "/clientes",
         icon: User,
-,
       },
       {
         title: "Curadores",
