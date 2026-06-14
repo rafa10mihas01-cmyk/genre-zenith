@@ -159,12 +159,14 @@ export function AttentionInbox() {
   const critical = items.filter((i) => i.severity === "critical").length;
   const warning = items.length - critical;
 
+  const hasCritical = critical > 0;
+
   return (
-    <div className="nx-card border-2 border-destructive/40 bg-destructive/5 overflow-hidden">
-      <header className="px-5 py-3 flex items-center gap-3 border-b border-destructive/20">
-        <AlertOctagon className="h-5 w-5 text-destructive" />
+    <div className={cn("nx-card border-2 overflow-hidden", hasCritical ? "border-destructive/40 bg-destructive/5" : "border-warning/40 bg-warning/5")}>
+      <header className={cn("px-5 py-3 flex items-center gap-3 border-b", hasCritical ? "border-destructive/20" : "border-warning/20")}>
+        {hasCritical ? <AlertOctagon className="h-5 w-5 text-destructive" /> : <AlertTriangle className="h-5 w-5 text-warning" />}
         <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-destructive">Precisa da sua atenção</h3>
+          <h3 className={cn("text-sm font-bold uppercase tracking-wider", hasCritical ? "text-destructive" : "text-warning")}>Precisa da sua atenção</h3>
           <p className="text-[11px] text-muted-foreground mt-0.5">
             {critical > 0 && <span className="text-destructive font-medium">{critical} crítico{critical === 1 ? "" : "s"}</span>}
             {critical > 0 && warning > 0 && <span> · </span>}
@@ -198,7 +200,7 @@ export function AttentionInbox() {
         })}
       </ul>
       {items.length > 8 && (
-        <footer className="px-5 py-2 border-t border-destructive/20 text-center">
+        <footer className={cn("px-5 py-2 border-t text-center", hasCritical ? "border-destructive/20" : "border-warning/20")}>
           <Link to="/sistema?tab=alertas" className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
             Ver todos os {items.length} incidentes <ChevronRight className="h-3 w-3" />
           </Link>
