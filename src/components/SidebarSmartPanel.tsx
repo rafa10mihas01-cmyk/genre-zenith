@@ -158,7 +158,7 @@ export function SidebarSmartPanel() {
   // ----- COLAPSADO: só ícones das ações (mantém utilidade) -----
   if (collapsed) {
     return (
-      <div className="flex flex-col items-center gap-1 px-1 pt-2 pb-1 border-t border-sidebar-border">
+      <div className="flex flex-col items-center gap-1 px-1 pt-2 pb-1">
         {actions.map((a) => (
           <button
             key={a.to}
@@ -187,7 +187,7 @@ export function SidebarSmartPanel() {
 
   // ----- EXPANDIDO -----
   return (
-    <div className="px-3 pt-3 pb-2 border-t border-sidebar-border space-y-3">
+    <div className="px-3 pt-3 pb-2 space-y-3">
       {/* === KPIs CONTEXTUAIS === */}
       {kpis.length > 0 && (
         <div className="space-y-1">
