@@ -188,7 +188,7 @@ Deno.serve(async (req) => {
     const pausedUntil = s?.collect_paused_until ? new Date(s.collect_paused_until).getTime() : null;
     if (pausedUntil && Number.isFinite(pausedUntil) && pausedUntil > nowMs) return false;
     const lastCollectAt = s?.last_auto_collect_at ? new Date(s.last_auto_collect_at).getTime() : null;
-    const intervalMs = Math.max(Number(s?.auto_collect_interval_minutes ?? 60), 5) * 60_000;
+    const intervalMs = Math.max(Number(s?.auto_collect_interval_minutes ?? 2880), 5) * 60_000;
     // Corta retry quente causado por corrida entre complete/recovery/claim:
     // mesmo com next_auto_collect_at stale, uma música não deve reentrar antes do intervalo.
     if (lastCollectAt && Number.isFinite(lastCollectAt) && Date.now() - lastCollectAt < intervalMs) return false;
@@ -255,14 +255,17 @@ Deno.serve(async (req) => {
 
   // Marca songs sem whitelist com status informativo (não polui logs nem fica 'idle' eterno)
   if (blocked.length) {
-    await supabase
-      .from("curator_deal_songs")
-      .update({
-        auto_collect_status: "idle",
-        auto_collect_error: "Aguardando curador cadastrar playlists",
-        next_auto_collect_at: new Date(Date.now() + 60 * 60_000).toISOString(),
-      })
-      .in("id", blocked.map((s: any) => s.id));
+    for (const s of blocked as any[]) {
+      const intervalMin = Math.max(Number(s?.auto_collect_interval_minutes ?? 2880), 5);
+      await supabase
+        .from("curator_deal_songs")
+        .update({
+          auto_collect_status: "idle",
+          auto_collect_error: "Aguardando curador cadastrar playlists",
+          next_auto_collect_at: new Date(Date.now() + intervalMin * 60_000).toISOString(),
+        })
+        .eq("id", s.id);
+    }
 
     // Notifica 1x por deal (dedupe 24h via metadata.kind + deal_id)
     const blockedDealIds = Array.from(new Set(blocked.map((s: any) => s.deal_id)));
