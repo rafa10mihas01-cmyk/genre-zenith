@@ -1907,6 +1907,13 @@ export type Database = {
             referencedColumns: ["catalog_track_id"]
           },
           {
+            foreignKeyName: "campaigns_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_track_telemetry"
+            referencedColumns: ["catalog_track_id"]
+          },
+          {
             foreignKeyName: "campaigns_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
@@ -1996,6 +2003,13 @@ export type Database = {
             referencedRelation: "v_catalog_track_performance"
             referencedColumns: ["catalog_track_id"]
           },
+          {
+            foreignKeyName: "catalog_distribution_batches_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_track_telemetry"
+            referencedColumns: ["catalog_track_id"]
+          },
         ]
       }
       catalog_placement_execution_log: {
@@ -2061,6 +2075,13 @@ export type Database = {
             columns: ["catalog_track_id"]
             isOneToOne: false
             referencedRelation: "v_catalog_track_performance"
+            referencedColumns: ["catalog_track_id"]
+          },
+          {
+            foreignKeyName: "catalog_placement_execution_log_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_track_telemetry"
             referencedColumns: ["catalog_track_id"]
           },
           {
@@ -2180,6 +2201,13 @@ export type Database = {
             referencedColumns: ["catalog_track_id"]
           },
           {
+            foreignKeyName: "catalog_placements_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_track_telemetry"
+            referencedColumns: ["catalog_track_id"]
+          },
+          {
             foreignKeyName: "catalog_placements_distribution_batch_id_fkey"
             columns: ["distribution_batch_id"]
             isOneToOne: false
@@ -2290,6 +2318,13 @@ export type Database = {
             referencedColumns: ["catalog_track_id"]
           },
           {
+            foreignKeyName: "catalog_snapshot_queue_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_track_telemetry"
+            referencedColumns: ["catalog_track_id"]
+          },
+          {
             foreignKeyName: "catalog_snapshot_queue_completed_snapshot_id_fkey"
             columns: ["completed_snapshot_id"]
             isOneToOne: false
@@ -2351,6 +2386,13 @@ export type Database = {
             referencedRelation: "v_catalog_track_performance"
             referencedColumns: ["catalog_track_id"]
           },
+          {
+            foreignKeyName: "catalog_track_baselines_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: true
+            referencedRelation: "v_catalog_track_telemetry"
+            referencedColumns: ["catalog_track_id"]
+          },
         ]
       }
       catalog_track_snapshots: {
@@ -2404,6 +2446,13 @@ export type Database = {
             columns: ["catalog_track_id"]
             isOneToOne: false
             referencedRelation: "v_catalog_track_performance"
+            referencedColumns: ["catalog_track_id"]
+          },
+          {
+            foreignKeyName: "catalog_track_snapshots_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_track_telemetry"
             referencedColumns: ["catalog_track_id"]
           },
         ]
@@ -10592,6 +10641,13 @@ export type Database = {
             referencedColumns: ["catalog_track_id"]
           },
           {
+            foreignKeyName: "song_snapshots_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_track_telemetry"
+            referencedColumns: ["catalog_track_id"]
+          },
+          {
             foreignKeyName: "song_snapshots_snapshot_run_id_fkey"
             columns: ["snapshot_run_id"]
             isOneToOne: false
@@ -11973,6 +12029,70 @@ export type Database = {
           isrc: string | null
           pct_monthly_growth: number | null
           spotify_track_id: string | null
+          track_name: string | null
+        }
+        Relationships: []
+      }
+      v_catalog_track_playlist_attribution: {
+        Row: {
+          catalog_track_id: string | null
+          current_plays_7d: number | null
+          current_position: number | null
+          first_seen_at: string | null
+          last_seen_at: string | null
+          name: string | null
+          observations: number | null
+          owner: string | null
+          spotify_playlist_id: string | null
+          spotify_url: string | null
+          status: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "song_snapshots_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_tracks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "song_snapshots_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_track_distribution_stats"
+            referencedColumns: ["catalog_track_id"]
+          },
+          {
+            foreignKeyName: "song_snapshots_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_track_performance"
+            referencedColumns: ["catalog_track_id"]
+          },
+          {
+            foreignKeyName: "song_snapshots_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_track_telemetry"
+            referencedColumns: ["catalog_track_id"]
+          },
+        ]
+      }
+      v_catalog_track_telemetry: {
+        Row: {
+          artist_name: string | null
+          baseline_at: string | null
+          baseline_plays_28d: number | null
+          catalog_track_id: string | null
+          growth_abs: number | null
+          growth_pct: number | null
+          last_captured_at: string | null
+          last_plays_28d: number | null
+          playlists_present_count: number | null
+          snapshots_count: number | null
+          spotify_track_id: string | null
+          status: string | null
+          total_plays_7d_from_playlists: number | null
           track_name: string | null
         }
         Relationships: []
