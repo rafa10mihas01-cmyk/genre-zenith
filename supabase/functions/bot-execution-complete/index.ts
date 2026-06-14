@@ -90,26 +90,66 @@ Deno.serve(async (req) => {
   const completeCollectSong = async (songId: string) => {
     const { data: song, error: songErr } = await supabase
       .from("curator_deal_songs")
-      .select("id, deal_id, auto_collect_interval_minutes, queued_at")
+      .select("id, deal_id, auto_collect_interval_minutes, queued_at, collect_attempt_count")
       .eq("id", songId)
       .maybeSingle();
     if (songErr || !song) return jr({ error: "song_not_found" }, 404);
 
     const isBreakdownContractError = status === "failed" && /playlist_breakdown_required|breakdown por playlist/i.test(String(errorMsg ?? ""));
-    const intervalMin = isBreakdownContractError ? 5 : (song.auto_collect_interval_minutes ?? 1440);
-    const nextAt = new Date(Date.now() + intervalMin * 60_000).toISOString();
     const queueAgeMs = song.queued_at ? Date.now() - new Date(song.queued_at).getTime() : null;
 
-    await supabase
-      .from("curator_deal_songs")
-      .update({
-        auto_collect_status: status === "done" || isBreakdownContractError ? "idle" : "error",
-        auto_collect_error: status === "done" ? null : (errorMsg ?? "bot execution failed"),
+    let updatePayload: Record<string, unknown>;
+    let nextAt: string;
+    let attemptCount = Number(song.collect_attempt_count ?? 0);
+    let errorCode: string | null = null;
+
+    if (status === "done") {
+      // Sucesso: zera tentativas e volta pro intervalo normal.
+      const intervalMin = song.auto_collect_interval_minutes ?? 1440;
+      nextAt = new Date(Date.now() + intervalMin * 60_000).toISOString();
+      attemptCount = 0;
+      updatePayload = {
+        auto_collect_status: "idle",
+        auto_collect_error: null,
         last_auto_collect_at: nowIso,
         next_auto_collect_at: nextAt,
+        collect_attempt_count: 0,
+        collect_error_code: null,
+        collect_paused_until: null,
         queued_at: null,
-      })
-      .eq("id", songId);
+      };
+    } else if (isBreakdownContractError) {
+      // Contrato breakdown_required: re-enfileira rápido (5min), não conta como falha real.
+      nextAt = new Date(Date.now() + 5 * 60_000).toISOString();
+      errorCode = "breakdown_contract_change";
+      updatePayload = {
+        auto_collect_status: "idle",
+        auto_collect_error: errorMsg ?? "breakdown_contract_change",
+        last_auto_collect_at: nowIso,
+        next_auto_collect_at: nextAt,
+        collect_error_code: errorCode,
+        collect_paused_until: nextAt,
+        queued_at: null,
+      };
+    } else {
+      // Falha real: backoff exponencial.
+      attemptCount = attemptCount + 1;
+      errorCode = classify_error_code(errorMsg);
+      const backoff = deal_collect_backoff_ms(attemptCount);
+      nextAt = new Date(Date.now() + backoff).toISOString();
+      updatePayload = {
+        auto_collect_status: "error",
+        auto_collect_error: errorMsg ?? "bot execution failed",
+        last_auto_collect_at: nowIso,
+        next_auto_collect_at: nextAt,
+        collect_attempt_count: attemptCount,
+        collect_error_code: errorCode,
+        collect_paused_until: nextAt,
+        queued_at: null,
+      };
+    }
+
+    await supabase.from("curator_deal_songs").update(updatePayload).eq("id", songId);
 
     await supabase.from("bot_events").insert({
       bot_name: botName,
@@ -122,10 +162,15 @@ Deno.serve(async (req) => {
       correlation_id: correlationId,
       worker_id: workerId,
       message: status === "done" ? "collect done" : String(errorMsg ?? "collect failed").slice(0, 500),
-      metadata: { queue_age_ms: queueAgeMs, next_auto_collect_at: nextAt },
+      metadata: {
+        queue_age_ms: queueAgeMs,
+        next_auto_collect_at: nextAt,
+        attempt_count: attemptCount,
+        error_code: errorCode,
+      },
     });
 
-    return jr({ ok: true, status, song_id: songId, next_auto_collect_at: nextAt });
+    return jr({ ok: true, status, song_id: songId, next_auto_collect_at: nextAt, attempt_count: attemptCount, error_code: errorCode });
   };
 
   if (explicitSongId && !jobId) {
