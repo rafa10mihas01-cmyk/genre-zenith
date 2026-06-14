@@ -685,11 +685,11 @@ export default function CatalogoMusicaDetalhe() {
         {/* ATRIBUIÇÃO VPS — playlists onde o bot detectou a faixa */}
         <section className="rounded-2xl border border-border bg-card overflow-hidden">
           <div className="p-5 border-b border-border">
-            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2"><History className="h-4 w-4" /> Playlists detectadas pela VPS</h3>
-            <p className="text-xs text-muted-foreground">Onde o bot encontrou a faixa nos snapshots (inclui playlists fora da nossa rede)</p>
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2"><History className="h-4 w-4" /> Playlists onde aparecemos</h3>
+            <p className="text-xs text-muted-foreground">Detectadas automaticamente (incluindo playlists fora da rede)</p>
           </div>
           {attribution.length === 0 ? (
-            <div className="p-8 text-center text-sm text-muted-foreground">Sem detecções ainda. Aguarde o próximo snapshot.</div>
+            <div className="p-8 text-center text-sm text-muted-foreground">Nenhuma detecção ainda.</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
