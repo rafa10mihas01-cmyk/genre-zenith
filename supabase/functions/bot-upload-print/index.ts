@@ -69,6 +69,9 @@ Deno.serve(async (req) => {
   let dealId = url.searchParams.get("deal_id") ?? "";
   let songId = url.searchParams.get("song_id") ?? "";
   let label = url.searchParams.get("label") ?? "";
+  // Modo catálogo: coleta de catalog_tracks NÃO tem deal_id. Aceitamos
+  // catalog_track_id como alternativa pra salvar o print scopado por catálogo.
+  let catalogTrackId = url.searchParams.get("catalog_track_id") ?? "";
   let correlationId =
     req.headers.get("x-correlation-id") ?? url.searchParams.get("correlation_id") ?? "";
 
