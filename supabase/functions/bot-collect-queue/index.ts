@@ -392,10 +392,50 @@ Deno.serve(async (req) => {
     });
   }
 
+  // ====== Catálogo (VPS-first telemetry) ======
+  // Fila independente de deal_song. Itens vêm de catalog_snapshot_queue via
+  // RPC `claim_next_catalog_snapshots`. Retrocompat: items de deal recebem
+  // kind='deal_song' (default no bot); itens novos chegam com kind='catalog'.
+  // Workers antigos que ignoram `kind` continuam funcionando porque os itens
+  // de deal mantêm exatamente o mesmo shape.
+  for (const s of claimedEligible as any[]) {
+    s.kind = "deal_song";
+  }
+
+  let catalogClaimed: any[] = [];
+  try {
+    const remaining = Math.max(0, limit - claimedEligible.length);
+    if (remaining > 0) {
+      const workerId = callerWorkerId || callerHostname || `vps-${crypto.randomUUID().slice(0, 8)}`;
+      const { data: catRows, error: catErr } = await supabase.rpc(
+        "claim_next_catalog_snapshots",
+        { p_worker_id: workerId, p_limit: remaining, p_lease_seconds: 600 },
+      );
+      if (catErr) {
+        console.warn("[bot-collect-queue] catalog claim failed:", catErr.message);
+      } else if (Array.isArray(catRows) && catRows.length) {
+        catalogClaimed = catRows.map((r: any) => ({
+          kind: "catalog",
+          queue_id: r.id,
+          catalog_track_id: r.catalog_track_id,
+          spotify_track_id: r.spotify_track_id,
+          correlation_id: crypto.randomUUID(),
+          priority: r.priority,
+          attempts: r.attempts,
+          lease_expires_at: r.lease_expires_at,
+        }));
+      }
+    }
+  } catch (e) {
+    console.warn("[bot-collect-queue] catalog claim exception:", (e as Error).message);
+  }
+
   return jr({
     ok: true,
-    count: ids.length,
+    count: ids.length + catalogClaimed.length,
+    deal_song_count: ids.length,
+    catalog_count: catalogClaimed.length,
     blocked_no_whitelist: blocked.length,
-    queue: claimedEligible,
+    queue: [...claimedEligible, ...catalogClaimed],
   });
 });
