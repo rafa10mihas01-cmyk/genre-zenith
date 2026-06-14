@@ -408,12 +408,12 @@ export default function CatalogoMusicaDetalhe() {
               <div className="flex flex-col min-w-0 flex-1">
                 <h2 className="text-lg font-bold leading-tight text-foreground truncate">{t.track_name}</h2>
                 <p className="text-sm text-muted-foreground truncate font-medium">{t.artist_name}</p>
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 bg-black/40 border border-border text-muted-foreground rounded">
-                    Ativa: {new Date(t.added_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "2-digit" })}
+                <div className="mt-3 grid grid-cols-2 gap-1.5">
+                  <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-1 bg-black/40 border border-border text-muted-foreground rounded text-center truncate">
+                    Desde {new Date(t.added_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "2-digit" })}
                   </span>
-                  <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 bg-black/40 border border-border text-muted-foreground rounded tabular-nums">
-                    {placementsByStatus.active}/{placements.length} placements
+                  <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-1 bg-black/40 border border-border text-muted-foreground rounded tabular-nums text-center truncate">
+                    {placementsByStatus.active}/{placements.length} ativas
                   </span>
                 </div>
               </div>
