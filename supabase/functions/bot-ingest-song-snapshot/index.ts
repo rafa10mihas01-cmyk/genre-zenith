@@ -230,77 +230,79 @@ Deno.serve(async (req) => {
   // 2.5) Distribuição para campaign_playlist_collections (espelha bot-ingest-snapshot).
   //      Resolve campaign_id via deal → se baseline_status='pending', vira baseline
   //      oficial. RPC é atômica e idempotente. Falha silenciosa — header já salvo.
+  //      [CATALOG MODE] pula totalmente — catálogo não tem deal/campanha.
   let collectionCampaignId: string | null = null;
   let collectionIntent: string | null = null;
   let collectionResult: any = null;
 
-  try {
-    const { data: songJoin } = await supabase
-      .from("curator_deal_songs")
-      .select("deal_id, curator_deals!inner(campaign_id)")
-      .eq("id", song_id)
-      .maybeSingle();
-
-    collectionCampaignId =
-      ((songJoin as any)?.curator_deals?.campaign_id as string | null) ?? null;
-
-    if (collectionCampaignId && playlists.length > 0) {
-      const { data: campRow } = await supabase
-        .from("campaigns")
-        .select("baseline_status")
-        .eq("id", collectionCampaignId)
+  if (!isCatalogMode) {
+    try {
+      const { data: songJoin } = await supabase
+        .from("curator_deal_songs")
+        .select("deal_id, curator_deals!inner(campaign_id)")
+        .eq("id", song_id)
         .maybeSingle();
-      collectionIntent =
-        (campRow as any)?.baseline_status === "pending" ? "baseline" : "periodic";
 
-      const capturedAt = snap.captured_at ?? new Date().toISOString();
-      const rpcRows = playlists
-        .map((p: any) => {
-          const pid = p.spotify_playlist_id ?? null;
-          if (!pid) return null;
-          return {
-            playlist_id: pid,
-            playlist_url: p.spotify_url ?? `https://open.spotify.com/playlist/${pid}`,
-            playlist_name_at_capture: String(p.name ?? "").trim() || null,
-            plays_7d: Math.max(0, toInt(p.plays_7d) ?? 0),
-            captured_at: capturedAt,
-            source: "s4a_dom",
-            // print fica EXCLUSIVAMENTE em bot_print_batches via snapshot_run_id
-          };
-        })
-        .filter(Boolean);
+      collectionCampaignId =
+        ((songJoin as any)?.curator_deals?.campaign_id as string | null) ?? null;
 
-      if (rpcRows.length > 0) {
-        const { data: ingestRes, error: ingestErr } = await supabase.rpc(
-          "ingest_campaign_collection_batch",
-          {
-            p_campaign_id: collectionCampaignId,
-            p_intent: collectionIntent,
-            p_rows: rpcRows,
-            p_snapshot_run_id: snapshotRunId,
-          },
-        );
-        if (ingestErr) {
-          console.warn(
-            "[bot-ingest-song-snapshot] collections rpc failed:",
-            ingestErr.message,
-            { campaign_id: collectionCampaignId, intent: collectionIntent },
+      if (collectionCampaignId && playlists.length > 0) {
+        const { data: campRow } = await supabase
+          .from("campaigns")
+          .select("baseline_status")
+          .eq("id", collectionCampaignId)
+          .maybeSingle();
+        collectionIntent =
+          (campRow as any)?.baseline_status === "pending" ? "baseline" : "periodic";
+
+        const capturedAt = snap.captured_at ?? new Date().toISOString();
+        const rpcRows = playlists
+          .map((p: any) => {
+            const pid = p.spotify_playlist_id ?? null;
+            if (!pid) return null;
+            return {
+              playlist_id: pid,
+              playlist_url: p.spotify_url ?? `https://open.spotify.com/playlist/${pid}`,
+              playlist_name_at_capture: String(p.name ?? "").trim() || null,
+              plays_7d: Math.max(0, toInt(p.plays_7d) ?? 0),
+              captured_at: capturedAt,
+              source: "s4a_dom",
+            };
+          })
+          .filter(Boolean);
+
+        if (rpcRows.length > 0) {
+          const { data: ingestRes, error: ingestErr } = await supabase.rpc(
+            "ingest_campaign_collection_batch",
+            {
+              p_campaign_id: collectionCampaignId,
+              p_intent: collectionIntent,
+              p_rows: rpcRows,
+              p_snapshot_run_id: snapshotRunId,
+            },
           );
-        } else {
-          collectionResult = ingestRes;
-          console.log(
-            "[bot-ingest-song-snapshot] collections ingested:",
-            JSON.stringify(ingestRes),
-            { campaign_id: collectionCampaignId, intent: collectionIntent },
-          );
+          if (ingestErr) {
+            console.warn(
+              "[bot-ingest-song-snapshot] collections rpc failed:",
+              ingestErr.message,
+              { campaign_id: collectionCampaignId, intent: collectionIntent },
+            );
+          } else {
+            collectionResult = ingestRes;
+            console.log(
+              "[bot-ingest-song-snapshot] collections ingested:",
+              JSON.stringify(ingestRes),
+              { campaign_id: collectionCampaignId, intent: collectionIntent },
+            );
+          }
         }
       }
+    } catch (e) {
+      console.warn(
+        "[bot-ingest-song-snapshot] collections error:",
+        (e as Error).message,
+      );
     }
-  } catch (e) {
-    console.warn(
-      "[bot-ingest-song-snapshot] collections error:",
-      (e as Error).message,
-    );
   }
 
   // Marca snapshot como processado pra não reprocessar futuramente.
@@ -309,45 +311,75 @@ Deno.serve(async (req) => {
     .update({ processed_at: new Date().toISOString() })
     .eq("id", snap.id);
 
-  // 3) Bump curator_deal_songs (se song_id corresponde a uma row na fila):
-  //    - sair de queued/error → idle
-  //    - agendar próxima coleta com base no interval da row
-  //    - limpar queued_at pra fila não considerar "stuck"
+  // 3) Bump curator_deal_songs (só faz sentido em modo deal). [CATALOG MODE] pula.
   let nextAt: string | null = null;
-  const { data: songRow } = await supabase
-    .from("curator_deal_songs")
-    .select("id, auto_collect_interval_minutes")
-    .eq("id", song_id)
-    .maybeSingle();
-
-  if (songRow) {
-    const intervalMin = (songRow as any).auto_collect_interval_minutes ?? 120;
-    nextAt = new Date(Date.now() + intervalMin * 60_000).toISOString();
-    await supabase
+  let bumpedDealSong = false;
+  if (!isCatalogMode) {
+    const { data: songRow } = await supabase
       .from("curator_deal_songs")
-      .update({
-        auto_collect_status: "idle",
-        auto_collect_error: null,
-        last_auto_collect_at: new Date().toISOString(),
-        next_auto_collect_at: nextAt,
-        queued_at: null,
-      })
-      .eq("id", song_id);
+      .select("id, auto_collect_interval_minutes")
+      .eq("id", song_id)
+      .maybeSingle();
+
+    if (songRow) {
+      const intervalMin = (songRow as any).auto_collect_interval_minutes ?? 120;
+      nextAt = new Date(Date.now() + intervalMin * 60_000).toISOString();
+      await supabase
+        .from("curator_deal_songs")
+        .update({
+          auto_collect_status: "idle",
+          auto_collect_error: null,
+          last_auto_collect_at: new Date().toISOString(),
+          next_auto_collect_at: nextAt,
+          queued_at: null,
+        })
+        .eq("id", song_id);
+      bumpedDealSong = true;
+    }
+  }
+
+  // 4) [CATALOG MODE] fecha o item da fila de catálogo
+  let catalogQueueClosed = false;
+  if (isCatalogMode) {
+    try {
+      const updateTarget = supabase
+        .from("catalog_snapshot_queue")
+        .update({
+          status: "completed",
+          completed_snapshot_id: snap.id,
+          locked_at: null,
+          locked_by: null,
+          lease_expires_at: null,
+        });
+      const { error: qErr } = queue_id
+        ? await updateTarget.eq("id", queue_id)
+        : await updateTarget.eq("catalog_track_id", catalog_track_id).eq("status", "claimed");
+      if (qErr) {
+        console.warn("[bot-ingest-song-snapshot] catalog queue close failed:", qErr.message);
+      } else {
+        catalogQueueClosed = true;
+      }
+    } catch (e) {
+      console.warn("[bot-ingest-song-snapshot] catalog queue close exception:", (e as Error).message);
+    }
   }
 
   console.log(
-    `[bot-ingest-song-snapshot] saved snapshot=${snap.id} song=${song_id} playlists=${playlists.length} total_28d=${total_plays_28d ?? "-"} bumped=${!!songRow} next=${nextAt ?? "-"}`,
+    `[bot-ingest-song-snapshot] saved snapshot=${snap.id} mode=${isCatalogMode ? "catalog" : "deal"} ref=${song_id ?? catalog_track_id} playlists=${playlists.length} total_28d=${total_plays_28d ?? "-"} bumped=${bumpedDealSong} catalog_closed=${catalogQueueClosed} next=${nextAt ?? "-"}`,
   );
 
   return jr({
     ok: true,
+    mode: isCatalogMode ? "catalog" : "deal_song",
     snapshot_id: snap.id,
     captured_at: snap.captured_at,
     playlists_recorded: playlists.length,
     next_auto_collect_at: nextAt,
-    deal_song_bumped: !!songRow,
+    deal_song_bumped: bumpedDealSong,
+    catalog_queue_closed: catalogQueueClosed,
     campaign_id: collectionCampaignId,
     collection_intent: collectionIntent,
     collection_result: collectionResult,
   });
 });
+
