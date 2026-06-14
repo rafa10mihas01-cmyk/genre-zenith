@@ -124,7 +124,7 @@ export function CockpitHeader() {
             size="sm"
             onClick={handleArchive}
             disabled={archiving}
-            className="h-8 w-8 px-0 gap-1.5 text-muted-foreground hover:text-destructive hover:border-destructive/40"
+            className="h-8 w-8 px-0 sm:w-auto sm:px-3 gap-1.5 text-muted-foreground hover:text-destructive hover:border-destructive/40"
             title="Mover para lixeira"
             aria-label="Mover para lixeira"
           >
