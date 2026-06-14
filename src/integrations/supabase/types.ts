@@ -3800,6 +3800,9 @@ export type Database = {
           baseline_plays: number
           client_id: string | null
           client_token: string
+          collect_attempt_count: number
+          collect_error_code: string | null
+          collect_paused_until: string | null
           created_at: string
           daily_goal: number
           deal_id: string
@@ -3834,6 +3837,9 @@ export type Database = {
           baseline_plays?: number
           client_id?: string | null
           client_token?: string
+          collect_attempt_count?: number
+          collect_error_code?: string | null
+          collect_paused_until?: string | null
           created_at?: string
           daily_goal?: number
           deal_id: string
@@ -3868,6 +3874,9 @@ export type Database = {
           baseline_plays?: number
           client_id?: string | null
           client_token?: string
+          collect_attempt_count?: number
+          collect_error_code?: string | null
+          collect_paused_until?: string | null
           created_at?: string
           daily_goal?: number
           deal_id?: string
