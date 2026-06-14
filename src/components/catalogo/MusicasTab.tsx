@@ -3,11 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Music2, CheckCircle2, AlertTriangle, Clock, ChevronRight } from "lucide-react";
+import { Music2, CheckCircle2, AlertTriangle, Clock, ChevronRight, ArrowUpDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { AddCatalogTrackDialog } from "./AddCatalogTrackDialog";
 
@@ -153,24 +154,34 @@ export function MusicasTab() {
 
   return (
     <>
-      {/* Filtros + sort */}
-      <div className="flex flex-wrap items-center gap-2 mb-3">
-        <div className="flex items-center gap-1 flex-wrap">
+      {/* Filtros + sort — uma única régua compacta, scroll horizontal no mobile */}
+      <div className="flex items-center gap-2 mb-3">
+        <div className="flex-1 min-w-0 flex items-center gap-1 overflow-x-auto scrollbar-none -mx-1 px-1">
           {FILTERS.map((f) => (
-            <Button key={f.id} size="sm" variant={filter === f.id ? "default" : "outline"} className="h-7 rounded-full text-xs" onClick={() => setFilter(f.id)}>
+            <Button
+              key={f.id}
+              size="sm"
+              variant={filter === f.id ? "default" : "outline"}
+              className="h-7 rounded-full text-xs px-3 shrink-0"
+              onClick={() => setFilter(f.id)}
+            >
               {f.label}
             </Button>
           ))}
         </div>
-        <div className="ml-auto flex items-center gap-1 flex-wrap">
-          <span className="text-[11px] text-muted-foreground mr-1">Ordenar:</span>
-          {SORTS.map((s) => (
-            <Button key={s.id} size="sm" variant={sort === s.id ? "default" : "ghost"} className="h-7 rounded-full text-xs" onClick={() => setSort(s.id)}>
-              {s.label}
-            </Button>
-          ))}
-        </div>
+        <Select value={sort} onValueChange={(v) => setSort(v as SortId)}>
+          <SelectTrigger className="h-7 rounded-full text-xs px-3 w-auto gap-1.5 shrink-0">
+            <ArrowUpDown className="h-3 w-3" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SORTS.map((s) => (
+              <SelectItem key={s.id} value={s.id} className="text-xs">{s.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
+
 
       <div className="border border-border rounded-2xl overflow-hidden bg-card">
         {tracksQ.isLoading ? (
