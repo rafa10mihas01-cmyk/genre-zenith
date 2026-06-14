@@ -54,7 +54,7 @@ type Placement = {
   scheduled_for: string;
   attempts: number;
   last_error_code: string | null;
-  managed_playlists: { name: string; cover_url: string | null; followers: number | null; spotify_playlist_id: string | null } | null;
+  managed_playlists: { name: string; cover_url: string | null; followers: number | null; spotify_playlist_id: string | null; archived_at: string | null; execution_mode: string | null } | null;
 };
 type Attribution = {
   spotify_playlist_id: string;
@@ -91,7 +91,7 @@ async function fetchDetail(id: string) {
     supabase.from("catalog_tracks").select("id, spotify_track_id, track_name, artist_name, cover_url, isrc, status, added_at").eq("id", id).maybeSingle(),
     supabase.from("catalog_track_baselines").select("captured_at, popularity, monthly_listeners, streams").eq("catalog_track_id", id).maybeSingle(),
     supabase.from("v_catalog_track_telemetry").select("baseline_at, baseline_plays_28d, last_captured_at, last_plays_28d, growth_abs, growth_pct, playlists_present_count, total_plays_7d_from_playlists, snapshots_count").eq("catalog_track_id", id).maybeSingle(),
-    supabase.from("catalog_placements").select("id, status, position, added_at, scheduled_for, attempts, last_error_code, managed_playlists:managed_playlist_id(name, cover_url, followers, spotify_playlist_id)").eq("catalog_track_id", id).order("status", { ascending: true }),
+    supabase.from("catalog_placements").select("id, status, position, added_at, scheduled_for, attempts, last_error_code, managed_playlists:managed_playlist_id(name, cover_url, followers, spotify_playlist_id, archived_at, execution_mode)").eq("catalog_track_id", id).order("status", { ascending: true }),
     supabase.from("v_catalog_track_playlist_attribution").select("spotify_playlist_id, name, owner, spotify_url, first_seen_at, last_seen_at, observations, current_position, current_plays_7d, status").eq("catalog_track_id", id).order("current_plays_7d", { ascending: false, nullsFirst: false }),
     supabase.from("catalog_snapshot_queue").select("status, scheduled_for, attempts, max_attempts, last_error, locked_at").eq("catalog_track_id", id).order("scheduled_for", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("song_snapshots").select("id, captured_at, total_plays_28d, processing_error").eq("catalog_track_id", id).order("captured_at", { ascending: true }).limit(60),
