@@ -228,6 +228,10 @@ function sortPlacementsGroup(items: Placement[]) {
   });
 }
 
+function isOperationalPlacement(p: Placement) {
+  return !p.managed_playlists?.archived_at && p.managed_playlists?.execution_mode !== "DISABLED";
+}
+
 function MobilePlacementsSummary({ summary }: { summary: ReturnType<typeof summarizePlacementsGroup> }) {
   return (
     <div className="grid grid-cols-4 gap-[1px] overflow-hidden rounded-lg border border-border bg-border">
@@ -255,8 +259,8 @@ function MobilePlacementsGroups({ placements }: { placements: Placement[] }) {
   const [openHibrido, setOpenHibrido] = useState(false);
   const [openCatalogo, setOpenCatalogo] = useState(false);
 
-  const hibrido = sortPlacementsGroup(placements.filter((p) => p.position != null && p.position <= 19));
-  const catalogo = sortPlacementsGroup(placements.filter((p) => p.position == null || p.position > 19));
+  const hibrido = sortPlacementsGroup(placements.filter(isOperationalPlacement));
+  const catalogo = sortPlacementsGroup(placements.filter((p) => !isOperationalPlacement(p)));
   const hibridoSummary = summarizePlacementsGroup(hibrido);
   const catalogoSummary = summarizePlacementsGroup(catalogo);
 
@@ -272,7 +276,7 @@ function MobilePlacementsGroups({ placements }: { placements: Placement[] }) {
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-[#1DB954] shadow-[0_0_8px_rgba(29,185,84,0.5)]" />
             <span className="text-xs font-semibold text-foreground uppercase tracking-wider">Híbrido</span>
-            <span className="text-[10px] font-mono tabular-nums text-muted-foreground bg-black/30 border border-border rounded px-1.5 py-0.5">≤ #19</span>
+            <span className="text-[10px] font-mono tabular-nums text-muted-foreground bg-black/30 border border-border rounded px-1.5 py-0.5">ativas</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold tabular-nums text-foreground">{hibridoSummary.total}</span>
@@ -285,7 +289,7 @@ function MobilePlacementsGroups({ placements }: { placements: Placement[] }) {
         {openHibrido && (
           <div className="divide-y divide-border border-t border-border bg-black/20">
             {hibrido.length === 0 ? (
-              <div className="px-4 py-6 text-center text-xs text-muted-foreground">Nenhum placement no top 19.</div>
+              <div className="px-4 py-6 text-center text-xs text-muted-foreground">Nenhum placement ativo.</div>
             ) : (
               hibrido.map((p) => <MobilePlacementsRow key={p.id} p={p} />)
             )}
@@ -303,7 +307,7 @@ function MobilePlacementsGroups({ placements }: { placements: Placement[] }) {
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60" />
             <span className="text-xs font-semibold text-foreground uppercase tracking-wider">Catálogo</span>
-            <span className="text-[10px] font-mono tabular-nums text-muted-foreground bg-black/30 border border-border rounded px-1.5 py-0.5">{'>'} #19</span>
+            <span className="text-[10px] font-mono tabular-nums text-muted-foreground bg-black/30 border border-border rounded px-1.5 py-0.5">arquivadas</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold tabular-nums text-foreground">{catalogoSummary.total}</span>
