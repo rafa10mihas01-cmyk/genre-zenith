@@ -194,17 +194,76 @@ function MobilePlacementsRow({ p }: { p: Placement }) {
   );
 }
 
+const placementStatusOrder: Record<string, number> = {
+  active: 0,
+  processing: 1,
+  pending: 2,
+  retry: 3,
+  failed: 4,
+  removed: 5,
+};
+
+function summarizePlacementsGroup(items: Placement[]) {
+  return items.reduce(
+    (acc, p) => {
+      acc.total += 1;
+      if (p.status === "active") acc.active += 1;
+      else if (p.status === "failed") acc.failed += 1;
+      else if (p.status === "removed") acc.removed += 1;
+      else acc.queue += 1;
+      return acc;
+    },
+    { total: 0, active: 0, queue: 0, failed: 0, removed: 0 }
+  );
+}
+
+function sortPlacementsGroup(items: Placement[]) {
+  return [...items].sort((a, b) => {
+    const statusDiff = (placementStatusOrder[a.status] ?? 9) - (placementStatusOrder[b.status] ?? 9);
+    if (statusDiff !== 0) return statusDiff;
+    const posA = a.position ?? Number.MAX_SAFE_INTEGER;
+    const posB = b.position ?? Number.MAX_SAFE_INTEGER;
+    if (posA !== posB) return posA - posB;
+    return (a.managed_playlists?.name ?? "").localeCompare(b.managed_playlists?.name ?? "", "pt-BR");
+  });
+}
+
+function MobilePlacementsSummary({ summary }: { summary: ReturnType<typeof summarizePlacementsGroup> }) {
+  return (
+    <div className="grid grid-cols-4 gap-[1px] overflow-hidden rounded-lg border border-border bg-border">
+      <div className="bg-black/25 px-2 py-2">
+        <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Ativos</div>
+        <div className="text-sm font-bold tabular-nums text-foreground">{summary.active}</div>
+      </div>
+      <div className="bg-black/25 px-2 py-2">
+        <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Fila</div>
+        <div className="text-sm font-bold tabular-nums text-foreground">{summary.queue}</div>
+      </div>
+      <div className="bg-black/25 px-2 py-2">
+        <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Falhas</div>
+        <div className="text-sm font-bold tabular-nums text-foreground">{summary.failed}</div>
+      </div>
+      <div className="bg-black/25 px-2 py-2">
+        <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Remov.</div>
+        <div className="text-sm font-bold tabular-nums text-foreground">{summary.removed}</div>
+      </div>
+    </div>
+  );
+}
+
 function MobilePlacementsGroups({ placements }: { placements: Placement[] }) {
   const [openHibrido, setOpenHibrido] = useState(false);
   const [openCatalogo, setOpenCatalogo] = useState(false);
 
-  const hibrido = placements.filter((p) => p.position != null && p.position <= 19);
-  const catalogo = placements.filter((p) => p.position == null || p.position > 19);
+  const hibrido = sortPlacementsGroup(placements.filter((p) => p.position != null && p.position <= 19));
+  const catalogo = sortPlacementsGroup(placements.filter((p) => p.position == null || p.position > 19));
+  const hibridoSummary = summarizePlacementsGroup(hibrido);
+  const catalogoSummary = summarizePlacementsGroup(catalogo);
 
   return (
-    <div className="sm:hidden divide-y divide-border">
+    <div className="sm:hidden space-y-2 p-2">
       {/* Híbrido */}
-      <div>
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
         <button
           type="button"
           onClick={() => setOpenHibrido((v) => !v)}
@@ -216,10 +275,13 @@ function MobilePlacementsGroups({ placements }: { placements: Placement[] }) {
             <span className="text-[10px] font-mono tabular-nums text-muted-foreground bg-black/30 border border-border rounded px-1.5 py-0.5">≤ #19</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold tabular-nums text-foreground">{hibrido.length}</span>
+            <span className="text-xs font-bold tabular-nums text-foreground">{hibridoSummary.total}</span>
             <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", openHibrido && "rotate-180")} />
           </div>
         </button>
+        <div className="px-3 pb-3">
+          <MobilePlacementsSummary summary={hibridoSummary} />
+        </div>
         {openHibrido && (
           <div className="divide-y divide-border border-t border-border bg-black/20">
             {hibrido.length === 0 ? (
@@ -232,7 +294,7 @@ function MobilePlacementsGroups({ placements }: { placements: Placement[] }) {
       </div>
 
       {/* Catálogo */}
-      <div>
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
         <button
           type="button"
           onClick={() => setOpenCatalogo((v) => !v)}
@@ -244,10 +306,13 @@ function MobilePlacementsGroups({ placements }: { placements: Placement[] }) {
             <span className="text-[10px] font-mono tabular-nums text-muted-foreground bg-black/30 border border-border rounded px-1.5 py-0.5">{'>'} #19</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold tabular-nums text-foreground">{catalogo.length}</span>
+            <span className="text-xs font-bold tabular-nums text-foreground">{catalogoSummary.total}</span>
             <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", openCatalogo && "rotate-180")} />
           </div>
         </button>
+        <div className="px-3 pb-3">
+          <MobilePlacementsSummary summary={catalogoSummary} />
+        </div>
         {openCatalogo && (
           <div className="divide-y divide-border border-t border-border bg-black/20">
             {catalogo.length === 0 ? (
