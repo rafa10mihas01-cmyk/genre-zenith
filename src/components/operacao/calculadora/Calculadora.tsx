@@ -916,14 +916,14 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     id: "bot" as const,
                     title: "Spotify",
                     icon: Music,
-                    description: "Bot oficial coleta saves, plays e posição direto da playlist a cada ciclo.",
+                    description: "Coleta automática de saves, plays e posição.",
                     tag: "Automático",
                   },
                   {
                     id: "spreadsheet" as const,
                     title: "Excel",
                     icon: FileText,
-                    description: "Curador envia planilha periódica com prints — útil pra playlists fora da rede.",
+                    description: "Planilha do curador — playlists fora da rede.",
                     tag: "Manual",
                   },
                 ]).map(opt => {
@@ -981,7 +981,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                   <div>
                     <CardTitle className="text-base">Sessão</CardTitle>
                     <CardDescription className="text-xs mt-1">
-                      Cliente e curador valem pra todas as músicas desta sessão.
+                      Valem pra todas as músicas desta sessão.
                     </CardDescription>
                   </div>
                   <Badge variant="outline" className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground border-border/60 shrink-0">
@@ -1002,11 +1002,11 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                           Cliente
                         </Label>
                         <p className="text-[11px] text-muted-foreground/70 leading-snug mt-0.5">
-                          Dono do plano. Aparece em curva, relatórios e fechamento.
+                          Dono do plano.
                         </p>
                       </div>
                       <Select value={clientId || "__none__"} onValueChange={v => setClientId(v === "__none__" ? "" : v)}>
-                        <SelectTrigger className="h-10 text-sm">
+                        <SelectTrigger className="h-10 text-sm justify-center sm:justify-between text-muted-foreground data-[state=open]:text-foreground [&>span]:text-muted-foreground sm:[&>span]:text-foreground">
                           <SelectValue placeholder="Selecione um cliente" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1034,10 +1034,10 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                         </span>
                       </div>
                       <p className="text-sm text-foreground/85 mt-1.5 leading-snug">
-                        Definido após a aprovação do planejamento.
+                        Definido após aprovar o plano.
                       </p>
-                      <p className="text-[11px] text-muted-foreground/70 leading-snug mt-1">
-                        Os curadores serão criados como deals na aba Curadores — um ou vários por música, conforme a divisão real do trabalho.
+                      <p className="text-[11px] text-muted-foreground/70 leading-snug mt-1 hidden sm:block">
+                        Criados como deals na aba Curadores — um ou vários por música.
                       </p>
                     </div>
                   </div>
@@ -1048,8 +1048,9 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
 
           {/* Rodapé de ação — alinhado à direita, texto-guia à esquerda */}
           <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
-            <p className="text-xs text-muted-foreground/70">
-              Você pode voltar e editar estas escolhas em qualquer momento antes de aprovar o plano.
+            <p className="text-xs text-muted-foreground/70 text-center sm:text-left">
+              <span className="sm:hidden">Dá pra editar antes de aprovar.</span>
+              <span className="hidden sm:inline">Você pode voltar e editar estas escolhas em qualquer momento antes de aprovar o plano.</span>
             </p>
             <Button
               size="lg"
