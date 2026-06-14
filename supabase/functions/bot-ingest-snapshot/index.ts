@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
       await supabase.from("curator_deal_songs").update({
         auto_collect_status: "idle",
         auto_collect_error: gate.error,
-        next_auto_collect_at: new Date(Date.now() + 60 * 60_000).toISOString(),
+        next_auto_collect_at: new Date(Date.now() + 2880 * 60_000).toISOString(),
         queued_at: null,
       }).eq("id", s_id);
       return jr({ ok: false, error: gate.error, code: gate.code, gated: true }, gate.status);
@@ -738,7 +738,7 @@ Deno.serve(async (req) => {
     .select("auto_collect_interval_minutes, queued_at")
     .eq("id", song_id)
     .single();
-  const intervalMin = songRow?.auto_collect_interval_minutes ?? 120;
+  const intervalMin = songRow?.auto_collect_interval_minutes ?? 2880;
   const nextAt = new Date(Date.now() + intervalMin * 60_000).toISOString();
   const queueAgeMs = (songRow as any)?.queued_at ? Date.now() - new Date((songRow as any).queued_at).getTime() : null;
 
