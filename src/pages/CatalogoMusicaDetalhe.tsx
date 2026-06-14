@@ -457,48 +457,89 @@ export default function CatalogoMusicaDetalhe() {
           {placements.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">Sem placements ainda.</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-xs text-muted-foreground">
-                  <tr className="border-b border-border">
-                    <th className="text-left font-medium px-4 py-3">Playlist</th>
-                    <th className="text-left font-medium px-4 py-3">Seguidores</th>
-                    <th className="text-left font-medium px-4 py-3">Posição</th>
-                    <th className="text-left font-medium px-4 py-3">Adicionada</th>
-                    <th className="text-left font-medium px-4 py-3">Tentativas</th>
-                    <th className="text-left font-medium px-4 py-3">Status / erro</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {placements.map((p) => (
-                    <tr key={p.id} className="border-b border-border last:border-0 hover:bg-muted/30">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          {p.managed_playlists?.cover_url ? (
-                            <img src={p.managed_playlists.cover_url} alt="" className="h-7 w-7 rounded object-cover" />
-                          ) : (
-                            <div className="h-7 w-7 rounded bg-muted flex items-center justify-center"><PlayCircle className="h-3.5 w-3.5 text-muted-foreground" /></div>
-                          )}
-                          <span className="font-medium text-foreground">{p.managed_playlists?.name ?? "—"}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{fmt(p.managed_playlists?.followers)}</td>
-                      <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{p.position != null ? `#${p.position}` : "—"}</td>
-                      <td className="px-4 py-3 text-muted-foreground text-xs">{p.added_at ? new Date(p.added_at).toLocaleDateString("pt-BR") : "—"}</td>
-                      <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{p.attempts}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-col gap-0.5">
-                          <StatusDot status={p.status} />
-                          {p.last_error_code && <span className="text-[10px] text-rose-400 font-mono">{p.last_error_code}</span>}
-                        </div>
-                      </td>
+            <>
+              {/* MOBILE: lista editorial densa */}
+              <div className="sm:hidden divide-y divide-border">
+                {placements.map((p) => {
+                  const pos = p.position;
+                  const posCls = pos == null
+                    ? "text-muted-foreground/40"
+                    : pos === 1
+                      ? "text-[#1DB954]"
+                      : pos <= 20
+                        ? "text-foreground"
+                        : pos <= 50
+                          ? "text-muted-foreground"
+                          : "text-muted-foreground/60";
+                  return (
+                    <div key={p.id} className="flex items-center gap-3 px-4 py-2 active:bg-[hsl(0,0%,13%)] transition-colors">
+                      {p.managed_playlists?.cover_url ? (
+                        <img src={p.managed_playlists.cover_url} alt="" className="w-10 h-10 rounded flex-shrink-0 object-cover bg-muted" />
+                      ) : (
+                        <div className="w-10 h-10 rounded flex-shrink-0 bg-muted flex items-center justify-center"><PlayCircle className="h-4 w-4 text-muted-foreground" /></div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-foreground text-[13px] font-medium truncate leading-none">{p.managed_playlists?.name ?? "—"}</h3>
+                        <p className="text-muted-foreground text-[11px] mt-1 tabular-nums truncate">
+                          {fmt(p.managed_playlists?.followers)} seguidores
+                          {p.last_error_code && <span className="text-rose-400 ml-2 font-mono">{p.last_error_code}</span>}
+                        </p>
+                      </div>
+                      <div className="flex-shrink-0 text-right min-w-[40px]">
+                        <span className={cn("text-sm font-bold tabular-nums tracking-tighter", posCls)}>
+                          {pos != null ? `#${pos}` : "—"}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* DESKTOP: tabela completa */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-xs text-muted-foreground">
+                    <tr className="border-b border-border">
+                      <th className="text-left font-medium px-4 py-3">Playlist</th>
+                      <th className="text-left font-medium px-4 py-3">Seguidores</th>
+                      <th className="text-left font-medium px-4 py-3">Posição</th>
+                      <th className="text-left font-medium px-4 py-3">Adicionada</th>
+                      <th className="text-left font-medium px-4 py-3">Tentativas</th>
+                      <th className="text-left font-medium px-4 py-3">Status / erro</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {placements.map((p) => (
+                      <tr key={p.id} className="border-b border-border last:border-0 hover:bg-muted/30">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            {p.managed_playlists?.cover_url ? (
+                              <img src={p.managed_playlists.cover_url} alt="" className="h-7 w-7 rounded object-cover" />
+                            ) : (
+                              <div className="h-7 w-7 rounded bg-muted flex items-center justify-center"><PlayCircle className="h-3.5 w-3.5 text-muted-foreground" /></div>
+                            )}
+                            <span className="font-medium text-foreground">{p.managed_playlists?.name ?? "—"}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{fmt(p.managed_playlists?.followers)}</td>
+                        <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{p.position != null ? `#${p.position}` : "—"}</td>
+                        <td className="px-4 py-3 text-muted-foreground text-xs">{p.added_at ? new Date(p.added_at).toLocaleDateString("pt-BR") : "—"}</td>
+                        <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{p.attempts}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col gap-0.5">
+                            <StatusDot status={p.status} />
+                            {p.last_error_code && <span className="text-[10px] text-rose-400 font-mono">{p.last_error_code}</span>}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </section>
+
 
         {/* ATRIBUIÇÃO VPS — playlists onde o bot detectou a faixa */}
         <section className="rounded-2xl border border-border bg-card overflow-hidden">
