@@ -465,7 +465,7 @@ export default function CatalogoMusicaDetalhe() {
             <div className="flex items-center justify-between mb-2.5">
               <h3 className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Baseline T0</h3>
               <span className="text-[9px] text-muted-foreground/60 font-mono tracking-tighter px-1.5 border border-white/5 rounded bg-black/20">
-                {b?.captured_at ? new Date(b.captured_at).toLocaleDateString("pt-BR") : "—"}
+                {baselineCapturedAt ? new Date(baselineCapturedAt).toLocaleDateString("pt-BR") : "—"}
               </span>
             </div>
             <div className="grid grid-cols-3 gap-1.5">
@@ -479,7 +479,7 @@ export default function CatalogoMusicaDetalhe() {
               </div>
               <div className="bg-black/20 border border-border rounded-lg p-2.5 flex flex-col items-center">
                 <span className="text-[9px] uppercase font-bold text-muted-foreground mb-1">Streams</span>
-                <span className={cn("text-sm font-bold tabular-nums", b?.streams != null ? "text-foreground" : "text-muted-foreground/40")}>{fmt(b?.streams)}</span>
+                <span className={cn("text-sm font-bold tabular-nums", baselineStreams != null ? "text-foreground" : "text-muted-foreground/40")}>{fmt(baselineStreams)}</span>
               </div>
             </div>
           </section>
@@ -489,7 +489,7 @@ export default function CatalogoMusicaDetalhe() {
             <div className="p-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="relative flex h-2 w-2">
-                  {queue && (queue.status === "pending" || queue.status === "processing") && (
+                  {queueActive && (
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1DB954] opacity-40" />
                   )}
                   <span className={cn("relative inline-flex rounded-full h-2 w-2", queue?.status === "failed" ? "bg-rose-500" : queue ? "bg-[#1DB954]" : "bg-muted-foreground/40")} />
@@ -502,7 +502,7 @@ export default function CatalogoMusicaDetalhe() {
                 <span className="text-[10px] text-muted-foreground/60">{rel(tel?.last_captured_at)}</span>
               )}
             </div>
-            {queue && (
+            {queueActive && (
               <div className="p-3 flex items-center justify-between text-[11px]">
                 <span className="text-muted-foreground uppercase tracking-wider font-bold">Tentativas</span>
                 <span className="font-mono tabular-nums text-foreground">{queue.attempts}/{queue.max_attempts}</span>
