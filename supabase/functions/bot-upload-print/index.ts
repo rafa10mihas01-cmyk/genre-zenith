@@ -151,12 +151,15 @@ Deno.serve(async (req) => {
 
   if (!bytes || bytes.length === 0) return jr({ error: "empty_file" }, 400);
   if (bytes.length > 8 * 1024 * 1024) return jr({ error: "file_too_large_8mb" }, 413);
-  if (!dealId) {
+  if (!dealId && !catalogTrackId) {
     return jr({
-      error: "deal_id_required",
-      detail: "Print sem deal_id vira órfão e não aparece em nenhuma coleta.",
+      error: "deal_id_or_catalog_track_id_required",
+      detail: "Print sem deal_id nem catalog_track_id vira órfão e não aparece em nenhuma coleta.",
     }, 400);
   }
+
+  // Catalog mode = não tem deal, é coleta do catálogo. Pula gates/batches de deal.
+  const isCatalogMode = !dealId && !!catalogTrackId;
 
   const parsed = parsePartLabel(label);
 
