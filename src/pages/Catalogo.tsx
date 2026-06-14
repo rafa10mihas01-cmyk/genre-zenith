@@ -111,7 +111,9 @@ export default function Catalogo() {
 
   const qc = useQueryClient();
   const summaryQ = useQuery({ queryKey: ["catalog", "summary"], queryFn: fetchSummary, staleTime: 30_000 });
+  const telemetryQ = useQuery({ queryKey: ["catalog", "global-telemetry"], queryFn: fetchGlobalTelemetry, staleTime: 30_000, refetchInterval: 60_000 });
   const s = summaryQ.data;
+  const g = telemetryQ.data;
   const pct = s && s.capacity_total > 0 ? Math.round((s.capacity_used / s.capacity_total) * 100) : null;
 
   const openAdd = () => window.dispatchEvent(new Event("catalogo:add-track"));
@@ -187,6 +189,44 @@ export default function Catalogo() {
             hint="Slots livres na rede"
             domain="system"
             loading={summaryQ.isLoading}
+          />
+        </section>
+
+        {/* KPIs globais de telemetria (agregado de todas as faixas) */}
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <KpiBig
+            tier="hero"
+            icon={TrendingUp}
+            label="Streams 28d (total)"
+            value={fmt(g?.total_plays_28d)}
+            hint={g?.growth_pct != null ? `${g.growth_pct >= 0 ? "+" : ""}${g.growth_pct}% vs baseline` : "Aguardando 2º snapshot"}
+            domain="campaigns"
+            loading={telemetryQ.isLoading}
+          />
+          <KpiBig
+            icon={TrendingUp}
+            label="Δ vs baseline"
+            value={g?.growth_abs != null ? `${g.growth_abs >= 0 ? "+" : ""}${fmt(g.growth_abs)}` : "—"}
+            hint={`${fmt(g?.tracks_with_growth)} faixas com delta`}
+            domain="playlists"
+            loading={telemetryQ.isLoading}
+          />
+          <KpiBig
+            icon={Layers}
+            label="Playlists detectadas"
+            value={fmt(g?.playlists_detected)}
+            hint="Soma das presenças (VPS)"
+            domain="deals"
+            loading={telemetryQ.isLoading}
+          />
+          <KpiBig
+            tier="quiet"
+            icon={Activity}
+            label="Saúde da coleta (24h)"
+            value={fmt(g?.fresh_snapshots_24h)}
+            hint={g && g.failed_queue > 0 ? `${g.failed_queue} na fila com falha` : "Fila saudável"}
+            domain={g && g.failed_queue > 0 ? "campaigns" : "system"}
+            loading={telemetryQ.isLoading}
           />
         </section>
 
