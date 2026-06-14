@@ -114,7 +114,6 @@ const sections: NavSection[] = [
         icon: Server,
         adminOnly: true,
         matchPaths: ["/infra", "/infraestrutura", "/admin/aprendizado"],
-,
       },
     ],
   },
