@@ -440,7 +440,7 @@ export default function CatalogoMusicaDetalhe() {
           <section className="grid grid-cols-2 gap-[1px] bg-border border border-border rounded-xl overflow-hidden">
             <div className="bg-card p-3.5 flex flex-col gap-1">
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Streams 28D</span>
-              <span className={cn("text-xl font-bold tabular-nums tracking-tighter", tel?.last_plays_28d != null ? "text-foreground" : "text-muted-foreground/40")}>{tel?.last_plays_28d != null ? fmt(tel.last_plays_28d) : "—"}</span>
+              <span className={cn("text-xl font-bold tabular-nums tracking-tighter", currentStreams != null ? "text-foreground" : "text-muted-foreground/40")}>{fmt(currentStreams)}</span>
             </div>
             <div className="bg-card p-3.5 flex flex-col gap-1">
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Δ Baseline</span>
@@ -454,8 +454,8 @@ export default function CatalogoMusicaDetalhe() {
             </div>
             <div className="bg-card p-3.5 flex flex-col gap-1">
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Snapshots</span>
-              <span className={cn("text-xl font-bold tabular-nums tracking-tighter", tel?.snapshots_count ? "text-foreground" : "text-muted-foreground/40")}>
-                {tel?.snapshots_count ? fmt(tel.snapshots_count) : "—"}
+              <span className={cn("text-xl font-bold tabular-nums tracking-tighter", snapshotsCount > 0 ? "text-foreground" : "text-muted-foreground/40")}>
+                {snapshotsCount > 0 ? fmt(snapshotsCount) : "—"}
               </span>
             </div>
           </section>
@@ -568,11 +568,11 @@ export default function CatalogoMusicaDetalhe() {
               <div className="grid grid-cols-3 gap-3">
                 <div className="rounded-lg border border-border p-3">
                   <div className="text-[11px] uppercase text-muted-foreground">Popularity</div>
-                  <div className="text-lg font-semibold font-mono">{b.popularity ?? "—"}</div>
+                  <div className="text-lg font-semibold font-mono">{b?.popularity ?? "—"}</div>
                 </div>
                 <div className="rounded-lg border border-border p-3">
                   <div className="text-[11px] uppercase text-muted-foreground">Ouvintes/mês</div>
-                  <div className="text-lg font-semibold font-mono">{fmt(b.monthly_listeners)}</div>
+                  <div className="text-lg font-semibold font-mono">{fmt(b?.monthly_listeners)}</div>
                 </div>
                 <div className="rounded-lg border border-border p-3">
                   <div className="text-[11px] uppercase text-muted-foreground">Streams</div>
