@@ -331,6 +331,124 @@ function MobilePlacementsGroups({ placements }: { placements: Placement[] }) {
   );
 }
 
+function DesktopPlacementsTable({ items }: { items: Placement[] }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead className="text-xs text-muted-foreground">
+          <tr className="border-b border-border">
+            <th className="text-left font-medium px-4 py-3">Playlist</th>
+            <th className="text-left font-medium px-4 py-3">Seguidores</th>
+            <th className="text-left font-medium px-4 py-3">Posição</th>
+            <th className="text-left font-medium px-4 py-3">Adicionada</th>
+            <th className="text-left font-medium px-4 py-3">Tentativas</th>
+            <th className="text-left font-medium px-4 py-3">Status / erro</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((p) => (
+            <tr key={p.id} className="border-b border-border last:border-0 hover:bg-muted/30">
+              <td className="px-4 py-3">
+                <div className="flex items-center gap-2">
+                  {p.managed_playlists?.cover_url ? (
+                    <img src={p.managed_playlists.cover_url} alt="" className="h-7 w-7 rounded object-cover" />
+                  ) : (
+                    <div className="h-7 w-7 rounded bg-muted flex items-center justify-center"><PlayCircle className="h-3.5 w-3.5 text-muted-foreground" /></div>
+                  )}
+                  <span className="font-medium text-foreground">{p.managed_playlists?.name ?? "—"}</span>
+                </div>
+              </td>
+              <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{fmt(p.managed_playlists?.followers)}</td>
+              <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{p.position != null ? `#${p.position}` : "—"}</td>
+              <td className="px-4 py-3 text-muted-foreground text-xs">{p.added_at ? new Date(p.added_at).toLocaleDateString("pt-BR") : "—"}</td>
+              <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{p.attempts}</td>
+              <td className="px-4 py-3">
+                <div className="flex flex-col gap-0.5">
+                  <StatusDot status={p.status} />
+                  {p.last_error_code && <span className="text-[10px] text-rose-400 font-mono">{p.last_error_code}</span>}
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function DesktopPlacementsGroups({ placements }: { placements: Placement[] }) {
+  const [openHibrido, setOpenHibrido] = useState(true);
+  const [openCatalogo, setOpenCatalogo] = useState(false);
+
+  const hibrido = sortPlacementsGroup(placements.filter(isOperationalPlacement));
+  const catalogo = sortPlacementsGroup(placements.filter((p) => !isOperationalPlacement(p)));
+  const hibridoSummary = summarizePlacementsGroup(hibrido);
+  const catalogoSummary = summarizePlacementsGroup(catalogo);
+
+  const SummaryChips = ({ s }: { s: ReturnType<typeof summarizePlacementsGroup> }) => (
+    <div className="hidden md:flex items-center gap-1.5 text-[11px] font-mono tabular-nums">
+      <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">{s.active} ativos</span>
+      <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">{s.queue} fila</span>
+      <span className="px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">{s.failed} falhas</span>
+      <span className="px-2 py-0.5 rounded bg-muted/30 text-muted-foreground border border-border">{s.removed} remov.</span>
+    </div>
+  );
+
+  return (
+    <div className="hidden sm:block divide-y divide-border">
+      {/* Híbrido */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setOpenHibrido((v) => !v)}
+          className="w-full flex items-center justify-between px-5 py-3 hover:bg-muted/20 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#1DB954] shadow-[0_0_8px_rgba(29,185,84,0.5)]" />
+            <span className="text-xs font-semibold text-foreground uppercase tracking-wider">Híbrido</span>
+            <span className="text-[10px] font-mono tabular-nums text-muted-foreground bg-black/30 border border-border rounded px-1.5 py-0.5">ativas</span>
+            <span className="text-xs font-bold tabular-nums text-foreground">{hibridoSummary.total}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <SummaryChips s={hibridoSummary} />
+            <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", openHibrido && "rotate-180")} />
+          </div>
+        </button>
+        {openHibrido && (hibrido.length === 0 ? (
+          <div className="px-5 py-6 text-center text-xs text-muted-foreground">Nenhum placement ativo.</div>
+        ) : (
+          <DesktopPlacementsTable items={hibrido} />
+        ))}
+      </div>
+
+      {/* Catálogo */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setOpenCatalogo((v) => !v)}
+          className="w-full flex items-center justify-between px-5 py-3 hover:bg-muted/20 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60" />
+            <span className="text-xs font-semibold text-foreground uppercase tracking-wider">Catálogo</span>
+            <span className="text-[10px] font-mono tabular-nums text-muted-foreground bg-black/30 border border-border rounded px-1.5 py-0.5">arquivadas</span>
+            <span className="text-xs font-bold tabular-nums text-foreground">{catalogoSummary.total}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <SummaryChips s={catalogoSummary} />
+            <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", openCatalogo && "rotate-180")} />
+          </div>
+        </button>
+        {openCatalogo && (catalogo.length === 0 ? (
+          <div className="px-5 py-6 text-center text-xs text-muted-foreground">Nenhum placement no catálogo.</div>
+        ) : (
+          <DesktopPlacementsTable items={catalogo} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function CatalogoMusicaDetalhe() {
   const { id = "" } = useParams<{ id: string }>();
   const q = useQuery({ queryKey: ["catalog", "detail", id], queryFn: () => fetchDetail(id), enabled: !!id, refetchInterval: 30_000 });
@@ -642,47 +760,9 @@ export default function CatalogoMusicaDetalhe() {
               <MobilePlacementsGroups placements={placements} />
 
 
-              {/* DESKTOP: tabela completa */}
-              <div className="hidden sm:block overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="text-xs text-muted-foreground">
-                    <tr className="border-b border-border">
-                      <th className="text-left font-medium px-4 py-3">Playlist</th>
-                      <th className="text-left font-medium px-4 py-3">Seguidores</th>
-                      <th className="text-left font-medium px-4 py-3">Posição</th>
-                      <th className="text-left font-medium px-4 py-3">Adicionada</th>
-                      <th className="text-left font-medium px-4 py-3">Tentativas</th>
-                      <th className="text-left font-medium px-4 py-3">Status / erro</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {placements.map((p) => (
-                      <tr key={p.id} className="border-b border-border last:border-0 hover:bg-muted/30">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            {p.managed_playlists?.cover_url ? (
-                              <img src={p.managed_playlists.cover_url} alt="" className="h-7 w-7 rounded object-cover" />
-                            ) : (
-                              <div className="h-7 w-7 rounded bg-muted flex items-center justify-center"><PlayCircle className="h-3.5 w-3.5 text-muted-foreground" /></div>
-                            )}
-                            <span className="font-medium text-foreground">{p.managed_playlists?.name ?? "—"}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{fmt(p.managed_playlists?.followers)}</td>
-                        <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{p.position != null ? `#${p.position}` : "—"}</td>
-                        <td className="px-4 py-3 text-muted-foreground text-xs">{p.added_at ? new Date(p.added_at).toLocaleDateString("pt-BR") : "—"}</td>
-                        <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{p.attempts}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-col gap-0.5">
-                            <StatusDot status={p.status} />
-                            {p.last_error_code && <span className="text-[10px] text-rose-400 font-mono">{p.last_error_code}</span>}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              {/* DESKTOP: dois grupos colapsáveis (Híbrido = ativas, Catálogo = arquivadas) */}
+              <DesktopPlacementsGroups placements={placements} />
+
             </>
           )}
         </section>
