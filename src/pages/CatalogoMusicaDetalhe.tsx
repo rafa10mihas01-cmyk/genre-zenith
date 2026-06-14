@@ -372,7 +372,13 @@ export default function CatalogoMusicaDetalhe() {
   const snapshots = q.data.snapshots;
   const batches = q.data.batches;
 
-  const baselineOk = !!b && (b.popularity != null || b.monthly_listeners != null || b.streams != null);
+  const baselineSnapshot = snapshots[0] ?? null;
+  const baselineCapturedAt = tel?.baseline_at ?? baselineSnapshot?.captured_at ?? b?.captured_at ?? null;
+  const baselineStreams = tel?.baseline_plays_28d ?? baselineSnapshot?.total_plays_28d ?? b?.streams ?? null;
+  const baselineOk = !!baselineCapturedAt && (baselineStreams != null || !!baselineSnapshot || !!b);
+  const currentStreams = tel?.last_plays_28d ?? snapshots.at(-1)?.total_plays_28d ?? null;
+  const snapshotsCount = tel?.snapshots_count ?? snapshots.length;
+  const queueActive = queue && (queue.status === "pending" || queue.status === "processing" || queue.status === "retry");
 
   return (
     <>
