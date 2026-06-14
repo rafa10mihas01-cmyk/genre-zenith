@@ -63,7 +63,6 @@ const sections: NavSection[] = [
         url: "/curadores",
         icon: UserSearch,
         matchPaths: ["/prospeccao"],
-,
       },
       // Comunidade oculto do sidebar — acessível via Curadores (comunidade/prospecção).
       // {
