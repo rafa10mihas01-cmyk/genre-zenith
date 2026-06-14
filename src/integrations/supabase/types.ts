@@ -2209,6 +2209,95 @@ export type Database = {
           },
         ]
       }
+      catalog_snapshot_queue: {
+        Row: {
+          attempts: number
+          catalog_track_id: string
+          completed_snapshot_id: string | null
+          created_at: string
+          id: string
+          last_error: string | null
+          last_error_at: string | null
+          lease_expires_at: string | null
+          locked_at: string | null
+          locked_by: string | null
+          max_attempts: number
+          priority: number
+          reason: string
+          scheduled_for: string
+          spotify_track_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          catalog_track_id: string
+          completed_snapshot_id?: string | null
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          last_error_at?: string | null
+          lease_expires_at?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          max_attempts?: number
+          priority?: number
+          reason?: string
+          scheduled_for?: string
+          spotify_track_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          catalog_track_id?: string
+          completed_snapshot_id?: string | null
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          last_error_at?: string | null
+          lease_expires_at?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          max_attempts?: number
+          priority?: number
+          reason?: string
+          scheduled_for?: string
+          spotify_track_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_snapshot_queue_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_tracks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_snapshot_queue_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_track_distribution_stats"
+            referencedColumns: ["catalog_track_id"]
+          },
+          {
+            foreignKeyName: "catalog_snapshot_queue_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_track_performance"
+            referencedColumns: ["catalog_track_id"]
+          },
+          {
+            foreignKeyName: "catalog_snapshot_queue_completed_snapshot_id_fkey"
+            columns: ["completed_snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "song_snapshots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       catalog_track_baselines: {
         Row: {
           captured_at: string
@@ -12552,6 +12641,20 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      claim_next_catalog_snapshots: {
+        Args: {
+          p_lease_seconds?: number
+          p_limit?: number
+          p_worker_id: string
+        }
+        Returns: {
+          attempts: number
+          catalog_track_id: string
+          id: string
+          reason: string
+          spotify_track_id: string
+        }[]
       }
       claim_next_playlist_job: {
         Args: { _claimed_by: string }
