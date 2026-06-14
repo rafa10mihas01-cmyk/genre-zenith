@@ -16,12 +16,16 @@ const CRITICAL_CRONS = [
   "execution-planner",
   "reap-zombie-jobs",
   "ops-alerts-cron-every-5min",
+  "process-catalog-placements",
+  "reap-catalog-placements",
 ] as const;
 
 const DEFAULT_STALE_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2h
 const STALE_THRESHOLD_BY_JOB: Partial<Record<(typeof CRITICAL_CRONS)[number], number>> = {
   "sync-managed-playlists": 8 * 60 * 60 * 1000,
   "reap-zombie-jobs": 60 * 60 * 1000,
+  "process-catalog-placements": 30 * 60 * 1000, // 30min — cron 1min
+  "reap-catalog-placements": 30 * 60 * 1000,    // 30min — cron 1min
 };
 const COOLDOWN_MINUTES = 6 * 60; // 6h entre re-notificações
 const SPOTIFY_403_THRESHOLD = 100; // 403s em 1h por app → alerta
@@ -117,6 +121,8 @@ Deno.serve(async (req) => {
       "execution-planner": "Planejamento de execução",
       "reap-zombie-jobs": "Limpeza de jobs travados",
       "ops-alerts-cron-every-5min": "Monitor de robôs",
+      "process-catalog-placements": "Worker do catálogo",
+      "reap-catalog-placements": "Reap de placements do catálogo",
     } as Record<string, string>)[job] ?? job;
 
     const message = hoursIdle != null
