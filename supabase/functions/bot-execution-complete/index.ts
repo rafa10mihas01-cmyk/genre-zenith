@@ -25,9 +25,28 @@ function isAuthorizedBot(req: Request): boolean {
   return candidates.some((c) => allowed.includes(c));
 }
 
-// Backoff exponencial entre tentativas: 2min, 8min, 30min...
-function backoffMs(attempt: number) {
-  return Math.min(2 * 60_000 * Math.pow(4, Math.max(0, attempt - 1)), 60 * 60_000);
+// Backoff exponencial entre tentativas falhas consecutivas de coleta de song.
+// attempt 1 → 2min, attempt 2 → 8min, attempt 3 → 30min, attempt 4+ → 2h.
+function deal_collect_backoff_ms(attempt: number) {
+  const a = Math.max(1, Math.floor(attempt));
+  if (a === 1) return 2 * 60_000;
+  if (a === 2) return 8 * 60_000;
+  if (a === 3) return 30 * 60_000;
+  return 120 * 60_000;
+}
+
+// Categoriza a mensagem de erro do bot em um code estável.
+function classify_error_code(msg: string | null | undefined): string {
+  const m = String(msg ?? "").toLowerCase();
+  if (!m) return "unknown";
+  if (/playlist_breakdown_required|breakdown por playlist/.test(m)) return "breakdown_contract_change";
+  if (/nenhuma playlist encontrada no breakdown|no playlists.*breakdown/.test(m)) return "breakdown_empty";
+  if (/login|sp_dc|sess(ã|a)o|unauthor/.test(m)) return "session_invalid";
+  if (/timeout|timed out|deadline/.test(m)) return "timeout";
+  if (/target page|context.*closed|browser has been closed/.test(m)) return "browser_crash";
+  if (/captcha|challenge/.test(m)) return "spotify_challenge";
+  if (/429|rate.?limit/.test(m)) return "rate_limited";
+  return "bot_error";
 }
 
 function jr(p: unknown, status = 200) {
