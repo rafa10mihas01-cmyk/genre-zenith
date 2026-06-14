@@ -184,6 +184,9 @@ Deno.serve(async (req) => {
   // Deals de curador comuns continuam exigindo playlists cadastradas.
   const nowMs = Date.now();
   const candidates = (data ?? []).filter((s: any) => {
+    // Cooldown formal por backoff exponencial (collect_paused_until).
+    const pausedUntil = s?.collect_paused_until ? new Date(s.collect_paused_until).getTime() : null;
+    if (pausedUntil && Number.isFinite(pausedUntil) && pausedUntil > nowMs) return false;
     const lastCollectAt = s?.last_auto_collect_at ? new Date(s.last_auto_collect_at).getTime() : null;
     const intervalMs = Math.max(Number(s?.auto_collect_interval_minutes ?? 60), 5) * 60_000;
     // Corta retry quente causado por corrida entre complete/recovery/claim:
