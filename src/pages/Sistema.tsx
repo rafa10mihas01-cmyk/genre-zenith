@@ -329,7 +329,7 @@ function AtividadeRecente() {
         .from("collection_logs")
         .select("id,acao,status,mensagem,created_at")
         .order("created_at", { ascending: false })
-        .limit(15);
+        .limit(50);
       if (!cancelled) setRows((data ?? []) as LogRow[]);
     }
     load();
@@ -342,7 +342,7 @@ function AtividadeRecente() {
 
   return (
     <div className="nx-card overflow-hidden">
-      <ul className="divide-y divide-border">
+      <ul className="divide-y divide-border max-h-[560px] overflow-y-auto">
         {rows.map(l => {
           const tone =
             l.status === "sucesso" ? "text-primary bg-primary/10"
