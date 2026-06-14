@@ -1,80 +1,47 @@
-## Objetivo
-Conectar o módulo Catálogo à telemetria que a VPS já produz, **sem criar coletor Spotify**, sem cron novo de scraping, sem tabela paralela. Reutilizar `song_snapshots` + `song_snapshot_playlists`.
+## O que eu já tinha mexido no bot (e está pela metade)
 
-## Ordem de execução (4 passos atômicos)
+Em sessões anteriores eu deixei a **infra de coleta unificada** no bot da VPS apontando pra catálogo:
+- `bot-collect-queue` já tenta puxar itens de catálogo via RPC `claim_next_catalog_snapshots` e montar a URL `artists.spotify.com/.../song/.../stats` pro bot scrapear (mesma tela usada pra Ai Ai Que Legal).
+- `bot-ingest-song-snapshot` já aceita `catalog_track_id` (modo catálogo) e fecha o item da fila depois que o bot devolve o print + lista de playlists.
 
-### Passo 1 — Ponte de identidade (DB)
-Permitir que a VPS faça snapshot de uma música do catálogo igual já faz para deals.
+**Por isso a queue criou um item e travou: a função existe na borda, mas faltam as peças no banco e o bot foi tentando, falhando e somando attempts.**
 
-- Adicionar coluna `catalog_track_id uuid NULL` em `song_snapshots` (FK → `catalog_tracks`).
-- Tornar `song_id` nullable em `song_snapshots` (hoje é NOT NULL e força vínculo com `curator_deal_songs`).
-- Constraint: `CHECK (song_id IS NOT NULL OR catalog_track_id IS NOT NULL)`.
-- Índice `(catalog_track_id, captured_at DESC)`.
-- Sem mexer em `song_snapshot_playlists` (já é genérico, ligado por `snapshot_id`).
+## O que falta (na ordem dos 5 passos, sem quebrar o que tá rodando hoje)
 
-### Passo 2 — Fila de enfileiramento do catálogo (DB)
-Tabela mínima `catalog_snapshot_queue` para a VPS puxar alvos do catálogo (mesmo padrão da fila de deals):
-- `catalog_track_id`, `spotify_track_id`, `priority`, `scheduled_for`, `status`, `locked_at/by`, `lease_expires_at`, `attempts`.
-- Função `claim_next_catalog_snapshots(worker_id, limit)` (espelho do claim de placements).
-- Trigger: ao inserir `catalog_tracks` (status='active') → enfileira snapshot inicial (baseline).
-- Trigger: ao inserir `catalog_placements` com status='active' → enfileira snapshot D+1.
+### Passo 1 — Banco (migração)
+- Adicionar em `catalog_tracks`:
+  - `spotify_artist_id text` — sem ele o bot não monta a URL.
+  - `auto_collect_interval_minutes int default 2880` (2 dias, igual deal_song).
+  - `last_auto_collect_at timestamptz`, `next_auto_collect_at timestamptz`.
+- Criar RPC `claim_next_catalog_snapshots(worker, limit, lease)` — claim atômico (FOR UPDATE SKIP LOCKED, marca `processing`, `locked_by`, lease).
+- Criar RPC `enqueue_catalog_snapshots_due()` — varre `catalog_tracks` ativas com `next_auto_collect_at <= now()` (ou null) e enfileira `reason='periodic' priority=2`. Bump de `next_auto_collect_at = now() + interval`.
+- Trigger `AFTER INSERT ON catalog_tracks` — enfileira automaticamente `reason='baseline' priority=1` (é o que produz a primeira leitura de uma música nova, em vez de chamar Spotify API).
 
-### Passo 3 — View de leitura para a UI (DB)
-View `v_catalog_track_telemetry` agregando direto de `song_snapshots` + `song_snapshot_playlists`:
-- `catalog_track_id`, `last_captured_at`, `last_plays_28d`, `baseline_plays_28d` (primeiro snapshot), `growth_abs`, `growth_pct`, `playlists_present_count`, `total_plays_7d_from_playlists`.
+### Passo 2 — Tirar a API da baseline
+- No `distribute-catalog-track` (edge): remover toda a chamada a `/v1/tracks` e `/v1/artists` que tentava preencher `popularity`/`monthly_listeners`. Continua só resolvendo metadados básicos (nome/artista/ISRC/capa) já que precisa pra criar a linha. **Nenhuma popularity entra no banco via API.**
+- Baseline T0 fica vazia até o bot voltar o primeiro snapshot — exatamente o mesmo padrão de uma música nova de deal.
 
-View `v_catalog_track_playlist_attribution`:
-- por `catalog_track_id` × `spotify_playlist_id`: posição atual, plays_7d atual, primeiro_visto, último_visto, status (ativo/saiu).
+### Passo 3 — Cron
+- 1 cron a cada hora: `enqueue_catalog_snapshots_due` + reciclagem de zumbi (lease expirado → volta a `pending` se attempts < max).
+- Frequência da coleta em si continua 2 em 2 dias (governada por `auto_collect_interval_minutes`), o cron só verifica quem está pronto.
 
-Sem nenhuma escrita Spotify. Sem cron novo no Postgres.
+### Passo 4 — Limpar o lixo que ficou
+- Destravar o item da "Bct de Ouro" que está `processing` com attempts=6 → reset pra `pending` com attempts=0.
+- Preencher `spotify_artist_id` da "Bct de Ouro" (uma única chamada manual à API só pra resolver — depois disso, zero API).
+- Setar `auto_collect_interval_minutes=2880` e `next_auto_collect_at=now()` pra essa música.
 
-### Passo 4 — Deprecar tabela morta
-- `catalog_track_snapshots`: marcar como deprecada (comentário SQL + remover writes se houver). Não dropar ainda — só sinalizar. Drop fica para uma rodada futura após confirmar que nada lê.
+### Passo 5 — Bug do release no `bot-collect-queue`
+- O fallback usa `worker_id` mas a coluna é `locked_by`. Corrigir o UPDATE pra não estourar quando solta um item inválido.
 
-## O que NÃO faz parte deste plano (explícito)
-- ❌ Cron Spotify de snapshot.
-- ❌ Edge function nova de coleta.
-- ❌ Mudança no `process-catalog-placements` (já está fechado na Fase anterior).
-- ❌ Mudança no worker da VPS (lado servidor da VPS é responsabilidade externa — este plano só prepara o **contrato DB** que ela já entende: ela vai consumir `claim_next_catalog_snapshots` e gravar em `song_snapshots` com `catalog_track_id` preenchido).
-- ❌ UI nova — view fica pronta para alimentar dashboard depois.
+## O que continua igual (não quebra nada)
+- `distribute-catalog-track`/`resolve-catalog-track`: mesmo contrato pra UI.
+- `process-catalog-placements`/`reap-catalog-placements`: intocados — quem adiciona/remove em playlist segue igual.
+- Bot da Ai Ai Que Legal: nenhum byte muda (deal_song mode é o caminho default).
+- Tabela `song_snapshots` já aceita `catalog_track_id` nullable → o snapshot do bot cai no mesmo storage.
 
-## Diagrama do fluxo final
+## Resultado final
+- Coloca link → cria track → enfileira baseline → bot coleta na próxima rodada → grava snapshot real.
+- Daí em diante, a cada 48h o cron enfileira coleta nova, bot tira print, grava em `song_snapshots`.
+- Zero chamada de Spotify API pra `popularity`/`monthly_listeners`.
 
-```text
-Usuário cola URL
-      │
-      ▼
-catalog_tracks (insert)
-      │  trigger
-      ▼
-catalog_snapshot_queue (baseline)
-      │  claim
-      ▼
-VPS worker  ──►  song_snapshots (catalog_track_id) + song_snapshot_playlists
-      │
-      ▼
-distribute_catalog_track → catalog_placements
-      │  trigger (placement active)
-      ▼
-catalog_snapshot_queue (recorrente)
-      │
-      ▼
-v_catalog_track_telemetry  ◄── UI Catálogo lê daqui
-v_catalog_track_playlist_attribution
-```
-
-## Detalhes técnicos
-- Tudo via migration única por passo (4 migrations).
-- Sem GRANT para `anon` em `catalog_snapshot_queue` (só `authenticated` + `service_role`); RLS bloqueia leitura para não-admin.
-- `claim_next_catalog_snapshots` em `SECURITY DEFINER` com `SET search_path = public`.
-- Após Passo 1 + 2, a VPS já pode começar a popular `song_snapshots` para a única `catalog_track` ativa (`7gUX0Of0lE9tWv167kzQdV`) assim que for chamada — sem nenhuma mudança no app.
-
-## Entrega
-Ao final dos 4 passos:
-- `song_snapshots` aceita catálogo.
-- Fila viva, fila enfileirada por trigger.
-- Views prontas para qualquer UI consumir.
-- `catalog_track_snapshots` marcada como deprecada.
-- Zero dependência Spotify para telemetria de catálogo.
-
-Confirma para eu rodar **Passo 1** (migration de ponte em `song_snapshots`)?
+Posso executar?
