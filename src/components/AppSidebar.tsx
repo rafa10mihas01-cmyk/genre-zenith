@@ -102,7 +102,6 @@ const sections: NavSection[] = [
         url: "/analytics",
         icon: BarChart3,
         matchPaths: ["/inteligencia", "/cerebro", "/criacao", "/performance", "/valuation", "/benchmarks", "/matriz", "/heatmap"],
-,
       },
     ],
   },
