@@ -1048,8 +1048,9 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
 
           {/* Rodapé de ação — alinhado à direita, texto-guia à esquerda */}
           <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
-            <p className="text-xs text-muted-foreground/70">
-              Você pode voltar e editar estas escolhas em qualquer momento antes de aprovar o plano.
+            <p className="text-xs text-muted-foreground/70 text-center sm:text-left">
+              <span className="sm:hidden">Dá pra editar antes de aprovar.</span>
+              <span className="hidden sm:inline">Você pode voltar e editar estas escolhas em qualquer momento antes de aprovar o plano.</span>
             </p>
             <Button
               size="lg"
