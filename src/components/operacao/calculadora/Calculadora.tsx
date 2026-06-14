@@ -981,7 +981,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                   <div>
                     <CardTitle className="text-base">Sessão</CardTitle>
                     <CardDescription className="text-xs mt-1">
-                      Cliente e curador valem pra todas as músicas desta sessão.
+                      Valem pra todas as músicas desta sessão.
                     </CardDescription>
                   </div>
                   <Badge variant="outline" className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground border-border/60 shrink-0">
