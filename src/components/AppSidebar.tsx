@@ -39,7 +39,6 @@ type NavItem = {
   children?: SubItem[];
   /** Outras rotas que devem marcar este item como ativo (aliases legados). */
   matchPaths?: string[];
-  /** Token de cor de domínio (ex: "domain-clients"). Aplica em ícone + barra ativa. */
   accent?: string;
 };
 type NavSection = { label: string; items: NavItem[] };
@@ -58,14 +57,12 @@ const sections: NavSection[] = [
         title: "Clientes",
         url: "/clientes",
         icon: User,
-        accent: "domain-clients",
       },
       {
         title: "Curadores",
         url: "/curadores",
         icon: UserSearch,
         matchPaths: ["/prospeccao"],
-        accent: "domain-curators",
       },
       // Comunidade oculto do sidebar — acessível via Curadores (comunidade/prospecção).
       // {
@@ -94,7 +91,6 @@ const sections: NavSection[] = [
         url: "/operacao",
         icon: ListMusic,
         matchPaths: ["/playlists"],
-        accent: "domain-playlists",
       },
     ],
   },
@@ -106,7 +102,7 @@ const sections: NavSection[] = [
         url: "/analytics",
         icon: BarChart3,
         matchPaths: ["/inteligencia", "/cerebro", "/criacao", "/performance", "/valuation", "/benchmarks", "/matriz", "/heatmap"],
-        accent: "domain-system",
+,
       },
     ],
   },
@@ -119,7 +115,7 @@ const sections: NavSection[] = [
         icon: Server,
         adminOnly: true,
         matchPaths: ["/infra", "/infraestrutura", "/admin/aprendizado"],
-        accent: "domain-system",
+,
       },
     ],
   },
@@ -170,7 +166,7 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
+    <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarHeader className="h-14 px-4 border-b border-sidebar-border flex flex-row items-center gap-2.5">
         <button
           type="button"
@@ -195,7 +191,7 @@ export function AppSidebar() {
         {visibleSections.map((section, idx) => (
           <SidebarGroup key={section.label} className={cn("p-0", idx > 0 && "mt-3")}>
             {!collapsed && (
-              <SidebarGroupLabel className="h-6 px-3 mb-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/55">
+              <SidebarGroupLabel className="h-6 px-3 mb-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
                 {section.label}
               </SidebarGroupLabel>
             )}
@@ -205,34 +201,27 @@ export function AppSidebar() {
                   const active = itemIsActive(item, location.pathname, location.search);
                   const hasChildren = !!item.children?.length;
 
-                  // Item simples (sem filhos) — comportamento idêntico ao antigo.
+                  // Item simples (sem filhos)
                   if (!hasChildren) {
-                    const accentStyle = item.accent
-                      ? ({ color: `hsl(var(--${item.accent}))` } as React.CSSProperties)
-                      : undefined;
                     return (
                       <SidebarMenuItem key={item.title}>
                         <SidebarMenuButton
                           asChild
                           isActive={active}
                           className={cn(
-                            "h-9 rounded-md transition-colors relative",
+                            "h-9 rounded-lg transition-colors relative",
                             "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60",
-                            active && "bg-sidebar-accent !text-sidebar-foreground font-medium",
+                            active && "!bg-card border border-sidebar-border rounded-xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] !text-foreground font-medium",
                           )}
                         >
                           <NavLink to={item.url} end={item.end} onClick={handleNav} onMouseEnter={() => preloadFor(item.url)} onFocus={() => preloadFor(item.url)} className="flex items-center gap-3 px-3">
-                            {active && !collapsed && (
-                              <span
-                                className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r"
-                                style={item.accent ? { backgroundColor: `hsl(var(--${item.accent}))` } : undefined}
-                              />
-                            )}
                             <item.icon
-                              className={cn("h-[18px] w-[18px] shrink-0", !active && "text-sidebar-foreground/60")}
-                              style={active ? accentStyle : undefined}
+                              className={cn("h-[18px] w-[18px] shrink-0", active ? "text-primary" : "text-sidebar-foreground/60")}
                             />
                             {!collapsed && <span className="text-[14px]">{item.title}</span>}
+                            {active && !collapsed && (
+                              <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_rgba(29,185,84,0.6)]" />
+                            )}
                           </NavLink>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
@@ -249,9 +238,9 @@ export function AppSidebar() {
                           isActive={active}
                           tooltip={item.title}
                           className={cn(
-                            "h-9 rounded-md transition-colors relative",
+                            "h-9 rounded-lg transition-colors relative",
                             "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60",
-                            active && "bg-sidebar-accent !text-sidebar-foreground font-medium",
+                            active && "!bg-card border border-sidebar-border rounded-xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] !text-foreground",
                           )}
                         >
                           <NavLink to={item.url} onClick={handleNav} onMouseEnter={() => preloadFor(item.url)} onFocus={() => preloadFor(item.url)} className="flex items-center justify-center px-3">
@@ -269,16 +258,16 @@ export function AppSidebar() {
                           <SidebarMenuButton
                             isActive={active}
                             className={cn(
-                              "h-9 rounded-md transition-colors relative w-full",
+                              "h-9 rounded-lg transition-colors relative w-full",
                               "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60",
-                              active && "bg-sidebar-accent !text-sidebar-foreground font-medium",
+                              active && "!bg-card border border-sidebar-border rounded-xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] !text-foreground font-medium",
                             )}
                           >
-                            {active && (
-                              <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-primary" />
-                            )}
                             <item.icon className={cn("h-[18px] w-[18px] shrink-0", active ? "text-primary" : "text-sidebar-foreground/60")} />
                             <span className="text-[14px] flex-1 text-left">{item.title}</span>
+                            {active && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_rgba(29,185,84,0.6)]" />
+                            )}
                             <ChevronRight className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/40 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                           </SidebarMenuButton>
                         </CollapsibleTrigger>
