@@ -122,36 +122,15 @@ Deno.serve(async (req) => {
     const isrc = track.external_ids?.isrc ?? null;
     const spotifyUri = track.uri ?? `spotify:track:${trackId}`;
     const coverUrl = track.album?.images?.[0]?.url ?? null;
-    const popularity = typeof track.popularity === "number" ? track.popularity : null;
-
-    // 2) Baseline complementar — followers do artista principal (proxy de monthly listeners)
-    let artistFollowers: number | null = null;
-    let artistRaw: unknown = null;
-    const primaryArtistId = track.artists?.[0]?.id;
-    if (primaryArtistId) {
-      try {
-        const artResp = await spotifyFetch(
-          `https://api.spotify.com/v1/artists/${primaryArtistId}`,
-          { headers: { Authorization: `Bearer ${token}` } },
-        );
-        if (artResp.ok) {
-          const a = await artResp.json() as {
-            followers?: { total?: number };
-            popularity?: number;
-            genres?: string[];
-          };
-          artistFollowers = a?.followers?.total ?? null;
-          artistRaw = a;
-        } else {
-          await artResp.text();
-        }
-      } catch { /* baseline parcial é aceitável */ }
-    }
+    // IMPORTANTE: NÃO usamos popularity/monthly_listeners da Spotify API como baseline.
+    // A baseline T0 vem 100% do bot (Spotify for Artists), mesmo padrão dos deal_songs.
+    // Aqui só resolvemos o spotify_artist_id pra que o bot consiga montar a URL S4A.
+    const primaryArtistId = track.artists?.[0]?.id ?? null;
 
     const baselineRaw = {
       track,
-      artist: artistRaw,
       captured_at: new Date().toISOString(),
+      note: "baseline-empty-awaiting-bot",
     };
 
     // 3) Invoca a RPC atômica
