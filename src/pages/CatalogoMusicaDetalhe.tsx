@@ -760,47 +760,9 @@ export default function CatalogoMusicaDetalhe() {
               <MobilePlacementsGroups placements={placements} />
 
 
-              {/* DESKTOP: tabela completa */}
-              <div className="hidden sm:block overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="text-xs text-muted-foreground">
-                    <tr className="border-b border-border">
-                      <th className="text-left font-medium px-4 py-3">Playlist</th>
-                      <th className="text-left font-medium px-4 py-3">Seguidores</th>
-                      <th className="text-left font-medium px-4 py-3">Posição</th>
-                      <th className="text-left font-medium px-4 py-3">Adicionada</th>
-                      <th className="text-left font-medium px-4 py-3">Tentativas</th>
-                      <th className="text-left font-medium px-4 py-3">Status / erro</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {placements.map((p) => (
-                      <tr key={p.id} className="border-b border-border last:border-0 hover:bg-muted/30">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            {p.managed_playlists?.cover_url ? (
-                              <img src={p.managed_playlists.cover_url} alt="" className="h-7 w-7 rounded object-cover" />
-                            ) : (
-                              <div className="h-7 w-7 rounded bg-muted flex items-center justify-center"><PlayCircle className="h-3.5 w-3.5 text-muted-foreground" /></div>
-                            )}
-                            <span className="font-medium text-foreground">{p.managed_playlists?.name ?? "—"}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{fmt(p.managed_playlists?.followers)}</td>
-                        <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{p.position != null ? `#${p.position}` : "—"}</td>
-                        <td className="px-4 py-3 text-muted-foreground text-xs">{p.added_at ? new Date(p.added_at).toLocaleDateString("pt-BR") : "—"}</td>
-                        <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{p.attempts}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-col gap-0.5">
-                            <StatusDot status={p.status} />
-                            {p.last_error_code && <span className="text-[10px] text-rose-400 font-mono">{p.last_error_code}</span>}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              {/* DESKTOP: dois grupos colapsáveis (Híbrido = ativas, Catálogo = arquivadas) */}
+              <DesktopPlacementsGroups placements={placements} />
+
             </>
           )}
         </section>
