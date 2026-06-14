@@ -98,11 +98,17 @@ Deno.serve(async (req) => {
         .order("captured_at", { ascending: false }),
     ]);
 
+    // Erros críticos (sem playlists/songs a página não tem o que mostrar) ainda quebram.
     if (plErr) return jr({ ok: false, error: plErr.message }, 200);
     if (songsErr) return jr({ ok: false, error: songsErr.message }, 200);
-    if (progressErr) return jr({ ok: false, error: progressErr.message }, 200);
-    if (historyErr) return jr({ ok: false, error: historyErr.message }, 200);
-    if (snapsErr) return jr({ ok: false, error: snapsErr.message }, 200);
+    // Erros de progresso/histórico/snapshots são DEGRADAÇÃO GRACIOSA:
+    // a página do curador continua abrindo (apenas sem números agregados de progresso).
+    // Motivo: RPCs como get_curator_deal_progress podem estourar statement_timeout
+    // quando a campanha tem muitas leituras em campaign_playlist_collections, e
+    // bloquear o link inteiro por isso transforma uma lentidão em "link expirado".
+    if (progressErr) console.error("[get-curator-deal-public] progress error (degraded):", progressErr.message);
+    if (historyErr) console.error("[get-curator-deal-public] history error (degraded):", historyErr.message);
+    if (snapsErr) console.error("[get-curator-deal-public] snaps error (degraded):", snapsErr.message);
 
     // Último snapshot por playlist (já vem ordenado desc).
     const latestByPlaylist: Record<string, { plays_24h: number | null; plays_7d: number | null; plays_28d: number | null; captured_at: string }> = {};
