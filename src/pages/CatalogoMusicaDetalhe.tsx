@@ -621,8 +621,11 @@ export default function CatalogoMusicaDetalhe() {
         <section className="rounded-2xl border border-border bg-card overflow-hidden">
           <div className="p-5 border-b border-border flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2"><ListMusic className="h-4 w-4" /> Placements na rede</h3>
-              <p className="text-xs text-muted-foreground">{placementsByStatus.active} ativos · {placementsByStatus.pending + placementsByStatus.retry + placementsByStatus.processing} em fila · {placementsByStatus.failed} falhas · {placementsByStatus.removed} removidos</p>
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2"><ListMusic className="h-4 w-4" /> Playlists da nossa rede</h3>
+              <p className="text-xs text-muted-foreground">
+                <span className="sm:hidden">{placementsByStatus.active} ativas · {placementsByStatus.pending + placementsByStatus.retry + placementsByStatus.processing} em fila</span>
+                <span className="hidden sm:inline">{placementsByStatus.active} ativas · {placementsByStatus.pending + placementsByStatus.retry + placementsByStatus.processing} em fila · {placementsByStatus.failed} com erro · {placementsByStatus.removed} removidas</span>
+              </p>
             </div>
           </div>
           {placements.length === 0 ? (
