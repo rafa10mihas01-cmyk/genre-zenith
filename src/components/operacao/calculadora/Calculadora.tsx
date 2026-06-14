@@ -916,14 +916,14 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                     id: "bot" as const,
                     title: "Spotify",
                     icon: Music,
-                    description: "Bot oficial coleta saves, plays e posição direto da playlist a cada ciclo.",
+                    description: "Coleta automática de saves, plays e posição.",
                     tag: "Automático",
                   },
                   {
                     id: "spreadsheet" as const,
                     title: "Excel",
                     icon: FileText,
-                    description: "Curador envia planilha periódica com prints — útil pra playlists fora da rede.",
+                    description: "Planilha do curador — playlists fora da rede.",
                     tag: "Manual",
                   },
                 ]).map(opt => {
