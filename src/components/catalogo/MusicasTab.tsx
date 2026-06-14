@@ -196,62 +196,118 @@ export function MusicasTab() {
         </div>
       ) : (
         <>
-          {/* MOBILE — cards premium */}
-          <div className="md:hidden space-y-2">
+          {/* MOBILE — editorial denso */}
+          <div className="md:hidden space-y-2.5">
             {rows.map((t) => {
               const active = t.stats?.placements_active ?? 0;
               const total = t.stats?.placements_total ?? 0;
               const failed = t.stats?.placements_failed ?? 0;
+              const has28d = t.tel?.last_plays_28d != null;
+              const hasBaseline = t.tel?.growth_abs != null;
+              const collectAge = t.tel?.last_captured_at ? (Date.now() - new Date(t.tel.last_captured_at).getTime()) / 60000 : Infinity;
+              const stale = collectAge > 60 * 24;
+              const noCollect = !t.tel || t.tel.snapshots_count === 0;
               return (
                 <button
                   key={t.id}
                   onClick={() => navigate(`/catalogo/musica/${t.id}`)}
-                  className="w-full text-left bg-card border border-border rounded-2xl p-3 active:scale-[0.99] transition-transform hover:border-border/80"
+                  className="w-full text-left bg-card border border-border rounded-xl p-4 active:scale-[0.99] transition-all hover:bg-[#212121] hover:border-[hsl(0,0%,24%)] group"
                 >
-                  {/* Linha 1 — cover + título + chevron */}
+                  {/* Cover + título + chevron */}
                   <div className="flex items-center gap-3">
-                    {t.cover_url ? (
-                      <img src={t.cover_url} alt="" className="h-12 w-12 rounded-lg object-cover shrink-0 shadow-sm" loading="lazy" />
-                    ) : (
-                      <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center shrink-0"><Music2 className="h-5 w-5 text-muted-foreground" /></div>
-                    )}
+                    <div className="relative shrink-0">
+                      {t.cover_url ? (
+                        <img src={t.cover_url} alt="" className="h-14 w-14 rounded-lg object-cover ring-1 ring-white/10 shadow-lg" loading="lazy" />
+                      ) : (
+                        <div className="h-14 w-14 rounded-lg bg-muted flex items-center justify-center ring-1 ring-white/10"><Music2 className="h-6 w-6 text-muted-foreground" /></div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-lg pointer-events-none" />
+                    </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-sm text-foreground truncate leading-tight">{t.track_name}</div>
-                      <div className="text-xs text-muted-foreground truncate mt-0.5">{t.artist_name}</div>
+                      <div className="font-semibold text-[15px] text-foreground truncate tracking-tight group-hover:text-[#1DB954] transition-colors">{t.track_name}</div>
+                      <div className="text-sm text-muted-foreground truncate mt-0.5">{t.artist_name}</div>
                     </div>
-                    <ChevronRight className="h-4 w-4 text-subtle-foreground shrink-0" />
+                    <ChevronRight className="h-5 w-5 text-[hsl(0,0%,40%)] shrink-0 group-hover:translate-x-0.5 transition-transform" />
                   </div>
 
-                  {/* Linha 2 — métricas em pills */}
-                  <div className="mt-3 grid grid-cols-3 gap-1.5">
-                    <div className="rounded-lg bg-muted/40 px-2.5 py-1.5 flex flex-col items-start min-w-0">
-                      <span className="text-[10px] uppercase tracking-wide text-subtle-foreground">Ativas</span>
-                      <span className="font-mono text-sm text-foreground tabular-nums">
-                        {active}<span className="text-subtle-foreground"> / {total}</span>
-                        {failed > 0 && <span className="text-rose-400 ml-1">✕{failed}</span>}
-                      </span>
+                  {/* Métricas grid 3 colunas */}
+                  <div className="grid grid-cols-3 gap-1 pt-4">
+                    {/* Ativas */}
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-[hsl(0,0%,45%)]">Ativas</span>
+                      <div className="flex flex-col leading-tight">
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-[17px] font-bold tabular-nums text-foreground">{active}</span>
+                          <span className="text-[11px] font-medium tabular-nums text-[hsl(0,0%,40%)]">/ {total}</span>
+                        </div>
+                        {failed > 0 && (
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <div className="w-1 h-1 rounded-full bg-rose-500 shadow-[0_0_4px_rgba(239,68,68,0.5)]" />
+                            <span className="text-[10px] font-bold tabular-nums tracking-tight italic text-rose-400">{failed} Falhas</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="rounded-lg bg-muted/40 px-2.5 py-1.5 flex flex-col items-start min-w-0">
-                      <span className="text-[10px] uppercase tracking-wide text-subtle-foreground">28d</span>
-                      <span className="font-mono text-sm text-foreground tabular-nums truncate w-full">{fmt(t.tel?.last_plays_28d)}</span>
+
+                    {/* 28 Dias */}
+                    <div className="flex flex-col gap-1 border-l border-[hsl(0,0%,12%)] pl-3">
+                      <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-[hsl(0,0%,45%)]">28 Dias</span>
+                      <div className="flex flex-col leading-tight">
+                        {has28d ? (
+                          <span className="text-[17px] font-bold tabular-nums text-foreground">{fmt(t.tel!.last_plays_28d)}</span>
+                        ) : (
+                          <>
+                            <span className="text-[17px] font-medium tabular-nums text-[hsl(0,0%,30%)]">—</span>
+                            <span className="text-[10px] font-medium uppercase mt-0.5 text-[hsl(0,0%,25%)]">Sem dados</span>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <div className="rounded-lg bg-muted/40 px-2.5 py-1.5 flex flex-col items-start min-w-0">
-                      <span className="text-[10px] uppercase tracking-wide text-subtle-foreground">Coleta</span>
-                      <div className="text-sm leading-tight"><CollectBadge tel={t.tel} /></div>
+
+                    {/* Coleta */}
+                    <div className="flex flex-col gap-1 border-l border-[hsl(0,0%,12%)] pl-3">
+                      <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-[hsl(0,0%,45%)]">Coleta</span>
+                      <div className="flex flex-col leading-tight">
+                        {noCollect ? (
+                          <>
+                            <div className="flex items-center gap-1.5 h-[22px]">
+                              <AlertTriangle className="h-4 w-4 text-amber-500/80" />
+                              <span className="text-[11px] font-bold uppercase text-amber-500/90">Pendente</span>
+                            </div>
+                            <span className="text-[10px] font-medium mt-0.5 text-[hsl(0,0%,35%)]">Sem coleta</span>
+                          </>
+                        ) : stale ? (
+                          <>
+                            <div className="flex items-center gap-1.5 h-[22px]">
+                              <Clock className="h-4 w-4 text-amber-500/80" />
+                              <span className="text-[11px] font-bold uppercase text-amber-500/90">Atrasada</span>
+                            </div>
+                            <span className="text-[10px] font-medium mt-0.5 text-[hsl(0,0%,35%)]">{rel(t.tel!.last_captured_at)} atrás</span>
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex items-center gap-1.5 h-[22px]">
+                              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                              <span className="text-[11px] font-bold uppercase text-emerald-400">OK</span>
+                            </div>
+                            <span className="text-[10px] font-medium mt-0.5 text-[hsl(0,0%,35%)]">{rel(t.tel!.last_captured_at)} atrás</span>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Linha 3 — Δ baseline (só quando existe) */}
-                  {t.tel?.growth_abs != null && (
-                    <div className="mt-2 flex items-center justify-between px-1">
-                      <span className="text-[10px] uppercase tracking-wide text-subtle-foreground">Δ baseline</span>
+                  {/* Δ baseline — quando existe, como linha inferior sutil */}
+                  {hasBaseline && (
+                    <div className="mt-3 flex items-center justify-between border-t border-[hsl(0,0%,12%)] pt-2.5">
+                      <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-[hsl(0,0%,45%)]">Δ baseline</span>
                       <div className="flex items-center gap-2">
-                        <span className={cn("text-xs font-mono tabular-nums", t.tel.growth_abs >= 0 ? "text-emerald-400" : "text-rose-400")}>
-                          {t.tel.growth_abs >= 0 ? "+" : ""}{fmt(t.tel.growth_abs)}
+                        <span className={cn("text-[13px] font-mono tabular-nums font-semibold", t.tel!.growth_abs! >= 0 ? "text-emerald-400" : "text-rose-400")}>
+                          {t.tel!.growth_abs! >= 0 ? "+" : ""}{fmt(t.tel!.growth_abs)}
                         </span>
-                        {t.tel.growth_pct != null && (
-                          <span className={cn("text-[10px] font-mono tabular-nums px-1.5 py-0.5 rounded", t.tel.growth_abs >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400")}>
-                            {t.tel.growth_abs >= 0 ? "+" : ""}{t.tel.growth_pct}%
+                        {t.tel!.growth_pct != null && (
+                          <span className={cn("text-[10px] font-mono tabular-nums px-1.5 py-0.5 rounded font-medium", t.tel!.growth_abs! >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400")}>
+                            {t.tel!.growth_abs! >= 0 ? "+" : ""}{t.tel!.growth_pct}%
                           </span>
                         )}
                       </div>
