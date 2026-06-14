@@ -322,7 +322,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (songRow) {
-      const intervalMin = (songRow as any).auto_collect_interval_minutes ?? 120;
+      const intervalMin = (songRow as any).auto_collect_interval_minutes ?? 2880;
       nextAt = new Date(Date.now() + intervalMin * 60_000).toISOString();
       await supabase
         .from("curator_deal_songs")
