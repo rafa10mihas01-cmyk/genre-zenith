@@ -183,6 +183,11 @@ Deno.serve(async (req) => {
   // Deals de curador comuns continuam exigindo playlists cadastradas.
   const nowMs = Date.now();
   const candidates = (data ?? []).filter((s: any) => {
+    const lastCollectAt = s?.last_auto_collect_at ? new Date(s.last_auto_collect_at).getTime() : null;
+    const intervalMs = Math.max(Number(s?.auto_collect_interval_minutes ?? 60), 5) * 60_000;
+    // Corta retry quente causado por corrida entre complete/recovery/claim:
+    // mesmo com next_auto_collect_at stale, uma música não deve reentrar antes do intervalo.
+    if (lastCollectAt && Number.isFinite(lastCollectAt) && Date.now() - lastCollectAt < intervalMs) return false;
     // Curador pausado: bloqueia coleta
     if (s?.curator_deals?.curators?.paused_at) return false;
     // Campanha em modo planilha: planilha é a única fonte de verdade da BASELINE,
