@@ -1034,10 +1034,10 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                         </span>
                       </div>
                       <p className="text-sm text-foreground/85 mt-1.5 leading-snug">
-                        Definido após a aprovação do planejamento.
+                        Definido após aprovar o plano.
                       </p>
-                      <p className="text-[11px] text-muted-foreground/70 leading-snug mt-1">
-                        Os curadores serão criados como deals na aba Curadores — um ou vários por música, conforme a divisão real do trabalho.
+                      <p className="text-[11px] text-muted-foreground/70 leading-snug mt-1 hidden sm:block">
+                        Criados como deals na aba Curadores — um ou vários por música.
                       </p>
                     </div>
                   </div>
