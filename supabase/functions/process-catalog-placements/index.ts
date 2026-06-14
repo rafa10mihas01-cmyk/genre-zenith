@@ -225,6 +225,35 @@ Deno.serve(async (req) => {
   async function markRetry(p: Enriched, code: string, msg: string | null, snapshotId: string | null = null) {
     const isCircuit = code === "spotify_circuit_open";
     if (isCircuit) cntCircuit++;
+    // Circuit aberto = throttle defensivo, NÃO é culpa do placement.
+    // Reverte o increment de attempts feito pelo claim e agenda pra +15min com jitter.
+    // Nunca vira fatal por max_attempts nesse caminho.
+    if (isCircuit) {
+      const jitterSec = 600 + Math.floor(Math.random() * 600); // 10–20 min
+      const scheduledFor = new Date(Date.now() + jitterSec * 1000).toISOString();
+      const restoredAttempts = Math.max(0, (p.attempts ?? 1) - 1);
+      await sb.from("catalog_placements").update({
+        status: "retry",
+        scheduled_for: scheduledFor,
+        attempts: restoredAttempts,
+        last_error_code: code,
+        locked_at: null, locked_by: null, lease_expires_at: null,
+      }).eq("id", p.id);
+      await sb.from("catalog_placement_execution_log").insert({
+        placement_id: p.id,
+        catalog_track_id: p.catalog_track_id,
+        managed_playlist_id: p.managed_playlist_id,
+        spotify_playlist_id: p.spotify_playlist_id,
+        spotify_track_id: p.spotify_track_id,
+        position: p.position,
+        outcome: "skipped",
+        error_code: code,
+        error_message: trim(`circuit_open: rescheduled in ${jitterSec}s (attempts preserved)`),
+        snapshot_id: snapshotId,
+      });
+      cntRetry++;
+      return;
+    }
     // Se já bateu max_attempts, vira fatal.
     if (p.attempts >= p.max_attempts) {
       await markFailed(p, code, msg ?? "max_attempts_reached", snapshotId);
