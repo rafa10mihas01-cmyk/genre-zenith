@@ -1,18 +1,25 @@
-// Revalidação periódica: para cada job ADD done de campanhas ativas,
-// confere no Spotify se a faixa ainda está presente e em qual posição.
-// Grava histórico em playlist_delivery_validations e atualiza colunas
-// last_validation_* em playlist_execution_jobs.
+// Revalidação periódica — POLÍTICA "CONFIRMA UMA VEZ":
 //
-// Status possíveis:
-//  - present   → faixa na posição planejada
-//  - moved     → presente mas em posição diferente
-//  - duplicate → faixa aparece >1x
-//  - removed   → faixa não está mais na playlist
-//  - error     → falha ao consultar (token inválido, 4xx/5xx)
+// Pra cada job ADD `done` de campanha ativa, confere no Spotify se a faixa
+// está na playlist. Quando o status vira `present` / `moved` / `duplicate`
+// (= a faixa entrou e está lá), o job é marcado como confirmado e NUNCA
+// mais é re-checado. Só jobs nunca validados, ou que ficaram em `error` /
+// `removed`, voltam pra fila.
+//
+// Salvaguardas:
+//  - Lote pequeno (default 50, máx 200) — evita varrer tudo de uma vez.
+//  - Respeita o circuit breaker do Spotify: se mais da metade das apps
+//    estiver `open`, a função sai sem chamar nada.
+//  - Cron deve rodar de hora em hora — não de 1 em 1 min.
 
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { listPlaylistTrackRefs } from '../_shared/spotify-playlist.ts';
+
+const DEFAULT_LIMIT = 50;
+const MAX_LIMIT = 200;
+// Status que contam como "confirmado, missão cumprida" — não revisitar.
+const CONFIRMED_STATUSES = ['present', 'moved', 'duplicate'];
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -22,6 +29,37 @@ Deno.serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   );
 
+  // ── Circuit breaker check ─────────────────────────────────────────────
+  // Se mais da metade das apps estiver bloqueada, melhor não tentar.
+  const { data: breakers } = await sb
+    .from('spotify_circuit_breaker')
+    .select('status, blocked_until');
+  const total = breakers?.length ?? 0;
+  const openNow = (breakers ?? []).filter(
+    (b) => b.status === 'open' && (!b.blocked_until || new Date(b.blocked_until) > new Date()),
+  ).length;
+  if (total > 0 && openNow * 2 >= total) {
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        skipped: true,
+        reason: 'circuit_breaker_majority_open',
+        open: openNow,
+        total,
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
+  }
+
+  // ── Limite do lote ────────────────────────────────────────────────────
+  let body: Record<string, unknown> = {};
+  try { body = await req.json(); } catch { /* empty */ }
+  const rawLimit = Number(body?.limit ?? DEFAULT_LIMIT);
+  const limit = Number.isFinite(rawLimit)
+    ? Math.min(MAX_LIMIT, Math.max(1, Math.floor(rawLimit)))
+    : DEFAULT_LIMIT;
+
+  // ── Campanhas ativas ──────────────────────────────────────────────────
   const { data: camps } = await sb
     .from('campaigns')
     .select('id, spotify_track_id')
@@ -33,14 +71,20 @@ Deno.serve(async (req) => {
     });
   }
 
+  // ── Jobs candidatos a revalidar ───────────────────────────────────────
+  // Regra: ainda não foi confirmado (status NULL, 'error' ou 'removed').
+  // Ordena pelo mais antigo nunca validado primeiro (NULL first).
   const { data: jobs } = await sb
     .from('playlist_execution_jobs')
-    .select('id, campaign_id, spotify_playlist_id, to_position')
+    .select('id, campaign_id, spotify_playlist_id, to_position, last_validation_status, last_validated_at')
     .eq('status', 'done')
     .eq('job_type', 'playlist.track.add')
-    .in('campaign_id', [...campMap.keys()]);
+    .in('campaign_id', [...campMap.keys()])
+    .or(`last_validation_status.is.null,last_validation_status.in.(error,removed)`)
+    .order('last_validated_at', { ascending: true, nullsFirst: true })
+    .limit(limit);
 
-  // dedupe por (playlist, track) — só uma checagem por par
+  // dedupe por (playlist, track) — uma checagem por par
   const uniq = new Map<string, any>();
   for (const j of jobs ?? []) {
     const c = campMap.get(j.campaign_id);
@@ -49,14 +93,20 @@ Deno.serve(async (req) => {
     if (!uniq.has(k)) uniq.set(k, { ...j, spotify_track_id: c.spotify_track_id });
   }
 
-  // mapa playlist→token
+  if (uniq.size === 0) {
+    return new Response(
+      JSON.stringify({ ok: true, checked: 0, note: 'nada pendente de confirmação' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
+  }
+
+  // ── Tokens por playlist ───────────────────────────────────────────────
   const pids = [...new Set([...uniq.values()].map((j) => j.spotify_playlist_id))];
   const { data: pls } = await sb
     .from('playlists')
     .select('spotify_playlist_id, account_id')
     .in('spotify_playlist_id', pids);
   const plMap = new Map(pls?.map((p) => [p.spotify_playlist_id, p]) ?? []);
-  // filtra nulos: playlists sem account_id não vão pra IN(...) — senão a query quebra e contamina o lote
   const acctIds = [
     ...new Set(
       (pls ?? [])
@@ -65,20 +115,14 @@ Deno.serve(async (req) => {
     ),
   ];
   const { data: accts, error: acctsErr } = acctIds.length
-    ? await sb
-        .from('accounts')
-        .select('id, spotify_user_token_id')
-        .in('id', acctIds)
+    ? await sb.from('accounts').select('id, spotify_user_token_id').in('id', acctIds)
     : { data: [], error: null };
   if (acctsErr) console.error('[revalidate] accounts query error', acctsErr);
   const tokIds = (accts ?? [])
     .map((a) => a.spotify_user_token_id)
     .filter((id): id is string => !!id);
   const { data: toks, error: toksErr } = tokIds.length
-    ? await sb
-        .from('spotify_user_tokens')
-        .select('id, access_token')
-        .in('id', tokIds)
+    ? await sb.from('spotify_user_tokens').select('id, access_token').in('id', tokIds)
     : { data: [], error: null };
   if (toksErr) console.error('[revalidate] tokens query error', toksErr);
   const tokById = new Map(toks?.map((t) => [t.id, t.access_token]) ?? []);
@@ -86,21 +130,16 @@ Deno.serve(async (req) => {
     (accts ?? []).map((a) => [a.id, tokById.get(a.spotify_user_token_id)]),
   );
 
-  // cache por playlist pra evitar listar duas vezes a mesma
+  // ── Loop de validação ─────────────────────────────────────────────────
   const refsCache = new Map<string, { id: string }[]>();
-
-  let counts = { present: 0, moved: 0, duplicate: 0, removed: 0, error: 0, skipped: 0 };
+  const counts = { present: 0, moved: 0, duplicate: 0, removed: 0, error: 0, skipped: 0 };
   const validations: any[] = [];
   const jobUpdates: { id: string; status: string; position: number | null }[] = [];
 
   for (const j of uniq.values()) {
     const pl = plMap.get(j.spotify_playlist_id);
-    // playlist sem account_id mapeado → pula sem poluir o lote nem gerar erro global
     if (!pl || !pl.account_id) {
       counts.skipped++;
-      console.warn(
-        `[revalidate] skip playlist ${j.spotify_playlist_id} — sem account_id vinculado`,
-      );
       continue;
     }
     const tok = tokByAcct.get(pl.account_id);
@@ -133,19 +172,11 @@ Deno.serve(async (req) => {
       });
       const actual = positions[0] ?? null;
       let status: string;
-      if (positions.length > 1) {
-        status = 'duplicate';
-        counts.duplicate++;
-      } else if (actual == null) {
-        status = 'removed';
-        counts.removed++;
-      } else if (actual === j.to_position) {
-        status = 'present';
-        counts.present++;
-      } else {
-        status = 'moved';
-        counts.moved++;
-      }
+      if (positions.length > 1) { status = 'duplicate'; counts.duplicate++; }
+      else if (actual == null) { status = 'removed'; counts.removed++; }
+      else if (actual === j.to_position) { status = 'present'; counts.present++; }
+      else { status = 'moved'; counts.moved++; }
+
       validations.push({
         job_id: j.id,
         campaign_id: j.campaign_id,
@@ -174,11 +205,9 @@ Deno.serve(async (req) => {
     }
   }
 
-  // grava histórico em lote
   if (validations.length) {
     await sb.from('playlist_delivery_validations').insert(validations);
   }
-  // atualiza job (em paralelo)
   await Promise.all(
     jobUpdates.map((u) =>
       sb
@@ -193,7 +222,13 @@ Deno.serve(async (req) => {
   );
 
   return new Response(
-    JSON.stringify({ ok: true, checked: uniq.size, counts }, null, 2),
+    JSON.stringify({
+      ok: true,
+      checked: uniq.size,
+      limit,
+      counts,
+      policy: 'confirm_once: present/moved/duplicate never re-checked',
+    }, null, 2),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   );
 });
