@@ -56,6 +56,7 @@ const CampanhaDetalhe = lazy(() => import("./pages/CampanhaDetalhe"));
 const CampanhaExecucao = lazy(() => import("./pages/CampanhaExecucao"));
 const Catalogo = lazy(() => import("./pages/Catalogo"));
 const CatalogoMusicaPreview = lazy(() => import("./pages/CatalogoMusicaPreview"));
+const CatalogoMusicaDetalhe = lazy(() => import("./pages/CatalogoMusicaDetalhe"));
 
 const PlanoCampanhaPublico = lazy(() => import("./pages/PlanoCampanhaPublico"));
 const MapaCampanhaPublico = lazy(() => import("./pages/MapaCampanhaPublico"));
@@ -148,6 +149,7 @@ const App = () => (
                 <Route path="/inteligencia" element={<Navigate to="/analytics" replace />} />
                 <Route path="/catalogo" element={<Protected><Catalogo /></Protected>} />
                 <Route path="/catalogo/preview-musica" element={<Protected><CatalogoMusicaPreview /></Protected>} />
+                <Route path="/catalogo/musica/:id" element={<Protected><CatalogoMusicaDetalhe /></Protected>} />
                 <Route path="/prospeccao" element={<Protected><Prospecao /></Protected>} />
                 <Route path="/operacao" element={<Protected><Operacao /></Protected>} />
                 <Route path="/playlists" element={<Navigate to="/operacao" replace />} />
