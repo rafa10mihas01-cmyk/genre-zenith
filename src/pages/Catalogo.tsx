@@ -154,7 +154,46 @@ export default function Catalogo() {
       />
 
       <PageContainer>
-        <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {/* Mobile: card consolidado — 4 colunas finas + barra de capacidade */}
+        <div className="sm:hidden">
+          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+            <div className="grid grid-cols-4 divide-x divide-border">
+              <div className="px-1.5 py-3 flex flex-col items-center justify-center gap-0.5">
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium">Músicas</span>
+                <span className="text-base font-semibold tabular-nums text-foreground">
+                  {summaryQ.isLoading ? "—" : fmt(s?.total_tracks)}
+                </span>
+              </div>
+              <div className="px-1.5 py-3 flex flex-col items-center justify-center gap-0.5">
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium">Placements</span>
+                <span className="text-base font-semibold tabular-nums text-foreground">
+                  {summaryQ.isLoading ? "—" : fmt(s?.active_placements)}
+                </span>
+              </div>
+              <div className="px-1.5 py-3 flex flex-col items-center justify-center gap-0.5">
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium">Usado</span>
+                <span className="text-base font-semibold tabular-nums text-foreground">
+                  {summaryQ.isLoading ? "—" : fmt(s?.capacity_used)}
+                </span>
+              </div>
+              <div className="px-1.5 py-3 flex flex-col items-center justify-center gap-0.5">
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium">Livres</span>
+                <span className="text-base font-semibold tabular-nums text-foreground">
+                  {summaryQ.isLoading ? "—" : fmt(s?.capacity_available)}
+                </span>
+              </div>
+            </div>
+            <div className="h-1 bg-border w-full">
+              <div
+                className="h-full bg-primary transition-all duration-500"
+                style={{ width: `${pct ?? 0}%` }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Tablet/Desktop: 4 cards separados */}
+        <section className="hidden sm:grid grid-cols-2 md:grid-cols-4 gap-3">
           <KpiBig
             tier="hero"
             icon={Music2}
