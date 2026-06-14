@@ -1,14 +1,14 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, Building2, Users, Megaphone, ListMusic } from "lucide-react";
+import { Home, Building2, Library, Megaphone, ListMusic } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Bottom nav reduzido aos itens primários do novo menu.
 const items = [
   { to: "/", label: "Início", icon: Home, end: true },
   { to: "/clientes", label: "Cliente", icon: Building2 },
-  { to: "/curadores", label: "Curador", icon: Users },
   { to: "/campanhas", label: "Campanha", icon: Megaphone },
-  { to: "/catalogo", label: "Playlist", icon: ListMusic },
+  { to: "/catalogo", label: "Catálogo", icon: Library },
+  { to: "/operacao", label: "Playlist", icon: ListMusic },
 ];
 
 /**
