@@ -3,7 +3,7 @@
 // KPIs hero logo abaixo e tabs por último.
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, RefreshCw, Music2, Layers, Gauge, CircleSlash, History, TrendingUp, Activity } from "lucide-react";
+import { Plus, RefreshCw, Music2, Layers, Gauge, CircleSlash, TrendingUp, Activity } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
@@ -12,9 +12,8 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { MusicasTab } from "@/components/catalogo/MusicasTab";
 import { PlaylistsTab } from "@/components/catalogo/PlaylistsTab";
-import { HistoricoTab } from "@/components/catalogo/HistoricoTab";
 
-const VALID_TABS = ["musicas", "playlists", "historico"] as const;
+const VALID_TABS = ["musicas", "playlists"] as const;
 type TabId = (typeof VALID_TABS)[number];
 
 type Summary = {
@@ -234,12 +233,11 @@ export default function Catalogo() {
           const TABS = [
             { id: "musicas" as const, label: "Músicas", icon: Music2 },
             { id: "playlists" as const, label: "Playlists", icon: Layers },
-            { id: "historico" as const, label: "Histórico", icon: History },
           ];
           return (
             <>
               {/* Mobile: grid de cards */}
-              <div className="grid grid-cols-3 gap-1.5 sm:hidden">
+              <div className="grid grid-cols-2 gap-1.5 sm:hidden">
                 {TABS.map((t) => {
                   const Icon = t.icon;
                   const active = tab === t.id;
@@ -292,7 +290,6 @@ export default function Catalogo() {
         <div>
           {tab === "musicas" && <MusicasTab />}
           {tab === "playlists" && <PlaylistsTab />}
-          {tab === "historico" && <HistoricoTab />}
         </div>
 
       </PageContainer>
