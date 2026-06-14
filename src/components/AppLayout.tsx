@@ -192,6 +192,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           {/* CONTEÚDO — só ele rola */}
           <main className={cn(
             "relative flex-1 min-h-0 overflow-x-hidden overscroll-contain nx-scroll",
+            "max-lg:pt-[calc(3.5rem+env(safe-area-inset-top,0px))]",
             fullscreen ? "overflow-hidden" : "overflow-y-auto",
           )}>
             {/* Gradiente sutil no topo: verde Spotify difuso → transparente */}
