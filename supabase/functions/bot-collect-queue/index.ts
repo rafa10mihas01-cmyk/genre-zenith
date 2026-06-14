@@ -414,16 +414,42 @@ Deno.serve(async (req) => {
       if (catErr) {
         console.warn("[bot-collect-queue] catalog claim failed:", catErr.message);
       } else if (Array.isArray(catRows) && catRows.length) {
-        catalogClaimed = catRows.map((r: any) => ({
-          kind: "catalog",
-          queue_id: r.id,
-          catalog_track_id: r.catalog_track_id,
-          spotify_track_id: r.spotify_track_id,
-          correlation_id: crypto.randomUUID(),
-          priority: r.priority,
-          attempts: r.attempts,
-          lease_expires_at: r.lease_expires_at,
+        // Enriquece com spotify_artist_id (necessário pro worker montar URL S4A)
+        const enriched = await Promise.all(catRows.map(async (r: any) => {
+          let artistId: string | null = null;
+          if (r.spotify_track_id) {
+            try {
+              const token = await getAppToken();
+              const tRes = await fetch(`https://api.spotify.com/v1/tracks/${r.spotify_track_id}`, {
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              if (tRes.ok) {
+                const tJson = await tRes.json();
+                artistId = tJson?.artists?.[0]?.id ?? null;
+              }
+            } catch (_) { /* silent */ }
+          }
+          const s4aSongUrl = artistId && r.spotify_track_id
+            ? `https://artists.spotify.com/c/pt/artist/${artistId}/song/${r.spotify_track_id}/stats`
+            : null;
+          return {
+            kind: "catalog",
+            queue_id: r.id,
+            catalog_track_id: r.catalog_track_id,
+            spotify_track_id: r.spotify_track_id,
+            spotify_artist_id: artistId,
+            s4a_song_url: s4aSongUrl,
+            song_s4a_url: s4aSongUrl,
+            url: s4aSongUrl,
+            correlation_id: crypto.randomUUID(),
+            priority: r.priority,
+            attempts: r.attempts,
+            lease_expires_at: r.lease_expires_at,
+            requires_playlist_breakdown: true,
+            capture_mode: "playlist_breakdown_required",
+          };
         }));
+        catalogClaimed = enriched;
       }
     }
   } catch (e) {
