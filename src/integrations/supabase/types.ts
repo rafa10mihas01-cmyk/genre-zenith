@@ -1900,13 +1900,6 @@ export type Database = {
             referencedColumns: ["catalog_track_id"]
           },
           {
-            foreignKeyName: "campaigns_catalog_track_id_fkey"
-            columns: ["catalog_track_id"]
-            isOneToOne: false
-            referencedRelation: "v_catalog_track_performance"
-            referencedColumns: ["catalog_track_id"]
-          },
-          {
             foreignKeyName: "campaigns_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
@@ -1989,13 +1982,6 @@ export type Database = {
             referencedRelation: "v_catalog_track_distribution_stats"
             referencedColumns: ["catalog_track_id"]
           },
-          {
-            foreignKeyName: "catalog_distribution_batches_catalog_track_id_fkey"
-            columns: ["catalog_track_id"]
-            isOneToOne: false
-            referencedRelation: "v_catalog_track_performance"
-            referencedColumns: ["catalog_track_id"]
-          },
         ]
       }
       catalog_placement_execution_log: {
@@ -2054,13 +2040,6 @@ export type Database = {
             columns: ["catalog_track_id"]
             isOneToOne: false
             referencedRelation: "v_catalog_track_distribution_stats"
-            referencedColumns: ["catalog_track_id"]
-          },
-          {
-            foreignKeyName: "catalog_placement_execution_log_catalog_track_id_fkey"
-            columns: ["catalog_track_id"]
-            isOneToOne: false
-            referencedRelation: "v_catalog_track_performance"
             referencedColumns: ["catalog_track_id"]
           },
           {
@@ -2173,13 +2152,6 @@ export type Database = {
             referencedColumns: ["catalog_track_id"]
           },
           {
-            foreignKeyName: "catalog_placements_catalog_track_id_fkey"
-            columns: ["catalog_track_id"]
-            isOneToOne: false
-            referencedRelation: "v_catalog_track_performance"
-            referencedColumns: ["catalog_track_id"]
-          },
-          {
             foreignKeyName: "catalog_placements_distribution_batch_id_fkey"
             columns: ["distribution_batch_id"]
             isOneToOne: false
@@ -2253,68 +2225,6 @@ export type Database = {
             columns: ["catalog_track_id"]
             isOneToOne: true
             referencedRelation: "v_catalog_track_distribution_stats"
-            referencedColumns: ["catalog_track_id"]
-          },
-          {
-            foreignKeyName: "catalog_track_baselines_catalog_track_id_fkey"
-            columns: ["catalog_track_id"]
-            isOneToOne: true
-            referencedRelation: "v_catalog_track_performance"
-            referencedColumns: ["catalog_track_id"]
-          },
-        ]
-      }
-      catalog_track_snapshots: {
-        Row: {
-          artist_followers: number | null
-          catalog_track_id: string
-          created_at: string
-          id: string
-          monthly_listeners: number | null
-          snapshot_date: string
-          spotify_followers: number | null
-          spotify_popularity: number | null
-        }
-        Insert: {
-          artist_followers?: number | null
-          catalog_track_id: string
-          created_at?: string
-          id?: string
-          monthly_listeners?: number | null
-          snapshot_date?: string
-          spotify_followers?: number | null
-          spotify_popularity?: number | null
-        }
-        Update: {
-          artist_followers?: number | null
-          catalog_track_id?: string
-          created_at?: string
-          id?: string
-          monthly_listeners?: number | null
-          snapshot_date?: string
-          spotify_followers?: number | null
-          spotify_popularity?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "catalog_track_snapshots_catalog_track_id_fkey"
-            columns: ["catalog_track_id"]
-            isOneToOne: false
-            referencedRelation: "catalog_tracks"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "catalog_track_snapshots_catalog_track_id_fkey"
-            columns: ["catalog_track_id"]
-            isOneToOne: false
-            referencedRelation: "v_catalog_track_distribution_stats"
-            referencedColumns: ["catalog_track_id"]
-          },
-          {
-            foreignKeyName: "catalog_track_snapshots_catalog_track_id_fkey"
-            columns: ["catalog_track_id"]
-            isOneToOne: false
-            referencedRelation: "v_catalog_track_performance"
             referencedColumns: ["catalog_track_id"]
           },
         ]
@@ -11836,33 +11746,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      v_catalog_track_performance: {
-        Row: {
-          added_at: string | null
-          artist_name: string | null
-          baseline_artist_followers: number | null
-          baseline_date: string | null
-          baseline_monthly: number | null
-          baseline_popularity: number | null
-          baseline_spotify_followers: number | null
-          catalog_track_id: string | null
-          cover_url: string | null
-          current_artist_followers: number | null
-          current_date: string | null
-          current_monthly: number | null
-          current_popularity: number | null
-          current_spotify_followers: number | null
-          delta_artist_followers: number | null
-          delta_monthly: number | null
-          delta_popularity: number | null
-          delta_spotify_followers: number | null
-          isrc: string | null
-          pct_monthly_growth: number | null
-          spotify_track_id: string | null
-          track_name: string | null
-        }
-        Relationships: []
       }
       v_curator_balance: {
         Row: {
