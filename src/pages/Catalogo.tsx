@@ -3,7 +3,7 @@
 // KPIs hero logo abaixo e tabs por último.
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, RefreshCw, Music2, Layers, Gauge, CircleSlash, History } from "lucide-react";
+import { Plus, RefreshCw, Music2, Layers, Gauge, CircleSlash, History, TrendingUp, Activity } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
@@ -52,6 +52,48 @@ async function fetchSummary(): Promise<Summary> {
   };
 }
 
+type GlobalTelemetry = {
+  total_plays_28d: number;
+  total_baseline: number;
+  growth_abs: number;
+  growth_pct: number | null;
+  tracks_with_baseline: number;
+  tracks_with_growth: number;
+  playlists_detected: number;
+  fresh_snapshots_24h: number;
+  failed_queue: number;
+};
+
+async function fetchGlobalTelemetry(): Promise<GlobalTelemetry> {
+  const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+  const [telRes, snapsRes, failQRes] = await Promise.all([
+    supabase.from("v_catalog_track_telemetry").select("baseline_plays_28d, last_plays_28d, growth_abs, playlists_present_count"),
+    supabase.from("song_snapshots").select("id", { count: "exact", head: true }).not("catalog_track_id", "is", null).gte("captured_at", since),
+    supabase.from("catalog_snapshot_queue").select("id", { count: "exact", head: true }).eq("status", "failed"),
+  ]);
+  const rows = (telRes.data ?? []) as Array<{ baseline_plays_28d: number | null; last_plays_28d: number | null; growth_abs: number | null; playlists_present_count: number | null }>;
+  let total = 0, base = 0, growth = 0, playlists = 0, withBaseline = 0, withGrowth = 0;
+  for (const r of rows) {
+    total += r.last_plays_28d ?? 0;
+    base += r.baseline_plays_28d ?? 0;
+    growth += r.growth_abs ?? 0;
+    playlists += r.playlists_present_count ?? 0;
+    if (r.baseline_plays_28d != null) withBaseline += 1;
+    if (r.growth_abs != null) withGrowth += 1;
+  }
+  return {
+    total_plays_28d: total,
+    total_baseline: base,
+    growth_abs: growth,
+    growth_pct: base > 0 ? Math.round((growth / base) * 1000) / 10 : null,
+    tracks_with_baseline: withBaseline,
+    tracks_with_growth: withGrowth,
+    playlists_detected: playlists,
+    fresh_snapshots_24h: snapsRes.count ?? 0,
+    failed_queue: failQRes.count ?? 0,
+  };
+}
+
 function fmt(n: number | null | undefined) {
   return typeof n === "number" ? n.toLocaleString("pt-BR") : "—";
 }
@@ -69,7 +111,9 @@ export default function Catalogo() {
 
   const qc = useQueryClient();
   const summaryQ = useQuery({ queryKey: ["catalog", "summary"], queryFn: fetchSummary, staleTime: 30_000 });
+  const telemetryQ = useQuery({ queryKey: ["catalog", "global-telemetry"], queryFn: fetchGlobalTelemetry, staleTime: 30_000, refetchInterval: 60_000 });
   const s = summaryQ.data;
+  const g = telemetryQ.data;
   const pct = s && s.capacity_total > 0 ? Math.round((s.capacity_used / s.capacity_total) * 100) : null;
 
   const openAdd = () => window.dispatchEvent(new Event("catalogo:add-track"));
@@ -145,6 +189,44 @@ export default function Catalogo() {
             hint="Slots livres na rede"
             domain="system"
             loading={summaryQ.isLoading}
+          />
+        </section>
+
+        {/* KPIs globais de telemetria (agregado de todas as faixas) */}
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <KpiBig
+            tier="hero"
+            icon={TrendingUp}
+            label="Streams 28d (total)"
+            value={fmt(g?.total_plays_28d)}
+            hint={g?.growth_pct != null ? `${g.growth_pct >= 0 ? "+" : ""}${g.growth_pct}% vs baseline` : "Aguardando 2º snapshot"}
+            domain="campaigns"
+            loading={telemetryQ.isLoading}
+          />
+          <KpiBig
+            icon={TrendingUp}
+            label="Δ vs baseline"
+            value={g?.growth_abs != null ? `${g.growth_abs >= 0 ? "+" : ""}${fmt(g.growth_abs)}` : "—"}
+            hint={`${fmt(g?.tracks_with_growth)} faixas com delta`}
+            domain="playlists"
+            loading={telemetryQ.isLoading}
+          />
+          <KpiBig
+            icon={Layers}
+            label="Playlists detectadas"
+            value={fmt(g?.playlists_detected)}
+            hint="Soma das presenças (VPS)"
+            domain="deals"
+            loading={telemetryQ.isLoading}
+          />
+          <KpiBig
+            tier="quiet"
+            icon={Activity}
+            label="Saúde da coleta (24h)"
+            value={fmt(g?.fresh_snapshots_24h)}
+            hint={g && g.failed_queue > 0 ? `${g.failed_queue} na fila com falha` : "Fila saudável"}
+            domain={g && g.failed_queue > 0 ? "campaigns" : "system"}
+            loading={telemetryQ.isLoading}
           />
         </section>
 
