@@ -15,7 +15,7 @@ import { humanizeError, humanizeFunctionName } from "@/lib/operationalCopy";
 
 type Health = {
   spotify: { ok: boolean; expires_at?: string; expired?: boolean; last_verified?: string };
-  execucao: { ok: boolean; pending: number; failed: number; lastDone?: string };
+  execucao: { ok: boolean; pending: number; failed: number; waitingSpotify: number; lastDone?: string };
   alertas: { ok: boolean; critical: number; warning: number; lastAt?: string };
   hoje: { jobs_done: number; deals_ativos: number };
 };
@@ -94,13 +94,9 @@ export function SaudeSistema() {
     const critCount = criticalUnread.count ?? 0;
     const warnCount = warningUnread.count ?? 0;
 
-    // Execução só é vermelha se: falha dura recente OU breaker aberto agora
-    // OU token expirado OU notificação crítica não lida.
-    // Falha histórica de incidente já encerrado NÃO pinta de vermelho.
-    const execOk = hardFailedCount === 0 && openBreakerCount === 0;
-    const execErrText = openBreakerCount > 0
-      ? `${openBreakerCount} app(s) bloqueado(s)`
-      : `${hardFailedCount} falha(s) sem retry`;
+    // Execução só é vermelha se existir falha dura recente.
+    // Circuit breaker aberto = espera automática do Spotify, não intervenção manual.
+    const execOk = hardFailedCount === 0;
 
     setHealth({
       spotify: { ok: !tokenExpired, expires_at: tokenExpiry, expired: tokenExpired, last_verified: (lastVerified.data as any)?.followers_verified_at ?? undefined },
@@ -108,6 +104,7 @@ export function SaudeSistema() {
         ok: execOk,
         pending: pendingCount,
         failed: hardFailedCount,
+        waitingSpotify: openBreakerCount,
         lastDone: lastDoneJob.data?.completed_at ?? undefined,
       },
       alertas: {
@@ -191,7 +188,8 @@ export function SaudeSistema() {
             icon={Activity}
             label="Execução (jobs)"
             ok={health.execucao.ok}
-            okText={health.execucao.pending > 0 ? `${health.execucao.pending} na fila` : "Sem fila"}
+            tone={health.execucao.waitingSpotify > 0 ? "warn" : undefined}
+            okText={health.execucao.waitingSpotify > 0 ? `${health.execucao.waitingSpotify} aguardando Spotify` : health.execucao.pending > 0 ? `${health.execucao.pending} na fila` : "Sem fila"}
             errText={`${health.execucao.failed} com falha`}
             detail={health.execucao.lastDone ? `último job ${timeAgo(health.execucao.lastDone)}` : "nenhum job executado"}
           />
@@ -245,20 +243,21 @@ export function SaudeSistema() {
 }
 
 function HealthCard({
-  icon: Icon, label, ok, okText, errText, detail,
+  icon: Icon, label, ok, okText, errText, detail, tone,
 }: {
-  icon: any; label: string; ok: boolean; okText: string; errText: string; detail: string;
+  icon: any; label: string; ok: boolean; okText: string; errText: string; detail: string; tone?: "ok" | "warn";
 }) {
+  const resolvedTone = ok ? tone ?? "ok" : "bad";
   return (
     <div className={cn(
       "nx-card border p-3",
-      ok ? "border-success/30 bg-success/5" : "border-destructive/40 bg-destructive/5",
+      resolvedTone === "ok" ? "border-success/30 bg-success/5" : resolvedTone === "warn" ? "border-warning/40 bg-warning/5" : "border-destructive/40 bg-destructive/5",
     )}>
       <div className="flex items-start gap-2.5">
-        <Icon className={cn("h-5 w-5 shrink-0 mt-0.5", ok ? "text-success" : "text-destructive")} />
+        <Icon className={cn("h-5 w-5 shrink-0 mt-0.5", resolvedTone === "ok" ? "text-success" : resolvedTone === "warn" ? "text-warning" : "text-destructive")} />
         <div className="min-w-0 flex-1">
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{label}</p>
-          <p className={cn("text-sm font-semibold leading-tight", ok ? "text-success" : "text-destructive")}>
+          <p className={cn("text-sm font-semibold leading-tight", resolvedTone === "ok" ? "text-success" : resolvedTone === "warn" ? "text-warning" : "text-destructive")}>
             {ok ? okText : errText}
           </p>
           <p className="text-[11px] text-muted-foreground mt-0.5">{detail}</p>
