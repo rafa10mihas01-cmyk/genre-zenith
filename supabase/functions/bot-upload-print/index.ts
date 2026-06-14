@@ -72,6 +72,7 @@ Deno.serve(async (req) => {
   // Modo catálogo: coleta de catalog_tracks NÃO tem deal_id. Aceitamos
   // catalog_track_id como alternativa pra salvar o print scopado por catálogo.
   let catalogTrackId = url.searchParams.get("catalog_track_id") ?? "";
+  let queueId = url.searchParams.get("queue_id") ?? url.searchParams.get("catalog_snapshot_queue_id") ?? "";
   let correlationId =
     req.headers.get("x-correlation-id") ?? url.searchParams.get("correlation_id") ?? "";
 
@@ -89,6 +90,7 @@ Deno.serve(async (req) => {
       songId = (form.get("song_id") as string) || songId;
       label = (form.get("label") as string) || label;
       catalogTrackId = (form.get("catalog_track_id") as string) || catalogTrackId;
+      queueId = (form.get("queue_id") as string) || (form.get("catalog_snapshot_queue_id") as string) || queueId;
       correlationId = (form.get("correlation_id") as string) || correlationId;
       const domRaw = form.get("dom_playlists");
       if (typeof domRaw === "string" && domRaw.trim()) {
@@ -118,6 +120,7 @@ Deno.serve(async (req) => {
       songId = body?.song_id || songId;
       label = body?.label || label;
       catalogTrackId = body?.catalog_track_id || catalogTrackId;
+      queueId = body?.queue_id || body?.catalog_snapshot_queue_id || (!dealId && !songId && body?.kind === "catalog" ? body?.id : "") || queueId;
       correlationId = body?.correlation_id || correlationId;
       if (Array.isArray(body?.dom_playlists)) domPlaylists = body.dom_playlists;
     } else {
