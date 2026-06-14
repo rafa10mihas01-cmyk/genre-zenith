@@ -183,58 +183,124 @@ export function MusicasTab() {
       </div>
 
 
-      <div className="border border-border rounded-2xl overflow-hidden bg-card">
-        {tracksQ.isLoading ? (
-          <div className="p-6 space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-          </div>
-        ) : rows.length === 0 ? (
-          <div className="p-12 flex flex-col items-center justify-center text-center gap-3">
-            <Music2 className="h-10 w-10 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              {filter === "all" ? 'Nenhuma música no catálogo. Clique em "Adicionar música" pra começar.' : "Nenhuma música com esse filtro."}
-            </p>
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-14"></TableHead>
-                <TableHead>Música</TableHead>
-                <TableHead className="hidden md:table-cell">Artista</TableHead>
-                <TableHead>Distribuição</TableHead>
-                <TableHead className="hidden lg:table-cell">Streams 28d</TableHead>
-                <TableHead className="hidden lg:table-cell">Δ baseline</TableHead>
-                <TableHead>Coleta</TableHead>
-                <TableHead className="w-8"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((t) => (
-                <TableRow key={t.id} className="cursor-pointer hover:bg-muted/30" onClick={() => navigate(`/catalogo/musica/${t.id}`)}>
-                  <TableCell>
+      {tracksQ.isLoading ? (
+        <div className="border border-border rounded-2xl overflow-hidden bg-card p-6 space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="border border-border rounded-2xl bg-card p-12 flex flex-col items-center justify-center text-center gap-3">
+          <Music2 className="h-10 w-10 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">
+            {filter === "all" ? 'Nenhuma música no catálogo. Clique em "Adicionar música" pra começar.' : "Nenhuma música com esse filtro."}
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* MOBILE — cards premium */}
+          <div className="md:hidden space-y-2">
+            {rows.map((t) => {
+              const active = t.stats?.placements_active ?? 0;
+              const total = t.stats?.placements_total ?? 0;
+              const failed = t.stats?.placements_failed ?? 0;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => navigate(`/catalogo/musica/${t.id}`)}
+                  className="w-full text-left bg-card border border-border rounded-2xl p-3 active:scale-[0.99] transition-transform hover:border-border/80"
+                >
+                  {/* Linha 1 — cover + título + chevron */}
+                  <div className="flex items-center gap-3">
                     {t.cover_url ? (
-                      <img src={t.cover_url} alt="" className="h-10 w-10 rounded object-cover" loading="lazy" />
+                      <img src={t.cover_url} alt="" className="h-12 w-12 rounded-lg object-cover shrink-0 shadow-sm" loading="lazy" />
                     ) : (
-                      <div className="h-10 w-10 rounded bg-muted flex items-center justify-center"><Music2 className="h-4 w-4 text-muted-foreground" /></div>
+                      <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center shrink-0"><Music2 className="h-5 w-5 text-muted-foreground" /></div>
                     )}
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    <div>{t.track_name}</div>
-                    <div className="text-[11px] text-muted-foreground md:hidden">{t.artist_name}</div>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground hidden md:table-cell">{t.artist_name}</TableCell>
-                  <TableCell><StatCell stats={t.stats} /></TableCell>
-                  <TableCell className="hidden lg:table-cell text-xs font-mono">{fmt(t.tel?.last_plays_28d)}</TableCell>
-                  <TableCell className="hidden lg:table-cell"><GrowthCell tel={t.tel} /></TableCell>
-                  <TableCell><CollectBadge tel={t.tel} /></TableCell>
-                  <TableCell><ChevronRight className="h-4 w-4 text-muted-foreground" /></TableCell>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-sm text-foreground truncate leading-tight">{t.track_name}</div>
+                      <div className="text-xs text-muted-foreground truncate mt-0.5">{t.artist_name}</div>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-subtle-foreground shrink-0" />
+                  </div>
+
+                  {/* Linha 2 — métricas em pills */}
+                  <div className="mt-3 grid grid-cols-3 gap-1.5">
+                    <div className="rounded-lg bg-muted/40 px-2.5 py-1.5 flex flex-col items-start min-w-0">
+                      <span className="text-[10px] uppercase tracking-wide text-subtle-foreground">Ativas</span>
+                      <span className="font-mono text-sm text-foreground tabular-nums">
+                        {active}<span className="text-subtle-foreground"> / {total}</span>
+                        {failed > 0 && <span className="text-rose-400 ml-1">✕{failed}</span>}
+                      </span>
+                    </div>
+                    <div className="rounded-lg bg-muted/40 px-2.5 py-1.5 flex flex-col items-start min-w-0">
+                      <span className="text-[10px] uppercase tracking-wide text-subtle-foreground">28d</span>
+                      <span className="font-mono text-sm text-foreground tabular-nums truncate w-full">{fmt(t.tel?.last_plays_28d)}</span>
+                    </div>
+                    <div className="rounded-lg bg-muted/40 px-2.5 py-1.5 flex flex-col items-start min-w-0">
+                      <span className="text-[10px] uppercase tracking-wide text-subtle-foreground">Coleta</span>
+                      <div className="text-sm leading-tight"><CollectBadge tel={t.tel} /></div>
+                    </div>
+                  </div>
+
+                  {/* Linha 3 — Δ baseline (só quando existe) */}
+                  {t.tel?.growth_abs != null && (
+                    <div className="mt-2 flex items-center justify-between px-1">
+                      <span className="text-[10px] uppercase tracking-wide text-subtle-foreground">Δ baseline</span>
+                      <div className="flex items-center gap-2">
+                        <span className={cn("text-xs font-mono tabular-nums", t.tel.growth_abs >= 0 ? "text-emerald-400" : "text-rose-400")}>
+                          {t.tel.growth_abs >= 0 ? "+" : ""}{fmt(t.tel.growth_abs)}
+                        </span>
+                        {t.tel.growth_pct != null && (
+                          <span className={cn("text-[10px] font-mono tabular-nums px-1.5 py-0.5 rounded", t.tel.growth_abs >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400")}>
+                            {t.tel.growth_abs >= 0 ? "+" : ""}{t.tel.growth_pct}%
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* DESKTOP — tabela */}
+          <div className="hidden md:block border border-border rounded-2xl overflow-hidden bg-card">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-14"></TableHead>
+                  <TableHead>Música</TableHead>
+                  <TableHead>Artista</TableHead>
+                  <TableHead>Distribuição</TableHead>
+                  <TableHead className="hidden lg:table-cell">Streams 28d</TableHead>
+                  <TableHead className="hidden lg:table-cell">Δ baseline</TableHead>
+                  <TableHead>Coleta</TableHead>
+                  <TableHead className="w-8"></TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </div>
+              </TableHeader>
+              <TableBody>
+                {rows.map((t) => (
+                  <TableRow key={t.id} className="cursor-pointer hover:bg-muted/30" onClick={() => navigate(`/catalogo/musica/${t.id}`)}>
+                    <TableCell>
+                      {t.cover_url ? (
+                        <img src={t.cover_url} alt="" className="h-10 w-10 rounded object-cover" loading="lazy" />
+                      ) : (
+                        <div className="h-10 w-10 rounded bg-muted flex items-center justify-center"><Music2 className="h-4 w-4 text-muted-foreground" /></div>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-medium">{t.track_name}</TableCell>
+                    <TableCell className="text-muted-foreground">{t.artist_name}</TableCell>
+                    <TableCell><StatCell stats={t.stats} /></TableCell>
+                    <TableCell className="hidden lg:table-cell text-xs font-mono">{fmt(t.tel?.last_plays_28d)}</TableCell>
+                    <TableCell className="hidden lg:table-cell"><GrowthCell tel={t.tel} /></TableCell>
+                    <TableCell><CollectBadge tel={t.tel} /></TableCell>
+                    <TableCell><ChevronRight className="h-4 w-4 text-muted-foreground" /></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
+      )}
 
       <AddCatalogTrackDialog open={addOpen} onOpenChange={setAddOpen} onDistributed={() => { qc.invalidateQueries({ queryKey: ["catalog"] }); }} />
     </>
