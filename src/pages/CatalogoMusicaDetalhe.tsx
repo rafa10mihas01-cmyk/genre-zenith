@@ -224,8 +224,122 @@ export default function CatalogoMusicaDetalhe() {
       />
 
       <PageContainer>
+        {/* ============ MOBILE ONLY: HAIRLINE GRID TÉCNICO ============ */}
+        <div className="sm:hidden flex flex-col gap-2.5">
+          {/* Identity */}
+          <section className="rounded-2xl border border-border bg-card p-4">
+            <div className="flex gap-4 items-start">
+              {t.cover_url ? (
+                <img src={t.cover_url} alt="" className="w-20 h-20 rounded-lg object-cover shrink-0 border border-white/5 shadow-lg" />
+              ) : (
+                <div className="w-20 h-20 rounded-lg bg-muted flex items-center justify-center shrink-0 border border-white/5"><Music2 className="h-7 w-7 text-muted-foreground" /></div>
+              )}
+              <div className="flex flex-col min-w-0 flex-1">
+                <h2 className="text-lg font-bold leading-tight text-foreground truncate">{t.track_name}</h2>
+                <p className="text-sm text-muted-foreground truncate font-medium">{t.artist_name}</p>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 bg-black/40 border border-border text-muted-foreground rounded">
+                    Ativa: {new Date(t.added_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "2-digit" })}
+                  </span>
+                  <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 bg-black/40 border border-border text-muted-foreground rounded tabular-nums">
+                    {placementsByStatus.active}/{placements.length} placements
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-border flex flex-wrap gap-2">
+              <div className="flex items-center gap-2 px-2.5 py-1 bg-black/30 border border-border rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#1DB954] shadow-[0_0_8px_rgba(29,185,84,0.5)]" />
+                <span className="text-[10px] font-bold text-foreground/90 tabular-nums uppercase tracking-tight">Alcance {fmt(reach)}</span>
+              </div>
+              <div className="flex items-center gap-2 px-2.5 py-1 bg-black/30 border border-border rounded-full">
+                <span className={cn("w-1.5 h-1.5 rounded-full", baselineOk ? "bg-emerald-500" : "bg-amber-500/80")} />
+                <span className="text-[10px] font-bold text-foreground/90 uppercase tracking-tight">Baseline {baselineOk ? "OK" : "pendente"}</span>
+              </div>
+            </div>
+          </section>
+
+          {/* KPI Grid 2x2 hairline */}
+          <section className="grid grid-cols-2 gap-[1px] bg-border border border-border rounded-xl overflow-hidden">
+            <div className="bg-card p-3.5 flex flex-col gap-1">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Streams 28D</span>
+              <span className={cn("text-xl font-bold tabular-nums tracking-tighter", tel?.last_plays_28d != null ? "text-foreground" : "text-muted-foreground/40")}>{tel?.last_plays_28d != null ? fmt(tel.last_plays_28d) : "—"}</span>
+            </div>
+            <div className="bg-card p-3.5 flex flex-col gap-1">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Δ Baseline</span>
+              <span className={cn("text-xl font-bold tabular-nums tracking-tighter", tel?.growth_pct == null ? "text-muted-foreground/40" : tel.growth_pct >= 0 ? "text-[#1DB954]" : "text-rose-400")}>
+                {tel?.growth_pct != null ? `${tel.growth_pct >= 0 ? "+" : ""}${tel.growth_pct}%` : "—"}
+              </span>
+            </div>
+            <div className="bg-card p-3.5 flex flex-col gap-1">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Playlists</span>
+              <span className={cn("text-xl font-bold tabular-nums tracking-tighter", tel?.playlists_present_count ? "text-foreground" : "text-muted-foreground/40")}>{tel?.playlists_present_count ? fmt(tel.playlists_present_count) : "—"}</span>
+            </div>
+            <div className="bg-card p-3.5 flex flex-col gap-1">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Snapshots</span>
+              <span className={cn("text-xl font-bold tabular-nums tracking-tighter", tel?.snapshots_count ? "text-foreground" : "text-muted-foreground/40")}>
+                {tel?.snapshots_count ? fmt(tel.snapshots_count) : "—"}
+              </span>
+            </div>
+          </section>
+
+          {/* Baseline T0 */}
+          <section className="rounded-xl border border-border bg-card p-3">
+            <div className="flex items-center justify-between mb-2.5">
+              <h3 className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Baseline T0</h3>
+              <span className="text-[9px] text-muted-foreground/60 font-mono tracking-tighter px-1.5 border border-white/5 rounded bg-black/20">
+                {b?.captured_at ? new Date(b.captured_at).toLocaleDateString("pt-BR") : "—"}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-1.5">
+              <div className="bg-black/20 border border-border rounded-lg p-2.5 flex flex-col items-center">
+                <span className="text-[9px] uppercase font-bold text-muted-foreground mb-1">Popularity</span>
+                <span className={cn("text-sm font-bold tabular-nums", b?.popularity != null ? "text-foreground" : "text-muted-foreground/40")}>{b?.popularity ?? "—"}</span>
+              </div>
+              <div className="bg-black/20 border border-border rounded-lg p-2.5 flex flex-col items-center">
+                <span className="text-[9px] uppercase font-bold text-muted-foreground mb-1">Ouvintes</span>
+                <span className={cn("text-sm font-bold tabular-nums", b?.monthly_listeners != null ? "text-foreground" : "text-muted-foreground/40")}>{fmt(b?.monthly_listeners)}</span>
+              </div>
+              <div className="bg-black/20 border border-border rounded-lg p-2.5 flex flex-col items-center">
+                <span className="text-[9px] uppercase font-bold text-muted-foreground mb-1">Streams</span>
+                <span className={cn("text-sm font-bold tabular-nums", b?.streams != null ? "text-foreground" : "text-muted-foreground/40")}>{fmt(b?.streams)}</span>
+              </div>
+            </div>
+          </section>
+
+          {/* Fila de coleta compacta */}
+          <section className="rounded-xl border border-border bg-card overflow-hidden divide-y divide-border">
+            <div className="p-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  {queue && (queue.status === "pending" || queue.status === "processing") && (
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1DB954] opacity-40" />
+                  )}
+                  <span className={cn("relative inline-flex rounded-full h-2 w-2", queue?.status === "failed" ? "bg-rose-500" : queue ? "bg-[#1DB954]" : "bg-muted-foreground/40")} />
+                </span>
+                <span className="text-xs font-semibold text-foreground">Fila de coleta</span>
+              </div>
+              {queue ? (
+                <span className="text-[10px] font-mono tabular-nums text-muted-foreground">{new Date(queue.scheduled_for).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
+              ) : (
+                <span className="text-[10px] text-muted-foreground/60">{rel(tel?.last_captured_at)}</span>
+              )}
+            </div>
+            {queue && (
+              <div className="p-3 flex items-center justify-between text-[11px]">
+                <span className="text-muted-foreground uppercase tracking-wider font-bold">Tentativas</span>
+                <span className="font-mono tabular-nums text-foreground">{queue.attempts}/{queue.max_attempts}</span>
+              </div>
+            )}
+            {queue?.last_error && (
+              <div className="p-3 text-[11px] text-rose-300 bg-rose-500/5">{queue.last_error}</div>
+            )}
+          </section>
+        </div>
+
+        {/* ============ DESKTOP / TABLET (mantém original) ============ */}
         {/* HERO */}
-        <section className="rounded-2xl border border-border bg-card p-5 flex flex-col sm:flex-row gap-5">
+        <section className="hidden sm:flex rounded-2xl border border-border bg-card p-5 flex-col sm:flex-row gap-5">
           {t.cover_url ? (
             <img src={t.cover_url} alt="" className="h-28 w-28 rounded-xl object-cover shadow-lg shrink-0" />
           ) : (
@@ -255,16 +369,16 @@ export default function CatalogoMusicaDetalhe() {
           </div>
         </section>
 
-        {/* KPIs */}
-        <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {/* KPIs desktop */}
+        <section className="hidden sm:grid grid-cols-2 md:grid-cols-4 gap-3">
           <KpiBig tier="hero" icon={Music2} label="Streams 28d (atual)" value={fmt(tel?.last_plays_28d)} hint={tel?.baseline_plays_28d != null ? `Baseline ${fmt(tel.baseline_plays_28d)}` : "Sem baseline ainda"} domain="playlists" />
           <KpiBig icon={TrendingUp} label="Δ vs baseline" value={tel?.growth_abs != null ? `${tel.growth_abs >= 0 ? "+" : ""}${fmt(tel.growth_abs)}` : "—"} hint={tel?.growth_pct != null ? `${tel.growth_pct >= 0 ? "+" : ""}${tel.growth_pct}%` : "Aguardando 2º snapshot"} domain="campaigns" />
           <KpiBig icon={Layers} label="Playlists detectadas" value={fmt(tel?.playlists_present_count)} hint={`${fmt(tel?.total_plays_7d_from_playlists)} plays 7d (VPS)`} domain="deals" />
           <KpiBig tier="quiet" icon={Activity} label="Snapshots" value={fmt(tel?.snapshots_count)} hint={`Última: ${rel(tel?.last_captured_at)}`} domain="system" />
         </section>
 
-        {/* BASELINE + COLETA */}
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        {/* BASELINE + COLETA desktop */}
+        <section className="hidden sm:grid grid-cols-1 lg:grid-cols-2 gap-3">
           <div className="rounded-2xl border border-border bg-card p-5">
             <div className="flex items-center justify-between mb-3">
               <div>
@@ -318,6 +432,7 @@ export default function CatalogoMusicaDetalhe() {
             )}
           </div>
         </section>
+
 
         {/* CURVA */}
         <section className="rounded-2xl border border-border bg-card p-5">
