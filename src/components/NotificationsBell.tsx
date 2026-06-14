@@ -213,13 +213,14 @@ export function NotificationsBell() {
       <PopoverContent
         align="end"
         sideOffset={8}
-        className="w-[400px] max-w-[calc(100vw-1rem)] p-0 border-border bg-popover"
+        collisionPadding={12}
+        className="w-[min(420px,calc(100vw-1.5rem))] p-0 border-border bg-popover"
       >
         <div className="px-4 py-3 border-b border-border">
-          <div className="flex items-center justify-between mb-2">
-            <div>
-              <h3 className="text-sm font-semibold text-foreground">Notificações</h3>
-              <p className="text-[11px] text-muted-foreground">
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold text-foreground truncate">Notificações</h3>
+              <p className="text-[11px] text-muted-foreground truncate">
                 {critical > 0 && <span className="text-destructive">{critical} críticos</span>}
                 {critical > 0 && (warnings > 0 || infos > 0) && <span className="mx-1">·</span>}
                 {warnings > 0 && <span className="text-amber-500">{warnings} alertas</span>}
@@ -228,17 +229,17 @@ export function NotificationsBell() {
                 {unreadCount === 0 && <span>Tudo em dia</span>}
               </p>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-0.5 shrink-0">
               {pushAvail && (
                 <Button
                   variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs gap-1.5"
+                  size="icon"
+                  className="h-7 w-7"
                   onClick={togglePush}
                   title={pushOn ? "Desativar alertas do navegador" : "Ativar alertas do navegador"}
+                  aria-label={pushOn ? "Desativar push" : "Ativar push"}
                 >
                   {pushOn ? <BellRing className="h-3.5 w-3.5 text-primary" /> : <BellOff className="h-3.5 w-3.5" />}
-                  <span className="hidden sm:inline">{pushOn ? "Push on" : "Push off"}</span>
                 </Button>
               )}
               <Button
@@ -254,25 +255,25 @@ export function NotificationsBell() {
               {unreadCount > 0 && (
                 <Button
                   variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs gap-1.5"
+                  size="icon"
+                  className="h-7 w-7"
                   onClick={() => markAllRead()}
                   title="Marcar todas como lidas"
+                  aria-label="Marcar todas como lidas"
                 >
                   <CheckCheck className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Marcar todas</span>
                 </Button>
               )}
               {items.some((i) => i.read) && (
                 <Button
                   variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs gap-1.5 text-muted-foreground"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground"
                   onClick={() => clearRead()}
                   title="Remover notificações já lidas"
+                  aria-label="Limpar lidas"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Limpar lidas</span>
                 </Button>
               )}
             </div>
