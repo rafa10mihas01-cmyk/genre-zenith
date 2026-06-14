@@ -367,7 +367,7 @@ Deno.serve(async (req) => {
         });
       const { error: qErr } = queue_id
         ? await updateTarget.eq("id", queue_id)
-        : await updateTarget.eq("catalog_track_id", catalog_track_id).eq("status", "processing");
+        : await updateTarget.eq("catalog_track_id", effectiveCatalogTrackId).eq("status", "processing");
       if (qErr) {
         console.warn("[bot-ingest-song-snapshot] catalog queue close failed:", qErr.message);
       } else {
