@@ -105,7 +105,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             className="shrink-0 flex items-center gap-2 lg:gap-3 border-b border-border z-50 px-3 md:px-4 transition-none w-full min-w-0 overflow-hidden
               h-14 min-h-14 max-h-14
               bg-background/90 backdrop-blur-md supports-[backdrop-filter]:bg-background/75
-              max-lg:h-14 max-lg:min-h-14 max-lg:max-h-14
+              max-lg:fixed max-lg:top-0 max-lg:left-0 max-lg:right-0
+              max-lg:h-[calc(3.5rem+env(safe-area-inset-top,0px))] max-lg:min-h-[calc(3.5rem+env(safe-area-inset-top,0px))] max-lg:max-h-[calc(3.5rem+env(safe-area-inset-top,0px))]
               max-lg:pt-[env(safe-area-inset-top,0px)]
               max-lg:bg-background/85 max-lg:backdrop-blur-[10px]
               max-lg:shadow-[0_1px_0_hsl(var(--border)),0_6px_16px_-12px_rgba(0,0,0,0.5)]"
