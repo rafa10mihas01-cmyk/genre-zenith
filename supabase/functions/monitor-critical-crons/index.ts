@@ -24,6 +24,8 @@ const DEFAULT_STALE_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2h
 const STALE_THRESHOLD_BY_JOB: Partial<Record<(typeof CRITICAL_CRONS)[number], number>> = {
   "sync-managed-playlists": 8 * 60 * 60 * 1000,
   "reap-zombie-jobs": 60 * 60 * 1000,
+  "process-catalog-placements": 30 * 60 * 1000, // 30min — cron 1min
+  "reap-catalog-placements": 30 * 60 * 1000,    // 30min — cron 1min
 };
 const COOLDOWN_MINUTES = 6 * 60; // 6h entre re-notificações
 const SPOTIFY_403_THRESHOLD = 100; // 403s em 1h por app → alerta
