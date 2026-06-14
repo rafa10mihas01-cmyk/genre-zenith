@@ -154,10 +154,42 @@ Deno.serve(async (req) => {
 
   if (!bytes || bytes.length === 0) return jr({ error: "empty_file" }, 400);
   if (bytes.length > 8 * 1024 * 1024) return jr({ error: "file_too_large_8mb" }, 413);
+  const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+
+  // Compat VPS: alguns builds antigos recebem o job de catálogo com queue_id,
+  // mas não reenviam catalog_track_id no upload do print. Resolva pelo lease
+  // ativo antes de rejeitar, sem chutar quando houver ambiguidade.
+  if (!dealId && !catalogTrackId) {
+    const queueLookup = queueId
+      ? await supabase
+          .from("catalog_snapshot_queue")
+          .select("id, catalog_track_id")
+          .eq("id", queueId)
+          .eq("status", "processing")
+          .maybeSingle()
+      : await supabase
+          .from("catalog_snapshot_queue")
+          .select("id, catalog_track_id")
+          .eq("status", "processing")
+          .not("lease_expires_at", "is", null)
+          .gt("lease_expires_at", new Date().toISOString())
+          .order("locked_at", { ascending: false })
+          .limit(2);
+    const rows = Array.isArray((queueLookup as any).data)
+      ? (queueLookup as any).data
+      : (queueLookup as any).data
+        ? [(queueLookup as any).data]
+        : [];
+    if (rows.length === 1 && rows[0]?.catalog_track_id) {
+      catalogTrackId = rows[0].catalog_track_id;
+      queueId = rows[0].id ?? queueId;
+    }
+  }
   if (!dealId && !catalogTrackId) {
     return jr({
       error: "deal_id_or_catalog_track_id_required",
       detail: "Print sem deal_id nem catalog_track_id vira órfão e não aparece em nenhuma coleta.",
+      queue_id: queueId || null,
     }, 400);
   }
 
@@ -195,8 +227,6 @@ Deno.serve(async (req) => {
     ? `catalog/${safeSeg(catalogTrackId, "no-track")}/${ts}-${lSeg}.png`
     : `${safeSeg(dealId, "no-deal")}/${safeSeg(songId, "no-song")}/${ts}-${lSeg}.png`;
 
-  const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
-
   // 🔍 Auditoria: grava metadados do upload (não armazenamos os bytes da imagem,
   // só refs + headers + tamanho — a imagem já vai pro storage `bot-prints`).
   try {
@@ -208,6 +238,8 @@ Deno.serve(async (req) => {
       payload: {
         deal_id: dealId || null,
         song_id: songId || null,
+          catalog_track_id: catalogTrackId || null,
+          queue_id: queueId || null,
         label: label || null,
         correlation_id: correlationId || null,
         content_type: ct,
