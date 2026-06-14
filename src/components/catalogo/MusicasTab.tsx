@@ -331,43 +331,143 @@ export function MusicasTab() {
             })}
           </div>
 
-          {/* DESKTOP — tabela */}
-          <div className="hidden md:block border border-border rounded-2xl overflow-hidden bg-card">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-14"></TableHead>
-                  <TableHead>Música</TableHead>
-                  <TableHead>Artista</TableHead>
-                  <TableHead>Distribuição</TableHead>
-                  <TableHead className="hidden lg:table-cell">Streams 28d</TableHead>
-                  <TableHead className="hidden lg:table-cell">Δ baseline</TableHead>
-                  <TableHead>Coleta</TableHead>
-                  <TableHead className="w-8"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((t) => (
-                  <TableRow key={t.id} className="cursor-pointer hover:bg-muted/30" onClick={() => navigate(`/catalogo/musica/${t.id}`)}>
-                    <TableCell>
-                      {t.cover_url ? (
-                        <img src={t.cover_url} alt="" className="h-10 w-10 rounded object-cover" loading="lazy" />
-                      ) : (
-                        <div className="h-10 w-10 rounded bg-muted flex items-center justify-center"><Music2 className="h-4 w-4 text-muted-foreground" /></div>
-                      )}
-                    </TableCell>
-                    <TableCell className="font-medium">{t.track_name}</TableCell>
-                    <TableCell className="text-muted-foreground">{t.artist_name}</TableCell>
-                    <TableCell><StatCell stats={t.stats} /></TableCell>
-                    <TableCell className="hidden lg:table-cell text-xs font-mono">{fmt(t.tel?.last_plays_28d)}</TableCell>
-                    <TableCell className="hidden lg:table-cell"><GrowthCell tel={t.tel} /></TableCell>
-                    <TableCell><CollectBadge tel={t.tel} /></TableCell>
-                    <TableCell><ChevronRight className="h-4 w-4 text-muted-foreground" /></TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+          {/* DESKTOP — grid de cards (mesmo padrão de Campanhas) */}
+          <div className="hidden md:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {rows.map((t) => {
+              const active = t.stats?.placements_active ?? 0;
+              const total = t.stats?.placements_total ?? 0;
+              const pending = t.stats?.placements_pending ?? 0;
+              const failed = t.stats?.placements_failed ?? 0;
+              const pct = total > 0 ? Math.min(100, Math.round((active / total) * 100)) : 0;
+              const hasBaseline = !!t.tel?.baseline_at;
+              const noCollect = !t.tel || t.tel.snapshots_count === 0;
+              const collectAge = t.tel?.last_captured_at ? (Date.now() - new Date(t.tel.last_captured_at).getTime()) / 60000 : Infinity;
+              const stale = collectAge > 60 * 24;
+              const collectTone = noCollect ? "amber" : stale ? "amber" : "primary";
+              const collectLabel = noCollect ? "Sem coleta" : stale ? `Coleta ${rel(t.tel!.last_captured_at)}` : `Coleta ${rel(t.tel!.last_captured_at)}`;
+              const growth = t.tel?.growth_abs;
+              const growthPct = t.tel?.growth_pct;
+
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => navigate(`/catalogo/musica/${t.id}`)}
+                  className="group text-left rounded-2xl border border-border/50 border-l-2 border-l-domain-curators/60 bg-card hover:bg-[hsl(var(--elevated))] hover:border-foreground/20 hover:border-l-domain-curators transition-colors flex flex-col h-full"
+                >
+                  {/* Linha 1 — identidade */}
+                  <div className="flex items-start gap-3 px-4 pt-3.5 pb-2.5 min-w-0">
+                    {t.cover_url ? (
+                      <img src={t.cover_url} alt="" loading="lazy" className="h-10 w-10 rounded-md object-cover shrink-0" />
+                    ) : (
+                      <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center shrink-0">
+                        <Music2 className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start gap-2 min-w-0">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[14px] font-semibold text-foreground truncate leading-tight">
+                            {t.track_name}
+                          </div>
+                          <div className="text-[11.5px] text-muted-foreground truncate mt-0.5">
+                            {t.artist_name}
+                          </div>
+                        </div>
+                        <div className="shrink-0 mt-0.5 flex items-center gap-1.5">
+                          <span
+                            className={cn(
+                              "inline-block w-1.5 h-1.5 rounded-full",
+                              t.status === "active" ? "bg-emerald-400" : "bg-muted-foreground/50",
+                            )}
+                          />
+                          <span className="text-[10.5px] uppercase tracking-wider text-muted-foreground">
+                            {t.status === "active" ? "Ativa" : t.status}
+                          </span>
+                        </div>
+                      </div>
+                      {/* Chips */}
+                      <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                        {hasBaseline ? (
+                          <span className="text-[10px] uppercase tracking-wider rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-primary">
+                            Baseline ok
+                          </span>
+                        ) : (
+                          <span className="text-[10px] uppercase tracking-wider rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-amber-500">
+                            Sem baseline
+                          </span>
+                        )}
+                        <span
+                          className={cn(
+                            "text-[10px] uppercase tracking-wider rounded border px-1.5 py-0.5",
+                            collectTone === "primary"
+                              ? "border-primary/40 bg-primary/10 text-primary"
+                              : "border-amber-500/40 bg-amber-500/10 text-amber-500",
+                          )}
+                        >
+                          {collectLabel}
+                        </span>
+                        {failed > 0 && (
+                          <span className="text-[10px] uppercase tracking-wider rounded border border-rose-500/40 bg-rose-500/10 px-1.5 py-0.5 text-rose-400">
+                            {failed} falha{failed > 1 ? "s" : ""}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Divisor sutil */}
+                  <div className="mx-4 border-t border-border/40" />
+
+                  {/* Linha 2 — métricas + progresso + Δ baseline */}
+                  <div className="flex flex-col gap-3 px-4 py-3 min-w-0 mt-auto">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-medium mb-0.5">Placements</div>
+                        <div className="text-[14px] font-semibold tabular-nums">
+                          {active}
+                          <span className="text-muted-foreground font-normal"> / {total}</span>
+                          {pending > 0 && (
+                            <span className="ml-1.5 text-[11px] text-amber-400">·{pending}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-medium mb-0.5">Streams 28d</div>
+                        <div className="text-[14px] font-semibold tabular-nums">{fmt(t.tel?.last_plays_28d)}</div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1 min-w-0">
+                      <div className="flex items-center justify-between text-[10.5px] text-muted-foreground">
+                        <span className="uppercase tracking-[0.12em] font-medium">Distribuição</span>
+                        <span className="tabular-nums font-semibold text-foreground">{pct}%</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+
+                    {growth != null && (
+                      <div className="rounded-lg border border-border/60 bg-muted/20 px-2.5 py-1.5 flex items-center justify-between gap-2">
+                        <span className="text-[10.5px] uppercase tracking-[0.12em] text-muted-foreground font-medium">Δ baseline</span>
+                        <div className="flex items-center gap-2">
+                          <span className={cn("text-[12px] font-mono tabular-nums font-semibold", growth >= 0 ? "text-emerald-400" : "text-rose-400")}>
+                            {growth >= 0 ? "+" : ""}{fmt(growth)}
+                          </span>
+                          {growthPct != null && (
+                            <span className={cn("text-[10px] font-mono tabular-nums px-1.5 py-0.5 rounded font-medium", growth >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400")}>
+                              {growth >= 0 ? "+" : ""}{growthPct}%
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
           </div>
+
         </>
       )}
 
