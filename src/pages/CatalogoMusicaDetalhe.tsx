@@ -2,13 +2,13 @@
 // Lê: catalog_tracks, catalog_track_baselines, v_catalog_track_telemetry,
 //     v_catalog_track_playlist_attribution, catalog_placements (+managed_playlists),
 //     catalog_snapshot_queue, song_snapshots.
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft, Music2, Layers, TrendingUp, Activity, ExternalLink,
   BarChart3, ListMusic, History, Gauge, CheckCircle2, AlertTriangle, Clock,
-  PlayCircle, RefreshCw,
+  PlayCircle, RefreshCw, ChevronDown,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
@@ -157,6 +157,108 @@ function Sparkline({ points }: { points: Snapshot[] }) {
       <path d={area} fill="url(#splFill)" />
       <path d={path} fill="none" stroke="hsl(var(--primary))" strokeWidth={2.5} />
     </svg>
+  );
+}
+
+function MobilePlacementsRow({ p }: { p: Placement }) {
+  const pos = p.position;
+  const posCls = pos == null
+    ? "text-muted-foreground/40"
+    : pos === 1
+      ? "text-[#1DB954]"
+      : pos <= 20
+        ? "text-foreground"
+        : pos <= 50
+          ? "text-muted-foreground"
+          : "text-muted-foreground/60";
+  return (
+    <div className="flex items-center gap-3 px-4 py-2 active:bg-[hsl(0,0%,13%)] transition-colors">
+      {p.managed_playlists?.cover_url ? (
+        <img src={p.managed_playlists.cover_url} alt="" className="w-10 h-10 rounded flex-shrink-0 object-cover bg-muted" />
+      ) : (
+        <div className="w-10 h-10 rounded flex-shrink-0 bg-muted flex items-center justify-center"><PlayCircle className="h-4 w-4 text-muted-foreground" /></div>
+      )}
+      <div className="flex-1 min-w-0">
+        <h3 className="text-foreground text-[13px] font-medium truncate leading-none">{p.managed_playlists?.name ?? "—"}</h3>
+        <p className="text-muted-foreground text-[11px] mt-1 tabular-nums truncate">
+          {fmt(p.managed_playlists?.followers)} seguidores
+          {p.last_error_code && <span className="text-rose-400 ml-2 font-mono">{p.last_error_code}</span>}
+        </p>
+      </div>
+      <div className="flex-shrink-0 text-right min-w-[40px]">
+        <span className={cn("text-sm font-bold tabular-nums tracking-tighter", posCls)}>
+          {pos != null ? `#${pos}` : "—"}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function MobilePlacementsGroups({ placements }: { placements: Placement[] }) {
+  const [openHibrido, setOpenHibrido] = useState(false);
+  const [openCatalogo, setOpenCatalogo] = useState(false);
+
+  const hibrido = placements.filter((p) => p.position != null && p.position <= 19);
+  const catalogo = placements.filter((p) => p.position == null || p.position > 19);
+
+  return (
+    <div className="sm:hidden divide-y divide-border">
+      {/* Híbrido */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setOpenHibrido((v) => !v)}
+          className="w-full flex items-center justify-between px-4 py-3 active:bg-[hsl(0,0%,13%)] transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#1DB954] shadow-[0_0_8px_rgba(29,185,84,0.5)]" />
+            <span className="text-xs font-semibold text-foreground uppercase tracking-wider">Híbrido</span>
+            <span className="text-[10px] font-mono tabular-nums text-muted-foreground bg-black/30 border border-border rounded px-1.5 py-0.5">≤ #19</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold tabular-nums text-foreground">{hibrido.length}</span>
+            <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", openHibrido && "rotate-180")} />
+          </div>
+        </button>
+        {openHibrido && (
+          <div className="divide-y divide-border border-t border-border bg-black/20">
+            {hibrido.length === 0 ? (
+              <div className="px-4 py-6 text-center text-xs text-muted-foreground">Nenhum placement no top 19.</div>
+            ) : (
+              hibrido.map((p) => <MobilePlacementsRow key={p.id} p={p} />)
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Catálogo */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setOpenCatalogo((v) => !v)}
+          className="w-full flex items-center justify-between px-4 py-3 active:bg-[hsl(0,0%,13%)] transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60" />
+            <span className="text-xs font-semibold text-foreground uppercase tracking-wider">Catálogo</span>
+            <span className="text-[10px] font-mono tabular-nums text-muted-foreground bg-black/30 border border-border rounded px-1.5 py-0.5">{'>'} #19</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold tabular-nums text-foreground">{catalogo.length}</span>
+            <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", openCatalogo && "rotate-180")} />
+          </div>
+        </button>
+        {openCatalogo && (
+          <div className="divide-y divide-border border-t border-border bg-black/20">
+            {catalogo.length === 0 ? (
+              <div className="px-4 py-6 text-center text-xs text-muted-foreground">Nenhum placement no catálogo.</div>
+            ) : (
+              catalogo.map((p) => <MobilePlacementsRow key={p.id} p={p} />)
+            )}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -458,42 +560,9 @@ export default function CatalogoMusicaDetalhe() {
             <div className="p-8 text-center text-sm text-muted-foreground">Sem placements ainda.</div>
           ) : (
             <>
-              {/* MOBILE: lista editorial densa */}
-              <div className="sm:hidden divide-y divide-border">
-                {placements.map((p) => {
-                  const pos = p.position;
-                  const posCls = pos == null
-                    ? "text-muted-foreground/40"
-                    : pos === 1
-                      ? "text-[#1DB954]"
-                      : pos <= 20
-                        ? "text-foreground"
-                        : pos <= 50
-                          ? "text-muted-foreground"
-                          : "text-muted-foreground/60";
-                  return (
-                    <div key={p.id} className="flex items-center gap-3 px-4 py-2 active:bg-[hsl(0,0%,13%)] transition-colors">
-                      {p.managed_playlists?.cover_url ? (
-                        <img src={p.managed_playlists.cover_url} alt="" className="w-10 h-10 rounded flex-shrink-0 object-cover bg-muted" />
-                      ) : (
-                        <div className="w-10 h-10 rounded flex-shrink-0 bg-muted flex items-center justify-center"><PlayCircle className="h-4 w-4 text-muted-foreground" /></div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-foreground text-[13px] font-medium truncate leading-none">{p.managed_playlists?.name ?? "—"}</h3>
-                        <p className="text-muted-foreground text-[11px] mt-1 tabular-nums truncate">
-                          {fmt(p.managed_playlists?.followers)} seguidores
-                          {p.last_error_code && <span className="text-rose-400 ml-2 font-mono">{p.last_error_code}</span>}
-                        </p>
-                      </div>
-                      <div className="flex-shrink-0 text-right min-w-[40px]">
-                        <span className={cn("text-sm font-bold tabular-nums tracking-tighter", posCls)}>
-                          {pos != null ? `#${pos}` : "—"}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              {/* MOBILE: dois grupos colapsáveis (Híbrido ≤ #19, Catálogo > #19) */}
+              <MobilePlacementsGroups placements={placements} />
+
 
               {/* DESKTOP: tabela completa */}
               <div className="hidden sm:block overflow-x-auto">
