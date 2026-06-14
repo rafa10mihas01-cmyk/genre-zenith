@@ -393,6 +393,7 @@ export function AppSidebar() {
           </div>
         )}
       </SidebarFooter>
+      </div>
     </Sidebar>
   );
 }
