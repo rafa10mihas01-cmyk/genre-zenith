@@ -610,9 +610,9 @@ export default function CatalogoMusicaDetalhe() {
           <div className="flex items-center justify-between mb-3">
             <div>
               <h3 className="text-sm font-semibold text-foreground flex items-center gap-2"><BarChart3 className="h-4 w-4" /> Evolução de streams</h3>
-              <p className="text-xs text-muted-foreground">total_plays_28d ao longo dos snapshots</p>
+              <p className="text-xs text-muted-foreground">Streams nos últimos 28 dias</p>
             </div>
-            <div className="text-xs text-muted-foreground">{snapshots.length} pontos</div>
+            <div className="text-xs text-muted-foreground">{snapshots.length} coletas</div>
           </div>
           <Sparkline points={snapshots} />
         </section>
