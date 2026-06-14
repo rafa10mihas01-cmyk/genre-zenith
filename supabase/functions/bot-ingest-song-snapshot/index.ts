@@ -345,7 +345,7 @@ Deno.serve(async (req) => {
       const updateTarget = supabase
         .from("catalog_snapshot_queue")
         .update({
-          status: "completed",
+          status: "done",
           completed_snapshot_id: snap.id,
           locked_at: null,
           locked_by: null,
@@ -353,7 +353,7 @@ Deno.serve(async (req) => {
         });
       const { error: qErr } = queue_id
         ? await updateTarget.eq("id", queue_id)
-        : await updateTarget.eq("catalog_track_id", catalog_track_id).eq("status", "claimed");
+        : await updateTarget.eq("catalog_track_id", catalog_track_id).eq("status", "processing");
       if (qErr) {
         console.warn("[bot-ingest-song-snapshot] catalog queue close failed:", qErr.message);
       } else {
