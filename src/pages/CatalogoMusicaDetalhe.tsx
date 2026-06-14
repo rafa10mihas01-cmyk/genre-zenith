@@ -199,6 +199,7 @@ export default function CatalogoMusicaDetalhe() {
   const attribution = q.data.attribution;
   const queue = q.data.queue;
   const snapshots = q.data.snapshots;
+  const batches = q.data.batches;
 
   const baselineOk = !!b && (b.popularity != null || b.monthly_listeners != null || b.streams != null);
 
@@ -422,6 +423,42 @@ export default function CatalogoMusicaDetalhe() {
                       <td className="px-4 py-3 text-right font-mono text-xs">{fmt(a.current_plays_7d)}</td>
                       <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{a.observations}</td>
                       <td className="px-4 py-3 text-muted-foreground text-xs">{rel(a.last_seen_at)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        {/* DISTRIBUIÇÕES — log de cada execução de "Distribuir" para esta música */}
+        <section className="rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="p-5 border-b border-border">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2"><History className="h-4 w-4" /> Distribuições</h3>
+            <p className="text-xs text-muted-foreground">Cada clique em "Distribuir" registra um batch — elegíveis, já presentes, sem vaga e criados</p>
+          </div>
+          {batches.length === 0 ? (
+            <div className="p-8 text-center text-sm text-muted-foreground">Sem distribuições registradas.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-xs text-muted-foreground">
+                  <tr className="border-b border-border">
+                    <th className="text-left font-medium px-4 py-3">Quando</th>
+                    <th className="text-right font-medium px-4 py-3">Elegíveis</th>
+                    <th className="text-right font-medium px-4 py-3">Já presente</th>
+                    <th className="text-right font-medium px-4 py-3">Sem vaga</th>
+                    <th className="text-right font-medium px-4 py-3">Criados</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {batches.map((bt) => (
+                    <tr key={bt.id} className="border-b border-border last:border-0 hover:bg-muted/30">
+                      <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">{new Date(bt.created_at).toLocaleString("pt-BR")}</td>
+                      <td className="px-4 py-3 text-right font-mono text-xs">{bt.total_eligible_playlists}</td>
+                      <td className="px-4 py-3 text-right font-mono text-xs text-muted-foreground">{bt.skipped_already_present}</td>
+                      <td className="px-4 py-3 text-right font-mono text-xs text-muted-foreground">{bt.skipped_no_capacity}</td>
+                      <td className="px-4 py-3 text-right font-mono text-xs font-semibold text-foreground">{bt.placements_created}</td>
                     </tr>
                   ))}
                 </tbody>
