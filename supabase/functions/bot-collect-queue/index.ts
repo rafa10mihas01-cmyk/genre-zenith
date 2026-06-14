@@ -414,10 +414,26 @@ Deno.serve(async (req) => {
       if (catErr) {
         console.warn("[bot-collect-queue] catalog claim failed:", catErr.message);
       } else if (Array.isArray(catRows) && catRows.length) {
-        // Enriquece com spotify_artist_id (necessário pro worker montar URL S4A)
+        // 1) Resolve spotify_artist_id em batch a partir de catalog_tracks
+        //    (fonte de verdade — evita chamada extra à Spotify API).
+        const trackIds = catRows.map((r: any) => r.catalog_track_id).filter(Boolean);
+        const artistByTrack = new Map<string, string>();
+        if (trackIds.length) {
+          const { data: ctRows } = await supabase
+            .from("catalog_tracks")
+            .select("id, spotify_artist_id")
+            .in("id", trackIds);
+          for (const ct of ctRows ?? []) {
+            if ((ct as any).spotify_artist_id) {
+              artistByTrack.set((ct as any).id, (ct as any).spotify_artist_id);
+            }
+          }
+        }
+
+        // 2) Enriquece — fallback Spotify API só quando catalog_tracks não tiver.
         const enriched = await Promise.all(catRows.map(async (r: any) => {
-          let artistId: string | null = null;
-          if (r.spotify_track_id) {
+          let artistId: string | null = artistByTrack.get(r.catalog_track_id) ?? null;
+          if (!artistId && r.spotify_track_id) {
             try {
               const token = await getAppToken();
               const tRes = await fetch(`https://api.spotify.com/v1/tracks/${r.spotify_track_id}`, {
@@ -426,6 +442,14 @@ Deno.serve(async (req) => {
               if (tRes.ok) {
                 const tJson = await tRes.json();
                 artistId = tJson?.artists?.[0]?.id ?? null;
+                // Persiste em catalog_tracks pra próxima rodada ser instantânea
+                if (artistId) {
+                  await supabase
+                    .from("catalog_tracks")
+                    .update({ spotify_artist_id: artistId })
+                    .eq("id", r.catalog_track_id)
+                    .is("spotify_artist_id", null);
+                }
               }
             } catch (_) { /* silent */ }
           }
@@ -434,6 +458,7 @@ Deno.serve(async (req) => {
             : null;
           return {
             kind: "catalog",
+            id: r.id, // worker VPS lê job.id — sem isso rejeita como "id nulo"
             queue_id: r.id,
             catalog_track_id: r.catalog_track_id,
             spotify_track_id: r.spotify_track_id,
@@ -449,7 +474,23 @@ Deno.serve(async (req) => {
             capture_mode: "playlist_breakdown_required",
           };
         }));
-        catalogClaimed = enriched;
+
+        // 3) Descarta itens sem artist_id (não dá pra montar URL S4A).
+        //    Libera o lease pra outra rodada poder tentar resolver depois.
+        const valid = enriched.filter((e) => e.spotify_artist_id);
+        const invalid = enriched.filter((e) => !e.spotify_artist_id);
+        if (invalid.length) {
+          console.warn(
+            `[bot-collect-queue] catalog: ${invalid.length} itens sem spotify_artist_id — descartados`,
+            invalid.map((i) => ({ queue_id: i.queue_id, track: i.spotify_track_id })),
+          );
+          const invalidIds = invalid.map((i) => i.queue_id);
+          await supabase
+            .from("catalog_snapshot_queue")
+            .update({ status: "pending", worker_id: null, lease_expires_at: null })
+            .in("id", invalidIds);
+        }
+        catalogClaimed = valid;
       }
     }
   } catch (e) {
