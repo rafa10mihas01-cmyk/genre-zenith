@@ -10435,6 +10435,7 @@ export type Database = {
         Row: {
           bot_metadata: Json | null
           captured_at: string
+          catalog_track_id: string | null
           correlation_id: string | null
           created_at: string
           id: string
@@ -10442,7 +10443,7 @@ export type Database = {
           processing_error: string | null
           screenshot_url: string | null
           snapshot_run_id: string | null
-          song_id: string
+          song_id: string | null
           spotify_song_id: string | null
           time_window: string
           total_plays_28d: number | null
@@ -10450,6 +10451,7 @@ export type Database = {
         Insert: {
           bot_metadata?: Json | null
           captured_at?: string
+          catalog_track_id?: string | null
           correlation_id?: string | null
           created_at?: string
           id?: string
@@ -10457,7 +10459,7 @@ export type Database = {
           processing_error?: string | null
           screenshot_url?: string | null
           snapshot_run_id?: string | null
-          song_id: string
+          song_id?: string | null
           spotify_song_id?: string | null
           time_window?: string
           total_plays_28d?: number | null
@@ -10465,6 +10467,7 @@ export type Database = {
         Update: {
           bot_metadata?: Json | null
           captured_at?: string
+          catalog_track_id?: string | null
           correlation_id?: string | null
           created_at?: string
           id?: string
@@ -10472,12 +10475,33 @@ export type Database = {
           processing_error?: string | null
           screenshot_url?: string | null
           snapshot_run_id?: string | null
-          song_id?: string
+          song_id?: string | null
           spotify_song_id?: string | null
           time_window?: string
           total_plays_28d?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "song_snapshots_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_tracks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "song_snapshots_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_track_distribution_stats"
+            referencedColumns: ["catalog_track_id"]
+          },
+          {
+            foreignKeyName: "song_snapshots_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_track_performance"
+            referencedColumns: ["catalog_track_id"]
+          },
           {
             foreignKeyName: "song_snapshots_snapshot_run_id_fkey"
             columns: ["snapshot_run_id"]
