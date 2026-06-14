@@ -91,7 +91,6 @@ const sections: NavSection[] = [
         url: "/operacao",
         icon: ListMusic,
         matchPaths: ["/playlists"],
-,
       },
     ],
   },
