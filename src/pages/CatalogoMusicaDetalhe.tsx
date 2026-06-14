@@ -70,6 +70,7 @@ type Attribution = {
 };
 type QueueRow = { status: string; scheduled_for: string; attempts: number; max_attempts: number; last_error: string | null; locked_at: string | null };
 type Snapshot = { id: string; captured_at: string; total_plays_28d: number | null; processing_error: string | null };
+type Batch = { id: string; created_at: string; total_eligible_playlists: number; skipped_already_present: number; skipped_no_capacity: number; placements_created: number };
 
 const fmt = (n: number | null | undefined) => (typeof n === "number" ? n.toLocaleString("pt-BR") : "—");
 const rel = (iso: string | null | undefined) => {
@@ -86,7 +87,7 @@ const rel = (iso: string | null | undefined) => {
 };
 
 async function fetchDetail(id: string) {
-  const [trackRes, baselineRes, telemetryRes, placementsRes, attributionRes, queueRes, snapshotsRes] = await Promise.all([
+  const [trackRes, baselineRes, telemetryRes, placementsRes, attributionRes, queueRes, snapshotsRes, batchesRes] = await Promise.all([
     supabase.from("catalog_tracks").select("id, spotify_track_id, track_name, artist_name, cover_url, isrc, status, added_at").eq("id", id).maybeSingle(),
     supabase.from("catalog_track_baselines").select("captured_at, popularity, monthly_listeners, streams").eq("catalog_track_id", id).maybeSingle(),
     supabase.from("v_catalog_track_telemetry").select("baseline_at, baseline_plays_28d, last_captured_at, last_plays_28d, growth_abs, growth_pct, playlists_present_count, total_plays_7d_from_playlists, snapshots_count").eq("catalog_track_id", id).maybeSingle(),
@@ -94,6 +95,7 @@ async function fetchDetail(id: string) {
     supabase.from("v_catalog_track_playlist_attribution").select("spotify_playlist_id, name, owner, spotify_url, first_seen_at, last_seen_at, observations, current_position, current_plays_7d, status").eq("catalog_track_id", id).order("current_plays_7d", { ascending: false, nullsFirst: false }),
     supabase.from("catalog_snapshot_queue").select("status, scheduled_for, attempts, max_attempts, last_error, locked_at").eq("catalog_track_id", id).order("scheduled_for", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("song_snapshots").select("id, captured_at, total_plays_28d, processing_error").eq("catalog_track_id", id).order("captured_at", { ascending: true }).limit(60),
+    supabase.from("catalog_distribution_batches").select("id, created_at, total_eligible_playlists, skipped_already_present, skipped_no_capacity, placements_created").eq("catalog_track_id", id).order("created_at", { ascending: false }).limit(50),
   ]);
   return {
     track: trackRes.data as Track | null,
@@ -103,6 +105,7 @@ async function fetchDetail(id: string) {
     attribution: (attributionRes.data ?? []) as Attribution[],
     queue: queueRes.data as QueueRow | null,
     snapshots: (snapshotsRes.data ?? []) as Snapshot[],
+    batches: (batchesRes.data ?? []) as Batch[],
   };
 }
 
