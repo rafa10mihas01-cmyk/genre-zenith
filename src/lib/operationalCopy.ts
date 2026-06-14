@@ -166,8 +166,8 @@ export function deriveExecutiveStatus(input: {
   spotifyBlocked?: number;
   vpsOffline?: number;
 }): ExecutiveStatus {
-  if (input.criticalOpen > 0 || (input.spotifyBlocked ?? 0) > 0 || (input.vpsOffline ?? 0) > 0) return "urgent";
-  if (input.warningOpen > 0) return "attention";
+  if (input.criticalOpen > 0 || (input.vpsOffline ?? 0) > 0) return "urgent";
+  if (input.warningOpen > 0 || (input.spotifyBlocked ?? 0) > 0) return "attention";
   return "ok";
 }
 

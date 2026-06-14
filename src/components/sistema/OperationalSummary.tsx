@@ -67,14 +67,23 @@ export function OperationalSummary() {
       // Filas
       const pending = queueRes.count ?? 0;
       const failed = failedQueue.count ?? 0;
-      const filaTone: Tone = failed > 0 ? "bad" : pending > 50 ? "warn" : "ok";
+      const activeSpotifyWait = failed > 0
+        ? await supabase
+            .from("playlist_execution_jobs")
+            .select("id", { count: "exact", head: true })
+            .eq("status", "failed")
+            .like("last_error", "%SPOTIFY_CIRCUIT_OPEN%")
+            .gte("updated_at", new Date(Date.now() - 24 * 3600_000).toISOString())
+        : { count: 0 };
+      const waitingSpotify = failed > 0 && (activeSpotifyWait.count ?? 0) === failed;
+      const filaTone: Tone = failed > 0 ? (waitingSpotify ? "warn" : "bad") : pending > 50 ? "warn" : "ok";
       const filas: Row = {
         icon: ListChecks,
         label: "Filas",
         tone: filaTone,
         detail: filaTone === "ok"
           ? pending === 0 ? "Vazia" : `${pending} na fila`
-          : filaTone === "warn" ? `${pending} aguardando`
+          : filaTone === "warn" ? waitingSpotify ? `${failed} aguardando Spotify` : `${pending} aguardando`
           : `${failed} com falha`,
       };
 
