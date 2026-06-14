@@ -187,9 +187,9 @@ export function AppSidebar() {
 
       <SidebarContent className="px-2 py-2">
         {visibleSections.map((section, idx) => (
-          <SidebarGroup key={section.label} className={cn("p-0", idx > 0 && "mt-3")}>
+          <SidebarGroup key={section.label} className={cn("p-0", idx > 0 && "mt-4")}>
             {!collapsed && (
-              <SidebarGroupLabel className="h-6 px-3 mb-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
+              <SidebarGroupLabel className="h-6 px-3 mb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-sidebar-foreground/80">
                 {section.label}
               </SidebarGroupLabel>
             )}
