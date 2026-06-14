@@ -408,12 +408,12 @@ export default function CatalogoMusicaDetalhe() {
               <div className="flex flex-col min-w-0 flex-1">
                 <h2 className="text-lg font-bold leading-tight text-foreground truncate">{t.track_name}</h2>
                 <p className="text-sm text-muted-foreground truncate font-medium">{t.artist_name}</p>
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 bg-black/40 border border-border text-muted-foreground rounded">
-                    Ativa: {new Date(t.added_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "2-digit" })}
+                <div className="mt-3 grid grid-cols-2 gap-1.5">
+                  <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-1 bg-black/40 border border-border text-muted-foreground rounded text-center truncate">
+                    Desde {new Date(t.added_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "2-digit" })}
                   </span>
-                  <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 bg-black/40 border border-border text-muted-foreground rounded tabular-nums">
-                    {placementsByStatus.active}/{placements.length} placements
+                  <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-1 bg-black/40 border border-border text-muted-foreground rounded tabular-nums text-center truncate">
+                    {placementsByStatus.active}/{placements.length} ativas
                   </span>
                 </div>
               </div>
@@ -610,9 +610,9 @@ export default function CatalogoMusicaDetalhe() {
           <div className="flex items-center justify-between mb-3">
             <div>
               <h3 className="text-sm font-semibold text-foreground flex items-center gap-2"><BarChart3 className="h-4 w-4" /> Evolução de streams</h3>
-              <p className="text-xs text-muted-foreground">total_plays_28d ao longo dos snapshots</p>
+              <p className="text-xs text-muted-foreground">Streams nos últimos 28 dias</p>
             </div>
-            <div className="text-xs text-muted-foreground">{snapshots.length} pontos</div>
+            <div className="text-xs text-muted-foreground">{snapshots.length} coletas</div>
           </div>
           <Sparkline points={snapshots} />
         </section>
@@ -621,8 +621,11 @@ export default function CatalogoMusicaDetalhe() {
         <section className="rounded-2xl border border-border bg-card overflow-hidden">
           <div className="p-5 border-b border-border flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2"><ListMusic className="h-4 w-4" /> Placements na rede</h3>
-              <p className="text-xs text-muted-foreground">{placementsByStatus.active} ativos · {placementsByStatus.pending + placementsByStatus.retry + placementsByStatus.processing} em fila · {placementsByStatus.failed} falhas · {placementsByStatus.removed} removidos</p>
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2"><ListMusic className="h-4 w-4" /> Playlists da nossa rede</h3>
+              <p className="text-xs text-muted-foreground">
+                <span className="sm:hidden">{placementsByStatus.active} ativas · {placementsByStatus.pending + placementsByStatus.retry + placementsByStatus.processing} em fila</span>
+                <span className="hidden sm:inline">{placementsByStatus.active} ativas · {placementsByStatus.pending + placementsByStatus.retry + placementsByStatus.processing} em fila · {placementsByStatus.failed} com erro · {placementsByStatus.removed} removidas</span>
+              </p>
             </div>
           </div>
           {placements.length === 0 ? (
@@ -682,11 +685,11 @@ export default function CatalogoMusicaDetalhe() {
         {/* ATRIBUIÇÃO VPS — playlists onde o bot detectou a faixa */}
         <section className="rounded-2xl border border-border bg-card overflow-hidden">
           <div className="p-5 border-b border-border">
-            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2"><History className="h-4 w-4" /> Playlists detectadas pela VPS</h3>
-            <p className="text-xs text-muted-foreground">Onde o bot encontrou a faixa nos snapshots (inclui playlists fora da nossa rede)</p>
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2"><History className="h-4 w-4" /> Playlists onde aparecemos</h3>
+            <p className="text-xs text-muted-foreground">Detectadas automaticamente (incluindo playlists fora da rede)</p>
           </div>
           {attribution.length === 0 ? (
-            <div className="p-8 text-center text-sm text-muted-foreground">Sem detecções ainda. Aguarde o próximo snapshot.</div>
+            <div className="p-8 text-center text-sm text-muted-foreground">Nenhuma detecção ainda.</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -729,35 +732,67 @@ export default function CatalogoMusicaDetalhe() {
         <section className="rounded-2xl border border-border bg-card overflow-hidden">
           <div className="p-5 border-b border-border">
             <h3 className="text-sm font-semibold text-foreground flex items-center gap-2"><History className="h-4 w-4" /> Distribuições</h3>
-            <p className="text-xs text-muted-foreground">Cada clique em "Distribuir" registra um batch — elegíveis, já presentes, sem vaga e criados</p>
+            <p className="text-xs text-muted-foreground">Histórico de cada rodada de distribuição</p>
           </div>
           {batches.length === 0 ? (
-            <div className="p-8 text-center text-sm text-muted-foreground">Sem distribuições registradas.</div>
+            <div className="p-8 text-center text-sm text-muted-foreground">Nenhuma distribuição ainda.</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-xs text-muted-foreground">
-                  <tr className="border-b border-border">
-                    <th className="text-left font-medium px-4 py-3">Quando</th>
-                    <th className="text-right font-medium px-4 py-3">Elegíveis</th>
-                    <th className="text-right font-medium px-4 py-3">Já presente</th>
-                    <th className="text-right font-medium px-4 py-3">Sem vaga</th>
-                    <th className="text-right font-medium px-4 py-3">Criados</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {batches.map((bt) => (
-                    <tr key={bt.id} className="border-b border-border last:border-0 hover:bg-muted/30">
-                      <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">{new Date(bt.created_at).toLocaleString("pt-BR")}</td>
-                      <td className="px-4 py-3 text-right font-mono text-xs">{bt.total_eligible_playlists}</td>
-                      <td className="px-4 py-3 text-right font-mono text-xs text-muted-foreground">{bt.skipped_already_present}</td>
-                      <td className="px-4 py-3 text-right font-mono text-xs text-muted-foreground">{bt.skipped_no_capacity}</td>
-                      <td className="px-4 py-3 text-right font-mono text-xs font-semibold text-foreground">{bt.placements_created}</td>
+            <>
+              {/* MOBILE: cards */}
+              <div className="sm:hidden divide-y divide-border">
+                {batches.map((bt) => (
+                  <div key={bt.id} className="p-4">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-2">
+                      {new Date(bt.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                    </div>
+                    <div className="grid grid-cols-4 gap-[1px] bg-border border border-border rounded-lg overflow-hidden">
+                      <div className="bg-black/30 px-1.5 py-2 text-center">
+                        <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Elegíveis</div>
+                        <div className="text-sm font-bold tabular-nums text-foreground">{bt.total_eligible_playlists}</div>
+                      </div>
+                      <div className="bg-black/30 px-1.5 py-2 text-center">
+                        <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Já lá</div>
+                        <div className="text-sm font-bold tabular-nums text-muted-foreground">{bt.skipped_already_present}</div>
+                      </div>
+                      <div className="bg-black/30 px-1.5 py-2 text-center">
+                        <div className="text-[9px] uppercase tracking-wider text-muted-foreground">S/ vaga</div>
+                        <div className="text-sm font-bold tabular-nums text-muted-foreground">{bt.skipped_no_capacity}</div>
+                      </div>
+                      <div className="bg-black/30 px-1.5 py-2 text-center">
+                        <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Criadas</div>
+                        <div className="text-sm font-bold tabular-nums text-[#1DB954]">{bt.placements_created}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* DESKTOP: tabela */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-xs text-muted-foreground">
+                    <tr className="border-b border-border">
+                      <th className="text-left font-medium px-4 py-3">Quando</th>
+                      <th className="text-right font-medium px-4 py-3">Elegíveis</th>
+                      <th className="text-right font-medium px-4 py-3">Já presente</th>
+                      <th className="text-right font-medium px-4 py-3">Sem vaga</th>
+                      <th className="text-right font-medium px-4 py-3">Criadas</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {batches.map((bt) => (
+                      <tr key={bt.id} className="border-b border-border last:border-0 hover:bg-muted/30">
+                        <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">{new Date(bt.created_at).toLocaleString("pt-BR")}</td>
+                        <td className="px-4 py-3 text-right font-mono text-xs">{bt.total_eligible_playlists}</td>
+                        <td className="px-4 py-3 text-right font-mono text-xs text-muted-foreground">{bt.skipped_already_present}</td>
+                        <td className="px-4 py-3 text-right font-mono text-xs text-muted-foreground">{bt.skipped_no_capacity}</td>
+                        <td className="px-4 py-3 text-right font-mono text-xs font-semibold text-foreground">{bt.placements_created}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </section>
       </PageContainer>
