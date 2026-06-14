@@ -97,13 +97,27 @@ Deno.serve(async (req) => {
     playlists,
     bot_metadata,
   } = body ?? {};
+  let effectiveCatalogTrackId = typeof catalog_track_id === "string" ? catalog_track_id : "";
+  const effectiveQueueId = typeof queue_id === "string" ? queue_id : "";
+
+  // Compat VPS: se veio queue_id de catálogo mas o build antigo não reenviou
+  // catalog_track_id, recupera pelo item em processamento antes de validar.
+  if (!song_id && !effectiveCatalogTrackId && effectiveQueueId) {
+    const { data: qRow } = await _rawAuditSb
+      .from("catalog_snapshot_queue")
+      .select("catalog_track_id")
+      .eq("id", effectiveQueueId)
+      .eq("status", "processing")
+      .maybeSingle();
+    effectiveCatalogTrackId = (qRow as any)?.catalog_track_id ?? "";
+  }
 
   // Modo catálogo: payload sem song_id mas com catalog_track_id (uuid).
   // Pula toda a lógica que depende de curator_deal_songs (batch FK, collections RPC, bump deal).
-  const isCatalogMode = !song_id && typeof catalog_track_id === "string" && catalog_track_id.length > 0;
+  const isCatalogMode = !song_id && effectiveCatalogTrackId.length > 0;
 
   // Validação: aceita song_id OU catalog_track_id
-  if (!song_id && !catalog_track_id) {
+  if (!song_id && !effectiveCatalogTrackId) {
     return jr({ error: "song_id or catalog_track_id required (uuid)" }, 400);
   }
   if (song_id && typeof song_id !== "string") {
@@ -178,7 +192,7 @@ Deno.serve(async (req) => {
     .from("song_snapshots")
     .insert({
       song_id: song_id ?? null,
-      catalog_track_id: catalog_track_id ?? null,
+      catalog_track_id: effectiveCatalogTrackId || null,
       spotify_song_id: spotify_song_id ?? null,
       correlation_id: correlation_id ?? null,
       captured_at: captured_at ?? new Date().toISOString(),
@@ -353,7 +367,7 @@ Deno.serve(async (req) => {
         });
       const { error: qErr } = queue_id
         ? await updateTarget.eq("id", queue_id)
-        : await updateTarget.eq("catalog_track_id", catalog_track_id).eq("status", "processing");
+        : await updateTarget.eq("catalog_track_id", effectiveCatalogTrackId).eq("status", "processing");
       if (qErr) {
         console.warn("[bot-ingest-song-snapshot] catalog queue close failed:", qErr.message);
       } else {
@@ -365,7 +379,7 @@ Deno.serve(async (req) => {
   }
 
   console.log(
-    `[bot-ingest-song-snapshot] saved snapshot=${snap.id} mode=${isCatalogMode ? "catalog" : "deal"} ref=${song_id ?? catalog_track_id} playlists=${playlists.length} total_28d=${total_plays_28d ?? "-"} bumped=${bumpedDealSong} catalog_closed=${catalogQueueClosed} next=${nextAt ?? "-"}`,
+    `[bot-ingest-song-snapshot] saved snapshot=${snap.id} mode=${isCatalogMode ? "catalog" : "deal"} ref=${song_id ?? effectiveCatalogTrackId} playlists=${playlists.length} total_28d=${total_plays_28d ?? "-"} bumped=${bumpedDealSong} catalog_closed=${catalogQueueClosed} next=${nextAt ?? "-"}`,
   );
 
   return jr({

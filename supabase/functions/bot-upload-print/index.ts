@@ -72,6 +72,7 @@ Deno.serve(async (req) => {
   // Modo catálogo: coleta de catalog_tracks NÃO tem deal_id. Aceitamos
   // catalog_track_id como alternativa pra salvar o print scopado por catálogo.
   let catalogTrackId = url.searchParams.get("catalog_track_id") ?? "";
+  let queueId = url.searchParams.get("queue_id") ?? url.searchParams.get("catalog_snapshot_queue_id") ?? "";
   let correlationId =
     req.headers.get("x-correlation-id") ?? url.searchParams.get("correlation_id") ?? "";
 
@@ -89,6 +90,7 @@ Deno.serve(async (req) => {
       songId = (form.get("song_id") as string) || songId;
       label = (form.get("label") as string) || label;
       catalogTrackId = (form.get("catalog_track_id") as string) || catalogTrackId;
+      queueId = (form.get("queue_id") as string) || (form.get("catalog_snapshot_queue_id") as string) || queueId;
       correlationId = (form.get("correlation_id") as string) || correlationId;
       const domRaw = form.get("dom_playlists");
       if (typeof domRaw === "string" && domRaw.trim()) {
@@ -118,6 +120,7 @@ Deno.serve(async (req) => {
       songId = body?.song_id || songId;
       label = body?.label || label;
       catalogTrackId = body?.catalog_track_id || catalogTrackId;
+      queueId = body?.queue_id || body?.catalog_snapshot_queue_id || (!dealId && !songId && body?.kind === "catalog" ? body?.id : "") || queueId;
       correlationId = body?.correlation_id || correlationId;
       if (Array.isArray(body?.dom_playlists)) domPlaylists = body.dom_playlists;
     } else {
@@ -151,10 +154,42 @@ Deno.serve(async (req) => {
 
   if (!bytes || bytes.length === 0) return jr({ error: "empty_file" }, 400);
   if (bytes.length > 8 * 1024 * 1024) return jr({ error: "file_too_large_8mb" }, 413);
+  const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+
+  // Compat VPS: alguns builds antigos recebem o job de catálogo com queue_id,
+  // mas não reenviam catalog_track_id no upload do print. Resolva pelo lease
+  // ativo antes de rejeitar, sem chutar quando houver ambiguidade.
+  if (!dealId && !catalogTrackId) {
+    const queueLookup = queueId
+      ? await supabase
+          .from("catalog_snapshot_queue")
+          .select("id, catalog_track_id")
+          .eq("id", queueId)
+          .eq("status", "processing")
+          .maybeSingle()
+      : await supabase
+          .from("catalog_snapshot_queue")
+          .select("id, catalog_track_id")
+          .eq("status", "processing")
+          .not("lease_expires_at", "is", null)
+          .gt("lease_expires_at", new Date().toISOString())
+          .order("locked_at", { ascending: false })
+          .limit(2);
+    const rows = Array.isArray((queueLookup as any).data)
+      ? (queueLookup as any).data
+      : (queueLookup as any).data
+        ? [(queueLookup as any).data]
+        : [];
+    if (rows.length === 1 && rows[0]?.catalog_track_id) {
+      catalogTrackId = rows[0].catalog_track_id;
+      queueId = rows[0].id ?? queueId;
+    }
+  }
   if (!dealId && !catalogTrackId) {
     return jr({
       error: "deal_id_or_catalog_track_id_required",
       detail: "Print sem deal_id nem catalog_track_id vira órfão e não aparece em nenhuma coleta.",
+      queue_id: queueId || null,
     }, 400);
   }
 
@@ -168,7 +203,7 @@ Deno.serve(async (req) => {
   // correlation_id, duplicando o histórico. Apenas o "song-snapshot-{correlation_id}-part-*"
   // é o fluxo válido. Rejeitamos o legado aqui pra parar a duplicação enquanto o bot não
   // for atualizado. Quando o dist do bot remover o envio duplicado, este guard pode sair.
-  if (parsed?.key === "playlists") {
+  if (parsed?.key === "playlists" && !isCatalogMode) {
     return jr({
       error: "legacy_playlists_label_deprecated",
       detail: "Label 'playlists-part-*' foi descontinuado. Use 'song-snapshot-{correlation_id}-part-X-of-Y'. Este upload foi descartado pra evitar duplicar o histórico.",
@@ -192,8 +227,6 @@ Deno.serve(async (req) => {
     ? `catalog/${safeSeg(catalogTrackId, "no-track")}/${ts}-${lSeg}.png`
     : `${safeSeg(dealId, "no-deal")}/${safeSeg(songId, "no-song")}/${ts}-${lSeg}.png`;
 
-  const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
-
   // 🔍 Auditoria: grava metadados do upload (não armazenamos os bytes da imagem,
   // só refs + headers + tamanho — a imagem já vai pro storage `bot-prints`).
   try {
@@ -205,6 +238,8 @@ Deno.serve(async (req) => {
       payload: {
         deal_id: dealId || null,
         song_id: songId || null,
+          catalog_track_id: catalogTrackId || null,
+          queue_id: queueId || null,
         label: label || null,
         correlation_id: correlationId || null,
         content_type: ct,
