@@ -224,7 +224,20 @@ export function MusicasTab() {
                       <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-lg pointer-events-none" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-[15px] text-foreground truncate tracking-tight group-hover:text-[#1DB954] transition-colors">{t.track_name}</div>
+                      <div className="flex items-center gap-1.5">
+                        {t.tel && t.tel.snapshots_count > 0 && (
+                          <span
+                            className={cn(
+                              "inline-block w-1.5 h-1.5 rounded-full shrink-0 shadow-[0_0_4px]",
+                              t.tel.baseline_at
+                                ? "bg-emerald-400 shadow-emerald-400/50"
+                                : "bg-amber-400 shadow-amber-400/50"
+                            )}
+                            title={t.tel.baseline_at ? "Baseline coletada" : "Em coleta de baseline"}
+                          />
+                        )}
+                        <div className="font-semibold text-[15px] text-foreground truncate tracking-tight group-hover:text-[#1DB954] transition-colors">{t.track_name}</div>
+                      </div>
                       <div className="text-sm text-muted-foreground truncate mt-0.5">{t.artist_name}</div>
                     </div>
                     <ChevronRight className="h-5 w-5 text-[hsl(0,0%,40%)] shrink-0 group-hover:translate-x-0.5 transition-transform" />
