@@ -777,6 +777,25 @@ Deno.serve(async (req) => {
           if (proofErr) console.error("delivery_proofs insert error", proofErr);
         }
       }
+
+      // Música rastreada via planilha (Excel) NÃO deve ser coletada pelo bot S4A.
+      // O bot não encontra breakdown porque a entrega vem do upload manual.
+      // Desliga auto_collect e limpa estado de erro/pausa pra evitar loop.
+      if (songId) {
+        const { error: acErr } = await admin
+          .from("curator_deal_songs")
+          .update({
+            auto_collect: false,
+            auto_collect_status: "manual",
+            auto_collect_error: null,
+            collect_attempt_count: 0,
+            collect_error_code: null,
+            collect_paused_until: null,
+          })
+          .eq("id", songId)
+          .eq("auto_collect", true);
+        if (acErr) console.error("auto_collect off error", acErr);
+      }
     }
 
     // 3b) Atualiza campaigns.total_delivered via Growth Engine (P1.1).
