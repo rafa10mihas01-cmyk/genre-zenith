@@ -119,7 +119,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 -ml-1 shrink-0 text-muted-foreground hover:text-foreground"
+                  className="h-8 w-8 ml-1 shrink-0 text-muted-foreground hover:text-foreground"
                   onClick={() => nav(-1)}
                   aria-label="Voltar"
                 >
