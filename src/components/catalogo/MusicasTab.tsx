@@ -208,7 +208,7 @@ export function MusicasTab() {
               const stale = collectAge > 60 * 24;
               const noCollect = !t.tel || t.tel.snapshots_count === 0;
               return (
-                <div key={t.id} className="relative">
+                <div key={t.id}>
                 <button
                   onClick={() => navigate(`/catalogo/musica/${t.id}`)}
                   className="w-full text-left bg-card border border-border rounded-xl p-4 active:scale-[0.99] transition-all hover:bg-[#212121] hover:border-[hsl(0,0%,24%)] group"
@@ -278,67 +278,7 @@ export function MusicasTab() {
                     </div>
 
                     {/* Coleta */}
-                    <div className="flex flex-col gap-1 border-l border-[hsl(0,0%,12%)] pl-3">
-                      <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-[hsl(0,0%,45%)]">Coleta</span>
-                      <div className="flex flex-col leading-tight">
-                        {noCollect ? (
-                          <>
-                            <div className="flex items-center gap-1.5 h-[22px]">
-                              <AlertTriangle className="h-4 w-4 text-amber-500/80" />
-                              <span className="text-[11px] font-bold uppercase text-amber-500/90">Pendente</span>
-                            </div>
-                            <span className="text-[10px] font-medium mt-0.5 text-[hsl(0,0%,35%)]">Sem coleta</span>
-                          </>
-                        ) : stale ? (
-                          <>
-                            <div className="flex items-center gap-1.5 h-[22px]">
-                              <Clock className="h-4 w-4 text-amber-500/80" />
-                              <span className="text-[11px] font-bold uppercase text-amber-500/90">Atrasada</span>
-                            </div>
-                            <span className="text-[10px] font-medium mt-0.5 text-[hsl(0,0%,35%)]">{rel(t.tel!.last_captured_at)} atrás</span>
-                          </>
-                        ) : (
-                          <>
-                            <div className="flex items-center gap-1.5 h-[22px]">
-                              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                              <span className="text-[11px] font-bold uppercase text-emerald-400">OK</span>
-                            </div>
-                            <span className="text-[10px] font-medium mt-0.5 text-[hsl(0,0%,35%)]">{rel(t.tel!.last_captured_at)} atrás</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Δ baseline — quando existe, como linha inferior sutil */}
-                  {hasBaseline && (
-                    <div className="mt-3 flex items-center justify-between border-t border-[hsl(0,0%,12%)] pt-2.5">
-                      <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-[hsl(0,0%,45%)]">Δ baseline</span>
-                      <div className="flex items-center gap-2">
-                        <span className={cn("text-[13px] font-mono tabular-nums font-semibold", t.tel!.growth_abs! >= 0 ? "text-emerald-400" : "text-rose-400")}>
-                          {t.tel!.growth_abs! >= 0 ? "+" : ""}{fmt(t.tel!.growth_abs)}
-                        </span>
-                        {t.tel!.growth_pct != null && (
-                          <span className={cn("text-[10px] font-mono tabular-nums px-1.5 py-0.5 rounded font-medium", t.tel!.growth_abs! >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400")}>
-                            {t.tel!.growth_abs! >= 0 ? "+" : ""}{t.tel!.growth_pct}%
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  title="Criar campanha com essa música"
-                  onClick={(e) => { e.stopPropagation(); navigate(`/campanhas?novaCampanha=${t.spotify_track_id}`); }}
-                  className="absolute bottom-3 right-3 h-8 px-2.5 rounded-full bg-primary/15 text-primary border border-primary/30 flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider hover:bg-primary/25 transition-colors"
-                  aria-label="Criar campanha"
-                >
-                  <Target className="h-3.5 w-3.5" />
-                  Campanha
-                </button>
-                </div>
-              );
+                    $0
             })}
           </div>
 
