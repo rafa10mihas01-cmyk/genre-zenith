@@ -566,6 +566,7 @@ export function ExternalPackageEditor({
                         setEditTarget(it);
                         setEditValue(String(it.assigned_streams ?? 0));
                       }}
+                      onRemove={() => setRemoveTarget(it)}
                     />
                   ))}
                 </div>
