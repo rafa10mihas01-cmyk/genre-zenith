@@ -991,12 +991,12 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
               </CardHeader>
               <CardContent className="pt-0 flex-1 flex flex-col gap-4">
                 {/* Cliente — campo ativo */}
-                <div className="rounded-xl border border-border/70 bg-background/40 p-4">
+                <div className="rounded-xl border border-border/70 bg-background/40 p-4 space-y-3">
                   <div className="flex items-start gap-3">
                     <span className="shrink-0 grid place-items-center h-10 w-10 rounded-lg bg-muted/40 text-muted-foreground">
                       <Users className="h-5 w-5" />
                     </span>
-                    <div className="min-w-0 flex-1 space-y-2">
+                    <div className="min-w-0 flex-1">
                       <div>
                         <Label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-medium">
                           Cliente
@@ -1005,17 +1005,17 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                           Dono do plano.
                         </p>
                       </div>
-                      <Select value={clientId || "__none__"} onValueChange={v => setClientId(v === "__none__" ? "" : v)}>
-                        <SelectTrigger className="relative h-10 text-sm text-muted-foreground data-[state=open]:text-foreground [&>span]:absolute [&>span]:inset-0 [&>span]:flex [&>span]:items-center [&>span]:justify-center [&>span]:px-3 [&>span]:text-muted-foreground sm:[&>span]:text-foreground">
-                          <SelectValue placeholder="Selecione um cliente" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none__">Sem cliente</SelectItem>
-                          {clientsList.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
                     </div>
                   </div>
+                  <Select value={clientId || "__none__"} onValueChange={v => setClientId(v === "__none__" ? "" : v)}>
+                    <SelectTrigger className="relative h-10 text-sm text-muted-foreground data-[state=open]:text-foreground [&>span]:absolute [&>span]:inset-0 [&>span]:flex [&>span]:items-center [&>span]:justify-center [&>span]:px-3 [&>span]:text-muted-foreground sm:[&>span]:text-foreground">
+                      <SelectValue placeholder="Selecione um cliente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sem cliente</SelectItem>
+                      {clientsList.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Curador — bloco informativo, definido após aprovação */}
