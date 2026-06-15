@@ -211,7 +211,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   // e mostrar só os que sobrarem ao filtrar uma fase.
   useEffect(() => {
     setLoadedCount(PAGE_SIZE);
-  }, [filterFase, showArchived, filterMissingGenre, filterGenreId, filterSize, onlyEligible]);
+  }, [filterFase, showArchived, archiveType, filterMissingGenre, filterGenreId, filterSize, onlyEligible]);
 
   // Limpa o param ao sair da lixeira.
   useEffect(() => {
