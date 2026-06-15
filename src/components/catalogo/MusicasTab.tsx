@@ -475,6 +475,17 @@ export function MusicasTab() {
                     )}
                   </div>
                 </button>
+                <button
+                  type="button"
+                  title="Criar campanha com essa música"
+                  onClick={(e) => { e.stopPropagation(); navigate(`/campanhas?novaCampanha=${t.spotify_track_id}`); }}
+                  className="absolute top-3 right-3 h-7 px-2.5 rounded-full bg-primary/15 text-primary border border-primary/30 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider hover:bg-primary/25 transition-colors"
+                  aria-label="Criar campanha"
+                >
+                  <Target className="h-3 w-3" />
+                  Campanha
+                </button>
+                </div>
               );
             })}
           </div>
