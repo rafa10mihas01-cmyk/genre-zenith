@@ -12,6 +12,7 @@ import {
   reopenExternalPackage,
   updatePackageItem,
   removePackageItem,
+  removeConfirmedPackageItem,
   addPackageItem,
   repairExternalPackageLinks,
   fetchCuratorCandidates,
