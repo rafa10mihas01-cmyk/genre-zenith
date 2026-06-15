@@ -522,6 +522,7 @@ export default function CampanhaExecucao() {
       setOrganicRows([]);
     }
     setLoading(false);
+    initialLoadedRef.current = true;
   };
 
   useEffect(() => {
