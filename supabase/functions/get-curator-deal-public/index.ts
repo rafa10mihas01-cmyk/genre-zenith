@@ -337,7 +337,35 @@ Deno.serve(async (req) => {
       })),
       songs: songs ?? [],
       progress: progressRpc ?? null,
-      snapshot_history: historyRpc ?? [],
+      snapshot_history: (() => {
+        // Dedup espelhando o admin (DealHistorySheet): 1 registro por dia
+        // pra coletas (não-baseline), priorizando o entry com mais prints
+        // — empate vence o mais recente. Baselines sempre preservadas.
+        // Motivo: o bot disparou várias vezes no mesmo dia durante testes
+        // e gerou 31 registros redundantes; o curador precisa ver a mesma
+        // timeline limpa que aparece no painel interno (~6 entradas).
+        const list = (historyRpc as any[] | null) ?? [];
+        type Entry = any;
+        const baselines: Entry[] = [];
+        const byDay = new Map<string, Entry>();
+        for (const e of list) {
+          if (e?.is_baseline) { baselines.push(e); continue; }
+          const ts = new Date(e.captured_at).getTime();
+          if (!Number.isFinite(ts)) continue;
+          const day = new Date(ts).toISOString().slice(0, 10);
+          const prints = Array.isArray(e.print_urls) ? e.print_urls.length : 0;
+          const cur = byDay.get(day);
+          if (!cur) { byDay.set(day, e); continue; }
+          const curPrints = Array.isArray(cur.print_urls) ? cur.print_urls.length : 0;
+          const curTs = new Date(cur.captured_at).getTime();
+          if (prints > curPrints || (prints === curPrints && ts > curTs)) {
+            byDay.set(day, e);
+          }
+        }
+        const merged = [...baselines, ...byDay.values()];
+        merged.sort((a, b) => new Date(a.captured_at).getTime() - new Date(b.captured_at).getTime());
+        return merged;
+      })(),
       curator_submissions,
       baseline_conflicts,
     });
