@@ -124,6 +124,39 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Fallback essencial para o portal do curador: o painel interno já lê o
+    // Growth Engine por spotify_playlist_id, enquanto alguns snapshots recentes
+    // ficam com plays_7d/28d nulos. Sem isso, o curador vê "—" embora a mesma
+    // playlist apareça com número no deal interno.
+    const growthBySpotifyPlaylist: Record<string, { plays_7d: number | null }> = {};
+    if ((deal as any).campaign_id) {
+      try {
+        const playlistIds = Array.from(
+          new Set(
+            ((playlists ?? []) as any[])
+              .map((p) => (p.spotify_playlist_id ?? "").trim())
+              .filter(Boolean),
+          ),
+        );
+        if (playlistIds.length > 0) {
+          const { data: growthRows } = await admin
+            .from("vw_campaign_playlist_growth")
+            .select("playlist_id, current_plays, delivery_accumulated, delta, attributed_to")
+            .eq("campaign_id", (deal as any).campaign_id)
+            .in("playlist_id", playlistIds)
+            .like("attributed_to", "curator:%");
+          for (const r of (growthRows ?? []) as Array<{ playlist_id: string | null; current_plays: number | null; delivery_accumulated: number | null; delta: number | null }>) {
+            const pid = (r.playlist_id ?? "").trim();
+            if (!pid) continue;
+            const value = r.current_plays ?? r.delivery_accumulated ?? r.delta ?? null;
+            if (value == null) continue;
+            const prev = growthBySpotifyPlaylist[pid]?.plays_7d;
+            growthBySpotifyPlaylist[pid] = { plays_7d: Math.max(Number(prev ?? 0), Number(value)) };
+          }
+        }
+      } catch (_e) { /* best-effort */ }
+    }
+
     // Gate informativo: leitura segue permitida (curador vê o histórico),
     // mas o frontend usa esse flag pra desabilitar mutações.
     const gate = assertDealOperable(deal as any);
@@ -297,7 +330,7 @@ Deno.serve(async (req) => {
       playlists: (playlists ?? []).map((p: any) => ({
         ...p,
         plays_24h: latestByPlaylist[p.id]?.plays_24h ?? null,
-        plays_7d: latestByPlaylist[p.id]?.plays_7d ?? null,
+        plays_7d: latestByPlaylist[p.id]?.plays_7d ?? growthBySpotifyPlaylist[(p.spotify_playlist_id ?? "").trim()]?.plays_7d ?? null,
         plays_28d: latestByPlaylist[p.id]?.plays_28d ?? null,
         last_window_capture_at: latestByPlaylist[p.id]?.captured_at ?? null,
         baseline_plays_prior: baselinePlaysByPid[(p.spotify_playlist_id ?? "").trim()] ?? 0,
