@@ -207,9 +207,19 @@ export function ExternalPackageEditor({
       // Se o pacote já está travado (dispatched), materializa o deal do novo
       // curador sem mexer nos deals existentes — confirmExternalPackage é
       // idempotente: reaproveita itens já vinculados e cria só o que falta.
+      // OBS: só cria deal pra itens com streams > 0. Se entrou zerado (sem
+      // compra registrada), fica como "Rascunho" até o user ajustar o volume.
+      const enteredWithStreams = (next?.plays ?? 0) > 0;
       if (pkg.status !== "draft") {
-        await confirmExternalPackage({ packageId: pkg.id, campaignId, snapshot });
-        toast({ title: "Curador adicionado", description: `${curator.name} entrou no pacote e o deal foi criado.` });
+        if (enteredWithStreams) {
+          await confirmExternalPackage({ packageId: pkg.id, campaignId, snapshot });
+          toast({ title: "Curador adicionado", description: `${curator.name} entrou no pacote e o deal foi criado.` });
+        } else {
+          toast({
+            title: "Curador adicionado (sem volume)",
+            description: `${curator.name} entrou como rascunho. Clique em "Ajustar volume" pra definir os streams — o deal é criado na hora.`,
+          });
+        }
       }
       await load();
     } catch (e: any) {
@@ -744,7 +754,18 @@ export function ExternalPackageEditor({
                 assigned_streams: v,
                 cost_per_stream: editTarget.cost_per_stream,
               });
-              toast({ title: "Volume ajustado", description: `${editTarget.curators?.name ?? "Curador"}: ${formatInt(v)} streams.` });
+              // Se o pacote está travado e esse item ainda não tem deal vinculado
+              // (foi adicionado com 0 streams e agora ganhou volume), materializa
+              // o deal agora — confirmExternalPackage é idempotente e só cria o
+              // que falta, sem mexer nos deals já existentes.
+              const needsDeal = pkg && pkg.status !== "draft" && !editTarget.curator_deal_id && v > 0;
+              if (needsDeal && pkg) {
+                await confirmExternalPackage({ packageId: pkg.id, campaignId, snapshot });
+              }
+              toast({
+                title: "Volume ajustado",
+                description: `${editTarget.curators?.name ?? "Curador"}: ${formatInt(v)} streams${needsDeal ? " · deal criado" : ""}.`,
+              });
               setEditTarget(null);
               await load();
             } catch (err: any) {
