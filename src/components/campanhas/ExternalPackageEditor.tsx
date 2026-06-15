@@ -37,7 +37,28 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+
+function formatStreamsWord(n: number): string {
+  if (!n || n <= 0) return "—";
+  if (n >= 1_000_000) {
+    const v = n / 1_000_000;
+    return `${v % 1 === 0 ? v.toFixed(0) : v.toFixed(2).replace(/\.?0+$/, "")} milhão`.replace("1 milhão", "1 milhão").replace(/^(?!1 )(\S+) milhão/, "$1 milhões");
+  }
+  if (n >= 1_000) {
+    const v = n / 1_000;
+    return `${v % 1 === 0 ? v.toFixed(0) : v.toFixed(1).replace(/\.0$/, "")} mil`;
+  }
+  return formatInt(n);
+}
 
 type PackageRow = {
   id: string;
@@ -684,65 +705,93 @@ export function ExternalPackageEditor({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-    <AlertDialog open={!!editTarget} onOpenChange={(open) => !open && !savingEdit && setEditTarget(null)}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Ajustar volume de {editTarget?.curators?.name ?? "curador"}</AlertDialogTitle>
-          <AlertDialogDescription>
+    <Dialog open={!!editTarget} onOpenChange={(open) => !open && !savingEdit && setEditTarget(null)}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Ajustar volume de {editTarget?.curators?.name ?? "curador"}</DialogTitle>
+          <DialogDescription>
             Defina quantos streams esse curador vai realmente entregar nessa música.
-            O custo total é recalculado automaticamente ({editTarget ? `R$ ${editTarget.cost_per_stream.toFixed(3)}/stream` : ""})
-            e o deal vinculado é atualizado na mesma hora.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <div className="space-y-2 py-2">
-          <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">Streams planejados</label>
-          <Input
-            type="number"
-            inputMode="numeric"
-            value={editValue}
-            onFocus={(e) => e.target.select()}
-            onChange={(e) => setEditValue(e.target.value)}
-            className="h-10 text-base tabular-nums"
-            disabled={savingEdit}
-          />
-          {editTarget && (
-            <p className="text-[11px] text-muted-foreground tabular-nums">
-              Novo custo total: <span className="text-foreground font-medium">
-                {formatBRL(Math.max(0, parseInt(editValue || "0", 10) || 0) * editTarget.cost_per_stream)}
-              </span>
-            </p>
-          )}
-        </div>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={savingEdit}>Cancelar</AlertDialogCancel>
-          <AlertDialogAction
-            disabled={savingEdit}
-            onClick={async (e) => {
-              e.preventDefault();
-              if (!editTarget) return;
+            O custo total é recalculado automaticamente
+            {editTarget ? ` (R$ ${editTarget.cost_per_stream.toFixed(3)}/stream)` : ""} e o
+            deal vinculado é atualizado na mesma hora.
+          </DialogDescription>
+        </DialogHeader>
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!editTarget) return;
+            const v = Math.max(0, parseInt(editValue || "0", 10) || 0);
+            setSavingEdit(true);
+            try {
+              await updatePackageItem(editTarget.id, {
+                assigned_streams: v,
+                cost_per_stream: editTarget.cost_per_stream,
+              });
+              toast({ title: "Volume ajustado", description: `${editTarget.curators?.name ?? "Curador"}: ${formatInt(v)} streams.` });
+              setEditTarget(null);
+              await load();
+            } catch (err: any) {
+              toast({ title: "Erro ao ajustar", description: err.message ?? String(err), variant: "destructive" });
+            } finally {
+              setSavingEdit(false);
+            }
+          }}
+          className="space-y-4"
+        >
+          <div className="space-y-2">
+            <label htmlFor="edit-streams" className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+              Streams planejados
+            </label>
+            <Input
+              id="edit-streams"
+              type="number"
+              inputMode="numeric"
+              autoFocus
+              value={editValue}
+              onFocus={(e) => e.target.select()}
+              onChange={(e) => setEditValue(e.target.value)}
+              className="h-12 text-lg tabular-nums font-semibold"
+              disabled={savingEdit}
+              placeholder="0"
+            />
+            {(() => {
+              if (!editTarget) return null;
               const v = Math.max(0, parseInt(editValue || "0", 10) || 0);
-              setSavingEdit(true);
-              try {
-                await updatePackageItem(editTarget.id, {
-                  assigned_streams: v,
-                  cost_per_stream: editTarget.cost_per_stream,
-                });
-                toast({ title: "Volume ajustado", description: `${editTarget.curators?.name ?? "Curador"}: ${formatInt(v)} streams.` });
-                setEditTarget(null);
-                await load();
-              } catch (err: any) {
-                toast({ title: "Erro ao ajustar", description: err.message ?? String(err), variant: "destructive" });
-              } finally {
-                setSavingEdit(false);
-              }
-            }}
-          >
-            {savingEdit ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : null}
-            Salvar
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+              const cost = v * editTarget.cost_per_stream;
+              return (
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <div className="rounded-md border border-border bg-elevated/40 px-3 py-2">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Equivale a</p>
+                    <p className="text-base font-semibold tabular-nums text-primary leading-tight">
+                      {formatStreamsWord(v)}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground tabular-nums">{formatInt(v)} streams</p>
+                  </div>
+                  <div className="rounded-md border border-border bg-elevated/40 px-3 py-2">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Custo total</p>
+                    <p className="text-base font-semibold tabular-nums text-foreground leading-tight">
+                      {formatBRL(cost)}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground tabular-nums">
+                      R$ {editTarget.cost_per_stream.toFixed(3)}/stream
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button type="button" variant="outline" onClick={() => setEditTarget(null)} disabled={savingEdit}>
+              Cancelar
+            </Button>
+            <Button type="submit" variant="solid" disabled={savingEdit}>
+              {savingEdit ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : null}
+              Salvar
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
     <AlertDialog open={reopenOpen} onOpenChange={setReopenOpen}>
       <AlertDialogContent>
         <AlertDialogHeader>
