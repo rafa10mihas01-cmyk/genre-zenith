@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Music2, CheckCircle2, AlertTriangle, Clock, ChevronRight, ArrowUpDown } from "lucide-react";
+import { Music2, CheckCircle2, AlertTriangle, Clock, ChevronRight, ArrowUpDown, Target } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -208,8 +208,8 @@ export function MusicasTab() {
               const stale = collectAge > 60 * 24;
               const noCollect = !t.tel || t.tel.snapshots_count === 0;
               return (
+                <div key={t.id} className="relative">
                 <button
-                  key={t.id}
                   onClick={() => navigate(`/catalogo/musica/${t.id}`)}
                   className="w-full text-left bg-card border border-border rounded-xl p-4 active:scale-[0.99] transition-all hover:bg-[#212121] hover:border-[hsl(0,0%,24%)] group"
                 >
@@ -327,6 +327,17 @@ export function MusicasTab() {
                     </div>
                   )}
                 </button>
+                <button
+                  type="button"
+                  title="Criar campanha com essa música"
+                  onClick={(e) => { e.stopPropagation(); navigate(`/campanhas?novaCampanha=${t.spotify_track_id}`); }}
+                  className="absolute bottom-3 right-3 h-8 px-2.5 rounded-full bg-primary/15 text-primary border border-primary/30 flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider hover:bg-primary/25 transition-colors"
+                  aria-label="Criar campanha"
+                >
+                  <Target className="h-3.5 w-3.5" />
+                  Campanha
+                </button>
+                </div>
               );
             })}
           </div>
@@ -349,10 +360,10 @@ export function MusicasTab() {
               const growthPct = t.tel?.growth_pct;
 
               return (
+                <div key={t.id} className="relative">
                 <button
-                  key={t.id}
                   onClick={() => navigate(`/catalogo/musica/${t.id}`)}
-                  className="group text-left rounded-2xl border border-border/50 border-l-2 border-l-domain-curators/60 bg-card hover:bg-[hsl(var(--elevated))] hover:border-foreground/20 hover:border-l-domain-curators transition-colors flex flex-col h-full"
+                  className="w-full group text-left rounded-2xl border border-border/50 border-l-2 border-l-domain-curators/60 bg-card hover:bg-[hsl(var(--elevated))] hover:border-foreground/20 hover:border-l-domain-curators transition-colors flex flex-col h-full"
                 >
                   {/* Linha 1 — identidade */}
                   <div className="flex items-start gap-3 px-4 pt-3.5 pb-2.5 min-w-0">
@@ -464,6 +475,17 @@ export function MusicasTab() {
                     )}
                   </div>
                 </button>
+                <button
+                  type="button"
+                  title="Criar campanha com essa música"
+                  onClick={(e) => { e.stopPropagation(); navigate(`/campanhas?novaCampanha=${t.spotify_track_id}`); }}
+                  className="absolute bottom-3 right-3 h-7 px-2.5 rounded-full bg-primary/15 text-primary border border-primary/30 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider hover:bg-primary/25 transition-colors shadow-sm"
+                  aria-label="Criar campanha"
+                >
+                  <Target className="h-3 w-3" />
+                  Campanha
+                </button>
+                </div>
               );
             })}
           </div>

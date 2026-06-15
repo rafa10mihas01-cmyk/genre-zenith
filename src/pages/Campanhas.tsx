@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useScreenField } from "@/lib/screen-state";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
@@ -113,6 +113,24 @@ export default function Campanhas() {
   const { items, loading, recalcAll } = useCampaigns();
   const [filter, setFilter] = useScreenField<PipelineFilter>("/campanhas", "filter", "all");
   const [tab, setTab] = useScreenField<"lista" | "financeiro">("/campanhas", "tab", "financeiro");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [prefillTrackId, setPrefillTrackId] = useState<string | null>(null);
+
+  // Deep link vindo do Catálogo: /campanhas?novaCampanha=<spotify_track_id>
+  // Abre a aba Planejamento (Calculadora) e dispara pré-preenchimento da faixa.
+  useEffect(() => {
+    const id = searchParams.get("novaCampanha");
+    if (!id) return;
+    setTab("financeiro");
+    setPrefillTrackId(id);
+    const next = new URLSearchParams(searchParams);
+    next.delete("novaCampanha");
+    setSearchParams(next, { replace: true });
+    // Limpa o prefill após um tick pra evitar reaplicar em re-renders
+    const t = setTimeout(() => setPrefillTrackId(null), 1500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const filtered = useMemo(
     () => filter === "all" ? items : items.filter(i => pipelineStage(i) === filter),
@@ -376,7 +394,7 @@ export default function Campanhas() {
 
         )}
 
-        {tab === "financeiro" && <Calculadora />}
+        {tab === "financeiro" && <Calculadora prefillSpotifyTrackId={prefillTrackId} />}
       </PageContainer>
     </>
   );

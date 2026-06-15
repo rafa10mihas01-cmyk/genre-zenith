@@ -151,7 +151,7 @@ function loadPersisted(): PersistedV2 {
   return { clientId: "", curatorId: "", songs: [emptySong()], activeIdx: 0 };
 }
 
-export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandoff) => void }) {
+export function Calculadora({ onContinue, prefillSpotifyTrackId }: { onContinue?: (h: CalculadoraHandoff) => void; prefillSpotifyTrackId?: string | null }) {
   const initial = useMemo(loadPersisted, []);
   const navigate = useNavigate();
   const { costs: pricingCosts, settings: pricingSettings } = usePricingSettings();
@@ -364,6 +364,35 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
       setTrackLoading(false);
     }
   }
+
+  // Pré-preenchimento via deep link (ex: vindo do Catálogo "Criar campanha")
+  // Evita duplicar: se já existe uma música com o mesmo spotify_track_id na sessão,
+  // apenas torna ela ativa. Caso contrário, cria uma nova música e busca a meta.
+  useEffect(() => {
+    if (!prefillSpotifyTrackId) return;
+    const trackUrl = `https://open.spotify.com/track/${prefillSpotifyTrackId}`;
+    const existingIdx = songs.findIndex(s => s.track?.id === prefillSpotifyTrackId);
+    if (existingIdx >= 0) {
+      setActiveIdx(existingIdx);
+      setStep(2);
+      return;
+    }
+    // Se a música ativa está vazia (sem track), reaproveita ela; senão adiciona nova.
+    const currentEmpty = !active?.track?.id && !active?.trackUrl;
+    let targetIdx = activeIdx;
+    if (!currentEmpty) {
+      const next = [...songs, { ...emptySong(), trackUrl }];
+      setSongs(next);
+      targetIdx = next.length - 1;
+      setActiveIdx(targetIdx);
+    } else {
+      setSongs(prev => prev.map((s, i) => i === activeIdx ? { ...s, trackUrl } : s));
+    }
+    setStep(2);
+    // Dispara busca após estado aplicar
+    setTimeout(() => { void buscarMusica(trackUrl); }, 50);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefillSpotifyTrackId]);
 
   async function closeOne(song: Song): Promise<{ ok: boolean; campaignId?: string; error?: string; shortfall?: { capacity: number; missing: number; suggestedExtPct: number } }> {
     if (!song.track?.id) return { ok: false, error: "Sem música carregada" };
