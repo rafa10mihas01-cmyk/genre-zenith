@@ -1,7 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors'
 
-const BOT_INGEST_TOKEN = Deno.env.get('BOT_INGEST_TOKEN')
+const BOT_INGEST_TOKEN = Deno.env.get('BOT_INGEST_TOKEN')?.trim()
 
 function verifyToken(req: Request) {
   const auth = req.headers.get('authorization') || ''
