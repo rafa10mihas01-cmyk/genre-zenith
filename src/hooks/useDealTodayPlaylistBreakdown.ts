@@ -174,7 +174,7 @@ export function useDealTodayPlaylistBreakdown(dealId: string | null | undefined)
           previous_captured_at: null,
           plays_24h: null,
           plays_7d: g?.current_plays ?? null,
-          plays_28d: null,
+          plays_28d: totalDelivered || g?.current_plays || null,
           total_delivered: totalDelivered,
           baseline_total: baseline,
         };
@@ -187,13 +187,14 @@ export function useDealTodayPlaylistBreakdown(dealId: string | null | undefined)
 
       const total_today = rows.reduce((s, r) => s + (r.today_plays ?? 0), 0);
       const total_7d = sumNullable(rows.map((r) => r.plays_7d));
+      const total_28d = sumNullable(rows.map((r) => r.plays_28d));
       const total_delivered = rows.reduce((s, r) => s + r.total_delivered, 0);
 
       return {
         total_today,
         total_24h: null,
         total_7d,
-        total_28d: null,
+        total_28d,
         total_delivered,
         rows,
       };
