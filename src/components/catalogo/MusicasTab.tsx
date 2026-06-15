@@ -208,8 +208,8 @@ export function MusicasTab() {
               const stale = collectAge > 60 * 24;
               const noCollect = !t.tel || t.tel.snapshots_count === 0;
               return (
+                <div key={t.id} className="relative">
                 <button
-                  key={t.id}
                   onClick={() => navigate(`/catalogo/musica/${t.id}`)}
                   className="w-full text-left bg-card border border-border rounded-xl p-4 active:scale-[0.99] transition-all hover:bg-[#212121] hover:border-[hsl(0,0%,24%)] group"
                 >
