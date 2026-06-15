@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Music2, CheckCircle2, AlertTriangle, Clock, ChevronRight, ArrowUpDown } from "lucide-react";
+import { Music2, CheckCircle2, AlertTriangle, Clock, ChevronRight, ArrowUpDown, Target } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
