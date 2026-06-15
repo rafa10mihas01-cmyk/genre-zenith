@@ -744,7 +744,18 @@ export function ExternalPackageEditor({
                 assigned_streams: v,
                 cost_per_stream: editTarget.cost_per_stream,
               });
-              toast({ title: "Volume ajustado", description: `${editTarget.curators?.name ?? "Curador"}: ${formatInt(v)} streams.` });
+              // Se o pacote está travado e esse item ainda não tem deal vinculado
+              // (foi adicionado com 0 streams e agora ganhou volume), materializa
+              // o deal agora — confirmExternalPackage é idempotente e só cria o
+              // que falta, sem mexer nos deals já existentes.
+              const needsDeal = pkg && pkg.status !== "draft" && !editTarget.curator_deal_id && v > 0;
+              if (needsDeal && pkg) {
+                await confirmExternalPackage({ packageId: pkg.id, campaignId, snapshot });
+              }
+              toast({
+                title: "Volume ajustado",
+                description: `${editTarget.curators?.name ?? "Curador"}: ${formatInt(v)} streams${needsDeal ? " · deal criado" : ""}.`,
+              });
               setEditTarget(null);
               await load();
             } catch (err: any) {
