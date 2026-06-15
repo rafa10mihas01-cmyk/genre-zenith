@@ -73,6 +73,7 @@ type CountRow = {
   followers: number | null;
   genre_id: string | null;
   archived_at: string | null;
+  archived_reason: string | null;
   reactivation_eligible_at: string | null;
   lifecycle_phase: string | null;
 };
@@ -131,6 +132,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const filterFase = (searchParams.get("fase") as "all" | "prontas" | "crescendo" | "novas" | "atencao") || "all";
   const filterAppBlocked = searchParams.get("app") === "bloqueado";
   const showArchived = searchParams.get("arquivadas") === "1";
+  const archiveType = (searchParams.get("tipo") as "catalogo" | "manual" | null) || null;
   const showCapacity = searchParams.get("aba") === "capacidade";
   const sortBy = (searchParams.get("sort") as "followers" | "recent" | "valuation") || "followers";
 
@@ -209,17 +211,18 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   // e mostrar só os que sobrarem ao filtrar uma fase.
   useEffect(() => {
     setLoadedCount(PAGE_SIZE);
-  }, [filterFase, showArchived, filterMissingGenre, filterGenreId, filterSize, onlyEligible]);
+  }, [filterFase, showArchived, archiveType, filterMissingGenre, filterGenreId, filterSize, onlyEligible]);
 
-  // Limpa o param ao sair da lixeira.
+  // Limpa params ao sair da lixeira.
   useEffect(() => {
-    if (!showArchived && searchParams.get("elegiveis")) {
-      updateParam("elegiveis", null);
+    if (!showArchived) {
+      if (searchParams.get("elegiveis")) updateParam("elegiveis", null);
+      if (searchParams.get("tipo")) updateParam("tipo", null);
     }
   }, [showArchived, searchParams, updateParam]);
 
   const itemsQuery = useQuery({
-    queryKey: ["managed-playlists", loadedCount, filterFase, showArchived, sortBy, filterMissingGenre, filterGenreId, filterSize, onlyEligible],
+    queryKey: ["managed-playlists", loadedCount, filterFase, showArchived, archiveType, sortBy, filterMissingGenre, filterGenreId, filterSize, onlyEligible],
     queryFn: async () => {
       let q = supabase
         .from("managed_playlists")
@@ -232,6 +235,11 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       if (showArchived) {
         q = q.not("archived_at", "is", null);
         if (onlyEligible) q = q.not("reactivation_eligible_at", "is", null);
+        if (archiveType === "catalogo") {
+          q = q.or("archived_reason.ilike.auto_%,archived_reason.ilike.LOW_VALUE%");
+        } else if (archiveType === "manual") {
+          q = q.eq("archived_reason", "manual");
+        }
       } else {
         q = q.is("archived_at", null);
       }
@@ -270,12 +278,12 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const loading = itemsQuery.isPending;
   const setItems = useCallback(
     (updater: ManagedPlaylist[] | ((prev: ManagedPlaylist[]) => ManagedPlaylist[])) => {
-      queryClient.setQueryData<ManagedPlaylist[]>(["managed-playlists", loadedCount, filterFase, showArchived, sortBy, filterMissingGenre, filterGenreId, filterSize, onlyEligible], (prev) => {
+      queryClient.setQueryData<ManagedPlaylist[]>(["managed-playlists", loadedCount, filterFase, showArchived, archiveType, sortBy, filterMissingGenre, filterGenreId, filterSize, onlyEligible], (prev) => {
         const base = prev ?? [];
         return typeof updater === "function" ? (updater as (p: ManagedPlaylist[]) => ManagedPlaylist[])(base) : updater;
       });
     },
-    [queryClient, loadedCount, filterFase, showArchived, sortBy, filterMissingGenre, filterGenreId, filterSize],
+    [queryClient, loadedCount, filterFase, showArchived, archiveType, sortBy, filterMissingGenre, filterGenreId, filterSize],
   );
 
   // Contagens reais do catálogo inteiro (5 colunas, payload mínimo).
@@ -284,7 +292,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     queryFn: async () => {
       const { data, error } = await supabase
         .from("managed_playlists")
-        .select("id, followers, genre_id, archived_at, reactivation_eligible_at, lifecycle_phase")
+        .select("id, followers, genre_id, archived_at, archived_reason, reactivation_eligible_at, lifecycle_phase")
         .limit(5000);
       if (error) throw error;
       return (data ?? []) as CountRow[];
@@ -294,6 +302,8 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const countRows = countsQuery.data ?? [];
   const totalActiveCount = countRows.filter((r) => !r.archived_at).length;
   const totalArchivedCount = countRows.filter((r) => r.archived_at).length;
+  const catalogCount = countRows.filter((r) => r.archived_at && (r.archived_reason?.startsWith("auto_") || r.archived_reason?.startsWith("LOW_VALUE"))).length;
+  const manualArchivedCount = countRows.filter((r) => r.archived_at && r.archived_reason === "manual").length;
   const eligibleCount = countRows.filter((r) => r.archived_at && r.reactivation_eligible_at).length;
 
   // Contagens por fase (catálogo ativo inteiro).
@@ -324,7 +334,11 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   // Total real considerando TODOS os filtros server-side (fase + sem_genero + genero).
   // Sem isso, "Carregar mais" desliga antes da hora quando os filtros reduzem o conjunto.
   const totalLoadedTarget = useMemo(() => {
-    if (showArchived) return totalArchivedCount;
+    if (showArchived) {
+      if (archiveType === "catalogo") return catalogCount;
+      if (archiveType === "manual") return manualArchivedCount;
+      return totalArchivedCount;
+    }
     return activeRows.filter((r) => {
       if (filterFase !== "all" && classifyFase(r) !== filterFase) return false;
       if (filterMissingGenre && r.genre_id) return false;
@@ -336,7 +350,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       if (filterSize === "top" && !(f >= 100000)) return false;
       return true;
     }).length;
-  }, [showArchived, totalArchivedCount, activeRows, filterFase, filterMissingGenre, filterGenreId, filterSize, classifyFase]);
+  }, [showArchived, archiveType, totalArchivedCount, catalogCount, manualArchivedCount, activeRows, filterFase, filterMissingGenre, filterGenreId, filterSize, classifyFase]);
   const canLoadMore = items.length < loadedCount
     ? false // ainda chegando do servidor
     : items.length < totalLoadedTarget;
@@ -1592,7 +1606,8 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
               </TooltipContent>
             </Tooltip>
           )}
-          {showArchived ? (
+          {/* Botão Ativas — visível só quando estamos em alguma view de arquivadas */}
+          {showArchived && (
             <Link
               to="/operacao"
               replace
@@ -1603,18 +1618,41 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
               <ListMusic className="h-4 w-4 sm:hidden" />
               <span className="hidden sm:inline">Ativas</span>
             </Link>
-          ) : (
-            <Link
-              to="/operacao?arquivadas=1"
-              replace
-              className="h-9 w-9 sm:w-auto sm:px-3 rounded-full text-[11px] sm:text-xs font-medium border transition-colors tabular-nums shrink-0 inline-flex items-center justify-center gap-1.5 bg-elevated border-border text-muted-foreground hover:text-foreground"
-              title={`Arquivado (${totalArchivedCount})`}
-              aria-label={`Arquivado (${totalArchivedCount})`}
-            >
-              <Archive className="h-4 w-4 sm:hidden" />
-              <span className="hidden sm:inline">Arquivado ({totalArchivedCount})</span>
-            </Link>
           )}
+
+          {/* Catálogo — playlists auto-arquivadas (reserva de inventário) */}
+          <Link
+            to="/operacao?arquivadas=1&tipo=catalogo"
+            replace
+            className={cn(
+              "h-9 w-9 sm:w-auto sm:px-3 rounded-full text-[11px] sm:text-xs font-medium border transition-colors tabular-nums shrink-0 inline-flex items-center justify-center gap-1.5",
+              archiveType === "catalogo"
+                ? "bg-primary/15 border-primary/40 text-primary"
+                : "bg-elevated border-border text-muted-foreground hover:text-foreground",
+            )}
+            title={`Catálogo (${catalogCount})`}
+            aria-label={`Catálogo (${catalogCount})`}
+          >
+            <Archive className="h-4 w-4 sm:hidden" />
+            <span className="hidden sm:inline">Catálogo ({catalogCount})</span>
+          </Link>
+
+          {/* Arquivado — playlists arquivadas manualmente */}
+          <Link
+            to="/operacao?arquivadas=1&tipo=manual"
+            replace
+            className={cn(
+              "h-9 w-9 sm:w-auto sm:px-3 rounded-full text-[11px] sm:text-xs font-medium border transition-colors tabular-nums shrink-0 inline-flex items-center justify-center gap-1.5",
+              archiveType === "manual"
+                ? "bg-primary/15 border-primary/40 text-primary"
+                : "bg-elevated border-border text-muted-foreground hover:text-foreground",
+            )}
+            title={`Arquivado (${manualArchivedCount})`}
+            aria-label={`Arquivado (${manualArchivedCount})`}
+          >
+            <Archive className="h-4 w-4 sm:hidden" />
+            <span className="hidden sm:inline">Arquivado ({manualArchivedCount})</span>
+          </Link>
 
           {/* Capacidade ocultada — acessível pela URL /catalogo?aba=capacidade se necessário. */}
 
@@ -1677,11 +1715,21 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
             <ListMusic className="h-5 w-5 text-muted-foreground" />
           </div>
           <h4 className="mt-3 font-semibold">
-            {showArchived ? "Nenhuma playlist arquivada" : "Nenhuma playlist gerenciada"}
+            {showArchived
+              ? archiveType === "catalogo"
+                ? "Nenhuma playlist no catálogo"
+                : archiveType === "manual"
+                ? "Nenhuma playlist arquivada"
+                : "Nenhuma playlist arquivada"
+              : "Nenhuma playlist gerenciada"}
           </h4>
           <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
             {showArchived
-              ? "Playlists que você arquivar ficam aqui (mantém histórico e métricas)."
+              ? archiveType === "catalogo"
+                ? "Playlists auto-arquivadas pelo sistema (seguidores < 1.000 ou inatividade). Reserva de inventário para campanhas."
+                : archiveType === "manual"
+                ? "Playlists que você arquivou manualmente ficam aqui (mantém histórico e métricas)."
+                : "Playlists que você arquivar ficam aqui (mantém histórico e métricas)."
               : "Cole a URL de uma playlist do Spotify para começar a operar com a inteligência do sistema."}
           </p>
           {!showArchived && (
