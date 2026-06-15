@@ -235,14 +235,15 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       if (showArchived) {
         q = q.not("archived_at", "is", null);
         if (onlyEligible) q = q.not("reactivation_eligible_at", "is", null);
-        if (archiveType === "catalogo") {
-          q = q.or("archived_reason.ilike.auto_%,archived_reason.ilike.LOW_VALUE%");
-        } else if (archiveType === "manual") {
-          q = q.eq("archived_reason", "manual");
+        if (archiveType === "manual") {
+          // "Arquivado" = bucket reservado pra arquivamentos explícitos futuros (reason = 'user_archive').
+          q = q.eq("archived_reason", "user_archive");
         }
+        // Catálogo (default) = TODAS as arquivadas, sem filtro de reason.
       } else {
         q = q.is("archived_at", null);
       }
+
       // Fase server-side — abas mutuamente exclusivas (cada playlist cai em UMA só).
       // Hierarquia: Atenção > Prontas > Crescendo > Novas.
       const notAtencao = "or(lifecycle_phase.is.null,lifecycle_phase.not.in.(bloated,decline))";
@@ -302,8 +303,9 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const countRows = countsQuery.data ?? [];
   const totalActiveCount = countRows.filter((r) => !r.archived_at).length;
   const totalArchivedCount = countRows.filter((r) => r.archived_at).length;
-  const catalogCount = countRows.filter((r) => r.archived_at && (r.archived_reason?.startsWith("auto_") || r.archived_reason?.startsWith("LOW_VALUE"))).length;
-  const manualArchivedCount = countRows.filter((r) => r.archived_at && r.archived_reason === "manual").length;
+  const catalogCount = totalArchivedCount; // Catálogo = todas as arquivadas
+  const manualArchivedCount = countRows.filter((r) => r.archived_at && r.archived_reason === "user_archive").length;
+
   const eligibleCount = countRows.filter((r) => r.archived_at && r.reactivation_eligible_at).length;
 
   // Contagens por fase (catálogo ativo inteiro).
