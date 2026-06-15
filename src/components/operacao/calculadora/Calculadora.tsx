@@ -151,7 +151,7 @@ function loadPersisted(): PersistedV2 {
   return { clientId: "", curatorId: "", songs: [emptySong()], activeIdx: 0 };
 }
 
-export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandoff) => void }) {
+export function Calculadora({ onContinue, prefillSpotifyTrackId }: { onContinue?: (h: CalculadoraHandoff) => void; prefillSpotifyTrackId?: string | null }) {
   const initial = useMemo(loadPersisted, []);
   const navigate = useNavigate();
   const { costs: pricingCosts, settings: pricingSettings } = usePricingSettings();
