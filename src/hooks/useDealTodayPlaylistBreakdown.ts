@@ -77,7 +77,7 @@ export function useDealTodayPlaylistBreakdown(dealId: string | null | undefined)
       // 1) Deal → campaign_id
       const { data: deal, error: dealErr } = await supabase
         .from("curator_deals")
-        .select("id, campaign_id")
+        .select("id, campaign_id, song_spotify_url, song_name")
         .eq("id", dealId)
         .maybeSingle();
       if (dealErr) throw dealErr;
@@ -104,6 +104,19 @@ export function useDealTodayPlaylistBreakdown(dealId: string | null | undefined)
         ),
       ) as string[];
 
+      let campaignId: string | null = deal.campaign_id ?? null;
+      if (!campaignId) {
+        const trackUrl = (deal.song_spotify_url ?? "").trim();
+        let q = supabase
+          .from("campaigns")
+          .select("id")
+          .order("created_at", { ascending: false })
+          .limit(1);
+        q = trackUrl ? q.eq("spotify_track_url", trackUrl) : q.eq("track_name", deal.song_name ?? "");
+        const { data: linkedCampaign } = await q.maybeSingle();
+        campaignId = linkedCampaign?.id ?? null;
+      }
+
       let growthMap = new Map<
         string,
         {
@@ -116,13 +129,13 @@ export function useDealTodayPlaylistBreakdown(dealId: string | null | undefined)
         }
       >();
 
-      if (spotifyIds.length > 0 && deal.campaign_id) {
+      if (spotifyIds.length > 0 && campaignId) {
         const { data: growth, error: gErr } = await supabase
           .from("vw_campaign_playlist_growth")
           .select(
             "playlist_id, delivery_accumulated, last_import_delta, current_plays, baseline_plays, last_captured_at, baseline_at",
           )
-          .eq("campaign_id", deal.campaign_id)
+          .eq("campaign_id", campaignId)
           .in("playlist_id", spotifyIds);
         if (gErr) throw gErr;
         for (const g of growth ?? []) {
@@ -161,7 +174,7 @@ export function useDealTodayPlaylistBreakdown(dealId: string | null | undefined)
           previous_captured_at: null,
           plays_24h: null,
           plays_7d: g?.current_plays ?? null,
-          plays_28d: null,
+          plays_28d: totalDelivered || g?.current_plays || null,
           total_delivered: totalDelivered,
           baseline_total: baseline,
         };
@@ -174,13 +187,14 @@ export function useDealTodayPlaylistBreakdown(dealId: string | null | undefined)
 
       const total_today = rows.reduce((s, r) => s + (r.today_plays ?? 0), 0);
       const total_7d = sumNullable(rows.map((r) => r.plays_7d));
+      const total_28d = sumNullable(rows.map((r) => r.plays_28d));
       const total_delivered = rows.reduce((s, r) => s + r.total_delivered, 0);
 
       return {
         total_today,
         total_24h: null,
         total_7d,
-        total_28d: null,
+        total_28d,
         total_delivered,
         rows,
       };

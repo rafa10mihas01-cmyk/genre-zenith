@@ -157,7 +157,7 @@ Deno.serve(async (req) => {
     const { data: deal, error: dealErr } = await admin
       .from("curator_deals")
       .select(
-        "id, campaign_id, song_name, song_artist, song_cover_url, target_plays, daily_goal, baseline_plays, started_at, ends_at, created_at, closed_at, state, spotify_owner_id",
+        "id, campaign_id, song_spotify_url, song_name, song_artist, song_cover_url, target_plays, daily_goal, baseline_plays, started_at, ends_at, created_at, closed_at, state, spotify_owner_id",
       )
       .eq("id", dealId!)
       .maybeSingle();
@@ -335,6 +335,29 @@ Deno.serve(async (req) => {
         if (c.id) campaignIdsForDeals.add(String(c.id));
       }
     }
+    if (campaignIdsForDeals.size === 0) {
+      const trackUrl = String(dealRow.song_spotify_url ?? "").trim();
+      if (trackUrl) {
+        const { data: linkedByUrl } = await admin
+          .from("campaigns")
+          .select("id")
+          .eq("spotify_track_url", trackUrl)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (linkedByUrl?.id) campaignIdsForDeals.add(String(linkedByUrl.id));
+      }
+      if (campaignIdsForDeals.size === 0 && dealRow.song_name) {
+        const { data: linkedByName } = await admin
+          .from("campaigns")
+          .select("id")
+          .eq("track_name", String(dealRow.song_name))
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (linkedByName?.id) campaignIdsForDeals.add(String(linkedByName.id));
+      }
+    }
 
     type ContractedPlaylist = {
       playlist_id: string;
@@ -359,6 +382,27 @@ Deno.serve(async (req) => {
           playlist_url: (r.playlist_url as string | null) ?? null,
           first_seen_at: (r.matched_at as string | null) ?? (r.registered_at as string | null) ?? null,
           registered_at: (r.registered_at as string | null) ?? null,
+        });
+      }
+    }
+    if (contracted.length === 0) {
+      const { data: dealPlaylists } = await admin
+        .from("v_curator_playlists_operational")
+        .select("spotify_playlist_id, spotify_url, added_at, last_paste_at, match_status, is_baseline")
+        .eq("deal_id", dealId!)
+        .eq("match_status", "curator")
+        .eq("is_baseline", false)
+        .not("spotify_playlist_id", "is", null);
+      const seen = new Set<string>();
+      for (const r of (dealPlaylists ?? []) as AnyRec[]) {
+        const k = String(r.spotify_playlist_id ?? "");
+        if (!k || seen.has(k)) continue;
+        seen.add(k);
+        contracted.push({
+          playlist_id: k,
+          playlist_url: (r.spotify_url as string | null) ?? null,
+          first_seen_at: (r.last_paste_at as string | null) ?? (r.added_at as string | null) ?? null,
+          registered_at: (r.added_at as string | null) ?? null,
         });
       }
     }
@@ -416,8 +460,7 @@ Deno.serve(async (req) => {
         .select(
           "playlist_id, delivery_accumulated, last_import_delta, current_plays, current_name, baseline_name, first_seen_at, attributed_to",
         )
-        .in("campaign_id", Array.from(campaignIdsForDeals))
-        .like("attributed_to", "curator:%");
+        .in("campaign_id", Array.from(campaignIdsForDeals));
       for (const g of (growthRows ?? []) as AnyRec[]) {
         const k = String(g.playlist_id ?? "");
         if (!k) continue;
@@ -484,7 +527,7 @@ Deno.serve(async (req) => {
         last_import_delta: g?.last_import_delta ?? null,
         plays_24h: null,
         plays_7d: g?.current_plays ?? null,
-        plays_28d: null,
+        plays_28d: delivered || g?.current_plays || null,
         status,
         source: "curator" as const,
         spotify_playlist_id: c.playlist_id,
@@ -545,7 +588,7 @@ Deno.serve(async (req) => {
             last_import_delta: growth?.last_import_delta ?? null,
             plays_24h: null,
             plays_7d: growth?.current_plays ?? null,
-            plays_28d: null,
+            plays_28d: grown || growth?.current_plays || null,
             status: grown > 0 ? "Crescendo" : "Nova",
             source: "engine" as const,
             planned: Number(a.planned_streams ?? 0),

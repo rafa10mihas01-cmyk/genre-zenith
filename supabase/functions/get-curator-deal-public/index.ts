@@ -124,12 +124,39 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Fallback essencial para o portal do curador: o painel interno já lê o
-    // Growth Engine por spotify_playlist_id, enquanto alguns snapshots recentes
-    // ficam com plays_7d/28d nulos. Sem isso, o curador vê "—" embora a mesma
-    // playlist apareça com número no deal interno.
-    const growthBySpotifyPlaylist: Record<string, { plays_7d: number | null }> = {};
-    if ((deal as any).campaign_id) {
+    // Fallback essencial para o portal do curador: o Growth Engine é a fonte
+    // por spotify_playlist_id quando o snapshot do DEL não carrega janelas.
+    // Deals legados podem não ter campaign_id; nesses casos resolvemos a
+    // campanha pela música para não deixar a lista com "—".
+    let growthCampaignId = ((deal as any).campaign_id as string | null) ?? null;
+    if (!growthCampaignId) {
+      try {
+        const trackUrl = ((deal as any).song_spotify_url ?? "").trim();
+        if (trackUrl) {
+          const { data: campByTrack } = await admin
+            .from("campaigns")
+            .select("id")
+            .eq("spotify_track_url", trackUrl)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          growthCampaignId = (campByTrack as any)?.id ?? null;
+        }
+        if (!growthCampaignId && (deal as any).song_name) {
+          const { data: campByName } = await admin
+            .from("campaigns")
+            .select("id")
+            .eq("track_name", (deal as any).song_name)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          growthCampaignId = (campByName as any)?.id ?? null;
+        }
+      } catch (_e) { /* best-effort */ }
+    }
+
+    const growthBySpotifyPlaylist: Record<string, { plays_7d: number | null; plays_28d: number | null }> = {};
+    if (growthCampaignId) {
       try {
         const playlistIds = Array.from(
           new Set(
@@ -142,16 +169,18 @@ Deno.serve(async (req) => {
           const { data: growthRows } = await admin
             .from("vw_campaign_playlist_growth")
             .select("playlist_id, current_plays, delivery_accumulated, delta, attributed_to")
-            .eq("campaign_id", (deal as any).campaign_id)
-            .in("playlist_id", playlistIds)
-            .like("attributed_to", "curator:%");
+            .eq("campaign_id", growthCampaignId)
+            .in("playlist_id", playlistIds);
           for (const r of (growthRows ?? []) as Array<{ playlist_id: string | null; current_plays: number | null; delivery_accumulated: number | null; delta: number | null }>) {
             const pid = (r.playlist_id ?? "").trim();
             if (!pid) continue;
-            const value = r.current_plays ?? r.delivery_accumulated ?? r.delta ?? null;
-            if (value == null) continue;
-            const prev = growthBySpotifyPlaylist[pid]?.plays_7d;
-            growthBySpotifyPlaylist[pid] = { plays_7d: Math.max(Number(prev ?? 0), Number(value)) };
+            const plays7d = r.current_plays ?? r.delivery_accumulated ?? r.delta ?? null;
+            const plays28d = r.delivery_accumulated ?? r.delta ?? r.current_plays ?? null;
+            const prev = growthBySpotifyPlaylist[pid];
+            growthBySpotifyPlaylist[pid] = {
+              plays_7d: plays7d == null ? (prev?.plays_7d ?? null) : Math.max(Number(prev?.plays_7d ?? 0), Number(plays7d)),
+              plays_28d: plays28d == null ? (prev?.plays_28d ?? null) : Math.max(Number(prev?.plays_28d ?? 0), Number(plays28d)),
+            };
           }
         }
       } catch (_e) { /* best-effort */ }
@@ -223,7 +252,7 @@ Deno.serve(async (req) => {
       resolved: boolean;
     }> = [];
 
-    if ((deal as any).campaign_id) {
+    if (growthCampaignId) {
       const campaignId = (deal as any).campaign_id as string;
       try {
         const { data: ccpRows } = await admin
@@ -311,7 +340,7 @@ Deno.serve(async (req) => {
           const { data: growthRows } = await admin
             .from("vw_campaign_playlist_growth")
             .select("playlist_id, baseline_plays")
-            .eq("campaign_id", (deal as any).campaign_id)
+            .eq("campaign_id", growthCampaignId)
             .in("playlist_id", playlistIds);
           for (const r of (growthRows ?? []) as Array<{ playlist_id: string | null; baseline_plays: number | null }>) {
             const pid = (r.playlist_id ?? "").trim();
@@ -330,8 +359,8 @@ Deno.serve(async (req) => {
       playlists: (playlists ?? []).map((p: any) => ({
         ...p,
         plays_24h: latestByPlaylist[p.id]?.plays_24h ?? null,
-        plays_7d: latestByPlaylist[p.id]?.plays_7d ?? growthBySpotifyPlaylist[(p.spotify_playlist_id ?? "").trim()]?.plays_7d ?? null,
-        plays_28d: latestByPlaylist[p.id]?.plays_28d ?? null,
+        plays_7d: latestByPlaylist[p.id]?.plays_7d ?? growthBySpotifyPlaylist[(p.spotify_playlist_id ?? "").trim()]?.plays_7d ?? p.streams_7d ?? null,
+        plays_28d: latestByPlaylist[p.id]?.plays_28d ?? growthBySpotifyPlaylist[(p.spotify_playlist_id ?? "").trim()]?.plays_28d ?? p.streams_28d ?? null,
         last_window_capture_at: latestByPlaylist[p.id]?.captured_at ?? null,
         baseline_plays_prior: baselinePlaysByPid[(p.spotify_playlist_id ?? "").trim()] ?? 0,
       })),
