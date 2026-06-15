@@ -34,9 +34,10 @@ Deno.serve(async (req) => {
     .eq("captured_date", today);
   const capturedSet = new Set((captured ?? []).map((r: any) => r.spotify_playlist_id));
 
-  // Blocklist
-  const { data: blocked } = await supa.from("observed_playlists_blocklist").select("spotify_playlist_id");
-  const blockedSet = new Set((blocked ?? []).map((r: any) => r.spotify_playlist_id));
+  // Blocklist — a tabela usa coluna `id` (não `spotify_playlist_id`).
+  // Contém placeholders algorítmicos do Spotify (discover_weekly, smart_shuffle, etc).
+  const { data: blocked } = await supa.from("observed_playlists_blocklist").select("id");
+  const blockedSet = new Set((blocked ?? []).map((r: any) => r.id));
 
   // Candidatos: prioriza maior total_plays_observed e observação recente
   const { data: candidates, error } = await supa
