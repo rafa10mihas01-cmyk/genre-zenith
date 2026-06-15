@@ -1602,7 +1602,8 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
               </TooltipContent>
             </Tooltip>
           )}
-          {showArchived ? (
+          {/* Botão Ativas — visível só quando estamos em alguma view de arquivadas */}
+          {showArchived && (
             <Link
               to="/operacao"
               replace
@@ -1613,18 +1614,41 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
               <ListMusic className="h-4 w-4 sm:hidden" />
               <span className="hidden sm:inline">Ativas</span>
             </Link>
-          ) : (
-            <Link
-              to="/operacao?arquivadas=1"
-              replace
-              className="h-9 w-9 sm:w-auto sm:px-3 rounded-full text-[11px] sm:text-xs font-medium border transition-colors tabular-nums shrink-0 inline-flex items-center justify-center gap-1.5 bg-elevated border-border text-muted-foreground hover:text-foreground"
-              title={`Arquivado (${totalArchivedCount})`}
-              aria-label={`Arquivado (${totalArchivedCount})`}
-            >
-              <Archive className="h-4 w-4 sm:hidden" />
-              <span className="hidden sm:inline">Arquivado ({totalArchivedCount})</span>
-            </Link>
           )}
+
+          {/* Catálogo — playlists auto-arquivadas (reserva de inventário) */}
+          <Link
+            to="/operacao?arquivadas=1&tipo=catalogo"
+            replace
+            className={cn(
+              "h-9 w-9 sm:w-auto sm:px-3 rounded-full text-[11px] sm:text-xs font-medium border transition-colors tabular-nums shrink-0 inline-flex items-center justify-center gap-1.5",
+              archiveType === "catalogo"
+                ? "bg-primary/15 border-primary/40 text-primary"
+                : "bg-elevated border-border text-muted-foreground hover:text-foreground",
+            )}
+            title={`Catálogo (${catalogCount})`}
+            aria-label={`Catálogo (${catalogCount})`}
+          >
+            <Archive className="h-4 w-4 sm:hidden" />
+            <span className="hidden sm:inline">Catálogo ({catalogCount})</span>
+          </Link>
+
+          {/* Arquivado — playlists arquivadas manualmente */}
+          <Link
+            to="/operacao?arquivadas=1&tipo=manual"
+            replace
+            className={cn(
+              "h-9 w-9 sm:w-auto sm:px-3 rounded-full text-[11px] sm:text-xs font-medium border transition-colors tabular-nums shrink-0 inline-flex items-center justify-center gap-1.5",
+              archiveType === "manual"
+                ? "bg-primary/15 border-primary/40 text-primary"
+                : "bg-elevated border-border text-muted-foreground hover:text-foreground",
+            )}
+            title={`Arquivado (${manualArchivedCount})`}
+            aria-label={`Arquivado (${manualArchivedCount})`}
+          >
+            <Archive className="h-4 w-4 sm:hidden" />
+            <span className="hidden sm:inline">Arquivado ({manualArchivedCount})</span>
+          </Link>
 
           {/* Capacidade ocultada — acessível pela URL /catalogo?aba=capacidade se necessário. */}
 
