@@ -233,7 +233,9 @@ export default function CampanhaExecucao() {
 
   const loadCampaign = async () => {
     if (!id) return;
-    setLoading(true);
+    // Skeleton só na primeira carga. Refreshes (realtime, save, retorno) ficam
+    // silenciosos pra UI não piscar.
+    if (!initialLoadedRef.current) setLoading(true);
     const [{ data: c }, { data: a }, { data: s }, { data: pkg }] = await Promise.all([
       supabase
         .from("campaigns")
