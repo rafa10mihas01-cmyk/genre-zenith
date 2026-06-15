@@ -221,7 +221,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   }, [showArchived, searchParams, updateParam]);
 
   const itemsQuery = useQuery({
-    queryKey: ["managed-playlists", loadedCount, filterFase, showArchived, sortBy, filterMissingGenre, filterGenreId, filterSize, onlyEligible],
+    queryKey: ["managed-playlists", loadedCount, filterFase, showArchived, archiveType, sortBy, filterMissingGenre, filterGenreId, filterSize, onlyEligible],
     queryFn: async () => {
       let q = supabase
         .from("managed_playlists")
