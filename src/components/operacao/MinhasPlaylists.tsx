@@ -285,7 +285,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     queryFn: async () => {
       const { data, error } = await supabase
         .from("managed_playlists")
-        .select("id, followers, genre_id, archived_at, reactivation_eligible_at, lifecycle_phase")
+        .select("id, followers, genre_id, archived_at, archived_reason, reactivation_eligible_at, lifecycle_phase")
         .limit(5000);
       if (error) throw error;
       return (data ?? []) as CountRow[];
