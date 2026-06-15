@@ -2,6 +2,9 @@
 // Auth: x-bot-token = BOT_INGEST_TOKEN.
 // Body: { spotify_playlist_id, correlation_id?, tracks: [{ spotify_track_id, position, name, artist, album_name, album_cover_url, duration_ms }] }
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { enqueuePlaylistJob } from "../_shared/playlist-queue.ts";
+
+const DIAGNOSE_THROTTLE_HOURS = 6;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -61,7 +64,41 @@ Deno.serve(async (req) => {
     .update({ last_observed_at: new Date().toISOString() })
     .eq("spotify_playlist_id", playlistId);
 
-  return new Response(JSON.stringify({ ok: true, inserted: rows.length, upserted: count }), {
+  // Auto-enfileira DIAGNOSE_ENGINE se a playlist é gerenciada, não-arquivada,
+  // não bloqueada e o último diagnóstico tem >= DIAGNOSE_THROTTLE_HOURS (ou nunca rodou).
+  // Dedupe em playlist_operation_queue (pending) é garantido pelo enqueuePlaylistJob.
+  let enqueue: any = { attempted: false };
+  try {
+    const { data: managed } = await supa
+      .from("managed_playlists")
+      .select("id, archived_at, diagnose_blocked, last_diagnosis_at, followers")
+      .eq("spotify_playlist_id", playlistId)
+      .maybeSingle();
+
+    if (managed && !managed.archived_at && !managed.diagnose_blocked) {
+      const cutoff = Date.now() - DIAGNOSE_THROTTLE_HOURS * 3600 * 1000;
+      const last = managed.last_diagnosis_at ? new Date(managed.last_diagnosis_at).getTime() : 0;
+      if (!managed.last_diagnosis_at || last < cutoff) {
+        const r = await enqueuePlaylistJob(supa, {
+          playlist_id: managed.id,
+          operation_type: "DIAGNOSE_ENGINE",
+          payload: { source: "observer", correlation_id: correlation, spotify_playlist_id: playlistId },
+        });
+        enqueue = { attempted: true, result: r };
+      } else {
+        enqueue = { attempted: false, reason: "throttled", last_diagnosis_at: managed.last_diagnosis_at };
+      }
+    } else {
+      enqueue = {
+        attempted: false,
+        reason: !managed ? "not_managed" : managed.archived_at ? "archived" : "diagnose_blocked",
+      };
+    }
+  } catch (e) {
+    enqueue = { attempted: false, error: (e as Error).message };
+  }
+
+  return new Response(JSON.stringify({ ok: true, inserted: rows.length, upserted: count, enqueue }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 });
