@@ -207,9 +207,19 @@ export function ExternalPackageEditor({
       // Se o pacote já está travado (dispatched), materializa o deal do novo
       // curador sem mexer nos deals existentes — confirmExternalPackage é
       // idempotente: reaproveita itens já vinculados e cria só o que falta.
+      // OBS: só cria deal pra itens com streams > 0. Se entrou zerado (sem
+      // compra registrada), fica como "Rascunho" até o user ajustar o volume.
+      const enteredWithStreams = (next?.plays ?? 0) > 0;
       if (pkg.status !== "draft") {
-        await confirmExternalPackage({ packageId: pkg.id, campaignId, snapshot });
-        toast({ title: "Curador adicionado", description: `${curator.name} entrou no pacote e o deal foi criado.` });
+        if (enteredWithStreams) {
+          await confirmExternalPackage({ packageId: pkg.id, campaignId, snapshot });
+          toast({ title: "Curador adicionado", description: `${curator.name} entrou no pacote e o deal foi criado.` });
+        } else {
+          toast({
+            title: "Curador adicionado (sem volume)",
+            description: `${curator.name} entrou como rascunho. Clique em "Ajustar volume" pra definir os streams — o deal é criado na hora.`,
+          });
+        }
       }
       await load();
     } catch (e: any) {
