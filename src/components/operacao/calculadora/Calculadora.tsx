@@ -1006,7 +1006,7 @@ export function Calculadora({ onContinue }: { onContinue?: (h: CalculadoraHandof
                         </p>
                       </div>
                       <Select value={clientId || "__none__"} onValueChange={v => setClientId(v === "__none__" ? "" : v)}>
-                        <SelectTrigger className="h-10 text-sm justify-center sm:justify-between text-muted-foreground data-[state=open]:text-foreground [&>span]:text-muted-foreground sm:[&>span]:text-foreground">
+                        <SelectTrigger className="h-10 text-sm text-muted-foreground data-[state=open]:text-foreground [&>span]:text-muted-foreground sm:[&>span]:text-foreground">
                           <SelectValue placeholder="Selecione um cliente" />
                         </SelectTrigger>
                         <SelectContent>
