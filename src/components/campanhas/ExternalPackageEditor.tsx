@@ -684,6 +684,65 @@ export function ExternalPackageEditor({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+    <AlertDialog open={!!editTarget} onOpenChange={(open) => !open && !savingEdit && setEditTarget(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Ajustar volume de {editTarget?.curators?.name ?? "curador"}</AlertDialogTitle>
+          <AlertDialogDescription>
+            Defina quantos streams esse curador vai realmente entregar nessa música.
+            O custo total é recalculado automaticamente ({editTarget ? `R$ ${editTarget.cost_per_stream.toFixed(3)}/stream` : ""})
+            e o deal vinculado é atualizado na mesma hora.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="space-y-2 py-2">
+          <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">Streams planejados</label>
+          <Input
+            type="number"
+            inputMode="numeric"
+            value={editValue}
+            onFocus={(e) => e.target.select()}
+            onChange={(e) => setEditValue(e.target.value)}
+            className="h-10 text-base tabular-nums"
+            disabled={savingEdit}
+          />
+          {editTarget && (
+            <p className="text-[11px] text-muted-foreground tabular-nums">
+              Novo custo total: <span className="text-foreground font-medium">
+                {formatBRL(Math.max(0, parseInt(editValue || "0", 10) || 0) * editTarget.cost_per_stream)}
+              </span>
+            </p>
+          )}
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={savingEdit}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            disabled={savingEdit}
+            onClick={async (e) => {
+              e.preventDefault();
+              if (!editTarget) return;
+              const v = Math.max(0, parseInt(editValue || "0", 10) || 0);
+              setSavingEdit(true);
+              try {
+                await updatePackageItem(editTarget.id, {
+                  assigned_streams: v,
+                  cost_per_stream: editTarget.cost_per_stream,
+                });
+                toast({ title: "Volume ajustado", description: `${editTarget.curators?.name ?? "Curador"}: ${formatInt(v)} streams.` });
+                setEditTarget(null);
+                await load();
+              } catch (err: any) {
+                toast({ title: "Erro ao ajustar", description: err.message ?? String(err), variant: "destructive" });
+              } finally {
+                setSavingEdit(false);
+              }
+            }}
+          >
+            {savingEdit ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : null}
+            Salvar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     <AlertDialog open={reopenOpen} onOpenChange={setReopenOpen}>
       <AlertDialogContent>
         <AlertDialogHeader>
