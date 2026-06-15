@@ -213,10 +213,11 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     setLoadedCount(PAGE_SIZE);
   }, [filterFase, showArchived, archiveType, filterMissingGenre, filterGenreId, filterSize, onlyEligible]);
 
-  // Limpa o param ao sair da lixeira.
+  // Limpa params ao sair da lixeira.
   useEffect(() => {
-    if (!showArchived && searchParams.get("elegiveis")) {
-      updateParam("elegiveis", null);
+    if (!showArchived) {
+      if (searchParams.get("elegiveis")) updateParam("elegiveis", null);
+      if (searchParams.get("tipo")) updateParam("tipo", null);
     }
   }, [showArchived, searchParams, updateParam]);
 
