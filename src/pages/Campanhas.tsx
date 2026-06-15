@@ -394,7 +394,7 @@ export default function Campanhas() {
 
         )}
 
-        {tab === "financeiro" && <Calculadora />}
+        {tab === "financeiro" && <Calculadora prefillSpotifyTrackId={prefillTrackId} />}
       </PageContainer>
     </>
   );
