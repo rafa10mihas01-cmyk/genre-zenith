@@ -56,8 +56,7 @@ Deno.serve(async (req) => {
 
   if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-  // Atualiza observed_playlists.last_observed_at + observation_count
-  await supa.rpc("noop").catch(() => null); // ignora se rpc não existir
+  // Atualiza observed_playlists.last_observed_at
   await supa.from("observed_playlists")
     .update({ last_observed_at: new Date().toISOString() })
     .eq("spotify_playlist_id", playlistId);
