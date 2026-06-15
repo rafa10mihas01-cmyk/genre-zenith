@@ -73,6 +73,7 @@ type CountRow = {
   followers: number | null;
   genre_id: string | null;
   archived_at: string | null;
+  archived_reason: string | null;
   reactivation_eligible_at: string | null;
   lifecycle_phase: string | null;
 };
