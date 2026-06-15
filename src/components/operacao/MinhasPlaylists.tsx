@@ -234,6 +234,11 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       if (showArchived) {
         q = q.not("archived_at", "is", null);
         if (onlyEligible) q = q.not("reactivation_eligible_at", "is", null);
+        if (archiveType === "catalogo") {
+          q = q.or("archived_reason.ilike.auto_%,archived_reason.ilike.LOW_VALUE%");
+        } else if (archiveType === "manual") {
+          q = q.eq("archived_reason", "manual");
+        }
       } else {
         q = q.is("archived_at", null);
       }
