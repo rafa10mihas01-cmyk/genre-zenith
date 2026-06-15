@@ -7308,6 +7308,54 @@ export type Database = {
         }
         Relationships: []
       }
+      observer_playlist_tracks: {
+        Row: {
+          album_cover_url: string | null
+          album_name: string | null
+          artist: string | null
+          captured_at: string
+          captured_date: string
+          correlation_id: string | null
+          duration_ms: number | null
+          id: string
+          name: string | null
+          position: number
+          raw: Json | null
+          spotify_playlist_id: string
+          spotify_track_id: string
+        }
+        Insert: {
+          album_cover_url?: string | null
+          album_name?: string | null
+          artist?: string | null
+          captured_at?: string
+          captured_date?: string
+          correlation_id?: string | null
+          duration_ms?: number | null
+          id?: string
+          name?: string | null
+          position: number
+          raw?: Json | null
+          spotify_playlist_id: string
+          spotify_track_id: string
+        }
+        Update: {
+          album_cover_url?: string | null
+          album_name?: string | null
+          artist?: string | null
+          captured_at?: string
+          captured_date?: string
+          correlation_id?: string | null
+          duration_ms?: number | null
+          id?: string
+          name?: string | null
+          position?: number
+          raw?: Json | null
+          spotify_playlist_id?: string
+          spotify_track_id?: string
+        }
+        Relationships: []
+      }
       organic_plays_snapshots: {
         Row: {
           captured_at: string
