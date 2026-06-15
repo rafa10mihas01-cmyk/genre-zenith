@@ -37,7 +37,28 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+
+function formatStreamsWord(n: number): string {
+  if (!n || n <= 0) return "—";
+  if (n >= 1_000_000) {
+    const v = n / 1_000_000;
+    return `${v % 1 === 0 ? v.toFixed(0) : v.toFixed(2).replace(/\.?0+$/, "")} milhão`.replace("1 milhão", "1 milhão").replace(/^(?!1 )(\S+) milhão/, "$1 milhões");
+  }
+  if (n >= 1_000) {
+    const v = n / 1_000;
+    return `${v % 1 === 0 ? v.toFixed(0) : v.toFixed(1).replace(/\.0$/, "")} mil`;
+  }
+  return formatInt(n);
+}
 
 type PackageRow = {
   id: string;
