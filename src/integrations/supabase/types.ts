@@ -7356,6 +7356,36 @@ export type Database = {
         }
         Relationships: []
       }
+      observer_runs: {
+        Row: {
+          ended_at: string | null
+          error: string | null
+          hostname: string
+          id: string
+          playlists_processed: number | null
+          started_at: string | null
+          status: string | null
+        }
+        Insert: {
+          ended_at?: string | null
+          error?: string | null
+          hostname: string
+          id?: string
+          playlists_processed?: number | null
+          started_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          ended_at?: string | null
+          error?: string | null
+          hostname?: string
+          id?: string
+          playlists_processed?: number | null
+          started_at?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
       organic_plays_snapshots: {
         Row: {
           captured_at: string
@@ -9347,6 +9377,38 @@ export type Database = {
           },
         ]
       }
+      playlist_observations: {
+        Row: {
+          hostname: string
+          id: string
+          observed_at: string | null
+          playlist_id: string
+          snapshot: Json
+        }
+        Insert: {
+          hostname: string
+          id?: string
+          observed_at?: string | null
+          playlist_id: string
+          snapshot: Json
+        }
+        Update: {
+          hostname?: string
+          id?: string
+          observed_at?: string | null
+          playlist_id?: string
+          snapshot?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "playlist_observations_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "playlists_to_observe"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       playlist_operation_log: {
         Row: {
           conflict_detected: boolean
@@ -9853,6 +9915,67 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "genres_with_health"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      playlists_to_observe: {
+        Row: {
+          created_at: string | null
+          curator_id: string | null
+          curator_name: string | null
+          id: string
+          is_active: boolean | null
+          name: string | null
+          priority: number | null
+          spotify_id: string
+          updated_at: string | null
+          url: string
+        }
+        Insert: {
+          created_at?: string | null
+          curator_id?: string | null
+          curator_name?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string | null
+          priority?: number | null
+          spotify_id: string
+          updated_at?: string | null
+          url: string
+        }
+        Update: {
+          created_at?: string | null
+          curator_id?: string | null
+          curator_name?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string | null
+          priority?: number | null
+          spotify_id?: string
+          updated_at?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "playlists_to_observe_curator_id_fkey"
+            columns: ["curator_id"]
+            isOneToOne: false
+            referencedRelation: "curators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlists_to_observe_curator_id_fkey"
+            columns: ["curator_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_balance"
+            referencedColumns: ["curator_id"]
+          },
+          {
+            foreignKeyName: "playlists_to_observe_curator_id_fkey"
+            columns: ["curator_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_finance"
+            referencedColumns: ["curator_id"]
           },
         ]
       }
