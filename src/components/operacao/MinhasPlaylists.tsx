@@ -277,12 +277,12 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const loading = itemsQuery.isPending;
   const setItems = useCallback(
     (updater: ManagedPlaylist[] | ((prev: ManagedPlaylist[]) => ManagedPlaylist[])) => {
-      queryClient.setQueryData<ManagedPlaylist[]>(["managed-playlists", loadedCount, filterFase, showArchived, sortBy, filterMissingGenre, filterGenreId, filterSize, onlyEligible], (prev) => {
+      queryClient.setQueryData<ManagedPlaylist[]>(["managed-playlists", loadedCount, filterFase, showArchived, archiveType, sortBy, filterMissingGenre, filterGenreId, filterSize, onlyEligible], (prev) => {
         const base = prev ?? [];
         return typeof updater === "function" ? (updater as (p: ManagedPlaylist[]) => ManagedPlaylist[])(base) : updater;
       });
     },
-    [queryClient, loadedCount, filterFase, showArchived, sortBy, filterMissingGenre, filterGenreId, filterSize],
+    [queryClient, loadedCount, filterFase, showArchived, archiveType, sortBy, filterMissingGenre, filterGenreId, filterSize],
   );
 
   // Contagens reais do catálogo inteiro (5 colunas, payload mínimo).
