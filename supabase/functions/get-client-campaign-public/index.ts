@@ -335,6 +335,19 @@ Deno.serve(async (req) => {
         if (c.id) campaignIdsForDeals.add(String(c.id));
       }
     }
+    if (campaignIdsForDeals.size === 0) {
+      const trackUrl = String(dealRow.song_spotify_url ?? "").trim();
+      let campQuery = admin
+        .from("campaigns")
+        .select("id")
+        .order("created_at", { ascending: false })
+        .limit(1);
+      campQuery = trackUrl
+        ? campQuery.eq("spotify_track_url", trackUrl)
+        : campQuery.eq("track_name", String(dealRow.song_name ?? ""));
+      const { data: linkedBySong } = await campQuery.maybeSingle();
+      if (linkedBySong?.id) campaignIdsForDeals.add(String(linkedBySong.id));
+    }
 
     type ContractedPlaylist = {
       playlist_id: string;
@@ -416,8 +429,7 @@ Deno.serve(async (req) => {
         .select(
           "playlist_id, delivery_accumulated, last_import_delta, current_plays, current_name, baseline_name, first_seen_at, attributed_to",
         )
-        .in("campaign_id", Array.from(campaignIdsForDeals))
-        .like("attributed_to", "curator:%");
+        .in("campaign_id", Array.from(campaignIdsForDeals));
       for (const g of (growthRows ?? []) as AnyRec[]) {
         const k = String(g.playlist_id ?? "");
         if (!k) continue;
