@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
       try {
         const { data: terms } = await supabase
           .from("search_terms")
-          .select("id")
+          .select("id, termo")
           .eq("genre_id", g.id)
           .eq("executado", false)
           .limit(3);
@@ -51,10 +51,18 @@ Deno.serve(async (req) => {
               "Content-Type": "application/json",
               Authorization: `Bearer ${serviceKey}`,
             },
-            body: JSON.stringify({ term_id: t.id }),
+            body: JSON.stringify({
+              genre_id: g.id,
+              term_id: t.id,
+              search_term: t.termo,
+            }),
           });
           if (r.ok) summary.terms_run++;
-          else summary.errors++;
+          else {
+            summary.errors++;
+            const errBody = await r.text().catch(() => "");
+            console.error(`run-search failed ${r.status} term="${t.termo}" genre=${g.nome}: ${errBody.slice(0, 200)}`);
+          }
         }
 
         const a = await fetch(`${supabaseUrl}/functions/v1/analyze-genre`, {
