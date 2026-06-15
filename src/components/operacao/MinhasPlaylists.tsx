@@ -1023,7 +1023,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
             </DialogHeader>
             <div className="grid grid-cols-1 gap-2">
               <Link
-                to="/catalogo"
+                to="/operacao"
                 className="group rounded-xl border border-border/40 bg-[hsl(var(--elevated))] px-3 py-2.5 transition-all hover:border-foreground/30 flex items-center justify-between gap-2"
               >
                 <span className="flex items-center gap-2 min-w-0">
@@ -1033,7 +1033,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                 <span className="text-[16px] font-semibold tabular-nums">{totalActiveCount}</span>
               </Link>
               <Link
-                to="/catalogo?arquivadas=1"
+                to="/operacao?arquivadas=1"
                 className="group rounded-xl border border-border/40 bg-[hsl(var(--elevated))] px-3 py-2.5 transition-all hover:border-foreground/30 flex items-center justify-between gap-2"
               >
                 <span className="flex items-center gap-2 min-w-0">
@@ -1043,7 +1043,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                 <span className="text-[16px] font-semibold tabular-nums">{totalArchivedCount}</span>
               </Link>
               <Link
-                to="/catalogo?arquivadas=1&elegiveis=1"
+                to="/operacao?arquivadas=1&elegiveis=1"
                 className={cn(
                   "group rounded-xl border px-3 py-2.5 transition-all flex items-center justify-between gap-2",
                   eligibleCount > 0
@@ -1594,7 +1594,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
           )}
           {showArchived ? (
             <Link
-              to="/catalogo"
+              to="/operacao"
               replace
               className="h-9 w-9 sm:w-auto sm:px-3 rounded-full text-[11px] sm:text-xs font-medium border transition-colors tabular-nums shrink-0 inline-flex items-center justify-center gap-1.5 bg-elevated border-border text-muted-foreground hover:text-foreground"
               title="Ativas"
@@ -1605,7 +1605,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
             </Link>
           ) : (
             <Link
-              to="/catalogo?arquivadas=1"
+              to="/operacao?arquivadas=1"
               replace
               className="h-9 w-9 sm:w-auto sm:px-3 rounded-full text-[11px] sm:text-xs font-medium border transition-colors tabular-nums shrink-0 inline-flex items-center justify-center gap-1.5 bg-elevated border-border text-muted-foreground hover:text-foreground"
               title={`Arquivado (${totalArchivedCount})`}
