@@ -230,9 +230,24 @@ export function ExternalPackageEditor({
   }
 
   async function handleRemove(item: ItemRow) {
+    const isLocked = pkg?.status && pkg.status !== "draft";
     setItems(prev => prev.filter(i => i.id !== item.id));
-    try { await removePackageItem(item.id); onChanged?.(); }
-    catch (e: any) { toast({ title: "Erro ao remover", description: e.message, variant: "destructive" }); load(); }
+    try {
+      if (isLocked) {
+        await removeConfirmedPackageItem(item.id);
+        toast({
+          title: "Curador removido",
+          description: `${item.curators?.name ?? "Curador"} saiu do pacote e o deal proposto foi apagado.`,
+        });
+        await load();
+      } else {
+        await removePackageItem(item.id);
+      }
+      onChanged?.();
+    } catch (e: any) {
+      toast({ title: "Erro ao remover", description: e.message, variant: "destructive" });
+      load();
+    }
   }
 
   async function handleConfirm() {
