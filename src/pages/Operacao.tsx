@@ -258,8 +258,8 @@ export default function Operacao() {
     <>
       <PageHeader
         domain="system"
-        title="Catálogo"
-        subtitle="Catálogo publicado"
+        title="Playlists"
+        subtitle="Inventário da rede ativa"
         manualKey="playlists"
 
         actions={
