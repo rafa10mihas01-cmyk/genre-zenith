@@ -337,16 +337,26 @@ Deno.serve(async (req) => {
     }
     if (campaignIdsForDeals.size === 0) {
       const trackUrl = String(dealRow.song_spotify_url ?? "").trim();
-      let campQuery = admin
-        .from("campaigns")
-        .select("id")
-        .order("created_at", { ascending: false })
-        .limit(1);
-      campQuery = trackUrl
-        ? campQuery.eq("spotify_track_url", trackUrl)
-        : campQuery.eq("track_name", String(dealRow.song_name ?? ""));
-      const { data: linkedBySong } = await campQuery.maybeSingle();
-      if (linkedBySong?.id) campaignIdsForDeals.add(String(linkedBySong.id));
+      if (trackUrl) {
+        const { data: linkedByUrl } = await admin
+          .from("campaigns")
+          .select("id")
+          .eq("spotify_track_url", trackUrl)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (linkedByUrl?.id) campaignIdsForDeals.add(String(linkedByUrl.id));
+      }
+      if (campaignIdsForDeals.size === 0 && dealRow.song_name) {
+        const { data: linkedByName } = await admin
+          .from("campaigns")
+          .select("id")
+          .eq("track_name", String(dealRow.song_name))
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (linkedByName?.id) campaignIdsForDeals.add(String(linkedByName.id));
+      }
     }
 
     type ContractedPlaylist = {
