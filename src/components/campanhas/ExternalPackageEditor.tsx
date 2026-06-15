@@ -179,6 +179,13 @@ export function ExternalPackageEditor({
         costPerStream: next?.cpp ?? curator.cost_per_stream,
         purchaseId: next?.id,
       });
+      // Se o pacote já está travado (dispatched), materializa o deal do novo
+      // curador sem mexer nos deals existentes — confirmExternalPackage é
+      // idempotente: reaproveita itens já vinculados e cria só o que falta.
+      if (pkg.status !== "draft") {
+        await confirmExternalPackage({ packageId: pkg.id, campaignId, snapshot });
+        toast({ title: "Curador adicionado", description: `${curator.name} entrou no pacote e o deal foi criado.` });
+      }
       await load();
     } catch (e: any) {
       toast({ title: "Erro ao adicionar curador", description: e.message, variant: "destructive" });
@@ -330,6 +337,45 @@ export function ExternalPackageEditor({
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
+              <Popover open={addOpen} onOpenChange={setAddOpen}>
+                <PopoverTrigger asChild>
+                  <Button size="sm" variant="outline" className="h-10 px-4 gap-2">
+                    <Plus className="h-4 w-4 text-muted-foreground" />
+                    Adicionar curador
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-0" align="end">
+                  <Command>
+                    <CommandInput placeholder="Buscar curador..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhum curador disponível.</CommandEmpty>
+                      <CommandGroup>
+                        {candidates
+                          .filter(c => !items.some(it => it.curator_id === c.id))
+                          .map(c => {
+                            const next = c.next_purchase;
+                            return (
+                              <CommandItem key={c.id} value={c.name} onSelect={() => handleAdd(c)}>
+                                <div className="flex flex-col">
+                                  <span className="text-sm">{c.name}</span>
+                                  {next ? (
+                                    <span className="text-[10px] text-primary tabular-nums">
+                                      {formatInt(next.plays)} disponíveis · R$ {next.cpp.toFixed(3)}/stream{next.note ? ` · ${next.note}` : ""}
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] text-muted-foreground tabular-nums">
+                                      sem compra registrada · R$ {c.cost_per_stream.toFixed(3)}/stream (taxa média)
+                                    </span>
+                                  )}
+                                </div>
+                              </CommandItem>
+                            );
+                          })}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
               <Button
                 size="sm"
                 variant="outline"
