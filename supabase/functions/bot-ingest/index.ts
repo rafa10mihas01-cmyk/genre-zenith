@@ -1,12 +1,18 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors'
 
-const BOT_INGEST_TOKEN = Deno.env.get('BOT_INGEST_TOKEN')
+const BOT_INGEST_TOKEN = Deno.env.get('BOT_INGEST_TOKEN')?.trim()
 
 function verifyToken(req: Request) {
   const auth = req.headers.get('authorization') || ''
   const token = auth.replace(/^Bearer\s+/i, '').trim()
   if (!BOT_INGEST_TOKEN || token !== BOT_INGEST_TOKEN) {
+    console.warn('bot-ingest unauthorized', {
+      hasExpectedToken: Boolean(BOT_INGEST_TOKEN),
+      expectedLength: BOT_INGEST_TOKEN?.length ?? 0,
+      receivedLength: token.length,
+      hasAuthorizationHeader: Boolean(auth),
+    })
     throw new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
 }
