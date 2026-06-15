@@ -334,7 +334,11 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   // Total real considerando TODOS os filtros server-side (fase + sem_genero + genero).
   // Sem isso, "Carregar mais" desliga antes da hora quando os filtros reduzem o conjunto.
   const totalLoadedTarget = useMemo(() => {
-    if (showArchived) return totalArchivedCount;
+    if (showArchived) {
+      if (archiveType === "catalogo") return catalogCount;
+      if (archiveType === "manual") return manualArchivedCount;
+      return totalArchivedCount;
+    }
     return activeRows.filter((r) => {
       if (filterFase !== "all" && classifyFase(r) !== filterFase) return false;
       if (filterMissingGenre && r.genre_id) return false;
@@ -346,7 +350,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       if (filterSize === "top" && !(f >= 100000)) return false;
       return true;
     }).length;
-  }, [showArchived, totalArchivedCount, activeRows, filterFase, filterMissingGenre, filterGenreId, filterSize, classifyFase]);
+  }, [showArchived, archiveType, totalArchivedCount, catalogCount, manualArchivedCount, activeRows, filterFase, filterMissingGenre, filterGenreId, filterSize, classifyFase]);
   const canLoadMore = items.length < loadedCount
     ? false // ainda chegando do servidor
     : items.length < totalLoadedTarget;
