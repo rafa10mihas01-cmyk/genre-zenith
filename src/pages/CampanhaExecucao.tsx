@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useBackOrFallback } from "@/hooks/useBackOrFallback";
 import { supabase } from "@/integrations/supabase/client";
@@ -131,6 +131,7 @@ export default function CampanhaExecucao() {
   const [snaps, setSnaps] = useState<EcoSnap[]>([]);
   const [proofs, setProofs] = useState<DeliveryProof[]>([]);
   const [loading, setLoading] = useState(true);
+  const initialLoadedRef = useRef(false);
   const [planRefreshKey, setPlanRefreshKey] = useState(0);
   const [tab, setTab] = useState<CampaignHubTabId>("overview");
   const [distributionTab, setDistributionTab] = useState("mapa");
@@ -232,7 +233,9 @@ export default function CampanhaExecucao() {
 
   const loadCampaign = async () => {
     if (!id) return;
-    setLoading(true);
+    // Skeleton só na primeira carga. Refreshes (realtime, save, retorno) ficam
+    // silenciosos pra UI não piscar.
+    if (!initialLoadedRef.current) setLoading(true);
     const [{ data: c }, { data: a }, { data: s }, { data: pkg }] = await Promise.all([
       supabase
         .from("campaigns")
@@ -519,10 +522,12 @@ export default function CampanhaExecucao() {
       setOrganicRows([]);
     }
     setLoading(false);
+    initialLoadedRef.current = true;
   };
 
   useEffect(() => {
     if (!id) return;
+    initialLoadedRef.current = false;
     loadCampaign();
     // Dia 1 perf: removidos listeners `focus` + `visibilitychange` que disparavam
     // loadCampaign() em DUPLICATA com o canal Realtime abaixo. Realtime já

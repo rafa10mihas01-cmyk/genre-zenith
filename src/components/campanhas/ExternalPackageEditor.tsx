@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -102,6 +102,7 @@ export function ExternalPackageEditor({
   const [items, setItems] = useState<ItemRow[]>([]);
   const [deliveryByCurator, setDeliveryByCurator] = useState<Record<string, CuratorDelivery>>({});
   const [loading, setLoading] = useState(true);
+  const initialLoadedRef = useRef(false);
   const [confirming, setConfirming] = useState(false);
   const [reopenOpen, setReopenOpen] = useState(false);
   const [reopening, setReopening] = useState(false);
@@ -116,7 +117,9 @@ export function ExternalPackageEditor({
   const [perDayDrafts, setPerDayDrafts] = useState<Record<string, string>>({});
 
   async function load() {
-    setLoading(true);
+    // Só mostra skeleton na carga inicial. Em refreshes (após save/add/remove),
+    // mantém a UI montada e atualiza em background — sem piscar.
+    if (!initialLoadedRef.current) setLoading(true);
     try {
       const { packageId } = await ensureExternalPackageDraft(campaignId, snapshot);
       await repairExternalPackageLinks(packageId);
@@ -152,10 +155,7 @@ export function ExternalPackageEditor({
       setCandidates(cand);
 
       // Entregas reais por curador na campanha — soma deltas da view de crescimento.
-      // Fallback pra reconciled_total_plays quando o cron de deals ainda não rodou
-      // ou quando a fonte de verdade vem de campaign_playlist_collections (Plug/Manolo).
       try {
-        // Growth Engine: `attributed_to` é texto ('curator:<uuid>' | 'ecosystem' | 'organic').
         const { data: rows } = await (supabase as any)
           .from("vw_campaign_playlist_growth")
           .select("attributed_to, delta, baseline_plays")
@@ -185,10 +185,14 @@ export function ExternalPackageEditor({
       toast({ title: "Erro ao carregar pacote", description: e.message ?? String(e), variant: "destructive" });
     } finally {
       setLoading(false);
+      initialLoadedRef.current = true;
     }
   }
 
-  useEffect(() => { load(); }, [campaignId]);
+  useEffect(() => {
+    initialLoadedRef.current = false;
+    load();
+  }, [campaignId]);
 
   async function handleAdd(curator: CuratorCandidate) {
     if (!pkg) return;
