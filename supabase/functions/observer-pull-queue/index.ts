@@ -39,11 +39,11 @@ Deno.serve(async (req) => {
   const { data: blocked } = await supa.from("observed_playlists_blocklist").select("id");
   const blockedSet = new Set((blocked ?? []).map((r: any) => r.id));
 
-  // Candidatos: prioriza maior total_plays_observed e observação recente
+  // Candidatos: round-robin temporal — playlists não observadas há mais tempo primeiro
   const { data: candidates, error } = await supa
     .from("observed_playlists")
     .select("spotify_playlist_id, playlist_name, total_plays_observed, last_observed_at")
-    .order("total_plays_observed", { ascending: false, nullsFirst: false })
+    .order("last_observed_at", { ascending: true, nullsFirst: true })
     .limit(limit * 10);
 
   if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
