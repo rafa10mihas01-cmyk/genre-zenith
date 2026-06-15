@@ -87,6 +87,9 @@ export function ExternalPackageEditor({
   const [candidates, setCandidates] = useState<CuratorCandidate[]>([]);
   const [addOpen, setAddOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<ItemRow | null>(null);
+  const [editTarget, setEditTarget] = useState<ItemRow | null>(null);
+  const [editValue, setEditValue] = useState<string>("");
+  const [savingEdit, setSavingEdit] = useState(false);
   const [totalDrafts, setTotalDrafts] = useState<Record<string, string>>({});
   const [perDayDrafts, setPerDayDrafts] = useState<Record<string, string>>({});
 
@@ -518,7 +521,15 @@ export function ExternalPackageEditor({
                 <DeliveryTransparencyBanner deliveryByCurator={deliveryByCurator} />
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {items.map((it) => (
-                    <CuratorCard key={it.id} item={it} delivery={deliveryByCurator[it.curator_id]} />
+                    <CuratorCard
+                      key={it.id}
+                      item={it}
+                      delivery={deliveryByCurator[it.curator_id]}
+                      onEdit={() => {
+                        setEditTarget(it);
+                        setEditValue(String(it.assigned_streams ?? 0));
+                      }}
+                    />
                   ))}
                 </div>
               </>
@@ -673,6 +684,65 @@ export function ExternalPackageEditor({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+    <AlertDialog open={!!editTarget} onOpenChange={(open) => !open && !savingEdit && setEditTarget(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Ajustar volume de {editTarget?.curators?.name ?? "curador"}</AlertDialogTitle>
+          <AlertDialogDescription>
+            Defina quantos streams esse curador vai realmente entregar nessa música.
+            O custo total é recalculado automaticamente ({editTarget ? `R$ ${editTarget.cost_per_stream.toFixed(3)}/stream` : ""})
+            e o deal vinculado é atualizado na mesma hora.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="space-y-2 py-2">
+          <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium">Streams planejados</label>
+          <Input
+            type="number"
+            inputMode="numeric"
+            value={editValue}
+            onFocus={(e) => e.target.select()}
+            onChange={(e) => setEditValue(e.target.value)}
+            className="h-10 text-base tabular-nums"
+            disabled={savingEdit}
+          />
+          {editTarget && (
+            <p className="text-[11px] text-muted-foreground tabular-nums">
+              Novo custo total: <span className="text-foreground font-medium">
+                {formatBRL(Math.max(0, parseInt(editValue || "0", 10) || 0) * editTarget.cost_per_stream)}
+              </span>
+            </p>
+          )}
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={savingEdit}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            disabled={savingEdit}
+            onClick={async (e) => {
+              e.preventDefault();
+              if (!editTarget) return;
+              const v = Math.max(0, parseInt(editValue || "0", 10) || 0);
+              setSavingEdit(true);
+              try {
+                await updatePackageItem(editTarget.id, {
+                  assigned_streams: v,
+                  cost_per_stream: editTarget.cost_per_stream,
+                });
+                toast({ title: "Volume ajustado", description: `${editTarget.curators?.name ?? "Curador"}: ${formatInt(v)} streams.` });
+                setEditTarget(null);
+                await load();
+              } catch (err: any) {
+                toast({ title: "Erro ao ajustar", description: err.message ?? String(err), variant: "destructive" });
+              } finally {
+                setSavingEdit(false);
+              }
+            }}
+          >
+            {savingEdit ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : null}
+            Salvar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     <AlertDialog open={reopenOpen} onOpenChange={setReopenOpen}>
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -696,7 +766,7 @@ export function ExternalPackageEditor({
   );
 }
 
-function CuratorCard({ item, delivery }: { item: ItemRow; delivery?: CuratorDelivery }) {
+function CuratorCard({ item, delivery, onEdit }: { item: ItemRow; delivery?: CuratorDelivery; onEdit?: () => void }) {
   const name = item.curators?.name ?? "—";
   const initials = name
     .split(/\s+/)
@@ -805,15 +875,22 @@ function CuratorCard({ item, delivery }: { item: ItemRow; delivery?: CuratorDeli
         )}
       </div>
 
-      {item.curator_deal_id ? (
-        <Button asChild variant="outline" size="sm" className="w-full mt-auto">
-          <Link to={`/deals/${item.curator_deal_id}`}>Ver deal</Link>
-        </Button>
-      ) : (
-        <Button variant="outline" size="sm" className="w-full mt-auto" disabled>
-          Sem deal
-        </Button>
-      )}
+      <div className="flex gap-2 mt-auto">
+        {onEdit && (
+          <Button variant="outline" size="sm" className="flex-1" onClick={onEdit}>
+            <Pencil className="h-3.5 w-3.5 mr-1.5" /> Ajustar volume
+          </Button>
+        )}
+        {item.curator_deal_id ? (
+          <Button asChild variant="outline" size="sm" className="flex-1">
+            <Link to={`/deals/${item.curator_deal_id}`}>Ver deal</Link>
+          </Button>
+        ) : (
+          <Button variant="outline" size="sm" className="flex-1" disabled>
+            Sem deal
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
