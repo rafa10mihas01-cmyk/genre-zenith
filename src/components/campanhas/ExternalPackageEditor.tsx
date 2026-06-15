@@ -832,7 +832,7 @@ export function ExternalPackageEditor({
   );
 }
 
-function CuratorCard({ item, delivery, onEdit }: { item: ItemRow; delivery?: CuratorDelivery; onEdit?: () => void }) {
+function CuratorCard({ item, delivery, onEdit, onRemove }: { item: ItemRow; delivery?: CuratorDelivery; onEdit?: () => void; onRemove?: () => void }) {
   const name = item.curators?.name ?? "—";
   const initials = name
     .split(/\s+/)
