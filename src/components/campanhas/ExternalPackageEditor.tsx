@@ -816,15 +816,22 @@ function CuratorCard({ item, delivery, onEdit }: { item: ItemRow; delivery?: Cur
         )}
       </div>
 
-      {item.curator_deal_id ? (
-        <Button asChild variant="outline" size="sm" className="w-full mt-auto">
-          <Link to={`/deals/${item.curator_deal_id}`}>Ver deal</Link>
-        </Button>
-      ) : (
-        <Button variant="outline" size="sm" className="w-full mt-auto" disabled>
-          Sem deal
-        </Button>
-      )}
+      <div className="flex gap-2 mt-auto">
+        {onEdit && (
+          <Button variant="outline" size="sm" className="flex-1" onClick={onEdit}>
+            <Pencil className="h-3.5 w-3.5 mr-1.5" /> Ajustar volume
+          </Button>
+        )}
+        {item.curator_deal_id ? (
+          <Button asChild variant="outline" size="sm" className="flex-1">
+            <Link to={`/deals/${item.curator_deal_id}`}>Ver deal</Link>
+          </Button>
+        ) : (
+          <Button variant="outline" size="sm" className="flex-1" disabled>
+            Sem deal
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
