@@ -12,6 +12,7 @@ import {
   reopenExternalPackage,
   updatePackageItem,
   removePackageItem,
+  removeConfirmedPackageItem,
   addPackageItem,
   repairExternalPackageLinks,
   fetchCuratorCandidates,
@@ -229,9 +230,24 @@ export function ExternalPackageEditor({
   }
 
   async function handleRemove(item: ItemRow) {
+    const isLocked = pkg?.status && pkg.status !== "draft";
     setItems(prev => prev.filter(i => i.id !== item.id));
-    try { await removePackageItem(item.id); onChanged?.(); }
-    catch (e: any) { toast({ title: "Erro ao remover", description: e.message, variant: "destructive" }); load(); }
+    try {
+      if (isLocked) {
+        await removeConfirmedPackageItem(item.id);
+        toast({
+          title: "Curador removido",
+          description: `${item.curators?.name ?? "Curador"} saiu do pacote e o deal proposto foi apagado.`,
+        });
+        await load();
+      } else {
+        await removePackageItem(item.id);
+      }
+      onChanged?.();
+    } catch (e: any) {
+      toast({ title: "Erro ao remover", description: e.message, variant: "destructive" });
+      load();
+    }
   }
 
   async function handleConfirm() {
@@ -550,6 +566,7 @@ export function ExternalPackageEditor({
                         setEditTarget(it);
                         setEditValue(String(it.assigned_streams ?? 0));
                       }}
+                      onRemove={() => setRemoveTarget(it)}
                     />
                   ))}
                 </div>
@@ -815,7 +832,7 @@ export function ExternalPackageEditor({
   );
 }
 
-function CuratorCard({ item, delivery, onEdit }: { item: ItemRow; delivery?: CuratorDelivery; onEdit?: () => void }) {
+function CuratorCard({ item, delivery, onEdit, onRemove }: { item: ItemRow; delivery?: CuratorDelivery; onEdit?: () => void; onRemove?: () => void }) {
   const name = item.curators?.name ?? "—";
   const initials = name
     .split(/\s+/)
@@ -924,22 +941,42 @@ function CuratorCard({ item, delivery, onEdit }: { item: ItemRow; delivery?: Cur
         )}
       </div>
 
-      <div className="flex gap-2 mt-auto">
-        {onEdit && (
-          <Button variant="outline" size="sm" className="flex-1" onClick={onEdit}>
-            <Pencil className="h-3.5 w-3.5 mr-1.5" /> Ajustar volume
-          </Button>
-        )}
-        {item.curator_deal_id ? (
-          <Button asChild variant="outline" size="sm" className="flex-1">
-            <Link to={`/deals/${item.curator_deal_id}`}>Ver deal</Link>
-          </Button>
-        ) : (
-          <Button variant="outline" size="sm" className="flex-1" disabled>
-            Sem deal
-          </Button>
-        )}
-      </div>
+      {(() => {
+        const canRemove =
+          !!onRemove &&
+          delivered === 0 &&
+          (!deal?.state || ["awaiting_playlists", "awaiting_baseline"].includes(deal.state));
+        return (
+          <div className="flex flex-col gap-2 mt-auto">
+            <div className="flex gap-2">
+              {onEdit && (
+                <Button variant="outline" size="sm" className="flex-1" onClick={onEdit}>
+                  <Pencil className="h-3.5 w-3.5 mr-1.5" /> Ajustar volume
+                </Button>
+              )}
+              {item.curator_deal_id ? (
+                <Button asChild variant="outline" size="sm" className="flex-1">
+                  <Link to={`/deals/${item.curator_deal_id}`}>Ver deal</Link>
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" className="flex-1" disabled>
+                  Sem deal
+                </Button>
+              )}
+            </div>
+            {canRemove && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onRemove}
+                className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Remover do pacote
+              </Button>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }

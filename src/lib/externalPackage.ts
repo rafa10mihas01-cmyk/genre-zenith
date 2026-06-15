@@ -501,6 +501,53 @@ export async function removePackageItem(itemId: string) {
 }
 
 /**
+ * Remove um item de pacote travado (dispatched) junto com o deal vinculado,
+ * desde que o deal ainda não tenha entrado em coleta/execução e nenhuma
+ * entrega tenha sido registrada. Usar quando o curador foi adicionado por
+ * engano ou desistiu antes do início.
+ */
+export async function removeConfirmedPackageItem(itemId: string): Promise<void> {
+  const { data: item, error: itemErr } = await supabase
+    .from("campaign_external_package_items")
+    .select("id, curator_deal_id, source_purchase_id, curator_deals!campaign_external_package_items_curator_deal_id_fkey(state, reconciled_total_plays)")
+    .eq("id", itemId)
+    .maybeSingle();
+  if (itemErr) throw itemErr;
+  if (!item) throw new Error("Item não encontrado.");
+
+  const deal = (item as any).curator_deals as { state: string | null; reconciled_total_plays: number | null } | null;
+  const safeStates = ["awaiting_playlists", "awaiting_baseline"];
+  if (item.curator_deal_id && deal) {
+    const delivered = Number(deal.reconciled_total_plays ?? 0);
+    if (delivered > 0) {
+      throw new Error("Este curador já tem entrega registrada. Não dá pra remover sem zerar a entrega.");
+    }
+    if (deal.state && !safeStates.includes(deal.state)) {
+      throw new Error("Deal já está em execução. Pause/encerre pelo deal antes de remover do pacote.");
+    }
+    // Libera a compra de origem (volta a ficar disponível pra outra campanha).
+    if ((item as any).source_purchase_id) {
+      await supabase
+        .from("curator_purchases")
+        .update({ deal_id: null })
+        .eq("id", (item as any).source_purchase_id);
+    }
+    const { error: dealErr } = await supabase
+      .from("curator_deals")
+      .delete()
+      .eq("id", item.curator_deal_id)
+      .in("state", safeStates);
+    if (dealErr) throw dealErr;
+  }
+
+  const { error: delErr } = await supabase
+    .from("campaign_external_package_items")
+    .delete()
+    .eq("id", itemId);
+  if (delErr) throw delErr;
+}
+
+/**
  * Reabre um pacote só quando todos os deals vinculados ainda estão em estado
  * inicial. Se algum já entrou em coleta/execução, o pacote vira fonte única e
  * não pode ser deslinkado por aqui.
