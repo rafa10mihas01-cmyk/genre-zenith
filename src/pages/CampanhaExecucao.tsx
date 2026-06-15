@@ -527,6 +527,7 @@ export default function CampanhaExecucao() {
 
   useEffect(() => {
     if (!id) return;
+    initialLoadedRef.current = false;
     loadCampaign();
     // Dia 1 perf: removidos listeners `focus` + `visibilitychange` que disparavam
     // loadCampaign() em DUPLICATA com o canal Realtime abaixo. Realtime já
