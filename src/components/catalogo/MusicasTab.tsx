@@ -360,10 +360,10 @@ export function MusicasTab() {
               const growthPct = t.tel?.growth_pct;
 
               return (
+                <div key={t.id} className="relative">
                 <button
-                  key={t.id}
                   onClick={() => navigate(`/catalogo/musica/${t.id}`)}
-                  className="group text-left rounded-2xl border border-border/50 border-l-2 border-l-domain-curators/60 bg-card hover:bg-[hsl(var(--elevated))] hover:border-foreground/20 hover:border-l-domain-curators transition-colors flex flex-col h-full"
+                  className="w-full group text-left rounded-2xl border border-border/50 border-l-2 border-l-domain-curators/60 bg-card hover:bg-[hsl(var(--elevated))] hover:border-foreground/20 hover:border-l-domain-curators transition-colors flex flex-col h-full"
                 >
                   {/* Linha 1 — identidade */}
                   <div className="flex items-start gap-3 px-4 pt-3.5 pb-2.5 min-w-0">
