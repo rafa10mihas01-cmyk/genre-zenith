@@ -707,7 +707,7 @@ export function ExternalPackageEditor({
   );
 }
 
-function CuratorCard({ item, delivery }: { item: ItemRow; delivery?: CuratorDelivery }) {
+function CuratorCard({ item, delivery, onEdit }: { item: ItemRow; delivery?: CuratorDelivery; onEdit?: () => void }) {
   const name = item.curators?.name ?? "—";
   const initials = name
     .split(/\s+/)
