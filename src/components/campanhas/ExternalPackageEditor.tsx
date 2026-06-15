@@ -179,6 +179,13 @@ export function ExternalPackageEditor({
         costPerStream: next?.cpp ?? curator.cost_per_stream,
         purchaseId: next?.id,
       });
+      // Se o pacote já está travado (dispatched), materializa o deal do novo
+      // curador sem mexer nos deals existentes — confirmExternalPackage é
+      // idempotente: reaproveita itens já vinculados e cria só o que falta.
+      if (pkg.status !== "draft") {
+        await confirmExternalPackage({ packageId: pkg.id, campaignId, snapshot });
+        toast({ title: "Curador adicionado", description: `${curator.name} entrou no pacote e o deal foi criado.` });
+      }
       await load();
     } catch (e: any) {
       toast({ title: "Erro ao adicionar curador", description: e.message, variant: "destructive" });
