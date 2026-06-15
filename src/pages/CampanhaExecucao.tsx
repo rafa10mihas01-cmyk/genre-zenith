@@ -131,6 +131,7 @@ export default function CampanhaExecucao() {
   const [snaps, setSnaps] = useState<EcoSnap[]>([]);
   const [proofs, setProofs] = useState<DeliveryProof[]>([]);
   const [loading, setLoading] = useState(true);
+  const initialLoadedRef = useRef(false);
   const [planRefreshKey, setPlanRefreshKey] = useState(0);
   const [tab, setTab] = useState<CampaignHubTabId>("overview");
   const [distributionTab, setDistributionTab] = useState("mapa");
