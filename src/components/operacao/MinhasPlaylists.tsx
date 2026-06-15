@@ -1715,11 +1715,21 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
             <ListMusic className="h-5 w-5 text-muted-foreground" />
           </div>
           <h4 className="mt-3 font-semibold">
-            {showArchived ? "Nenhuma playlist arquivada" : "Nenhuma playlist gerenciada"}
+            {showArchived
+              ? archiveType === "catalogo"
+                ? "Nenhuma playlist no catálogo"
+                : archiveType === "manual"
+                ? "Nenhuma playlist arquivada"
+                : "Nenhuma playlist arquivada"
+              : "Nenhuma playlist gerenciada"}
           </h4>
           <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
             {showArchived
-              ? "Playlists que você arquivar ficam aqui (mantém histórico e métricas)."
+              ? archiveType === "catalogo"
+                ? "Playlists auto-arquivadas pelo sistema (seguidores < 1.000 ou inatividade). Reserva de inventário para campanhas."
+                : archiveType === "manual"
+                ? "Playlists que você arquivou manualmente ficam aqui (mantém histórico e métricas)."
+                : "Playlists que você arquivar ficam aqui (mantém histórico e métricas)."
               : "Cole a URL de uma playlist do Spotify para começar a operar com a inteligência do sistema."}
           </p>
           {!showArchived && (
