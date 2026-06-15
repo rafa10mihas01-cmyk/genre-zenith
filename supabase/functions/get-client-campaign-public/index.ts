@@ -157,7 +157,7 @@ Deno.serve(async (req) => {
     const { data: deal, error: dealErr } = await admin
       .from("curator_deals")
       .select(
-        "id, campaign_id, song_name, song_artist, song_cover_url, target_plays, daily_goal, baseline_plays, started_at, ends_at, created_at, closed_at, state, spotify_owner_id",
+        "id, campaign_id, song_spotify_url, song_name, song_artist, song_cover_url, target_plays, daily_goal, baseline_plays, started_at, ends_at, created_at, closed_at, state, spotify_owner_id",
       )
       .eq("id", dealId!)
       .maybeSingle();
@@ -372,6 +372,27 @@ Deno.serve(async (req) => {
           playlist_url: (r.playlist_url as string | null) ?? null,
           first_seen_at: (r.matched_at as string | null) ?? (r.registered_at as string | null) ?? null,
           registered_at: (r.registered_at as string | null) ?? null,
+        });
+      }
+    }
+    if (contracted.length === 0) {
+      const { data: dealPlaylists } = await admin
+        .from("v_curator_playlists_operational")
+        .select("spotify_playlist_id, spotify_url, added_at, last_paste_at, match_status, is_baseline")
+        .eq("deal_id", dealId!)
+        .eq("match_status", "curator")
+        .eq("is_baseline", false)
+        .not("spotify_playlist_id", "is", null);
+      const seen = new Set<string>();
+      for (const r of (dealPlaylists ?? []) as AnyRec[]) {
+        const k = String(r.spotify_playlist_id ?? "");
+        if (!k || seen.has(k)) continue;
+        seen.add(k);
+        contracted.push({
+          playlist_id: k,
+          playlist_url: (r.spotify_url as string | null) ?? null,
+          first_seen_at: (r.last_paste_at as string | null) ?? (r.added_at as string | null) ?? null,
+          registered_at: (r.added_at as string | null) ?? null,
         });
       }
     }
