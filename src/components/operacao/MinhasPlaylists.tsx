@@ -1018,7 +1018,10 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
               )}
             >
               <Activity className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="text-[13px] font-semibold truncate">Saúde do ecossistema</span>
+              <span className="text-[13px] font-semibold truncate">
+                <span className="sm:hidden">Saúde</span>
+                <span className="hidden sm:inline">Saúde do ecossistema</span>
+              </span>
               <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
                 {totalActiveCount + totalArchivedCount}
               </span>
@@ -1094,7 +1097,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                 className="nx-card !p-0 overflow-hidden text-center w-full h-full group flex items-center justify-center gap-2 px-3 py-6 hover:bg-[hsl(var(--hover))] transition-colors"
               >
                 <Target className="h-4 w-4 text-primary shrink-0" />
-                <span className="text-[13px] font-semibold truncate">Top oportunidades</span>
+                <span className="hidden sm:inline text-[13px] font-semibold truncate">Top oportunidades</span>
                 <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
                   {opportunities.length}
                 </span>
