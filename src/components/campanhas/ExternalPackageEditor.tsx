@@ -87,6 +87,9 @@ export function ExternalPackageEditor({
   const [candidates, setCandidates] = useState<CuratorCandidate[]>([]);
   const [addOpen, setAddOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<ItemRow | null>(null);
+  const [editTarget, setEditTarget] = useState<ItemRow | null>(null);
+  const [editValue, setEditValue] = useState<string>("");
+  const [savingEdit, setSavingEdit] = useState(false);
   const [totalDrafts, setTotalDrafts] = useState<Record<string, string>>({});
   const [perDayDrafts, setPerDayDrafts] = useState<Record<string, string>>({});
 
