@@ -302,6 +302,8 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const countRows = countsQuery.data ?? [];
   const totalActiveCount = countRows.filter((r) => !r.archived_at).length;
   const totalArchivedCount = countRows.filter((r) => r.archived_at).length;
+  const catalogCount = countRows.filter((r) => r.archived_at && (r.archived_reason?.startsWith("auto_") || r.archived_reason?.startsWith("LOW_VALUE"))).length;
+  const manualArchivedCount = countRows.filter((r) => r.archived_at && r.archived_reason === "manual").length;
   const eligibleCount = countRows.filter((r) => r.archived_at && r.reactivation_eligible_at).length;
 
   // Contagens por fase (catálogo ativo inteiro).
