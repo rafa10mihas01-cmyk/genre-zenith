@@ -508,7 +508,7 @@ export async function removePackageItem(itemId: string) {
 export async function reopenExternalPackage(packageId: string): Promise<{ dealsRemoved: number }> {
   const { data: items, error: itemsErr } = await supabase
     .from("campaign_external_package_items")
-    .select("id, curator_deal_id, curator_deals(state)")
+    .select("id, curator_deal_id, curator_deals!campaign_external_package_items_curator_deal_id_fkey(state)")
     .eq("package_id", packageId);
   if (itemsErr) throw itemsErr;
 
