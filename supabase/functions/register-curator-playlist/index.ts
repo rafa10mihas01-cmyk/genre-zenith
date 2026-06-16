@@ -364,12 +364,10 @@ Deno.serve(async (req) => {
           item.status = "awaiting_baseline";
           continue;
         }
-        // Gate de campanha (TODOS os deals com campaign_id): playlist já presente
-        // na baseline da campanha → conflito de baseline.
-        if (hasCampaign && campaignBaselineIds.has(pid)) {
-          item.status = "baseline_conflict";
-          continue;
-        }
+        // 2026-06-16: gate de baseline_conflict (campanha) REMOVIDO a pedido.
+        // Regra atual: só bloqueia se a playlist já estiver registrada nesse
+        // mesmo deal+música (existingIds). Existência em outras campanhas/deals
+        // não importa.
         if (baselineIds.has(pid)) {
           // Bloqueio forte: estava na baseline do curador, então não é entrega dele.
           item.status = "baseline_blocked";
