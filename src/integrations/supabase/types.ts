@@ -12898,6 +12898,26 @@ export type Database = {
         }
         Returns: undefined
       }
+      append_print_to_batch: {
+        Args: {
+          p_batch_id: string
+          p_correlation?: string
+          p_dom: Json
+          p_path: string
+          p_signed_url: string
+        }
+        Returns: {
+          batch_id: string
+          dom_payload: Json
+          is_complete: boolean
+          print_paths: Json
+          print_urls: Json
+          received_parts: number
+          status: string
+          total_parts: number
+          was_duplicate: boolean
+        }[]
+      }
       apply_playlist_cooldown: {
         Args: {
           _action: Database["public"]["Enums"]["curatorial_action_type"]
