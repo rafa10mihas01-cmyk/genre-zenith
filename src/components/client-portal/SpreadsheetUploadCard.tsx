@@ -486,7 +486,7 @@ export function SpreadsheetUploadCard({
                 {recentUploads.length} registros
               </div>
             </div>
-            <ul className="divide-y divide-border/40 max-h-[480px] overflow-y-auto">
+            <ul className="divide-y divide-border/40 max-h-[240px] overflow-y-auto">
               {[...recentUploads]
                 .sort((a, b) => {
                   const ar = a.reference_date ?? a.created_at.slice(0, 10);
