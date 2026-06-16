@@ -377,7 +377,7 @@ function DesktopPlacementsTable({ items }: { items: Placement[] }) {
 }
 
 function DesktopPlacementsGroups({ placements }: { placements: Placement[] }) {
-  const [openHibrido, setOpenHibrido] = useState(true);
+  const [openHibrido, setOpenHibrido] = useState(false);
   const [openCatalogo, setOpenCatalogo] = useState(false);
 
   const hibrido = sortPlacementsGroup(placements.filter(isOperationalPlacement));
