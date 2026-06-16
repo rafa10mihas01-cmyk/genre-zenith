@@ -373,7 +373,8 @@ export default function CampanhaExecucao() {
         .select("id, created_at, rows_imported, total_streams, status, file_name, file_path, is_baseline, reference_date")
         .eq("deal_id", dealId)
         .order("created_at", { ascending: false })
-        .limit(10);
+        .limit(500);
+
 
       setClientToken(token);
       setRecentUploads((uploads ?? []) as SpreadsheetUpload[]);
