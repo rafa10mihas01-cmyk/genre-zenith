@@ -355,7 +355,19 @@ function DesktopPlacementsTable({ items }: { items: Placement[] }) {
                   ) : (
                     <div className="h-7 w-7 rounded bg-muted flex items-center justify-center"><PlayCircle className="h-3.5 w-3.5 text-muted-foreground" /></div>
                   )}
-                  <span className="font-medium text-foreground">{p.managed_playlists?.name ?? "—"}</span>
+                  {p.managed_playlists?.spotify_playlist_id ? (
+                    <a
+                      href={`https://open.spotify.com/playlist/${p.managed_playlists.spotify_playlist_id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-medium text-foreground hover:text-primary inline-flex items-center gap-1"
+                    >
+                      {p.managed_playlists?.name ?? "—"}
+                      <ExternalLink className="h-3 w-3 opacity-60" />
+                    </a>
+                  ) : (
+                    <span className="font-medium text-foreground">{p.managed_playlists?.name ?? "—"}</span>
+                  )}
                 </div>
               </td>
               <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{fmt(p.managed_playlists?.followers)}</td>
