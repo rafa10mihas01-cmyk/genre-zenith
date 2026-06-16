@@ -389,9 +389,15 @@ Deno.serve(async (req) => {
           continue;
         }
         // 2026-06-16: gate de baseline_conflict (campanha) REMOVIDO a pedido.
-        // Regra atual: só bloqueia se a playlist já estiver registrada nesse
-        // mesmo deal+música (existingIds). Existência em outras campanhas/deals
-        // não importa.
+        // Regra atual:
+        //  - bloqueia se a playlist já existe em OUTRO deal da MESMA campanha
+        //    (campaignExistingIds) → status "duplicate_in_campaign".
+        //  - bloqueia se já registrada nesse mesmo deal+música (existingIds).
+        //  - existência em outras campanhas / deals independentes NÃO bloqueia.
+        if (campaignExistingIds.has(pid)) {
+          item.status = "duplicate_in_campaign";
+          continue;
+        }
         if (baselineIds.has(pid)) {
           // Bloqueio forte: estava na baseline do curador, então não é entrega dele.
           item.status = "baseline_blocked";
