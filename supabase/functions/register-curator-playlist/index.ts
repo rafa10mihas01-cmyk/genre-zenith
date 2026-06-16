@@ -314,6 +314,10 @@ Deno.serve(async (req) => {
         deal!.source === "campaign_internal" && hasCampaign;
       let campaignBaselineStatus: string | null = null;
       const campaignBaselineIds = new Set<string>();
+      // Playlists já registradas em QUALQUER outro deal da MESMA campanha.
+      // Regra: dentro de uma mesma campanha uma playlist só pode aparecer uma vez.
+      // Em outras campanhas / deals independentes não importa.
+      const campaignExistingIds = new Set<string>();
       if (hasCampaign) {
         const { data: camp } = await admin
           .from("campaigns")
@@ -330,6 +334,26 @@ Deno.serve(async (req) => {
         for (const r of (baseRows ?? []) as any[]) {
           if (typeof r.playlist_id === "string" && r.playlist_id.length > 0) {
             campaignBaselineIds.add(r.playlist_id);
+          }
+        }
+
+        const { data: campDeals } = await admin
+          .from("curator_deals")
+          .select("id")
+          .eq("campaign_id", deal!.campaign_id!)
+          .neq("id", deal!.id);
+        const otherDealIds = (campDeals ?? [])
+          .map((d: any) => d.id)
+          .filter((v: unknown): v is string => typeof v === "string");
+        if (otherDealIds.length > 0) {
+          const { data: otherPls } = await admin
+            .from("curator_playlists")
+            .select("spotify_playlist_id")
+            .in("deal_id", otherDealIds);
+          for (const r of (otherPls ?? []) as any[]) {
+            if (typeof r.spotify_playlist_id === "string" && r.spotify_playlist_id.length > 0) {
+              campaignExistingIds.add(r.spotify_playlist_id);
+            }
           }
         }
       }
