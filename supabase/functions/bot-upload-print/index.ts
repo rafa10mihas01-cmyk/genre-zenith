@@ -402,37 +402,48 @@ Deno.serve(async (req) => {
       printUrls = [signed.signedUrl];
       mergedDom = domPlaylists;
     } else {
+      // 🔒 Atualização ATÔMICA via RPC `append_print_to_batch`.
+      // Usa SELECT ... FOR UPDATE no Postgres pra serializar requests
+      // concorrentes do mesmo batch. Substitui o read-modify-write que
+      // gerava lost update (received_parts=N-1 com N uploads recebidos).
       batchId = existing.id;
-      printPaths = [...(existing.print_paths as string[] ?? []), path];
-      printUrls = [...(existing.print_urls as string[] ?? []), signed.signedUrl];
-      receivedParts = (existing.received_parts ?? 0) + 1;
-      const prevDom = (existing.dom_payload as any[]) ?? [];
-      const seenUrls = new Set(prevDom.map((d) => d?.url).filter(Boolean));
-      const newOnes = domPlaylists.filter((d) => d?.url && !seenUrls.has(d.url));
-      mergedDom = [...prevDom, ...newOnes];
+      const { data: rpcData, error: rpcErr } = await supabase
+        .rpc("append_print_to_batch", {
+          p_batch_id: batchId,
+          p_path: path,
+          p_signed_url: signed.signedUrl,
+          p_dom: domPlaylists,
+          p_correlation: correlationId || null,
+        })
+        .single();
+      if (rpcErr || !rpcData) {
+        console.error("append_print_to_batch failed", rpcErr);
+        return jr({ error: "batch_append_failed", detail: rpcErr?.message ?? "no data" }, 500);
+      }
+      const r = rpcData as {
+        received_parts: number;
+        total_parts: number;
+        is_complete: boolean;
+        print_paths: string[];
+        print_urls: string[];
+        dom_payload: any[];
+        status: string;
+        was_duplicate: boolean;
+      };
+      receivedParts = r.received_parts;
+      printPaths = r.print_paths ?? [];
+      printUrls = r.print_urls ?? [];
+      mergedDom = r.dom_payload ?? [];
 
-      if (newOnes.length === 0 && parsed.part > 1) {
+      if (r.was_duplicate && parsed.part > 1) {
         void supabase.from("collection_logs").insert({
-          acao: "bot_print_overshoot",
+          acao: "bot_print_duplicate_part",
           status: "warning",
-          mensagem: `batch=${existing.id} part=${parsed.part}/${parsed.total} brought 0 new rows (total_unique=${prevDom.length}). Worker está enviando prints redundantes.`,
+          mensagem: `batch=${batchId} part=${parsed.part}/${parsed.total} path já existia (idempotent). Worker retry?`,
         });
       }
-      const isComplete = receivedParts >= (existing.total_parts ?? parsed.total);
-      const updatePatch: Record<string, unknown> = {
-        received_parts: receivedParts,
-        print_paths: printPaths,
-        print_urls: printUrls,
-        dom_payload: mergedDom,
-        status: isComplete ? "complete" : "pending",
-        completed_at: isComplete ? new Date().toISOString() : null,
-      };
-      if (correlationId) updatePatch.correlation_id = correlationId;
-      await supabase
-        .from("bot_print_batches")
-        .update(updatePatch)
-        .eq("id", batchId);
     }
+
 
     batchInfo = {
       batch_id: batchId,
