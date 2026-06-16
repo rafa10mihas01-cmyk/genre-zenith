@@ -97,7 +97,7 @@ type DealRow = {
 type ProcessedItem = {
   url: string;
   playlist_id: string | null;
-  status: "ok" | "blocked" | "duplicate" | "duplicate_in_payload" | "baseline_blocked" | "campaign_baseline_blocked" | "baseline_conflict" | "awaiting_baseline" | "track_already_present" | "track_not_present" | "invalid_url" | "not_found" | "error" | "timeout";
+  status: "ok" | "blocked" | "duplicate" | "duplicate_in_payload" | "duplicate_in_campaign" | "baseline_blocked" | "campaign_baseline_blocked" | "baseline_conflict" | "awaiting_baseline" | "track_already_present" | "track_not_present" | "invalid_url" | "not_found" | "error" | "timeout";
   match_status?: ClassifyResult["match_status"];
   match_reason?: string;
   meta?: SpotifyPlaylistMeta;
@@ -314,6 +314,10 @@ Deno.serve(async (req) => {
         deal!.source === "campaign_internal" && hasCampaign;
       let campaignBaselineStatus: string | null = null;
       const campaignBaselineIds = new Set<string>();
+      // Playlists já registradas em QUALQUER outro deal da MESMA campanha.
+      // Regra: dentro de uma mesma campanha uma playlist só pode aparecer uma vez.
+      // Em outras campanhas / deals independentes não importa.
+      const campaignExistingIds = new Set<string>();
       if (hasCampaign) {
         const { data: camp } = await admin
           .from("campaigns")
@@ -330,6 +334,26 @@ Deno.serve(async (req) => {
         for (const r of (baseRows ?? []) as any[]) {
           if (typeof r.playlist_id === "string" && r.playlist_id.length > 0) {
             campaignBaselineIds.add(r.playlist_id);
+          }
+        }
+
+        const { data: campDeals } = await admin
+          .from("curator_deals")
+          .select("id")
+          .eq("campaign_id", deal!.campaign_id!)
+          .neq("id", deal!.id);
+        const otherDealIds = (campDeals ?? [])
+          .map((d: any) => d.id)
+          .filter((v: unknown): v is string => typeof v === "string");
+        if (otherDealIds.length > 0) {
+          const { data: otherPls } = await admin
+            .from("curator_playlists")
+            .select("spotify_playlist_id")
+            .in("deal_id", otherDealIds);
+          for (const r of (otherPls ?? []) as any[]) {
+            if (typeof r.spotify_playlist_id === "string" && r.spotify_playlist_id.length > 0) {
+              campaignExistingIds.add(r.spotify_playlist_id);
+            }
           }
         }
       }
@@ -365,9 +389,15 @@ Deno.serve(async (req) => {
           continue;
         }
         // 2026-06-16: gate de baseline_conflict (campanha) REMOVIDO a pedido.
-        // Regra atual: só bloqueia se a playlist já estiver registrada nesse
-        // mesmo deal+música (existingIds). Existência em outras campanhas/deals
-        // não importa.
+        // Regra atual:
+        //  - bloqueia se a playlist já existe em OUTRO deal da MESMA campanha
+        //    (campaignExistingIds) → status "duplicate_in_campaign".
+        //  - bloqueia se já registrada nesse mesmo deal+música (existingIds).
+        //  - existência em outras campanhas / deals independentes NÃO bloqueia.
+        if (campaignExistingIds.has(pid)) {
+          item.status = "duplicate_in_campaign";
+          continue;
+        }
         if (baselineIds.has(pid)) {
           // Bloqueio forte: estava na baseline do curador, então não é entrega dele.
           item.status = "baseline_blocked";
@@ -538,6 +568,7 @@ Deno.serve(async (req) => {
         blocked: items.filter((it) => it.status === "blocked").length,
         duplicate: items.filter((it) => it.status === "duplicate").length,
         duplicate_in_payload: items.filter((it) => it.status === "duplicate_in_payload").length,
+        duplicate_in_campaign: items.filter((it) => it.status === "duplicate_in_campaign").length,
         baseline_blocked: items.filter((it) => it.status === "baseline_blocked").length,
         campaign_baseline_blocked: items.filter((it) => it.status === "campaign_baseline_blocked").length,
         baseline_conflict: items.filter((it) => it.status === "baseline_conflict").length,
