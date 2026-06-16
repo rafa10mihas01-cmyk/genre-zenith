@@ -295,6 +295,29 @@ Deno.serve(async (req) => {
 
     const upsertRows = [...toInsert, ...toUpdateInPlace];
     if (upsertRows.length > 0) {
+      // PATCH (pl_pos_idx): swap de posições entre faixas existentes faz o upsert abaixo
+      // colidir no UNIQUE (playlist_id, position) — `onConflict` só resolve a UNIQUE de
+      // (playlist_id, spotify_track_id). Estratégia mínima e segura: para as faixas que
+      // estão em `toUpdateInPlace` (mesmas faixas, posição/metadata novos), deletamos a
+      // linha antiga antes do upsert. O upsert vira INSERT puro e nunca encontra posição
+      // ocupada por outra faixa que também está se movendo no mesmo lote.
+      //
+      // Por que preserva histórico: `added_at` em `toUpdateInPlace` vem do Spotify (mesmo
+      // valor que o upsert ia gravar de qualquer jeito). Inserts puros e rekeys já
+      // tratados nas fases anteriores não são afetados.
+      const movingIds = toUpdateInPlace.map((r) => r.spotify_track_id).filter(Boolean);
+      if (movingIds.length > 0) {
+        for (let i = 0; i < movingIds.length; i += 500) {
+          const slice = movingIds.slice(i, i + 500);
+          const { error } = await supabase
+            .from("managed_playlist_tracks")
+            .delete()
+            .eq("playlist_id", pl.id)
+            .in("spotify_track_id", slice);
+          if (error) throw new Error(`park-delete: ${error.message}`);
+        }
+      }
+
       for (let i = 0; i < upsertRows.length; i += 500) {
         const slice = upsertRows.slice(i, i + 500);
         const { error } = await supabase
