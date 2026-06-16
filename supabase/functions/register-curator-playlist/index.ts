@@ -605,6 +605,21 @@ Deno.serve(async (req) => {
           },
           body: JSON.stringify({ deal_id: deal.id }),
         }).catch((err) => console.error("[register-curator-playlist] build-deal-plan trigger falhou", err));
+
+        // Fire-and-forget: se alguma playlist caiu no fallback placeholder
+        // (Spotify deu timeout/429), dispara backfill assíncrono pra recuperar
+        // capa/nome/seguidores uma por vez.
+        const needsBackfill = items.some((it) => it.status === "ok" && it.error);
+        if (needsBackfill) {
+          fetch(`${SUPABASE_URL}/functions/v1/backfill-curator-playlist-meta`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${SERVICE_KEY}`,
+            },
+            body: JSON.stringify({ deal_id: deal.id }),
+          }).catch((err) => console.error("[register-curator-playlist] backfill trigger falhou", err));
+        }
       }
 
       return jr({
