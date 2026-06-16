@@ -269,6 +269,20 @@ Deno.serve(async (req) => {
 
     return jr({ ok: true, cover_url: spotifyCoverUrl, confirmed: changed });
   } catch (e) {
-    return jr({ ok: false, error: (e as Error).message }, 500);
+    const msg = (e as Error).message ?? String(e);
+    // Circuit breaker do Spotify aberto — devolve 200 estruturado pro frontend
+    // não cair em blank screen. UI lê `circuit_open` e mostra mensagem amigável.
+    if (/SPOTIFY_CIRCUIT_OPEN/i.test(msg)) {
+      const retryMatch = msg.match(/retry_after=(\d+)/);
+      const blockedMatch = msg.match(/blocked_until=([^\s]+)/);
+      return jr({
+        ok: false,
+        circuit_open: true,
+        retry_after_seconds: retryMatch ? Number(retryMatch[1]) : null,
+        blocked_until: blockedMatch ? blockedMatch[1] : null,
+        error: "Spotify temporariamente bloqueou as requisições (rate limit). Tente novamente mais tarde.",
+      }, 200);
+    }
+    return jr({ ok: false, error: msg }, 500);
   }
 });
