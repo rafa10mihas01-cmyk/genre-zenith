@@ -179,7 +179,19 @@ function MobilePlacementsRow({ p }: { p: Placement }) {
         <div className="w-10 h-10 rounded flex-shrink-0 bg-muted flex items-center justify-center"><PlayCircle className="h-4 w-4 text-muted-foreground" /></div>
       )}
       <div className="flex-1 min-w-0">
-        <h3 className="text-foreground text-[13px] font-medium truncate leading-none">{p.managed_playlists?.name ?? "—"}</h3>
+        {p.managed_playlists?.spotify_playlist_id ? (
+          <a
+            href={`https://open.spotify.com/playlist/${p.managed_playlists.spotify_playlist_id}`}
+            target="_blank"
+            rel="noreferrer"
+            className="text-foreground text-[13px] font-medium truncate leading-none inline-flex items-center gap-1 hover:text-primary"
+          >
+            <span className="truncate">{p.managed_playlists?.name ?? "—"}</span>
+            <ExternalLink className="h-3 w-3 opacity-60 flex-shrink-0" />
+          </a>
+        ) : (
+          <h3 className="text-foreground text-[13px] font-medium truncate leading-none">{p.managed_playlists?.name ?? "—"}</h3>
+        )}
         <p className="text-muted-foreground text-[11px] mt-1 tabular-nums truncate">
           {fmt(p.managed_playlists?.followers)} seguidores
           {p.last_error_code && <span className="text-rose-400 ml-2 font-mono">{p.last_error_code}</span>}
