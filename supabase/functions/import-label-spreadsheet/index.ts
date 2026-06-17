@@ -91,6 +91,13 @@ function isJunkRow(playlistName: string): boolean {
   return /^(TOTAL|TOTAIS|SUBTOTAL|GRAND TOTAL|SUM|SOMA|RESUMO|TOTAL GERAL)\b/.test(n);
 }
 
+const EMPTY_PLAYLIST_LABELS = new Set(["", "(vazio)", "vazio", "(empty)", "empty", "null", "undefined"]);
+
+function cleanPlaylistName(input: unknown): string | null {
+  const v = String(input ?? "").trim();
+  return EMPTY_PLAYLIST_LABELS.has(v.toLowerCase()) ? null : v;
+}
+
 async function sha256Hex(buf: Uint8Array): Promise<string> {
   const h = await crypto.subtle.digest("SHA-256", buf);
   return Array.from(new Uint8Array(h)).map((b) => b.toString(16).padStart(2, "0")).join("");
