@@ -184,7 +184,7 @@ type SnapshotPlaylistEntry = {
 
 type SnapshotHistoryEntry = {
   captured_at: string;
-  is_baseline: boolean;
+  is_initial_capture: boolean;
   playlists_count: number;
   total_plays: number;
   print_url: string | null;
