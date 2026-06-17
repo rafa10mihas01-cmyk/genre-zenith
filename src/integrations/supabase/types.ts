@@ -13307,7 +13307,6 @@ export type Database = {
           playlist_id: string
         }[]
       }
-      get_campaign_analytics_overview: { Args: never; Returns: Json }
       get_campaign_baseline: {
         Args: { p_campaign_id: string; p_spotify_playlist_id?: string }
         Returns: {
