@@ -3,6 +3,8 @@
 // Sem mudar lógica: lê de playlist_execution_jobs + bot_heartbeats em realtime.
 
 import { useEffect, useMemo, useState } from "react";
+import { useLatestBotHeartbeat } from "@/hooks/useLatestBotHeartbeat";
+
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
