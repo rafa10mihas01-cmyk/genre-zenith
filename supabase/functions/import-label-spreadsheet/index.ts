@@ -358,8 +358,8 @@ async function buildSpreadsheetEnrichment(
 
 async function resolveKnownPlaylistNames(
   admin: ReturnType<typeof createClient>,
-  rows: Array<ParsedRow & MatchResult>,
-): Promise<Array<ParsedRow & MatchResult>> {
+  rows: Array<ParsedRow & SpreadsheetEnrichment>,
+): Promise<Array<ParsedRow & SpreadsheetEnrichment>> {
   const missingIds = Array.from(new Set(
     rows
       .filter((r) => !cleanPlaylistName(r.playlist_name) && !!r.playlist_spotify_id)
@@ -493,11 +493,11 @@ Deno.serve(async (req) => {
     const totalStreams = rows.reduce((acc, r) => acc + r.streams, 0);
     const uniqueIsrcs = Array.from(new Set(rows.map((r) => r.isrc).filter(Boolean)));
 
-    // Match com playlists/curadores nossos
-    const matcher = await buildMatchers(admin, rows);
+    // Enriquecimento das linhas da planilha (NÃO é Match Oficial — ver doc da função).
+    const enrich = await buildSpreadsheetEnrichment(admin, rows);
     const matched = await resolveKnownPlaylistNames(
       admin,
-      rows.map((r) => ({ ...r, ...matcher(r) })),
+      rows.map((r) => ({ ...r, ...enrich(r) })),
     );
     const internalCount = matched.filter((m) => m.is_internal).length;
     const playlistsRecognized = matched.filter((m) => m.matched_playlist_id).length;
