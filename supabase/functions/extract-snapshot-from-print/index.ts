@@ -394,7 +394,7 @@ async function upsertSnapshot(
     plays: number;
     source: string;
     match_method: string;
-    is_baseline: boolean;
+    is_initial_capture: boolean;
     print_url: string | null;
     ai_raw: any;
     batch_id: string | null;
@@ -413,7 +413,7 @@ async function upsertSnapshot(
     plays: row.plays,
     source: row.source,
     match_method: row.match_method,
-    is_baseline: row.is_baseline,
+    is_initial_capture: row.is_initial_capture,
     print_url: null,
     snapshot_run_id: row.batch_id,
     ai_raw: row.ai_raw,
@@ -984,7 +984,7 @@ Deno.serve(async (req) => {
           plays,
           source: "spotify_for_artists",
           match_method: "algorithmic",
-          is_baseline: false,
+          is_initial_capture: false,
           print_url: print_urls[0] ?? null,
           ai_raw: { ...pl, algorithmic: true },
           batch_id: batch_id ?? null,
@@ -1210,7 +1210,7 @@ Deno.serve(async (req) => {
       plays,
       source: "spotify_for_artists",
       match_method: matchMethod ?? (sId ? "spotify_id" : "name"),
-      is_baseline: isBaseline,
+      is_initial_capture: isBaseline,
       print_url: print_urls[0] ?? null,
       ai_raw: { ...pl, dom_matched: !!domHit },
       batch_id: batch_id ?? null,
@@ -1330,7 +1330,7 @@ Deno.serve(async (req) => {
       .from("curator_deal_snapshots")
       .select("id, captured_at, plays, curator_playlists!inner(spotify_playlist_id, playlist_name, match_status, spotify_url)")
       .eq("deal_id", deal_id)
-      .eq("is_baseline", true);
+      .eq("is_initial_capture", true);
     baselineQ = batch_id
       ? baselineQ.eq("batch_id", batch_id)
       : baselineQ.gte("created_at", new Date(Date.now() - 10 * 60_000).toISOString());

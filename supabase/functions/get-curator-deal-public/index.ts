@@ -92,9 +92,9 @@ Deno.serve(async (req) => {
       admin.rpc("get_curator_deal_snapshot_history", { p_deal_id: deal.id }),
       admin
         .from("curator_deal_snapshots")
-        .select("playlist_id, captured_at, plays_24h, plays_7d, plays_28d, is_baseline")
+        .select("playlist_id, captured_at, plays_24h, plays_7d, plays_28d, is_initial_capture")
         .eq("deal_id", deal.id)
-        .eq("is_baseline", false)
+        .eq("is_initial_capture", false)
         .order("captured_at", { ascending: false }),
     ]);
 

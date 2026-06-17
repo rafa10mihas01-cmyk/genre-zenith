@@ -263,7 +263,7 @@ export async function processDomItem(
       plays_28d: plays28d,
       source: p.source ?? "spotify_for_artists_dom",
       match_method: matchMethod ?? (sId ? "spotify_id" : "name"),
-      is_baseline: isBaseline,
+      is_initial_capture: isBaseline,
       correlation_id: item.correlation_id ?? null,
     });
     if (insErr) skipped++; else inserted++;

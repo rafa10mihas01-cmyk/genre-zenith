@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
   const results: Array<{ table: string; ts_column: string; days: number | null; deleted: number | null; error?: string }> = [];
 
-  // Gap 13: curator_deal_snapshots — TTL 90d, preserva is_baseline=true e o snapshot mais recente por deal
+  // Gap 13: curator_deal_snapshots — TTL 90d, preserva is_initial_capture=true e o snapshot mais recente por deal
   try {
     const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
     const { data: latestRows } = await supabase
@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
       .from("curator_deal_snapshots")
       .delete({ count: "estimated" })
       .lt("captured_at", cutoff)
-      .or("is_baseline.is.null,is_baseline.eq.false");
+      .or("is_initial_capture.is.null,is_initial_capture.eq.false");
     if (keepIds.length) q = q.not("id", "in", `(${keepIds.join(",")})`);
     const { error: delErr, count } = await q;
     if (delErr) throw delErr;

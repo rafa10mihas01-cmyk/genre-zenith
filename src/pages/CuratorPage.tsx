@@ -184,7 +184,7 @@ type SnapshotPlaylistEntry = {
 
 type SnapshotHistoryEntry = {
   captured_at: string;
-  is_baseline: boolean;
+  is_initial_capture: boolean;
   playlists_count: number;
   total_plays: number;
   print_url: string | null;
@@ -2275,7 +2275,7 @@ export default function CuratorPage() {
                                 {dayLabel} · {time}
                               </div>
                               <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
-                                {entry.is_baseline ? "Baseline" : "Coleta"} ·{" "}
+                                {entry.is_initial_capture ? "Início da medição" : "Coleta"} ·{" "}
                                 {entry.playlists_count}{" "}
                                 {entry.playlists_count === 1 ? "playlist" : "playlists"}
                                 {prints.length > 0 && (

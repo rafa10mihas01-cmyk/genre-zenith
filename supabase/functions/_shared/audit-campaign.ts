@@ -224,7 +224,7 @@ export async function auditCampaignFlow(
         .from("curator_deal_snapshots")
         .select("id, deal_id, captured_at, playlist_id")
         .in("deal_id", dealIds)
-        .eq("is_baseline", true);
+        .eq("is_initial_capture", true);
       const baselineCount = baselineSnaps?.length ?? 0;
       const firstBaselineAt = (baselineSnaps ?? [])
         .map((s: any) => s.captured_at)

@@ -253,7 +253,7 @@ Deno.serve(async (req) => {
     // 4) Histórico — filtra por song_id se aplicável
     let histQuery = admin
       .from("curator_deal_snapshots")
-      .select("captured_at, plays, is_baseline, playlist_id")
+      .select("captured_at, plays, is_initial_capture, playlist_id")
       .eq("deal_id", dealId!)
       .order("captured_at", { ascending: true });
     if (selectedSongId && activeSong) {
@@ -645,7 +645,7 @@ Deno.serve(async (req) => {
     const snapHist = Array.isArray(snapHistRaw) ? snapHistRaw : [];
     const safeSnapshotHistory = (snapHist as AnyRec[]).map((entry) => ({
       captured_at: entry.captured_at,
-      is_baseline: Boolean(entry.is_baseline),
+      is_initial_capture: Boolean(entry.is_initial_capture),
       playlists_count: Number(entry.playlists_count ?? 0),
       total_plays: Number(entry.total_plays ?? 0),
       print_url: (entry.print_url as string | null) ?? null,

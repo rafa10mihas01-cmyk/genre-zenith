@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
         .from("curator_deal_snapshots")
         .select("id", { count: "exact", head: true })
         .eq("deal_id", deal.id)
-        .eq("is_baseline", false)
+        .eq("is_initial_capture", false)
         .gte("captured_at", threeDaysAgo);
 
       if (sErr) {

@@ -3570,7 +3570,7 @@ export type Database = {
           flag_reason: string | null
           flagged: boolean
           id: string
-          is_baseline: boolean
+          is_initial_capture: boolean
           match_method: string | null
           notes: string | null
           playlist_id: string
@@ -3595,7 +3595,7 @@ export type Database = {
           flag_reason?: string | null
           flagged?: boolean
           id?: string
-          is_baseline?: boolean
+          is_initial_capture?: boolean
           match_method?: string | null
           notes?: string | null
           playlist_id: string
@@ -3620,7 +3620,7 @@ export type Database = {
           flag_reason?: string | null
           flagged?: boolean
           id?: string
-          is_baseline?: boolean
+          is_initial_capture?: boolean
           match_method?: string | null
           notes?: string | null
           playlist_id?: string

@@ -2,7 +2,7 @@
   "phase": "1.A — Baseline de playlist",
   "targets": [
     { "kind": "table", "name": "curator_deal_baseline_playlists" },
-    { "kind": "column", "table": "curator_deal_snapshots", "name": "is_baseline" },
+    { "kind": "column", "table": "curator_deal_snapshots", "name": "is_initial_capture", "note": "Renomeada de is_baseline na Fase 1.A.2 — arquitetura oficial." },
     { "kind": "column", "table": "curator_deal_logs", "name": "is_baseline" },
     { "kind": "column", "table": "curator_playlists", "name": "is_baseline" },
     { "kind": "column", "table": "curator_campaign_playlists", "name": "baseline_conflict_at" },
