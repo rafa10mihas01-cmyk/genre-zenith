@@ -6658,6 +6658,7 @@ export type Database = {
           rows_imported: number
           song_id: string | null
           status: string
+          superseded_at: string | null
           superseded_by: string | null
           total_streams: number
           upload_mode: string
@@ -6682,6 +6683,7 @@ export type Database = {
           rows_imported?: number
           song_id?: string | null
           status?: string
+          superseded_at?: string | null
           superseded_by?: string | null
           total_streams?: number
           upload_mode?: string
@@ -6706,6 +6708,7 @@ export type Database = {
           rows_imported?: number
           song_id?: string | null
           status?: string
+          superseded_at?: string | null
           superseded_by?: string | null
           total_streams?: number
           upload_mode?: string
