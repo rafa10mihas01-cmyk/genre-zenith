@@ -557,7 +557,7 @@ Deno.serve(async (req) => {
       plays_28d: plays28d,
       source: snap.source ?? "spotify_for_artists",
       match_method: matchMethod ?? (sId ? "spotify_id" : "name"),
-      is_baseline: isBaseline,
+      is_initial_capture: isBaseline,
       flagged,
       flag_reason: flagReason,
     });
