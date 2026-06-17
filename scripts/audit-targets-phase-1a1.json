@@ -1,0 +1,6 @@
+{
+  "phase": "1.A.1 — DROP curator_deal_baseline_playlists",
+  "targets": [
+    { "kind": "table", "name": "curator_deal_baseline_playlists" }
+  ]
+}

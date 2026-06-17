@@ -1321,14 +1321,14 @@ Deno.serve(async (req) => {
     }
   }
 
-  // 3.9. Se for baseline, persiste a "blacklist" de playlists do deal:
-  // tudo que já existia no Spotify for Artists antes da campanha começar.
-  // Curador que tentar cadastrar uma playlist com spotify_playlist_id contido
-  // aqui será bloqueado pelo trigger enforce_curator_playlist_baseline().
+  // 3.9. Fase 1.A.1 — baseline oficial vai exclusivamente para
+  // `campaign_playlist_collections` via writer compartilhado.
+  // Sem campaign_id → skip estruturado em bot_events. Nada em legado.
   if (isBaseline) {
+    const { writeBaselineOfficial } = await import("../_shared/baseline-writer.ts");
     let baselineQ = supabase
       .from("curator_deal_snapshots")
-      .select("id, captured_at, curator_playlists!inner(spotify_playlist_id, playlist_name, match_status)")
+      .select("id, captured_at, plays, curator_playlists!inner(spotify_playlist_id, playlist_name, match_status, spotify_url)")
       .eq("deal_id", deal_id)
       .eq("is_baseline", true);
     baselineQ = batch_id
@@ -1344,21 +1344,20 @@ Deno.serve(async (req) => {
         !String(playlist.spotify_playlist_id).startsWith("algo:") &&
         playlist.match_status !== "algorithmic",
       )
-      .map((p: any) => ({
-        deal_id,
-        spotify_playlist_id: p.playlist.spotify_playlist_id,
-        playlist_name: p.playlist.playlist_name ?? null,
-        song_id: p.snapshot.song_id ?? null,
-        snapshot_id: p.snapshot.id,
-        captured_at: p.snapshot.captured_at,
+      .map(({ snapshot, playlist }: any) => ({
+        spotify_playlist_id: playlist.spotify_playlist_id,
+        playlist_name: playlist.playlist_name ?? null,
+        playlist_url: playlist.spotify_url ?? null,
+        plays_7d: Number(snapshot.plays ?? 0) || 0,
+        captured_at: snapshot.captured_at,
       }));
-    if (rows.length > 0) {
-      const { error: bErr } = await supabase
-        .from("curator_deal_baseline_playlists")
-        .upsert(rows, { onConflict: song_id ? "deal_id,song_id,spotify_playlist_id" : "deal_id,spotify_playlist_id" });
-      if (bErr) console.error("[extract] baseline blacklist upsert error", bErr);
-      else console.log(`[extract] baseline blacklist: ${rows.length} playlists registradas para deal=${deal_id}`);
-    }
+
+    await writeBaselineOfficial(supabase, {
+      writer: "extract-snapshot-from-print",
+      deal_id,
+      song_id: song_id ?? null,
+      rows,
+    });
 
     // 3.9.1) Baseline pronta: ativa o deal. State awaiting_baseline → collecting
     // e marca baseline_captured_at. Só transiciona se ainda estava esperando.

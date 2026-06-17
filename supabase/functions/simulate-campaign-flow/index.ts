@@ -61,7 +61,6 @@ Deno.serve(async (req) => {
       }
       if (created.deal_ids.length > 0) {
         await admin.from("curator_playlists").delete().in("deal_id", created.deal_ids);
-        await admin.from("curator_deal_baseline_playlists").delete().in("deal_id", created.deal_ids);
         await admin.from("curator_deal_songs").delete().in("deal_id", created.deal_ids);
         await admin.from("curator_deals").delete().in("id", created.deal_ids);
       }

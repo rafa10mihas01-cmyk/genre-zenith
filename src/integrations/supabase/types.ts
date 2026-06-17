@@ -3326,39 +3326,6 @@ export type Database = {
           },
         ]
       }
-      curator_deal_baseline_playlists: {
-        Row: {
-          captured_at: string
-          created_at: string
-          deal_id: string
-          id: string
-          playlist_name: string | null
-          snapshot_id: string | null
-          song_id: string | null
-          spotify_playlist_id: string
-        }
-        Insert: {
-          captured_at?: string
-          created_at?: string
-          deal_id: string
-          id?: string
-          playlist_name?: string | null
-          snapshot_id?: string | null
-          song_id?: string | null
-          spotify_playlist_id: string
-        }
-        Update: {
-          captured_at?: string
-          created_at?: string
-          deal_id?: string
-          id?: string
-          playlist_name?: string | null
-          snapshot_id?: string | null
-          song_id?: string | null
-          spotify_playlist_id?: string
-        }
-        Relationships: []
-      }
       curator_deal_delivery_status: {
         Row: {
           actual_to_date: number
@@ -13572,19 +13539,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      is_playlist_in_deal_baseline:
-        | {
-            Args: { p_deal_id: string; p_spotify_playlist_id: string }
-            Returns: boolean
-          }
-        | {
-            Args: {
-              p_deal_id: string
-              p_song_id?: string
-              p_spotify_playlist_id: string
-            }
-            Returns: boolean
-          }
       list_campaign_plan_versions_by_token: {
         Args: { p_token: string }
         Returns: {
@@ -13822,10 +13776,6 @@ export type Database = {
       }
       sync_campaign_deals_baseline: {
         Args: { p_campaign_id: string }
-        Returns: Json
-      }
-      sync_deal_campaign_baseline: {
-        Args: { p_deal_id: string }
         Returns: Json
       }
       sync_tier_cold_ids: {
