@@ -40,6 +40,7 @@ import { SpotifyAppsPanel } from "@/components/sistema/SpotifyAppsPanel";
 import { ExecutiveStatusBar } from "@/components/sistema/ExecutiveStatusBar";
 import { AttentionInbox } from "@/components/sistema/AttentionInbox";
 import { OperationalSummary } from "@/components/sistema/OperationalSummary";
+import { NocPanel } from "@/components/sistema/NocPanel";
 
 type SistemaTab = "saude" | "capacidade" | "aprendizado" | "alertas" | "motores" | "configuracoes" | "dev";
 type MotorSub = "robo" | "coleta" | "execucao" | "manual" | "fluxo" | "ao-vivo";
