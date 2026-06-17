@@ -253,7 +253,7 @@ Deno.serve(async (req) => {
     // 4) Histórico — filtra por song_id se aplicável
     let histQuery = admin
       .from("curator_deal_snapshots")
-      .select("captured_at, plays, is_baseline, playlist_id")
+      .select("captured_at, plays, is_initial_capture, playlist_id")
       .eq("deal_id", dealId!)
       .order("captured_at", { ascending: true });
     if (selectedSongId && activeSong) {
