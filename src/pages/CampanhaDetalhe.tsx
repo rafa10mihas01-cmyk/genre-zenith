@@ -162,9 +162,6 @@ export default function CampanhaDetalhe() {
         subtitle={camp.artist ? `Ver entrega de ${camp.artist}` : "Ver entrega da campanha"}
         actions={
           <>
-            <Button variant="outline" onClick={recalc} disabled={busy}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${busy ? "animate-spin" : ""}`} /> Recalcular
-            </Button>
             {!camp.plan_approved_at && (
               <Button onClick={approvePlan} disabled={busy}>
                 <CheckCircle2 className="h-4 w-4 mr-2" /> Aprovar plano
@@ -242,51 +239,9 @@ export default function CampanhaDetalhe() {
           </div>
         </div>
 
-        {/* Allocations */}
-        <h2 className="text-lg font-semibold mb-3">Playlists ({allocs.length})</h2>
-        <div className="border border-border rounded-2xl overflow-hidden bg-card">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3 text-left">Playlist</th>
-                <th className="px-4 py-3 text-right">Meta</th>
-                <th className="px-4 py-3 text-right">Entregue</th>
-                <th className="px-4 py-3 text-right">%</th>
-                <th className="px-4 py-3 text-left">Status</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {allocs.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">Sem playlists alocadas.</td></tr>
-              ) : allocs.map(a => {
-                const ap = a.target_plays > 0 ? Math.min(100, Math.round((a.delivered_plays / a.target_plays) * 100)) : 0;
-                return (
-                  <tr key={a.id} className="border-t border-border">
-                    <td className="px-4 py-3">
-                      <div className="font-medium truncate max-w-[280px]">{a.playlists?.name ?? a.playlist_id.slice(0, 8)}</div>
-                      <div className="text-xs text-muted-foreground">{(a.playlists?.followers ?? 0).toLocaleString()} seguidores</div>
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums">{a.target_plays.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{a.delivered_plays.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{ap}%</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <StatusDot variant={a.status === "active" || a.status === "approved" ? "success" : a.status === "paused" ? "warning" : "neutral"} />
-                        <span className="text-xs">{a.status}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Button size="icon" variant="ghost" onClick={() => removeAlloc(a.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        {/* Lista de playlists removida na Fase 2.A.2 — campaign_allocations aposentada.
+            A listagem operacional vive em /campanhas/:id/execucao (CampanhaExecucao),
+            consumindo campaign_eco_allocations + Growth Engine. */}
 
         {camp.notes && (
           <div className="mt-8 rounded-2xl border border-border bg-card p-5">
