@@ -71,23 +71,23 @@ function CorrelationPanel() {
     setLoading(true);
     const [be, br, cl, cdl, dp, cps, pol, sa, ce] = await Promise.all([
       supabase.from("bot_events").select("created_at,step,status,metadata").eq("correlation_id", id).order("created_at"),
-      supabase.from("bot_ingest_raw").select("created_at,kind,metadata").eq("correlation_id", id).order("created_at"),
-      supabase.from("collection_logs").select("created_at,acao,status,mensagem").eq("correlation_id", id).order("created_at"),
-      supabase.from("curator_deal_logs").select("created_at,acao,status,mensagem").eq("correlation_id", id).order("created_at"),
-      supabase.from("delivery_proofs").select("created_at,status,metadata").eq("correlation_id", id).order("created_at"),
-      supabase.from("campaign_playlist_collections").select("created_at,status").eq("correlation_id", id).order("created_at"),
-      supabase.from("playlist_operation_log").select("created_at,operation,status").eq("correlation_id", id).order("created_at"),
+      supabase.from("bot_ingest_raw").select("created_at,source,endpoint").eq("correlation_id", id).order("created_at"),
+      supabase.from("collection_logs").select("created_at,acao,status,mensagem").eq("correlation_id", id as any).order("created_at"),
+      supabase.from("curator_deal_logs").select("created_at,note,total_plays").eq("correlation_id", id as any).order("created_at"),
+      supabase.from("delivery_proofs").select("created_at,source,playlist_name,plays_total").eq("correlation_id", id).order("created_at"),
+      supabase.from("campaign_playlist_collections").select("created_at,source,playlist_name_at_capture").eq("correlation_id", id as any).order("created_at"),
+      supabase.from("playlist_operation_log").select("created_at,operation,status").eq("correlation_id", id as any).order("created_at"),
       supabase.from("system_alerts").select("created_at,severity,subsystem,title").eq("correlation_id", id).order("created_at"),
       supabase.from("client_error_log").select("created_at,message,url").eq("correlation_id", id).order("created_at"),
     ]);
     const merged: any[] = [];
-    (be.data ?? []).forEach(r => merged.push({ source: "bot_events", ts: r.created_at, step: r.step, status: r.status, meta: r.metadata }));
-    (br.data ?? []).forEach(r => merged.push({ source: "ingest_raw", ts: r.created_at, step: r.kind, meta: r.metadata }));
-    (cl.data ?? []).forEach(r => merged.push({ source: "collection_logs", ts: r.created_at, step: r.acao, status: r.status, meta: r.mensagem }));
-    (cdl.data ?? []).forEach(r => merged.push({ source: "curator_deal_logs", ts: r.created_at, step: r.acao, status: r.status, meta: r.mensagem }));
-    (dp.data ?? []).forEach(r => merged.push({ source: "delivery_proofs", ts: r.created_at, status: r.status, meta: r.metadata }));
-    (cps.data ?? []).forEach(r => merged.push({ source: "campaign_collections", ts: r.created_at, status: r.status }));
-    (pol.data ?? []).forEach(r => merged.push({ source: "playlist_ops", ts: r.created_at, step: r.operation, status: r.status }));
+    (be.data ?? []).forEach((r: any) => merged.push({ source: "bot_events", ts: r.created_at, step: r.step, status: r.status, meta: r.metadata }));
+    (br.data ?? []).forEach((r: any) => merged.push({ source: "ingest_raw", ts: r.created_at, step: r.source, meta: r.endpoint }));
+    (cl.data ?? []).forEach((r: any) => merged.push({ source: "collection_logs", ts: r.created_at, step: r.acao, status: r.status, meta: r.mensagem }));
+    (cdl.data ?? []).forEach((r: any) => merged.push({ source: "curator_deal_logs", ts: r.created_at, step: "deal_log", meta: `${r.note ?? ""} (plays=${r.total_plays ?? "—"})` }));
+    (dp.data ?? []).forEach((r: any) => merged.push({ source: "delivery_proofs", ts: r.created_at, status: r.source, meta: `${r.playlist_name ?? ""} plays=${r.plays_total ?? "—"}` }));
+    (cps.data ?? []).forEach((r: any) => merged.push({ source: "campaign_collections", ts: r.created_at, status: r.source, meta: r.playlist_name_at_capture }));
+    (pol.data ?? []).forEach((r: any) => merged.push({ source: "playlist_ops", ts: r.created_at, step: r.operation, status: r.status }));
     (sa.data ?? []).forEach(r => merged.push({ source: "system_alerts", ts: r.created_at, step: r.subsystem, status: r.severity, meta: r.title }));
     (ce.data ?? []).forEach(r => merged.push({ source: "frontend", ts: r.created_at, step: "error", meta: r.message }));
     merged.sort((a, b) => a.ts.localeCompare(b.ts));
