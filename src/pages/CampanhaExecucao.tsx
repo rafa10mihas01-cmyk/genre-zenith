@@ -427,7 +427,7 @@ export default function CampanhaExecucao() {
           .from("curator_deal_snapshots")
           .select("captured_at, curator_playlists!inner(spotify_playlist_id)")
           .eq("deal_id", dealId)
-          .eq("is_baseline", true),
+          .eq("is_initial_capture", true),
         supabase
           .from("curator_deal_logs")
           .select("created_at, total_plays")
