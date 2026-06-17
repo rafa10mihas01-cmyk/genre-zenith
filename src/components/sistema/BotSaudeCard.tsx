@@ -49,7 +49,7 @@ export function BotSaudeCard() {
 
   const onRefresh = () => { refetchHb(); load(); };
 
-  if (loading || !data) {
+  if ((loading && hbLoading) || !data) {
     return (
       <div className="nx-card p-4 flex items-center gap-2 text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" /> Carregando saúde do bot…
@@ -57,7 +57,10 @@ export function BotSaudeCard() {
     );
   }
 
-  const hbAge = data.last_heartbeat ? Date.now() - new Date(data.last_heartbeat).getTime() : Infinity;
+  const lastHeartbeat = hb?.created_at ?? undefined;
+  const spotifyValid = hb?.spotify_session_valid ?? false;
+  const hbMessage = hb?.message ?? undefined;
+  const hbAge = lastHeartbeat ? Date.now() - new Date(lastHeartbeat).getTime() : Infinity;
   const hbOk = hbAge < 5 * 60 * 1000; // 5min
   const nextDate = data.next_collect_at ? new Date(data.next_collect_at) : null;
   const nextLabel = nextDate
@@ -72,7 +75,7 @@ export function BotSaudeCard() {
         <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-bold flex items-center gap-1.5">
           <Bot className="h-3 w-3" /> Sistema de coleta Spotify
         </h3>
-        <Button size="sm" variant="ghost" onClick={load} disabled={refreshing} className="h-6 gap-1 text-[11px]">
+        <Button size="sm" variant="ghost" onClick={onRefresh} disabled={refreshing} className="h-6 gap-1 text-[11px]">
           <RefreshCw className={cn("h-3 w-3", refreshing && "animate-spin")} /> Atualizar
         </Button>
       </div>
@@ -82,17 +85,18 @@ export function BotSaudeCard() {
           label="Sinal de vida"
           ok={hbOk}
           okText={hbOk ? "ativo" : "sem sinal"}
-          errText={data.last_heartbeat ? "sem sinal" : "nunca rodou"}
-          detail={data.last_heartbeat ? `último há ${timeAgo(data.last_heartbeat)}` : "—"}
+          errText={lastHeartbeat ? "sem sinal" : "nunca rodou"}
+          detail={lastHeartbeat ? `último há ${timeAgo(lastHeartbeat)}` : "—"}
         />
         <Cell
           icon={ShieldCheck}
           label="Sessão Spotify"
-          ok={hbOk && data.spotify_valid}
+          ok={hbOk && spotifyValid}
           okText="Conta conectada"
           errText="Reconectar necessária"
-          detail={data.spotify_valid ? "tudo certo" : humanizeError(data.message ?? "reautenticar")}
+          detail={spotifyValid ? "tudo certo" : humanizeError(hbMessage ?? "reautenticar")}
         />
+
 
         <Cell
           icon={ListChecks}
