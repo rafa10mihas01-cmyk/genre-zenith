@@ -91,6 +91,13 @@ function isJunkRow(playlistName: string): boolean {
   return /^(TOTAL|TOTAIS|SUBTOTAL|GRAND TOTAL|SUM|SOMA|RESUMO|TOTAL GERAL)\b/.test(n);
 }
 
+const EMPTY_PLAYLIST_LABELS = new Set(["", "(vazio)", "vazio", "(empty)", "empty", "null", "undefined"]);
+
+function cleanPlaylistName(input: unknown): string | null {
+  const v = String(input ?? "").trim();
+  return EMPTY_PLAYLIST_LABELS.has(v.toLowerCase()) ? null : v;
+}
+
 async function sha256Hex(buf: Uint8Array): Promise<string> {
   const h = await crypto.subtle.digest("SHA-256", buf);
   return Array.from(new Uint8Array(h)).map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -221,17 +228,6 @@ function parseBuf(
       const key = HEADER_MAP[normalize(k)];
       if (key) mapped[key] = v;
     }
-    const playlist_name = String(mapped.playlist_name ?? "").trim();
-    if (!playlist_name) { autoFixes.empty_rows++; continue; }
-    if (isJunkRow(playlist_name)) { autoFixes.junk_rows++; continue; }
-
-    const streamsRaw = mapped.streams;
-    const streamsParsed = parseFlexibleNumber(streamsRaw);
-    if (typeof streamsRaw === "string" && streamsRaw !== String(streamsParsed)) {
-      autoFixes.number_normalized++;
-    }
-    const streams = streamsParsed < 0 ? (autoFixes.negative_clamped++, 0) : streamsParsed;
-
     const rawUri = mapped.playlist_uri ? String(mapped.playlist_uri) : null;
     const rawUrl = mapped.playlist_url ? String(mapped.playlist_url) : null;
     const playlist_uri = cleanUrl(rawUri);
@@ -241,6 +237,17 @@ function parseBuf(
     }
     const playlist_spotify_id = extractPlaylistId(playlist_uri) ||
       extractPlaylistId(playlist_url);
+
+    const playlist_name = cleanPlaylistName(mapped.playlist_name);
+    if (!playlist_name && !playlist_spotify_id) { autoFixes.empty_rows++; continue; }
+    if (playlist_name && isJunkRow(playlist_name)) { autoFixes.junk_rows++; continue; }
+
+    const streamsRaw = mapped.streams;
+    const streamsParsed = parseFlexibleNumber(streamsRaw);
+    if (typeof streamsRaw === "string" && streamsRaw !== String(streamsParsed)) {
+      autoFixes.number_normalized++;
+    }
+    const streams = streamsParsed < 0 ? (autoFixes.negative_clamped++, 0) : streamsParsed;
 
     let position_in_playlist: number | null = null;
     if (mapped.position_in_playlist != null) {
@@ -253,7 +260,7 @@ function parseBuf(
 
     // dedupe por (spotify_id || nome+owner)
     const dedupeKey = (playlist_spotify_id ||
-      `${playlist_name}|${mapped.owner_name ?? ""}`).toLowerCase();
+      `${playlist_name ?? ""}|${mapped.owner_name ?? ""}`).toLowerCase();
     if (seen.has(dedupeKey)) { autoFixes.duplicates++; continue; }
     seen.add(dedupeKey);
 
@@ -261,7 +268,7 @@ function parseBuf(
       row_position: mapped.row_position != null ? Number(mapped.row_position) || null : null,
       version_name: String(mapped.version_name ?? "").trim(),
       isrc: String(mapped.isrc ?? "").trim().toUpperCase(),
-      playlist_name,
+      playlist_name: playlist_name ?? "",
       playlist_uri,
       playlist_url,
       playlist_spotify_id,
@@ -337,6 +344,44 @@ async function buildMatchers(
       is_internal: isInternal,
     };
   };
+}
+
+async function resolveKnownPlaylistNames(
+  admin: ReturnType<typeof createClient>,
+  rows: Array<ParsedRow & MatchResult>,
+): Promise<Array<ParsedRow & MatchResult>> {
+  const missingIds = Array.from(new Set(
+    rows
+      .filter((r) => !cleanPlaylistName(r.playlist_name) && !!r.playlist_spotify_id)
+      .map((r) => r.playlist_spotify_id as string),
+  ));
+  if (missingIds.length === 0) return rows;
+
+  const [curatorRes, managedRes, playlistRes] = await Promise.all([
+    admin.from("curator_playlists").select("spotify_playlist_id, playlist_name").in("spotify_playlist_id", missingIds),
+    admin.from("managed_playlists").select("spotify_playlist_id, name").in("spotify_playlist_id", missingIds),
+    admin.from("playlists").select("spotify_playlist_id, name").in("spotify_playlist_id", missingIds),
+  ]);
+
+  const names = new Map<string, string>();
+  for (const r of (curatorRes.data ?? []) as Array<{ spotify_playlist_id: string; playlist_name: string | null }>) {
+    const n = cleanPlaylistName(r.playlist_name);
+    if (r.spotify_playlist_id && n) names.set(r.spotify_playlist_id, n);
+  }
+  for (const r of (managedRes.data ?? []) as Array<{ spotify_playlist_id: string; name: string | null }>) {
+    const n = cleanPlaylistName(r.name);
+    if (r.spotify_playlist_id && n) names.set(r.spotify_playlist_id, n);
+  }
+  for (const r of (playlistRes.data ?? []) as Array<{ spotify_playlist_id: string; name: string | null }>) {
+    const n = cleanPlaylistName(r.name);
+    if (r.spotify_playlist_id && n) names.set(r.spotify_playlist_id, n);
+  }
+
+  return rows.map((r) => {
+    const current = cleanPlaylistName(r.playlist_name);
+    const resolved = r.playlist_spotify_id ? names.get(r.playlist_spotify_id) : null;
+    return { ...r, playlist_name: current ?? resolved ?? r.playlist_spotify_id ?? "Playlist" };
+  });
 }
 
 Deno.serve(async (req) => {
@@ -420,7 +465,10 @@ Deno.serve(async (req) => {
 
     // Match com playlists/curadores nossos
     const matcher = await buildMatchers(admin, rows);
-    const matched = rows.map((r) => ({ ...r, ...matcher(r) }));
+    const matched = await resolveKnownPlaylistNames(
+      admin,
+      rows.map((r) => ({ ...r, ...matcher(r) })),
+    );
     const internalCount = matched.filter((m) => m.is_internal).length;
     const playlistsRecognized = matched.filter((m) => m.matched_playlist_id).length;
     const curatorsRecognized = new Set(

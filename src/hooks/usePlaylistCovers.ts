@@ -8,6 +8,13 @@ export type PlaylistMeta = {
   followers: number | null;
 };
 
+const EMPTY_PLAYLIST_LABELS = new Set(["", "(vazio)", "vazio", "(empty)", "empty", "null", "undefined"]);
+
+function cleanPlaylistName(name: string | null | undefined): string | null {
+  const v = String(name ?? "").trim();
+  return EMPTY_PLAYLIST_LABELS.has(v.toLowerCase()) ? null : v;
+}
+
 export function usePlaylistCovers(playlistIds: string[]) {
   const [map, setMap] = useState<Record<string, PlaylistMeta>>({});
   const key = playlistIds.slice().sort().join(",");
@@ -38,7 +45,7 @@ export function usePlaylistCovers(playlistIds: string[]) {
         if (!id) continue;
         next[id] = {
           spotify_playlist_id: id,
-          name: r.playlist_name ?? null,
+          name: cleanPlaylistName(r.playlist_name),
           cover_url: r.image_url ?? null,
           followers: r.followers ?? null,
         };
@@ -49,7 +56,7 @@ export function usePlaylistCovers(playlistIds: string[]) {
         const prev = next[id];
         next[id] = {
           spotify_playlist_id: id,
-          name: r.name ?? prev?.name ?? null,
+          name: cleanPlaylistName(r.name) ?? prev?.name ?? null,
           cover_url: r.cover_url ?? prev?.cover_url ?? null,
           followers: r.followers ?? prev?.followers ?? null,
         };
