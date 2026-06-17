@@ -6,7 +6,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusDot } from "@/components/ui/status-dot";
-import { Plus, RefreshCw, Target, ListChecks, Calculator, Megaphone, CheckCircle2, Percent, MoreHorizontal, Pause, Play, Archive, ArchiveRestore, Trash2, Handshake, Link2, Copy, Check, Clock, MessageSquareWarning, Upload, Loader2, ImagePlus, X, Mail, Music2, AtSign, Coins } from "lucide-react";
+import { Plus, Target, ListChecks, Calculator, Megaphone, CheckCircle2, Percent, MoreHorizontal, Pause, Play, Archive, ArchiveRestore, Trash2, Handshake, Link2, Copy, Check, Clock, MessageSquareWarning, Upload, Loader2, ImagePlus, X, Mail, Music2, AtSign, Coins } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRLDetail } from "@/lib/format";
 import { toast } from "@/hooks/use-toast";
