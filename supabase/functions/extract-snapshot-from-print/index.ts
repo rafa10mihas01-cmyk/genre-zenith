@@ -394,7 +394,7 @@ async function upsertSnapshot(
     plays: number;
     source: string;
     match_method: string;
-    is_baseline: boolean;
+    is_initial_capture: boolean;
     print_url: string | null;
     ai_raw: any;
     batch_id: string | null;
