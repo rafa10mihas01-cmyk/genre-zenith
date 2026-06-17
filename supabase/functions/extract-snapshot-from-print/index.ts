@@ -12,6 +12,7 @@
 // 5. Atualiza last_auto_collect_at + next_auto_collect_at na song
 // 6. Marca batch como processed
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { writeCuratorDealSnapshot } from "../_shared/snapshot-writer.ts";
 import { z } from "npm:zod@3.23.8";
 import { fetchPlaylistMeta } from "../_shared/curator-playlist.ts";
 import { recordMetric } from "../_shared/ops-metrics.ts";
