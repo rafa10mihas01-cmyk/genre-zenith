@@ -20,6 +20,8 @@ type Upload = {
   file_path?: string | null;
   is_baseline?: boolean | null;
   reference_date?: string | null;
+  superseded_by?: string | null;
+  quarantined_at?: string | null;
 };
 
 type Preview = {
@@ -476,28 +478,42 @@ export function SpreadsheetUploadCard({
           </div>
         )}
 
-        {recentUploads.length > 0 && (
+        {recentUploads.length > 0 && (() => {
+          const visibleUploads = recentUploads.filter(
+            (u) => !u.superseded_by && !u.quarantined_at && u.status !== "superseded" && u.status !== "quarantined",
+          );
+          if (visibleUploads.length === 0) return null;
+          const sortedUploads = [...visibleUploads].sort((a, b) => {
+            const ar = a.reference_date ?? a.created_at.slice(0, 10);
+            const br = b.reference_date ?? b.created_at.slice(0, 10);
+            if (ar !== br) return br.localeCompare(ar);
+            return b.created_at.localeCompare(a.created_at);
+          });
+          // Marca como "atual" só o mais recente de cada reference_date (evita 2 ATUAL no mesmo dia).
+          const latestByRef = new Set<string>();
+          sortedUploads.forEach((u) => {
+            const key = u.reference_date ?? u.created_at.slice(0, 10);
+            if (!latestByRef.has(key)) latestByRef.add(`__seen_${key}`);
+          });
+          const seenRefs = new Set<string>();
+          return (
           <div className="rounded-lg border border-border/60 bg-muted/10 overflow-hidden">
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/60 bg-muted/20">
               <div className="text-[10.5px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">
                 Histórico de importações
               </div>
               <div className="text-[10px] uppercase tracking-wide text-muted-foreground tabular-nums">
-                {recentUploads.length} registros
+                {sortedUploads.length} registros
               </div>
             </div>
             <ul className="divide-y divide-border/40 max-h-[240px] overflow-y-auto">
-              {[...recentUploads]
-                .sort((a, b) => {
-                  const ar = a.reference_date ?? a.created_at.slice(0, 10);
-                  const br = b.reference_date ?? b.created_at.slice(0, 10);
-                  if (ar !== br) return br.localeCompare(ar);
-                  return b.created_at.localeCompare(a.created_at);
-                })
-                .map((u, idx) => {
+              {sortedUploads.map((u, idx) => {
                 const d = new Date(u.created_at);
                 const dateStr = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
                 const timeStr = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+                const refKey = u.reference_date ?? u.created_at.slice(0, 10);
+                const isLatestForRef = !seenRefs.has(refKey);
+                if (isLatestForRef) seenRefs.add(refKey);
                 const isLatest = idx === 0;
                 const refStr = u.reference_date
                   ? new Date(u.reference_date + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })
@@ -528,7 +544,7 @@ export function SpreadsheetUploadCard({
                         <div className="text-[10.5px] text-muted-foreground tabular-nums leading-tight">
                           {timeStr}
                           {u.is_baseline && <span className="ml-1.5 text-amber-400 font-medium uppercase tracking-wide text-[9.5px]">· baseline</span>}
-                          {isLatest && <span className="ml-1.5 text-success font-medium uppercase tracking-wide text-[9.5px]">· atual</span>}
+                          {isLatestForRef && !u.is_baseline && <span className="ml-1.5 text-success font-medium uppercase tracking-wide text-[9.5px]">· atual</span>}
                         </div>
                       </div>
                     </div>
@@ -566,7 +582,8 @@ export function SpreadsheetUploadCard({
               })}
             </ul>
           </div>
-        )}
+          );
+        })()}
       </CardContent>
     </Card>
   );
