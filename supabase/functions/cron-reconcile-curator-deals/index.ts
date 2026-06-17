@@ -44,7 +44,7 @@ async function reconcileDeal(supabase: any, deal: any) {
       .from("curator_deal_snapshots")
       .select("id", { count: "exact", head: true })
       .eq("deal_id", deal.id)
-      .eq("is_baseline", true);
+      .eq("is_initial_capture", true);
     if (!count || count === 0) {
       await supabase.rpc("notify_baseline_missing", { p_deal_id: deal.id });
     }
