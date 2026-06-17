@@ -582,7 +582,8 @@ export function SpreadsheetUploadCard({
               })}
             </ul>
           </div>
-        )}
+          );
+        })()}
       </CardContent>
     </Card>
   );
