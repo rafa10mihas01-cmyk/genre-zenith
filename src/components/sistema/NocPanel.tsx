@@ -485,19 +485,19 @@ function SearchPanel() {
     if (term.startsWith("crrl_")) push("correlation_id", null, term, "Abra na aba Correlation");
 
     const [camps, deals, curs, workers, tokens, players] = await Promise.all([
-      supabase.from("campaigns").select("id,nome,cliente_id").or(`id.eq.${safeUuid(term)},nome.ilike.%${term}%`).limit(5),
+      supabase.from("campaigns").select("id,track_name,client_id").or(`id.eq.${safeUuid(term)},track_name.ilike.%${term}%`).limit(5),
       supabase.from("curator_deals").select("id,curator_id").eq("id", safeUuid(term)).limit(5),
-      supabase.from("curators").select("id,nome").or(`id.eq.${safeUuid(term)},nome.ilike.%${term}%`).limit(5),
+      supabase.from("curators").select("id,name").or(`id.eq.${safeUuid(term)},name.ilike.%${term}%`).limit(5),
       supabase.from("bot_heartbeats").select("worker_id,bot_name,hostname").or(`worker_id.eq.${term},bot_name.ilike.%${term}%`).limit(5),
-      supabase.from("public_token_audit").select("id,action,created_at,token_hash").ilike("token_hash", `%${term}%`).limit(5),
-      supabase.from("managed_playlists").select("id,nome").or(`id.eq.${safeUuid(term)},nome.ilike.%${term}%`).limit(5),
+      supabase.from("public_token_audit").select("id,action,created_at,new_token_hash,old_token_hash").or(`new_token_hash.ilike.%${term}%,old_token_hash.ilike.%${term}%`).limit(5),
+      supabase.from("managed_playlists").select("id,name").or(`id.eq.${safeUuid(term)},name.ilike.%${term}%`).limit(5),
     ]);
-    (camps.data ?? []).forEach(c => push("campaign", `/campanhas/${c.id}`, c.nome ?? c.id, c.id));
-    (deals.data ?? []).forEach(d => push("deal", `/deals/${d.id}`, d.id, "curator_deal"));
-    (curs.data ?? []).forEach(c => push("curator", `/curadores/${c.id}`, c.nome ?? c.id, c.id));
-    (workers.data ?? []).forEach(w => push("worker", null, `${w.bot_name} @ ${w.hostname}`, w.worker_id));
-    (tokens.data ?? []).forEach(t => push("token_audit", null, `${t.action} · ${t.token_hash.slice(0, 12)}…`, t.created_at));
-    (players.data ?? []).forEach(p => push("playlist", `/playlist/${p.id}`, p.nome ?? p.id, p.id));
+    (camps.data ?? []).forEach((c: any) => push("campaign", `/campanhas/${c.id}`, c.track_name ?? c.id, c.id));
+    (deals.data ?? []).forEach((d: any) => push("deal", `/deals/${d.id}`, d.id, "curator_deal"));
+    (curs.data ?? []).forEach((c: any) => push("curator", `/curadores/${c.id}`, c.name ?? c.id, c.id));
+    (workers.data ?? []).forEach((w: any) => push("worker", null, `${w.bot_name} @ ${w.hostname}`, w.worker_id));
+    (tokens.data ?? []).forEach((t: any) => push("token_audit", null, `${t.action} · ${(t.new_token_hash ?? t.old_token_hash ?? "").slice(0, 12)}…`, t.created_at));
+    (players.data ?? []).forEach((p: any) => push("playlist", `/playlist/${p.id}`, p.name ?? p.id, p.id));
     setRes(out);
     setBusy(false);
   }
