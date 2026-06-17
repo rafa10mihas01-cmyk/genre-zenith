@@ -1,0 +1,24 @@
+{
+  "phase": "1.A — Baseline de playlist",
+  "targets": [
+    { "kind": "table", "name": "curator_deal_baseline_playlists" },
+    { "kind": "column", "table": "curator_deal_snapshots", "name": "is_baseline" },
+    { "kind": "column", "table": "curator_deal_logs", "name": "is_baseline" },
+    { "kind": "column", "table": "curator_playlists", "name": "is_baseline" },
+    { "kind": "column", "table": "curator_campaign_playlists", "name": "baseline_conflict_at" },
+    { "kind": "column", "table": "curator_campaign_playlists", "name": "baseline_conflict_source" },
+    { "kind": "function", "name": "is_playlist_in_deal_baseline" },
+    { "kind": "function", "name": "enforce_curator_playlist_baseline" },
+    { "kind": "function", "name": "recalc_curator_deal_baseline_from_spreadsheet" },
+    { "kind": "function", "name": "sync_curator_playlist_streams_from_snapshot" },
+    { "kind": "function", "name": "notify_baseline_missing" },
+    { "kind": "function", "name": "sync_campaign_deals_baseline" },
+    { "kind": "function", "name": "sync_deal_campaign_baseline" },
+    { "kind": "trigger", "name": "trg_sync_baseline_on_deal_insert" },
+    { "kind": "trigger", "name": "trg_sync_baseline_on_song_insert" },
+    { "kind": "trigger", "name": "trg_sync_baseline_on_campaign_captured" },
+    { "kind": "trigger", "name": "trg_sync_deal_campaign_baseline_from_deal" },
+    { "kind": "trigger", "name": "trg_sync_deal_campaign_baseline_from_song" },
+    { "kind": "trigger", "name": "trg_enforce_curator_playlist_baseline" }
+  ]
+}
