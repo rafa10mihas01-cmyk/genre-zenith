@@ -228,17 +228,6 @@ function parseBuf(
       const key = HEADER_MAP[normalize(k)];
       if (key) mapped[key] = v;
     }
-    const playlist_name = String(mapped.playlist_name ?? "").trim();
-    if (!playlist_name) { autoFixes.empty_rows++; continue; }
-    if (isJunkRow(playlist_name)) { autoFixes.junk_rows++; continue; }
-
-    const streamsRaw = mapped.streams;
-    const streamsParsed = parseFlexibleNumber(streamsRaw);
-    if (typeof streamsRaw === "string" && streamsRaw !== String(streamsParsed)) {
-      autoFixes.number_normalized++;
-    }
-    const streams = streamsParsed < 0 ? (autoFixes.negative_clamped++, 0) : streamsParsed;
-
     const rawUri = mapped.playlist_uri ? String(mapped.playlist_uri) : null;
     const rawUrl = mapped.playlist_url ? String(mapped.playlist_url) : null;
     const playlist_uri = cleanUrl(rawUri);
@@ -248,6 +237,17 @@ function parseBuf(
     }
     const playlist_spotify_id = extractPlaylistId(playlist_uri) ||
       extractPlaylistId(playlist_url);
+
+    const playlist_name = cleanPlaylistName(mapped.playlist_name);
+    if (!playlist_name && !playlist_spotify_id) { autoFixes.empty_rows++; continue; }
+    if (playlist_name && isJunkRow(playlist_name)) { autoFixes.junk_rows++; continue; }
+
+    const streamsRaw = mapped.streams;
+    const streamsParsed = parseFlexibleNumber(streamsRaw);
+    if (typeof streamsRaw === "string" && streamsRaw !== String(streamsParsed)) {
+      autoFixes.number_normalized++;
+    }
+    const streams = streamsParsed < 0 ? (autoFixes.negative_clamped++, 0) : streamsParsed;
 
     let position_in_playlist: number | null = null;
     if (mapped.position_in_playlist != null) {
@@ -260,7 +260,7 @@ function parseBuf(
 
     // dedupe por (spotify_id || nome+owner)
     const dedupeKey = (playlist_spotify_id ||
-      `${playlist_name}|${mapped.owner_name ?? ""}`).toLowerCase();
+      `${playlist_name ?? ""}|${mapped.owner_name ?? ""}`).toLowerCase();
     if (seen.has(dedupeKey)) { autoFixes.duplicates++; continue; }
     seen.add(dedupeKey);
 
@@ -268,7 +268,7 @@ function parseBuf(
       row_position: mapped.row_position != null ? Number(mapped.row_position) || null : null,
       version_name: String(mapped.version_name ?? "").trim(),
       isrc: String(mapped.isrc ?? "").trim().toUpperCase(),
-      playlist_name,
+      playlist_name: playlist_name ?? "",
       playlist_uri,
       playlist_url,
       playlist_spotify_id,
