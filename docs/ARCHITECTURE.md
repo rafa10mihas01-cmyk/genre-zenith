@@ -77,19 +77,18 @@ manualmente** — são derivadas de outra fonte e podem ser recalculadas.
 
 | Coluna | Fonte da verdade | Como é atualizada |
 |---|---|---|
-| `campaigns.total_delivered` | `fn_campaign_delivery_accumulated` (modelo **High-Water Mark** — ver `docs/DELIVERY_ENGINE.md`) | Triggers `sync_campaign_total_delivered*` em `curator_deal_snapshots` e `campaign_eco_snapshots`; também recalculado por `recompute_campaign_total_delivered` e `cron-reconcile-curator-deals`. |
-| `curator_deals.reconciled_total_plays` | `fn_curator_delivery_accumulated` (HWM por curador) | `recompute_campaign_total_delivered`. |
+| `campaigns.total_delivered` | `fn_campaign_delivery_accumulated` (entrega acumulada diária — ver `docs/DELIVERY_ENGINE.md`) | Triggers `sync_campaign_total_delivered*` em `curator_deal_snapshots` e `campaign_eco_snapshots`; também recalculado por `recompute_campaign_total_delivered` e `cron-reconcile-curator-deals`. |
+| `curator_deals.reconciled_total_plays` | `fn_curator_delivery_accumulated` (agregado por curador) | `recompute_campaign_total_delivered`. |
 | `managed_playlists.tracks_count` | `managed_playlist_tracks` | Recalculado quando o conjunto de tracks da playlist muda (add/remove/reorder). |
 | `managed_playlists.followers` | Spotify Web API | Cron semanal `enrich-playlists` faz `GET /v1/playlists/{id}` e grava `followers.total`. |
 
-## Modelo oficial de Delivery — High-Water Mark
+## Modelo oficial de Delivery — entrega acumulada diária
 
 A NexEngine define delivery como:
-`SUM por playlist de GREATEST(0, MAX(plays_7d desde baseline) − baseline_plays)`.
-`plays_7d` é janela móvel do Spotify, não contador acumulado — quedas da
-janela **não** reduzem delivery e recuperações abaixo do recorde **não**
-geram nova entrega. Detalhes e validação em `docs/DELIVERY_ENGINE.md` e
-`docs/audits/HWM_VALIDATION.md`.
+`SUM por playlist dos deltas válidos desde a baseline`.
+Baseline gera zero; upload diário entra integralmente; janela móvel entra só
+pelo crescimento positivo contra a leitura anterior. Detalhes em
+`docs/DELIVERY_ENGINE.md`.
 
 ## Edge functions com `verify_jwt = false`
 
