@@ -473,11 +473,27 @@ Deno.serve(async (req) => {
 
   const t0 = Date.now();
   let body: unknown;
+  let rawText = "";
   try {
-    body = await req.json();
+    rawText = await req.text();
+    body = rawText ? JSON.parse(rawText) : null;
   } catch {
     return jr({ error: "invalid_json" }, 400);
   }
+
+  // Fase 3.A.1 — raw_ingest obrigatório em todo parser (OCR = parser de imagem).
+  // Mesmo quando invocado internamente por `bot-upload-print`, registramos aqui
+  // pra fechar o ciclo de auditoria do parser propriamente dito.
+  try {
+    const { logRawIngest } = await import("../_shared/raw-ingest.ts");
+    const sbForAudit = createClient(SUPABASE_URL, SERVICE_KEY);
+    await logRawIngest(sbForAudit, {
+      endpoint: "extract-snapshot-from-print",
+      req,
+      rawText,
+      payload: body,
+    });
+  } catch (_) { /* logging nunca quebra o ingest */ }
 
   const parsedBody = RequestSchema.safeParse(body);
   if (!parsedBody.success) {
