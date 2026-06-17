@@ -13222,6 +13222,25 @@ export type Database = {
           spotify_playlist_id: string
         }[]
       }
+      get_campaign_playlist_growth: {
+        Args: { p_campaign_id: string }
+        Returns: {
+          attributed_to: string
+          baseline_at: string
+          baseline_name: string
+          baseline_plays: number
+          campaign_id: string
+          current_name: string
+          current_plays: number
+          delivery_accumulated: number
+          delta: number
+          first_seen_at: string
+          last_captured_at: string
+          last_import_delta: number
+          playlist_id: string
+          playlist_url: string
+        }[]
+      }
       get_campaign_radio_collected: {
         Args: { _campaign_id: string }
         Returns: {
