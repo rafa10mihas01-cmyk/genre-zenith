@@ -1,11 +1,14 @@
 // bot-heartbeat — Recebe ping do bot a cada N min com status da sessão Spotify.
 // POST { status?, spotify_session_valid?, message?, metadata?, dom_snapshots?: DomItem[] }
 //
-// Piggyback DOM ingest: se o bot incluir `dom_snapshots[]`, processamos cada item
-// usando a mesma lógica do endpoint /bot-ingest-dom. Permite coleta diária sem
-// depender do dist da VPS chamar /bot-ingest-dom diretamente.
+// Fase 3.A.1 — heartbeat NÃO grava mais coleta. Responsabilidade exclusiva:
+//   "o bot está vivo?". Pode atualizar `bot_heartbeats`, `vps_nodes` e
+//   `collection_logs` (registro operacional). Se `dom_snapshots[]` vier no
+//   payload, é DELEGADO ao Gateway Oficial (`bot-ingest-dom`) via HTTP
+//   interno, preservando o piggyback documentado em
+//   `docs/BOT_VPS_HEARTBEAT_DOM_PIGGYBACK.md` sem violar a regra de gateway
+//   único.
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { processDomItem, type DomItem } from "../_shared/ingest-dom.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const corsHeaders = {
