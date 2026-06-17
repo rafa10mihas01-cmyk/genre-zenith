@@ -1,6 +1,7 @@
 // Shared DOM ingest logic — used by bot-ingest-dom AND piggyback on bot-heartbeat.
 // Single source of truth for processing playsMap snapshots from the VPS bot.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { writeCuratorDealSnapshot } from "./snapshot-writer.ts";
 import { assertDealOperable } from "./deal-access.ts";
 import { classifyPlaylistKind } from "./algorithmic-classifier.ts";
 import { ensureObservedPlaylist as ensureObservedPlaylistShared } from "./observed-playlist.ts";

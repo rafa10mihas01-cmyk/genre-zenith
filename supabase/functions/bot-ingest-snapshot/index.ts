@@ -2,6 +2,7 @@
 // Auth: header x-bot-key.
 // POST { song_id, deal_id, total_plays, snapshots: [{playlist_name, spotify_url, plays, source?}], note?, print_urls? }
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { writeCuratorDealSnapshot } from "../_shared/snapshot-writer.ts";
 import { assertDealOperable } from "../_shared/deal-access.ts";
 import { recordMetric } from "../_shared/ops-metrics.ts";
 import { classifyPlaylistKind } from "../_shared/algorithmic-classifier.ts";
