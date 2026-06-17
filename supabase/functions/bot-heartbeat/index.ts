@@ -81,34 +81,46 @@ Deno.serve(async (req) => {
     if (vpsErr) console.error("vps_nodes update failed:", vpsErr);
   }
 
-  // Piggyback: processa snapshots DOM enviados junto com o heartbeat
+  // Piggyback: snapshots DOM enviados junto com o heartbeat são DELEGADOS
+  // ao Gateway Oficial (`bot-ingest-dom`). O heartbeat não processa nem grava
+  // coleta — apenas encaminha o lote, preservando autenticação, raw_ingest e
+  // observabilidade centralizados no gateway (Fase 3.A.1).
   let domResults: any[] | undefined;
   const domSnapshots = Array.isArray(body.dom_snapshots) ? body.dom_snapshots : null;
   if (domSnapshots && domSnapshots.length > 0) {
     const correlationHeader = req.headers.get("x-correlation-id");
-    domResults = [];
-    let domInserted = 0, domSkipped = 0, domErrors = 0;
-    for (const raw of domSnapshots) {
-      const item: DomItem = {
-        ...(raw as any),
-        correlation_id: (raw as any)?.correlation_id ?? correlationHeader ?? null,
-      };
-      try {
-        const r = await processDomItem(supabase, item);
-        domResults.push(r);
-        domInserted += r.inserted ?? 0;
-        domSkipped += r.skipped ?? 0;
-        if (!r.ok) domErrors++;
-      } catch (e) {
-        domErrors++;
-        domResults.push({ song_id: (item as any)?.song_id ?? "", ok: false, error: (e as Error).message });
-      }
+    const gatewayUrl = `${SUPABASE_URL}/functions/v1/bot-ingest-dom`;
+    const gatewayKey = (BOT_API_KEY || BOT_INGEST_TOKEN || "").trim();
+    try {
+      const gwRes = await fetch(gatewayUrl, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-bot-key": gatewayKey,
+          ...(correlationHeader ? { "x-correlation-id": correlationHeader } : {}),
+          ...(workerId ? { "x-worker-id": workerId } : {}),
+          ...(hostname ? { "x-hostname": hostname } : {}),
+        },
+        body: JSON.stringify({ items: domSnapshots }),
+      });
+      const gwJson = await gwRes.json().catch(() => ({}));
+      domResults = Array.isArray((gwJson as any)?.results) ? (gwJson as any).results : [];
+      const inserted = Number((gwJson as any)?.inserted ?? 0);
+      const skipped = Number((gwJson as any)?.skipped ?? 0);
+      const errors = domResults.filter((r) => r && r.ok === false).length;
+      await supabase.from("collection_logs").insert({
+        acao: "bot_ingest_dom_delegated",
+        status: errors > 0 || !gwRes.ok ? "parcial" : "ok",
+        mensagem: `[via heartbeat→gateway] items=${domSnapshots.length} inserted=${inserted} skipped=${skipped} errors=${errors} http=${gwRes.status}`,
+      });
+    } catch (e) {
+      domResults = [{ ok: false, error: (e as Error).message }];
+      await supabase.from("collection_logs").insert({
+        acao: "bot_ingest_dom_delegated",
+        status: "erro",
+        mensagem: `[via heartbeat→gateway] delegation failed: ${(e as Error).message}`,
+      });
     }
-    await supabase.from("collection_logs").insert({
-      acao: "bot_ingest_dom",
-      status: domErrors > 0 ? "parcial" : "ok",
-      mensagem: `[via heartbeat] items=${domSnapshots.length} inserted=${domInserted} skipped=${domSkipped} errors=${domErrors}`,
-    });
   }
 
   // Se sessão inválida, dispara notificação + email (ambos 1x por hora)
