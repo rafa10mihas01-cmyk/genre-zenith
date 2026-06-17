@@ -359,46 +359,24 @@ Deno.serve(async (req) => {
     const m = url.match(/playlist[/:]([a-zA-Z0-9]{16,})/);
     return m ? m[1] : null;
   };
-  const ensureObservedPlaylist = async (snap: any, spotifyPlaylistId: string | null) => {
-    const playlistName = String(snap.playlist_name ?? "").trim();
-    if (!spotifyPlaylistId || !playlistName) return null;
-    const { data: existing } = await supabase
-      .from("curator_playlists")
-      .select("id")
-      .eq("deal_id", deal_id)
-      .eq("song_id", song_id)
-      .eq("spotify_playlist_id", spotifyPlaylistId)
-      .maybeSingle();
-    if ((existing as any)?.id) return (existing as any).id as string;
-    const kind = classifyPlaylistKind(playlistName, snap.made_by ?? null, spotifyPlaylistId);
-    const matchStatus = kind === "editorial" ? "editorial" : "organic";
-    const toInt = (v: unknown) => {
-      const n = parseInt(String(v ?? "")) || 0;
-      return n > 0 ? n : 0;
-    };
-    const { data: inserted } = await supabase
-      .from("curator_playlists")
-      .insert({
-        deal_id,
-        song_id,
-        spotify_url: snap.spotify_url ?? `https://open.spotify.com/playlist/${spotifyPlaylistId}`,
-        spotify_playlist_id: spotifyPlaylistId,
-        playlist_name: playlistName,
-        followers: snap.followers ?? null,
-        spotify_owner_name: snap.made_by ?? null,
-        is_initial_roster: isBaseline,
-        match_status: matchStatus,
-        attribution_method: "s4a_observed",
-        attribution_reason: "Detectada automaticamente na aba Playlists do Spotify for Artists",
-        streams_7d: toInt(snap.plays_7d ?? snap.plays ?? 0),
-        streams_28d: toInt(snap.plays_28d ?? 0),
-        streams_total: toInt(snap.plays_28d ?? snap.plays_7d ?? snap.plays ?? snap.plays_24h ?? 0),
-        last_paste_at: new Date().toISOString(),
-      })
-      .select("id")
-      .maybeSingle();
-    return ((inserted as any)?.id as string | undefined) ?? null;
-  };
+  // Fase 3.B.1 — usa helper compartilhado (`_shared/observed-playlist.ts`).
+  // Era duplicação inline do mesmo código presente em `_shared/ingest-dom.ts`.
+  const { ensureObservedPlaylist: ensureObservedPlaylistShared } = await import("../_shared/observed-playlist.ts");
+  const ensureObservedPlaylist = (snap: any, spotifyPlaylistId: string | null) =>
+    ensureObservedPlaylistShared(supabase, {
+      deal_id,
+      song_id,
+      spotify_playlist_id: spotifyPlaylistId,
+      playlist_name: snap.playlist_name ?? null,
+      spotify_url: snap.spotify_url ?? null,
+      made_by: snap.made_by ?? null,
+      followers: snap.followers ?? null,
+      plays_7d: snap.plays_7d ?? null,
+      plays_28d: snap.plays_28d ?? null,
+      plays_24h: snap.plays_24h ?? null,
+      plays: snap.plays ?? null,
+      is_initial_roster: isBaseline,
+    });
 
   // Dedupe dentro do lote (bot manda mesma playlist em vários scrolls)
   const scoreSnap = (x: any) =>

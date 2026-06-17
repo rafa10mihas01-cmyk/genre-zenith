@@ -283,13 +283,23 @@ function parseBuf(
   return { rows, warnings, detected, autoFixes };
 }
 
-type MatchResult = {
+type SpreadsheetEnrichment = {
   matched_playlist_id: string | null;
   matched_curator_id: string | null;
   is_internal: boolean;
 };
 
-async function buildMatchers(
+/**
+ * Fase 3.B.1 — renomeado de `buildMatchers` para deixar explícito que NÃO é Match Oficial.
+ *
+ * Match Oficial (decisão de pertencimento `curator_playlists`) acontece exclusivamente
+ * na RPC `public.match_curator_playlist`. Esta função tem responsabilidade distinta:
+ * enriquece as linhas da planilha do label com `matched_playlist_id` (tabela `playlists`)
+ * e `matched_curator_id` (tabela `curators`) — usado pra alimentar `label_spreadsheet_rows`
+ * e calcular `is_internal`. Não escreve em `curator_playlists`, não decide curador real,
+ * não disputa com o motor de Match.
+ */
+async function buildSpreadsheetEnrichment(
   admin: ReturnType<typeof createClient>,
   rows: ParsedRow[],
 ) {
@@ -305,7 +315,7 @@ async function buildMatchers(
     ),
   );
 
-  // Match de playlists por spotify_playlist_id
+  // Lookup de playlists por spotify_playlist_id (apenas enriquecimento de cadastro)
   const playlistMap = new Map<string, { id: string; ownership: string }>();
   if (playlistIds.length > 0) {
     const { data } = await admin
@@ -317,7 +327,7 @@ async function buildMatchers(
     }
   }
 
-  // Match de curadores por spotify_owner_id (case-insensitive)
+  // Lookup de curadores por spotify_owner_id / nome (apenas enriquecimento de cadastro)
   const curatorMap = new Map<string, string>();
   if (ownerNames.length > 0) {
     const { data } = await admin
@@ -334,7 +344,7 @@ async function buildMatchers(
     }
   }
 
-  return function match(r: ParsedRow): MatchResult {
+  return function enrich(r: ParsedRow): SpreadsheetEnrichment {
     const pl = r.playlist_spotify_id ? playlistMap.get(r.playlist_spotify_id) : null;
     const cu = r.owner_name ? curatorMap.get(r.owner_name.toLowerCase()) : null;
     const isInternal = !!pl && pl.ownership !== "external" || !!cu;
@@ -348,8 +358,8 @@ async function buildMatchers(
 
 async function resolveKnownPlaylistNames(
   admin: ReturnType<typeof createClient>,
-  rows: Array<ParsedRow & MatchResult>,
-): Promise<Array<ParsedRow & MatchResult>> {
+  rows: Array<ParsedRow & SpreadsheetEnrichment>,
+): Promise<Array<ParsedRow & SpreadsheetEnrichment>> {
   const missingIds = Array.from(new Set(
     rows
       .filter((r) => !cleanPlaylistName(r.playlist_name) && !!r.playlist_spotify_id)
@@ -483,11 +493,11 @@ Deno.serve(async (req) => {
     const totalStreams = rows.reduce((acc, r) => acc + r.streams, 0);
     const uniqueIsrcs = Array.from(new Set(rows.map((r) => r.isrc).filter(Boolean)));
 
-    // Match com playlists/curadores nossos
-    const matcher = await buildMatchers(admin, rows);
+    // Enriquecimento das linhas da planilha (NÃO é Match Oficial — ver doc da função).
+    const enrich = await buildSpreadsheetEnrichment(admin, rows);
     const matched = await resolveKnownPlaylistNames(
       admin,
-      rows.map((r) => ({ ...r, ...matcher(r) })),
+      rows.map((r) => ({ ...r, ...enrich(r) })),
     );
     const internalCount = matched.filter((m) => m.is_internal).length;
     const playlistsRecognized = matched.filter((m) => m.matched_playlist_id).length;
@@ -944,24 +954,7 @@ Deno.serve(async (req) => {
       }
     }
 
-        // 3d) Auto-matcher: promove pending_match → matched quando há vínculo
-        //     real (curator_playlists.match_status='curator') no(s) deal(s) da
-        //     mesma campanha. Sem isso, a aba Curadores fica em "Matched 0"
-        //     mesmo com a planilha já refletindo entrega real.
-        try {
-          const { data: matchData, error: matchErr } = await admin.rpc("match_curator_campaign_playlists", {
-            p_campaign_id: campaignIdForUpdate,
-          });
-          if (matchErr) {
-            console.error(`[matcher] error campaign=${campaignIdForUpdate}`, matchErr.message);
-          } else {
-            console.log(`[matcher] ok campaign=${campaignIdForUpdate}`, JSON.stringify(matchData));
-          }
-        } catch (e) {
-          console.error(`[matcher] exception campaign=${campaignIdForUpdate}`, (e as Error).message);
-        }
-      }
-    }
+
 
 
     // 4) Log agregado

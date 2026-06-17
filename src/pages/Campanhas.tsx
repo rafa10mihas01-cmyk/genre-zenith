@@ -51,14 +51,9 @@ async function fileToBase64(file: File): Promise<string> {
   return btoa(binary);
 }
 
-function normalizeText(value: string | null | undefined) {
-  return String(value ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9]+/g, " ")
-    .trim()
-    .toLowerCase();
-}
+// Fase 3.B.1 — `normalizeText` removido. Match e enriquecimento são
+// server-side via edge function `register-cohort-baseline` → RPC oficial
+// `match_curator_playlist`. Frontend só monta payload.
 
 /**
  * Status efetivo (display-only) — corrige duas distorções do banco:
@@ -475,119 +470,34 @@ function CampaignRow({ c }: { c: Campaign }) {
       const matches = ((analyzed as any)?.matches ?? []).filter((m: any) => m?.found && m?.plays != null && m?.playlist_name);
       if (matches.length === 0) throw new Error("Não consegui ler playlists nos prints enviados.");
 
-      const { data: allocs } = await supabase.from("campaign_eco_allocations").select("managed_playlist_id").eq("campaign_id", c.id);
-      const managedIds = Array.from(new Set((allocs ?? []).map((a: any) => a.managed_playlist_id).filter(Boolean)));
-      const { data: managed } = managedIds.length
-        ? await supabase.from("managed_playlists").select("id, name, spotify_playlist_id, spotify_url, followers, cover_url").in("id", managedIds)
-        : c.curator_id
-          ? await supabase
-            .from("managed_playlists")
-            .select("id, name, spotify_playlist_id, spotify_url, followers, cover_url")
-            .eq("curator_id", c.curator_id)
-            .is("archived_at", null)
-            .order("followers", { ascending: false, nullsFirst: false })
-            .limit(500)
-          : { data: [] as any[] };
-      const managedByName = new Map((managed ?? []).map((p: any) => [normalizeText(p.name), p]));
-
-      const { data: existing } = await supabase
-        // Separação operacional × observacional: dedup só contra playlists operacionais reais.
-        .from("v_curator_playlists_operational")
-        .select("id, playlist_name, spotify_playlist_id")
-        .eq("deal_id", dealId);
-      const existingByKey = new Map((existing ?? []).map((p: any) => [p.spotify_playlist_id ? `id:${p.spotify_playlist_id}` : `name:${normalizeText(p.playlist_name)}`, p.id]));
+      // Fase 3.B.1 — toda a persistência (match + enriquecimento + curator_playlists +
+      // curator_deal_snapshots + curator_deal_logs + curator_deals.state) acontece
+      // no backend via `register-cohort-baseline`. Frontend só envia matches crus.
       const capturedAt = new Date().toISOString();
-      const snapshotRows: any[] = [];
-
-      for (const match of matches) {
-        const managedMatch = managedByName.get(normalizeText(match.playlist_name));
-        const key = managedMatch?.spotify_playlist_id ? `id:${managedMatch.spotify_playlist_id}` : `name:${normalizeText(match.playlist_name)}`;
-        let playlistId = existingByKey.get(key);
-        if (!playlistId) {
-          const { data: inserted, error: insertErr } = await supabase
-            .from("curator_playlists")
-            .insert({
-              deal_id: dealId,
-              song_id: songId,
-              spotify_url: managedMatch?.spotify_url ?? "",
-              playlist_name: managedMatch?.name ?? match.playlist_name,
-              followers: managedMatch?.followers ?? null,
-              is_initial_roster: true,
-              spotify_playlist_id: managedMatch?.spotify_playlist_id ?? null,
-              image_url: managedMatch?.cover_url ?? null,
-              streams_total: Number(match.plays ?? 0),
-              match_status: "curator",
-              match_reason: "baseline manual por print",
-            } as any)
-            .select("id")
-            .single();
-          if (insertErr) throw insertErr;
-          playlistId = inserted.id;
-          existingByKey.set(key, playlistId);
-        } else if (managedMatch) {
-          const { error: updatePlaylistErr } = await supabase
-            .from("curator_playlists")
-            .update({
-              spotify_url: managedMatch.spotify_url ?? `https://open.spotify.com/playlist/${managedMatch.spotify_playlist_id}`,
-              playlist_name: managedMatch.name ?? match.playlist_name,
-              followers: managedMatch.followers ?? null,
-              spotify_playlist_id: managedMatch.spotify_playlist_id ?? null,
-              image_url: managedMatch.cover_url ?? null,
-              streams_total: Number(match.plays ?? 0),
-              match_status: "baseline",
-              match_reason: "baseline manual por print",
-            } as any)
-            .eq("id", playlistId);
-          if (updatePlaylistErr) throw updatePlaylistErr;
-        }
-        snapshotRows.push({
+      const { data: regResult, error: regErr } = await supabase.functions.invoke("register-cohort-baseline", {
+        body: {
+          campaign_id: c.id,
           deal_id: dealId,
           song_id: songId,
-          playlist_id: playlistId,
-          plays: Number(match.plays ?? 0),
           captured_at: capturedAt,
-          print_url: printUrls[Math.max(0, Number(match.source_index ?? 0))] ?? printUrls[0] ?? null,
-          is_initial_capture: true,
-          source: "manual_print",
-          match_method: managedMatch ? "managed_playlist_name" : "ai_name",
-          ai_raw: match,
-        });
-      }
+          print_urls: printUrls,
+          matches: matches.map((m: any) => ({
+            playlist_name: m.playlist_name,
+            plays: Number(m.plays ?? 0),
+            source_index: m.source_index ?? null,
+          })),
+        },
+      });
+      if (regErr) throw regErr;
+      if ((regResult as any)?.ok === false) throw new Error((regResult as any)?.error ?? "Falha ao registrar baseline.");
 
-      // Dedupe por playlist_id: a IA pode ler a mesma playlist em prints diferentes.
-      // Mantém a linha com mais plays (mais completa) e evita violar
-      // UNIQUE (playlist_id, captured_at).
-      const dedupMap = new Map<string, any>();
-      for (const row of snapshotRows) {
-        const key = String(row.playlist_id);
-        const prev = dedupMap.get(key);
-        if (!prev || Number(row.plays || 0) > Number(prev.plays || 0)) {
-          dedupMap.set(key, row);
-        }
-      }
-      const uniqueSnapshotRows = Array.from(dedupMap.values());
-      const total = uniqueSnapshotRows.reduce((sum, row) => sum + Number(row.plays || 0), 0);
-      const { error: snapErr } = await supabase
-        .from("curator_deal_snapshots")
-        .upsert(uniqueSnapshotRows, { onConflict: "playlist_id,captured_at", ignoreDuplicates: false });
-      if (snapErr) throw snapErr;
-      const { error: logErr } = await supabase.from("curator_deal_logs").insert({
-        deal_id: dealId,
-        song_id: songId,
-        total_plays: total,
-        note: "[manual] baseline por prints",
-        is_initial_capture_event: true,
-        print_urls: printUrls,
-      } as any);
-      if (logErr) throw logErr;
-      await supabase.from("curator_deals").update({ state: "collecting", baseline_captured_at: capturedAt, baseline_plays: total } as any).eq("id", dealId);
       const { data: planResult, error: planErr } = await supabase.functions.invoke("build-deal-plan", {
         body: { deal_id: dealId },
       });
       if (planErr) throw planErr;
       if ((planResult as any)?.ok === false) throw new Error((planResult as any)?.error ?? "Falha ao gerar plano de entrega.");
 
-      toast({ title: "Baseline registrada", description: `${uniqueSnapshotRows.length} playlist(s) lida(s) · plano gerado` });
+      toast({ title: "Baseline registrada", description: `${(regResult as any)?.inserted ?? 0} playlist(s) lida(s) · plano gerado` });
       setBaselineOpen(false);
       baselineFiles.forEach((item) => URL.revokeObjectURL(item.url));
       setBaselineFiles([]);

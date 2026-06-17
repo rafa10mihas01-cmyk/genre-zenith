@@ -3,6 +3,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { assertDealOperable } from "./deal-access.ts";
 import { classifyPlaylistKind } from "./algorithmic-classifier.ts";
+import { ensureObservedPlaylist as ensureObservedPlaylistShared } from "./observed-playlist.ts";
 
 export type DomItem = {
   deal_id: string;
@@ -41,6 +42,8 @@ const toInt = (v: unknown) => {
   return n > 0 ? n : 0;
 };
 
+// Fase 3.B.1 — ensureObservedPlaylist consolidado em _shared/observed-playlist.ts.
+// Wrapper local mantém a assinatura usada pelo parser DOM.
 async function ensureObservedPlaylist(
   supabase: ReturnType<typeof createClient>,
   item: DomItem,
@@ -48,41 +51,19 @@ async function ensureObservedPlaylist(
   spotifyPlaylistId: string | null,
   isBaseline: boolean,
 ): Promise<string | null> {
-  const playlistName = playlist.playlist_name?.trim() || null;
-  if (!spotifyPlaylistId || !playlistName) return null;
-  const { data: existing } = await supabase
-    .from("curator_playlists")
-    .select("id")
-    .eq("deal_id", item.deal_id)
-    .eq("song_id", item.song_id)
-    .eq("spotify_playlist_id", spotifyPlaylistId)
-    .maybeSingle();
-  if ((existing as any)?.id) return (existing as any).id;
-
-  const kind = classifyPlaylistKind(playlistName, (playlist as any).made_by ?? null, spotifyPlaylistId);
-  const matchStatus = kind === "editorial" ? "editorial" : "organic";
-  const { data: inserted } = await supabase
-    .from("curator_playlists")
-    .insert({
-      deal_id: item.deal_id,
-      song_id: item.song_id,
-      spotify_url: playlist.spotify_url ?? `https://open.spotify.com/playlist/${spotifyPlaylistId}`,
-      spotify_playlist_id: spotifyPlaylistId,
-      playlist_name: playlistName,
-      followers: (playlist as any).followers ?? null,
-      spotify_owner_name: (playlist as any).made_by ?? null,
-      is_initial_roster: isBaseline,
-      match_status: matchStatus,
-      attribution_method: "s4a_observed",
-      attribution_reason: "Detectada automaticamente na aba Playlists do Spotify for Artists",
-      streams_7d: toInt((playlist as any).plays_7d ?? 0),
-      streams_28d: toInt((playlist as any).plays_28d ?? 0),
-      streams_total: toInt((playlist as any).plays_28d ?? (playlist as any).plays_7d ?? (playlist as any).plays_24h ?? 0),
-      last_paste_at: new Date().toISOString(),
-    })
-    .select("id")
-    .maybeSingle();
-  return ((inserted as any)?.id as string | undefined) ?? null;
+  return ensureObservedPlaylistShared(supabase, {
+    deal_id: item.deal_id,
+    song_id: item.song_id,
+    spotify_playlist_id: spotifyPlaylistId,
+    playlist_name: playlist.playlist_name ?? null,
+    spotify_url: playlist.spotify_url ?? null,
+    made_by: (playlist as any).made_by ?? null,
+    followers: (playlist as any).followers ?? null,
+    plays_7d: (playlist as any).plays_7d ?? null,
+    plays_28d: (playlist as any).plays_28d ?? null,
+    plays_24h: (playlist as any).plays_24h ?? null,
+    is_initial_roster: isBaseline,
+  });
 }
 
 export async function processDomItem(
