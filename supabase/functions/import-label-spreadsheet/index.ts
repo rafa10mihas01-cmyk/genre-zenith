@@ -283,13 +283,23 @@ function parseBuf(
   return { rows, warnings, detected, autoFixes };
 }
 
-type MatchResult = {
+type SpreadsheetEnrichment = {
   matched_playlist_id: string | null;
   matched_curator_id: string | null;
   is_internal: boolean;
 };
 
-async function buildMatchers(
+/**
+ * Fase 3.B.1 — renomeado de `buildMatchers` para deixar explícito que NÃO é Match Oficial.
+ *
+ * Match Oficial (decisão de pertencimento `curator_playlists`) acontece exclusivamente
+ * na RPC `public.match_curator_playlist`. Esta função tem responsabilidade distinta:
+ * enriquece as linhas da planilha do label com `matched_playlist_id` (tabela `playlists`)
+ * e `matched_curator_id` (tabela `curators`) — usado pra alimentar `label_spreadsheet_rows`
+ * e calcular `is_internal`. Não escreve em `curator_playlists`, não decide curador real,
+ * não disputa com o motor de Match.
+ */
+async function buildSpreadsheetEnrichment(
   admin: ReturnType<typeof createClient>,
   rows: ParsedRow[],
 ) {
@@ -305,7 +315,7 @@ async function buildMatchers(
     ),
   );
 
-  // Match de playlists por spotify_playlist_id
+  // Lookup de playlists por spotify_playlist_id (apenas enriquecimento de cadastro)
   const playlistMap = new Map<string, { id: string; ownership: string }>();
   if (playlistIds.length > 0) {
     const { data } = await admin
@@ -317,7 +327,7 @@ async function buildMatchers(
     }
   }
 
-  // Match de curadores por spotify_owner_id (case-insensitive)
+  // Lookup de curadores por spotify_owner_id / nome (apenas enriquecimento de cadastro)
   const curatorMap = new Map<string, string>();
   if (ownerNames.length > 0) {
     const { data } = await admin
@@ -334,7 +344,7 @@ async function buildMatchers(
     }
   }
 
-  return function match(r: ParsedRow): MatchResult {
+  return function enrich(r: ParsedRow): SpreadsheetEnrichment {
     const pl = r.playlist_spotify_id ? playlistMap.get(r.playlist_spotify_id) : null;
     const cu = r.owner_name ? curatorMap.get(r.owner_name.toLowerCase()) : null;
     const isInternal = !!pl && pl.ownership !== "external" || !!cu;
