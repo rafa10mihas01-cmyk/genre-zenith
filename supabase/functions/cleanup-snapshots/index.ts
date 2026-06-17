@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
       .from("curator_deal_snapshots")
       .delete({ count: "estimated" })
       .lt("captured_at", cutoff)
-      .or("is_baseline.is.null,is_baseline.eq.false");
+      .or("is_initial_capture.is.null,is_initial_capture.eq.false");
     if (keepIds.length) q = q.not("id", "in", `(${keepIds.join(",")})`);
     const { error: delErr, count } = await q;
     if (delErr) throw delErr;
