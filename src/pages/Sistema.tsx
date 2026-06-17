@@ -147,6 +147,7 @@ export default function Sistema() {
             t.id === "capacidade" ? "Capac" :
             t.id === "aprendizado" ? "Aprend" :
             t.id === "alertas" ? "Alerta" :
+            t.id === "noc" ? "NOC" :
             t.id === "motores" ? "Motor" :
             t.id === "configuracoes" ? "Config" :
             "Dev";
