@@ -4,6 +4,8 @@ import { Bot, Clock, RefreshCcw, CheckCircle2, AlertTriangle, Loader2, Camera, E
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useLatestBotHeartbeat } from "@/hooks/useLatestBotHeartbeat";
+
 
 type Props = {
   campaignId: string;
@@ -53,7 +55,11 @@ const STATUS_LABEL: Record<string, { label: string; tone: "info" | "ok" | "warn"
 
 export function BotCollectionStatus({ campaignId, dealId }: Props) {
   const [song, setSong] = useState<SongStatus | null>(null);
-  const [botFresh, setBotFresh] = useState<{ at: string | null; fresh: boolean }>({ at: null, fresh: false });
+  const { data: hbRow } = useLatestBotHeartbeat();
+  const botFresh = {
+    at: hbRow?.created_at ?? null,
+    fresh: hbRow?.created_at ? Date.now() - new Date(hbRow.created_at).getTime() < 90_000 : false,
+  };
   const [lastSnap, setLastSnap] = useState<string | null>(null);
   const [snapCount, setSnapCount] = useState(0);
   const [retrying, setRetrying] = useState(false);
@@ -70,7 +76,7 @@ export function BotCollectionStatus({ campaignId, dealId }: Props) {
     let cancel = false;
 
     async function load() {
-      const [songRes, botRes, snapRes, snapCountRes] = await Promise.all([
+      const [songRes, snapRes, snapCountRes] = await Promise.all([
         dealId
           ? supabase
               .from("curator_deal_songs")
@@ -80,12 +86,6 @@ export function BotCollectionStatus({ campaignId, dealId }: Props) {
               .limit(1)
               .maybeSingle()
           : Promise.resolve({ data: null }),
-        supabase
-          .from("bot_heartbeats")
-          .select("created_at")
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
         supabase
           .from("campaign_eco_snapshots")
           .select("captured_at")
@@ -101,11 +101,6 @@ export function BotCollectionStatus({ campaignId, dealId }: Props) {
 
       if (cancel) return;
       setSong((songRes.data as SongStatus) ?? null);
-      const heartbeatAt = (botRes.data as any)?.created_at ?? null;
-      setBotFresh({
-        at: heartbeatAt,
-        fresh: heartbeatAt ? Date.now() - new Date(heartbeatAt).getTime() < 90_000 : false,
-      });
       setLastSnap((snapRes.data as any)?.captured_at ?? null);
       setSnapCount(snapCountRes.count ?? 0);
     }
@@ -116,6 +111,7 @@ export function BotCollectionStatus({ campaignId, dealId }: Props) {
       clearInterval(t);
     };
   }, [campaignId, dealId]);
+
 
   async function forceCollect() {
     if (!dealId) {

@@ -3,6 +3,8 @@
 // Sem mudar lógica: lê de playlist_execution_jobs + bot_heartbeats em realtime.
 
 import { useEffect, useMemo, useState } from "react";
+import { useLatestBotHeartbeat } from "@/hooks/useLatestBotHeartbeat";
+
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -147,7 +149,11 @@ export function CampaignDistributionConsole({
   const [manualItems, setManualItems] = useState<ManualQueueRow[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [loadingManual, setLoadingManual] = useState(true);
-  const [bot, setBot] = useState<BotHealth | null>(null);
+  const { data: hbRow } = useLatestBotHeartbeat();
+  const bot: BotHealth | null = hbRow
+    ? { last_heartbeat: hbRow.created_at, status: hbRow.status, spotify_valid: hbRow.spotify_session_valid ?? false }
+    : null;
+
   const [retrying, setRetrying] = useState(false);
   const [forcing, setForcing] = useState(false);
   const [busyManualId, setBusyManualId] = useState<string | null>(null);
@@ -206,26 +212,8 @@ export function CampaignDistributionConsole({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campaignId]);
 
-  // --- carrega heartbeat do bot ---
-  const loadBot = async () => {
-    const { data } = await supabase
-      .from("bot_heartbeats")
-      .select("created_at, status, spotify_session_valid")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    setBot({
-      last_heartbeat: data?.created_at ?? null,
-      status: data?.status ?? null,
-      spotify_valid: data?.spotify_session_valid ?? false,
-    });
-  };
+  // heartbeat do bot agora vem do hook compartilhado `useLatestBotHeartbeat`.
 
-  useEffect(() => {
-    loadBot();
-    const t = setInterval(loadBot, 60_000);
-    return () => clearInterval(t);
-  }, []);
 
   // --- KPIs agregados ---
   const kpis = useMemo(() => {
