@@ -690,27 +690,19 @@ Deno.serve(async (req) => {
   }
 
 
-  // Se for baseline, persiste blacklist de playlists do deal.
-  if (isBaseline) {
-    const { data: allPls } = await supabase
-      .from("curator_playlists")
-      .select("spotify_playlist_id, playlist_name, song_id")
-      .eq("deal_id", deal_id)
-      .eq("song_id", song_id)
-      .not("spotify_playlist_id", "is", null);
-    const rows = (allPls ?? [])
-      .filter((p: any) => p.spotify_playlist_id && !String(p.spotify_playlist_id).startsWith("algo:"))
-      .map((p: any) => ({
-        deal_id,
-        song_id,
-        spotify_playlist_id: p.spotify_playlist_id,
-        playlist_name: p.playlist_name ?? null,
-      }));
-    if (rows.length > 0) {
-      await supabase
-        .from("curator_deal_baseline_playlists")
-        .upsert(rows, { onConflict: "deal_id,song_id,spotify_playlist_id", ignoreDuplicates: true });
-    }
+  // Fase 1.A.1 — baseline oficial vai exclusivamente para
+  // `campaign_playlist_collections` via RPC (ver bloco "Espelho" acima).
+  // Aqui apenas garantimos auditoria: se o deal não tem campanha vinculada,
+  // registramos skip estruturado em bot_events (nenhuma escrita em legado).
+  if (isBaseline && !collectionCampaignId) {
+    const { logBaselineSkip } = await import("../_shared/baseline-writer.ts");
+    await logBaselineSkip(supabase, {
+      writer: "bot-ingest-snapshot",
+      deal_id,
+      song_id,
+      reason: "deal_without_campaign",
+      details: { snapshot_run_id: snapshotRunId ?? null },
+    });
   }
 
   // Log do total na tabela curator_deal_logs.

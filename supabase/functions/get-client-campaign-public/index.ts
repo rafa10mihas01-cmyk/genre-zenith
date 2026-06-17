@@ -408,40 +408,25 @@ Deno.serve(async (req) => {
     }
 
     // Baseline: playlists onde a música JÁ ESTAVA antes do deal começar.
-    // Carregamos por deal_id (+ song_id quando disponível) pra sinalizar
-    // "Pré-campanha · subiu posição" no portal do cliente.
+    // Fase 1.A.1 — leitura oficial via RPC `public.get_campaign_baseline()`.
+    // Frontend/edge funcs NÃO conhecem mais a tabela física da baseline.
     const baselinePlaylistIds = new Set<string>();
     {
-      // Fonte primária: curator_deal_baseline_playlists (quando populada).
-      let bq = admin
-        .from("curator_deal_baseline_playlists")
-        .select("spotify_playlist_id, song_id")
-        .eq("deal_id", dealId!);
-      if (selectedSongId && activeSong) {
-        bq = bq.eq("song_id", selectedSongId);
-      }
-      const { data: baselineRows } = await bq;
-      for (const r of (baselineRows ?? []) as AnyRec[]) {
-        const k = String(r.spotify_playlist_id ?? "");
-        if (k) baselinePlaylistIds.add(k);
-      }
-
-      // Fallback: deriva da primeira coleta marcada como is_baseline em
-      // curator_deal_snapshots — cobre deals antigos sem registro explícito.
-      let sq = admin
-        .from("curator_deal_snapshots")
-        .select("plays, playlist_id, song_id, curator_playlists!inner(spotify_playlist_id)")
-        .eq("deal_id", dealId!)
-        .eq("is_baseline", true)
-        .gt("plays", 0);
-      if (selectedSongId && activeSong) {
-        sq = sq.eq("song_id", selectedSongId);
-      }
-      const { data: snapBaseline } = await sq;
-      for (const r of (snapBaseline ?? []) as AnyRec[]) {
-        const pl = (r.curator_playlists ?? {}) as AnyRec;
-        const k = String(pl.spotify_playlist_id ?? "");
-        if (k) baselinePlaylistIds.add(k);
+      const campaignIds = Array.from(campaignIdsForDeals);
+      for (const cid of campaignIds) {
+        const { data: baselineRows, error: baselineErr } = await admin.rpc(
+          "get_campaign_baseline",
+          { p_campaign_id: cid, p_spotify_playlist_id: null },
+        );
+        if (baselineErr) {
+          console.warn("[get-client-campaign-public] get_campaign_baseline error", baselineErr.message, { cid });
+          continue;
+        }
+        for (const r of (baselineRows ?? []) as AnyRec[]) {
+          if (selectedSongId && activeSong && r.song_id && String(r.song_id) !== String(selectedSongId)) continue;
+          const k = String(r.spotify_playlist_id ?? "");
+          if (k) baselinePlaylistIds.add(k);
+        }
       }
     }
 

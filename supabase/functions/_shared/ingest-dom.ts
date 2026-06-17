@@ -293,26 +293,30 @@ export async function processDomItem(
     }
   }
 
+  // Fase 1.A.1 — baseline oficial vai exclusivamente para
+  // `campaign_playlist_collections` via writer compartilhado.
+  // Sem campaign_id → skip estruturado em bot_events. Nada em legado.
   if (isBaseline) {
+    const { writeBaselineOfficial } = await import("./baseline-writer.ts");
     const { data: allPls } = await supabase
       .from("curator_playlists")
-      .select("spotify_playlist_id, playlist_name, song_id")
+      .select("spotify_playlist_id, playlist_name, song_id, spotify_url, streams_7d")
       .eq("deal_id", deal_id)
       .eq("song_id", song_id)
       .not("spotify_playlist_id", "is", null);
-    const rows = (allPls ?? [])
-      .filter((p: any) => p.spotify_playlist_id && !String(p.spotify_playlist_id).startsWith("algo:"))
-      .map((p: any) => ({
-        deal_id,
-        song_id,
-        spotify_playlist_id: p.spotify_playlist_id,
-        playlist_name: p.playlist_name ?? null,
-      }));
-    if (rows.length > 0) {
-      await supabase
-        .from("curator_deal_baseline_playlists")
-        .upsert(rows, { onConflict: "deal_id,song_id,spotify_playlist_id", ignoreDuplicates: true });
-    }
+    const rows = (allPls ?? []).map((p: any) => ({
+      spotify_playlist_id: p.spotify_playlist_id,
+      playlist_name: p.playlist_name ?? null,
+      playlist_url: p.spotify_url ?? null,
+      plays_7d: Number(p.streams_7d ?? 0) || 0,
+    }));
+    await writeBaselineOfficial(supabase, {
+      writer: "ingest-dom",
+      deal_id,
+      song_id,
+      rows,
+      campaign_id_hint: campaignId,
+    });
   }
 
   await supabase.from("curator_deal_logs").insert({
