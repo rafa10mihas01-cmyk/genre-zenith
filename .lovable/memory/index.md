@@ -18,3 +18,4 @@ A palavra **baseline** é reservada à fotografia inicial da campanha (`campaign
 - [Glossário Comunidade vs Premium](mem://preference/glossary-comunidade) — Vocabulário público (parceiro/membro/criador) vs interno (curador). Regras de copy e tom da Comunidade beta.
 - [Regra de consolidação](mem://preference/consolidation-rule) — Nome ≠ responsabilidade. Antes de DROP, comparar pergunta de negócio. Diferente → renomear. Igual → consolidar.
 - [Baseline reservado à campanha](mem://preference/naming-baseline-reserved) — Termo "baseline" exclusivo para `campaign_playlist_collections`. Outros conceitos usam `is_initial_capture` / `is_initial_capture_event` / `is_initial_roster`.
+- [Baseline Conflict é oficial](mem://architecture/baseline-conflict-official) — Módulo Baseline Conflict é camada de integridade oficial sobre a baseline (trigger `tg_ccp_match_on_insert`). Não dropar, não renomear. Bloqueia KPI e pagamento.
