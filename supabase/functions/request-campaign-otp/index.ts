@@ -96,6 +96,15 @@ Deno.serve(async (req) => {
     return jr({ ok: true, sent: true });
   }
 
+  // Hardening 4.B.1.A: invalida códigos anteriores ainda ativos pra mesma
+  // (campanha, email) — assim o reenvio realmente substitui o código anterior.
+  await supabase
+    .from("campaign_access_otps")
+    .update({ used_at: new Date().toISOString() })
+    .eq("campaign_id", camp.id)
+    .eq("email", emailRaw)
+    .is("used_at", null);
+
   const code = genCode();
   const { error: insErr } = await supabase
     .from("campaign_access_otps")
