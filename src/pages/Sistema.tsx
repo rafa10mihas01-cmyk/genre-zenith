@@ -42,7 +42,7 @@ import { AttentionInbox } from "@/components/sistema/AttentionInbox";
 import { OperationalSummary } from "@/components/sistema/OperationalSummary";
 import { NocPanel } from "@/components/sistema/NocPanel";
 
-type SistemaTab = "saude" | "capacidade" | "aprendizado" | "alertas" | "motores" | "configuracoes" | "dev";
+type SistemaTab = "saude" | "capacidade" | "aprendizado" | "alertas" | "noc" | "motores" | "configuracoes" | "dev";
 type MotorSub = "robo" | "coleta" | "execucao" | "manual" | "fluxo" | "ao-vivo";
 type DevSub = "infra" | "flags" | "seo" | "spotify";
 
