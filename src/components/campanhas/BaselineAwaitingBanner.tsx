@@ -54,7 +54,8 @@ const STATUS_LABEL: Record<string, { label: string; tone: "info" | "warn" | "err
 export function BaselineAwaitingBanner({ dealState, baselineCapturedAt, dealId }: Props) {
   const [retrying, setRetrying] = useState(false);
   const [song, setSong] = useState<SongStatus | null>(null);
-  const [bot, setBot] = useState<BotPing>(null);
+  const { data: hbRow } = useLatestBotHeartbeat();
+  const bot: BotPing = hbRow ? { created_at: hbRow.created_at ?? "", status: hbRow.status } : null;
   const [, setTick] = useState(0);
 
   // Re-render a cada 15s pra atualizar contadores "há Xs / em Xmin"
@@ -63,30 +64,21 @@ export function BaselineAwaitingBanner({ dealState, baselineCapturedAt, dealId }
     return () => clearInterval(t);
   }, []);
 
-  // Polling de status (10s) enquanto aguardando baseline
+  // Polling de status (60s) enquanto aguardando baseline — só da música.
   useEffect(() => {
     if (!dealId || baselineCapturedAt || dealState !== "awaiting_baseline") return;
     let cancel = false;
 
     async function load() {
-      const [{ data: s }, { data: b }] = await Promise.all([
-        supabase
-          .from("curator_deal_songs")
-          .select("auto_collect_status, auto_collect_error, last_auto_collect_at, next_auto_collect_at, queued_at")
-          .eq("deal_id", dealId)
-          .order("position", { ascending: true })
-          .limit(1)
-          .maybeSingle(),
-        supabase
-          .from("bot_heartbeats")
-          .select("created_at, status")
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-      ]);
+      const { data: s } = await supabase
+        .from("curator_deal_songs")
+        .select("auto_collect_status, auto_collect_error, last_auto_collect_at, next_auto_collect_at, queued_at")
+        .eq("deal_id", dealId)
+        .order("position", { ascending: true })
+        .limit(1)
+        .maybeSingle();
       if (cancel) return;
       setSong((s as SongStatus) ?? null);
-      setBot((b as BotPing) ?? null);
     }
     load();
     const t = setInterval(load, 60_000);
@@ -95,6 +87,7 @@ export function BaselineAwaitingBanner({ dealState, baselineCapturedAt, dealId }
       clearInterval(t);
     };
   }, [dealId, baselineCapturedAt, dealState]);
+
 
   if (!dealState) return null;
 
