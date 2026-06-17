@@ -1,6 +1,6 @@
 // FASE 4.C.2 — Ingest de erros do frontend (RUM).
-// Endpoint público (verify_jwt=false) — qualquer cliente pode reportar.
-// Validação básica + tamanho máximo para evitar abuso.
+// FASE 4.C.3 — Aceita campos avançados (breadcrumbs, rota, ação, componente, viewport, sessão, commit).
+// Endpoint público (verify_jwt=false). Sem regressão: todos os novos campos são opcionais.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { extractCorrelationId, withCorrelationHeader, correlatedError } from "../_shared/with-correlation.ts";
@@ -39,18 +39,43 @@ Deno.serve(async (req) => {
     } catch { /* ignore */ }
   }
 
+  const ua = req.headers.get("user-agent") ?? body.user_agent ?? null;
+  const browser = (() => {
+    if (!ua) return null;
+    const s = String(ua);
+    if (/Edg\//.test(s)) return "Edge";
+    if (/Chrome\//.test(s)) return "Chrome";
+    if (/Firefox\//.test(s)) return "Firefox";
+    if (/Safari\//.test(s)) return "Safari";
+    return "Other";
+  })();
+
+  // breadcrumbs precisa ser array; limitar tamanho
+  let crumbs: unknown = body.breadcrumbs;
+  if (!Array.isArray(crumbs)) crumbs = [];
+  else crumbs = (crumbs as unknown[]).slice(-30);
+
   try {
     await sb.from("client_error_log").insert({
       user_id: userId,
       message: trim(body.message) ?? "(no message)",
-      stack: trim(body.stack, 8000),
+      stack: trim(body.stack, 12000),
       source: trim(body.source, 500),
       lineno: typeof body.lineno === "number" ? body.lineno : null,
       colno: typeof body.colno === "number" ? body.colno : null,
       url: trim(body.url, 500),
-      user_agent: trim(req.headers.get("user-agent") ?? body.user_agent, 500),
+      user_agent: trim(ua, 500),
       correlation_id: trim(body.correlation_id, 100) ?? correlationId,
       release: trim(body.release, 100),
+      commit_sha: trim(body.commit_sha, 60),
+      route_from: trim(body.route_from, 300),
+      route_to: trim(body.route_to, 300),
+      user_action: trim(body.user_action, 200),
+      component: trim(body.component, 200),
+      viewport: trim(body.viewport, 40),
+      session_ms: typeof body.session_ms === "number" ? body.session_ms : null,
+      browser,
+      breadcrumbs: crumbs,
       metadata: typeof body.metadata === "object" && body.metadata ? body.metadata : {},
     });
 

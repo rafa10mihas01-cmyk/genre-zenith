@@ -443,6 +443,54 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_log: {
+        Row: {
+          actor_id: string | null
+          actor_role: string | null
+          after_data: Json | null
+          before_data: Json | null
+          correlation_id: string | null
+          created_at: string
+          diff_keys: string[] | null
+          id: string
+          occurred_at: string
+          operation: string
+          row_pk: string | null
+          source: string | null
+          table_name: string
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_role?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          correlation_id?: string | null
+          created_at?: string
+          diff_keys?: string[] | null
+          id?: string
+          occurred_at?: string
+          operation: string
+          row_pk?: string | null
+          source?: string | null
+          table_name: string
+        }
+        Update: {
+          actor_id?: string | null
+          actor_role?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          correlation_id?: string | null
+          created_at?: string
+          diff_keys?: string[] | null
+          id?: string
+          occurred_at?: string
+          operation?: string
+          row_pk?: string | null
+          source?: string | null
+          table_name?: string
+        }
+        Relationships: []
+      }
       autopilot_runs: {
         Row: {
           cache_hits: Json
@@ -2498,7 +2546,11 @@ export type Database = {
       }
       client_error_log: {
         Row: {
+          breadcrumbs: Json
+          browser: string | null
           colno: number | null
+          commit_sha: string | null
+          component: string | null
           correlation_id: string | null
           created_at: string
           id: string
@@ -2506,14 +2558,23 @@ export type Database = {
           message: string
           metadata: Json
           release: string | null
+          route_from: string | null
+          route_to: string | null
+          session_ms: number | null
           source: string | null
           stack: string | null
           url: string | null
+          user_action: string | null
           user_agent: string | null
           user_id: string | null
+          viewport: string | null
         }
         Insert: {
+          breadcrumbs?: Json
+          browser?: string | null
           colno?: number | null
+          commit_sha?: string | null
+          component?: string | null
           correlation_id?: string | null
           created_at?: string
           id?: string
@@ -2521,14 +2582,23 @@ export type Database = {
           message: string
           metadata?: Json
           release?: string | null
+          route_from?: string | null
+          route_to?: string | null
+          session_ms?: number | null
           source?: string | null
           stack?: string | null
           url?: string | null
+          user_action?: string | null
           user_agent?: string | null
           user_id?: string | null
+          viewport?: string | null
         }
         Update: {
+          breadcrumbs?: Json
+          browser?: string | null
           colno?: number | null
+          commit_sha?: string | null
+          component?: string | null
           correlation_id?: string | null
           created_at?: string
           id?: string
@@ -2536,11 +2606,16 @@ export type Database = {
           message?: string
           metadata?: Json
           release?: string | null
+          route_from?: string | null
+          route_to?: string | null
+          session_ms?: number | null
           source?: string | null
           stack?: string | null
           url?: string | null
+          user_action?: string | null
           user_agent?: string | null
           user_id?: string | null
+          viewport?: string | null
         }
         Relationships: []
       }
@@ -2981,6 +3056,51 @@ export type Database = {
           metrics?: Json
           ran_at?: string
           status?: string
+        }
+        Relationships: []
+      }
+      cron_run_log: {
+        Row: {
+          correlation_id: string | null
+          created_at: string
+          cron_name: string
+          duration_ms: number | null
+          error_message: string | null
+          finished_at: string | null
+          id: string
+          next_run_at: string | null
+          payload: Json | null
+          retries: number
+          started_at: string
+          success: boolean | null
+        }
+        Insert: {
+          correlation_id?: string | null
+          created_at?: string
+          cron_name: string
+          duration_ms?: number | null
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          next_run_at?: string | null
+          payload?: Json | null
+          retries?: number
+          started_at?: string
+          success?: boolean | null
+        }
+        Update: {
+          correlation_id?: string | null
+          created_at?: string
+          cron_name?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          next_run_at?: string | null
+          payload?: Json | null
+          retries?: number
+          started_at?: string
+          success?: boolean | null
         }
         Relationships: []
       }
