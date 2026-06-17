@@ -2496,6 +2496,54 @@ export type Database = {
         }
         Relationships: []
       }
+      client_error_log: {
+        Row: {
+          colno: number | null
+          correlation_id: string | null
+          created_at: string
+          id: string
+          lineno: number | null
+          message: string
+          metadata: Json
+          release: string | null
+          source: string | null
+          stack: string | null
+          url: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          colno?: number | null
+          correlation_id?: string | null
+          created_at?: string
+          id?: string
+          lineno?: number | null
+          message: string
+          metadata?: Json
+          release?: string | null
+          source?: string | null
+          stack?: string | null
+          url?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          colno?: number | null
+          correlation_id?: string | null
+          created_at?: string
+          id?: string
+          lineno?: number | null
+          message?: string
+          metadata?: Json
+          release?: string | null
+          source?: string | null
+          stack?: string | null
+          url?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           archived_at: string | null

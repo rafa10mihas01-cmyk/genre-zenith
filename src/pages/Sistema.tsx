@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import {
   Activity, Workflow, Music2, HeartPulse, Bot, Bell, ListPlus,
-  Settings as SettingsIcon, Server, Brain, FlaskConical, Wrench, Flag, ShieldAlert, Gauge, ClipboardCheck, ChevronRight,
+  Settings as SettingsIcon, Server, Brain, FlaskConical, Wrench, Flag, ShieldAlert, Gauge, ClipboardCheck, ChevronRight, Radar,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
@@ -40,8 +40,9 @@ import { SpotifyAppsPanel } from "@/components/sistema/SpotifyAppsPanel";
 import { ExecutiveStatusBar } from "@/components/sistema/ExecutiveStatusBar";
 import { AttentionInbox } from "@/components/sistema/AttentionInbox";
 import { OperationalSummary } from "@/components/sistema/OperationalSummary";
+import { NocPanel } from "@/components/sistema/NocPanel";
 
-type SistemaTab = "saude" | "capacidade" | "aprendizado" | "alertas" | "motores" | "configuracoes" | "dev";
+type SistemaTab = "saude" | "capacidade" | "aprendizado" | "alertas" | "noc" | "motores" | "configuracoes" | "dev";
 type MotorSub = "robo" | "coleta" | "execucao" | "manual" | "fluxo" | "ao-vivo";
 type DevSub = "infra" | "flags" | "seo" | "spotify";
 
@@ -52,6 +53,7 @@ const TABS: TabDef[] = [
   { id: "capacidade", label: "Capacidade", icon: Gauge },
   { id: "aprendizado", label: "Aprendizado", icon: Brain },
   { id: "alertas", label: "Alertas", icon: Bell },
+  { id: "noc", label: "Observabilidade", icon: Radar, adminOnly: true },
   { id: "motores", label: "Motores", icon: Bot },
   { id: "configuracoes", label: "Configurações", icon: SettingsIcon },
   { id: "dev", label: "Dev", icon: Wrench, adminOnly: true },
@@ -145,6 +147,7 @@ export default function Sistema() {
             t.id === "capacidade" ? "Capac" :
             t.id === "aprendizado" ? "Aprend" :
             t.id === "alertas" ? "Alerta" :
+            t.id === "noc" ? "NOC" :
             t.id === "motores" ? "Motor" :
             t.id === "configuracoes" ? "Config" :
             "Dev";
@@ -226,6 +229,8 @@ export default function Sistema() {
         {activeTab === "aprendizado" && <AdminAprendizado embedded />}
 
         {activeTab === "alertas" && <AlertasHistorico />}
+
+        {activeTab === "noc" && isAdmin && <NocPanel />}
 
         {activeTab === "motores" && (
           <div className="space-y-4">
