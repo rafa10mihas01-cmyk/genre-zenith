@@ -705,7 +705,11 @@ export default function CampanhaExecucao() {
 
     (async () => {
       try {
-        const [collections, ccpRes, ecoRes] = await Promise.all([
+        const [growthRes, collections, ccpRes, ecoRes] = await Promise.all([
+          supabase
+            .from("vw_campaign_playlist_growth")
+            .select("playlist_id, playlist_url, current_name, baseline_name, delivery_accumulated, delta, last_import_delta, current_plays, baseline_plays, attributed_to")
+            .eq("campaign_id", camp.id),
           fetchAllCollections(),
           supabase
             .from("curator_campaign_playlists")
@@ -716,6 +720,7 @@ export default function CampanhaExecucao() {
             .select("managed_playlist_id, managed_playlists!inner(spotify_playlist_id)")
             .eq("campaign_id", camp.id),
         ]);
+        if (growthRes.error) throw growthRes.error;
 
         const uploadIds = Array.from(new Set(collections.map((c) => c.upload_id).filter((id): id is string => !!id)));
         const { data: uploadRows, error: uploadErr } = uploadIds.length > 0
@@ -752,37 +757,24 @@ export default function CampanhaExecucao() {
           }
         }
 
-        const byPlaylist = new Map<string, CollectionGrowthRow[]>();
-        for (const row of validCollections) {
-          if (row.window_days !== 7) continue;
-          const arr = byPlaylist.get(row.playlist_id) ?? [];
-          arr.push(row);
-          byPlaylist.set(row.playlist_id, arr);
-        }
-
         const acc = { curators: 0, ecosystem: 0, organic: 0 };
         const prior = new Set<string>();
         const rows: PlaylistGrowthRow[] = [];
-        for (const [playlistId, list] of byPlaylist) {
-          const ordered = [...list].sort((a, b) => sortKey(a, uploads).localeCompare(sortKey(b, uploads)));
-          const hasBaseline = ordered.some((r) => !!r.is_baseline);
-          let prev: number | null = null;
-          let delta = 0;
-          let lastImportDelta: number | null = null;
-          ordered.forEach((row, idx) => {
-            const plays = Number(row.plays_7d ?? 0);
-            const d = idx === 0 ? (hasBaseline ? 0 : plays) : Math.max(0, plays - (prev ?? plays));
-            delta += d;
-            lastImportDelta = idx === 0 && hasBaseline ? null : d;
-            prev = plays;
-          });
+        const collectionsByPlaylist = new Map<string, CollectionGrowthRow[]>();
+        for (const row of validCollections) {
+          const arr = collectionsByPlaylist.get(row.playlist_id) ?? [];
+          arr.push(row);
+          collectionsByPlaylist.set(row.playlist_id, arr);
+        }
+        for (const g of (growthRes.data ?? []) as any[]) {
+          const playlistId = g.playlist_id as string | null;
+          if (!playlistId) continue;
+          const list = collectionsByPlaylist.get(playlistId) ?? [];
           const baseline = latest(list.filter((r) => !!r.is_baseline), uploads);
           const current = latest(list, uploads);
-          const curator = curatorByPlaylist.get(playlistId);
-          const tag = ecoIds.has(playlistId)
-            ? "ecosystem"
-            : (curator && (!curator.excluded_from_kpis || curator.status === "baseline_conflict") ? `curator:${curator.curator_id}` : "organic");
+          const tag = (g.attributed_to as string | null) ?? (ecoIds.has(playlistId) ? "ecosystem" : "organic");
 
+          const delta = Number(g.delta ?? g.delivery_accumulated ?? 0);
           const v = Math.max(0, delta);
           if (v > 0) {
             if (tag.startsWith("curator:")) acc.curators += v;
@@ -794,12 +786,12 @@ export default function CampanhaExecucao() {
           }
           rows.push({
             playlist_id: playlistId,
-            current_name: current?.playlist_name_at_capture ?? baseline?.playlist_name_at_capture ?? null,
+            current_name: cleanPlaylistName(g.current_name) ?? cleanPlaylistName(current?.playlist_name_at_capture) ?? cleanPlaylistName(baseline?.playlist_name_at_capture),
             attributed_to: tag,
             delta,
-            current_plays: current?.plays_7d ?? null,
-            baseline_plays: baseline?.plays_7d ?? null,
-            last_import_delta: lastImportDelta,
+            current_plays: g.current_plays ?? current?.plays_7d ?? null,
+            baseline_plays: g.baseline_plays ?? baseline?.plays_7d ?? null,
+            last_import_delta: g.last_import_delta ?? null,
           });
         }
         setDeliveryBreakdown(acc);
