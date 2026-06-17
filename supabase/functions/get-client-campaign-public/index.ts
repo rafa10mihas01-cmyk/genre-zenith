@@ -645,7 +645,7 @@ Deno.serve(async (req) => {
     const snapHist = Array.isArray(snapHistRaw) ? snapHistRaw : [];
     const safeSnapshotHistory = (snapHist as AnyRec[]).map((entry) => ({
       captured_at: entry.captured_at,
-      is_baseline: Boolean(entry.is_baseline),
+      is_initial_capture: Boolean(entry.is_initial_capture),
       playlists_count: Number(entry.playlists_count ?? 0),
       total_plays: Number(entry.total_plays ?? 0),
       print_url: (entry.print_url as string | null) ?? null,
