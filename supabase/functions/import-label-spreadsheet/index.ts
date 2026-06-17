@@ -892,18 +892,18 @@ Deno.serve(async (req) => {
     }
 
     // 3c) Espelho em campaign_playlist_collections — fonte de verdade da aba
-    //     Monitoramento (Visão geral → KPIs, lista de playlists, delta). Sem
-    //     este passo, planilha do cliente subia mas a aba ficava em "0 playlists
-    //     na baseline / sem playlists" porque até hoje só o bot escrevia lá.
+    //     Monitoramento. Fase 3.A.1: escrita exclusivamente via Collection
+    //     Writer (`_shared/collection-writer.ts`). Proibido INSERT/UPSERT
+    //     direto nesta tabela em qualquer Edge Function.
     if (campaignIdForUpdate && allPlaylistRows.length > 0) {
-      const intent = isBaseline ? "baseline" : "periodic";
+      const intent: "baseline" | "periodic" = isBaseline ? "baseline" : "periodic";
       const collectionRows = allPlaylistRows
         .filter((r) => typeof r.playlist_spotify_id === "string" && r.playlist_spotify_id.length > 0)
         .map((r) => ({
-          playlist_id: r.playlist_spotify_id,
+          spotify_playlist_id: r.playlist_spotify_id as string,
           playlist_url: r.playlist_url
             || `https://open.spotify.com/playlist/${r.playlist_spotify_id}`,
-          playlist_name_at_capture: r.playlist_name ?? null,
+          playlist_name: r.playlist_name ?? null,
           plays_7d: Math.max(0, Number(r.streams || 0)),
           source: "label_spreadsheet",
         }));
@@ -911,28 +911,38 @@ Deno.serve(async (req) => {
       console.log(`[mirror] start campaign=${campaignIdForUpdate} intent=${intent} received=${allPlaylistRows.length} valid=${collectionRows.length} rejected=${rejected}`);
       if (collectionRows.length > 0) {
         try {
-          const { data: rpcData, error: rpcErr } = await admin.rpc("ingest_campaign_collection_batch", {
-            p_campaign_id: campaignIdForUpdate,
-            p_intent: intent,
-            p_rows: collectionRows,
+          const { writeCollectionBatch } = await import("../_shared/collection-writer.ts");
+          const result = await writeCollectionBatch(admin, {
+            writer: "import-label-spreadsheet",
+            campaign_id: campaignIdForUpdate,
+            intent,
+            rows: collectionRows,
+            upload_id: uploadId,
+            default_source: "label_spreadsheet",
           });
-          if (rpcErr) {
-            console.error(`[mirror] RPC error campaign=${campaignIdForUpdate}`, rpcErr.message, rpcErr.details ?? "", rpcErr.hint ?? "");
-          } else {
-            console.log(`[mirror] RPC ok campaign=${campaignIdForUpdate}`, JSON.stringify(rpcData));
-            // Vincula collections recém criadas ao upload (pra view enxergar quarentena depois)
-            try {
-              await admin
-                .from("campaign_playlist_collections")
-                .update({ upload_id: uploadId })
-                .eq("campaign_id", campaignIdForUpdate)
-                .is("upload_id", null)
-                .gte("captured_at", new Date(Date.now() - 5 * 60 * 1000).toISOString());
-            } catch (_) {}
-          }
+          console.log(`[mirror] writer ok campaign=${campaignIdForUpdate}`, JSON.stringify(result));
         } catch (e) {
           console.error(`[mirror] exception campaign=${campaignIdForUpdate}`, (e as Error).message);
         }
+
+        // 3d) Auto-matcher: promove pending_match → matched quando há vínculo
+        //     real (curator_playlists.match_status='curator') no(s) deal(s) da
+        //     mesma campanha. Sem isso, a aba Curadores fica em "Matched 0"
+        //     mesmo com a planilha já refletindo entrega real.
+        try {
+          const { data: matchData, error: matchErr } = await admin.rpc("match_curator_campaign_playlists", {
+            p_campaign_id: campaignIdForUpdate,
+          });
+          if (matchErr) {
+            console.error(`[matcher] error campaign=${campaignIdForUpdate}`, matchErr.message);
+          } else {
+            console.log(`[matcher] ok campaign=${campaignIdForUpdate}`, JSON.stringify(matchData));
+          }
+        } catch (e) {
+          console.error(`[matcher] exception campaign=${campaignIdForUpdate}`, (e as Error).message);
+        }
+      }
+    }
 
         // 3d) Auto-matcher: promove pending_match → matched quando há vínculo
         //     real (curator_playlists.match_status='curator') no(s) deal(s) da
