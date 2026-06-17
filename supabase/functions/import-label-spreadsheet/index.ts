@@ -954,24 +954,7 @@ Deno.serve(async (req) => {
       }
     }
 
-        // 3d) Auto-matcher: promove pending_match → matched quando há vínculo
-        //     real (curator_playlists.match_status='curator') no(s) deal(s) da
-        //     mesma campanha. Sem isso, a aba Curadores fica em "Matched 0"
-        //     mesmo com a planilha já refletindo entrega real.
-        try {
-          const { data: matchData, error: matchErr } = await admin.rpc("match_curator_campaign_playlists", {
-            p_campaign_id: campaignIdForUpdate,
-          });
-          if (matchErr) {
-            console.error(`[matcher] error campaign=${campaignIdForUpdate}`, matchErr.message);
-          } else {
-            console.log(`[matcher] ok campaign=${campaignIdForUpdate}`, JSON.stringify(matchData));
-          }
-        } catch (e) {
-          console.error(`[matcher] exception campaign=${campaignIdForUpdate}`, (e as Error).message);
-        }
-      }
-    }
+
 
 
     // 4) Log agregado
