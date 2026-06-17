@@ -76,16 +76,23 @@ Deno.serve(async (req) => {
   // Lê só o estritamente necessário pro portal do cliente.
   const { data: campRaw, error: cErr } = await supabase
     .from("campaigns")
-    .select("id, deal_id, client_id, track_name, artist, cover_url, spotify_track_url, spotify_track_id, goal_plays, status, started_at, deadline, simulation_snapshot, total_delivered, client_approved_at, client_rejected_at, client_adjustment_request, collection_mode, engagement_multiplier")
+    .select("id, deal_id, client_id, track_name, artist, cover_url, spotify_track_url, spotify_track_id, goal_plays, status, started_at, deadline, simulation_snapshot, total_delivered, client_approved_at, client_rejected_at, client_adjustment_request, collection_mode, engagement_multiplier, token_expires_at, token_revoked_at")
     .eq("public_plan_token", token)
     .maybeSingle();
 
   if (cErr) return jr({ error: cErr.message }, 500);
   if (!campRaw) return jr({ error: "not_found" }, 404);
 
+  // Hardening 4.B.1.B: TTL + revogação obrigatórios.
+  if ((campRaw as { token_revoked_at?: string | null }).token_revoked_at) {
+    return jr({ error: "token_revoked" }, 410);
+  }
+  const exp = (campRaw as { token_expires_at?: string | null }).token_expires_at;
+  if (exp && new Date(exp).getTime() < Date.now()) {
+    return jr({ error: "token_expired" }, 410);
+  }
+
   // Link expira automaticamente quando a campanha é encerrada.
-  // Hoje só `status='completed'` indica encerramento (não existe coluna closed_at em campaigns).
-  // Se um dia for adicionada, o gate já a contempla.
   const closedAt = (campRaw as { closed_at?: string | null }).closed_at ?? null;
   if (campRaw.status === "completed" || closedAt) {
     return jr({ error: "campaign_closed", message: "Campanha encerrada" }, 404);

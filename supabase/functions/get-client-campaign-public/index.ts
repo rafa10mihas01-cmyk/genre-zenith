@@ -90,10 +90,19 @@ Deno.serve(async (req) => {
     if (publicPlanToken) {
       const { data: campaignByToken } = await admin
         .from("campaigns")
-        .select("id, deal_id, client_approved_at")
+        .select("id, deal_id, client_approved_at, token_expires_at, token_revoked_at")
         .eq("public_plan_token", publicPlanToken)
         .maybeSingle();
       if (!campaignByToken?.deal_id) return jr({ ok: false, error: "not_found" }, 404);
+
+      // Hardening 4.B.1.B: TTL + revogação.
+      if ((campaignByToken as AnyRec).token_revoked_at) {
+        return jr({ ok: false, error: "token_revoked" }, 410);
+      }
+      const _exp = (campaignByToken as AnyRec).token_expires_at;
+      if (_exp && new Date(_exp).getTime() < Date.now()) {
+        return jr({ ok: false, error: "token_expired" }, 410);
+      }
 
       const gate = await gateCampaignAccess(req, admin, campaignByToken.id);
       if (!gate.ok) return jr({ ok: false, error: gate.error }, gate.status ?? 401);
