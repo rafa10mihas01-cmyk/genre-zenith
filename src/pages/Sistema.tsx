@@ -230,6 +230,8 @@ export default function Sistema() {
 
         {activeTab === "alertas" && <AlertasHistorico />}
 
+        {activeTab === "noc" && isAdmin && <NocPanel />}
+
         {activeTab === "motores" && (
           <div className="space-y-4">
             <SubTabs<MotorSub>
