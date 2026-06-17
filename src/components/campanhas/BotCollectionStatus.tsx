@@ -4,6 +4,8 @@ import { Bot, Clock, RefreshCcw, CheckCircle2, AlertTriangle, Loader2, Camera, E
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useLatestBotHeartbeat } from "@/hooks/useLatestBotHeartbeat";
+
 
 type Props = {
   campaignId: string;
