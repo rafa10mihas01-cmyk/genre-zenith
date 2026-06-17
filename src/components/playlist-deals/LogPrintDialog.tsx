@@ -479,7 +479,7 @@ export function LogPrintDialog({
         spotify_url: string;
         playlist_name: string;
         followers: number | null;
-        is_baseline: boolean;
+        is_initial_roster: boolean;
       }> = [];
       let snapshots: Array<{
         spotify_url: string | null;
@@ -498,7 +498,7 @@ export function LogPrintDialog({
             spotify_url: p.spotify_url ?? "",
             playlist_name: p.name,
             followers: null as number | null,
-            is_baseline: true,
+            is_initial_roster: true,
           }));
         const fromAi = matches
           .filter((m) => m.playlist_name)
@@ -506,13 +506,13 @@ export function LogPrintDialog({
             spotify_url: "",
             playlist_name: m.playlist_name,
             followers: null as number | null,
-            is_baseline: true,
+            is_initial_roster: true,
           }));
         const fromManual = names.map((name) => ({
           spotify_url: "",
           playlist_name: name,
           followers: null as number | null,
-          is_baseline: true,
+          is_initial_roster: true,
         }));
         newPlaylists =
           fromPaste.length > 0 ? fromPaste : fromAi.length > 0 ? fromAi : fromManual;
@@ -559,7 +559,7 @@ export function LogPrintDialog({
             spotify_url: p.spotify_url ?? "",
             playlist_name: p.name,
             followers: null,
-            is_baseline: false,
+            is_initial_roster: false,
           }));
         } else if (hasNewPlaylists) {
           const names = parsePlaylistNames(playlistsRaw);
@@ -567,7 +567,7 @@ export function LogPrintDialog({
             spotify_url: "",
             playlist_name: name,
             followers: null,
-            is_baseline: false,
+            is_initial_roster: false,
           }));
         }
 
