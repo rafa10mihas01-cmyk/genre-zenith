@@ -66,6 +66,13 @@ type SortKey = "delta" | "current" | "baseline" | "name";
 const ROW_H = 64;
 const ROW_H_MOBILE = 56;
 
+const EMPTY_PLAYLIST_LABELS = new Set(["", "(vazio)", "vazio", "(empty)", "empty", "null", "undefined"]);
+
+function cleanPlaylistName(name: string | null | undefined): string | null {
+  const v = String(name ?? "").trim();
+  return EMPTY_PLAYLIST_LABELS.has(v.toLowerCase()) ? null : v;
+}
+
 export function ExecucaoView({
   campaignId,
   onOpenHistory,
