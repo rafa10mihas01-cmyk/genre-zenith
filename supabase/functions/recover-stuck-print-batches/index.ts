@@ -6,6 +6,7 @@
 // POST { batch_id?: string, all?: boolean, dry_run?: boolean }
 // Auth: header x-bot-key (BOT_API_KEY).
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { serveCron } from "../_shared/cron-lock.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -155,7 +156,7 @@ async function recoverOne(supabase: any, b: Batch, dryRun: boolean): Promise<Rec
   return res;
 }
 
-Deno.serve(async (req) => {
+serveCron({ job_name: "recover-stuck-print-batches", max_retries: 0, timeout_ms: 240_000 }, async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jr({ error: "method_not_allowed" }, 405);
 

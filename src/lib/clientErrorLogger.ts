@@ -131,6 +131,34 @@ export function installClientErrorLogger() {
       source: "unhandledrejection",
     });
   });
+
+  // NC-004 (Fase 4.F.1): Core Web Vitals → log-client-error como eventos RUM.
+  installWebVitals();
+}
+
+let vitalsInstalled = false;
+async function installWebVitals() {
+  if (vitalsInstalled) return;
+  vitalsInstalled = true;
+  try {
+    const wv = await import("web-vitals");
+    const report = (name: string) => (metric: any) => {
+      postError({
+        type: "rum",
+        rum_metric: name,
+        value: metric.value,
+        rating: metric.rating,
+        delta: metric.delta,
+        navigation_type: metric.navigationType ?? null,
+        message: `rum:${name}=${Math.round(metric.value)}`,
+      });
+    };
+    wv.onCLS(report("CLS"));
+    wv.onLCP(report("LCP"));
+    wv.onINP(report("INP"));
+    wv.onTTFB(report("TTFB"));
+    wv.onFCP?.(report("FCP"));
+  } catch { /* swallow — vitals é best-effort */ }
 }
 
 export function rememberCorrelationId(id: string) {

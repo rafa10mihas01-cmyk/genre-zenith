@@ -1,6 +1,7 @@
 // cron-deal-delivery-check — roda 1x/dia. Compara entrega real vs planejada
 // de cada curator_deal ativo e grava status em curator_deal_delivery_status.
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
+import { serveCron } from "../_shared/cron-lock.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 
@@ -21,7 +22,7 @@ function dayIndex(startedAt: string): number {
   return Math.floor((now - start) / 86400000) + 1; // dia 1 = primeiro dia
 }
 
-Deno.serve(async (req) => {
+serveCron({ job_name: "cron-deal-delivery-check", max_retries: 1, timeout_ms: 240_000 }, async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });

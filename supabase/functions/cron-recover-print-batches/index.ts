@@ -2,6 +2,7 @@
 // com status='complete' mas nunca foram processados (extract falhou ou não
 // disparou) e re-dispara extract-snapshot-from-print.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { serveCron } from "../_shared/cron-lock.ts";
 import { recordMetric } from "../_shared/ops-metrics.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 
@@ -15,7 +16,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const BOT_API_KEY = Deno.env.get("BOT_API_KEY")!;
 
-Deno.serve(async (req) => {
+serveCron({ job_name: "cron-recover-print-batches", max_retries: 2, timeout_ms: 240_000 }, async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const t0 = Date.now();
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);

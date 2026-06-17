@@ -23,6 +23,8 @@
 // deno-lint-ignore no-explicit-any
 type AnyClient = any;
 
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 export interface CronJobOptions {
   job_name: string;
   /** Tentativas adicionais após a primeira falha. Default 0. */

@@ -3,6 +3,7 @@
 // pra medir latência/sucesso e gravar em health_probes + system_alerts em falha.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serveCron } from "../_shared/cron-lock.ts";
 import { runProbe } from "../_shared/health-probe.ts";
 import { createAlert } from "../_shared/alerts.ts";
 import { extractCorrelationId, withCorrelationHeader } from "../_shared/with-correlation.ts";
@@ -48,7 +49,7 @@ async function probeSmtp(): Promise<{ ok: boolean; latencyMs: number; error?: st
   }
 }
 
-Deno.serve(async (req) => {
+serveCron({ job_name: "smtp-health-probe-cron", max_retries: 0, timeout_ms: 240_000 }, async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   const { correlationId } = await extractCorrelationId(req);
 

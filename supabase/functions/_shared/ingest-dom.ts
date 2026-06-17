@@ -1,6 +1,7 @@
 // Shared DOM ingest logic — used by bot-ingest-dom AND piggyback on bot-heartbeat.
 // Single source of truth for processing playsMap snapshots from the VPS bot.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { writeCuratorDealSnapshot } from "./snapshot-writer.ts";
 import { assertDealOperable } from "./deal-access.ts";
 import { classifyPlaylistKind } from "./algorithmic-classifier.ts";
 import { ensureObservedPlaylist as ensureObservedPlaylistShared } from "./observed-playlist.ts";
@@ -234,7 +235,7 @@ export async function processDomItem(
     }
 
 
-    const { error: insErr } = await supabase.from("curator_deal_snapshots").insert({
+    const _w = await writeCuratorDealSnapshot(supabase, {
       deal_id,
       song_id,
       playlist_id: playlistId,
@@ -247,7 +248,8 @@ export async function processDomItem(
       is_initial_capture: isBaseline,
       correlation_id: item.correlation_id ?? null,
     });
-    if (insErr) skipped++; else inserted++;
+    const insErr = _w.error ? { message: _w.error } : null;
+    
 
     // Espelha em campaign_eco_snapshots quando: shadow de campanha + playlist é própria (managed)
     if (isCampaignShadow && sId) {

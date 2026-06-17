@@ -2,6 +2,7 @@
 // como ÚNICA fonte de verdade. Não recalcula nada manualmente — apenas
 // persiste o resultado oficial em curator_deals e dispara milestones.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
+import { serveCron } from "../_shared/cron-lock.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const corsHeaders = {
@@ -122,7 +123,7 @@ async function checkDealMilestones(
   return result;
 }
 
-Deno.serve(async (req) => {
+serveCron({ job_name: "cron-reconcile-curator-deals", max_retries: 1, timeout_ms: 240_000 }, async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

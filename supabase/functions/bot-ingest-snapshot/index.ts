@@ -2,6 +2,7 @@
 // Auth: header x-bot-key.
 // POST { song_id, deal_id, total_plays, snapshots: [{playlist_name, spotify_url, plays, source?}], note?, print_urls? }
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { writeCuratorDealSnapshot } from "../_shared/snapshot-writer.ts";
 import { assertDealOperable } from "../_shared/deal-access.ts";
 import { recordMetric } from "../_shared/ops-metrics.ts";
 import { classifyPlaylistKind } from "../_shared/algorithmic-classifier.ts";
@@ -525,20 +526,24 @@ Deno.serve(async (req) => {
       }
     }
 
-    const { error: insErr } = await supabase.from("curator_deal_snapshots").insert({
-      deal_id,
-      song_id,
-      playlist_id: playlistId,
-      plays,
-      plays_24h: plays24h,
-      plays_7d:  plays7d,
-      plays_28d: plays28d,
-      source: snap.source ?? "spotify_for_artists",
-      match_method: matchMethod ?? (sId ? "spotify_id" : "name"),
-      is_initial_capture: isBaseline,
-      flagged,
-      flag_reason: flagReason,
-    });
+    const { error: insErr } = await (async () => {
+      const r = await writeCuratorDealSnapshot(supabase, {
+        deal_id,
+        song_id,
+        playlist_id: playlistId,
+        plays,
+        plays_24h: plays24h,
+        plays_7d:  plays7d,
+        plays_28d: plays28d,
+        source: snap.source ?? "spotify_for_artists",
+        match_method: matchMethod ?? (sId ? "spotify_id" : "name"),
+        is_initial_capture: isBaseline,
+        flagged,
+        flag_reason: flagReason,
+        correlation_id: cid ?? null,
+      });
+      return { error: r.error ? { message: r.error } : null };
+    })();
     if (insErr) {
       skipped++;
     } else {
