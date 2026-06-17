@@ -97,6 +97,13 @@ type UploadGrowthMeta = {
   quarantined_at: string | null;
 };
 
+const EMPTY_PLAYLIST_LABELS = new Set(["", "(vazio)", "vazio", "(empty)", "empty", "null", "undefined"]);
+
+function cleanPlaylistName(name: string | null | undefined): string | null {
+  const v = String(name ?? "").trim();
+  return EMPTY_PLAYLIST_LABELS.has(v.toLowerCase()) ? null : v;
+}
+
 type DeliveryProof = {
   id: string;
   playlist_id: string;
