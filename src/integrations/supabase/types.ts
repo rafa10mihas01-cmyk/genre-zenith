@@ -1529,6 +1529,7 @@ export type Database = {
           campaign_id: string
           captured_at: string
           collection_run_id: string | null
+          correlation_id: string | null
           created_at: string
           excluded: boolean
           exclusion_reason: string | null
@@ -1550,6 +1551,7 @@ export type Database = {
           campaign_id: string
           captured_at?: string
           collection_run_id?: string | null
+          correlation_id?: string | null
           created_at?: string
           excluded?: boolean
           exclusion_reason?: string | null
@@ -1571,6 +1573,7 @@ export type Database = {
           campaign_id?: string
           captured_at?: string
           collection_run_id?: string | null
+          correlation_id?: string | null
           created_at?: string
           excluded?: boolean
           exclusion_reason?: string | null
@@ -2580,6 +2583,7 @@ export type Database = {
       collection_logs: {
         Row: {
           acao: string
+          correlation_id: string | null
           created_at: string | null
           duracao_ms: number | null
           genre_id: string | null
@@ -2590,6 +2594,7 @@ export type Database = {
         }
         Insert: {
           acao: string
+          correlation_id?: string | null
           created_at?: string | null
           duracao_ms?: number | null
           genre_id?: string | null
@@ -2600,6 +2605,7 @@ export type Database = {
         }
         Update: {
           acao?: string
+          correlation_id?: string | null
           created_at?: string | null
           duracao_ms?: number | null
           genre_id?: string | null
@@ -3306,6 +3312,7 @@ export type Database = {
       }
       curator_deal_logs: {
         Row: {
+          correlation_id: string | null
           created_at: string
           deal_id: string
           id: string
@@ -3316,6 +3323,7 @@ export type Database = {
           total_plays: number
         }
         Insert: {
+          correlation_id?: string | null
           created_at?: string
           deal_id: string
           id?: string
@@ -3326,6 +3334,7 @@ export type Database = {
           total_plays: number
         }
         Update: {
+          correlation_id?: string | null
           created_at?: string
           deal_id?: string
           id?: string
@@ -4635,6 +4644,7 @@ export type Database = {
         Row: {
           bot_correlation_id: string | null
           captured_at: string
+          correlation_id: string | null
           created_at: string
           deal_id: string
           id: string
@@ -4654,6 +4664,7 @@ export type Database = {
         Insert: {
           bot_correlation_id?: string | null
           captured_at?: string
+          correlation_id?: string | null
           created_at?: string
           deal_id: string
           id?: string
@@ -4673,6 +4684,7 @@ export type Database = {
         Update: {
           bot_correlation_id?: string | null
           captured_at?: string
+          correlation_id?: string | null
           created_at?: string
           deal_id?: string
           id?: string
@@ -6282,6 +6294,48 @@ export type Database = {
           total_playlists?: number | null
           total_termos?: number | null
           ultima_coleta?: string | null
+        }
+        Relationships: []
+      }
+      health_probes: {
+        Row: {
+          correlation_id: string | null
+          created_at: string
+          id: string
+          last_error_at: string | null
+          last_error_msg: string | null
+          last_success_at: string | null
+          latency_ms: number | null
+          metadata: Json
+          probe_name: string
+          status: string
+          subsystem: string
+        }
+        Insert: {
+          correlation_id?: string | null
+          created_at?: string
+          id?: string
+          last_error_at?: string | null
+          last_error_msg?: string | null
+          last_success_at?: string | null
+          latency_ms?: number | null
+          metadata?: Json
+          probe_name: string
+          status: string
+          subsystem: string
+        }
+        Update: {
+          correlation_id?: string | null
+          created_at?: string
+          id?: string
+          last_error_at?: string | null
+          last_error_msg?: string | null
+          last_success_at?: string | null
+          latency_ms?: number | null
+          metadata?: Json
+          probe_name?: string
+          status?: string
+          subsystem?: string
         }
         Relationships: []
       }
@@ -9313,6 +9367,7 @@ export type Database = {
       playlist_operation_log: {
         Row: {
           conflict_detected: boolean
+          correlation_id: string | null
           created_at: string
           divergence_count: number
           error: string | null
@@ -9330,6 +9385,7 @@ export type Database = {
         }
         Insert: {
           conflict_detected?: boolean
+          correlation_id?: string | null
           created_at?: string
           divergence_count?: number
           error?: string | null
@@ -9347,6 +9403,7 @@ export type Database = {
         }
         Update: {
           conflict_detected?: boolean
+          correlation_id?: string | null
           created_at?: string
           divergence_count?: number
           error?: string | null
@@ -11668,6 +11725,63 @@ export type Database = {
           source?: string
           synced?: number
           tier?: string | null
+        }
+        Relationships: []
+      }
+      system_alerts: {
+        Row: {
+          acked_at: string | null
+          acked_by: string | null
+          channels: string[]
+          cooldown_minutes: number
+          correlation_id: string | null
+          created_at: string
+          dedupe_key: string | null
+          delivered_at: string | null
+          id: string
+          message: string
+          metadata: Json
+          resolution: string | null
+          resolved_at: string | null
+          severity: string
+          subsystem: string
+          title: string
+        }
+        Insert: {
+          acked_at?: string | null
+          acked_by?: string | null
+          channels?: string[]
+          cooldown_minutes?: number
+          correlation_id?: string | null
+          created_at?: string
+          dedupe_key?: string | null
+          delivered_at?: string | null
+          id?: string
+          message: string
+          metadata?: Json
+          resolution?: string | null
+          resolved_at?: string | null
+          severity: string
+          subsystem: string
+          title: string
+        }
+        Update: {
+          acked_at?: string | null
+          acked_by?: string | null
+          channels?: string[]
+          cooldown_minutes?: number
+          correlation_id?: string | null
+          created_at?: string
+          dedupe_key?: string | null
+          delivered_at?: string | null
+          id?: string
+          message?: string
+          metadata?: Json
+          resolution?: string | null
+          resolved_at?: string | null
+          severity?: string
+          subsystem?: string
+          title?: string
         }
         Relationships: []
       }
