@@ -1325,7 +1325,7 @@ Deno.serve(async (req) => {
   // `campaign_playlist_collections` via writer compartilhado.
   // Sem campaign_id → skip estruturado em bot_events. Nada em legado.
   if (isBaseline) {
-    const { writeBaselineOfficial } = await import("../_shared/baseline-writer.ts");
+    const { writeBaselineOfficial } = await import("../_shared/collection-writer.ts");
     let baselineQ = supabase
       .from("curator_deal_snapshots")
       .select("id, captured_at, plays, curator_playlists!inner(spotify_playlist_id, playlist_name, match_status, spotify_url)")

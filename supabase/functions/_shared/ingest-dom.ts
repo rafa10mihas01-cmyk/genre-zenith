@@ -297,7 +297,7 @@ export async function processDomItem(
   // `campaign_playlist_collections` via writer compartilhado.
   // Sem campaign_id → skip estruturado em bot_events. Nada em legado.
   if (isBaseline) {
-    const { writeBaselineOfficial } = await import("./baseline-writer.ts");
+    const { writeBaselineOfficial } = await import("./collection-writer.ts");
     const { data: allPls } = await supabase
       .from("curator_playlists")
       .select("spotify_playlist_id, playlist_name, song_id, spotify_url, streams_7d")
