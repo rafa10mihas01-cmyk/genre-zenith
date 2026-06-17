@@ -1039,84 +1039,6 @@ export type Database = {
           },
         ]
       }
-      campaign_allocations: {
-        Row: {
-          campaign_id: string
-          created_at: string
-          delivered_plays: number
-          id: string
-          notes: string | null
-          playlist_id: string
-          position: number
-          status: string
-          target_plays: number
-          updated_at: string
-          weight: number
-        }
-        Insert: {
-          campaign_id: string
-          created_at?: string
-          delivered_plays?: number
-          id?: string
-          notes?: string | null
-          playlist_id: string
-          position?: number
-          status?: string
-          target_plays?: number
-          updated_at?: string
-          weight?: number
-        }
-        Update: {
-          campaign_id?: string
-          created_at?: string
-          delivered_plays?: number
-          id?: string
-          notes?: string | null
-          playlist_id?: string
-          position?: number
-          status?: string
-          target_plays?: number
-          updated_at?: string
-          weight?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "campaign_allocations_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "campaign_radio_collected"
-            referencedColumns: ["campaign_id"]
-          },
-          {
-            foreignKeyName: "campaign_allocations_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "campaigns"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "campaign_allocations_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "v_campaign_velocity"
-            referencedColumns: ["campaign_id"]
-          },
-          {
-            foreignKeyName: "campaign_allocations_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "v_financial_summary"
-            referencedColumns: ["campaign_id"]
-          },
-          {
-            foreignKeyName: "campaign_allocations_playlist_id_fkey"
-            columns: ["playlist_id"]
-            isOneToOne: false
-            referencedRelation: "playlists"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       campaign_eco_allocations: {
         Row: {
           campaign_id: string
@@ -12574,26 +12496,6 @@ export type Database = {
           total_nao_alocado: number | null
         }
         Relationships: []
-      }
-      v_playlist_delivery_history: {
-        Row: {
-          avg_daily_delivery: number | null
-          campaigns_count: number | null
-          fulfillment_rate: number | null
-          last_campaign_at: string | null
-          playlist_id: string | null
-          total_delivered: number | null
-          total_promised: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "campaign_allocations_playlist_id_fkey"
-            columns: ["playlist_id"]
-            isOneToOne: false
-            referencedRelation: "playlists"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       v_playlist_vps_assignment: {
         Row: {

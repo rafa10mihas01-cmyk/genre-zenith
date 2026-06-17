@@ -201,9 +201,10 @@ Deno.serve(async (req) => {
       })
       .eq("id", jobId);
 
-    // Família B (campaign_allocations) aposentada na Fase 2.A.2.
-    // O status operacional do plano agora vive em campaign_eco_allocations,
+    // Status operacional do plano vive em campaign_eco_allocations,
     // atualizado pelos handlers do Growth Engine, não aqui.
+
+
 
     await supabase.from("bot_events").insert({
       bot_name: botName,

@@ -146,7 +146,6 @@ Deno.serve(async (req) => {
   }
 
   // 1. Allocations elegíveis — fonte canônica única: campaign_eco_allocations.
-  // Família B (campaign_allocations) aposentada na Fase 2.A.2.
   // A campanha só vira execução depois de plan_approved_at, evitando disparo de rascunho.
   const ecoRes = await supabase
     .from("campaign_eco_allocations")

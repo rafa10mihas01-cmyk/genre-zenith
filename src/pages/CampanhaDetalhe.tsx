@@ -35,7 +35,7 @@ type Campaign = {
   client_decision_round: number | null;
 };
 
-// Allocation type removido na Fase 2.A.2 — campaign_allocations aposentada.
+
 
 const STATUS_LABEL: Record<string, string> = {
   active: "Ativa", draft: "Rascunho", paused: "Pausada", completed: "Concluída", cancelled: "Cancelada",
@@ -54,8 +54,6 @@ export default function CampanhaDetalhe() {
   const detailKey = ["campaign_detail", id] as const;
 
   // Fonte oficial da entrega: vw_campaign_playlist_growth (Growth Engine).
-  // Família B (campaign_allocations) aposentada na Fase 2.A.2 — a listagem de
-  // playlists da campanha vive agora no fluxo de execução (campaign_eco_allocations).
   const detailQuery = useQuery({
     queryKey: detailKey,
     enabled: !!id,
@@ -239,9 +237,6 @@ export default function CampanhaDetalhe() {
           </div>
         </div>
 
-        {/* Lista de playlists removida na Fase 2.A.2 — campaign_allocations aposentada.
-            A listagem operacional vive em /campanhas/:id/execucao (CampanhaExecucao),
-            consumindo campaign_eco_allocations + Growth Engine. */}
 
         {camp.notes && (
           <div className="mt-8 rounded-2xl border border-border bg-card p-5">

@@ -1,7 +1,5 @@
 // /analytics — Aba "Deals".
 // Lê DIRETO do motor vivo: curator_deals + curator_deal_snapshots.
-// Aposentou: campaigns.total_delivered, campaign_allocations,
-// v_playlist_delivery_history, v_campaign_velocity, RPC get_campaign_analytics_overview.
 import { useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
