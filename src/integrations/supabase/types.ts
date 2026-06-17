@@ -13307,7 +13307,6 @@ export type Database = {
           playlist_id: string
         }[]
       }
-      get_campaign_analytics_overview: { Args: never; Returns: Json }
       get_campaign_baseline: {
         Args: { p_campaign_id: string; p_spotify_playlist_id?: string }
         Returns: {
@@ -13621,10 +13620,6 @@ export type Database = {
       }
       reap_zombie_catalog_placements: { Args: never; Returns: number }
       reap_zombie_playlist_jobs: { Args: never; Returns: number }
-      recalc_campaign_progress: {
-        Args: { p_campaign_id?: string }
-        Returns: number
-      }
       recalc_curator_deal_baseline_from_spreadsheet: {
         Args: { p_deal_id: string }
         Returns: Json
