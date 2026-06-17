@@ -413,7 +413,7 @@ async function upsertSnapshot(
     plays: row.plays,
     source: row.source,
     match_method: row.match_method,
-    is_baseline: row.is_baseline,
+    is_initial_capture: row.is_initial_capture,
     print_url: null,
     snapshot_run_id: row.batch_id,
     ai_raw: row.ai_raw,
