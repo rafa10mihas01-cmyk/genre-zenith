@@ -9,6 +9,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { assertDealOperable } from "../_shared/deal-access.ts";
 import { checkRateLimit, clientIp, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { gateCuratorAccess } from "../_shared/portal-auth.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -48,7 +49,7 @@ Deno.serve(async (req) => {
     let query = admin
       .from("curator_deals")
       .select(
-        "id, curator_name, song_spotify_url, song_name, song_artist, song_cover_url, target_plays, daily_goal, baseline_plays, cost, started_at, ends_at, public_token, slug, created_at, spotify_owner_id, spotify_owner_url, state, closed_at, closed_status, token_revoked_at, token_expires_at, campaign_id, source",
+        "id, curator_id, curator_name, song_spotify_url, song_name, song_artist, song_cover_url, target_plays, daily_goal, baseline_plays, cost, started_at, ends_at, public_token, slug, created_at, spotify_owner_id, spotify_owner_url, state, closed_at, closed_status, token_revoked_at, token_expires_at, campaign_id, source",
       );
 
     if (token) {
@@ -63,6 +64,19 @@ Deno.serve(async (req) => {
 
     if (dealErr) return jr({ ok: false, error: dealErr.message }, 200);
     if (!deal) return jr({ ok: false, error: "not found" }, 200);
+
+    // Hardening 4.B.1.A (Onda 1 — curador): exige OTP quando deal tem allowlist
+    // OU o curador ligado tem e-mail. Sem allowlist mantém compat legada.
+    const gate = await gateCuratorAccess(
+      req,
+      admin,
+      deal.id,
+      deal.curator_id ?? null,
+      deal.public_token ?? token ?? null,
+    );
+    if (!gate.ok) {
+      return jr({ ok: false, error: gate.error ?? "forbidden", required_otp: true }, gate.status ?? 401);
+    }
 
     // Dados base + RPCs de progresso e histórico (snapshots como fonte única).
     const [
