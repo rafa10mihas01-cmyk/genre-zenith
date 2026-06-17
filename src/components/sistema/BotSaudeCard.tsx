@@ -6,17 +6,15 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { timeAgo } from "@/lib/format";
 import { humanizeError } from "@/lib/operationalCopy";
+import { useLatestBotHeartbeat } from "@/hooks/useLatestBotHeartbeat";
 
 type BotHealth = {
-  last_heartbeat?: string;
-  status?: string;
-  spotify_valid: boolean;
-  message?: string;
   queue_size: number;
   next_collect_at?: string;
 };
 
 export function BotSaudeCard() {
+  const { data: hb, isLoading: hbLoading, refetch: refetchHb } = useLatestBotHeartbeat();
   const [data, setData] = useState<BotHealth | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -24,9 +22,7 @@ export function BotSaudeCard() {
   const load = async () => {
     setRefreshing(true);
     try {
-    const [hb, queue, nextSong] = await Promise.all([
-      supabase.from("bot_heartbeats").select("created_at, status, spotify_session_valid, message")
-        .order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    const [queue, nextSong] = await Promise.all([
       supabase.from("curator_deal_songs").select("id", { count: "exact", head: true })
         .eq("auto_collect", true).in("auto_collect_status", ["idle", "queued"]),
       supabase.from("curator_deal_songs").select("next_auto_collect_at")
@@ -36,10 +32,6 @@ export function BotSaudeCard() {
     ]);
 
     setData({
-      last_heartbeat: hb.data?.created_at,
-      status: hb.data?.status,
-      spotify_valid: hb.data?.spotify_session_valid ?? false,
-      message: hb.data?.message ?? undefined,
       queue_size: queue.count ?? 0,
       next_collect_at: nextSong.data?.next_auto_collect_at ?? undefined,
     });
@@ -54,6 +46,8 @@ export function BotSaudeCard() {
     const t = setInterval(load, 60_000);
     return () => clearInterval(t);
   }, []);
+
+  const onRefresh = () => { refetchHb(); load(); };
 
   if (loading || !data) {
     return (
