@@ -15,3 +15,4 @@ Concorrência do autopilot: unique partial index em `autopilot_runs(genre_id) WH
 - [Brand assets](mem://design/brand-assets) — Variantes oficiais do logo (light/dark/mark/watermark) e quando usar cada uma
 - [FormModal standard](mem://design/form-modal-standard) — Padrão único de modal de formulário (ícone tonal, body scrollável, footer fixo); inventário de migração
 - [Glossário Comunidade vs Premium](mem://preference/glossary-comunidade) — Vocabulário público (parceiro/membro/criador) vs interno (curador). Regras de copy e tom da Comunidade beta.
+- [Regra de consolidação](mem://preference/consolidation-rule) — Nome ≠ responsabilidade. Antes de DROP, comparar pergunta de negócio. Diferente → renomear. Igual → consolidar.
