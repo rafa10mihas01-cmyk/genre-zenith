@@ -387,7 +387,11 @@ async function resolveKnownPlaylistNames(
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
-    const body = await req.json().catch(() => ({}));
+    // Fase 3.A.1 — raw_ingest obrigatório em todo parser (planilha = parser
+    // Spreadsheet). Lemos o body como texto pra preservar a auditoria fiel.
+    const rawText = await req.text();
+    const { logRawIngest, safeJsonParse } = await import("../_shared/raw-ingest.ts");
+    const body = safeJsonParse(rawText) ?? {};
     const token = String(body?.client_token ?? "").trim();
     const fileB64 = String(body?.file_base64 ?? "");
     const fileName = String(body?.file_name ?? "planilha.xlsx");
@@ -397,6 +401,22 @@ Deno.serve(async (req) => {
     if (!fileB64) return jr({ ok: false, error: "Arquivo obrigatório" }, 200);
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
+
+    // Log raw — sem o file_base64 (pode ter MB) e sem o token (sensível)
+    try {
+      const safePayload = {
+        ...body,
+        file_base64: fileB64 ? `[base64:${fileB64.length}b]` : null,
+        client_token: token ? "[redacted]" : null,
+      };
+      await logRawIngest(admin, {
+        endpoint: "import-label-spreadsheet",
+        req,
+        rawText: JSON.stringify(safePayload),
+        payload: safePayload,
+      });
+    } catch (_) { /* logging nunca quebra o ingest */ }
+
 
     const { data: resolved, error: resErr } = await admin.rpc("resolve_client_token", {
       _token: token,
