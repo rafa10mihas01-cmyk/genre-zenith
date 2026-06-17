@@ -7,9 +7,8 @@ import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { StatusDot } from "@/components/ui/status-dot";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, RefreshCw, Target, Trash2, Copy, CheckCircle2, MessageSquareWarning, Clock } from "lucide-react";
+import { ArrowLeft, Target, Copy, CheckCircle2, MessageSquareWarning, Clock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { PUBLIC_DOMAIN } from "@/lib/curatorPublicUrl";
 import { Kpi } from "@/components/ui/kpi";
@@ -36,15 +35,7 @@ type Campaign = {
   client_decision_round: number | null;
 };
 
-type Allocation = {
-  id: string;
-  playlist_id: string;
-  target_plays: number;
-  delivered_plays: number;
-  status: string;
-  position: number;
-  playlists?: { name: string; followers: number | null; cover_url: string | null } | null;
-};
+// Allocation type removido na Fase 2.A.2 — campaign_allocations aposentada.
 
 const STATUS_LABEL: Record<string, string> = {
   active: "Ativa", draft: "Rascunho", paused: "Pausada", completed: "Concluída", cancelled: "Cancelada",
@@ -62,16 +53,15 @@ export default function CampanhaDetalhe() {
 
   const detailKey = ["campaign_detail", id] as const;
 
+  // Fonte oficial da entrega: vw_campaign_playlist_growth (Growth Engine).
+  // Família B (campaign_allocations) aposentada na Fase 2.A.2 — a listagem de
+  // playlists da campanha vive agora no fluxo de execução (campaign_eco_allocations).
   const detailQuery = useQuery({
     queryKey: detailKey,
     enabled: !!id,
     queryFn: async () => {
-      const [c, a, g] = await Promise.all([
+      const [c, g] = await Promise.all([
         supabase.from("campaigns").select("*").eq("id", id!).maybeSingle(),
-        supabase.from("campaign_allocations")
-          .select("id, playlist_id, target_plays, delivered_plays, status, position, playlists(name, followers, cover_url)")
-          .eq("campaign_id", id!)
-          .order("position"),
         supabase.from("vw_campaign_playlist_growth")
           .select("attributed_to, delta")
           .eq("campaign_id", id!),
@@ -87,15 +77,11 @@ export default function CampanhaDetalhe() {
         }, 0);
         campData.total_delivered = deliveredFromView;
       }
-      return {
-        camp: campData as Campaign | null,
-        allocs: ((a.data as any) ?? []) as Allocation[],
-      };
+      return { camp: campData as Campaign | null };
     },
   });
 
   const camp = detailQuery.data?.camp ?? null;
-  const allocs = detailQuery.data?.allocs ?? [];
   const loading = detailQuery.isLoading && !detailQuery.data;
 
   const load = useCallback(
@@ -103,7 +89,6 @@ export default function CampanhaDetalhe() {
     [qc, detailKey],
   );
 
-  // Setters de compat (mantém call-sites simples como setCamp / setAllocs).
   const setCamp = useCallback(
     (updater: (c: Campaign | null) => Campaign | null) => {
       qc.setQueryData(detailKey, (old: any) =>
@@ -112,15 +97,6 @@ export default function CampanhaDetalhe() {
     },
     [qc, detailKey],
   );
-
-  async function recalc() {
-    if (!id) return;
-    setBusy(true);
-    const { error } = await (supabase.rpc as any)("recalc_campaign_progress", { p_campaign_id: id });
-    setBusy(false);
-    if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
-    else { toast({ title: "Atualizado" }); load(); }
-  }
 
   async function updateStatus(newStatus: string) {
     if (!id) return;
@@ -152,12 +128,6 @@ export default function CampanhaDetalhe() {
     load();
   }
 
-  async function removeAlloc(allocId: string) {
-    if (!confirm("Remover esta playlist da campanha?")) return;
-    const { error } = await supabase.from("campaign_allocations").delete().eq("id", allocId);
-    if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
-    else load();
-  }
 
   if (loading) {
     return (
