@@ -243,7 +243,7 @@ Body:
 }
 ```
 
-- `done` → marca job concluído e seta a `campaign_allocations` correspondente como `live`.
+- `done` → marca job concluído e atualiza o status da `campaign_eco_allocations` correspondente.
 - `failed` → re-enfileira com backoff exponencial (2min, 8min, 30min, ...) até `max_attempts`.
   Depois disso vira `failed` definitivo e exige retry manual pelo painel.
 
