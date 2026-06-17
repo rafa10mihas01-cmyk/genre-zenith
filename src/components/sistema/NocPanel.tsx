@@ -389,8 +389,8 @@ function SecurityPanel() {
       const [otpCamp, otpCur, accCamp, accCur, audit, tokens] = await Promise.all([
         supabase.from("campaign_access_otps").select("id,blocked_at,failed_attempts,used_at,created_at").gte("created_at", since24h),
         supabase.from("curator_access_otps").select("id,blocked_at,failed_attempts,used_at,created_at").gte("created_at", since24h),
-        supabase.from("campaign_access_logs").select("success,created_at").gte("created_at", since24h),
-        supabase.from("curator_access_logs").select("success,created_at").gte("created_at", since24h),
+        supabase.from("campaign_access_logs").select("id,created_at").gte("created_at", since24h),
+        supabase.from("curator_access_logs").select("id,created_at").gte("created_at", since24h),
         supabase.from("public_token_audit").select("action,created_at").gte("created_at", since24h),
         supabase.from("system_alerts").select("id").eq("subsystem", "security").gte("created_at", since24h),
       ]);
@@ -398,13 +398,13 @@ function SecurityPanel() {
       const accRows = [...(accCamp.data ?? []), ...(accCur.data ?? [])];
       setD({
         otp_issued: otpRows.length,
-        otp_used: otpRows.filter(r => r.used_at).length,
-        otp_blocked: otpRows.filter(r => r.blocked_at).length,
-        otp_failed_attempts: otpRows.reduce((s, r) => s + (r.failed_attempts ?? 0), 0),
+        otp_used: otpRows.filter((r: any) => r.used_at).length,
+        otp_blocked: otpRows.filter((r: any) => r.blocked_at).length,
+        otp_failed_attempts: otpRows.reduce((s: number, r: any) => s + (r.failed_attempts ?? 0), 0),
         access_attempts: accRows.length,
-        access_403: accRows.filter(r => r.success === false).length,
-        tokens_rotated: (audit.data ?? []).filter(r => r.action === "rotate").length,
-        tokens_revoked: (audit.data ?? []).filter(r => r.action === "revoke").length,
+        access_403: otpRows.filter((r: any) => r.blocked_at).length, // proxy: bloqueados = negados
+        tokens_rotated: (audit.data ?? []).filter((r: any) => r.action === "rotate").length,
+        tokens_revoked: (audit.data ?? []).filter((r: any) => r.action === "revoke").length,
         security_alerts: tokens.data?.length ?? 0,
       });
     }
