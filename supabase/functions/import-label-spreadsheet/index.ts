@@ -346,6 +346,44 @@ async function buildMatchers(
   };
 }
 
+async function resolveKnownPlaylistNames(
+  admin: ReturnType<typeof createClient>,
+  rows: Array<ParsedRow & MatchResult>,
+): Promise<Array<ParsedRow & MatchResult>> {
+  const missingIds = Array.from(new Set(
+    rows
+      .filter((r) => !cleanPlaylistName(r.playlist_name) && !!r.playlist_spotify_id)
+      .map((r) => r.playlist_spotify_id as string),
+  ));
+  if (missingIds.length === 0) return rows;
+
+  const [curatorRes, managedRes, playlistRes] = await Promise.all([
+    admin.from("curator_playlists").select("spotify_playlist_id, playlist_name").in("spotify_playlist_id", missingIds),
+    admin.from("managed_playlists").select("spotify_playlist_id, name").in("spotify_playlist_id", missingIds),
+    admin.from("playlists").select("spotify_playlist_id, name").in("spotify_playlist_id", missingIds),
+  ]);
+
+  const names = new Map<string, string>();
+  for (const r of (curatorRes.data ?? []) as Array<{ spotify_playlist_id: string; playlist_name: string | null }>) {
+    const n = cleanPlaylistName(r.playlist_name);
+    if (r.spotify_playlist_id && n) names.set(r.spotify_playlist_id, n);
+  }
+  for (const r of (managedRes.data ?? []) as Array<{ spotify_playlist_id: string; name: string | null }>) {
+    const n = cleanPlaylistName(r.name);
+    if (r.spotify_playlist_id && n) names.set(r.spotify_playlist_id, n);
+  }
+  for (const r of (playlistRes.data ?? []) as Array<{ spotify_playlist_id: string; name: string | null }>) {
+    const n = cleanPlaylistName(r.name);
+    if (r.spotify_playlist_id && n) names.set(r.spotify_playlist_id, n);
+  }
+
+  return rows.map((r) => {
+    const current = cleanPlaylistName(r.playlist_name);
+    const resolved = r.playlist_spotify_id ? names.get(r.playlist_spotify_id) : null;
+    return { ...r, playlist_name: current ?? resolved ?? r.playlist_spotify_id ?? "Playlist" };
+  });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
