@@ -404,9 +404,7 @@ async function upsertSnapshot(
     plays_28d?: number | null;
   },
 ): Promise<any> {
-  // Fonte única de prints: snapshot_run_id aponta para bot_print_batches.
-  // Não gravamos mais print_url na linha (mantida só por compat).
-  const payload = {
+  // NC-003: writer único via _shared/snapshot-writer.ts.
   const r = await writeCuratorDealSnapshot(supabase, {
     deal_id: row.deal_id,
     song_id: row.song_id,
