@@ -407,6 +407,7 @@ async function upsertSnapshot(
   // Fonte única de prints: snapshot_run_id aponta para bot_print_batches.
   // Não gravamos mais print_url na linha (mantida só por compat).
   const payload = {
+  const r = await writeCuratorDealSnapshot(supabase, {
     deal_id: row.deal_id,
     song_id: row.song_id,
     playlist_id: row.playlist_id,
@@ -422,41 +423,8 @@ async function upsertSnapshot(
     plays_24h: row.plays_24h ?? null,
     plays_7d: row.plays_7d ?? null,
     plays_28d: row.plays_28d ?? null,
-  };
-
-  if (!row.batch_id) {
-    const { error } = await supabase.from("curator_deal_snapshots").insert(payload);
-    return error;
-  }
-
-  const { data: existing } = await supabase
-    .from("curator_deal_snapshots")
-    .select("id, plays")
-    .eq("batch_id", row.batch_id)
-    .eq("playlist_id", row.playlist_id)
-    .maybeSingle();
-
-  if (existing?.id) {
-    if ((row.plays ?? 0) > (existing.plays ?? 0)) {
-      const { error } = await supabase
-        .from("curator_deal_snapshots")
-        .update({
-          plays: row.plays,
-          plays_24h: row.plays_24h ?? null,
-          plays_7d: row.plays_7d ?? null,
-          plays_28d: row.plays_28d ?? null,
-          match_method: row.match_method,
-          ai_raw: row.ai_raw,
-          snapshot_run_id: row.batch_id,
-        })
-        .eq("id", existing.id);
-      return error;
-    }
-    return null;
-  }
-
-  const { error } = await supabase.from("curator_deal_snapshots").insert(payload);
-  return error;
+  });
+  return r.error ? { message: r.error } as any : null;
 }
 
 Deno.serve(async (req) => {

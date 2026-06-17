@@ -234,7 +234,7 @@ export async function processDomItem(
     }
 
 
-    const { error: insErr } = await supabase.from("curator_deal_snapshots").insert({
+    const _w = await writeCuratorDealSnapshot(supabase, {
       deal_id,
       song_id,
       playlist_id: playlistId,
@@ -247,7 +247,8 @@ export async function processDomItem(
       is_initial_capture: isBaseline,
       correlation_id: item.correlation_id ?? null,
     });
-    if (insErr) skipped++; else inserted++;
+    const insErr = _w.error ? { message: _w.error } : null;
+    
 
     // Espelha em campaign_eco_snapshots quando: shadow de campanha + playlist é própria (managed)
     if (isCampaignShadow && sId) {
