@@ -9919,6 +9919,51 @@ export type Database = {
         }
         Relationships: []
       }
+      public_token_audit: {
+        Row: {
+          action: string
+          actor_user_id: string | null
+          correlation_id: string | null
+          created_at: string
+          entity_id: string
+          expires_at: string | null
+          id: string
+          ip: unknown
+          kind: string
+          new_token_hash: string | null
+          old_token_hash: string | null
+          reason: string | null
+        }
+        Insert: {
+          action: string
+          actor_user_id?: string | null
+          correlation_id?: string | null
+          created_at?: string
+          entity_id: string
+          expires_at?: string | null
+          id?: string
+          ip?: unknown
+          kind: string
+          new_token_hash?: string | null
+          old_token_hash?: string | null
+          reason?: string | null
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string | null
+          correlation_id?: string | null
+          created_at?: string
+          entity_id?: string
+          expires_at?: string | null
+          id?: string
+          ip?: unknown
+          kind?: string
+          new_token_hash?: string | null
+          old_token_hash?: string | null
+          reason?: string | null
+        }
+        Relationships: []
+      }
       rate_limits: {
         Row: {
           count: number
@@ -13640,6 +13685,28 @@ export type Database = {
         Args: { p_dedupe_key: string; p_resolution_message?: string }
         Returns: number
       }
+      revoke_public_token: {
+        Args: {
+          _actor?: string
+          _correlation_id?: string
+          _entity_id: string
+          _ip?: string
+          _kind: string
+          _reason?: string
+        }
+        Returns: Json
+      }
+      rotate_public_token: {
+        Args: {
+          _actor?: string
+          _correlation_id?: string
+          _entity_id: string
+          _ip?: string
+          _kind: string
+          _ttl_days?: number
+        }
+        Returns: Json
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       slugify: { Args: { p_text: string }; Returns: string }
@@ -13701,6 +13768,10 @@ export type Database = {
       }
       trigger_recalc_playlist_scores: { Args: never; Returns: number }
       unaccent: { Args: { "": string }; Returns: string }
+      validate_public_token_state: {
+        Args: { _expires_at: string; _revoked_at: string }
+        Returns: string
+      }
     }
     Enums: {
       app_role: "admin" | "curador" | "operador"

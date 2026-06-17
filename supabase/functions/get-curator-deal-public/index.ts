@@ -65,6 +65,18 @@ Deno.serve(async (req) => {
     if (dealErr) return jr({ ok: false, error: dealErr.message }, 200);
     if (!deal) return jr({ ok: false, error: "not found" }, 200);
 
+    // Hardening 4.B.1.B: TTL + revogação. Só aplica quando a requisição
+    // veio por token público (e não por slug amigável sem token).
+    if (token) {
+      if ((deal as { token_revoked_at?: string | null }).token_revoked_at) {
+        return jr({ ok: false, error: "token_revoked" }, 410);
+      }
+      const _exp = (deal as { token_expires_at?: string | null }).token_expires_at;
+      if (_exp && new Date(_exp).getTime() < Date.now()) {
+        return jr({ ok: false, error: "token_expired" }, 410);
+      }
+    }
+
     // Hardening 4.B.1.A (Onda 1 — curador): exige OTP quando deal tem allowlist
     // OU o curador ligado tem e-mail. Sem allowlist mantém compat legada.
     const gate = await gateCuratorAccess(
