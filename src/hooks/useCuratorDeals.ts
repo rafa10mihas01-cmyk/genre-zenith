@@ -1012,7 +1012,7 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
         plays: Math.max(0, Math.round(m.plays)),
         captured_at: opts.capturedAt ?? new Date().toISOString(),
         print_url: opts.printUrl ?? null,
-        is_baseline: opts.isBaseline,
+        is_initial_capture: opts.isBaseline,
         source: "spotify_for_artists",
         ai_confidence: m.confidence ?? null,
         created_by: user?.id ?? null,
