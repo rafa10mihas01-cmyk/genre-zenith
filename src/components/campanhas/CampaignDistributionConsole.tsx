@@ -149,7 +149,11 @@ export function CampaignDistributionConsole({
   const [manualItems, setManualItems] = useState<ManualQueueRow[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [loadingManual, setLoadingManual] = useState(true);
-  const [bot, setBot] = useState<BotHealth | null>(null);
+  const { data: hbRow } = useLatestBotHeartbeat();
+  const bot: BotHealth | null = hbRow
+    ? { last_heartbeat: hbRow.created_at, status: hbRow.status, spotify_valid: hbRow.spotify_session_valid ?? false }
+    : null;
+
   const [retrying, setRetrying] = useState(false);
   const [forcing, setForcing] = useState(false);
   const [busyManualId, setBusyManualId] = useState<string | null>(null);
