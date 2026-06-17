@@ -110,7 +110,7 @@ function pipelineStage(c: import("@/hooks/useCampaigns").Campaign): PipelineFilt
 
 export default function Campanhas() {
   const navigate = useNavigate();
-  const { items, loading, recalcAll } = useCampaigns();
+  const { items, loading } = useCampaigns();
   const [filter, setFilter] = useScreenField<PipelineFilter>("/campanhas", "filter", "all");
   const [tab, setTab] = useScreenField<"lista" | "financeiro">("/campanhas", "tab", "financeiro");
   const [searchParams, setSearchParams] = useSearchParams();
@@ -168,16 +168,8 @@ export default function Campanhas() {
     return { activeCount: active.length, goal, delivered, allocated, pct, cpp };
   }, [items]);
 
-  async function doRecalcAll() {
-    try {
-      await recalcAll.mutateAsync();
-      toast({ title: "Recalculado" });
-    } catch (e) {
-      toast({ title: "Erro no recálculo", description: (e as Error).message, variant: "destructive" });
-    }
-  }
-
-
+  // Botão "Recalcular" removido na Fase 2.A.2 — Família B aposentada.
+  // O cache campaigns.total_delivered é mantido em tempo real pelo Growth Engine.
 
   return (
     <>
@@ -188,19 +180,8 @@ export default function Campanhas() {
         subtitle="Metas e distribuição"
         domain="campaigns"
         manualKey="campanhas"
-
-        actions={
-          tab === "lista" ? (
-            <Button variant="outline" onClick={doRecalcAll} disabled={recalcAll.isPending}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${recalcAll.isPending ? "animate-spin" : ""}`} />
-              Recalcular
-            </Button>
-          ) : undefined
-        }
-
-
-
       />
+
 
       <PageContainer>
         {/* KPIs globais — sempre visíveis pra manter padrão entre abas */}
