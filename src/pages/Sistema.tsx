@@ -53,6 +53,7 @@ const TABS: TabDef[] = [
   { id: "capacidade", label: "Capacidade", icon: Gauge },
   { id: "aprendizado", label: "Aprendizado", icon: Brain },
   { id: "alertas", label: "Alertas", icon: Bell },
+  { id: "noc", label: "Observabilidade", icon: Radar, adminOnly: true },
   { id: "motores", label: "Motores", icon: Bot },
   { id: "configuracoes", label: "Configurações", icon: SettingsIcon },
   { id: "dev", label: "Dev", icon: Wrench, adminOnly: true },
