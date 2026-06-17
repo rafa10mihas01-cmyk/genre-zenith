@@ -531,7 +531,7 @@ function CampaignRow({ c }: { c: Campaign }) {
               spotify_url: managedMatch?.spotify_url ?? "",
               playlist_name: managedMatch?.name ?? match.playlist_name,
               followers: managedMatch?.followers ?? null,
-              is_baseline: true,
+              is_initial_roster: true,
               spotify_playlist_id: managedMatch?.spotify_playlist_id ?? null,
               image_url: managedMatch?.cover_url ?? null,
               streams_total: Number(match.plays ?? 0),
@@ -566,7 +566,7 @@ function CampaignRow({ c }: { c: Campaign }) {
           plays: Number(match.plays ?? 0),
           captured_at: capturedAt,
           print_url: printUrls[Math.max(0, Number(match.source_index ?? 0))] ?? printUrls[0] ?? null,
-          is_baseline: true,
+          is_initial_capture: true,
           source: "manual_print",
           match_method: managedMatch ? "managed_playlist_name" : "ai_name",
           ai_raw: match,
@@ -595,7 +595,7 @@ function CampaignRow({ c }: { c: Campaign }) {
         song_id: songId,
         total_plays: total,
         note: "[manual] baseline por prints",
-        is_baseline: true,
+        is_initial_capture_event: true,
         print_urls: printUrls,
       } as any);
       if (logErr) throw logErr;

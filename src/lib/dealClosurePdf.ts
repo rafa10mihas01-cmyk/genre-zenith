@@ -174,8 +174,8 @@ export function buildDealClosurePdf(input: DealClosurePdfInput): Blob {
     };
     const order = ["curator", "editorial", "organic", "suspicious", "baseline"];
     const sorted = [...dealPlaylists].sort((a, b) => {
-      const sa = (a.match_status ?? (a.is_baseline ? "baseline" : "curator")) as string;
-      const sb = (b.match_status ?? (b.is_baseline ? "baseline" : "curator")) as string;
+      const sa = (a.match_status ?? (a.is_initial_roster ? "baseline" : "curator")) as string;
+      const sb = (b.match_status ?? (b.is_initial_roster ? "baseline" : "curator")) as string;
       return order.indexOf(sa) - order.indexOf(sb);
     });
     autoTable(doc, {
@@ -183,7 +183,7 @@ export function buildDealClosurePdf(input: DealClosurePdfInput): Blob {
       margin: { left: margin, right: margin },
       head: [["Playlist", "Categoria", "Plays 7d", "Plays 28d"]],
       body: sorted.map((p) => {
-        const status = (p.match_status ?? (p.is_baseline ? "baseline" : "curator")) as string;
+        const status = (p.match_status ?? (p.is_initial_roster ? "baseline" : "curator")) as string;
         return [
           p.playlist_name,
           labelMap[status] ?? status,

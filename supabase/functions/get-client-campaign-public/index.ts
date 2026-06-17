@@ -388,10 +388,10 @@ Deno.serve(async (req) => {
     if (contracted.length === 0) {
       const { data: dealPlaylists } = await admin
         .from("v_curator_playlists_operational")
-        .select("spotify_playlist_id, spotify_url, added_at, last_paste_at, match_status, is_baseline")
+        .select("spotify_playlist_id, spotify_url, added_at, last_paste_at, match_status, is_initial_roster")
         .eq("deal_id", dealId!)
         .eq("match_status", "curator")
-        .eq("is_baseline", false)
+        .eq("is_initial_roster", false)
         .not("spotify_playlist_id", "is", null);
       const seen = new Set<string>();
       for (const r of (dealPlaylists ?? []) as AnyRec[]) {

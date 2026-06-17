@@ -71,7 +71,7 @@ async function ensureObservedPlaylist(
       playlist_name: playlistName,
       followers: (playlist as any).followers ?? null,
       spotify_owner_name: (playlist as any).made_by ?? null,
-      is_baseline: isBaseline,
+      is_initial_roster: isBaseline,
       match_status: matchStatus,
       attribution_method: "s4a_observed",
       attribution_reason: "Detectada automaticamente na aba Playlists do Spotify for Artists",
@@ -325,7 +325,7 @@ export async function processDomItem(
     total_plays: Math.max(0, totalPlays),
     note: note ?? (isBaseline ? `[bot dom] baseline inicial` : `[bot dom] coleta diária`),
     print_urls: [],
-    is_baseline: isBaseline,
+    is_initial_capture_event: isBaseline,
   });
 
   const { data: songRow } = await supabase

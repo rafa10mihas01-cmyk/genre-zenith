@@ -201,7 +201,7 @@ export default function PlaylistDeals() {
   );
 
   const dealsWithBaseline = useMemo(
-    () => new Set(logs.filter((l) => l.is_baseline).map((l) => l.deal_id)),
+    () => new Set(logs.filter((l) => l.is_initial_capture_event).map((l) => l.deal_id)),
     [logs],
   );
 

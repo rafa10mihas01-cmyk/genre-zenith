@@ -93,7 +93,7 @@ type Playlist = {
   spotify_url: string;
   playlist_name: string;
   followers: number | null;
-  is_baseline: boolean;
+  is_initial_roster: boolean;
   added_at: string;
   spotify_playlist_id?: string | null;
   spotify_owner_id?: string | null;
@@ -132,7 +132,7 @@ type DealSong = {
 type ProgressPerPlaylist = {
   playlist_id: string;
   playlist_name: string | null;
-  is_baseline: boolean;
+  is_initial_roster: boolean;
   baseline_plays: number | null;
   latest_plays: number | null;
   delivered: number;
@@ -418,7 +418,7 @@ export default function CuratorPage() {
   const curatorPlaylists = useMemo(
     () =>
       visiblePlaylists.filter((p) => {
-        if (p.is_baseline) return false;
+        if (p.is_initial_roster) return false;
         const status = (p.match_status ?? "curator") as string;
         return status === "curator";
       }),
@@ -436,7 +436,7 @@ export default function CuratorPage() {
         groups.set(key, { key, sample: p, songsInside: [] });
       }
     }
-    const baseAll = playlists.filter((p) => p.is_baseline);
+    const baseAll = playlists.filter((p) => p.is_initial_roster);
     for (const [, g] of groups) {
       const pid = g.sample.spotify_playlist_id;
       if (!pid) continue;
@@ -451,7 +451,7 @@ export default function CuratorPage() {
   // Baseline (playlists onde a música JÁ está antes do deal começar) — só nome + link,
   // exibido pro curador num bloco colapsado pra evitar cadastro duplicado.
   const baselinePlaylistsForCurator = useMemo(() => {
-    const base = playlists.filter((p) => p.is_baseline);
+    const base = playlists.filter((p) => p.is_initial_roster);
     const filtered = selectedSongId
       ? base.filter((p) => p.song_id === selectedSongId || !p.song_id)
       : base;
@@ -664,7 +664,7 @@ export default function CuratorPage() {
     return ids;
   }, [playlists]);
   const perPlaylistCurator = perPlaylist
-    .filter((p) => !p.is_baseline && curatorOwnedPlaylistIds.has(p.playlist_id))
+    .filter((p) => !p.is_initial_roster && curatorOwnedPlaylistIds.has(p.playlist_id))
     .sort((a, b) => Number(b.delivered ?? 0) - Number(a.delivered ?? 0));
 
   const handleAdd = async () => {

@@ -774,7 +774,7 @@ Deno.serve(async (req) => {
         plays: r.streams,
         captured_at: capturedAt,
         source: "label_spreadsheet",
-        is_baseline: isBaseline,
+        is_initial_capture: isBaseline,
         notes: r.playlist_name + (r.owner_name ? ` (${r.owner_name})` : ""),
         ai_raw: {
           source: "label_spreadsheet",
@@ -942,7 +942,7 @@ Deno.serve(async (req) => {
       note: `Planilha (${fmt.toUpperCase()}) — ${rows.length} playlists · ${internalCount} nossas · ${
         rows.length - internalCount
       } orgânicas${isBaseline ? " · BASELINE" : ""}`,
-      is_baseline: isBaseline,
+      is_initial_capture_event: isBaseline,
     });
 
     // 5) Primeira importação tira a campanha do limbo automaticamente

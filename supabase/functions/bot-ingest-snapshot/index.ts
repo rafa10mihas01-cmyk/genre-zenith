@@ -132,7 +132,7 @@ Deno.serve(async (req) => {
       total_plays: Math.max(0, total),
       note: `[bot/agregado] ${isBaseline ? "baseline" : "coleta"} total=${total} 24h=${plays_24h ?? "-"} 7d=${plays_7d ?? "-"} 28d=${plays_28d ?? "-"}`,
       print_urls: print_url ? [print_url] : [],
-      is_baseline: isBaseline,
+      is_initial_capture_event: isBaseline,
     });
 
     const { data: songRow } = await supabase
@@ -386,7 +386,7 @@ Deno.serve(async (req) => {
         playlist_name: playlistName,
         followers: snap.followers ?? null,
         spotify_owner_name: snap.made_by ?? null,
-        is_baseline: isBaseline,
+        is_initial_roster: isBaseline,
         match_status: matchStatus,
         attribution_method: "s4a_observed",
         attribution_reason: "Detectada automaticamente na aba Playlists do Spotify for Artists",
@@ -721,7 +721,7 @@ Deno.serve(async (req) => {
     total_plays: Math.max(0, computedTotal),
     note: note ?? (isBaseline ? `[bot] baseline inicial` : `[bot] auto-collect`),
     print_urls: print_urls ?? [],
-    is_baseline: isBaseline,
+    is_initial_capture_event: isBaseline,
   });
 
   // Atualiza song com next_auto_collect_at

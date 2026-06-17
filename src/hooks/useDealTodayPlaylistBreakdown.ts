@@ -22,7 +22,7 @@ export type TodayPlaylistRow = {
   spotify_owner_name: string | null;
   image_url: string | null;
   match_status: string;
-  is_baseline: boolean;
+  is_initial_roster: boolean;
   today_plays: number;
   last_total: number;
   previous_total: number;
@@ -87,7 +87,7 @@ export function useDealTodayPlaylistBreakdown(dealId: string | null | undefined)
       const { data: plays, error: plErr } = await supabase
         .from("v_curator_playlists_operational")
         .select(
-          "id, spotify_playlist_id, spotify_url, playlist_name, spotify_owner_name, image_url, match_status, is_baseline",
+          "id, spotify_playlist_id, spotify_url, playlist_name, spotify_owner_name, image_url, match_status, is_initial_roster",
         )
         .eq("deal_id", dealId)
         .limit(2000);
@@ -166,7 +166,7 @@ export function useDealTodayPlaylistBreakdown(dealId: string | null | undefined)
           spotify_owner_name: p.spotify_owner_name ?? null,
           image_url: p.image_url ?? null,
           match_status: p.match_status ?? "curator",
-          is_baseline: !!p.is_baseline,
+          is_initial_roster: !!p.is_initial_roster,
           today_plays: today,
           last_total: current,
           previous_total: Math.max(0, current - (today ?? 0)),

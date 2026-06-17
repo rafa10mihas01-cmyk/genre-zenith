@@ -26,9 +26,9 @@ export default function HeatmapEntregas({ embedded = false }: { embedded?: boole
       since.setDate(since.getDate() - days);
       const { data, error } = await supabase
         .from("curator_deal_logs")
-        .select("created_at, total_plays, is_baseline")
+        .select("created_at, total_plays, is_initial_capture_event")
         .gte("created_at", since.toISOString())
-        .eq("is_baseline", false);
+        .eq("is_initial_capture_event", false);
       if (error) throw error;
       return data ?? [];
     },

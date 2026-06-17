@@ -72,7 +72,7 @@ export type CuratorPlaylist = {
   spotify_url: string;
   playlist_name: string;
   followers: number | null;
-  is_baseline: boolean;
+  is_initial_roster: boolean;
   added_at: string;
   // Campos do fluxo de paste/enriquecimento (podem vir nulos em registros antigos)
   spotify_playlist_id?: string | null;
@@ -179,7 +179,7 @@ export type CuratorDealLog = {
   song_id?: string | null;
   total_plays: number;
   note: string | null;
-  is_baseline: boolean;
+  is_initial_capture_event: boolean;
   created_at: string;
   print_urls?: string[] | null;
 };
@@ -237,8 +237,8 @@ export function computeCuratorStats(
   const baseline = Number(deal.baseline_plays ?? 0);
   const target = Number(deal.target_plays ?? 0);
 
-  const nonBaselineLogs = dealLogs.filter((l) => !l.is_baseline);
-  const hasBaseline = !!deal.baseline_captured_at || dealLogs.some((l) => l.is_baseline);
+  const nonBaselineLogs = dealLogs.filter((l) => !l.is_initial_capture_event);
+  const hasBaseline = !!deal.baseline_captured_at || dealLogs.some((l) => l.is_initial_capture_event);
 
   const latestPlays =
     nonBaselineLogs.length > 0
@@ -274,8 +274,8 @@ export function computeCuratorStats(
   }
 
   const dealPlaylists = playlists.filter((p) => p.deal_id === deal.id);
-  const newPlaylists = dealPlaylists.filter((p) => !p.is_baseline);
-  const baselinePlaylists = dealPlaylists.filter((p) => p.is_baseline);
+  const newPlaylists = dealPlaylists.filter((p) => !p.is_initial_roster);
+  const baselinePlaylists = dealPlaylists.filter((p) => p.is_initial_roster);
 
   // todayPlays = ganho desde o último registro de OUTRO dia (ou baseline).
   // Útil pra mostrar "hoje x / combinado_diário".

@@ -432,7 +432,7 @@ export default function CampanhaExecucao() {
           .from("curator_deal_logs")
           .select("created_at, total_plays")
           .eq("deal_id", dealId)
-          .eq("is_baseline", true)
+          .eq("is_initial_capture_event", true)
           .order("created_at", { ascending: true })
           .limit(1)
           .maybeSingle(),

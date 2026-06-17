@@ -588,7 +588,7 @@ export function LogPrintDialog({
           p_deal_id: deal.id,
           p_song_id: selectedSongId,
           p_total_plays: finalValue as number,
-          p_is_baseline: isBaseline,
+          p_is_initial_capture: isBaseline,
           p_note: isBaseline ? null : (note.trim() || null),
           p_print_urls: printUrls,
           p_new_playlists: newPlaylists,
