@@ -128,6 +128,8 @@ type SpreadsheetUpload = {
   file_path?: string | null;
   is_baseline?: boolean | null;
   reference_date?: string | null;
+  superseded_by?: string | null;
+  quarantined_at?: string | null;
 };
 
 export default function CampanhaExecucao() {
