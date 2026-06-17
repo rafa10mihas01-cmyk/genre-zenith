@@ -465,7 +465,10 @@ Deno.serve(async (req) => {
 
     // Match com playlists/curadores nossos
     const matcher = await buildMatchers(admin, rows);
-    const matched = rows.map((r) => ({ ...r, ...matcher(r) }));
+    const matched = await resolveKnownPlaylistNames(
+      admin,
+      rows.map((r) => ({ ...r, ...matcher(r) })),
+    );
     const internalCount = matched.filter((m) => m.is_internal).length;
     const playlistsRecognized = matched.filter((m) => m.matched_playlist_id).length;
     const curatorsRecognized = new Set(
