@@ -128,50 +128,18 @@ export function ExecucaoView({
       return [...items].sort((a, b) => collectionSortKey(b, uploads).localeCompare(collectionSortKey(a, uploads)))[0] ?? null;
     };
 
-    const buildAccumulated = (
-      collections: CollectionRow[],
-      uploads: Map<string, UploadMeta>,
-      allowed: Set<string>,
-      canonicalWindowDays: number,
-    ) => {
-      const byPlaylist = new Map<string, CollectionRow[]>();
-      for (const c of collections) {
-        if (c.window_days !== canonicalWindowDays) continue;
-        if (!c.is_baseline && !allowed.has(c.playlist_id)) continue;
-        const arr = byPlaylist.get(c.playlist_id) ?? [];
-        arr.push(c);
-        byPlaylist.set(c.playlist_id, arr);
-      }
-
-      const acc = new Map<string, AccRow>();
-      for (const [pid, list] of byPlaylist) {
-        const ordered = [...list].sort((a, b) => collectionSortKey(a, uploads).localeCompare(collectionSortKey(b, uploads)));
-        const hasBaseline = ordered.some((r) => !!r.is_baseline);
-        let prev: number | null = null;
-        let total = 0;
-        let lastImportDelta: number | null = null;
-        ordered.forEach((row, idx) => {
-          const plays = Number(row.plays_7d ?? 0);
-          const delta = idx === 0
-            ? (hasBaseline ? 0 : plays)
-            : Math.max(0, plays - (prev ?? plays));
-          total += delta;
-          lastImportDelta = idx === 0 && hasBaseline ? null : delta;
-          prev = plays;
-        });
-        acc.set(pid, { delivery_accumulated: total, last_import_delta: lastImportDelta });
-      }
-      return acc;
-    };
-
     (async () => {
       // ─────────────────────────────────────────────────────────────
-      // FONTE DE VERDADE: campaign_playlist_collections + curator_campaign_playlists + campaign_eco_allocations
-      // A tela calcula o crescimento localmente para não depender da view pesada que pode estourar timeout.
+      // FONTE DE VERDADE: vw_campaign_playlist_growth.
+      // Ela já trata janela last_24h vs last_7d/28d no banco; recalcular aqui
+      // reintroduz erro quando a planilha é diária.
       // ─────────────────────────────────────────────────────────────
       try {
-      const [campaignRes, collections, ccpRes, ecoRes] = await Promise.all([
-        supabase.from("campaigns").select("canonical_window_days").eq("id", campaignId).maybeSingle(),
+      const [growthRes, collections, ccpRes, ecoRes] = await Promise.all([
+        supabase
+          .from("vw_campaign_playlist_growth")
+          .select("campaign_id, playlist_id, playlist_url, current_name, baseline_name, baseline_plays, current_plays, delta, last_import_delta, baseline_at, last_captured_at, first_seen_at, attributed_to")
+          .eq("campaign_id", campaignId),
         fetchAllCollections(),
         supabase
           .from("curator_campaign_playlists")
@@ -182,6 +150,7 @@ export function ExecucaoView({
           .select("managed_playlist_id, managed_playlists!inner(spotify_playlist_id)")
           .eq("campaign_id", campaignId),
       ]);
+      if (growthRes.error) throw growthRes.error;
 
       const uploadIds = Array.from(new Set(collections.map((c) => c.upload_id).filter((id): id is string => !!id)));
       const { data: uploadRows, error: uploadErr } = uploadIds.length > 0
@@ -233,6 +202,7 @@ export function ExecucaoView({
         ...collIds,
         ...curatorRegByPlaylist.keys(),
         ...ecoIds,
+        ...((growthRes.data ?? []) as any[]).map((r) => r.playlist_id).filter(Boolean),
       ]);
 
       const byPlaylist = new Map<string, CollectionRow[]>();
@@ -241,15 +211,10 @@ export function ExecucaoView({
         arr.push(c);
         byPlaylist.set(c.playlist_id, arr);
       }
-      const allowedForAcc = new Set<string>([
-        ...Array.from(curatorRegByPlaylist.entries())
-          .filter(([, r]) => !r.excluded_from_kpis)
-          .map(([pid]) => pid),
-        ...ecoIds,
-        ...validCollections.filter((c) => !!c.is_baseline).map((c) => c.playlist_id),
-      ]);
-      const canonicalWindowDays = Number((campaignRes.data as any)?.canonical_window_days ?? 7);
-      const accumulated = buildAccumulated(validCollections, uploads, allowedForAcc, canonicalWindowDays);
+      const growthByPlaylist = new Map<string, any>();
+      for (const g of (growthRes.data ?? []) as any[]) {
+        if (g.playlist_id) growthByPlaylist.set(g.playlist_id, g);
+      }
 
       // Materializar lista canônica usando as coletas já importadas como fonte oficial.
       const list: GrowthRow[] = [];
@@ -262,28 +227,28 @@ export function ExecucaoView({
           if (!v) return min;
           return !min || v < min ? v : min;
         }, null);
-        const acc = accumulated.get(pid);
+        const official = growthByPlaylist.get(pid);
         const reg = curatorRegByPlaylist.get(pid);
-        const attribution: string = (ecoIds.has(pid) || internalOwnedIds.has(pid))
+        const attribution: string = official?.attributed_to ?? ((ecoIds.has(pid) || internalOwnedIds.has(pid))
           ? "ecosystem"
-          : (reg && (!reg.excluded_from_kpis || reg.status === "baseline_conflict") ? `curator:${reg.curator_id}` : "organic");
+          : (reg && (!reg.excluded_from_kpis || reg.status === "baseline_conflict") ? `curator:${reg.curator_id}` : "organic"));
         const curatorId = attribution.startsWith("curator:")
-          ? (reg?.curator_id ?? null)
+          ? (attribution.slice("curator:".length) || reg?.curator_id || null)
           : null;
-        if (latest || baseline) {
+        if (official || latest || baseline) {
           list.push({
             campaign_id: campaignId,
             playlist_id: pid,
-            playlist_url: latest?.playlist_url ?? baseline?.playlist_url ?? reg?.playlist_url ?? null,
-            current_name: latest?.playlist_name_at_capture ?? baseline?.playlist_name_at_capture ?? null,
-            baseline_name: baseline?.playlist_name_at_capture ?? null,
-            baseline_plays: baseline?.plays_7d ?? null,
-            current_plays: latest?.plays_7d ?? null,
-            delta: acc?.delivery_accumulated ?? 0,
-            last_import_delta: acc?.last_import_delta ?? null,
-            baseline_at: baseline?.captured_at ?? null,
-            last_captured_at: latest?.captured_at ?? null,
-            first_seen_at: firstSeenAt,
+            playlist_url: official?.playlist_url ?? latest?.playlist_url ?? baseline?.playlist_url ?? reg?.playlist_url ?? null,
+            current_name: cleanPlaylistName(official?.current_name) ?? cleanPlaylistName(latest?.playlist_name_at_capture) ?? cleanPlaylistName(baseline?.playlist_name_at_capture),
+            baseline_name: cleanPlaylistName(official?.baseline_name) ?? cleanPlaylistName(baseline?.playlist_name_at_capture),
+            baseline_plays: official?.baseline_plays ?? baseline?.plays_7d ?? null,
+            current_plays: official?.current_plays ?? latest?.plays_7d ?? null,
+            delta: Number(official?.delta ?? 0),
+            last_import_delta: official?.last_import_delta ?? null,
+            baseline_at: official?.baseline_at ?? baseline?.captured_at ?? null,
+            last_captured_at: official?.last_captured_at ?? latest?.captured_at ?? null,
+            first_seen_at: official?.first_seen_at ?? firstSeenAt,
             attributed_to: attribution,
             attributed_curator_id: curatorId,
             is_baseline_conflict: reg?.status === "baseline_conflict" ? true : null,
