@@ -44,6 +44,19 @@ Deno.serve(async (req) => {
 
   if (!deal) return jr({ ok: false, error: "not_found" }, 404);
 
-  // OTP gate temporariamente desabilitado — portal do curador abre só com token.
-  return jr({ ok: true, required: false });
+  // Hardening 4.B.1.A: portal exige OTP se há allowlist (deal_access_emails)
+  // OU o curador ligado tem e-mail cadastrado.
+  const [{ count: emails }, curatorRes] = await Promise.all([
+    admin
+      .from("curator_deal_access_emails")
+      .select("id", { count: "exact", head: true })
+      .eq("deal_id", deal.id),
+    deal.curator_id
+      ? admin.from("curators").select("email").eq("id", deal.curator_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+  const curEmail = (curatorRes as { data: { email?: string | null } | null })?.data?.email ?? null;
+  const required = (emails ?? 0) > 0 || !!(curEmail && curEmail.trim());
+
+  return jr({ ok: true, required });
 });

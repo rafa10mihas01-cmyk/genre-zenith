@@ -48,28 +48,41 @@ Deno.serve(async (req) => {
     .maybeSingle();
   if (!camp) return jr({ error: "not_found" }, 404);
 
-  // Rate limit por (campanha+email) — máximo 10 tentativas por hora
-  const tryRl = await checkRateLimit(`verifyCampaignOtp:try:${camp.id}:${emailRaw}`, 3600, 10);
+  // Rate limit por (campanha+email) — defesa em profundidade contra rotação de IP.
+  const tryRl = await checkRateLimit(`verifyCampaignOtp:try:${camp.id}:${emailRaw}`, 3600, 20);
   if (!tryRl.allowed) return jr({ error: "too_many_attempts" }, 429);
 
-  const { data: otp } = await supabase
+  // Hardening 4.B.1.A: busca OTP ativo MAIS RECENTE pra (campanha,email),
+  // independente de o código bater — pra poder contar tentativas falhas.
+  const nowIso = new Date().toISOString();
+  const { data: activeOtp } = await supabase
     .from("campaign_access_otps")
-    .select("id, expires_at, used_at")
+    .select("id, code, expires_at, used_at, failed_attempts, blocked_at")
     .eq("campaign_id", camp.id)
     .eq("email", emailRaw)
-    .eq("code", code)
     .is("used_at", null)
-    .gt("expires_at", new Date().toISOString())
+    .is("blocked_at", null)
+    .gt("expires_at", nowIso)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  if (!otp) return jr({ error: "invalid_or_expired" }, 401);
+  if (!activeOtp) return jr({ error: "invalid_or_expired" }, 401);
 
+  // Código não bate → bumpa contador, bloqueia se ≥5.
+  if (activeOtp.code !== code) {
+    const newAttempts = (activeOtp.failed_attempts ?? 0) + 1;
+    const patch: Record<string, unknown> = { failed_attempts: newAttempts };
+    if (newAttempts >= 5) patch.blocked_at = nowIso;
+    await supabase.from("campaign_access_otps").update(patch).eq("id", activeOtp.id);
+    return jr({ error: "invalid_or_expired" }, 401);
+  }
+
+  // Código correto → consome.
   await supabase
     .from("campaign_access_otps")
-    .update({ used_at: new Date().toISOString() })
-    .eq("id", otp.id);
+    .update({ used_at: nowIso })
+    .eq("id", activeOtp.id);
 
   await supabase
     .from("campaign_access_logs")

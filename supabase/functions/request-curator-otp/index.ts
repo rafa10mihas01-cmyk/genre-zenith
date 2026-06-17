@@ -84,6 +84,14 @@ Deno.serve(async (req) => {
   // Resposta neutra quando não autorizado.
   if (!authorized) return jr({ ok: true, sent: true });
 
+  // Hardening 4.B.1.A: invalida códigos anteriores ainda ativos.
+  await supabase
+    .from("curator_access_otps")
+    .update({ used_at: new Date().toISOString() })
+    .eq("deal_id", deal.id)
+    .eq("email", emailRaw)
+    .is("used_at", null);
+
   const code = genCode();
   const { error: insErr } = await supabase
     .from("curator_access_otps")

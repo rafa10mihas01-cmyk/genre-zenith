@@ -48,6 +48,11 @@ Deno.serve(async (req) => {
 
   if (!camp) return jr({ ok: false, error: "not_found" }, 404);
 
-  // OTP gate temporariamente desabilitado — portal abre só com token.
-  return jr({ ok: true, required: false });
+  // Hardening 4.B.1.A: portal exige OTP se a campanha tem allowlist configurada.
+  const { count } = await admin
+    .from("campaign_access_emails")
+    .select("id", { count: "exact", head: true })
+    .eq("campaign_id", camp.id);
+
+  return jr({ ok: true, required: (count ?? 0) > 0 });
 });
