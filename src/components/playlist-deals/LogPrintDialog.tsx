@@ -517,20 +517,22 @@ export function LogPrintDialog({
             ai_confidence: null,
           }));
       } else {
+        // Fase 3.B.1 — dedup local apenas por spotify_playlist_id (chave canônica).
+        // Comparação por nome foi removida: se o cliente colar uma playlist sem URL
+        // que já existe no deal, o backend faz dedup via RPC `match_curator_playlist`
+        // (que normaliza nome + fuzzy). Frontend não decide pertencimento.
         const dealPlaylists = allPlaylists.filter((p) => p.deal_id === deal.id);
         const knownIds = new Set(
           dealPlaylists
             .map((p) => extractSpotifyPlaylistIdLocal(p.spotify_url))
             .filter((x): x is string => !!x),
         );
-        const knownNames = new Set(
-          dealPlaylists.map((p) => normalizeName(p.playlist_name)),
-        );
 
         const autoNewFromPaste = (parsedPaste?.playlists ?? []).filter((p) => {
           const id = extractSpotifyPlaylistIdLocal(p.spotify_url);
           if (id) return !knownIds.has(id);
-          return !knownNames.has(normalizeName(p.name));
+          // Sem spotify_url: deixa o backend decidir via RPC.
+          return true;
         });
 
         if (autoNewFromPaste.length > 0) {
@@ -577,8 +579,8 @@ export function LogPrintDialog({
       );
       if (rpcErr) throw rpcErr;
 
-      // void uso explícito pra manter helper (usado em outros lugares) sem warnings
-      void buildSnapshotMatches;
+
+
 
       if (isBaseline) {
         toast.success("Baseline registrada", {
