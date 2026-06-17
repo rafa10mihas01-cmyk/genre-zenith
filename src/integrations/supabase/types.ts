@@ -13384,6 +13384,8 @@ export type Database = {
             }
             Returns: string
           }
+      cron_advisory_unlock: { Args: { p_key: number }; Returns: boolean }
+      cron_try_advisory_lock: { Args: { p_key: number }; Returns: boolean }
       default_cooldown_days: {
         Args: { _action: Database["public"]["Enums"]["curatorial_action_type"] }
         Returns: number
@@ -13877,6 +13879,10 @@ export type Database = {
           msg_id: number
           read_ct: number
         }[]
+      }
+      reap_dead_cron_runs: {
+        Args: { p_max_age_minutes?: number }
+        Returns: number
       }
       reap_zombie_catalog_placements: { Args: never; Returns: number }
       reap_zombie_playlist_jobs: { Args: never; Returns: number }
