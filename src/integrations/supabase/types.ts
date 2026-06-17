@@ -982,29 +982,35 @@ export type Database = {
       }
       campaign_access_otps: {
         Row: {
+          blocked_at: string | null
           campaign_id: string
           code: string
           created_at: string
           email: string
           expires_at: string
+          failed_attempts: number
           id: string
           used_at: string | null
         }
         Insert: {
+          blocked_at?: string | null
           campaign_id: string
           code: string
           created_at?: string
           email: string
           expires_at?: string
+          failed_attempts?: number
           id?: string
           used_at?: string | null
         }
         Update: {
+          blocked_at?: string | null
           campaign_id?: string
           code?: string
           created_at?: string
           email?: string
           expires_at?: string
+          failed_attempts?: number
           id?: string
           used_at?: string | null
         }
@@ -2958,29 +2964,35 @@ export type Database = {
       }
       curator_access_otps: {
         Row: {
+          blocked_at: string | null
           code: string
           created_at: string
           deal_id: string
           email: string
           expires_at: string
+          failed_attempts: number
           id: string
           used_at: string | null
         }
         Insert: {
+          blocked_at?: string | null
           code: string
           created_at?: string
           deal_id: string
           email: string
           expires_at?: string
+          failed_attempts?: number
           id?: string
           used_at?: string | null
         }
         Update: {
+          blocked_at?: string | null
           code?: string
           created_at?: string
           deal_id?: string
           email?: string
           expires_at?: string
+          failed_attempts?: number
           id?: string
           used_at?: string | null
         }
