@@ -90,7 +90,7 @@ function DealRowImpl(props: DealRowProps) {
     [playlists, deal.id, songs],
   );
   const curatorCount = dealPlaylists.filter((p) => {
-    const s = (p.match_status ?? (p.is_baseline ? "baseline" : "curator")) as string;
+    const s = (p.match_status ?? (p.is_initial_roster ? "baseline" : "curator")) as string;
     return s === "curator" || s === "baseline";
   }).length;
   const hasWhitelist = curatorCount > 0;

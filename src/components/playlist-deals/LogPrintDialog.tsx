@@ -150,10 +150,10 @@ export function LogPrintDialog({
   const songHasBaseline = (songId: string | null): boolean => {
     if (!deal) return false;
     if (!hasMultipleSongs || !songId) {
-      return allLogs.some((l) => l.deal_id === deal.id && l.is_baseline);
+      return allLogs.some((l) => l.deal_id === deal.id && l.is_initial_capture_event);
     }
     return allLogs.some(
-      (l) => l.deal_id === deal.id && l.is_baseline && l.song_id === songId,
+      (l) => l.deal_id === deal.id && l.is_initial_capture_event && l.song_id === songId,
     );
   };
 
@@ -178,7 +178,7 @@ export function LogPrintDialog({
     setPasteText("");
     setParsedPaste(null);
     const pending = songs.length > 1 ? songs.find((s) => {
-      const songLogs = allLogs.some((l) => l.deal_id === deal.id && l.is_baseline && l.song_id === s.id);
+      const songLogs = allLogs.some((l) => l.deal_id === deal.id && l.is_initial_capture_event && l.song_id === s.id);
       return !songLogs;
     }) : null;
     setSelectedSongId(pending ? pending.id : (songs.length > 0 ? songs[0].id : null));

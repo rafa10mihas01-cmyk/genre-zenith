@@ -71,7 +71,7 @@ export function DealLogDetailDialog({
 }: DealLogDetailDialogProps) {
   const linkedPlaylists = useMemo(() => {
     if (!log) return [] as CuratorPlaylist[];
-    const isBaseline = log.is_baseline === true;
+    const isBaseline = log.is_initial_capture_event === true;
     const songId = log.song_id ?? null;
 
     const filtered = playlists.filter((p) => {
@@ -79,7 +79,7 @@ export function DealLogDetailDialog({
       if (songId && (p as any).song_id) {
         return (p as any).song_id === songId;
       }
-      if (isBaseline) return p.is_baseline === true;
+      if (isBaseline) return p.is_initial_roster === true;
       return true;
     });
 
@@ -91,7 +91,7 @@ export function DealLogDetailDialog({
   if (!log) return null;
 
   const delta =
-    prevLog && !log.is_baseline
+    prevLog && !log.is_initial_capture_event
       ? Number(log.total_plays) - Number(prevLog.total_plays)
       : 0;
   const deltaPositive = delta >= 0;
@@ -125,7 +125,7 @@ export function DealLogDetailDialog({
                 {songArtist ?? "—"} · {format(new Date(log.created_at), "dd/MM HH:mm")}
               </DialogDescription>
               <div className="flex items-center gap-2 mt-2">
-                {log.is_baseline ? (
+                {log.is_initial_capture_event ? (
                   <Badge variant="secondary" className="text-[10px] h-5 px-2">
                     Baseline · estado inicial
                   </Badge>
@@ -150,7 +150,7 @@ export function DealLogDetailDialog({
                 {formatPlays(log.total_plays)}
               </div>
             </div>
-            {prevLog && !log.is_baseline && (
+            {prevLog && !log.is_initial_capture_event && (
               <div
                 className={cn(
                   "text-sm font-semibold px-2.5 py-1 rounded-md tabular-nums",
@@ -191,7 +191,7 @@ export function DealLogDetailDialog({
         {/* PLAYLISTS VINCULADAS */}
         <div className="px-5 pt-5 pb-5">
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
-            {log.is_baseline ? "Playlists iniciais" : "Playlists do registro"}{" "}
+            {log.is_initial_capture_event ? "Playlists iniciais" : "Playlists do registro"}{" "}
             ({linkedPlaylists.length})
           </div>
 
