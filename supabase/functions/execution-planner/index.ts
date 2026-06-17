@@ -226,15 +226,12 @@ Deno.serve(async (req) => {
       const allocSlotMs = startMs + (startDay - 1) * 86_400_000;
       if (now < allocSlotMs) return; // ainda não chegou o dia desta playlist
 
-      // Fallback de rampa só pra allocations sem start_day próprio (legacy).
-      if (a.source === "legacy" && idx >= releasedCount) return;
-
-      // EXECUTION_MODE gating (eco apenas — legacy não tem managed_playlists).
+      // EXECUTION_MODE gating (Família B removida — agora todas allocs são "eco").
       // DISABLED → ignora silenciosamente. MANUAL_ONLY → roteia direto pra fila manual
       // sem criar job automático (evita tentar OAuth que sabemos não existir).
       const mode = (a as any).execution_mode as string | null | undefined;
-      if (a.source === "eco" && mode === "DISABLED") return;
-      if (a.source === "eco" && mode === "MANUAL_ONLY") {
+      if (mode === "DISABLED") return;
+      if (mode === "MANUAL_ONLY") {
         manualCandidates.push({
           allocation_id: a.allocation_id,
           campaign_id: a.campaign_id,
