@@ -984,7 +984,7 @@ Deno.serve(async (req) => {
           plays,
           source: "spotify_for_artists",
           match_method: "algorithmic",
-          is_baseline: false,
+          is_initial_capture: false,
           print_url: print_urls[0] ?? null,
           ai_raw: { ...pl, algorithmic: true },
           batch_id: batch_id ?? null,
