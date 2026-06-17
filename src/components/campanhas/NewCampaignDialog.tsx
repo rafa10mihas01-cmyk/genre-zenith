@@ -301,9 +301,8 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
       return;
     }
 
-    // Família B (campaign_allocations) aposentada na Fase 2.A.2.
-    // O plano canônico de playlists vive em campaign_eco_allocations e é gerado
-    // pelo fluxo de aprovação do plano interno (approve-campaign-plan).
+    // O plano canônico de playlists vive em campaign_eco_allocations
+    // e é gerado pelo fluxo de aprovação do plano (approve-campaign-plan).
     setBusy(false);
     toast({ title: "Campanha criada" });
     clearDraft();

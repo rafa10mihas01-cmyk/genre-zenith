@@ -1,6 +1,5 @@
-// dealsAnalytics — helpers puros pro novo /analytics.
+// dealsAnalytics — helpers puros pro /analytics.
 // Lê APENAS do motor vivo: curator_deals, curator_deal_snapshots, curator_deal_logs.
-// Não toca em campaigns / campaign_allocations / performance_insights.
 //
 // Modelo:
 //   curator_deal_snapshots: (deal_id, playlist_id, plays, captured_at) — cumulativo

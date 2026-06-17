@@ -213,9 +213,10 @@ export function useCampaigns() {
     },
   });
 
-  // recalcAll removido na Fase 2.A.2 — Família B (recalc_campaign_progress) aposentada.
-  // O cache campaigns.total_delivered é mantido continuamente pela trigger
+  // campaigns.total_delivered é mantido continuamente pela trigger
   // recompute_campaign_total_delivered (Growth Engine). Não há recálculo manual.
+
+
 
   const refresh = useCallback(async () => {
     await qc.invalidateQueries({ queryKey: QUERY_KEY });
