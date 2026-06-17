@@ -8,7 +8,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Target, Copy, CheckCircle2, MessageSquareWarning, Clock } from "lucide-react";
+import { ArrowLeft, RefreshCw, Target, Copy, CheckCircle2, MessageSquareWarning, Clock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { PUBLIC_DOMAIN } from "@/lib/curatorPublicUrl";
 import { Kpi } from "@/components/ui/kpi";
