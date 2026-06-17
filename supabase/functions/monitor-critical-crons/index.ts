@@ -8,6 +8,7 @@
 // (cooldown de 6h por cron para não floodar o sino).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { serveCron } from "../_shared/cron-lock.ts";
 
 const CRITICAL_CRONS = [
   "playlist-queue-processor",
@@ -38,7 +39,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-Deno.serve(async (req) => {
+serveCron({ job_name: "monitor-critical-crons", max_retries: 0, timeout_ms: 240_000 }, async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }

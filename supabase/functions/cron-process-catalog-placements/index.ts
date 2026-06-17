@@ -7,6 +7,7 @@
 // será introduzido no Passo 3). Esta função só agenda a execução.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { serveCron } from "../_shared/cron-lock.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const corsHeaders = {
@@ -19,7 +20,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const BATCH_LIMIT = 50;
 
-Deno.serve(async (req) => {
+serveCron({ job_name: "cron-process-catalog-placements", max_retries: 2, timeout_ms: 240_000 }, async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }

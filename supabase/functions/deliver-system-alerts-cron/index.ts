@@ -12,6 +12,7 @@
 // NÃO altera o contrato de nenhuma edge function existente.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serveCron } from "../_shared/cron-lock.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const cors = {
@@ -22,7 +23,7 @@ const cors = {
 const MAX_RETRY = 5;
 const BATCH = 50;
 
-Deno.serve(async (req) => {
+serveCron({ job_name: "deliver-system-alerts-cron", max_retries: 1, timeout_ms: 240_000 }, async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   const t0 = Date.now();
   const sb = createClient(
