@@ -301,22 +301,11 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
       return;
     }
 
-    const chosen = items.filter(i => i.selected && i.target_override > 0);
-    const rows = chosen.map((i, idx) => ({
-      campaign_id: camp.id,
-      playlist_id: i.playlist_id,
-      target_plays: i.target_override,
-      weight: Number(i.suggested_weight ?? 1),
-      position: idx,
-      status: "suggested",
-    }));
-    const { error: allocErr } = await supabase.from("campaign_allocations").insert(rows);
+    // Família B (campaign_allocations) aposentada na Fase 2.A.2.
+    // O plano canônico de playlists vive em campaign_eco_allocations e é gerado
+    // pelo fluxo de aprovação do plano interno (approve-campaign-plan).
     setBusy(false);
-    if (allocErr) {
-      toast({ title: "Campanha criada, mas falhou alocação", description: allocErr.message, variant: "destructive" });
-    } else {
-      toast({ title: "Campanha criada" });
-    }
+    toast({ title: "Campanha criada" });
     clearDraft();
     reset();
     onCreated(camp.id);

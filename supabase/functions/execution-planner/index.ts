@@ -145,33 +145,21 @@ Deno.serve(async (req) => {
     return jr({ ok: true, skipped: true, cooldown_remaining: next });
   }
 
-  // 1. Allocations elegíveis
-  // Fonte antiga: campaign_allocations. Fonte nova/canônica do plano: campaign_eco_allocations.
+  // 1. Allocations elegíveis — fonte canônica única: campaign_eco_allocations.
+  // Família B (campaign_allocations) aposentada na Fase 2.A.2.
   // A campanha só vira execução depois de plan_approved_at, evitando disparo de rascunho.
-  const [legacyRes, ecoRes] = await Promise.all([
-    supabase
-      .from("campaign_allocations")
-      .select(`
-        id, campaign_id, playlist_id, status, position, created_at,
-        campaigns!inner ( id, status, spotify_track_id, started_at, plan_approved_at, eco_dispatched_at ),
-        playlists!inner ( id, spotify_playlist_id, ownership )
-      `)
-      .in("status", ["approved", "active"])
-      .in("campaigns.status", ["active", "running", "live"])
-      .order("created_at", { ascending: true }),
-    supabase
-      .from("campaign_eco_allocations")
-      .select(`
-        id, campaign_id, managed_playlist_id, status, position, start_day, created_at,
-        campaigns!inner ( id, status, spotify_track_id, started_at, plan_approved_at, eco_dispatched_at ),
-        managed_playlists!inner ( id, spotify_playlist_id, execution_mode, name )
-      `)
-      .in("status", ["pending", "approved", "active", "dispatched"])
-      .in("campaigns.status", ["active", "running", "live"])
-      .order("created_at", { ascending: true }),
-  ]);
+  const ecoRes = await supabase
+    .from("campaign_eco_allocations")
+    .select(`
+      id, campaign_id, managed_playlist_id, status, position, start_day, created_at,
+      campaigns!inner ( id, status, spotify_track_id, started_at, plan_approved_at, eco_dispatched_at ),
+      managed_playlists!inner ( id, spotify_playlist_id, execution_mode, name )
+    `)
+    .in("status", ["pending", "approved", "active", "dispatched"])
+    .in("campaigns.status", ["active", "running", "live"])
+    .order("created_at", { ascending: true });
 
-  const aErr = legacyRes.error ?? ecoRes.error;
+  const aErr = ecoRes.error;
   if (aErr) {
     await reportCronHealth(supabase, {
       job_name: "execution-planner",
@@ -183,23 +171,9 @@ Deno.serve(async (req) => {
     return jr({ error: aErr.message }, 500);
   }
 
-  const allocs = [
-    ...((legacyRes.data ?? []) as any[]).map((a) => ({
-      source: "legacy",
-      allocation_id: a.id,
-      campaign_id: a.campaign_id,
-      playlist_id: a.playlist_id,
-      spotify_playlist_id: a.playlists?.spotify_playlist_id,
-      spotify_track_id: a.campaigns?.spotify_track_id,
-      started_at: a.campaigns?.started_at,
-      plan_approved_at: a.campaigns?.plan_approved_at,
-      eco_dispatched_at: a.campaigns?.eco_dispatched_at,
-      position: a.position,
-      start_day: 1,
-      created_at: a.created_at,
-    })),
-    ...((ecoRes.data ?? []) as any[]).map((a) => ({
-      source: "eco",
+  const allocs = ((ecoRes.data ?? []) as any[])
+    .map((a) => ({
+      source: "eco" as const,
       allocation_id: a.id,
       campaign_id: a.campaign_id,
       playlist_id: null,
@@ -214,8 +188,10 @@ Deno.serve(async (req) => {
       position: a.position,
       start_day: Math.max(1, Number(a.start_day ?? 1)),
       created_at: a.created_at,
-    })),
-  ].filter((a) => !!a.plan_approved_at && !!a.eco_dispatched_at);
+    }))
+    .filter((a) => !!a.plan_approved_at && !!a.eco_dispatched_at);
+
+
 
 
   // 1b. Ramp-up de aquecimento (motor único, espalha no tempo)
@@ -250,15 +226,12 @@ Deno.serve(async (req) => {
       const allocSlotMs = startMs + (startDay - 1) * 86_400_000;
       if (now < allocSlotMs) return; // ainda não chegou o dia desta playlist
 
-      // Fallback de rampa só pra allocations sem start_day próprio (legacy).
-      if (a.source === "legacy" && idx >= releasedCount) return;
-
-      // EXECUTION_MODE gating (eco apenas — legacy não tem managed_playlists).
+      // EXECUTION_MODE gating (Família B removida — agora todas allocs são "eco").
       // DISABLED → ignora silenciosamente. MANUAL_ONLY → roteia direto pra fila manual
       // sem criar job automático (evita tentar OAuth que sabemos não existir).
       const mode = (a as any).execution_mode as string | null | undefined;
-      if (a.source === "eco" && mode === "DISABLED") return;
-      if (a.source === "eco" && mode === "MANUAL_ONLY") {
+      if (mode === "DISABLED") return;
+      if (mode === "MANUAL_ONLY") {
         manualCandidates.push({
           allocation_id: a.allocation_id,
           campaign_id: a.campaign_id,

@@ -201,14 +201,9 @@ Deno.serve(async (req) => {
       })
       .eq("id", jobId);
 
-    // Marca allocation como live (mantém o status existente se já for live/ended)
-    if (job.allocation_id) {
-      await supabase
-        .from("campaign_allocations")
-        .update({ status: "live" })
-        .eq("id", job.allocation_id)
-        .in("status", ["suggested", "approved", "active", "pending"]);
-    }
+    // Família B (campaign_allocations) aposentada na Fase 2.A.2.
+    // O status operacional do plano agora vive em campaign_eco_allocations,
+    // atualizado pelos handlers do Growth Engine, não aqui.
 
     await supabase.from("bot_events").insert({
       bot_name: botName,
