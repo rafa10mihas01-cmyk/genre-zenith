@@ -1,0 +1,120 @@
+# Dependency Audit — 1.A.3 — is_baseline em curator_deal_logs e curator_playlists
+Gerado: 2026-06-17T16:10:22.065Z
+
+## `curator_deal_logs.is_baseline` (coluna) — 🔴 144 dependências
+
+- **Triggers (2):** curator_deal_logs.trg_enforce_song_id_logs, curator_deal_logs.trg_enforce_song_id_logs
+- **Funções SQL (2):** record_curator_deal_capture, get_curator_deal_snapshot_history
+- **Código (140 ocorrências):**
+  - `supabase/functions/bot-ingest-snapshot/index.ts:135:      is_baseline: isBaseline,`
+  - `supabase/functions/bot-ingest-snapshot/index.ts:180:      metadata: { mode: "aggregate", total, is_baseline: isBaseline, correlation_id: cid ?? null, source: source ?? null },`
+  - `supabase/functions/bot-ingest-snapshot/index.ts:183:    return jr({ ok: true, mode: "aggregate", total_plays: total, is_baseline: isBaseline, next_auto_collect_at: nextAt });`
+  - `supabase/functions/bot-ingest-snapshot/index.ts:389:        is_baseline: isBaseline,`
+  - `supabase/functions/bot-ingest-snapshot/index.ts:724:    is_baseline: isBaseline,`
+  - `supabase/functions/import-label-spreadsheet/index.ts:622:        is_baseline: isBaseline && !willQuarantine,`
+  - `supabase/functions/import-label-spreadsheet/index.ts:777:        is_baseline: isBaseline,`
+  - `supabase/functions/import-label-spreadsheet/index.ts:945:      is_baseline: isBaseline,`
+  - `src/pages/PlaylistDeals.tsx:204:    () => new Set(logs.filter((l) => l.is_baseline).map((l) => l.deal_id)),`
+  - `src/pages/Campanhas.tsx:534:              is_baseline: true,`
+  - `src/pages/Campanhas.tsx:569:          is_baseline: true,`
+  - `src/pages/Campanhas.tsx:598:        is_baseline: true,`
+  - `src/pages/HeatmapEntregas.tsx:29:        .select("created_at, total_plays, is_baseline")`
+  - `src/pages/HeatmapEntregas.tsx:31:        .eq("is_baseline", false);`
+  - `src/pages/CampanhaExecucao.tsx:86:  is_baseline: boolean | null;`
+  - `src/pages/CampanhaExecucao.tsx:129:  is_baseline?: boolean | null;`
+  - `src/pages/CampanhaExecucao.tsx:380:        .select("id, created_at, rows_imported, total_streams, status, file_name, file_path, is_baseline, reference_date")`
+  - `src/pages/CampanhaExecucao.tsx:435:          .eq("is_baseline", true)`
+  - `src/pages/CampanhaExecucao.tsx:687:          .select("playlist_id, playlist_url, playlist_name_at_capture, plays_7d, captured_at, is_baseline, created_at, upload_id, excluded, window_days")`
+  - `src/pages/CampanhaExecucao.tsx:773:          const baseline = latest(list.filter((r) => !!r.is_baseline), uploads);`
+  - `src/pages/CampanhaExecucao.tsx:1005:                baselineTotalStreams={recentUploads.find((u) => u.is_baseline)?.total_streams ?? null}`
+  - `src/pages/CampanhaExecucao.tsx:1006:                baselinePlaylistsCount={recentUploads.find((u) => u.is_baseline)?.rows_imported ?? null}`
+  - `supabase/functions/simulate-campaign-flow/index.ts:258:        is_baseline: true,`
+  - `supabase/functions/simulate-campaign-flow/index.ts:289:        is_baseline: true,`
+  - `src/pages/DealDetail.tsx:69:    return dealPlaylists.filter((p) => p.is_baseline).length;`
+  - `supabase/functions/get-curator-deal-public/index.ts:79:          "id, deal_id, song_id, spotify_url, playlist_name, followers, is_baseline, added_at, spotify_playlist_id, spotify_owner_id, spotify_owner_name, image_url, added_at_spotify, match_status, match_reason, last_paste_at",`
+  - `supabase/functions/get-curator-deal-public/index.ts:82:        .or("match_status.eq.curator,is_baseline.eq.true")`
+  - `supabase/functions/get-curator-deal-public/index.ts:223:        .eq("is_baseline", true);`
+  - `supabase/functions/get-curator-deal-public/index.ts:277:            .select("playlist_id, playlist_name_at_capture, plays_7d, captured_at, is_baseline")`
+  - `supabase/functions/get-curator-deal-public/index.ts:279:            .eq("is_baseline", true)`
+  - `supabase/functions/get-client-campaign-public/index.ts:391:        .select("spotify_playlist_id, spotify_url, added_at, last_paste_at, match_status, is_baseline")`
+  - `supabase/functions/get-client-campaign-public/index.ts:394:        .eq("is_baseline", false)`
+  - `supabase/functions/enrich-curator-paste/index.ts:400:            is_baseline: cls.match_status === "baseline",`
+  - `src/pages/CuratorPage.tsx:96:  is_baseline: boolean;`
+  - `src/pages/CuratorPage.tsx:135:  is_baseline: boolean;`
+  - `src/pages/CuratorPage.tsx:421:        if (p.is_baseline) return false;`
+  - `src/pages/CuratorPage.tsx:439:    const baseAll = playlists.filter((p) => p.is_baseline);`
+  - `src/pages/CuratorPage.tsx:454:    const base = playlists.filter((p) => p.is_baseline);`
+  - `src/pages/CuratorPage.tsx:667:    .filter((p) => !p.is_baseline && curatorOwnedPlaylistIds.has(p.playlist_id))`
+  - `supabase/functions/extract-snapshot-from-print/index.ts:767:      .select("id, created_at, is_baseline")`
+  - `supabase/functions/extract-snapshot-from-print/index.ts:796:        .eq("is_baseline", recentLog.is_baseline)`
+  - `supabase/functions/extract-snapshot-from-print/index.ts:955:            is_baseline: isBaseline,`
+  - `supabase/functions/extract-snapshot-from-print/index.ts:975:        await supabase.from("curator_playlists").update({ is_baseline: true }).eq("id", algoId);`
+  - `supabase/functions/extract-snapshot-from-print/index.ts:1099:            is_baseline: isBaseline,`
+  - `supabase/functions/extract-snapshot-from-print/index.ts:1124:            is_baseline: isBaseline,`
+  - `supabase/functions/extract-snapshot-from-print/index.ts:1278:        is_baseline: false,`
+  - `supabase/functions/extract-snapshot-from-print/index.ts:1388:    is_baseline: isBaseline,`
+  - `supabase/functions/_shared/ingest-dom.ts:74:      is_baseline: isBaseline,`
+  - `supabase/functions/_shared/ingest-dom.ts:328:    is_baseline: isBaseline,`
+  - `supabase/functions/_shared/snapshot-ttl.ts:14:  // curator_deal_snapshots tratado separadamente em cleanup-snapshots (preserva is_baseline + último por deal, TTL 90d)`
+  - …e mais 90
+
+## `curator_playlists.is_baseline` (coluna) — 🔴 162 dependências
+
+- **Triggers (19):** curator_playlists.trg_auto_mark_late_discovery, curator_playlists.trg_block_curator_playlist_if_eco, curator_playlists.trg_block_curator_playlist_if_eco, curator_playlists.trg_compute_observational, curator_playlists.trg_compute_observational, curator_playlists.trg_curator_playlists_recompute, curator_playlists.trg_curator_playlists_recompute, curator_playlists.trg_curator_playlists_recompute, curator_playlists.trg_enforce_curator_playlist_baseline, curator_playlists.trg_enforce_song_id_playlists, curator_playlists.trg_enforce_song_id_playlists, curator_playlists.trg_force_observational_if_ecosystem, curator_playlists.trg_force_observational_if_ecosystem, curator_playlists.trg_sync_ccp_from_curator_playlist, curator_playlists.trg_sync_ccp_from_curator_playlist, curator_playlists.trg_sync_playlist_library, curator_playlists.trg_sync_playlist_library, curator_playlists.trg_validate_curator_playlist_match_status, curator_playlists.trg_validate_curator_playlist_match_status
+- **Funções SQL (3):** record_curator_deal_capture, get_curator_deal_breakdown, get_curator_deal_snapshot_history
+- **Código (140 ocorrências):**
+  - `supabase/functions/_shared/ingest-dom.ts:74:      is_baseline: isBaseline,`
+  - `supabase/functions/_shared/ingest-dom.ts:328:    is_baseline: isBaseline,`
+  - `supabase/functions/bot-ingest-snapshot/index.ts:135:      is_baseline: isBaseline,`
+  - `supabase/functions/bot-ingest-snapshot/index.ts:180:      metadata: { mode: "aggregate", total, is_baseline: isBaseline, correlation_id: cid ?? null, source: source ?? null },`
+  - `supabase/functions/bot-ingest-snapshot/index.ts:183:    return jr({ ok: true, mode: "aggregate", total_plays: total, is_baseline: isBaseline, next_auto_collect_at: nextAt });`
+  - `supabase/functions/bot-ingest-snapshot/index.ts:389:        is_baseline: isBaseline,`
+  - `supabase/functions/bot-ingest-snapshot/index.ts:724:    is_baseline: isBaseline,`
+  - `src/pages/PlaylistDeals.tsx:204:    () => new Set(logs.filter((l) => l.is_baseline).map((l) => l.deal_id)),`
+  - `supabase/functions/_shared/snapshot-ttl.ts:14:  // curator_deal_snapshots tratado separadamente em cleanup-snapshots (preserva is_baseline + último por deal, TTL 90d)`
+  - `supabase/functions/extract-snapshot-from-print/index.ts:767:      .select("id, created_at, is_baseline")`
+  - `supabase/functions/extract-snapshot-from-print/index.ts:796:        .eq("is_baseline", recentLog.is_baseline)`
+  - `supabase/functions/extract-snapshot-from-print/index.ts:955:            is_baseline: isBaseline,`
+  - `supabase/functions/extract-snapshot-from-print/index.ts:975:        await supabase.from("curator_playlists").update({ is_baseline: true }).eq("id", algoId);`
+  - `supabase/functions/extract-snapshot-from-print/index.ts:1099:            is_baseline: isBaseline,`
+  - `supabase/functions/extract-snapshot-from-print/index.ts:1124:            is_baseline: isBaseline,`
+  - `supabase/functions/extract-snapshot-from-print/index.ts:1278:        is_baseline: false,`
+  - `supabase/functions/extract-snapshot-from-print/index.ts:1388:    is_baseline: isBaseline,`
+  - `supabase/functions/register-curator-playlist/index.ts:265:        .select("spotify_playlist_id, spotify_owner_id, playlist_name, match_status, song_id, is_baseline")`
+  - `supabase/functions/register-curator-playlist/index.ts:278:      // Fonte de verdade: flag is_baseline=true (setada quando a playlist já listava`
+  - `supabase/functions/register-curator-playlist/index.ts:285:            r.is_baseline === true`
+  - `supabase/functions/register-curator-playlist/index.ts:333:          .eq("is_baseline", true);`
+  - `supabase/functions/register-curator-playlist/index.ts:508:          is_baseline: it.match_status === "baseline",`
+  - `supabase/functions/enrich-curator-paste/index.ts:400:            is_baseline: cls.match_status === "baseline",`
+  - `src/pages/HeatmapEntregas.tsx:29:        .select("created_at, total_plays, is_baseline")`
+  - `src/pages/HeatmapEntregas.tsx:31:        .eq("is_baseline", false);`
+  - `supabase/functions/_shared/audit-campaign.ts:159:        .select("id, deal_id, rows_imported, status, created_at, is_baseline")`
+  - `supabase/functions/_shared/audit-campaign.ts:165:    const baseline = uploadsArr.find((u: any) => u.is_baseline);`
+  - `supabase/functions/_shared/audit-campaign.ts:166:    const followups = uploadsArr.filter((u: any) => !u.is_baseline);`
+  - `supabase/functions/_shared/audit-campaign.ts:195:    // ── 5b) Baseline REAL = snapshots capturados pelo bot (is_baseline=true)`
+  - `src/pages/DealDetail.tsx:69:    return dealPlaylists.filter((p) => p.is_baseline).length;`
+  - `supabase/functions/get-curator-deal-public/index.ts:79:          "id, deal_id, song_id, spotify_url, playlist_name, followers, is_baseline, added_at, spotify_playlist_id, spotify_owner_id, spotify_owner_name, image_url, added_at_spotify, match_status, match_reason, last_paste_at",`
+  - `supabase/functions/get-curator-deal-public/index.ts:82:        .or("match_status.eq.curator,is_baseline.eq.true")`
+  - `supabase/functions/get-curator-deal-public/index.ts:223:        .eq("is_baseline", true);`
+  - `supabase/functions/get-curator-deal-public/index.ts:277:            .select("playlist_id, playlist_name_at_capture, plays_7d, captured_at, is_baseline")`
+  - `supabase/functions/get-curator-deal-public/index.ts:279:            .eq("is_baseline", true)`
+  - `supabase/functions/get-client-campaign-public/index.ts:391:        .select("spotify_playlist_id, spotify_url, added_at, last_paste_at, match_status, is_baseline")`
+  - `supabase/functions/get-client-campaign-public/index.ts:394:        .eq("is_baseline", false)`
+  - `src/pages/CuratorPage.tsx:96:  is_baseline: boolean;`
+  - `src/pages/CuratorPage.tsx:135:  is_baseline: boolean;`
+  - `src/pages/CuratorPage.tsx:421:        if (p.is_baseline) return false;`
+  - `src/pages/CuratorPage.tsx:439:    const baseAll = playlists.filter((p) => p.is_baseline);`
+  - `src/pages/CuratorPage.tsx:454:    const base = playlists.filter((p) => p.is_baseline);`
+  - `src/pages/CuratorPage.tsx:667:    .filter((p) => !p.is_baseline && curatorOwnedPlaylistIds.has(p.playlist_id))`
+  - `supabase/functions/simulate-campaign-flow/index.ts:258:        is_baseline: true,`
+  - `supabase/functions/simulate-campaign-flow/index.ts:289:        is_baseline: true,`
+  - `supabase/functions/import-label-spreadsheet/index.ts:622:        is_baseline: isBaseline && !willQuarantine,`
+  - `supabase/functions/import-label-spreadsheet/index.ts:777:        is_baseline: isBaseline,`
+  - `supabase/functions/import-label-spreadsheet/index.ts:945:      is_baseline: isBaseline,`
+  - `src/pages/CampanhaExecucao.tsx:86:  is_baseline: boolean | null;`
+  - `src/pages/CampanhaExecucao.tsx:129:  is_baseline?: boolean | null;`
+  - …e mais 90
+
+---
+**TOTAL DE DEPENDÊNCIAS: 306**
+🔴 DROP bloqueado — resolver acima primeiro.
