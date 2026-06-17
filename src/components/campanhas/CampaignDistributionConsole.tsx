@@ -212,26 +212,8 @@ export function CampaignDistributionConsole({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campaignId]);
 
-  // --- carrega heartbeat do bot ---
-  const loadBot = async () => {
-    const { data } = await supabase
-      .from("bot_heartbeats")
-      .select("created_at, status, spotify_session_valid")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    setBot({
-      last_heartbeat: data?.created_at ?? null,
-      status: data?.status ?? null,
-      spotify_valid: data?.spotify_session_valid ?? false,
-    });
-  };
+  // heartbeat do bot agora vem do hook compartilhado `useLatestBotHeartbeat`.
 
-  useEffect(() => {
-    loadBot();
-    const t = setInterval(loadBot, 60_000);
-    return () => clearInterval(t);
-  }, []);
 
   // --- KPIs agregados ---
   const kpis = useMemo(() => {
