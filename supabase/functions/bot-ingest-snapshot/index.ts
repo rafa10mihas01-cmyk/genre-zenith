@@ -695,7 +695,7 @@ Deno.serve(async (req) => {
   // Aqui apenas garantimos auditoria: se o deal não tem campanha vinculada,
   // registramos skip estruturado em bot_events (nenhuma escrita em legado).
   if (isBaseline && !collectionCampaignId) {
-    const { logBaselineSkip } = await import("../_shared/baseline-writer.ts");
+    const { logBaselineSkip } = await import("../_shared/collection-writer.ts");
     await logBaselineSkip(supabase, {
       writer: "bot-ingest-snapshot",
       deal_id,
