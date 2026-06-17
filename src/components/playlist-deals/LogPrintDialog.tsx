@@ -102,14 +102,9 @@ function extractSpotifyPlaylistIdLocal(url: string | null | undefined): string |
   return m ? m[1] : null;
 }
 
-function normalizeName(s: string): string {
-  return s
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9]+/g, " ")
-    .trim()
-    .toLowerCase();
-}
+// Fase 3.B.1 — `normalizeName` removido. Match (decisão de pertencimento de
+// playlist) acontece exclusivamente na RPC `match_curator_playlist` no
+// backend. Frontend NÃO compara nomes nem resolve playlist_id local.
 
 export function LogPrintDialog({
   open,
@@ -438,25 +433,9 @@ export function LogPrintDialog({
     return urls;
   };
 
-  // Casa os matches da IA com as curator_playlists já cadastradas no deal,
-  // usando nome normalizado. Retorna apenas os matches com playlist_id resolvido.
-  const buildSnapshotMatches = (
-    aiMatches: Match[],
-    dealPlaylistsCurrent: CuratorPlaylist[],
-  ): { playlist_id: string; plays: number }[] => {
-    const byName = new Map<string, string>();
-    for (const p of dealPlaylistsCurrent) {
-      byName.set(normalizeName(p.playlist_name), p.id);
-    }
-    const out: { playlist_id: string; plays: number }[] = [];
-    for (const m of aiMatches) {
-      if (!m.found || m.plays == null) continue;
-      const id = byName.get(normalizeName(m.playlist_name));
-      if (!id) continue;
-      out.push({ playlist_id: id, plays: m.plays });
-    }
-    return out;
-  };
+  // Fase 3.B.1 — `buildSnapshotMatches` removido. Resolução de playlist_id é
+  // server-side via RPC `record_curator_deal_capture` → `match_curator_playlist`.
+  // O frontend apenas monta o payload e envia.
 
   const handleSave = async () => {
     if (!deal || !hasFinal) return;
