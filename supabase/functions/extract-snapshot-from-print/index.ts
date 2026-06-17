@@ -1210,7 +1210,7 @@ Deno.serve(async (req) => {
       plays,
       source: "spotify_for_artists",
       match_method: matchMethod ?? (sId ? "spotify_id" : "name"),
-      is_baseline: isBaseline,
+      is_initial_capture: isBaseline,
       print_url: print_urls[0] ?? null,
       ai_raw: { ...pl, dom_matched: !!domHit },
       batch_id: batch_id ?? null,
