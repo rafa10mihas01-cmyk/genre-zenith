@@ -843,7 +843,7 @@ export default function CampanhaExecucao() {
         const fallbackCover = r.playlist_id ? coverMap[r.playlist_id]?.cover_url ?? null : null;
         const fallbackName = r.playlist_id ? coverMap[r.playlist_id]?.name ?? null : null;
         return {
-          name: alloc?.managed_playlists?.name ?? fallbackName ?? r.current_name ?? "Playlist",
+          name: alloc?.managed_playlists?.name ?? r.current_name ?? fallbackName ?? "Playlist",
           image_url: alloc?.managed_playlists?.cover_url ?? fallbackCover ?? null,
           delivered: Math.max(0, Number(r.delta ?? 0)),
           planned: alloc?.planned_streams ?? null,
