@@ -764,7 +764,7 @@ Deno.serve(async (req) => {
     const since = new Date(Date.now() - 90_000).toISOString();
     let recentQuery = supabase
       .from("curator_deal_logs")
-      .select("id, created_at, is_baseline")
+      .select("id, created_at, is_initial_capture_event")
       .eq("deal_id", deal_id)
       .gte("created_at", since)
       .limit(1);
@@ -793,7 +793,7 @@ Deno.serve(async (req) => {
         .from("curator_deal_snapshots")
         .update(snapshotPatch)
         .eq("deal_id", deal_id)
-        .eq("is_baseline", recentLog.is_baseline)
+        .eq("is_initial_capture", recentLog.is_initial_capture_event)
         .gte("created_at", since);
       snapQ = song_id ? snapQ.eq("song_id", song_id) : snapQ.is("song_id", null);
       await snapQ;
@@ -952,7 +952,7 @@ Deno.serve(async (req) => {
             spotify_url: pl.spotify_url ?? "",
             playlist_name: algoName,
             spotify_owner_name: pl.made_by ?? "Spotify",
-            is_baseline: isBaseline,
+            is_initial_roster: isBaseline,
             match_status: "algorithmic",
           })
           .select("id")
@@ -972,7 +972,7 @@ Deno.serve(async (req) => {
           } catch (_) { /* ignore */ }
         }
       } else if (isBaseline) {
-        await supabase.from("curator_playlists").update({ is_baseline: true }).eq("id", algoId);
+        await supabase.from("curator_playlists").update({ is_initial_roster: true }).eq("id", algoId);
       }
       if (algoId) {
         algorithmicSeenIds.push(algoId);
@@ -1096,7 +1096,7 @@ Deno.serve(async (req) => {
             spotify_playlist_id: sId,
             playlist_name: sName ?? "Sem nome",
             spotify_owner_name: pl.made_by ?? null,
-            is_baseline: isBaseline,
+            is_initial_roster: isBaseline,
             match_status: "curator",
             match_reason: "curator_whitelist",
             position_in_paste: typeof pl.position === "number" ? pl.position : null,
@@ -1121,7 +1121,7 @@ Deno.serve(async (req) => {
             playlist_name: managedHit.name ?? sName ?? "Playlist Ecossistema",
             followers: managedHit.followers ?? null,
             spotify_owner_name: pl.made_by ?? "Ecossistema",
-            is_baseline: isBaseline,
+            is_initial_roster: isBaseline,
             match_status: "organic",
             match_reason: "ecosystem_managed_playlist",
             position_in_paste: typeof pl.position === "number" ? pl.position : null,
@@ -1275,7 +1275,7 @@ Deno.serve(async (req) => {
         spotify_url: dom.url,
         spotify_playlist_id: dom.id,
         playlist_name: dom.name,
-        is_baseline: false,
+        is_initial_roster: false,
         match_status: isEditorialDom ? "editorial" : "organic",
         match_reason: isEditorialDom ? "spotify_editorial_dom_only" : "dom_only_link_no_visual_plays",
       });
@@ -1385,7 +1385,7 @@ Deno.serve(async (req) => {
     total_plays: totalPlays,
     note: isBaseline ? "[ai] baseline inicial" : "[ai] auto-collect",
     print_urls,
-    is_baseline: isBaseline,
+    is_initial_capture_event: isBaseline,
   });
 
   // 5. Reagenda song

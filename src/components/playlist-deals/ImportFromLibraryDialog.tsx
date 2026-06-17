@@ -150,7 +150,7 @@ export function ImportFromLibraryDialog({
             image_url: p.image_url,
             match_status: "curator" as const,
             match_reason: "Importada da biblioteca do curador",
-            is_baseline: false,
+            is_initial_roster: false,
             streams_total: 0,
             streams_28d: 0,
             streams_7d: 0,

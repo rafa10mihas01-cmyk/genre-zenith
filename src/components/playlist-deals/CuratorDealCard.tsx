@@ -60,14 +60,14 @@ export function CuratorDealCard({
   const dealPlaylists = dedupeCuratorPlaylists(playlists.filter((p) => p.deal_id === deal.id), songs);
   const plBreakdown = dealPlaylists.reduce(
     (acc, p) => {
-      const s = (p.match_status ?? (p.is_baseline ? "baseline" : "curator")) as string;
+      const s = (p.match_status ?? (p.is_initial_roster ? "baseline" : "curator")) as string;
       if (s === "curator" || s === "baseline") acc.curator += 1;
       else if (s === "editorial" || s === "organic" || s === "suspicious") acc.algo += 1;
       return acc;
     },
     { curator: 0, algo: 0 },
   );
-  const priorCount = dealPlaylists.filter((p) => p.is_baseline).length;
+  const priorCount = dealPlaylists.filter((p) => p.is_initial_roster).length;
   const hasWhitelist = plBreakdown.curator > 0;
 
   // Ramp-up: dias desde o início até hoje vs ramp_up_days do deal

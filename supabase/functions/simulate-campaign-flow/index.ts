@@ -286,7 +286,7 @@ Deno.serve(async (req) => {
         spotify_url: "https://open.spotify.com/playlist/TESTPL_" + d.id.slice(0, 6),
         spotify_playlist_id: "TESTPL_" + d.id.slice(0, 6),
         playlist_name: `[TEST] PL de ${d.curator_name}`,
-        is_baseline: true,
+        is_initial_roster: true,
         match_status: "baseline",
         attribution_method: "test_seed",
         attribution_reason: "simulate-campaign-flow",

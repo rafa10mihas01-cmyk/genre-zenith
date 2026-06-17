@@ -66,7 +66,7 @@ export default function DealDetail() {
       playlists.filter((p) => p.deal_id === deal.id),
       songs,
     );
-    return dealPlaylists.filter((p) => p.is_baseline).length;
+    return dealPlaylists.filter((p) => p.is_initial_roster).length;
   }, [deal, playlists, songs]);
 
 

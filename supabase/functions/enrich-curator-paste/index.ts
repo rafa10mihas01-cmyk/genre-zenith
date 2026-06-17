@@ -397,7 +397,7 @@ Deno.serve(async (req) => {
             streams_total: row.streams_total ?? 0,
             position_in_paste: row.position,
             last_paste_at: new Date().toISOString(),
-            is_baseline: cls.match_status === "baseline",
+            is_initial_roster: cls.match_status === "baseline",
           };
 
           const { error: writeErr } = foundExisting

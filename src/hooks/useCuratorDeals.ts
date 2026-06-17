@@ -147,7 +147,7 @@ export type NewCuratorLogInput = {
   deal_id: string;
   total_plays: number;
   note?: string | null;
-  is_baseline?: boolean;
+  is_initial_capture_event?: boolean;
   print_urls?: string[];
   song_id?: string | null;
 };
@@ -1033,7 +1033,7 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
           deal_id: input.deal_id,
           total_plays: input.total_plays,
           note: input.note ?? null,
-          is_baseline: input.is_baseline ?? false,
+          is_initial_capture_event: input.is_initial_capture_event ?? false,
           print_urls: input.print_urls ?? [],
           song_id: input.song_id ?? null,
         })
@@ -1060,7 +1060,7 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
         .insert({
           deal_id: dealId,
           total_plays: plays,
-          is_baseline: true,
+          is_initial_capture_event: true,
           note: null,
           print_urls: printUrls,
           song_id: songId,
@@ -1074,7 +1074,7 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
           spotify_url: p.spotify_url,
           playlist_name: p.playlist_name,
           followers: p.followers ?? null,
-          is_baseline: true,
+          is_initial_roster: true,
           song_id: songId,
         }));
         const { error: plErr } = await supabase

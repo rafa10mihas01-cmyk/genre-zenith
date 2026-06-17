@@ -15,7 +15,7 @@ export type PrintsHistoryPlaylist = {
 
 export type PrintsHistoryEntry = {
   captured_at: string;
-  is_baseline: boolean;
+  is_initial_capture: boolean;
   playlists_count: number;
   total_plays: number;
   print_url: string | null;
@@ -91,7 +91,7 @@ export function PrintsHistoryCard({
                       {dayLabel} · {time}
                     </div>
                     <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
-                      {entry.is_baseline ? "Baseline" : "Coleta"} · {entry.playlists_count} {entry.playlists_count === 1 ? "playlist" : "playlists"}
+                      {entry.is_initial_capture ? "Início da medição" : "Coleta"} · {entry.playlists_count} {entry.playlists_count === 1 ? "playlist" : "playlists"}
                       {prints.length > 0 && (<> · {prints.length} {prints.length === 1 ? "print" : "prints"}</>)}
                     </div>
                   </div>

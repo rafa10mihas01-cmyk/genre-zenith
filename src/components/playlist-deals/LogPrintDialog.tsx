@@ -150,10 +150,10 @@ export function LogPrintDialog({
   const songHasBaseline = (songId: string | null): boolean => {
     if (!deal) return false;
     if (!hasMultipleSongs || !songId) {
-      return allLogs.some((l) => l.deal_id === deal.id && l.is_baseline);
+      return allLogs.some((l) => l.deal_id === deal.id && l.is_initial_capture_event);
     }
     return allLogs.some(
-      (l) => l.deal_id === deal.id && l.is_baseline && l.song_id === songId,
+      (l) => l.deal_id === deal.id && l.is_initial_capture_event && l.song_id === songId,
     );
   };
 
@@ -178,7 +178,7 @@ export function LogPrintDialog({
     setPasteText("");
     setParsedPaste(null);
     const pending = songs.length > 1 ? songs.find((s) => {
-      const songLogs = allLogs.some((l) => l.deal_id === deal.id && l.is_baseline && l.song_id === s.id);
+      const songLogs = allLogs.some((l) => l.deal_id === deal.id && l.is_initial_capture_event && l.song_id === s.id);
       return !songLogs;
     }) : null;
     setSelectedSongId(pending ? pending.id : (songs.length > 0 ? songs[0].id : null));
@@ -479,7 +479,7 @@ export function LogPrintDialog({
         spotify_url: string;
         playlist_name: string;
         followers: number | null;
-        is_baseline: boolean;
+        is_initial_roster: boolean;
       }> = [];
       let snapshots: Array<{
         spotify_url: string | null;
@@ -498,7 +498,7 @@ export function LogPrintDialog({
             spotify_url: p.spotify_url ?? "",
             playlist_name: p.name,
             followers: null as number | null,
-            is_baseline: true,
+            is_initial_roster: true,
           }));
         const fromAi = matches
           .filter((m) => m.playlist_name)
@@ -506,13 +506,13 @@ export function LogPrintDialog({
             spotify_url: "",
             playlist_name: m.playlist_name,
             followers: null as number | null,
-            is_baseline: true,
+            is_initial_roster: true,
           }));
         const fromManual = names.map((name) => ({
           spotify_url: "",
           playlist_name: name,
           followers: null as number | null,
-          is_baseline: true,
+          is_initial_roster: true,
         }));
         newPlaylists =
           fromPaste.length > 0 ? fromPaste : fromAi.length > 0 ? fromAi : fromManual;
@@ -559,7 +559,7 @@ export function LogPrintDialog({
             spotify_url: p.spotify_url ?? "",
             playlist_name: p.name,
             followers: null,
-            is_baseline: false,
+            is_initial_roster: false,
           }));
         } else if (hasNewPlaylists) {
           const names = parsePlaylistNames(playlistsRaw);
@@ -567,7 +567,7 @@ export function LogPrintDialog({
             spotify_url: "",
             playlist_name: name,
             followers: null,
-            is_baseline: false,
+            is_initial_roster: false,
           }));
         }
 
@@ -588,7 +588,7 @@ export function LogPrintDialog({
           p_deal_id: deal.id,
           p_song_id: selectedSongId,
           p_total_plays: finalValue as number,
-          p_is_baseline: isBaseline,
+          p_is_initial_capture: isBaseline,
           p_note: isBaseline ? null : (note.trim() || null),
           p_print_urls: printUrls,
           p_new_playlists: newPlaylists,

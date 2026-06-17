@@ -3375,7 +3375,7 @@ export type Database = {
           created_at: string
           deal_id: string
           id: string
-          is_baseline: boolean
+          is_initial_capture_event: boolean
           note: string | null
           print_urls: string[]
           song_id: string | null
@@ -3385,7 +3385,7 @@ export type Database = {
           created_at?: string
           deal_id: string
           id?: string
-          is_baseline?: boolean
+          is_initial_capture_event?: boolean
           note?: string | null
           print_urls?: string[]
           song_id?: string | null
@@ -3395,7 +3395,7 @@ export type Database = {
           created_at?: string
           deal_id?: string
           id?: string
-          is_baseline?: boolean
+          is_initial_capture_event?: boolean
           note?: string | null
           print_urls?: string[]
           song_id?: string | null
@@ -4381,7 +4381,7 @@ export type Database = {
           frozen_reason: string | null
           id: string
           image_url: string | null
-          is_baseline: boolean
+          is_initial_roster: boolean
           is_observational: boolean
           last_paste_at: string | null
           match_reason: string | null
@@ -4413,7 +4413,7 @@ export type Database = {
           frozen_reason?: string | null
           id?: string
           image_url?: string | null
-          is_baseline?: boolean
+          is_initial_roster?: boolean
           is_observational?: boolean
           last_paste_at?: string | null
           match_reason?: string | null
@@ -4445,7 +4445,7 @@ export type Database = {
           frozen_reason?: string | null
           id?: string
           image_url?: string | null
-          is_baseline?: boolean
+          is_initial_roster?: boolean
           is_observational?: boolean
           last_paste_at?: string | null
           match_reason?: string | null
@@ -11962,41 +11962,6 @@ export type Database = {
         }
         Relationships: []
       }
-      curator_playlist_library_stats: {
-        Row: {
-          avg_streams_per_deal: number | null
-          curator_id: string | null
-          deals_count: number | null
-          followers: number | null
-          image_url: string | null
-          last_used_at: string | null
-          library_id: string | null
-          playlist_name: string | null
-          spotify_url: string | null
-          status: string | null
-          total_streams_7d: number | null
-          total_streams_lifetime: number | null
-          user_id: string | null
-        }
-        Relationships: []
-      }
-      curator_playlist_performance: {
-        Row: {
-          avg_streams_7d: number | null
-          best_streams_7d: number | null
-          curator_id: string | null
-          deals_count: number | null
-          drop_ratio: number | null
-          library_id: string | null
-          performance_class: string | null
-          total_streams_7d: number | null
-          total_streams_lifetime: number | null
-          user_id: string | null
-          variation_coef: number | null
-          worst_streams_7d: number | null
-        }
-        Relationships: []
-      }
       genres_with_health: {
         Row: {
           ativo: boolean | null
@@ -12450,7 +12415,7 @@ export type Database = {
           followers: number | null
           id: string | null
           image_url: string | null
-          is_baseline: boolean | null
+          is_initial_roster: boolean | null
           is_observational: boolean | null
           last_paste_at: string | null
           match_reason: string | null
@@ -12476,7 +12441,7 @@ export type Database = {
           followers?: number | null
           id?: string | null
           image_url?: string | null
-          is_baseline?: boolean | null
+          is_initial_roster?: boolean | null
           is_observational?: boolean | null
           last_paste_at?: string | null
           match_reason?: string | null
@@ -12502,7 +12467,7 @@ export type Database = {
           followers?: number | null
           id?: string | null
           image_url?: string | null
-          is_baseline?: boolean | null
+          is_initial_roster?: boolean | null
           is_observational?: boolean | null
           last_paste_at?: string | null
           match_reason?: string | null
@@ -13710,7 +13675,7 @@ export type Database = {
         Args: {
           p_captured_at?: string
           p_deal_id: string
-          p_is_baseline: boolean
+          p_is_initial_capture: boolean
           p_new_playlists: Json
           p_note: string
           p_print_urls: string[]

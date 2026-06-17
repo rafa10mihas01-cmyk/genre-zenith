@@ -262,7 +262,7 @@ Deno.serve(async (req) => {
       // ------- Carregar contexto de classificação -------
       const { data: existing } = await admin
         .from("curator_playlists")
-        .select("spotify_playlist_id, spotify_owner_id, playlist_name, match_status, song_id, is_baseline")
+        .select("spotify_playlist_id, spotify_owner_id, playlist_name, match_status, song_id, is_initial_roster")
         .eq("deal_id", deal.id);
 
       // Duplicata é por (deal_id, song_id, playlist_id):
@@ -274,15 +274,15 @@ Deno.serve(async (req) => {
           .map((r: any) => r.spotify_playlist_id)
           .filter((v: unknown): v is string => typeof v === "string" && v.length > 0),
       );
-      // Playlists que JÁ foram capturadas como baseline real para esse deal+música.
-      // Fonte de verdade: flag is_baseline=true (setada quando a playlist já listava
-      // a música ANTES do deal começar). Se o curador tentar registrar uma delas
-      // como sua, é bloqueio rígido — não conta como entrega dele.
+      // Playlists que JÁ faziam parte do roster inicial do deal+música.
+      // Fonte de verdade: flag is_initial_roster=true (setada quando a playlist já
+      // listava a música ANTES do deal começar). Se o curador tentar registrar uma
+      // delas como sua, é bloqueio rígido — não conta como entrega dele.
       const baselineIds = new Set(
         (existing ?? [])
           .filter((r: any) =>
             (r.song_id ?? null) === (effectiveSongId ?? null) &&
-            r.is_baseline === true
+            r.is_initial_roster === true
           )
           .map((r: any) => r.spotify_playlist_id)
           .filter((v: unknown): v is string => typeof v === "string" && v.length > 0),
@@ -505,7 +505,7 @@ Deno.serve(async (req) => {
           image_url: it.meta!.image_url,
           match_status: it.match_status!,
           match_reason: it.match_reason ?? null,
-          is_baseline: it.match_status === "baseline",
+          is_initial_roster: it.match_status === "baseline",
           last_paste_at: new Date().toISOString(),
           position_in_paste: positionInput,
         }));

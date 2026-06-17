@@ -1,0 +1,1 @@
+ALTER VIEW public.v_curator_playlists_operational SET (security_invoker = true);

@@ -18,7 +18,7 @@ type Deal = {
 
 type HistoryEntry = {
   captured_at: string;
-  is_baseline: boolean;
+  is_initial_capture: boolean;
   playlists_count: number;
   total_plays: number;
   playlists: Array<{
@@ -111,7 +111,7 @@ export function CampaignCuratorDeals({ campaignId }: Props) {
         const pct = d.target_plays > 0 ? Math.min(100, (d.reconciled_total_plays / d.target_plays) * 100) : 0;
         const tone = toneFor(pct);
         const history = historyByDeal.get(d.id) ?? [];
-        const nonBaseline = history.filter((h) => !h.is_baseline);
+        const nonBaseline = history.filter((h) => !h.is_initial_capture);
         const sparkValues = nonBaseline.slice(-7).map((h) => h.total_plays);
         const displayName = isInternal ? "Deal interno da campanha" : d.curator_name;
         const initial = (displayName?.trim()?.[0] ?? "C").toUpperCase();

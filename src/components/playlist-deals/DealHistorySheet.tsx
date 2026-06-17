@@ -284,7 +284,7 @@ function PlaylistRow({
   snapshot7d?: number | null;
 }) {
   const status = (p.match_status ??
-    (p.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
+    (p.is_initial_roster ? "baseline" : "curator")) as CuratorMatchStatus;
   const owner = p.spotify_owner_name?.trim() || null;
   const followers = p.followers ? `${fmtCompact(Number(p.followers))} seguidores` : null;
   const plays7d =
@@ -429,7 +429,7 @@ export function DealHistorySheet({
     const groups = new Map<string, Group>();
     for (const log of desc) {
       const ts = new Date(log.created_at).getTime();
-      if (log.is_baseline) {
+      if (log.is_initial_capture_event) {
         const k = `b:${log.id}`;
         groups.set(k, { rep: log, ts, orderTs: ts });
         continue;
@@ -463,8 +463,8 @@ export function DealHistorySheet({
 
   const sortedPlaylists = useMemo(() => {
     return [...dealPlaylists].sort((a, b) => {
-      const sa = (a.match_status ?? (a.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
-      const sb = (b.match_status ?? (b.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
+      const sa = (a.match_status ?? (a.is_initial_roster ? "baseline" : "curator")) as CuratorMatchStatus;
+      const sb = (b.match_status ?? (b.is_initial_roster ? "baseline" : "curator")) as CuratorMatchStatus;
       const od = STATUS_ORDER[sa] - STATUS_ORDER[sb];
       if (od !== 0) return od;
       return Number(b.streams_7d ?? 0) - Number(a.streams_7d ?? 0);
@@ -478,7 +478,7 @@ export function DealHistorySheet({
       number
     >;
     for (const p of dealPlaylists) {
-      const s = (p.match_status ?? (p.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
+      const s = (p.match_status ?? (p.is_initial_roster ? "baseline" : "curator")) as CuratorMatchStatus;
       c[s] = (c[s] ?? 0) + 1;
     }
     return c;
@@ -488,7 +488,7 @@ export function DealHistorySheet({
   const curatorPlaylists = useMemo(() => {
     const q = plQuery.trim().toLowerCase();
     return sortedPlaylists.filter((p) => {
-      const s = (p.match_status ?? (p.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
+      const s = (p.match_status ?? (p.is_initial_roster ? "baseline" : "curator")) as CuratorMatchStatus;
       if (s !== "curator" && s !== "baseline") return false;
       if (curatorSongFilter !== "all") {
         const ids = p.song_ids?.length ? p.song_ids : (p.song_id ? [p.song_id] : []);
@@ -506,7 +506,7 @@ export function DealHistorySheet({
   const algoPlaylists = useMemo(() => {
     const q = algoQuery.trim().toLowerCase();
     return sortedPlaylists.filter((p) => {
-      const s = (p.match_status ?? (p.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
+      const s = (p.match_status ?? (p.is_initial_roster ? "baseline" : "curator")) as CuratorMatchStatus;
       if (s !== "editorial" && s !== "algorithmic" && s !== "organic" && s !== "suspicious") return false;
       if (algoFilter !== "all" && s !== algoFilter) return false;
       if (algoSongFilter !== "all") {
@@ -1040,7 +1040,7 @@ export function DealHistorySheet({
                       </button>
                       {songs.map((s) => {
                         const c = sortedPlaylists.filter((p) => {
-                          const st = (p.match_status ?? (p.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
+                          const st = (p.match_status ?? (p.is_initial_roster ? "baseline" : "curator")) as CuratorMatchStatus;
                           return (st === "curator" || st === "baseline") && p.song_id === s.id;
                         }).length;
                         return (
@@ -1121,7 +1121,7 @@ export function DealHistorySheet({
                           </button>
                           {songs.map((s) => {
                             const c = sortedPlaylists.filter((p) => {
-                              const st = (p.match_status ?? (p.is_baseline ? "baseline" : "curator")) as CuratorMatchStatus;
+                              const st = (p.match_status ?? (p.is_initial_roster ? "baseline" : "curator")) as CuratorMatchStatus;
                               return (st === "editorial" || st === "algorithmic" || st === "organic" || st === "suspicious") && p.song_id === s.id;
                             }).length;
                             return (
@@ -1238,7 +1238,7 @@ export function DealHistorySheet({
                           if (log.song_id && p.song_id) {
                             return p.song_id === log.song_id;
                           }
-                          if (log.is_baseline) return p.is_baseline === true;
+                          if (log.is_initial_capture_event) return p.is_initial_roster === true;
                           return true;
                         })
                         .sort(
@@ -1286,7 +1286,7 @@ export function DealHistorySheet({
                                 )}>
                                   {songName}
                                 </span>
-                                {log.is_baseline && (
+                                {log.is_initial_capture_event && (
                                   <Badge
                                     variant="secondary"
                                     className="text-[9px] h-4 px-1.5 shrink-0"
@@ -1322,7 +1322,7 @@ export function DealHistorySheet({
                               <div className="text-[15px] font-bold tabular-nums leading-tight">
                                 {Number(log.total_plays).toLocaleString("pt-BR")}
                               </div>
-                              {!isFirst && !log.is_baseline ? (
+                              {!isFirst && !log.is_initial_capture_event ? (
                                 <div
                                   className={cn(
                                     "text-[11px] font-semibold tabular-nums mt-0.5 inline-flex items-center gap-0.5",
@@ -1373,7 +1373,7 @@ export function DealHistorySheet({
 
                               <div>
                                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
-                                  {log.is_baseline ? "Playlists iniciais" : "Playlists do registro"}{" "}
+                                  {log.is_initial_capture_event ? "Playlists iniciais" : "Playlists do registro"}{" "}
                                   ({linked.length})
                                 </div>
                                 {linked.length === 0 ? (
