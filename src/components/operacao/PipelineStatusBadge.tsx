@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- co-located helpers/variants/hooks; split would force a large refactor with no runtime benefit (HMR only) */
 import { Check, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {

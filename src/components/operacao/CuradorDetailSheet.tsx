@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- co-located helpers/variants/hooks; split would force a large refactor with no runtime benefit (HMR only) */
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Mail, Instagram, MessageCircle, ExternalLink, Copy, Loader2, Send, StickyNote, Activity, Star, Handshake } from "lucide-react";
