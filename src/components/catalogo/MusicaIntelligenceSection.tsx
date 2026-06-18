@@ -933,6 +933,7 @@ export function MusicaIntelligenceSection(props: MusicaIntelligenceProps) {
     );
   }
 
+  const intel = q.data;
   const ranking = useMemo(
     () => intel ? buildPlaylistRanking(props.placements, intel.observerTracks, intel.songSnapPlaylists, intel.executionLog) : [],
     [intel, props.placements],
