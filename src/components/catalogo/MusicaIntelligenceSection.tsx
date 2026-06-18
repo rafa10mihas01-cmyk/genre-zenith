@@ -641,22 +641,6 @@ function PlaylistRankingPanel({ placements, obs, ssPl, exec }: {
     </div>
   );
 }
-              <td className="px-3 py-2 text-right">
-                <span className={cn(
-                  "inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider",
-                  r.status === "ativa" ? "text-emerald-400" : "text-muted-foreground",
-                )}>
-                  <span className={cn("h-1.5 w-1.5 rounded-full", r.status === "ativa" ? "bg-emerald-500" : "bg-muted-foreground/60")} />
-                  {r.status}
-                </span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
 
 // ============================================================
 // 5) LINHA DO TEMPO DOS PLACEMENTS
