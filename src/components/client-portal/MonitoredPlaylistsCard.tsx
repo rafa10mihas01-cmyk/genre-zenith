@@ -498,7 +498,9 @@ export function MonitoredPlaylistsCard({
                       {p.registered_at && (
                         <>
                           <span className="text-border">·</span>
-                          <span>cadastrada {new Date(p.registered_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>
+                          <span title={`Curador colou esta playlist no portal em ${new Date(p.registered_at).toLocaleString("pt-BR")}`}>
+                            cadastrada {new Date(p.registered_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} {new Date(p.registered_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                          </span>
                         </>
                       )}
                       {p.is_pre_campaign && (
