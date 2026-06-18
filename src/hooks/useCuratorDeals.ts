@@ -473,15 +473,8 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
           }
         },
       )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "curator_deal_payments" },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["financial-summary"] });
-          queryClient.invalidateQueries({ queryKey: ["deal-payments"] });
-        },
-      )
       .subscribe();
+
     return () => {
       supabase.removeChannel(channel);
     };
