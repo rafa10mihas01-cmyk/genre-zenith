@@ -62,10 +62,12 @@ export function PlanTab() {
     managedId, playlistName, coverUrl, followers,
     canonicalPlaylistId,
   } = useCockpit();
-  if (!diag) return null;
 
   const { data: brain } = usePlaylistBrain(canonicalPlaylistId ?? undefined);
   const { data: lastResult } = useLastPlanResult(managedId ?? null);
+
+  if (!diag) return null;
+
   const confidence = brain?.confidence_score ?? null;
   const trend = brain?.health_trend ?? "sem_dados";
   const tMeta = trendMeta(trend);
