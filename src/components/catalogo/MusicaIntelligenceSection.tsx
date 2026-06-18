@@ -1,0 +1,862 @@
+// MusicaIntelligenceSection
+// Aba "Inteligência" do detalhe de uma música do catálogo.
+// 6 painéis Enterprise construídos 100% sobre dados que já existem:
+//   1. Timeline (cadastro → baseline → placements → picos → última coleta)
+//   2. Histórico de distribuição (entradas/saídas/saldo por dia)
+//   3. Saúde operacional (worker, VPS, fila, breaker, último erro)
+//   4. Ranking de playlists (entrega, retenção, melhor pos, tempo até detectar)
+//   5. Linha do tempo de cada placement (POST → confirmado → detectado → removido)
+//   6. Feed de eventos cronológico
+//
+// Não chama nenhuma edge function. Nenhuma nova tabela. Nenhuma nova coleta.
+import { useMemo, useState } from "react";
+import {
+  Activity, AlertTriangle, ArrowDownRight, ArrowUpRight, Award,
+  CheckCircle2, ChevronDown, Clock, ExternalLink, GitBranch,
+  History, ListMusic, Server, Sparkles, TrendingUp, Zap,
+} from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+import {
+  useCatalogTrackIntelligence,
+  type ExecutionLogRow,
+  type ObserverTrackRow,
+  type SongSnapPlaylistRow,
+} from "@/hooks/useCatalogTrackIntelligence";
+
+// ------- tipos vindos do detalhe (sem reimportar) -------
+type Track = { id: string; spotify_track_id: string; track_name: string; added_at: string };
+type Baseline = { captured_at: string; streams: number | null } | null;
+type Telemetry = {
+  baseline_at: string | null;
+  last_captured_at: string | null;
+  last_plays_28d: number | null;
+  growth_abs: number | null;
+  growth_pct: number | null;
+  playlists_present_count: number;
+  snapshots_count: number;
+} | null;
+type Placement = {
+  id: string;
+  status: string;
+  added_at: string | null;
+  scheduled_for: string;
+  last_error_code: string | null;
+  managed_playlists: { name: string; spotify_playlist_id: string | null; followers: number | null } | null;
+};
+type Snapshot = { id: string; captured_at: string; total_plays_28d: number | null };
+type Queue = { status: string; scheduled_for: string; attempts: number; max_attempts: number; last_error: string | null; locked_at: string | null } | null;
+
+export type MusicaIntelligenceProps = {
+  track: Track;
+  baseline: Baseline;
+  telemetry: Telemetry;
+  placements: Placement[];
+  snapshots: Snapshot[];
+  queue: Queue;
+};
+
+const fmt = (n: number | null | undefined) =>
+  typeof n === "number" ? n.toLocaleString("pt-BR") : "—";
+const dt = (iso: string | null | undefined) =>
+  iso ? new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
+const d = (iso: string | null | undefined) =>
+  iso ? new Date(iso).toLocaleDateString("pt-BR") : "—";
+const rel = (iso: string | null | undefined) => {
+  if (!iso) return "—";
+  const diff = Date.now() - new Date(iso).getTime();
+  const min = Math.round(diff / 60000);
+  if (min < 1) return "agora";
+  if (min < 60) return `há ${min} min`;
+  const h = Math.round(min / 60);
+  if (h < 24) return `há ${h} h`;
+  return `há ${Math.round(h / 24)} d`;
+};
+const dayKey = (iso: string) => iso.slice(0, 10);
+
+// ============================================================
+// Card / Section wrappers — visual coeso com o restante da página
+// ============================================================
+function Panel({ title, hint, icon: Icon, children, defaultOpen = true }: {
+  title: string;
+  hint?: string;
+  icon: React.ComponentType<{ className?: string }>;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <section className="rounded-2xl border border-border bg-card overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between p-4 sm:p-5 hover:bg-muted/20 transition-colors"
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold text-foreground text-left truncate">{title}</h3>
+            {hint && <p className="text-[11px] text-muted-foreground text-left truncate">{hint}</p>}
+          </div>
+        </div>
+        <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform shrink-0", open && "rotate-180")} />
+      </button>
+      {open && <div className="border-t border-border">{children}</div>}
+    </section>
+  );
+}
+
+// ============================================================
+// 1) TIMELINE
+// ============================================================
+type TimelineEvent = {
+  at: string;
+  kind: "cadastro" | "baseline" | "placement_post" | "playlist_in" | "playlist_out" | "snapshot" | "peak" | "last" | "breaker";
+  label: string;
+  detail?: string;
+  tone?: "good" | "warn" | "bad" | "neutral" | "highlight";
+};
+
+function buildTimeline(
+  track: Track,
+  baseline: Baseline,
+  placements: Placement[],
+  snapshots: Snapshot[],
+  exec: ExecutionLogRow[],
+  obs: ObserverTrackRow[],
+  telemetry: Telemetry,
+): TimelineEvent[] {
+  const events: TimelineEvent[] = [];
+
+  events.push({
+    at: track.added_at,
+    kind: "cadastro",
+    label: "Música cadastrada no catálogo",
+    tone: "highlight",
+  });
+
+  if (baseline?.captured_at) {
+    events.push({
+      at: baseline.captured_at,
+      kind: "baseline",
+      label: "Baseline T0 capturada",
+      detail: baseline.streams != null ? `${fmt(baseline.streams)} streams` : undefined,
+      tone: "good",
+    });
+  }
+
+  // Primeiro POST efetivado (placement_post_ok) por playlist
+  const firstPostPerPlaylist = new Map<string, ExecutionLogRow>();
+  exec
+    .slice()
+    .reverse() // mais antigos primeiro
+    .forEach((e) => {
+      if (e.outcome === "spotify_post_ok" || e.outcome === "already_present") {
+        const k = e.spotify_playlist_id ?? e.placement_id ?? e.id;
+        if (!firstPostPerPlaylist.has(k)) firstPostPerPlaylist.set(k, e);
+      }
+    });
+  const firstPostList = [...firstPostPerPlaylist.values()].sort(
+    (a, b) => +new Date(a.executed_at) - +new Date(b.executed_at),
+  );
+  if (firstPostList.length) {
+    const first = firstPostList[0];
+    events.push({
+      at: first.executed_at,
+      kind: "placement_post",
+      label: "Primeiro placement efetivado no Spotify",
+      detail: namePlaylist(placements, first.spotify_playlist_id),
+      tone: "good",
+    });
+  }
+
+  // Entradas em playlists observadas (primeira vez que o bot detectou)
+  const firstSeen = new Map<string, ObserverTrackRow>();
+  obs.forEach((o) => {
+    if (!firstSeen.has(o.spotify_playlist_id)) firstSeen.set(o.spotify_playlist_id, o);
+  });
+  [...firstSeen.values()].forEach((o) => {
+    events.push({
+      at: o.captured_at,
+      kind: "playlist_in",
+      label: "Detectada em playlist (VPS)",
+      detail: namePlaylist(placements, o.spotify_playlist_id) ?? o.spotify_playlist_id,
+      tone: "neutral",
+    });
+  });
+
+  // Saídas (última observação por playlist mais antiga que 48h e ainda existem snapshots posteriores)
+  const lastSeen = new Map<string, ObserverTrackRow>();
+  obs.forEach((o) => {
+    const cur = lastSeen.get(o.spotify_playlist_id);
+    if (!cur || new Date(o.captured_at) > new Date(cur.captured_at)) lastSeen.set(o.spotify_playlist_id, o);
+  });
+  const lastSnap = snapshots.at(-1)?.captured_at;
+  if (lastSnap) {
+    const cutoff = +new Date(lastSnap) - 48 * 3600 * 1000;
+    [...lastSeen.values()].forEach((o) => {
+      if (+new Date(o.captured_at) < cutoff) {
+        events.push({
+          at: o.captured_at,
+          kind: "playlist_out",
+          label: "Não detectada mais (saída inferida)",
+          detail: namePlaylist(placements, o.spotify_playlist_id) ?? o.spotify_playlist_id,
+          tone: "warn",
+        });
+      }
+    });
+  }
+
+  // Snapshots — só pico e última, pra não poluir
+  let peak: Snapshot | null = null;
+  snapshots.forEach((s) => {
+    if (!peak || (s.total_plays_28d ?? 0) > (peak.total_plays_28d ?? 0)) peak = s;
+  });
+  if (peak && (peak.total_plays_28d ?? 0) > 0) {
+    events.push({
+      at: peak.captured_at,
+      kind: "peak",
+      label: "Maior pico de Streams 28D",
+      detail: `${fmt(peak.total_plays_28d)} streams`,
+      tone: "highlight",
+    });
+  }
+  const last = snapshots.at(-1);
+  if (last && last !== peak) {
+    events.push({
+      at: last.captured_at,
+      kind: "last",
+      label: "Última coleta",
+      detail: telemetry?.last_plays_28d != null ? `${fmt(telemetry.last_plays_28d)} streams 28d` : `${fmt(last.total_plays_28d)} streams`,
+      tone: "neutral",
+    });
+  }
+
+  return events.sort((a, b) => +new Date(a.at) - +new Date(b.at));
+}
+
+function namePlaylist(placements: Placement[], spotifyPlaylistId?: string | null) {
+  if (!spotifyPlaylistId) return null;
+  const p = placements.find((p) => p.managed_playlists?.spotify_playlist_id === spotifyPlaylistId);
+  return p?.managed_playlists?.name ?? null;
+}
+
+function TimelinePanel(props: MusicaIntelligenceProps & { exec: ExecutionLogRow[]; obs: ObserverTrackRow[] }) {
+  const events = useMemo(
+    () => buildTimeline(props.track, props.baseline, props.placements, props.snapshots, props.exec, props.obs, props.telemetry),
+    [props.track, props.baseline, props.placements, props.snapshots, props.exec, props.obs, props.telemetry],
+  );
+  if (events.length === 0) {
+    return <div className="p-6 text-center text-xs text-muted-foreground">Sem eventos ainda.</div>;
+  }
+  return (
+    <ol className="relative px-4 sm:px-6 py-5 space-y-3">
+      <span className="absolute left-[22px] sm:left-[30px] top-5 bottom-5 w-px bg-border" />
+      {events.map((e, i) => (
+        <li key={`${e.at}-${i}`} className="relative pl-7 sm:pl-9">
+          <span
+            className={cn(
+              "absolute left-0 sm:left-2 top-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-card",
+              e.tone === "good" && "bg-emerald-500",
+              e.tone === "warn" && "bg-amber-500",
+              e.tone === "bad" && "bg-rose-500",
+              e.tone === "highlight" && "bg-[#1DB954]",
+              (!e.tone || e.tone === "neutral") && "bg-muted-foreground/60",
+            )}
+          />
+          <div className="text-[11px] font-mono text-muted-foreground tabular-nums">{dt(e.at)}</div>
+          <div className="text-sm font-medium text-foreground">{e.label}</div>
+          {e.detail && <div className="text-xs text-muted-foreground truncate">{e.detail}</div>}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+// ============================================================
+// 2) HISTÓRICO DE DISTRIBUIÇÃO (entradas/saídas/saldo por dia)
+// ============================================================
+function DistributionHistoryPanel({ placements, exec }: { placements: Placement[]; exec: ExecutionLogRow[] }) {
+  // Entrada: placement.added_at  ·  Saída inferida: lastSeen muito antigo OU status=removed
+  const days = useMemo(() => {
+    const map = new Map<string, { in: number; out: number; total: number }>();
+    // entradas
+    placements.forEach((p) => {
+      if (!p.added_at) return;
+      const k = dayKey(p.added_at);
+      const row = map.get(k) ?? { in: 0, out: 0, total: 0 };
+      row.in += 1;
+      map.set(k, row);
+    });
+    // saídas — placements removed (sem column removed_at aqui, usa updated_at via exec não disponível;
+    // como fallback usa execution_log com outcome=removed se existir)
+    exec.forEach((e) => {
+      if (e.outcome === "removed" || e.outcome === "placement_removed") {
+        const k = dayKey(e.executed_at);
+        const row = map.get(k) ?? { in: 0, out: 0, total: 0 };
+        row.out += 1;
+        map.set(k, row);
+      }
+    });
+    const arr = [...map.entries()].sort(([a], [b]) => (a < b ? -1 : 1));
+    let running = 0;
+    arr.forEach(([, v]) => {
+      running += v.in - v.out;
+      v.total = running;
+    });
+    return arr;
+  }, [placements, exec]);
+
+  if (days.length === 0) {
+    return <div className="p-6 text-center text-xs text-muted-foreground">Sem histórico ainda.</div>;
+  }
+
+  const maxBar = Math.max(1, ...days.map(([, v]) => Math.max(v.in, v.out)));
+
+  return (
+    <div className="p-4 sm:p-5 space-y-3">
+      <div className="grid grid-cols-[80px_1fr_60px_60px_70px] sm:grid-cols-[110px_1fr_70px_70px_90px] gap-2 text-[10px] uppercase tracking-wider text-muted-foreground font-medium pb-2 border-b border-border">
+        <div>Dia</div>
+        <div>Saldo / barras</div>
+        <div className="text-right">Entr.</div>
+        <div className="text-right">Saíd.</div>
+        <div className="text-right">Total</div>
+      </div>
+      <div className="space-y-1.5 max-h-[360px] overflow-y-auto">
+        {days.map(([day, v]) => (
+          <div key={day} className="grid grid-cols-[80px_1fr_60px_60px_70px] sm:grid-cols-[110px_1fr_70px_70px_90px] gap-2 items-center text-xs">
+            <div className="text-muted-foreground font-mono">{d(day)}</div>
+            <div className="h-3 flex items-center gap-[2px]">
+              <div className="h-full bg-emerald-500/70 rounded-sm" style={{ width: `${(v.in / maxBar) * 50}%` }} />
+              <div className="h-full bg-rose-500/70 rounded-sm" style={{ width: `${(v.out / maxBar) * 50}%` }} />
+            </div>
+            <div className="text-right font-mono tabular-nums text-emerald-400">+{v.in}</div>
+            <div className="text-right font-mono tabular-nums text-rose-400">-{v.out}</div>
+            <div className="text-right font-mono tabular-nums font-semibold text-foreground">{v.total}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// 3) SAÚDE OPERACIONAL
+// ============================================================
+function OperationalHealthPanel(props: MusicaIntelligenceProps & {
+  exec: ExecutionLogRow[];
+  breakers: { app_id: string; status: string; blocked_until: string | null }[];
+  vps: { spotify_playlist_id: string; vps_label: string | null }[];
+}) {
+  const { queue, telemetry, exec, breakers, vps } = props;
+  const lastErr = exec.find((e) => e.outcome !== "spotify_post_ok" && e.outcome !== "already_present");
+  const lastExec = exec[0];
+  const openBreakers = breakers.filter((b) => b.status === "open");
+  const vpsCount = new Set(vps.map((v) => v.vps_label).filter(Boolean)).size;
+  const queueActive = queue && (queue.status === "pending" || queue.status === "processing" || queue.status === "retry");
+
+  const rows: Array<{ label: string; value: React.ReactNode; tone?: "good" | "warn" | "bad" }> = [
+    { label: "Última coleta", value: rel(telemetry?.last_captured_at) },
+    { label: "Próxima coleta", value: queue?.scheduled_for ? dt(queue.scheduled_for) : "—" },
+    { label: "Worker responsável", value: queue?.locked_at ? <span className="font-mono">claimed @ {dt(queue.locked_at)}</span> : "—" },
+    { label: "VPS na rota", value: vpsCount ? `${vpsCount} nó(s)` : "—" },
+    { label: "Status da fila", value: queue?.status ?? "—", tone: queue?.status === "failed" ? "bad" : queueActive ? "warn" : "good" },
+    { label: "Tentativas", value: queue ? `${queue.attempts}/${queue.max_attempts}` : "—" },
+    { label: "Snapshots totais", value: fmt(telemetry?.snapshots_count) },
+    { label: "Última execução (POST)", value: lastExec ? `${lastExec.outcome} · ${rel(lastExec.executed_at)}` : "—" },
+    { label: "Último erro", value: lastErr ? `${lastErr.outcome}${lastErr.error_code ? ` (${lastErr.error_code})` : ""} · ${rel(lastErr.executed_at)}` : "—", tone: lastErr ? "warn" : "good" },
+    {
+      label: "Circuit breaker",
+      value: openBreakers.length
+        ? `${openBreakers.length} app(s) bloqueado(s)${openBreakers[0]?.blocked_until ? ` até ${dt(openBreakers[0].blocked_until)}` : ""}`
+        : "Tudo livre",
+      tone: openBreakers.length ? "warn" : "good",
+    },
+  ];
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-border">
+      {[0, 1].map((col) => (
+        <ul key={col} className="divide-y divide-border">
+          {rows
+            .filter((_, i) => i % 2 === col)
+            .map((r) => (
+              <li key={r.label} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
+                <span className="text-muted-foreground text-[12px] uppercase tracking-wider">{r.label}</span>
+                <span
+                  className={cn(
+                    "font-mono text-xs text-right truncate max-w-[60%]",
+                    r.tone === "good" && "text-emerald-400",
+                    r.tone === "warn" && "text-amber-400",
+                    r.tone === "bad" && "text-rose-400",
+                    !r.tone && "text-foreground",
+                  )}
+                  title={typeof r.value === "string" ? r.value : undefined}
+                >
+                  {r.value}
+                </span>
+              </li>
+            ))}
+        </ul>
+      ))}
+    </div>
+  );
+}
+
+// ============================================================
+// 4) RANKING DE PLAYLISTS
+// ============================================================
+type PlaylistAgg = {
+  spotify_playlist_id: string;
+  name: string;
+  owner: string | null;
+  spotify_url: string | null;
+  firstSeen: string | null;
+  lastSeen: string | null;
+  daysActive: number;
+  bestPosition: number | null;
+  currentPosition: number | null;
+  observations: number;
+  avgPlays7d: number | null;
+  totalPlays: number;
+  growthPct: number | null;
+  timeToFirstDetectionHours: number | null;
+  status: "ativa" | "perdida";
+  score: number;
+};
+
+function buildPlaylistRanking(
+  placements: Placement[],
+  obs: ObserverTrackRow[],
+  ssPl: SongSnapPlaylistRow[],
+  exec: ExecutionLogRow[],
+): PlaylistAgg[] {
+  const byPl = new Map<string, PlaylistAgg>();
+  const ensure = (id: string, name?: string | null, url?: string | null, owner?: string | null) => {
+    if (!byPl.has(id)) {
+      byPl.set(id, {
+        spotify_playlist_id: id, name: name ?? id, owner: owner ?? null, spotify_url: url ?? null,
+        firstSeen: null, lastSeen: null, daysActive: 0, bestPosition: null, currentPosition: null,
+        observations: 0, avgPlays7d: null, totalPlays: 0, growthPct: null,
+        timeToFirstDetectionHours: null, status: "perdida", score: 0,
+      });
+    } else if (name && byPl.get(id)!.name === id) {
+      byPl.get(id)!.name = name;
+    }
+    return byPl.get(id)!;
+  };
+
+  // Observer: posições e datas
+  obs.forEach((o) => {
+    const r = ensure(o.spotify_playlist_id);
+    r.observations += 1;
+    if (!r.firstSeen || new Date(o.captured_at) < new Date(r.firstSeen)) r.firstSeen = o.captured_at;
+    if (!r.lastSeen || new Date(o.captured_at) > new Date(r.lastSeen)) r.lastSeen = o.captured_at;
+    if (o.position != null) {
+      if (r.bestPosition == null || o.position < r.bestPosition) r.bestPosition = o.position;
+      r.currentPosition = o.position; // último sobrescreve (ordenado asc)
+    }
+  });
+
+  // Plays via song_snapshot_playlists
+  const playsSeries = new Map<string, number[]>();
+  ssPl.forEach((sp) => {
+    const r = ensure(sp.spotify_playlist_id, sp.name, sp.spotify_url, sp.owner);
+    if (sp.plays_7d != null) {
+      const arr = playsSeries.get(sp.spotify_playlist_id) ?? [];
+      arr.push(sp.plays_7d);
+      playsSeries.set(sp.spotify_playlist_id, arr);
+      r.totalPlays += sp.plays_7d;
+    }
+  });
+  playsSeries.forEach((arr, id) => {
+    const r = byPl.get(id)!;
+    r.avgPlays7d = Math.round(arr.reduce((s, v) => s + v, 0) / arr.length);
+    if (arr.length >= 2) {
+      const first = arr[0] || 1;
+      const last = arr[arr.length - 1];
+      r.growthPct = Math.round(((last - first) / Math.max(1, first)) * 1000) / 10;
+    }
+  });
+
+  // Tempo até primeira detecção (POST → primeira observação)
+  const firstPostByPl = new Map<string, string>();
+  exec.slice().reverse().forEach((e) => {
+    if ((e.outcome === "spotify_post_ok" || e.outcome === "already_present") && e.spotify_playlist_id) {
+      if (!firstPostByPl.has(e.spotify_playlist_id)) firstPostByPl.set(e.spotify_playlist_id, e.executed_at);
+    }
+  });
+  byPl.forEach((r) => {
+    const post = firstPostByPl.get(r.spotify_playlist_id);
+    if (post && r.firstSeen) {
+      const h = (new Date(r.firstSeen).getTime() - new Date(post).getTime()) / 3600_000;
+      r.timeToFirstDetectionHours = Math.max(0, Math.round(h * 10) / 10);
+    }
+  });
+
+  // Name fallback via placements
+  placements.forEach((p) => {
+    const id = p.managed_playlists?.spotify_playlist_id;
+    if (id && byPl.has(id) && p.managed_playlists?.name) {
+      byPl.get(id)!.name = p.managed_playlists.name;
+    }
+  });
+
+  // Status + daysActive + score
+  const now = Date.now();
+  byPl.forEach((r) => {
+    if (r.firstSeen) {
+      const end = r.lastSeen ? new Date(r.lastSeen).getTime() : now;
+      r.daysActive = Math.max(1, Math.round((end - new Date(r.firstSeen).getTime()) / 86400_000));
+    }
+    if (r.lastSeen) {
+      r.status = now - new Date(r.lastSeen).getTime() < 72 * 3600_000 ? "ativa" : "perdida";
+    }
+    // Score: avg plays normalizado + bônus retenção + penalidade posição alta
+    const playScore = Math.min(1, (r.avgPlays7d ?? 0) / 500) * 60;
+    const retScore = r.status === "ativa" ? 25 : 0;
+    const posScore = r.bestPosition != null && r.bestPosition <= 20 ? 15 : 0;
+    r.score = Math.round(playScore + retScore + posScore);
+  });
+
+  return [...byPl.values()].sort((a, b) => b.score - a.score);
+}
+
+function PlaylistRankingPanel({ placements, obs, ssPl, exec }: {
+  placements: Placement[]; obs: ObserverTrackRow[]; ssPl: SongSnapPlaylistRow[]; exec: ExecutionLogRow[];
+}) {
+  const rows = useMemo(() => buildPlaylistRanking(placements, obs, ssPl, exec), [placements, obs, ssPl, exec]);
+  if (rows.length === 0) {
+    return <div className="p-6 text-center text-xs text-muted-foreground">Sem dados de playlists ainda.</div>;
+  }
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
+          <tr className="border-b border-border">
+            <th className="text-left font-medium px-3 py-2.5">#</th>
+            <th className="text-left font-medium px-3 py-2.5">Playlist</th>
+            <th className="text-right font-medium px-3 py-2.5">Score</th>
+            <th className="text-right font-medium px-3 py-2.5 hidden sm:table-cell">Plays avg/7d</th>
+            <th className="text-right font-medium px-3 py-2.5 hidden md:table-cell">Cresc.</th>
+            <th className="text-right font-medium px-3 py-2.5 hidden md:table-cell">Pos atual</th>
+            <th className="text-right font-medium px-3 py-2.5 hidden lg:table-cell">Melhor pos</th>
+            <th className="text-right font-medium px-3 py-2.5 hidden lg:table-cell">Dias</th>
+            <th className="text-right font-medium px-3 py-2.5 hidden md:table-cell">1ª detecção</th>
+            <th className="text-right font-medium px-3 py-2.5">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={r.spotify_playlist_id} className="border-b border-border last:border-0 hover:bg-muted/30">
+              <td className="px-3 py-2 text-muted-foreground font-mono text-xs">{i + 1}</td>
+              <td className="px-3 py-2 max-w-[220px]">
+                {r.spotify_url ? (
+                  <a href={r.spotify_url} target="_blank" rel="noreferrer" className="text-foreground hover:text-primary inline-flex items-center gap-1 truncate">
+                    <span className="truncate">{r.name}</span><ExternalLink className="h-3 w-3 opacity-60 shrink-0" />
+                  </a>
+                ) : (
+                  <span className="text-foreground truncate block">{r.name}</span>
+                )}
+                {r.owner && <span className="block text-[10px] text-muted-foreground truncate">{r.owner}</span>}
+              </td>
+              <td className="px-3 py-2 text-right">
+                <span className={cn(
+                  "inline-flex items-center gap-1 font-mono text-xs px-1.5 py-0.5 rounded",
+                  r.score >= 75 ? "bg-emerald-500/10 text-emerald-400" :
+                  r.score >= 40 ? "bg-amber-500/10 text-amber-400" :
+                  "bg-muted/30 text-muted-foreground",
+                )}>
+                  <Award className="h-3 w-3" />{r.score}
+                </span>
+              </td>
+              <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground hidden sm:table-cell">{fmt(r.avgPlays7d)}</td>
+              <td className="px-3 py-2 text-right font-mono text-xs hidden md:table-cell">
+                {r.growthPct == null ? "—" : (
+                  <span className={r.growthPct >= 0 ? "text-emerald-400" : "text-rose-400"}>
+                    {r.growthPct >= 0 ? "+" : ""}{r.growthPct}%
+                  </span>
+                )}
+              </td>
+              <td className="px-3 py-2 text-right font-mono text-xs hidden md:table-cell">{r.currentPosition != null ? `#${r.currentPosition}` : "—"}</td>
+              <td className="px-3 py-2 text-right font-mono text-xs hidden lg:table-cell">{r.bestPosition != null ? `#${r.bestPosition}` : "—"}</td>
+              <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground hidden lg:table-cell">{r.daysActive}</td>
+              <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground hidden md:table-cell">
+                {r.timeToFirstDetectionHours != null ? `${r.timeToFirstDetectionHours}h` : "—"}
+              </td>
+              <td className="px-3 py-2 text-right">
+                <span className={cn(
+                  "inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider",
+                  r.status === "ativa" ? "text-emerald-400" : "text-muted-foreground",
+                )}>
+                  <span className={cn("h-1.5 w-1.5 rounded-full", r.status === "ativa" ? "bg-emerald-500" : "bg-muted-foreground/60")} />
+                  {r.status}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ============================================================
+// 5) LINHA DO TEMPO DOS PLACEMENTS
+// ============================================================
+function PlacementTimelinesPanel({ placements, exec, obs }: {
+  placements: Placement[]; exec: ExecutionLogRow[]; obs: ObserverTrackRow[];
+}) {
+  const rows = useMemo(() => {
+    return placements
+      .map((p) => {
+        const spId = p.managed_playlists?.spotify_playlist_id ?? null;
+        const myExec = exec.filter((e) => e.placement_id === p.id || (spId && e.spotify_playlist_id === spId));
+        const created = p.scheduled_for;
+        const post = [...myExec].reverse().find((e) => e.outcome === "spotify_post_ok");
+        const confirmed = [...myExec].reverse().find((e) => e.outcome === "spotify_post_ok" || e.outcome === "already_present");
+        const myObs = spId ? obs.filter((o) => o.spotify_playlist_id === spId) : [];
+        const firstObs = myObs[0]?.captured_at ?? null;
+        const lastObs = myObs.at(-1)?.captured_at ?? null;
+        const removed = p.status === "removed" ? (p.added_at ?? null) : null;
+        return { p, created, post: post?.executed_at ?? null, confirmed: confirmed?.executed_at ?? null, firstObs, lastObs, removed };
+      })
+      .sort((a, b) => +new Date(b.confirmed ?? b.created) - +new Date(a.confirmed ?? a.created))
+      .slice(0, 30);
+  }, [placements, exec, obs]);
+
+  if (rows.length === 0) {
+    return <div className="p-6 text-center text-xs text-muted-foreground">Sem placements ainda.</div>;
+  }
+
+  return (
+    <div className="divide-y divide-border">
+      {rows.map(({ p, created, post, confirmed, firstObs, lastObs, removed }) => {
+        const name = p.managed_playlists?.name ?? "—";
+        const url = p.managed_playlists?.spotify_playlist_id ? `https://open.spotify.com/playlist/${p.managed_playlists.spotify_playlist_id}` : null;
+        const steps = [
+          { label: "Criado", at: created, ok: !!created },
+          { label: "POST", at: post, ok: !!post },
+          { label: "Confirmado", at: confirmed, ok: !!confirmed },
+          { label: "Detectado VPS", at: firstObs, ok: !!firstObs },
+          { label: "Última detecção", at: lastObs, ok: !!lastObs },
+          { label: "Removido", at: removed, ok: !!removed, terminal: true },
+        ];
+        return (
+          <div key={p.id} className="p-4 sm:p-5">
+            <div className="flex items-center justify-between mb-2 gap-2">
+              <div className="min-w-0 flex-1">
+                {url ? (
+                  <a href={url} target="_blank" rel="noreferrer" className="text-sm font-medium text-foreground hover:text-primary inline-flex items-center gap-1 truncate">
+                    <span className="truncate">{name}</span><ExternalLink className="h-3 w-3 opacity-60 shrink-0" />
+                  </a>
+                ) : (
+                  <span className="text-sm font-medium text-foreground truncate block">{name}</span>
+                )}
+              </div>
+              <span className={cn(
+                "text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0",
+                p.status === "active" && "bg-emerald-500/10 text-emerald-400",
+                p.status === "failed" && "bg-rose-500/10 text-rose-400",
+                p.status === "removed" && "bg-muted/30 text-muted-foreground",
+                (p.status === "pending" || p.status === "processing" || p.status === "retry") && "bg-amber-500/10 text-amber-400",
+              )}>
+                {p.status}
+              </span>
+            </div>
+            <ol className="grid grid-cols-2 sm:grid-cols-6 gap-2">
+              {steps.map((s, i) => (
+                <li key={s.label} className="flex flex-col gap-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className={cn(
+                      "h-1.5 w-1.5 rounded-full",
+                      s.terminal && s.ok ? "bg-rose-500" : s.ok ? "bg-emerald-500" : "bg-muted-foreground/30",
+                    )} />
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{s.label}</span>
+                  </div>
+                  <span className={cn("text-[11px] font-mono tabular-nums", s.ok ? "text-foreground" : "text-muted-foreground/40")}>
+                    {s.at ? dt(s.at) : "—"}
+                  </span>
+                </li>
+              ))}
+            </ol>
+            {p.last_error_code && (
+              <div className="mt-2 text-[11px] text-rose-300 font-mono">{p.last_error_code}</div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ============================================================
+// 6) FEED DE EVENTOS
+// ============================================================
+type FeedEvent = { at: string; tone: "good" | "warn" | "bad" | "neutral"; icon: React.ComponentType<{ className?: string }>; text: string };
+
+function buildFeed(
+  placements: Placement[],
+  snapshots: Snapshot[],
+  exec: ExecutionLogRow[],
+  obs: ObserverTrackRow[],
+  breakers: { app_id: string; status: string; blocked_until: string | null }[],
+): FeedEvent[] {
+  const items: FeedEvent[] = [];
+
+  // Placements criados (agrupado por dia)
+  const grouped = new Map<string, number>();
+  placements.forEach((p) => {
+    if (!p.added_at) return;
+    const k = dayKey(p.added_at);
+    grouped.set(k, (grouped.get(k) ?? 0) + 1);
+  });
+  grouped.forEach((n, day) => {
+    items.push({
+      at: `${day}T23:59:00.000Z`,
+      tone: "good", icon: ListMusic,
+      text: `Música entrou em ${n} playlist${n === 1 ? "" : "s"}.`,
+    });
+  });
+
+  // Snapshots — crescimento positivo vs anterior
+  for (let i = 1; i < snapshots.length; i++) {
+    const prev = snapshots[i - 1].total_plays_28d ?? 0;
+    const cur = snapshots[i].total_plays_28d ?? 0;
+    const diff = cur - prev;
+    if (Math.abs(diff) >= 100) {
+      items.push({
+        at: snapshots[i].captured_at,
+        tone: diff > 0 ? "good" : "warn",
+        icon: diff > 0 ? ArrowUpRight : ArrowDownRight,
+        text: diff > 0 ? `Streams cresceram +${fmt(diff)}.` : `Streams caíram ${fmt(diff)}.`,
+      });
+    }
+  }
+
+  // Coletas recentes
+  snapshots.slice(-5).forEach((s) => {
+    items.push({ at: s.captured_at, tone: "neutral", icon: Activity, text: "Nova coleta recebida." });
+  });
+
+  // Execução / confirmações / erros
+  exec.slice(0, 30).forEach((e) => {
+    if (e.outcome === "spotify_post_ok") {
+      items.push({ at: e.executed_at, tone: "good", icon: CheckCircle2, text: "Placement confirmado no Spotify." });
+    } else if (e.outcome === "waiting_circuit_breaker" || e.outcome === "preflight_breaker") {
+      items.push({ at: e.executed_at, tone: "warn", icon: AlertTriangle, text: "Circuit breaker aguardando." });
+    } else if (e.outcome === "already_present") {
+      items.push({ at: e.executed_at, tone: "neutral", icon: CheckCircle2, text: "Música já estava na playlist." });
+    } else if (e.error_code) {
+      items.push({ at: e.executed_at, tone: "bad", icon: AlertTriangle, text: `Erro ${e.error_code}.` });
+    }
+  });
+
+  // Saídas inferidas pela observer (>72h sem ver e existia)
+  const lastSeen = new Map<string, ObserverTrackRow>();
+  obs.forEach((o) => {
+    const cur = lastSeen.get(o.spotify_playlist_id);
+    if (!cur || new Date(o.captured_at) > new Date(cur.captured_at)) lastSeen.set(o.spotify_playlist_id, o);
+  });
+  const now = Date.now();
+  lastSeen.forEach((o) => {
+    if (now - new Date(o.captured_at).getTime() > 72 * 3600_000) {
+      const name = namePlaylist(placements, o.spotify_playlist_id) ?? o.spotify_playlist_id;
+      items.push({ at: o.captured_at, tone: "warn", icon: GitBranch, text: `Playlist "${name}" removeu a música.` });
+    }
+  });
+
+  // Breakers abertos
+  breakers.filter((b) => b.status === "open").forEach((b) => {
+    items.push({ at: b.blocked_until ?? new Date().toISOString(), tone: "warn", icon: Zap, text: `App ${b.app_id} bloqueado pelo breaker.` });
+  });
+
+  return items.sort((a, b) => +new Date(b.at) - +new Date(a.at)).slice(0, 50);
+}
+
+function EventFeedPanel(props: { placements: Placement[]; snapshots: Snapshot[]; exec: ExecutionLogRow[]; obs: ObserverTrackRow[]; breakers: { app_id: string; status: string; blocked_until: string | null }[] }) {
+  const items = useMemo(() => buildFeed(props.placements, props.snapshots, props.exec, props.obs, props.breakers), [props]);
+  if (items.length === 0) {
+    return <div className="p-6 text-center text-xs text-muted-foreground">Sem eventos.</div>;
+  }
+  return (
+    <ul className="divide-y divide-border max-h-[480px] overflow-y-auto">
+      {items.map((e, i) => (
+        <li key={i} className="flex items-start gap-3 px-4 sm:px-5 py-2.5 text-sm">
+          <e.icon className={cn(
+            "h-3.5 w-3.5 mt-1 shrink-0",
+            e.tone === "good" && "text-emerald-400",
+            e.tone === "warn" && "text-amber-400",
+            e.tone === "bad" && "text-rose-400",
+            e.tone === "neutral" && "text-muted-foreground",
+          )} />
+          <div className="min-w-0 flex-1">
+            <div className="text-foreground text-[13px]">{e.text}</div>
+            <div className="text-[10px] font-mono text-muted-foreground tabular-nums">{dt(e.at)} · {rel(e.at)}</div>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// ============================================================
+// MAIN
+// ============================================================
+export function MusicaIntelligenceSection(props: MusicaIntelligenceProps) {
+  const spotifyPlaylistIds = useMemo(
+    () => Array.from(new Set(props.placements.map((p) => p.managed_playlists?.spotify_playlist_id).filter(Boolean))) as string[],
+    [props.placements],
+  );
+  const snapshotIds = useMemo(() => props.snapshots.map((s) => s.id), [props.snapshots]);
+
+  const q = useCatalogTrackIntelligence({
+    catalogTrackId: props.track.id,
+    spotifyTrackId: props.track.spotify_track_id,
+    spotifyPlaylistIds,
+    snapshotIds,
+  });
+
+  if (q.isLoading) {
+    return (
+      <div className="space-y-3">
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-32 w-full" />
+      </div>
+    );
+  }
+
+  const intel = q.data;
+  if (!intel) {
+    return <div className="text-sm text-muted-foreground">Não foi possível carregar a inteligência.</div>;
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <Panel title="Timeline da música" hint="Cadastro → baseline → playlists → picos → última coleta" icon={History}>
+        <TimelinePanel {...props} exec={intel.executionLog} obs={intel.observerTracks} />
+      </Panel>
+
+      <Panel title="Saúde operacional" hint="Worker, VPS, fila, breaker e último erro" icon={Server} defaultOpen>
+        <OperationalHealthPanel {...props} exec={intel.executionLog} breakers={intel.breakers} vps={intel.vpsAssignments} />
+      </Panel>
+
+      <Panel title="Ranking de playlists" hint="Score = plays + retenção + posição" icon={Award} defaultOpen>
+        <PlaylistRankingPanel placements={props.placements} obs={intel.observerTracks} ssPl={intel.songSnapPlaylists} exec={intel.executionLog} />
+      </Panel>
+
+      <Panel title="Linha do tempo de cada placement" hint="Criado → POST → confirmado → detectado → removido" icon={Clock}>
+        <PlacementTimelinesPanel placements={props.placements} exec={intel.executionLog} obs={intel.observerTracks} />
+      </Panel>
+
+      <Panel title="Histórico de distribuição" hint="Entradas, saídas e total por dia" icon={TrendingUp}>
+        <DistributionHistoryPanel placements={props.placements} exec={intel.executionLog} />
+      </Panel>
+
+      <Panel title="Feed de eventos" hint="Últimos acontecimentos da música" icon={Sparkles}>
+        <EventFeedPanel placements={props.placements} snapshots={props.snapshots} exec={intel.executionLog} obs={intel.observerTracks} breakers={intel.breakers} />
+      </Panel>
+    </div>
+  );
+}

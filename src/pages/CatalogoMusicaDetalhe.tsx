@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { MusicaIntelligenceSection } from "@/components/catalogo/MusicaIntelligenceSection";
 
 type Track = {
   id: string;
@@ -475,6 +476,7 @@ function DesktopPlacementsGroups({ placements }: { placements: Placement[] }) {
 
 export default function CatalogoMusicaDetalhe() {
   const { id = "" } = useParams<{ id: string }>();
+  const [tab, setTab] = useState<"geral" | "inteligencia">("geral");
   const q = useQuery({ queryKey: ["catalog", "detail", id], queryFn: () => fetchDetail(id), enabled: !!id, refetchInterval: 30_000 });
 
   const placementsByStatus = useMemo(() => {
@@ -543,6 +545,37 @@ export default function CatalogoMusicaDetalhe() {
       />
 
       <PageContainer>
+        {/* Tab switcher Enterprise: Visão Geral (existente) | Inteligência (novo) */}
+        <div className="flex items-center gap-1 bg-card border border-border rounded-full p-1 self-start">
+          {([
+            { id: "geral", label: "Visão geral" },
+            { id: "inteligencia", label: "Inteligência" },
+          ] as const).map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              className={cn(
+                "px-3.5 sm:px-4 h-8 rounded-full text-xs font-semibold transition-colors",
+                tab === t.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {tab === "inteligencia" ? (
+          <MusicaIntelligenceSection
+            track={t}
+            baseline={b}
+            telemetry={tel}
+            placements={placements}
+            snapshots={snapshots}
+            queue={queue}
+          />
+        ) : (
+        <>
         {/* ============ MOBILE ONLY: HAIRLINE GRID TÉCNICO ============ */}
         <div className="sm:hidden flex flex-col gap-2.5">
           {/* Identity */}
@@ -905,6 +938,8 @@ export default function CatalogoMusicaDetalhe() {
             </>
           )}
         </section>
+        </>
+        )}
       </PageContainer>
     </>
   );
