@@ -182,6 +182,8 @@ export function SpotifyAppsManager({
     if (j?.ok && Array.isArray(j.scopes)) setScopes(j.scopes);
   }
 
+  // load/loadScopes redefinidos a cada render; intencionalmente disparam só no mount.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { void load(); void loadScopes(); }, []);
 
   useEffect(() => {

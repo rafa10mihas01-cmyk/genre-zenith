@@ -189,6 +189,8 @@ export function ExternalPackageEditor({
     }
   }
 
+  // load é redefinido a cada render; intencionalmente reagimos só à mudança de campaignId.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     initialLoadedRef.current = false;
     load();

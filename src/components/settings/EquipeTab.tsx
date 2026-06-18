@@ -107,6 +107,8 @@ Entre direto pelo link acima. Você pode trocar a senha depois nas configuraçõ
     setLoading(false);
   }
 
+  // loadMembers é redefinido a cada render; intencionalmente dispara só no mount.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { void loadMembers(); }, []);
 
   async function createAccess() {

@@ -40,6 +40,8 @@ export function CampaignAccessManager({ campaignId }: Props) {
     setLoading(false);
   }
 
+  // load é redefinido a cada render; o efeito só dispara quando o drawer abre ou a campanha muda.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (open) load();   }, [open, campaignId]);
 
   async function add() {

@@ -799,6 +799,8 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         load();
       }
     }).catch(() => {});
+    // load + setters acima estão estáveis para este mount; intencionalmente dispara só no mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function setPlaylistGenre(pl: ManagedPlaylist, genreId: string | null) {

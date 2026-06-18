@@ -78,6 +78,8 @@ export function EcosystemScorePanel() {
     setLoading(false);
   };
 
+  // load é redefinido a cada render; intencionalmente dispara só no mount.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, []);
 
   const filtered = useMemo(() => {

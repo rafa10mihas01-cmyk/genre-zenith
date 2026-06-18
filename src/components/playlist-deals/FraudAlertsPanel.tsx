@@ -59,6 +59,8 @@ export function FraudAlertsPanel({
     setAlerts((data ?? []) as FraudAlert[]);
   }
 
+  // fetchAlerts é redefinido a cada render; intencionalmente reagimos só à mudança de dealId.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (dealId) fetchAlerts();
   }, [dealId]);
