@@ -52,6 +52,7 @@ import {
   type CuratorDealProgress,
 } from "@/lib/curatorDealsUtils";
 import { Kpi as UnifiedKpi } from "@/components/ui/kpi";
+import type { CampaignSpreadsheetUpload } from "@/hooks/useCuratorDealDetail";
 
 export interface DealHistorySheetProps {
   open: boolean;
@@ -59,6 +60,7 @@ export interface DealHistorySheetProps {
   songs?: CuratorDealSong[];
   allLogs: CuratorDealLog[];
   allPlaylists: CuratorPlaylist[];
+  spreadsheetUploads?: CampaignSpreadsheetUpload[];
   progress?: CuratorDealProgress | null;
   onClose: () => void;
   onReload?: () => void;
@@ -379,6 +381,7 @@ export function DealHistorySheet({
   songs = [],
   allLogs,
   allPlaylists,
+  spreadsheetUploads = [],
   progress,
   onClose,
   onReload,
@@ -1201,7 +1204,41 @@ export function DealHistorySheet({
 
                 {/* === HISTÓRICO === */}
                 <TabsContent value="historico" className={cn("m-0 space-y-3", asPage ? "rounded-2xl border border-border bg-card p-5" : "px-6 py-5")}>
-                  {reversedLogs.length === 0 ? (
+                  {reversedLogs.length === 0 && spreadsheetUploads.length > 0 ? (
+                    <div className="rounded-2xl border border-border bg-card divide-y divide-border overflow-hidden">
+                      {spreadsheetUploads.map((u) => (
+                        <div key={u.id} className="px-4 py-3 flex items-center gap-3">
+                          <div className="h-2 w-2 rounded-full bg-primary shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <div className="text-[13px] font-semibold text-foreground truncate">
+                              {u.file_name ?? "Planilha importada"}
+                            </div>
+                            <div className="text-[11px] text-muted-foreground tabular-nums mt-0.5">
+                              {u.reference_date ? `Ref. ${format(new Date(`${u.reference_date}T00:00:00`), "dd/MM/yyyy", { locale: ptBR })} · ` : ""}
+                              {format(new Date(u.created_at), "dd MMM, HH:mm", { locale: ptBR })}
+                              {u.status ? ` · ${u.status}` : ""}
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0 tabular-nums">
+                            <div className="text-[13px] font-bold text-foreground">
+                              {Number(u.total_streams ?? 0).toLocaleString("pt-BR")}
+                            </div>
+                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                              streams
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0 tabular-nums hidden sm:block">
+                            <div className="text-[13px] font-bold text-foreground">
+                              {Number(u.rows_imported ?? 0).toLocaleString("pt-BR")}
+                            </div>
+                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                              playlists
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : reversedLogs.length === 0 ? (
                     <div className="rounded-2xl border border-warning/40 bg-card py-10 px-5 flex flex-col items-center text-center gap-3">
                       <div className="h-10 w-10 rounded-full bg-[hsl(var(--elevated))] border border-border flex items-center justify-center">
                         <ImageOff className="h-4 w-4 text-muted-foreground" />

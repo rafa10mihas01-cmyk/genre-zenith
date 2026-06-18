@@ -48,6 +48,7 @@ export default function DealDetail() {
     logs,
     playlists,
     songs,
+    uploads,
     progress,
     loading,
     reload,
@@ -228,6 +229,7 @@ export default function DealDetail() {
               songs={songs}
               allLogs={logs}
               allPlaylists={playlists}
+              spreadsheetUploads={uploads}
               progress={progress ?? undefined}
               onClose={back}
               onReload={reload}
