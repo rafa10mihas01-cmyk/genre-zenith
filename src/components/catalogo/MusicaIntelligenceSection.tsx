@@ -922,6 +922,11 @@ export function MusicaIntelligenceSection(props: MusicaIntelligenceProps) {
     spotifyPlaylistIds,
     snapshotIds,
   });
+  const intel = q.data;
+  const ranking = useMemo(
+    () => intel ? buildPlaylistRanking(props.placements, intel.observerTracks, intel.songSnapPlaylists, intel.executionLog) : [],
+    [intel, props.placements],
+  );
 
   if (q.isLoading) {
     return (
@@ -932,12 +937,6 @@ export function MusicaIntelligenceSection(props: MusicaIntelligenceProps) {
       </div>
     );
   }
-
-  const intel = q.data;
-  const ranking = useMemo(
-    () => intel ? buildPlaylistRanking(props.placements, intel.observerTracks, intel.songSnapPlaylists, intel.executionLog) : [],
-    [intel, props.placements],
-  );
 
   if (!intel) {
     return <div className="text-sm text-muted-foreground">Não foi possível carregar a inteligência.</div>;
