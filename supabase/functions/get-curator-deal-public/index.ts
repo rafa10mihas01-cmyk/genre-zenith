@@ -161,6 +161,153 @@ Deno.serve(async (req) => {
     if (progressErr) console.error("[get-curator-deal-public] progress error (degraded):", progressErr.message);
     if (historyErr) console.error("[get-curator-deal-public] history error (degraded):", historyErr.message);
     if (snapsErr) console.error("[get-curator-deal-public] snaps error (degraded):", snapsErr.message);
+    if (allSnapsErr) console.error("[get-curator-deal-public] allSnaps error (degraded):", allSnapsErr.message);
+    if (proofsErr) console.error("[get-curator-deal-public] proofs error (degraded):", proofsErr.message);
+    if (uploadsErr) console.error("[get-curator-deal-public] uploads error (degraded):", uploadsErr.message);
+
+    // Fase 7.3 P3 — Delivery acumulado, baseline e crescimento por playlist.
+    // Calculado a partir de TODOS os snapshots (incl. is_initial_capture=true),
+    // sem nova coleta. baseline = primeiro snapshot; current = último; delivery = current-baseline.
+    const perPlaylistDelivery: Record<string, {
+      baseline_plays: number | null;
+      current_plays: number | null;
+      delivery_accumulated: number;
+      growth_pct: number | null;
+      first_capture_at: string | null;
+      last_capture_at: string | null;
+      snapshot_count: number;
+      last_print_url: string | null;
+    }> = {};
+    {
+      const byPid = new Map<string, any[]>();
+      for (const s of (allSnaps ?? []) as any[]) {
+        if (!s.playlist_id) continue;
+        const arr = byPid.get(s.playlist_id) ?? [];
+        arr.push(s);
+        byPid.set(s.playlist_id, arr);
+      }
+      for (const [pid, arr] of byPid) {
+        arr.sort((a, b) => +new Date(a.captured_at) - +new Date(b.captured_at));
+        const first = arr[0];
+        const last = arr[arr.length - 1];
+        const baseline = Number(first?.plays ?? 0);
+        const current = Number(last?.plays ?? baseline);
+        const delivery = Math.max(0, current - baseline);
+        const growth = baseline > 0 ? (delivery / baseline) * 100 : null;
+        const lastPrint = [...arr].reverse().find((x) => x.print_url)?.print_url ?? null;
+        perPlaylistDelivery[pid] = {
+          baseline_plays: baseline || null,
+          current_plays: current || null,
+          delivery_accumulated: delivery,
+          growth_pct: growth,
+          first_capture_at: first?.captured_at ?? null,
+          last_capture_at: last?.captured_at ?? null,
+          snapshot_count: arr.length,
+          last_print_url: lastPrint,
+        };
+      }
+    }
+
+    // Fase 7.3 P4 — Galeria de prints unificada (delivery_proofs + snapshots).
+    const playlistMetaByPid: Record<string, { name: string | null; image: string | null; spotify_url: string | null }> = {};
+    for (const p of (playlists ?? []) as any[]) {
+      playlistMetaByPid[p.id] = {
+        name: p.playlist_name ?? null,
+        image: p.image_url ?? null,
+        spotify_url: p.spotify_url ?? null,
+      };
+    }
+    const printsGallery: Array<{
+      kind: "delivery_proof" | "snapshot";
+      captured_at: string;
+      playlist_id: string | null;
+      playlist_name: string | null;
+      playlist_image: string | null;
+      screenshot_url: string;
+      position: number | null;
+      bot: string | null;
+      source: string | null;
+    }> = [];
+    for (const p of (proofs ?? []) as any[]) {
+      if (!p.screenshot_url) continue;
+      const meta = p.playlist_id ? playlistMetaByPid[p.playlist_id] : null;
+      printsGallery.push({
+        kind: "delivery_proof",
+        captured_at: p.captured_at,
+        playlist_id: p.playlist_id ?? null,
+        playlist_name: meta?.name ?? p.playlist_name ?? null,
+        playlist_image: meta?.image ?? null,
+        screenshot_url: p.screenshot_url,
+        position: p.position_in_playlist ?? null,
+        bot: p.bot_correlation_id ?? null,
+        source: p.source ?? null,
+      });
+    }
+    for (const s of (allSnaps ?? []) as any[]) {
+      if (!s.print_url) continue;
+      const meta = s.playlist_id ? playlistMetaByPid[s.playlist_id] : null;
+      printsGallery.push({
+        kind: "snapshot",
+        captured_at: s.captured_at,
+        playlist_id: s.playlist_id ?? null,
+        playlist_name: meta?.name ?? null,
+        playlist_image: meta?.image ?? null,
+        screenshot_url: s.print_url,
+        position: null,
+        bot: s.match_method ?? null,
+        source: s.source ?? null,
+      });
+    }
+    printsGallery.sort((a, b) => +new Date(b.captured_at) - +new Date(a.captured_at));
+
+    // Fase 7.3 P5 — Lista de uploads com signed URL (1h TTL).
+    const uploadsWithUrls: Array<{
+      id: string;
+      file_name: string;
+      reference_date: string | null;
+      created_at: string;
+      rows_imported: number | null;
+      total_streams: number | null;
+      is_baseline: boolean;
+      upload_mode: string | null;
+      window_kind: string | null;
+      window_days: number | null;
+      status: string | null;
+      superseded: boolean;
+      superseded_at: string | null;
+      quarantined: boolean;
+      download_url: string | null;
+    }> = [];
+    for (const u of (uploads ?? []) as any[]) {
+      let url: string | null = null;
+      try {
+        if (u.file_path) {
+          const { data: signed } = await admin.storage
+            .from("label-spreadsheets")
+            .createSignedUrl(u.file_path, 3600);
+          url = signed?.signedUrl ?? null;
+        }
+      } catch (_e) { /* best-effort */ }
+      uploadsWithUrls.push({
+        id: u.id,
+        file_name: u.file_name,
+        reference_date: u.reference_date ?? null,
+        created_at: u.created_at,
+        rows_imported: u.rows_imported ?? null,
+        total_streams: u.total_streams ?? null,
+        is_baseline: !!u.is_baseline,
+        upload_mode: u.upload_mode ?? null,
+        window_kind: u.window_kind ?? null,
+        window_days: u.window_days ?? null,
+        status: u.status ?? null,
+        superseded: !!u.superseded_by,
+        superseded_at: u.superseded_at ?? null,
+        quarantined: !!u.quarantined_at,
+        download_url: url,
+      });
+    }
+
+
 
     // Último snapshot por playlist (já vem ordenado desc).
     const latestByPlaylist: Record<string, { plays_24h: number | null; plays_7d: number | null; plays_28d: number | null; captured_at: string }> = {};
