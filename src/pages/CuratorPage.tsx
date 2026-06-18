@@ -2413,7 +2413,12 @@ export default function CuratorPage() {
                       <li key={u.id} className="py-3 flex items-center gap-3">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-[12.5px] font-medium truncate">{u.file_name}</span>
+                            <span
+                              className="text-[12.5px] font-medium truncate"
+                              title={u.file_name}
+                            >
+                              {friendlyUploadName(u.file_name, u.reference_date)}
+                            </span>
                             {u.is_baseline && (
                               <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-primary/15 text-primary">baseline</span>
                             )}
@@ -2432,14 +2437,23 @@ export default function CuratorPage() {
                           </div>
                         </div>
                         {u.download_url ? (
-                          <a
-                            href={u.download_url}
-                            target="_blank"
-                            rel="noreferrer"
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                await downloadUploadUrlAsXlsx({
+                                  signedUrl: u.download_url!,
+                                  fileName: u.file_name,
+                                  referenceDate: u.reference_date,
+                                });
+                              } catch (e) {
+                                toast.error(e instanceof Error ? e.message : "Falha ao baixar planilha");
+                              }
+                            }}
                             className="inline-flex items-center gap-1 text-[11.5px] text-primary hover:underline shrink-0"
                           >
                             <Download className="h-3.5 w-3.5" /> Baixar
-                          </a>
+                          </button>
                         ) : (
                           <span className="text-[11px] text-muted-foreground/60 shrink-0">indisponível</span>
                         )}
