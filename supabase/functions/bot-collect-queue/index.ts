@@ -4,53 +4,53 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { recordMetric } from "../_shared/ops-metrics.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
-import { getAppToken } from "../_shared/spotify-client.ts";
+import { getTrackCacheBatch, enqueueEnrichment } from "../_shared/spotify-cache.ts";
 
-// Resolve spotify_artist_id automaticamente via Spotify API quando o cliente
-// não tem cadastrado. Tenta casar pelo nome (song_artist) e cacheia no client.
-async function resolveArtistIdFromTrack(
+// FASE 6.A.3 — resolução inline de spotify_artist_id removida.
+// Agora consultamos spotify_track_cache (alimentado pelo spotify-enrichment-worker).
+// Cache miss → enfileira na spotify_enrichment_queue e devolve null (próximo
+// dispatch terá o artistId). Sem fetch síncrono no caminho quente do bot.
+async function resolveArtistIdsFromCache(
   supabase: any,
-  trackId: string,
-  songArtist: string | null,
-  clientId: string | null,
-  songId: string | null = null,
-): Promise<{ artistId: string | null; artistUrl: string | null }> {
-  try {
-    const token = await getAppToken();
-    const res = await fetch(`https://api.spotify.com/v1/tracks/${trackId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) return { artistId: null, artistUrl: null };
-    const data = await res.json();
-    const artists: Array<{ id: string; name: string }> = data?.artists ?? [];
-    if (!artists.length) return { artistId: null, artistUrl: null };
-    const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-    const match = songArtist
-      ? artists.find((a) => norm(a.name) === norm(songArtist))
-        ?? artists.find((a) => norm(songArtist).includes(norm(a.name)) || norm(a.name).includes(norm(songArtist)))
-      : null;
-    const chosen = match ?? artists[0];
-    const artistUrl = `https://open.spotify.com/artist/${chosen.id}`;
-    if (clientId) {
+  songs: Array<{ id: string; spotify_track_id: string | null; spotify_artist_id: string | null; song_artist: string | null; clientId: string | null }>,
+): Promise<Map<string, { artistId: string | null; artistUrl: string | null }>> {
+  const out = new Map<string, { artistId: string | null; artistUrl: string | null }>();
+  const needLookup = songs.filter((s) => !s.spotify_artist_id && s.spotify_track_id);
+  if (!needLookup.length) return out;
+  const trackIds = needLookup.map((s) => s.spotify_track_id as string);
+  const cache = await getTrackCacheBatch(trackIds);
+  const persistBySong: Array<{ songId: string; clientId: string | null; artistId: string }> = [];
+  for (const s of needLookup) {
+    const row = cache.get(s.spotify_track_id as string);
+    const artistId = row?.artist_ids?.[0] ?? null;
+    if (artistId) {
+      const artistUrl = `https://open.spotify.com/artist/${artistId}`;
+      out.set(s.id, { artistId, artistUrl });
+      persistBySong.push({ songId: s.id, clientId: s.clientId, artistId });
+    } else {
+      out.set(s.id, { artistId: null, artistUrl: null });
+    }
+  }
+  // Persiste resoluções confirmadas (cache hit) — best-effort.
+  for (const p of persistBySong) {
+    const artistUrl = `https://open.spotify.com/artist/${p.artistId}`;
+    if (p.clientId) {
       await supabase
         .from("clients")
-        .update({ spotify_artist_id: chosen.id, spotify_artist_url: artistUrl })
-        .eq("id", clientId)
+        .update({ spotify_artist_id: p.artistId, spotify_artist_url: artistUrl })
+        .eq("id", p.clientId)
         .is("spotify_artist_id", null);
     }
-    // Persiste também na song (cobre deals sem campanha/cliente vinculados)
-    if (songId) {
-      await supabase
-        .from("curator_deal_songs")
-        .update({ spotify_artist_id: chosen.id, spotify_artist_url: artistUrl })
-        .eq("id", songId)
-        .is("spotify_artist_id", null);
-    }
-    return { artistId: chosen.id, artistUrl };
-  } catch (_) {
-    return { artistId: null, artistUrl: null };
+    await supabase
+      .from("curator_deal_songs")
+      .update({ spotify_artist_id: p.artistId, spotify_artist_url: artistUrl })
+      .eq("id", p.songId)
+      .is("spotify_artist_id", null);
   }
+  return out;
 }
+
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -309,42 +309,48 @@ Deno.serve(async (req) => {
 
 
   // ====== Observabilidade Fase A: correlation_id por dispatch ======
-  // Cada song dispatchada recebe um correlation_id único. O bot DEVE devolver esse
-  // mesmo id em todos os eventos/uploads/snapshots dessa execução. Sem id, perdemos
-  // capacidade de rastrear onde a coleta morreu.
+  // FASE 6.A.3 — resolução de artistId via cache em lote (spotify_track_cache).
+  // Cache miss enfileira na spotify_enrichment_queue; próximo dispatch terá o id.
+  const resolveInput = (claimedEligible as any[]).map((s) => ({
+    id: s.id,
+    spotify_track_id: s.spotify_track_id ?? null,
+    spotify_artist_id: s.spotify_artist_id ?? s?.curator_deals?.campaigns?.clients?.spotify_artist_id ?? null,
+    song_artist: s.song_artist ?? null,
+    clientId: s?.curator_deals?.campaigns?.client_id ?? null,
+  }));
+  const resolved = await resolveArtistIdsFromCache(supabase, resolveInput);
   for (const s of claimedEligible as any[]) {
     s.correlation_id = crypto.randomUUID();
     const client = s?.curator_deals?.campaigns?.clients;
-    const clientId = s?.curator_deals?.campaigns?.client_id ?? null;
-    // Ordem de prioridade: song row → client → resolve via Spotify API
     let artistId: string | null = s.spotify_artist_id ?? client?.spotify_artist_id ?? null;
     let artistUrl: string | null = s.spotify_artist_url ?? client?.spotify_artist_url ?? null;
-    if (!artistId && s.spotify_track_id) {
-      const resolved = await resolveArtistIdFromTrack(supabase, s.spotify_track_id, s.song_artist, clientId, s.id);
-      artistId = resolved.artistId;
-      artistUrl = resolved.artistUrl;
+    if (!artistId) {
+      const r = resolved.get(s.id);
+      if (r?.artistId) {
+        artistId = r.artistId;
+        artistUrl = r.artistUrl;
+      }
     }
     s.spotify_artist_id = artistId;
     s.spotify_artist_url = artistUrl;
-    // URL S4A no formato novo exigido pelo Spotify (track_id sozinho = 404).
-    // Mantemos aliases no payload para compatibilidade com versões antigas do worker
-    // que ainda leem `url`/`song_spotify_url` em vez de `s4a_song_url`.
     const s4aSongUrl = artistId && s.spotify_track_id
       ? `https://artists.spotify.com/c/pt/artist/${artistId}/song/${s.spotify_track_id}/stats`
       : null;
     s.s4a_song_url = s4aSongUrl;
     s.song_s4a_url = s4aSongUrl;
     s.url = s4aSongUrl;
-    // Backend (bot-ingest-snapshot) rejeita payload agregado para QUALQUER song
-    // com auto_collect=true (não só campaign_internal). Como bot-collect-queue
-    // só entrega rows com auto_collect=true, 100% precisa de breakdown.
-    // Alinhar a flag aqui evita o 422 "playlist_breakdown_required" no worker.
     s.requires_playlist_breakdown = true;
     s.capture_mode = "playlist_breakdown_required";
     s.ingest_contract = isCampaignInternal(s)
       ? "send_playlist_rows_not_aggregate"
       : "send_curator_playlist_rows";
     if (s4aSongUrl) s.song_spotify_url = s4aSongUrl;
+  }
+  const missingArtistTrackIds = (claimedEligible as any[])
+    .filter((s) => !s.spotify_artist_id && s.spotify_track_id)
+    .map((s) => s.spotify_track_id as string);
+  if (missingArtistTrackIds.length) {
+    enqueueEnrichment("track", missingArtistTrackIds, "bot_dispatch_miss", 2).catch(() => {});
   }
   if (claimedEligible.length) {
     const events = (claimedEligible as any[]).map((s) => ({

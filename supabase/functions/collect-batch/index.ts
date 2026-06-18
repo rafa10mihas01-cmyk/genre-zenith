@@ -162,21 +162,13 @@ Deno.serve(async (req) => {
         if (i < terms!.length - 1) await new Promise((res) => setTimeout(res, delayMs));
       }
 
-      // 🆕 P0 (Enrichment Hole fix): enriquecer playlists novas ANTES de analisar.
-      // Sem isso, analyze-genre roda sobre dados brutos do Apify (sem followers
-      // verificados), e a saúde do gênero nunca atinge "healthy".
-      if (!skipEnrich && item.playlists_saved > 0) {
-        const e = await callFn("enrich-playlists", {
-          genre_id: g.id,
-          limit: enrichLimit,
-          fetch_tracks: true,
-          prioritize: true,
-        });
-        if (e.ok) {
-          item.enriched = (e.data as { enriched?: number })?.enriched ?? 0;
-        }
-        // enrich falhar não aborta o lote — apenas loga. analyze ainda roda.
-      }
+      // FASE 6.A.3 — chamada para enrich-playlists removida.
+      // Enriquecimento agora é responsabilidade do spotify-enrichment-worker
+      // via fila spotify_enrichment_queue (alimentada por sync-managed-playlist-tracks
+      // e helpers em _shared/spotify-cache.ts). analyze-genre roda direto sobre
+      // o que já está cacheado/persistido — sem hop síncrono morto.
+      item.enriched = 0;
+
 
       // 4) Analyze-genre automático
       const a = await callFn("analyze-genre", { genre_id: g.id });
