@@ -159,7 +159,7 @@ function MargemView() {
 }
 
 export default function Financeiro() {
-  const { deals } = useCuratorDealsList();
+
   const [params, setParams] = useSearchParams();
   const tab = params.get("tab") ?? "visao";
   const setTab = (v: string) => {
