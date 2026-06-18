@@ -550,19 +550,70 @@ Deno.serve(async (req) => {
       } catch (_e) { /* best-effort */ }
     }
 
+    // Fase 7.3 P7 — Timeline operacional do deal (só eventos de negócio).
+    const timeline: Array<{ at: string; kind: string; label: string; detail?: string | null }> = [];
+    if (deal.created_at) timeline.push({ at: deal.created_at, kind: "deal_created", label: "Deal criado" });
+    const allSnapsArr = (allSnaps ?? []) as any[];
+    const baselineSnap = allSnapsArr.find((s) => s.is_initial_capture);
+    if (baselineSnap?.captured_at) timeline.push({ at: baselineSnap.captured_at, kind: "baseline", label: "Baseline capturada" });
+    const firstCollect = allSnapsArr.find((s) => !s.is_initial_capture);
+    if (firstCollect?.captured_at) timeline.push({ at: firstCollect.captured_at, kind: "first_collect", label: "Primeira coleta" });
+    const firstPrint = [...printsGallery].reverse()[0];
+    if (firstPrint) timeline.push({ at: firstPrint.captured_at, kind: "first_print", label: "Primeiro print", detail: firstPrint.playlist_name });
+    const uploadsAsc = [...uploadsWithUrls].reverse();
+    const firstUpload = uploadsAsc[0];
+    if (firstUpload) timeline.push({ at: firstUpload.created_at, kind: "first_upload", label: "Primeiro Excel", detail: firstUpload.file_name });
+    for (const u of uploadsAsc.slice(1)) {
+      timeline.push({ at: u.created_at, kind: "upload", label: u.is_baseline ? "Excel baseline" : "Novo upload", detail: u.file_name });
+    }
+    const lastSnap = allSnapsArr[allSnapsArr.length - 1];
+    if (lastSnap?.captured_at) timeline.push({ at: lastSnap.captured_at, kind: "last_collect", label: "Última coleta" });
+    timeline.sort((a, b) => +new Date(a.at) - +new Date(b.at));
+
+    // Fase 7.3 P3 — payload enriquecido por playlist + ordenação por delivery DESC.
+    const enrichedPlaylists = (playlists ?? []).map((p: any) => {
+      const d = perPlaylistDelivery[p.id] ?? null;
+      const fallbackPlays7d = latestByPlaylist[p.id]?.plays_7d ?? growthBySpotifyPlaylist[(p.spotify_playlist_id ?? "").trim()]?.plays_7d ?? p.streams_7d ?? null;
+      return {
+        ...p,
+        plays_24h: latestByPlaylist[p.id]?.plays_24h ?? null,
+        plays_7d: fallbackPlays7d,
+        plays_28d: latestByPlaylist[p.id]?.plays_28d ?? growthBySpotifyPlaylist[(p.spotify_playlist_id ?? "").trim()]?.plays_28d ?? p.streams_28d ?? null,
+        last_window_capture_at: latestByPlaylist[p.id]?.captured_at ?? null,
+        baseline_plays_prior: baselinePlaysByPid[(p.spotify_playlist_id ?? "").trim()] ?? 0,
+        // delivery_per_playlist embarcado
+        delivery_accumulated: d?.delivery_accumulated ?? 0,
+        baseline_plays_pl: d?.baseline_plays ?? null,
+        current_plays_pl: d?.current_plays ?? null,
+        growth_pct: d?.growth_pct ?? null,
+        first_capture_at: d?.first_capture_at ?? null,
+        last_capture_at: d?.last_capture_at ?? p.last_paste_at ?? null,
+        snapshot_count: d?.snapshot_count ?? 0,
+        last_print_url: d?.last_print_url ?? null,
+        days_active: d?.first_capture_at
+          ? Math.max(0, Math.floor((Date.now() - +new Date(d.first_capture_at)) / 86400000))
+          : null,
+      };
+    });
+    // Fase 7.3 P2 — ranking: delivery desc → streams_7d desc → streams_28d desc → followers desc → added_at asc.
+    enrichedPlaylists.sort((a: any, b: any) => {
+      const dd = Number(b.delivery_accumulated ?? 0) - Number(a.delivery_accumulated ?? 0);
+      if (dd !== 0) return dd;
+      const s7 = Number(b.plays_7d ?? 0) - Number(a.plays_7d ?? 0);
+      if (s7 !== 0) return s7;
+      const s28 = Number(b.plays_28d ?? 0) - Number(a.plays_28d ?? 0);
+      if (s28 !== 0) return s28;
+      const f = Number(b.followers ?? 0) - Number(a.followers ?? 0);
+      if (f !== 0) return f;
+      return +new Date(a.added_at ?? 0) - +new Date(b.added_at ?? 0);
+    });
+
     return jr({
       ok: true,
       deal,
       access,
       campaign_context,
-      playlists: (playlists ?? []).map((p: any) => ({
-        ...p,
-        plays_24h: latestByPlaylist[p.id]?.plays_24h ?? null,
-        plays_7d: latestByPlaylist[p.id]?.plays_7d ?? growthBySpotifyPlaylist[(p.spotify_playlist_id ?? "").trim()]?.plays_7d ?? p.streams_7d ?? null,
-        plays_28d: latestByPlaylist[p.id]?.plays_28d ?? growthBySpotifyPlaylist[(p.spotify_playlist_id ?? "").trim()]?.plays_28d ?? p.streams_28d ?? null,
-        last_window_capture_at: latestByPlaylist[p.id]?.captured_at ?? null,
-        baseline_plays_prior: baselinePlaysByPid[(p.spotify_playlist_id ?? "").trim()] ?? 0,
-      })),
+      playlists: enrichedPlaylists,
       songs: songs ?? [],
       progress: progressRpc ?? null,
       // Deduplicação é global no RPC get_curator_deal_snapshot_history,
@@ -570,7 +621,12 @@ Deno.serve(async (req) => {
       snapshot_history: historyRpc ?? [],
       curator_submissions,
       baseline_conflicts,
+      // Fase 7.3 — novos blocos: galeria de prints, histórico de Excel e timeline.
+      prints: printsGallery,
+      uploads: uploadsWithUrls,
+      timeline,
     });
+
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return jr({ ok: false, error: msg }, 200);
