@@ -367,6 +367,7 @@ export function OverviewTab({
       })()}
 
       {/* Detalhes do plano — ocultado: informações já cobertas pelos KPIs + cards eco/ext/org */}
+      {/* eslint-disable-next-line no-constant-binary-expression */}
       {false && !hideDeliveryPlan && (
       <Card>
 

@@ -2365,7 +2365,7 @@ export default function CuratorPage() {
                   {prints.map((p, i) => (
                     <li key={`${p.kind}-${i}-${p.captured_at}`} className="rounded-lg border border-border overflow-hidden bg-card/40">
                       <a href={p.screenshot_url} target="_blank" rel="noreferrer" className="block aspect-video bg-muted overflow-hidden">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        
                         <img src={p.screenshot_url} alt={p.playlist_name ?? "print"} className="w-full h-full object-cover hover:scale-105 transition-transform" loading="lazy" />
                       </a>
                       <div className="p-2 space-y-1">

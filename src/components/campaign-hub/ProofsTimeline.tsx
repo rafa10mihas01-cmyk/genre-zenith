@@ -35,7 +35,7 @@ export function ProofsTimeline({ events, campaignStartedAt }: Props) {
 
   const counts = useMemo(() => {
     let eco = 0, ext = 0;
-    for (const e of events) (kindOf(e) === "eco" ? eco++ : ext++);
+    for (const e of events) { if (kindOf(e) === "eco") eco++; else ext++; }
     return { all: events.length, eco, ext };
   }, [events]);
 
