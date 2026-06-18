@@ -8,7 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft, Music2, Layers, TrendingUp, Activity, ExternalLink,
   BarChart3, ListMusic, History, Gauge, CheckCircle2, AlertTriangle, Clock,
-  PlayCircle, RefreshCw, ChevronDown,
+  PlayCircle, RefreshCw, ChevronDown, LayoutDashboard, Sparkles,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
