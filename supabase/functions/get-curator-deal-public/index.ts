@@ -26,6 +26,22 @@ function jr(p: unknown, status = 200) {
   });
 }
 
+function spotifyTrackId(input: unknown): string | null {
+  const raw = String(input ?? "").trim();
+  if (!raw) return null;
+  const m = raw.match(/track\/([A-Za-z0-9]{16,})/);
+  if (m?.[1]) return m[1];
+  return /^[A-Za-z0-9]{16,}$/.test(raw) ? raw : null;
+}
+
+function normText(input: unknown): string {
+  return String(input ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -96,6 +112,28 @@ Deno.serve(async (req) => {
       return jr({ ok: false, error: gate.error ?? "forbidden", required_otp: true }, gate.status ?? 401);
     }
 
+    // Uploads/planilhas de campanha podem ser gravados no deal espelho da
+    // campanha (ex.: Plug Music) enquanto este portal pertence ao curador real
+    // (ex.: Manolo). Para o portal não ficar cego, lemos arquivos dos deals da
+    // mesma campanha e da mesma música, sem criar dado novo.
+    const uploadDealIds = new Set<string>([deal.id]);
+    if ((deal as any).campaign_id) {
+      try {
+        const thisTrack = spotifyTrackId((deal as any).song_spotify_url);
+        const thisName = normText((deal as any).song_name);
+        const { data: siblingDeals } = await admin
+          .from("curator_deals")
+          .select("id, song_name, song_spotify_url")
+          .eq("campaign_id", (deal as any).campaign_id);
+        for (const sibling of (siblingDeals ?? []) as Array<{ id: string; song_name: string | null; song_spotify_url: string | null }>) {
+          const siblingTrack = spotifyTrackId(sibling.song_spotify_url);
+          const sameTrack = thisTrack && siblingTrack && thisTrack === siblingTrack;
+          const sameName = thisName && normText(sibling.song_name) === thisName;
+          if (sameTrack || sameName) uploadDealIds.add(sibling.id);
+        }
+      } catch (_e) { /* best-effort */ }
+    }
+
     // Dados base + RPCs de progresso e histórico (snapshots como fonte única).
     const [
       { data: playlists, error: plErr },
@@ -150,7 +188,7 @@ Deno.serve(async (req) => {
       admin
         .from("label_spreadsheet_uploads")
         .select("id, file_name, file_path, content_hash, rows_imported, total_streams, reference_date, created_at, is_baseline, upload_mode, superseded_by, superseded_at, window_kind, window_days, quarantined_at, quarantine_reason, status, uploaded_via")
-        .eq("deal_id", deal.id)
+        .in("deal_id", Array.from(uploadDealIds))
         .order("reference_date", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false }),
     ]);
