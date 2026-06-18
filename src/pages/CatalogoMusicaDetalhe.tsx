@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { MusicaIntelligenceSection } from "@/components/catalogo/MusicaIntelligenceSection";
 
 type Track = {
   id: string;
@@ -475,6 +476,7 @@ function DesktopPlacementsGroups({ placements }: { placements: Placement[] }) {
 
 export default function CatalogoMusicaDetalhe() {
   const { id = "" } = useParams<{ id: string }>();
+  const [tab, setTab] = useState<"geral" | "inteligencia">("geral");
   const q = useQuery({ queryKey: ["catalog", "detail", id], queryFn: () => fetchDetail(id), enabled: !!id, refetchInterval: 30_000 });
 
   const placementsByStatus = useMemo(() => {
