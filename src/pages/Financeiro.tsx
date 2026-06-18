@@ -112,7 +112,7 @@ function MargemView() {
           value={totals.margemPct == null ? "—" : `${totals.margemPct.toFixed(1)}%`}
           tone={toneMap(totals.margemPct != null && totals.margemPct >= 30 ? "primary" : "muted")}
         />
-        <Kpi icon={Wallet} label="Resultado líquido" value={fmtBRL(totals.recebido - totals.pago)} />
+        <Kpi icon={Wallet} label="Resultado líquido" value={fmtBRL(totals.recebido - totals.pagoPorCampanha)} />
       </section>
 
       <section className="rounded-2xl bg-card border border-border overflow-hidden">
