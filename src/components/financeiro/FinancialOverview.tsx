@@ -237,33 +237,3 @@ export function FinancialOverview() {
   );
 }
 
-function SummaryCard({
-  icon: Icon,
-  label,
-  value,
-  tone,
-  hint,
-}: {
-  icon: any;
-  label: string;
-  value: string;
-  tone: "primary" | "warn" | "muted";
-  hint?: string;
-}) {
-  const accent =
-    tone === "primary" ? "text-primary bg-primary/10"
-    : tone === "warn" ? "text-amber-500 bg-amber-500/10"
-    : "text-muted-foreground bg-elevated/60";
-  return (
-    <div className="rounded-2xl border border-border bg-card p-4">
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
-        <span className={cn("h-6 w-6 rounded-md flex items-center justify-center", accent)}>
-          <Icon className="h-3.5 w-3.5" />
-        </span>
-        {label}
-      </div>
-      <div className="mt-2 text-base sm:text-xl font-bold tabular-nums text-foreground">{value}</div>
-      {hint && <div className="mt-1 text-[11px] text-muted-foreground">{hint}</div>}
-    </div>
-  );
-}
