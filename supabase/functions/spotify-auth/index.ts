@@ -8,7 +8,7 @@
 //   POST ?mode=app_delete   body {id}
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getAppToken, forceRefreshAppToken, SPOTIFY_USER_SCOPES, SPOTIFY_USER_SCOPES_LIST, getAppCredentials } from "../_shared/spotify-client.ts";
+import { getAppToken, forceRefreshAppToken, SPOTIFY_USER_SCOPES, SPOTIFY_USER_SCOPES_LIST, getAppCredentials, spotifyFetch } from "../_shared/spotify-client.ts";
 import { logAudit, extractRequestMeta } from "../_shared/oauth-audit.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
