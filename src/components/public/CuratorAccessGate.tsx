@@ -13,8 +13,8 @@ interface Props {
   onAuthed: (jwt: string, email: string) => void;
 }
 
-const STORAGE_PREFIX = "curator_access_jwt:";
-export const curatorAccessStorageKey = (token: string) => `${STORAGE_PREFIX}${token}`;
+export { curatorAccessStorageKey } from "@/lib/curatorPortalAuth";
+import { curatorAccessStorageKey as _key } from "@/lib/curatorPortalAuth";
 
 export function CuratorAccessGate({ token, onAuthed }: Props) {
   const [step, setStep] = useState<"email" | "code">("email");
