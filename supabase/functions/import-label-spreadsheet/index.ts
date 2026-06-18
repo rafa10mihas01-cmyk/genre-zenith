@@ -181,6 +181,19 @@ function detectFormat(fileName: string, buf: Uint8Array): "csv" | "xlsx" {
   return "csv";
 }
 
+// 🪟 Detecta janela temporal a partir do nome do arquivo / cabeçalhos.
+// Sem isso, o guard tg_label_uploads_guard quarentena tudo que não vier
+// explicitamente marcado — quebrando uploads legítimos de planilhas com
+// cabeçalho não-padrão (ex.: "Resultados Playlists ... Resultados diário").
+function detectWindowKind(fileName: string, headerSample: string): "all_time" | "last_28d" | "last_7d" | "last_24h" | null {
+  const haystack = `${fileName} ${headerSample}`.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (/\b(all[\s_-]*time|lifetime|vitalici|desde[\s_-]*sempre|total[\s_-]*geral)\b/.test(haystack)) return "all_time";
+  if (/\b(28[\s_-]*d(ias?)?|monthly|mensal|month|ultimos?[\s_-]*28|last[\s_-]*28)\b/.test(haystack)) return "last_28d";
+  if (/\b(7[\s_-]*d(ias?)?|weekly|semanal|semana|ultim[ao]s?[\s_-]*7|last[\s_-]*7)\b/.test(haystack)) return "last_7d";
+  if (/\b(24[\s_-]*h(ours?)?|diari[oa]|daily|1[\s_-]*d(ay|ia)?|ultim[ao][\s_-]*24|last[\s_-]*24|last[\s_-]*day)\b/.test(haystack)) return "last_24h";
+  return null;
+}
+
 function parseBuf(
   buf: Uint8Array,
   fmt: "csv" | "xlsx",
@@ -652,10 +665,17 @@ Deno.serve(async (req) => {
         is_baseline: isBaseline && !willQuarantine,
         upload_mode: uploadMode,
         window_kind: (() => {
-          const allowed = new Set(["all_time", "last_28d", "last_7d", "last_24h", "unknown"]);
+          const allowed = new Set(["all_time", "last_28d", "last_7d", "last_24h"]);
           const wk = evalResult.window_kind;
-          if (!wk) return null;
-          return allowed.has(wk) ? wk : "unknown";
+          if (wk && allowed.has(wk)) return wk;
+          // Heurística por nome do arquivo / cabeçalho.
+          const headerSample = (detected ?? []).join(" ");
+          const detectedWk = detectWindowKind(fileName, headerSample);
+          if (detectedWk) return detectedWk;
+          // Sem sinal explícito: assume janela diária (caso S4A mais comum).
+          // É o mesmo comportamento do bot DOM (que sempre cai em 24h/7d).
+          // Mantém o upload fora da quarentena por classificação ausente.
+          return "last_24h";
         })(),
         quarantined_at: willQuarantine ? new Date().toISOString() : null,
         quarantine_reason: willQuarantine ? (evalResult.reason ?? null) : null,
