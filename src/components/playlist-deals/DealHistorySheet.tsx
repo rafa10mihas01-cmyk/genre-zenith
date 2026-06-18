@@ -52,6 +52,7 @@ import {
   type CuratorDealProgress,
 } from "@/lib/curatorDealsUtils";
 import { Kpi as UnifiedKpi } from "@/components/ui/kpi";
+import type { CampaignSpreadsheetUpload } from "@/hooks/useCuratorDealDetail";
 
 export interface DealHistorySheetProps {
   open: boolean;
@@ -59,6 +60,7 @@ export interface DealHistorySheetProps {
   songs?: CuratorDealSong[];
   allLogs: CuratorDealLog[];
   allPlaylists: CuratorPlaylist[];
+  spreadsheetUploads?: CampaignSpreadsheetUpload[];
   progress?: CuratorDealProgress | null;
   onClose: () => void;
   onReload?: () => void;
@@ -379,6 +381,7 @@ export function DealHistorySheet({
   songs = [],
   allLogs,
   allPlaylists,
+  spreadsheetUploads = [],
   progress,
   onClose,
   onReload,
