@@ -722,6 +722,10 @@ export default function CuratorPage() {
   // FASE 1 — apenas playlists oficialmente cadastradas pelo curador (match_status='curator')
   // alimentam progresso/KPIs/Performance. Sem essas, o portal esconde tudo e pede cadastro.
   const hasCuratorPlaylists = curatorPlaylists.length > 0;
+  const collectionProblem = hasCuratorPlaylists
+    && snapshotHistory.length === 0
+    && prints.length === 0
+    && uploads.length === 0;
   // Default da tab: se não tem playlist cadastrada, abre em "Cadastro";
   // se já tem, abre em "Entrega". Só roda uma vez no primeiro load.
   useEffect(() => {
@@ -1364,13 +1368,11 @@ export default function CuratorPage() {
 
         {/* Tabs por fase — pipeline em pílulas, mobile-first */}
         <div className="pt-1 sticky top-2 z-30">
-          <div className="grid grid-cols-5 items-center gap-0.5 rounded-full bg-card/80 backdrop-blur-md border border-border/50 p-0.5 shadow-[0_4px_16px_-8px_rgba(0,0,0,0.4)] w-full">
+          <div className="grid grid-cols-3 items-center gap-0.5 rounded-full bg-card/80 backdrop-blur-md border border-border/50 p-0.5 shadow-[0_4px_16px_-8px_rgba(0,0,0,0.4)] w-full">
             {([
               { id: "cadastro" as const, label: "Cadastro", icon: ListMusic, count: curatorPlaylists.length || null },
               { id: "entrega" as const, label: "Entrega", icon: Target, count: stats.target > 0 ? `${stats.pct}%` : null },
-              { id: "evidencias" as const, label: "Evidências", icon: ImageIcon, count: prints.length || null },
-              { id: "arquivos" as const, label: "Arquivos", icon: Download, count: uploads.length || null },
-              { id: "historico" as const, label: "Histórico", icon: Clock, count: snapshotHistory.length || null },
+              { id: "historico" as const, label: "Histórico", icon: Clock, count: (snapshotHistory.length + prints.length + uploads.length) || null },
             ]).map((t) => {
               const Icon = t.icon;
               const isActive = activeTab === t.id;
@@ -2368,6 +2370,39 @@ export default function CuratorPage() {
         )}
 
         {/* Fase 7.3 P7 — Timeline operacional do deal (eventos de negócio). */}
+        {activeTab === "historico" && collectionProblem && (
+          <Card className="nx-card nx-card-glow !p-0 border-warning/40">
+            <CardContent className="p-5 sm:p-6 space-y-4">
+              <div>
+                <h2 className="text-[15px] font-semibold tracking-tight">Problema encontrado</h2>
+                <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed">
+                  Existem {curatorPlaylists.length} playlists cadastradas, mas nenhuma coleta, print ou arquivo foi gravado para este deal.
+                </p>
+              </div>
+              <div className="grid grid-cols-4 gap-2 text-center">
+                <div className="rounded-lg border border-border/60 bg-card/50 px-2 py-3">
+                  <div className="text-[18px] font-semibold tabular-nums text-primary">{curatorPlaylists.length}</div>
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">playlists</div>
+                </div>
+                <div className="rounded-lg border border-border/60 bg-card/50 px-2 py-3">
+                  <div className="text-[18px] font-semibold tabular-nums">0</div>
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">coletas</div>
+                </div>
+                <div className="rounded-lg border border-border/60 bg-card/50 px-2 py-3">
+                  <div className="text-[18px] font-semibold tabular-nums">0</div>
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">prints</div>
+                </div>
+                <div className="rounded-lg border border-border/60 bg-card/50 px-2 py-3">
+                  <div className="text-[18px] font-semibold tabular-nums">0</div>
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">arquivos</div>
+                </div>
+              </div>
+              <div className="text-[12px] text-warning leading-relaxed border-t border-border/60 pt-3">
+                A tela não está escondendo dados: as tabelas de coleta/evidência/arquivo estão vazias para esta campanha.
+              </div>
+            </CardContent>
+          </Card>
+        )}
         {activeTab === "historico" && timeline.length > 0 && (
           <Card className="nx-card nx-card-glow !p-0 border-border">
             <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-3">
