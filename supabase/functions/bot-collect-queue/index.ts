@@ -4,53 +4,53 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { recordMetric } from "../_shared/ops-metrics.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
-import { getAppToken } from "../_shared/spotify-client.ts";
+import { getTrackCacheBatch, enqueueEnrichment } from "../_shared/spotify-cache.ts";
 
-// Resolve spotify_artist_id automaticamente via Spotify API quando o cliente
-// não tem cadastrado. Tenta casar pelo nome (song_artist) e cacheia no client.
-async function resolveArtistIdFromTrack(
+// FASE 6.A.3 — resolução inline de spotify_artist_id removida.
+// Agora consultamos spotify_track_cache (alimentado pelo spotify-enrichment-worker).
+// Cache miss → enfileira na spotify_enrichment_queue e devolve null (próximo
+// dispatch terá o artistId). Sem fetch síncrono no caminho quente do bot.
+async function resolveArtistIdsFromCache(
   supabase: any,
-  trackId: string,
-  songArtist: string | null,
-  clientId: string | null,
-  songId: string | null = null,
-): Promise<{ artistId: string | null; artistUrl: string | null }> {
-  try {
-    const token = await getAppToken();
-    const res = await fetch(`https://api.spotify.com/v1/tracks/${trackId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) return { artistId: null, artistUrl: null };
-    const data = await res.json();
-    const artists: Array<{ id: string; name: string }> = data?.artists ?? [];
-    if (!artists.length) return { artistId: null, artistUrl: null };
-    const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-    const match = songArtist
-      ? artists.find((a) => norm(a.name) === norm(songArtist))
-        ?? artists.find((a) => norm(songArtist).includes(norm(a.name)) || norm(a.name).includes(norm(songArtist)))
-      : null;
-    const chosen = match ?? artists[0];
-    const artistUrl = `https://open.spotify.com/artist/${chosen.id}`;
-    if (clientId) {
+  songs: Array<{ id: string; spotify_track_id: string | null; spotify_artist_id: string | null; song_artist: string | null; clientId: string | null }>,
+): Promise<Map<string, { artistId: string | null; artistUrl: string | null }>> {
+  const out = new Map<string, { artistId: string | null; artistUrl: string | null }>();
+  const needLookup = songs.filter((s) => !s.spotify_artist_id && s.spotify_track_id);
+  if (!needLookup.length) return out;
+  const trackIds = needLookup.map((s) => s.spotify_track_id as string);
+  const cache = await getTrackCacheBatch(trackIds);
+  const persistBySong: Array<{ songId: string; clientId: string | null; artistId: string }> = [];
+  for (const s of needLookup) {
+    const row = cache.get(s.spotify_track_id as string);
+    const artistId = row?.artist_ids?.[0] ?? null;
+    if (artistId) {
+      const artistUrl = `https://open.spotify.com/artist/${artistId}`;
+      out.set(s.id, { artistId, artistUrl });
+      persistBySong.push({ songId: s.id, clientId: s.clientId, artistId });
+    } else {
+      out.set(s.id, { artistId: null, artistUrl: null });
+    }
+  }
+  // Persiste resoluções confirmadas (cache hit) — best-effort.
+  for (const p of persistBySong) {
+    const artistUrl = `https://open.spotify.com/artist/${p.artistId}`;
+    if (p.clientId) {
       await supabase
         .from("clients")
-        .update({ spotify_artist_id: chosen.id, spotify_artist_url: artistUrl })
-        .eq("id", clientId)
+        .update({ spotify_artist_id: p.artistId, spotify_artist_url: artistUrl })
+        .eq("id", p.clientId)
         .is("spotify_artist_id", null);
     }
-    // Persiste também na song (cobre deals sem campanha/cliente vinculados)
-    if (songId) {
-      await supabase
-        .from("curator_deal_songs")
-        .update({ spotify_artist_id: chosen.id, spotify_artist_url: artistUrl })
-        .eq("id", songId)
-        .is("spotify_artist_id", null);
-    }
-    return { artistId: chosen.id, artistUrl };
-  } catch (_) {
-    return { artistId: null, artistUrl: null };
+    await supabase
+      .from("curator_deal_songs")
+      .update({ spotify_artist_id: p.artistId, spotify_artist_url: artistUrl })
+      .eq("id", p.songId)
+      .is("spotify_artist_id", null);
   }
+  return out;
 }
+
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
