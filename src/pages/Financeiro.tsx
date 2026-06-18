@@ -243,7 +243,7 @@ export default function Financeiro() {
         <div className="animate-tab-in">
           {tab === "visao"   && <FinancialOverview />}
           {tab === "receita" && <ReceitaView />}
-          {tab === "custo"   && <FinanceiroTab deals={deals} hideHero />}
+          {tab === "custo"   && <FinanceiroTab />}
           {tab === "margem"  && <MargemView />}
           {tab === "config"  && <PricingSettingsPanel />}
         </div>
