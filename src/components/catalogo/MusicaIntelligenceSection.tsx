@@ -816,8 +816,8 @@ function buildFeed(
   return items.sort((a, b) => +new Date(b.at) - +new Date(a.at)).slice(0, 60);
 }
 
-function EventFeedPanel(props: { placements: Placement[]; snapshots: Snapshot[]; exec: ExecutionLogRow[]; obs: ObserverTrackRow[]; breakers: { app_id: string; status: string; blocked_until: string | null }[] }) {
-  const items = useMemo(() => buildFeed(props.placements, props.snapshots, props.exec, props.obs, props.breakers), [props]);
+function EventFeedPanel(props: { placements: Placement[]; baseline: Baseline; snapshots: Snapshot[]; exec: ExecutionLogRow[]; obs: ObserverTrackRow[] }) {
+  const items = useMemo(() => buildFeed(props.placements, props.baseline, props.snapshots, props.exec, props.obs), [props]);
   if (items.length === 0) {
     return <div className="p-6 text-center text-xs text-muted-foreground">Sem eventos.</div>;
   }
