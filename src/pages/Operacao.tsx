@@ -155,7 +155,7 @@ export default function Operacao() {
       if (!cover && Array.isArray(t.cover_variations) && t.cover_variations.length > 0) {
         const idx = typeof t.cover_selected_index === "number" ? t.cover_selected_index : 0;
         const v = t.cover_variations[idx] ?? t.cover_variations[0];
-        cover = (typeof v === "string" ? v : v?.url ?? v?.image_url) ?? null;
+        cover = (typeof v === "string" ? v : (v as { url?: string; image_url?: string } | null)?.url ?? (v as { url?: string; image_url?: string } | null)?.image_url) ?? null;
       }
 
       return {
