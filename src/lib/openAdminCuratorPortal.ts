@@ -1,11 +1,10 @@
 // Abre o portal do curador para operador admin sem OTP/senha.
 import { supabase } from "@/integrations/supabase/client";
-import { curatorPublicUrl } from "@/lib/curatorPublicUrl";
 import { toast } from "sonner";
 
 export async function openAdminCuratorPortal(opts: { slug?: string | null; publicToken?: string | null }) {
   const token = ((opts.slug && opts.slug.trim()) || (opts.publicToken ?? "")).trim();
-  const baseUrl = curatorPublicUrl({ slug: opts.slug ?? null, public_token: opts.publicToken ?? null });
+  const baseUrl = `${window.location.origin}/curador/${encodeURIComponent(token)}`;
   const win = window.open("about:blank", "_blank");
 
   const navigate = (url: string) => {
