@@ -185,9 +185,9 @@ function MobilePlacementsRow({ p }: { p: Placement }) {
             href={`https://open.spotify.com/playlist/${p.managed_playlists.spotify_playlist_id}`}
             target="_blank"
             rel="noreferrer"
-            className="text-foreground text-[13px] font-medium truncate leading-none inline-flex items-center gap-1 hover:text-primary"
+            className="text-foreground text-[13px] font-medium leading-none flex items-center gap-1 min-w-0 hover:text-primary"
           >
-            <span className="truncate">{p.managed_playlists?.name ?? "—"}</span>
+            <span className="truncate min-w-0 flex-1">{p.managed_playlists?.name ?? "—"}</span>
             <ExternalLink className="h-3 w-3 opacity-60 flex-shrink-0" />
           </a>
         ) : (

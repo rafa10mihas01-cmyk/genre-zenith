@@ -800,18 +800,18 @@ function PlacementTimelinesPanel({ placements, exec, obs }: {
         ];
         return (
           <div key={p.id} className="p-4 sm:p-5">
-            <div className="flex items-center justify-between mb-2 gap-2">
+            <div className="flex items-start justify-between mb-2 gap-2">
               <div className="min-w-0 flex-1">
                 {url ? (
-                  <a href={url} target="_blank" rel="noreferrer" className="text-sm font-medium text-foreground hover:text-primary inline-flex items-center gap-1 truncate">
-                    <span className="truncate">{name}</span><ExternalLink className="h-3 w-3 opacity-60 shrink-0" />
+                  <a href={url} target="_blank" rel="noreferrer" className="text-sm font-medium text-foreground hover:text-primary flex items-center gap-1 min-w-0">
+                    <span className="truncate min-w-0 flex-1">{name}</span><ExternalLink className="h-3 w-3 opacity-60 shrink-0" />
                   </a>
                 ) : (
                   <span className="text-sm font-medium text-foreground truncate block">{name}</span>
                 )}
               </div>
               <span className={cn(
-                "text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0",
+                "text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 self-start",
                 p.status === "active" && "bg-emerald-500/10 text-emerald-400",
                 p.status === "failed" && "bg-rose-500/10 text-rose-400",
                 p.status === "removed" && "bg-muted/30 text-muted-foreground",
