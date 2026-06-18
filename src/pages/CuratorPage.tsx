@@ -69,6 +69,7 @@ import { AddSongToPlaylistDialog } from "@/components/curators/AddSongToPlaylist
 import { CuratorAccessGate, curatorAccessStorageKey } from "@/components/public/CuratorAccessGate";
 import { invokeCuratorPortal } from "@/lib/curatorPortalAuth";
 import { HistoricoPrevioBadge, HistoricoPrevioAlert, HistoricoPrevioCounter } from "@/components/campanhas/HistoricoPrevio";
+import { friendlyUploadName, downloadUploadUrlAsXlsx } from "@/lib/spreadsheetDisplay";
 
 type Deal = {
   id: string;
