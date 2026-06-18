@@ -613,7 +613,7 @@ function PlaylistRankingPanel({ placements, obs, ssPl, exec }: {
                   <td className="px-3 py-2 text-right hidden md:table-cell"><TrendBadge t={r.trend} /></td>
                   <td className="px-3 py-2 text-right font-mono text-xs hidden lg:table-cell">{r.bestPosition != null ? `#${r.bestPosition}` : "—"}</td>
                   <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground hidden lg:table-cell">{rel(r.lastSeen)}</td>
-                  <td className="px-3 py-2 text-right">
+                  <td className="px-3 py-2 text-right hidden sm:table-cell">
                     <span className={cn(
                       "inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider",
                       r.status === "ativa" ? "text-emerald-400" : "text-muted-foreground",
