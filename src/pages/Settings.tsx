@@ -18,6 +18,7 @@ import { AppConnectionCard } from "@/components/settings/AppConnectionCard";
 import { SpotifyAppsManager, type SpotifyApp } from "@/components/settings/SpotifyAppsManager";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { getSpotifyRedirectUri } from "@/lib/spotifyPublicAuth";
+import { getErrorMessage } from "@/lib/errors";
 
 const STORAGE_KEY = "nx-collect-settings";
 const SETTINGS_ROUTE = "/configuracoes";
@@ -147,9 +148,9 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
           ? "A tela oficial de autorização será aberta sem passar pela página de conta do Spotify."
           : "Aprove o acesso. Depois volte aqui e atualize que a conta aparece.",
       });
-    } catch (e: any) {
+    } catch (e: unknown) {
       preopenedPopup?.close();
-      toast.error("Erro ao abrir Spotify", { description: e?.message });
+      toast.error("Erro ao abrir Spotify", { description: getErrorMessage(e) });
     }
   }
 
@@ -242,9 +243,9 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
           description: "Depois de aprovar no Spotify, volte para esta tela que a conta será registrada automaticamente.",
         });
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       popup?.close();
-      toast.error("Erro ao iniciar conexão", { description: e?.message });
+      toast.error("Erro ao iniciar conexão", { description: getErrorMessage(e) });
     } finally {
       setConnectingSpotify(false);
     }

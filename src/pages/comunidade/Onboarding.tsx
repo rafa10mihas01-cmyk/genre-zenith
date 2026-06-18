@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
 import { useFlowField } from "@/lib/screen-state";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/errors";
 
 const TOTAL = 3;
 
@@ -55,8 +56,8 @@ export default function Onboarding() {
         followers: 0,
         spotify_id: data.id,
       });
-    } catch (err: any) {
-      toast.error("Link inválido", { description: err?.message ?? "Cole o link de uma playlist Spotify." });
+    } catch (err: unknown) {
+      toast.error("Link inválido", { description: getErrorMessage(err) ?? "Cole o link de uma playlist Spotify." });
     } finally {
       setValidating(false);
     }

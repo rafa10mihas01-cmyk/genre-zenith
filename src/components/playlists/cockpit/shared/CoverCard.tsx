@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useGenreModelInsights } from "@/hooks/useCockpitQueries";
+import { getErrorMessage } from "@/lib/errors";
 
 export type CoverReference = {
   id: string;
@@ -56,8 +57,8 @@ export function CoverCard({ managedId, currentCover, references, spotifyPlaylist
         title: data.unchanged ? "Capa já aplicada" : data.confirmed ? "Capa aplicada no Spotify" : "Capa enviada ao Spotify",
         description: data.unchanged ? "Essa referência já é visualmente igual à capa atual." : data.confirmed ? `Usando a capa de "${ref.name}".` : "O Spotify aceitou a capa, mas a CDN ainda pode levar alguns segundos para exibir.",
       });
-    } catch (e: any) {
-      toast({ title: "Erro ao aplicar capa", description: e?.message ?? String(e), variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Erro ao aplicar capa", description: getErrorMessage(e) , variant: "destructive" });
     } finally {
       setApplyingLeader(null);
     }
@@ -118,8 +119,8 @@ export function CoverCard({ managedId, currentCover, references, spotifyPlaylist
         title: data.unchanged ? "Capa já aplicada" : data.confirmed ? "Capa aplicada no Spotify" : "Capa enviada ao Spotify",
         description: data.unchanged ? "A imagem enviada já é visualmente igual à capa atual." : data.confirmed ? "A nova capa já foi confirmada no Spotify." : "O Spotify aceitou a capa, mas a CDN ainda pode levar alguns segundos para exibir.",
       });
-    } catch (e: any) {
-      toast({ title: "Erro ao enviar capa", description: e?.message ?? String(e), variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Erro ao enviar capa", description: getErrorMessage(e) , variant: "destructive" });
     } finally {
       setUploading(false);
     }

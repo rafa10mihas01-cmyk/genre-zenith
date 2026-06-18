@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, Trash2, Plus, RefreshCw, Music2, Clock, AlertCircle, Sparkles, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getErrorMessage } from "@/lib/errors";
 
 type Track = {
   spotify_track_id: string;
@@ -114,8 +115,8 @@ export function PlaylistTracksTab({ playlistId }: { playlistId: string }) {
       }
       if (error || !data?.ok) throw new Error(serverError ?? error?.message ?? data?.error ?? "Falhou");
       setTracks(data.tracks ?? []);
-    } catch (e: any) {
-      setErr(e.message);
+    } catch (e: unknown) {
+      setErr(getErrorMessage(e));
     } finally {
       setLoading(false);
     }
@@ -185,7 +186,7 @@ export function PlaylistTracksTab({ playlistId }: { playlistId: string }) {
         }
       }
       setOwnership(map);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error("[ownership]", e);
     } finally {
       setLoadingOwnership(false);
@@ -227,8 +228,8 @@ export function PlaylistTracksTab({ playlistId }: { playlistId: string }) {
           : "O bot vai processar nos próximos minutos.",
       });
       loadJobs();
-    } catch (e: any) {
-      toast({ title: "Erro ao enfileirar", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Erro ao enfileirar", description: getErrorMessage(e), variant: "destructive" });
     } finally {
       setBusyTrack(null);
     }
@@ -245,8 +246,8 @@ export function PlaylistTracksTab({ playlistId }: { playlistId: string }) {
       toast({ title: "Faixa enfileirada", description: "O bot vai adicionar nos próximos minutos." });
       setAddInput("");
       loadJobs();
-    } catch (e: any) {
-      toast({ title: "Não consegui enfileirar", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Não consegui enfileirar", description: getErrorMessage(e), variant: "destructive" });
     } finally {
       setAdding(false);
     }

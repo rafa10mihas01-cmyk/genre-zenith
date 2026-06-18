@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import nexengineLogo from "@/assets/nexengine-logo-email.png";
+import { getErrorMessage } from "@/lib/errors";
 
 type Target = {
   externalCuratorId: string;
@@ -174,9 +175,9 @@ export function EmailPreviewDialog({
       }
       onSent?.();
       onOpenChange(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      toast.error(err?.message ?? "Falha ao enviar");
+      toast.error(getErrorMessage(err) ?? "Falha ao enviar");
     } finally {
       setSending(false);
     }

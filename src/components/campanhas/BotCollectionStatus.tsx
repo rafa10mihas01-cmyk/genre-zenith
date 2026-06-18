@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useLatestBotHeartbeat } from "@/hooks/useLatestBotHeartbeat";
+import { getErrorMessage } from "@/lib/errors";
 
 
 type Props = {
@@ -130,8 +131,8 @@ export function BotCollectionStatus({ campaignId, dealId }: Props) {
         .eq("deal_id", dealId);
       if (error) throw error;
       toast.success("Coleta forçada. Próxima passada do robô já pega.");
-    } catch (e: any) {
-      toast.error(e?.message ?? "Falha ao forçar coleta");
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e) ?? "Falha ao forçar coleta");
     } finally {
       setRetrying(false);
     }

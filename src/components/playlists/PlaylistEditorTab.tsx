@@ -32,6 +32,7 @@ import {
   useSortable, verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { getErrorMessage } from "@/lib/errors";
 
 type Track = {
   spotify_track_id: string;
@@ -308,8 +309,8 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
       setSource(isCache ? "cache" : "spotify");
       setCacheSnapshotAt(isCache ? (data.cache_snapshot_at ?? null) : null);
       setTracks(data.tracks ?? []);
-    } catch (e: any) {
-      setErr(e.message);
+    } catch (e: unknown) {
+      setErr(getErrorMessage(e));
     } finally {
       setLoading(false);
     }
@@ -429,8 +430,8 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
         description: `Posição ${batch.fromPosition} → ${toPosition}.`,
       });
       loadJobs();
-    } catch (e: any) {
-      toast({ title: "Não consegui reordenar", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Não consegui reordenar", description: getErrorMessage(e), variant: "destructive" });
       loadTracks(); // rollback via refetch
     } finally {
       setBusyTrack(null);
@@ -492,8 +493,8 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
       if (error || !data?.ok) throw new Error(error?.message ?? data?.error ?? "Falhou");
       toast({ title: "Remoção enfileirada", description: "Bot vai processar em instantes." });
       loadJobs();
-    } catch (e: any) {
-      toast({ title: "Erro ao remover", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Erro ao remover", description: getErrorMessage(e), variant: "destructive" });
     } finally {
       setBusyTrack(null);
       inFlight.current = false;
@@ -537,8 +538,8 @@ export function PlaylistEditorTab({ playlistId }: { playlistId: string }) {
       setAddOpen(false);
       setAddInput("");
       loadJobs();
-    } catch (e: any) {
-      toast({ title: "Não consegui adicionar", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Não consegui adicionar", description: getErrorMessage(e), variant: "destructive" });
     } finally {
       setAdding(false);
       inFlight.current = false;

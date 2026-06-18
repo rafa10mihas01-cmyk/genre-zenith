@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { EcoPlaylist } from "@/lib/ecosystemCapacity";
+import { getErrorMessage } from "@/lib/errors";
 
 export type GenreRow = { id: string; nome: string };
 
@@ -69,8 +70,8 @@ export function useEcosystemSnapshot(): EcosystemSnapshot {
         })) as EcoPlaylist[];
 
         setState({ loading: false, error: null, playlists, genres, affinities: aff });
-      } catch (e: any) {
-        if (!cancelled) setState({ loading: false, error: e?.message ?? "erro", playlists: [], genres: new Map(), affinities: [] });
+      } catch (e: unknown) {
+        if (!cancelled) setState({ loading: false, error: getErrorMessage(e) ?? "erro", playlists: [], genres: new Map(), affinities: [] });
       }
     })();
     return () => { cancelled = true; };

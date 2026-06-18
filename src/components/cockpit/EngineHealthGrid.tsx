@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { getErrorMessage } from "@/lib/errors";
 
 type SignalStatus = "ok" | "warn" | "dead";
 type Signal = { name: string; value: number; variance: number; status: SignalStatus };
@@ -106,8 +107,8 @@ export function EngineHealthGrid() {
           for (const g of (genres ?? []) as Array<{ id: string; nome: string }>) map[g.id] = g.nome;
           if (!cancelled) setLabels(map);
         }
-      } catch (e: any) {
-        if (!cancelled) setError(String(e?.message ?? e));
+      } catch (e: unknown) {
+        if (!cancelled) setError(String(getErrorMessage(e) ?? e));
       } finally {
         if (!cancelled) setLoading(false);
       }

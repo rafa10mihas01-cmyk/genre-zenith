@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCuratorDeals } from "@/hooks/useCuratorDeals";
 import type { CuratorDeal, CuratorDealSong } from "@/lib/curatorDealsUtils";
 import { formatNumber } from "@/lib/format";
+import { getErrorMessage } from "@/lib/errors";
 
 export interface DuplicateDealDialogProps {
   open: boolean;
@@ -209,8 +210,8 @@ export function DuplicateDealDialog({
         });
         onOpenChange(false);
         await onSaved?.();
-      } catch (e: any) {
-        if (e?.message === "DUPLICATE_DEAL" && !force) {
+      } catch (e: unknown) {
+        if (getErrorMessage(e) === "DUPLICATE_DEAL" && !force) {
           const ok = confirm(
             "Já existe um deal com essa música pra esse curador. Criar mesmo assim?",
           );

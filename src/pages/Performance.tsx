@@ -19,6 +19,7 @@ import { TopMovers } from "@/components/performance/TopMovers";
 import { FollowersTimeline } from "@/components/performance/FollowersTimeline";
 import MatrizPlaylists from "@/pages/MatrizPlaylists";
 import type { DatasetRow, GenreRow } from "@/components/performance/types";
+import { getErrorMessage } from "@/lib/errors";
 
 type ManagedPlaylistRow = {
   id: string;
@@ -159,8 +160,8 @@ export default function Performance() {
       if (error) throw error;
       toast.success(`Snapshots ok: ${data?.snapshots_ok ?? 0} (falharam: ${data?.failed ?? 0})`);
       await load();
-    } catch (e: any) {
-      toast.error(`Falha ao coletar: ${e.message}`);
+    } catch (e: unknown) {
+      toast.error(`Falha ao coletar: ${getErrorMessage(e)}`);
     } finally { setTracking(false); }
   }
 

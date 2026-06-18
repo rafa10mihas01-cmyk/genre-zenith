@@ -10,6 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/format";
 import { Gauge, Search, ExternalLink, TrendingUp, ShieldAlert, Users, Music2 } from "lucide-react";
+import { getErrorMessage } from "@/lib/errors";
 
 type Valuation = {
   found: boolean;
@@ -69,8 +70,8 @@ export default function Valuation() {
       const { data, error } = await supabase.rpc("evaluate_playlist_by_url", { p_url: url.trim() });
       if (error) throw error;
       setResult(data as Valuation);
-    } catch (e: any) {
-      toast({ title: "Erro ao avaliar", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Erro ao avaliar", description: getErrorMessage(e), variant: "destructive" });
     } finally {
       setLoading(false);
     }

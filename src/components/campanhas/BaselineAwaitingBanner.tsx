@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useLatestBotHeartbeat } from "@/hooks/useLatestBotHeartbeat";
+import { getErrorMessage } from "@/lib/errors";
 
 
 type Props = {
@@ -120,8 +121,8 @@ export function BaselineAwaitingBanner({ dealState, baselineCapturedAt, dealId }
       });
       if (error) throw error;
       toast.success("Baseline reenfileirada. Aguarde o robô.");
-    } catch (e: any) {
-      toast.error(e?.message ?? "Falha ao reexecutar baseline");
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e) ?? "Falha ao reexecutar baseline");
     } finally {
       setRetrying(false);
     }

@@ -15,6 +15,7 @@ import { timeAgo } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { FluxoNodeData, KV, DecisionItem, AlertItem, LogPretty } from "./types";
+import { getErrorMessage } from "@/lib/errors";
 import {
   buildStepIntel, readStepDiff, commitStepSnapshot,
   healthBadgeClass, healthBarClass, type StepAction, type DataSource, type StepHealth, type StepDiff,
@@ -341,8 +342,8 @@ function ActionsCard({ actions }: { actions: StepAction[] }) {
         const { error } = await supabase.functions.invoke(a.fn, { body: a.payload ?? {} });
         if (error) throw error;
         toast.success(`${a.label} executado`);
-      } catch (e: any) {
-        toast.error(`Falha em "${a.label}"`, { description: e?.message ?? "Erro desconhecido" });
+      } catch (e: unknown) {
+        toast.error(`Falha em "${a.label}"`, { description: getErrorMessage(e) ?? "Erro desconhecido" });
       } finally {
         setBusy(null);
       }

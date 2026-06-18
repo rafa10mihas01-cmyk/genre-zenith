@@ -8,6 +8,7 @@ import { formatNumber } from "@/lib/format";
 import { Target, Info, Sparkles, ListMusic, AlertTriangle, CheckCircle2, XCircle, ChevronDown, Music2, Loader2, Send, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getPositionPct } from "@/lib/campaignOperationalPlan";
+import { getErrorMessage } from "@/lib/errors";
 
 // Extrai spotify_track_id de URL/URI do Spotify
 function extractTrackId(input: string): string | null {
@@ -313,8 +314,8 @@ export function PlanejadorMeta({ initial }: { initial?: PlanejadorInitial } = {}
         title: "Plano aplicado",
         description: `Adicionada: ${c.added ?? 0} · Movida: ${c.moved ?? 0} · Pulada: ${c.skip ?? 0} · Erro: ${c.error ?? 0}`,
       });
-    } catch (e: any) {
-      toast({ title: "Erro ao aplicar plano", description: e?.message ?? String(e), variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Erro ao aplicar plano", description: getErrorMessage(e) , variant: "destructive" });
     } finally {
       setApplying(false);
     }

@@ -26,6 +26,7 @@ import type { EcoAllocation } from "@/components/campaign-hub/types";
 import { buildEcoPlaylistPlan } from "@/lib/campaignOperationalPlan";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
 import { PlaylistModeBadge, type PlaylistExecutionMode } from "./PlaylistModeBadge";
+import { getErrorMessage } from "@/lib/errors";
 
 type JobRow = {
   id: string;
@@ -418,8 +419,8 @@ export function CampaignDistributionConsole({
         .eq("status", "failed");
       if (error) throw error;
       toast.success(`${count ?? 0} job(s) reenfileirado(s)`);
-    } catch (e: any) {
-      toast.error("Falha ao reenfileirar", { description: e?.message });
+    } catch (e: unknown) {
+      toast.error("Falha ao reenfileirar", { description: getErrorMessage(e) });
     } finally {
       setRetrying(false);
     }
@@ -469,8 +470,8 @@ export function CampaignDistributionConsole({
       const { error } = await supabase.from("playlist_execution_jobs").insert(reorders);
       if (error) throw error;
       toast.success(`${reorders.length} reorder(s) enfileirado(s)`);
-    } catch (e: any) {
-      toast.error("Falha ao forçar posições", { description: e?.message });
+    } catch (e: unknown) {
+      toast.error("Falha ao forçar posições", { description: getErrorMessage(e) });
     } finally {
       setForcing(false);
     }

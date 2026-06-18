@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { RefreshCw, RotateCw, Search, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/lib/errors";
 
 type Row = {
   id: string;
@@ -110,8 +111,8 @@ export function EcosystemScorePanel() {
         description: `${data?.ok ?? 0} ok / ${data?.failed ?? 0} falharam (${data?.total ?? 0} total)`,
       });
       await load();
-    } catch (e: any) {
-      toast({ title: "Erro", description: e?.message ?? String(e), variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Erro", description: getErrorMessage(e) , variant: "destructive" });
     } finally {
       setRecalcAll(false);
     }
@@ -126,8 +127,8 @@ export function EcosystemScorePanel() {
       if (error) throw error;
       toast({ title: "Faixa recalculada" });
       await load();
-    } catch (e: any) {
-      toast({ title: "Erro", description: e?.message ?? String(e), variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Erro", description: getErrorMessage(e) , variant: "destructive" });
     } finally {
       setRecalcSingle(null);
     }

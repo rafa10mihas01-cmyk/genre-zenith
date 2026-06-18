@@ -6,6 +6,7 @@ import { formatInt } from "@/lib/campaignEngine";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { TrendingDown, RefreshCw, Calendar } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/lib/errors";
 
 type Row = {
   position: number;
@@ -61,8 +62,8 @@ export function Top200Tab({ onPick }: { onPick?: (streamsDay: number, position: 
       if (!data?.ok) throw new Error(data?.error ?? "Falha no sync");
       toast({ title: "Top 200 atualizado", description: `${data.rows} faixas · ${data.date}` });
       await load();
-    } catch (e: any) {
-      toast({ title: "Erro ao sincronizar", description: e?.message ?? String(e), variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Erro ao sincronizar", description: getErrorMessage(e) , variant: "destructive" });
     } finally {
       setSyncing(false);
     }

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/lib/errors";
 
 interface Props {
   open: boolean;
@@ -77,8 +78,8 @@ export function DealPaymentDialog({
       setPlays("");
       setNotes("");
       onOpenChange(false);
-    } catch (e: any) {
-      toast({ title: "Erro", description: e.message ?? String(e), variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Erro", description: getErrorMessage(e) , variant: "destructive" });
     } finally {
       setSaving(false);
     }

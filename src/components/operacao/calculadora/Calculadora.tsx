@@ -47,6 +47,7 @@ import {
 const CALCULATOR_FREE_FIRST_ENABLED = true;
 import type { EcoAllocationPlan } from "@/lib/campaignSnapshot";
 import { TrackPresencePanel } from "@/components/campanhas/TrackPresencePanel";
+import { getErrorMessage } from "@/lib/errors";
 
 type Fonte = "manual" | "top200" | "concorrente" | "orcamento";
 
@@ -362,8 +363,8 @@ export function Calculadora({ onContinue, prefillSpotifyTrackId }: { onContinue?
         track: newTrack,
         baselineStreamsDay: (streamsDay != null && active.baselineStreamsDay === 0) ? streamsDay : active.baselineStreamsDay,
       });
-    } catch (e: any) {
-      toast({ title: "Erro ao buscar música", description: e?.message ?? String(e), variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Erro ao buscar música", description: getErrorMessage(e) , variant: "destructive" });
     } finally {
       setTrackLoading(false);
     }
@@ -783,8 +784,8 @@ export function Calculadora({ onContinue, prefillSpotifyTrackId }: { onContinue?
         collectionMode,
       });
       return { ok: true, campaignId, shortfall };
-    } catch (e: any) {
-      return { ok: false, error: e?.message ?? String(e) };
+    } catch (e: unknown) {
+      return { ok: false, error: getErrorMessage(e)  };
     }
   }
 

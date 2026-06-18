@@ -7,6 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import type { Diagnosis } from "../types";
+import { getErrorMessage } from "@/lib/errors";
 
 type ApplyAction = "remove" | "demote" | "promote" | "add" | "all";
 type ApplyProgress = {
@@ -54,8 +55,8 @@ export function useDiagnosisActions(args: {
       if (!data?.ok) throw new Error(data?.error ?? data?.message ?? "Falha");
       setDiag(data.diagnosis);
       toast({ title: "Diagnóstico pronto" });
-    } catch (e: any) {
-      toast({ title: "Erro no diagnóstico", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Erro no diagnóstico", description: getErrorMessage(e), variant: "destructive" });
     } finally {
       setRunning(false);
     }
@@ -171,10 +172,10 @@ export function useDiagnosisActions(args: {
           return next;
         });
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       toast({
         title: "Falha ao aplicar",
-        description: e?.message ?? String(e),
+        description: getErrorMessage(e) ,
         variant: "destructive",
       });
     } finally {

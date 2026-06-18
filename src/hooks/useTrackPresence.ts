@@ -10,6 +10,7 @@
 //   absent → não está na playlist
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getErrorMessage } from "@/lib/errors";
 
 export type TrackPresenceStatus = "top" | "middle" | "tail" | "absent";
 
@@ -122,10 +123,10 @@ export function useTrackPresence(spotifyTrackId: string | null | undefined) {
         });
 
         setRows(out);
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (!cancelled) {
           const msg =
-            e?.message ||
+            getErrorMessage(e) ||
             e?.error_description ||
             e?.hint ||
             e?.details ||
