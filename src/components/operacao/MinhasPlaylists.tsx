@@ -2280,7 +2280,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                           <span className="text-warning font-medium">★</span> são de artistas faltando.
                         </p>
                         <ul className="space-y-1.5">
-                          {diagnosis.tracks_suggestions.slice(0, 15).map((t: any, i: number) => {
+                          {diagnosis.tracks_suggestions.slice(0, 15).map((t, i: number) => {
                             const nome = t?.nome ?? t?.name ?? t?.title ?? t?.track_name ?? "—";
                             const artista = t?.artista ?? t?.artist ?? t?.artists ?? "—";
                             const count = t?.count ?? t?.recorrencia ?? null;

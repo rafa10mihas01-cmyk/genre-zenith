@@ -128,7 +128,7 @@ export function MarketTab() {
               </div>
             ) : (
               <ul className="space-y-2 flex-1 overflow-y-auto nx-scroll pr-1">
-                {recurringTracks.slice(0, 10).map((t: any, i: number) => {
+                {recurringTracks.slice(0, 10).map((t, i: number) => {
                   const key = norm(t.title);
                   const isInPlaylist = currentTrackKeys.has(key);
                   const suggestedId = suggestionByTitle.get(key);
@@ -179,7 +179,7 @@ export function MarketTab() {
               </div>
             ) : (
               <ul className="space-y-1.5 flex-1 overflow-y-auto nx-scroll pr-1">
-                {dominantArtists.slice(0, 12).map((a: any, i: number) => {
+                {dominantArtists.slice(0, 12).map((a, i: number) => {
                   const present = currentArtistKeys.has(norm(a.name));
                   return (
                     <li key={i} className="flex justify-between items-center text-xs gap-2 py-1 border-b border-border/40 last:border-0">

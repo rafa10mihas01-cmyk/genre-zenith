@@ -55,7 +55,7 @@ export function MarketBlock({
             <span className="text-sm font-semibold">Faixas mais recorrentes</span>
           </div>
           <ul className="space-y-1.5">
-            {(market.top_recurring_tracks ?? []).slice(0, 5).map((t: any, i: number) => {
+            {(market.top_recurring_tracks ?? []).slice(0, 5).map((t, i: number) => {
               const key = norm(t.title);
               const isInPlaylist = currentTrackKeys.has(key);
               const suggestedId = suggestionByTitle.get(key);
@@ -100,7 +100,7 @@ export function MarketBlock({
             <span className="text-sm font-semibold">Artistas dominando</span>
           </div>
           <ul className="space-y-1">
-            {(market.top_artists ?? []).slice(0, 6).map((a: any, i: number) => {
+            {(market.top_artists ?? []).slice(0, 6).map((a, i: number) => {
               const present = currentArtistKeys.has(norm(a.name));
               return (
                 <li key={i} className="flex justify-between items-center text-xs gap-2">
