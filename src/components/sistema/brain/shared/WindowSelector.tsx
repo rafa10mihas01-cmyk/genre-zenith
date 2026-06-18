@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- co-located helpers/variants/hooks; split would force a large refactor with no runtime benefit (HMR only) */
 // WindowSelector — toggle 7d / 30d / 90d.
 import { cn } from "@/lib/utils";
 

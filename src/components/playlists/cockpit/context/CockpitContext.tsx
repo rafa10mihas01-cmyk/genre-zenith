@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- co-located helpers/variants/hooks; split would force a large refactor with no runtime benefit (HMR only) */
 // CockpitContext — evita prop-drilling entre PlaylistCockpit e os componentes
 // das abas. Criado na Fase 2 / Commit 3.
 // O Provider apenas re-empacota os retornos dos 3 hooks + as props da playlist

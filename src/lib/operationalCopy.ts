@@ -142,7 +142,7 @@ export function humanizeLogMessage(acao?: string | null, status?: string | null,
   }
 
   // Linha humana curta — devolve com a ação como prefixo
-  if (raw && raw.length < 120 && !/[{}\[\]]/.test(raw)) {
+  if (raw && raw.length < 120 && !/[{}[\]]/.test(raw)) {
     return `${action}: ${raw}`;
   }
   if (!raw) return `${action} executad${action.endsWith("a") ? "a" : "o"}.`;

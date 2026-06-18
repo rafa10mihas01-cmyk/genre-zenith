@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- co-located helpers/variants/hooks; split would force a large refactor with no runtime benefit (HMR only) */
 // CurvaEntregaChart — gráfico de barras de entrega ao longo do tempo,
 // dividido em 4 fases (Aquecimento · Aceleração · Permanência · Sustentação).
 //

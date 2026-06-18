@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- co-located helpers/variants/hooks; split would force a large refactor with no runtime benefit (HMR only) */
 // FluxoCriticalAlerts — banner de alertas críticos extraído dos nós do pipeline.
 // Mostra no topo apenas quando há `level: error` ou warnings de alta prioridade.
 // Clicar no alerta foca a etapa correspondente (callback opcional).

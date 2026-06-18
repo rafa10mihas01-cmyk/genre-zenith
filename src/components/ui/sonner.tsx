@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- co-located helpers/variants/hooks; split would force a large refactor with no runtime benefit (HMR only) */
 import { useTheme } from "next-themes";
 import { Toaster as Sonner, toast } from "sonner";
 
