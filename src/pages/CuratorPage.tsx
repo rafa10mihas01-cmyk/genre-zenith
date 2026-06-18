@@ -740,6 +740,15 @@ export default function CuratorPage() {
     }
     return ids;
   }, [playlists]);
+  // Mapa playlist_id → data real que o curador declarou a playlist (colou o link aqui).
+  // Usado pra exibir "cadastrada em X" na Performance, separado de "último print".
+  const declaredAtByPlaylistId = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const p of playlists) {
+      if (p.added_at) m.set(p.id, p.added_at);
+    }
+    return m;
+  }, [playlists]);
   const perPlaylistCurator = perPlaylist
     .filter((p) => !p.is_initial_roster && curatorOwnedPlaylistIds.has(p.playlist_id))
     .sort((a, b) => Number(b.delivered ?? 0) - Number(a.delivered ?? 0));
