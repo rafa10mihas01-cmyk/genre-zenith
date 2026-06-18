@@ -42,7 +42,7 @@ import {
   type DealSongInput,
 } from "@/hooks/useCuratorDeals";
 import { useClients, type Client } from "@/hooks/useClients";
-import { useCuratorFinance } from "@/hooks/useCuratorFinance";
+import { useFinancialOverview } from "@/hooks/useFinancialOverview";
 import type { CuratorDeal, CuratorDealSong } from "@/lib/curatorDealsUtils";
 import { curatorPublicUrl } from "@/lib/curatorPublicUrl";
 import { formatNumber } from "@/lib/format";
