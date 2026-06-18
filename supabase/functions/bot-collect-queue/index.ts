@@ -309,42 +309,48 @@ Deno.serve(async (req) => {
 
 
   // ====== Observabilidade Fase A: correlation_id por dispatch ======
-  // Cada song dispatchada recebe um correlation_id único. O bot DEVE devolver esse
-  // mesmo id em todos os eventos/uploads/snapshots dessa execução. Sem id, perdemos
-  // capacidade de rastrear onde a coleta morreu.
+  // FASE 6.A.3 — resolução de artistId via cache em lote (spotify_track_cache).
+  // Cache miss enfileira na spotify_enrichment_queue; próximo dispatch terá o id.
+  const resolveInput = (claimedEligible as any[]).map((s) => ({
+    id: s.id,
+    spotify_track_id: s.spotify_track_id ?? null,
+    spotify_artist_id: s.spotify_artist_id ?? s?.curator_deals?.campaigns?.clients?.spotify_artist_id ?? null,
+    song_artist: s.song_artist ?? null,
+    clientId: s?.curator_deals?.campaigns?.client_id ?? null,
+  }));
+  const resolved = await resolveArtistIdsFromCache(supabase, resolveInput);
   for (const s of claimedEligible as any[]) {
     s.correlation_id = crypto.randomUUID();
     const client = s?.curator_deals?.campaigns?.clients;
-    const clientId = s?.curator_deals?.campaigns?.client_id ?? null;
-    // Ordem de prioridade: song row → client → resolve via Spotify API
     let artistId: string | null = s.spotify_artist_id ?? client?.spotify_artist_id ?? null;
     let artistUrl: string | null = s.spotify_artist_url ?? client?.spotify_artist_url ?? null;
-    if (!artistId && s.spotify_track_id) {
-      const resolved = await resolveArtistIdFromTrack(supabase, s.spotify_track_id, s.song_artist, clientId, s.id);
-      artistId = resolved.artistId;
-      artistUrl = resolved.artistUrl;
+    if (!artistId) {
+      const r = resolved.get(s.id);
+      if (r?.artistId) {
+        artistId = r.artistId;
+        artistUrl = r.artistUrl;
+      }
     }
     s.spotify_artist_id = artistId;
     s.spotify_artist_url = artistUrl;
-    // URL S4A no formato novo exigido pelo Spotify (track_id sozinho = 404).
-    // Mantemos aliases no payload para compatibilidade com versões antigas do worker
-    // que ainda leem `url`/`song_spotify_url` em vez de `s4a_song_url`.
     const s4aSongUrl = artistId && s.spotify_track_id
       ? `https://artists.spotify.com/c/pt/artist/${artistId}/song/${s.spotify_track_id}/stats`
       : null;
     s.s4a_song_url = s4aSongUrl;
     s.song_s4a_url = s4aSongUrl;
     s.url = s4aSongUrl;
-    // Backend (bot-ingest-snapshot) rejeita payload agregado para QUALQUER song
-    // com auto_collect=true (não só campaign_internal). Como bot-collect-queue
-    // só entrega rows com auto_collect=true, 100% precisa de breakdown.
-    // Alinhar a flag aqui evita o 422 "playlist_breakdown_required" no worker.
     s.requires_playlist_breakdown = true;
     s.capture_mode = "playlist_breakdown_required";
     s.ingest_contract = isCampaignInternal(s)
       ? "send_playlist_rows_not_aggregate"
       : "send_curator_playlist_rows";
     if (s4aSongUrl) s.song_spotify_url = s4aSongUrl;
+  }
+  const missingArtistTrackIds = (claimedEligible as any[])
+    .filter((s) => !s.spotify_artist_id && s.spotify_track_id)
+    .map((s) => s.spotify_track_id as string);
+  if (missingArtistTrackIds.length) {
+    enqueueEnrichment("track", missingArtistTrackIds, "bot_dispatch_miss", 2).catch(() => {});
   }
   if (claimedEligible.length) {
     const events = (claimedEligible as any[]).map((s) => ({
