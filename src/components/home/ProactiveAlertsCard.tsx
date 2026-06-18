@@ -119,7 +119,7 @@ async function fetchProactiveAlerts(): Promise<AlertItem[]> {
   for (const b of brains) {
     if (archivedById.get(b.curator_id)) continue;
     const name = nameById.get(b.curator_id) ?? "Curador";
-    const sigs = Array.isArray(b.signals) ? b.signals : [];
+    const sigs = Array.isArray(b.signals) ? (b.signals as Array<{ severity?: string }>) : [];
     const highSigs = sigs.filter((s) => s?.severity === "high");
     const prev = prevTrustByCurator.get(b.curator_id);
     const curScore = Number(b.trust_score ?? 0);

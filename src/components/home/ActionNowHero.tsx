@@ -45,7 +45,7 @@ export function ActionNowHero() {
       ]);
 
       const curatorsAtRisk = (brainsRes.data ?? []).filter((b) => {
-        const sigs = Array.isArray(b.signals) ? b.signals : [];
+        const sigs = Array.isArray(b.signals) ? (b.signals as Array<{ severity?: string }>) : [];
         return sigs.some((s) => s?.severity === "high");
       }).length;
 

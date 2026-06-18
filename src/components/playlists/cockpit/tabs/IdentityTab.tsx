@@ -98,13 +98,13 @@ export function IdentityTab() {
             currentCover={coverUrl}
             genreId={genreId ?? null}
             genreName={genreName ?? null}
-            references={(diag.raw?.market_insights?.top_recurring_tracks ?? [])
+            references={((diag.raw?.market_insights?.top_recurring_tracks ?? []) as Array<{ title?: string; artist?: string; cover_url?: string | null; spotify_track_id?: string | null }>)
               .filter((t) => t?.cover_url)
               .map((t) => ({
-                id: t.spotify_track_id,
+                id: t.spotify_track_id ?? null,
                 name: t.title ?? "—",
                 subtitle: t.artist ?? "",
-                cover_url: t.cover_url,
+                cover_url: t.cover_url ?? null,
                 external_url: t.spotify_track_id ? `https://open.spotify.com/track/${t.spotify_track_id}` : null,
               }))}
             spotifyPlaylistId={spotifyPlaylistId}

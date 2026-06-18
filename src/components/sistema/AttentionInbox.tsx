@@ -90,7 +90,7 @@ export function AttentionInbox() {
         // Exclui eventos de negócio e domínios não-infra
         if (BUSINESS_KINDS.has(kind)) return;
         if (!domain || !INFRA_DOMAINS.has(domain)) return;
-        const copy = friendlyNotification(n);
+        const copy = friendlyNotification(n as Parameters<typeof friendlyNotification>[0]);
         const rawActionUrl = copy.actionUrl ?? n.action_url ?? undefined;
         const currentUrl = `${location.pathname}${location.search}`;
         const actionUrl = rawActionUrl === currentUrl ? "/sistema?tab=alertas" : rawActionUrl;

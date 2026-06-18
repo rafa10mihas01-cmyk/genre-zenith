@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
+import { friendlyUploadName, downloadUploadAsXlsx } from "@/lib/spreadsheetDisplay";
 
 type Upload = {
   id: string;
@@ -51,18 +52,11 @@ export function SpreadsheetUploadsCompactCard({ recentUploads, onOpenUpload }: P
     }
     setDownloadingId(u.id);
     try {
-      const { data, error } = await supabase.storage
-        .from("label-spreadsheets")
-        .createSignedUrl(u.file_path, 60);
-      if (error || !data?.signedUrl) throw error ?? new Error("Falha ao gerar link");
-      const a = document.createElement("a");
-      a.href = data.signedUrl;
-      a.download = u.file_name ?? "planilha.xlsx";
-      a.target = "_blank";
-      a.rel = "noopener";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      await downloadUploadAsXlsx({
+        filePath: u.file_path,
+        fileName: u.file_name,
+        referenceDate: null,
+      });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao baixar planilha");
     } finally {
@@ -132,7 +126,7 @@ export function SpreadsheetUploadsCompactCard({ recentUploads, onOpenUpload }: P
                       className="h-6 px-2 text-muted-foreground hover:text-foreground shrink-0"
                       onClick={() => handleDownload(u)}
                       disabled={downloadingId === u.id}
-                      title={u.file_name ?? "Baixar planilha original"}
+                      title={friendlyUploadName(u.file_name)}
                     >
                       {downloadingId === u.id ? (
                         <Loader2 className="h-3 w-3 animate-spin" />

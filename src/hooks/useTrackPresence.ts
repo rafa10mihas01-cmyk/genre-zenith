@@ -125,11 +125,12 @@ export function useTrackPresence(spotifyTrackId: string | null | undefined) {
         setRows(out);
       } catch (e: unknown) {
         if (!cancelled) {
+          const ex = e as { error_description?: string; hint?: string; details?: string } | null;
           const msg =
             getErrorMessage(e) ||
-            e?.error_description ||
-            e?.hint ||
-            e?.details ||
+            ex?.error_description ||
+            ex?.hint ||
+            ex?.details ||
             (typeof e === "string" ? e : JSON.stringify(e));
           setError(msg);
         }

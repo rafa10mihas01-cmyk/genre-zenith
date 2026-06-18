@@ -498,9 +498,14 @@ export default function ClientCampaignPage() {
             </Card>
           )}
 
-          {/* Linha discreta — só Playlists ativas + Última atualização */}
+          {/* Linha discreta — apenas "Última atualização".
+              O contador "Playlists ativas" foi removido daqui porque o Portal do
+              Cliente conta playlists efetivamente entregando plays (snapshot do
+              Edge Function), enquanto o Portal do Curador conta playlists
+              declaradas pelo curador. Os dois números divergiam (25 vs 124) e
+              não existe fonte única para reconciliá-los nesta fase. Volta quando
+              houver fonte única. */}
           {(() => {
-            const activeCount = playlists.length;
             const lastUpdateRelative = (() => {
               if (!deal.last_update) return "—";
               const diffMs = Date.now() - new Date(deal.last_update).getTime();
@@ -514,12 +519,7 @@ export default function ClientCampaignPage() {
               return `há ${days}d`;
             })();
             return (
-              <div className="flex items-center justify-between gap-3 px-1 text-[11.5px] text-muted-foreground">
-                <span className="inline-flex items-center gap-1.5">
-                  <ListMusic className="h-3.5 w-3.5" />
-                  <span className="tabular-nums text-foreground/85 font-medium">{activeCount}</span>
-                  <span>{activeCount === 1 ? "playlist ativa" : "playlists ativas"}</span>
-                </span>
+              <div className="flex items-center justify-end gap-3 px-1 text-[11.5px] text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5">
                   <CheckCircle2 className="h-3.5 w-3.5" />
                   <span>Atualizado {lastUpdateRelative}</span>
@@ -628,13 +628,9 @@ export default function ClientCampaignPage() {
                       Playlists que estão entregando plays para a campanha
                     </p>
                   </div>
-                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary bg-primary/10 ring-1 ring-primary/20 rounded-full px-2.5 py-1 tabular-nums shrink-0">
-                    <span className="relative flex h-1.5 w-1.5">
-                      <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-75 animate-ping" />
-                      <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
-                    </span>
-                    {playlists.length} ativas
-                  </span>
+                  {/* Badge "{playlists.length} ativas" removida — divergia do
+                      Portal do Curador (que conta playlists declaradas). Sem
+                      fonte única, optamos por não exibir contador aqui. */}
                 </div>
 
                 <div className="flex items-start gap-2 rounded-xl bg-[hsl(var(--elevated))] border border-border/60 px-3 py-2.5">
