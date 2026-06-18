@@ -881,26 +881,9 @@ async function resumePipeline(jobId: string, slug: string) {
       coverage = totalPls > 0 ? enrichedCount / totalPls : 1;
     }
     await measure();
-    const MAX_CYCLES = totalPls > 500 ? 3 : totalPls > 200 ? 5 : 8;
-    const TARGET = totalPls > 500 ? 0.5 : totalPls > 200 ? 0.7 : 0.85;
-    while (coverage < TARGET && cycles < MAX_CYCLES) {
-      cycles++;
-      await setJob(supabase, gid, jobId, autopilotRunId, {
-        status: "running",
-        stage: `Retomando... (${enrichedCount}/${totalPls} • ${Math.round(coverage * 100)}%) ciclo ${cycles}/${MAX_CYCLES}`,
-        progress: 70 + Math.min(15, Math.round(coverage * 20)),
-      });
-      const r = await callFn("enrich-playlists", {
-        genre_id: gid, limit: 50, fetch_tracks: true,
-        prioritize: true, keyword: slug,
-      });
-      const d = r.data as any;
-      if (!r.ok || !d?.ok) break;
-      enrichedTotal += d.enriched ?? 0;
-      tracksTotal += d.tracks_saved ?? 0;
-      if (!d.processed || d.processed === 0) break;
-      await measure();
-    }
+    // FASE 6.A.3 — loop de enrich-playlists removido (resume). Enriquecimento
+    // assíncrono via spotify-enrichment-worker. Segue direto para analyze.
+
     const partial = coverage < 0.7;
     const stages: Record<string, unknown> = {};
     await setJob(supabase, gid, jobId, autopilotRunId, { status: "running", stage: "Analisando padrões...", progress: 85 });
