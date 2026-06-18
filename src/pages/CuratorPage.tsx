@@ -484,8 +484,9 @@ export default function CuratorPage() {
       return;
     }
 
-    const { data, error: fnErr } = await supabase.functions.invoke(
+    const { data, error: fnErr } = await invokeCuratorPortal<any>(
       "get-curator-deal-public",
+      publicToken,
       { body: { slug: publicToken } },
     );
     if (fnErr || !data?.ok) {
