@@ -7,6 +7,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Trash2, Headphones, Plus, Loader2, Copy, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { curatorPublicUrl } from "@/lib/curatorPublicUrl";
+import { openAdminCuratorPortal } from "@/lib/openAdminCuratorPortal";
 
 interface Props {
   dealId: string;
@@ -118,7 +119,7 @@ export function CuratorDealAccessManager({ dealId, slug, publicToken }: Props) {
                   variant="outline"
                   size="icon"
                   className="h-8 w-8"
-                  onClick={() => window.open(portalUrl, "_blank", "noopener,noreferrer")}
+                  onClick={() => openAdminCuratorPortal({ slug, publicToken })}
                   title="Abrir portal"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
