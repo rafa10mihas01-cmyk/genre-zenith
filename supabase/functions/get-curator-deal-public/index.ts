@@ -79,12 +79,13 @@ Deno.serve(async (req) => {
 
     // Hardening 4.B.1.A (Onda 1 — curador): exige OTP quando deal tem allowlist
     // OU o curador ligado tem e-mail. Sem allowlist mantém compat legada.
+    const expectedGateToken = token || slug || deal.public_token || undefined;
     const gate = await gateCuratorAccess(
       req,
       admin,
       deal.id,
       deal.curator_id ?? null,
-      deal.public_token ?? token ?? null,
+      expectedGateToken,
     );
     if (!gate.ok) {
       return jr({ ok: false, error: gate.error ?? "forbidden", required_otp: true }, gate.status ?? 401);
