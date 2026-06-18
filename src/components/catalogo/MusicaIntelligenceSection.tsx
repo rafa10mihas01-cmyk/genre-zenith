@@ -595,11 +595,17 @@ function PlaylistRankingPanel({ placements, obs, ssPl, exec }: {
                     {r.owner && <span className="block text-[10px] text-muted-foreground truncate">{r.owner}</span>}
                   </td>
                   <td className="px-3 py-2 text-right">
-                    <span className={cn(
-                      "font-mono text-sm tabular-nums font-semibold",
-                      r.deliveryAccumulated > 0 ? "text-emerald-400" : "text-muted-foreground",
-                    )}>
-                      {r.deliveryAccumulated > 0 ? `+${fmt(r.deliveryAccumulated)}` : "+0"}
+                    <span className="inline-flex items-center gap-1.5 justify-end">
+                      <span className={cn(
+                        "font-mono text-sm tabular-nums font-semibold",
+                        r.deliveryAccumulated > 0 ? "text-emerald-400" : "text-muted-foreground",
+                      )}>
+                        {r.deliveryAccumulated > 0 ? `+${fmt(r.deliveryAccumulated)}` : "+0"}
+                      </span>
+                      <span
+                        className={cn("h-1.5 w-1.5 rounded-full shrink-0 sm:hidden", r.status === "ativa" ? "bg-emerald-500" : "bg-muted-foreground/60")}
+                        aria-label={r.status}
+                      />
                     </span>
                   </td>
                   <td className="px-3 py-2 text-right font-mono text-xs hidden sm:table-cell">
