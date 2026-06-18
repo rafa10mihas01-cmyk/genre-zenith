@@ -1024,8 +1024,8 @@ export function MusicaIntelligenceSection(props: MusicaIntelligenceProps) {
       </Panel>
 
       {/* 4. Feed de negócio */}
-      <Panel title="Feed de negócio" hint="Entradas, saídas, picos, crescimento e coletas" icon={Sparkles}>
-        <EventFeedPanel placements={props.placements} baseline={props.baseline} snapshots={props.snapshots} exec={intel.executionLog} obs={intel.observerTracks} />
+      <Panel title="Feed de negócio" hint="Baseline, entradas, saídas, delivery, picos e melhor playlist" icon={Sparkles}>
+        <EventFeedPanel placements={props.placements} baseline={props.baseline} snapshots={props.snapshots} obs={intel.observerTracks} ssPl={intel.songSnapPlaylists} />
       </Panel>
 
       {/* 5. Histórico de distribuição */}
