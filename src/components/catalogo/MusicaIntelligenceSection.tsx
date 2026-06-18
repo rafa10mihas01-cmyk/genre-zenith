@@ -145,47 +145,18 @@ function buildTimeline(
     });
   }
 
-  // Primeiro POST efetivado (placement_post_ok) por playlist
-  const firstPostPerPlaylist = new Map<string, ExecutionLogRow>();
-  exec
-    .slice()
-    .reverse() // mais antigos primeiro
-    .forEach((e) => {
-      if (e.outcome === "spotify_post_ok" || e.outcome === "already_present") {
-        const k = e.spotify_playlist_id ?? e.placement_id ?? e.id;
-        if (!firstPostPerPlaylist.has(k)) firstPostPerPlaylist.set(k, e);
-      }
-    });
-  const firstPostList = [...firstPostPerPlaylist.values()].sort(
-    (a, b) => +new Date(a.executed_at) - +new Date(b.executed_at),
-  );
-  if (firstPostList.length) {
-    const first = firstPostList[0];
+  // Primeira playlist (primeira detecção VPS global) — apenas o marco
+  const firstObsGlobal = obs[0];
+  if (firstObsGlobal) {
     events.push({
-      at: first.executed_at,
-      kind: "placement_post",
-      label: "Primeiro placement efetivado no Spotify",
-      detail: namePlaylist(placements, first.spotify_playlist_id),
+      at: firstObsGlobal.captured_at,
+      kind: "playlist_in",
+      label: "Primeira playlist",
+      detail: namePlaylist(placements, firstObsGlobal.spotify_playlist_id) ?? firstObsGlobal.spotify_playlist_id,
       tone: "good",
     });
   }
 
-  // Entradas em playlists observadas (primeira vez que o bot detectou)
-  const firstSeen = new Map<string, ObserverTrackRow>();
-  obs.forEach((o) => {
-    if (!firstSeen.has(o.spotify_playlist_id)) firstSeen.set(o.spotify_playlist_id, o);
-  });
-  [...firstSeen.values()].forEach((o) => {
-    events.push({
-      at: o.captured_at,
-      kind: "playlist_in",
-      label: "Detectada em playlist (VPS)",
-      detail: namePlaylist(placements, o.spotify_playlist_id) ?? o.spotify_playlist_id,
-      tone: "neutral",
-    });
-  });
-
-  // Timeline enxuta — sem eventos técnicos (saídas inferidas, breaker, etc.)
 
   // Snapshots — só pico e última, pra não poluir
   let peak: Snapshot | null = null;
