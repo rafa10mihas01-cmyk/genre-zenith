@@ -455,9 +455,11 @@ Deno.serve(async (req) => {
           if (!artistId && r.spotify_track_id) {
             try {
               const token = await getAppToken();
-              const tRes = await fetch(`https://api.spotify.com/v1/tracks/${r.spotify_track_id}`, {
-                headers: { Authorization: `Bearer ${token}` },
-              });
+              const tRes = await spotifyFetch(
+                `https://api.spotify.com/v1/tracks/${r.spotify_track_id}`,
+                { headers: { Authorization: `Bearer ${token}` } },
+                { functionName: "bot-collect-queue", operation: "resolve_artist_fallback" },
+              );
               if (tRes.ok) {
                 const tJson = await tRes.json();
                 artistId = tJson?.artists?.[0]?.id ?? null;
