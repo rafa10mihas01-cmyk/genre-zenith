@@ -63,6 +63,8 @@ export function FraudAlertsPanel({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (dealId) fetchAlerts();
+    // fetchAlerts redefinido a cada render; reagimos só ao dealId.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dealId]);
 
   async function reconcile() {

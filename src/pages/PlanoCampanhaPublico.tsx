@@ -301,6 +301,8 @@ export default function PlanoCampanhaPublico() {
   }
 
   // Só carrega dados depois que o gate liberou (mapa libera de cara).
+  // load redefinido a cada render; reagimos só a token/gate.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (gateAuthed) load();   }, [token, gateAuthed]);
 
   // Carrega o payload público sanitizado em paralelo ao plano principal.
@@ -337,6 +339,8 @@ export default function PlanoCampanhaPublico() {
       setLivePlaylistsLoading(false);
     })();
     return () => { cancelled = true; };
+    // handlePortalAuthError é função local estável; reagimos só ao trio token/gate/view.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, gateAuthed, isMapView]);
 
 
@@ -365,6 +369,8 @@ export default function PlanoCampanhaPublico() {
       setDeliveredFromView(total);
     })();
     return () => { cancelled = true; };
+    // camp completo mudaria a cada update; reagimos só ao id.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [(camp as any)?.id]);
 
   const snapshot = camp?.simulation_snapshot ?? null;

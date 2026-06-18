@@ -301,6 +301,8 @@ export function Calculadora({ onContinue, prefillSpotifyTrackId }: { onContinue?
       days: s.days, modo: s.modo, perfil: s.perfil, splitEcoPct: s.splitEco,
       splitOrganicPct: s.splitOrganic, clientProfile: s.clientProfile,
     }, pricingCosts),
+    // isSongReady/songEffectiveMeta são funções locais estáveis (closures sobre pricingSettings já está nas deps).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   })), [songs, pricingCosts, pricingSettings.price_per_stream_sell]);
 
   const totals = useMemo(() => {

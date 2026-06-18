@@ -194,6 +194,8 @@ export function ExternalPackageEditor({
   useEffect(() => {
     initialLoadedRef.current = false;
     load();
+    // load redefinido a cada render; reagimos só ao campaignId.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campaignId]);
 
   async function handleAdd(curator: CuratorCandidate) {

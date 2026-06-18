@@ -47,6 +47,8 @@ export default function Clientes() {
     return () => {
       cancelled = true;
     };
+    // intencionalmente reagimos a user.id (resolvido) e ao tamanho de deals/songs; user completo causaria re-fetches espúrios.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, deals.length, songs.length]);
 
   const kpis = useMemo(() => {

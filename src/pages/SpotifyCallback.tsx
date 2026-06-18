@@ -159,6 +159,8 @@ export default function SpotifyCallback() {
         setError((e as Error)?.message ?? "Erro de rede ao concluir a conexão.");
       }
     })();
+    // slug é lido dentro do effect mas estamos intencionalmente disparando só com params/navigate.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params, navigate]);
 
   return (

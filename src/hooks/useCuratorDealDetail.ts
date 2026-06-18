@@ -150,11 +150,11 @@ export function useCuratorDealDetail(dealId: string | null | undefined) {
 
   const data = detailQuery.data;
   const deal = data?.deal ?? null;
-  const logs = data?.logs ?? [];
-  const playlists = data?.playlists ?? [];
-  const songs = data?.songs ?? [];
-  const alerts = data?.alerts ?? [];
-  const uploads = data?.uploads ?? [];
+  const logs = useMemo(() => data?.logs ?? [], [data?.logs]);
+  const playlists = useMemo(() => data?.playlists ?? [], [data?.playlists]);
+  const songs = useMemo(() => data?.songs ?? [], [data?.songs]);
+  const alerts = useMemo(() => data?.alerts ?? [], [data?.alerts]);
+  const uploads = useMemo(() => data?.uploads ?? [], [data?.uploads]);
   const progress = progressQuery.data ?? null;
 
   const reload = useCallback(() => {

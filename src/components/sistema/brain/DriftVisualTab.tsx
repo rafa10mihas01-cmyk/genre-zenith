@@ -74,7 +74,7 @@ export function DriftVisualTab() {
       .map(k => ({ k, from: before.genre_mix[k] ?? 0, to: after.genre_mix[k] ?? 0, delta: (after.genre_mix[k] ?? 0) - (before.genre_mix[k] ?? 0) }))
       .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
       .slice(0, 5);
-  }, [snaps, before, after]);
+  }, [before, after]);
 
   return (
     <section className="space-y-4">
