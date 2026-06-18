@@ -1,4 +1,13 @@
-// useFinancialOverview — React Query + realtime (via useCuratorDeals channel).
+// useFinancialOverview — HOOK ÚNICO do módulo Financeiro.
+// Fontes oficiais (Fase 8.1):
+//   Receita por campanha     → v_financial_summary.valor_cobrado/valor_recebido
+//   Custo por campanha       → v_financial_summary.total_pago_curadores
+//   Margem por campanha      → v_financial_summary.margem_bruta / margem_pct
+//   Custo caixa total        → v_curator_global_finance.total_spent
+//   CPP global               → v_curator_global_finance.global_cpp
+//   CPP por curador          → v_curator_finance.cpp
+//   Não alocado              → v_financial_unallocated_cost
+// O frontend nunca recalcula. Apenas exibe.
 import { useCallback, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,13 +28,34 @@ export type FinancialSummaryRow = {
   created_at: string | null;
 };
 
-export type DealPayment = {
+export type CuratorFinanceRow = {
+  curator_id: string;
+  user_id: string;
+  name: string;
+  plays_purchased: number;
+  total_cost: number;
+  cpp: number | null;
+  last_purchase_at: string | null;
+  purchase_count: number;
+};
+
+export type GlobalFinanceTotals = {
+  total_plays_purchased: number;
+  total_spent: number;
+  global_cpp: number | null;
+  purchase_count: number;
+};
+
+export type CuratorPurchase = {
   id: string;
-  deal_id: string;
+  user_id: string;
+  curator_id: string;
+  deal_id: string | null;
+  plays_purchased: number;
   amount: number;
-  payment_date: string;
-  method: string | null;
-  notes: string | null;
+  cpp: number | null;
+  note: string | null;
+  purchased_at: string;
   created_at: string;
 };
 
@@ -61,6 +91,38 @@ export function useFinancialOverview() {
     },
   });
 
+  const byCuratorQuery = useQuery({
+    queryKey: ["financial-by-curator"],
+    enabled: !!user,
+    staleTime: 60_000,
+    placeholderData: keepPreviousData,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("v_curator_finance").select("*");
+      if (error) throw error;
+      return (data ?? []) as CuratorFinanceRow[];
+    },
+  });
+
+  const globalTotalsQuery = useQuery({
+    queryKey: ["financial-global-totals"],
+    enabled: !!user,
+    staleTime: 60_000,
+    placeholderData: keepPreviousData,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("v_curator_global_finance")
+        .select("*")
+        .maybeSingle();
+      if (error) throw error;
+      return (data ?? {
+        total_plays_purchased: 0,
+        total_spent: 0,
+        global_cpp: null,
+        purchase_count: 0,
+      }) as GlobalFinanceTotals;
+    },
+  });
+
   const unallocatedQuery = useQuery({
     queryKey: ["financial-unallocated"],
     enabled: !!user,
@@ -87,19 +149,11 @@ export function useFinancialOverview() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("curator_purchases")
-        .select("id, deal_id, curator_id, amount, plays_purchased, purchased_at, note")
+        .select("*")
         .order("purchased_at", { ascending: false })
         .limit(1000);
       if (error) throw error;
-      return (data ?? []) as Array<{
-        id: string;
-        deal_id: string | null;
-        curator_id: string;
-        amount: number;
-        plays_purchased: number;
-        purchased_at: string;
-        note: string | null;
-      }>;
+      return (data ?? []) as CuratorPurchase[];
     },
   });
 
@@ -121,7 +175,7 @@ export function useFinancialOverview() {
     },
   });
 
-  // Realtime: compras de curadoria atualizam summary + purchases + unallocated
+  // Realtime único do módulo Financeiro
   useEffect(() => {
     if (!user) return;
     const channel = supabase
@@ -133,6 +187,8 @@ export function useFinancialOverview() {
           qc.invalidateQueries({ queryKey: ["financial-purchases"] });
           qc.invalidateQueries({ queryKey: ["financial-unallocated"] });
           qc.invalidateQueries({ queryKey: ["financial-summary"] });
+          qc.invalidateQueries({ queryKey: ["financial-by-curator"] });
+          qc.invalidateQueries({ queryKey: ["financial-global-totals"] });
         },
       )
       .on(
@@ -150,10 +206,18 @@ export function useFinancialOverview() {
   }, [user, qc]);
 
   const summary = summaryQuery.data ?? [];
+  const byCurator = byCuratorQuery.data ?? [];
+  const globalTotals = globalTotalsQuery.data ?? {
+    total_plays_purchased: 0,
+    total_spent: 0,
+    global_cpp: null,
+    purchase_count: 0,
+  };
   const purchases = purchasesQuery.data ?? [];
   const unallocated = unallocatedQuery.data ?? { total_nao_alocado: 0, num_compras: 0 };
   const dealsRaw = dealsQuery.data ?? [];
 
+  // dealsFinance: junta cost/target/delivered do deal com total_paid agregado das compras
   const dealsFinance = useMemo<DealFinanceRow[]>(() => {
     const paid = new Map<string, number>();
     for (const p of purchases) {
@@ -183,82 +247,168 @@ export function useFinancialOverview() {
     });
   }, [dealsRaw, purchases]);
 
+  // totals — derivados APENAS das views (zero recálculo paralelo)
   const totals = useMemo(() => {
     let recebido = 0;
     let cobrado = 0;
-    let pago = 0;
+    let pagoPorCampanha = 0;
     for (const s of summary) {
       recebido += Number(s.valor_recebido ?? 0);
       cobrado += Number(s.valor_cobrado ?? 0);
-      pago += Number(s.total_pago_curadores ?? 0);
+      pagoPorCampanha += Number(s.total_pago_curadores ?? 0);
     }
-    const margem = recebido - pago;
-    const custoTotalCaixa = purchases.reduce((acc, p) => acc + Number(p.amount ?? 0), 0);
+    const custoCaixa = Number(globalTotals.total_spent ?? 0);
+    const margem = recebido - pagoPorCampanha;
     return {
       cobrado,
       recebido,
-      pago,
+      pagoPorCampanha,
+      custoCaixa,
+      cppGlobal: globalTotals.global_cpp,
+      totalPlays: Number(globalTotals.total_plays_purchased ?? 0),
+      purchaseCount: Number(globalTotals.purchase_count ?? 0),
+      curatorsCount: byCurator.length,
       margem,
       margemPct: recebido > 0 ? (margem / recebido) * 100 : null,
-      custoTotalCaixa,
       custoNaoAlocado: Number(unallocated.total_nao_alocado ?? 0),
       numComprasNaoAlocadas: Number(unallocated.num_compras ?? 0),
     };
-  }, [summary, purchases, unallocated]);
+  }, [summary, byCurator, globalTotals, unallocated]);
 
   const reload = useCallback(async () => {
     await Promise.all([
       qc.invalidateQueries({ queryKey: ["financial-summary"] }),
+      qc.invalidateQueries({ queryKey: ["financial-by-curator"] }),
+      qc.invalidateQueries({ queryKey: ["financial-global-totals"] }),
       qc.invalidateQueries({ queryKey: ["financial-purchases"] }),
       qc.invalidateQueries({ queryKey: ["financial-unallocated"] }),
       qc.invalidateQueries({ queryKey: ["financial-deals"] }),
     ]);
   }, [qc]);
 
-  // registerPayment agora cria uma curator_purchase vinculada ao deal (Opção A).
+  // CRUD oficial de lançamentos financeiros
+  const addPurchase = useCallback(
+    async (input: {
+      curator_id: string;
+      plays_purchased: number;
+      amount: number;
+      note?: string | null;
+      deal_id?: string | null;
+      purchased_at?: string;
+    }) => {
+      if (!user?.id) throw new Error("Sessão expirada");
+      const { data, error } = await supabase
+        .from("curator_purchases")
+        .insert({
+          user_id: user.id,
+          curator_id: input.curator_id,
+          deal_id: input.deal_id ?? null,
+          plays_purchased: Math.max(0, Math.round(input.plays_purchased)),
+          amount: Math.max(0, Number(input.amount.toFixed(2))),
+          note: input.note ?? null,
+          purchased_at: input.purchased_at ?? new Date().toISOString(),
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      await reload();
+      return data as CuratorPurchase;
+    },
+    [user, reload],
+  );
+
+  const updatePurchase = useCallback(
+    async (
+      id: string,
+      patch: {
+        plays_purchased: number;
+        amount: number;
+        note?: string | null;
+        purchased_at?: string;
+      },
+    ) => {
+      if (!user?.id) throw new Error("Sessão expirada");
+      const { data, error } = await supabase
+        .from("curator_purchases")
+        .update({
+          plays_purchased: Math.max(0, Math.round(patch.plays_purchased)),
+          amount: Math.max(0, Number(patch.amount.toFixed(2))),
+          note: patch.note ?? null,
+          purchased_at: patch.purchased_at,
+        })
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      await reload();
+      return data as CuratorPurchase;
+    },
+    [user, reload],
+  );
+
+  const deletePurchase = useCallback(
+    async (id: string) => {
+      if (!user?.id) throw new Error("Sessão expirada");
+      const { error } = await supabase.from("curator_purchases").delete().eq("id", id);
+      if (error) throw error;
+      await reload();
+    },
+    [user, reload],
+  );
+
+  // Compat com FinancialOverview/DealPaymentDialog (atalho para addPurchase)
   const registerPayment = useCallback(
     async (input: {
       deal_id: string;
       curator_id: string;
       amount: number;
       plays_purchased: number;
-      payment_date?: string; // mantido por compat — vira purchased_at
+      payment_date?: string;
       method?: string;
       notes?: string;
     }) => {
-      if (!user?.id) throw new Error("Sessão expirada");
       const purchasedAt = input.payment_date
         ? new Date(`${input.payment_date}T12:00:00`).toISOString()
         : new Date().toISOString();
       const noteParts = [input.method, input.notes].filter(Boolean);
-      const { error } = await supabase.from("curator_purchases").insert({
-        user_id: user.id,
+      await addPurchase({
         curator_id: input.curator_id,
         deal_id: input.deal_id,
-        amount: Number(input.amount.toFixed(2)),
-        plays_purchased: Math.max(0, Math.round(input.plays_purchased)),
+        amount: input.amount,
+        plays_purchased: input.plays_purchased,
         purchased_at: purchasedAt,
         note: noteParts.length > 0 ? noteParts.join(" · ") : null,
       });
-      if (error) throw error;
-      await reload();
     },
-    [user, qc, reload],
+    [addPurchase],
   );
 
   const loading =
-    (summaryQuery.isLoading || purchasesQuery.isLoading || dealsQuery.isLoading) &&
+    (summaryQuery.isLoading ||
+      purchasesQuery.isLoading ||
+      dealsQuery.isLoading ||
+      byCuratorQuery.isLoading ||
+      globalTotalsQuery.isLoading) &&
     summary.length === 0 &&
     purchases.length === 0 &&
-    dealsRaw.length === 0;
+    dealsRaw.length === 0 &&
+    byCurator.length === 0;
 
   return {
+    // dados
     summary,
+    byCurator,
+    globalTotals,
     purchases,
     dealsFinance,
     totals,
+    // estado
     loading,
+    // ações
     reload,
+    addPurchase,
+    updatePurchase,
+    deletePurchase,
     registerPayment,
   };
 }
