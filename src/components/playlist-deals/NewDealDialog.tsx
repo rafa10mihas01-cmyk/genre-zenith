@@ -459,7 +459,7 @@ function ClientPicker({
 export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved, prefillSongUrl, prefillCuratorId, sourceFitId, onCreated, campaignId, externalCuratorId, externalCuratorPreview }: NewDealDialogProps) {
   const { addDeal, updateDeal, addCurator, updateCurator, curators, balances } = useCuratorDeals();
   const { clients, addClient } = useClients();
-  const { addPurchase } = useCuratorFinance();
+  const { addPurchase } = useFinancialOverview();
   const isEdit = Boolean(editDeal);
 
   const [step, setStep] = useState<1 | 2>(1);
