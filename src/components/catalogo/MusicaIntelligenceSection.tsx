@@ -854,9 +854,19 @@ function buildFeed(
     }
   }
 
-  // Coletas recentes (até 5)
-  snapshots.slice(-5).forEach((s) => {
+  // Coletas recentes (até 3)
+  snapshots.slice(-3).forEach((s) => {
     items.push({ at: s.captured_at, tone: "neutral", icon: Activity, text: "Nova coleta recebida." });
+  });
+
+  // Novo pico (snapshot que superou todos os anteriores)
+  let runningPeak = 0;
+  snapshots.forEach((s) => {
+    const v = s.total_plays_28d ?? 0;
+    if (v > runningPeak && runningPeak > 0) {
+      items.push({ at: s.captured_at, tone: "good", icon: TrendingUp, text: `Novo pico de streams: ${fmt(v)}.` });
+    }
+    if (v > runningPeak) runningPeak = v;
   });
 
   // Placements confirmados (apenas business — ignora códigos técnicos)
