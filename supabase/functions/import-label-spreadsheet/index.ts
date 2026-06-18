@@ -665,10 +665,17 @@ Deno.serve(async (req) => {
         is_baseline: isBaseline && !willQuarantine,
         upload_mode: uploadMode,
         window_kind: (() => {
-          const allowed = new Set(["all_time", "last_28d", "last_7d", "last_24h", "unknown"]);
+          const allowed = new Set(["all_time", "last_28d", "last_7d", "last_24h"]);
           const wk = evalResult.window_kind;
-          if (!wk) return null;
-          return allowed.has(wk) ? wk : "unknown";
+          if (wk && allowed.has(wk)) return wk;
+          // Heurística por nome do arquivo / cabeçalho.
+          const headerSample = (detected ?? []).join(" ");
+          const detectedWk = detectWindowKind(fileName, headerSample);
+          if (detectedWk) return detectedWk;
+          // Sem sinal explícito: assume janela diária (caso S4A mais comum).
+          // É o mesmo comportamento do bot DOM (que sempre cai em 24h/7d).
+          // Mantém o upload fora da quarentena por classificação ausente.
+          return "last_24h";
         })(),
         quarantined_at: willQuarantine ? new Date().toISOString() : null,
         quarantine_reason: willQuarantine ? (evalResult.reason ?? null) : null,
