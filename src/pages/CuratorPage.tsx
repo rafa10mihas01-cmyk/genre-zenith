@@ -2326,44 +2326,46 @@ export default function CuratorPage() {
               {uploads.length === 0 ? (
                 <div className="text-center py-10 text-sm text-muted-foreground">Nenhum Excel enviado ainda.</div>
               ) : (
-                <ul className="divide-y divide-border">
-                  {uploads.map((u) => (
-                    <li key={u.id} className="py-3 flex items-center gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-[12.5px] font-medium truncate">{u.file_name}</span>
-                          {u.is_baseline && (
-                            <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-primary/15 text-primary">baseline</span>
-                          )}
-                          {u.superseded && (
-                            <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">substituído</span>
-                          )}
-                          {u.quarantined && (
-                            <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-warning/15 text-warning">quarentena</span>
-                          )}
+                <div className="max-h-[340px] overflow-y-auto pr-1 -mr-1 scroll-smooth [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]">
+                  <ul className="divide-y divide-border">
+                    {uploads.map((u) => (
+                      <li key={u.id} className="py-3 flex items-center gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-[12.5px] font-medium truncate">{u.file_name}</span>
+                            {u.is_baseline && (
+                              <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-primary/15 text-primary">baseline</span>
+                            )}
+                            {u.superseded && (
+                              <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">substituído</span>
+                            )}
+                            {u.quarantined && (
+                              <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-warning/15 text-warning">quarentena</span>
+                            )}
+                          </div>
+                          <div className="text-[10.5px] text-muted-foreground tabular-nums mt-0.5">
+                            {u.reference_date ? `Ref. ${formatDate(u.reference_date)} · ` : ""}
+                            {formatDateTime(u.created_at)}
+                            {u.rows_imported != null ? ` · ${u.rows_imported} linhas` : ""}
+                            {u.total_streams != null ? ` · ${formatPlays(u.total_streams)} streams` : ""}
+                          </div>
                         </div>
-                        <div className="text-[10.5px] text-muted-foreground tabular-nums mt-0.5">
-                          {u.reference_date ? `Ref. ${formatDate(u.reference_date)} · ` : ""}
-                          {formatDateTime(u.created_at)}
-                          {u.rows_imported != null ? ` · ${u.rows_imported} linhas` : ""}
-                          {u.total_streams != null ? ` · ${formatPlays(u.total_streams)} streams` : ""}
-                        </div>
-                      </div>
-                      {u.download_url ? (
-                        <a
-                          href={u.download_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-[11.5px] text-primary hover:underline shrink-0"
-                        >
-                          <Download className="h-3.5 w-3.5" /> Baixar
-                        </a>
-                      ) : (
-                        <span className="text-[11px] text-muted-foreground/60 shrink-0">indisponível</span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
+                        {u.download_url ? (
+                          <a
+                            href={u.download_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-[11.5px] text-primary hover:underline shrink-0"
+                          >
+                            <Download className="h-3.5 w-3.5" /> Baixar
+                          </a>
+                        ) : (
+                          <span className="text-[11px] text-muted-foreground/60 shrink-0">indisponível</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
             </CardContent>
           </Card>
