@@ -275,7 +275,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     },
     placeholderData: (prev) => prev,
   });
-  const items = itemsQuery.data ?? [];
+  const items = useMemo(() => itemsQuery.data ?? [], [itemsQuery.data]);
   const loading = itemsQuery.isPending;
   const setItems = useCallback(
     (updater: ManagedPlaylist[] | ((prev: ManagedPlaylist[]) => ManagedPlaylist[])) => {
@@ -284,7 +284,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         return typeof updater === "function" ? (updater as (p: ManagedPlaylist[]) => ManagedPlaylist[])(base) : updater;
       });
     },
-    [queryClient, loadedCount, filterFase, showArchived, archiveType, sortBy, filterMissingGenre, filterGenreId, filterSize],
+    [queryClient, loadedCount, filterFase, showArchived, archiveType, sortBy, filterMissingGenre, filterGenreId, filterSize, onlyEligible],
   );
 
   // Contagens reais do catálogo inteiro (5 colunas, payload mínimo).
@@ -300,7 +300,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     },
     staleTime: 60_000,
   });
-  const countRows = countsQuery.data ?? [];
+  const countRows = useMemo(() => countsQuery.data ?? [], [countsQuery.data]);
   const totalActiveCount = countRows.filter((r) => !r.archived_at).length;
   const totalArchivedCount = countRows.filter((r) => r.archived_at).length;
   const catalogCount = totalArchivedCount; // Catálogo = todas as arquivadas

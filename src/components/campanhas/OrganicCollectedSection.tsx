@@ -97,6 +97,8 @@ export function OrganicCollectedSection({ rows }: Props) {
     return () => {
       cancelled = true;
     };
+    // spotifyIds.join(",") é uma string estável que muda só quando o conjunto muda.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spotifyIds.join(",")]);
 
   const grouped = useMemo(() => {

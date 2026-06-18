@@ -87,6 +87,8 @@ export function CampaignDailyPlan({
       }
     })();
     return () => { cancelled = true; };
+    // snapshot é usado dentro do efeito mas estamos intencionalmente reagindo só ao refresh/campaignId.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campaignId, refreshKey]);
 
   const plan = useMemo(() => {

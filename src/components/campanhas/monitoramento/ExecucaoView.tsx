@@ -407,6 +407,8 @@ export function ExecucaoView({
       return bb - ba;
     });
     return out;
+    // passesNonQuery é função local estável; não é dependência reativa.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, q, scope, curatorFilter, statusFilter, sort, sortDir, statuses]);
 
   const filteredTotals = useMemo(() => {
