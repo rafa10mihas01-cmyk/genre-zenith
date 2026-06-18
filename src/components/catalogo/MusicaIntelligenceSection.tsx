@@ -696,7 +696,7 @@ function ExecutiveSummary({
       sub: growthAbs != null ? `${growthAbs >= 0 ? "+" : ""}${fmt(growthAbs)} streams` : undefined,
     },
     { k: "Playlists ativas", v: String(ativas), sub: `${ranking.length} total` },
-    { k: "Melhor playlist", v: best ? <span className="truncate block max-w-[180px]" title={best.name}>{best.name}</span> : "—", sub: best ? `+${fmt(best.deliveryAccumulated)} delivery` : undefined },
+    { k: "Melhor playlist", v: best ? <span className="block truncate" title={best.name}>{best.name}</span> : "—", sub: best ? `+${fmt(best.deliveryAccumulated)} delivery` : undefined },
     { k: "Última coleta", v: rel(telemetry?.last_captured_at), sub: telemetry?.last_captured_at ? dt(telemetry.last_captured_at) : undefined },
     { k: "Status", v: <span className={cn(status.tone === "good" && "text-emerald-400", status.tone === "warn" && "text-amber-400", status.tone === "bad" && "text-rose-400")}>{status.label}</span> },
   ];
