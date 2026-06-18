@@ -582,7 +582,7 @@ Deno.serve(async (req) => {
       if (campaignId) {
         const { data: ecoAllocs } = await admin
           .from("campaign_eco_allocations")
-          .select("managed_playlist_id, planned_streams, status, managed_playlists(name, cover_url, followers, spotify_playlist_id)")
+          .select("managed_playlist_id, planned_streams, status, dispatched_at, created_at, managed_playlists(name, cover_url, followers, spotify_playlist_id)")
           .eq("campaign_id", campaignId);
         const ecoSpotifyIds = (ecoAllocs ?? [])
           .map((a: AnyRec) => String(((a.managed_playlists as AnyRec) ?? {}).spotify_playlist_id ?? ""))
@@ -613,6 +613,10 @@ Deno.serve(async (req) => {
           const spotifyId = String(mp.spotify_playlist_id ?? "");
           const growth = spotifyId ? ecoGrowthBySpotifyId.get(spotifyId) : undefined;
           const grown = growth?.delivered ?? 0;
+          // Data real em que a música foi colocada na playlist do ecossistema:
+          // preferimos `dispatched_at` (instante do envio); se ainda não saiu,
+          // cai pra `created_at` da alocação (= quando entrou no plano).
+          const ecoRegisteredAt = (a.dispatched_at as string | null) ?? (a.created_at as string | null) ?? null;
           safePlaylists.push({
             name: String(mp.name ?? "Playlist Engine"),
             image_url: (mp.cover_url as string) ?? null,
@@ -625,8 +629,10 @@ Deno.serve(async (req) => {
             source: "engine" as const,
             planned: Number(a.planned_streams ?? 0),
             spotify_playlist_id: spotifyId || null,
+            registered_at: ecoRegisteredAt,
           });
         }
+
 
       }
     } catch (_) { /* não bloqueia o portal se isso falhar */ }
