@@ -142,7 +142,8 @@ async function installWebVitals() {
   vitalsInstalled = true;
   try {
     const wv = await import("web-vitals");
-    const report = (name: string) => (metric: any) => {
+    type WebVitalsMetric = import("web-vitals").Metric;
+    const report = (name: string) => (metric: WebVitalsMetric) => {
       postError({
         type: "rum",
         rum_metric: name,

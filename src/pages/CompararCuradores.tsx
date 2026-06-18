@@ -114,7 +114,7 @@ type MetricRowProps = {
   label: string;
   a: number | null | undefined;
   b: number | null | undefined;
-  format?: (v: any) => string;
+  format?: (v: number | null | undefined) => string;
   higherIsBetter?: boolean;
   unit?: string;
 };
