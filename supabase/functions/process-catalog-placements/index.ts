@@ -1,29 +1,36 @@
 // process-catalog-placements — Worker definitivo da fila do catálogo.
 //
-// Passo 3: migração total para claim atômico via SQL.
+// FASE 6.C.4 — corrigido para eliminar consumo desnecessário da Spotify API:
 //
-// Fluxo:
-//   1) claim_next_catalog_placements(worker_id, limit) — SKIP LOCKED + lease 2min.
-//   2) enrich (managed_playlists.spotify_playlist_id/owner + catalog_tracks.spotify_*).
-//   3) addPlaylistTracks → reconsulta playlist → confirmação.
-//   4) sucesso → status='active'; retry transitório → status='retry' +
-//      scheduled_for=now()+backoff; fatal → status='failed'.
-//   5) sempre limpa locked_at/locked_by/lease_expires_at e grava last_error_code.
-//   6) sempre escreve catalog_placement_execution_log.
+//   1) Pré-flight do Circuit Breaker: antes de qualquer chamada Spotify,
+//      consulta spotify_circuit_breaker do app vinculado ao owner. Se aberto,
+//      marca o placement como `waiting_circuit_breaker` com scheduled_for =
+//      blocked_until (sem chamar Spotify, sem incrementar attempts no claim).
+//
+//   2) Pré-check local: usa managed_playlist_tracks (cópia local mantida pelo
+//      sync-managed-playlist-tracks) como fonte primária do anti-duplicidade.
+//      Só vai à Spotify quando a faixa NÃO está no cache local.
+//
+//   3) Confirmação substituída por write-through local: ao receber snapshot_id
+//      do POST, upsertamos a faixa em managed_playlist_tracks. O periodic sync
+//      reconcilia eventuais ghost_adds em segundo plano. Eliminamos o GET de
+//      confirmação que era a maior fonte de tráfego.
+//
+//   4) Sem reset de attempts. O caminho circuit_open antigo (attempts-1) virou
+//      transição para waiting_circuit_breaker preservando attempts. O claim
+//      também não incrementa attempts ao destravar uma linha desse estado.
+//
+//   5) Toda chamada/decisão recebe um correlation_id e é registrada com
+//      `source` (local_hit, local_miss, cache_hit, spotify, waiting_*) no
+//      execution_log para auditoria.
 //
 // Body opcional: { limit?: number }  (default 200, máx 500 — bate com claim cap)
-//
-// Não usa mais SELECT direto em catalog_placements WHERE status='pending'.
-// Nada fora do claim é processado. Ordenação (priority/scheduled_for/created_at)
-// é responsabilidade exclusiva do SQL.
+// Não usa SELECT direto em catalog_placements WHERE status='pending'.
 
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import {
   addPlaylistTracks,
-  findPlaylistTrackIndex,
-  listPlaylistTrackRefs,
-  type PlaylistTrackRef,
 } from "../_shared/spotify-playlist.ts";
 import { getUserToken } from "../_shared/spotify-client.ts";
 import { backoffSecondsForAttempt } from "../_shared/playlist-queue.ts";
@@ -56,6 +63,7 @@ type ClaimedRow = {
 type Enriched = ClaimedRow & {
   spotify_playlist_id: string;
   owner_spotify_user_id: string | null;
+  tracks_count: number | null;
   spotify_track_id: string;
   spotify_uri: string | null;
 };
@@ -105,6 +113,9 @@ Deno.serve(async (req) => {
       retry: 0,
       failed: 0,
       circuit_open: 0,
+      waiting_circuit_breaker: 0,
+      local_hits: 0,
+      spotify_calls: 0,
       duration_ms: Date.now() - startedAt,
     });
   }
@@ -118,7 +129,7 @@ Deno.serve(async (req) => {
       .select("id, spotify_track_id, spotify_uri, track_name")
       .in("id", trackIds),
     sb.from("managed_playlists")
-      .select("id, spotify_playlist_id, owner_spotify_user_id")
+      .select("id, spotify_playlist_id, owner_spotify_user_id, tracks_count")
       .in("id", playlistIds),
   ]);
   if (trackErr || plErr) {
@@ -151,6 +162,7 @@ Deno.serve(async (req) => {
       ...r,
       spotify_playlist_id: p.spotify_playlist_id,
       owner_spotify_user_id: p.owner_spotify_user_id ?? null,
+      tracks_count: typeof p.tracks_count === "number" ? p.tracks_count : null,
       spotify_track_id: t.spotify_track_id,
       spotify_uri: t.spotify_uri ?? null,
     });
@@ -174,6 +186,10 @@ Deno.serve(async (req) => {
     });
   }
 
+  // ──────────────────────────────────────────────────────────────────────
+  // Caches por execução
+  // ──────────────────────────────────────────────────────────────────────
+
   // Token cache por owner (refresh sob demanda em 401).
   const tokenCache = new Map<string, string>();
   async function tokenFor(ownerId: string | null): Promise<string> {
@@ -185,29 +201,103 @@ Deno.serve(async (req) => {
     return r.token;
   }
 
-  // Refs cache por playlist na MESMA execução.
-  const refsCache = new Map<string, PlaylistTrackRef[]>();
-  async function getRefs(playlistId: string, token: string, force = false): Promise<PlaylistTrackRef[]> {
-    if (!force) {
-      const cached = refsCache.get(playlistId);
-      if (cached) return cached;
-    }
-    const refs = await listPlaylistTrackRefs(playlistId, token);
-    refsCache.set(playlistId, refs);
-    return refs;
+  // Mapa owner → app_id (consulta única em spotify_user_tokens).
+  const ownerAppCache = new Map<string, string | null>();
+  async function appIdForOwner(ownerId: string | null): Promise<string | null> {
+    const key = ownerId ?? "__default__";
+    if (ownerAppCache.has(key)) return ownerAppCache.get(key) ?? null;
+    if (!ownerId) { ownerAppCache.set(key, null); return null; }
+    const { data } = await sb
+      .from("spotify_user_tokens")
+      .select("app_id")
+      .eq("spotify_user_id", ownerId)
+      .maybeSingle();
+    const v = (data?.app_id as string | null) ?? null;
+    ownerAppCache.set(key, v);
+    return v;
   }
 
+  // Cache do estado do breaker por app_id (consulta única por execução).
+  type BreakerState = { open: boolean; blocked_until: string | null };
+  const breakerCache = new Map<string, BreakerState>();
+  async function breakerStateFor(appId: string | null): Promise<BreakerState> {
+    const key = appId ?? "__global__";
+    if (breakerCache.has(key)) return breakerCache.get(key)!;
+    if (!appId) {
+      const v = { open: false, blocked_until: null };
+      breakerCache.set(key, v);
+      return v;
+    }
+    const { data } = await sb
+      .from("spotify_circuit_breaker")
+      .select("status, blocked_until")
+      .eq("app_id", appId)
+      .maybeSingle();
+    const blockedFuture =
+      !!data?.blocked_until && new Date(data.blocked_until).getTime() > Date.now();
+    const isOpen = data?.status === "open" || blockedFuture;
+    const v: BreakerState = {
+      open: !!isOpen,
+      blocked_until: data?.blocked_until ?? null,
+    };
+    breakerCache.set(key, v);
+    return v;
+  }
+
+  // Pré-check local: managed_playlist_tracks (fonte canônica mantida pelo sync).
+  async function localPlaylistHasTrack(
+    managedPlaylistId: string,
+    spotifyTrackId: string,
+  ): Promise<boolean> {
+    const { data, error } = await sb
+      .from("managed_playlist_tracks")
+      .select("id")
+      .eq("playlist_id", managedPlaylistId)
+      .eq("spotify_track_id", spotifyTrackId)
+      .limit(1)
+      .maybeSingle();
+    if (error) {
+      // Erro de leitura local NÃO bloqueia — cai pro Spotify como fallback.
+      return false;
+    }
+    return !!data;
+  }
+
+  // Write-through: registra a faixa adicionada na cópia local.
+  async function persistLocal(
+    managedPlaylistId: string,
+    spotifyTrackId: string,
+  ): Promise<void> {
+    // position omitido propositalmente (há UNIQUE em (playlist_id, position)).
+    // O sync-managed-playlist-tracks reconcilia ordem/posição em ciclo próprio.
+    await sb
+      .from("managed_playlist_tracks")
+      .upsert(
+        {
+          playlist_id: managedPlaylistId,
+          spotify_track_id: spotifyTrackId,
+          added_at: new Date().toISOString(),
+        },
+        { onConflict: "playlist_id,spotify_track_id", ignoreDuplicates: true },
+      )
+      .then(() => {}, () => {});
+  }
+
+  // Métricas (também viram payload do response).
   let cntActive = 0;
   let cntAlready = 0;
   let cntRetry = 0;
   let cntFailed = invalid.length;
-  let cntCircuit = 0;
+  let cntCircuit = 0;        // legado: chamadas que receberam SpotifyCircuitOpenError
+  let cntWaiting = 0;        // novo: placements desviados pelo pré-flight
+  let cntLocalHits = 0;      // pré-check local resolveu sem ir à Spotify
+  let cntSpotifyCalls = 0;   // POSTs efetivos enviados à Spotify
 
   // Classifica erro como retry transitório ou fatal definitivo.
-  function classify(err: any): { kind: "retry" | "fatal"; code: string } {
+  function classify(err: any): { kind: "retry" | "fatal" | "circuit"; code: string } {
     const status: number | null = typeof err?.status === "number" ? err.status : null;
     const name = err?.name as string | undefined;
-    if (name === "SpotifyCircuitOpenError") return { kind: "retry", code: "spotify_circuit_open" };
+    if (name === "SpotifyCircuitOpenError") return { kind: "circuit", code: "spotify_circuit_open" };
     if (name === "SpotifyAuthInvalidError") return { kind: "fatal", code: "spotify_auth_invalid" };
     if (status === 429) return { kind: "retry", code: "spotify_429" };
     if (status != null && status >= 500 && status < 600) return { kind: "retry", code: `spotify_${status}` };
@@ -222,41 +312,54 @@ Deno.serve(async (req) => {
     return { kind: "fatal", code: status ? `spotify_${status}` : "exception" };
   }
 
-  async function markRetry(p: Enriched, code: string, msg: string | null, snapshotId: string | null = null) {
-    const isCircuit = code === "spotify_circuit_open";
-    if (isCircuit) cntCircuit++;
-    // Circuit aberto = throttle defensivo, NÃO é culpa do placement.
-    // Reverte o increment de attempts feito pelo claim e agenda pra +15min com jitter.
-    // Nunca vira fatal por max_attempts nesse caminho.
-    if (isCircuit) {
-      const jitterSec = 600 + Math.floor(Math.random() * 600); // 10–20 min
-      const scheduledFor = new Date(Date.now() + jitterSec * 1000).toISOString();
-      const restoredAttempts = Math.max(0, (p.attempts ?? 1) - 1);
-      await sb.from("catalog_placements").update({
-        status: "retry",
-        scheduled_for: scheduledFor,
-        attempts: restoredAttempts,
-        last_error_code: code,
-        locked_at: null, locked_by: null, lease_expires_at: null,
-      }).eq("id", p.id);
-      await sb.from("catalog_placement_execution_log").insert({
-        placement_id: p.id,
-        catalog_track_id: p.catalog_track_id,
-        managed_playlist_id: p.managed_playlist_id,
-        spotify_playlist_id: p.spotify_playlist_id,
-        spotify_track_id: p.spotify_track_id,
-        position: p.position,
-        outcome: "skipped",
-        error_code: code,
-        error_message: trim(`circuit_open: rescheduled in ${jitterSec}s (attempts preserved)`),
-        snapshot_id: snapshotId,
-      });
-      cntRetry++;
-      return;
-    }
+  // Desvia o placement para waiting_circuit_breaker.
+  // - scheduled_for = blocked_until do app (com fallback de 15min).
+  // - attempts NÃO é alterado (claim também respeita esse estado).
+  async function markWaitingCircuit(
+    p: Enriched,
+    appId: string | null,
+    blockedUntil: string | null,
+    correlationId: string,
+    retryAfterSec?: number | null,
+  ) {
+    cntCircuit++;
+    cntWaiting++;
+    const fallbackMs = (retryAfterSec && retryAfterSec > 0 ? retryAfterSec : 15 * 60) * 1000;
+    const resumeAt =
+      blockedUntil ?? new Date(Date.now() + fallbackMs).toISOString();
+    await sb.from("catalog_placements").update({
+      status: "waiting_circuit_breaker",
+      scheduled_for: resumeAt,
+      last_error_code: "circuit_breaker_open",
+      locked_at: null, locked_by: null, lease_expires_at: null,
+    }).eq("id", p.id);
+    await sb.from("catalog_placement_execution_log").insert({
+      placement_id: p.id,
+      catalog_track_id: p.catalog_track_id,
+      managed_playlist_id: p.managed_playlist_id,
+      spotify_playlist_id: p.spotify_playlist_id,
+      spotify_track_id: p.spotify_track_id,
+      position: p.position,
+      outcome: "skipped",
+      error_code: "waiting_circuit_breaker",
+      error_message: trim(
+        `source=preflight_breaker app=${appId ?? "none"} ` +
+        `blocked_until=${blockedUntil ?? "n/a"} resume_at=${resumeAt} ` +
+        `attempts_preserved=${p.attempts} corr=${correlationId}`,
+      ),
+    });
+  }
+
+  async function markRetry(
+    p: Enriched,
+    code: string,
+    msg: string | null,
+    correlationId: string,
+    snapshotId: string | null = null,
+  ) {
     // Se já bateu max_attempts, vira fatal.
     if (p.attempts >= p.max_attempts) {
-      await markFailed(p, code, msg ?? "max_attempts_reached", snapshotId);
+      await markFailed(p, code, msg ?? "max_attempts_reached", correlationId, snapshotId);
       return;
     }
     const backoffSec = backoffSecondsForAttempt(p.attempts);
@@ -276,13 +379,19 @@ Deno.serve(async (req) => {
       position: p.position,
       outcome: "skipped",
       error_code: code,
-      error_message: trim(`retry in ${backoffSec}s: ${msg ?? ""}`),
+      error_message: trim(`source=spotify retry in ${backoffSec}s: ${msg ?? ""} corr=${correlationId}`),
       snapshot_id: snapshotId,
     });
     cntRetry++;
   }
 
-  async function markFailed(p: Enriched, code: string, msg: string | null, snapshotId: string | null = null) {
+  async function markFailed(
+    p: Enriched,
+    code: string,
+    msg: string | null,
+    correlationId: string,
+    snapshotId: string | null = null,
+  ) {
     await sb.from("catalog_placements").update({
       status: "failed",
       last_error_code: code,
@@ -298,13 +407,19 @@ Deno.serve(async (req) => {
       position: p.position,
       outcome: "failed",
       error_code: code,
-      error_message: trim(msg),
+      error_message: trim(`source=spotify ${msg ?? ""} corr=${correlationId}`),
       snapshot_id: snapshotId,
     });
     cntFailed++;
   }
 
-  async function markActive(p: Enriched, outcome: Outcome, snapshotId: string | null = null) {
+  async function markActive(
+    p: Enriched,
+    outcome: Outcome,
+    source: "local_hit" | "spotify_post" | "local_post_writethrough",
+    correlationId: string,
+    snapshotId: string | null = null,
+  ) {
     await sb.from("catalog_placements").update({
       status: "active",
       added_at: new Date().toISOString(),
@@ -319,50 +434,69 @@ Deno.serve(async (req) => {
       spotify_track_id: p.spotify_track_id,
       position: p.position,
       outcome,
+      error_message: trim(`source=${source} corr=${correlationId}`),
       snapshot_id: snapshotId,
     });
     if (outcome === "already_present") cntAlready++;
     else cntActive++;
   }
 
-  // 3) Loop principal — processa só linhas claimadas por este worker.
+  // ──────────────────────────────────────────────────────────────────────
+  // 3) Loop principal
+  // ──────────────────────────────────────────────────────────────────────
   for (const p of enriched) {
+    const correlationId = crypto.randomUUID().slice(0, 8);
     const uri = p.spotify_uri ?? `spotify:track:${p.spotify_track_id}`;
+
     try {
+      // 3.1) Pré-flight Circuit Breaker (sem chamada Spotify).
+      const appId = await appIdForOwner(p.owner_spotify_user_id);
+      const breaker = await breakerStateFor(appId);
+      if (breaker.open) {
+        await markWaitingCircuit(p, appId, breaker.blocked_until, correlationId);
+        continue;
+      }
+
+      // 3.2) Pré-check local (managed_playlist_tracks).
+      if (await localPlaylistHasTrack(p.managed_playlist_id, p.spotify_track_id)) {
+        cntLocalHits++;
+        await markActive(p, "already_present", "local_hit", correlationId);
+        continue;
+      }
+
+      // 3.3) Não está no cache local → autoriza chamada Spotify.
       const token = await tokenFor(p.owner_spotify_user_id);
 
-      // Anti-duplicidade pré-POST
-      let refs = await getRefs(p.spotify_playlist_id, token);
-      if (findPlaylistTrackIndex(refs, p.spotify_track_id) >= 0) {
-        await markActive(p, "already_present");
-        continue;
-      }
-
-      // Insere clampando posição em refs.length (evita 400 "Index out of bounds")
       const insertOpts: { position?: number } = {};
       if (typeof p.position === "number" && p.position >= 0) {
-        insertOpts.position = Math.min(p.position, refs.length);
+        // Clampa contra tracks_count conhecido (sem GET pré-listagem).
+        const safeMax = typeof p.tracks_count === "number" ? p.tracks_count : p.position;
+        insertOpts.position = Math.min(p.position, Math.max(0, safeMax));
       }
+
       const addRes = await addPlaylistTracks(p.spotify_playlist_id, [uri], token, insertOpts);
+      cntSpotifyCalls++;
 
-      // Confirmação obrigatória
-      refs = await getRefs(p.spotify_playlist_id, token, true);
-      if (findPlaylistTrackIndex(refs, p.spotify_track_id) < 0) {
-        // ghost_add — Spotify aceitou mas faixa não apareceu.
-        // Primeira ocorrência vira retry; persistente (max_attempts) vira fatal via markRetry.
-        await markRetry(p, "ghost_add", "POST aceito mas faixa não apareceu na reconsulta", addRes.snapshot_id ?? null);
-        continue;
-      }
+      // 3.4) Write-through local: faixa já está no Spotify, espelha localmente
+      //      para que próximos placements na mesma playlist resolvam em local_hit.
+      //      Eventual ghost_add será reconciliado pelo sync periódico.
+      await persistLocal(p.managed_playlist_id, p.spotify_track_id);
 
-      await markActive(p, "active", addRes.snapshot_id ?? null);
+      await markActive(p, "active", "spotify_post", correlationId, addRes.snapshot_id ?? null);
     } catch (e: any) {
       const { kind, code } = classify(e);
       const msg = trim(e?.message ?? String(e));
 
-      if (kind === "retry") {
-        await markRetry(p, code, msg);
+      if (kind === "circuit") {
+        // Spotify devolveu erro do breaker (race com pré-flight). Mesmo tratamento.
+        const appId = await appIdForOwner(p.owner_spotify_user_id);
+        const breaker = await breakerStateFor(appId);
+        const retryAfter = typeof e?.retryAfterSec === "number" ? e.retryAfterSec : null;
+        await markWaitingCircuit(p, appId, breaker.blocked_until, correlationId, retryAfter);
+      } else if (kind === "retry") {
+        await markRetry(p, code, msg, correlationId);
       } else {
-        await markFailed(p, code, msg);
+        await markFailed(p, code, msg, correlationId);
         // 401 → derruba cache pra próximo refresh.
         if (code === "spotify_401" && p.owner_spotify_user_id) {
           tokenCache.delete(p.owner_spotify_user_id);
@@ -382,6 +516,9 @@ Deno.serve(async (req) => {
     retry: cntRetry,
     failed: cntFailed,
     circuit_open: cntCircuit,
+    waiting_circuit_breaker: cntWaiting,
+    local_hits: cntLocalHits,
+    spotify_calls: cntSpotifyCalls,
     duration_ms: Date.now() - startedAt,
   });
 });
