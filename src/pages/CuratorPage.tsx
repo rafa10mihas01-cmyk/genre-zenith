@@ -1782,9 +1782,17 @@ export default function CuratorPage() {
                               </span>
                             )}
                           </div>
-                          <div className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground/70 tabular-nums">
+                          <div className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground/70 tabular-nums flex-wrap">
+                            {declaredAtByPlaylistId.get(p.playlist_id) && (
+                              <span title="Data e hora em que o curador declarou esta playlist como dele (colou o link aqui no NexEngine)">
+                                cadastrada {formatDateTime(declaredAtByPlaylistId.get(p.playlist_id)!)}
+                              </span>
+                            )}
                             {p.last_captured_at && (
-                              <span>último print {formatShortDate(p.last_captured_at)}</span>
+                              <>
+                                {declaredAtByPlaylistId.get(p.playlist_id) && <span aria-hidden>·</span>}
+                                <span title="Última coleta de plays desta playlist">último print {formatShortDate(p.last_captured_at)}</span>
+                              </>
                             )}
                           </div>
                         </div>
