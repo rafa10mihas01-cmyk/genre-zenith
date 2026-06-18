@@ -1202,13 +1202,13 @@ export function DealHistorySheet({
                 {/* === HISTÓRICO === */}
                 <TabsContent value="historico" className={cn("m-0 space-y-3", asPage ? "rounded-2xl border border-border bg-card p-5" : "px-6 py-5")}>
                   {reversedLogs.length === 0 ? (
-                    <div className="rounded-2xl border border-border bg-card py-10 flex flex-col items-center text-center gap-2">
+                    <div className="rounded-2xl border border-warning/40 bg-card py-10 px-5 flex flex-col items-center text-center gap-3">
                       <div className="h-10 w-10 rounded-full bg-[hsl(var(--elevated))] border border-border flex items-center justify-center">
                         <ImageOff className="h-4 w-4 text-muted-foreground" />
                       </div>
-                      <div className="text-sm font-medium text-foreground">Nenhum registro ainda</div>
-                      <div className="text-xs text-muted-foreground">
-                        Envie o primeiro print para começar
+                      <div className="text-sm font-medium text-foreground">Nenhuma coleta gravada</div>
+                      <div className="text-xs text-muted-foreground max-w-sm leading-relaxed">
+                        Existem {curatorTotal} playlists do curador nesta campanha, mas não há registros em curator_deal_logs para mostrar histórico interno.
                       </div>
                     </div>
                   ) : (

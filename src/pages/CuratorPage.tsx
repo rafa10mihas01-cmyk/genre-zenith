@@ -2263,7 +2263,7 @@ export default function CuratorPage() {
 
 
         {/* Fase 7.3 P4 — Galeria de Evidências (prints reais por playlist). */}
-        {activeTab === "evidencias" && (
+        {activeTab === "historico" && prints.length > 0 && (
           <Card className="nx-card nx-card-glow !p-0 border-border">
             <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-4">
               <div className="flex items-center justify-between">
@@ -2309,7 +2309,7 @@ export default function CuratorPage() {
         )}
 
         {/* Fase 7.3 P5 — Histórico de Excel (uploads com download via signed URL). */}
-        {activeTab === "arquivos" && (
+        {activeTab === "historico" && uploads.length > 0 && (
           <Card className="nx-card nx-card-glow !p-0 border-border">
             <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-4">
               <div className="flex items-center justify-between">
