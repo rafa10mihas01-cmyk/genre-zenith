@@ -465,8 +465,10 @@ export function DealHistorySheet({
   }, [allPlaylists, deal, songs]);
 
   const sortedPlaylists = useMemo(() => {
+    const snapMap = new Map<string, { plays_7d: number | null; plays_28d: number | null; total_delivered: number | null }>();
+    for (const r of todayBreakdown?.rows ?? []) snapMap.set(r.playlist_id, r as any);
     const deliveryOf = (p: CuratorPlaylist) => {
-      const snap = breakdownMap.get(p.id);
+      const snap = snapMap.get(p.id);
       return Number(snap?.plays_7d ?? p.streams_7d ?? 0)
         || Number(snap?.plays_28d ?? p.streams_28d ?? 0)
         || Number(snap?.total_delivered ?? 0);
@@ -478,7 +480,8 @@ export function DealHistorySheet({
       if (od !== 0) return od;
       return deliveryOf(b) - deliveryOf(a);
     });
-  }, [dealPlaylists, breakdownMap]);
+  }, [dealPlaylists, todayBreakdown]);
+
 
 
   // contagens por categoria
