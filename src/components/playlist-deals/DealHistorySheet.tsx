@@ -465,14 +465,21 @@ export function DealHistorySheet({
   }, [allPlaylists, deal, songs]);
 
   const sortedPlaylists = useMemo(() => {
+    const deliveryOf = (p: CuratorPlaylist) => {
+      const snap = breakdownMap.get(p.id);
+      return Number(snap?.plays_7d ?? p.streams_7d ?? 0)
+        || Number(snap?.plays_28d ?? p.streams_28d ?? 0)
+        || Number(snap?.total_delivered ?? 0);
+    };
     return [...dealPlaylists].sort((a, b) => {
       const sa = (a.match_status ?? (a.is_initial_roster ? "baseline" : "curator")) as CuratorMatchStatus;
       const sb = (b.match_status ?? (b.is_initial_roster ? "baseline" : "curator")) as CuratorMatchStatus;
       const od = STATUS_ORDER[sa] - STATUS_ORDER[sb];
       if (od !== 0) return od;
-      return Number(b.streams_7d ?? 0) - Number(a.streams_7d ?? 0);
+      return deliveryOf(b) - deliveryOf(a);
     });
-  }, [dealPlaylists]);
+  }, [dealPlaylists, breakdownMap]);
+
 
   // contagens por categoria
   const counts = useMemo(() => {
