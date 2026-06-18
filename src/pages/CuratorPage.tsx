@@ -2225,6 +2225,139 @@ export default function CuratorPage() {
         />
 
 
+        {/* Fase 7.3 P4 — Galeria de Evidências (prints reais por playlist). */}
+        {activeTab === "evidencias" && (
+          <Card className="nx-card nx-card-glow !p-0 border-border">
+            <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="min-w-0">
+                  <h2 className="text-[15px] font-semibold tracking-tight inline-flex items-center gap-2">
+                    <ImageIcon className="h-4 w-4 text-muted-foreground" /> Evidências
+                  </h2>
+                  <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
+                    Prints coletados pelos bots e pelo admin, em ordem cronológica.
+                  </p>
+                </div>
+                <span className="text-[12px] text-muted-foreground shrink-0 tabular-nums">{prints.length}</span>
+              </div>
+              {prints.length === 0 ? (
+                <div className="text-center py-10 text-sm text-muted-foreground">Sem evidências ainda.</div>
+              ) : (
+                <ul className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {prints.map((p, i) => (
+                    <li key={`${p.kind}-${i}-${p.captured_at}`} className="rounded-lg border border-border overflow-hidden bg-card/40">
+                      <a href={p.screenshot_url} target="_blank" rel="noreferrer" className="block aspect-video bg-muted overflow-hidden">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={p.screenshot_url} alt={p.playlist_name ?? "print"} className="w-full h-full object-cover hover:scale-105 transition-transform" loading="lazy" />
+                      </a>
+                      <div className="p-2 space-y-1">
+                        <div className="text-[12px] font-medium truncate" title={p.playlist_name ?? ""}>
+                          {p.playlist_name ?? "Playlist"}
+                        </div>
+                        <div className="flex items-center justify-between text-[10px] text-muted-foreground tabular-nums">
+                          <span>{formatDateTime(p.captured_at)}</span>
+                          {p.position != null && <span className="text-primary">#{p.position}</span>}
+                        </div>
+                        <div className="text-[9px] uppercase tracking-wider text-muted-foreground/60 truncate">
+                          {p.kind === "delivery_proof" ? "bot" : "admin"}
+                          {p.source ? ` · ${p.source}` : ""}
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Fase 7.3 P5 — Histórico de Excel (uploads com download via signed URL). */}
+        {activeTab === "arquivos" && (
+          <Card className="nx-card nx-card-glow !p-0 border-border">
+            <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="min-w-0">
+                  <h2 className="text-[15px] font-semibold tracking-tight inline-flex items-center gap-2">
+                    <Download className="h-4 w-4 text-muted-foreground" /> Arquivos
+                  </h2>
+                  <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
+                    Baselines, uploads, reenvios e versões substituídas.
+                  </p>
+                </div>
+                <span className="text-[12px] text-muted-foreground shrink-0 tabular-nums">{uploads.length}</span>
+              </div>
+              {uploads.length === 0 ? (
+                <div className="text-center py-10 text-sm text-muted-foreground">Nenhum Excel enviado ainda.</div>
+              ) : (
+                <ul className="divide-y divide-border">
+                  {uploads.map((u) => (
+                    <li key={u.id} className="py-3 flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-[12.5px] font-medium truncate">{u.file_name}</span>
+                          {u.is_baseline && (
+                            <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-primary/15 text-primary">baseline</span>
+                          )}
+                          {u.superseded && (
+                            <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">substituído</span>
+                          )}
+                          {u.quarantined && (
+                            <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-warning/15 text-warning">quarentena</span>
+                          )}
+                        </div>
+                        <div className="text-[10.5px] text-muted-foreground tabular-nums mt-0.5">
+                          {u.reference_date ? `Ref. ${formatDate(u.reference_date)} · ` : ""}
+                          {formatDateTime(u.created_at)}
+                          {u.rows_imported != null ? ` · ${u.rows_imported} linhas` : ""}
+                          {u.total_streams != null ? ` · ${formatPlays(u.total_streams)} streams` : ""}
+                        </div>
+                      </div>
+                      {u.download_url ? (
+                        <a
+                          href={u.download_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-[11.5px] text-primary hover:underline shrink-0"
+                        >
+                          <Download className="h-3.5 w-3.5" /> Baixar
+                        </a>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground/60 shrink-0">indisponível</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Fase 7.3 P7 — Timeline operacional do deal (eventos de negócio). */}
+        {activeTab === "historico" && timeline.length > 0 && (
+          <Card className="nx-card nx-card-glow !p-0 border-border">
+            <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-3">
+              <div>
+                <h2 className="text-[15px] font-semibold tracking-tight">Linha do tempo</h2>
+                <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
+                  Marcos operacionais do deal, do cadastro até a última coleta.
+                </p>
+              </div>
+              <ol className="relative border-l border-border ml-2 space-y-3">
+                {timeline.map((ev, i) => (
+                  <li key={i} className="ml-4">
+                    <span className="absolute -left-1.5 mt-1.5 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-background" />
+                    <div className="text-[11px] text-muted-foreground tabular-nums">{formatDateTime(ev.at)}</div>
+                    <div className="text-[12.5px] font-medium leading-tight">{ev.label}</div>
+                    {ev.detail && (
+                      <div className="text-[11px] text-muted-foreground/80 truncate">{ev.detail}</div>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Histórico de prints — vem da RPC get_curator_deal_snapshot_history */}
         {activeTab === "historico" && (
         <Card className="nx-card nx-card-glow !p-0 border-border">
