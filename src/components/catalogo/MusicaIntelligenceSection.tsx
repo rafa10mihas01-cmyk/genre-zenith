@@ -738,62 +738,35 @@ type FeedEvent = { at: string; tone: "good" | "warn" | "bad" | "neutral"; icon: 
 
 function buildFeed(
   placements: Placement[],
+  baseline: Baseline,
   snapshots: Snapshot[],
   exec: ExecutionLogRow[],
   obs: ObserverTrackRow[],
-  breakers: { app_id: string; status: string; blocked_until: string | null }[],
 ): FeedEvent[] {
   const items: FeedEvent[] = [];
 
-  // Placements criados (agrupado por dia)
-  const grouped = new Map<string, number>();
-  placements.forEach((p) => {
-    if (!p.added_at) return;
-    const k = dayKey(p.added_at);
-    grouped.set(k, (grouped.get(k) ?? 0) + 1);
-  });
-  grouped.forEach((n, day) => {
+  // Baseline criada
+  if (baseline?.captured_at) {
     items.push({
-      at: `${day}T23:59:00.000Z`,
-      tone: "good", icon: ListMusic,
-      text: `Música entrou em ${n} playlist${n === 1 ? "" : "s"}.`,
+      at: baseline.captured_at, tone: "good", icon: CheckCircle2,
+      text: `Baseline criada${baseline.streams != null ? ` (${fmt(baseline.streams)} streams).` : "."}`,
+    });
+  }
+
+  // Entradas em playlist (primeira detecção VPS por playlist)
+  const firstSeen = new Map<string, ObserverTrackRow>();
+  obs.forEach((o) => {
+    if (!firstSeen.has(o.spotify_playlist_id)) firstSeen.set(o.spotify_playlist_id, o);
+  });
+  firstSeen.forEach((o) => {
+    const name = namePlaylist(placements, o.spotify_playlist_id) ?? o.spotify_playlist_id;
+    items.push({
+      at: o.captured_at, tone: "good", icon: ListMusic,
+      text: `Nova playlist detectada: "${name}".`,
     });
   });
 
-  // Snapshots — crescimento positivo vs anterior
-  for (let i = 1; i < snapshots.length; i++) {
-    const prev = snapshots[i - 1].total_plays_28d ?? 0;
-    const cur = snapshots[i].total_plays_28d ?? 0;
-    const diff = cur - prev;
-    if (Math.abs(diff) >= 100) {
-      items.push({
-        at: snapshots[i].captured_at,
-        tone: diff > 0 ? "good" : "warn",
-        icon: diff > 0 ? ArrowUpRight : ArrowDownRight,
-        text: diff > 0 ? `Streams cresceram +${fmt(diff)}.` : `Streams caíram ${fmt(diff)}.`,
-      });
-    }
-  }
-
-  // Coletas recentes
-  snapshots.slice(-5).forEach((s) => {
-    items.push({ at: s.captured_at, tone: "neutral", icon: Activity, text: "Nova coleta recebida." });
-  });
-
-  // Execução / confirmações / erros
-  exec.slice(0, 30).forEach((e) => {
-    if (e.outcome === "spotify_post_ok") {
-      items.push({ at: e.executed_at, tone: "good", icon: CheckCircle2, text: "Placement confirmado no Spotify." });
-    } else if (e.outcome === "waiting_circuit_breaker" || e.outcome === "preflight_breaker") {
-      items.push({ at: e.executed_at, tone: "warn", icon: AlertTriangle, text: "Circuit breaker aguardando." });
-    } else if (e.outcome === "already_present") {
-      items.push({ at: e.executed_at, tone: "neutral", icon: CheckCircle2, text: "Música já estava na playlist." });
-    } else if (e.error_code) {
-      items.push({ at: e.executed_at, tone: "bad", icon: AlertTriangle, text: `Erro ${e.error_code}.` });
-    }
-  });
-
-  // Saídas inferidas pela observer (>72h sem ver e existia)
+  // Saídas inferidas (>72h sem detecção)
   const lastSeen = new Map<string, ObserverTrackRow>();
   obs.forEach((o) => {
     const cur = lastSeen.get(o.spotify_playlist_id);
@@ -803,16 +776,44 @@ function buildFeed(
   lastSeen.forEach((o) => {
     if (now - new Date(o.captured_at).getTime() > 72 * 3600_000) {
       const name = namePlaylist(placements, o.spotify_playlist_id) ?? o.spotify_playlist_id;
-      items.push({ at: o.captured_at, tone: "warn", icon: GitBranch, text: `Playlist "${name}" removeu a música.` });
+      items.push({
+        at: o.captured_at, tone: "warn", icon: GitBranch,
+        text: `Playlist removida: "${name}".`,
+      });
     }
   });
 
-  // Breakers abertos
-  breakers.filter((b) => b.status === "open").forEach((b) => {
-    items.push({ at: b.blocked_until ?? new Date().toISOString(), tone: "warn", icon: Zap, text: `App ${b.app_id} bloqueado pelo breaker.` });
+  // Crescimento/queda de streams (snapshot a snapshot)
+  for (let i = 1; i < snapshots.length; i++) {
+    const prev = snapshots[i - 1].total_plays_28d ?? 0;
+    const cur = snapshots[i].total_plays_28d ?? 0;
+    const diff = cur - prev;
+    if (Math.abs(diff) >= 100) {
+      items.push({
+        at: snapshots[i].captured_at,
+        tone: diff > 0 ? "good" : "warn",
+        icon: diff > 0 ? ArrowUpRight : ArrowDownRight,
+        text: diff > 0
+          ? `Streams cresceram +${fmt(diff)} (delivery atualizado).`
+          : `Streams caíram ${fmt(diff)}.`,
+      });
+    }
+  }
+
+  // Coletas recentes (até 5)
+  snapshots.slice(-5).forEach((s) => {
+    items.push({ at: s.captured_at, tone: "neutral", icon: Activity, text: "Nova coleta recebida." });
   });
 
-  return items.sort((a, b) => +new Date(b.at) - +new Date(a.at)).slice(0, 50);
+  // Placements confirmados (apenas business — ignora códigos técnicos)
+  exec.slice(0, 40).forEach((e) => {
+    if (e.outcome === "spotify_post_ok") {
+      const name = namePlaylist(placements, e.spotify_playlist_id) ?? "playlist";
+      items.push({ at: e.executed_at, tone: "good", icon: CheckCircle2, text: `Placement confirmado em "${name}".` });
+    }
+  });
+
+  return items.sort((a, b) => +new Date(b.at) - +new Date(a.at)).slice(0, 60);
 }
 
 function EventFeedPanel(props: { placements: Placement[]; snapshots: Snapshot[]; exec: ExecutionLogRow[]; obs: ObserverTrackRow[]; breakers: { app_id: string; status: string; blocked_until: string | null }[] }) {
