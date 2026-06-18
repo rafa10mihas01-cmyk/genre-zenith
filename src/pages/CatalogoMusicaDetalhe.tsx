@@ -8,7 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft, Music2, Layers, TrendingUp, Activity, ExternalLink,
   BarChart3, ListMusic, History, Gauge, CheckCircle2, AlertTriangle, Clock,
-  PlayCircle, RefreshCw, ChevronDown,
+  PlayCircle, RefreshCw, ChevronDown, LayoutDashboard, Sparkles,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
@@ -545,25 +545,65 @@ export default function CatalogoMusicaDetalhe() {
       />
 
       <PageContainer>
-        {/* Tab switcher Enterprise: Visão Geral (existente) | Inteligência (novo) */}
-        <div className="flex items-center gap-1 bg-card border border-border rounded-full p-1 self-start">
-          {([
-            { id: "geral", label: "Visão geral" },
-            { id: "inteligencia", label: "Inteligência" },
-          ] as const).map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTab(t.id)}
-              className={cn(
-                "px-3.5 sm:px-4 h-8 rounded-full text-xs font-semibold transition-colors",
-                tab === t.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        {/* Tab switcher — padrão oficial (cards no mobile, rail no desktop) igual Campanhas */}
+        {(() => {
+          const TABS_TOP = [
+            { id: "geral" as const, label: "Visão geral", icon: LayoutDashboard },
+            { id: "inteligencia" as const, label: "Inteligência", icon: Sparkles },
+          ];
+          return (
+            <>
+              {/* Mobile: grid de cards */}
+              <div className="grid grid-cols-2 gap-1.5 mb-4 sm:hidden">
+                {TABS_TOP.map((t) => {
+                  const Icon = t.icon;
+                  const active = tab === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setTab(t.id)}
+                      className={cn(
+                        "rounded-xl border px-1 py-2 flex flex-col items-center justify-center gap-1 transition-colors",
+                        active
+                          ? "border-primary/60 bg-primary/10 text-foreground"
+                          : "border-border bg-card text-muted-foreground hover:text-foreground",
+                      )}
+                      aria-pressed={active}
+                    >
+                      <Icon className={cn("h-4 w-4", active && "text-primary")} />
+                      <span className="text-[11px] font-medium leading-none text-center">{t.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Desktop: rail clássico */}
+              <div className="hidden sm:flex items-center gap-1 border-b border-border mb-6 overflow-x-auto overflow-y-hidden scrollbar-none">
+                {TABS_TOP.map((t) => {
+                  const Icon = t.icon;
+                  const active = tab === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setTab(t.id)}
+                      className={cn(
+                        "px-3 lg:px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap shrink-0",
+                        active
+                          ? "border-primary text-foreground"
+                          : "border-transparent text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      <span>{t.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          );
+        })()}
 
         {tab === "inteligencia" ? (
           <MusicaIntelligenceSection

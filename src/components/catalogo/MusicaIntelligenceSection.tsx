@@ -568,7 +568,7 @@ function PlaylistRankingPanel({ placements, obs, ssPl, exec }: {
             <th className="text-right font-medium px-3 py-2.5 hidden md:table-cell">Tendência</th>
             <th className="text-right font-medium px-3 py-2.5 hidden lg:table-cell">Melhor pos</th>
             <th className="text-right font-medium px-3 py-2.5 hidden lg:table-cell">Última coleta</th>
-            <th className="text-right font-medium px-3 py-2.5">Status</th>
+            <th className="text-right font-medium px-3 py-2.5 hidden sm:table-cell">Status</th>
           </tr>
         </thead>
         <tbody>
@@ -595,11 +595,17 @@ function PlaylistRankingPanel({ placements, obs, ssPl, exec }: {
                     {r.owner && <span className="block text-[10px] text-muted-foreground truncate">{r.owner}</span>}
                   </td>
                   <td className="px-3 py-2 text-right">
-                    <span className={cn(
-                      "font-mono text-sm tabular-nums font-semibold",
-                      r.deliveryAccumulated > 0 ? "text-emerald-400" : "text-muted-foreground",
-                    )}>
-                      {r.deliveryAccumulated > 0 ? `+${fmt(r.deliveryAccumulated)}` : "+0"}
+                    <span className="inline-flex items-center gap-1.5 justify-end">
+                      <span className={cn(
+                        "font-mono text-sm tabular-nums font-semibold",
+                        r.deliveryAccumulated > 0 ? "text-emerald-400" : "text-muted-foreground",
+                      )}>
+                        {r.deliveryAccumulated > 0 ? `+${fmt(r.deliveryAccumulated)}` : "+0"}
+                      </span>
+                      <span
+                        className={cn("h-1.5 w-1.5 rounded-full shrink-0 sm:hidden", r.status === "ativa" ? "bg-emerald-500" : "bg-muted-foreground/60")}
+                        aria-label={r.status}
+                      />
                     </span>
                   </td>
                   <td className="px-3 py-2 text-right font-mono text-xs hidden sm:table-cell">
@@ -613,7 +619,7 @@ function PlaylistRankingPanel({ placements, obs, ssPl, exec }: {
                   <td className="px-3 py-2 text-right hidden md:table-cell"><TrendBadge t={r.trend} /></td>
                   <td className="px-3 py-2 text-right font-mono text-xs hidden lg:table-cell">{r.bestPosition != null ? `#${r.bestPosition}` : "—"}</td>
                   <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground hidden lg:table-cell">{rel(r.lastSeen)}</td>
-                  <td className="px-3 py-2 text-right">
+                  <td className="px-3 py-2 text-right hidden sm:table-cell">
                     <span className={cn(
                       "inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider",
                       r.status === "ativa" ? "text-emerald-400" : "text-muted-foreground",
@@ -696,22 +702,22 @@ function ExecutiveSummary({
       sub: growthAbs != null ? `${growthAbs >= 0 ? "+" : ""}${fmt(growthAbs)} streams` : undefined,
     },
     { k: "Playlists ativas", v: String(ativas), sub: `${ranking.length} total` },
-    { k: "Melhor playlist", v: best ? <span className="truncate block max-w-[180px]" title={best.name}>{best.name}</span> : "—", sub: best ? `+${fmt(best.deliveryAccumulated)} delivery` : undefined },
+    { k: "Melhor playlist", v: best ? <span className="block truncate" title={best.name}>{best.name}</span> : "—", sub: best ? `+${fmt(best.deliveryAccumulated)} delivery` : undefined },
     { k: "Última coleta", v: rel(telemetry?.last_captured_at), sub: telemetry?.last_captured_at ? dt(telemetry.last_captured_at) : undefined },
     { k: "Status", v: <span className={cn(status.tone === "good" && "text-emerald-400", status.tone === "warn" && "text-amber-400", status.tone === "bad" && "text-rose-400")}>{status.label}</span> },
   ];
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-5">
+    <section className="rounded-2xl border border-border bg-card p-4 sm:p-5">
       <div className="flex items-center gap-2 mb-4">
         <Sparkles className="h-4 w-4 text-[#1DB954]" />
         <h3 className="text-sm font-semibold text-foreground">Resumo executivo</h3>
       </div>
-      <dl className="grid grid-cols-2 md:grid-cols-4 gap-x-5 gap-y-4">
+      <dl className="grid grid-cols-2 md:grid-cols-4 gap-x-4 sm:gap-x-5 gap-y-4">
         {kpis.map((k) => (
           <div key={k.k} className="flex flex-col gap-0.5 min-w-0">
-            <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">{k.k}</dt>
-            <dd className="text-lg font-semibold text-foreground font-mono tabular-nums truncate">{k.v}</dd>
+            <dt className="text-[10px] uppercase tracking-wider text-muted-foreground truncate">{k.k}</dt>
+            <dd className="text-base sm:text-lg font-semibold text-foreground font-mono tabular-nums truncate">{k.v}</dd>
             {k.sub && <dd className="text-[11px] text-muted-foreground truncate">{k.sub}</dd>}
           </div>
         ))}
