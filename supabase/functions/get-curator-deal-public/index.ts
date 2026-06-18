@@ -5,7 +5,7 @@
 //
 // Fonte de verdade do progresso: curator_deal_snapshots (prints do admin via S4A).
 // O frontend não calcula nada — apenas renderiza `progress` e `snapshot_history`.
-import { corsHeaders } from "npm:@supabase/supabase-js/cors";
+import { corsHeaders as baseCorsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { assertDealOperable } from "../_shared/deal-access.ts";
 import { checkRateLimit, clientIp, rateLimitResponse } from "../_shared/rate-limit.ts";
@@ -13,6 +13,11 @@ import { gateCuratorAccess } from "../_shared/portal-auth.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+const corsHeaders = {
+  ...baseCorsHeaders,
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-retry-count, x-portal-jwt",
+};
 
 function jr(p: unknown, status = 200) {
   return new Response(JSON.stringify(p), {
