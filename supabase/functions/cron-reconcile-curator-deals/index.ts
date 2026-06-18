@@ -20,9 +20,15 @@ type DealProgress = {
 };
 
 async function reconcileDeal(supabase: any, deal: any) {
-  // Growth Engine (P1.1): fonte ÚNICA = fn_deal_delivery_accumulated.
-  // Σ deltas positivos das playlists atribuídas ao curador do deal na campanha,
-  // ignorando uploads quarentenados. Nunca decresce, nunca negativo.
+  // FASE 9.2C — Writer único de `reconciled_total_plays` passa a ser
+  // `recompute_campaign_total_delivered` (chamado abaixo no loop por campanha).
+  // Aqui o cron apenas:
+  //   1) marca `last_reconciled_at` (timestamp oficial da última passagem do
+  //      cron de reconciliação — única responsabilidade do campo);
+  //   2) lê o delivered atual via `fn_deal_delivery_accumulated` SOMENTE pra
+  //      avaliar milestones e notificação de baseline ausente.
+  // Não escreve mais `reconciled_total_plays` — elimina o double-write
+  // matematicamente divergente (DUP-01).
   const { data: deliveredVal, error: rpcErr } = await supabase.rpc(
     "fn_deal_delivery_accumulated",
     { p_deal_id: deal.id },
@@ -33,10 +39,7 @@ async function reconcileDeal(supabase: any, deal: any) {
 
   await supabase
     .from("curator_deals")
-    .update({
-      reconciled_total_plays: delivered,
-      last_reconciled_at: new Date().toISOString(),
-    })
+    .update({ last_reconciled_at: new Date().toISOString() })
     .eq("id", deal.id);
 
   // ===== FIX C: detecta baseline ausente e notifica =====
