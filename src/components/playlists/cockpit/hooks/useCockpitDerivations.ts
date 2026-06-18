@@ -6,8 +6,8 @@ import type { Diagnosis, Suggestion, Zone } from "../types";
 import { HEALTH_META, ZONE_CAPS, zoneFromPos, norm } from "../helpers";
 
 export function useCockpitDerivations(diag: Diagnosis | null) {
-  const analysis = diag?.tracks_analysis ?? [];
-  const suggestions = diag?.tracks_suggestions ?? [];
+  const analysis = useMemo(() => diag?.tracks_analysis ?? [], [diag?.tracks_analysis]);
+  const suggestions = useMemo(() => diag?.tracks_suggestions ?? [], [diag?.tracks_suggestions]);
   const caps = diag?.raw?.applied_caps;
 
   const buckets = useMemo(() => {
