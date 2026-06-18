@@ -50,8 +50,8 @@ export function useCuratorDealDetail(dealId: string | null | undefined) {
   const { user } = useAuth();
   const qc = useQueryClient();
 
-  const detailKey = ["curator_deal_detail", dealId] as const;
-  const progressKey = ["curator-progress", dealId] as const;
+  const detailKey = useMemo(() => ["curator_deal_detail", dealId] as const, [dealId]);
+  const progressKey = useMemo(() => ["curator-progress", dealId] as const, [dealId]);
 
   const detailQuery = useQuery({
     queryKey: detailKey,
