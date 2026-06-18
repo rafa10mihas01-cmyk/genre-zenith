@@ -627,15 +627,21 @@ function PlaylistRankingPanel({ placements, obs, ssPl, exec }: {
                   <tr key={`${r.spotify_playlist_id}-x`} className="border-b border-border bg-muted/10">
                     <td></td>
                     <td colSpan={8} className="px-3 py-3">
-                      <dl className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-x-4 gap-y-2 text-[11px]">
+                      <dl className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-2 text-[11px]">
                         {[
-                          ["Streams na entrada", fmt(r.streamsAtEntry)],
-                          ["Streams atuais", fmt(r.streamsCurrent)],
                           ["Data de entrada", d(r.entryDate)],
-                          ["Posição atual", r.currentPosition != null ? `#${r.currentPosition}` : "—"],
-                          ["Freq. detecção", r.detectionFrequency != null ? `${r.detectionFrequency}/d` : "—"],
+                          ["Primeira coleta", d(r.firstSeen)],
                           ["Tempo até 1ª detecção", r.timeToFirstDetectionHours != null ? `${r.timeToFirstDetectionHours}h` : "—"],
-                          ["Observações", String(r.observations)],
+                          ["Delivery acumulado", r.deliveryAccumulated > 0 ? `+${fmt(r.deliveryAccumulated)}` : "+0"],
+                          ["Streams na entrada (T0)", fmt(r.streamsAtEntry)],
+                          ["Streams atuais", fmt(r.streamsCurrent)],
+                          ["Melhor posição", r.bestPosition != null ? `#${r.bestPosition}` : "—"],
+                          ["Posição atual", r.currentPosition != null ? `#${r.currentPosition}` : "—"],
+                          ["Dias ativa", `${r.daysActive}d`],
+                          ["Freq. detecção", r.detectionFrequency != null ? `${r.detectionFrequency}/d` : "—"],
+                          ["Última coleta", rel(r.lastSeen)],
+                          ["Tendência", r.trend ?? "—"],
+                          ["Status", r.status],
                           ["Score (auxiliar)", String(r.score)],
                         ].map(([k, v]) => (
                           <div key={k} className="flex flex-col gap-0.5">
