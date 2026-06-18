@@ -132,7 +132,7 @@ export default function Performance() {
     },
   });
 
-  const dataset = query.data?.dataset ?? [];
+  const dataset = useMemo(() => query.data?.dataset ?? [], [query.data?.dataset]);
   const genres = query.data?.genres ?? [];
   const lastUpdate = query.data?.lastUpdate ?? null;
   const loading = query.isLoading && !query.data;

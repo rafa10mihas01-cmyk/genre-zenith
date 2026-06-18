@@ -115,6 +115,8 @@ export default function JoinInvite() {
     return () => {
       mounted = false;
     };
+    // nav/user.email não precisam reativar a busca do convite; reagimos só ao code.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code]);
 
   // NUNCA aceita o convite automaticamente. Sempre exige ação explícita

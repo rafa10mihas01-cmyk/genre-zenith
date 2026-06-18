@@ -252,7 +252,7 @@ export function Calculadora({ onContinue, prefillSpotifyTrackId }: { onContinue?
       return gapDay * Math.max(1, active.days);
     }
     return active.meta;
-  }, [active.fonte, active.budget, active.splitEco, active.meta, active.top200StreamsDay, active.baselineStreamsDay, active.days, pricingSettings.price_per_stream_sell]);
+  }, [active.fonte, active.budget, active.meta, active.top200StreamsDay, active.baselineStreamsDay, active.days, pricingSettings.price_per_stream_sell]);
 
   const result = useMemo(() => calcCampaign({
     meta: effectiveMeta, days: active.days, modo: active.modo, perfil: active.perfil, splitEcoPct: active.splitEco,
@@ -291,6 +291,8 @@ export function Calculadora({ onContinue, prefillSpotifyTrackId }: { onContinue?
   const readyCount = songs.filter(isSongReady).length;
 
   // Agregados (para Revisão) — calcula curva de cada música pronta.
+  // isSongReady/songEffectiveMeta são funções estáveis (sem closures sobre state mutável além de pricingSettings).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const songResults = useMemo(() => songs.map(s => ({
     song: s,
     ready: isSongReady(s),
@@ -299,7 +301,9 @@ export function Calculadora({ onContinue, prefillSpotifyTrackId }: { onContinue?
       days: s.days, modo: s.modo, perfil: s.perfil, splitEcoPct: s.splitEco,
       splitOrganicPct: s.splitOrganic, clientProfile: s.clientProfile,
     }, pricingCosts),
-  })), [songs, pricingCosts]);
+    // isSongReady/songEffectiveMeta são funções locais estáveis (closures sobre pricingSettings já está nas deps).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  })), [songs, pricingCosts, pricingSettings.price_per_stream_sell]);
 
   const totals = useMemo(() => {
     const ready = songResults.filter(x => x.ready);

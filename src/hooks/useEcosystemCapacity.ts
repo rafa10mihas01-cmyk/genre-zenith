@@ -238,6 +238,8 @@ export function useEcosystemCapacity(
     }, 300);
     return () => { cancelled = true; clearTimeout(timer); };
 
+    // slotPositions é resumido em slotKey (estável); reagimos só a slotKey pra evitar laço.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [genre, days, engagementMultiplier, slotKey, topPosition, streamsEcoNeeded, campaignId]);
 
 

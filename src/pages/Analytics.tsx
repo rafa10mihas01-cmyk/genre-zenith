@@ -75,9 +75,9 @@ export default function Analytics() {
     },
   });
 
-  const deals = query.data?.deals ?? [];
-  const snapshots30d = query.data?.snapshots30d ?? [];
-  const snapshots7d = query.data?.snapshots7d ?? [];
+  const deals = useMemo(() => query.data?.deals ?? [], [query.data?.deals]);
+  const snapshots30d = useMemo(() => query.data?.snapshots30d ?? [], [query.data?.snapshots30d]);
+  const snapshots7d = useMemo(() => query.data?.snapshots7d ?? [], [query.data?.snapshots7d]);
   const playlistsMeta = query.data?.playlistsMeta ?? {};
   const loading = query.isLoading && !query.data;
   const load = () => qc.invalidateQueries({ queryKey: ANALYTICS_KEY });

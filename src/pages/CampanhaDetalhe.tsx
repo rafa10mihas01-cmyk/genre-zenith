@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBackOrFallback } from "@/hooks/useBackOrFallback";
@@ -51,7 +51,7 @@ export default function CampanhaDetalhe() {
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
 
-  const detailKey = ["campaign_detail", id] as const;
+  const detailKey = useMemo(() => ["campaign_detail", id] as const, [id]);
 
   // Fonte oficial da entrega: vw_campaign_playlist_growth (Growth Engine).
   const detailQuery = useQuery({

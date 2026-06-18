@@ -116,6 +116,8 @@ export function EngineHealthGrid() {
     return () => {
       cancelled = true;
     };
+    // intencionalmente só no mount; error é lido via closure só pra suprimir o lint.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (loading && items.length === 0) {

@@ -138,7 +138,7 @@ export default function ClienteDetalhe() {
       }>;
     },
   });
-  const clientCampaigns = campaignsQuery.data ?? [];
+  const clientCampaigns = useMemo(() => campaignsQuery.data ?? [], [campaignsQuery.data]);
 
   const client = useMemo(() => clients.find((c) => c.id === id), [clients, id]);
 

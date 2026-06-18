@@ -205,17 +205,17 @@ export function useFinancialOverview() {
     };
   }, [user, qc]);
 
-  const summary = summaryQuery.data ?? [];
-  const byCurator = byCuratorQuery.data ?? [];
-  const globalTotals = globalTotalsQuery.data ?? {
+  const summary = useMemo(() => summaryQuery.data ?? [], [summaryQuery.data]);
+  const byCurator = useMemo(() => byCuratorQuery.data ?? [], [byCuratorQuery.data]);
+  const globalTotals = useMemo(() => globalTotalsQuery.data ?? {
     total_plays_purchased: 0,
     total_spent: 0,
     global_cpp: null,
     purchase_count: 0,
-  };
-  const purchases = purchasesQuery.data ?? [];
-  const unallocated = unallocatedQuery.data ?? { total_nao_alocado: 0, num_compras: 0 };
-  const dealsRaw = dealsQuery.data ?? [];
+  }, [globalTotalsQuery.data]);
+  const purchases = useMemo(() => purchasesQuery.data ?? [], [purchasesQuery.data]);
+  const unallocated = useMemo(() => unallocatedQuery.data ?? { total_nao_alocado: 0, num_compras: 0 }, [unallocatedQuery.data]);
+  const dealsRaw = useMemo(() => dealsQuery.data ?? [], [dealsQuery.data]);
 
   // dealsFinance: junta cost/target/delivered do deal com total_paid agregado das compras
   const dealsFinance = useMemo<DealFinanceRow[]>(() => {
