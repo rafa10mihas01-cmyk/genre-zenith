@@ -849,12 +849,12 @@ function buildFeed(
   placements: Placement[],
   baseline: Baseline,
   snapshots: Snapshot[],
-  exec: ExecutionLogRow[],
   obs: ObserverTrackRow[],
+  ssPl: SongSnapPlaylistRow[],
 ): FeedEvent[] {
   const items: FeedEvent[] = [];
 
-  // Baseline criada
+  // 1) Baseline criada
   if (baseline?.captured_at) {
     items.push({
       at: baseline.captured_at, tone: "good", icon: CheckCircle2,
@@ -862,7 +862,7 @@ function buildFeed(
     });
   }
 
-  // Entradas em playlist (primeira detecção VPS por playlist)
+  // 2) Música entrou em playlist (primeira detecção VPS por playlist)
   const firstSeen = new Map<string, ObserverTrackRow>();
   obs.forEach((o) => {
     if (!firstSeen.has(o.spotify_playlist_id)) firstSeen.set(o.spotify_playlist_id, o);
@@ -871,11 +871,11 @@ function buildFeed(
     const name = namePlaylist(placements, o.spotify_playlist_id) ?? o.spotify_playlist_id;
     items.push({
       at: o.captured_at, tone: "good", icon: ListMusic,
-      text: `Nova playlist detectada: "${name}".`,
+      text: `Música entrou na playlist "${name}".`,
     });
   });
 
-  // Saídas inferidas (>72h sem detecção)
+  // 3) Música saiu da playlist (>72h sem detecção)
   const lastSeen = new Map<string, ObserverTrackRow>();
   obs.forEach((o) => {
     const cur = lastSeen.get(o.spotify_playlist_id);
@@ -887,12 +887,12 @@ function buildFeed(
       const name = namePlaylist(placements, o.spotify_playlist_id) ?? o.spotify_playlist_id;
       items.push({
         at: o.captured_at, tone: "warn", icon: GitBranch,
-        text: `Playlist removida: "${name}".`,
+        text: `Música saiu da playlist "${name}".`,
       });
     }
   });
 
-  // Crescimento/queda de streams (snapshot a snapshot)
+  // 4) Delivery atualizado (variações relevantes de streams 28d)
   for (let i = 1; i < snapshots.length; i++) {
     const prev = snapshots[i - 1].total_plays_28d ?? 0;
     const cur = snapshots[i].total_plays_28d ?? 0;
@@ -903,18 +903,13 @@ function buildFeed(
         tone: diff > 0 ? "good" : "warn",
         icon: diff > 0 ? ArrowUpRight : ArrowDownRight,
         text: diff > 0
-          ? `Streams cresceram +${fmt(diff)} (delivery atualizado).`
-          : `Streams caíram ${fmt(diff)}.`,
+          ? `Delivery atualizado: +${fmt(diff)} streams.`
+          : `Delivery em queda: ${fmt(diff)} streams.`,
       });
     }
   }
 
-  // Coletas recentes (até 3)
-  snapshots.slice(-3).forEach((s) => {
-    items.push({ at: s.captured_at, tone: "neutral", icon: Activity, text: "Nova coleta recebida." });
-  });
-
-  // Novo pico (snapshot que superou todos os anteriores)
+  // 5) Novo pico (snapshot que superou todos os anteriores)
   let runningPeak = 0;
   snapshots.forEach((s) => {
     const v = s.total_plays_28d ?? 0;
@@ -924,19 +919,35 @@ function buildFeed(
     if (v > runningPeak) runningPeak = v;
   });
 
-  // Placements confirmados (apenas business — ignora códigos técnicos)
-  exec.slice(0, 40).forEach((e) => {
-    if (e.outcome === "spotify_post_ok") {
-      const name = namePlaylist(placements, e.spotify_playlist_id) ?? "playlist";
-      items.push({ at: e.executed_at, tone: "good", icon: CheckCircle2, text: `Placement confirmado em "${name}".` });
+  // 6) Melhor playlist alterada (compara líder por snapshot)
+  const bySnap = new Map<string, { at: string; rows: SongSnapPlaylistRow[] }>();
+  ssPl.forEach((sp) => {
+    const cur = bySnap.get(sp.snapshot_id) ?? { at: sp.created_at, rows: [] };
+    cur.rows.push(sp);
+    if (new Date(sp.created_at) < new Date(cur.at)) cur.at = sp.created_at;
+    bySnap.set(sp.snapshot_id, cur);
+  });
+  const ordered = [...bySnap.values()].sort((a, b) => +new Date(a.at) - +new Date(b.at));
+  let prevBest: string | null = null;
+  ordered.forEach((snap) => {
+    const sorted = snap.rows.slice().sort((a, b) => (b.plays_7d ?? 0) - (a.plays_7d ?? 0));
+    const top = sorted[0];
+    if (!top || (top.plays_7d ?? 0) <= 0) return;
+    const topName = top.name ?? namePlaylist(placements, top.spotify_playlist_id) ?? top.spotify_playlist_id;
+    if (prevBest && prevBest !== top.spotify_playlist_id) {
+      items.push({
+        at: snap.at, tone: "good", icon: Award,
+        text: `Melhor playlist alterada para "${topName}".`,
+      });
     }
+    prevBest = top.spotify_playlist_id;
   });
 
   return items.sort((a, b) => +new Date(b.at) - +new Date(a.at)).slice(0, 60);
 }
 
-function EventFeedPanel(props: { placements: Placement[]; baseline: Baseline; snapshots: Snapshot[]; exec: ExecutionLogRow[]; obs: ObserverTrackRow[] }) {
-  const items = useMemo(() => buildFeed(props.placements, props.baseline, props.snapshots, props.exec, props.obs), [props]);
+function EventFeedPanel(props: { placements: Placement[]; baseline: Baseline; snapshots: Snapshot[]; obs: ObserverTrackRow[]; ssPl: SongSnapPlaylistRow[] }) {
+  const items = useMemo(() => buildFeed(props.placements, props.baseline, props.snapshots, props.obs, props.ssPl), [props]);
   if (items.length === 0) {
     return <div className="p-6 text-center text-xs text-muted-foreground">Sem eventos.</div>;
   }
