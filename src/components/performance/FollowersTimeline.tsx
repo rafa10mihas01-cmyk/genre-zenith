@@ -50,6 +50,8 @@ export function FollowersTimeline({ playlistIds = [] }: { playlistIds?: string[]
       setSnaps((data ?? []) as Snap[]);
       setLoading(false);
     })();
+    // playlistKey é a chave serializada estável dos playlistIds; reagimos só a ela.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range, playlistKey]);
 
   const points = useMemo<Point[]>(() => {

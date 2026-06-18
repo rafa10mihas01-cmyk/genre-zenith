@@ -1,6 +1,6 @@
 // useDiagnosisLoader — Fase 4B.3A: agora usa React Query (dedup + cache).
 // API pública preservada: { diag, setDiag, loading, loadLatest }.
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePlaylistDiagnosis } from "@/hooks/useCockpitQueries";
 import type { Diagnosis } from "../types";
@@ -10,7 +10,7 @@ type DiagSetter = React.Dispatch<React.SetStateAction<Diagnosis | null>>;
 export function useDiagnosisLoader(managedId: string) {
   const qc = useQueryClient();
   const q = usePlaylistDiagnosis(managedId);
-  const key = ["playlist-diagnosis", managedId] as const;
+  const key = useMemo(() => ["playlist-diagnosis", managedId] as const, [managedId]);
 
   const setDiag: DiagSetter = useCallback(
     (updater) => {
@@ -21,12 +21,12 @@ export function useDiagnosisLoader(managedId: string) {
           : (updater as Diagnosis | null);
       });
     },
-    [qc, managedId],
+    [qc, key],
   );
 
   const loadLatest = useCallback(async () => {
     await qc.invalidateQueries({ queryKey: key as any });
-  }, [qc, managedId]);
+  }, [qc, key]);
 
   return {
     diag: (q.data ?? null) as Diagnosis | null,

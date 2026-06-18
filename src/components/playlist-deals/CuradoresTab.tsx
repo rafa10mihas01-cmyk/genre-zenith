@@ -274,6 +274,8 @@ export function CuradoresTab({
         alertsHigh: totalAlertsHigh,
       },
     };
+    // progressByDeal não é dependência direta do agregado; reagimos só às fontes brutas.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deals, logs, playlists, alerts]);
 
   // Curadores visíveis
