@@ -56,7 +56,7 @@ import { toast } from "sonner";
 import type { Json } from "@/integrations/supabase/types";
 import { PlanHistoryTab } from "@/components/campaign-hub/tabs/PlanHistoryTab";
 import { CampaignGatesCard } from "@/components/campanhas/CampaignGatesCard";
-import { getErrorMessage } from "@/lib/errors";
+
 
 type EcoSnap = {
   id: string;
@@ -180,7 +180,7 @@ export default function CampanhaExecucao() {
       setCamp((c) => c ? ({ ...c, plan_approved_at: new Date().toISOString() } as CampaignHubCampaign) : c);
       loadCampaign();
     } catch (e: unknown) {
-      toast.error("Erro ao aprovar plano", { description: getErrorMessage(e)  });
+      toast.error("Erro ao aprovar plano", { description: getErrorMessage(e, "Erro desconhecido") });
     } finally {
       setApprovingPlan(false);
     }
@@ -225,7 +225,7 @@ export default function CampanhaExecucao() {
       setTab("curve");
       setDistributionTab("console");
     } catch (e: unknown) {
-      const raw = getErrorMessage(e) ;
+      const raw = getErrorMessage(e, "Erro desconhecido");
       const map: Record<string, string> = {
         client_approval_required: "O cliente ainda não aprovou o plano. Mande o link público antes.",
         baseline_required: "Cliente ainda não enviou a primeira planilha (baseline). Peça pra ele subir no portal antes de distribuir.",
