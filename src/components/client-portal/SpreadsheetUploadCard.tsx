@@ -101,18 +101,11 @@ export function SpreadsheetUploadCard({
     }
     setDownloadingId(u.id);
     try {
-      const { data, error } = await supabase.storage
-        .from("label-spreadsheets")
-        .createSignedUrl(u.file_path, 60);
-      if (error || !data?.signedUrl) throw error ?? new Error("Falha ao gerar link");
-      const a = document.createElement("a");
-      a.href = data.signedUrl;
-      a.download = u.file_name ?? "planilha.xlsx";
-      a.target = "_blank";
-      a.rel = "noopener";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      await downloadUploadAsXlsx({
+        filePath: u.file_path,
+        fileName: u.file_name,
+        referenceDate: (u as { reference_date?: string | null }).reference_date ?? null,
+      });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao baixar planilha");
     } finally {
@@ -568,7 +561,7 @@ export function SpreadsheetUploadCard({
                         className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground shrink-0"
                         onClick={() => handleDownloadUpload(u)}
                         disabled={downloadingId === u.id}
-                        title={u.file_name ?? "Baixar planilha original"}
+                        title={friendlyUploadName(u.file_name, (u as { reference_date?: string | null }).reference_date ?? null)}
                       >
                         {downloadingId === u.id ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
