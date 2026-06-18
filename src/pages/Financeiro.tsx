@@ -16,7 +16,7 @@ import { Kpi, type KpiTone } from "@/components/ui/kpi";
 import { FinanceiroTab } from "@/components/playlist-deals/FinanceiroTab";
 import { FinancialOverview } from "@/components/financeiro/FinancialOverview";
 import { PricingSettingsPanel } from "@/components/financeiro/PricingSettingsPanel";
-import { useCuratorDealsList } from "@/hooks/useCuratorDealsList";
+
 import { useFinancialOverview } from "@/hooks/useFinancialOverview";
 import { cn } from "@/lib/utils";
 
@@ -112,7 +112,7 @@ function MargemView() {
           value={totals.margemPct == null ? "—" : `${totals.margemPct.toFixed(1)}%`}
           tone={toneMap(totals.margemPct != null && totals.margemPct >= 30 ? "primary" : "muted")}
         />
-        <Kpi icon={Wallet} label="Resultado líquido" value={fmtBRL(totals.recebido - totals.pago)} />
+        <Kpi icon={Wallet} label="Resultado líquido" value={fmtBRL(totals.recebido - totals.pagoPorCampanha)} />
       </section>
 
       <section className="rounded-2xl bg-card border border-border overflow-hidden">
@@ -159,7 +159,7 @@ function MargemView() {
 }
 
 export default function Financeiro() {
-  const { deals } = useCuratorDealsList();
+
   const [params, setParams] = useSearchParams();
   const tab = params.get("tab") ?? "visao";
   const setTab = (v: string) => {
@@ -243,7 +243,7 @@ export default function Financeiro() {
         <div className="animate-tab-in">
           {tab === "visao"   && <FinancialOverview />}
           {tab === "receita" && <ReceitaView />}
-          {tab === "custo"   && <FinanceiroTab deals={deals} hideHero />}
+          {tab === "custo"   && <FinanceiroTab />}
           {tab === "margem"  && <MargemView />}
           {tab === "config"  && <PricingSettingsPanel />}
         </div>

@@ -42,7 +42,7 @@ import {
   type DealSongInput,
 } from "@/hooks/useCuratorDeals";
 import { useClients, type Client } from "@/hooks/useClients";
-import { useCuratorFinance } from "@/hooks/useCuratorFinance";
+import { useFinancialOverview } from "@/hooks/useFinancialOverview";
 import type { CuratorDeal, CuratorDealSong } from "@/lib/curatorDealsUtils";
 import { curatorPublicUrl } from "@/lib/curatorPublicUrl";
 import { formatNumber } from "@/lib/format";
@@ -459,7 +459,7 @@ function ClientPicker({
 export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved, prefillSongUrl, prefillCuratorId, sourceFitId, onCreated, campaignId, externalCuratorId, externalCuratorPreview }: NewDealDialogProps) {
   const { addDeal, updateDeal, addCurator, updateCurator, curators, balances } = useCuratorDeals();
   const { clients, addClient } = useClients();
-  const { addPurchase } = useCuratorFinance();
+  const { addPurchase } = useFinancialOverview();
   const isEdit = Boolean(editDeal);
 
   const [step, setStep] = useState<1 | 2>(1);

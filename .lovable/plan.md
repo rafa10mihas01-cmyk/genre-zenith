@@ -1,47 +1,99 @@
-## O que eu já tinha mexido no bot (e está pela metade)
+# FASE 8.1 — Consolidação Financeiro
 
-Em sessões anteriores eu deixei a **infra de coleta unificada** no bot da VPS apontando pra catálogo:
-- `bot-collect-queue` já tenta puxar itens de catálogo via RPC `claim_next_catalog_snapshots` e montar a URL `artists.spotify.com/.../song/.../stats` pro bot scrapear (mesma tela usada pra Ai Ai Que Legal).
-- `bot-ingest-song-snapshot` já aceita `catalog_track_id` (modo catálogo) e fecha o item da fila depois que o bot devolve o print + lista de playlists.
+Base: auditoria 8.0. PIX = opção B (sem Vault). Princípio: simplicidade é a arquitetura oficial.
 
-**Por isso a queue criou um item e travou: a função existe na borda, mas faltam as peças no banco e o bot foi tentando, falhando e somando attempts.**
+## Decisões assumidas (avisar se quiser mudar)
 
-## O que falta (na ordem dos 5 passos, sem quebrar o que tá rodando hoje)
+- **Saldo virtual (Item 7):** **remover** do hero da aba Custo. Substituir por KPIs já oficiais (Total investido, CPP, Curadores). Sem fórmula proprietária no JS.
+- **Compras órfãs (Item 4):** criar FK `ON DELETE SET NULL`. Manter as 5 compras atuais como "não alocado" (já aparecem no alerta amarelo). Sem perda de dados.
 
-### Passo 1 — Banco (migração)
-- Adicionar em `catalog_tracks`:
-  - `spotify_artist_id text` — sem ele o bot não monta a URL.
-  - `auto_collect_interval_minutes int default 2880` (2 dias, igual deal_song).
-  - `last_auto_collect_at timestamptz`, `next_auto_collect_at timestamptz`.
-- Criar RPC `claim_next_catalog_snapshots(worker, limit, lease)` — claim atômico (FOR UPDATE SKIP LOCKED, marca `processing`, `locked_by`, lease).
-- Criar RPC `enqueue_catalog_snapshots_due()` — varre `catalog_tracks` ativas com `next_auto_collect_at <= now()` (ou null) e enfileira `reason='periodic' priority=2`. Bump de `next_auto_collect_at = now() + interval`.
-- Trigger `AFTER INSERT ON catalog_tracks` — enfileira automaticamente `reason='baseline' priority=1` (é o que produz a primeira leitura de uma música nova, em vez de chamar Spotify API).
+## Fontes oficiais (Item 1) — congeladas
 
-### Passo 2 — Tirar a API da baseline
-- No `distribute-catalog-track` (edge): remover toda a chamada a `/v1/tracks` e `/v1/artists` que tentava preencher `popularity`/`monthly_listeners`. Continua só resolvendo metadados básicos (nome/artista/ISRC/capa) já que precisa pra criar a linha. **Nenhuma popularity entra no banco via API.**
-- Baseline T0 fica vazia até o bot voltar o primeiro snapshot — exatamente o mesmo padrão de uma música nova de deal.
+| Métrica | Fonte única |
+|---|---|
+| Receita | `campaigns.valor_cobrado / valor_recebido` |
+| Custo por campanha | `v_financial_summary.total_pago_curadores` |
+| Custo caixa total | `v_curator_global_finance.total_spent` (nova consulta) |
+| Margem | `v_financial_summary.margem_bruta / margem_pct` |
+| CPP por curador | `v_curator_finance.cpp` |
+| CPP global | `v_curator_global_finance.global_cpp` |
+| Não alocado | `v_financial_unallocated_cost` |
 
-### Passo 3 — Cron
-- 1 cron a cada hora: `enqueue_catalog_snapshots_due` + reciclagem de zumbi (lease expirado → volta a `pending` se attempts < max).
-- Frequência da coleta em si continua 2 em 2 dias (governada por `auto_collect_interval_minutes`), o cron só verifica quem está pronto.
+Frontend nunca recalcula. Apenas exibe.
 
-### Passo 4 — Limpar o lixo que ficou
-- Destravar o item da "Bct de Ouro" que está `processing` com attempts=6 → reset pra `pending` com attempts=0.
-- Preencher `spotify_artist_id` da "Bct de Ouro" (uma única chamada manual à API só pra resolver — depois disso, zero API).
-- Setar `auto_collect_interval_minutes=2880` e `next_auto_collect_at=now()` pra essa música.
+## Migração SQL (única)
 
-### Passo 5 — Bug do release no `bot-collect-queue`
-- O fallback usa `worker_id` mas a coluna é `locked_by`. Corrigir o UPDATE pra não estourar quando solta um item inválido.
+```text
+1. ALTER curator_purchases ADD CONSTRAINT fk_deal
+   FOREIGN KEY (deal_id) REFERENCES curator_deals(id) ON DELETE SET NULL
+   NOT VALID;  -- compras com deal_id apontando para deal inexistente viram NULL
+   Limpar primeiro: UPDATE curator_purchases SET deal_id=NULL
+     WHERE deal_id NOT IN (SELECT id FROM curator_deals);
+   VALIDATE CONSTRAINT fk_deal.
 
-## O que continua igual (não quebra nada)
-- `distribute-catalog-track`/`resolve-catalog-track`: mesmo contrato pra UI.
-- `process-catalog-placements`/`reap-catalog-placements`: intocados — quem adiciona/remove em playlist segue igual.
-- Bot da Ai Ai Que Legal: nenhum byte muda (deal_song mode é o caminho default).
-- Tabela `song_snapshots` já aceita `catalog_track_id` nullable → o snapshot do bot cai no mesmo storage.
+2. DROP TABLE curator_deal_payments CASCADE  (0 linhas, deprecada).
 
-## Resultado final
-- Coloca link → cria track → enfileira baseline → bot coleta na próxima rodada → grava snapshot real.
-- Daí em diante, a cada 48h o cron enfileira coleta nova, bot tira print, grava em `song_snapshots`.
-- Zero chamada de Spotify API pra `popularity`/`monthly_listeners`.
+3. DROP FUNCTION admin_get_curator_payment(uuid);
+   DROP FUNCTION admin_set_curator_payment(uuid, text, text, text);
 
-Posso executar?
+4. CREATE TRIGGER trg_audit_curator_purchases
+   AFTER INSERT OR UPDATE OR DELETE ON curator_purchases
+   FOR EACH ROW EXECUTE FUNCTION audit_trigger_fn();
+```
+
+## Refactor frontend
+
+### Hook único (Item 2)
+Consolidar `useCuratorFinance` → dentro de `useFinancialOverview`. Resultado: **1 hook, 1 canal realtime, 1 cache tree**.
+
+`useFinancialOverview` passa a expor:
+- `summary` (v_financial_summary)
+- `byCurator` (v_curator_finance)
+- `globalTotals` (v_curator_global_finance) — substitui o sum-em-JS de `custoTotalCaixa`
+- `unallocated` (v_financial_unallocated_cost)
+- `purchases` (lista) + `dealsFinance` (deals com total_paid agregado)
+- `totals` derivados **apenas de views**, sem somatórios paralelos
+- `addPurchase / updatePurchase / deletePurchase / registerPayment`
+
+Realtime: 1 canal `financial-live-{user.id}` escutando `curator_purchases` + `curator_deals` (já existe — só removemos o canal duplicado do `useCuratorFinance`).
+
+### Eliminar cálculos JS duplicados (Item 3)
+- `useFinancialOverview.totals.custoTotalCaixa` (sum purchases) → `globalTotals.total_spent`
+- `useCuratorFinance.totals.globalCpp` (sum÷sum) → `globalTotals.global_cpp`
+- `useCuratorFinance.totals.totalSpent/totalPlays` → `globalTotals.*`
+- `useFinancialOverview.totals.margem` (recebido−pago em JS) → mantém receita da view e custo da view, sem recalcular margem agregada inventada
+
+### Limpeza (Item 5)
+- Remover `SummaryCard` morto (linhas 239-268 de `FinancialOverview.tsx`).
+- Remover subscrição realtime de `curator_deal_payments` em `useCuratorDeals.ts:478`.
+- Remover hook `useCuratorFinance.ts` inteiro (arquivo) — consumidores migram pra `useFinancialOverview`.
+- Remover imports/exports não usados resultantes.
+
+### Hero da aba Custo (Item 7)
+Em `FinanceiroTab.tsx`: remover bloco hero (saldo virtual + barra "uso do comprado" + sparkline com fórmula inventada). Manter pódio + ranking + timeline. KPIs compactos (`hideHero=true`) já existem e viram o padrão único: Total investido / CPP / Curadores — todos vindos de `globalTotals` da view.
+
+## PIX (Item 6 — opção B)
+- Não criar vault.
+- Manter `curators.pix_type / pix_key` como hoje.
+- Drop das RPCs `admin_get_curator_payment` / `admin_set_curator_payment` (migração acima).
+- Sem mudança no frontend de curadores.
+
+## Validação final (Item 9)
+Após execução, todas as respostas serão **NÃO**:
+- ❌ Mais de uma fonte para receita/custo/margem/CPP
+- ❌ Mais de um hook financeiro
+- ❌ Mais de um canal realtime financeiro
+- ❌ Cálculo JS duplicado de métrica que tem view
+- ❌ Código morto (`curator_deal_payments`, RPCs admin_*, SummaryCard)
+- ❌ Regra de negócio duplicada
+
+## Fora do escopo (intencionalmente)
+- Vault PIX.
+- Ledger de receita (campaigns.valor_recebido continua sendo campo manual — já é a fonte única).
+- Comissão/repasse (não existem hoje, não criar).
+- Cofre, criptografia, RPCs extras de segurança.
+
+## Ordem de execução
+1. Migração SQL (drop tabela, drop RPCs, FK, audit trigger) — uma única chamada.
+2. Após aprovação: refactor `useFinancialOverview` + delete `useCuratorFinance` + ajustes em `FinanceiroTab`, `FinancialOverview`, `useCuratorDeals`.
+3. Validação read-only no banco confirmando estado final.

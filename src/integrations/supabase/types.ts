@@ -3529,47 +3529,6 @@ export type Database = {
           },
         ]
       }
-      curator_deal_payments: {
-        Row: {
-          amount: number
-          created_at: string
-          created_by: string | null
-          deal_id: string
-          id: string
-          method: string | null
-          notes: string | null
-          payment_date: string
-        }
-        Insert: {
-          amount: number
-          created_at?: string
-          created_by?: string | null
-          deal_id: string
-          id?: string
-          method?: string | null
-          notes?: string | null
-          payment_date?: string
-        }
-        Update: {
-          amount?: number
-          created_at?: string
-          created_by?: string | null
-          deal_id?: string
-          id?: string
-          method?: string | null
-          notes?: string | null
-          payment_date?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "curator_deal_payments_deal_id_fkey"
-            columns: ["deal_id"]
-            isOneToOne: false
-            referencedRelation: "curator_deals"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       curator_deal_plan: {
         Row: {
           cap_dia: number
@@ -4718,6 +4677,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_curator_finance"
             referencedColumns: ["curator_id"]
+          },
+          {
+            foreignKeyName: "curator_purchases_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "curator_deals"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -13048,14 +13014,6 @@ export type Database = {
           phone: string
         }[]
       }
-      admin_get_curator_payment: {
-        Args: { _curator_id: string }
-        Returns: {
-          document: string
-          pix_key: string
-          pix_type: string
-        }[]
-      }
       admin_get_curator_pii: {
         Args: { _curator_id: string }
         Returns: {
@@ -13064,15 +13022,6 @@ export type Database = {
           pix_key: string
           pix_type: string
         }[]
-      }
-      admin_set_curator_payment: {
-        Args: {
-          _curator_id: string
-          _document: string
-          _pix_key: string
-          _pix_type: string
-        }
-        Returns: undefined
       }
       append_print_to_batch: {
         Args: {
