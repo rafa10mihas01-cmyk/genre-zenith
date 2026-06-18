@@ -415,6 +415,23 @@ function buildPlaylistRanking(
     }
   });
 
+  // Entrada oficial por playlist (preferir placement.added_at; fallback primeiro POST do exec; fallback firstSeen)
+  const firstPostByPl = new Map<string, string>();
+  exec.slice().reverse().forEach((e) => {
+    if ((e.outcome === "spotify_post_ok" || e.outcome === "already_present") && e.spotify_playlist_id) {
+      if (!firstPostByPl.has(e.spotify_playlist_id)) firstPostByPl.set(e.spotify_playlist_id, e.executed_at);
+    }
+  });
+  const placementEntryByPl = new Map<string, string>();
+  placements.forEach((p) => {
+    const id = p.managed_playlists?.spotify_playlist_id;
+    if (!id || !p.added_at) return;
+    const cur = placementEntryByPl.get(id);
+    if (!cur || new Date(p.added_at) < new Date(cur)) placementEntryByPl.set(id, p.added_at);
+  });
+  const officialEntry = (id: string, firstSeen: string | null): string | null =>
+    placementEntryByPl.get(id) ?? firstPostByPl.get(id) ?? firstSeen ?? null;
+
   // Plays via song_snapshot_playlists — série temporal por playlist
   const playsSeries = new Map<string, Array<{ at: string; plays: number }>>();
   ssPl.forEach((sp) => {
@@ -429,40 +446,42 @@ function buildPlaylistRanking(
   playsSeries.forEach((arr, id) => {
     const r = byPl.get(id)!;
     arr.sort((a, b) => +new Date(a.at) - +new Date(b.at));
-    const first = arr[0]?.plays ?? 0;
+    // T0 oficial = primeiro snapshot ≥ entrada do placement; fallback arr[0]
+    const entry = officialEntry(id, r.firstSeen);
+    let t0Idx = 0;
+    if (entry) {
+      const entryTs = +new Date(entry);
+      const idx = arr.findIndex((s) => +new Date(s.at) >= entryTs);
+      if (idx >= 0) t0Idx = idx;
+    }
+    const first = arr[t0Idx]?.plays ?? 0;
     const last = arr[arr.length - 1]?.plays ?? 0;
     r.streamsAtEntry = first;
     r.streamsCurrent = last;
-    // Delivery acumulado = quanto a playlist entregou desde a entrada
+    // Delivery = streams atuais − streams no T0 (nunca reinicia)
     r.deliveryAccumulated = Math.max(0, last - first);
-    if (arr.length >= 2 && first > 0) {
+    if (first > 0) {
       r.growthPct = Math.round(((last - first) / first) * 1000) / 10;
-    } else if (last > 0 && first === 0) {
+    } else if (last > 0) {
       r.growthPct = 100;
     }
-    // Tendência — compara última terça com penúltima
-    if (arr.length >= 3) {
-      const tail = arr.slice(-3);
-      const delta = tail[2].plays - tail[1].plays;
-      const prevDelta = tail[1].plays - tail[0].plays;
+    // Tendência — últimos 3 pontos a partir do T0
+    const tail = arr.slice(Math.max(t0Idx, arr.length - 3));
+    if (tail.length >= 3) {
+      const delta = tail[tail.length - 1].plays - tail[tail.length - 2].plays;
+      const prevDelta = tail[tail.length - 2].plays - tail[tail.length - 3].plays;
       if (delta > 0 && delta >= prevDelta) r.trend = "subindo";
       else if (delta < 0) r.trend = "caindo";
       else r.trend = "estavel";
-    } else if (arr.length === 2) {
-      r.trend = last > first ? "subindo" : last < first ? "caindo" : "estavel";
+    } else if (tail.length === 2) {
+      r.trend = tail[1].plays > tail[0].plays ? "subindo" : tail[1].plays < tail[0].plays ? "caindo" : "estavel";
     }
   });
 
-  // Tempo até primeira detecção (POST → primeira observação) + entryDate
-  const firstPostByPl = new Map<string, string>();
-  exec.slice().reverse().forEach((e) => {
-    if ((e.outcome === "spotify_post_ok" || e.outcome === "already_present") && e.spotify_playlist_id) {
-      if (!firstPostByPl.has(e.spotify_playlist_id)) firstPostByPl.set(e.spotify_playlist_id, e.executed_at);
-    }
-  });
+  // entryDate + tempo até primeira detecção
   byPl.forEach((r) => {
     const post = firstPostByPl.get(r.spotify_playlist_id);
-    r.entryDate = r.firstSeen ?? post ?? null;
+    r.entryDate = officialEntry(r.spotify_playlist_id, r.firstSeen);
     if (post && r.firstSeen) {
       const h = (new Date(r.firstSeen).getTime() - new Date(post).getTime()) / 3600_000;
       r.timeToFirstDetectionHours = Math.max(0, Math.round(h * 10) / 10);
