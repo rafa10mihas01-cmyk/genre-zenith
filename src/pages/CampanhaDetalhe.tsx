@@ -51,7 +51,7 @@ export default function CampanhaDetalhe() {
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
 
-  const detailKey = ["campaign_detail", id] as const;
+  const detailKey = useMemo(() => ["campaign_detail", id] as const, [id]);
 
   // Fonte oficial da entrega: vw_campaign_playlist_growth (Growth Engine).
   const detailQuery = useQuery({
