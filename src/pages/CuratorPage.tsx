@@ -382,7 +382,40 @@ export default function CuratorPage() {
   // Janela visível nas playlists do curador
   const [playlistWindow, setPlaylistWindow] = useState<"7d" | "28d">("7d");
   // Tabs: divide a página em fases pra evitar scroll gigante no mobile
-  const [activeTab, setActiveTab] = useState<"cadastro" | "entrega" | "historico">("entrega");
+  const [activeTab, setActiveTab] = useState<"cadastro" | "entrega" | "evidencias" | "arquivos" | "historico">("entrega");
+  // Fase 7.3 — novos blocos: galeria de prints, histórico de Excel, timeline.
+  type PrintEntry = {
+    kind: "delivery_proof" | "snapshot";
+    captured_at: string;
+    playlist_id: string | null;
+    playlist_name: string | null;
+    playlist_image: string | null;
+    screenshot_url: string;
+    position: number | null;
+    bot: string | null;
+    source: string | null;
+  };
+  type UploadEntry = {
+    id: string;
+    file_name: string;
+    reference_date: string | null;
+    created_at: string;
+    rows_imported: number | null;
+    total_streams: number | null;
+    is_baseline: boolean;
+    upload_mode: string | null;
+    window_kind: string | null;
+    window_days: number | null;
+    status: string | null;
+    superseded: boolean;
+    superseded_at: string | null;
+    quarantined: boolean;
+    download_url: string | null;
+  };
+  type TimelineEntry = { at: string; kind: string; label: string; detail?: string | null };
+  const [prints, setPrints] = useState<PrintEntry[]>([]);
+  const [uploads, setUploads] = useState<UploadEntry[]>([]);
+  const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
   const [openSnapshotKey, setOpenSnapshotKey] = useState<string | null>(null);
   const initialTabSetRef = useRef(false);
   useEffect(() => {
