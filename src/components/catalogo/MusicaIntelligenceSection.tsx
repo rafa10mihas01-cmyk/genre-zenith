@@ -185,27 +185,7 @@ function buildTimeline(
     });
   });
 
-  // Saídas (última observação por playlist mais antiga que 48h e ainda existem snapshots posteriores)
-  const lastSeen = new Map<string, ObserverTrackRow>();
-  obs.forEach((o) => {
-    const cur = lastSeen.get(o.spotify_playlist_id);
-    if (!cur || new Date(o.captured_at) > new Date(cur.captured_at)) lastSeen.set(o.spotify_playlist_id, o);
-  });
-  const lastSnap = snapshots.at(-1)?.captured_at;
-  if (lastSnap) {
-    const cutoff = +new Date(lastSnap) - 48 * 3600 * 1000;
-    [...lastSeen.values()].forEach((o) => {
-      if (+new Date(o.captured_at) < cutoff) {
-        events.push({
-          at: o.captured_at,
-          kind: "playlist_out",
-          label: "Não detectada mais (saída inferida)",
-          detail: namePlaylist(placements, o.spotify_playlist_id) ?? o.spotify_playlist_id,
-          tone: "warn",
-        });
-      }
-    });
-  }
+  // Timeline enxuta — sem eventos técnicos (saídas inferidas, breaker, etc.)
 
   // Snapshots — só pico e última, pra não poluir
   let peak: Snapshot | null = null;
