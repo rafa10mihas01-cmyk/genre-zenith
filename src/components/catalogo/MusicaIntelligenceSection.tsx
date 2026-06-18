@@ -716,9 +716,39 @@ function ExecutiveSummary({
           </div>
         ))}
       </dl>
+
+      {/* Top Playlists — 🥇🥈🥉 */}
+      {ranking.length > 0 && (
+        <div className="mt-5 pt-5 border-t border-border">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-3">Top Playlists</div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {["🥇", "🥈", "🥉"].map((medal, i) => {
+              const p = ranking[i];
+              if (!p) return <div key={medal} className="opacity-30 text-xs text-muted-foreground">—</div>;
+              const content = (
+                <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/10 hover:bg-muted/20 transition-colors p-3 min-w-0">
+                  <span className="text-2xl shrink-0">{medal}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium text-foreground truncate" title={p.name}>{p.name}</div>
+                    <div className="text-xs font-mono text-emerald-400 tabular-nums">
+                      {p.deliveryAccumulated > 0 ? `+${fmt(p.deliveryAccumulated)}` : "+0"} <span className="text-muted-foreground">delivery</span>
+                    </div>
+                  </div>
+                </div>
+              );
+              return p.spotify_url ? (
+                <a key={medal} href={p.spotify_url} target="_blank" rel="noreferrer" className="block">{content}</a>
+              ) : (
+                <div key={medal}>{content}</div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </section>
   );
 }
+
 
 
 // ============================================================
