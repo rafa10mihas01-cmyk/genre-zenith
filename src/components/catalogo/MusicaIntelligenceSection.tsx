@@ -185,27 +185,7 @@ function buildTimeline(
     });
   });
 
-  // Saídas (última observação por playlist mais antiga que 48h e ainda existem snapshots posteriores)
-  const lastSeen = new Map<string, ObserverTrackRow>();
-  obs.forEach((o) => {
-    const cur = lastSeen.get(o.spotify_playlist_id);
-    if (!cur || new Date(o.captured_at) > new Date(cur.captured_at)) lastSeen.set(o.spotify_playlist_id, o);
-  });
-  const lastSnap = snapshots.at(-1)?.captured_at;
-  if (lastSnap) {
-    const cutoff = +new Date(lastSnap) - 48 * 3600 * 1000;
-    [...lastSeen.values()].forEach((o) => {
-      if (+new Date(o.captured_at) < cutoff) {
-        events.push({
-          at: o.captured_at,
-          kind: "playlist_out",
-          label: "Não detectada mais (saída inferida)",
-          detail: namePlaylist(placements, o.spotify_playlist_id) ?? o.spotify_playlist_id,
-          tone: "warn",
-        });
-      }
-    });
-  }
+  // Timeline enxuta — sem eventos técnicos (saídas inferidas, breaker, etc.)
 
   // Snapshots — só pico e última, pra não poluir
   let peak: Snapshot | null = null;
@@ -404,25 +384,29 @@ function OperationalHealthPanel(props: MusicaIntelligenceProps & {
 }
 
 // ============================================================
-// 4) RANKING DE PLAYLISTS
+// 4) RANKING DE PLAYLISTS — ordenado por DELIVERY
 // ============================================================
 type PlaylistAgg = {
   spotify_playlist_id: string;
   name: string;
   owner: string | null;
   spotify_url: string | null;
+  entryDate: string | null;        // 1ª detecção VPS (entrada efetiva da música)
   firstSeen: string | null;
   lastSeen: string | null;
   daysActive: number;
   bestPosition: number | null;
   currentPosition: number | null;
   observations: number;
-  avgPlays7d: number | null;
-  totalPlays: number;
+  detectionFrequency: number | null; // observações por dia
+  streamsAtEntry: number | null;
+  streamsCurrent: number | null;
+  deliveryAccumulated: number;       // PRINCIPAL — streams entregues
   growthPct: number | null;
+  trend: "subindo" | "estavel" | "caindo" | null;
   timeToFirstDetectionHours: number | null;
   status: "ativa" | "perdida";
-  score: number;
+  score: number;                     // auxiliar
 };
 
 function buildPlaylistRanking(
@@ -436,9 +420,11 @@ function buildPlaylistRanking(
     if (!byPl.has(id)) {
       byPl.set(id, {
         spotify_playlist_id: id, name: name ?? id, owner: owner ?? null, spotify_url: url ?? null,
-        firstSeen: null, lastSeen: null, daysActive: 0, bestPosition: null, currentPosition: null,
-        observations: 0, avgPlays7d: null, totalPlays: 0, growthPct: null,
-        timeToFirstDetectionHours: null, status: "perdida", score: 0,
+        entryDate: null, firstSeen: null, lastSeen: null, daysActive: 0,
+        bestPosition: null, currentPosition: null, observations: 0, detectionFrequency: null,
+        streamsAtEntry: null, streamsCurrent: null, deliveryAccumulated: 0,
+        growthPct: null, trend: null, timeToFirstDetectionHours: null,
+        status: "perdida", score: 0,
       });
     } else if (name && byPl.get(id)!.name === id) {
       byPl.get(id)!.name = name;
@@ -454,32 +440,49 @@ function buildPlaylistRanking(
     if (!r.lastSeen || new Date(o.captured_at) > new Date(r.lastSeen)) r.lastSeen = o.captured_at;
     if (o.position != null) {
       if (r.bestPosition == null || o.position < r.bestPosition) r.bestPosition = o.position;
-      r.currentPosition = o.position; // último sobrescreve (ordenado asc)
+      r.currentPosition = o.position;
     }
   });
 
-  // Plays via song_snapshot_playlists
-  const playsSeries = new Map<string, number[]>();
+  // Plays via song_snapshot_playlists — série temporal por playlist
+  const playsSeries = new Map<string, Array<{ at: string; plays: number }>>();
   ssPl.forEach((sp) => {
     const r = ensure(sp.spotify_playlist_id, sp.name, sp.spotify_url, sp.owner);
     if (sp.plays_7d != null) {
       const arr = playsSeries.get(sp.spotify_playlist_id) ?? [];
-      arr.push(sp.plays_7d);
+      arr.push({ at: sp.created_at, plays: sp.plays_7d });
       playsSeries.set(sp.spotify_playlist_id, arr);
-      r.totalPlays += sp.plays_7d;
-    }
-  });
-  playsSeries.forEach((arr, id) => {
-    const r = byPl.get(id)!;
-    r.avgPlays7d = Math.round(arr.reduce((s, v) => s + v, 0) / arr.length);
-    if (arr.length >= 2) {
-      const first = arr[0] || 1;
-      const last = arr[arr.length - 1];
-      r.growthPct = Math.round(((last - first) / Math.max(1, first)) * 1000) / 10;
     }
   });
 
-  // Tempo até primeira detecção (POST → primeira observação)
+  playsSeries.forEach((arr, id) => {
+    const r = byPl.get(id)!;
+    arr.sort((a, b) => +new Date(a.at) - +new Date(b.at));
+    const first = arr[0]?.plays ?? 0;
+    const last = arr[arr.length - 1]?.plays ?? 0;
+    r.streamsAtEntry = first;
+    r.streamsCurrent = last;
+    // Delivery acumulado = quanto a playlist entregou desde a entrada
+    r.deliveryAccumulated = Math.max(0, last - first);
+    if (arr.length >= 2 && first > 0) {
+      r.growthPct = Math.round(((last - first) / first) * 1000) / 10;
+    } else if (last > 0 && first === 0) {
+      r.growthPct = 100;
+    }
+    // Tendência — compara última terça com penúltima
+    if (arr.length >= 3) {
+      const tail = arr.slice(-3);
+      const delta = tail[2].plays - tail[1].plays;
+      const prevDelta = tail[1].plays - tail[0].plays;
+      if (delta > 0 && delta >= prevDelta) r.trend = "subindo";
+      else if (delta < 0) r.trend = "caindo";
+      else r.trend = "estavel";
+    } else if (arr.length === 2) {
+      r.trend = last > first ? "subindo" : last < first ? "caindo" : "estavel";
+    }
+  });
+
+  // Tempo até primeira detecção (POST → primeira observação) + entryDate
   const firstPostByPl = new Map<string, string>();
   exec.slice().reverse().forEach((e) => {
     if ((e.outcome === "spotify_post_ok" || e.outcome === "already_present") && e.spotify_playlist_id) {
@@ -488,6 +491,7 @@ function buildPlaylistRanking(
   });
   byPl.forEach((r) => {
     const post = firstPostByPl.get(r.spotify_playlist_id);
+    r.entryDate = r.firstSeen ?? post ?? null;
     if (post && r.firstSeen) {
       const h = (new Date(r.firstSeen).getTime() - new Date(post).getTime()) / 3600_000;
       r.timeToFirstDetectionHours = Math.max(0, Math.round(h * 10) / 10);
@@ -502,24 +506,48 @@ function buildPlaylistRanking(
     }
   });
 
-  // Status + daysActive + score
+  // Status + daysActive + detectionFrequency + score auxiliar
   const now = Date.now();
   byPl.forEach((r) => {
     if (r.firstSeen) {
       const end = r.lastSeen ? new Date(r.lastSeen).getTime() : now;
       r.daysActive = Math.max(1, Math.round((end - new Date(r.firstSeen).getTime()) / 86400_000));
+      r.detectionFrequency = Math.round((r.observations / r.daysActive) * 10) / 10;
     }
     if (r.lastSeen) {
       r.status = now - new Date(r.lastSeen).getTime() < 72 * 3600_000 ? "ativa" : "perdida";
     }
-    // Score: avg plays normalizado + bônus retenção + penalidade posição alta
-    const playScore = Math.min(1, (r.avgPlays7d ?? 0) / 500) * 60;
+    const playScore = Math.min(1, r.deliveryAccumulated / 5000) * 60;
     const retScore = r.status === "ativa" ? 25 : 0;
     const posScore = r.bestPosition != null && r.bestPosition <= 20 ? 15 : 0;
     r.score = Math.round(playScore + retScore + posScore);
   });
 
-  return [...byPl.values()].sort((a, b) => b.score - a.score);
+  // ORDENAÇÃO: 1) delivery DESC  2) growthPct DESC  3) status ativa  4) bestPosition ASC  5) observations DESC
+  return [...byPl.values()].sort((a, b) => {
+    if (b.deliveryAccumulated !== a.deliveryAccumulated) return b.deliveryAccumulated - a.deliveryAccumulated;
+    const ga = a.growthPct ?? -Infinity, gb = b.growthPct ?? -Infinity;
+    if (gb !== ga) return gb - ga;
+    if (a.status !== b.status) return a.status === "ativa" ? -1 : 1;
+    const pa = a.bestPosition ?? 9999, pb = b.bestPosition ?? 9999;
+    if (pa !== pb) return pa - pb;
+    return b.observations - a.observations;
+  });
+}
+
+function TrendBadge({ t }: { t: PlaylistAgg["trend"] }) {
+  if (!t) return <span className="text-muted-foreground">—</span>;
+  const map = {
+    subindo: { cls: "text-emerald-400", icon: ArrowUpRight, label: "subindo" },
+    estavel: { cls: "text-muted-foreground", icon: Activity, label: "estável" },
+    caindo: { cls: "text-rose-400", icon: ArrowDownRight, label: "caindo" },
+  } as const;
+  const M = map[t];
+  return (
+    <span className={cn("inline-flex items-center gap-1 text-[10px] uppercase tracking-wider", M.cls)}>
+      <M.icon className="h-3 w-3" />{M.label}
+    </span>
+  );
 }
 
 function PlaylistRankingPanel({ placements, obs, ssPl, exec }: {
@@ -536,14 +564,18 @@ function PlaylistRankingPanel({ placements, obs, ssPl, exec }: {
           <tr className="border-b border-border">
             <th className="text-left font-medium px-3 py-2.5">#</th>
             <th className="text-left font-medium px-3 py-2.5">Playlist</th>
-            <th className="text-right font-medium px-3 py-2.5">Score</th>
-            <th className="text-right font-medium px-3 py-2.5 hidden sm:table-cell">Plays avg/7d</th>
-            <th className="text-right font-medium px-3 py-2.5 hidden md:table-cell">Cresc.</th>
-            <th className="text-right font-medium px-3 py-2.5 hidden md:table-cell">Pos atual</th>
-            <th className="text-right font-medium px-3 py-2.5 hidden lg:table-cell">Melhor pos</th>
+            <th className="text-right font-medium px-3 py-2.5 text-emerald-400">Delivery</th>
+            <th className="text-right font-medium px-3 py-2.5 hidden sm:table-cell">Cresc.</th>
+            <th className="text-right font-medium px-3 py-2.5 hidden md:table-cell">Tendência</th>
+            <th className="text-right font-medium px-3 py-2.5 hidden md:table-cell">Entrou</th>
+            <th className="text-right font-medium px-3 py-2.5 hidden lg:table-cell">Atual</th>
+            <th className="text-right font-medium px-3 py-2.5 hidden lg:table-cell">Entrada</th>
             <th className="text-right font-medium px-3 py-2.5 hidden lg:table-cell">Dias</th>
-            <th className="text-right font-medium px-3 py-2.5 hidden md:table-cell">1ª detecção</th>
+            <th className="text-right font-medium px-3 py-2.5 hidden xl:table-cell">Melh./Últ. pos</th>
+            <th className="text-right font-medium px-3 py-2.5 hidden xl:table-cell">Freq.</th>
+            <th className="text-right font-medium px-3 py-2.5 hidden xl:table-cell">Última coleta</th>
             <th className="text-right font-medium px-3 py-2.5">Status</th>
+            <th className="text-right font-medium px-3 py-2.5 hidden sm:table-cell">Score</th>
           </tr>
         </thead>
         <tbody>
@@ -560,30 +592,34 @@ function PlaylistRankingPanel({ placements, obs, ssPl, exec }: {
                 )}
                 {r.owner && <span className="block text-[10px] text-muted-foreground truncate">{r.owner}</span>}
               </td>
+              {/* DELIVERY — métrica principal */}
               <td className="px-3 py-2 text-right">
                 <span className={cn(
-                  "inline-flex items-center gap-1 font-mono text-xs px-1.5 py-0.5 rounded",
-                  r.score >= 75 ? "bg-emerald-500/10 text-emerald-400" :
-                  r.score >= 40 ? "bg-amber-500/10 text-amber-400" :
-                  "bg-muted/30 text-muted-foreground",
+                  "font-mono text-sm tabular-nums font-semibold",
+                  r.deliveryAccumulated > 0 ? "text-emerald-400" : "text-muted-foreground",
                 )}>
-                  <Award className="h-3 w-3" />{r.score}
+                  {r.deliveryAccumulated > 0 ? `+${fmt(r.deliveryAccumulated)}` : "+0"}
                 </span>
               </td>
-              <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground hidden sm:table-cell">{fmt(r.avgPlays7d)}</td>
-              <td className="px-3 py-2 text-right font-mono text-xs hidden md:table-cell">
+              <td className="px-3 py-2 text-right font-mono text-xs hidden sm:table-cell">
                 {r.growthPct == null ? "—" : (
                   <span className={r.growthPct >= 0 ? "text-emerald-400" : "text-rose-400"}>
                     {r.growthPct >= 0 ? "+" : ""}{r.growthPct}%
                   </span>
                 )}
               </td>
-              <td className="px-3 py-2 text-right font-mono text-xs hidden md:table-cell">{r.currentPosition != null ? `#${r.currentPosition}` : "—"}</td>
-              <td className="px-3 py-2 text-right font-mono text-xs hidden lg:table-cell">{r.bestPosition != null ? `#${r.bestPosition}` : "—"}</td>
-              <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground hidden lg:table-cell">{r.daysActive}</td>
-              <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground hidden md:table-cell">
-                {r.timeToFirstDetectionHours != null ? `${r.timeToFirstDetectionHours}h` : "—"}
+              <td className="px-3 py-2 text-right hidden md:table-cell"><TrendBadge t={r.trend} /></td>
+              <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground hidden md:table-cell">{fmt(r.streamsAtEntry)}</td>
+              <td className="px-3 py-2 text-right font-mono text-xs text-foreground hidden lg:table-cell">{fmt(r.streamsCurrent)}</td>
+              <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground hidden lg:table-cell">{d(r.entryDate)}</td>
+              <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground hidden lg:table-cell">{r.daysActive}d</td>
+              <td className="px-3 py-2 text-right font-mono text-xs hidden xl:table-cell">
+                {r.bestPosition != null ? `#${r.bestPosition}` : "—"} / {r.currentPosition != null ? `#${r.currentPosition}` : "—"}
               </td>
+              <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground hidden xl:table-cell">
+                {r.detectionFrequency != null ? `${r.detectionFrequency}/d` : "—"}
+              </td>
+              <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground hidden xl:table-cell">{rel(r.lastSeen)}</td>
               <td className="px-3 py-2 text-right">
                 <span className={cn(
                   "inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider",
@@ -591,6 +627,11 @@ function PlaylistRankingPanel({ placements, obs, ssPl, exec }: {
                 )}>
                   <span className={cn("h-1.5 w-1.5 rounded-full", r.status === "ativa" ? "bg-emerald-500" : "bg-muted-foreground/60")} />
                   {r.status}
+                </span>
+              </td>
+              <td className="px-3 py-2 text-right hidden sm:table-cell">
+                <span className="inline-flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 rounded bg-muted/30 text-muted-foreground">
+                  <Award className="h-2.5 w-2.5" />{r.score}
                 </span>
               </td>
             </tr>
@@ -697,62 +738,35 @@ type FeedEvent = { at: string; tone: "good" | "warn" | "bad" | "neutral"; icon: 
 
 function buildFeed(
   placements: Placement[],
+  baseline: Baseline,
   snapshots: Snapshot[],
   exec: ExecutionLogRow[],
   obs: ObserverTrackRow[],
-  breakers: { app_id: string; status: string; blocked_until: string | null }[],
 ): FeedEvent[] {
   const items: FeedEvent[] = [];
 
-  // Placements criados (agrupado por dia)
-  const grouped = new Map<string, number>();
-  placements.forEach((p) => {
-    if (!p.added_at) return;
-    const k = dayKey(p.added_at);
-    grouped.set(k, (grouped.get(k) ?? 0) + 1);
-  });
-  grouped.forEach((n, day) => {
+  // Baseline criada
+  if (baseline?.captured_at) {
     items.push({
-      at: `${day}T23:59:00.000Z`,
-      tone: "good", icon: ListMusic,
-      text: `Música entrou em ${n} playlist${n === 1 ? "" : "s"}.`,
+      at: baseline.captured_at, tone: "good", icon: CheckCircle2,
+      text: `Baseline criada${baseline.streams != null ? ` (${fmt(baseline.streams)} streams).` : "."}`,
+    });
+  }
+
+  // Entradas em playlist (primeira detecção VPS por playlist)
+  const firstSeen = new Map<string, ObserverTrackRow>();
+  obs.forEach((o) => {
+    if (!firstSeen.has(o.spotify_playlist_id)) firstSeen.set(o.spotify_playlist_id, o);
+  });
+  firstSeen.forEach((o) => {
+    const name = namePlaylist(placements, o.spotify_playlist_id) ?? o.spotify_playlist_id;
+    items.push({
+      at: o.captured_at, tone: "good", icon: ListMusic,
+      text: `Nova playlist detectada: "${name}".`,
     });
   });
 
-  // Snapshots — crescimento positivo vs anterior
-  for (let i = 1; i < snapshots.length; i++) {
-    const prev = snapshots[i - 1].total_plays_28d ?? 0;
-    const cur = snapshots[i].total_plays_28d ?? 0;
-    const diff = cur - prev;
-    if (Math.abs(diff) >= 100) {
-      items.push({
-        at: snapshots[i].captured_at,
-        tone: diff > 0 ? "good" : "warn",
-        icon: diff > 0 ? ArrowUpRight : ArrowDownRight,
-        text: diff > 0 ? `Streams cresceram +${fmt(diff)}.` : `Streams caíram ${fmt(diff)}.`,
-      });
-    }
-  }
-
-  // Coletas recentes
-  snapshots.slice(-5).forEach((s) => {
-    items.push({ at: s.captured_at, tone: "neutral", icon: Activity, text: "Nova coleta recebida." });
-  });
-
-  // Execução / confirmações / erros
-  exec.slice(0, 30).forEach((e) => {
-    if (e.outcome === "spotify_post_ok") {
-      items.push({ at: e.executed_at, tone: "good", icon: CheckCircle2, text: "Placement confirmado no Spotify." });
-    } else if (e.outcome === "waiting_circuit_breaker" || e.outcome === "preflight_breaker") {
-      items.push({ at: e.executed_at, tone: "warn", icon: AlertTriangle, text: "Circuit breaker aguardando." });
-    } else if (e.outcome === "already_present") {
-      items.push({ at: e.executed_at, tone: "neutral", icon: CheckCircle2, text: "Música já estava na playlist." });
-    } else if (e.error_code) {
-      items.push({ at: e.executed_at, tone: "bad", icon: AlertTriangle, text: `Erro ${e.error_code}.` });
-    }
-  });
-
-  // Saídas inferidas pela observer (>72h sem ver e existia)
+  // Saídas inferidas (>72h sem detecção)
   const lastSeen = new Map<string, ObserverTrackRow>();
   obs.forEach((o) => {
     const cur = lastSeen.get(o.spotify_playlist_id);
@@ -762,20 +776,48 @@ function buildFeed(
   lastSeen.forEach((o) => {
     if (now - new Date(o.captured_at).getTime() > 72 * 3600_000) {
       const name = namePlaylist(placements, o.spotify_playlist_id) ?? o.spotify_playlist_id;
-      items.push({ at: o.captured_at, tone: "warn", icon: GitBranch, text: `Playlist "${name}" removeu a música.` });
+      items.push({
+        at: o.captured_at, tone: "warn", icon: GitBranch,
+        text: `Playlist removida: "${name}".`,
+      });
     }
   });
 
-  // Breakers abertos
-  breakers.filter((b) => b.status === "open").forEach((b) => {
-    items.push({ at: b.blocked_until ?? new Date().toISOString(), tone: "warn", icon: Zap, text: `App ${b.app_id} bloqueado pelo breaker.` });
+  // Crescimento/queda de streams (snapshot a snapshot)
+  for (let i = 1; i < snapshots.length; i++) {
+    const prev = snapshots[i - 1].total_plays_28d ?? 0;
+    const cur = snapshots[i].total_plays_28d ?? 0;
+    const diff = cur - prev;
+    if (Math.abs(diff) >= 100) {
+      items.push({
+        at: snapshots[i].captured_at,
+        tone: diff > 0 ? "good" : "warn",
+        icon: diff > 0 ? ArrowUpRight : ArrowDownRight,
+        text: diff > 0
+          ? `Streams cresceram +${fmt(diff)} (delivery atualizado).`
+          : `Streams caíram ${fmt(diff)}.`,
+      });
+    }
+  }
+
+  // Coletas recentes (até 5)
+  snapshots.slice(-5).forEach((s) => {
+    items.push({ at: s.captured_at, tone: "neutral", icon: Activity, text: "Nova coleta recebida." });
   });
 
-  return items.sort((a, b) => +new Date(b.at) - +new Date(a.at)).slice(0, 50);
+  // Placements confirmados (apenas business — ignora códigos técnicos)
+  exec.slice(0, 40).forEach((e) => {
+    if (e.outcome === "spotify_post_ok") {
+      const name = namePlaylist(placements, e.spotify_playlist_id) ?? "playlist";
+      items.push({ at: e.executed_at, tone: "good", icon: CheckCircle2, text: `Placement confirmado em "${name}".` });
+    }
+  });
+
+  return items.sort((a, b) => +new Date(b.at) - +new Date(a.at)).slice(0, 60);
 }
 
-function EventFeedPanel(props: { placements: Placement[]; snapshots: Snapshot[]; exec: ExecutionLogRow[]; obs: ObserverTrackRow[]; breakers: { app_id: string; status: string; blocked_until: string | null }[] }) {
-  const items = useMemo(() => buildFeed(props.placements, props.snapshots, props.exec, props.obs, props.breakers), [props]);
+function EventFeedPanel(props: { placements: Placement[]; baseline: Baseline; snapshots: Snapshot[]; exec: ExecutionLogRow[]; obs: ObserverTrackRow[] }) {
+  const items = useMemo(() => buildFeed(props.placements, props.baseline, props.snapshots, props.exec, props.obs), [props]);
   if (items.length === 0) {
     return <div className="p-6 text-center text-xs text-muted-foreground">Sem eventos.</div>;
   }
@@ -842,7 +884,7 @@ export function MusicaIntelligenceSection(props: MusicaIntelligenceProps) {
         <OperationalHealthPanel {...props} exec={intel.executionLog} breakers={intel.breakers} vps={intel.vpsAssignments} />
       </Panel>
 
-      <Panel title="Ranking de playlists" hint="Score = plays + retenção + posição" icon={Award} defaultOpen>
+      <Panel title="Ranking de playlists" hint="Ordenado por DELIVERY (streams entregues) — score só auxiliar" icon={Award} defaultOpen>
         <PlaylistRankingPanel placements={props.placements} obs={intel.observerTracks} ssPl={intel.songSnapPlaylists} exec={intel.executionLog} />
       </Panel>
 
@@ -854,8 +896,8 @@ export function MusicaIntelligenceSection(props: MusicaIntelligenceProps) {
         <DistributionHistoryPanel placements={props.placements} exec={intel.executionLog} />
       </Panel>
 
-      <Panel title="Feed de eventos" hint="Últimos acontecimentos da música" icon={Sparkles}>
-        <EventFeedPanel placements={props.placements} snapshots={props.snapshots} exec={intel.executionLog} obs={intel.observerTracks} breakers={intel.breakers} />
+      <Panel title="Feed de eventos" hint="Eventos de negócio: entradas, saídas, crescimento, coletas" icon={Sparkles}>
+        <EventFeedPanel placements={props.placements} baseline={props.baseline} snapshots={props.snapshots} exec={intel.executionLog} obs={intel.observerTracks} />
       </Panel>
     </div>
   );
