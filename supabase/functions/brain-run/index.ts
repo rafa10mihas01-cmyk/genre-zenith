@@ -277,26 +277,10 @@ async function runPipeline(jobId: string, body: StartBody) {
       }
       stages.survival_cache = { source: dataSource, total: cached.length };
 
-      // 2) Enrich inteligente: só followers IS NULL, limite 20, ignora se falhar
-      const pendingIds = (cached ?? []).filter((r: any) => r.followers_source !== "spotify_api" || !r.followers_verified_at).slice(0, 20).map((r: any) => r.id);
-      if (pendingIds.length > 0) {
-        await setJob(supabase, gid, jobId, autopilotRunId, {
-          status: "running",
-          stage: `⚠️ Modo sobrevivência — enriquecendo ${pendingIds.length} pendentes...`,
-          progress: 35,
-        });
-        try {
-          const er = await callFn("enrich-playlists", {
-            genre_id: gid, limit: 20, fetch_tracks: true, result_ids: pendingIds,
-          });
-          const ed = er.data as any;
-          stages.survival_enrich = { ok: er.ok && ed?.ok, enriched: ed?.enriched ?? 0, tracks_saved: ed?.tracks_saved ?? 0 };
-        } catch (e) {
-          stages.survival_enrich = { ok: false, ignored: true, error: (e as Error).message };
-        }
-      } else {
-        stages.survival_enrich = { ok: true, skipped: true, reason: "nada pendente" };
-      }
+      // FASE 6.A.3 — chamada para enrich-playlists removida (modo sobrevivência).
+      // Enriquecimento é assíncrono via spotify-enrichment-worker.
+      stages.survival_enrich = { ok: true, skipped: true, reason: "delegado ao worker assíncrono" };
+
 
       // 3) Analyze normal
       await setJob(supabase, gid, jobId, autopilotRunId, {
@@ -719,55 +703,12 @@ async function runPipeline(jobId: string, body: StartBody) {
     }
 
     await measureCoverage();
-    // 🟢 OTIMIZAÇÃO 5: para ciclo se 2 iterações seguidas não enriquecem nada (evita queimar Apify à toa)
+    // FASE 6.A.3 — loop de enrich-playlists removido. Enriquecimento agora é
+    // assíncrono (spotify-enrichment-worker). brain-run não bloqueia mais o
+    // pipeline aguardando followers verificados — analyze-genre roda sobre
+    // o que já está disponível.
     let zeroProgressStreak = 0;
-    while (coverage < COVERAGE_TARGET && cycles < MAX_CYCLES) {
-      cycles++;
-      await setJob(supabase, gid, jobId, autopilotRunId, {
-        status: "running",
-        stage: `Enriquecendo seleção... (${enrichedCount}/${totalPls} • ${Math.round(coverage * 100)}%) ciclo ${cycles}/${MAX_CYCLES}`,
-        progress: 70 + Math.min(15, Math.round(coverage * 20)),
-      });
-      // Pendentes dentro do set selecionado, ordenadas por score
-      // 🛡️ filtra enrich_failed=false pra nunca tentar zumbis de novo
-      const { data: pendIds } = await supabase
-        .from("search_results")
-        .select("id")
-        .eq("genre_id", gid)
-        .eq("enrich_failed", false)
-        .or("followers_source.is.null,followers_verified_at.is.null")
-        .order("priority_score", { ascending: false, nullsFirst: false })
-        .limit(50);
-      const idsToEnrich = (pendIds ?? []).map((r: any) => r.id);
-      if (idsToEnrich.length === 0) break;
-      const r = await callFn("enrich-playlists", {
-        genre_id: gid, limit: 50, fetch_tracks: true,
-        result_ids: idsToEnrich,
-      });
-      const d = r.data as any;
-      if (!r.ok || !d?.ok) break;
-      const gained = d.enriched ?? 0;
-      enrichedTotal += gained;
-      tracksTotal += d.tracks_saved ?? 0;
-      if (!d.processed || d.processed === 0) break;
-      if (gained === 0) {
-        zeroProgressStreak++;
-        if (zeroProgressStreak >= 2) {
-          // 💀 marca pendentes como zumbi: nunca mais tenta
-          const { error: markErr } = await supabase
-            .from("search_results")
-            .update({ enrich_failed: true })
-            .in("id", idsToEnrich);
-          await supabase.from("collection_logs").insert({
-            genre_id: gid, acao: "enrich-guard", status: "parcial",
-            mensagem: `Enrich parado: 2 ciclos sem progresso. ${idsToEnrich.length} playlists marcadas como enrich_failed.${markErr ? ` (mark err: ${markErr.message.slice(0,80)})` : ""}`,
-          });
-          break;
-        }
-      } else {
-        zeroProgressStreak = 0;
-      }
-      await measureCoverage();
+
     }
     if (coverage < COVERAGE_TARGET) partial = true;
     stages.enrich = {
