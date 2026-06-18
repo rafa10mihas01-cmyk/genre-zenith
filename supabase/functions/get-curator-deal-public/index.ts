@@ -97,15 +97,20 @@ Deno.serve(async (req) => {
       { data: progressRpc, error: progressErr },
       { data: historyRpc, error: historyErr },
       { data: latestSnaps, error: snapsErr },
+      { data: allSnaps, error: allSnapsErr },
+      { data: proofs, error: proofsErr },
+      { data: uploads, error: uploadsErr },
     ] = await Promise.all([
       admin
         // Separação operacional × observacional: hub público do curador só vê entregas reais.
         .from("v_curator_playlists_operational")
         .select(
-          "id, deal_id, song_id, spotify_url, playlist_name, followers, is_initial_roster, added_at, spotify_playlist_id, spotify_owner_id, spotify_owner_name, image_url, added_at_spotify, match_status, match_reason, last_paste_at",
+          "id, deal_id, song_id, spotify_url, playlist_name, followers, is_initial_roster, added_at, spotify_playlist_id, spotify_owner_id, spotify_owner_name, image_url, added_at_spotify, match_status, match_reason, last_paste_at, streams_7d, streams_28d, streams_total",
         )
         .eq("deal_id", deal.id)
         .or("match_status.eq.curator,is_initial_roster.eq.true")
+        // Fase 7.3 P2 — ordenação por entrega (streams_7d desc) substitui added_at.
+        .order("streams_7d", { ascending: false, nullsFirst: false })
         .order("added_at", { ascending: true }),
       admin
         .from("curator_deal_songs")
@@ -122,7 +127,28 @@ Deno.serve(async (req) => {
         .eq("deal_id", deal.id)
         .eq("is_initial_capture", false)
         .order("captured_at", { ascending: false }),
+      // Fase 7.3 P3 — todos os snapshots (incl. baseline) p/ delivery acumulado por playlist.
+      admin
+        .from("curator_deal_snapshots")
+        .select("playlist_id, captured_at, plays, plays_7d, is_initial_capture, print_url, source, match_method")
+        .eq("deal_id", deal.id)
+        .order("captured_at", { ascending: true }),
+      // Fase 7.3 P4 — galeria de prints (delivery_proofs).
+      admin
+        .from("delivery_proofs")
+        .select("id, playlist_id, spotify_playlist_id, playlist_name, screenshot_url, position_in_playlist, plays_total, plays_7d, captured_at, bot_correlation_id, source")
+        .eq("deal_id", deal.id)
+        .order("captured_at", { ascending: false })
+        .limit(500),
+      // Fase 7.3 P5 — histórico de Excel (uploads).
+      admin
+        .from("label_spreadsheet_uploads")
+        .select("id, file_name, file_path, content_hash, rows_imported, total_streams, reference_date, created_at, is_baseline, upload_mode, superseded_by, superseded_at, window_kind, window_days, quarantined_at, quarantine_reason, status, uploaded_via")
+        .eq("deal_id", deal.id)
+        .order("reference_date", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false }),
     ]);
+
 
     // Erros críticos (sem playlists/songs a página não tem o que mostrar) ainda quebram.
     if (plErr) return jr({ ok: false, error: plErr.message }, 200);
