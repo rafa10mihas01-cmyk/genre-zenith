@@ -938,6 +938,8 @@ export default function CatalogoMusicaDetalhe() {
             </>
           )}
         </section>
+        </>
+        )}
       </PageContainer>
     </>
   );
