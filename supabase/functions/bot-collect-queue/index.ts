@@ -5,6 +5,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { recordMetric } from "../_shared/ops-metrics.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 import { getTrackCacheBatch, enqueueEnrichment } from "../_shared/spotify-cache.ts";
+import { spotifyFetch, getAppToken } from "../_shared/spotify-client.ts";
 
 // FASE 6.A.3 — resolução inline de spotify_artist_id removida.
 // Agora consultamos spotify_track_cache (alimentado pelo spotify-enrichment-worker).
@@ -454,9 +455,11 @@ Deno.serve(async (req) => {
           if (!artistId && r.spotify_track_id) {
             try {
               const token = await getAppToken();
-              const tRes = await fetch(`https://api.spotify.com/v1/tracks/${r.spotify_track_id}`, {
-                headers: { Authorization: `Bearer ${token}` },
-              });
+              const tRes = await spotifyFetch(
+                `https://api.spotify.com/v1/tracks/${r.spotify_track_id}`,
+                { headers: { Authorization: `Bearer ${token}` } },
+                { functionName: "bot-collect-queue", operation: "resolve_artist_fallback" },
+              );
               if (tRes.ok) {
                 const tJson = await tRes.json();
                 artistId = tJson?.artists?.[0]?.id ?? null;
