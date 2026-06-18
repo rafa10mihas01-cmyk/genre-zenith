@@ -387,10 +387,10 @@ Deno.serve(async (req) => {
 
     // Gate informativo: leitura segue permitida (curador vê o histórico),
     // mas o frontend usa esse flag pra desabilitar mutações.
-    const gate = assertDealOperable(deal as any);
-    const access = gate.ok
+    const operable = assertDealOperable(deal as any);
+    const access = operable.ok
       ? { writable: true }
-      : { writable: false, code: gate.code, reason: gate.error };
+      : { writable: false, code: operable.code, reason: operable.error };
 
     // Campaign shadow context: quando o deal é shadow de uma campanha,
     // o portal precisa saber se a baseline já foi capturada antes de aceitar
