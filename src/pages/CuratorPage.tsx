@@ -1329,10 +1329,12 @@ export default function CuratorPage() {
 
         {/* Tabs por fase — pipeline em pílulas, mobile-first */}
         <div className="pt-1 sticky top-2 z-30">
-          <div className="grid grid-cols-3 items-center gap-0.5 rounded-full bg-card/80 backdrop-blur-md border border-border/50 p-0.5 shadow-[0_4px_16px_-8px_rgba(0,0,0,0.4)] w-full">
+          <div className="grid grid-cols-5 items-center gap-0.5 rounded-full bg-card/80 backdrop-blur-md border border-border/50 p-0.5 shadow-[0_4px_16px_-8px_rgba(0,0,0,0.4)] w-full">
             {([
               { id: "cadastro" as const, label: "Cadastro", icon: ListMusic, count: curatorPlaylists.length || null },
               { id: "entrega" as const, label: "Entrega", icon: Target, count: stats.target > 0 ? `${stats.pct}%` : null },
+              { id: "evidencias" as const, label: "Evidências", icon: ImageIcon, count: prints.length || null },
+              { id: "arquivos" as const, label: "Arquivos", icon: Download, count: uploads.length || null },
               { id: "historico" as const, label: "Histórico", icon: Clock, count: snapshotHistory.length || null },
             ]).map((t) => {
               const Icon = t.icon;
