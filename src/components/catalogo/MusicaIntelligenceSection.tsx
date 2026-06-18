@@ -568,7 +568,7 @@ function PlaylistRankingPanel({ placements, obs, ssPl, exec }: {
             <th className="text-right font-medium px-3 py-2.5 hidden md:table-cell">Tendência</th>
             <th className="text-right font-medium px-3 py-2.5 hidden lg:table-cell">Melhor pos</th>
             <th className="text-right font-medium px-3 py-2.5 hidden lg:table-cell">Última coleta</th>
-            <th className="text-right font-medium px-3 py-2.5">Status</th>
+            <th className="text-right font-medium px-3 py-2.5 hidden sm:table-cell">Status</th>
           </tr>
         </thead>
         <tbody>
