@@ -416,6 +416,44 @@ Deno.serve(async (req) => {
       }
     }
 
+    // OVERRIDE: o `registered_at` em curator_campaign_playlists foi populado por
+    // backfill em lote (ex.: tudo 05/06) e não reflete o momento real em que o
+    // curador colou o link no portal. A fonte de verdade é
+    // `curator_playlists.added_at` (ou `last_paste_at`), que é gravado no
+    // exato instante do paste/import. Sobrescrevemos pra exibir a data certa.
+    if (contracted.length > 0 && campaignIdsForDeals.size > 0) {
+      const { data: dealIdsRows } = await admin
+        .from("curator_deals")
+        .select("id")
+        .in("campaign_id", Array.from(campaignIdsForDeals));
+      const dealIds = Array.from(new Set((dealIdsRows ?? []).map((r: AnyRec) => String(r.id)).filter(Boolean)));
+      if (dealIds.length > 0) {
+        const playlistIds = Array.from(new Set(contracted.map(c => c.playlist_id)));
+        const { data: cpRows } = await admin
+          .from("curator_playlists")
+          .select("spotify_playlist_id, added_at, last_paste_at")
+          .in("deal_id", dealIds)
+          .in("spotify_playlist_id", playlistIds);
+        // Pega a data mais antiga (= primeiro paste real) por playlist.
+        const earliest = new Map<string, string>();
+        for (const r of (cpRows ?? []) as AnyRec[]) {
+          const k = String(r.spotify_playlist_id ?? "");
+          if (!k) continue;
+          const candidate = (r.last_paste_at as string | null) ?? (r.added_at as string | null);
+          if (!candidate) continue;
+          const prev = earliest.get(k);
+          if (!prev || new Date(candidate).getTime() < new Date(prev).getTime()) {
+            earliest.set(k, candidate);
+          }
+        }
+        for (const c of contracted) {
+          const real = earliest.get(c.playlist_id);
+          if (real) c.registered_at = real;
+        }
+      }
+    }
+
+
     // Baseline: playlists onde a música JÁ ESTAVA antes do deal começar.
     // Fase 1.A.1 — leitura oficial via RPC `public.get_campaign_baseline()`.
     // Frontend/edge funcs NÃO conhecem mais a tabela física da baseline.
