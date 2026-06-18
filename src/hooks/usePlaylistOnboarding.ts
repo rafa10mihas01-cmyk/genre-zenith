@@ -59,6 +59,6 @@ export function useRecheckOnboarding() {
       qc.invalidateQueries({ queryKey: ["playlist_onboarding", managedId] });
       toast.success("Checklist atualizado");
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erro ao reavaliar"),
+    onError: (e: Error) => toast.error(e?.message ?? "Erro ao reavaliar"),
   });
 }

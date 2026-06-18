@@ -111,6 +111,6 @@ export function useRecalcCuratorBrain() {
       qc.invalidateQueries({ queryKey: ["curator_brain_batch"] });
       toast.success("Cérebro do curador atualizado");
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erro ao recalcular"),
+    onError: (e: Error) => toast.error(e?.message ?? "Erro ao recalcular"),
   });
 }

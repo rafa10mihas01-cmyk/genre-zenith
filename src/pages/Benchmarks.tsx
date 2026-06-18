@@ -124,7 +124,7 @@ export default function Benchmarks() {
       toast.success("Benchmarks recalculados");
       queryClient.invalidateQueries({ queryKey: ["genre_benchmarks_all"] });
     },
-    onError: (e: any) => toast.error(e?.message ?? "Falha ao recalcular"),
+    onError: (e: Error) => toast.error(e?.message ?? "Falha ao recalcular"),
   });
 
   const sorted = useMemo(() => {
