@@ -19,7 +19,32 @@ type DealDetailData = {
   playlists: CuratorPlaylist[];
   songs: CuratorDealSong[];
   alerts: CuratorFraudAlert[];
+  uploads: CampaignSpreadsheetUpload[];
 };
+
+export type CampaignSpreadsheetUpload = {
+  id: string;
+  deal_id: string | null;
+  song_id: string | null;
+  file_name: string | null;
+  rows_imported: number | null;
+  total_streams: number | null;
+  reference_date: string | null;
+  created_at: string;
+  is_baseline: boolean | null;
+  status: string | null;
+};
+
+function spotifyTrackId(input: unknown): string | null {
+  const raw = String(input ?? "").trim();
+  const m = raw.match(/track\/([A-Za-z0-9]{16,})/);
+  if (m?.[1]) return m[1];
+  return /^[A-Za-z0-9]{16,}$/.test(raw) ? raw : null;
+}
+
+function normText(input: unknown): string {
+  return String(input ?? "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
 
 export function useCuratorDealDetail(dealId: string | null | undefined) {
   const { user } = useAuth();
@@ -65,8 +90,36 @@ export function useCuratorDealDetail(dealId: string | null | undefined) {
       if (plRes.error) throw plRes.error;
       if (songsRes.error) throw songsRes.error;
       if (alertsRes.error) throw alertsRes.error;
+      const deal = dealRes.data as CuratorDeal | null;
+      let uploads: CampaignSpreadsheetUpload[] = [];
+      if (deal) {
+        const uploadDealIds = new Set<string>([deal.id]);
+        const campaignId = (deal as CuratorDeal & { campaign_id?: string | null }).campaign_id ?? null;
+        if (campaignId) {
+          const thisTrack = spotifyTrackId(deal.song_spotify_url);
+          const thisName = normText(deal.song_name);
+          const { data: siblings } = await supabase
+            .from("curator_deals")
+            .select("id, song_name, song_spotify_url")
+            .eq("campaign_id", campaignId);
+          for (const sibling of (siblings ?? []) as Array<{ id: string; song_name: string | null; song_spotify_url: string | null }>) {
+            const sameTrack = thisTrack && spotifyTrackId(sibling.song_spotify_url) === thisTrack;
+            const sameName = thisName && normText(sibling.song_name) === thisName;
+            if (sameTrack || sameName) uploadDealIds.add(sibling.id);
+          }
+        }
+        const { data: uploadRows, error: uploadsErr } = await supabase
+          .from("label_spreadsheet_uploads")
+          .select("id, deal_id, song_id, file_name, rows_imported, total_streams, reference_date, created_at, is_baseline, status")
+          .in("deal_id", Array.from(uploadDealIds))
+          .order("reference_date", { ascending: false, nullsFirst: false })
+          .order("created_at", { ascending: false })
+          .limit(500);
+        if (uploadsErr) throw uploadsErr;
+        uploads = (uploadRows ?? []) as CampaignSpreadsheetUpload[];
+      }
       return {
-        deal: (dealRes.data ?? null) as CuratorDeal | null,
+        deal,
         logs: (logsRes.data ?? []) as CuratorDealLog[],
         playlists: ((plRes.data ?? []) as CuratorPlaylist[]).map((p) => ({
           ...p,
@@ -75,6 +128,7 @@ export function useCuratorDealDetail(dealId: string | null | undefined) {
         })) as CuratorPlaylist[],
         songs: (songsRes.data ?? []) as CuratorDealSong[],
         alerts: (alertsRes.data ?? []) as CuratorFraudAlert[],
+        uploads,
       };
     },
   });
@@ -100,6 +154,7 @@ export function useCuratorDealDetail(dealId: string | null | undefined) {
   const playlists = data?.playlists ?? [];
   const songs = data?.songs ?? [];
   const alerts = data?.alerts ?? [];
+  const uploads = data?.uploads ?? [];
   const progress = progressQuery.data ?? null;
 
   const reload = useCallback(() => {
@@ -155,6 +210,7 @@ export function useCuratorDealDetail(dealId: string | null | undefined) {
     playlists,
     songs,
     alerts,
+    uploads,
     progress,
     // loading só "verdadeiro" quando não há dado anterior — com placeholderData global,
     // trocar de ID mantém o dado antigo visível.
