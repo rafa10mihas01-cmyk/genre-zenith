@@ -322,6 +322,21 @@ export default function CuratorPage() {
     }
     (async () => {
       try {
+        const hash = window.location.hash || "";
+        const match = hash.match(/[#&]admin_jwt=([^&]+)/);
+        if (match) {
+          const adminJwt = decodeURIComponent(match[1]);
+          localStorage.setItem(curatorAccessStorageKey(tok), JSON.stringify({
+            jwt: adminJwt,
+            email: "admin",
+            exp: Date.now() + 86400_000,
+          }));
+          try { window.history.replaceState(null, "", window.location.pathname + window.location.search); } catch { /* ignore */ }
+          if (!cancelled) { setGateAuthed(true); setGateRequired(true); setGateChecked(true); return; }
+        }
+      } catch { /* ignore */ }
+
+      try {
         const stored = localStorage.getItem(curatorAccessStorageKey(tok));
         if (stored) {
           const parsed = JSON.parse(stored);
@@ -332,6 +347,26 @@ export default function CuratorPage() {
           }
         }
       } catch { /* ignore */ }
+
+      try {
+        const { data: sess } = await supabase.auth.getSession();
+        if (sess?.session?.access_token) {
+          const { data: bp } = await supabase.functions.invoke("admin-curator-access", {
+            body: { token: tok },
+          });
+          const adminJwt = (bp as any)?.jwt as string | undefined;
+          const adminEmail = (bp as any)?.email as string | undefined;
+          if (adminJwt) {
+            localStorage.setItem(curatorAccessStorageKey(tok), JSON.stringify({
+              jwt: adminJwt,
+              email: adminEmail ?? "admin",
+              exp: Date.now() + 86400_000,
+            }));
+            if (!cancelled) { setGateAuthed(true); setGateRequired(true); setGateChecked(true); return; }
+          }
+        }
+      } catch { /* ignore — cai no fluxo normal */ }
+
       const { data } = await supabase.functions.invoke("check-curator-access", { body: { token: tok } });
       if (cancelled) return;
       const req = !!(data as any)?.required;
