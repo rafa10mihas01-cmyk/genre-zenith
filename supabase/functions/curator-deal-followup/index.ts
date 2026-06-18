@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
     const candidates = deals ?? [];
     let notified = 0;
     let skippedRecentSnapshot = 0;
-    let skippedAlreadyNotified = 0;
+    const skippedAlreadyNotified = 0;
     let skippedNoUser = 0;
     let failed = 0;
 

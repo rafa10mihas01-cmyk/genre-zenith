@@ -93,7 +93,7 @@ export default function SpotifyCallback() {
         const json = await resp.json();
         if (!json.ok) {
           const raw = String(json.error || "");
-          // eslint-disable-next-line no-console
+           
           console.error("[spotify-callback] error from edge:", raw);
           // Spotify devolve 403 "User not registered in the Developer Dashboard"
           // quando o e-mail da conta Spotify (não o gmail de login!) não está nos testers do app

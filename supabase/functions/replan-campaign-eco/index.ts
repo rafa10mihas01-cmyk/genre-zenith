@@ -318,8 +318,8 @@ Deno.serve(async (req) => {
   // ─── Anti-canibalização: particiona candidatas em Grupo A (livres) e B (ocupadas).
   // Consome SEMPRE A primeiro; B só entra se A não cobre a necessidade.
   let occupiedMap = new Map<string, import("../_shared/eco-budget.ts").OccupancyInfo>();
-  let groupAStats = { primary: 0, neighbor: 0 };
-  let groupBStats = { primary: 0, neighbor: 0, usedFromB: 0 };
+  const groupAStats = { primary: 0, neighbor: 0 };
+  const groupBStats = { primary: 0, neighbor: 0, usedFromB: 0 };
   if (PLANNER_FREE_FIRST_ENABLED && candidateIds.length > 0) {
     occupiedMap = await getOccupiedPlaylistIds(admin, {
       excludeCampaignId: campaignId,
@@ -347,7 +347,7 @@ Deno.serve(async (req) => {
     for (const [k, v] of distA.positions) allPositions.set(k, v);
     coveredDailyByPrimary = distA.coveredDaily;
 
-    let gapAfterA = Math.max(0, dailyNeedRemaining - coveredDailyByPrimary);
+    const gapAfterA = Math.max(0, dailyNeedRemaining - coveredDailyByPrimary);
     if (gapAfterA > 0 && primParts.groupB.length > 0) {
       const distB = distributeByDailyNeed(primParts.groupB, gapAfterA, mult, ECO_DAILY_TOLERANCE, { maxCapById, currentPositionById });
       for (const [k, v] of distB.positions) allPositions.set(k, v);
@@ -368,7 +368,7 @@ Deno.serve(async (req) => {
         : { positions: new Map<string, number>(), coveredDaily: 0, details: [] };
       for (const [k, v] of nDistA.positions) allPositions.set(k, v);
       coveredDailyByNew += nDistA.coveredDaily;
-      let gapAfterNA = Math.max(0, gapAfterPrimary - nDistA.coveredDaily);
+      const gapAfterNA = Math.max(0, gapAfterPrimary - nDistA.coveredDaily);
       if (gapAfterNA > 0 && neighParts.groupB.length > 0) {
         const nDistB = distributeByDailyNeed(neighParts.groupB, gapAfterNA, mult, ECO_DAILY_TOLERANCE, { maxCapById, currentPositionById });
         for (const [k, v] of nDistB.positions) allPositions.set(k, v);

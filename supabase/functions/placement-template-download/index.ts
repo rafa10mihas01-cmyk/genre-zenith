@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
 
     // Tenta buscar info da faixa pra preencher exemplos
     let trackName = "Nome da música";
-    let isrc = "BR0000000000";
+    const isrc = "BR0000000000";
     let artistName = "";
     if (row.song_id) {
       const { data: song } = await admin

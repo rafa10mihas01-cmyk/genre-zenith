@@ -117,7 +117,7 @@ function extractPlaylistId(input: string | null | undefined): string | null {
   if (!input) return null;
   const s = String(input).trim();
   if (!s) return null;
-  let m = s.match(/playlist[:/]([A-Za-z0-9]{16,})/);
+  const m = s.match(/playlist[:/]([A-Za-z0-9]{16,})/);
   if (m) return m[1];
   // ID puro (22 chars típico do Spotify)
   if (/^[A-Za-z0-9]{16,}$/.test(s)) return s;

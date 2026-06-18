@@ -784,7 +784,7 @@ export function NewDealDialog({ open, onOpenChange, editDeal, editSongs, onSaved
         return next;
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [open, isEdit, prefillSongUrl, prefillCuratorId]);
 
   // Gap 9 — Prefill vindo de um prospect (external_curator).

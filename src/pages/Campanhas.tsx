@@ -805,7 +805,7 @@ function CampaignRow({ c }: { c: Campaign }) {
                   onSelect={() => approveCampaign()}
                   className={cn(!!c.baseline_captured_at && "text-primary focus:text-primary focus:bg-primary/10")}
                 >
-                  <CheckCircle2 className={cn("h-4 w-4 mr-2", !!c.baseline_captured_at ? "text-primary" : "text-primary")} />
+                  <CheckCircle2 className={cn("h-4 w-4 mr-2", c.baseline_captured_at ? "text-primary" : "text-primary")} />
                   {!!c.baseline_captured_at && (
                     <span className="relative inline-flex h-1.5 w-1.5 mr-1.5">
                       <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-60 animate-ping" />

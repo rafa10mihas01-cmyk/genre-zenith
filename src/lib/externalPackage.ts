@@ -62,7 +62,7 @@ export function suggestExternalAllocations(
   let allocated = 0;
   const items: SuggestedAllocation[] = ranked.map((c, i) => {
     const share = c.capacity / totalCapacity;
-    let assigned = i === ranked.length - 1
+    const assigned = i === ranked.length - 1
       ? Math.max(0, targetStreams - allocated)
       : Math.round(share * targetStreams);
     allocated += assigned;

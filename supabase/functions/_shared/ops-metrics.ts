@@ -13,7 +13,7 @@ export type OpsMetric = {
   metadata?: Record<string, unknown>;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+ 
 export function recordMetric(_supabase: SupabaseClient, _m: OpsMetric): void {
   /* no-op */
 }

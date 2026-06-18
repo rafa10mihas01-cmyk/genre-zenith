@@ -301,7 +301,7 @@ export default function PlanoCampanhaPublico() {
   }
 
   // Só carrega dados depois que o gate liberou (mapa libera de cara).
-  useEffect(() => { if (gateAuthed) load(); /* eslint-disable-next-line */ }, [token, gateAuthed]);
+  useEffect(() => { if (gateAuthed) load();   }, [token, gateAuthed]);
 
   // Carrega o payload público sanitizado em paralelo ao plano principal.
   // Antes dependia do client_token vindo de get-shared-campaign-plan; isso

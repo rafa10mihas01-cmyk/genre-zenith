@@ -247,7 +247,7 @@ export function applyMinDailyFloor(daily: number[], meta: number, floor: number 
   }
 
   // Acerta resíduo de arredondamento mantendo todos >= floor e soma = meta.
-  let drift = removed - deficit;
+  const drift = removed - deficit;
   if (drift !== 0 && aboveIdx.length > 0) {
     const sorted = [...aboveIdx].sort((a, b) => out[b] - out[a]);
     if (drift > 0) {

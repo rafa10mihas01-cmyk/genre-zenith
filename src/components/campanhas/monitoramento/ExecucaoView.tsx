@@ -300,7 +300,7 @@ export function ExecucaoView({
       const totalCur = list.filter((r) => r.attributed_to.startsWith("curator:")).length;
       const totalOrg = list.filter((r) => r.attributed_to === "organic").length;
       const totalNoData = list.filter((r) => r.baseline_plays == null && r.current_plays == null).length;
-      // eslint-disable-next-line no-console
+       
       console.log("[Monitoramento V2] Fonte de verdade", {
         campaign_id: campaignId,
         total_collections_distinct: collIds.size,
@@ -378,7 +378,7 @@ export function ExecucaoView({
   const filtered = useMemo(() => {
     if (!rows) return [];
     const qn = q.trim().toLowerCase();
-    let out = rows.filter((r) => {
+    const out = rows.filter((r) => {
       if (!passesNonQuery(r)) return false;
       if (qn) {
         const name = (r.current_name ?? r.baseline_name ?? "").toLowerCase();

@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
 
   for (const target of targets) {
     try {
-      let meta = await fetchPlaylistMeta(token, target.spotify_playlist_id).catch(async (e) => {
+      const meta = await fetchPlaylistMeta(token, target.spotify_playlist_id).catch(async (e) => {
         if ((e as Error).message === "UNAUTH" && !unauthRetried) {
           unauthRetried = true;
           token = await forceRefreshAppToken();

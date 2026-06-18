@@ -159,7 +159,7 @@ export async function processDomItem(
   const dedupedPlaylists = Array.from(dedupMap.values());
   const dedupedOut = playlists.length - dedupedPlaylists.length;
 
-  let inserted = 0;
+  const inserted = 0;
   let skipped = 0;
   let totalPlays = 0;
 

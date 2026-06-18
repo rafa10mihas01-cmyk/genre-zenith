@@ -742,7 +742,7 @@ async function runPipeline(
     await setStep(sb, runId, "templates");
     const remaining = maxTemplates;
     const generated: string[] = generatedIds; // alias — escreve no array compartilhado
-    let perBp = Math.max(1, Math.ceil(remaining / Math.min(ranked.length, 3)));
+    const perBp = Math.max(1, Math.ceil(remaining / Math.min(ranked.length, 3)));
     for (const bp of ranked) {
       if (generated.length >= maxTemplates) break;
       const needed = Math.min(perBp, maxTemplates - generated.length);
