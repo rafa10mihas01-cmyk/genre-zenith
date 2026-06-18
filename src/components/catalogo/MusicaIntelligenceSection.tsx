@@ -145,47 +145,18 @@ function buildTimeline(
     });
   }
 
-  // Primeiro POST efetivado (placement_post_ok) por playlist
-  const firstPostPerPlaylist = new Map<string, ExecutionLogRow>();
-  exec
-    .slice()
-    .reverse() // mais antigos primeiro
-    .forEach((e) => {
-      if (e.outcome === "spotify_post_ok" || e.outcome === "already_present") {
-        const k = e.spotify_playlist_id ?? e.placement_id ?? e.id;
-        if (!firstPostPerPlaylist.has(k)) firstPostPerPlaylist.set(k, e);
-      }
-    });
-  const firstPostList = [...firstPostPerPlaylist.values()].sort(
-    (a, b) => +new Date(a.executed_at) - +new Date(b.executed_at),
-  );
-  if (firstPostList.length) {
-    const first = firstPostList[0];
+  // Primeira playlist (primeira detecção VPS global) — apenas o marco
+  const firstObsGlobal = obs[0];
+  if (firstObsGlobal) {
     events.push({
-      at: first.executed_at,
-      kind: "placement_post",
-      label: "Primeiro placement efetivado no Spotify",
-      detail: namePlaylist(placements, first.spotify_playlist_id),
+      at: firstObsGlobal.captured_at,
+      kind: "playlist_in",
+      label: "Primeira playlist",
+      detail: namePlaylist(placements, firstObsGlobal.spotify_playlist_id) ?? firstObsGlobal.spotify_playlist_id,
       tone: "good",
     });
   }
 
-  // Entradas em playlists observadas (primeira vez que o bot detectou)
-  const firstSeen = new Map<string, ObserverTrackRow>();
-  obs.forEach((o) => {
-    if (!firstSeen.has(o.spotify_playlist_id)) firstSeen.set(o.spotify_playlist_id, o);
-  });
-  [...firstSeen.values()].forEach((o) => {
-    events.push({
-      at: o.captured_at,
-      kind: "playlist_in",
-      label: "Detectada em playlist (VPS)",
-      detail: namePlaylist(placements, o.spotify_playlist_id) ?? o.spotify_playlist_id,
-      tone: "neutral",
-    });
-  });
-
-  // Timeline enxuta — sem eventos técnicos (saídas inferidas, breaker, etc.)
 
   // Snapshots — só pico e última, pra não poluir
   let peak: Snapshot | null = null;
@@ -554,6 +525,14 @@ function PlaylistRankingPanel({ placements, obs, ssPl, exec }: {
   placements: Placement[]; obs: ObserverTrackRow[]; ssPl: SongSnapPlaylistRow[]; exec: ExecutionLogRow[];
 }) {
   const rows = useMemo(() => buildPlaylistRanking(placements, obs, ssPl, exec), [placements, obs, ssPl, exec]);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggle = (id: string) =>
+    setExpanded((prev) => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+
   if (rows.length === 0) {
     return <div className="p-6 text-center text-xs text-muted-foreground">Sem dados de playlists ainda.</div>;
   }
@@ -562,85 +541,160 @@ function PlaylistRankingPanel({ placements, obs, ssPl, exec }: {
       <table className="w-full text-sm">
         <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
           <tr className="border-b border-border">
-            <th className="text-left font-medium px-3 py-2.5">#</th>
+            <th className="text-left font-medium px-3 py-2.5 w-8"></th>
             <th className="text-left font-medium px-3 py-2.5">Playlist</th>
             <th className="text-right font-medium px-3 py-2.5 text-emerald-400">Delivery</th>
             <th className="text-right font-medium px-3 py-2.5 hidden sm:table-cell">Cresc.</th>
+            <th className="text-right font-medium px-3 py-2.5 hidden md:table-cell">Dias</th>
             <th className="text-right font-medium px-3 py-2.5 hidden md:table-cell">Tendência</th>
-            <th className="text-right font-medium px-3 py-2.5 hidden md:table-cell">Entrou</th>
-            <th className="text-right font-medium px-3 py-2.5 hidden lg:table-cell">Atual</th>
-            <th className="text-right font-medium px-3 py-2.5 hidden lg:table-cell">Entrada</th>
-            <th className="text-right font-medium px-3 py-2.5 hidden lg:table-cell">Dias</th>
-            <th className="text-right font-medium px-3 py-2.5 hidden xl:table-cell">Melh./Últ. pos</th>
-            <th className="text-right font-medium px-3 py-2.5 hidden xl:table-cell">Freq.</th>
-            <th className="text-right font-medium px-3 py-2.5 hidden xl:table-cell">Última coleta</th>
+            <th className="text-right font-medium px-3 py-2.5 hidden lg:table-cell">Melhor pos</th>
+            <th className="text-right font-medium px-3 py-2.5 hidden lg:table-cell">Última coleta</th>
             <th className="text-right font-medium px-3 py-2.5">Status</th>
-            <th className="text-right font-medium px-3 py-2.5 hidden sm:table-cell">Score</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((r, i) => (
-            <tr key={r.spotify_playlist_id} className="border-b border-border last:border-0 hover:bg-muted/30">
-              <td className="px-3 py-2 text-muted-foreground font-mono text-xs">{i + 1}</td>
-              <td className="px-3 py-2 max-w-[220px]">
-                {r.spotify_url ? (
-                  <a href={r.spotify_url} target="_blank" rel="noreferrer" className="text-foreground hover:text-primary inline-flex items-center gap-1 truncate">
-                    <span className="truncate">{r.name}</span><ExternalLink className="h-3 w-3 opacity-60 shrink-0" />
-                  </a>
-                ) : (
-                  <span className="text-foreground truncate block">{r.name}</span>
+          {rows.map((r) => {
+            const isOpen = expanded.has(r.spotify_playlist_id);
+            return (
+              <>
+                <tr
+                  key={r.spotify_playlist_id}
+                  className="border-b border-border last:border-0 hover:bg-muted/30 cursor-pointer"
+                  onClick={() => toggle(r.spotify_playlist_id)}
+                >
+                  <td className="px-3 py-2 text-muted-foreground">
+                    <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isOpen && "rotate-180")} />
+                  </td>
+                  <td className="px-3 py-2 max-w-[240px]">
+                    {r.spotify_url ? (
+                      <a href={r.spotify_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-foreground hover:text-primary inline-flex items-center gap-1 truncate">
+                        <span className="truncate">{r.name}</span><ExternalLink className="h-3 w-3 opacity-60 shrink-0" />
+                      </a>
+                    ) : (
+                      <span className="text-foreground truncate block">{r.name}</span>
+                    )}
+                    {r.owner && <span className="block text-[10px] text-muted-foreground truncate">{r.owner}</span>}
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <span className={cn(
+                      "font-mono text-sm tabular-nums font-semibold",
+                      r.deliveryAccumulated > 0 ? "text-emerald-400" : "text-muted-foreground",
+                    )}>
+                      {r.deliveryAccumulated > 0 ? `+${fmt(r.deliveryAccumulated)}` : "+0"}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono text-xs hidden sm:table-cell">
+                    {r.growthPct == null ? "—" : (
+                      <span className={r.growthPct >= 0 ? "text-emerald-400" : "text-rose-400"}>
+                        {r.growthPct >= 0 ? "+" : ""}{r.growthPct}%
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground hidden md:table-cell">{r.daysActive}d</td>
+                  <td className="px-3 py-2 text-right hidden md:table-cell"><TrendBadge t={r.trend} /></td>
+                  <td className="px-3 py-2 text-right font-mono text-xs hidden lg:table-cell">{r.bestPosition != null ? `#${r.bestPosition}` : "—"}</td>
+                  <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground hidden lg:table-cell">{rel(r.lastSeen)}</td>
+                  <td className="px-3 py-2 text-right">
+                    <span className={cn(
+                      "inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider",
+                      r.status === "ativa" ? "text-emerald-400" : "text-muted-foreground",
+                    )}>
+                      <span className={cn("h-1.5 w-1.5 rounded-full", r.status === "ativa" ? "bg-emerald-500" : "bg-muted-foreground/60")} />
+                      {r.status}
+                    </span>
+                  </td>
+                </tr>
+                {isOpen && (
+                  <tr key={`${r.spotify_playlist_id}-x`} className="border-b border-border bg-muted/10">
+                    <td></td>
+                    <td colSpan={8} className="px-3 py-3">
+                      <dl className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-x-4 gap-y-2 text-[11px]">
+                        {[
+                          ["Streams na entrada", fmt(r.streamsAtEntry)],
+                          ["Streams atuais", fmt(r.streamsCurrent)],
+                          ["Data de entrada", d(r.entryDate)],
+                          ["Posição atual", r.currentPosition != null ? `#${r.currentPosition}` : "—"],
+                          ["Freq. detecção", r.detectionFrequency != null ? `${r.detectionFrequency}/d` : "—"],
+                          ["Tempo até 1ª detecção", r.timeToFirstDetectionHours != null ? `${r.timeToFirstDetectionHours}h` : "—"],
+                          ["Observações", String(r.observations)],
+                          ["Score (auxiliar)", String(r.score)],
+                        ].map(([k, v]) => (
+                          <div key={k} className="flex flex-col gap-0.5">
+                            <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">{k}</dt>
+                            <dd className="font-mono text-foreground">{v}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </td>
+                  </tr>
                 )}
-                {r.owner && <span className="block text-[10px] text-muted-foreground truncate">{r.owner}</span>}
-              </td>
-              {/* DELIVERY — métrica principal */}
-              <td className="px-3 py-2 text-right">
-                <span className={cn(
-                  "font-mono text-sm tabular-nums font-semibold",
-                  r.deliveryAccumulated > 0 ? "text-emerald-400" : "text-muted-foreground",
-                )}>
-                  {r.deliveryAccumulated > 0 ? `+${fmt(r.deliveryAccumulated)}` : "+0"}
-                </span>
-              </td>
-              <td className="px-3 py-2 text-right font-mono text-xs hidden sm:table-cell">
-                {r.growthPct == null ? "—" : (
-                  <span className={r.growthPct >= 0 ? "text-emerald-400" : "text-rose-400"}>
-                    {r.growthPct >= 0 ? "+" : ""}{r.growthPct}%
-                  </span>
-                )}
-              </td>
-              <td className="px-3 py-2 text-right hidden md:table-cell"><TrendBadge t={r.trend} /></td>
-              <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground hidden md:table-cell">{fmt(r.streamsAtEntry)}</td>
-              <td className="px-3 py-2 text-right font-mono text-xs text-foreground hidden lg:table-cell">{fmt(r.streamsCurrent)}</td>
-              <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground hidden lg:table-cell">{d(r.entryDate)}</td>
-              <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground hidden lg:table-cell">{r.daysActive}d</td>
-              <td className="px-3 py-2 text-right font-mono text-xs hidden xl:table-cell">
-                {r.bestPosition != null ? `#${r.bestPosition}` : "—"} / {r.currentPosition != null ? `#${r.currentPosition}` : "—"}
-              </td>
-              <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground hidden xl:table-cell">
-                {r.detectionFrequency != null ? `${r.detectionFrequency}/d` : "—"}
-              </td>
-              <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground hidden xl:table-cell">{rel(r.lastSeen)}</td>
-              <td className="px-3 py-2 text-right">
-                <span className={cn(
-                  "inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider",
-                  r.status === "ativa" ? "text-emerald-400" : "text-muted-foreground",
-                )}>
-                  <span className={cn("h-1.5 w-1.5 rounded-full", r.status === "ativa" ? "bg-emerald-500" : "bg-muted-foreground/60")} />
-                  {r.status}
-                </span>
-              </td>
-              <td className="px-3 py-2 text-right hidden sm:table-cell">
-                <span className="inline-flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 rounded bg-muted/30 text-muted-foreground">
-                  <Award className="h-2.5 w-2.5" />{r.score}
-                </span>
-              </td>
-            </tr>
-          ))}
+              </>
+            );
+          })}
         </tbody>
       </table>
     </div>
   );
 }
+
+// ============================================================
+// RESUMO EXECUTIVO
+// ============================================================
+function ExecutiveSummary({
+  baseline, telemetry, ranking,
+}: {
+  baseline: Baseline;
+  telemetry: Telemetry;
+  ranking: PlaylistAgg[];
+}) {
+  const totalDelivery = ranking.reduce((s, r) => s + r.deliveryAccumulated, 0);
+  const ativas = ranking.filter((r) => r.status === "ativa").length;
+  const best = ranking[0] ?? null;
+  const growth = telemetry?.growth_pct ?? null;
+  const growthAbs = telemetry?.growth_abs ?? null;
+  const status: { label: string; tone: "good" | "warn" | "bad" | "neutral" } =
+    growth == null
+      ? { label: "Sem dado", tone: "neutral" }
+      : growth >= 10
+      ? { label: "Crescendo", tone: "good" }
+      : growth <= -10
+      ? { label: "Perdendo força", tone: "bad" }
+      : { label: "Estável", tone: "warn" };
+
+  const kpis: Array<{ k: string; v: React.ReactNode; sub?: string; tone?: "good" | "warn" | "bad" }> = [
+    { k: "Baseline", v: baseline?.streams != null ? fmt(baseline.streams) : "—", sub: baseline?.captured_at ? d(baseline.captured_at) : undefined },
+    { k: "Streams atuais", v: fmt(telemetry?.last_plays_28d), sub: "últimos 28d" },
+    { k: "Delivery acumulado", v: <span className="text-emerald-400">{totalDelivery > 0 ? `+${fmt(totalDelivery)}` : "+0"}</span>, sub: "via playlists" },
+    {
+      k: "Crescimento",
+      v: growth == null ? "—" : <span className={growth >= 0 ? "text-emerald-400" : "text-rose-400"}>{growth >= 0 ? "+" : ""}{growth}%</span>,
+      sub: growthAbs != null ? `${growthAbs >= 0 ? "+" : ""}${fmt(growthAbs)} streams` : undefined,
+    },
+    { k: "Playlists ativas", v: String(ativas), sub: `${ranking.length} total` },
+    { k: "Melhor playlist", v: best ? <span className="truncate block max-w-[180px]" title={best.name}>{best.name}</span> : "—", sub: best ? `+${fmt(best.deliveryAccumulated)} delivery` : undefined },
+    { k: "Última coleta", v: rel(telemetry?.last_captured_at), sub: telemetry?.last_captured_at ? dt(telemetry.last_captured_at) : undefined },
+    { k: "Status", v: <span className={cn(status.tone === "good" && "text-emerald-400", status.tone === "warn" && "text-amber-400", status.tone === "bad" && "text-rose-400")}>{status.label}</span> },
+  ];
+
+  return (
+    <section className="rounded-2xl border border-border bg-card p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <Sparkles className="h-4 w-4 text-[#1DB954]" />
+        <h3 className="text-sm font-semibold text-foreground">Resumo executivo</h3>
+      </div>
+      <dl className="grid grid-cols-2 md:grid-cols-4 gap-x-5 gap-y-4">
+        {kpis.map((k) => (
+          <div key={k.k} className="flex flex-col gap-0.5 min-w-0">
+            <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">{k.k}</dt>
+            <dd className="text-lg font-semibold text-foreground font-mono tabular-nums truncate">{k.v}</dd>
+            {k.sub && <dd className="text-[11px] text-muted-foreground truncate">{k.sub}</dd>}
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
 
 // ============================================================
 // 5) LINHA DO TEMPO DOS PLACEMENTS
@@ -800,9 +854,19 @@ function buildFeed(
     }
   }
 
-  // Coletas recentes (até 5)
-  snapshots.slice(-5).forEach((s) => {
+  // Coletas recentes (até 3)
+  snapshots.slice(-3).forEach((s) => {
     items.push({ at: s.captured_at, tone: "neutral", icon: Activity, text: "Nova coleta recebida." });
+  });
+
+  // Novo pico (snapshot que superou todos os anteriores)
+  let runningPeak = 0;
+  snapshots.forEach((s) => {
+    const v = s.total_plays_28d ?? 0;
+    if (v > runningPeak && runningPeak > 0) {
+      items.push({ at: s.captured_at, tone: "good", icon: TrendingUp, text: `Novo pico de streams: ${fmt(v)}.` });
+    }
+    if (v > runningPeak) runningPeak = v;
   });
 
   // Placements confirmados (apenas business — ignora códigos técnicos)
@@ -858,6 +922,11 @@ export function MusicaIntelligenceSection(props: MusicaIntelligenceProps) {
     spotifyPlaylistIds,
     snapshotIds,
   });
+  const intel = q.data;
+  const ranking = useMemo(
+    () => intel ? buildPlaylistRanking(props.placements, intel.observerTracks, intel.songSnapPlaylists, intel.executionLog) : [],
+    [intel, props.placements],
+  );
 
   if (q.isLoading) {
     return (
@@ -869,35 +938,43 @@ export function MusicaIntelligenceSection(props: MusicaIntelligenceProps) {
     );
   }
 
-  const intel = q.data;
   if (!intel) {
     return <div className="text-sm text-muted-foreground">Não foi possível carregar a inteligência.</div>;
   }
 
   return (
     <div className="flex flex-col gap-3">
-      <Panel title="Timeline da música" hint="Cadastro → baseline → playlists → picos → última coleta" icon={History}>
-        <TimelinePanel {...props} exec={intel.executionLog} obs={intel.observerTracks} />
-      </Panel>
+      {/* 1. Resumo executivo — sempre no topo */}
+      <ExecutiveSummary baseline={props.baseline} telemetry={props.telemetry} ranking={ranking} />
 
-      <Panel title="Saúde operacional" hint="Worker, VPS, fila, breaker e último erro" icon={Server} defaultOpen>
-        <OperationalHealthPanel {...props} exec={intel.executionLog} breakers={intel.breakers} vps={intel.vpsAssignments} />
-      </Panel>
-
-      <Panel title="Ranking de playlists" hint="Ordenado por DELIVERY (streams entregues) — score só auxiliar" icon={Award} defaultOpen>
+      {/* 2. Ranking de playlists — quem entregou mais */}
+      <Panel title="Ranking de playlists" hint="Ordenado por DELIVERY · clique na linha pra expandir" icon={Award} defaultOpen>
         <PlaylistRankingPanel placements={props.placements} obs={intel.observerTracks} ssPl={intel.songSnapPlaylists} exec={intel.executionLog} />
       </Panel>
 
-      <Panel title="Linha do tempo de cada placement" hint="Criado → POST → confirmado → detectado → removido" icon={Clock}>
-        <PlacementTimelinesPanel placements={props.placements} exec={intel.executionLog} obs={intel.observerTracks} />
+      {/* 3. Timeline da música */}
+      <Panel title="Timeline da música" hint="Cadastro → baseline → primeira playlist → pico → última coleta" icon={History}>
+        <TimelinePanel {...props} exec={intel.executionLog} obs={intel.observerTracks} />
       </Panel>
 
-      <Panel title="Histórico de distribuição" hint="Entradas, saídas e total por dia" icon={TrendingUp}>
+      {/* 4. Feed de negócio */}
+      <Panel title="Feed de negócio" hint="Entradas, saídas, picos, crescimento e coletas" icon={Sparkles}>
+        <EventFeedPanel placements={props.placements} baseline={props.baseline} snapshots={props.snapshots} exec={intel.executionLog} obs={intel.observerTracks} />
+      </Panel>
+
+      {/* 5. Histórico de distribuição */}
+      <Panel title="Histórico de distribuição" hint="Entradas, saídas e total por dia" icon={TrendingUp} defaultOpen={false}>
         <DistributionHistoryPanel placements={props.placements} exec={intel.executionLog} />
       </Panel>
 
-      <Panel title="Feed de eventos" hint="Eventos de negócio: entradas, saídas, crescimento, coletas" icon={Sparkles}>
-        <EventFeedPanel placements={props.placements} baseline={props.baseline} snapshots={props.snapshots} exec={intel.executionLog} obs={intel.observerTracks} />
+      {/* 6. Linha do tempo de cada placement */}
+      <Panel title="Linha do tempo de cada placement" hint="Criado → POST → confirmado → detectado → removido" icon={Clock} defaultOpen={false}>
+        <PlacementTimelinesPanel placements={props.placements} exec={intel.executionLog} obs={intel.observerTracks} />
+      </Panel>
+
+      {/* 7. Saúde operacional — fim da página, fechada por padrão */}
+      <Panel title="Saúde operacional" hint="Administração: worker, VPS, fila, breaker, erros" icon={Server} defaultOpen={false}>
+        <OperationalHealthPanel {...props} exec={intel.executionLog} breakers={intel.breakers} vps={intel.vpsAssignments} />
       </Panel>
     </div>
   );
