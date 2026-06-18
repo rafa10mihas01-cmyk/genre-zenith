@@ -119,14 +119,23 @@ function triggerBlobDownload(blob: Blob, filename: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 
+async function fetchAndConvertCsvToXlsx(signedUrl: string, downloadName: string): Promise<void> {
+  const res = await fetch(signedUrl);
+  if (!res.ok) throw new Error(`Falha ao baixar CSV (${res.status})`);
+  const text = await res.text();
+  const rows = parseCsv(text);
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Resultados");
+  const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" }) as ArrayBuffer;
+  const blob = new Blob([buf], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  triggerBlobDownload(blob, downloadName);
+}
+
 /**
- * Download an upload from the `label-spreadsheets` bucket.
- * - If the source file is XLSX/XLS, it is downloaded as-is (signed URL).
- * - If the source file is CSV, it is fetched, parsed and converted to XLSX
- *   in-browser. The Storage object is NOT modified.
- *
- * The displayed filename uses the friendly label; the actual download keeps
- * a sensible extension (.xlsx after conversion).
+ * Download from a Storage path (creates a signed URL on the fly).
  */
 export async function downloadUploadAsXlsx(params: {
   filePath: string;
@@ -145,7 +154,6 @@ export async function downloadUploadAsXlsx(params: {
     .trim();
 
   if (!isCsvName(fileName, filePath)) {
-    // XLSX path: just stream the original.
     const a = document.createElement("a");
     a.href = data.signedUrl;
     a.download = `${friendlyBase}.xlsx`;
@@ -156,18 +164,34 @@ export async function downloadUploadAsXlsx(params: {
     a.remove();
     return;
   }
+  await fetchAndConvertCsvToXlsx(data.signedUrl, `${friendlyBase}.xlsx`);
+}
 
-  // CSV path: fetch and convert on-the-fly.
-  const res = await fetch(data.signedUrl);
-  if (!res.ok) throw new Error(`Falha ao baixar CSV (${res.status})`);
-  const text = await res.text();
-  const rows = parseCsv(text);
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Resultados");
-  const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" }) as ArrayBuffer;
-  const blob = new Blob([buf], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
-  triggerBlobDownload(blob, `${friendlyBase}.xlsx`);
+/**
+ * Download from an already-signed URL (used by views that receive download_url
+ * pre-signed by the backend, e.g. Curator Portal).
+ */
+export async function downloadUploadUrlAsXlsx(params: {
+  signedUrl: string;
+  fileName: string | null;
+  referenceDate?: string | null;
+}): Promise<void> {
+  const { signedUrl, fileName, referenceDate } = params;
+  const friendlyBase = friendlyUploadName(fileName, referenceDate)
+    .replace(/[•/\\:*?"<>|]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!isCsvName(fileName, signedUrl)) {
+    const a = document.createElement("a");
+    a.href = signedUrl;
+    a.download = `${friendlyBase}.xlsx`;
+    a.target = "_blank";
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    return;
+  }
+  await fetchAndConvertCsvToXlsx(signedUrl, `${friendlyBase}.xlsx`);
 }
