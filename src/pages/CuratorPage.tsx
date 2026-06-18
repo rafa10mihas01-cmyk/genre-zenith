@@ -540,6 +540,9 @@ export default function CuratorPage() {
       if (data.campaign_context) setCampaignContext(data.campaign_context);
       setCuratorSubmissions((data.curator_submissions ?? null) as CuratorSubmissionsSummary | null);
       setBaselineConflicts((data.baseline_conflicts ?? []) as BaselineConflict[]);
+      setPrints((data.prints ?? []) as PrintEntry[]);
+      setUploads((data.uploads ?? []) as UploadEntry[]);
+      setTimeline((data.timeline ?? []) as TimelineEntry[]);
       setError(null);
     }
     setLoading(false);
