@@ -68,7 +68,7 @@ export function FinancialOverview() {
         <Kpi
           icon={Wallet}
           label="Investido em curadoria"
-          value={fmtBRL(totals.custoTotalCaixa)}
+          value={fmtBRL(totals.custoCaixa)}
           hint={
             totals.custoNaoAlocado > 0
               ? `${fmtBRL(totals.custoNaoAlocado)} sem deal vinculado`
@@ -89,6 +89,7 @@ export function FinancialOverview() {
           tone={totals.margemPct != null && totals.margemPct >= 30 ? "primary" : "default"}
         />
       </section>
+
 
 
       {/* ===== Aviso de custo não alocado ===== */}
