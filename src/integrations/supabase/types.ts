@@ -14,48 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      _audit_post_baseline_migration: {
-        Row: {
-          campaign_id: string
-          campaign_name: string | null
-          delta_abs: number
-          delta_pct: number | null
-          entregue_antes: number
-          entregue_depois: number
-          id: string
-          origem: string | null
-          per_playlist: Json
-          playlists_afetadas: number
-          ran_at: string
-        }
-        Insert: {
-          campaign_id: string
-          campaign_name?: string | null
-          delta_abs: number
-          delta_pct?: number | null
-          entregue_antes: number
-          entregue_depois: number
-          id?: string
-          origem?: string | null
-          per_playlist?: Json
-          playlists_afetadas: number
-          ran_at?: string
-        }
-        Update: {
-          campaign_id?: string
-          campaign_name?: string | null
-          delta_abs?: number
-          delta_pct?: number | null
-          entregue_antes?: number
-          entregue_depois?: number
-          id?: string
-          origem?: string | null
-          per_playlist?: Json
-          playlists_afetadas?: number
-          ran_at?: string
-        }
-        Relationships: []
-      }
       _audit_pre_window_migration: {
         Row: {
           campaign_id: string
@@ -3754,90 +3712,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      curator_deal_snapshots_repoint_backup: {
-        Row: {
-          ai_confidence: number | null
-          ai_raw: Json | null
-          backed_up_at: string | null
-          batch_id: string | null
-          captured_at: string | null
-          correlation_id: string | null
-          created_at: string | null
-          created_by: string | null
-          deal_id: string | null
-          flag_reason: string | null
-          flagged: boolean | null
-          id: string | null
-          is_baseline: boolean | null
-          match_method: string | null
-          notes: string | null
-          original_playlist_id_backup: string | null
-          playlist_id: string | null
-          plays: number | null
-          plays_24h: number | null
-          plays_28d: number | null
-          plays_7d: number | null
-          print_url: string | null
-          snapshot_run_id: string | null
-          song_id: string | null
-          source: string | null
-        }
-        Insert: {
-          ai_confidence?: number | null
-          ai_raw?: Json | null
-          backed_up_at?: string | null
-          batch_id?: string | null
-          captured_at?: string | null
-          correlation_id?: string | null
-          created_at?: string | null
-          created_by?: string | null
-          deal_id?: string | null
-          flag_reason?: string | null
-          flagged?: boolean | null
-          id?: string | null
-          is_baseline?: boolean | null
-          match_method?: string | null
-          notes?: string | null
-          original_playlist_id_backup?: string | null
-          playlist_id?: string | null
-          plays?: number | null
-          plays_24h?: number | null
-          plays_28d?: number | null
-          plays_7d?: number | null
-          print_url?: string | null
-          snapshot_run_id?: string | null
-          song_id?: string | null
-          source?: string | null
-        }
-        Update: {
-          ai_confidence?: number | null
-          ai_raw?: Json | null
-          backed_up_at?: string | null
-          batch_id?: string | null
-          captured_at?: string | null
-          correlation_id?: string | null
-          created_at?: string | null
-          created_by?: string | null
-          deal_id?: string | null
-          flag_reason?: string | null
-          flagged?: boolean | null
-          id?: string | null
-          is_baseline?: boolean | null
-          match_method?: string | null
-          notes?: string | null
-          original_playlist_id_backup?: string | null
-          playlist_id?: string | null
-          plays?: number | null
-          plays_24h?: number | null
-          plays_28d?: number | null
-          plays_7d?: number | null
-          print_url?: string | null
-          snapshot_run_id?: string | null
-          song_id?: string | null
-          source?: string | null
-        }
-        Relationships: []
       }
       curator_deal_songs: {
         Row: {
