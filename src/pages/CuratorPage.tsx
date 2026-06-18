@@ -2414,18 +2414,20 @@ export default function CuratorPage() {
                   Marcos operacionais do deal, do cadastro até a última coleta.
                 </p>
               </div>
-              <ol className="relative border-l border-border ml-2 space-y-3">
-                {timeline.map((ev, i) => (
-                  <li key={i} className="ml-4">
-                    <span className="absolute -left-1.5 mt-1.5 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-background" />
-                    <div className="text-[11px] text-muted-foreground tabular-nums">{formatDateTime(ev.at)}</div>
-                    <div className="text-[12.5px] font-medium leading-tight">{ev.label}</div>
-                    {ev.detail && (
-                      <div className="text-[11px] text-muted-foreground/80 truncate">{ev.detail}</div>
-                    )}
-                  </li>
-                ))}
-              </ol>
+              <div className="max-h-[360px] overflow-y-auto pr-1 -mr-1 scroll-smooth [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]">
+                <ol className="relative border-l border-border ml-2 space-y-3">
+                  {timeline.map((ev, i) => (
+                    <li key={i} className="ml-4">
+                      <span className="absolute -left-1.5 mt-1.5 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-background" />
+                      <div className="text-[11px] text-muted-foreground tabular-nums">{formatDateTime(ev.at)}</div>
+                      <div className="text-[12.5px] font-medium leading-tight">{ev.label}</div>
+                      {ev.detail && (
+                        <div className="text-[11px] text-muted-foreground/80 truncate">{ev.detail}</div>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              </div>
             </CardContent>
           </Card>
         )}
