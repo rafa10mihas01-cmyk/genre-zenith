@@ -35,7 +35,7 @@ function makeThrottledFetcher(): SpotifyFetch {
     const wait = Math.max(0, minGapMs - (Date.now() - lastCallAt));
     if (wait > 0) await sleep(wait);
     let attempt = 0;
-    // eslint-disable-next-line no-constant-condition
+     
     while (true) {
       try {
         lastCallAt = Date.now();

@@ -116,7 +116,7 @@ Deno.serve(async (req) => {
 
         // 1) snapshot inicial via helper canônico (com linked_from)
         let refs = await listPlaylistTrackRefs(pl.spotify_playlist_id, token);
-        let existingIdx = findPlaylistTrackIndex(refs, trackUri);
+        const existingIdx = findPlaylistTrackIndex(refs, trackUri);
 
         let action: "added" | "moved" | "skip" = "skip";
         let message = "";

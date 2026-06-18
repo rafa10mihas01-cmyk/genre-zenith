@@ -89,7 +89,7 @@ Entre direto pelo link acima. Você pode trocar a senha depois nas configuraçõ
       grouped.set(r.user_id, list);
     });
 
-    let emailMap = new Map<string, string>();
+    const emailMap = new Map<string, string>();
     try {
       const { data: emailData } = await supabase.functions.invoke("list-team-emails");
       if (emailData?.users) {

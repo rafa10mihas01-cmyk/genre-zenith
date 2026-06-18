@@ -136,7 +136,7 @@ async function buildHealth(supabase: any, genreId: string) {
   // Mantemos apenas o teste de token pra validar conectividade do app.
   const recenciaScores: number[] = [];
   const freshUnder365 = 0;
-  let releaseFetched = 0;
+  const releaseFetched = 0;
   const releaseMap = new Map<string, string | null>();
   let tokenOk = false;
   try {

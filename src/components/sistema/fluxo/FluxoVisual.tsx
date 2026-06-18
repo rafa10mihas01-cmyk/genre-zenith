@@ -86,7 +86,7 @@ export function FluxoVisual({ compact = false }: { compact?: boolean }) {
       .subscribe();
     const t = setInterval(loadFluxo, 15_000);
     return () => { supabase.removeChannel(ch); clearInterval(t); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   const openDrawer = (n: FluxoNodeData) => {

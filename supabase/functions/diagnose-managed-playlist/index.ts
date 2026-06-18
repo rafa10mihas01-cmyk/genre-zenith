@@ -367,7 +367,7 @@ Deno.serve(async (req) => {
     }
 
     // Contador de 403s observados nesta execução — usado pro streak.
-    let run403s = 0;
+    const run403s = 0;
     const ownerSpotifyId: string | null = (pl as any).owner_spotify_user_id ?? null;
 
     // === Roteamento do app ANTES do guard ===
@@ -506,7 +506,7 @@ Deno.serve(async (req) => {
     let model: any = null;
     let benchmark: any = null;
     let competitors: any[] = [];
-    let genreRecurrence: Map<string, { count: number; track_name: string | null; artist_name: string | null; latest_coletado_em: string | null }> = new Map();
+    const genreRecurrence: Map<string, { count: number; track_name: string | null; artist_name: string | null; latest_coletado_em: string | null }> = new Map();
     let poolAgeDaysCap: number | "all" = 90; // janela efetiva usada no pool de candidatos
     let genreArtistsTop: { artist: string; count: number }[] = [];
     let genreName: string | null = null;
@@ -554,7 +554,7 @@ Deno.serve(async (req) => {
         new Set((rows ?? []).map((r) => r.spotify_track_id).filter(Boolean)).size;
 
       let srTracks: any[] | null = null;
-      let { data: pool90 } = await fetchPool(90);
+      const { data: pool90 } = await fetchPool(90);
       if (uniqIds(pool90) >= 40) {
         srTracks = pool90; poolAgeDaysCap = 90;
       } else {

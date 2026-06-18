@@ -765,7 +765,7 @@ Deno.serve(async (req) => {
         .update({ print_urls })
         .eq("id", recentLog.id);
 
-      let snapshotPatch: Record<string, unknown> = {
+      const snapshotPatch: Record<string, unknown> = {
         batch_id: batch_id ?? null,
         correlation_id: correlation_id ?? null,
         snapshot_run_id: batch_id ?? null,
@@ -863,7 +863,7 @@ Deno.serve(async (req) => {
     return (madeBy ?? "").trim().toLowerCase() === "spotify" || spotifyId.startsWith("37i9dQZF");
   };
 
-  let filteredOut = 0;
+  const filteredOut = 0;
 
   for (const pl of extracted) {
     const sName = pl.playlist_name ?? null;
@@ -883,7 +883,7 @@ Deno.serve(async (req) => {
 
     // Resolve spotify_playlist_id antecipadamente (Gemini URL ou DOM por nome)
     // para classificar whitelist do curador sem descartar as demais 100 linhas.
-    let preResolvedId = preResolvedIdForKind;
+    const preResolvedId = preResolvedIdForKind;
     const isWhitelistedCurator = !!preResolvedId && !preResolvedId.startsWith("algo:") && whitelist.has(preResolvedId);
     const preResolvedManaged = preResolvedId && !preResolvedId.startsWith("algo:")
       ? managedById.get(preResolvedId)

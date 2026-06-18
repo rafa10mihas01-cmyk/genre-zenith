@@ -306,7 +306,7 @@ Deno.serve(async (req) => {
         if (!changed) continue;
 
         if (Boolean(r.is_valid) && !isValid) becameInvalid++;
-        if (!Boolean(r.is_valid) && isValid) becameValid++;
+        if (!r.is_valid && isValid) becameValid++;
         if ((r.quality_flag ?? null) !== "low_quality" && qualityFlag === "low_quality") flagged++;
         if ((r.quality_flag ?? null) === "low_quality" && qualityFlag !== "low_quality") unflagged++;
 

@@ -90,8 +90,6 @@ export default function CuradorDetail() {
   const { id } = useParams<{ id: string }>();
   const [healthOpen, setHealthOpen] = useState(false);
 
-  if (!id) return <Navigate to="/curadores" replace />;
-
   const { curators, deals: allDeals, balances, addCuratorPurchase } = useCuratorDeals();
   const curator = useMemo(() => curators.find((c) => c.id === id) ?? null, [curators, id]);
   const balance = useMemo(() => balances.find((b) => b.curator_id === id) ?? null, [balances, id]);
@@ -130,6 +128,8 @@ export default function CuradorDetail() {
 
   const trustSeries = useMemo(() => history.map((h) => Number(h.trust_score ?? 0)), [history]);
   const deliverySeries = useMemo(() => history.map((h) => Number(h.delivery_rate_pct ?? 0)), [history]);
+
+  if (!id) return <Navigate to="/curadores" replace />;
 
   if (!resolvedCurator) {
     return (

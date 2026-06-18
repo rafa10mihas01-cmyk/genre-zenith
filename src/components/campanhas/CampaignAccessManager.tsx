@@ -40,7 +40,7 @@ export function CampaignAccessManager({ campaignId }: Props) {
     setLoading(false);
   }
 
-  useEffect(() => { if (open) load(); /* eslint-disable-next-line */ }, [open, campaignId]);
+  useEffect(() => { if (open) load();   }, [open, campaignId]);
 
   async function add() {
     const em = newEmail.trim().toLowerCase();

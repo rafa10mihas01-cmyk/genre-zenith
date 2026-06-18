@@ -299,7 +299,7 @@ Deno.serve(async (req) => {
       });
 
     // ═══════════════ FALLBACK DE IA: SUBGÊNEROS INSUFICIENTES ═══════════════
-    let ai_subgenres_added: any[] = [];
+    const ai_subgenres_added: any[] = [];
     let ai_meta: any = null;
     if (subgeneros.length < 2 && (results?.length ?? 0) >= 5) {
       try {

@@ -342,7 +342,7 @@ Deno.serve(async (req) => {
   // Resumo de plays orgânicos/algorítmicos vindos de superfícies não
   // cadastradas no deal (Rádio, Mixes, Daily Mix, Discover Weekly...).
   // Pega o último snapshot por playlist e soma — proxy de tração algorítmica.
-  let organicSummary: { total_plays: number; by_kind: Record<string, number> } = {
+  const organicSummary: { total_plays: number; by_kind: Record<string, number> } = {
     total_plays: 0,
     by_kind: {},
   };

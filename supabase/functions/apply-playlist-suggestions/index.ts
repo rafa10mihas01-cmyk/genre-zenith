@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
       managed_playlist_id: pl.id,
     });
     let insertPosition = 0;
-    let protectedAuditBefore: Array<{ uri: string; position: number }> = [];
+    const protectedAuditBefore: Array<{ uri: string; position: number }> = [];
     if (protectedTracks.length > 0) {
       try {
         const currentUris = await listPlaylistTrackUris(pl.spotify_playlist_id, token);
@@ -163,7 +163,7 @@ Deno.serve(async (req) => {
     });
 
     // Auditoria: confirma posições das protegidas após inserção
-    let protectedAuditAfter: Array<{ uri: string; position: number }> = [];
+    const protectedAuditAfter: Array<{ uri: string; position: number }> = [];
     if (protectedTracks.length > 0) {
       try {
         const afterUris = await listPlaylistTrackUris(pl.spotify_playlist_id, token);

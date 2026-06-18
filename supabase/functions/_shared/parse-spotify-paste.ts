@@ -205,7 +205,7 @@ export function parseSpotifyForArtistsPaste(raw: string): {
 
   // Acha a primeira "posição 1" como ponto de partida das playlists
   // (antes disso pode ter linhas residuais como nome da música, total etc.)
-  let startIdx = lines.findIndex((l) => l === "1");
+  const startIdx = lines.findIndex((l) => l === "1");
   if (startIdx < 0) return { rows: [], song_name, total_streams_period };
 
   const rows: ParsedPasteRow[] = [];

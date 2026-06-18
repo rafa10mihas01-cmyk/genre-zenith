@@ -188,7 +188,7 @@ export function Calculadora({ onContinue, prefillSpotifyTrackId }: { onContinue?
       const crList = (crs ?? []) as { id: string; name: string }[];
       setCuratorsList(crList);
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   // Persistência
@@ -517,7 +517,7 @@ export function Calculadora({ onContinue, prefillSpotifyTrackId }: { onContinue?
       // (>30k seguidores) — não casa com letra pesada. Trap menor entra,
       // mas é empurrada pras posições finais (pos ≥6) no map abaixo.
       const MANDELAO_TRAP_FOLLOWERS_CAP = 30_000;
-      let mandelaoTrapIds = new Set<string>();
+      const mandelaoTrapIds = new Set<string>();
       let mandelaoBlockedCount = 0;
       if (song.isMandelao) {
         const { data: trapRow } = await supabase
@@ -629,7 +629,7 @@ export function Calculadora({ onContinue, prefillSpotifyTrackId }: { onContinue?
           undefined,
           { mode },
         );
-        let combinedAllocs = [...planA.allocations];
+        const combinedAllocs = [...planA.allocations];
         let coveredDaily = planA.coveredDaily;
         let remainingDaily = planA.remaining; // já em escala compensada (×1.15)
 

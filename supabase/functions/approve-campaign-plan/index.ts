@@ -181,7 +181,7 @@ Deno.serve(async (req) => {
   // `approve_campaign_plan_atomic`. Se qualquer passo falhar, tudo reverte
   // — sem campanha aprovada com posições NULL ou cobertura quebrada.
   let positionUpdates: Array<{ id: string; position: number }> = [];
-  let newAffinityAllocs: any[] = [];
+  const newAffinityAllocs: any[] = [];
 
   // 2a) Calcula backfill de positions (lê estado atual)
   try {

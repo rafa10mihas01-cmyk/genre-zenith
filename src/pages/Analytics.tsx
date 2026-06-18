@@ -60,7 +60,7 @@ export default function Analytics() {
       const snapshots7d = ((snap7Res.data ?? []) as unknown as Snapshot[]);
 
       const ids = [...new Set(snapshots30d.map((s) => s.playlist_id).filter(Boolean))] as string[];
-      let playlistsMeta: Record<string, string> = {};
+      const playlistsMeta: Record<string, string> = {};
       if (ids.length > 0) {
         const { data: pls } = await supabase
           .from("v_curator_playlists_operational")

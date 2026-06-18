@@ -193,7 +193,7 @@ Deno.serve(async (req) => {
   const appMap = new Map((apps ?? []).map((a: any) => [a.id, a]));
 
   // Seleciona owners: ou os do body, ou 1 por app (mais recente).
-  let ownerRows: SpotifyUserToken[] = [];
+  const ownerRows: SpotifyUserToken[] = [];
   if (body.owners?.length) {
     for (const o of body.owners) {
       const { data } = await sb.from("spotify_user_tokens").select("*")

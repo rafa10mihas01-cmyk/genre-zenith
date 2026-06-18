@@ -117,7 +117,7 @@ export function useDealTodayPlaylistBreakdown(dealId: string | null | undefined)
         campaignId = linkedCampaign?.id ?? null;
       }
 
-      let growthMap = new Map<
+      const growthMap = new Map<
         string,
         {
           delivery_accumulated: number;

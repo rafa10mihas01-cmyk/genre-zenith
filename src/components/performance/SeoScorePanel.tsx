@@ -44,7 +44,7 @@ export function SeoScorePanel() {
 
       const ids = (tpls ?? []).map((t: any) => t.id);
       // Followers: pegamos o snapshot mais recente por template (até 500 linhas).
-      let followersByTpl = new Map<string, number>();
+      const followersByTpl = new Map<string, number>();
       if (ids.length > 0) {
         const { data: snaps } = await supabase
           .from("playlist_metrics_snapshots")
