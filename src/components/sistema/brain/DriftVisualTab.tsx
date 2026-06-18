@@ -42,10 +42,10 @@ export function DriftVisualTab() {
         .select("playlist_id")
         .order("captured_at", { ascending: false })
         .limit(500);
-      const ids = [...new Set((data ?? []).map((r: any) => r.playlist_id))].slice(0, 50);
+      const ids = [...new Set((data ?? []).map((r) => r.playlist_id))].slice(0, 50);
       if (!ids.length) { setLoading(false); return; }
       const { data: pls } = await supabase.from("playlists").select("id, name").in("id", ids);
-      const list = (pls ?? []).map((p: any) => ({ id: p.id, name: p.name }));
+      const list = (pls ?? []).map((p) => ({ id: p.id, name: p.name }));
       setPlaylists(list);
       setSelected(list[0]?.id ?? null);
       setLoading(false);

@@ -27,7 +27,7 @@ export function MarketTab() {
   // ===== KPIs derivados (zero query nova) =====
   // Cobertura: % de faixas top-recorrentes do nicho que já estão na playlist
   const recurringTotal = recurringTracks.length;
-  const recurringPresent = recurringTracks.filter((t: any) => currentTrackKeys.has(norm(t.title))).length;
+  const recurringPresent = recurringTracks.filter((t) => currentTrackKeys.has(norm(t.title))).length;
   const coveragePct = recurringTotal > 0 ? Math.round((recurringPresent / recurringTotal) * 100) : null;
 
   // Recorrência média: média de niche_playlists_count das top recorrentes
@@ -206,7 +206,7 @@ export function MarketTab() {
         leaders.length > 0 ? (
           <SecondarySection title={`Playlists líderes do nicho (${leaders.length})`}>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
-              {leaders.slice(0, 12).map((p: any) => (
+              {leaders.slice(0, 12).map((p) => (
                 <a
                   key={p.spotify_playlist_id}
                   href={`https://open.spotify.com/playlist/${p.spotify_playlist_id}`}

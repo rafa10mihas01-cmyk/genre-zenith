@@ -143,7 +143,7 @@ export default function ClienteDetalhe() {
   const client = useMemo(() => clients.find((c) => c.id === id), [clients, id]);
 
   const clientSongs = useMemo(
-    () => songs.filter((s: any) => s.client_id === id),
+    () => songs.filter((s) => s.client_id === id),
     [songs, id],
   );
   const dealById = useMemo(() => {
@@ -400,7 +400,7 @@ export default function ClienteDetalhe() {
             </Card>
           ) : (
             <div className="space-y-2.5">
-              {clientSongs.map((s: any) => {
+              {clientSongs.map((s) => {
                 const deal = dealById.get(s.deal_id);
                 const url = (s.slug || s.client_token)
                   ? clientCampaignUrl({ slug: s.slug ?? null, client_token: s.client_token ?? null })

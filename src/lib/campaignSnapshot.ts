@@ -303,7 +303,7 @@ export async function closeCampaignFromCalculator(args: {
       .from("managed_playlists")
       .select("id, followers")
       .in("id", playlistIds);
-    const followersById = new Map<string, number>((mps ?? []).map((m: any) => [m.id, Number(m.followers) || 0]));
+    const followersById = new Map<string, number>((mps ?? []).map((m) => [m.id, Number(m.followers) || 0]));
     const mult = Math.max(1, Math.round(engagementMultiplier));
     // Capacidade considera a duração REAL do plano (effectiveDays), não a contratada.
     const days = snapshot.effectiveDays ?? snapshot.days;

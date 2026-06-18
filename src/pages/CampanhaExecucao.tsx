@@ -284,7 +284,7 @@ export default function CampanhaExecucao() {
         .select("id, curator_id, source, created_at")
         .eq("campaign_id", c.id)
         .order("created_at", { ascending: true });
-      const realDeal = (existingDeals ?? []).find((d: any) => d.curator_id != null);
+      const realDeal = (existingDeals ?? []).find((d) => d.curator_id != null);
       const anyDeal = (existingDeals ?? [])[0];
       if (realDeal?.id) {
         dealId = realDeal.id;

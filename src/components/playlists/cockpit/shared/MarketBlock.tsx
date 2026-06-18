@@ -130,7 +130,7 @@ export function MarketBlock({
             <span className="text-sm font-semibold">Playlists líderes do nicho</span>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
-            {market.leader_playlists.slice(0, 6).map((p: any) => (
+            {market.leader_playlists.slice(0, 6).map((p) => (
               <a
                 key={p.spotify_playlist_id}
                 href={`https://open.spotify.com/playlist/${p.spotify_playlist_id}`}

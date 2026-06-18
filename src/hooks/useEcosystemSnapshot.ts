@@ -54,7 +54,7 @@ export function useEcosystemSnapshot(): EcosystemSnapshot {
         const genres = new Map<string, GenreRow>();
         (gRes.data ?? []).forEach((g) => genres.set(g.id, g as GenreRow));
 
-        const aff = (aRes.data ?? []).map((r: any) => ({
+        const aff = (aRes.data ?? []).map((r) => ({
           genre_a_id: r.genre_a_id,
           genre_b_id: r.genre_b_id,
           score: Number(r.score),

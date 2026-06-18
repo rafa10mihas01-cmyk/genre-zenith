@@ -130,7 +130,7 @@ export default function PlaylistDeals() {
           .select("deal_id")
           .eq("spotify_playlist_id", playlistId)
           .limit(50);
-        const dealIds = Array.from(new Set((data ?? []).map((r: any) => r.deal_id).filter(Boolean)));
+        const dealIds = Array.from(new Set((data ?? []).map((r) => r.deal_id).filter(Boolean)));
         if (dealIds.length > 0) {
           const { data: dealsData } = await supabase
             .from("curator_deals")

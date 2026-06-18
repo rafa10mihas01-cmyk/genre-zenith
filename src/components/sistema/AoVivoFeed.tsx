@@ -56,7 +56,7 @@ export function AoVivoFeed() {
 
     const all: FeedItem[] = [];
 
-    (logs.data ?? []).forEach((l: any) => {
+    (logs.data ?? []).forEach((l) => {
       const isError = ["error", "failed", "erro"].includes(l.status);
       all.push({
         id: `log-${l.id}`,
@@ -71,7 +71,7 @@ export function AoVivoFeed() {
       });
     });
 
-    (jobs.data ?? []).forEach((j: any) => {
+    (jobs.data ?? []).forEach((j) => {
       const isError = j.status === "failed";
       all.push({
         id: `job-${j.id}`,
@@ -86,7 +86,7 @@ export function AoVivoFeed() {
       });
     });
 
-    (heartbeats.data ?? []).forEach((h: any) => {
+    (heartbeats.data ?? []).forEach((h) => {
       all.push({
         id: `hb-${h.id}`,
         source: "bot",

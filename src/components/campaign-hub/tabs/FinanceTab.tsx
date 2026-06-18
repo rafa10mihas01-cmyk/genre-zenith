@@ -29,7 +29,7 @@ export function FinanceTab({ campaignId, snapshot, clientPriceTotal }: Props) {
         .select("cost, target_plays, reconciled_total_plays, curator_id")
         .eq("campaign_id", campaignId);
       if (!active) return;
-      const rows = (data ?? []).filter((d: any) => d.curator_id != null);
+      const rows = (data ?? []).filter((d) => d.curator_id != null);
       setCuratorCost(rows.reduce((s, d: any) => s + (Number(d.cost) || 0), 0));
       // Streams "planejados" = target_plays (contratado).
       // Se já houver reconciliação real, prioriza o entregue.

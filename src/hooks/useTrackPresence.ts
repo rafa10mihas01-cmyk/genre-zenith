@@ -69,7 +69,7 @@ export function useTrackPresence(spotifyTrackId: string | null | undefined) {
 
         // 3) Gêneros (sem FK no PostgREST → busca separada).
         const genreIds = Array.from(
-          new Set((playlists ?? []).map((p: any) => p.genre_id).filter(Boolean)),
+          new Set((playlists ?? []).map((p) => p.genre_id).filter(Boolean)),
         );
         const genreMap = new Map<string, string>();
         if (genreIds.length > 0) {
@@ -99,7 +99,7 @@ export function useTrackPresence(spotifyTrackId: string | null | undefined) {
           }
         }
 
-        const out: TrackPresenceRow[] = (playlists ?? []).map((p: any) => {
+        const out: TrackPresenceRow[] = (playlists ?? []).map((p) => {
           const hit = byPlaylist.get(p.id);
           return {
             playlist_id: p.id,

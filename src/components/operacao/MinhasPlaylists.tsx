@@ -627,7 +627,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       .select("playlist_id, health_score, delivery_score, capacity_score, risk_score, activity_score, calculated_at")
       .in("playlist_id", canonicalIds);
     const map: Record<string, PlaylistScoreRow> = {};
-    (data ?? []).forEach((r: any) => { map[r.playlist_id] = r; });
+    (data ?? []).forEach((r) => { map[r.playlist_id] = r; });
     setScores(map);
   }, []);
 
@@ -636,7 +636,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     const { data, error } = await supabase.rpc("evaluate_playlists_batch", { p_spotify_ids: spotifyIds });
     if (error) return;
     const map: Record<string, Valuation> = {};
-    (data ?? []).forEach((r: any) => { map[r.spotify_playlist_id] = r; });
+    (data ?? []).forEach((r) => { map[r.spotify_playlist_id] = r; });
     setValuations(map);
   }, []);
 
@@ -647,7 +647,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       .select("playlist_id, capacity_total, capacity_ceiling, headroom_pct, confidence_score, signals")
       .in("playlist_id", canonicalIds);
     const map: Record<string, BrainRow> = {};
-    (data ?? []).forEach((r: any) => { map[r.playlist_id] = r; });
+    (data ?? []).forEach((r) => { map[r.playlist_id] = r; });
     setBrains(map);
   }, []);
 
@@ -2262,7 +2262,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                       )}
                       {Array.isArray(diagnosis.name_reasons) && diagnosis.name_reasons.length > 0 && (
                         <div className="text-xs text-muted-foreground">
-                          Faltando: {diagnosis.name_reasons.map((r: any) => r.value).join(", ")}
+                          Faltando: {diagnosis.name_reasons.map((r) => r.value).join(", ")}
                         </div>
                       )}
                     </div>

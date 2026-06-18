@@ -89,7 +89,7 @@ export function useCuratorBrainsByIds(curatorIds: string[]) {
         .in("curator_id", curatorIds);
       if (error) throw error;
       const map: Record<string, any> = {};
-      (data ?? []).forEach((r: any) => { map[r.curator_id] = r; });
+      (data ?? []).forEach((r) => { map[r.curator_id] = r; });
       return map;
     },
   });

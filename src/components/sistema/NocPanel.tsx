@@ -81,13 +81,13 @@ function CorrelationPanel() {
       supabase.from("client_error_log").select("created_at,message,url").eq("correlation_id", id).order("created_at"),
     ]);
     const merged: any[] = [];
-    (be.data ?? []).forEach((r: any) => merged.push({ source: "bot_events", ts: r.created_at, step: r.step, status: r.status, meta: r.metadata }));
-    (br.data ?? []).forEach((r: any) => merged.push({ source: "ingest_raw", ts: r.created_at, step: r.source, meta: r.endpoint }));
-    (cl.data ?? []).forEach((r: any) => merged.push({ source: "collection_logs", ts: r.created_at, step: r.acao, status: r.status, meta: r.mensagem }));
-    (cdl.data ?? []).forEach((r: any) => merged.push({ source: "curator_deal_logs", ts: r.created_at, step: "deal_log", meta: `${r.note ?? ""} (plays=${r.total_plays ?? "—"})` }));
-    (dp.data ?? []).forEach((r: any) => merged.push({ source: "delivery_proofs", ts: r.created_at, status: r.source, meta: `${r.playlist_name ?? ""} plays=${r.plays_total ?? "—"}` }));
-    (cps.data ?? []).forEach((r: any) => merged.push({ source: "campaign_collections", ts: r.created_at, status: r.source, meta: r.playlist_name_at_capture }));
-    (pol.data ?? []).forEach((r: any) => merged.push({ source: "playlist_ops", ts: r.created_at, step: r.operation, status: r.status }));
+    (be.data ?? []).forEach((r) => merged.push({ source: "bot_events", ts: r.created_at, step: r.step, status: r.status, meta: r.metadata }));
+    (br.data ?? []).forEach((r) => merged.push({ source: "ingest_raw", ts: r.created_at, step: r.source, meta: r.endpoint }));
+    (cl.data ?? []).forEach((r) => merged.push({ source: "collection_logs", ts: r.created_at, step: r.acao, status: r.status, meta: r.mensagem }));
+    (cdl.data ?? []).forEach((r) => merged.push({ source: "curator_deal_logs", ts: r.created_at, step: "deal_log", meta: `${r.note ?? ""} (plays=${r.total_plays ?? "—"})` }));
+    (dp.data ?? []).forEach((r) => merged.push({ source: "delivery_proofs", ts: r.created_at, status: r.source, meta: `${r.playlist_name ?? ""} plays=${r.plays_total ?? "—"}` }));
+    (cps.data ?? []).forEach((r) => merged.push({ source: "campaign_collections", ts: r.created_at, status: r.source, meta: r.playlist_name_at_capture }));
+    (pol.data ?? []).forEach((r) => merged.push({ source: "playlist_ops", ts: r.created_at, step: r.operation, status: r.status }));
     (sa.data ?? []).forEach(r => merged.push({ source: "system_alerts", ts: r.created_at, step: r.subsystem, status: r.severity, meta: r.title }));
     (ce.data ?? []).forEach(r => merged.push({ source: "frontend", ts: r.created_at, step: "error", meta: r.message }));
     merged.sort((a, b) => a.ts.localeCompare(b.ts));
@@ -398,13 +398,13 @@ function SecurityPanel() {
       const accRows = [...(accCamp.data ?? []), ...(accCur.data ?? [])];
       setD({
         otp_issued: otpRows.length,
-        otp_used: otpRows.filter((r: any) => r.used_at).length,
-        otp_blocked: otpRows.filter((r: any) => r.blocked_at).length,
+        otp_used: otpRows.filter((r) => r.used_at).length,
+        otp_blocked: otpRows.filter((r) => r.blocked_at).length,
         otp_failed_attempts: otpRows.reduce((s: number, r: any) => s + (r.failed_attempts ?? 0), 0),
         access_attempts: accRows.length,
-        access_403: otpRows.filter((r: any) => r.blocked_at).length, // proxy: bloqueados = negados
-        tokens_rotated: (audit.data ?? []).filter((r: any) => r.action === "rotate").length,
-        tokens_revoked: (audit.data ?? []).filter((r: any) => r.action === "revoke").length,
+        access_403: otpRows.filter((r) => r.blocked_at).length, // proxy: bloqueados = negados
+        tokens_rotated: (audit.data ?? []).filter((r) => r.action === "rotate").length,
+        tokens_revoked: (audit.data ?? []).filter((r) => r.action === "revoke").length,
         security_alerts: tokens.data?.length ?? 0,
       });
     }
@@ -492,12 +492,12 @@ function SearchPanel() {
       supabase.from("public_token_audit").select("id,action,created_at,new_token_hash,old_token_hash").or(`new_token_hash.ilike.%${term}%,old_token_hash.ilike.%${term}%`).limit(5),
       supabase.from("managed_playlists").select("id,name").or(`id.eq.${safeUuid(term)},name.ilike.%${term}%`).limit(5),
     ]);
-    (camps.data ?? []).forEach((c: any) => push("campaign", `/campanhas/${c.id}`, c.track_name ?? c.id, c.id));
-    (deals.data ?? []).forEach((d: any) => push("deal", `/deals/${d.id}`, d.id, "curator_deal"));
-    (curs.data ?? []).forEach((c: any) => push("curator", `/curadores/${c.id}`, c.name ?? c.id, c.id));
-    (workers.data ?? []).forEach((w: any) => push("worker", null, `${w.bot_name} @ ${w.hostname}`, w.worker_id));
-    (tokens.data ?? []).forEach((t: any) => push("token_audit", null, `${t.action} · ${(t.new_token_hash ?? t.old_token_hash ?? "").slice(0, 12)}…`, t.created_at));
-    (players.data ?? []).forEach((p: any) => push("playlist", `/playlist/${p.id}`, p.name ?? p.id, p.id));
+    (camps.data ?? []).forEach((c) => push("campaign", `/campanhas/${c.id}`, c.track_name ?? c.id, c.id));
+    (deals.data ?? []).forEach((d) => push("deal", `/deals/${d.id}`, d.id, "curator_deal"));
+    (curs.data ?? []).forEach((c) => push("curator", `/curadores/${c.id}`, c.name ?? c.id, c.id));
+    (workers.data ?? []).forEach((w) => push("worker", null, `${w.bot_name} @ ${w.hostname}`, w.worker_id));
+    (tokens.data ?? []).forEach((t) => push("token_audit", null, `${t.action} · ${(t.new_token_hash ?? t.old_token_hash ?? "").slice(0, 12)}…`, t.created_at));
+    (players.data ?? []).forEach((p) => push("playlist", `/playlist/${p.id}`, p.name ?? p.id, p.id));
     setRes(out);
     setBusy(false);
   }

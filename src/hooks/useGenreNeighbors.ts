@@ -37,7 +37,7 @@ export function useGenreNeighborsByPlaylist(managedId?: string, threshold = 0.5)
         .order("score", { ascending: false });
       if (afErr) throw afErr;
 
-      const pairs = (afs ?? []).map((a: any) => ({
+      const pairs = (afs ?? []).map((a) => ({
         other: a.genre_a_id === gid ? a.genre_b_id : a.genre_a_id,
         score: Number(a.score),
         method: a.method as GenreNeighbor["method"],
@@ -49,7 +49,7 @@ export function useGenreNeighborsByPlaylist(managedId?: string, threshold = 0.5)
         .from("genres")
         .select("id, nome, slug")
         .in("id", otherIds);
-      const nameMap = new Map((gs ?? []).map((g: any) => [g.id, { nome: g.nome, slug: g.slug }]));
+      const nameMap = new Map((gs ?? []).map((g) => [g.id, { nome: g.nome, slug: g.slug }]));
 
       // contagem de managed_playlists por vizinho (ativas)
       const { data: counts } = await supabase
