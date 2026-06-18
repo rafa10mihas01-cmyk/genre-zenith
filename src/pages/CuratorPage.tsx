@@ -1449,18 +1449,82 @@ export default function CuratorPage() {
                     Total contratado
                   </div>
                 </div>
-                <div className="nx-subcard p-4">
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
-                    Meta diária
-                  </div>
-                  <div className="text-[22px] font-bold tabular-nums leading-none text-foreground">
-                    {formatPlays(stats.dailyGoal)}
-                    <span className="text-[12px] font-medium text-muted-foreground"> /dia</span>
-                  </div>
-                  <div className="text-[10px] text-muted-foreground mt-1.5">
-                    Ritmo combinado
-                  </div>
-                </div>
+                {(() => {
+                  const goal = stats.dailyGoal;
+                  const avg = stats.dailyAvg;
+                  const ratio = goal > 0 ? avg / goal : 0;
+                  const hasData = stats.hasBaseline && avg > 0;
+                  const below = hasData && ratio < 0.85;
+                  const onTrack = hasData && ratio >= 0.85 && ratio < 1.1;
+                  const ahead = hasData && ratio >= 1.1;
+                  const pulse = below;
+                  return (
+                    <div
+                      className={cn(
+                        "nx-subcard p-4 relative",
+                        below && "border-warning/50 ring-1 ring-warning/30",
+                        ahead && "border-success/40",
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                          Meta diária
+                        </div>
+                        {hasData && (
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1 text-[9.5px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full",
+                              below && "bg-warning/15 text-warning",
+                              onTrack && "bg-muted text-muted-foreground",
+                              ahead && "bg-success/15 text-success",
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                "h-1.5 w-1.5 rounded-full",
+                                below && "bg-warning animate-pulse",
+                                onTrack && "bg-muted-foreground",
+                                ahead && "bg-success",
+                              )}
+                            />
+                            {below ? "Abaixo" : ahead ? "Acima" : "No ritmo"}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[22px] font-bold tabular-nums leading-none text-foreground">
+                        {formatPlays(goal)}
+                        <span className="text-[12px] font-medium text-muted-foreground"> /dia</span>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground mt-1.5">
+                        {hasData ? (
+                          <>
+                            Você: <span className={cn(
+                              "font-semibold tabular-nums",
+                              below && "text-warning",
+                              ahead && "text-success",
+                              onTrack && "text-foreground",
+                            )}>{formatPlays(Math.round(avg))}/dia</span>
+                            {" · "}
+                            {below
+                              ? `faltam ${formatPlays(Math.max(0, Math.round(goal - avg)))}/dia`
+                              : ahead
+                                ? `+${Math.round((ratio - 1) * 100)}% acima`
+                                : "ritmo combinado"}
+                          </>
+                        ) : (
+                          "Ritmo combinado"
+                        )}
+                      </div>
+                      {below && (
+                        <span
+                          aria-hidden
+                          className="pointer-events-none absolute inset-0 rounded-2xl ring-2 ring-warning/40 animate-pulse"
+                        />
+                      )}
+                    </div>
+                  );
+                })()}
+
               </div>
             </CardContent>
           </Card>
