@@ -702,16 +702,16 @@ function ExecutiveSummary({
   ];
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-5">
+    <section className="rounded-2xl border border-border bg-card p-4 sm:p-5">
       <div className="flex items-center gap-2 mb-4">
         <Sparkles className="h-4 w-4 text-[#1DB954]" />
         <h3 className="text-sm font-semibold text-foreground">Resumo executivo</h3>
       </div>
-      <dl className="grid grid-cols-2 md:grid-cols-4 gap-x-5 gap-y-4">
+      <dl className="grid grid-cols-2 md:grid-cols-4 gap-x-4 sm:gap-x-5 gap-y-4">
         {kpis.map((k) => (
           <div key={k.k} className="flex flex-col gap-0.5 min-w-0">
-            <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">{k.k}</dt>
-            <dd className="text-lg font-semibold text-foreground font-mono tabular-nums truncate">{k.v}</dd>
+            <dt className="text-[10px] uppercase tracking-wider text-muted-foreground truncate">{k.k}</dt>
+            <dd className="text-base sm:text-lg font-semibold text-foreground font-mono tabular-nums truncate">{k.v}</dd>
             {k.sub && <dd className="text-[11px] text-muted-foreground truncate">{k.sub}</dd>}
           </div>
         ))}
