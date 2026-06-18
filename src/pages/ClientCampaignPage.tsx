@@ -500,7 +500,7 @@ export default function ClientCampaignPage() {
 
           {/* Linha discreta — só Playlists ativas + Última atualização */}
           {(() => {
-            const activeCount = playlists.filter((p) => clientPlaylistStatus(p) === "entregando").length;
+            const activeCount = playlists.length;
             const lastUpdateRelative = (() => {
               if (!deal.last_update) return "—";
               const diffMs = Date.now() - new Date(deal.last_update).getTime();
