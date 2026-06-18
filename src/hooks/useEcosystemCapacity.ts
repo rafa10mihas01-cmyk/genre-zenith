@@ -215,7 +215,7 @@ export function useEcosystemCapacity(
           .select("planned_streams")
           .eq("campaign_id", campaignId);
         if (allocRows && allocRows.length > 0) {
-          lockedTotal = allocRows.reduce((s, r: any) => s + Number(r.planned_streams ?? 0), 0);
+          lockedTotal = allocRows.reduce((s, r) => s + Number(r.planned_streams ?? 0), 0);
         }
       }
 

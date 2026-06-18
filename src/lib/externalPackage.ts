@@ -89,7 +89,7 @@ export async function fetchCuratorCandidates(): Promise<CuratorCandidate[]> {
     .is("paused_at", null);
   if (error) throw error;
 
-  const ids = (curatorsData ?? []).map((c: any) => c.id);
+  const ids = (curatorsData ?? []).map((c) => c.id);
   if (ids.length === 0) return [];
 
   // 2) Próxima compra não-consumida (deal_id IS NULL) por curador, FIFO (mais antiga)
@@ -113,7 +113,7 @@ export async function fetchCuratorCandidates(): Promise<CuratorCandidate[]> {
     });
   }
 
-  return (curatorsData ?? []).map((c: any) => {
+  return (curatorsData ?? []).map((c) => {
     const next = nextByCurator.get(c.id) ?? null;
     // Prioridade da taxa: próxima compra > média histórica > preço-tabela > default
     const totalCost = Number(c.total_cost ?? 0);
@@ -258,7 +258,7 @@ export async function repairExternalPackageLinks(packageId: string): Promise<{ l
     }
   }
 
-  const allLinked = rows.length > 0 && rows.every((it: any) => Boolean(it.curator_deal_id ?? dealByItem.get(it.id)));
+  const allLinked = rows.length > 0 && rows.every((it) => Boolean(it.curator_deal_id ?? dealByItem.get(it.id)));
   if (allLinked && pkg.status === "draft") {
     const realCost = rows.reduce((s: number, it: any) => s + Number(it.assigned_cost ?? 0), 0);
     const realStreams = rows.reduce((s: number, it: any) => s + Number(it.assigned_streams ?? 0), 0);
@@ -272,7 +272,7 @@ export async function repairExternalPackageLinks(packageId: string): Promise<{ l
       })
       .eq("id", packageId);
   }
-  const primaryDealId = rows.map((it: any) => it.curator_deal_id ?? dealByItem.get(it.id)).find(Boolean);
+  const primaryDealId = rows.map((it) => it.curator_deal_id ?? dealByItem.get(it.id)).find(Boolean);
   if (allLinked && primaryDealId && (pkg as any).campaign_id) {
     await supabase.from("campaigns").update({ deal_id: primaryDealId }).eq("id", (pkg as any).campaign_id);
   }
@@ -560,7 +560,7 @@ export async function reopenExternalPackage(packageId: string): Promise<{ dealsR
   if (itemsErr) throw itemsErr;
 
   const dealIds = (items ?? []).map(i => i.curator_deal_id).filter(Boolean) as string[];
-  const lockedDeal = (items ?? []).find((i: any) => {
+  const lockedDeal = (items ?? []).find((i) => {
     const state = i.curator_deals?.state;
     return i.curator_deal_id && state !== "awaiting_playlists" && state !== "awaiting_baseline";
   });

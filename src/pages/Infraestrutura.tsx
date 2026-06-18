@@ -70,7 +70,7 @@ export default function Infraestrutura({ embedded = false }: { embedded?: boolea
     setAccounts((accRes.data ?? []) as any);
     // group assignments
     const grouped = new Map<string, Assignment>();
-    (assignRes.data ?? []).forEach((r: any) => {
+    (assignRes.data ?? []).forEach((r) => {
       const key = `${r.account_id}::${r.vps_node_id ?? ""}`;
       const cur = grouped.get(key);
       if (cur) cur.playlist_count++;

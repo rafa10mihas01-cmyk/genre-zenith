@@ -44,9 +44,9 @@ export function ActionNowHero() {
           : Promise.resolve({ count: 0 } as any),
       ]);
 
-      const curatorsAtRisk = (brainsRes.data ?? []).filter((b: any) => {
+      const curatorsAtRisk = (brainsRes.data ?? []).filter((b) => {
         const sigs = Array.isArray(b.signals) ? b.signals : [];
-        return sigs.some((s: any) => s?.severity === "high");
+        return sigs.some((s) => s?.severity === "high");
       }).length;
 
       return {

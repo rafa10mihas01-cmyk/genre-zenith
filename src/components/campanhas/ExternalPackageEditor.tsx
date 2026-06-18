@@ -47,6 +47,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { getErrorMessage } from "@/lib/errors";
 
 function formatStreamsWord(n: number): string {
   if (!n || n <= 0) return "—";
@@ -181,8 +182,8 @@ export function ExternalPackageEditor({
       }
 
       onChanged?.();
-    } catch (e: any) {
-      toast({ title: "Erro ao carregar pacote", description: e.message ?? String(e), variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Erro ao carregar pacote", description: getErrorMessage(e) , variant: "destructive" });
     } finally {
       setLoading(false);
       initialLoadedRef.current = true;
@@ -230,8 +231,8 @@ export function ExternalPackageEditor({
         }
       }
       await load();
-    } catch (e: any) {
-      toast({ title: "Erro ao adicionar curador", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Erro ao adicionar curador", description: getErrorMessage(e), variant: "destructive" });
     }
   }
 
@@ -242,8 +243,8 @@ export function ExternalPackageEditor({
     try {
       await updatePackageItem(item.id, { assigned_streams: value, cost_per_stream: item.cost_per_stream });
       onChanged?.();
-    } catch (e: any) {
-      toast({ title: "Erro ao atualizar", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Erro ao atualizar", description: getErrorMessage(e), variant: "destructive" });
     }
   }
 
@@ -262,8 +263,8 @@ export function ExternalPackageEditor({
         await removePackageItem(item.id);
       }
       onChanged?.();
-    } catch (e: any) {
-      toast({ title: "Erro ao remover", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Erro ao remover", description: getErrorMessage(e), variant: "destructive" });
       load();
     }
   }
@@ -276,8 +277,8 @@ export function ExternalPackageEditor({
       toast({ title: "Pacote confirmado", description: `${dealsCreated} deals criados; itens existentes foram vinculados ao financeiro.` });
       load();
       onChanged?.();
-    } catch (e: any) {
-      toast({ title: "Erro ao confirmar", description: e.message ?? String(e), variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Erro ao confirmar", description: getErrorMessage(e) , variant: "destructive" });
     } finally {
       setConfirming(false);
     }
@@ -291,8 +292,8 @@ export function ExternalPackageEditor({
       setReopenOpen(false);
       await load();
       onChanged?.();
-    } catch (e: any) {
-      toast({ title: "Erro ao reabrir", description: e.message ?? String(e), variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Erro ao reabrir", description: getErrorMessage(e) , variant: "destructive" });
     } finally {
       setReopening(false);
     }
@@ -776,8 +777,8 @@ export function ExternalPackageEditor({
               });
               setEditTarget(null);
               await load();
-            } catch (err: any) {
-              toast({ title: "Erro ao ajustar", description: err.message ?? String(err), variant: "destructive" });
+            } catch (err: unknown) {
+              toast({ title: "Erro ao ajustar", description: getErrorMessage(err) , variant: "destructive" });
             } finally {
               setSavingEdit(false);
             }

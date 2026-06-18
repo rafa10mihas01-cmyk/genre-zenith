@@ -56,6 +56,7 @@ import { toast } from "sonner";
 import type { Json } from "@/integrations/supabase/types";
 import { PlanHistoryTab } from "@/components/campaign-hub/tabs/PlanHistoryTab";
 import { CampaignGatesCard } from "@/components/campanhas/CampaignGatesCard";
+import { getErrorMessage } from "@/lib/errors";
 
 type EcoSnap = {
   id: string;
@@ -178,8 +179,8 @@ export default function CampanhaExecucao() {
       });
       setCamp((c) => c ? ({ ...c, plan_approved_at: new Date().toISOString() } as CampaignHubCampaign) : c);
       loadCampaign();
-    } catch (e: any) {
-      toast.error("Erro ao aprovar plano", { description: e?.message ?? String(e) });
+    } catch (e: unknown) {
+      toast.error("Erro ao aprovar plano", { description: getErrorMessage(e)  });
     } finally {
       setApprovingPlan(false);
     }
@@ -223,8 +224,8 @@ export default function CampanhaExecucao() {
       setPlanRefreshKey((k) => k + 1);
       setTab("curve");
       setDistributionTab("console");
-    } catch (e: any) {
-      const raw = e?.message ?? String(e);
+    } catch (e: unknown) {
+      const raw = getErrorMessage(e) ;
       const map: Record<string, string> = {
         client_approval_required: "O cliente ainda não aprovou o plano. Mande o link público antes.",
         baseline_required: "Cliente ainda não enviou a primeira planilha (baseline). Peça pra ele subir no portal antes de distribuir.",
@@ -283,7 +284,7 @@ export default function CampanhaExecucao() {
         .select("id, curator_id, source, created_at")
         .eq("campaign_id", c.id)
         .order("created_at", { ascending: true });
-      const realDeal = (existingDeals ?? []).find((d: any) => d.curator_id != null);
+      const realDeal = (existingDeals ?? []).find((d) => d.curator_id != null);
       const anyDeal = (existingDeals ?? [])[0];
       if (realDeal?.id) {
         dealId = realDeal.id;

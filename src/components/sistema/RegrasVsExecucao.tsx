@@ -76,7 +76,7 @@ export function RegrasVsExecucao() {
     const { data: filters } = await supabase
       .from("genre_filters")
       .select("genre_id, min_daily, base_daily, max_daily, briefing_mode, min_followers, max_playlists");
-    const filterMap = new Map((filters ?? []).map((f: any) => [f.genre_id, f]));
+    const filterMap = new Map((filters ?? []).map((f) => [f.genre_id, f]));
 
     // 3) playlists válidas (search_results.is_valid)
     const { data: validPl } = await supabase
@@ -84,7 +84,7 @@ export function RegrasVsExecucao() {
       .select("genre_id")
       .eq("is_valid", true);
     const validMap = new Map<string, number>();
-    (validPl ?? []).forEach((r: any) => {
+    (validPl ?? []).forEach((r) => {
       validMap.set(r.genre_id, (validMap.get(r.genre_id) ?? 0) + 1);
     });
 
@@ -94,7 +94,7 @@ export function RegrasVsExecucao() {
       .select("genre_id, status, created_at");
     const tplMap = new Map<string, { today: number; pending: number; approved: number; created: number; archived: number }>();
     const todayBR = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
-    (templates ?? []).forEach((t: any) => {
+    (templates ?? []).forEach((t) => {
       const key = t.genre_id;
       const cur = tplMap.get(key) ?? { today: 0, pending: 0, approved: 0, created: 0, archived: 0 };
       const dayBR = new Date(t.created_at).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });

@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useTrackPresence } from "@/hooks/useTrackPresence";
 import { cn } from "@/lib/utils";
+import { getErrorMessage } from "@/lib/errors";
 
 type Alloc = {
   id: string;
@@ -118,8 +119,8 @@ export function TrackActionsPanel({
       });
       if (fnErr) throw fnErr;
       toast.success("Diagnóstico enfileirado", { description: "Resultado disponível em Playlists." });
-    } catch (e: any) {
-      toast.error("Falha ao executar", { description: e?.message ?? String(e) });
+    } catch (e: unknown) {
+      toast.error("Falha ao executar", { description: getErrorMessage(e)  });
     } finally {
       setRunning((r) => ({ ...r, [playlist_id]: false }));
     }

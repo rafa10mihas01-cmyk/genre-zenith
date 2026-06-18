@@ -37,6 +37,7 @@ import { GraduationCap } from "lucide-react";
 import { useActiveCooldowns } from "@/hooks/useActiveCooldowns";
 import { useBlockedPlaylistIds } from "@/hooks/useSpotifyAppsStatus";
 import { CapacityMatrixTab } from "./CapacityMatrixTab";
+import { getErrorMessage } from "@/lib/errors";
 
 type ManagedPlaylist = {
   id: string;
@@ -506,8 +507,8 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       });
       load();
       loadPendingSyncs();
-    } catch (e: any) {
-      toast({ title: "Erro na importação", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Erro na importação", description: getErrorMessage(e), variant: "destructive" });
     } finally {
       setBulkImporting(false);
     }
@@ -553,8 +554,8 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
           } else {
             reportItems.push(reportItemFromResponse(label, data));
           }
-        } catch (e: any) {
-          failures.push(`${label}: ${e.message}`);
+        } catch (e: unknown) {
+          failures.push(`${label}: ${getErrorMessage(e)}`);
         }
       }
 
@@ -571,8 +572,8 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       }
       load();
       loadPendingSyncs();
-    } catch (e: any) {
-      toast({ title: "Erro na sincronização global", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Erro na sincronização global", description: getErrorMessage(e), variant: "destructive" });
     } finally {
       setBulkImporting(false);
     }
@@ -626,7 +627,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       .select("playlist_id, health_score, delivery_score, capacity_score, risk_score, activity_score, calculated_at")
       .in("playlist_id", canonicalIds);
     const map: Record<string, PlaylistScoreRow> = {};
-    (data ?? []).forEach((r: any) => { map[r.playlist_id] = r; });
+    (data ?? []).forEach((r) => { map[r.playlist_id] = r; });
     setScores(map);
   }, []);
 
@@ -635,7 +636,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     const { data, error } = await supabase.rpc("evaluate_playlists_batch", { p_spotify_ids: spotifyIds });
     if (error) return;
     const map: Record<string, Valuation> = {};
-    (data ?? []).forEach((r: any) => { map[r.spotify_playlist_id] = r; });
+    (data ?? []).forEach((r) => { map[r.spotify_playlist_id] = r; });
     setValuations(map);
   }, []);
 
@@ -646,7 +647,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       .select("playlist_id, capacity_total, capacity_ceiling, headroom_pct, confidence_score, signals")
       .in("playlist_id", canonicalIds);
     const map: Record<string, BrainRow> = {};
-    (data ?? []).forEach((r: any) => { map[r.playlist_id] = r; });
+    (data ?? []).forEach((r) => { map[r.playlist_id] = r; });
     setBrains(map);
   }, []);
 
@@ -669,8 +670,8 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         description: `${data.synced} playlists atualizadas · ${data.recalculated} scores recalculados${data.failed ? ` · ${data.failed} falharam` : ""}`,
       });
       await load();
-    } catch (e: any) {
-      toast({ title: "Erro ao sincronizar", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Erro ao sincronizar", description: getErrorMessage(e), variant: "destructive" });
     } finally {
       setRecalcing(false);
     }
@@ -724,9 +725,9 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
           if (error) throw error;
           okTotal += data?.ok ?? 0;
           failTotal += data?.failed ?? 0;
-        } catch (e: any) {
+        } catch (e: unknown) {
           failTotal += slice.length;
-          console.error("[classify batch]", e?.message ?? e);
+          console.error("[classify batch]", getErrorMessage(e) ?? e);
         }
         setSuggestProgress({ done: Math.min(i + BATCH, ids.length), total: ids.length });
         // pequena pausa entre lotes pra aliviar rate limit do Gemini
@@ -740,8 +741,8 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       await load();
       setFilterGenreId(null);
       setFilterMissingGenre(true);
-    } catch (e: any) {
-      toast({ title: "Falha ao sugerir gêneros", description: e.message ?? String(e), variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Falha ao sugerir gêneros", description: getErrorMessage(e) , variant: "destructive" });
     } finally {
       setSuggesting(false);
       setSuggestProgress(null);
@@ -865,8 +866,8 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       setImportOpen(false);
       setImportUrl("");
       load();
-    } catch (e: any) {
-      toast({ title: "Não consegui importar", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Não consegui importar", description: getErrorMessage(e), variant: "destructive" });
     } finally {
       setImporting(false);
     }
@@ -898,8 +899,8 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       setDiagnosis(data.diagnosis);
       toast({ title: "Diagnóstico pronto" });
       load();
-    } catch (e: any) {
-      toast({ title: "Erro no diagnóstico", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Erro no diagnóstico", description: getErrorMessage(e), variant: "destructive" });
     } finally {
       setDiagLoading(false);
     }
@@ -2261,7 +2262,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                       )}
                       {Array.isArray(diagnosis.name_reasons) && diagnosis.name_reasons.length > 0 && (
                         <div className="text-xs text-muted-foreground">
-                          Faltando: {diagnosis.name_reasons.map((r: any) => r.value).join(", ")}
+                          Faltando: {diagnosis.name_reasons.map((r) => r.value).join(", ")}
                         </div>
                       )}
                     </div>
@@ -2279,7 +2280,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                           <span className="text-warning font-medium">★</span> são de artistas faltando.
                         </p>
                         <ul className="space-y-1.5">
-                          {diagnosis.tracks_suggestions.slice(0, 15).map((t: any, i: number) => {
+                          {diagnosis.tracks_suggestions.slice(0, 15).map((t, i: number) => {
                             const nome = t?.nome ?? t?.name ?? t?.title ?? t?.track_name ?? "—";
                             const artista = t?.artista ?? t?.artist ?? t?.artists ?? "—";
                             const count = t?.count ?? t?.recorrencia ?? null;

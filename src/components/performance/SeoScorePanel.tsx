@@ -42,7 +42,7 @@ export function SeoScorePanel() {
         .order("created_on_spotify_at", { ascending: false })
         .limit(500);
 
-      const ids = (tpls ?? []).map((t: any) => t.id);
+      const ids = (tpls ?? []).map((t) => t.id);
       // Followers: pegamos o snapshot mais recente por template (até 500 linhas).
       const followersByTpl = new Map<string, number>();
       if (ids.length > 0) {
@@ -52,14 +52,14 @@ export function SeoScorePanel() {
           .in("template_id", ids)
           .order("collected_at", { ascending: false })
           .limit(2000);
-        (snaps ?? []).forEach((s: any) => {
+        (snaps ?? []).forEach((s) => {
           if (!followersByTpl.has(s.template_id)) {
             followersByTpl.set(s.template_id, Number(s.followers ?? 0));
           }
         });
       }
 
-      const computed: Row[] = (tpls ?? []).map((r: any) => {
+      const computed: Row[] = (tpls ?? []).map((r) => {
         const input: SeoInput = {
           name: r.name,
           description: r.description,

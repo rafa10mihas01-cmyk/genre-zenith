@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getErrorMessage } from "@/lib/errors";
 
 type AppRole = "admin" | "curador" | "operador";
 
@@ -138,9 +139,9 @@ Entre direto pelo link acima. Você pode trocar a senha depois nas configuraçõ
       setNewEmail("");
       setNewPassword("");
       await loadMembers();
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error("[invite-team-member] erro:", e);
-      toast.error("Não foi possível criar acesso", { description: e?.message ?? String(e) });
+      toast.error("Não foi possível criar acesso", { description: getErrorMessage(e)  });
     } finally {
       setCreating(false);
     }

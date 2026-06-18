@@ -139,7 +139,7 @@ export default function Operacao() {
       }
     }
 
-    const list: OpPlaylist[] = (tpls ?? []).map((t: any) => {
+    const list: OpPlaylist[] = (tpls ?? []).map((t) => {
       const snap = lastSnap.get(t.id);
       const followersNow = snap?.followers ?? t.followers_at_creation ?? 0;
       const followersStart = t.followers_at_creation ?? 0;

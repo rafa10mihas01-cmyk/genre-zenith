@@ -638,7 +638,7 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
         .from("curator_deals")
         .select("id")
         .eq("curator_id", curatorId);
-      const dealIds = (dealRows ?? []).map((d: any) => d.id);
+      const dealIds = (dealRows ?? []).map((d) => d.id);
       if (dealIds.length) {
         await supabase
           .from("curator_deal_songs")

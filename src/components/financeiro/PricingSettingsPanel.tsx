@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/errors";
 
 function rsPerThousand(v: number): string {
   return (v * 1000).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
@@ -51,8 +52,8 @@ export function PricingSettingsPanel() {
         target_margin_pct: marginN,
       });
       toast.success("Configurações salvas");
-    } catch (e: any) {
-      toast.error(e?.message ?? "Falha ao salvar");
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e) ?? "Falha ao salvar");
     }
   };
 

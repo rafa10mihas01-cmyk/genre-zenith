@@ -40,7 +40,7 @@ export function LeadershipEvolutionTab() {
       const ids = [...new Set(list.map(r => r.playlist_id))];
       if (ids.length) {
         const { data: pls } = await supabase.from("playlists").select("id, name").in("id", ids.slice(0, 200));
-        setNames(new Map((pls ?? []).map((p: any) => [p.id, p.name])));
+        setNames(new Map((pls ?? []).map((p) => [p.id, p.name])));
       }
       setLoading(false);
     })();

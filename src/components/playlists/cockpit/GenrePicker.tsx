@@ -5,6 +5,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Check, Pencil, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useGenresList } from "@/hooks/useCockpitQueries";
+import { getErrorMessage } from "@/lib/errors";
 
 type Genre = { id: string; nome: string };
 
@@ -72,8 +73,8 @@ export function GenrePicker({ managedId, currentGenreName, onChanged }: Props) {
       setOpen(false);
       toast({ title: "Gênero atualizado", description: `Agora vinculada a ${g.nome}.` });
       onChanged?.(g);
-    } catch (e: any) {
-      toast({ title: "Erro ao mudar gênero", description: e?.message ?? "tente de novo", variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Erro ao mudar gênero", description: getErrorMessage(e) ?? "tente de novo", variant: "destructive" });
     } finally {
       setSaving(false);
     }

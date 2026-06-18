@@ -99,7 +99,7 @@ export function useDealTodayPlaylistBreakdown(dealId: string | null | undefined)
       const spotifyIds = Array.from(
         new Set(
           playlists
-            .map((p: any) => p.spotify_playlist_id)
+            .map((p) => p.spotify_playlist_id)
             .filter((id: string | null) => !!id),
         ),
       ) as string[];
@@ -153,7 +153,7 @@ export function useDealTodayPlaylistBreakdown(dealId: string | null | undefined)
         }
       }
 
-      const rows: TodayPlaylistRow[] = playlists.map((p: any) => {
+      const rows: TodayPlaylistRow[] = playlists.map((p) => {
         const g = p.spotify_playlist_id ? growthMap.get(p.spotify_playlist_id) : null;
         const totalDelivered = g?.delivery_accumulated ?? 0;
         const today = g?.last_import_delta ?? 0;

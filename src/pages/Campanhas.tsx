@@ -467,7 +467,7 @@ function CampaignRow({ c }: { c: Campaign }) {
         body: { images, playlists: [], mode: "baseline" },
       });
       if (analyzeErr) throw analyzeErr;
-      const matches = ((analyzed as any)?.matches ?? []).filter((m: any) => m?.found && m?.plays != null && m?.playlist_name);
+      const matches = ((analyzed as any)?.matches ?? []).filter((m) => m?.found && m?.plays != null && m?.playlist_name);
       if (matches.length === 0) throw new Error("Não consegui ler playlists nos prints enviados.");
 
       // Fase 3.B.1 — toda a persistência (match + enriquecimento + curator_playlists +
@@ -481,7 +481,7 @@ function CampaignRow({ c }: { c: Campaign }) {
           song_id: songId,
           captured_at: capturedAt,
           print_urls: printUrls,
-          matches: matches.map((m: any) => ({
+          matches: matches.map((m) => ({
             playlist_name: m.playlist_name,
             plays: Number(m.plays ?? 0),
             source_index: m.source_index ?? null,

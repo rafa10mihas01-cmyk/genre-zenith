@@ -10,6 +10,7 @@
 //   absent → não está na playlist
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getErrorMessage } from "@/lib/errors";
 
 export type TrackPresenceStatus = "top" | "middle" | "tail" | "absent";
 
@@ -68,7 +69,7 @@ export function useTrackPresence(spotifyTrackId: string | null | undefined) {
 
         // 3) Gêneros (sem FK no PostgREST → busca separada).
         const genreIds = Array.from(
-          new Set((playlists ?? []).map((p: any) => p.genre_id).filter(Boolean)),
+          new Set((playlists ?? []).map((p) => p.genre_id).filter(Boolean)),
         );
         const genreMap = new Map<string, string>();
         if (genreIds.length > 0) {
@@ -98,7 +99,7 @@ export function useTrackPresence(spotifyTrackId: string | null | undefined) {
           }
         }
 
-        const out: TrackPresenceRow[] = (playlists ?? []).map((p: any) => {
+        const out: TrackPresenceRow[] = (playlists ?? []).map((p) => {
           const hit = byPlaylist.get(p.id);
           return {
             playlist_id: p.id,
@@ -122,10 +123,10 @@ export function useTrackPresence(spotifyTrackId: string | null | undefined) {
         });
 
         setRows(out);
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (!cancelled) {
           const msg =
-            e?.message ||
+            getErrorMessage(e) ||
             e?.error_description ||
             e?.hint ||
             e?.details ||

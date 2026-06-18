@@ -116,7 +116,7 @@ export function useRecalcPlaylistBrain() {
       qc.invalidateQueries({ queryKey: ["playlist_brain_history", playlistId] });
       toast.success("Cérebro atualizado");
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erro ao recalcular"),
+    onError: (e: Error) => toast.error(e?.message ?? "Erro ao recalcular"),
   });
 }
 
@@ -142,7 +142,7 @@ export function useDiagnoseManagedPlaylist() {
       qc.invalidateQueries({ queryKey: ["playlist_brain_history", args.playlistId] });
       toast.success("Diagnóstico concluído");
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erro ao diagnosticar"),
+    onError: (e: Error) => toast.error(e?.message ?? "Erro ao diagnosticar"),
   });
 }
 

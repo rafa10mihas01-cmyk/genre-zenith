@@ -65,7 +65,7 @@ export function CampaignCuratorDeals({ campaignId }: Props) {
         .eq("campaign_external_packages.campaign_id", campaignId)
         .not("curator_deal_id", "is", null);
       const dealIds = (pkg ?? [])
-        .map((p: any) => p.curator_deal_id as string)
+        .map((p) => p.curator_deal_id as string)
         .filter(Boolean);
       if (dealIds.length === 0) {
         if (!cancelled) { setDeals([]); setHistoryByDeal(new Map()); setLoading(false); }

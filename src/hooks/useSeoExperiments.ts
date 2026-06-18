@@ -72,7 +72,7 @@ export function useSuggestSeoExperiment() {
       qc.invalidateQueries({ queryKey: ["seo_experiments", args.playlistId] });
       toast.success("Sugestão gerada");
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erro ao gerar sugestão"),
+    onError: (e: Error) => toast.error(e?.message ?? "Erro ao gerar sugestão"),
   });
 }
 
@@ -91,7 +91,7 @@ export function useApplySeoExperiment() {
       qc.invalidateQueries({ queryKey: ["seo_experiments", args.playlistId] });
       toast.success("Experimento aplicado no Spotify");
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erro ao aplicar"),
+    onError: (e: Error) => toast.error(e?.message ?? "Erro ao aplicar"),
   });
 }
 
@@ -109,7 +109,7 @@ export function useRejectSeoExperiment() {
       qc.invalidateQueries({ queryKey: ["seo_experiments", args.playlistId] });
       toast.success("Sugestão descartada");
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erro ao descartar"),
+    onError: (e: Error) => toast.error(e?.message ?? "Erro ao descartar"),
   });
 }
 

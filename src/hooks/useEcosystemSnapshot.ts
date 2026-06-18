@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { EcoPlaylist } from "@/lib/ecosystemCapacity";
+import { getErrorMessage } from "@/lib/errors";
 
 export type GenreRow = { id: string; nome: string };
 
@@ -53,7 +54,7 @@ export function useEcosystemSnapshot(): EcosystemSnapshot {
         const genres = new Map<string, GenreRow>();
         (gRes.data ?? []).forEach((g) => genres.set(g.id, g as GenreRow));
 
-        const aff = (aRes.data ?? []).map((r: any) => ({
+        const aff = (aRes.data ?? []).map((r) => ({
           genre_a_id: r.genre_a_id,
           genre_b_id: r.genre_b_id,
           score: Number(r.score),
@@ -69,8 +70,8 @@ export function useEcosystemSnapshot(): EcosystemSnapshot {
         })) as EcoPlaylist[];
 
         setState({ loading: false, error: null, playlists, genres, affinities: aff });
-      } catch (e: any) {
-        if (!cancelled) setState({ loading: false, error: e?.message ?? "erro", playlists: [], genres: new Map(), affinities: [] });
+      } catch (e: unknown) {
+        if (!cancelled) setState({ loading: false, error: getErrorMessage(e) ?? "erro", playlists: [], genres: new Map(), affinities: [] });
       }
     })();
     return () => { cancelled = true; };

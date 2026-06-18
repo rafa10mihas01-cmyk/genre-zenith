@@ -38,7 +38,7 @@ export default function HeatmapEntregas({ embedded = false }: { embedded?: boole
     const m: number[][] = Array.from({ length: 7 }, () => Array(24).fill(0));
     let total = 0;
     let totalPlays = 0;
-    logs.forEach((l: any) => {
+    logs.forEach((l) => {
       const d = new Date(l.created_at);
       const day = d.getDay();
       const hour = d.getHours();

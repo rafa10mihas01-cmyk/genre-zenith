@@ -84,8 +84,8 @@ export function useChartProjection(
           .order("position", { ascending: true });
         if (bench) {
           benchmark = bench
-            .filter((r: any) => r.position != null && r.streams_day != null)
-            .map((r: any) => ({ position: r.position as number, streams_day: r.streams_day as number }));
+            .filter((r) => r.position != null && r.streams_day != null)
+            .map((r) => ({ position: r.position as number, streams_day: r.streams_day as number }));
         }
       }
 

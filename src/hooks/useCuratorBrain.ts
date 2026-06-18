@@ -89,7 +89,7 @@ export function useCuratorBrainsByIds(curatorIds: string[]) {
         .in("curator_id", curatorIds);
       if (error) throw error;
       const map: Record<string, any> = {};
-      (data ?? []).forEach((r: any) => { map[r.curator_id] = r; });
+      (data ?? []).forEach((r) => { map[r.curator_id] = r; });
       return map;
     },
   });
@@ -111,6 +111,6 @@ export function useRecalcCuratorBrain() {
       qc.invalidateQueries({ queryKey: ["curator_brain_batch"] });
       toast.success("Cérebro do curador atualizado");
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erro ao recalcular"),
+    onError: (e: Error) => toast.error(e?.message ?? "Erro ao recalcular"),
   });
 }

@@ -72,7 +72,7 @@ export function SaudeSistema() {
 
     // Falha "dura" = estourou as tentativas E NÃO é circuit-breaker já encerrado.
     const now = Date.now();
-    const hardFailures = (recentFailedJobsRaw.data ?? []).filter((j: any) => {
+    const hardFailures = (recentFailedJobsRaw.data ?? []).filter((j) => {
       const attempts = Number(j.attempts ?? 0);
       const max = Number(j.max_attempts ?? 0);
       if (max <= 0 || attempts < max) return false; // ainda vai re-tentar
@@ -119,7 +119,7 @@ export function SaudeSistema() {
       },
     });
 
-    const allFailures: Failure[] = hardFailures.slice(0, 10).map((j: any) => ({
+    const allFailures: Failure[] = hardFailures.slice(0, 10).map((j) => ({
       id: `job-${j.id}`,
       source: humanizeFunctionName(j.job_type),
       message: humanizeError(j.last_error),

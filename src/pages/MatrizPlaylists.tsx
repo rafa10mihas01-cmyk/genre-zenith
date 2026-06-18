@@ -53,7 +53,7 @@ export default function MatrizPlaylists({ embedded = false }: { embedded?: boole
         .is("managed_playlists.archived_at", null);
       if (error) throw error;
       return (data ?? [])
-        .map((r: any) => ({
+        .map((r) => ({
           playlist_id: r.playlist_id,
           headroom_pct: r.headroom_pct !== null ? Number(r.headroom_pct) : null,
           confidence_score: r.confidence_score ?? 0,

@@ -44,7 +44,7 @@ export function BeforeAfterTimeline() {
         return;
       }
 
-      const ids = tpls.map((t: any) => t.spotify_playlist_id);
+      const ids = tpls.map((t) => t.spotify_playlist_id);
       const { data: snaps } = await supabase
         .from("playlist_metrics_snapshots")
         .select("spotify_playlist_id, followers, collected_at")
@@ -59,7 +59,7 @@ export function BeforeAfterTimeline() {
         byPid.set(s.spotify_playlist_id, arr);
       }
 
-      const evts: Event[] = tpls.map((t: any) => {
+      const evts: Event[] = tpls.map((t) => {
         const eventTs = new Date(t.cover_generated_at).getTime();
         const series = byPid.get(t.spotify_playlist_id) ?? [];
         const before = nearest(series, eventTs - WINDOW_DAYS * 86400000, eventTs);

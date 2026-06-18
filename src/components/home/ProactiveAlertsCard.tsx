@@ -59,8 +59,8 @@ async function fetchProactiveAlerts(): Promise<AlertItem[]> {
 
   const brains = brainsRes.data ?? [];
   const pBrains = pBrainsRes.data ?? [];
-  const curatorIds = brains.map((b: any) => b.curator_id);
-  const pIds = pBrains.map((p: any) => p.playlist_id);
+  const curatorIds = brains.map((b) => b.curator_id);
+  const pIds = pBrains.map((p) => p.playlist_id);
 
   // ============================================================
   // FASE 2 (paralela) — queries dependentes dos IDs da fase 1
@@ -100,7 +100,7 @@ async function fetchProactiveAlerts(): Promise<AlertItem[]> {
   // ============================================================
   const nameById = new Map<string, string>();
   const archivedById = new Map<string, string | null>();
-  cur.forEach((c: any) => {
+  cur.forEach((c) => {
     nameById.set(c.id, c.name);
     archivedById.set(c.id, c.archived_at);
   });
@@ -108,7 +108,7 @@ async function fetchProactiveAlerts(): Promise<AlertItem[]> {
   // 2ª medição mais recente por curador (1ª deve ser o snapshot atual)
   const prevTrustByCurator = new Map<string, number>();
   const seenCount = new Map<string, number>();
-  hist.forEach((h: any) => {
+  hist.forEach((h) => {
     const n = (seenCount.get(h.curator_id) ?? 0) + 1;
     seenCount.set(h.curator_id, n);
     if (n === 2 && h.trust_score !== null) {
@@ -120,7 +120,7 @@ async function fetchProactiveAlerts(): Promise<AlertItem[]> {
     if (archivedById.get(b.curator_id)) continue;
     const name = nameById.get(b.curator_id) ?? "Curador";
     const sigs = Array.isArray(b.signals) ? b.signals : [];
-    const highSigs = sigs.filter((s: any) => s?.severity === "high");
+    const highSigs = sigs.filter((s) => s?.severity === "high");
     const prev = prevTrustByCurator.get(b.curator_id);
     const curScore = Number(b.trust_score ?? 0);
     if (prev !== undefined && prev - curScore >= 10) {
@@ -146,7 +146,7 @@ async function fetchProactiveAlerts(): Promise<AlertItem[]> {
 
   for (const p of pls) {
     if (p.archived_at) continue;
-    const b = pBrains.find((x: any) => x.playlist_id === p.canonical_playlist_id);
+    const b = pBrains.find((x) => x.playlist_id === p.canonical_playlist_id);
     out.push({
       id: `sat-${p.id}`,
       kind: "saturated",

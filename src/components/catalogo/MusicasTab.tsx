@@ -52,9 +52,9 @@ async function fetchAll(): Promise<Row[]> {
   if (tracksRes.error) throw tracksRes.error;
   if (statsRes.error) throw statsRes.error;
   if (telRes.error) throw telRes.error;
-  const statsMap = new Map<string, DistributionStats>((statsRes.data ?? []).map((s: any) => [s.catalog_track_id, s]));
-  const telMap = new Map<string, Telemetry>((telRes.data ?? []).map((s: any) => [s.catalog_track_id, s]));
-  return (tracksRes.data ?? []).map((t: any) => ({ ...(t as CatalogTrack), stats: statsMap.get(t.id) ?? null, tel: telMap.get(t.id) ?? null }));
+  const statsMap = new Map<string, DistributionStats>((statsRes.data ?? []).map((s) => [s.catalog_track_id, s]));
+  const telMap = new Map<string, Telemetry>((telRes.data ?? []).map((s) => [s.catalog_track_id, s]));
+  return (tracksRes.data ?? []).map((t) => ({ ...(t as CatalogTrack), stats: statsMap.get(t.id) ?? null, tel: telMap.get(t.id) ?? null }));
 }
 
 const fmt = (n: number | null | undefined) => (typeof n === "number" ? n.toLocaleString("pt-BR") : "—");

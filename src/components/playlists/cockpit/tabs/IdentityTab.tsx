@@ -99,8 +99,8 @@ export function IdentityTab() {
             genreId={genreId ?? null}
             genreName={genreName ?? null}
             references={(diag.raw?.market_insights?.top_recurring_tracks ?? [])
-              .filter((t: any) => t?.cover_url)
-              .map((t: any) => ({
+              .filter((t) => t?.cover_url)
+              .map((t) => ({
                 id: t.spotify_track_id,
                 name: t.title ?? "—",
                 subtitle: t.artist ?? "",

@@ -83,7 +83,7 @@ export function AttentionInbox() {
         );
 
       // Notificações abertas — só falhas técnicas reais
-      (notifs.data ?? []).forEach((n: any) => {
+      (notifs.data ?? []).forEach((n) => {
         const meta = (n.metadata ?? {}) as Record<string, any>;
         const domain = String(meta.domain ?? "").toLowerCase();
         const kind = String(meta.kind ?? "");
