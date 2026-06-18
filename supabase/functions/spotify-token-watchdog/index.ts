@@ -52,6 +52,17 @@ Deno.serve(async (req) => {
   const sb = sbAuth;
   const startedAt = Date.now();
   const threshold = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  let expiredBreakersClosed = 0;
+  let breakerUnlockError: string | null = null;
+
+  try {
+    const { data, error } = await sb.rpc("close_expired_spotify_circuit_breakers");
+    if (error) throw error;
+    expiredBreakersClosed = Number(data ?? 0);
+  } catch (e) {
+    breakerUnlockError = (e as Error)?.message ?? String(e);
+    console.error("[spotify-token-watchdog] breaker unlock failed:", breakerUnlockError);
+  }
 
   const { data: accounts, error } = await sb
     .from("spotify_user_tokens")
@@ -205,9 +216,9 @@ Deno.serve(async (req) => {
   try {
     await sb.from("collection_logs").insert({
       acao: "spotify_token_watchdog",
-      status: failCount > 0 || appTokenError ? "warning" : "sucesso",
+      status: failCount > 0 || appTokenError || breakerUnlockError ? "warning" : "sucesso",
       duracao_ms: dur,
-      mensagem: `checked=${accounts?.length ?? 0} ok=${okCount} fail=${failCount} app_refreshed=${appTokenRefreshed}${appTokenError ? ` app_err=${appTokenError}` : ""}`,
+      mensagem: `checked=${accounts?.length ?? 0} ok=${okCount} fail=${failCount} breakers_closed=${expiredBreakersClosed} app_refreshed=${appTokenRefreshed}${appTokenError ? ` app_err=${appTokenError}` : ""}${breakerUnlockError ? ` breaker_unlock_err=${breakerUnlockError}` : ""}`,
     });
   } catch (e) {
     console.error("[spotify-token-watchdog] heartbeat log failed:", (e as Error)?.message ?? e);
@@ -215,16 +226,17 @@ Deno.serve(async (req) => {
 
   await reportCronHealth(sb, {
     job_name: "spotify-token-watchdog",
-    status: (failCount > 0 || appTokenError) ? "partial" : "ok",
+    status: (failCount > 0 || appTokenError || breakerUnlockError) ? "partial" : "ok",
     startedAt,
     metrics: {
       checked: accounts?.length ?? 0,
       ok_count: okCount,
       fail_count: failCount,
       app_token_refreshed: appTokenRefreshed,
+      expired_breakers_closed: expiredBreakersClosed,
     },
-    message: `checked=${accounts?.length ?? 0} ok=${okCount} fail=${failCount} app_refreshed=${appTokenRefreshed}${appTokenError ? ` app_err=${appTokenError}` : ""}`,
+    message: `checked=${accounts?.length ?? 0} ok=${okCount} fail=${failCount} breakers_closed=${expiredBreakersClosed} app_refreshed=${appTokenRefreshed}${appTokenError ? ` app_err=${appTokenError}` : ""}${breakerUnlockError ? ` breaker_unlock_err=${breakerUnlockError}` : ""}`,
   });
 
-  return jr({ ok: true, checked: accounts?.length ?? 0, ok_count: okCount, fail_count: failCount, app_token_refreshed: appTokenRefreshed, app_token_error: appTokenError, results });
+  return jr({ ok: true, checked: accounts?.length ?? 0, ok_count: okCount, fail_count: failCount, expired_breakers_closed: expiredBreakersClosed, breaker_unlock_error: breakerUnlockError, app_token_refreshed: appTokenRefreshed, app_token_error: appTokenError, results });
 });
