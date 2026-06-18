@@ -884,7 +884,7 @@ export function MusicaIntelligenceSection(props: MusicaIntelligenceProps) {
         <OperationalHealthPanel {...props} exec={intel.executionLog} breakers={intel.breakers} vps={intel.vpsAssignments} />
       </Panel>
 
-      <Panel title="Ranking de playlists" hint="Score = plays + retenção + posição" icon={Award} defaultOpen>
+      <Panel title="Ranking de playlists" hint="Ordenado por DELIVERY (streams entregues) — score só auxiliar" icon={Award} defaultOpen>
         <PlaylistRankingPanel placements={props.placements} obs={intel.observerTracks} ssPl={intel.songSnapPlaylists} exec={intel.executionLog} />
       </Panel>
 
@@ -896,8 +896,8 @@ export function MusicaIntelligenceSection(props: MusicaIntelligenceProps) {
         <DistributionHistoryPanel placements={props.placements} exec={intel.executionLog} />
       </Panel>
 
-      <Panel title="Feed de eventos" hint="Últimos acontecimentos da música" icon={Sparkles}>
-        <EventFeedPanel placements={props.placements} snapshots={props.snapshots} exec={intel.executionLog} obs={intel.observerTracks} breakers={intel.breakers} />
+      <Panel title="Feed de eventos" hint="Eventos de negócio: entradas, saídas, crescimento, coletas" icon={Sparkles}>
+        <EventFeedPanel placements={props.placements} baseline={props.baseline} snapshots={props.snapshots} exec={intel.executionLog} obs={intel.observerTracks} />
       </Panel>
     </div>
   );
