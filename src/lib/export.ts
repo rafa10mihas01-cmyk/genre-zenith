@@ -12,7 +12,7 @@ function download(filename: string, content: string, mime: string) {
   URL.revokeObjectURL(url);
 }
 
-function escapeCsvCell(v: any): string {
+function escapeCsvCell(v: unknown): string {
   if (v == null) return "";
   const s = typeof v === "object" ? JSON.stringify(v) : String(v);
   if (/[",\n;]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
