@@ -415,6 +415,23 @@ function buildPlaylistRanking(
     }
   });
 
+  // Entrada oficial por playlist (preferir placement.added_at; fallback primeiro POST do exec; fallback firstSeen)
+  const firstPostByPl = new Map<string, string>();
+  exec.slice().reverse().forEach((e) => {
+    if ((e.outcome === "spotify_post_ok" || e.outcome === "already_present") && e.spotify_playlist_id) {
+      if (!firstPostByPl.has(e.spotify_playlist_id)) firstPostByPl.set(e.spotify_playlist_id, e.executed_at);
+    }
+  });
+  const placementEntryByPl = new Map<string, string>();
+  placements.forEach((p) => {
+    const id = p.managed_playlists?.spotify_playlist_id;
+    if (!id || !p.added_at) return;
+    const cur = placementEntryByPl.get(id);
+    if (!cur || new Date(p.added_at) < new Date(cur)) placementEntryByPl.set(id, p.added_at);
+  });
+  const officialEntry = (id: string, firstSeen: string | null): string | null =>
+    placementEntryByPl.get(id) ?? firstPostByPl.get(id) ?? firstSeen ?? null;
+
   // Plays via song_snapshot_playlists — série temporal por playlist
   const playsSeries = new Map<string, Array<{ at: string; plays: number }>>();
   ssPl.forEach((sp) => {
@@ -429,40 +446,42 @@ function buildPlaylistRanking(
   playsSeries.forEach((arr, id) => {
     const r = byPl.get(id)!;
     arr.sort((a, b) => +new Date(a.at) - +new Date(b.at));
-    const first = arr[0]?.plays ?? 0;
+    // T0 oficial = primeiro snapshot ≥ entrada do placement; fallback arr[0]
+    const entry = officialEntry(id, r.firstSeen);
+    let t0Idx = 0;
+    if (entry) {
+      const entryTs = +new Date(entry);
+      const idx = arr.findIndex((s) => +new Date(s.at) >= entryTs);
+      if (idx >= 0) t0Idx = idx;
+    }
+    const first = arr[t0Idx]?.plays ?? 0;
     const last = arr[arr.length - 1]?.plays ?? 0;
     r.streamsAtEntry = first;
     r.streamsCurrent = last;
-    // Delivery acumulado = quanto a playlist entregou desde a entrada
+    // Delivery = streams atuais − streams no T0 (nunca reinicia)
     r.deliveryAccumulated = Math.max(0, last - first);
-    if (arr.length >= 2 && first > 0) {
+    if (first > 0) {
       r.growthPct = Math.round(((last - first) / first) * 1000) / 10;
-    } else if (last > 0 && first === 0) {
+    } else if (last > 0) {
       r.growthPct = 100;
     }
-    // Tendência — compara última terça com penúltima
-    if (arr.length >= 3) {
-      const tail = arr.slice(-3);
-      const delta = tail[2].plays - tail[1].plays;
-      const prevDelta = tail[1].plays - tail[0].plays;
+    // Tendência — últimos 3 pontos a partir do T0
+    const tail = arr.slice(Math.max(t0Idx, arr.length - 3));
+    if (tail.length >= 3) {
+      const delta = tail[tail.length - 1].plays - tail[tail.length - 2].plays;
+      const prevDelta = tail[tail.length - 2].plays - tail[tail.length - 3].plays;
       if (delta > 0 && delta >= prevDelta) r.trend = "subindo";
       else if (delta < 0) r.trend = "caindo";
       else r.trend = "estavel";
-    } else if (arr.length === 2) {
-      r.trend = last > first ? "subindo" : last < first ? "caindo" : "estavel";
+    } else if (tail.length === 2) {
+      r.trend = tail[1].plays > tail[0].plays ? "subindo" : tail[1].plays < tail[0].plays ? "caindo" : "estavel";
     }
   });
 
-  // Tempo até primeira detecção (POST → primeira observação) + entryDate
-  const firstPostByPl = new Map<string, string>();
-  exec.slice().reverse().forEach((e) => {
-    if ((e.outcome === "spotify_post_ok" || e.outcome === "already_present") && e.spotify_playlist_id) {
-      if (!firstPostByPl.has(e.spotify_playlist_id)) firstPostByPl.set(e.spotify_playlist_id, e.executed_at);
-    }
-  });
+  // entryDate + tempo até primeira detecção
   byPl.forEach((r) => {
     const post = firstPostByPl.get(r.spotify_playlist_id);
-    r.entryDate = r.firstSeen ?? post ?? null;
+    r.entryDate = officialEntry(r.spotify_playlist_id, r.firstSeen);
     if (post && r.firstSeen) {
       const h = (new Date(r.firstSeen).getTime() - new Date(post).getTime()) / 3600_000;
       r.timeToFirstDetectionHours = Math.max(0, Math.round(h * 10) / 10);
@@ -608,15 +627,21 @@ function PlaylistRankingPanel({ placements, obs, ssPl, exec }: {
                   <tr key={`${r.spotify_playlist_id}-x`} className="border-b border-border bg-muted/10">
                     <td></td>
                     <td colSpan={8} className="px-3 py-3">
-                      <dl className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-x-4 gap-y-2 text-[11px]">
+                      <dl className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-2 text-[11px]">
                         {[
-                          ["Streams na entrada", fmt(r.streamsAtEntry)],
-                          ["Streams atuais", fmt(r.streamsCurrent)],
                           ["Data de entrada", d(r.entryDate)],
-                          ["Posição atual", r.currentPosition != null ? `#${r.currentPosition}` : "—"],
-                          ["Freq. detecção", r.detectionFrequency != null ? `${r.detectionFrequency}/d` : "—"],
+                          ["Primeira coleta", d(r.firstSeen)],
                           ["Tempo até 1ª detecção", r.timeToFirstDetectionHours != null ? `${r.timeToFirstDetectionHours}h` : "—"],
-                          ["Observações", String(r.observations)],
+                          ["Delivery acumulado", r.deliveryAccumulated > 0 ? `+${fmt(r.deliveryAccumulated)}` : "+0"],
+                          ["Streams na entrada (T0)", fmt(r.streamsAtEntry)],
+                          ["Streams atuais", fmt(r.streamsCurrent)],
+                          ["Melhor posição", r.bestPosition != null ? `#${r.bestPosition}` : "—"],
+                          ["Posição atual", r.currentPosition != null ? `#${r.currentPosition}` : "—"],
+                          ["Dias ativa", `${r.daysActive}d`],
+                          ["Freq. detecção", r.detectionFrequency != null ? `${r.detectionFrequency}/d` : "—"],
+                          ["Última coleta", rel(r.lastSeen)],
+                          ["Tendência", r.trend ?? "—"],
+                          ["Status", r.status],
                           ["Score (auxiliar)", String(r.score)],
                         ].map(([k, v]) => (
                           <div key={k} className="flex flex-col gap-0.5">
@@ -691,9 +716,39 @@ function ExecutiveSummary({
           </div>
         ))}
       </dl>
+
+      {/* Top Playlists — 🥇🥈🥉 */}
+      {ranking.length > 0 && (
+        <div className="mt-5 pt-5 border-t border-border">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-3">Top Playlists</div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {["🥇", "🥈", "🥉"].map((medal, i) => {
+              const p = ranking[i];
+              if (!p) return <div key={medal} className="opacity-30 text-xs text-muted-foreground">—</div>;
+              const content = (
+                <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/10 hover:bg-muted/20 transition-colors p-3 min-w-0">
+                  <span className="text-2xl shrink-0">{medal}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium text-foreground truncate" title={p.name}>{p.name}</div>
+                    <div className="text-xs font-mono text-emerald-400 tabular-nums">
+                      {p.deliveryAccumulated > 0 ? `+${fmt(p.deliveryAccumulated)}` : "+0"} <span className="text-muted-foreground">delivery</span>
+                    </div>
+                  </div>
+                </div>
+              );
+              return p.spotify_url ? (
+                <a key={medal} href={p.spotify_url} target="_blank" rel="noreferrer" className="block">{content}</a>
+              ) : (
+                <div key={medal}>{content}</div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </section>
   );
 }
+
 
 
 // ============================================================
@@ -794,12 +849,12 @@ function buildFeed(
   placements: Placement[],
   baseline: Baseline,
   snapshots: Snapshot[],
-  exec: ExecutionLogRow[],
   obs: ObserverTrackRow[],
+  ssPl: SongSnapPlaylistRow[],
 ): FeedEvent[] {
   const items: FeedEvent[] = [];
 
-  // Baseline criada
+  // 1) Baseline criada
   if (baseline?.captured_at) {
     items.push({
       at: baseline.captured_at, tone: "good", icon: CheckCircle2,
@@ -807,7 +862,7 @@ function buildFeed(
     });
   }
 
-  // Entradas em playlist (primeira detecção VPS por playlist)
+  // 2) Música entrou em playlist (primeira detecção VPS por playlist)
   const firstSeen = new Map<string, ObserverTrackRow>();
   obs.forEach((o) => {
     if (!firstSeen.has(o.spotify_playlist_id)) firstSeen.set(o.spotify_playlist_id, o);
@@ -816,11 +871,11 @@ function buildFeed(
     const name = namePlaylist(placements, o.spotify_playlist_id) ?? o.spotify_playlist_id;
     items.push({
       at: o.captured_at, tone: "good", icon: ListMusic,
-      text: `Nova playlist detectada: "${name}".`,
+      text: `Música entrou na playlist "${name}".`,
     });
   });
 
-  // Saídas inferidas (>72h sem detecção)
+  // 3) Música saiu da playlist (>72h sem detecção)
   const lastSeen = new Map<string, ObserverTrackRow>();
   obs.forEach((o) => {
     const cur = lastSeen.get(o.spotify_playlist_id);
@@ -832,12 +887,12 @@ function buildFeed(
       const name = namePlaylist(placements, o.spotify_playlist_id) ?? o.spotify_playlist_id;
       items.push({
         at: o.captured_at, tone: "warn", icon: GitBranch,
-        text: `Playlist removida: "${name}".`,
+        text: `Música saiu da playlist "${name}".`,
       });
     }
   });
 
-  // Crescimento/queda de streams (snapshot a snapshot)
+  // 4) Delivery atualizado (variações relevantes de streams 28d)
   for (let i = 1; i < snapshots.length; i++) {
     const prev = snapshots[i - 1].total_plays_28d ?? 0;
     const cur = snapshots[i].total_plays_28d ?? 0;
@@ -848,18 +903,13 @@ function buildFeed(
         tone: diff > 0 ? "good" : "warn",
         icon: diff > 0 ? ArrowUpRight : ArrowDownRight,
         text: diff > 0
-          ? `Streams cresceram +${fmt(diff)} (delivery atualizado).`
-          : `Streams caíram ${fmt(diff)}.`,
+          ? `Delivery atualizado: +${fmt(diff)} streams.`
+          : `Delivery em queda: ${fmt(diff)} streams.`,
       });
     }
   }
 
-  // Coletas recentes (até 3)
-  snapshots.slice(-3).forEach((s) => {
-    items.push({ at: s.captured_at, tone: "neutral", icon: Activity, text: "Nova coleta recebida." });
-  });
-
-  // Novo pico (snapshot que superou todos os anteriores)
+  // 5) Novo pico (snapshot que superou todos os anteriores)
   let runningPeak = 0;
   snapshots.forEach((s) => {
     const v = s.total_plays_28d ?? 0;
@@ -869,19 +919,35 @@ function buildFeed(
     if (v > runningPeak) runningPeak = v;
   });
 
-  // Placements confirmados (apenas business — ignora códigos técnicos)
-  exec.slice(0, 40).forEach((e) => {
-    if (e.outcome === "spotify_post_ok") {
-      const name = namePlaylist(placements, e.spotify_playlist_id) ?? "playlist";
-      items.push({ at: e.executed_at, tone: "good", icon: CheckCircle2, text: `Placement confirmado em "${name}".` });
+  // 6) Melhor playlist alterada (compara líder por snapshot)
+  const bySnap = new Map<string, { at: string; rows: SongSnapPlaylistRow[] }>();
+  ssPl.forEach((sp) => {
+    const cur = bySnap.get(sp.snapshot_id) ?? { at: sp.created_at, rows: [] };
+    cur.rows.push(sp);
+    if (new Date(sp.created_at) < new Date(cur.at)) cur.at = sp.created_at;
+    bySnap.set(sp.snapshot_id, cur);
+  });
+  const ordered = [...bySnap.values()].sort((a, b) => +new Date(a.at) - +new Date(b.at));
+  let prevBest: string | null = null;
+  ordered.forEach((snap) => {
+    const sorted = snap.rows.slice().sort((a, b) => (b.plays_7d ?? 0) - (a.plays_7d ?? 0));
+    const top = sorted[0];
+    if (!top || (top.plays_7d ?? 0) <= 0) return;
+    const topName = top.name ?? namePlaylist(placements, top.spotify_playlist_id) ?? top.spotify_playlist_id;
+    if (prevBest && prevBest !== top.spotify_playlist_id) {
+      items.push({
+        at: snap.at, tone: "good", icon: Award,
+        text: `Melhor playlist alterada para "${topName}".`,
+      });
     }
+    prevBest = top.spotify_playlist_id;
   });
 
   return items.sort((a, b) => +new Date(b.at) - +new Date(a.at)).slice(0, 60);
 }
 
-function EventFeedPanel(props: { placements: Placement[]; baseline: Baseline; snapshots: Snapshot[]; exec: ExecutionLogRow[]; obs: ObserverTrackRow[] }) {
-  const items = useMemo(() => buildFeed(props.placements, props.baseline, props.snapshots, props.exec, props.obs), [props]);
+function EventFeedPanel(props: { placements: Placement[]; baseline: Baseline; snapshots: Snapshot[]; obs: ObserverTrackRow[]; ssPl: SongSnapPlaylistRow[] }) {
+  const items = useMemo(() => buildFeed(props.placements, props.baseline, props.snapshots, props.obs, props.ssPl), [props]);
   if (items.length === 0) {
     return <div className="p-6 text-center text-xs text-muted-foreground">Sem eventos.</div>;
   }
@@ -958,8 +1024,8 @@ export function MusicaIntelligenceSection(props: MusicaIntelligenceProps) {
       </Panel>
 
       {/* 4. Feed de negócio */}
-      <Panel title="Feed de negócio" hint="Entradas, saídas, picos, crescimento e coletas" icon={Sparkles}>
-        <EventFeedPanel placements={props.placements} baseline={props.baseline} snapshots={props.snapshots} exec={intel.executionLog} obs={intel.observerTracks} />
+      <Panel title="Feed de negócio" hint="Baseline, entradas, saídas, delivery, picos e melhor playlist" icon={Sparkles}>
+        <EventFeedPanel placements={props.placements} baseline={props.baseline} snapshots={props.snapshots} obs={intel.observerTracks} ssPl={intel.songSnapPlaylists} />
       </Panel>
 
       {/* 5. Histórico de distribuição */}
