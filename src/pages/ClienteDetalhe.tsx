@@ -39,6 +39,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MetricCell } from "@/components/ui/metric-cell";
+import { Progress } from "@/components/ui/progress";
+import { StatusDot, type StatusVariant } from "@/components/ui/status-dot";
 import {
   AlertDialog,
   AlertDialogAction,
