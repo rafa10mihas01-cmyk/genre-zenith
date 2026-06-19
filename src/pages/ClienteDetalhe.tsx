@@ -1,9 +1,9 @@
 // ClienteDetalhe — página dedicada do cliente. Substitui o antigo drawer lateral.
 // Mostra ficha completa + extrato (músicas, deals, financeiro, observações).
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { useClientOverview } from "@/hooks/useCampaignOverview";
+import type { CampaignOverviewRow } from "@/services/campaignOverview";
 import {
   ArrowLeft,
   Pencil,
