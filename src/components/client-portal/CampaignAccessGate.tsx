@@ -55,10 +55,10 @@ export function CampaignAccessGate({ token, onAuthed }: Props) {
     });
     setLoading(false);
     // Quando edge retorna não-2xx, supabase-js coloca o body em error.context
-    let e: string | undefined = (data as any)?.error;
+    let e: string | undefined = (data as { error?: string } | null)?.error;
     if (!e && error) {
       try {
-        const ctx: any = (error as any).context;
+        const ctx = (error as { context?: { json?: () => Promise<{ error?: string }> } }).context;
         if (ctx && typeof ctx.json === "function") {
           const body = await ctx.json();
           e = body?.error;
