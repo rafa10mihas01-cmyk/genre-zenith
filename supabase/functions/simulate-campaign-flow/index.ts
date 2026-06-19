@@ -39,6 +39,18 @@ Deno.serve(async (req) => {
   const userId = userRes.user.id;
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY);
+
+  // Fase 15.1 — Bloqueio de bypass: apenas admin pode executar a simulação.
+  // Esta função usa service_role e burla os guards canônicos por desenho;
+  // restringimos sua execução para evitar bypass do fluxo oficial.
+  const { data: isAdmin, error: adminErr } = await admin.rpc("has_role", {
+    _user_id: userId,
+    _role: "admin",
+  });
+  if (adminErr || !isAdmin) {
+    return json({ ok: false, error: "admin_required" }, 403);
+  }
+
   const ts = new Date().toISOString().replace(/[:.]/g, "-");
   const label = `[TEST] Simulação ${ts}`;
 
