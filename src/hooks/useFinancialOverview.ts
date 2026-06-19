@@ -1,17 +1,12 @@
-// useFinancialOverview — HOOK ÚNICO do módulo Financeiro.
-// Fontes oficiais (Fase 8.1):
-//   Receita por campanha     → v_financial_summary.valor_cobrado/valor_recebido
-//   Custo por campanha       → v_financial_summary.total_pago_curadores
-//   Margem por campanha      → v_financial_summary.margem_bruta / margem_pct
-//   Custo caixa total        → v_curator_global_finance.total_spent
-//   CPP global               → v_curator_global_finance.global_cpp
-//   CPP por curador          → v_curator_finance.cpp
-//   Não alocado              → v_financial_unallocated_cost
-// O frontend nunca recalcula. Apenas exibe.
+// useFinancialOverview — HOOK do módulo Financeiro.
+// Fase 14.1: KPIs canônicos (cobrado, recebido, custo operacional, margem) vêm do
+// v_campaign_overview via useCockpitOverview. As demais leituras (CPP por curador,
+// compras, deals detalhados) seguem como dados auxiliares — não são KPIs disputados.
 import { useCallback, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCockpitOverview } from "@/hooks/useCampaignOverview";
 
 export type FinancialSummaryRow = {
   campaign_id: string;
