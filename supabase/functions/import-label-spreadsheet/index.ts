@@ -754,15 +754,17 @@ Deno.serve(async (req) => {
     let campaignIdForUpdate: string | null = null;
     let spotifyTrackIdForProofs: string | null = null;
     {
-      const { data: campRow } = await admin
-        .from("campaigns")
-        .select("id, track_name, spotify_track_id")
-        .eq("deal_id", dealId)
+      // (2026-06-19) Resolve campanha via curator_deals.campaign_id (1:N safe).
+      const { data: dealCamp } = await admin
+        .from("curator_deals")
+        .select("campaign_id, campaigns:campaign_id(id, track_name, spotify_track_id)")
+        .eq("id", dealId)
         .maybeSingle();
+      const campRow = (dealCamp as any)?.campaigns ?? null;
       if (campRow) {
-        trackNameForProofs = (campRow as any).track_name ?? "";
-        campaignIdForUpdate = (campRow as any).id ?? null;
-        spotifyTrackIdForProofs = (campRow as any).spotify_track_id ?? null;
+        trackNameForProofs = campRow.track_name ?? "";
+        campaignIdForUpdate = campRow.id ?? null;
+        spotifyTrackIdForProofs = campRow.spotify_track_id ?? null;
       }
     }
 
@@ -1038,22 +1040,26 @@ Deno.serve(async (req) => {
         .is("baseline_reference_date", null);
 
       // Campaign — só primeira baseline define data e marco temporal.
-      await admin
-        .from("campaigns")
-        .update({
-          status: "active",
-          baseline_captured_at: baselineAt,
-          baseline_reference_date: referenceDate,
-          baseline_status: "captured",
-        })
-        .eq("deal_id", dealId)
-        .is("baseline_captured_at", null);
+      // (2026-06-19) Resolve via campaignIdForUpdate (derivado de
+      // curator_deals.campaign_id), não mais via campaigns.deal_id.
+      if (campaignIdForUpdate) {
+        await admin
+          .from("campaigns")
+          .update({
+            status: "active",
+            baseline_captured_at: baselineAt,
+            baseline_reference_date: referenceDate,
+            baseline_status: "captured",
+          })
+          .eq("id", campaignIdForUpdate)
+          .is("baseline_captured_at", null);
 
-      await admin
-        .from("campaigns")
-        .update({ baseline_reference_date: referenceDate })
-        .eq("deal_id", dealId)
-        .is("baseline_reference_date", null);
+        await admin
+          .from("campaigns")
+          .update({ baseline_reference_date: referenceDate })
+          .eq("id", campaignIdForUpdate)
+          .is("baseline_reference_date", null);
+      }
 
       // Propaga para curator_deals reais da mesma campanha (collection_mode=spreadsheet).
       // Como a planilha reporta total por playlist (não por curador), gravamos só o marco

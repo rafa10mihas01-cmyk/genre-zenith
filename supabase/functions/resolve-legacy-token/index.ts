@@ -57,11 +57,13 @@ Deno.serve(async (req) => {
 
   if (!dealId) return jr({ ok: false, reason: "not_found" }, 404);
 
-  const { data: camp } = await admin
-    .from("campaigns")
-    .select("public_plan_token")
-    .eq("deal_id", dealId)
+  // (2026-06-19) Resolve campanha via curator_deals.campaign_id (1:N safe).
+  const { data: dealCamp } = await admin
+    .from("curator_deals")
+    .select("campaigns:campaign_id(public_plan_token)")
+    .eq("id", dealId)
     .maybeSingle();
+  const camp = (dealCamp as any)?.campaigns ?? null;
 
   if (!camp?.public_plan_token) return jr({ ok: false, reason: "no_campaign" }, 404);
   return jr({ ok: true, public_plan_token: camp.public_plan_token });

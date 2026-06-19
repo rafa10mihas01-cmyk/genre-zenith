@@ -585,12 +585,16 @@ Deno.serve(async (req) => {
     // ligadas à campanha deste deal. Sem isso, o cliente não enxergava as
     // playlists próprias onde a música foi inserida internamente.
     try {
-      const { data: campRow } = await admin
-        .from("campaigns")
-        .select("id")
-        .eq("deal_id", dealId!)
-        .maybeSingle();
-      const campaignId = (dealRow.campaign_id as string | undefined) ?? (campRow?.id as string | undefined);
+      // (2026-06-19) Resolve campanha via curator_deals.campaign_id (1:N safe).
+      let campaignId = (dealRow.campaign_id as string | undefined) ?? undefined;
+      if (!campaignId) {
+        const { data: dealCamp } = await admin
+          .from("curator_deals")
+          .select("campaign_id")
+          .eq("id", dealId!)
+          .maybeSingle();
+        campaignId = (dealCamp as AnyRec | null)?.campaign_id ?? undefined;
+      }
       if (campaignId) {
         const { data: ecoAllocs } = await admin
           .from("campaign_eco_allocations")
