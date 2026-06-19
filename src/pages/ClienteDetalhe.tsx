@@ -67,13 +67,14 @@ const CLIENT_TYPE_LABEL: Record<string, string> = {
 const formatBRL = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
-function Stat({ label, value, tone }: { label: string; value: string | number; tone?: "primary" | "success" | "warning" | "muted" }) {
+function Stat({ label, value, tone, tier = "default", className }: { label: string; value: string | number; tone?: "primary" | "success" | "warning" | "muted"; tier?: "default" | "hero"; className?: string }) {
   return (
-    <div className="nx-card !p-4">
+    <div className={cn("nx-card !p-4", className)}>
       <div className="text-[10.5px] uppercase tracking-[0.12em] text-muted-foreground">{label}</div>
       <div
         className={cn(
-          "text-2xl font-bold tabular-nums mt-1",
+          "font-bold tabular-nums mt-1",
+          tier === "hero" ? "text-4xl sm:text-2xl" : "text-2xl",
           tone === "primary" && "text-primary",
           tone === "success" && "text-emerald-400",
           tone === "warning" && "text-warning",
