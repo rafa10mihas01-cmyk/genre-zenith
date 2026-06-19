@@ -64,24 +64,31 @@ export function HistoricoPrevioAlert({
   count?: number;
   className?: string;
 }) {
+  const headline = count && count > 0
+    ? `${count} ${count === 1 ? "playlist precisa" : "playlists precisam"} subir a posição`
+    : "Subir a posição da faixa";
   return (
     <div
       className={cn(
-        "rounded-lg border-2 border-warning/50 bg-warning/10 p-4 flex items-start gap-3 text-[12.5px] leading-relaxed",
+        "rounded-lg border border-warning/40 bg-warning/[0.06] p-3 sm:p-4 flex flex-col sm:flex-row sm:items-start gap-2.5 sm:gap-3",
         className,
       )}
     >
-      <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
-      <div className="space-y-1.5 min-w-0">
-        <p className="font-semibold text-warning text-[13px] uppercase tracking-wide">
-          {count && count > 0
-            ? `${count} ${count === 1 ? "playlist precisa" : "playlists precisam"} de ação: subir posição`
-            : "Atenção: subir posição"}
+      <div className="flex items-center gap-2 sm:block sm:shrink-0">
+        <div className="p-1.5 rounded-md bg-warning/15 border border-warning/30 shrink-0">
+          <AlertTriangle className="h-4 w-4 text-warning" />
+        </div>
+        <p className="sm:hidden font-semibold text-warning text-[12px] uppercase tracking-wide leading-tight">
+          {headline}
         </p>
-        <p className="text-foreground/90">
-          A música já estava nestas playlists antes da campanha começar.
-          <strong className="text-warning"> Promova a faixa para uma posição superior</strong> —
-          se a posição não subir, o ganho pode não ser contabilizado como entrega.
+      </div>
+      <div className="min-w-0 space-y-1">
+        <p className="hidden sm:block font-semibold text-warning text-[12.5px] uppercase tracking-wide leading-tight">
+          {headline}
+        </p>
+        <p className="text-[12px] leading-relaxed text-foreground/85">
+          A música já estava nestas playlists antes da campanha começar. Se a
+          posição não subir, o ganho pode não ser contabilizado como entrega.
         </p>
       </div>
     </div>
@@ -95,10 +102,12 @@ export function HistoricoPrevioAlert({
 export function HistoricoPrevioCounter({
   count,
   onClick,
+  active,
   className,
 }: {
   count: number;
   onClick?: () => void;
+  active?: boolean;
   className?: string;
 }) {
   if (count === 0) return null;
@@ -108,7 +117,10 @@ export function HistoricoPrevioCounter({
     <Component
       onClick={onClick}
       className={cn(
-        "w-full rounded-lg border border-warning/30 bg-warning/5 px-3 py-2.5 flex items-center justify-between gap-3 text-left transition-colors",
+        "w-full rounded-lg border px-3 py-2.5 flex items-center justify-between gap-3 text-left transition-colors",
+        active
+          ? "border-warning/60 bg-warning/15"
+          : "border-warning/30 bg-warning/5",
         isClickable && "hover:bg-warning/10 cursor-pointer",
         className,
       )}
@@ -116,7 +128,7 @@ export function HistoricoPrevioCounter({
       <div className="flex items-center gap-2 min-w-0">
         <History className="h-3.5 w-3.5 text-warning shrink-0" />
         <span className="text-[12px] text-foreground">
-          Playlists com histórico prévio
+          {active ? "Mostrando playlists com histórico prévio" : "Playlists com histórico prévio"}
         </span>
       </div>
       <span className="text-base font-semibold tabular-nums text-warning">{count}</span>

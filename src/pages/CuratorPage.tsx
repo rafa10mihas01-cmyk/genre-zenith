@@ -419,6 +419,7 @@ export default function CuratorPage() {
   const [, setNowTick] = useState(0);
   // Janela visível nas playlists do curador
   const [playlistWindow, setPlaylistWindow] = useState<"7d" | "28d">("7d");
+  const [priorOnly, setPriorOnly] = useState(false);
   // Tabs: divide a página em fases pra evitar scroll gigante no mobile
   const [activeTab, setActiveTab] = useState<"cadastro" | "entrega" | "evidencias" | "arquivos" | "historico">("entrega");
   // Fase 7.3 — novos blocos: galeria de prints, histórico de Excel, timeline.
@@ -1877,17 +1878,28 @@ export default function CuratorPage() {
                   return (
                     <div className="mb-3 space-y-2">
                       <HistoricoPrevioAlert count={priorCount} />
-                      <HistoricoPrevioCounter count={priorCount} />
+                      <HistoricoPrevioCounter
+                        count={priorCount}
+                        active={priorOnly}
+                        onClick={() => setPriorOnly((v) => !v)}
+                      />
                     </div>
                   );
                 })()}
+                {(() => {
+                  const visible = priorOnly
+                    ? curatorGroupedByPlaylist.filter(
+                        (g) => Number(g.sample.baseline_plays_prior ?? 0) > 0,
+                      )
+                    : curatorGroupedByPlaylist;
+                  return (
                 <ul
                   className={cn(
                     "space-y-2 pr-1 -mr-1 scroll-smooth",
-                    curatorGroupedByPlaylist.length > 4 && "max-h-[280px] overflow-y-auto",
+                    visible.length > 4 && "max-h-[280px] overflow-y-auto",
                   )}
                 >
-                {curatorGroupedByPlaylist.map((g) => {
+                {visible.map((g) => {
                   const p = g.sample;
                   return (
                     <li key={g.key}>
@@ -1958,7 +1970,10 @@ export default function CuratorPage() {
                   );
                 })}
                 </ul>
+                  );
+                })()}
               </>
+
             )}
           </CardContent>
         </Card>

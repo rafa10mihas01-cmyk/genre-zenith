@@ -118,23 +118,19 @@ export function BaselineConflictsSection({
   if (!conflicts?.length) return null;
 
   return (
-    <section className="nx-card p-5 space-y-4">
-      <header className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-2.5">
-          <div className="mt-0.5 p-1.5 rounded-md bg-warning/10 border border-warning/30">
-            <AlertTriangle className="h-4 w-4 text-warning" />
-          </div>
-          <div>
-            <h2 className="text-sm font-semibold text-foreground">
-              Conflitos de baseline
-            </h2>
-            <p className="text-[12px] text-muted-foreground mt-0.5 max-w-xl">
-              Estas playlists já continham a música <span className="text-foreground font-medium">antes do início da campanha</span>.
-              Não podem ser contabilizadas como entrega nova — mas você pode trabalhar ganho de posição nelas ou substituí-las.
-            </p>
-          </div>
+    <section className="nx-card p-4 md:p-5 space-y-3">
+      <header className="flex items-center gap-2.5">
+        <div className="p-1.5 rounded-md bg-warning/10 border border-warning/30 shrink-0">
+          <AlertTriangle className="h-4 w-4 text-warning" />
         </div>
+        <h2 className="text-sm font-semibold text-foreground">
+          Conflitos de baseline
+          <span className="ml-2 text-[11px] font-normal text-muted-foreground tabular-nums">
+            ({conflicts.length})
+          </span>
+        </h2>
       </header>
+
 
       <div className="divide-y divide-border border border-border rounded-lg overflow-hidden">
         {conflicts.map((c) => (
@@ -200,9 +196,6 @@ export function BaselineConflictsSection({
                 )}
               </div>
 
-              <p className="text-[11px] text-muted-foreground leading-relaxed pt-0.5">
-                {c.reason}
-              </p>
             </div>
 
             <div className="flex-shrink-0">
