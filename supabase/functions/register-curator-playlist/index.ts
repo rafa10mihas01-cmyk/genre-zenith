@@ -318,13 +318,34 @@ Deno.serve(async (req) => {
       // Regra: dentro de uma mesma campanha uma playlist só pode aparecer uma vez.
       // Em outras campanhas / deals independentes não importa.
       const campaignExistingIds = new Set<string>();
+      let campaignStatus: string | null = null;
       if (hasCampaign) {
         const { data: camp } = await admin
           .from("campaigns")
-          .select("baseline_status")
+          .select("baseline_status, status")
           .eq("id", deal!.campaign_id!)
           .maybeSingle();
         campaignBaselineStatus = (camp as any)?.baseline_status ?? null;
+        campaignStatus = (camp as any)?.status ?? null;
+
+        // Fase 15.1 — Gate de status da campanha:
+        // só permite cadastro de playlist quando a campanha está operacional
+        // ("active" ou "paused"). Em draft/completed/cancelled bloqueia.
+        if (!preview) {
+          const allowed = new Set(["active", "paused"]);
+          if (!campaignStatus || !allowed.has(campaignStatus)) {
+            return jr(
+              {
+                ok: false,
+                error: `campaign_status_blocked: campanha está em "${campaignStatus ?? "indefinido"}" — registro de playlist não permitido.`,
+                code: "campaign_status_blocked",
+                campaign_status: campaignStatus,
+              },
+              409,
+            );
+          }
+        }
+
 
         const { data: baseRows } = await admin
           .from("campaign_playlist_collections")
