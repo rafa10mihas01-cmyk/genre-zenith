@@ -246,7 +246,7 @@ export function SaudeSistema() {
 function HealthCard({
   icon: Icon, label, ok, okText, errText, detail, tone,
 }: {
-  icon: any; label: string; ok: boolean; okText: string; errText: string; detail: string; tone?: "ok" | "warn";
+  icon: LucideIcon; label: string; ok: boolean; okText: string; errText: string; detail: string; tone?: "ok" | "warn";
 }) {
   const resolvedTone = ok ? tone ?? "ok" : "bad";
   return (
