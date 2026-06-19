@@ -3,6 +3,7 @@ import { Fragment, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, AlertTriangle, Plus, TrendingUp, TrendingDown, DollarSign, Wallet } from "lucide-react";
 import { useFinancialOverview, type DealFinanceRow } from "@/hooks/useFinancialOverview";
 import { DealPaymentDialog } from "./DealPaymentDialog";
+import { LegacyValorCobradoPanel } from "./LegacyValorCobradoPanel";
 import { Button } from "@/components/ui/button";
 import { Kpi } from "@/components/ui/kpi";
 
