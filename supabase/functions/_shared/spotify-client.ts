@@ -289,7 +289,9 @@ export {
   withSpotifyCtx,
   installSpotifyCircuitFetchGuard,
   getAppCredentials,
+  setSpotifyBreakerContext,
   SPOTIFY_USER_SCOPES,
   SPOTIFY_USER_SCOPES_LIST,
 } from "./spotify.ts";
+export type { SpotifyBreakerContext } from "./spotify.ts";
 export type { SpotifyUserToken } from "./spotify.ts";
