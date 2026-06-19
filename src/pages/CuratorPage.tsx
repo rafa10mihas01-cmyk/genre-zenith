@@ -419,6 +419,7 @@ export default function CuratorPage() {
   const [, setNowTick] = useState(0);
   // Janela visível nas playlists do curador
   const [playlistWindow, setPlaylistWindow] = useState<"7d" | "28d">("7d");
+  const [priorOnly, setPriorOnly] = useState(false);
   // Tabs: divide a página em fases pra evitar scroll gigante no mobile
   const [activeTab, setActiveTab] = useState<"cadastro" | "entrega" | "evidencias" | "arquivos" | "historico">("entrega");
   // Fase 7.3 — novos blocos: galeria de prints, histórico de Excel, timeline.
