@@ -4,16 +4,54 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Sparkles, Music2, Users, AlertCircle, CheckCircle2, Radar, Disc3 } from "lucide-react";
 
+type NameReason = {
+  type: string;
+  value?: string | number | null;
+  benchmark_p50?: number | null;
+  benchmark_p90?: number | null;
+};
+
+type TrackSuggestion = {
+  cover_url?: string | null;
+  nome?: string | null;
+  name?: string | null;
+  artista?: string | null;
+  artist?: string | null;
+  target_zone_label?: string | null;
+  function_role?: string | null;
+  count?: number | null;
+  zone_fit_score?: number | null;
+};
+
+type CompetitorRow = {
+  spotify_playlist_id: string;
+  name?: string | null;
+  followers?: number | null;
+};
+
+type RecurringTrack = {
+  cover_url?: string | null;
+  title?: string | null;
+  artist?: string | null;
+  niche_playlists_count?: number | null;
+};
+
+type DiagnosisRaw = {
+  market_insights?: {
+    top_recurring_tracks?: RecurringTrack[];
+  } | null;
+};
+
 type DiagnosisRow = {
   id: string;
   created_at: string;
   name_score: number | null;
   name_current: string | null;
   name_suggestion: string | null;
-  name_reasons: any;
-  tracks_suggestions: any;
-  competitors: any;
-  raw: any;
+  name_reasons: NameReason[] | null;
+  tracks_suggestions: TrackSuggestion[] | null;
+  competitors: CompetitorRow[] | null;
+  raw: DiagnosisRaw | null;
 };
 
 function fmtNum(n: number | null | undefined) {
