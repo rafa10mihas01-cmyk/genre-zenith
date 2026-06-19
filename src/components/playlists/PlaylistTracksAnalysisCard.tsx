@@ -163,10 +163,10 @@ export function PlaylistTracksAnalysisCard({ managedId }: { managedId: string })
         .limit(1)
         .maybeSingle();
       if (active) {
-        setAnalysis(Array.isArray(data?.tracks_analysis) ? (data!.tracks_analysis as any) : []);
-        setSummary((data?.tracks_summary as any) ?? {});
-        setSuggestions(Array.isArray(data?.tracks_suggestions) ? (data!.tracks_suggestions as any) : []);
-        const raw = (data?.raw as any) ?? {};
+        setAnalysis(Array.isArray(data?.tracks_analysis) ? (data!.tracks_analysis as unknown as TrackRow[]) : []);
+        setSummary((data?.tracks_summary as unknown as Summary) ?? {});
+        setSuggestions(Array.isArray(data?.tracks_suggestions) ? (data!.tracks_suggestions as unknown as Suggestion[]) : []);
+        const raw = (data?.raw as { substitutions?: Substitution[] } | null) ?? {};
         setSubstitutions(Array.isArray(raw?.substitutions) ? raw.substitutions : []);
         setLoading(false);
       }
