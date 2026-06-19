@@ -405,12 +405,18 @@ export default function ClienteDetalhe() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card>
               <CardContent className="p-5">
-                <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-2">Contato</div>
+                <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-3">Contato</div>
                 <div className="divide-y divide-border/40">
                   <InfoRow icon={Mail} label="E-mail" value={client.email} href={mailHref} />
                   <InfoRow icon={Phone} label="WhatsApp / Telefone" value={client.phone || client.contact} href={phoneHref} />
                   <InfoRow icon={Instagram} label="Instagram" value={client.instagram ? `@${client.instagram.replace(/^@/, "")}` : null} href={igHref} />
-                  <InfoRow icon={ExternalLink} label="Spotify do artista" value={client.spotify_artist_url} href={client.spotify_artist_url ?? undefined} />
+                  <InfoRow
+                    icon={Music2}
+                    label="Spotify do artista"
+                    value={client.spotify_artist_url ? `Perfil de ${client.name}` : null}
+                    hint={client.spotify_artist_url ? "Abrir no Spotify" : null}
+                    href={client.spotify_artist_url ?? undefined}
+                  />
                   {!client.email && !client.phone && !client.contact && !client.instagram && !client.spotify_artist_url && (
                     <p className="text-sm text-muted-foreground py-2">Sem contatos.</p>
                   )}
