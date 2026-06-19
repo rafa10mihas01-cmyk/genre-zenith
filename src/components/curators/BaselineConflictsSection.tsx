@@ -9,6 +9,7 @@ export type BaselineConflict = {
   registered_at: string | null;
   baseline_conflict_at: string | null;
   baseline_captured_at: string | null;
+  baseline_reference_date?: string | null;
   baseline_plays_7d: number | null;
   reason: string;
   resolved: boolean;
