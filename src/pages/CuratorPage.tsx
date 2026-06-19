@@ -1970,7 +1970,10 @@ export default function CuratorPage() {
                   );
                 })}
                 </ul>
+                  );
+                })()}
               </>
+
             )}
           </CardContent>
         </Card>
