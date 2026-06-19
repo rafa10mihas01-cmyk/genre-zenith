@@ -469,8 +469,9 @@ export function installSpotifyCircuitFetchGuard() {
     let breakerOpen = false;
     let errorMsg: string | null = null;
     let errorBody: string | null = null;
+    const brCtx = resolveBreakerContext();
     try {
-      if (!bypass) await assertSpotifyCircuitClosed(appId);
+      if (!bypass) await assertSpotifyCircuitClosed(appId, brCtx);
       const r = await spotifyOriginalFetch(input, init);
       httpStatus = r.status;
       if (!r.ok) {
