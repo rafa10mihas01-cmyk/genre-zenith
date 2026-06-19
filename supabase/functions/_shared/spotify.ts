@@ -359,6 +359,13 @@ function resolveLogCtx(perCall?: SpotifyCallCtx): Required<Pick<SpotifyLogRow, "
   };
 }
 
+/** Lê o contexto do breaker (operation|enrichment) do ctx async-local. Default: operation. */
+function resolveBreakerContext(): SpotifyBreakerContext {
+  const als = ctxStore.getStore() ?? {};
+  const c = (als.breaker_context ?? __lastCtx.breaker_context ?? "operation") as SpotifyBreakerContext;
+  return c === "enrichment" ? "enrichment" : "operation";
+}
+
 export async function guardedSpotifyFetch(
   url: string,
   init: RequestInit = {},
