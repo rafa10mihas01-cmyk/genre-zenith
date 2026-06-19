@@ -385,7 +385,8 @@ export async function guardedSpotifyFetch(
   let errorMsg: string | null = null;
   let errorBody: string | null = null;
   try {
-    if (!bypass) await assertSpotifyCircuitClosed(appId);
+    const brCtx = resolveBreakerContext();
+    if (!bypass) await assertSpotifyCircuitClosed(appId, brCtx);
     const r = await spotifyOriginalFetch(url, init);
     httpStatus = r.status;
     if (!r.ok) {
