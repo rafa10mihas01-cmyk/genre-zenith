@@ -453,6 +453,49 @@ Deno.serve(async (req) => {
       } catch (_e) { /* best-effort */ }
     }
 
+    // FASE 13.0 — CPC override em perPlaylistDelivery + has_baseline.
+    // vw_campaign_playlist_growth (curatorGrowthRows) é a fonte canônica.
+    // Mapeamos spotify_playlist_id → curator_playlists.id usando `playlists`.
+    {
+      const spotifyToCuratorPid = new Map<string, string>();
+      for (const p of (playlists ?? []) as any[]) {
+        const spid = String(p.spotify_playlist_id ?? "").trim();
+        if (spid && p.id) spotifyToCuratorPid.set(spid, String(p.id));
+      }
+      for (const row of curatorGrowthRows) {
+        const spid = String(row.playlist_id ?? "").trim();
+        const pid = spid ? spotifyToCuratorPid.get(spid) : undefined;
+        if (!pid) continue;
+        const baseline = Number(row.baseline_plays ?? 0);
+        const current = Number(row.current_plays ?? baseline);
+        const delivery = Math.max(0, Number(row.delivery_accumulated ?? row.delta ?? 0));
+        const growth = baseline > 0 ? (delivery / baseline) * 100 : null;
+        perPlaylistDelivery[pid] = {
+          baseline_plays: baseline || null,
+          current_plays: current || null,
+          delivery_accumulated: delivery,
+          growth_pct: growth,
+          first_capture_at: row.baseline_at ?? null,
+          last_capture_at: row.last_captured_at ?? null,
+          snapshot_count: 1,
+          last_print_url: perPlaylistDelivery[pid]?.last_print_url ?? null,
+          source: "cpc",
+        };
+      }
+    }
+
+    // FASE 13.0 — has_baseline server-side (ordem oficial):
+    //   1) qualquer playlist do curador tem baseline_at na CPC
+    //   2) há delivery_accumulated > 0 (correções retroativas)
+    //   3) fallback: existem snapshots
+    const hasBaselineFromCpc = curatorGrowthRows.some((r) => !!r.baseline_at);
+    const hasDeliveryFromCpc = curatorGrowthRows.some(
+      (r) => Number(r.delivery_accumulated ?? r.delta ?? 0) > 0,
+    );
+    const hasSnapshotFallback = ((allSnaps ?? []) as any[]).length > 0;
+    const has_baseline = hasBaselineFromCpc || hasDeliveryFromCpc || hasSnapshotFallback;
+
+
     const progressWithGrowth = (() => {
       if (curatorGrowthRows.length === 0) return progressRpc ?? null;
 
@@ -747,6 +790,7 @@ Deno.serve(async (req) => {
       playlists: enrichedPlaylists,
       songs: songs ?? [],
       progress: progressWithGrowth,
+      has_baseline,
       // Deduplicação é global no RPC get_curator_deal_snapshot_history,
       // então qualquer DEL/tela recebe a mesma timeline limpa.
       snapshot_history: historyRpc ?? [],
