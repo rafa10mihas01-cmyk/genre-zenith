@@ -584,11 +584,12 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
                     {p.spotify_url && (
                       <Button
                         variant="ghost" size="icon" className="size-8"
                         onClick={() => window.open(p.spotify_url, "_blank")}
+                        aria-label="Abrir no Spotify"
                       >
                         <ExternalLink className="size-4" />
                       </Button>
@@ -596,6 +597,7 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
                     <Button
                       variant="ghost" size="icon" className="size-8 text-destructive hover:text-destructive"
                       onClick={() => setConfirmDelete(p.id)}
+                      aria-label="Remover playlist"
                     >
                       <Trash2 className="size-4" />
                     </Button>
