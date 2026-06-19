@@ -258,10 +258,10 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
         const cpp = consumed > 0 && totalCost > 0 ? totalCost / consumed : null;
         if (purchased === 0 && totalCost === 0 && !onAddPurchase) return null;
         return (
-          <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">Saldo</div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center justify-between sm:justify-end gap-3 flex-wrap">
                 {cpp !== null && (
                   <span className="text-[11px] text-muted-foreground">
                     Custo/play <span className="text-foreground font-semibold">{formatCPP(cpp)}</span>
