@@ -158,9 +158,33 @@ export function useCampaigns() {
     };
   }, [user, qc, instanceId]);
 
-  // Update status (active/paused/cancelled etc) — otimista
+  // Update status (active/paused/cancelled etc) — otimista.
+  // GUARDA (Fase 13.X): ativar uma campanha pela primeira vez DEVE passar por
+  // approve-campaign-plan → approve_campaign_plan_atomic (único writer legítimo
+  // de plan_approved_at + valor_cobrado). Aqui aceitamos transições administrativas
+  // (paused/cancelled/completed/draft) e "retomar" (paused → active) de campanhas
+  // já aprovadas. Bloqueamos qualquer tentativa de virar `active` sem
+  // plan_approved_at OU sem valor_cobrado.
   const updateStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: Campaign["status"] }) => {
+      if (status === "active") {
+        const { data: row, error: readErr } = await supabase
+          .from("campaigns")
+          .select("plan_approved_at, valor_cobrado")
+          .eq("id", id)
+          .maybeSingle();
+        if (readErr) throw readErr;
+        if (!row?.plan_approved_at) {
+          throw new Error(
+            "plan_not_approved: ative a campanha pelo fluxo oficial (Aprovar plano). UPDATE direto de status para 'active' não é permitido.",
+          );
+        }
+        if (row.valor_cobrado == null) {
+          throw new Error(
+            "valor_cobrado_required: defina o valor contratado da campanha antes de ativá-la.",
+          );
+        }
+      }
       const { error } = await supabase.from("campaigns").update({ status }).eq("id", id);
       if (error) throw error;
     },
