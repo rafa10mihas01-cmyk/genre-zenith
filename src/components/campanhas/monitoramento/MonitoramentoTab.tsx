@@ -64,7 +64,7 @@ export function MonitoramentoTab({ campaignId, headerSlot, spreadsheetUploads }:
     if (!campaignId) return;
     (async () => {
       const [{ data: c }, { count }] = await Promise.all([
-        supabase.from("campaigns").select("baseline_status, baseline_captured_at").eq("id", campaignId).maybeSingle(),
+        supabase.from("campaigns").select("baseline_status, baseline_captured_at, baseline_reference_date").eq("id", campaignId).maybeSingle(),
         supabase
           .from("campaign_playlist_collections")
           .select("playlist_id", { count: "exact", head: true })
@@ -72,9 +72,14 @@ export function MonitoramentoTab({ campaignId, headerSlot, spreadsheetUploads }:
           .eq("is_baseline", true),
       ]);
       const campaign = c as CampaignBaselineRow | null;
+      // FASE 10.3 — preferimos baseline_reference_date (data oficial da
+      // campanha, imutável). Quando ausente, caímos no timestamp legado.
+      const refDate = campaign?.baseline_reference_date
+        ? `${campaign.baseline_reference_date}T00:00:00`
+        : null;
       setKpis({
         status: campaign?.baseline_status ?? null,
-        capturedAt: campaign?.baseline_captured_at ?? null,
+        capturedAt: refDate ?? campaign?.baseline_captured_at ?? null,
         playlists: count ?? 0,
       });
     })();
