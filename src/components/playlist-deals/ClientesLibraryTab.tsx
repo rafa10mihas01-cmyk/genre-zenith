@@ -29,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusDot, type StatusVariant } from "@/components/ui/status-dot";
 import { MetricCell } from "@/components/ui/metric-cell";
+import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
   DialogContent,
@@ -289,45 +290,60 @@ export function ClientesLibraryTab({ deals, songs, loading, campaignsByClient }:
                 ? { variant: "neutral", label: "Sem deals ativos" }
                 : { variant: "neutral", label: "Sem deals" };
 
+            const concluidoPct = totalDeals > 0 ? Math.round((closedDeals / totalDeals) * 100) : 0;
+
             return (
               <div
                 key={client.id}
                 onClick={() => navigate(`/clientes/${client.id}`)}
-                style={{ contentVisibility: "auto", containIntrinsicSize: "320px 260px" }}
+                style={{ contentVisibility: "auto", containIntrinsicSize: "320px 220px" }}
                 className={cn(
-                  "group relative rounded-2xl border border-border/50 bg-card transition-colors cursor-pointer flex flex-col",
+                  "group relative rounded-2xl border border-border/50 bg-card transition-colors cursor-pointer",
                   "border-l-2 border-l-domain-clients/60",
                   "hover:border-foreground/20 hover:border-l-domain-clients hover:bg-[hsl(var(--elevated))]",
                 )}
               >
-                {/* Identidade */}
-                <div className="flex items-start gap-3 px-4 pt-4 pb-3 min-w-0">
-                  <div className="h-11 w-11 rounded-md bg-domain-clients/15 border border-domain-clients/25 flex items-center justify-center text-[13px] font-bold text-domain-clients shrink-0">
-                    {initials || <User className="h-4 w-4" />}
+                {/* Linha 1 — identidade */}
+                <div className="flex items-center gap-2 px-3 pt-3 pb-2 min-w-0">
+                  <div className="h-8 w-8 rounded-md bg-domain-clients/15 border border-domain-clients/25 flex items-center justify-center text-[11px] font-bold text-domain-clients shrink-0">
+                    {initials || <User className="h-3.5 w-3.5" />}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="text-[14px] font-semibold text-foreground truncate leading-tight flex items-center gap-1.5">
+                    <div className="text-[12.5px] font-semibold text-foreground truncate leading-tight flex items-center gap-1.5">
                       <span className="truncate">{client.name}</span>
                       {isEnriching(client.id) && (
-                        <span className="shrink-0 rounded border border-domain-clients/40 bg-domain-clients/10 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-domain-clients animate-pulse">
-                          enriquecendo
+                        <span className="shrink-0 rounded border border-domain-clients/40 bg-domain-clients/10 px-1 py-0.5 text-[9px] uppercase tracking-wider text-domain-clients animate-pulse">
+                          ✦
                         </span>
                       )}
                     </div>
-                    <div className="mt-1.5">
-                      <StatusDot variant={status.variant} label={status.label} />
+                    <div className="text-[10.5px] text-muted-foreground truncate mt-0.5">
+                      <span>Cliente</span>
+                      {client.contact && (
+                        <>
+                          <span className="mx-1 opacity-50">·</span>
+                          <span className="truncate">{client.contact}</span>
+                        </>
+                      )}
+                      {totalDeals > 0 && (
+                        <>
+                          <span className="mx-1 opacity-50">·</span>
+                          <span>{totalDeals} campanha{totalDeals > 1 ? "s" : ""}</span>
+                        </>
+                      )}
                     </div>
                   </div>
+                  <StatusDot variant={status.variant} label={status.label} className="shrink-0" />
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0 -mr-1.5"
+                        className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0"
                         onClick={(e) => e.stopPropagation()}
                         aria-label="Mais ações"
                       >
-                        <MoreHorizontal className="h-4 w-4" />
+                        <MoreHorizontal className="h-3.5 w-3.5" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
@@ -399,24 +415,43 @@ export function ClientesLibraryTab({ deals, songs, loading, campaignsByClient }:
                   </DropdownMenu>
                 </div>
 
-                <div className="mx-4 border-t border-border/40" />
+                <div className="mx-3 border-t border-border/40" />
 
-                {/* Métricas */}
-                <div className="flex items-center gap-4 px-4 py-3 min-w-0 mt-auto">
-                  <MetricCell label="Músicas" value={totalSongs} size="sm" />
-                  <MetricCell label="Negociações" value={totalDeals} size="sm" />
-                  {closedDeals > 0 && (
-                    <MetricCell label="Concluídos" value={closedDeals} size="sm" />
+                {/* Linha 2 — métricas + progresso */}
+                <div className="px-3 py-2.5 space-y-2 min-w-0">
+                  <div className="grid grid-cols-2 gap-2">
+                    <MetricCell label="Músicas" value={totalSongs} size="sm" />
+                    <MetricCell label="Negociações" value={totalDeals} size="sm" />
+                  </div>
+                  {totalDeals > 0 && (
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <div className="flex items-center justify-between text-[9.5px] text-muted-foreground">
+                        <span className="uppercase tracking-[0.12em] font-medium">Concluídas</span>
+                        <span className="tabular-nums font-semibold text-foreground">{concluidoPct}%</span>
+                      </div>
+                      <Progress value={concluidoPct} className="h-1 rounded-full" />
+                      <div className="text-[9.5px] text-muted-foreground tabular-nums">
+                        {closedDeals} / {totalDeals}
+                      </div>
+                    </div>
                   )}
-                  {lastTs > 0 && (
-                    <span className="ml-auto inline-flex items-center gap-1 whitespace-nowrap text-[11px] text-muted-foreground shrink-0">
-                      <Clock className="h-3 w-3" />
-                      {formatDistanceToNow(new Date(lastTs), {
-                        addSuffix: true,
-                        locale: ptBR,
-                      })}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2 flex-wrap text-[10px] text-muted-foreground pt-1 border-t border-border/30">
+                    {activeDeals > 0 && (
+                      <span className="inline-flex items-center gap-0.5">
+                        <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                        <span className="text-foreground font-medium tabular-nums">{activeDeals}</span> ativa{activeDeals > 1 ? "s" : ""}
+                      </span>
+                    )}
+                    {lastTs > 0 && (
+                      <span className="inline-flex items-center gap-0.5 whitespace-nowrap ml-auto">
+                        <Clock className="h-2.5 w-2.5" />
+                        {formatDistanceToNow(new Date(lastTs), {
+                          addSuffix: true,
+                          locale: ptBR,
+                        })}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             );
