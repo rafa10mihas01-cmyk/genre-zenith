@@ -103,7 +103,7 @@ export function CampaignAccessGate({ token, onAuthed }: Props) {
       else toast.error("Este e-mail não tem acesso a esta campanha.");
       return;
     }
-    const jwt = (data as any)?.jwt as string;
+    const jwt = (data as { jwt?: string } | null)?.jwt as string;
     if (!jwt) { toast.error("Erro inesperado."); return; }
     // Antes de liberar, garante que o JWT VAI persistir. Sem isso o usuário
     // entra agora, dá refresh, perde sessão, pede OTP de novo → loop.
