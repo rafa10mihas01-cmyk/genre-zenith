@@ -204,14 +204,12 @@ Deno.serve(async (req) => {
       s?.curator_deals?.campaigns?.collection_mode === "spreadsheet" &&
       s?.curator_deals?.source === "campaign_internal"
     ) return false;
-    // Em campanha com múltiplos deals, o shadow "Campanha" só coleta se for o
-    // deal oficial da campanha. Isso impede dois coletores S4A para a mesma música.
-    const officialDealId = s?.curator_deals?.campaigns?.deal_id ?? null;
-    if (
-      s?.curator_deals?.source === "campaign_internal" &&
-      officialDealId &&
-      officialDealId !== s.deal_id
-    ) return false;
+    // (Removido 2026-06-19) Filtro `officialDealId !== s.deal_id` que comparava
+    // contra `campaigns.deal_id`. A arquitetura 1:N (uma campanha → N curator_deals)
+    // tornava esse gate uma armadilha: deals secundários `campaign_internal` (criados
+    // por outros caminhos) eram silenciosamente excluídos da fila. A unicidade do
+    // shadow `campaign_internal` por campanha já é garantida por approve-campaign-plan
+    // + auto_collect_status (idle/error/queued/running) + collect_paused_until.
     const exp = s?.curator_deals?.token_expires_at;
     if (!exp) return true;
     const t = new Date(exp).getTime();

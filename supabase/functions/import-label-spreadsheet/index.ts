@@ -454,13 +454,24 @@ Deno.serve(async (req) => {
     // 🚧 Trava: baseline/coleta só depois que a campanha foi aprovada.
     // Sem isso, um link vazado ou reenvio poderia gravar uma baseline
     // antes do marco zero combinado com o cliente.
-    const { data: linkedCamp } = await admin
-      .from("campaigns")
-      .select("id, client_approved_at")
-      .eq("deal_id", dealId)
-      .order("created_at", { ascending: false })
-      .limit(1)
+    // (2026-06-19) Resolve campanha via curator_deals.campaign_id — não mais
+    // via legacy campaigns.deal_id (que só registra o deal "principal" e
+    // bloqueava curadores secundários da mesma campanha).
+    const { data: dealRow } = await admin
+      .from("curator_deals")
+      .select("campaign_id")
+      .eq("id", dealId)
       .maybeSingle();
+    const dealCampaignId = (dealRow as { campaign_id?: string | null } | null)?.campaign_id ?? null;
+    let linkedCamp: { id: string; client_approved_at: string | null } | null = null;
+    if (dealCampaignId) {
+      const { data: campRow } = await admin
+        .from("campaigns")
+        .select("id, client_approved_at")
+        .eq("id", dealCampaignId)
+        .maybeSingle();
+      linkedCamp = (campRow as typeof linkedCamp) ?? null;
+    }
     if (!linkedCamp?.client_approved_at) {
       return jr({
         ok: false,
