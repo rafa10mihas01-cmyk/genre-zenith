@@ -198,7 +198,7 @@ export default function CuradorDetail() {
       />
 
       {/* KPIs — hierarquia cockpit (mesmo padrão do Cliente) */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 pt-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-4 mb-6">
         <KpiBig
           label="Investido"
           value={formatBRL(investido)}
@@ -227,7 +227,33 @@ export default function CuradorDetail() {
 
 
       <Tabs defaultValue="biblioteca" className="space-y-4">
-        <TabsList>
+        {/* Mobile: grid de cards (mesmo padrão de Campanhas) */}
+        <TabsList className="grid grid-cols-3 gap-1.5 sm:hidden bg-transparent p-0 h-auto">
+          <TabsTrigger
+            value="biblioteca"
+            className="rounded-xl border border-border bg-card px-1 py-2 flex flex-col items-center justify-center gap-1 text-muted-foreground data-[state=active]:border-primary/60 data-[state=active]:bg-primary/10 data-[state=active]:text-foreground data-[state=active]:shadow-none"
+          >
+            <Library className="h-4 w-4 data-[state=active]:text-primary" />
+            <span className="text-[11px] font-medium leading-none">Biblioteca</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="deals"
+            className="rounded-xl border border-border bg-card px-1 py-2 flex flex-col items-center justify-center gap-1 text-muted-foreground data-[state=active]:border-primary/60 data-[state=active]:bg-primary/10 data-[state=active]:text-foreground data-[state=active]:shadow-none"
+          >
+            <FileText className="h-4 w-4" />
+            <span className="text-[11px] font-medium leading-none">Deals {curatorDeals.length}</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="notas"
+            className="rounded-xl border border-border bg-card px-1 py-2 flex flex-col items-center justify-center gap-1 text-muted-foreground data-[state=active]:border-primary/60 data-[state=active]:bg-primary/10 data-[state=active]:text-foreground data-[state=active]:shadow-none"
+          >
+            <Brain className="h-4 w-4" />
+            <span className="text-[11px] font-medium leading-none">Notas</span>
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Desktop: rail clássico */}
+        <TabsList className="hidden sm:inline-flex">
           <TabsTrigger value="biblioteca" className="gap-1.5"><Library className="h-3.5 w-3.5" /> Biblioteca</TabsTrigger>
           <TabsTrigger value="deals">Deals <span className="ml-1.5 text-muted-foreground">{curatorDeals.length}</span></TabsTrigger>
           <TabsTrigger value="notas">Notas</TabsTrigger>
