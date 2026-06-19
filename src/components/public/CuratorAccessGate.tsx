@@ -23,11 +23,11 @@ export function CuratorAccessGate({ token, onAuthed }: Props) {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function readErr(data: any, error: any): Promise<string | undefined> {
+  async function readErr(data: { error?: string } | null, error: { context?: { json?: () => Promise<{ error?: string }> }; message?: string } | null): Promise<string | undefined> {
     let e: string | undefined = data?.error;
     if (!e && error) {
       try {
-        const ctx: any = (error as any).context;
+        const ctx = error.context;
         if (ctx && typeof ctx.json === "function") {
           const body = await ctx.json();
           e = body?.error;
