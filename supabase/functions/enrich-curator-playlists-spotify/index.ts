@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
     // Resolve deal_ids se veio campaign_id (1:N safe — pode haver vários deals).
-    let effectiveDealIds: string[] = effectiveDealId ? [effectiveDealId] : [];
+    let effectiveDealIds: string[] = dealId ? [dealId] : [];
     if (effectiveDealIds.length === 0 && campaignId) {
       const { data: dealRows } = await admin
         .from("curator_deals")
