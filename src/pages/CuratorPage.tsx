@@ -2469,6 +2469,8 @@ export default function CuratorPage() {
                         songs[0]?.song_cover_url ??
                         null;
                       const snapshotKey = `${entry.captured_at}-${idx}`;
+                      const matchedUpload = findMatchingUpload(entry.captured_at);
+
                       return (
                         <details
                           key={snapshotKey}
