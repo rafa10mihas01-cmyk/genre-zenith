@@ -1962,7 +1962,7 @@ function ReviewKpi({ icon: Icon, label, value, hint }: { icon: LucideIcon; label
   );
 }
 
-function FonteBtn({ active, onClick, icon: Icon, label }: any) {
+function FonteBtn({ active, onClick, icon: Icon, label }: { active: boolean; onClick: () => void; icon: LucideIcon; label: string }) {
   return (
     <button
       onClick={onClick}
