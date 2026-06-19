@@ -1654,6 +1654,7 @@ export type Database = {
           artist: string | null
           auto_deal_created: boolean
           baseline_captured_at: string | null
+          baseline_reference_date: string | null
           baseline_status: string
           campaign_type: string
           canonical_window_days: number
@@ -1711,6 +1712,7 @@ export type Database = {
           artist?: string | null
           auto_deal_created?: boolean
           baseline_captured_at?: string | null
+          baseline_reference_date?: string | null
           baseline_status?: string
           campaign_type?: string
           canonical_window_days?: number
@@ -1768,6 +1770,7 @@ export type Database = {
           artist?: string | null
           auto_deal_created?: boolean
           baseline_captured_at?: string | null
+          baseline_reference_date?: string | null
           baseline_status?: string
           campaign_type?: string
           canonical_window_days?: number
@@ -3839,6 +3842,7 @@ export type Database = {
         Row: {
           baseline_captured_at: string | null
           baseline_plays: number | null
+          baseline_reference_date: string | null
           billing_model: string
           campaign_id: string | null
           client_token: string
@@ -3886,6 +3890,7 @@ export type Database = {
         Insert: {
           baseline_captured_at?: string | null
           baseline_plays?: number | null
+          baseline_reference_date?: string | null
           billing_model?: string
           campaign_id?: string | null
           client_token?: string
@@ -3933,6 +3938,7 @@ export type Database = {
         Update: {
           baseline_captured_at?: string | null
           baseline_plays?: number | null
+          baseline_reference_date?: string | null
           billing_model?: string
           campaign_id?: string | null
           client_token?: string
