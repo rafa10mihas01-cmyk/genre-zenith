@@ -33,6 +33,7 @@ export type Campaign = {
   baseline_pending?: boolean;
   /** Derivado: timestamp da 1ª baseline capturada (qualquer deal da campanha). */
   baseline_captured_at?: string | null;
+  baseline_reference_date?: string | null;
   /** Derivado: e-mail principal do cliente vinculado (se houver). */
   client_email?: string | null;
   /** Derivado: nº de e-mails autorizados a acessar o portal desta campanha. */
