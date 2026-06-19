@@ -2171,21 +2171,29 @@ export default function CuratorPage() {
                 })}
               </div>
             )}
-            <Input
-              placeholder="https://open.spotify.com/playlist/..."
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              disabled={submitting || importing}
-              className="h-10 text-[14px] px-4 rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border/50 border-0 focus-visible:ring-2 focus-visible:ring-primary/40"
-            />
             <div className="space-y-1.5">
+              <label className="text-[10px] font-medium uppercase tracking-wider text-subtle-foreground px-1">
+                Link da playlist
+              </label>
+              <Input
+                placeholder="https://open.spotify.com/playlist/…"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                disabled={submitting || importing}
+                className="h-10 text-[14px] px-4 rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border/50 border-0 focus-visible:ring-2 focus-visible:ring-primary/40 placeholder:text-subtle-foreground/70"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-medium uppercase tracking-wider text-subtle-foreground px-1">
+                Posição na playlist <span className="text-subtle-foreground/60 normal-case font-normal tracking-normal">· opcional</span>
+              </label>
               <Select
                 value={position || undefined}
                 onValueChange={(v) => setPosition(v)}
                 disabled={submitting || importing}
               >
-                <SelectTrigger className="h-10 text-[14px] px-4 rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border/50 border-0 focus:ring-2 focus:ring-primary/40">
-                  <SelectValue placeholder="Posição na playlist (opcional)" />
+                <SelectTrigger className="h-10 text-[14px] px-4 rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border/50 border-0 focus:ring-2 focus:ring-primary/40 [&>span]:text-subtle-foreground/70 data-[state=open]:[&>span]:text-foreground data-[placeholder]:[&>span]:text-subtle-foreground/70">
+                  <SelectValue placeholder="Selecionar posição" />
                 </SelectTrigger>
                 <SelectContent className="max-h-[280px]">
                   {Array.from({ length: 100 }, (_, i) => i + 1).map((n) => (
@@ -2195,9 +2203,6 @@ export default function CuratorPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-[11px] text-muted-foreground/80 px-1">
-                Em que posição a música está dentro da playlist (1 = primeira)
-              </p>
             </div>
             <Button
               onClick={handleAdd}
