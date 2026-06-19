@@ -810,48 +810,98 @@ export default function ClienteDetalhe() {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-2.5">
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {clientCampaigns.map((c) => {
+                const agg = campaignAggregates.get(c.id);
                 const cobrado = Number(c.valor_cobrado) || 0;
                 const recebido = Number(c.valor_recebido) || 0;
                 const pendente = Math.max(0, cobrado - recebido);
+                const dealsTotal = agg?.deals ?? 0;
+                const dealsConcluidos = agg?.dealsConcluidos ?? 0;
+                const progresso = dealsTotal > 0 ? Math.round((dealsConcluidos / dealsTotal) * 100) : 0;
+                const entrega = cobrado > 0 ? Math.min(100, Math.round((recebido / cobrado) * 100)) : 0;
                 const statusLabel = c.status === "active" ? "Ativa"
                   : c.status === "completed" ? "Concluída"
                   : c.status === "paused" ? "Pausada"
                   : c.status === "cancelled" ? "Cancelada"
                   : c.status === "draft" ? "Rascunho"
                   : c.status;
-                const statusCls = c.status === "active" ? "text-primary"
-                  : c.status === "completed" ? "text-emerald-400"
-                  : c.status === "cancelled" ? "text-muted-foreground"
-                  : "text-foreground/70";
+                const statusCls = c.status === "active" ? "bg-primary/15 text-primary border-primary/30"
+                  : c.status === "completed" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                  : c.status === "cancelled" ? "bg-muted/40 text-muted-foreground border-border"
+                  : "bg-muted/30 text-foreground/70 border-border";
+                const inicio = format(new Date(c.created_at), "dd MMM", { locale: ptBR });
+                const fim = c.deadline ? format(new Date(c.deadline), "dd MMM", { locale: ptBR }) : null;
+                const href = c.snapshot_locked_at ? `/campanhas/${c.id}/execucao` : `/campanhas/${c.id}`;
                 return (
-                  <Link key={c.id} to={c.snapshot_locked_at ? `/campanhas/${c.id}/execucao` : `/campanhas/${c.id}`}>
-                    <Card className="hover:border-foreground/20 transition-colors">
-                      <CardContent className="p-4 flex items-center gap-3 min-w-0">
+                  <Card key={c.id} className="hover:border-foreground/20 transition-colors">
+                    <CardContent className="p-5 space-y-4">
+                      <div className="flex items-start justify-between gap-3 min-w-0">
                         <div className="min-w-0 flex-1">
                           <div className="text-sm font-semibold truncate">{c.track_name}</div>
                           <div className="text-[11px] text-muted-foreground truncate">
                             {c.artist || "—"}
                             {c.campaign_type && <> · {c.campaign_type}</>}
-                            <> · iniciada {formatDistanceToNow(new Date(c.created_at), { addSuffix: true, locale: ptBR })}</>
-                          </div>
-                          <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
-                            Cobrado {formatBRL(cobrado)} · Recebido <span className="text-foreground/80">{formatBRL(recebido)}</span>
-                            {pendente > 0 && <> · <span className="text-warning">{formatBRL(pendente)} pendente</span></>}
+                            <> · {inicio}{fim ? ` → ${fim}` : ""}</>
                           </div>
                         </div>
-                        <div className={cn("inline-flex items-center gap-1.5 text-[11px] font-medium shrink-0", statusCls)}>
+                        <span className={cn("inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-full border shrink-0", statusCls)}>
                           {statusLabel}
+                        </span>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-muted-foreground">Progresso operacional</span>
+                          <span className="tabular-nums font-medium">{dealsConcluidos}/{dealsTotal} · {progresso}%</span>
                         </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
+                        <div className="h-1.5 rounded-full bg-elevated overflow-hidden">
+                          <div className="h-full bg-primary/70 transition-all" style={{ width: `${progresso}%` }} />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-muted-foreground">Entrega financeira</span>
+                          <span className="tabular-nums font-medium">{entrega}%</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-elevated overflow-hidden">
+                          <div className="h-full bg-emerald-500/70 transition-all" style={{ width: `${entrega}%` }} />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 pt-1">
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Curadores</div>
+                          <div className="text-sm font-semibold tabular-nums">{agg?.curadores ?? 0}</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Deals ativos</div>
+                          <div className="text-sm font-semibold tabular-nums">{agg?.dealsAtivos ?? 0}</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Meta</div>
+                          <div className="text-sm font-semibold tabular-nums">{formatBRL(cobrado)}</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Pendente</div>
+                          <div className={cn("text-sm font-semibold tabular-nums", pendente > 0 ? "text-warning" : "text-muted-foreground")}>{formatBRL(pendente)}</div>
+                        </div>
+                      </div>
+
+                      <div className="pt-1">
+                        <Button asChild size="sm" variant="outline" className="w-full gap-1.5">
+                          <Link to={href}>Abrir campanha <ExternalLink className="h-3.5 w-3.5" /></Link>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
                 );
               })}
             </div>
           )}
         </TabsContent>
+
 
 
         {/* ----- Notas ----- */}
