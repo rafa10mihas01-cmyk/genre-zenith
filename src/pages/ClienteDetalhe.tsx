@@ -414,7 +414,7 @@ export default function ClienteDetalhe() {
                     icon={Music2}
                     label="Spotify do artista"
                     value={client.spotify_artist_url ? "Abrir perfil no Spotify" : null}
-                    hint={client.spotify_artist_url ? "Abrir no Spotify" : null}
+                    hint={null}
                     href={client.spotify_artist_url ?? undefined}
                   />
                   {!client.email && !client.phone && !client.contact && !client.instagram && !client.spotify_artist_url && (
