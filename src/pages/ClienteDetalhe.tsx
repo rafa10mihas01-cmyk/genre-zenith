@@ -25,6 +25,9 @@ import {
   Calendar,
   CheckCircle2,
   XCircle,
+  LayoutDashboard,
+  Megaphone,
+  StickyNote,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -299,7 +302,8 @@ export default function ClienteDetalhe() {
 
 
       {/* KPIs — hierarquia cockpit. Receita (hero) · Margem · Saldo em aberto · operacionais */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2 pt-4 mb-6">
+      {/* "Concluídos" removido: redundante com "Ativos" (mesmo eixo de deals) e raramente populado */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 pt-4 mb-6">
         <KpiBig
           label="Receita"
           value={formatBRLHero(kpis.receita)}
@@ -327,13 +331,52 @@ export default function ClienteDetalhe() {
         <KpiBig label="Investido" value={formatBRLHero(kpis.investido)} icon={CreditCard} hint={`Custo em ${kpis.deals} deal${kpis.deals === 1 ? "" : "s"}`} domain="deals" />
         <KpiBig label="Ativos" value={kpis.ativos} icon={CheckCircle2} hint="Deals em andamento" tone="primary" domain="deals" />
         <KpiBig label="Músicas" value={kpis.musicas} icon={Music2} hint="No catálogo" domain="clients" />
-        <KpiBig label="Concluídos" value={kpis.concluidos} icon={CheckCircle2} hint="Entregues" tier="quiet" />
       </div>
 
 
       <Tabs defaultValue="visao" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="visao">Visão geral</TabsTrigger>
+        {/* Mobile: grid de cards (mesmo padrão de Campanhas / CuradorDetail) */}
+        <TabsList className="grid grid-cols-5 gap-1.5 sm:hidden bg-transparent p-0 h-auto">
+          <TabsTrigger
+            value="visao"
+            className="rounded-xl border border-border bg-card px-1 py-2 flex flex-col items-center justify-center gap-1 text-muted-foreground data-[state=active]:border-primary/60 data-[state=active]:bg-primary/10 data-[state=active]:text-foreground data-[state=active]:shadow-none"
+          >
+            <LayoutDashboard className="h-4 w-4" />
+            <span className="text-[11px] font-medium leading-none">Visão</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="musicas"
+            className="rounded-xl border border-border bg-card px-1 py-2 flex flex-col items-center justify-center gap-1 text-muted-foreground data-[state=active]:border-primary/60 data-[state=active]:bg-primary/10 data-[state=active]:text-foreground data-[state=active]:shadow-none"
+          >
+            <Music2 className="h-4 w-4" />
+            <span className="text-[11px] font-medium leading-none">Músicas {kpis.musicas}</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="deals"
+            className="rounded-xl border border-border bg-card px-1 py-2 flex flex-col items-center justify-center gap-1 text-muted-foreground data-[state=active]:border-primary/60 data-[state=active]:bg-primary/10 data-[state=active]:text-foreground data-[state=active]:shadow-none"
+          >
+            <FileText className="h-4 w-4" />
+            <span className="text-[11px] font-medium leading-none">Deals {kpis.deals}</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="campanhas"
+            className="rounded-xl border border-border bg-card px-1 py-2 flex flex-col items-center justify-center gap-1 text-muted-foreground data-[state=active]:border-primary/60 data-[state=active]:bg-primary/10 data-[state=active]:text-foreground data-[state=active]:shadow-none"
+          >
+            <Megaphone className="h-4 w-4" />
+            <span className="text-[11px] font-medium leading-none">Camp. {kpis.campanhas}</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="notas"
+            className="rounded-xl border border-border bg-card px-1 py-2 flex flex-col items-center justify-center gap-1 text-muted-foreground data-[state=active]:border-primary/60 data-[state=active]:bg-primary/10 data-[state=active]:text-foreground data-[state=active]:shadow-none"
+          >
+            <StickyNote className="h-4 w-4" />
+            <span className="text-[11px] font-medium leading-none">Notas</span>
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Desktop: rail clássico */}
+        <TabsList className="hidden sm:inline-flex">
+          <TabsTrigger value="visao" className="gap-1.5"><LayoutDashboard className="h-3.5 w-3.5" /> Visão geral</TabsTrigger>
           <TabsTrigger value="musicas">Músicas <span className="ml-1.5 text-muted-foreground">{kpis.musicas}</span></TabsTrigger>
           <TabsTrigger value="deals">Deals <span className="ml-1.5 text-muted-foreground">{kpis.deals}</span></TabsTrigger>
           <TabsTrigger value="campanhas">Campanhas <span className="ml-1.5 text-muted-foreground">{kpis.campanhas}</span></TabsTrigger>
