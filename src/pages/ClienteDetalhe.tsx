@@ -161,6 +161,30 @@ export default function ClienteDetalhe() {
   });
   const clientCampaigns = useMemo(() => campaignsQuery.data ?? [], [campaignsQuery.data]);
 
+  // Financeiro consolidado: fonte canônica = v_financial_summary.
+  // Não somar manualmente nem ler de curator_deals.cost.
+  const campaignIds = useMemo(() => clientCampaigns.map((c) => c.id), [clientCampaigns]);
+  const financeQuery = useQuery({
+    queryKey: ["client_finance", id, campaignIds.join(",")],
+    enabled: !!id && campaignIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("v_financial_summary" as never)
+        .select("campaign_id, valor_cobrado, valor_recebido, receita_pendente, total_pago_curadores, margem_bruta")
+        .in("campaign_id", campaignIds);
+      if (error) throw error;
+      return (data ?? []) as Array<{
+        campaign_id: string;
+        valor_cobrado: number | null;
+        valor_recebido: number | null;
+        receita_pendente: number | null;
+        total_pago_curadores: number | null;
+        margem_bruta: number | null;
+      }>;
+    },
+  });
+  const financeRows = useMemo(() => financeQuery.data ?? [], [financeQuery.data]);
+
   const client = useMemo(() => clients.find((c) => c.id === id), [clients, id]);
 
   const clientSongs = useMemo(
@@ -184,16 +208,19 @@ export default function ClienteDetalhe() {
   );
 
   const kpis = useMemo(() => {
+    // KPIs operacionais (não financeiros) — derivados de curator_deals.
     const ativos = clientDeals.filter((d) => !d.closed_at).length;
     const concluidos = clientDeals.filter((d) => d.closed_status === "completed").length;
     const cancelados = clientDeals.filter((d) => d.closed_status === "cancelled").length;
-    const investido = clientDeals.reduce((acc, d) => acc + (Number(d.cost) || 0), 0);
-    const receita = clientCampaigns.reduce((acc, c) => acc + (Number(c.valor_recebido) || 0), 0);
-    const saldoPendente = clientCampaigns.reduce(
-      (acc, c) => acc + Math.max(0, (Number(c.valor_cobrado) || 0) - (Number(c.valor_recebido) || 0)),
-      0,
-    );
-    const margem = receita - investido;
+
+    // KPIs financeiros — fonte ÚNICA: v_financial_summary (agregada por campanha).
+    const sum = (k: "valor_cobrado" | "valor_recebido" | "receita_pendente" | "margem_bruta") =>
+      financeRows.reduce((acc, r) => acc + (Number(r[k]) || 0), 0);
+    const investido = sum("valor_cobrado");
+    const receita = sum("valor_recebido");
+    const saldoPendente = sum("receita_pendente");
+    const margem = sum("margem_bruta");
+
     return {
       musicas: clientSongs.length,
       deals: clientDeals.length,
@@ -206,7 +233,8 @@ export default function ClienteDetalhe() {
       saldoPendente,
       campanhas: clientCampaigns.length,
     };
-  }, [clientDeals, clientSongs, clientCampaigns]);
+  }, [clientDeals, clientSongs, clientCampaigns, financeRows]);
+
 
   if (loadingClients && !client) {
     return (
