@@ -187,24 +187,30 @@ export default function ClienteDetalhe() {
 
   const client = useMemo(() => clients.find((c) => c.id === id), [clients, id]);
 
-  const clientSongs = useMemo(
-    () => songs.filter((s) => s.client_id === id),
-    [songs, id],
-  );
   const dealById = useMemo(() => {
     const m = new Map<string, (typeof deals)[number]>();
     for (const d of deals) m.set(d.id, d);
     return m;
   }, [deals]);
 
-  const clientDealIds = useMemo(() => {
-    const set = new Set<string>();
-    for (const s of clientSongs) set.add(s.deal_id);
-    return set;
-  }, [clientSongs]);
+  // Pós-refactor 1:N: um cliente pode ter deals por dois caminhos —
+  //  (a) LEGADO: curator_deal_songs.client_id (1 deal → 1 cliente direto)
+  //  (b) NOVO:   curator_deals.campaign_id → campaigns.client_id (campanha agrega N deals)
+  // Precisamos somar ambos, senão deals novos somem da tela de Cliente.
+  const campaignIdSet = useMemo(() => new Set(campaignIds), [campaignIds]);
   const clientDeals = useMemo(
-    () => deals.filter((d) => clientDealIds.has(d.id)),
-    [deals, clientDealIds],
+    () =>
+      deals.filter(
+        (d) =>
+          (d.campaign_id && campaignIdSet.has(d.campaign_id)) ||
+          songs.some((s) => s.deal_id === d.id && s.client_id === id),
+      ),
+    [deals, songs, campaignIdSet, id],
+  );
+  const clientDealIds = useMemo(() => new Set(clientDeals.map((d) => d.id)), [clientDeals]);
+  const clientSongs = useMemo(
+    () => songs.filter((s) => s.client_id === id || clientDealIds.has(s.deal_id)),
+    [songs, id, clientDealIds],
   );
 
   const kpis = useMemo(() => {
