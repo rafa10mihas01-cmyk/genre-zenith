@@ -101,6 +101,11 @@ interface Props {
   onArchiveCurator?: (curatorId: string, archive?: boolean) => Promise<void>;
   onDeleteCurator?: (curatorId: string) => Promise<void>;
   onPauseCurator?: (curatorId: string, pause?: boolean) => Promise<void>;
+  /** Quando o botão "+ Novo curador" é renderizado pelo pai (ex.: PageHeader), oculta o da toolbar interna. */
+  hideAddButton?: boolean;
+  /** Controle externo do dialog de criação (opcional). */
+  creatingOpen?: boolean;
+  onCreatingOpenChange?: (open: boolean) => void;
 }
 
 export function CuradoresLibraryTab({
@@ -114,11 +119,19 @@ export function CuradoresLibraryTab({
   onArchiveCurator,
   onDeleteCurator,
   onPauseCurator,
+  hideAddButton,
+  creatingOpen,
+  onCreatingOpenChange,
 }: Props) {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<Curator | null>(null);
-  const [creating, setCreating] = useState(false);
+  const [internalCreating, setInternalCreating] = useState(false);
+  const creating = creatingOpen ?? internalCreating;
+  const setCreating = (open: boolean) => {
+    if (onCreatingOpenChange) onCreatingOpenChange(open);
+    else setInternalCreating(open);
+  };
   const [showArchived, setShowArchived] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ curator: Curator; hasDeals: boolean } | null>(null);
 
