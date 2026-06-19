@@ -159,17 +159,17 @@ export default function Analytics() {
           />
           <Kpi
             icon={Zap}
-            label="Plays entregues (7d)"
-            value={plays7d.toLocaleString("pt-BR")}
-            hint="Janela curta — ritmo recente"
+            label="Entregue (total)"
+            value={totalDeliveredAll.toLocaleString("pt-BR")}
+            hint="delivery_accumulated agregado"
             domain="campaigns"
             loading={loading}
           />
           <Kpi
             icon={TrendingUp}
-            label="Média diária (30d)"
+            label="Atividade média (30d)"
             value={dailyAvg30d.toLocaleString("pt-BR")}
-            hint={`${plays30d.toLocaleString("pt-BR")} no período`}
+            hint={`${days30Activity.toLocaleString("pt-BR")} plays_7d no período`}
             domain="playlists"
             loading={loading}
           />
