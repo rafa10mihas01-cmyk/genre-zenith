@@ -95,7 +95,7 @@ const STATUS_LABEL: Record<ServerStatus, string> = {
   duplicate: "já existia no deal",
   duplicate_in_payload: "repetida na lista",
   baseline_blocked: "já estava na baseline (antes do deal)",
-  campaign_baseline_blocked: "conflito de baseline da campanha",
+  campaign_baseline_blocked: "já fazia parte da baseline oficial da campanha",
   baseline_conflict: "música já existia antes da campanha",
   awaiting_baseline: "campanha aguardando baseline",
   track_already_present: "já contém a música",

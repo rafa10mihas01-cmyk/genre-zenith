@@ -388,14 +388,25 @@ Deno.serve(async (req) => {
           item.status = "awaiting_baseline";
           continue;
         }
-        // 2026-06-16: gate de baseline_conflict (campanha) REMOVIDO a pedido.
-        // Regra atual:
-        //  - bloqueia se a playlist já existe em OUTRO deal da MESMA campanha
-        //    (campaignExistingIds) → status "duplicate_in_campaign".
-        //  - bloqueia se já registrada nesse mesmo deal+música (existingIds).
-        //  - existência em outras campanhas / deals independentes NÃO bloqueia.
+        // 2026-06-19: gate prospectivo de baseline OFICIAL da campanha REATIVADO.
+        // Regra de negócio: depois que a baseline oficial é registrada, ela é
+        // definitiva. Playlist que já constava nessa baseline NÃO pode ser
+        // cadastrada como entrega — bloqueio imediato no momento do cadastro.
+        // Mudança é PROSPECTIVA: histórico de campanhas antigas (ex.: Carnívoro)
+        // não é tocado. O gate só dispara em cadastros novos, daqui pra frente.
+        //
+        // Demais gates:
+        //  - playlist já existe em OUTRO deal da MESMA campanha → duplicate_in_campaign
+        //  - já registrada nesse mesmo deal+música → duplicate
+        //  - baseline do roster interno do curador → baseline_blocked
         if (campaignExistingIds.has(pid)) {
           item.status = "duplicate_in_campaign";
+          continue;
+        }
+        if (campaignBaselineIds.has(pid)) {
+          // Bloqueio prospectivo: a música já estava nessa playlist quando a
+          // baseline oficial da campanha foi registrada. Não conta como entrega.
+          item.status = "campaign_baseline_blocked";
           continue;
         }
         if (baselineIds.has(pid)) {
