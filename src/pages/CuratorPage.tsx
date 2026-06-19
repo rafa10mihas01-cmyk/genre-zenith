@@ -1694,44 +1694,11 @@ export default function CuratorPage() {
               </div>
             </div>
 
-            <Separator className="bg-border" />
-
-            <div className="grid grid-cols-2 gap-4 text-[12px]">
-              <div>
-                <div className="text-muted-foreground uppercase tracking-wider text-[11px]">Início</div>
-                <div className="text-foreground font-medium mt-1.5 text-[13px]">
-                  {formatDate(deal.started_at ?? deal.created_at)}
-                </div>
+            {stats.isOverdue && (
+              <div className="text-[11px] text-warning leading-snug">
+                Aguardando relatório do ciclo que fechou em {formatShortDate(stats.cycleStart)} 17h.
               </div>
-              <div>
-                <div className="text-muted-foreground uppercase tracking-wider text-[11px]">Plays iniciais</div>
-                <div className="text-foreground font-medium tabular-nums mt-1.5 text-[13px]">
-                  {formatPlays(stats.baseline)}
-                </div>
-              </div>
-            </div>
-
-            <div className="nx-subcard p-4 space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <div className="text-muted-foreground uppercase tracking-wider text-[11px]">
-                  Último snapshot
-                </div>
-                <div className="text-[11px] text-muted-foreground tabular-nums">
-                  {stats.lastCaptureAt ? formatDateTime(stats.lastCaptureAt) : "—"}
-                </div>
-              </div>
-              <div className="flex items-center justify-between gap-2 text-[12px]">
-                <span className="text-muted-foreground">Primeiro snapshot</span>
-                <span className="text-foreground font-medium tabular-nums">
-                  {stats.firstCaptureAt ? formatDateTime(stats.firstCaptureAt) : "—"}
-                </span>
-              </div>
-              {stats.isOverdue && (
-                <div className="text-[11px] text-warning leading-snug pt-1">
-                  Aguardando relatório do ciclo que fechou em {formatShortDate(stats.cycleStart)} 17h.
-                </div>
-              )}
-            </div>
+            )}
           </CardContent>
         </Card>
         )}
