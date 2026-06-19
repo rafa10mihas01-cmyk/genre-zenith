@@ -74,17 +74,31 @@ export function useFinancialOverview() {
   const { user } = useAuth();
   const qc = useQueryClient();
 
-  const summaryQuery = useQuery({
-    queryKey: ["financial-summary"],
-    enabled: !!user,
-    staleTime: 60_000,
-    placeholderData: keepPreviousData,
-    queryFn: async () => {
-      const { data, error } = await supabase.from("v_financial_summary").select("*").limit(1000);
-      if (error) throw error;
-      return (data ?? []) as FinancialSummaryRow[];
-    },
-  });
+  // Fase 14.1: receita/custo/margem por campanha vêm do overview consolidado.
+  const overviewQuery = useCockpitOverview();
+  const overviewCampaigns = useMemo(() => overviewQuery.data?.campaigns ?? [], [overviewQuery.data]);
+  const overviewTotals = overviewQuery.data?.totals;
+
+  // Adapter: mantém a shape FinancialSummaryRow para os consumidores existentes.
+  const summary = useMemo<FinancialSummaryRow[]>(
+    () =>
+      overviewCampaigns.map((c) => ({
+        campaign_id: c.campaign_id,
+        track_name: c.track_name,
+        artist: c.artist,
+        campaign_status: c.status,
+        valor_cobrado: c.contratado,
+        valor_recebido: c.recebido,
+        receita_pendente: c.pendente,
+        total_pago_curadores: c.custo_operacional,
+        margem_bruta: c.margem_prevista,
+        margem_pct: c.margem_pct,
+        num_deals: c.deals_total,
+        created_at: c.created_at,
+      })),
+    [overviewCampaigns],
+  );
+  const summaryQuery = overviewQuery; // mantém compat com flags de loading
 
   const byCuratorQuery = useQuery({
     queryKey: ["financial-by-curator"],
