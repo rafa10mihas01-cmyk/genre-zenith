@@ -1694,44 +1694,11 @@ export default function CuratorPage() {
               </div>
             </div>
 
-            <Separator className="bg-border" />
-
-            <div className="grid grid-cols-2 gap-4 text-[12px]">
-              <div>
-                <div className="text-muted-foreground uppercase tracking-wider text-[11px]">Início</div>
-                <div className="text-foreground font-medium mt-1.5 text-[13px]">
-                  {formatDate(deal.started_at ?? deal.created_at)}
-                </div>
+            {stats.isOverdue && (
+              <div className="text-[11px] text-warning leading-snug">
+                Aguardando relatório do ciclo que fechou em {formatShortDate(stats.cycleStart)} 17h.
               </div>
-              <div>
-                <div className="text-muted-foreground uppercase tracking-wider text-[11px]">Plays iniciais</div>
-                <div className="text-foreground font-medium tabular-nums mt-1.5 text-[13px]">
-                  {formatPlays(stats.baseline)}
-                </div>
-              </div>
-            </div>
-
-            <div className="nx-subcard p-4 space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <div className="text-muted-foreground uppercase tracking-wider text-[11px]">
-                  Último snapshot
-                </div>
-                <div className="text-[11px] text-muted-foreground tabular-nums">
-                  {stats.lastCaptureAt ? formatDateTime(stats.lastCaptureAt) : "—"}
-                </div>
-              </div>
-              <div className="flex items-center justify-between gap-2 text-[12px]">
-                <span className="text-muted-foreground">Primeiro snapshot</span>
-                <span className="text-foreground font-medium tabular-nums">
-                  {stats.firstCaptureAt ? formatDateTime(stats.firstCaptureAt) : "—"}
-                </span>
-              </div>
-              {stats.isOverdue && (
-                <div className="text-[11px] text-warning leading-snug pt-1">
-                  Aguardando relatório do ciclo que fechou em {formatShortDate(stats.cycleStart)} 17h.
-                </div>
-              )}
-            </div>
+            )}
           </CardContent>
         </Card>
         )}
@@ -2141,13 +2108,13 @@ export default function CuratorPage() {
             )}
             <div>
 
-              <h2 className="text-[15px] font-semibold tracking-tight">Adicionar playlist</h2>
-              <p className="text-[12px] text-muted-foreground mt-1.5 leading-snug">
+              <h2 className="text-[15px] font-semibold tracking-tight text-foreground">Adicionar playlist</h2>
+              <p className="text-[11.5px] text-subtle-foreground mt-1 leading-snug">
                 {playlistSongRequired
                   ? "Selecione a música da campanha antes de adicionar a playlist"
                   : selectedSong
                     ? `Playlist será vinculada em ${selectedSong.song_name}`
-                    : "Cole o link de uma playlist do Spotify ou importe um lote em planilha"}
+                    : "Cole o link de uma playlist do Spotify ou importe em lote"}
               </p>
             </div>
             {hasMultipleSongs && (
@@ -2204,21 +2171,29 @@ export default function CuratorPage() {
                 })}
               </div>
             )}
-            <Input
-              placeholder="https://open.spotify.com/playlist/..."
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              disabled={submitting || importing}
-              className="h-10 text-[14px] px-4 rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border/50 border-0 focus-visible:ring-2 focus-visible:ring-primary/40"
-            />
             <div className="space-y-1.5">
+              <label className="text-[10px] font-medium uppercase tracking-wider text-subtle-foreground px-1">
+                Link da playlist
+              </label>
+              <Input
+                placeholder="https://open.spotify.com/playlist/…"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                disabled={submitting || importing}
+                className="h-10 text-[14px] px-4 rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border/50 border-0 focus-visible:ring-2 focus-visible:ring-primary/40 placeholder:text-subtle-foreground/70"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-medium uppercase tracking-wider text-subtle-foreground px-1">
+                Posição na playlist <span className="text-subtle-foreground/60 normal-case font-normal tracking-normal">· opcional</span>
+              </label>
               <Select
                 value={position || undefined}
                 onValueChange={(v) => setPosition(v)}
                 disabled={submitting || importing}
               >
-                <SelectTrigger className="h-10 text-[14px] px-4 rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border/50 border-0 focus:ring-2 focus:ring-primary/40">
-                  <SelectValue placeholder="Posição na playlist (opcional)" />
+                <SelectTrigger className="h-10 text-[14px] px-4 rounded-xl bg-[hsl(var(--elevated))] ring-1 ring-border/50 border-0 focus:ring-2 focus:ring-primary/40 [&>span]:text-subtle-foreground/70 data-[state=open]:[&>span]:text-foreground data-[placeholder]:[&>span]:text-subtle-foreground/70">
+                  <SelectValue placeholder="Selecionar posição" />
                 </SelectTrigger>
                 <SelectContent className="max-h-[280px]">
                   {Array.from({ length: 100 }, (_, i) => i + 1).map((n) => (
@@ -2228,9 +2203,6 @@ export default function CuratorPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-[11px] text-muted-foreground/80 px-1">
-                Em que posição a música está dentro da playlist (1 = primeira)
-              </p>
             </div>
             <Button
               onClick={handleAdd}
