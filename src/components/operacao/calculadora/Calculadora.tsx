@@ -419,8 +419,9 @@ export function Calculadora({ onContinue, prefillSpotifyTrackId }: { onContinue?
         .from("campaign_eco_allocations")
         .select("managed_playlist_id, position, campaigns!inner(status, created_at)")
         .or(`status.eq.active,and(status.eq.draft,created_at.gte.${reservationCutoffIso})`, { foreignTable: "campaigns" });
+      type ReservedRow = { managed_playlist_id: string; position: number | null };
       const reservedKeys = new Set<string>(
-        ((reservedRows ?? []) as any[])
+        ((reservedRows ?? []) as ReservedRow[])
           .filter(r => Number.isFinite(r.position))
           .map(r => `${r.managed_playlist_id}:${r.position}`),
       );
