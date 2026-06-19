@@ -89,13 +89,15 @@ export function MonitoramentoTab({ campaignId, headerSlot, spreadsheetUploads }:
     if (!campaignId) return;
     setRunsLoading(true);
     (async () => {
-      const { data: campaign } = await supabase
-        .from("campaigns")
-        .select("deal_id")
-        .eq("id", campaignId)
-        .maybeSingle();
-      const officialDealId = (campaign as { deal_id?: string | null } | null)?.deal_id ?? null;
-      if (!officialDealId) {
+      // (2026-06-19) Itera TODOS os curator_deals da campanha (1:N safe).
+      // Antes filtrava só por campaigns.deal_id, escondendo prints de curadores
+      // secundários (ex.: Manolo na campanha do Plug Music).
+      const { data: dealRows } = await supabase
+        .from("curator_deals")
+        .select("id")
+        .eq("campaign_id", campaignId);
+      const allDealIds = ((dealRows ?? []) as Array<{ id: string }>).map((d) => d.id);
+      if (allDealIds.length === 0) {
         setRuns([]);
         setRunsLoading(false);
         return;
@@ -103,7 +105,7 @@ export function MonitoramentoTab({ campaignId, headerSlot, spreadsheetUploads }:
       const { data } = await supabase
         .from("bot_print_batches")
         .select("id, created_at, completed_at, print_urls, total_parts, status, error")
-        .eq("deal_id", officialDealId)
+        .in("deal_id", allDealIds)
         .is("superseded_by", null)
         .in("status", ["complete", "processed", "error"])
         .order("created_at", { ascending: true })

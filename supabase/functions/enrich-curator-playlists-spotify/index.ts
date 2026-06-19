@@ -67,11 +67,14 @@ Deno.serve(async (req) => {
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    // Resolve deal_id se veio campaign_id
-    let effectiveDealId = dealId;
-    if (!effectiveDealId && campaignId) {
-      const { data: c } = await admin.from("campaigns").select("deal_id").eq("id", campaignId).maybeSingle();
-      effectiveDealId = (c as any)?.deal_id ?? null;
+    // Resolve deal_ids se veio campaign_id (1:N safe — pode haver vários deals).
+    let effectiveDealIds: string[] = effectiveDealId ? [effectiveDealId] : [];
+    if (effectiveDealIds.length === 0 && campaignId) {
+      const { data: dealRows } = await admin
+        .from("curator_deals")
+        .select("id")
+        .eq("campaign_id", campaignId);
+      effectiveDealIds = ((dealRows ?? []) as Array<{ id: string }>).map((d) => d.id);
     }
 
     // Carrega curator_playlists alvo
@@ -83,8 +86,8 @@ Deno.serve(async (req) => {
       .eq("spotify_dead", false);
     if (onlyIds && onlyIds.length > 0) {
       q = q.in("spotify_playlist_id", onlyIds);
-    } else if (effectiveDealId) {
-      q = q.eq("deal_id", effectiveDealId);
+    } else if (effectiveDealIds.length > 0) {
+      q = q.in("deal_id", effectiveDealIds);
     } else {
       return jr({ ok: false, error: "Informe deal_id, campaign_id ou spotify_playlist_ids" }, 400);
     }
