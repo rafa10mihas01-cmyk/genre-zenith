@@ -86,10 +86,10 @@ export function CampaignAccessGate({ token, onAuthed }: Props) {
       body: { token, email: email.trim().toLowerCase(), code: code.trim() },
     });
     setLoading(false);
-    let e: string | undefined = (data as any)?.error;
+    let e: string | undefined = (data as { error?: string } | null)?.error;
     if (!e && error) {
       try {
-        const ctx: any = (error as any).context;
+        const ctx = (error as { context?: { json?: () => Promise<{ error?: string }> } }).context;
         if (ctx && typeof ctx.json === "function") {
           const body = await ctx.json();
           e = body?.error;
