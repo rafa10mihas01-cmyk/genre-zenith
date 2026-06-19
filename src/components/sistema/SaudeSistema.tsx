@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   CheckCircle2, AlertTriangle, Loader2, Music2, Database, Activity,
   Handshake, RefreshCw, Bell,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
