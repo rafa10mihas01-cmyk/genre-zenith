@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
       return jr({
         ok: false, error: "invalid_input",
         message: "Envie um Spotify track ID (22 chars), URI (spotify:track:...) ou URL (open.spotify.com/track/...).",
-      }, 400);
+      }, 200);
     }
 
     const token = await getAppToken();
