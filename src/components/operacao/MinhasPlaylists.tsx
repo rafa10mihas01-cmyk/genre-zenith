@@ -1586,15 +1586,15 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         {/* Estado: alterna Ativas/Lixeira. Contagens já aparecem nos cards de fase acima — evitar duplicar. */}
         <div className="sm:ml-auto flex items-center gap-1.5 shrink-0">
           {/* Apps Spotify bloqueados — botão circular igual à régua de ações (mobile: só ícone + badge). */}
-          {!showArchived && !showCapacity && blockedRows.length > 0 && (
+          {!showArchived && !showCapacity && blockedApps.length > 0 && (
             <Tooltip delayDuration={150}>
               <TooltipTrigger asChild>
                 <button
                   type="button"
                   onClick={() => setFilterAppBlocked(!filterAppBlocked)}
                   aria-pressed={filterAppBlocked}
-                  aria-label={`Apps bloqueados (${blockedRows.length})`}
-                  title={`Apps bloqueados (${blockedRows.length})`}
+                  aria-label={`Apps bloqueados (${blockedApps.length})`}
+                  title={`Apps bloqueados (${blockedApps.length})`}
                   className={cn(
                     "relative h-9 w-9 sm:w-auto sm:px-3 rounded-full text-[11px] sm:text-xs font-medium border transition-colors tabular-nums shrink-0 inline-flex items-center justify-center gap-1.5",
                     filterAppBlocked
@@ -1603,24 +1603,41 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                   )}
                 >
                   <AlertCircle className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
-                  <span className="hidden sm:inline">Apps bloqueados ({blockedRows.length})</span>
+                  <span className="hidden sm:inline">
+                    {blockedApps.length} app{blockedApps.length === 1 ? "" : "s"} bloqueado{blockedApps.length === 1 ? "" : "s"}
+                  </span>
                   <span
                     aria-hidden
                     className="sm:hidden absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-destructive text-[10px] font-bold leading-none text-destructive-foreground inline-flex items-center justify-center tabular-nums"
                   >
-                    {blockedRows.length}
+                    {blockedApps.length}
                   </span>
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-[280px] text-[12px] leading-snug">
-                <div className="font-semibold">{blockedAppName ?? "App Spotify"} bloqueado</div>
-                {blockedUntil && (
+              <TooltipContent side="bottom" className="max-w-[320px] text-[12px] leading-snug">
+                <div className="font-semibold">
+                  {blockedApps.length === 1 ? `${blockedAppName ?? "App Spotify"} bloqueado` : `${blockedApps.length} apps bloqueados`}
+                </div>
+                {blockedApps.length === 1 && blockedUntil && (
                   <div className="text-muted-foreground mt-0.5">
                     Até {new Date(blockedUntil).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
                   </div>
                 )}
+                {blockedApps.length > 1 && (
+                  <ul className="mt-1 space-y-0.5 text-muted-foreground">
+                    {blockedApps.slice(0, 4).map((a) => (
+                      <li key={a.app_id}>
+                        <span className="text-foreground">{a.app_name}</span>
+                        {a.blocked_until && ` · até ${new Date(a.blocked_until).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`}
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 <div className="text-muted-foreground mt-1">
                   {blockedRows.length} playlist{blockedRows.length === 1 ? "" : "s"} afetada{blockedRows.length === 1 ? "" : "s"}. Toque pra filtrar.
+                </div>
+                <div className="text-[10px] text-muted-foreground mt-1 italic">
+                  Bloqueios de enriquecimento de catálogo NÃO aparecem aqui.
                 </div>
               </TooltipContent>
             </Tooltip>
