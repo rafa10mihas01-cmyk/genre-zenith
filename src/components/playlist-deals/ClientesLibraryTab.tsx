@@ -74,27 +74,38 @@ type ClientSongRow = CuratorDealSong & {
   smartlink_url?: string | null;
 };
 
-export type ClientFinanceEntry = {
-  cobrado: number;
-  recebido: number;
-  pendente: number;
-  count: number;
+export type ClientCampaignRow = {
+  id: string;
+  client_id: string | null;
+  status: string | null;
+  closed_at: string | null;
+  created_at: string;
+  updated_at?: string | null;
+  track_name?: string | null;
+  deal_id?: string | null;
 };
-export type ClientFinanceMap = Map<string, ClientFinanceEntry>;
+export type ClientCampaignsMap = Map<string, ClientCampaignRow[]>;
 
 type StatusFilter = "all" | "active" | "idle" | "archived";
-type SortBy = "activity" | "invested" | "revenue" | "alpha";
+type SortBy = "activity" | "alpha";
 
-const EMPTY_FIN: ClientFinanceEntry = { cobrado: 0, recebido: 0, pendente: 0, count: 0 };
-const formatBRLShort = (v: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v);
+const CLOSED_CAMPAIGN_STATUSES = new Set([
+  "completed",
+  "cancelled",
+  "canceled",
+  "archived",
+  "closed",
+]);
+const isCampaignClosed = (c: ClientCampaignRow) =>
+  !!c.closed_at || CLOSED_CAMPAIGN_STATUSES.has((c.status ?? "").toLowerCase());
 
 interface Props {
   deals: CuratorDeal[];
   songs: ClientSongRow[];
   loading: boolean;
-  financeByClient?: ClientFinanceMap;
+  campaignsByClient?: ClientCampaignsMap;
 }
+
 
 export function ClientesLibraryTab({ deals, songs, loading, financeByClient }: Props) {
   const navigate = useNavigate();
