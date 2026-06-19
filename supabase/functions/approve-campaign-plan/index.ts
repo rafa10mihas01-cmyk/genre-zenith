@@ -802,6 +802,14 @@ Deno.serve(async (req) => {
       .from("curator_deal_songs")
       .update({ auto_collect: true, next_auto_collect_at: new Date().toISOString() })
       .eq("deal_id", newDealId);
+
+    // Promove demais deals da mesma campanha (multi-curador / external package).
+    await admin
+      .from("curator_deals")
+      .update({ state: "active" })
+      .eq("campaign_id", campaignId)
+      .neq("id", newDealId)
+      .in("state", ["collecting", "awaiting_baseline"]);
   }
 
   // 9) Não semeia playlists planejadas como baseline. A baseline correta vem
