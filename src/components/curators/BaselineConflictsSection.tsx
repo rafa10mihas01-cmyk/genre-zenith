@@ -196,9 +196,6 @@ export function BaselineConflictsSection({
                 )}
               </div>
 
-              <p className="text-[11px] text-muted-foreground leading-relaxed pt-0.5">
-                {c.reason}
-              </p>
             </div>
 
             <div className="flex-shrink-0">
