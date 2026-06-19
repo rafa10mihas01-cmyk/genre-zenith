@@ -2539,7 +2539,30 @@ export default function CuratorPage() {
                                 </div>
                               )}
                             </div>
+                            {matchedUpload && (
+                              <button
+                                type="button"
+                                onClick={async (e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  try {
+                                    await downloadUploadUrlAsXlsx({
+                                      signedUrl: matchedUpload.download_url!,
+                                      fileName: matchedUpload.file_name,
+                                      referenceDate: matchedUpload.reference_date,
+                                    });
+                                  } catch (err) {
+                                    toast.error(err instanceof Error ? err.message : "Falha ao baixar planilha");
+                                  }
+                                }}
+                                title="Baixar planilha desta coleta"
+                                className="shrink-0 inline-flex items-center gap-1 rounded-md border border-border/60 bg-card/40 px-2 py-1 text-[11px] text-primary hover:bg-[hsl(var(--hover))] hover:border-primary/40 transition-colors"
+                              >
+                                <Download className="h-3.5 w-3.5" /> Baixar
+                              </button>
+                            )}
                             <ChevronRight className="snapchev h-4 w-4 text-muted-foreground shrink-0 transition-transform ml-1" />
+
                           </summary>
 
                           <div className="border-t border-border/60 px-4 py-4 bg-[hsl(var(--background))]/40 space-y-4">
