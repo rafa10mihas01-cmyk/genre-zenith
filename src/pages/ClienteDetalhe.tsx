@@ -665,98 +665,13 @@ export default function ClienteDetalhe() {
 
           {/* Linha 3 — Campanhas (card por campanha) */}
           {clientCampaigns.length > 0 && (
-            <div className={cn("grid gap-3", clientCampaigns.length === 1 ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
-              {clientCampaigns.map((c) => {
-                const agg = campaignAggregates.get(c.id);
-                const cobrado = Number(c.valor_cobrado) || 0;
-                const recebido = Number(c.valor_recebido) || 0;
-                const pendente = Math.max(0, cobrado - recebido);
-                const dealsTotal = agg?.deals ?? 0;
-                const dealsConcluidos = agg?.dealsConcluidos ?? 0;
-                const progresso = dealsTotal > 0 ? Math.round((dealsConcluidos / dealsTotal) * 100) : 0;
-                const entrega = cobrado > 0 ? Math.min(100, Math.round((recebido / cobrado) * 100)) : 0;
-                const statusLabel = c.status === "active" ? "Ativa"
-                  : c.status === "completed" ? "Concluída"
-                  : c.status === "paused" ? "Pausada"
-                  : c.status === "cancelled" ? "Cancelada"
-                  : c.status === "draft" ? "Rascunho"
-                  : c.status;
-                const statusCls = c.status === "active" ? "bg-primary/15 text-primary border-primary/30"
-                  : c.status === "completed" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                  : c.status === "cancelled" ? "bg-muted/40 text-muted-foreground border-border"
-                  : "bg-muted/30 text-foreground/70 border-border";
-                const inicio = format(new Date(c.created_at), "dd MMM", { locale: ptBR });
-                const fim = c.deadline ? format(new Date(c.deadline), "dd MMM", { locale: ptBR }) : null;
-                const href = c.snapshot_locked_at ? `/campanhas/${c.id}/execucao` : `/campanhas/${c.id}`;
-                return (
-                  <Link key={c.id} to={href} className="block group">
-                    <Card className="hover:border-foreground/30 transition-colors">
-                      <CardContent className="p-4 sm:p-5 space-y-3.5">
-                        <div className="flex items-start justify-between gap-3 min-w-0">
-                          <div className="min-w-0 flex-1">
-                            <div className="text-sm font-semibold truncate group-hover:text-primary transition-colors">{c.track_name}</div>
-                            <div className="text-[11px] text-muted-foreground truncate">
-                              {c.artist || "—"}
-                              {c.campaign_type && <> · {c.campaign_type}</>}
-                              <> · {inicio}{fim ? ` → ${fim}` : ""}</>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <span className={cn("inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-full border", statusCls)}>
-                              {statusLabel}
-                            </span>
-                            <ExternalLink className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
-                          </div>
-                        </div>
-
-                        {/* Progresso operacional */}
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between text-[11px]">
-                            <span className="text-muted-foreground">Progresso operacional</span>
-                            <span className="tabular-nums font-medium">{dealsConcluidos}/{dealsTotal} · {progresso}%</span>
-                          </div>
-                          <div className="h-1.5 rounded-full bg-elevated overflow-hidden">
-                            <div className="h-full bg-primary/70 transition-all" style={{ width: `${progresso}%` }} />
-                          </div>
-                        </div>
-
-                        {/* Entrega financeira */}
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between text-[11px]">
-                            <span className="text-muted-foreground">Entrega financeira</span>
-                            <span className="tabular-nums font-medium">{entrega}%</span>
-                          </div>
-                          <div className="h-1.5 rounded-full bg-elevated overflow-hidden">
-                            <div className="h-full bg-emerald-500/70 transition-all" style={{ width: `${entrega}%` }} />
-                          </div>
-                        </div>
-
-                        {/* Métricas em linha — 2 cols no mobile, 4 no desktop */}
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
-                          <div className="min-w-0">
-                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Curadores</div>
-                            <div className="text-sm font-semibold tabular-nums">{agg?.curadores ?? 0}</div>
-                          </div>
-                          <div className="min-w-0">
-                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Deals ativos</div>
-                            <div className="text-sm font-semibold tabular-nums">{agg?.dealsAtivos ?? 0}</div>
-                          </div>
-                          <div className="min-w-0">
-                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Meta</div>
-                            <div className="text-sm font-semibold tabular-nums truncate">{formatBRLHero(cobrado)}</div>
-                          </div>
-                          <div className="min-w-0">
-                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Pendente</div>
-                            <div className={cn("text-sm font-semibold tabular-nums truncate", pendente > 0 ? "text-warning" : "text-muted-foreground")}>{formatBRLHero(pendente)}</div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                );
-              })}
+            <div className={cn("grid gap-3", clientCampaigns.length === 1 ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4")}>
+              {clientCampaigns.map((c) => (
+                <CampaignCard key={c.id} c={c} agg={campaignAggregates.get(c.id)} />
+              ))}
             </div>
           )}
+
 
           {/* Linha 4 — Timeline + Linha 5 — Contato lado a lado */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
