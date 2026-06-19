@@ -426,7 +426,7 @@ export default function ClienteDetalhe() {
 
             <Card>
               <CardContent className="p-5">
-                <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-2">Perfil & Comercial</div>
+                <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-3">Perfil & Comercial</div>
                 <div className="divide-y divide-border/40">
                   <InfoRow icon={Music2} label="Gênero principal" value={client.primary_genre} />
                   <InfoRow
@@ -447,7 +447,7 @@ export default function ClienteDetalhe() {
           {client.notes && (
             <Card>
               <CardContent className="p-5">
-                <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-2">Observações</div>
+                <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-3">Observações</div>
                 <p className="text-sm text-foreground whitespace-pre-wrap">{client.notes}</p>
               </CardContent>
             </Card>
