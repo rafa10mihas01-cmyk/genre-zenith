@@ -384,6 +384,8 @@ export default function CuratorPage() {
   const [songs, setSongs] = useState<DealSong[]>([]);
   const [progress, setProgress] = useState<DealProgress | null>(null);
   const [snapshotHistory, setSnapshotHistory] = useState<SnapshotHistoryEntry[]>([]);
+  // FASE 13.0 — has_baseline server-side (deriva de CPC).
+  const [serverHasBaseline, setServerHasBaseline] = useState<boolean | null>(null);
   const [access, setAccess] = useState<{ writable: boolean; code?: string; reason?: string }>({ writable: true });
   const [campaignContext, setCampaignContext] = useState<{
     is_campaign_shadow: boolean;
