@@ -195,7 +195,7 @@ export function useFinancialOverview() {
         () => {
           qc.invalidateQueries({ queryKey: ["financial-purchases"] });
           qc.invalidateQueries({ queryKey: ["financial-unallocated"] });
-          qc.invalidateQueries({ queryKey: ["financial-summary"] });
+          qc.invalidateQueries({ queryKey: ["overview"] });
           qc.invalidateQueries({ queryKey: ["financial-by-curator"] });
           qc.invalidateQueries({ queryKey: ["financial-global-totals"] });
         },
@@ -205,7 +205,7 @@ export function useFinancialOverview() {
         { event: "*", schema: "public", table: "curator_deals" },
         () => {
           qc.invalidateQueries({ queryKey: ["financial-deals"] });
-          qc.invalidateQueries({ queryKey: ["financial-summary"] });
+          qc.invalidateQueries({ queryKey: ["overview"] });
         },
       )
       .subscribe();
