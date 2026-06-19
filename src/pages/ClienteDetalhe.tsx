@@ -407,24 +407,23 @@ export default function ClienteDetalhe() {
 
 
 
-      {/* KPIs — hierarquia cockpit. Receita (hero) · Margem · Saldo em aberto · operacionais */}
-      {/* "Concluídos" removido: redundante com "Ativos" (mesmo eixo de deals) e raramente populado */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 pt-4 mb-6">
+      {/* Linha 1 — KPIs Financeiros (fonte canônica: v_financial_summary) */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 pt-4 mb-4">
         <KpiBig
-          label="Receita"
-          value={formatBRLHero(kpis.receita)}
-          icon={CreditCard}
-          hint="Pago pelo cliente"
+          label="Valor contratado"
+          value={formatBRLHero(kpis.investido)}
+          icon={FileText}
+          hint={`${kpis.campanhas} campanha${kpis.campanhas === 1 ? "" : "s"}`}
           tier="hero"
           domain="clients"
         />
         <KpiBig
-          label="Margem"
-          value={formatBRLHero(kpis.margem)}
-          icon={CheckCircle2}
-          hint="Receita − custo de deals"
-          tone={kpis.margem >= 0 ? "primary" : "warning"}
-          domain="campaigns"
+          label="Valor recebido"
+          value={formatBRLHero(kpis.receita)}
+          icon={CreditCard}
+          hint="Pago pelo cliente"
+          tone="primary"
+          domain="clients"
         />
         <KpiBig
           label="Saldo em aberto"
@@ -434,10 +433,23 @@ export default function ClienteDetalhe() {
           tone={kpis.saldoPendente > 0 ? "warning" : undefined}
           domain="campaigns"
         />
-        <KpiBig label="Investido" value={formatBRLHero(kpis.investido)} icon={CreditCard} hint={`Custo em ${kpis.deals} deal${kpis.deals === 1 ? "" : "s"}`} domain="deals" />
-        <KpiBig label="Ativos" value={kpis.ativos} icon={CheckCircle2} hint="Deals em andamento" tone="primary" domain="deals" />
-        <KpiBig label="Músicas" value={kpis.musicas} icon={Music2} hint="No catálogo" domain="clients" />
+        <KpiBig
+          label="Custo operacional"
+          value={formatBRLHero(kpis.custoOperacional)}
+          icon={Users2}
+          hint="Pago a curadores"
+          domain="deals"
+        />
+        <KpiBig
+          label="Margem prevista"
+          value={formatBRLHero(kpis.margemPrevista)}
+          icon={CheckCircle2}
+          hint="Contratado − custo"
+          tone={kpis.margemPrevista >= 0 ? "primary" : "warning"}
+          domain="campaigns"
+        />
       </div>
+
 
 
       {/* Cliente com campanhas ativas (modelo novo) usa shell enxuta: só Visão + Campanhas.
