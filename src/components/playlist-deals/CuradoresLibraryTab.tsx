@@ -288,7 +288,7 @@ export function CuradoresLibraryTab({
           </PopoverContent>
         </Popover>
 
-        {onAddCurator && (
+        {onAddCurator && !hideAddButton && (
           <Button
             size="sm"
             className="h-9 gap-1.5 shrink-0"
