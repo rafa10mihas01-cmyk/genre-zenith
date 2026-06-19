@@ -33,6 +33,7 @@ const RESOLVED_FUNCTION_NAME = detectFunctionName();
 
 // Contexto async-local: propaga app_id/owner/playlist_id pra TODAS as chamadas
 // fetch() do mesmo callback sem precisar passar ctx manualmente.
+export type SpotifyBreakerContext = "operation" | "enrichment";
 type CtxFields = {
   appId?: string | null;
   appName?: string | null;
@@ -40,6 +41,7 @@ type CtxFields = {
   owner_id?: string | null;
   spotify_user_id?: string | null;
   function_name?: string | null;
+  breaker_context?: SpotifyBreakerContext | null;
 };
 const ctxStore = new AsyncLocalStorage<CtxFields>();
 // Fallback module-level (Deno ALS pode não persistir enterWith em todos cenários).
