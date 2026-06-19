@@ -1,9 +1,9 @@
 // ClienteDetalhe — página dedicada do cliente. Substitui o antigo drawer lateral.
 // Mostra ficha completa + extrato (músicas, deals, financeiro, observações).
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { useClientOverview } from "@/hooks/useCampaignOverview";
+import type { CampaignOverviewRow } from "@/services/campaignOverview";
 import {
   ArrowLeft,
   Pencil,
@@ -127,45 +127,31 @@ function InfoRow({
   return content;
 }
 
-type CampaignCardData = {
-  id: string;
-  track_name: string;
-  artist?: string | null;
-  campaign_type?: string | null;
-  status?: string | null;
-  created_at: string;
-  deadline?: string | null;
-  snapshot_locked_at?: string | null;
-  valor_cobrado?: number | null;
-  valor_recebido?: number | null;
-};
-type CampaignCardAgg = { deals: number; dealsAtivos: number; dealsConcluidos: number; curadores: number } | undefined;
-
-function CampaignCard({ c, agg }: { c: CampaignCardData; agg: CampaignCardAgg }) {
-  const cobrado = Number(c.valor_cobrado) || 0;
-  const recebido = Number(c.valor_recebido) || 0;
-  const pendente = Math.max(0, cobrado - recebido);
-  const dealsTotal = agg?.deals ?? 0;
-  const dealsConcluidos = agg?.dealsConcluidos ?? 0;
-  const dealsAtivos = agg?.dealsAtivos ?? 0;
-  const curadores = agg?.curadores ?? 0;
-  const entrega = cobrado > 0 ? Math.min(100, Math.round((recebido / cobrado) * 100)) : 0;
-  const progresso = dealsTotal > 0 ? Math.round((dealsConcluidos / dealsTotal) * 100) : 0;
+function CampaignCard({ ov }: { ov: CampaignOverviewRow }) {
+  // Componente apenas renderiza. Zero cálculo. Tudo vem do v_campaign_overview.
+  const cobrado = ov.contratado;
+  const recebido = ov.recebido;
+  const pendente = ov.pendente;
+  const dealsTotal = ov.deals_total;
+  const dealsConcluidos = ov.deals_concluidos;
+  const dealsAtivos = ov.deals_abertos;
+  const curadores = ov.curadores_unicos;
+  const entrega = cobrado > 0 ? Math.round((recebido / cobrado) * 100) : 0;
+  const progresso = ov.progresso_pct;
 
   const status: { variant: StatusVariant; label: string } =
-    c.status === "active" ? { variant: "success", label: "Ativa" }
-    : c.status === "completed" ? { variant: "primary", label: "Concluída" }
-    : c.status === "paused" ? { variant: "warning", label: "Pausada" }
-    : c.status === "cancelled" ? { variant: "danger", label: "Cancelada" }
-    : c.status === "draft" ? { variant: "neutral", label: "Rascunho" }
-    : { variant: "neutral", label: c.status ?? "—" };
+    ov.status === "active" ? { variant: "success", label: "Ativa" }
+    : ov.status === "completed" ? { variant: "primary", label: "Concluída" }
+    : ov.status === "paused" ? { variant: "warning", label: "Pausada" }
+    : ov.status === "cancelled" ? { variant: "danger", label: "Cancelada" }
+    : ov.status === "draft" ? { variant: "neutral", label: "Rascunho" }
+    : { variant: "neutral", label: ov.status ?? "—" };
 
-  const initials = (c.track_name ?? "")
+  const initials = (ov.track_name ?? "")
     .split(/\s+/).filter(Boolean).slice(0, 2)
     .map((s) => s[0]?.toUpperCase()).join("");
-  const inicio = format(new Date(c.created_at), "dd MMM", { locale: ptBR });
-  const fim = c.deadline ? format(new Date(c.deadline), "dd MMM", { locale: ptBR }) : null;
-  const href = c.snapshot_locked_at ? `/campanhas/${c.id}/execucao` : `/campanhas/${c.id}`;
+  const inicio = format(new Date(ov.created_at), "dd MMM", { locale: ptBR });
+  const href = `/campanhas/${ov.campaign_id}`;
 
   return (
     <Link
@@ -183,13 +169,12 @@ function CampaignCard({ c, agg }: { c: CampaignCardData; agg: CampaignCardAgg })
         </div>
         <div className="min-w-0 flex-1">
           <div className="text-[12.5px] font-semibold text-foreground truncate leading-tight group-hover:text-primary transition-colors">
-            {c.track_name}
+            {ov.track_name}
           </div>
           <div className="text-[10.5px] text-muted-foreground truncate mt-0.5">
-            <span className="truncate">{c.artist || "—"}</span>
-            {c.campaign_type && (<><span className="mx-1 opacity-50">·</span><span>{c.campaign_type}</span></>)}
+            <span className="truncate">{ov.artist || "—"}</span>
             <span className="mx-1 opacity-50">·</span>
-            <span className="tabular-nums">{inicio}{fim ? ` → ${fim}` : ""}</span>
+            <span className="tabular-nums">{inicio}</span>
           </div>
         </div>
         <StatusDot variant={status.variant} label={status.label} className="shrink-0" />
@@ -251,70 +236,22 @@ export default function ClienteDetalhe() {
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const campaignsQuery = useQuery({
-    queryKey: ["client_campaigns", id],
-    enabled: !!id,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("campaigns")
-        .select("id, track_name, artist, status, campaign_type, created_at, valor_cobrado, valor_recebido, recebido_em, deadline, snapshot_locked_at")
-        .eq("client_id", id!)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as Array<{
-        id: string;
-        track_name: string;
-        artist: string | null;
-        status: string;
-        campaign_type: string | null;
-        created_at: string;
-        valor_cobrado: number | null;
-        valor_recebido: number | null;
-        recebido_em: string | null;
-        deadline: string | null;
-        snapshot_locked_at: string | null;
-      }>;
-    },
-  });
-  const clientCampaigns = useMemo(() => campaignsQuery.data ?? [], [campaignsQuery.data]);
-
-  // Financeiro consolidado: fonte canônica = v_financial_summary.
-  // Não somar manualmente nem ler de curator_deals.cost.
-  const campaignIds = useMemo(() => clientCampaigns.map((c) => c.id), [clientCampaigns]);
-  const financeQuery = useQuery({
-    queryKey: ["client_finance", id, campaignIds.join(",")],
-    enabled: !!id && campaignIds.length > 0,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("v_financial_summary" as never)
-        .select("campaign_id, valor_cobrado, valor_recebido, receita_pendente, total_pago_curadores, margem_bruta")
-        .in("campaign_id", campaignIds);
-      if (error) throw error;
-      return (data ?? []) as Array<{
-        campaign_id: string;
-        valor_cobrado: number | null;
-        valor_recebido: number | null;
-        receita_pendente: number | null;
-        total_pago_curadores: number | null;
-        margem_bruta: number | null;
-      }>;
-    },
-  });
-  const financeRows = useMemo(() => financeQuery.data ?? [], [financeQuery.data]);
+  // FASE 14.1 — Fonte ÚNICA de verdade: useClientOverview → v_campaign_overview.
+  // Componente NÃO recalcula nada: nem somas, nem margens, nem progresso, nem contagens.
+  const overviewQuery = useClientOverview(id);
+  const overview = overviewQuery.data;
+  const clientCampaigns = useMemo(() => overview?.campaigns ?? [], [overview]);
+  const overviewTimeline = useMemo(() => overview?.timeline ?? [], [overview]);
 
   const client = useMemo(() => clients.find((c) => c.id === id), [clients, id]);
 
+  // Apoio: deals/músicas só pras abas legadas (Músicas/Deals/Notas) — não entram em KPIs.
   const dealById = useMemo(() => {
     const m = new Map<string, (typeof deals)[number]>();
     for (const d of deals) m.set(d.id, d);
     return m;
   }, [deals]);
-
-  // Pós-refactor 1:N: um cliente pode ter deals por dois caminhos —
-  //  (a) LEGADO: curator_deal_songs.client_id (1 deal → 1 cliente direto)
-  //  (b) NOVO:   curator_deals.campaign_id → campaigns.client_id (campanha agrega N deals)
-  // Precisamos somar ambos, senão deals novos somem da tela de Cliente.
-  const campaignIdSet = useMemo(() => new Set(campaignIds), [campaignIds]);
+  const campaignIdSet = useMemo(() => new Set(clientCampaigns.map((c) => c.campaign_id)), [clientCampaigns]);
   const clientDeals = useMemo(
     () =>
       deals.filter(
@@ -330,87 +267,46 @@ export default function ClienteDetalhe() {
     [songs, id, clientDealIds],
   );
 
-  const kpis = useMemo(() => {
-    // KPIs operacionais (não financeiros) — derivados de curator_deals.
-    const ativos = clientDeals.filter((d) => !d.closed_at).length;
-    const concluidos = clientDeals.filter((d) => d.closed_status === "completed").length;
-    const cancelados = clientDeals.filter((d) => d.closed_status === "cancelled").length;
-    const curadoresAtivos = new Set(
-      clientDeals.filter((d) => !d.closed_at && d.curator_id).map((d) => d.curator_id as string),
-    ).size;
-    const campanhasAtivas = clientCampaigns.filter((c) => c.status === "active").length;
+  // KPIs lidos do overview (totals já agregados pelo service).
+  const t = overview?.totals;
+  const kpis = useMemo(() => ({
+    musicas: clientSongs.length, // métrica auxiliar da aba legada
+    deals: t?.deals_total ?? 0,
+    ativos: t?.deals_abertos ?? 0,
+    concluidos: t?.deals_concluidos ?? 0,
+    cancelados: 0,
+    curadoresAtivos: t?.curadores_unicos ?? 0,
+    campanhasAtivas: t?.campanhas_ativas ?? 0,
+    investido: t?.contratado ?? 0,
+    receita: t?.recebido ?? 0,
+    margem: t?.margem_prevista ?? 0,
+    margemPrevista: t?.margem_prevista ?? 0,
+    custoOperacional: t?.custo_operacional ?? 0,
+    saldoPendente: t?.pendente ?? 0,
+    campanhas: t?.campanhas_total ?? 0,
+  }), [t, clientSongs.length]);
 
-    // KPIs financeiros — fonte ÚNICA: v_financial_summary (agregada por campanha).
-    const sum = (k: "valor_cobrado" | "valor_recebido" | "receita_pendente" | "margem_bruta" | "total_pago_curadores") =>
-      financeRows.reduce((acc, r) => acc + (Number(r[k]) || 0), 0);
-    const investido = sum("valor_cobrado");
-    const receita = sum("valor_recebido");
-    const saldoPendente = sum("receita_pendente");
-    const margem = sum("margem_bruta");
-    const custoOperacional = sum("total_pago_curadores");
-    const margemPrevista = investido - custoOperacional;
-
-    return {
-      musicas: clientSongs.length,
-      deals: clientDeals.length,
-      ativos,
-      concluidos,
-      cancelados,
-      curadoresAtivos,
-      campanhasAtivas,
-      investido,
-      receita,
-      margem,
-      margemPrevista,
-      custoOperacional,
-      saldoPendente,
-      campanhas: clientCampaigns.length,
-    };
-  }, [clientDeals, clientSongs, clientCampaigns, financeRows]);
-
-  // Agregados por campanha — derivados dos dados já carregados (sem novas queries).
-  const campaignAggregates = useMemo(() => {
-    const map = new Map<string, { deals: number; dealsAtivos: number; dealsConcluidos: number; curadores: number; songs: number; ultimaAtividade: number | null }>();
-    for (const c of clientCampaigns) {
-      const cDeals = clientDeals.filter((d) => d.campaign_id === c.id);
-      const cSongs = clientSongs.filter((s) => clientDeals.some((d) => d.id === s.deal_id && d.campaign_id === c.id));
-      const curadores = new Set(cDeals.filter((d) => d.curator_id).map((d) => d.curator_id as string)).size;
-      const ts = [
-        new Date(c.created_at).getTime(),
-        ...cDeals.map((d) => new Date(d.started_at).getTime()),
-        ...cDeals.filter((d) => d.closed_at).map((d) => new Date(d.closed_at as string).getTime()),
-      ].filter((n) => Number.isFinite(n));
-      map.set(c.id, {
-        deals: cDeals.length,
-        dealsAtivos: cDeals.filter((d) => !d.closed_at).length,
-        dealsConcluidos: cDeals.filter((d) => d.closed_status === "completed").length,
-        curadores,
-        songs: cSongs.length,
-        ultimaAtividade: ts.length ? Math.max(...ts) : null,
-      });
-    }
-    return map;
-  }, [clientCampaigns, clientDeals, clientSongs]);
-
-  // Timeline — últimos eventos consolidados do cliente.
+  // Timeline visual (ícones) montada a partir da timeline já vinda do service.
   const timeline = useMemo(() => {
-    const events: Array<{ when: string; label: string; icon: LucideIcon; tone?: string }> = [];
-    for (const c of clientCampaigns) {
-      events.push({ when: c.created_at, label: `Campanha criada · ${c.track_name}`, icon: Megaphone });
-      if (c.snapshot_locked_at) events.push({ when: c.snapshot_locked_at, label: `Plano aprovado · ${c.track_name}`, icon: CheckCircle2, tone: "text-primary" });
-      if (c.recebido_em) events.push({ when: c.recebido_em, label: `Pagamento recebido · ${c.track_name}`, icon: CreditCard, tone: "text-emerald-400" });
-    }
-    for (const d of clientDeals) {
-      events.push({ when: d.started_at, label: `Deal iniciado · ${d.curator_name}`, icon: FileText });
-      if (d.closed_at) events.push({ when: d.closed_at, label: `Deal ${d.closed_status === "completed" ? "concluído" : "encerrado"} · ${d.curator_name}`, icon: d.closed_status === "completed" ? CheckCircle2 : XCircle, tone: d.closed_status === "completed" ? "text-emerald-400" : "text-muted-foreground" });
-    }
-    return events
-      .filter((e) => e.when)
-      .sort((a, b) => new Date(b.when).getTime() - new Date(a.when).getTime())
-      .slice(0, 8);
-  }, [clientCampaigns, clientDeals]);
+    const ICONS: Record<string, { icon: LucideIcon; tone?: string }> = {
+      campaign_created: { icon: Megaphone },
+      plan_approved: { icon: CheckCircle2, tone: "text-primary" },
+      client_approved: { icon: CheckCircle2, tone: "text-primary" },
+      baseline_captured: { icon: FileText },
+      eco_dispatched: { icon: CreditCard, tone: "text-emerald-400" },
+      campaign_closed: { icon: XCircle, tone: "text-muted-foreground" },
+    };
+    return overviewTimeline.slice(0, 8).map((e) => ({
+      when: e.when,
+      label: e.label,
+      icon: ICONS[e.kind]?.icon ?? FileText,
+      tone: ICONS[e.kind]?.tone,
+    }));
+  }, [overviewTimeline]);
 
   const ultimaAtividade = timeline[0]?.when ?? null;
+
+
 
 
   if (loadingClients && !client) {
@@ -667,7 +563,7 @@ export default function ClienteDetalhe() {
           {clientCampaigns.length > 0 && (
             <div className={cn("grid gap-3", clientCampaigns.length === 1 ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4")}>
               {clientCampaigns.map((c) => (
-                <CampaignCard key={c.id} c={c} agg={campaignAggregates.get(c.id)} />
+                <CampaignCard key={c.campaign_id} ov={c} />
               ))}
             </div>
           )}
@@ -852,7 +748,7 @@ export default function ClienteDetalhe() {
           ) : (
             <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {clientCampaigns.map((c) => (
-                <CampaignCard key={c.id} c={c} agg={campaignAggregates.get(c.id)} />
+                <CampaignCard key={c.campaign_id} ov={c} />
               ))}
             </div>
           )}

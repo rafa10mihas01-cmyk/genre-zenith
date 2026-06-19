@@ -1,17 +1,12 @@
-// useFinancialOverview — HOOK ÚNICO do módulo Financeiro.
-// Fontes oficiais (Fase 8.1):
-//   Receita por campanha     → v_financial_summary.valor_cobrado/valor_recebido
-//   Custo por campanha       → v_financial_summary.total_pago_curadores
-//   Margem por campanha      → v_financial_summary.margem_bruta / margem_pct
-//   Custo caixa total        → v_curator_global_finance.total_spent
-//   CPP global               → v_curator_global_finance.global_cpp
-//   CPP por curador          → v_curator_finance.cpp
-//   Não alocado              → v_financial_unallocated_cost
-// O frontend nunca recalcula. Apenas exibe.
+// useFinancialOverview — HOOK do módulo Financeiro.
+// Fase 14.1: KPIs canônicos (cobrado, recebido, custo operacional, margem) vêm do
+// v_campaign_overview via useCockpitOverview. As demais leituras (CPP por curador,
+// compras, deals detalhados) seguem como dados auxiliares — não são KPIs disputados.
 import { useCallback, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCockpitOverview } from "@/hooks/useCampaignOverview";
 
 export type FinancialSummaryRow = {
   campaign_id: string;
@@ -79,17 +74,31 @@ export function useFinancialOverview() {
   const { user } = useAuth();
   const qc = useQueryClient();
 
-  const summaryQuery = useQuery({
-    queryKey: ["financial-summary"],
-    enabled: !!user,
-    staleTime: 60_000,
-    placeholderData: keepPreviousData,
-    queryFn: async () => {
-      const { data, error } = await supabase.from("v_financial_summary").select("*").limit(1000);
-      if (error) throw error;
-      return (data ?? []) as FinancialSummaryRow[];
-    },
-  });
+  // Fase 14.1: receita/custo/margem por campanha vêm do overview consolidado.
+  const overviewQuery = useCockpitOverview();
+  const overviewCampaigns = useMemo(() => overviewQuery.data?.campaigns ?? [], [overviewQuery.data]);
+  const overviewTotals = overviewQuery.data?.totals;
+
+  // Adapter: mantém a shape FinancialSummaryRow para os consumidores existentes.
+  const summary = useMemo<FinancialSummaryRow[]>(
+    () =>
+      overviewCampaigns.map((c) => ({
+        campaign_id: c.campaign_id,
+        track_name: c.track_name,
+        artist: c.artist,
+        campaign_status: c.status,
+        valor_cobrado: c.contratado,
+        valor_recebido: c.recebido,
+        receita_pendente: c.pendente,
+        total_pago_curadores: c.custo_operacional,
+        margem_bruta: c.margem_prevista,
+        margem_pct: c.margem_pct,
+        num_deals: c.deals_total,
+        created_at: c.created_at,
+      })),
+    [overviewCampaigns],
+  );
+  const summaryQuery = overviewQuery; // mantém compat com flags de loading
 
   const byCuratorQuery = useQuery({
     queryKey: ["financial-by-curator"],
@@ -186,7 +195,7 @@ export function useFinancialOverview() {
         () => {
           qc.invalidateQueries({ queryKey: ["financial-purchases"] });
           qc.invalidateQueries({ queryKey: ["financial-unallocated"] });
-          qc.invalidateQueries({ queryKey: ["financial-summary"] });
+          qc.invalidateQueries({ queryKey: ["overview"] });
           qc.invalidateQueries({ queryKey: ["financial-by-curator"] });
           qc.invalidateQueries({ queryKey: ["financial-global-totals"] });
         },
@@ -196,7 +205,7 @@ export function useFinancialOverview() {
         { event: "*", schema: "public", table: "curator_deals" },
         () => {
           qc.invalidateQueries({ queryKey: ["financial-deals"] });
-          qc.invalidateQueries({ queryKey: ["financial-summary"] });
+          qc.invalidateQueries({ queryKey: ["overview"] });
         },
       )
       .subscribe();
@@ -205,7 +214,7 @@ export function useFinancialOverview() {
     };
   }, [user, qc]);
 
-  const summary = useMemo(() => summaryQuery.data ?? [], [summaryQuery.data]);
+  // 'summary' já é derivado do overview consolidado (definido acima).
   const byCurator = useMemo(() => byCuratorQuery.data ?? [], [byCuratorQuery.data]);
   const globalTotals = useMemo(() => globalTotalsQuery.data ?? {
     total_plays_purchased: 0,
@@ -247,37 +256,33 @@ export function useFinancialOverview() {
     });
   }, [dealsRaw, purchases]);
 
-  // totals — derivados APENAS das views (zero recálculo paralelo)
+  // totals — fonte canônica = v_campaign_overview (via useCockpitOverview).
+  // Cliente / Campanha / Financeiro / Cockpit consomem exatamente estes números.
   const totals = useMemo(() => {
-    let recebido = 0;
-    let cobrado = 0;
-    let pagoPorCampanha = 0;
-    for (const s of summary) {
-      recebido += Number(s.valor_recebido ?? 0);
-      cobrado += Number(s.valor_cobrado ?? 0);
-      pagoPorCampanha += Number(s.total_pago_curadores ?? 0);
-    }
-    const custoCaixa = Number(globalTotals.total_spent ?? 0);
-    const margem = recebido - pagoPorCampanha;
+    const cobrado = overviewTotals?.contratado ?? 0;
+    const recebido = overviewTotals?.recebido ?? 0;
+    const pagoPorCampanha = overviewTotals?.custo_operacional ?? 0;
+    const margem = overviewTotals?.margem_prevista ?? 0;
+    const margemPct = overviewTotals?.margem_pct ?? null;
     return {
       cobrado,
       recebido,
       pagoPorCampanha,
-      custoCaixa,
+      custoCaixa: Number(globalTotals.total_spent ?? 0),
       cppGlobal: globalTotals.global_cpp,
       totalPlays: Number(globalTotals.total_plays_purchased ?? 0),
       purchaseCount: Number(globalTotals.purchase_count ?? 0),
       curatorsCount: byCurator.length,
       margem,
-      margemPct: recebido > 0 ? (margem / recebido) * 100 : null,
+      margemPct,
       custoNaoAlocado: Number(unallocated.total_nao_alocado ?? 0),
       numComprasNaoAlocadas: Number(unallocated.num_compras ?? 0),
     };
-  }, [summary, byCurator, globalTotals, unallocated]);
+  }, [overviewTotals, byCurator, globalTotals, unallocated]);
 
   const reload = useCallback(async () => {
     await Promise.all([
-      qc.invalidateQueries({ queryKey: ["financial-summary"] }),
+      qc.invalidateQueries({ queryKey: ["overview"] }),
       qc.invalidateQueries({ queryKey: ["financial-by-curator"] }),
       qc.invalidateQueries({ queryKey: ["financial-global-totals"] }),
       qc.invalidateQueries({ queryKey: ["financial-purchases"] }),

@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+// Fase 14.1 — FinanceTab da Campanha consome EXCLUSIVAMENTE v_campaign_overview
+// (via useCampaignOverview). Zero recálculo aqui. Os números aqui DEVEM ser
+// idênticos aos exibidos em Cliente, Financeiro e Cockpit pra essa campanha.
 import { Card, CardContent } from "@/components/ui/card";
 import { Radio, ListMusic, Users } from "lucide-react";
 import { formatBRL, formatInt } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
-import { supabase } from "@/integrations/supabase/client";
-import { usePricingSettings } from "@/hooks/usePricingSettings";
-import { plannedRadioStreams } from "@/lib/plannedRadio";
+import { useCampaignOverview } from "@/hooks/useCampaignOverview";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -16,60 +16,23 @@ type Props = {
   onOpenRadioMonitoring?: () => void;
 };
 
-export function FinanceTab({ campaignId, snapshot, clientPriceTotal }: Props) {
-  const { settings } = usePricingSettings();
-  const [curatorCost, setCuratorCost] = useState<number>(0);
-  const [curatorStreams, setCuratorStreams] = useState<number>(0);
+export function FinanceTab({ campaignId }: Props) {
+  const { data: ov } = useCampaignOverview(campaignId);
 
-  useEffect(() => {
-    let active = true;
-    void (async () => {
-      const { data } = await supabase
-        .from("curator_deals")
-        .select("cost, target_plays, reconciled_total_plays, curator_id")
-        .eq("campaign_id", campaignId);
-      if (!active) return;
-      const rows = (data ?? []).filter((d) => d.curator_id != null);
-      setCuratorCost(rows.reduce((s, d) => s + (Number(d.cost) || 0), 0));
-      // Streams "planejados" = target_plays (contratado).
-      // Se já houver reconciliação real, prioriza o entregue.
-      setCuratorStreams(
-        rows.reduce(
-          (s, d: any) =>
-            s + Math.max(Number(d.reconciled_total_plays) || 0, Number(d.target_plays) || 0),
-          0,
-        ),
-      );
-    })();
-    return () => { active = false; };
-  }, [campaignId]);
+  const cobrado = ov?.contratado ?? 0;
+  const totalCost = ov?.custo_operacional ?? 0;
+  const margem = ov?.margem_prevista ?? 0;
+  const margemPct = ov?.margem_pct ?? 0;
 
-  // 3 buckets INDEPENDENTES:
-  //   1. Playlist Própria = streamsEco × pricing.eco (R$ 0,01/stream = 10k/milhão)
-  //   2. Rádio            = streamsOrganic × pricing.eco (mesma taxa do eco)
-  //   3. Curadores        = SOMA dos curator_deals reais (cada curador tem seu preço próprio)
-  //                         Sem deal = custo zero. Não usa estimativa genérica.
-  const cppEco = settings.cost_per_stream_eco;
-
-  const ownPlaylistsStreams = Math.max(0, snapshot.streamsEco);
-  const ownPlaylistsCost = ownPlaylistsStreams * cppEco;
-
-  const radioStreams = plannedRadioStreams(snapshot);
-  const radioCost = radioStreams * cppEco;
-
-  const curadoresCost = curatorCost;
-  const curadoresStreams = curatorStreams;
-
-  const totalCost = ownPlaylistsCost + radioCost + curadoresCost;
-  const margem = clientPriceTotal - totalCost;
-  const margemPct = clientPriceTotal > 0 ? Math.round((margem / clientPriceTotal) * 100) : 0;
-
+  const curadoresCost = ov?.custo_curadores_diretos ?? 0;
+  const ecoCost = ov?.custo_eco ?? 0;
+  const externosCost = ov?.custo_externos ?? 0;
 
   return (
     <div className="space-y-6">
       {/* BLOCO 1 — KPIs */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <CompactKpi label="Cliente paga" value={formatBRL(clientPriceTotal)} accent="revenue" />
+        <CompactKpi label="Cliente paga" value={formatBRL(cobrado)} accent="revenue" />
         <CompactKpi label="Seu custo" value={formatBRL(totalCost)} accent="cost" />
         <CompactKpi
           label="Margem"
@@ -79,13 +42,13 @@ export function FinanceTab({ campaignId, snapshot, clientPriceTotal }: Props) {
         />
         <CompactKpi
           label="% Margem"
-          value={`${margemPct}%`}
+          value={`${Math.round(margemPct)}%`}
           tone={margemPct > 0 ? "positive" : margemPct < 0 ? "negative" : "neutral"}
           accent="margin"
         />
       </section>
 
-      {/* BLOCO 2 — Composição do custo (3 buckets reais) */}
+      {/* BLOCO 2 — Composição do custo (3 eixos canônicos) */}
       <Card>
         <CardContent className="p-5 space-y-3">
           <div className="flex items-baseline justify-between">
@@ -99,21 +62,21 @@ export function FinanceTab({ campaignId, snapshot, clientPriceTotal }: Props) {
           <div className="space-y-2">
             <CostBlock
               icon={ListMusic}
-              label="Playlist Própria"
-              cost={ownPlaylistsCost}
-              streams={ownPlaylistsStreams}
+              label="Ecossistema (playlists próprias)"
+              cost={ecoCost}
+              streams={ov?.eco_total ?? 0}
             />
             <CostBlock
               icon={Radio}
-              label="Rádio"
-              cost={radioCost}
-              streams={radioStreams}
+              label="Pacotes externos"
+              cost={externosCost}
+              streams={ov?.externos_items_total ?? 0}
             />
             <CostBlock
               icon={Users}
-              label="Curadores"
+              label="Curadores diretos"
               cost={curadoresCost}
-              streams={curadoresStreams}
+              streams={ov?.deals_total ?? 0}
             />
           </div>
         </CardContent>
@@ -174,7 +137,7 @@ function CostBlock({
       <div className="text-right shrink-0">
         <div className="text-base font-semibold tabular-nums">{formatBRL(cost)}</div>
         <div className="text-[11px] text-muted-foreground tabular-nums">
-          {formatInt(streams)} streams planejados
+          {formatInt(streams)} {streams === 1 ? "entrega" : "entregas"}
         </div>
       </div>
     </div>
