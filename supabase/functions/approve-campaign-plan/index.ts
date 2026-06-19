@@ -159,10 +159,11 @@ Deno.serve(async (req) => {
 
 
   // 2) Aprova plano + garante valor_cobrado a partir do snapshot do cliente.
-  // O simulation_snapshot.clientPriceTotal é a fonte de verdade do preço
-  // apresentado (e aceito) pelo cliente no portal. Se valor_cobrado estiver
-  // NULL no momento da aprovação, copiamos dali — sem isso o financeiro
-  // perde o ticket dessa campanha.
+  // Regra (pós-consolidação financeira): valor_cobrado é OBRIGATÓRIO.
+  // Tentamos resolver pelo simulation_snapshot.clientPriceTotal; se não houver
+  // valor válido em nenhuma fonte, a aprovação é bloqueada — sem isso a
+  // campanha entraria no sistema sem ticket financeiro e quebraria os KPIs
+  // consolidados (v_financial_summary).
   const snap = (campaign as any).simulation_snapshot ?? null;
   const snapPrice = Number(snap?.clientPriceTotal ?? 0);
   const resolvedValorCobrado =
@@ -171,6 +172,19 @@ Deno.serve(async (req) => {
       : Number.isFinite(snapPrice) && snapPrice > 0
         ? snapPrice
         : null;
+
+  if (resolvedValorCobrado == null || !Number.isFinite(resolvedValorCobrado) || resolvedValorCobrado <= 0) {
+    return json(
+      {
+        ok: false,
+        error: "valor_cobrado_required",
+        message:
+          "Valor contratado obrigatório. Defina o preço da campanha (valor cobrado) antes de aprovar o plano.",
+      },
+      400,
+    );
+  }
+
 
   const nowIso = new Date().toISOString();
 
