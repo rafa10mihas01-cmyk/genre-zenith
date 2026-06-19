@@ -25,7 +25,6 @@ import * as XLSX from "xlsx";
 import { cn } from "@/lib/utils";
 import { PrintThumbs } from "@/components/playlist-deals/PrintThumbs";
 import {
-  BaselineConflictsSection,
   CuratorSubmissionsKpis,
   type BaselineConflict,
   type CuratorSubmissionsSummary,
@@ -1418,19 +1417,10 @@ export default function CuratorPage() {
           </div>
         </div>
 
-        {/* Resumo de submissões na camada de campanha + conflitos de baseline.
+        {/* Resumo de submissões na camada de campanha.
             Só aparece quando o deal está vinculado a uma campanha e há submissões. */}
         {curatorSubmissions && curatorSubmissions.total > 0 && (
           <CuratorSubmissionsKpis summary={curatorSubmissions} />
-        )}
-        {baselineConflicts.length > 0 && (
-          <BaselineConflictsSection
-            conflicts={baselineConflicts}
-            onSubstitute={() => {
-              setActiveTab("cadastro");
-              setPasteOpen(true);
-            }}
-          />
         )}
 
 
