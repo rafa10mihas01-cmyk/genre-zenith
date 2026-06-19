@@ -493,6 +493,7 @@ Deno.serve(async (req) => {
       registered_at: string | null;
       baseline_conflict_at: string | null;
       baseline_captured_at: string | null;
+      baseline_reference_date: string | null;
       baseline_plays_7d: number | null;
       reason: string;
       resolved: boolean;
@@ -529,6 +530,11 @@ Deno.serve(async (req) => {
           }
         }
 
+        // FASE 10.3 — usamos a data oficial da baseline da campanha (DATE imutável)
+        // ao invés do timestamp técnico de cada coleta. campaign_context já carrega
+        // baseline_reference_date.
+        const campRefDate = campaign_context.baseline_reference_date;
+
         // "Resolvido" = curador registrou outra playlist (não-conflito) DEPOIS
         // do conflito, na mesma campanha/deal.
         const validSorted = rows
@@ -548,6 +554,7 @@ Deno.serve(async (req) => {
             registered_at: r.registered_at ?? null,
             baseline_conflict_at: r.baseline_conflict_at ?? null,
             baseline_captured_at: base?.captured_at ?? null,
+            baseline_reference_date: campRefDate ?? null,
             baseline_plays_7d: typeof base?.plays_7d === "number" ? base.plays_7d : null,
             reason:
               "A música já estava nesta playlist antes do início da campanha. Conta como cenário pré-existente, não como entrega nova do curador.",
