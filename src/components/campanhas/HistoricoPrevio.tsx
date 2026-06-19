@@ -102,10 +102,12 @@ export function HistoricoPrevioAlert({
 export function HistoricoPrevioCounter({
   count,
   onClick,
+  active,
   className,
 }: {
   count: number;
   onClick?: () => void;
+  active?: boolean;
   className?: string;
 }) {
   if (count === 0) return null;
@@ -115,7 +117,10 @@ export function HistoricoPrevioCounter({
     <Component
       onClick={onClick}
       className={cn(
-        "w-full rounded-lg border border-warning/30 bg-warning/5 px-3 py-2.5 flex items-center justify-between gap-3 text-left transition-colors",
+        "w-full rounded-lg border px-3 py-2.5 flex items-center justify-between gap-3 text-left transition-colors",
+        active
+          ? "border-warning/60 bg-warning/15"
+          : "border-warning/30 bg-warning/5",
         isClickable && "hover:bg-warning/10 cursor-pointer",
         className,
       )}
@@ -123,7 +128,7 @@ export function HistoricoPrevioCounter({
       <div className="flex items-center gap-2 min-w-0">
         <History className="h-3.5 w-3.5 text-warning shrink-0" />
         <span className="text-[12px] text-foreground">
-          Playlists com histórico prévio
+          {active ? "Mostrando playlists com histórico prévio" : "Playlists com histórico prévio"}
         </span>
       </div>
       <span className="text-base font-semibold tabular-nums text-warning">{count}</span>
