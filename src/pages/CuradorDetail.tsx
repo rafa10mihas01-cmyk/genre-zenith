@@ -198,7 +198,7 @@ export default function CuradorDetail() {
       />
 
       {/* KPIs — hierarquia cockpit (mesmo padrão do Cliente) */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 pt-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-4 mb-6">
         <KpiBig
           label="Investido"
           value={formatBRL(investido)}
