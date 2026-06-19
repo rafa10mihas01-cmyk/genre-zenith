@@ -918,6 +918,13 @@ export type Database = {
             foreignKeyName: "campaign_access_emails_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
+            referencedRelation: "v_campaign_overview"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "campaign_access_emails_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
             referencedRelation: "v_campaign_velocity"
             referencedColumns: ["campaign_id"]
           },
@@ -969,6 +976,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "campaigns"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_access_logs_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_campaign_overview"
+            referencedColumns: ["campaign_id"]
           },
           {
             foreignKeyName: "campaign_access_logs_campaign_id_fkey"
@@ -1034,6 +1048,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "campaigns"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_access_otps_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_campaign_overview"
+            referencedColumns: ["campaign_id"]
           },
           {
             foreignKeyName: "campaign_access_otps_campaign_id_fkey"
@@ -1120,6 +1141,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "campaigns"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_eco_allocations_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_campaign_overview"
+            referencedColumns: ["campaign_id"]
           },
           {
             foreignKeyName: "campaign_eco_allocations_campaign_id_fkey"
@@ -1212,6 +1240,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "campaigns"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_eco_snapshots_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_campaign_overview"
+            referencedColumns: ["campaign_id"]
           },
           {
             foreignKeyName: "campaign_eco_snapshots_campaign_id_fkey"
@@ -1385,6 +1420,13 @@ export type Database = {
             foreignKeyName: "campaign_external_packages_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
+            referencedRelation: "v_campaign_overview"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "campaign_external_packages_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
             referencedRelation: "v_campaign_velocity"
             referencedColumns: ["campaign_id"]
           },
@@ -1445,6 +1487,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "campaigns"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_plan_history_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_campaign_overview"
+            referencedColumns: ["campaign_id"]
           },
           {
             foreignKeyName: "campaign_plan_history_campaign_id_fkey"
@@ -1513,6 +1562,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "campaigns"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_plan_versions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_campaign_overview"
+            referencedColumns: ["campaign_id"]
           },
           {
             foreignKeyName: "campaign_plan_versions_campaign_id_fkey"
@@ -1611,6 +1667,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "campaigns"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_campaign_overview"
+            referencedColumns: ["campaign_id"]
           },
           {
             foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
@@ -3323,6 +3386,13 @@ export type Database = {
             foreignKeyName: "curator_campaign_playlists_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
+            referencedRelation: "v_campaign_overview"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "curator_campaign_playlists_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
             referencedRelation: "v_campaign_velocity"
             referencedColumns: ["campaign_id"]
           },
@@ -3997,6 +4067,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "campaigns"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curator_deals_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_campaign_overview"
+            referencedColumns: ["campaign_id"]
           },
           {
             foreignKeyName: "curator_deals_campaign_id_fkey"
@@ -12152,6 +12229,52 @@ export type Database = {
         }
         Relationships: []
       }
+      v_campaign_overview: {
+        Row: {
+          artist: string | null
+          baseline_captured_at: string | null
+          campaign_id: string | null
+          client_approved_at: string | null
+          client_id: string | null
+          closed_at: string | null
+          contratado: number | null
+          created_at: string | null
+          curadores_unicos: number | null
+          custo_curadores_diretos: number | null
+          custo_eco: number | null
+          custo_externos: number | null
+          custo_operacional: number | null
+          deals_abertos: number | null
+          deals_concluidos: number | null
+          deals_total: number | null
+          eco_dispatched: number | null
+          eco_dispatched_at: string | null
+          eco_total: number | null
+          externos_items_total: number | null
+          genre: string | null
+          margem_pct: number | null
+          margem_prevista: number | null
+          pacotes_confirmados: number | null
+          pacotes_total: number | null
+          pendente: number | null
+          plan_approved_at: string | null
+          progresso_pct: number | null
+          recebido: number | null
+          status: string | null
+          streams_entregues: number | null
+          streams_previstos: number | null
+          track_name: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_campaign_velocity: {
         Row: {
           campaign_id: string | null
@@ -12754,6 +12877,13 @@ export type Database = {
             foreignKeyName: "curator_deals_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
+            referencedRelation: "v_campaign_overview"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "curator_deals_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
             referencedRelation: "v_campaign_velocity"
             referencedColumns: ["campaign_id"]
           },
@@ -12804,6 +12934,13 @@ export type Database = {
             foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
+            referencedRelation: "v_campaign_overview"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
             referencedRelation: "v_campaign_velocity"
             referencedColumns: ["campaign_id"]
           },
@@ -12847,6 +12984,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "campaigns"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_campaign_overview"
+            referencedColumns: ["campaign_id"]
           },
           {
             foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
