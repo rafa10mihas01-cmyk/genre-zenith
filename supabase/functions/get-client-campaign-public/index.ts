@@ -90,10 +90,10 @@ Deno.serve(async (req) => {
     if (publicPlanToken) {
       const { data: campaignByToken } = await admin
         .from("campaigns")
-        .select("id, deal_id, client_approved_at, token_expires_at, token_revoked_at")
+        .select("id, client_approved_at, token_expires_at, token_revoked_at")
         .eq("public_plan_token", publicPlanToken)
         .maybeSingle();
-      if (!campaignByToken?.deal_id) return jr({ ok: false, error: "not_found" }, 404);
+      if (!campaignByToken?.id) return jr({ ok: false, error: "not_found" }, 404);
 
       // Hardening 4.B.1.B: TTL + revogação.
       if ((campaignByToken as AnyRec).token_revoked_at) {
@@ -108,7 +108,18 @@ Deno.serve(async (req) => {
       if (!gate.ok) return jr({ ok: false, error: gate.error }, gate.status ?? 401);
 
       linkedCamp = campaignByToken as AnyRec;
-      dealId = String(campaignByToken.deal_id);
+
+      // (2026-06-19) Resolve qualquer curator_deal da campanha — não mais
+      // campaigns.deal_id (1:N safe).
+      const { data: anyDeal } = await admin
+        .from("curator_deals")
+        .select("id, created_at")
+        .eq("campaign_id", campaignByToken.id)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (!anyDeal?.id) return jr({ ok: false, error: "not_found" }, 404);
+      dealId = String(anyDeal.id);
 
       const { data: firstSong } = await admin
         .from("curator_deal_songs")
@@ -175,16 +186,15 @@ Deno.serve(async (req) => {
     if (!deal) return jr({ ok: false, error: "not_found" }, 404);
     dealRow = deal as AnyRec;
 
-    // Gate por PIN — busca a campanha desse deal e exige JWT se necessário.
+    // Gate por PIN — resolve a campanha via curator_deals.campaign_id (1:N safe).
     if (!linkedCamp) {
-      const { data: linkedCampByDeal } = await admin
-        .from("campaigns")
-        .select("id, client_approved_at")
-        .eq("deal_id", dealId!)
-        .order("created_at", { ascending: false })
-        .limit(1)
+      const { data: dealCamp } = await admin
+        .from("curator_deals")
+        .select("campaign_id, campaigns:campaign_id(id, client_approved_at)")
+        .eq("id", dealId!)
         .maybeSingle();
-      linkedCamp = (linkedCampByDeal as AnyRec | null) ?? null;
+      const campObj = (dealCamp as AnyRec | null)?.campaigns ?? null;
+      linkedCamp = (campObj as AnyRec | null) ?? null;
     }
     if (linkedCamp?.id && !publicPlanToken) {
       const gate = await gateCampaignAccess(req, admin, linkedCamp.id);
@@ -335,13 +345,15 @@ Deno.serve(async (req) => {
     // Importante: NÃO ocultamos playlists só porque ainda não tem coleta.
     const campaignIdsForDeals = new Set<string>();
     if (dealRow.campaign_id) campaignIdsForDeals.add(String(dealRow.campaign_id));
+    // (2026-06-19) Resolve campanha via curator_deals.campaign_id (1:N safe) —
+    // antes lia campaigns.deal_id e perdia o vínculo pra curadores secundários.
     {
-      const { data: campsForDeals } = await admin
-        .from("campaigns")
-        .select("id, deal_id")
-        .eq("deal_id", dealId!);
-      for (const c of (campsForDeals ?? []) as AnyRec[]) {
-        if (c.id) campaignIdsForDeals.add(String(c.id));
+      const { data: dealCampRows } = await admin
+        .from("curator_deals")
+        .select("campaign_id")
+        .eq("id", dealId!);
+      for (const d of (dealCampRows ?? []) as AnyRec[]) {
+        if (d.campaign_id) campaignIdsForDeals.add(String(d.campaign_id));
       }
     }
     if (campaignIdsForDeals.size === 0) {
@@ -573,12 +585,16 @@ Deno.serve(async (req) => {
     // ligadas à campanha deste deal. Sem isso, o cliente não enxergava as
     // playlists próprias onde a música foi inserida internamente.
     try {
-      const { data: campRow } = await admin
-        .from("campaigns")
-        .select("id")
-        .eq("deal_id", dealId!)
-        .maybeSingle();
-      const campaignId = (dealRow.campaign_id as string | undefined) ?? (campRow?.id as string | undefined);
+      // (2026-06-19) Resolve campanha via curator_deals.campaign_id (1:N safe).
+      let campaignId = (dealRow.campaign_id as string | undefined) ?? undefined;
+      if (!campaignId) {
+        const { data: dealCamp } = await admin
+          .from("curator_deals")
+          .select("campaign_id")
+          .eq("id", dealId!)
+          .maybeSingle();
+        campaignId = (dealCamp as AnyRec | null)?.campaign_id ?? undefined;
+      }
       if (campaignId) {
         const { data: ecoAllocs } = await admin
           .from("campaign_eco_allocations")

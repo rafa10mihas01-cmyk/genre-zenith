@@ -213,8 +213,9 @@ Deno.serve(async (req) => {
     proofs = dp ?? [];
   }
 
-  // Leitura do client_token + uploads — somente se o deal JÁ existir
-  // (criação foi movida pra approve-campaign-plan).
+  // Leitura do client_token + uploads — agrega TODOS os curator_deals da campanha
+  // (arquitetura 1:N). Antes lia só de campaigns.deal_id, deixando uploads de
+  // curadores secundários invisíveis.
   let clientToken: string | null = null;
   let lastSpreadsheetUploadAt: string | null = null;
   let recentUploads: any[] = [];
@@ -222,34 +223,38 @@ Deno.serve(async (req) => {
   // momento da criação). Fallback pro deal só se a campanha não tiver valor.
   let collectionMode: "bot" | "spreadsheet" =
     (campRaw as any)?.collection_mode === "spreadsheet" ? "spreadsheet" : "bot";
-  const dealId = camp.deal_id as string | null;
 
-  if (dealId) {
+  const { data: campaignDealsRaw } = await supabase
+    .from("curator_deals")
+    .select("id, collection_mode, created_at")
+    .eq("campaign_id", camp.id)
+    .order("created_at", { ascending: true });
+  const campaignDeals = (campaignDealsRaw ?? []) as Array<{ id: string; collection_mode: string | null; created_at: string | null }>;
+  const allDealIds = campaignDeals.map((d) => d.id);
+
+  if (allDealIds.length > 0) {
+    // client_token: primeira song do primeiro deal (legacy compat — token sempre
+    // foi por song, mantemos preferência cronológica determinística).
     const { data: song } = await supabase
       .from("curator_deal_songs")
-      .select("id, client_token")
-      .eq("deal_id", dealId)
+      .select("id, client_token, deal_id, created_at")
+      .in("deal_id", allDealIds)
       .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle();
-    if (song) {
-      clientToken = (song as any).client_token ?? null;
-    }
+    if (song) clientToken = (song as any).client_token ?? null;
 
-    // Se a campanha não tinha collection_mode (rows antigas), checa o deal.
+    // Se a campanha não tinha collection_mode, infere do conjunto de deals:
+    // qualquer deal em modo spreadsheet vira "spreadsheet" pra UI.
     if (!(campRaw as any)?.collection_mode) {
-      const { data: dealRow } = await supabase
-        .from("curator_deals")
-        .select("collection_mode")
-        .eq("id", dealId)
-        .maybeSingle();
-      if ((dealRow as any)?.collection_mode === "spreadsheet") collectionMode = "spreadsheet";
+      const anySpreadsheet = campaignDeals.some((d) => d.collection_mode === "spreadsheet");
+      if (anySpreadsheet) collectionMode = "spreadsheet";
     }
 
     const { data: uploads } = await supabase
       .from("label_spreadsheet_uploads")
-      .select("id, created_at, rows_imported, total_streams, status, file_name")
-      .eq("deal_id", dealId)
+      .select("id, created_at, rows_imported, total_streams, status, file_name, deal_id")
+      .in("deal_id", allDealIds)
       .order("created_at", { ascending: false })
       .limit(10);
     recentUploads = uploads ?? [];
