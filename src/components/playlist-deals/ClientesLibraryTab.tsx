@@ -275,7 +275,7 @@ export function ClientesLibraryTab({ deals, songs, loading, campaignsByClient }:
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {pageRows.map((row) => {
-            const { client, totalSongs, activeDeals, closedDeals, totalDeals, lastTs, invested, pending } = row;
+            const { client, totalSongs, activeDeals, closedDeals, totalDeals, lastTs } = row;
             const initials = client.name
               .split(/\s+/)
               .filter(Boolean)
@@ -315,18 +315,7 @@ export function ClientesLibraryTab({ deals, songs, loading, campaignsByClient }:
                         </span>
                       )}
                     </div>
-                    <div className="text-[11.5px] text-muted-foreground truncate mt-0.5 tabular-nums">
-                      <span className="text-foreground/80 font-medium">{formatBRLShort(invested)}</span>
-                      <span className="mx-1.5 opacity-50">·</span>
-                      <span>
-                        {pending > 0 ? (
-                          <span className="text-warning">{formatBRLShort(pending)} pendente</span>
-                        ) : (
-                          <span>sem pendência</span>
-                        )}
-                      </span>
-                    </div>
-                    <div className="mt-2">
+                    <div className="mt-1.5">
                       <StatusDot variant={status.variant} label={status.label} />
                     </div>
                   </div>
