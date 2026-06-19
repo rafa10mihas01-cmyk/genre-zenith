@@ -1,0 +1,2 @@
+COMMENT ON TABLE public.curator_deal_snapshots IS
+'DEPRECATED apenas para leitura produto-facing (FASE 13.0). Continua sendo utilizada internamente pelo pipeline S4A (bot prints, ingest, planilhas, baseline, reconciliação, scoring de ecosystem, anti-fraude). Fonte canônica para entrega/histórico/portal é campaign_playlist_collections via vw_campaign_playlist_growth. Não usar em novas funcionalidades de UI.';

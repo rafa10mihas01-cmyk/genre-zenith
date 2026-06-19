@@ -449,45 +449,35 @@ export default function CampanhaExecucao() {
       return url?.match(/playlist\/([A-Za-z0-9]+)/)?.[1] ?? null;
     }).filter(Boolean) as string[]));
     // Autoritativo: campaigns.baseline_status é o flag oficial setado pelo bot-ingest
-    // e pela importação de planilha. Se ele já marcou 'captured', a baseline existe
-    // independente do que esteja em curator_deal_snapshots/logs (que podem usar IDs diferentes).
+    // e pela importação de planilha. Se ele já marcou 'captured', a baseline existe.
+    // FASE 13.0 — Complemento via CPC (is_baseline=true) substitui leitura legada
+    // em curator_deal_snapshots/curator_deal_logs.
     const campBaselineStatus = (c as any)?.baseline_status as string | null | undefined;
     const campRefDate = (c as any)?.baseline_reference_date as string | null | undefined;
     const campBaselineAt = (campRefDate ?? (c as any)?.baseline_captured_at) as string | null | undefined;
     if (campBaselineStatus === "captured") {
       const n = plannedSpotifyIds.length || 1;
       setBaselineGate({ required: n, collected: n, capturedAt: campBaselineAt ?? null });
-    } else if (dealId && plannedSpotifyIds.length > 0) {
-      const [{ data: baselineSnaps }, { data: baselineLog }] = await Promise.all([
-        supabase
-          .from("curator_deal_snapshots")
-          .select("captured_at, curator_playlists!inner(spotify_playlist_id)")
-          .eq("deal_id", dealId)
-          .eq("is_initial_capture", true),
-        supabase
-          .from("curator_deal_logs")
-          .select("created_at, total_plays")
-          .eq("deal_id", dealId)
-          .eq("is_initial_capture_event", true)
-          .order("created_at", { ascending: true })
-          .limit(1)
-          .maybeSingle(),
-      ]);
+    } else if (plannedSpotifyIds.length > 0) {
+      const { data: baselineCpc } = await supabase
+        .from("campaign_playlist_collections")
+        .select("playlist_id, captured_at")
+        .eq("campaign_id", id)
+        .eq("is_baseline", true)
+        .eq("excluded", false)
+        .in("playlist_id", plannedSpotifyIds);
       const collected = new Set<string>();
       let capturedAt: string | null = null;
-      for (const snap of (baselineSnaps ?? []) as any[]) {
-        const spid = snap.curator_playlists?.spotify_playlist_id as string | null | undefined;
+      for (const row of (baselineCpc ?? []) as any[]) {
+        const spid = String(row.playlist_id ?? "");
         if (spid && plannedSpotifyIds.includes(spid)) collected.add(spid);
-        if (snap.captured_at && (!capturedAt || snap.captured_at > capturedAt)) capturedAt = snap.captured_at;
+        if (row.captured_at && (!capturedAt || row.captured_at > capturedAt)) capturedAt = row.captured_at;
       }
-      if (collected.size === 0 && baselineLog?.created_at) {
-        setBaselineGate({ required: plannedSpotifyIds.length, collected: plannedSpotifyIds.length, capturedAt: baselineLog.created_at });
-      } else {
-        setBaselineGate({ required: plannedSpotifyIds.length, collected: collected.size, capturedAt });
-      }
+      setBaselineGate({ required: plannedSpotifyIds.length, collected: collected.size, capturedAt });
     } else {
       setBaselineGate({ required: plannedSpotifyIds.length, collected: 0, capturedAt: null });
     }
+
 
     const dealIds = ((pkg ?? []) as PackageItem[]).map((p) => p.curator_deal_id).filter((dealId): dealId is string => !!dealId);
     if (dealIds.length > 0) {

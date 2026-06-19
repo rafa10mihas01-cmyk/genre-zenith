@@ -269,35 +269,44 @@ Deno.serve(async (req) => {
     let delivered = Number(prog.delivered_curator ?? 0);
     let pct = Math.max(0, Math.min(100, Number(prog.progress_pct ?? 0)));
 
-    // 4) Histórico — filtra por song_id se aplicável
-    let histQuery = admin
-      .from("curator_deal_snapshots")
-      .select("captured_at, plays, is_initial_capture, playlist_id")
-      .eq("deal_id", dealId!)
-      .order("captured_at", { ascending: true });
-    if (selectedSongId && activeSong) {
-      histQuery = histQuery.eq("song_id", selectedSongId);
+    // 4) FASE 13.0 — Histórico via campaign_playlist_collections (CPC).
+    // Fonte canônica é vw_campaign_playlist_growth para totais; para série
+    // temporal usamos CPC raw (plays_7d por captured_at), filtrando pelas
+    // playlists do curador via curator_campaign_playlists (CCP).
+    const histCampaignId = dealRow.campaign_id as string | null;
+    const histCuratorId = dealRow.curator_id as string | null;
+    let snapshotsRaw: AnyRec[] = [];
+    let cpcPlaylistIds = new Set<string>();
+    if (histCampaignId && histCuratorId) {
+      const { data: ccpRows } = await admin
+        .from("curator_campaign_playlists")
+        .select("playlist_id")
+        .eq("campaign_id", histCampaignId)
+        .eq("curator_id", histCuratorId)
+        .eq("excluded_from_kpis", false);
+      for (const r of (ccpRows ?? []) as AnyRec[]) {
+        const pid = String(r.playlist_id ?? "").trim();
+        if (pid) cpcPlaylistIds.add(pid);
+      }
+      if (cpcPlaylistIds.size > 0) {
+        const { data: cpcRows } = await admin
+          .from("campaign_playlist_collections")
+          .select("playlist_id, plays_7d, captured_at, is_baseline, excluded")
+          .eq("campaign_id", histCampaignId)
+          .in("playlist_id", Array.from(cpcPlaylistIds))
+          .eq("excluded", false)
+          .order("captured_at", { ascending: true });
+        snapshotsRaw = (cpcRows ?? []) as AnyRec[];
+      }
     }
-    const { data: snapshotsRaw } = await histQuery;
 
-    // Agrupa snapshots por minuto (curator playlists only)
-    const { data: curatorPlaylistRows } = await admin
-      // Separação operacional × observacional: hub público do cliente lê só curadoria entregue.
-      .from("v_curator_playlists_operational")
-      .select("id")
-      .eq("deal_id", dealId!)
-      .eq("match_status", "curator");
-    const curatorPlIds = new Set(
-      ((curatorPlaylistRows ?? []) as AnyRec[]).map((r) => String(r.id)),
-    );
-
+    // Agrupa por minuto (apenas CPC do curador deste deal — já filtrado acima).
     const buckets = new Map<string, { captured_at: string; total_plays: number }>();
-    for (const s of (snapshotsRaw ?? []) as AnyRec[]) {
-      if (!curatorPlIds.has(String(s.playlist_id))) continue;
+    for (const s of snapshotsRaw) {
       const captured = new Date(String(s.captured_at));
       const bucketKey = `${captured.getFullYear()}-${captured.getMonth()}-${captured.getDate()}-${captured.getHours()}-${captured.getMinutes()}`;
       const cur = buckets.get(bucketKey);
-      const plays = Number(s.plays ?? 0);
+      const plays = Number(s.plays_7d ?? 0);
       if (cur) {
         cur.total_plays += plays;
       } else {
@@ -311,7 +320,7 @@ Deno.serve(async (req) => {
       (a, b) => new Date(a.captured_at).getTime() - new Date(b.captured_at).getTime(),
     );
 
-    // crescimento últimos 7 dias
+    // crescimento últimos 7 dias (delta de plays_7d agregado entre snapshots da janela)
     const now = Date.now();
     const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
     const recent = histArr.filter((h) => new Date(h.captured_at).getTime() >= sevenDaysAgo);
@@ -329,14 +338,14 @@ Deno.serve(async (req) => {
       ? Math.round((last7Growth / Math.max(1, delivered - last7Growth)) * 100)
       : 0;
 
-    // série diária sanitizada
-    const baseline = Number(
-      activeSong?.baseline_plays ?? prog.baseline_total ?? dealRow.baseline_plays ?? 0,
-    );
+    // série diária — usa plays_7d agregado por captura como sinal de momentum.
+    // Baseline = primeiro snapshot agregado (consistente com a lógica da view).
+    const baselineSeries = histArr.length > 0 ? histArr[0].total_plays : 0;
     const series = histArr.map((h) => ({
       date: h.captured_at,
-      delivered: Math.max(0, h.total_plays - baseline),
+      delivered: Math.max(0, h.total_plays - baselineSeries),
     }));
+
 
     // 5) Playlists do curador — FONTE OFICIAL DE EXIBIÇÃO: curator_campaign_playlists
     // (lista CONTRATADA pelo curador). Crescimento/entrega vem de

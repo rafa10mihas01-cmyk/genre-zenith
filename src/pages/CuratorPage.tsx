@@ -384,6 +384,8 @@ export default function CuratorPage() {
   const [songs, setSongs] = useState<DealSong[]>([]);
   const [progress, setProgress] = useState<DealProgress | null>(null);
   const [snapshotHistory, setSnapshotHistory] = useState<SnapshotHistoryEntry[]>([]);
+  // FASE 13.0 — has_baseline server-side (deriva de CPC).
+  const [serverHasBaseline, setServerHasBaseline] = useState<boolean | null>(null);
   const [access, setAccess] = useState<{ writable: boolean; code?: string; reason?: string }>({ writable: true });
   const [campaignContext, setCampaignContext] = useState<{
     is_campaign_shadow: boolean;
@@ -574,6 +576,11 @@ export default function CuratorPage() {
       setSongs((data.songs ?? []) as DealSong[]);
       setProgress((data.progress ?? null) as DealProgress | null);
       setSnapshotHistory((data.snapshot_history ?? []) as SnapshotHistoryEntry[]);
+      setServerHasBaseline(
+        typeof (data as { has_baseline?: unknown }).has_baseline === "boolean"
+          ? (data as { has_baseline: boolean }).has_baseline
+          : null,
+      );
       setAccess(data.access ?? { writable: true });
       if (data.campaign_context) setCampaignContext(data.campaign_context);
       setCuratorSubmissions((data.curator_submissions ?? null) as CuratorSubmissionsSummary | null);
@@ -658,8 +665,10 @@ export default function CuratorPage() {
     const pct = Number(songProg?.progress_pct ?? progress?.progress_pct ?? 0);
     const dailyAvg = Number(progress?.daily_avg ?? 0);
     const eta = progress?.eta_days ?? null;
-    const hasBaseline = (progress?.per_playlist?.length ?? 0) > 0
-      || snapshotHistory.length > 0;
+    // FASE 13.0 — prioriza has_baseline server-side (deriva de CPC oficial).
+    // Fallback mantém compat com payloads antigos.
+    const hasBaseline = serverHasBaseline
+      ?? ((progress?.per_playlist?.length ?? 0) > 0 || snapshotHistory.length > 0);
     const lastCaptureAt = songProg?.last_capture_at ?? progress?.last_capture_at ?? null;
     const firstCaptureAt = songProg?.first_capture_at ?? progress?.first_capture_at ?? null;
 

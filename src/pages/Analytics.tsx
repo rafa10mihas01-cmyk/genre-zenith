@@ -1,5 +1,7 @@
 // /analytics — Aba "Deals".
-// Lê DIRETO do motor vivo: curator_deals + curator_deal_snapshots.
+// FASE 13.0 — Fonte canônica: vw_campaign_playlist_growth (delivery
+// já consolidado) + campaign_playlist_collections (raw para série de momentum).
+// curator_deal_snapshots NÃO é mais consumido.
 import { useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,91 +19,113 @@ import {
 import { AnalyticsTabs } from "@/components/AnalyticsTabs";
 import HeatmapEntregas from "@/pages/HeatmapEntregas";
 import {
-  aggregateDeliveriesByDay,
+  aggregateActivityByDay,
+  attributeDealsToGrowth,
   computeDealPace,
   isoSinceDays,
-  playsDeliveredInWindow,
   realCostPerPlay,
-  topPlaylistsByDelta,
+  topPlaylistsByDelivery,
+  totalDelivered,
+  type CpcRow,
   type Deal,
-  type Snapshot,
+  type GrowthRow,
 } from "@/lib/dealsAnalytics";
 
 export default function Analytics() {
   const qc = useQueryClient();
-  const ANALYTICS_KEY = ["analytics_deals_overview"] as const;
+  const ANALYTICS_KEY = ["analytics_deals_overview_v13"] as const;
 
   const query = useQuery({
     queryKey: ANALYTICS_KEY,
     queryFn: async () => {
       const since30 = isoSinceDays(30);
-      const since7 = isoSinceDays(7);
 
-      const [dealsRes, snap30Res, snap7Res] = await Promise.all([
-        supabase
-          .from("curator_deals")
-          .select("id, state, song_artist, song_name, target_plays, baseline_plays, cost, started_at, ends_at"),
-        supabase
-          .from("curator_deal_snapshots")
-          .select("deal_id, playlist_id, plays, captured_at")
+      // 1) Deals — agora carregamos campaign_id e curator_id para atribuir
+      //    GrowthRow → deal via (campaign_id, attributed_to='curator:<id>').
+      const dealsRes = await supabase
+        .from("curator_deals")
+        .select("id, state, song_artist, song_name, target_plays, baseline_plays, cost, started_at, ends_at, campaign_id, curator_id");
+      const deals = ((dealsRes.data ?? []) as unknown as Deal[]);
+
+      const campaignIds = Array.from(new Set(deals.map((d) => d.campaign_id).filter((v): v is string => !!v)));
+
+      // 2) vw_campaign_playlist_growth — fonte canônica de delivery_accumulated.
+      let growthRows: GrowthRow[] = [];
+      if (campaignIds.length > 0) {
+        const { data: gr } = await supabase
+          .from("vw_campaign_playlist_growth")
+          .select("campaign_id, playlist_id, baseline_plays, current_plays, delivery_accumulated, baseline_at, last_captured_at, attributed_to")
+          .in("campaign_id", campaignIds);
+        growthRows = ((gr ?? []) as unknown as GrowthRow[]);
+      }
+
+      // 3) CPC raw — apenas para chart de atividade diária (momentum), 30d.
+      let cpcRows: CpcRow[] = [];
+      if (campaignIds.length > 0) {
+        const { data: cpc } = await supabase
+          .from("campaign_playlist_collections")
+          .select("campaign_id, playlist_id, plays_7d, captured_at")
+          .in("campaign_id", campaignIds)
+          .eq("excluded", false)
           .gte("captured_at", since30)
           .order("captured_at", { ascending: true })
-          .limit(10000),
-        supabase
-          .from("curator_deal_snapshots")
-          .select("deal_id, playlist_id, plays, captured_at")
-          .gte("captured_at", since7)
-          .order("captured_at", { ascending: true })
-          .limit(5000),
-      ]);
+          .limit(10000);
+        cpcRows = ((cpc ?? []) as unknown as CpcRow[]);
+      }
 
-      const deals = ((dealsRes.data ?? []) as unknown as Deal[]);
-      const snapshots30d = ((snap30Res.data ?? []) as unknown as Snapshot[]);
-      const snapshots7d = ((snap7Res.data ?? []) as unknown as Snapshot[]);
-
-      const ids = [...new Set(snapshots30d.map((s) => s.playlist_id).filter(Boolean))] as string[];
+      // 4) Metadados de playlists (nome) para o top.
+      const playlistIds = Array.from(new Set(growthRows.map((r) => r.playlist_id).filter(Boolean)));
       const playlistsMeta: Record<string, string> = {};
-      if (ids.length > 0) {
+      if (playlistIds.length > 0) {
+        // playlist_id na view é spotify_playlist_id (text). Tentamos resolver
+        // via curator_playlists.spotify_playlist_id para exibir nome amigável.
         const { data: pls } = await supabase
-          .from("v_curator_playlists_operational")
-          .select("id, playlist_name")
-          .in("id", ids);
-        for (const p of (pls ?? []) as { id: string; playlist_name: string | null }[]) {
-          if (p.playlist_name) playlistsMeta[p.id] = p.playlist_name;
+          .from("curator_playlists")
+          .select("spotify_playlist_id, playlist_name")
+          .in("spotify_playlist_id", playlistIds);
+        for (const p of (pls ?? []) as { spotify_playlist_id: string | null; playlist_name: string | null }[]) {
+          if (p.spotify_playlist_id && p.playlist_name) playlistsMeta[p.spotify_playlist_id] = p.playlist_name;
         }
       }
 
-      return { deals, snapshots30d, snapshots7d, playlistsMeta };
+      return { deals, growthRows, cpcRows, playlistsMeta };
     },
   });
 
   const deals = useMemo(() => query.data?.deals ?? [], [query.data?.deals]);
-  const snapshots30d = useMemo(() => query.data?.snapshots30d ?? [], [query.data?.snapshots30d]);
-  const snapshots7d = useMemo(() => query.data?.snapshots7d ?? [], [query.data?.snapshots7d]);
+  const growthRows = useMemo(() => query.data?.growthRows ?? [], [query.data?.growthRows]);
+  const cpcRows = useMemo(() => query.data?.cpcRows ?? [], [query.data?.cpcRows]);
   const playlistsMeta = query.data?.playlistsMeta ?? {};
   const loading = query.isLoading && !query.data;
   const load = () => qc.invalidateQueries({ queryKey: ANALYTICS_KEY });
 
-  // ─── KPIs ───
+  // ─── Atribuição deal → growth rows (uma vez) ───
+  const dealToGrowth = useMemo(() => attributeDealsToGrowth(deals, growthRows), [deals, growthRows]);
+
+  // ─── KPIs (sem recálculo de delivery; lemos delivery_accumulated da view) ───
   const activeDeals = useMemo(() => deals.filter((d) => d.state === "active"), [deals]);
-  const plays7d = useMemo(() => playsDeliveredInWindow(snapshots7d), [snapshots7d]);
-  const plays30d = useMemo(() => playsDeliveredInWindow(snapshots30d), [snapshots30d]);
-  const dailyAvg30d = Math.round(plays30d / 30);
-  const cpp = useMemo(() => realCostPerPlay(deals, snapshots30d), [deals, snapshots30d]);
+  const totalDeliveredAll = useMemo(() => totalDelivered(growthRows), [growthRows]);
+  const days30Activity = useMemo(
+    () => cpcRows.reduce((sum, r) => sum + Math.max(0, Number(r.plays_7d ?? 0)), 0),
+    [cpcRows],
+  );
+  const dailyAvg30d = Math.round(days30Activity / 30);
+  const cpp = useMemo(() => realCostPerPlay(deals, dealToGrowth), [deals, dealToGrowth]);
 
   // ─── Ritmo dos deals ativos ───
   const paceRows = useMemo(
     () => activeDeals
-      .map((d) => computeDealPace(d, snapshots30d))
+      .map((d) => computeDealPace(d, dealToGrowth.get(d.id) ?? []))
       .sort((a, b) => (a.pace_ratio ?? 99) - (b.pace_ratio ?? 99)),
-    [activeDeals, snapshots30d],
+    [activeDeals, dealToGrowth],
   );
 
-  // ─── Entregas por dia (30d) ───
-  const dailyChart = useMemo(() => aggregateDeliveriesByDay(snapshots30d), [snapshots30d]);
+  // ─── Atividade diária (raw CPC, 30d) ───
+  const dailyChart = useMemo(() => aggregateActivityByDay(cpcRows), [cpcRows]);
 
-  // ─── Top playlists ───
-  const topPlaylists = useMemo(() => topPlaylistsByDelta(snapshots30d, 10), [snapshots30d]);
+  // ─── Top playlists por delivery_accumulated da view ───
+  const topPlaylists = useMemo(() => topPlaylistsByDelivery(growthRows, 10), [growthRows]);
+
 
   return (
     <>
@@ -135,17 +159,17 @@ export default function Analytics() {
           />
           <Kpi
             icon={Zap}
-            label="Plays entregues (7d)"
-            value={plays7d.toLocaleString("pt-BR")}
-            hint="Janela curta — ritmo recente"
+            label="Entregue (total)"
+            value={totalDeliveredAll.toLocaleString("pt-BR")}
+            hint="delivery_accumulated agregado"
             domain="campaigns"
             loading={loading}
           />
           <Kpi
             icon={TrendingUp}
-            label="Média diária (30d)"
+            label="Atividade média (30d)"
             value={dailyAvg30d.toLocaleString("pt-BR")}
-            hint={`${plays30d.toLocaleString("pt-BR")} no período`}
+            hint={`${days30Activity.toLocaleString("pt-BR")} plays_7d no período`}
             domain="playlists"
             loading={loading}
           />
