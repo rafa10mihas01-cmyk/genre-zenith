@@ -414,6 +414,7 @@ export default function ClienteDetalhe() {
           hint={`${kpis.campanhas} campanha${kpis.campanhas === 1 ? "" : "s"}`}
           tier="hero"
           domain="clients"
+          className="col-span-2 md:col-span-1"
         />
         <KpiBig
           label="Valor recebido"
