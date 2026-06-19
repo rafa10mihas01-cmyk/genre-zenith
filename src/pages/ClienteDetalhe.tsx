@@ -413,7 +413,7 @@ export default function ClienteDetalhe() {
                   <InfoRow
                     icon={Music2}
                     label="Spotify do artista"
-                    value={client.spotify_artist_url ? `Perfil de ${client.name}` : null}
+                    value={client.spotify_artist_url ? "Abrir perfil no Spotify" : null}
                     hint={client.spotify_artist_url ? "Abrir no Spotify" : null}
                     href={client.spotify_artist_url ?? undefined}
                   />
