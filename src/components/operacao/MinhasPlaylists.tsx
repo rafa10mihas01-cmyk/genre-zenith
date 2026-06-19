@@ -137,11 +137,22 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const showCapacity = searchParams.get("aba") === "capacidade";
   const sortBy = (searchParams.get("sort") as "followers" | "recent" | "valuation") || "followers";
 
-  // Apps Spotify bloqueados pelo circuit breaker — usado pelo chip "Apps bloqueados".
-  const { data: blockedRows = [] } = useBlockedPlaylistIds();
-  const blockedSet = useMemo(() => new Set(blockedRows.map(r => r.playlist_id)), [blockedRows]);
-  const blockedAppName = blockedRows[0]?.app_name ?? null;
-  const blockedUntil = blockedRows[0]?.blocked_until ?? null;
+ // Apps Spotify bloqueados pelo circuit breaker — usado pelo chip "Apps bloqueados".
+ const { data: blockedRows = [] } = useBlockedPlaylistIds();
+ const blockedSet = useMemo(() => new Set(blockedRows.map(r => r.playlist_id)), [blockedRows]);
+ // Conta APPS distintos (não playlists) — playlists vão pro tooltip.
+ const blockedApps = useMemo(() => {
+   const m = new Map<string, { app_id: string; app_name: string; blocked_until: string | null; playlists: number }>();
+   for (const r of blockedRows) {
+     const cur = m.get(r.app_id) ?? { app_id: r.app_id, app_name: r.app_name, blocked_until: r.blocked_until, playlists: 0 };
+     cur.playlists += 1;
+     if (!cur.blocked_until || (r.blocked_until && r.blocked_until > cur.blocked_until)) cur.blocked_until = r.blocked_until;
+     m.set(r.app_id, cur);
+   }
+   return Array.from(m.values());
+ }, [blockedRows]);
+ const blockedAppName = blockedApps[0]?.app_name ?? null;
+ const blockedUntil = blockedApps[0]?.blocked_until ?? null;
   const setFilterAppBlocked = (v: boolean) => updateParam("app", v ? "bloqueado" : null);
 
   const updateParam = useCallback((key: string, val: string | null) => {
