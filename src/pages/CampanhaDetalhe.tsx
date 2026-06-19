@@ -98,6 +98,36 @@ export default function CampanhaDetalhe() {
 
   async function updateStatus(newStatus: string) {
     if (!id) return;
+    // GUARDA (Fase 13.X): primeira ativação só via approve-campaign-plan.
+    // Transições administrativas (paused/cancelled/completed/draft) e retomar
+    // (paused → active) de campanhas já aprovadas continuam permitidas.
+    if (newStatus === "active") {
+      const { data: row, error: readErr } = await supabase
+        .from("campaigns")
+        .select("plan_approved_at, valor_cobrado")
+        .eq("id", id)
+        .maybeSingle();
+      if (readErr) {
+        toast({ title: "Erro", description: readErr.message, variant: "destructive" });
+        return;
+      }
+      if (!row?.plan_approved_at) {
+        toast({
+          title: "Ative pelo fluxo oficial",
+          description: "Use 'Aprovar plano' — ativação direta não é permitida.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (row.valor_cobrado == null) {
+        toast({
+          title: "Valor contratado obrigatório",
+          description: "Defina o valor cobrado antes de ativar a campanha.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
     const { error } = await supabase.from("campaigns").update({ status: newStatus }).eq("id", id);
     if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
     else load();
