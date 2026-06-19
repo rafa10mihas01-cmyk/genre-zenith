@@ -2444,7 +2444,7 @@ export default function CuratorPage() {
                   return true;
                 });
                 return (
-                  <ul className="space-y-2">
+                  <ul className="space-y-2 max-h-[420px] overflow-y-auto pr-1 -mr-1 scroll-smooth [mask-image:linear-gradient(to_bottom,black_calc(100%-24px),transparent)]">
                     {unique.map((u) => {
                       const refLabel = u.reference_date
                         ? formatDate(u.reference_date)
