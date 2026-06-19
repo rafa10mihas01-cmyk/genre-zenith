@@ -219,14 +219,20 @@ export default function ClienteDetalhe() {
     const ativos = clientDeals.filter((d) => !d.closed_at).length;
     const concluidos = clientDeals.filter((d) => d.closed_status === "completed").length;
     const cancelados = clientDeals.filter((d) => d.closed_status === "cancelled").length;
+    const curadoresAtivos = new Set(
+      clientDeals.filter((d) => !d.closed_at && d.curator_id).map((d) => d.curator_id as string),
+    ).size;
+    const campanhasAtivas = clientCampaigns.filter((c) => c.status === "active").length;
 
     // KPIs financeiros — fonte ÚNICA: v_financial_summary (agregada por campanha).
-    const sum = (k: "valor_cobrado" | "valor_recebido" | "receita_pendente" | "margem_bruta") =>
+    const sum = (k: "valor_cobrado" | "valor_recebido" | "receita_pendente" | "margem_bruta" | "total_pago_curadores") =>
       financeRows.reduce((acc, r) => acc + (Number(r[k]) || 0), 0);
     const investido = sum("valor_cobrado");
     const receita = sum("valor_recebido");
     const saldoPendente = sum("receita_pendente");
     const margem = sum("margem_bruta");
+    const custoOperacional = sum("total_pago_curadores");
+    const margemPrevista = investido - custoOperacional;
 
     return {
       musicas: clientSongs.length,
@@ -234,13 +240,61 @@ export default function ClienteDetalhe() {
       ativos,
       concluidos,
       cancelados,
+      curadoresAtivos,
+      campanhasAtivas,
       investido,
       receita,
       margem,
+      margemPrevista,
+      custoOperacional,
       saldoPendente,
       campanhas: clientCampaigns.length,
     };
   }, [clientDeals, clientSongs, clientCampaigns, financeRows]);
+
+  // Agregados por campanha — derivados dos dados já carregados (sem novas queries).
+  const campaignAggregates = useMemo(() => {
+    const map = new Map<string, { deals: number; dealsAtivos: number; dealsConcluidos: number; curadores: number; songs: number; ultimaAtividade: number | null }>();
+    for (const c of clientCampaigns) {
+      const cDeals = clientDeals.filter((d) => d.campaign_id === c.id);
+      const cSongs = clientSongs.filter((s) => clientDeals.some((d) => d.id === s.deal_id && d.campaign_id === c.id));
+      const curadores = new Set(cDeals.filter((d) => d.curator_id).map((d) => d.curator_id as string)).size;
+      const ts = [
+        new Date(c.created_at).getTime(),
+        ...cDeals.map((d) => new Date(d.started_at).getTime()),
+        ...cDeals.filter((d) => d.closed_at).map((d) => new Date(d.closed_at as string).getTime()),
+      ].filter((n) => Number.isFinite(n));
+      map.set(c.id, {
+        deals: cDeals.length,
+        dealsAtivos: cDeals.filter((d) => !d.closed_at).length,
+        dealsConcluidos: cDeals.filter((d) => d.closed_status === "completed").length,
+        curadores,
+        songs: cSongs.length,
+        ultimaAtividade: ts.length ? Math.max(...ts) : null,
+      });
+    }
+    return map;
+  }, [clientCampaigns, clientDeals, clientSongs]);
+
+  // Timeline — últimos eventos consolidados do cliente.
+  const timeline = useMemo(() => {
+    const events: Array<{ when: string; label: string; icon: LucideIcon; tone?: string }> = [];
+    for (const c of clientCampaigns) {
+      events.push({ when: c.created_at, label: `Campanha criada · ${c.track_name}`, icon: Megaphone });
+      if (c.snapshot_locked_at) events.push({ when: c.snapshot_locked_at, label: `Plano aprovado · ${c.track_name}`, icon: CheckCircle2, tone: "text-primary" });
+      if (c.recebido_em) events.push({ when: c.recebido_em, label: `Pagamento recebido · ${c.track_name}`, icon: CreditCard, tone: "text-emerald-400" });
+    }
+    for (const d of clientDeals) {
+      events.push({ when: d.started_at, label: `Deal iniciado · ${d.curator_name}`, icon: FileText });
+      if (d.closed_at) events.push({ when: d.closed_at, label: `Deal ${d.closed_status === "completed" ? "concluído" : "encerrado"} · ${d.curator_name}`, icon: d.closed_status === "completed" ? CheckCircle2 : XCircle, tone: d.closed_status === "completed" ? "text-emerald-400" : "text-muted-foreground" });
+    }
+    return events
+      .filter((e) => e.when)
+      .sort((a, b) => new Date(b.when).getTime() - new Date(a.when).getTime())
+      .slice(0, 8);
+  }, [clientCampaigns, clientDeals]);
+
+  const ultimaAtividade = timeline[0]?.when ?? null;
 
 
   if (loadingClients && !client) {
