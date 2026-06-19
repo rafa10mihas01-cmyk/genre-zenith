@@ -134,7 +134,7 @@ function fmtNum(n: number | null | undefined) {
   return new Intl.NumberFormat("pt-BR").format(n);
 }
 
-const STATUS_META: Record<Status, { label: string; cls: string; icon: any }> = {
+const STATUS_META: Record<Status, { label: string; cls: string; icon: LucideIcon }> = {
   protected: { label: "Protegida", cls: "border-domain-campaigns/40 text-domain-campaigns bg-domain-campaigns/5", icon: ShieldCheck },
   keep: { label: "Manter", cls: "border-primary/30 text-primary bg-primary/5", icon: CheckCircle2 },
   remove: { label: "Remover", cls: "border-destructive/40 text-destructive bg-destructive/5", icon: TrendingDown },
