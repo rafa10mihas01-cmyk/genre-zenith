@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
       } catch (_e) { /* best-effort */ }
     }
 
-    // Dados base + RPCs de progresso e histórico (snapshots como fonte única).
+    // Dados base + RPCs de progresso e histórico.
     const [
       { data: playlists, error: plErr },
       { data: songs, error: songsErr },
@@ -399,8 +399,28 @@ Deno.serve(async (req) => {
     }
 
     const growthBySpotifyPlaylist: Record<string, { plays_7d: number | null; plays_28d: number | null }> = {};
+    const curatorGrowthRows: Array<{
+      playlist_id: string | null;
+      current_name: string | null;
+      baseline_plays: number | null;
+      current_plays: number | null;
+      delivery_accumulated: number | null;
+      delta: number | null;
+      baseline_at: string | null;
+      last_captured_at: string | null;
+    }> = [];
     if (growthCampaignId) {
       try {
+        const attributedTo = (deal as any).curator_id ? `curator:${(deal as any).curator_id}` : null;
+        if (attributedTo) {
+          const { data: attributedRows } = await admin
+            .from("vw_campaign_playlist_growth")
+            .select("playlist_id, current_name, baseline_plays, current_plays, delivery_accumulated, delta, baseline_at, last_captured_at")
+            .eq("campaign_id", growthCampaignId)
+            .eq("attributed_to", attributedTo);
+          curatorGrowthRows.push(...((attributedRows ?? []) as any[]));
+        }
+
         const playlistIds = Array.from(
           new Set(
             ((playlists ?? []) as any[])
@@ -428,6 +448,59 @@ Deno.serve(async (req) => {
         }
       } catch (_e) { /* best-effort */ }
     }
+
+    const progressWithGrowth = (() => {
+      if (curatorGrowthRows.length === 0) return progressRpc ?? null;
+
+      const delivered = curatorGrowthRows.reduce(
+        (sum, row) => sum + Math.max(0, Number(row.delta ?? row.delivery_accumulated ?? 0)),
+        0,
+      );
+      const currentProgress = (progressRpc ?? {}) as Record<string, any>;
+      const currentDelivered = Number(currentProgress.delivered_curator ?? 0);
+      if (delivered <= currentDelivered) return progressRpc ?? null;
+
+      const target = Number(currentProgress.target_plays ?? (deal as any).target_plays ?? 0);
+      const dailyGoal = Number(currentProgress.daily_goal ?? (deal as any).daily_goal ?? 0);
+      const baselineTotal = curatorGrowthRows.reduce((sum, row) => sum + Math.max(0, Number(row.baseline_plays ?? 0)), 0);
+      const latestTotal = curatorGrowthRows.reduce((sum, row) => sum + Math.max(0, Number(row.current_plays ?? 0)), 0);
+      const captures = curatorGrowthRows
+        .flatMap((row) => [row.baseline_at, row.last_captured_at])
+        .filter((v): v is string => !!v)
+        .sort((a, b) => +new Date(a) - +new Date(b));
+      const startedAt = (deal as any).started_at ?? (deal as any).created_at ?? captures[0] ?? null;
+      const daysElapsed = startedAt
+        ? Math.max(1, Math.floor((Date.now() - +new Date(startedAt)) / 86400000))
+        : Number(currentProgress.days_elapsed ?? 0);
+
+      return {
+        ...currentProgress,
+        deal_id: (deal as any).id,
+        target_plays: target,
+        daily_goal: dailyGoal,
+        baseline_total: baselineTotal,
+        latest_total: latestTotal,
+        delivered_curator: delivered,
+        delivered_total: delivered,
+        first_capture_at: captures[0] ?? currentProgress.first_capture_at ?? null,
+        last_capture_at: captures[captures.length - 1] ?? currentProgress.last_capture_at ?? null,
+        days_elapsed: daysElapsed,
+        daily_avg: daysElapsed > 0 ? Math.round(delivered / daysElapsed) : Number(currentProgress.daily_avg ?? 0),
+        progress_pct: target > 0 ? Math.min(100, Math.round((delivered / target) * 1000) / 10) : 0,
+        eta_days: dailyGoal > 0 && delivered < target ? Math.ceil((target - delivered) / dailyGoal) : null,
+        per_playlist: curatorGrowthRows.map((row) => ({
+          playlist_id: row.playlist_id ?? "",
+          playlist_name: row.current_name ?? null,
+          is_initial_roster: false,
+          baseline_plays: row.baseline_plays ?? null,
+          latest_plays: row.current_plays ?? null,
+          delivered: Math.max(0, Number(row.delta ?? row.delivery_accumulated ?? 0)),
+          last_captured_at: row.last_captured_at ?? null,
+          snapshot_count: 1,
+          attribution_method: "campaign_growth",
+        })).filter((row) => row.playlist_id),
+      };
+    })();
 
     // Gate informativo: leitura segue permitida (curador vê o histórico),
     // mas o frontend usa esse flag pra desabilitar mutações.
@@ -669,7 +742,7 @@ Deno.serve(async (req) => {
       campaign_context,
       playlists: enrichedPlaylists,
       songs: songs ?? [],
-      progress: progressRpc ?? null,
+      progress: progressWithGrowth,
       // Deduplicação é global no RPC get_curator_deal_snapshot_history,
       // então qualquer DEL/tela recebe a mesma timeline limpa.
       snapshot_history: historyRpc ?? [],
