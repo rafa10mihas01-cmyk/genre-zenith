@@ -25,6 +25,9 @@ import {
   Calendar,
   CheckCircle2,
   XCircle,
+  LayoutDashboard,
+  Megaphone,
+  StickyNote,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
