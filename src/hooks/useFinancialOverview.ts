@@ -282,7 +282,7 @@ export function useFinancialOverview() {
 
   const reload = useCallback(async () => {
     await Promise.all([
-      qc.invalidateQueries({ queryKey: ["financial-summary"] }),
+      qc.invalidateQueries({ queryKey: ["overview"] }),
       qc.invalidateQueries({ queryKey: ["financial-by-curator"] }),
       qc.invalidateQueries({ queryKey: ["financial-global-totals"] }),
       qc.invalidateQueries({ queryKey: ["financial-purchases"] }),
