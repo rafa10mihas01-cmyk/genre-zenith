@@ -639,7 +639,7 @@ export default function ClienteDetalhe() {
                   : c.status === "cancelled" ? "text-muted-foreground"
                   : "text-foreground/70";
                 return (
-                  <Link key={c.id} to={`/campanhas/${c.id}`}>
+                  <Link key={c.id} to={c.snapshot_locked_at ? `/campanhas/${c.id}/execucao` : `/campanhas/${c.id}`}>
                     <Card className="hover:border-foreground/20 transition-colors">
                       <CardContent className="p-4 flex items-center gap-3 min-w-0">
                         <div className="min-w-0 flex-1">
