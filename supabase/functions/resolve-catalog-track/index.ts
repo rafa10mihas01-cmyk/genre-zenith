@@ -171,6 +171,20 @@ Deno.serve(async (req) => {
       } : null,
     });
   } catch (e) {
-    return jr({ ok: false, error: "internal_error", message: (e as Error)?.message ?? String(e) }, 500);
+    const msg = (e as Error)?.message ?? String(e);
+    if (msg.startsWith("SPOTIFY_CIRCUIT_OPEN")) {
+      // Match: SPOTIFY_CIRCUIT_OPEN: blocked_until=... retry_after=...s
+      const blockedMatch = msg.match(/blocked_until=([^\s]+)/);
+      const retryMatch = msg.match(/retry_after=(\d+)/);
+      return jr({
+        ok: false,
+        error: "spotify_circuit_open",
+        fallback: true,
+        message: "Spotify temporariamente bloqueado (circuit breaker aberto). Tente novamente mais tarde.",
+        blocked_until: blockedMatch?.[1] ?? null,
+        retry_after_seconds: retryMatch ? Number(retryMatch[1]) : null,
+      }, 200);
+    }
+    return jr({ ok: false, error: "internal_error", message: msg }, 500);
   }
 });
