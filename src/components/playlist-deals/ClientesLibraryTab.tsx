@@ -235,12 +235,11 @@ export function ClientesLibraryTab({ deals, songs, loading, campaignsByClient }:
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="activity">Mais ativos</SelectItem>
-            <SelectItem value="invested">Maior investido</SelectItem>
-            <SelectItem value="revenue">Maior receita</SelectItem>
             <SelectItem value="alpha">Alfabético</SelectItem>
           </SelectContent>
         </Select>
       </div>
+
 
 
       {(loading || loadingClients) && rows.length === 0 ? (
