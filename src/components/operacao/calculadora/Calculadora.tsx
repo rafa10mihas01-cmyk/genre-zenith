@@ -23,7 +23,7 @@ import {
 } from "@/lib/campaignEngine";
 import { usePricingSettings } from "@/hooks/usePricingSettings";
 import { formatCompact } from "@/lib/format";
-import { Table2, ArrowRight, ArrowLeft, Target as TargetIcon, Users, Wallet, Music, Search, CheckCircle2, X, Loader2, CalendarIcon, FileText, Plus, ListMusic, Layers, Zap, Pencil, AlertTriangle } from "lucide-react";
+import { Table2, ArrowRight, ArrowLeft, Target as TargetIcon, Users, Wallet, Music, Search, CheckCircle2, X, Loader2, CalendarIcon, FileText, Plus, ListMusic, Layers, Zap, Pencil, AlertTriangle, type LucideIcon } from "lucide-react";
 import { useEcosystemCapacity } from "@/hooks/useEcosystemCapacity";
 import { CapacidadeRealCard } from "./CapacidadeRealCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -419,8 +419,9 @@ export function Calculadora({ onContinue, prefillSpotifyTrackId }: { onContinue?
         .from("campaign_eco_allocations")
         .select("managed_playlist_id, position, campaigns!inner(status, created_at)")
         .or(`status.eq.active,and(status.eq.draft,created_at.gte.${reservationCutoffIso})`, { foreignTable: "campaigns" });
+      type ReservedRow = { managed_playlist_id: string; position: number | null };
       const reservedKeys = new Set<string>(
-        ((reservedRows ?? []) as any[])
+        ((reservedRows ?? []) as ReservedRow[])
           .filter(r => Number.isFinite(r.position))
           .map(r => `${r.managed_playlist_id}:${r.position}`),
       );
@@ -598,7 +599,8 @@ export function Calculadora({ onContinue, prefillSpotifyTrackId }: { onContinue?
               .select("managed_playlist_id, campaigns!inner(status, started_at, simulation_snapshot)")
               .in("managed_playlist_id", candidateIds)
               .in("status", ["pending", "approved", "dispatched"]);
-            for (const row of (occRows ?? []) as any[]) {
+            type OccRow = { managed_playlist_id: string | null; campaigns?: { status?: string; started_at?: string | null; simulation_snapshot?: { effectiveDays?: number; days?: number } | null } | null };
+            for (const row of (occRows ?? []) as OccRow[]) {
               const c = row?.campaigns;
               if (!c || !["active", "approved"].includes(c.status)) continue;
               if (!c.started_at) continue;
@@ -1949,7 +1951,7 @@ function SessionChip({
 }
 
 
-function ReviewKpi({ icon: Icon, label, value, hint }: { icon: any; label: string; value: string; hint?: string }) {
+function ReviewKpi({ icon: Icon, label, value, hint }: { icon: LucideIcon; label: string; value: string; hint?: string }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
       <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
@@ -1962,7 +1964,7 @@ function ReviewKpi({ icon: Icon, label, value, hint }: { icon: any; label: strin
   );
 }
 
-function FonteBtn({ active, onClick, icon: Icon, label }: any) {
+function FonteBtn({ active, onClick, icon: Icon, label }: { active: boolean; onClick: () => void; icon: LucideIcon; label: string }) {
   return (
     <button
       onClick={onClick}

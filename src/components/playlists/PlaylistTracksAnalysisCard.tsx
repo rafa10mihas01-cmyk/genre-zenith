@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   ArrowRightLeft,
   Plus,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -133,7 +134,7 @@ function fmtNum(n: number | null | undefined) {
   return new Intl.NumberFormat("pt-BR").format(n);
 }
 
-const STATUS_META: Record<Status, { label: string; cls: string; icon: any }> = {
+const STATUS_META: Record<Status, { label: string; cls: string; icon: LucideIcon }> = {
   protected: { label: "Protegida", cls: "border-domain-campaigns/40 text-domain-campaigns bg-domain-campaigns/5", icon: ShieldCheck },
   keep: { label: "Manter", cls: "border-primary/30 text-primary bg-primary/5", icon: CheckCircle2 },
   remove: { label: "Remover", cls: "border-destructive/40 text-destructive bg-destructive/5", icon: TrendingDown },
@@ -162,10 +163,10 @@ export function PlaylistTracksAnalysisCard({ managedId }: { managedId: string })
         .limit(1)
         .maybeSingle();
       if (active) {
-        setAnalysis(Array.isArray(data?.tracks_analysis) ? (data!.tracks_analysis as any) : []);
-        setSummary((data?.tracks_summary as any) ?? {});
-        setSuggestions(Array.isArray(data?.tracks_suggestions) ? (data!.tracks_suggestions as any) : []);
-        const raw = (data?.raw as any) ?? {};
+        setAnalysis(Array.isArray(data?.tracks_analysis) ? (data!.tracks_analysis as unknown as TrackRow[]) : []);
+        setSummary((data?.tracks_summary as unknown as Summary) ?? {});
+        setSuggestions(Array.isArray(data?.tracks_suggestions) ? (data!.tracks_suggestions as unknown as Suggestion[]) : []);
+        const raw = (data?.raw as { substitutions?: Substitution[] } | null) ?? {};
         setSubstitutions(Array.isArray(raw?.substitutions) ? raw.substitutions : []);
         setLoading(false);
       }

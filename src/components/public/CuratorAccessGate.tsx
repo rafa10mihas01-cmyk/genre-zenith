@@ -23,11 +23,11 @@ export function CuratorAccessGate({ token, onAuthed }: Props) {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function readErr(data: any, error: any): Promise<string | undefined> {
+  async function readErr(data: { error?: string } | null, error: { context?: { json?: () => Promise<{ error?: string }> }; message?: string } | null): Promise<string | undefined> {
     let e: string | undefined = data?.error;
     if (!e && error) {
       try {
-        const ctx: any = (error as any).context;
+        const ctx = error.context;
         if (ctx && typeof ctx.json === "function") {
           const body = await ctx.json();
           e = body?.error;
@@ -75,7 +75,7 @@ export function CuratorAccessGate({ token, onAuthed }: Props) {
       else toast.error("Este e-mail não tem acesso a esta página.");
       return;
     }
-    const jwt = (data as any)?.jwt as string;
+    const jwt = (data as { jwt?: string } | null)?.jwt as string;
     if (!jwt) { toast.error("Erro inesperado."); return; }
     try {
       localStorage.setItem(curatorAccessStorageKey(token), JSON.stringify({

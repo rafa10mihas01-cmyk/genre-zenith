@@ -55,10 +55,10 @@ export function CampaignAccessGate({ token, onAuthed }: Props) {
     });
     setLoading(false);
     // Quando edge retorna não-2xx, supabase-js coloca o body em error.context
-    let e: string | undefined = (data as any)?.error;
+    let e: string | undefined = (data as { error?: string } | null)?.error;
     if (!e && error) {
       try {
-        const ctx: any = (error as any).context;
+        const ctx = (error as { context?: { json?: () => Promise<{ error?: string }> } }).context;
         if (ctx && typeof ctx.json === "function") {
           const body = await ctx.json();
           e = body?.error;
@@ -86,10 +86,10 @@ export function CampaignAccessGate({ token, onAuthed }: Props) {
       body: { token, email: email.trim().toLowerCase(), code: code.trim() },
     });
     setLoading(false);
-    let e: string | undefined = (data as any)?.error;
+    let e: string | undefined = (data as { error?: string } | null)?.error;
     if (!e && error) {
       try {
-        const ctx: any = (error as any).context;
+        const ctx = (error as { context?: { json?: () => Promise<{ error?: string }> } }).context;
         if (ctx && typeof ctx.json === "function") {
           const body = await ctx.json();
           e = body?.error;
@@ -103,7 +103,7 @@ export function CampaignAccessGate({ token, onAuthed }: Props) {
       else toast.error("Este e-mail não tem acesso a esta campanha.");
       return;
     }
-    const jwt = (data as any)?.jwt as string;
+    const jwt = (data as { jwt?: string } | null)?.jwt as string;
     if (!jwt) { toast.error("Erro inesperado."); return; }
     // Antes de liberar, garante que o JWT VAI persistir. Sem isso o usuário
     // entra agora, dá refresh, perde sessão, pede OTP de novo → loop.

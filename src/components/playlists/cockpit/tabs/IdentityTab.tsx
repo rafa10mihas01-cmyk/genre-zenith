@@ -8,7 +8,7 @@ import { IdentityField } from "../shared/IdentityField";
 import { TabShell } from "../shared/ds/TabShell";
 import { TabContextBanner } from "../shared/ds/TabContextBanner";
 import { TabKpiStrip } from "../shared/ds/TabKpiStrip";
-import { KpiCard } from "../shared/ds/KpiCard";
+import { KpiCard, type KpiTone } from "../shared/ds/KpiCard";
 import { SecondarySection } from "../shared/ds/SecondarySection";
 import { useCockpit } from "../context/CockpitContext";
 
@@ -24,7 +24,7 @@ export function IdentityTab() {
   // já publicados. Inteligência (plano, sugestões, IA, benchmarks) só é
   // recalculada quando o usuário clica explicitamente em "Diagnosticar".
   const handleIdentityApplied = (value: string, field: "name" | "description") => {
-    setDiag((prev: any) => {
+    setDiag((prev) => {
       if (!prev) return prev;
       if (field === "name") {
         return {
@@ -68,25 +68,25 @@ export function IdentityTab() {
             label="Score do nome"
             value={nameScore != null ? `${Math.round(nameScore)}` : "—"}
             hint={nameScore == null ? "sem avaliação" : nameScore >= 75 ? "ótimo" : nameScore >= 50 ? "aceitável" : "precisa melhorar"}
-            tone={nameTone as any}
+            tone={nameTone as KpiTone}
           />
           <KpiCard
             label="Descrição"
             value={hasDescription ? "OK" : "Vazia"}
             hint={hasDescription ? "preenchida" : "adicione 1–2 linhas com o nicho"}
-            tone={descTone as any}
+            tone={descTone as KpiTone}
           />
           <KpiCard
             label="Keywords faltando"
             value={missingCount}
             hint={missingCount === 0 ? "cobertura completa" : "termos fortes do nicho ausentes"}
-            tone={kwTone as any}
+            tone={kwTone as KpiTone}
           />
           <KpiCard
             label="Capa"
             value={hasCover ? "Definida" : "Faltando"}
             hint={hasCover ? "imagem ativa" : "sem capa personalizada"}
-            tone={coverTone as any}
+            tone={coverTone as KpiTone}
           />
         </TabKpiStrip>
       }

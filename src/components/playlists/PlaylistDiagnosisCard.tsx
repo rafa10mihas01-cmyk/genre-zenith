@@ -4,16 +4,54 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Sparkles, Music2, Users, AlertCircle, CheckCircle2, Radar, Disc3 } from "lucide-react";
 
+type NameReason = {
+  type: string;
+  value?: string | number | null;
+  benchmark_p50?: number | null;
+  benchmark_p90?: number | null;
+};
+
+type TrackSuggestion = {
+  cover_url?: string | null;
+  nome?: string | null;
+  name?: string | null;
+  artista?: string | null;
+  artist?: string | null;
+  target_zone_label?: string | null;
+  function_role?: string | null;
+  count?: number | null;
+  zone_fit_score?: number | null;
+};
+
+type CompetitorRow = {
+  spotify_playlist_id: string;
+  name?: string | null;
+  followers?: number | null;
+};
+
+type RecurringTrack = {
+  cover_url?: string | null;
+  title?: string | null;
+  artist?: string | null;
+  niche_playlists_count?: number | null;
+};
+
+type DiagnosisRaw = {
+  market_insights?: {
+    top_recurring_tracks?: RecurringTrack[];
+  } | null;
+};
+
 type DiagnosisRow = {
   id: string;
   created_at: string;
   name_score: number | null;
   name_current: string | null;
   name_suggestion: string | null;
-  name_reasons: any;
-  tracks_suggestions: any;
-  competitors: any;
-  raw: any;
+  name_reasons: NameReason[] | null;
+  tracks_suggestions: TrackSuggestion[] | null;
+  competitors: CompetitorRow[] | null;
+  raw: DiagnosisRaw | null;
 };
 
 function fmtNum(n: number | null | undefined) {
@@ -68,13 +106,13 @@ export function PlaylistDiagnosisCard({ managedId }: { managedId: string }) {
     );
   }
 
-  const reasons: any[] = Array.isArray(diag.name_reasons) ? diag.name_reasons : [];
-  const missingKeywords = reasons.filter((r) => r?.type === "missing_keyword").map((r) => r.value).filter(Boolean);
+  const reasons: NameReason[] = Array.isArray(diag.name_reasons) ? diag.name_reasons : [];
+  const missingKeywords = reasons.filter((r) => r?.type === "missing_keyword").map((r) => r.value).filter(Boolean) as string[];
   const sizeReasons = reasons.filter((r) => r?.type === "too_many_tracks" || r?.type === "too_few_tracks");
-  const tracks: any[] = Array.isArray(diag.tracks_suggestions) ? diag.tracks_suggestions : [];
-  const competitors: any[] = Array.isArray(diag.competitors) ? diag.competitors : [];
+  const tracks: TrackSuggestion[] = Array.isArray(diag.tracks_suggestions) ? diag.tracks_suggestions : [];
+  const competitors: CompetitorRow[] = Array.isArray(diag.competitors) ? diag.competitors : [];
   const market = diag.raw?.market_insights ?? {};
-  const topRecurring: any[] = Array.isArray(market?.top_recurring_tracks) ? market.top_recurring_tracks : [];
+  const topRecurring: RecurringTrack[] = Array.isArray(market?.top_recurring_tracks) ? market.top_recurring_tracks : [];
 
   // Total agregado de followers nos concorrentes para calcular "dominância"
   const totalCompFollowers = competitors.reduce((acc, c) => acc + (Number(c.followers) || 0), 0);
@@ -154,8 +192,8 @@ export function PlaylistDiagnosisCard({ managedId }: { managedId: string }) {
               <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
               <div>
                 {r.type === "too_many_tracks"
-                  ? `Playlist com ${fmtNum(r.value)} faixas (acima do p90 do gênero: ${fmtNum(r.benchmark_p90)})`
-                  : `Playlist com ${fmtNum(r.value)} faixas (abaixo da metade do p50: ${fmtNum(r.benchmark_p50)})`}
+                  ? `Playlist com ${fmtNum(Number(r.value))} faixas (acima do p90 do gênero: ${fmtNum(r.benchmark_p90)})`
+                  : `Playlist com ${fmtNum(Number(r.value))} faixas (abaixo da metade do p50: ${fmtNum(r.benchmark_p50)})`}
               </div>
             </div>
           ))}
