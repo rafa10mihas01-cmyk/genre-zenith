@@ -63,6 +63,9 @@ export function FinancialOverview() {
 
   return (
     <div className="space-y-6">
+      {/* Pendências legadas (some quando a fila esvazia) */}
+      <LegacyValorCobradoPanel />
+
       {/* ===== Cards de resumo ===== */}
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Kpi icon={DollarSign} label="Recebido de clientes" value={fmtBRL(totals.recebido)} tone="primary" />
