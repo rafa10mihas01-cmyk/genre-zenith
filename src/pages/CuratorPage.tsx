@@ -658,8 +658,10 @@ export default function CuratorPage() {
     const pct = Number(songProg?.progress_pct ?? progress?.progress_pct ?? 0);
     const dailyAvg = Number(progress?.daily_avg ?? 0);
     const eta = progress?.eta_days ?? null;
-    const hasBaseline = (progress?.per_playlist?.length ?? 0) > 0
-      || snapshotHistory.length > 0;
+    // FASE 13.0 — prioriza has_baseline server-side (deriva de CPC oficial).
+    // Fallback mantém compat com payloads antigos.
+    const hasBaseline = (data?.has_baseline as boolean | undefined)
+      ?? ((progress?.per_playlist?.length ?? 0) > 0 || snapshotHistory.length > 0);
     const lastCaptureAt = songProg?.last_capture_at ?? progress?.last_capture_at ?? null;
     const firstCaptureAt = songProg?.first_capture_at ?? progress?.first_capture_at ?? null;
 
