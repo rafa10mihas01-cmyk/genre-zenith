@@ -33,6 +33,7 @@ const RESOLVED_FUNCTION_NAME = detectFunctionName();
 
 // Contexto async-local: propaga app_id/owner/playlist_id pra TODAS as chamadas
 // fetch() do mesmo callback sem precisar passar ctx manualmente.
+export type SpotifyBreakerContext = "operation" | "enrichment";
 type CtxFields = {
   appId?: string | null;
   appName?: string | null;
@@ -40,6 +41,7 @@ type CtxFields = {
   owner_id?: string | null;
   spotify_user_id?: string | null;
   function_name?: string | null;
+  breaker_context?: SpotifyBreakerContext | null;
 };
 const ctxStore = new AsyncLocalStorage<CtxFields>();
 // Fallback module-level (Deno ALS pode não persistir enterWith em todos cenários).
@@ -67,6 +69,13 @@ function enterCtx(patch: CtxFields): void {
  */
 export function setSpotifyCtx(patch: CtxFields): void {
   enterCtx(patch);
+}
+
+/** Define se as próximas chamadas Spotify devem usar o circuit breaker de
+ *  "operation" (default, derruba sync/bot/execução) ou "enrichment" (isolado,
+ *  só afeta jobs de catálogo). Chamar UMA vez no entrypoint do worker/edge. */
+export function setSpotifyBreakerContext(context: SpotifyBreakerContext): void {
+  enterCtx({ breaker_context: context });
 }
 
 const appNameCache = new Map<string, string>();
@@ -187,7 +196,10 @@ function db() {
   return createClient(SUPABASE_URL, SERVICE_KEY);
 }
 
-export async function assertSpotifyCircuitClosed(appId = "global"): Promise<void> {
+export async function assertSpotifyCircuitClosed(
+  appId = "global",
+  context: SpotifyBreakerContext = "operation",
+): Promise<void> {
   const supabase = db();
   const effectiveAppId = appId === "global" ? (await getDefaultSpotifyAppId()) ?? "global" : appId;
   try { await supabase.rpc("close_expired_spotify_circuit_breakers"); } catch { /* noop */ }
@@ -195,6 +207,7 @@ export async function assertSpotifyCircuitClosed(appId = "global"): Promise<void
     .from("spotify_circuit_breaker")
     .select("status, blocked_until, retry_after_sec")
     .eq("app_id", effectiveAppId)
+    .eq("context", context)
     .maybeSingle();
   if (error) throw new Error(`spotify_circuit_breaker: ${error.message}`);
   if (data?.status === "open" && data.blocked_until && new Date(data.blocked_until).getTime() > Date.now()) {
@@ -202,21 +215,28 @@ export async function assertSpotifyCircuitClosed(appId = "global"): Promise<void
   }
 }
 
-export async function openSpotifyCircuitBreaker(retryAfterSec?: number | null, appId = "global", causedBy?: string): Promise<{ blockedUntil: string; retryAfterSec: number }> {
+export async function openSpotifyCircuitBreaker(
+  retryAfterSec?: number | null,
+  appId = "global",
+  causedBy?: string,
+  context: SpotifyBreakerContext = "operation",
+): Promise<{ blockedUntil: string; retryAfterSec: number }> {
   const effectiveAppId = appId === "global" ? (await getDefaultSpotifyAppId()) ?? "global" : appId;
   const safeRetry = Math.max(2, Math.min(Number(retryAfterSec ?? 60), 86_400));
   const blockedUntil = new Date(Date.now() + safeRetry * 1000).toISOString();
   await db().from("spotify_circuit_breaker").upsert({
     app_id: effectiveAppId,
+    context,
     status: "open",
     blocked_until: blockedUntil,
     last_429_at: new Date().toISOString(),
     retry_after_sec: safeRetry,
-  }, { onConflict: "app_id" });
+  }, { onConflict: "app_id,context" });
   // Gap 22: registra histórico de cada abertura.
   try {
     await db().from("spotify_circuit_breaker_log").insert({
       app_id: effectiveAppId,
+      context,
       blocked_until: blockedUntil,
       retry_after_sec: safeRetry,
       caused_by: causedBy ?? null,
@@ -346,6 +366,13 @@ function resolveLogCtx(perCall?: SpotifyCallCtx): Required<Pick<SpotifyLogRow, "
   };
 }
 
+/** Lê o contexto do breaker (operation|enrichment) do ctx async-local. Default: operation. */
+function resolveBreakerContext(): SpotifyBreakerContext {
+  const als = ctxStore.getStore() ?? {};
+  const c = (als.breaker_context ?? __lastCtx.breaker_context ?? "operation") as SpotifyBreakerContext;
+  return c === "enrichment" ? "enrichment" : "operation";
+}
+
 export async function guardedSpotifyFetch(
   url: string,
   init: RequestInit = {},
@@ -365,7 +392,8 @@ export async function guardedSpotifyFetch(
   let errorMsg: string | null = null;
   let errorBody: string | null = null;
   try {
-    if (!bypass) await assertSpotifyCircuitClosed(appId);
+    const brCtx = resolveBreakerContext();
+    if (!bypass) await assertSpotifyCircuitClosed(appId, brCtx);
     const r = await spotifyOriginalFetch(url, init);
     httpStatus = r.status;
     if (!r.ok) {
@@ -389,7 +417,7 @@ export async function guardedSpotifyFetch(
     }
     if (r.status === 429 && !bypass) {
       const ra = Number(r.headers.get("Retry-After") ?? r.headers.get("retry-after") ?? "");
-      const opened = await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60, appId, url);
+      const opened = await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60, appId, url, brCtx);
       if (merged.app_id) fireAndForget(markAppAuthFailure(merged.app_id, "RATE_LIMIT", opened.retryAfterSec));
       logStatus = "circuit_open";
       breakerOpen = true;
@@ -448,8 +476,9 @@ export function installSpotifyCircuitFetchGuard() {
     let breakerOpen = false;
     let errorMsg: string | null = null;
     let errorBody: string | null = null;
+    const brCtx = resolveBreakerContext();
     try {
-      if (!bypass) await assertSpotifyCircuitClosed(appId);
+      if (!bypass) await assertSpotifyCircuitClosed(appId, brCtx);
       const r = await spotifyOriginalFetch(input, init);
       httpStatus = r.status;
       if (!r.ok) {
@@ -473,7 +502,7 @@ export function installSpotifyCircuitFetchGuard() {
       }
       if (r.status === 429 && !bypass) {
         const ra = Number(r.headers.get("Retry-After") ?? r.headers.get("retry-after") ?? "");
-        const opened = await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60, appId, rawUrl);
+        const opened = await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60, appId, rawUrl, brCtx);
         if (merged.app_id) fireAndForget(markAppAuthFailure(merged.app_id, "RATE_LIMIT", opened.retryAfterSec));
         logStatus = "circuit_open";
         breakerOpen = true;

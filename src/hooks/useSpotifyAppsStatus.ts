@@ -78,3 +78,25 @@ export function useBlockedPlaylistIds() {
     },
   });
 }
+
+export type OpenBreakerRow = {
+  app_id: string;
+  app_name: string;
+  context: "operation" | "enrichment";
+  blocked_until: string | null;
+  retry_after_sec: number;
+  last_429_at: string | null;
+};
+
+/** Lista todos os breakers Spotify abertos (operation + enrichment) — admin/sistema. */
+export function useOpenSpotifyBreakers() {
+  return useQuery({
+    queryKey: ["spotify-open-breakers"],
+    staleTime: 30_000,
+    queryFn: async (): Promise<OpenBreakerRow[]> => {
+      const { data, error } = await supabase.rpc("list_open_spotify_breakers" as any);
+      if (error) throw error;
+      return (data ?? []) as OpenBreakerRow[];
+    },
+  });
+}

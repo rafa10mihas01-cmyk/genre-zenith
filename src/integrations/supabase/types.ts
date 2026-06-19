@@ -11234,6 +11234,7 @@ export type Database = {
         Row: {
           app_id: string
           blocked_until: string | null
+          context: string
           created_at: string
           last_429_at: string | null
           retry_after_sec: number
@@ -11243,6 +11244,7 @@ export type Database = {
         Insert: {
           app_id?: string
           blocked_until?: string | null
+          context?: string
           created_at?: string
           last_429_at?: string | null
           retry_after_sec?: number
@@ -11252,6 +11254,7 @@ export type Database = {
         Update: {
           app_id?: string
           blocked_until?: string | null
+          context?: string
           created_at?: string
           last_429_at?: string | null
           retry_after_sec?: number
@@ -11265,6 +11268,7 @@ export type Database = {
           app_id: string
           blocked_until: string
           caused_by: string | null
+          context: string
           created_at: string
           id: string
           opened_at: string
@@ -11275,6 +11279,7 @@ export type Database = {
           app_id?: string
           blocked_until: string
           caused_by?: string | null
+          context?: string
           created_at?: string
           id?: string
           opened_at?: string
@@ -11285,6 +11290,7 @@ export type Database = {
           app_id?: string
           blocked_until?: string
           caused_by?: string | null
+          context?: string
           created_at?: string
           id?: string
           opened_at?: string
@@ -13497,6 +13503,10 @@ export type Database = {
           readings_count: number
         }[]
       }
+      force_close_spotify_circuit_breaker: {
+        Args: { _app_id: string; _context?: string }
+        Returns: number
+      }
       generate_community_invite_slug: {
         Args: { p_email: string; p_id: string; p_note: string }
         Returns: string
@@ -13772,6 +13782,17 @@ export type Database = {
           total_allocated: number
           valor_cobrado: number
           version: number
+        }[]
+      }
+      list_open_spotify_breakers: {
+        Args: never
+        Returns: {
+          app_id: string
+          app_name: string
+          blocked_until: string
+          context: string
+          last_429_at: string
+          retry_after_sec: number
         }[]
       }
       log_ai_usage: {
