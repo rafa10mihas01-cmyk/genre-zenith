@@ -599,7 +599,8 @@ export function Calculadora({ onContinue, prefillSpotifyTrackId }: { onContinue?
               .select("managed_playlist_id, campaigns!inner(status, started_at, simulation_snapshot)")
               .in("managed_playlist_id", candidateIds)
               .in("status", ["pending", "approved", "dispatched"]);
-            for (const row of (occRows ?? []) as any[]) {
+            type OccRow = { managed_playlist_id: string | null; campaigns?: { status?: string; started_at?: string | null; simulation_snapshot?: { effectiveDays?: number; days?: number } | null } | null };
+            for (const row of (occRows ?? []) as OccRow[]) {
               const c = row?.campaigns;
               if (!c || !["active", "approved"].includes(c.status)) continue;
               if (!c.started_at) continue;
