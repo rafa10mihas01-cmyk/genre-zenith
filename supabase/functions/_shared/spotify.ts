@@ -495,7 +495,7 @@ export function installSpotifyCircuitFetchGuard() {
       }
       if (r.status === 429 && !bypass) {
         const ra = Number(r.headers.get("Retry-After") ?? r.headers.get("retry-after") ?? "");
-        const opened = await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60, appId, rawUrl);
+        const opened = await openSpotifyCircuitBreaker(Number.isFinite(ra) && ra > 0 ? ra : 60, appId, rawUrl, brCtx);
         if (merged.app_id) fireAndForget(markAppAuthFailure(merged.app_id, "RATE_LIMIT", opened.retryAfterSec));
         logStatus = "circuit_open";
         breakerOpen = true;
