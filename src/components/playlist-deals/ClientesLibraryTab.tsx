@@ -74,29 +74,40 @@ type ClientSongRow = CuratorDealSong & {
   smartlink_url?: string | null;
 };
 
-export type ClientFinanceEntry = {
-  cobrado: number;
-  recebido: number;
-  pendente: number;
-  count: number;
+export type ClientCampaignRow = {
+  id: string;
+  client_id: string | null;
+  status: string | null;
+  closed_at: string | null;
+  created_at: string;
+  updated_at?: string | null;
+  track_name?: string | null;
+  deal_id?: string | null;
 };
-export type ClientFinanceMap = Map<string, ClientFinanceEntry>;
+export type ClientCampaignsMap = Map<string, ClientCampaignRow[]>;
 
 type StatusFilter = "all" | "active" | "idle" | "archived";
-type SortBy = "activity" | "invested" | "revenue" | "alpha";
+type SortBy = "activity" | "alpha";
 
-const EMPTY_FIN: ClientFinanceEntry = { cobrado: 0, recebido: 0, pendente: 0, count: 0 };
-const formatBRLShort = (v: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v);
+const CLOSED_CAMPAIGN_STATUSES = new Set([
+  "completed",
+  "cancelled",
+  "canceled",
+  "archived",
+  "closed",
+]);
+const isCampaignClosed = (c: ClientCampaignRow) =>
+  !!c.closed_at || CLOSED_CAMPAIGN_STATUSES.has((c.status ?? "").toLowerCase());
 
 interface Props {
   deals: CuratorDeal[];
   songs: ClientSongRow[];
   loading: boolean;
-  financeByClient?: ClientFinanceMap;
+  campaignsByClient?: ClientCampaignsMap;
 }
 
-export function ClientesLibraryTab({ deals, songs, loading, financeByClient }: Props) {
+
+export function ClientesLibraryTab({ deals, songs, loading, campaignsByClient }: Props) {
   const navigate = useNavigate();
   const { clients, loading: loadingClients, addClient, updateClient, archiveClient, deleteClient, reload, isEnriching } = useClients();
   const [query, setQuery] = useState("");
@@ -138,30 +149,45 @@ export function ClientesLibraryTab({ deals, songs, loading, financeByClient }: P
           (c.contact ?? "").toLowerCase().includes(q),
       )
       .map((c) => {
+        // Fonte canônica: campaigns vinculadas ao cliente (1:N).
+        const clientCampaigns = campaignsByClient?.get(c.id) ?? [];
         const clientSongs = songs.filter((s) => s.client_id === c.id);
-        const dealIds = new Set(clientSongs.map((s) => s.deal_id));
-        const clientDeals = Array.from(dealIds)
+
+        // Une deals provenientes de campaigns.deal_id e de songs.deal_id (compatibilidade histórica).
+        const dealIdSet = new Set<string>();
+        for (const cp of clientCampaigns) if (cp.deal_id) dealIdSet.add(cp.deal_id);
+        for (const s of clientSongs) if (s.deal_id) dealIdSet.add(s.deal_id);
+        const clientDeals = Array.from(dealIdSet)
           .map((id) => dealById.get(id))
           .filter(Boolean) as CuratorDeal[];
-        const activeDeals = clientDeals.filter((d) => !d.closed_at).length;
-        const closedDeals = clientDeals.filter((d) => !!d.closed_at).length;
-        const lastTs = clientSongs.reduce<number>((acc, s) => {
-          const t = new Date(s.created_at).getTime();
-          return Number.isFinite(t) && t > acc ? t : acc;
-        }, 0);
-        const invested = clientDeals.reduce((acc, d) => acc + (Number(d.cost) || 0), 0);
-        const fin = financeByClient?.get(c.id) ?? EMPTY_FIN;
+
+        const activeCampaigns = clientCampaigns.filter((cp) => !isCampaignClosed(cp)).length;
+        const closedCampaigns = clientCampaigns.filter((cp) => isCampaignClosed(cp)).length;
+
+        // Cada campaign = 1 faixa promovida; agrega com músicas manuais antigas.
+        const totalSongs = Math.max(clientCampaigns.length, clientSongs.length);
+
+        const lastTs = (() => {
+          let max = 0;
+          for (const cp of clientCampaigns) {
+            const t = new Date(cp.updated_at ?? cp.created_at).getTime();
+            if (Number.isFinite(t) && t > max) max = t;
+          }
+          for (const s of clientSongs) {
+            const t = new Date(s.created_at).getTime();
+            if (Number.isFinite(t) && t > max) max = t;
+          }
+          return max;
+        })();
+
         return {
           client: c,
           songs: clientSongs,
-          totalSongs: clientSongs.length,
-          activeDeals,
-          closedDeals,
-          totalDeals: clientDeals.length,
+          totalSongs,
+          activeDeals: activeCampaigns,
+          closedDeals: closedCampaigns,
+          totalDeals: clientCampaigns.length || clientDeals.length,
           lastTs,
-          invested,
-          revenue: fin.recebido,
-          pending: fin.pendente,
         };
       })
       .filter((row) => {
@@ -171,15 +197,14 @@ export function ClientesLibraryTab({ deals, songs, loading, financeByClient }: P
       });
 
     enriched.sort((a, b) => {
-      if (sortBy === "invested") return b.invested - a.invested;
-      if (sortBy === "revenue") return b.revenue - a.revenue;
       if (sortBy === "alpha") return a.client.name.localeCompare(b.client.name, "pt-BR");
       // activity default
       if (a.activeDeals !== b.activeDeals) return b.activeDeals - a.activeDeals;
       return b.lastTs - a.lastTs;
     });
     return enriched;
-  }, [clients, songs, dealById, query, showArchived, statusFilter, sortBy, financeByClient]);
+  }, [clients, songs, dealById, query, showArchived, statusFilter, sortBy, campaignsByClient]);
+
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -210,12 +235,11 @@ export function ClientesLibraryTab({ deals, songs, loading, financeByClient }: P
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="activity">Mais ativos</SelectItem>
-            <SelectItem value="invested">Maior investido</SelectItem>
-            <SelectItem value="revenue">Maior receita</SelectItem>
             <SelectItem value="alpha">Alfabético</SelectItem>
           </SelectContent>
         </Select>
       </div>
+
 
 
       {(loading || loadingClients) && rows.length === 0 ? (
@@ -250,7 +274,7 @@ export function ClientesLibraryTab({ deals, songs, loading, financeByClient }: P
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {pageRows.map((row) => {
-            const { client, totalSongs, activeDeals, closedDeals, totalDeals, lastTs, invested, pending } = row;
+            const { client, totalSongs, activeDeals, closedDeals, totalDeals, lastTs } = row;
             const initials = client.name
               .split(/\s+/)
               .filter(Boolean)
@@ -290,18 +314,7 @@ export function ClientesLibraryTab({ deals, songs, loading, financeByClient }: P
                         </span>
                       )}
                     </div>
-                    <div className="text-[11.5px] text-muted-foreground truncate mt-0.5 tabular-nums">
-                      <span className="text-foreground/80 font-medium">{formatBRLShort(invested)}</span>
-                      <span className="mx-1.5 opacity-50">·</span>
-                      <span>
-                        {pending > 0 ? (
-                          <span className="text-warning">{formatBRLShort(pending)} pendente</span>
-                        ) : (
-                          <span>sem pendência</span>
-                        )}
-                      </span>
-                    </div>
-                    <div className="mt-2">
+                    <div className="mt-1.5">
                       <StatusDot variant={status.variant} label={status.label} />
                     </div>
                   </div>
