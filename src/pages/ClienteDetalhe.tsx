@@ -841,68 +841,67 @@ export default function ClienteDetalhe() {
                 const fim = c.deadline ? format(new Date(c.deadline), "dd MMM", { locale: ptBR }) : null;
                 const href = c.snapshot_locked_at ? `/campanhas/${c.id}/execucao` : `/campanhas/${c.id}`;
                 return (
-                  <Card key={c.id} className="hover:border-foreground/20 transition-colors">
-                    <CardContent className="p-5 space-y-4">
-                      <div className="flex items-start justify-between gap-3 min-w-0">
-                        <div className="min-w-0 flex-1">
-                          <div className="text-sm font-semibold truncate">{c.track_name}</div>
-                          <div className="text-[11px] text-muted-foreground truncate">
-                            {c.artist || "—"}
-                            {c.campaign_type && <> · {c.campaign_type}</>}
-                            <> · {inicio}{fim ? ` → ${fim}` : ""}</>
+                  <Link key={c.id} to={href} className="block group">
+                    <Card className="hover:border-foreground/30 transition-colors h-full">
+                      <CardContent className="p-4 sm:p-5 space-y-3.5">
+                        <div className="flex items-start justify-between gap-3 min-w-0">
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-semibold truncate group-hover:text-primary transition-colors">{c.track_name}</div>
+                            <div className="text-[11px] text-muted-foreground truncate">
+                              {c.artist || "—"}
+                              {c.campaign_type && <> · {c.campaign_type}</>}
+                              <> · {inicio}{fim ? ` → ${fim}` : ""}</>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className={cn("inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-full border", statusCls)}>
+                              {statusLabel}
+                            </span>
+                            <ExternalLink className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
                           </div>
                         </div>
-                        <span className={cn("inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-full border shrink-0", statusCls)}>
-                          {statusLabel}
-                        </span>
-                      </div>
 
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="text-muted-foreground">Progresso operacional</span>
-                          <span className="tabular-nums font-medium">{dealsConcluidos}/{dealsTotal} · {progresso}%</span>
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-muted-foreground">Progresso operacional</span>
+                            <span className="tabular-nums font-medium">{dealsConcluidos}/{dealsTotal} · {progresso}%</span>
+                          </div>
+                          <div className="h-1.5 rounded-full bg-elevated overflow-hidden">
+                            <div className="h-full bg-primary/70 transition-all" style={{ width: `${progresso}%` }} />
+                          </div>
                         </div>
-                        <div className="h-1.5 rounded-full bg-elevated overflow-hidden">
-                          <div className="h-full bg-primary/70 transition-all" style={{ width: `${progresso}%` }} />
-                        </div>
-                      </div>
 
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="text-muted-foreground">Entrega financeira</span>
-                          <span className="tabular-nums font-medium">{entrega}%</span>
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-muted-foreground">Entrega financeira</span>
+                            <span className="tabular-nums font-medium">{entrega}%</span>
+                          </div>
+                          <div className="h-1.5 rounded-full bg-elevated overflow-hidden">
+                            <div className="h-full bg-emerald-500/70 transition-all" style={{ width: `${entrega}%` }} />
+                          </div>
                         </div>
-                        <div className="h-1.5 rounded-full bg-elevated overflow-hidden">
-                          <div className="h-full bg-emerald-500/70 transition-all" style={{ width: `${entrega}%` }} />
-                        </div>
-                      </div>
 
-                      <div className="grid grid-cols-2 gap-2 pt-1">
-                        <div>
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Curadores</div>
-                          <div className="text-sm font-semibold tabular-nums">{agg?.curadores ?? 0}</div>
+                        <div className="grid grid-cols-2 gap-3 pt-1">
+                          <div className="min-w-0">
+                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Curadores</div>
+                            <div className="text-sm font-semibold tabular-nums">{agg?.curadores ?? 0}</div>
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Deals ativos</div>
+                            <div className="text-sm font-semibold tabular-nums">{agg?.dealsAtivos ?? 0}</div>
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Meta</div>
+                            <div className="text-sm font-semibold tabular-nums truncate">{formatBRLHero(cobrado)}</div>
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Pendente</div>
+                            <div className={cn("text-sm font-semibold tabular-nums truncate", pendente > 0 ? "text-warning" : "text-muted-foreground")}>{formatBRLHero(pendente)}</div>
+                          </div>
                         </div>
-                        <div>
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Deals ativos</div>
-                          <div className="text-sm font-semibold tabular-nums">{agg?.dealsAtivos ?? 0}</div>
-                        </div>
-                        <div>
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Meta</div>
-                          <div className="text-sm font-semibold tabular-nums">{formatBRL(cobrado)}</div>
-                        </div>
-                        <div>
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Pendente</div>
-                          <div className={cn("text-sm font-semibold tabular-nums", pendente > 0 ? "text-warning" : "text-muted-foreground")}>{formatBRL(pendente)}</div>
-                        </div>
-                      </div>
-
-                      <div className="pt-1">
-                        <Button asChild size="sm" variant="outline" className="w-full gap-1.5">
-                          <Link to={href}>Abrir campanha <ExternalLink className="h-3.5 w-3.5" /></Link>
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+                    </Card>
+                  </Link>
                 );
               })}
             </div>
