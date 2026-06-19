@@ -1,23 +1,33 @@
 // dealsAnalytics — helpers puros pro /analytics.
-// Lê APENAS do motor vivo: curator_deals, curator_deal_snapshots, curator_deal_logs.
+//
+// FASE 13.0 — Fonte canônica: vw_campaign_playlist_growth (delivery_accumulated
+// já consolidado pela view) + campaign_playlist_collections (raw para série
+// temporal de momentum). curator_deal_snapshots NÃO é mais consumido.
 //
 // Modelo:
-//   curator_deal_snapshots: (deal_id, playlist_id, plays, captured_at) — cumulativo
-//   curator_deal_logs:      (deal_id, total_plays, created_at) — log de coleta deal-level
-//   curator_deals:          (id, state, target_plays, baseline_plays, cost, started_at, ends_at, song_artist, song_name)
+//   GrowthRow: (campaign_id, playlist_id, baseline_plays, current_plays,
+//               delivery_accumulated, baseline_at, last_captured_at,
+//               attributed_to) — VEM PRONTO da view, sem recálculo local
+//   CpcRow:    (campaign_id, playlist_id, plays_7d, captured_at) — raw
+//   Deal:      (id, state, target_plays, baseline_plays, cost, started_at,
+//               ends_at, song_artist, song_name, campaign_id, curator_id)
 
-export type Snapshot = {
-  deal_id: string;
-  playlist_id: string | null;
-  plays: number;
-  captured_at: string;
+export type GrowthRow = {
+  campaign_id: string;
+  playlist_id: string;
+  baseline_plays: number | null;
+  current_plays: number | null;
+  delivery_accumulated: number | null;
+  baseline_at: string | null;
+  last_captured_at: string | null;
+  attributed_to: string | null;
 };
 
-export type DealLog = {
-  id: string;
-  deal_id: string;
-  total_plays: number;
-  created_at: string;
+export type CpcRow = {
+  campaign_id: string;
+  playlist_id: string;
+  plays_7d: number | null;
+  captured_at: string;
 };
 
 export type Deal = {
@@ -30,52 +40,56 @@ export type Deal = {
   cost: number | null;
   started_at: string | null;
   ends_at: string | null;
+  campaign_id: string | null;
+  curator_id: string | null;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Plays entregues numa janela (delta entre primeiro e último snapshot por playlist)
+// Atribuição: a view expõe attributed_to='curator:<id>'. Cruzamos com
+// (deal.campaign_id + deal.curator_id) para descobrir quais GrowthRow
+// pertencem a cada deal. Sem recálculo de delivery — apenas agrupamento.
 // ─────────────────────────────────────────────────────────────────────────────
-export function playsDeliveredInWindow(snapshots: Snapshot[]): number {
-  // Agrupa por (deal, playlist) e soma (último - primeiro)
-  const grouped = new Map<string, Snapshot[]>();
-  for (const s of snapshots) {
-    if (!s.playlist_id) continue;
-    const k = `${s.deal_id}::${s.playlist_id}`;
-    const arr = grouped.get(k) ?? [];
-    arr.push(s);
-    grouped.set(k, arr);
+export function attributeDealsToGrowth(
+  deals: Deal[],
+  rows: GrowthRow[],
+): Map<string, GrowthRow[]> {
+  const byKey = new Map<string, GrowthRow[]>(); // key = `${campaign_id}::curator:${curator_id}`
+  for (const r of rows) {
+    if (!r.campaign_id || !r.attributed_to) continue;
+    const key = `${r.campaign_id}::${r.attributed_to}`;
+    const arr = byKey.get(key) ?? [];
+    arr.push(r);
+    byKey.set(key, arr);
   }
+  const out = new Map<string, GrowthRow[]>();
+  for (const d of deals) {
+    if (!d.campaign_id || !d.curator_id) continue;
+    const key = `${d.campaign_id}::curator:${d.curator_id}`;
+    const arr = byKey.get(key);
+    if (arr && arr.length > 0) out.set(d.id, arr);
+  }
+  return out;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Total entregue (soma delivery_accumulated já consolidado pela view)
+// ─────────────────────────────────────────────────────────────────────────────
+export function totalDelivered(rows: GrowthRow[]): number {
   let total = 0;
-  for (const arr of grouped.values()) {
-    arr.sort((a, b) => a.captured_at.localeCompare(b.captured_at));
-    const delta = (arr[arr.length - 1].plays ?? 0) - (arr[0].plays ?? 0);
-    if (delta > 0) total += delta;
-  }
+  for (const r of rows) total += Math.max(0, Number(r.delivery_accumulated ?? 0));
   return total;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Entregas por dia (delta acumulado de plays no dia, somando todos os pares)
+// Atividade diária (raw CPC): agrupa plays_7d por dia.
+// Representa momentum (não delivery) — não há recálculo current-baseline.
 // ─────────────────────────────────────────────────────────────────────────────
-export function aggregateDeliveriesByDay(snapshots: Snapshot[]): { day: string; plays: number }[] {
-  // Por (deal, playlist) calcula delta entre snapshots consecutivos e atribui ao dia do segundo.
-  const grouped = new Map<string, Snapshot[]>();
-  for (const s of snapshots) {
-    if (!s.playlist_id) continue;
-    const k = `${s.deal_id}::${s.playlist_id}`;
-    const arr = grouped.get(k) ?? [];
-    arr.push(s);
-    grouped.set(k, arr);
-  }
+export function aggregateActivityByDay(rows: CpcRow[]): { day: string; plays: number }[] {
   const byDay = new Map<string, number>();
-  for (const arr of grouped.values()) {
-    arr.sort((a, b) => a.captured_at.localeCompare(b.captured_at));
-    for (let i = 1; i < arr.length; i++) {
-      const delta = (arr[i].plays ?? 0) - (arr[i - 1].plays ?? 0);
-      if (delta <= 0) continue;
-      const day = arr[i].captured_at.slice(0, 10);
-      byDay.set(day, (byDay.get(day) ?? 0) + delta);
-    }
+  for (const r of rows) {
+    if (!r.captured_at) continue;
+    const day = r.captured_at.slice(0, 10);
+    byDay.set(day, (byDay.get(day) ?? 0) + Math.max(0, Number(r.plays_7d ?? 0)));
   }
   return [...byDay.entries()]
     .map(([day, plays]) => ({ day, plays }))
@@ -83,76 +97,54 @@ export function aggregateDeliveriesByDay(snapshots: Snapshot[]): { day: string; 
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Top playlists por delta de plays na janela
+// Top playlists por delivery_accumulated (já consolidado).
 // ─────────────────────────────────────────────────────────────────────────────
-export function topPlaylistsByDelta(
-  snapshots: Snapshot[],
+export function topPlaylistsByDelivery(
+  rows: GrowthRow[],
   limit = 10,
 ): { playlist_id: string; plays_delivered: number; deals_count: number; last_captured_at: string }[] {
-  const grouped = new Map<string, Snapshot[]>();
-  for (const s of snapshots) {
-    if (!s.playlist_id) continue;
-    const k = `${s.deal_id}::${s.playlist_id}`;
-    const arr = grouped.get(k) ?? [];
-    arr.push(s);
-    grouped.set(k, arr);
-  }
-  // Agrega por playlist
-  const perPlaylist = new Map<
+  const per = new Map<
     string,
-    { plays_delivered: number; deals: Set<string>; last_captured_at: string }
+    { plays_delivered: number; curators: Set<string>; last_captured_at: string }
   >();
-  for (const [k, arr] of grouped) {
-    arr.sort((a, b) => a.captured_at.localeCompare(b.captured_at));
-    const delta = (arr[arr.length - 1].plays ?? 0) - (arr[0].plays ?? 0);
-    if (delta <= 0) continue;
-    const [dealId, playlistId] = k.split("::");
-    const cur = perPlaylist.get(playlistId) ?? {
+  for (const r of rows) {
+    if (!r.playlist_id) continue;
+    const cur = per.get(r.playlist_id) ?? {
       plays_delivered: 0,
-      deals: new Set<string>(),
+      curators: new Set<string>(),
       last_captured_at: "",
     };
-    cur.plays_delivered += delta;
-    cur.deals.add(dealId);
-    const last = arr[arr.length - 1].captured_at;
-    if (last > cur.last_captured_at) cur.last_captured_at = last;
-    perPlaylist.set(playlistId, cur);
+    cur.plays_delivered += Math.max(0, Number(r.delivery_accumulated ?? 0));
+    if (r.attributed_to) cur.curators.add(r.attributed_to);
+    if (r.last_captured_at && r.last_captured_at > cur.last_captured_at) {
+      cur.last_captured_at = r.last_captured_at;
+    }
+    per.set(r.playlist_id, cur);
   }
-  return [...perPlaylist.entries()]
+  return [...per.entries()]
     .map(([playlist_id, v]) => ({
       playlist_id,
       plays_delivered: v.plays_delivered,
-      deals_count: v.deals.size,
+      deals_count: v.curators.size,
       last_captured_at: v.last_captured_at,
     }))
+    .filter((p) => p.plays_delivered > 0)
     .sort((a, b) => b.plays_delivered - a.plays_delivered)
     .slice(0, limit);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Custo por play REAL = soma(cost dos deals com entrega) / soma(plays entregues)
+// Custo por play REAL — usa delivery_accumulated da view por deal.
 // ─────────────────────────────────────────────────────────────────────────────
-export function realCostPerPlay(deals: Deal[], snapshots: Snapshot[]): number | null {
-  const deliveryByDeal = new Map<string, number>();
-  const grouped = new Map<string, Snapshot[]>();
-  for (const s of snapshots) {
-    if (!s.playlist_id) continue;
-    const k = `${s.deal_id}::${s.playlist_id}`;
-    const arr = grouped.get(k) ?? [];
-    arr.push(s);
-    grouped.set(k, arr);
-  }
-  for (const [k, arr] of grouped) {
-    arr.sort((a, b) => a.captured_at.localeCompare(b.captured_at));
-    const delta = (arr[arr.length - 1].plays ?? 0) - (arr[0].plays ?? 0);
-    if (delta <= 0) continue;
-    const dealId = k.split("::")[0];
-    deliveryByDeal.set(dealId, (deliveryByDeal.get(dealId) ?? 0) + delta);
-  }
+export function realCostPerPlay(
+  deals: Deal[],
+  dealToGrowth: Map<string, GrowthRow[]>,
+): number | null {
   let totalCost = 0;
   let totalPlays = 0;
   for (const d of deals) {
-    const delivered = deliveryByDeal.get(d.id) ?? 0;
+    const rows = dealToGrowth.get(d.id) ?? [];
+    const delivered = totalDelivered(rows);
     if (delivered <= 0) continue;
     totalCost += Number(d.cost ?? 0);
     totalPlays += delivered;
@@ -162,38 +154,26 @@ export function realCostPerPlay(deals: Deal[], snapshots: Snapshot[]): number | 
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Velocidade / ritmo de um deal ativo
+// Ritmo de um deal — usa delivery_accumulated da view (sem reconstruir
+// current - baseline). plays_per_day deriva da janela do deal.
 // ─────────────────────────────────────────────────────────────────────────────
 export type DealPace = {
   deal: Deal;
-  current_plays: number;
-  delivered: number;          // current - baseline
+  current_plays: number;       // soma de current_plays da view (informativo)
+  delivered: number;           // delivery_accumulated agregado pelo view
   target: number;
   plays_per_day: number;
-  pace_ratio: number | null;  // real/esperado; null se janela inválida
+  pace_ratio: number | null;
   tone: "success" | "primary" | "warning" | "danger" | "neutral";
   label: string;
 };
 
-export function computeDealPace(deal: Deal, snapshots: Snapshot[]): DealPace {
-  // Soma os últimos snapshots por playlist (max plays por playlist do deal)
-  const lastByPlaylist = new Map<string, Snapshot>();
-  const firstByPlaylist = new Map<string, Snapshot>();
-  for (const s of snapshots) {
-    if (s.deal_id !== deal.id || !s.playlist_id) continue;
-    const last = lastByPlaylist.get(s.playlist_id);
-    if (!last || s.captured_at > last.captured_at) lastByPlaylist.set(s.playlist_id, s);
-    const first = firstByPlaylist.get(s.playlist_id);
-    if (!first || s.captured_at < first.captured_at) firstByPlaylist.set(s.playlist_id, s);
-  }
+export function computeDealPace(deal: Deal, rows: GrowthRow[]): DealPace {
   let current_plays = 0;
-  for (const s of lastByPlaylist.values()) current_plays += s.plays ?? 0;
-
-  const baseline = Number(deal.baseline_plays ?? 0);
+  for (const r of rows) current_plays += Math.max(0, Number(r.current_plays ?? 0));
+  const delivered = totalDelivered(rows);
   const target = Number(deal.target_plays ?? 0);
-  const delivered = Math.max(0, current_plays - baseline);
 
-  // Calcula plays/dia com base nos snapshots: total delta / dias da janela
   let plays_per_day = 0;
   let pace_ratio: number | null = null;
 
