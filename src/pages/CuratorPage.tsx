@@ -576,6 +576,11 @@ export default function CuratorPage() {
       setSongs((data.songs ?? []) as DealSong[]);
       setProgress((data.progress ?? null) as DealProgress | null);
       setSnapshotHistory((data.snapshot_history ?? []) as SnapshotHistoryEntry[]);
+      setServerHasBaseline(
+        typeof (data as { has_baseline?: unknown }).has_baseline === "boolean"
+          ? (data as { has_baseline: boolean }).has_baseline
+          : null,
+      );
       setAccess(data.access ?? { writable: true });
       if (data.campaign_context) setCampaignContext(data.campaign_context);
       setCuratorSubmissions((data.curator_submissions ?? null) as CuratorSubmissionsSummary | null);
@@ -662,7 +667,7 @@ export default function CuratorPage() {
     const eta = progress?.eta_days ?? null;
     // FASE 13.0 — prioriza has_baseline server-side (deriva de CPC oficial).
     // Fallback mantém compat com payloads antigos.
-    const hasBaseline = (data?.has_baseline as boolean | undefined)
+    const hasBaseline = serverHasBaseline
       ?? ((progress?.per_playlist?.length ?? 0) > 0 || snapshotHistory.length > 0);
     const lastCaptureAt = songProg?.last_capture_at ?? progress?.last_capture_at ?? null;
     const firstCaptureAt = songProg?.first_capture_at ?? progress?.first_capture_at ?? null;
