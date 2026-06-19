@@ -192,8 +192,8 @@ export function PlaylistDiagnosisCard({ managedId }: { managedId: string }) {
               <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
               <div>
                 {r.type === "too_many_tracks"
-                  ? `Playlist com ${fmtNum(r.value)} faixas (acima do p90 do gênero: ${fmtNum(r.benchmark_p90)})`
-                  : `Playlist com ${fmtNum(r.value)} faixas (abaixo da metade do p50: ${fmtNum(r.benchmark_p50)})`}
+                  ? `Playlist com ${fmtNum(Number(r.value))} faixas (acima do p90 do gênero: ${fmtNum(r.benchmark_p90)})`
+                  : `Playlist com ${fmtNum(Number(r.value))} faixas (abaixo da metade do p50: ${fmtNum(r.benchmark_p50)})`}
               </div>
             </div>
           ))}
