@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { PageContainer } from "@/components/PageContainer";
 import { PageHeader } from "@/components/PageHeader";
 import { KpiBig } from "@/components/KpiBig";
-import { ClientesLibraryTab, type ClientFinanceMap } from "@/components/playlist-deals/ClientesLibraryTab";
+import { ClientesLibraryTab, type ClientCampaignsMap, type ClientCampaignRow } from "@/components/playlist-deals/ClientesLibraryTab";
 import { useCuratorDeals } from "@/hooks/useCuratorDeals";
 import { useClients } from "@/hooks/useClients";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,56 +14,60 @@ function formatNumber(n: number) {
   return n.toLocaleString("pt-BR");
 }
 
+const CLOSED_STATUSES = new Set(["completed", "cancelled", "canceled", "archived", "closed"]);
+const isCampaignClosed = (c: ClientCampaignRow) =>
+  !!c.closed_at || CLOSED_STATUSES.has((c.status ?? "").toLowerCase());
+
 export default function Clientes() {
   const { user } = useAuth();
   const { deals, songs, loading, reload } = useCuratorDeals();
   const { clients } = useClients();
-  const [financeByClient, setFinanceByClient] = useState<ClientFinanceMap>(new Map());
+  const [campaignsByClient, setCampaignsByClient] = useState<ClientCampaignsMap>(new Map());
 
-  // Busca financeiro agregado por cliente a partir de campaigns
+  // Busca TODAS as campanhas vinculadas a clientes (1:N) para consolidar contadores.
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
     (async () => {
       const { data, error } = await supabase
         .from("campaigns")
-        .select("client_id, valor_cobrado, valor_recebido")
+        .select("id, client_id, status, closed_at, created_at, updated_at, track_name, deal_id")
         .not("client_id", "is", null);
       if (cancelled || error || !data) return;
-      const m: ClientFinanceMap = new Map();
-      for (const c of data as Array<{ client_id: string; valor_cobrado: number | null; valor_recebido: number | null }>) {
-        const id = c.client_id;
-        const prev = m.get(id) ?? { cobrado: 0, recebido: 0, pendente: 0, count: 0 };
-        const cobrado = Number(c.valor_cobrado) || 0;
-        const recebido = Number(c.valor_recebido) || 0;
-        prev.cobrado += cobrado;
-        prev.recebido += recebido;
-        prev.pendente += Math.max(0, cobrado - recebido);
-        prev.count += 1;
-        m.set(id, prev);
+      const m: ClientCampaignsMap = new Map();
+      for (const c of data as ClientCampaignRow[]) {
+        if (!c.client_id) continue;
+        const arr = m.get(c.client_id) ?? [];
+        arr.push(c);
+        m.set(c.client_id, arr);
       }
-      setFinanceByClient(m);
+      setCampaignsByClient(m);
     })();
     return () => {
       cancelled = true;
     };
-    // intencionalmente reagimos a user.id (resolvido) e ao tamanho de deals/songs; user completo causaria re-fetches espúrios.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, deals.length, songs.length]);
 
   const kpis = useMemo(() => {
     const ativos = clients.filter((c) => !c.archived_at);
     const clientIds = new Set(ativos.map((c) => c.id));
-    const clientSongs = songs.filter((s) => s.client_id && clientIds.has(s.client_id));
-    const clientDealIds = new Set(clientSongs.map((s) => s.deal_id));
-    const dealsAtivos = deals.filter((d) => clientDealIds.has(d.id) && !d.closed_at).length;
+    let activeCampaigns = 0;
+    let totalCampaigns = 0;
+    let musicas = 0;
+    for (const cid of clientIds) {
+      const cs = campaignsByClient.get(cid) ?? [];
+      totalCampaigns += cs.length;
+      activeCampaigns += cs.filter((c) => !isCampaignClosed(c)).length;
+      musicas += cs.length; // cada campanha = 1 faixa promovida
+    }
     return {
       total: ativos.length,
-      dealsAtivos,
-      musicas: clientSongs.length,
-      deals: clientDealIds.size,
+      dealsAtivos: activeCampaigns,
+      musicas,
+      deals: totalCampaigns,
     };
-  }, [clients, songs, deals]);
+  }, [clients, campaignsByClient]);
 
   const openNewClient = () => {
     window.dispatchEvent(new Event("playlistdeals:new-client"));
@@ -142,8 +146,9 @@ export default function Clientes() {
       </section>
 
 
-        <ClientesLibraryTab deals={deals} songs={songs} loading={loading} financeByClient={financeByClient} />
+        <ClientesLibraryTab deals={deals} songs={songs} loading={loading} campaignsByClient={campaignsByClient} />
       </PageContainer>
     </>
   );
 }
+
