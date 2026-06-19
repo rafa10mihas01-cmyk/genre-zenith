@@ -258,10 +258,10 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
         const cpp = consumed > 0 && totalCost > 0 ? totalCost / consumed : null;
         if (purchased === 0 && totalCost === 0 && !onAddPurchase) return null;
         return (
-          <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">Saldo</div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center justify-between sm:justify-end gap-3 flex-wrap">
                 {cpp !== null && (
                   <span className="text-[11px] text-muted-foreground">
                     Custo/play <span className="text-foreground font-semibold">{formatCPP(cpp)}</span>
@@ -438,52 +438,54 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
 
 
       {/* Catálogo — card próprio com header, filtro e lista (12 visíveis, resto scroll) */}
-      <div className="rounded-2xl border border-border bg-card p-5">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-baseline gap-2">
-            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">Catálogo de playlists</div>
-            <span className="text-[11px] text-muted-foreground tabular-nums">
+      <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-baseline gap-2 min-w-0">
+            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold truncate">Catálogo de playlists</div>
+            <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
               {filteredItems.length}{genreFilter ? ` de ${items.length}` : ""}
             </span>
           </div>
-          <Button size="sm" onClick={() => setAddOpen(true)} className="gap-2 h-8">
+          <Button size="sm" onClick={() => setAddOpen(true)} className="gap-2 h-8 w-full sm:w-auto">
             <Plus className="size-3.5" /> Adicionar
           </Button>
         </div>
 
-        <div className="mt-3 flex items-center gap-2 flex-wrap">
-          <span className="text-[10.5px] uppercase tracking-[0.12em] text-muted-foreground">Gênero</span>
-          <button
-            type="button"
-            onClick={() => setGenreFilter(null)}
-            className={cn(
-              "text-[11px] h-6 px-2.5 rounded-full border transition-colors",
-              genreFilter === null
-                ? "bg-foreground text-background border-foreground"
-                : "border-border/40 text-muted-foreground hover:border-border hover:text-foreground",
+        <div className="mt-3 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2 sm:flex-wrap">
+          <span className="text-[10.5px] uppercase tracking-[0.12em] text-muted-foreground">Filtrar por gênero</span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setGenreFilter(null)}
+              className={cn(
+                "text-[11px] h-6 px-2.5 rounded-full border transition-colors",
+                genreFilter === null
+                  ? "bg-foreground text-background border-foreground"
+                  : "border-border/40 text-muted-foreground hover:border-border hover:text-foreground",
+              )}
+            >
+              Todos
+            </button>
+            {availableGenres.length === 0 ? (
+              <span className="text-[11px] text-muted-foreground/70 italic">sem gêneros registrados ainda</span>
+            ) : (
+              availableGenres.map((g) => (
+                <button
+                  type="button"
+                  key={g}
+                  onClick={() => setGenreFilter((cur) => (cur === g ? null : g))}
+                  className={cn(
+                    "text-[11px] h-6 px-2.5 rounded-full border transition-colors",
+                    genreFilter === g
+                      ? "bg-foreground text-background border-foreground"
+                      : "border-border/40 text-muted-foreground hover:border-border hover:text-foreground",
+                  )}
+                >
+                  {g}
+                </button>
+              ))
             )}
-          >
-            Todos
-          </button>
-          {availableGenres.length === 0 ? (
-            <span className="text-[11px] text-muted-foreground/70 italic">sem gêneros registrados ainda</span>
-          ) : (
-            availableGenres.map((g) => (
-              <button
-                type="button"
-                key={g}
-                onClick={() => setGenreFilter((cur) => (cur === g ? null : g))}
-                className={cn(
-                  "text-[11px] h-6 px-2.5 rounded-full border transition-colors",
-                  genreFilter === g
-                    ? "bg-foreground text-background border-foreground"
-                    : "border-border/40 text-muted-foreground hover:border-border hover:text-foreground",
-                )}
-              >
-                {g}
-              </button>
-            ))
-          )}
+          </div>
         </div>
 
         <div className="mt-4">
@@ -582,11 +584,12 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
                     {p.spotify_url && (
                       <Button
                         variant="ghost" size="icon" className="size-8"
                         onClick={() => window.open(p.spotify_url, "_blank")}
+                        aria-label="Abrir no Spotify"
                       >
                         <ExternalLink className="size-4" />
                       </Button>
@@ -594,6 +597,7 @@ export function CuratorLibraryPanel({ curator, deals, balance, onAddPurchase, fl
                     <Button
                       variant="ghost" size="icon" className="size-8 text-destructive hover:text-destructive"
                       onClick={() => setConfirmDelete(p.id)}
+                      aria-label="Remover playlist"
                     >
                       <Trash2 className="size-4" />
                     </Button>
