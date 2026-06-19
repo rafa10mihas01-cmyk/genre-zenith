@@ -46,7 +46,9 @@ type SnapshotRun = {
 type CampaignBaselineRow = {
   baseline_status?: string | null;
   baseline_captured_at?: string | null;
+  baseline_reference_date?: string | null;
 };
+
 
 export function MonitoramentoTab({ campaignId, headerSlot, spreadsheetUploads }: Props) {
   const [kpis, setKpis] = useState<{ status: string | null; capturedAt: string | null; playlists: number }>({
