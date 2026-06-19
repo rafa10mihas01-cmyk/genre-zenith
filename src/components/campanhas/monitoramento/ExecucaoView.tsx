@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TrendingUp, Users, Layers, Activity, Search, Download, ArrowUpDown, Radio as RadioIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { formatInt } from "@/lib/campaignEngine";
 import { cn } from "@/lib/utils";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -930,7 +931,7 @@ function SecondaryMetric({
   value,
   className,
 }: {
-  icon: any;
+  icon: LucideIcon;
   label: string;
   value: number;
   className?: string;
@@ -1234,7 +1235,7 @@ function MatchStatusBadge({ status }: { status: string }) {
   return <Badge variant="outline">{status}</Badge>;
 }
 
-function KpiCard({ icon: Icon, label, value, accent, raw }: { icon: any; label: string; value: number; accent?: boolean; raw?: boolean }) {
+function KpiCard({ icon: Icon, label, value, accent, raw }: { icon: LucideIcon; label: string; value: number; accent?: boolean; raw?: boolean }) {
   return (
     <Card>
       <CardContent className="p-4">

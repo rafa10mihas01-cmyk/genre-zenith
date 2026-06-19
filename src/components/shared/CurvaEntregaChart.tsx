@@ -12,6 +12,7 @@
 //                 e esconde a linha "Inércia ×N" do rodapé. Usado no portal.
 import { useMemo, useState } from "react";
 import { Flame, Rocket, Activity, Anchor } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatInt } from "@/lib/campaignEngine";
 
@@ -26,7 +27,7 @@ export type CurvaPoint = {
 type Phase = {
   key: "aq" | "ac" | "pm" | "su";
   label: string;
-  icon: any;
+  icon: LucideIcon;
   start: number;          // D1-based inclusive
   end: number;            // inclusive
   color: string;          // tailwind text accent

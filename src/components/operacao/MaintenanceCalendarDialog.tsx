@@ -10,6 +10,7 @@ import {
   CalendarDays, AlertCircle, Clock, CheckCircle2, ChevronDown, ChevronRight,
   Sparkles, History as HistoryIcon, Music2,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 /** Janela padrão entre manutenções (alinhada com SEO experiments / cooldown). */
 const MAINT_WINDOW_DAYS = 14;
@@ -46,7 +47,7 @@ type AdjustmentRow = {
 
 type Bucket = "atrasada" | "hoje" | "proxima7" | "futura" | "cooldown" | "onboarding";
 
-const BUCKET_META: Record<Bucket, { label: string; cls: string; icon: any; hint: string }> = {
+const BUCKET_META: Record<Bucket, { label: string; cls: string; icon: LucideIcon; hint: string }> = {
   atrasada:   { label: "Atrasadas",        cls: "text-destructive border-destructive/40 bg-destructive/10", icon: AlertCircle,   hint: "Já passou da janela ideal de manutenção." },
   hoje:       { label: "Hoje",             cls: "text-primary border-primary/40 bg-primary/10",             icon: Sparkles,      hint: "Pode mexer hoje." },
   proxima7:   { label: "Próximos 7 dias",  cls: "text-warning border-warning/40 bg-warning/10",             icon: CalendarDays,  hint: "Manutenção entra na janela em breve." },

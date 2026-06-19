@@ -13,6 +13,7 @@ import {
   Music2,
   Database,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { timeAgo, formatNumber } from "@/lib/format";
@@ -211,7 +212,7 @@ function KpiCard({
   hint,
   color,
 }: {
-  icon: any;
+  icon: LucideIcon;
   label: string;
   value: string | number;
   hint?: string;

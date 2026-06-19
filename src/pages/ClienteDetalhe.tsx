@@ -26,6 +26,7 @@ import {
   CheckCircle2,
   XCircle,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -85,7 +86,7 @@ function Stat({ label, value, tone }: { label: string; value: string | number; t
   );
 }
 
-function InfoRow({ icon: Icon, label, value, href }: { icon: any; label: string; value?: string | null; href?: string }) {
+function InfoRow({ icon: Icon, label, value, href }: { icon: LucideIcon; label: string; value?: string | null; href?: string }) {
   if (!value) return null;
   const content = (
     <div className="flex items-start gap-2.5 py-2">

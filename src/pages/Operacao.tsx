@@ -5,6 +5,7 @@ import {
   Music2, FlaskConical, History, ListMusic, Search, Users, ExternalLink,
   AlertCircle, Wrench, ChevronDown, ChevronUp, Server, Sparkles, Heart, Target, Gauge, ShieldAlert,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { MinhasPlaylists } from "@/components/operacao/MinhasPlaylists";
 
 import { Input } from "@/components/ui/input";
@@ -26,7 +27,7 @@ import { useSetSidebarKpis } from "@/contexts/SidebarContext";
 
 type OpStatus = "ativa" | "crescimento" | "queda" | "teste" | "pausada";
 
-const STATUS_META: Record<OpStatus, { label: string; cls: string; icon: any }> = {
+const STATUS_META: Record<OpStatus, { label: string; cls: string; icon: LucideIcon }> = {
   ativa:        { label: "Ativa",       cls: "text-primary bg-primary/10 border-primary/30",   icon: Activity },
   crescimento:  { label: "Crescendo",   cls: "text-primary bg-primary/15 border-primary/40",   icon: ArrowUpRight },
   queda:        { label: "Em queda",    cls: "text-destructive bg-destructive/10 border-destructive/30", icon: ArrowDownRight },

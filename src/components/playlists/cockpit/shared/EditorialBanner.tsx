@@ -1,10 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Loader2, Sparkles, ShieldCheck, Activity, Zap, RotateCcw } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CuratorialStateBadge, CooldownChip } from "@/components/playlist/CuratorialStateBadge";
 import type { Diagnosis } from "../types";
 
-const MODE_META: Record<string, { label: string; tone: string; Icon: any }> = {
+const MODE_META: Record<string, { label: string; tone: string; Icon: LucideIcon }> = {
   hold:       { label: "Não mexer",            tone: "border-primary/40 bg-primary/5 text-primary",                Icon: ShieldCheck },
   light:      { label: "Intervenção leve",     tone: "border-warning/40 bg-warning/5 text-warning",                Icon: Activity },
   moderate:   { label: "Intervenção moderada", tone: "border-warning/60 bg-warning/10 text-warning",               Icon: Zap },

@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Crown, Skull } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Row = { slug: string; term: string; weight: number | null; status: string | null; captured_at: string };
@@ -99,7 +100,7 @@ export function SemanticEvolutionTab() {
   );
 }
 
-function Column({ icon: Icon, iconClass, title, terms, variant, empty }: { icon: any; iconClass: string; title: string; terms: Row[]; variant: string; empty: string }) {
+function Column({ icon: Icon, iconClass, title, terms, variant, empty }: { icon: LucideIcon; iconClass: string; title: string; terms: Row[]; variant: string; empty: string }) {
   return (
     <div className="nx-card p-4">
       <div className="flex items-center gap-2 mb-3">

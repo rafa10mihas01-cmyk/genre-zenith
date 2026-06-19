@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Grid3x3, AlertTriangle, Sparkles, HelpCircle, X } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { AnalyticsTabs } from "@/components/AnalyticsTabs";
@@ -22,7 +23,7 @@ type Row = {
 
 type Quadrant = "bet" | "saturated" | "explore" | "avoid";
 
-const QUADRANT_META: Record<Quadrant, { label: string; color: string; ring: string; icon: any }> = {
+const QUADRANT_META: Record<Quadrant, { label: string; color: string; ring: string; icon: LucideIcon }> = {
   bet: { label: "Apostar pesado", color: "text-success", ring: "ring-success/40", icon: Sparkles },
   saturated: { label: "Saturado — validar", color: "text-destructive", ring: "ring-destructive/40", icon: AlertTriangle },
   explore: { label: "Explorar — coletar dados", color: "text-primary", ring: "ring-primary/40", icon: HelpCircle },

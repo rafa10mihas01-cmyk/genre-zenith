@@ -10,6 +10,7 @@ import {
   Clock, CheckCircle2, XCircle, Wrench, Info, Activity, Sparkles, ArrowRightLeft,
   Zap, Database, Loader2, ArrowUp, ArrowDown, Minus, ExternalLink, Table2, FunctionSquare, Cloud, HardDrive,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { timeAgo } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
@@ -428,7 +429,7 @@ function SourcesCard({ sources }: { sources: DataSource[] }) {
 function Section({
   icon: Icon, label, hint, children, tone,
 }: {
-  icon: any; label: string; hint?: string; children: React.ReactNode; tone?: "default" | "error";
+  icon: LucideIcon; label: string; hint?: string; children: React.ReactNode; tone?: "default" | "error";
 }) {
   return (
     <div>

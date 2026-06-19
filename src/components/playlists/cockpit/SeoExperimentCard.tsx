@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Sparkles, FlaskConical, Check, X, ArrowRight, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { usePlaylistOnboarding } from "@/hooks/usePlaylistOnboarding";
 import {
   useSeoExperiments,
@@ -14,7 +15,7 @@ import {
 
 type Props = { managedId: string };
 
-const OUTCOME_META: Record<string, { Icon: any; tone: string; label: string }> = {
+const OUTCOME_META: Record<string, { Icon: LucideIcon; tone: string; label: string }> = {
   positive: { Icon: TrendingUp, tone: "text-primary", label: "Positivo" },
   neutral: { Icon: Minus, tone: "text-muted-foreground", label: "Neutro" },
   negative: { Icon: TrendingDown, tone: "text-destructive", label: "Negativo" },

@@ -5,6 +5,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Brain, Sparkles, Palette, Crown, Gauge, RefreshCw, AlertTriangle } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -211,7 +212,7 @@ function BrainCard({ row, selected, onClick }: { row: BrainRow; selected: boolea
   );
 }
 
-function Pillar({ icon: Icon, label, value, muted }: { icon: any; label: string; value: string; muted?: boolean }) {
+function Pillar({ icon: Icon, label, value, muted }: { icon: LucideIcon; label: string; value: string; muted?: boolean }) {
   return (
     <div className={cn("flex flex-col items-start", muted && "opacity-50")}>
       <Icon className="h-3 w-3 text-muted-foreground mb-0.5" />

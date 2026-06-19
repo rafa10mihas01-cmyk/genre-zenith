@@ -6,6 +6,7 @@ import {
   Search, Music2, CheckCircle2, Loader2,
   Filter, Database,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { timeAgo, formatNumber } from "@/lib/format";
@@ -151,7 +152,7 @@ export function ColetaPanel() {
   );
 }
 
-function Stat({ icon: Icon, label, value }: { icon: any; label: string; value: number }) {
+function Stat({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: number }) {
   return (
     <span className="flex items-center gap-1 text-muted-foreground tabular-nums">
       <Icon className="h-3 w-3" />

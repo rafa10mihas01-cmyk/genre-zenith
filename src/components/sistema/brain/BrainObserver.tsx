@@ -3,6 +3,7 @@
 // mantém o painel atual do Genre Brain como "Estado atual".
 import { useState } from "react";
 import { Activity, Clock, ShuffleIcon, Map, Type, TrendingUp, Brain } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GenreBrainPanel } from "../GenreBrainPanel";
 import { BrainOverviewTab } from "./BrainOverviewTab";
@@ -14,7 +15,7 @@ import { LeadershipEvolutionTab } from "./LeadershipEvolutionTab";
 
 type Tab = "overview" | "timeline" | "heatmap" | "drift" | "semantic" | "leadership" | "snapshot";
 
-const TABS: Array<{ id: Tab; label: string; icon: any }> = [
+const TABS: Array<{ id: Tab; label: string; icon: LucideIcon }> = [
   { id: "overview", label: "Radar", icon: Activity },
   { id: "timeline", label: "Timeline", icon: Clock },
   { id: "heatmap", label: "Heatmap", icon: Map },

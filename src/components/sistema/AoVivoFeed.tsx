@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Music2, ListChecks, Bot, CheckCircle2, AlertTriangle, Loader2, Activity, Clock, RefreshCw, Filter } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -11,7 +12,7 @@ type FeedItem = {
   id: string;
   source: "spotify" | "execucao" | "bot";
   status: "running" | "success" | "error" | "warning" | "info";
-  icon: any;
+  icon: LucideIcon;
   title: string;
   detail: string;
   meta?: string;

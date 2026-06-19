@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertTriangle, CheckCircle2, Clock, XCircle, ListChecks, Activity } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 type Validation = {
   id: string;
@@ -32,7 +33,7 @@ type Job = {
   updated_at: string;
 };
 
-const STATUS_TONE: Record<string, { tone: string; label: string; Icon: any }> = {
+const STATUS_TONE: Record<string, { tone: string; label: string; Icon: LucideIcon }> = {
   present:      { tone: "text-success",   label: "Presente",       Icon: CheckCircle2 },
   missing:      { tone: "text-destructive", label: "Ausente",      Icon: XCircle },
   out_of_place: { tone: "text-warning",   label: "Posição errada", Icon: AlertTriangle },
@@ -207,7 +208,7 @@ export function SaudeView({ campaignId }: { campaignId: string }) {
   );
 }
 
-function KpiMini({ icon: Icon, tone, label, value }: { icon: any; tone: string; label: string; value: number }) {
+function KpiMini({ icon: Icon, tone, label, value }: { icon: LucideIcon; tone: string; label: string; value: number }) {
   return (
     <Card>
       <CardContent className="p-3 flex items-center gap-3">
