@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { ListMusic, TrendingUp, TrendingDown, Minus, ArrowRight } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useMemo } from "react";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -109,7 +110,7 @@ export function CatalogHealthCard() {
 }
 
 function Kpi({ label, value, icon: Icon, tone = "default" }: {
-  label: string; value: number; icon: any; tone?: "default" | "success" | "destructive";
+  label: string; value: number; icon: LucideIcon; tone?: "default" | "success" | "destructive";
 }) {
   const color = tone === "success" ? "text-success" : tone === "destructive" ? "text-destructive" : "text-foreground";
   return (

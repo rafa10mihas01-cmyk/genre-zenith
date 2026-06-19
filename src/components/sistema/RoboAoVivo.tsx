@@ -9,6 +9,7 @@ import {
   LogIn, Search, User, Music2, ListMusic, Filter, Image as ImageIcon,
   Play, Flag, Activity, Circle,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 type BotEvent = {
   id: string;
@@ -23,7 +24,7 @@ type BotEvent = {
 };
 
 // Etapas em ordem natural do fluxo, com nome humano e ícone
-const STAGES: { key: string; label: string; description: string; icon: any }[] = [
+const STAGES: { key: string; label: string; description: string; icon: LucideIcon }[] = [
   { key: "start",               label: "Acordando",         description: "Iniciando o navegador",                  icon: Play },
   { key: "login",               label: "Entrando no Spotify", description: "Fazendo login na conta de artista",     icon: LogIn },
   { key: "search_artist",       label: "Procurando o artista", description: "Buscando o nome no Spotify",          icon: Search },
@@ -213,7 +214,7 @@ function StageCard({
 }: {
   label: string;
   description: string;
-  icon: any;
+  icon: LucideIcon;
   status: "pending" | "running" | "success" | "error" | "warning";
   detail?: string;
   when?: string;

@@ -18,6 +18,7 @@ import {
   Rocket, CheckCircle2, Clock, XCircle, Loader2, RefreshCw, ArrowDownUp,
   Bot, ShieldCheck, AlertCircle, ExternalLink, Activity, ArrowDown, Hand, Ban, ChevronRight,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatBRL } from "@/lib/campaignEngine";
 import { timeAgo } from "@/lib/format";
@@ -1029,7 +1030,7 @@ export function CampaignDistributionConsole({
 function KpiTile({
   icon: Icon, label, value, total, tone, hint,
 }: {
-  icon: any;
+  icon: LucideIcon;
   label: string;
   value: number;
   total?: number;

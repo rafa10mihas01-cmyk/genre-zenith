@@ -3,6 +3,7 @@ import {
   Home, Sparkles, BarChart3, Settings, LogOut, ListMusic, Handshake,
   Server, Target, ChevronRight, User, Brain, UserSearch, Wallet, Library,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { NexEngineLogo } from "@/components/NexEngineLogo";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -33,7 +34,7 @@ type SubItem = { title: string; url: string; end?: boolean };
 type NavItem = {
   title: string;
   url: string;
-  icon: any;
+  icon: LucideIcon;
   end?: boolean;
   adminOnly?: boolean;
   children?: SubItem[];

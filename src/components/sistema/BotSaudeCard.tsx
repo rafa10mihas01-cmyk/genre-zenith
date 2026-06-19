@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Bot, Loader2, RefreshCw, Clock, ListChecks, ShieldCheck } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { timeAgo } from "@/lib/format";
@@ -124,7 +125,7 @@ export function BotSaudeCard() {
 function Cell({
   icon: Icon, label, ok, okText, errText, detail, neutral,
 }: {
-  icon: any; label: string; ok: boolean; okText: string; errText: string; detail: string; neutral?: boolean;
+  icon: LucideIcon; label: string; ok: boolean; okText: string; errText: string; detail: string; neutral?: boolean;
 }) {
   const tone = neutral ? "border-border bg-card" : ok ? "border-success/30 bg-success/5" : "border-destructive/40 bg-destructive/5";
   const fg = neutral ? "text-foreground" : ok ? "text-success" : "text-destructive";

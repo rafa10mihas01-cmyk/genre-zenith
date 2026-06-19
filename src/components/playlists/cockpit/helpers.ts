@@ -1,6 +1,7 @@
 // -------------------- helpers (extraído do PlaylistCockpit.tsx) --------------------
 // Movido 1:1 sem alteração de lógica.
 import { Flame, Snowflake, Activity } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type { Zone, Suggestion, AnalysisTrack } from "./types";
 
 export function fmtNum(n: number | null | undefined) {
@@ -8,7 +9,7 @@ export function fmtNum(n: number | null | undefined) {
   return new Intl.NumberFormat("pt-BR").format(n);
 }
 
-export const HEALTH_META: Record<string, { label: string; tone: string; Icon: any }> = {
+export const HEALTH_META: Record<string, { label: string; tone: string; Icon: LucideIcon }> = {
   aquecido: { label: "Aquecido", tone: "text-primary border-primary/40 bg-primary/10", Icon: Flame },
   saudavel: { label: "Saudável", tone: "text-foreground border-border bg-elevated", Icon: Activity },
   frio: { label: "Frio", tone: "text-destructive border-destructive/40 bg-destructive/10", Icon: Snowflake },

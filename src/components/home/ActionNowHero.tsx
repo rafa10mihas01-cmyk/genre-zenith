@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Zap, Handshake, AlertTriangle, Gauge, ChevronRight, CheckCircle2 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { useActiveManagedPlaylists } from "@/hooks/useActiveManagedPlaylists";
@@ -155,7 +156,7 @@ function ActionRow({
   count,
   tone,
 }: {
-  icon: any;
+  icon: LucideIcon;
   to: string;
   label: string;
   count: number;

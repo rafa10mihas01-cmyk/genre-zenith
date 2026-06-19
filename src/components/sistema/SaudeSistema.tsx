@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   CheckCircle2, AlertTriangle, Loader2, Music2, Database, Activity,
   Handshake, RefreshCw, Bell,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -245,7 +246,7 @@ export function SaudeSistema() {
 function HealthCard({
   icon: Icon, label, ok, okText, errText, detail, tone,
 }: {
-  icon: any; label: string; ok: boolean; okText: string; errText: string; detail: string; tone?: "ok" | "warn";
+  icon: LucideIcon; label: string; ok: boolean; okText: string; errText: string; detail: string; tone?: "ok" | "warn";
 }) {
   const resolvedTone = ok ? tone ?? "ok" : "bad";
   return (
@@ -267,7 +268,7 @@ function HealthCard({
   );
 }
 
-function DayStat({ icon: Icon, label, value }: { icon: any; label: string; value: number }) {
+function DayStat({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: number }) {
   return (
     <div className="nx-card border border-border p-3 flex flex-col gap-1">
       <div className="flex items-center gap-1.5 text-muted-foreground">

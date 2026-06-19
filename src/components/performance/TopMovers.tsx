@@ -1,4 +1,5 @@
 import { TrendingUp, TrendingDown, ArrowRight } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/format";
@@ -45,7 +46,7 @@ function MoversCard({
   title, icon: Icon, tone, rows, empty,
 }: {
   title: string;
-  icon: any;
+  icon: LucideIcon;
   tone: "success" | "destructive";
   rows: DatasetRow[];
   empty: string;

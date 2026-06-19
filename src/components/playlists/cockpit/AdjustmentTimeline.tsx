@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   TrendingUp, TrendingDown, Minus, Hourglass, CircleHelp, History,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -25,7 +26,7 @@ type Impact = {
   created_at: string;
 };
 
-const verdictMeta: Record<Verdict, { icon: any; label: string; tone: string }> = {
+const verdictMeta: Record<Verdict, { icon: LucideIcon; label: string; tone: string }> = {
   pending:      { icon: Hourglass,   label: "Observando",   tone: "bg-amber-500/10 text-amber-300 border-amber-500/30" },
   positive:     { icon: TrendingUp,  label: "Impacto positivo", tone: "bg-emerald-500/10 text-emerald-300 border-emerald-500/30" },
   neutral:      { icon: Minus,       label: "Sem impacto",  tone: "bg-zinc-500/10 text-zinc-300 border-zinc-500/30" },

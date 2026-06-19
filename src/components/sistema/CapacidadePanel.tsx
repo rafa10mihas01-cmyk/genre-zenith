@@ -3,6 +3,7 @@
 // tudo usando POSITION_PCT (fórmula oficial do planner). Zero lógica paralela.
 import { useMemo } from "react";
 import { Activity, BarChart3, Layers, Sparkles, TrendingUp, HeartPulse, Network } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
 } from "recharts";
@@ -314,7 +315,7 @@ export function CapacidadePanel() {
 // ───────────────────────── helpers de UI ─────────────────────────
 
 function Section({ icon: Icon, title, subtitle, children }: {
-  icon: any; title: string; subtitle: string; children: React.ReactNode;
+  icon: LucideIcon; title: string; subtitle: string; children: React.ReactNode;
 }) {
   return (
     <section>
