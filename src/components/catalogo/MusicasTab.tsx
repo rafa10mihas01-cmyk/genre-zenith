@@ -3,12 +3,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Music2, CheckCircle2, AlertTriangle, Clock, ChevronRight, ArrowUpDown, Target } from "lucide-react";
+import { Music2, CheckCircle2, AlertTriangle, Clock, ChevronRight, ArrowUpDown, Target, TrendingUp, TrendingDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MetricCell } from "@/components/ui/metric-cell";
+import { Progress } from "@/components/ui/progress";
+import { StatusDot, type StatusVariant } from "@/components/ui/status-dot";
 import { cn } from "@/lib/utils";
 import { AddCatalogTrackDialog } from "./AddCatalogTrackDialog";
 
