@@ -155,15 +155,8 @@ export function BaselineConflictsSection({
                     RESOLVIDO
                   </span>
                 )}
-                    </>
-                  ) : (
-                    <>
-                      <AlertTriangle className="h-2.5 w-2.5" />
-                      CONFLITO DE BASELINE
-                    </>
-                  )}
-                </span>
               </div>
+
 
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
                 <span>
