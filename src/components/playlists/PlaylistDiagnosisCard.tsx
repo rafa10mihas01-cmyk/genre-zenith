@@ -106,13 +106,13 @@ export function PlaylistDiagnosisCard({ managedId }: { managedId: string }) {
     );
   }
 
-  const reasons: any[] = Array.isArray(diag.name_reasons) ? diag.name_reasons : [];
-  const missingKeywords = reasons.filter((r) => r?.type === "missing_keyword").map((r) => r.value).filter(Boolean);
+  const reasons: NameReason[] = Array.isArray(diag.name_reasons) ? diag.name_reasons : [];
+  const missingKeywords = reasons.filter((r) => r?.type === "missing_keyword").map((r) => r.value).filter(Boolean) as string[];
   const sizeReasons = reasons.filter((r) => r?.type === "too_many_tracks" || r?.type === "too_few_tracks");
-  const tracks: any[] = Array.isArray(diag.tracks_suggestions) ? diag.tracks_suggestions : [];
-  const competitors: any[] = Array.isArray(diag.competitors) ? diag.competitors : [];
+  const tracks: TrackSuggestion[] = Array.isArray(diag.tracks_suggestions) ? diag.tracks_suggestions : [];
+  const competitors: CompetitorRow[] = Array.isArray(diag.competitors) ? diag.competitors : [];
   const market = diag.raw?.market_insights ?? {};
-  const topRecurring: any[] = Array.isArray(market?.top_recurring_tracks) ? market.top_recurring_tracks : [];
+  const topRecurring: RecurringTrack[] = Array.isArray(market?.top_recurring_tracks) ? market.top_recurring_tracks : [];
 
   // Total agregado de followers nos concorrentes para calcular "dominância"
   const totalCompFollowers = competitors.reduce((acc, c) => acc + (Number(c.followers) || 0), 0);
