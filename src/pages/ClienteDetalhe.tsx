@@ -528,7 +528,13 @@ export default function ClienteDetalhe() {
         <TabsContent value="visao" className="space-y-4">
           {/* Linha 2 — KPIs Operacionais */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
-            <Stat label="Campanhas ativas" value={kpis.campanhasAtivas} tone={kpis.campanhasAtivas > 0 ? "primary" : "muted"} />
+            <Stat
+              label="Campanhas ativas"
+              value={kpis.campanhasAtivas}
+              tone={kpis.campanhasAtivas > 0 ? "primary" : "muted"}
+              tier="hero"
+              className="col-span-2 md:col-span-1"
+            />
             <Stat label="Deals ativos" value={kpis.ativos} tone={kpis.ativos > 0 ? "primary" : "muted"} />
             <Stat label="Curadores trabalhando" value={kpis.curadoresAtivos} tone="muted" />
             <Stat label="Músicas em campanha" value={kpis.musicas} tone="muted" />
