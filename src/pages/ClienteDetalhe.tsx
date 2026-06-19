@@ -141,7 +141,7 @@ export default function ClienteDetalhe() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("campaigns")
-        .select("id, track_name, artist, status, campaign_type, created_at, valor_cobrado, valor_recebido, recebido_em, deadline")
+        .select("id, track_name, artist, status, campaign_type, created_at, valor_cobrado, valor_recebido, recebido_em, deadline, snapshot_locked_at")
         .eq("client_id", id!)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -156,6 +156,7 @@ export default function ClienteDetalhe() {
         valor_recebido: number | null;
         recebido_em: string | null;
         deadline: string | null;
+        snapshot_locked_at: string | null;
       }>;
     },
   });
@@ -638,7 +639,7 @@ export default function ClienteDetalhe() {
                   : c.status === "cancelled" ? "text-muted-foreground"
                   : "text-foreground/70";
                 return (
-                  <Link key={c.id} to={`/campanhas/${c.id}`}>
+                  <Link key={c.id} to={c.snapshot_locked_at ? `/campanhas/${c.id}/execucao` : `/campanhas/${c.id}`}>
                     <Card className="hover:border-foreground/20 transition-colors">
                       <CardContent className="p-4 flex items-center gap-3 min-w-0">
                         <div className="min-w-0 flex-1">
