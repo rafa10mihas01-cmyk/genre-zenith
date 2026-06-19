@@ -24,7 +24,7 @@ export function IdentityTab() {
   // já publicados. Inteligência (plano, sugestões, IA, benchmarks) só é
   // recalculada quando o usuário clica explicitamente em "Diagnosticar".
   const handleIdentityApplied = (value: string, field: "name" | "description") => {
-    setDiag((prev: any) => {
+    setDiag((prev) => {
       if (!prev) return prev;
       if (field === "name") {
         return {
