@@ -261,6 +261,9 @@ export default function Prospecao() {
             onArchiveCurator={archiveCurator}
             onDeleteCurator={deleteCurator}
             onPauseCurator={pauseCurator}
+            hideAddButton
+            creatingOpen={addCuratorOpen}
+            onCreatingOpenChange={setAddCuratorOpen}
           />
         ) : (
           <>
