@@ -13026,6 +13026,7 @@ export type Database = {
       }
     }
     Functions: {
+      _begin_canonical_op: { Args: never; Returns: undefined }
       _is_user_jwt_caller: { Args: never; Returns: boolean }
       _normalize_notification_type: {
         Args: { p_type: string }
@@ -13084,6 +13085,7 @@ export type Database = {
         Returns: string
       }
       approve_campaign: { Args: { p_campaign_id: string }; Returns: Json }
+      approve_campaign_plan: { Args: { p_campaign_id: string }; Returns: Json }
       approve_campaign_plan_atomic: {
         Args: {
           p_campaign_id: string
