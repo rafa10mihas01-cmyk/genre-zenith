@@ -262,15 +262,15 @@ export default function ClienteDetalhe() {
           `Desde ${format(new Date(client.created_at), "dd MMM yyyy", { locale: ptBR })}`,
         ].filter(Boolean).join(" · ")}
         actions={
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" className="gap-1.5 h-9 rounded-full" onClick={() => setEditing(true)}>
-              <Pencil className="h-4 w-4" /> Editar dados
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end">
+            <Button size="sm" variant="outline" className="gap-1.5 h-9 rounded-full px-3 sm:px-4" onClick={() => setEditing(true)}>
+              <Pencil className="h-4 w-4" /> <span className="hidden sm:inline">Editar dados</span>
             </Button>
             {client.archived_at ? (
               <Button
                 size="sm"
                 variant="outline"
-                className="gap-1.5 h-9 rounded-full"
+                className="gap-1.5 h-9 rounded-full px-3 sm:px-4"
                 onClick={async () => {
                   try {
                     await archiveClient(client.id, false);
@@ -281,13 +281,13 @@ export default function ClienteDetalhe() {
                   }
                 }}
               >
-                <ArchiveRestore className="h-4 w-4" /> Restaurar
+                <ArchiveRestore className="h-4 w-4" /> <span className="hidden sm:inline">Restaurar</span>
               </Button>
             ) : (
               <Button
                 size="sm"
                 variant="outline"
-                className="gap-1.5 h-9 rounded-full"
+                className="gap-1.5 h-9 rounded-full px-3 sm:px-4"
                 onClick={async () => {
                   if (!confirm(`Arquivar ${client.name}? Ele sai da biblioteca mas o histórico fica.`)) return;
                   try {
@@ -299,16 +299,16 @@ export default function ClienteDetalhe() {
                   }
                 }}
               >
-                <Archive className="h-4 w-4" /> Arquivar
+                <Archive className="h-4 w-4" /> <span className="hidden sm:inline">Arquivar</span>
               </Button>
             )}
             <Button
               size="sm"
               variant="outline"
-              className="gap-1.5 h-9 rounded-full text-destructive hover:text-destructive"
+              className="gap-1.5 h-9 rounded-full px-3 sm:px-4 text-destructive hover:text-destructive"
               onClick={() => setConfirmDelete(true)}
             >
-              <Trash2 className="h-4 w-4" /> Excluir
+              <Trash2 className="h-4 w-4" /> <span className="hidden sm:inline">Excluir</span>
             </Button>
           </div>
         }
@@ -413,8 +413,8 @@ export default function ClienteDetalhe() {
                   <InfoRow
                     icon={Music2}
                     label="Spotify do artista"
-                    value={client.spotify_artist_url ? `Perfil de ${client.name}` : null}
-                    hint={client.spotify_artist_url ? "Abrir no Spotify" : null}
+                    value={client.spotify_artist_url ? "Abrir perfil no Spotify" : null}
+                    hint={null}
                     href={client.spotify_artist_url ?? undefined}
                   />
                   {!client.email && !client.phone && !client.contact && !client.instagram && !client.spotify_artist_url && (
