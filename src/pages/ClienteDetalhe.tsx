@@ -127,45 +127,31 @@ function InfoRow({
   return content;
 }
 
-type CampaignCardData = {
-  id: string;
-  track_name: string;
-  artist?: string | null;
-  campaign_type?: string | null;
-  status?: string | null;
-  created_at: string;
-  deadline?: string | null;
-  snapshot_locked_at?: string | null;
-  valor_cobrado?: number | null;
-  valor_recebido?: number | null;
-};
-type CampaignCardAgg = { deals: number; dealsAtivos: number; dealsConcluidos: number; curadores: number } | undefined;
-
-function CampaignCard({ c, agg }: { c: CampaignCardData; agg: CampaignCardAgg }) {
-  const cobrado = Number(c.valor_cobrado) || 0;
-  const recebido = Number(c.valor_recebido) || 0;
-  const pendente = Math.max(0, cobrado - recebido);
-  const dealsTotal = agg?.deals ?? 0;
-  const dealsConcluidos = agg?.dealsConcluidos ?? 0;
-  const dealsAtivos = agg?.dealsAtivos ?? 0;
-  const curadores = agg?.curadores ?? 0;
-  const entrega = cobrado > 0 ? Math.min(100, Math.round((recebido / cobrado) * 100)) : 0;
-  const progresso = dealsTotal > 0 ? Math.round((dealsConcluidos / dealsTotal) * 100) : 0;
+function CampaignCard({ ov }: { ov: CampaignOverviewRow }) {
+  // Componente apenas renderiza. Zero cálculo. Tudo vem do v_campaign_overview.
+  const cobrado = ov.contratado;
+  const recebido = ov.recebido;
+  const pendente = ov.pendente;
+  const dealsTotal = ov.deals_total;
+  const dealsConcluidos = ov.deals_concluidos;
+  const dealsAtivos = ov.deals_abertos;
+  const curadores = ov.curadores_unicos;
+  const entrega = cobrado > 0 ? Math.round((recebido / cobrado) * 100) : 0;
+  const progresso = ov.progresso_pct;
 
   const status: { variant: StatusVariant; label: string } =
-    c.status === "active" ? { variant: "success", label: "Ativa" }
-    : c.status === "completed" ? { variant: "primary", label: "Concluída" }
-    : c.status === "paused" ? { variant: "warning", label: "Pausada" }
-    : c.status === "cancelled" ? { variant: "danger", label: "Cancelada" }
-    : c.status === "draft" ? { variant: "neutral", label: "Rascunho" }
-    : { variant: "neutral", label: c.status ?? "—" };
+    ov.status === "active" ? { variant: "success", label: "Ativa" }
+    : ov.status === "completed" ? { variant: "primary", label: "Concluída" }
+    : ov.status === "paused" ? { variant: "warning", label: "Pausada" }
+    : ov.status === "cancelled" ? { variant: "danger", label: "Cancelada" }
+    : ov.status === "draft" ? { variant: "neutral", label: "Rascunho" }
+    : { variant: "neutral", label: ov.status ?? "—" };
 
-  const initials = (c.track_name ?? "")
+  const initials = (ov.track_name ?? "")
     .split(/\s+/).filter(Boolean).slice(0, 2)
     .map((s) => s[0]?.toUpperCase()).join("");
-  const inicio = format(new Date(c.created_at), "dd MMM", { locale: ptBR });
-  const fim = c.deadline ? format(new Date(c.deadline), "dd MMM", { locale: ptBR }) : null;
-  const href = c.snapshot_locked_at ? `/campanhas/${c.id}/execucao` : `/campanhas/${c.id}`;
+  const inicio = format(new Date(ov.created_at), "dd MMM", { locale: ptBR });
+  const href = `/campanhas/${ov.campaign_id}`;
 
   return (
     <Link
@@ -183,13 +169,12 @@ function CampaignCard({ c, agg }: { c: CampaignCardData; agg: CampaignCardAgg })
         </div>
         <div className="min-w-0 flex-1">
           <div className="text-[12.5px] font-semibold text-foreground truncate leading-tight group-hover:text-primary transition-colors">
-            {c.track_name}
+            {ov.track_name}
           </div>
           <div className="text-[10.5px] text-muted-foreground truncate mt-0.5">
-            <span className="truncate">{c.artist || "—"}</span>
-            {c.campaign_type && (<><span className="mx-1 opacity-50">·</span><span>{c.campaign_type}</span></>)}
+            <span className="truncate">{ov.artist || "—"}</span>
             <span className="mx-1 opacity-50">·</span>
-            <span className="tabular-nums">{inicio}{fim ? ` → ${fim}` : ""}</span>
+            <span className="tabular-nums">{inicio}</span>
           </div>
         </div>
         <StatusDot variant={status.variant} label={status.label} className="shrink-0" />
