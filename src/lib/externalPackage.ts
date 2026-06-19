@@ -272,10 +272,11 @@ export async function repairExternalPackageLinks(packageId: string): Promise<{ l
       })
       .eq("id", packageId);
   }
-  const primaryDealId = rows.map((it) => it.curator_deal_id ?? dealByItem.get(it.id)).find(Boolean);
-  if (allLinked && primaryDealId && (pkg as any).campaign_id) {
-    await supabase.from("campaigns").update({ deal_id: primaryDealId }).eq("id", (pkg as any).campaign_id);
-  }
+  // (2026-06-19) Removida escrita silenciosa em campaigns.deal_id.
+  // Arquitetura 1:N: a campanha pode ter N curator_deals (um por curador do
+  // pacote). Eleger um "principal" via campaigns.deal_id mascarava os demais
+  // em coleta, portal e monitoramento. O vínculo correto é via
+  // curator_deals.campaign_id (que já é gravado na criação dos deals).
 
   return { linked, dispatched: allLinked };
 }

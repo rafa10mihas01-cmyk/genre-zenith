@@ -274,84 +274,104 @@ export default function CampanhaExecucao() {
     setAllocs((a ?? []) as unknown as EcoAllocation[]);
     setSnaps((s ?? []) as EcoSnap[]);
 
-    let dealId = (c as { deal_id?: string | null } | null)?.deal_id ?? null;
-    if (!dealId && c?.spotify_track_id) {
-      // Antes de criar um shadow deal, verifica se já existe QUALQUER deal vinculado
-      // à campanha (ex.: deals reais de curadores via pacote externo). Se existir,
-      // apenas linka o primeiro encontrado em vez de criar lixo.
-      const { data: existingDeals } = await supabase
-        .from("curator_deals")
-        .select("id, curator_id, source, created_at")
-        .eq("campaign_id", c.id)
-        .order("created_at", { ascending: true });
-      const realDeal = (existingDeals ?? []).find((d) => d.curator_id != null);
-      const anyDeal = (existingDeals ?? [])[0];
-      if (realDeal?.id) {
-        dealId = realDeal.id;
-        if (c.deal_id !== dealId) {
-          await supabase.from("campaigns").update({ deal_id: dealId }).eq("id", c.id);
-        }
-        setCamp({ ...(c as unknown as CampaignHubCampaign), deal_id: dealId });
-      } else if (anyDeal?.id) {
-        dealId = anyDeal.id;
-        if (c.deal_id !== dealId) {
-          await supabase.from("campaigns").update({ deal_id: dealId }).eq("id", c.id);
-        }
-        setCamp({ ...(c as unknown as CampaignHubCampaign), deal_id: dealId });
-      } else {
-        const { data: auth } = await supabase.auth.getUser();
-        const userId = c.created_by ?? auth.user?.id ?? null;
-        if (userId) {
-          const goal = Number(c.goal_plays ?? snapshot?.meta ?? 0);
-          const { data: newDeal } = await supabase
-            .from("curator_deals")
-            .insert({
-              user_id: userId,
-              curator_name: "Campanha",
-              song_spotify_url: c.spotify_track_url || `spotify:track:${c.spotify_track_id}`,
-              song_name: c.track_name,
-              song_artist: c.artist,
-              song_cover_url: c.cover_url,
-              target_plays: goal,
-              baseline_plays: 0,
-              cost: 0,
-              started_at: c.started_at,
-              ends_at: c.deadline ? `${c.deadline}T23:59:59.000Z` : null,
-              state: "active",
-              source: "campaign_internal",
-              origin: "campaign",
-              campaign_id: c.id,
-            })
-            .select("id")
-            .single();
-          if (newDeal?.id) {
-            dealId = newDeal.id;
-            await supabase.from("curator_deal_songs").insert({
-              deal_id: dealId,
-              spotify_track_id: c.spotify_track_id,
-              song_spotify_url: c.spotify_track_url || `spotify:track:${c.spotify_track_id}`,
-              song_name: c.track_name,
-              song_artist: c.artist,
-              song_cover_url: c.cover_url,
-              target_plays: goal,
-              baseline_plays: 0,
-              position: 1,
-              started_at: c.started_at,
-              ends_at: c.deadline ? `${c.deadline}T23:59:59.000Z` : null,
-            });
+    // (2026-06-19) Arquitetura 1:N — uma campanha pode ter N curator_deals.
+    // Resolvemos a LISTA de deals da campanha e usamos um "dealId principal"
+    // só pra hidratar UI legado (client_token + baseline gate). Uploads e
+    // estado agora agregam TODOS os deals da campanha — nunca lemos
+    // campaigns.deal_id como fonte operacional.
+    let dealId: string | null = null;
+    let allDealIds: string[] = [];
+
+    const { data: existingDeals } = await supabase
+      .from("curator_deals")
+      .select("id, curator_id, source, created_at, state, baseline_captured_at, baseline_reference_date")
+      .eq("campaign_id", c.id)
+      .order("created_at", { ascending: true });
+    const dealsList = (existingDeals ?? []) as Array<{
+      id: string;
+      curator_id: string | null;
+      source: string | null;
+      created_at: string | null;
+      state: string | null;
+      baseline_captured_at: string | null;
+      baseline_reference_date: string | null;
+    }>;
+    allDealIds = dealsList.map((d) => d.id);
+
+    if (dealsList.length > 0) {
+      // Principal pra fins de UI: shadow campaign_internal se existir, senão
+      // primeiro curador real, senão primeiro qualquer. Não escrevemos mais
+      // campaigns.deal_id daqui — escrita silenciosa criava acoplamento 1:1.
+      const shadow = dealsList.find((d) => d.source === "campaign_internal");
+      const realDeal = dealsList.find((d) => d.curator_id != null);
+      dealId = (shadow?.id ?? realDeal?.id ?? dealsList[0].id) ?? null;
+    } else if (c?.spotify_track_id) {
+      // Sem nenhum deal: cria o shadow inicial. Esta É a única escrita
+      // legítima em campaigns.deal_id (compatibilidade histórica) — toda
+      // operação subsequente deve resolver via curator_deals.campaign_id.
+      const { data: auth } = await supabase.auth.getUser();
+      const userId = c.created_by ?? auth.user?.id ?? null;
+      if (userId) {
+        const goal = Number(c.goal_plays ?? snapshot?.meta ?? 0);
+        const { data: newDeal } = await supabase
+          .from("curator_deals")
+          .insert({
+            user_id: userId,
+            curator_name: "Campanha",
+            song_spotify_url: c.spotify_track_url || `spotify:track:${c.spotify_track_id}`,
+            song_name: c.track_name,
+            song_artist: c.artist,
+            song_cover_url: c.cover_url,
+            target_plays: goal,
+            baseline_plays: 0,
+            cost: 0,
+            started_at: c.started_at,
+            ends_at: c.deadline ? `${c.deadline}T23:59:59.000Z` : null,
+            state: "active",
+            source: "campaign_internal",
+            origin: "campaign",
+            campaign_id: c.id,
+          })
+          .select("id")
+          .single();
+        if (newDeal?.id) {
+          dealId = newDeal.id;
+          allDealIds = [dealId];
+          await supabase.from("curator_deal_songs").insert({
+            deal_id: dealId,
+            spotify_track_id: c.spotify_track_id,
+            song_spotify_url: c.spotify_track_url || `spotify:track:${c.spotify_track_id}`,
+            song_name: c.track_name,
+            song_artist: c.artist,
+            song_cover_url: c.cover_url,
+            target_plays: goal,
+            baseline_plays: 0,
+            position: 1,
+            started_at: c.started_at,
+            ends_at: c.deadline ? `${c.deadline}T23:59:59.000Z` : null,
+          });
+          // Compat: 1ª escrita legítima — registra deal "principal" pra
+          // sistemas legados que ainda leem o campo. Após esta criação,
+          // ninguém mais sobrescreve campaigns.deal_id por leitura operacional.
+          if (!c.deal_id) {
             await supabase.from("campaigns").update({ deal_id: dealId }).eq("id", c.id);
-            setCamp({ ...(c as unknown as CampaignHubCampaign), deal_id: dealId });
           }
+          setCamp({ ...(c as unknown as CampaignHubCampaign), deal_id: dealId });
         }
       }
     }
+
     let hydratedUploadState = false;
-    if (!dealId && (c as { public_plan_token?: string | null } | null)?.public_plan_token) {
+    if (allDealIds.length === 0 && (c as { public_plan_token?: string | null } | null)?.public_plan_token) {
       const { data: shared } = await supabase.functions.invoke("get-shared-campaign-plan", {
         body: { token: (c as { public_plan_token: string }).public_plan_token },
       });
-      dealId = (shared as { campaign?: { deal_id?: string | null } } | null)?.campaign?.deal_id ?? null;
-      if (dealId) setCamp({ ...(c as unknown as CampaignHubCampaign), deal_id: dealId });
+      const sharedDealId = (shared as { campaign?: { deal_id?: string | null } } | null)?.campaign?.deal_id ?? null;
+      if (sharedDealId) {
+        dealId = sharedDealId;
+        allDealIds = [sharedDealId];
+        setCamp({ ...(c as unknown as CampaignHubCampaign), deal_id: sharedDealId });
+      }
       if ((shared as { client_token?: string | null } | null)?.client_token) {
         setClientToken((shared as { client_token: string }).client_token);
         setRecentUploads(((shared as { recent_uploads?: SpreadsheetUpload[] }).recent_uploads ?? []) as SpreadsheetUpload[]);
@@ -359,11 +379,13 @@ export default function CampanhaExecucao() {
         hydratedUploadState = true;
       }
     }
-    if (dealId) {
+
+    if (allDealIds.length > 0) {
+      // client_token vem da 1ª song do dealId principal (compat com portal /campanha/:token).
       const { data: song } = await supabase
         .from("curator_deal_songs")
         .select("id, client_token")
-        .eq("deal_id", dealId)
+        .eq("deal_id", dealId!)
         .order("created_at", { ascending: true })
         .limit(1)
         .maybeSingle();
@@ -378,13 +400,14 @@ export default function CampanhaExecucao() {
         if (tokenError) token = null;
       }
 
+      // Uploads agregam TODOS os deals da campanha — antes lia só de `dealId`
+      // e curadores secundários ficavam invisíveis na execução.
       const { data: uploads } = await supabase
         .from("label_spreadsheet_uploads")
-        .select("id, created_at, rows_imported, total_streams, status, file_name, file_path, is_baseline, reference_date, superseded_by, quarantined_at")
-        .eq("deal_id", dealId)
+        .select("id, created_at, rows_imported, total_streams, status, file_name, file_path, is_baseline, reference_date, superseded_by, quarantined_at, deal_id")
+        .in("deal_id", allDealIds)
         .order("created_at", { ascending: false })
         .limit(500);
-
 
       setClientToken(token);
       setRecentUploads((uploads ?? []) as SpreadsheetUpload[]);
@@ -395,19 +418,25 @@ export default function CampanhaExecucao() {
       setLastSpreadsheetUploadAt(null);
     }
 
-    // Hidrata estado real do deal (awaiting_baseline vs collecting vs active)
-    if (dealId) {
-      const { data: dealRow } = await supabase
-        .from("curator_deals")
-        .select("state, baseline_captured_at, baseline_reference_date")
-        .eq("id", dealId)
-        .maybeSingle();
-      // FASE 10.3 — prioriza baseline_reference_date (data oficial da campanha,
-      // imutável). Mantemos o nome da prop pra não quebrar os filhos.
-      const dealRefDate = (dealRow as any)?.baseline_reference_date ?? null;
+    // Estado da campanha agrega TODOS os deals. Precedência:
+    // - Se algum tem baseline capturada → captured (e usa a data mais antiga).
+    // - Se algum em 'active' → active.
+    // - Senão estado do principal.
+    if (dealsList.length > 0) {
+      const withBaseline = dealsList.filter((d) => d.baseline_reference_date ?? d.baseline_captured_at);
+      let aggregatedCapturedAt: string | null = null;
+      if (withBaseline.length > 0) {
+        const dates = withBaseline
+          .map((d) => d.baseline_reference_date ?? d.baseline_captured_at)
+          .filter(Boolean) as string[];
+        aggregatedCapturedAt = dates.sort()[0] ?? null;
+      }
+      const aggregatedState = withBaseline.length === dealsList.length
+        ? (dealsList.some((d) => d.state === "active") ? "active" : (dealsList[0].state ?? null))
+        : (dealsList.some((d) => d.state === "active") ? "active" : (dealsList[0].state ?? null));
       setDealStatus({
-        state: (dealRow as any)?.state ?? null,
-        baselineCapturedAt: dealRefDate ?? (dealRow as any)?.baseline_captured_at ?? null,
+        state: aggregatedState,
+        baselineCapturedAt: aggregatedCapturedAt,
       });
     } else {
       setDealStatus({ state: null, baselineCapturedAt: null });
