@@ -214,7 +214,7 @@ export function useFinancialOverview() {
     };
   }, [user, qc]);
 
-  const summary = useMemo(() => summaryQuery.data ?? [], [summaryQuery.data]);
+  // 'summary' já é derivado do overview consolidado (definido acima).
   const byCurator = useMemo(() => byCuratorQuery.data ?? [], [byCuratorQuery.data]);
   const globalTotals = useMemo(() => globalTotalsQuery.data ?? {
     total_plays_purchased: 0,
