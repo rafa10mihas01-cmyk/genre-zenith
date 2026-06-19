@@ -98,40 +98,29 @@ export default function CampanhaDetalhe() {
 
   async function updateStatus(newStatus: string) {
     if (!id) return;
-    // GUARDA (Fase 13.X): primeira ativação só via approve-campaign-plan.
-    // Transições administrativas (paused/cancelled/completed/draft) e retomar
-    // (paused → active) de campanhas já aprovadas continuam permitidas.
-    if (newStatus === "active") {
-      const { data: row, error: readErr } = await supabase
-        .from("campaigns")
-        .select("plan_approved_at, valor_cobrado")
-        .eq("id", id)
-        .maybeSingle();
-      if (readErr) {
-        toast({ title: "Erro", description: readErr.message, variant: "destructive" });
-        return;
-      }
-      if (!row?.plan_approved_at) {
-        toast({
-          title: "Ative pelo fluxo oficial",
-          description: "Use 'Aprovar plano' — ativação direta não é permitida.",
-          variant: "destructive",
-        });
-        return;
-      }
-      if (row.valor_cobrado == null) {
-        toast({
-          title: "Valor contratado obrigatório",
-          description: "Defina o valor cobrado antes de ativar a campanha.",
-          variant: "destructive",
-        });
-        return;
-      }
+    // Fase 15: transições passam exclusivamente pelas RPCs canônicas.
+    const map: Record<string, string> = {
+      active: "resume_campaign",
+      paused: "pause_campaign",
+      completed: "close_campaign",
+      cancelled: "cancel_campaign",
+    };
+    const rpc = map[newStatus];
+    if (!rpc) {
+      toast({ title: "Transição não suportada", description: newStatus, variant: "destructive" });
+      return;
     }
-    const { error } = await supabase.from("campaigns").update({ status: newStatus }).eq("id", id);
-    if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let { error } = await (supabase.rpc as any)(rpc, { p_campaign_id: id });
+    if (error && rpc === "resume_campaign" && /resume_blocked|not.*paused/i.test(error.message)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const r = await (supabase.rpc as any)("activate_campaign", { p_campaign_id: id });
+      error = r.error;
+    }
+    if (error) toast({ title: "Não foi possível alterar status", description: error.message, variant: "destructive" });
     else load();
   }
+
 
   async function approvePlan() {
     if (!id) return;

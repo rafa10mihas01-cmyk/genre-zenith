@@ -87,14 +87,15 @@ export function LegacyValorCobradoPanel() {
     }
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from("campaigns")
-        .update({ valor_cobrado: parsed })
-        .eq("id", editing.id);
+      // Fase 15: passa pela RPC oficial — backend valida (draft+sem plano OU admin).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.rpc as any)("set_campaign_price", {
+        p_campaign_id: editing.id,
+        p_valor: parsed,
+      });
       if (error) throw error;
       toast.success("Valor contratado registrado");
       setEditing(null);
-      // Invalida queries dependentes — v_financial_summary recalcula sozinha.
       await qc.invalidateQueries({ queryKey: ["legacy-valor-cobrado-null"] });
       await qc.invalidateQueries({ queryKey: ["financial-overview"] });
       await qc.invalidateQueries({ queryKey: ["client_finance"] });

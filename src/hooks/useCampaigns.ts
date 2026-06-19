@@ -158,35 +158,32 @@ export function useCampaigns() {
     };
   }, [user, qc, instanceId]);
 
-  // Update status (active/paused/cancelled etc) — otimista.
-  // GUARDA (Fase 13.X): ativar uma campanha pela primeira vez DEVE passar por
-  // approve-campaign-plan → approve_campaign_plan_atomic (único writer legítimo
-  // de plan_approved_at + valor_cobrado). Aqui aceitamos transições administrativas
-  // (paused/cancelled/completed/draft) e "retomar" (paused → active) de campanhas
-  // já aprovadas. Bloqueamos qualquer tentativa de virar `active` sem
-  // plan_approved_at OU sem valor_cobrado.
+  // Update status — Fase 15: passa exclusivamente pelas RPCs canônicas.
+  // Frontend não decide mais nada; backend valida e retorna erro se bloqueado.
   const updateStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: Campaign["status"] }) => {
-      if (status === "active") {
-        const { data: row, error: readErr } = await supabase
-          .from("campaigns")
-          .select("plan_approved_at, valor_cobrado")
-          .eq("id", id)
-          .maybeSingle();
-        if (readErr) throw readErr;
-        if (!row?.plan_approved_at) {
-          throw new Error(
-            "plan_not_approved: ative a campanha pelo fluxo oficial (Aprovar plano). UPDATE direto de status para 'active' não é permitido.",
-          );
+      const rpcByStatus: Record<Campaign["status"], string | null> = {
+        draft: null, // não há transição "voltar pra draft" oficial
+        active: "resume_campaign", // ativar/retomar — backend valida pré-requisitos
+        paused: "pause_campaign",
+        cancelled: "cancel_campaign",
+        completed: "close_campaign",
+      };
+      const rpc = rpcByStatus[status];
+      if (!rpc) throw new Error(`transition_not_supported: ${status}`);
+      // Para "active" tentamos resume; se a campanha era 'draft' o backend
+      // responde resume_blocked (não está pausada). Nesse caso usamos activate.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.rpc as any)(rpc, { p_campaign_id: id });
+      if (error) {
+        if (rpc === "resume_campaign" && /resume_blocked|not.*paused/i.test(error.message)) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const r = await (supabase.rpc as any)("activate_campaign", { p_campaign_id: id });
+          if (r.error) throw r.error;
+          return;
         }
-        if (row.valor_cobrado == null) {
-          throw new Error(
-            "valor_cobrado_required: defina o valor contratado da campanha antes de ativá-la.",
-          );
-        }
+        throw error;
       }
-      const { error } = await supabase.from("campaigns").update({ status }).eq("id", id);
-      if (error) throw error;
     },
     onMutate: async ({ id, status }) => {
       await qc.cancelQueries({ queryKey: QUERY_KEY });
@@ -204,10 +201,11 @@ export function useCampaigns() {
     },
   });
 
-  // Delete — otimista
+  // Delete — Fase 15: via RPC delete_campaign (valida draft + sem dependências).
   const removeCampaign = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("campaigns").delete().eq("id", id);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.rpc as any)("delete_campaign", { p_campaign_id: id });
       if (error) throw error;
     },
     onMutate: async (id) => {

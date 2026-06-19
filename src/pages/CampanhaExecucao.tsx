@@ -191,22 +191,12 @@ export default function CampanhaExecucao() {
     const baselineReady = baselineGate.required > 0 && baselineGate.collected >= baselineGate.required;
     setDispatching(true);
     try {
-      // Caminho normal: RPC approve_campaign já carimba status='active' + eco_dispatched_at.
-      // Caminho recovery: campanha ficou 'active' sem eco_dispatched_at (estado legado, hoje
-      // já backfillado) — RPC não aceita reaprovar, então carimba direto.
-      const alreadyActiveWithoutDispatch = camp.status === "active" && !camp.eco_dispatched_at;
-
-      if (!alreadyActiveWithoutDispatch) {
-        const { error } = await (supabase.rpc as any)("approve_campaign", { p_campaign_id: camp.id });
-        if (error) throw error;
-      } else {
-        const { error: stampErr } = await supabase
-          .from("campaigns")
-          .update({ eco_dispatched_at: new Date().toISOString() })
-          .eq("id", camp.id)
-          .is("eco_dispatched_at", null);
-        if (stampErr) throw stampErr;
-      }
+      // Fase 15: distribuição passa SEMPRE pela RPC approve_campaign.
+      // O fallback "carimbar eco_dispatched_at direto" foi removido — não é mais
+      // permitido alterar status/eco_dispatched_at fora do fluxo oficial.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.rpc as any)("approve_campaign", { p_campaign_id: camp.id });
+      if (error) throw error;
 
       // Dispara o planner agora pra enfileirar os ADDs imediatamente (sem esperar o cron de 1min).
       const { error: planErr } = await supabase.functions.invoke("execution-planner", { body: {} });
@@ -219,7 +209,6 @@ export default function CampanhaExecucao() {
             : "Distribuição liberada mesmo sem baseline completa; o bot seguirá coletando o marco zero em paralelo.",
         });
       }
-      // Recarrega do banco (fonte de verdade) — sem otimismo local pra não mascarar falhas silenciosas.
       await loadCampaign();
       setPlanRefreshKey((k) => k + 1);
       setTab("curve");
@@ -228,6 +217,8 @@ export default function CampanhaExecucao() {
       const raw = getErrorMessage(e, "Erro desconhecido");
       const map: Record<string, string> = {
         client_approval_required: "O cliente ainda não aprovou o plano. Mande o link público antes.",
+        plan_approval_required: "Plano interno ainda não aprovado. Use 'Aprovar plano'.",
+        valor_cobrado_required: "Defina o valor contratado antes de distribuir.",
         baseline_required: "Cliente ainda não enviou a primeira planilha (baseline). Peça pra ele subir no portal antes de distribuir.",
         curator_required: "Edite a campanha e selecione o curador dono das playlists.",
         campaign_not_in_approvable_state: "Esta campanha já foi distribuída.",

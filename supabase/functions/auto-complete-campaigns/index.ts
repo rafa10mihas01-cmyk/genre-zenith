@@ -222,26 +222,29 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const { error: updErr } = await sb
-        .from("campaigns")
-        .update({
-          status: "completed",
-          closed_at: new Date().toISOString(),
-          total_delivered: delivered,
-          final_report_requested_at: new Date().toISOString(),
-        })
-        .eq("id", r.id)
-        .in("status", ACTIVE_STATUSES); // guard idempotente
+      // Fase 15: usa RPC oficial close_campaign — valida pendências antes de fechar.
+      // p_force=true porque o cron está fechando por meta atingida, e os checks
+      // de pendência ficam a cargo da própria RPC quando p_force=false.
+      // Mantemos p_force=false: se houver upload/print/deal/queue pendente, a
+      // campanha NÃO encerra automaticamente — fica pra reconciliação manual.
+      const { data: rpcRes, error: rpcErr } = await sb.rpc("close_campaign", {
+        p_campaign_id: r.id,
+        p_force: false,
+      });
 
-      if (updErr) {
+      if (rpcErr) {
         errors++;
-        console.log(JSON.stringify({ evt: "auto-complete.error", campaign_id: r.id, error: updErr.message }));
+        console.log(JSON.stringify({ evt: "auto-complete.error", campaign_id: r.id, error: rpcErr.message }));
       } else {
+        // Carimba final_report_requested_at (coluna não-guardada).
+        await sb.from("campaigns")
+          .update({ final_report_requested_at: new Date().toISOString(), total_delivered: delivered })
+          .eq("id", r.id)
+          .is("final_report_requested_at", null);
         closed++;
         closedIds.push(r.id);
-        console.log(JSON.stringify({ evt: "auto-complete.closed", campaign_id: r.id, delivered, goal, effective_days: eff, started_at: r.started_at }));
+        console.log(JSON.stringify({ evt: "auto-complete.closed", campaign_id: r.id, delivered, goal, effective_days: eff, started_at: r.started_at, rpc: rpcRes }));
 
-        // ── Fix Auditoria #3: notifica operador + email pro cliente ──
         try {
           await notifyCampaignCompleted(sb, r, delivered, goal);
         } catch (notifyErr) {

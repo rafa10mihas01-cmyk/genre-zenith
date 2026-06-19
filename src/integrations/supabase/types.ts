@@ -13026,11 +13026,17 @@ export type Database = {
       }
     }
     Functions: {
+      _is_user_jwt_caller: { Args: never; Returns: boolean }
       _normalize_notification_type: {
         Args: { p_type: string }
         Returns: Database["public"]["Enums"]["notification_type"]
       }
+      _validate_campaign_activation: {
+        Args: { c: Database["public"]["Tables"]["campaigns"]["Row"] }
+        Returns: string
+      }
       accept_community_invite: { Args: { p_code: string }; Returns: Json }
+      activate_campaign: { Args: { p_campaign_id: string }; Returns: Json }
       admin_get_client_pii: {
         Args: { _client_id: string }
         Returns: {
@@ -13104,6 +13110,8 @@ export type Database = {
         Args: { p_key: string; p_limit?: number; p_window_seconds?: number }
         Returns: Json
       }
+      cancel_campaign: { Args: { p_campaign_id: string }; Returns: Json }
+      capture_baseline: { Args: { p_campaign_id: string }; Returns: Json }
       claim_collect_queue: {
         Args: { p_ids: string[] }
         Returns: {
@@ -13242,6 +13250,10 @@ export type Database = {
         Args: { p_message: string; p_requester_name?: string; p_token: string }
         Returns: string
       }
+      close_campaign: {
+        Args: { p_campaign_id: string; p_force?: boolean }
+        Returns: Json
+      }
       close_expired_spotify_circuit_breakers: { Args: never; Returns: number }
       community_accept_campaign: {
         Args: { p_campaign_id: string }
@@ -13366,6 +13378,7 @@ export type Database = {
         Args: { _action: Database["public"]["Enums"]["curatorial_action_type"] }
         Returns: number
       }
+      delete_campaign: { Args: { p_campaign_id: string }; Returns: Json }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
@@ -13538,6 +13551,10 @@ export type Database = {
           source: string
           spotify_playlist_id: string
         }[]
+      }
+      get_campaign_capabilities: {
+        Args: { p_campaign_id: string }
+        Returns: Json
       }
       get_campaign_playlist_growth: {
         Args: { p_campaign_id: string }
@@ -13826,6 +13843,7 @@ export type Database = {
         }
         Returns: string
       }
+      pause_campaign: { Args: { p_campaign_id: string }; Returns: Json }
       pick_next_account: {
         Args: { p_app_id?: string; p_purpose?: string }
         Returns: {
@@ -13949,6 +13967,7 @@ export type Database = {
         Args: { p_dedupe_key: string; p_resolution_message?: string }
         Returns: number
       }
+      resume_campaign: { Args: { p_campaign_id: string }; Returns: Json }
       revoke_public_token: {
         Args: {
           _actor?: string
@@ -13969,6 +13988,10 @@ export type Database = {
           _kind: string
           _ttl_days?: number
         }
+        Returns: Json
+      }
+      set_campaign_price: {
+        Args: { p_campaign_id: string; p_valor: number }
         Returns: Json
       }
       show_limit: { Args: never; Returns: number }
