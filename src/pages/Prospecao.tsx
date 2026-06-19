@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useScreenField } from "@/lib/screen-state";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { RefreshCw, Handshake, UserSearch, Users, Activity, DollarSign, TrendingUp, Send, Mail, CheckCircle2 } from "lucide-react";
+import { RefreshCw, Handshake, UserSearch, Users, Activity, DollarSign, TrendingUp, Send, Mail, CheckCircle2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageContainer } from "@/components/PageContainer";
 import { PageHeader } from "@/components/PageHeader";
