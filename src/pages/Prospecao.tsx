@@ -109,16 +109,30 @@ export default function Prospecao() {
         domain="curators"
         manualKey="curadores"
         actions={
-          <Button
-            variant="outline"
-            size="icon"
-            className="rounded-full h-9 w-9"
-            onClick={() => (segment === "ativos" ? reload() : window.location.reload())}
-            aria-label="Recarregar"
-            title="Recarregar"
-          >
-            <RefreshCw className={cn("h-4 w-4", loading && segment === "ativos" && "animate-spin")} />
-          </Button>
+          <div className="flex items-center gap-1.5">
+            {segment === "ativos" && (
+              <Button
+                size="sm"
+                className="h-9 rounded-full gap-1.5 px-3 sm:px-4"
+                onClick={() => setAddCuratorOpen(true)}
+                aria-label="Novo curador"
+                title="Novo curador"
+              >
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Novo curador</span>
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="icon"
+              className="rounded-full h-9 w-9"
+              onClick={() => (segment === "ativos" ? reload() : window.location.reload())}
+              aria-label="Recarregar"
+              title="Recarregar"
+            >
+              <RefreshCw className={cn("h-4 w-4", loading && segment === "ativos" && "animate-spin")} />
+            </Button>
+          </div>
         }
       />
 
