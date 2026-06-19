@@ -2397,143 +2397,6 @@ export default function CuratorPage() {
           </Card>
         )}
 
-        {/* Fase 7.3 P5 — Histórico de Excel (uploads com download via signed URL). */}
-        {activeTab === "historico" && uploads.length > 0 && (
-          <Card className="nx-card nx-card-glow !p-0 border-border">
-            <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="min-w-0">
-                  <h2 className="text-[15px] font-semibold tracking-tight inline-flex items-center gap-2">
-                    <Download className="h-4 w-4 text-muted-foreground" /> Arquivos
-                  </h2>
-                  <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
-                    Baselines, uploads, reenvios e versões substituídas.
-                  </p>
-                </div>
-                <span className="text-[12px] text-muted-foreground shrink-0 tabular-nums">{uploads.length}</span>
-              </div>
-              {uploads.length === 0 ? (
-                <div className="text-center py-10 text-sm text-muted-foreground">Nenhum Excel enviado ainda.</div>
-              ) : (
-                <div className="max-h-[340px] overflow-y-auto pr-1 -mr-1 scroll-smooth [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]">
-                  <ul className="divide-y divide-border">
-                    {uploads.map((u) => (
-                      <li key={u.id} className="py-3 flex items-center gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span
-                              className="text-[12.5px] font-medium truncate"
-                              title={u.file_name}
-                            >
-                              {friendlyUploadName(u.file_name, u.reference_date)}
-                            </span>
-                            {u.is_baseline && (
-                              <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-primary/15 text-primary">baseline</span>
-                            )}
-                            {u.superseded && (
-                              <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">substituído</span>
-                            )}
-                            {u.quarantined && (
-                              <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-warning/15 text-warning">quarentena</span>
-                            )}
-                          </div>
-                          <div className="text-[10.5px] text-muted-foreground tabular-nums mt-0.5">
-                            {u.reference_date ? `Ref. ${formatDate(u.reference_date)} · ` : ""}
-                            {formatDateTime(u.created_at)}
-                            {u.rows_imported != null ? ` · ${u.rows_imported} linhas` : ""}
-                            {u.total_streams != null ? ` · ${formatPlays(u.total_streams)} streams` : ""}
-                          </div>
-                        </div>
-                        {u.download_url ? (
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              try {
-                                await downloadUploadUrlAsXlsx({
-                                  signedUrl: u.download_url!,
-                                  fileName: u.file_name,
-                                  referenceDate: u.reference_date,
-                                });
-                              } catch (e) {
-                                toast.error(e instanceof Error ? e.message : "Falha ao baixar planilha");
-                              }
-                            }}
-                            className="inline-flex items-center gap-1 text-[11.5px] text-primary hover:underline shrink-0"
-                          >
-                            <Download className="h-3.5 w-3.5" /> Baixar
-                          </button>
-                        ) : (
-                          <span className="text-[11px] text-muted-foreground/60 shrink-0">indisponível</span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Fase 7.3 P7 — Timeline operacional do deal (eventos de negócio). */}
-        {activeTab === "historico" && collectionProblem && (
-          <Card className="nx-card nx-card-glow !p-0 border-warning/40">
-            <CardContent className="p-5 sm:p-6 space-y-4">
-              <div>
-                <h2 className="text-[15px] font-semibold tracking-tight">Problema encontrado</h2>
-                <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed">
-                  Existem {curatorPlaylists.length} playlists cadastradas, mas nenhuma coleta, print ou arquivo foi gravado para este deal.
-                </p>
-              </div>
-              <div className="grid grid-cols-4 gap-2 text-center">
-                <div className="rounded-lg border border-border/60 bg-card/50 px-2 py-3">
-                  <div className="text-[18px] font-semibold tabular-nums text-primary">{curatorPlaylists.length}</div>
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">playlists</div>
-                </div>
-                <div className="rounded-lg border border-border/60 bg-card/50 px-2 py-3">
-                  <div className="text-[18px] font-semibold tabular-nums">0</div>
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">coletas</div>
-                </div>
-                <div className="rounded-lg border border-border/60 bg-card/50 px-2 py-3">
-                  <div className="text-[18px] font-semibold tabular-nums">0</div>
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">prints</div>
-                </div>
-                <div className="rounded-lg border border-border/60 bg-card/50 px-2 py-3">
-                  <div className="text-[18px] font-semibold tabular-nums">0</div>
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">arquivos</div>
-                </div>
-              </div>
-              <div className="text-[12px] text-warning leading-relaxed border-t border-border/60 pt-3">
-                A tela não está escondendo dados: as tabelas de coleta/evidência/arquivo estão vazias para esta campanha.
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        {activeTab === "historico" && timeline.length > 0 && (
-          <Card className="nx-card nx-card-glow !p-0 border-border">
-            <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-3">
-              <div>
-                <h2 className="text-[15px] font-semibold tracking-tight">Linha do tempo</h2>
-                <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
-                  Marcos operacionais do deal, do cadastro até a última coleta.
-                </p>
-              </div>
-              <div className="max-h-[360px] overflow-y-auto pr-1 -mr-1 scroll-smooth [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]">
-                <ol className="relative border-l border-border ml-2 space-y-3">
-                  {timeline.map((ev, i) => (
-                    <li key={i} className="ml-4">
-                      <span className="absolute -left-1.5 mt-1.5 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-background" />
-                      <div className="text-[11px] text-muted-foreground tabular-nums">{formatDateTime(ev.at)}</div>
-                      <div className="text-[12.5px] font-medium leading-tight">{ev.label}</div>
-                      {ev.detail && (
-                        <div className="text-[11px] text-muted-foreground/80 truncate">{ev.detail}</div>
-                      )}
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Histórico de prints — vem da RPC get_curator_deal_snapshot_history */}
         {activeTab === "historico" && (
@@ -2567,9 +2430,21 @@ export default function CuratorPage() {
             ) : (
               (() => {
                 const ordered = [...snapshotHistory];
+                const uploadsWithUrl = uploads.filter((u) => !!u.download_url);
+                const findMatchingUpload = (capturedAt: string) => {
+                  const t = new Date(capturedAt).getTime();
+                  let best: typeof uploadsWithUrl[number] | null = null;
+                  let bestDelta = Infinity;
+                  for (const u of uploadsWithUrl) {
+                    const d = Math.abs(new Date(u.created_at).getTime() - t);
+                    if (d < bestDelta) { bestDelta = d; best = u; }
+                  }
+                  return bestDelta <= 5 * 60 * 1000 ? best : null;
+                };
                 return (
                   <div className="max-h-[600px] overflow-y-auto pr-1 -mr-1 scroll-smooth space-y-2.5 [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]">
                     {ordered.map((entry, idx) => {
+
                       const prev = ordered[idx - 1];
                       const delta = prev
                         ? Number(entry.total_plays) - Number(prev.total_plays)
@@ -2594,6 +2469,8 @@ export default function CuratorPage() {
                         songs[0]?.song_cover_url ??
                         null;
                       const snapshotKey = `${entry.captured_at}-${idx}`;
+                      const matchedUpload = findMatchingUpload(entry.captured_at);
+
                       return (
                         <details
                           key={snapshotKey}
@@ -2662,7 +2539,30 @@ export default function CuratorPage() {
                                 </div>
                               )}
                             </div>
+                            {matchedUpload && (
+                              <button
+                                type="button"
+                                onClick={async (e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  try {
+                                    await downloadUploadUrlAsXlsx({
+                                      signedUrl: matchedUpload.download_url!,
+                                      fileName: matchedUpload.file_name,
+                                      referenceDate: matchedUpload.reference_date,
+                                    });
+                                  } catch (err) {
+                                    toast.error(err instanceof Error ? err.message : "Falha ao baixar planilha");
+                                  }
+                                }}
+                                title="Baixar planilha desta coleta"
+                                className="shrink-0 inline-flex items-center gap-1 rounded-md border border-border/60 bg-card/40 px-2 py-1 text-[11px] text-primary hover:bg-[hsl(var(--hover))] hover:border-primary/40 transition-colors"
+                              >
+                                <Download className="h-3.5 w-3.5" /> Baixar
+                              </button>
+                            )}
                             <ChevronRight className="snapchev h-4 w-4 text-muted-foreground shrink-0 transition-transform ml-1" />
+
                           </summary>
 
                           <div className="border-t border-border/60 px-4 py-4 bg-[hsl(var(--background))]/40 space-y-4">
