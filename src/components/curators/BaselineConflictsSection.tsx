@@ -149,18 +149,12 @@ export function BaselineConflictsSection({
                   <span className="truncate">{c.playlist_name ?? c.playlist_id}</span>
                   <ExternalLink className="h-3 w-3 shrink-0 opacity-60" />
                 </a>
-                <span
-                  className={cn(
-                    "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium border",
-                    c.resolved
-                      ? "bg-primary/10 text-primary border-primary/30"
-                      : "bg-warning/10 text-warning border-warning/30",
-                  )}
-                >
-                  {c.resolved ? (
-                    <>
-                      <CheckCircle2 className="h-2.5 w-2.5" />
-                      RESOLVIDO
+                {c.resolved && (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium border bg-primary/10 text-primary border-primary/30">
+                    <CheckCircle2 className="h-2.5 w-2.5" />
+                    RESOLVIDO
+                  </span>
+                )}
                     </>
                   ) : (
                     <>
