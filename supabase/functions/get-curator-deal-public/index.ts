@@ -444,19 +444,21 @@ Deno.serve(async (req) => {
       campaign_id: string | null;
       baseline_status: string | null;
       baseline_captured_at: string | null;
+      baseline_reference_date: string | null;
       baseline_playlist_count: number;
     } = {
       is_campaign_shadow: false,
       campaign_id: null,
       baseline_status: null,
       baseline_captured_at: null,
+      baseline_reference_date: null,
       baseline_playlist_count: 0,
     };
     if ((deal as any).source === "campaign_internal" && (deal as any).campaign_id) {
       const campaignId = (deal as any).campaign_id as string;
       const { data: camp } = await admin
         .from("campaigns")
-        .select("baseline_status, baseline_captured_at")
+        .select("baseline_status, baseline_captured_at, baseline_reference_date")
         .eq("id", campaignId)
         .maybeSingle();
       const { count: baselineCount } = await admin
@@ -469,6 +471,7 @@ Deno.serve(async (req) => {
         campaign_id: campaignId,
         baseline_status: (camp as any)?.baseline_status ?? null,
         baseline_captured_at: (camp as any)?.baseline_captured_at ?? null,
+        baseline_reference_date: (camp as any)?.baseline_reference_date ?? null,
         baseline_playlist_count: baselineCount ?? 0,
       };
     }
