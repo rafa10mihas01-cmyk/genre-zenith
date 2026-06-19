@@ -647,6 +647,17 @@ Deno.serve(async (req) => {
           .update({ auto_collect: true, next_auto_collect_at: new Date().toISOString() })
           .eq("deal_id", existingDealId);
 
+        // Promove TODOS os demais curator_deals da mesma campanha (external
+        // package / múltiplos curadores) que ainda estejam em collecting.
+        // Sem isso, deals secundários ficam travados e o bot nunca dispara.
+        const { data: promotedSecondary } = await admin
+          .from("curator_deals")
+          .update({ state: "active" })
+          .eq("campaign_id", campaignId)
+          .neq("id", existingDealId)
+          .in("state", ["collecting", "awaiting_baseline"])
+          .select("id");
+
         return json({
           ok: true,
           already_approved: false,
@@ -654,6 +665,7 @@ Deno.serve(async (req) => {
           deal_id: existingDealId,
           shadow_prepared: true,
           seeded_playlists: 0,
+          promoted_secondary_deals: promotedSecondary?.length ?? 0,
           flag_on: flagOn,
         });
       } catch (e) {
@@ -790,6 +802,14 @@ Deno.serve(async (req) => {
       .from("curator_deal_songs")
       .update({ auto_collect: true, next_auto_collect_at: new Date().toISOString() })
       .eq("deal_id", newDealId);
+
+    // Promove demais deals da mesma campanha (multi-curador / external package).
+    await admin
+      .from("curator_deals")
+      .update({ state: "active" })
+      .eq("campaign_id", campaignId)
+      .neq("id", newDealId)
+      .in("state", ["collecting", "awaiting_baseline"]);
   }
 
   // 9) Não semeia playlists planejadas como baseline. A baseline correta vem
