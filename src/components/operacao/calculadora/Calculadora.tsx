@@ -1949,7 +1949,7 @@ function SessionChip({
 }
 
 
-function ReviewKpi({ icon: Icon, label, value, hint }: { icon: any; label: string; value: string; hint?: string }) {
+function ReviewKpi({ icon: Icon, label, value, hint }: { icon: LucideIcon; label: string; value: string; hint?: string }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
       <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
