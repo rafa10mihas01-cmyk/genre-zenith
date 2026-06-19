@@ -8,7 +8,7 @@ import { IdentityField } from "../shared/IdentityField";
 import { TabShell } from "../shared/ds/TabShell";
 import { TabContextBanner } from "../shared/ds/TabContextBanner";
 import { TabKpiStrip } from "../shared/ds/TabKpiStrip";
-import { KpiCard } from "../shared/ds/KpiCard";
+import { KpiCard, type KpiTone } from "../shared/ds/KpiCard";
 import { SecondarySection } from "../shared/ds/SecondarySection";
 import { useCockpit } from "../context/CockpitContext";
 
