@@ -14,11 +14,19 @@
 // Concorrência baixa (2 in-flight, ~150ms stall) pra ficar Spotify-friendly.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getAppToken, SpotifyCircuitOpenError } from "../_shared/spotify-client.ts";
+import {
+  getAppToken,
+  SpotifyCircuitOpenError,
+  setSpotifyBreakerContext,
+  installSpotifyCircuitFetchGuard,
+} from "../_shared/spotify-client.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const WORKER_ID = `spotify-enrichment-worker#${crypto.randomUUID().slice(0, 8)}`;
+
+// Garante guard global no fetch (já tolerante a múltiplas chamadas).
+installSpotifyCircuitFetchGuard();
 
 function jr(p: unknown, status = 200) {
   return new Response(JSON.stringify(p), {
@@ -35,12 +43,18 @@ type Job = {
   max_attempts: number;
 };
 
-const BATCH = Number(Deno.env.get("ENRICH_WORKER_BATCH") ?? 30);
-const CONCURRENCY = Number(Deno.env.get("ENRICH_WORKER_CONCURRENCY") ?? 2);
-const STALL_MS = Number(Deno.env.get("ENRICH_WORKER_STALL_MS") ?? 150);
+// Defaults conservadores — Spotify Web API tolera ~10 req/s sustentado por app.
+// Rodamos bem abaixo disso para nunca disparar 429 em volume normal.
+const BATCH = Number(Deno.env.get("ENRICH_WORKER_BATCH") ?? 10);
+const CONCURRENCY = Number(Deno.env.get("ENRICH_WORKER_CONCURRENCY") ?? 1);
+const STALL_MS = Number(Deno.env.get("ENRICH_WORKER_STALL_MS") ?? 400);
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  // CRÍTICO: marca este loop como contexto "enrichment". Qualquer 429 daqui
+  // abre o breaker ('app_x','enrichment') e NÃO afeta sync/bot/execução.
+  setSpotifyBreakerContext("enrichment");
 
   const sb = createClient(SUPABASE_URL, SERVICE_KEY);
 
