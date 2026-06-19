@@ -249,7 +249,7 @@ export default function CampanhaExecucao() {
     const [{ data: c }, { data: a }, { data: s }, { data: pkg }] = await Promise.all([
       supabase
         .from("campaigns")
-        .select("id, deal_id, track_name, artist, cover_url, status, deadline, started_at, simulation_snapshot, snapshot_locked_at, eco_dispatched_at, engagement_multiplier, public_plan_token, spotify_track_id, spotify_track_url, goal_plays, created_by, total_delivered, client_approved_at, split_locked_at, locked_eco_streams, eco_max_pct, plan_approved_at, campaign_type, collection_mode, baseline_status, baseline_captured_at")
+        .select("id, deal_id, track_name, artist, cover_url, status, deadline, started_at, simulation_snapshot, snapshot_locked_at, eco_dispatched_at, engagement_multiplier, public_plan_token, spotify_track_id, spotify_track_url, goal_plays, created_by, total_delivered, client_approved_at, split_locked_at, locked_eco_streams, eco_max_pct, plan_approved_at, campaign_type, collection_mode, baseline_status, baseline_captured_at, baseline_reference_date")
         .eq("id", id)
         .maybeSingle(),
       supabase
@@ -399,12 +399,15 @@ export default function CampanhaExecucao() {
     if (dealId) {
       const { data: dealRow } = await supabase
         .from("curator_deals")
-        .select("state, baseline_captured_at")
+        .select("state, baseline_captured_at, baseline_reference_date")
         .eq("id", dealId)
         .maybeSingle();
+      // FASE 10.3 — prioriza baseline_reference_date (data oficial da campanha,
+      // imutável). Mantemos o nome da prop pra não quebrar os filhos.
+      const dealRefDate = (dealRow as any)?.baseline_reference_date ?? null;
       setDealStatus({
         state: (dealRow as any)?.state ?? null,
-        baselineCapturedAt: (dealRow as any)?.baseline_captured_at ?? null,
+        baselineCapturedAt: dealRefDate ?? (dealRow as any)?.baseline_captured_at ?? null,
       });
     } else {
       setDealStatus({ state: null, baselineCapturedAt: null });
@@ -420,7 +423,8 @@ export default function CampanhaExecucao() {
     // e pela importação de planilha. Se ele já marcou 'captured', a baseline existe
     // independente do que esteja em curator_deal_snapshots/logs (que podem usar IDs diferentes).
     const campBaselineStatus = (c as any)?.baseline_status as string | null | undefined;
-    const campBaselineAt = (c as any)?.baseline_captured_at as string | null | undefined;
+    const campRefDate = (c as any)?.baseline_reference_date as string | null | undefined;
+    const campBaselineAt = (campRefDate ?? (c as any)?.baseline_captured_at) as string | null | undefined;
     if (campBaselineStatus === "captured") {
       const n = plannedSpotifyIds.length || 1;
       setBaselineGate({ required: n, collected: n, capturedAt: campBaselineAt ?? null });

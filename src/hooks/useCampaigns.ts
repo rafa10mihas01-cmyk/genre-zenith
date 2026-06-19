@@ -33,13 +33,14 @@ export type Campaign = {
   baseline_pending?: boolean;
   /** Derivado: timestamp da 1ª baseline capturada (qualquer deal da campanha). */
   baseline_captured_at?: string | null;
+  baseline_reference_date?: string | null;
   /** Derivado: e-mail principal do cliente vinculado (se houver). */
   client_email?: string | null;
   /** Derivado: nº de e-mails autorizados a acessar o portal desta campanha. */
   access_emails_count?: number;
 };
 
-const SELECT = "id, track_name, artist, cover_url, goal_plays, deadline, status, total_allocated, total_delivered, created_at, snapshot_locked_at, client_id, curator_id, deal_id, public_plan_token, client_approved_at, client_approved_by, client_rejected_at, campaign_type, collection_mode, plan_approved_at, client_decision_round, valor_cobrado, baseline_captured_at, baseline_status";
+const SELECT = "id, track_name, artist, cover_url, goal_plays, deadline, status, total_allocated, total_delivered, created_at, snapshot_locked_at, client_id, curator_id, deal_id, public_plan_token, client_approved_at, client_approved_by, client_rejected_at, campaign_type, collection_mode, plan_approved_at, client_decision_round, valor_cobrado, baseline_captured_at, baseline_reference_date, baseline_status";
 
 const QUERY_KEY = ["campaigns"] as const;
 

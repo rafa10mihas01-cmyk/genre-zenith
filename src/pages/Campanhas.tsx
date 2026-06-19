@@ -585,12 +585,18 @@ function CampaignRow({ c }: { c: Campaign }) {
   const mode = (c as any).collection_mode as string | undefined;
   const isSpreadsheet = mode === "spreadsheet";
   const hasBaseline = !!c.baseline_captured_at;
+  const baselineRefDate = (c as any).baseline_reference_date as string | null | undefined;
+  const baselineDateLabel = baselineRefDate
+    ? new Date(baselineRefDate + "T00:00:00").toLocaleDateString("pt-BR")
+    : c.baseline_captured_at
+      ? new Date(c.baseline_captured_at).toLocaleDateString("pt-BR")
+      : null;
   const baselineChip = (() => {
     if (isSpreadsheet) {
       return hasBaseline ? (
         <span
           className="text-[10px] uppercase tracking-wider rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-primary"
-          title={`Baseline coletada em ${new Date(c.baseline_captured_at!).toLocaleString("pt-BR")}`}
+          title={baselineDateLabel ? `Baseline de ${baselineDateLabel}` : "Baseline registrada"}
         >
           Baseline ok
         </span>

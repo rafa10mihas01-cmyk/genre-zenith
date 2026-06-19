@@ -391,12 +391,14 @@ export default function CuratorPage() {
     campaign_id: string | null;
     baseline_status: string | null;
     baseline_captured_at: string | null;
+    baseline_reference_date: string | null;
     baseline_playlist_count: number;
   }>({
     is_campaign_shadow: false,
     campaign_id: null,
     baseline_status: null,
     baseline_captured_at: null,
+    baseline_reference_date: null,
     baseline_playlist_count: 0,
   });
   const [curatorSubmissions, setCuratorSubmissions] =

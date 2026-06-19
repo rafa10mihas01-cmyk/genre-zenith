@@ -9,6 +9,7 @@ export type BaselineConflict = {
   registered_at: string | null;
   baseline_conflict_at: string | null;
   baseline_captured_at: string | null;
+  baseline_reference_date?: string | null;
   baseline_plays_7d: number | null;
   reason: string;
   resolved: boolean;
@@ -182,9 +183,11 @@ export function BaselineConflictsSection({
                   </span>
                 </span>
                 <span>
-                  <span className="text-subtle-foreground">Baseline capturada: </span>
+                  <span className="text-subtle-foreground">Baseline de: </span>
                   <span className="text-foreground tabular-nums">
-                    {fmtDate(c.baseline_captured_at)}
+                    {c.baseline_reference_date
+                      ? fmtDate(c.baseline_reference_date + "T00:00:00")
+                      : fmtDate(c.baseline_captured_at)}
                   </span>
                 </span>
                 {c.baseline_plays_7d !== null && (

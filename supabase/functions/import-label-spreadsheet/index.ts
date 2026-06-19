@@ -995,27 +995,58 @@ Deno.serve(async (req) => {
     //    mesmo depois do cliente subir a planilha.
     if (isBaseline) {
       const baselineAt = capturedAt;
-      // Deal interno (placeholder da campanha): mantém totalStreams como referência agregada.
+
+      // FASE 10.3 — Cronologia oficial da baseline:
+      //  * baseline_reference_date (DATE) = data oficial do arquivo (referenceDate). Imutável.
+      //    Só é gravada quando ainda está NULL (a trigger lock_baseline_reference_date
+      //    garante a regra no banco; o filtro `.is("baseline_reference_date", null)`
+      //    impede que UPDATEs subsequentes tentem reescrever e estourem a trigger).
+      //  * baseline_captured_at (TIMESTAMPTZ) = quando o operador rodou a primeira
+      //    importação. Também é gravado APENAS na primeira vez. Reimportações nunca
+      //    mexem nele — respeitamos a decisão da RPC `ingest_campaign_collection_batch`
+      //    (que retorna reason: 'baseline_already_captured' quando há baseline ativa).
+
+      // Deal interno (placeholder da campanha) — só transita NULL → valor.
       await admin
         .from("curator_deals")
         .update({
           state: "collecting",
           baseline_captured_at: baselineAt,
+          baseline_reference_date: referenceDate,
           baseline_plays: totalStreams,
         })
-        .eq("id", dealId);
+        .eq("id", dealId)
+        .is("baseline_captured_at", null);
+
+      // Garante baseline_reference_date mesmo em deals antigos cujo
+      // baseline_captured_at já existia (mas o campo novo ainda está NULL).
+      await admin
+        .from("curator_deals")
+        .update({ baseline_reference_date: referenceDate })
+        .eq("id", dealId)
+        .is("baseline_reference_date", null);
+
+      // Campaign — só primeira baseline define data e marco temporal.
       await admin
         .from("campaigns")
         .update({
           status: "active",
           baseline_captured_at: baselineAt,
+          baseline_reference_date: referenceDate,
           baseline_status: "captured",
         })
-        .eq("deal_id", dealId);
+        .eq("deal_id", dealId)
+        .is("baseline_captured_at", null);
 
-      // Propaga baseline para curator_deals reais da mesma campanha (collection_mode=spreadsheet).
-      // Como a planilha reporta total por playlist (não por curador), gravamos só o marco temporal:
-      // baseline_plays = null evita inventar número individual que não temos.
+      await admin
+        .from("campaigns")
+        .update({ baseline_reference_date: referenceDate })
+        .eq("deal_id", dealId)
+        .is("baseline_reference_date", null);
+
+      // Propaga para curator_deals reais da mesma campanha (collection_mode=spreadsheet).
+      // Como a planilha reporta total por playlist (não por curador), gravamos só o marco
+      // temporal: baseline_plays = null evita inventar número individual.
       if (campaignIdForUpdate) {
         const { data: camp } = await admin
           .from("campaigns")
@@ -1028,11 +1059,19 @@ Deno.serve(async (req) => {
             .update({
               state: "collecting",
               baseline_captured_at: baselineAt,
+              baseline_reference_date: referenceDate,
               baseline_plays: null,
             })
             .eq("campaign_id", campaignIdForUpdate)
             .neq("id", dealId)
             .is("baseline_captured_at", null);
+
+          await admin
+            .from("curator_deals")
+            .update({ baseline_reference_date: referenceDate })
+            .eq("campaign_id", campaignIdForUpdate)
+            .neq("id", dealId)
+            .is("baseline_reference_date", null);
         }
       }
     }

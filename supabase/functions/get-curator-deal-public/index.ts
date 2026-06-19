@@ -444,19 +444,21 @@ Deno.serve(async (req) => {
       campaign_id: string | null;
       baseline_status: string | null;
       baseline_captured_at: string | null;
+      baseline_reference_date: string | null;
       baseline_playlist_count: number;
     } = {
       is_campaign_shadow: false,
       campaign_id: null,
       baseline_status: null,
       baseline_captured_at: null,
+      baseline_reference_date: null,
       baseline_playlist_count: 0,
     };
     if ((deal as any).source === "campaign_internal" && (deal as any).campaign_id) {
       const campaignId = (deal as any).campaign_id as string;
       const { data: camp } = await admin
         .from("campaigns")
-        .select("baseline_status, baseline_captured_at")
+        .select("baseline_status, baseline_captured_at, baseline_reference_date")
         .eq("id", campaignId)
         .maybeSingle();
       const { count: baselineCount } = await admin
@@ -469,6 +471,7 @@ Deno.serve(async (req) => {
         campaign_id: campaignId,
         baseline_status: (camp as any)?.baseline_status ?? null,
         baseline_captured_at: (camp as any)?.baseline_captured_at ?? null,
+        baseline_reference_date: (camp as any)?.baseline_reference_date ?? null,
         baseline_playlist_count: baselineCount ?? 0,
       };
     }
@@ -490,6 +493,7 @@ Deno.serve(async (req) => {
       registered_at: string | null;
       baseline_conflict_at: string | null;
       baseline_captured_at: string | null;
+      baseline_reference_date: string | null;
       baseline_plays_7d: number | null;
       reason: string;
       resolved: boolean;
@@ -526,6 +530,11 @@ Deno.serve(async (req) => {
           }
         }
 
+        // FASE 10.3 — usamos a data oficial da baseline da campanha (DATE imutável)
+        // ao invés do timestamp técnico de cada coleta. campaign_context já carrega
+        // baseline_reference_date.
+        const campRefDate = campaign_context.baseline_reference_date;
+
         // "Resolvido" = curador registrou outra playlist (não-conflito) DEPOIS
         // do conflito, na mesma campanha/deal.
         const validSorted = rows
@@ -545,6 +554,7 @@ Deno.serve(async (req) => {
             registered_at: r.registered_at ?? null,
             baseline_conflict_at: r.baseline_conflict_at ?? null,
             baseline_captured_at: base?.captured_at ?? null,
+            baseline_reference_date: campRefDate ?? null,
             baseline_plays_7d: typeof base?.plays_7d === "number" ? base.plays_7d : null,
             reason:
               "A música já estava nesta playlist antes do início da campanha. Conta como cenário pré-existente, não como entrega nova do curador.",
