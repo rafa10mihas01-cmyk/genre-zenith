@@ -563,7 +563,7 @@ export default function ClienteDetalhe() {
           {clientCampaigns.length > 0 && (
             <div className={cn("grid gap-3", clientCampaigns.length === 1 ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4")}>
               {clientCampaigns.map((c) => (
-                <CampaignCard key={c.id} c={c} agg={campaignAggregates.get(c.id)} />
+                <CampaignCard key={c.campaign_id} ov={c} />
               ))}
             </div>
           )}
