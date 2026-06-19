@@ -29,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusDot, type StatusVariant } from "@/components/ui/status-dot";
 import { MetricCell } from "@/components/ui/metric-cell";
+import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
   DialogContent,
