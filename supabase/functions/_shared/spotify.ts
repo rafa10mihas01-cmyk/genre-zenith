@@ -189,7 +189,10 @@ function db() {
   return createClient(SUPABASE_URL, SERVICE_KEY);
 }
 
-export async function assertSpotifyCircuitClosed(appId = "global"): Promise<void> {
+export async function assertSpotifyCircuitClosed(
+  appId = "global",
+  context: SpotifyBreakerContext = "operation",
+): Promise<void> {
   const supabase = db();
   const effectiveAppId = appId === "global" ? (await getDefaultSpotifyAppId()) ?? "global" : appId;
   try { await supabase.rpc("close_expired_spotify_circuit_breakers"); } catch { /* noop */ }
@@ -197,6 +200,7 @@ export async function assertSpotifyCircuitClosed(appId = "global"): Promise<void
     .from("spotify_circuit_breaker")
     .select("status, blocked_until, retry_after_sec")
     .eq("app_id", effectiveAppId)
+    .eq("context", context)
     .maybeSingle();
   if (error) throw new Error(`spotify_circuit_breaker: ${error.message}`);
   if (data?.status === "open" && data.blocked_until && new Date(data.blocked_until).getTime() > Date.now()) {
@@ -204,21 +208,28 @@ export async function assertSpotifyCircuitClosed(appId = "global"): Promise<void
   }
 }
 
-export async function openSpotifyCircuitBreaker(retryAfterSec?: number | null, appId = "global", causedBy?: string): Promise<{ blockedUntil: string; retryAfterSec: number }> {
+export async function openSpotifyCircuitBreaker(
+  retryAfterSec?: number | null,
+  appId = "global",
+  causedBy?: string,
+  context: SpotifyBreakerContext = "operation",
+): Promise<{ blockedUntil: string; retryAfterSec: number }> {
   const effectiveAppId = appId === "global" ? (await getDefaultSpotifyAppId()) ?? "global" : appId;
   const safeRetry = Math.max(2, Math.min(Number(retryAfterSec ?? 60), 86_400));
   const blockedUntil = new Date(Date.now() + safeRetry * 1000).toISOString();
   await db().from("spotify_circuit_breaker").upsert({
     app_id: effectiveAppId,
+    context,
     status: "open",
     blocked_until: blockedUntil,
     last_429_at: new Date().toISOString(),
     retry_after_sec: safeRetry,
-  }, { onConflict: "app_id" });
+  }, { onConflict: "app_id,context" });
   // Gap 22: registra histórico de cada abertura.
   try {
     await db().from("spotify_circuit_breaker_log").insert({
       app_id: effectiveAppId,
+      context,
       blocked_until: blockedUntil,
       retry_after_sec: safeRetry,
       caused_by: causedBy ?? null,
