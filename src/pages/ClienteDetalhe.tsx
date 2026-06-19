@@ -67,13 +67,14 @@ const CLIENT_TYPE_LABEL: Record<string, string> = {
 const formatBRL = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
-function Stat({ label, value, tone }: { label: string; value: string | number; tone?: "primary" | "success" | "warning" | "muted" }) {
+function Stat({ label, value, tone, tier = "default", className }: { label: string; value: string | number; tone?: "primary" | "success" | "warning" | "muted"; tier?: "default" | "hero"; className?: string }) {
   return (
-    <div className="nx-card !p-4">
+    <div className={cn("nx-card !p-4", className)}>
       <div className="text-[10.5px] uppercase tracking-[0.12em] text-muted-foreground">{label}</div>
       <div
         className={cn(
-          "text-2xl font-bold tabular-nums mt-1",
+          "font-bold tabular-nums mt-1",
+          tier === "hero" ? "text-4xl sm:text-2xl" : "text-2xl",
           tone === "primary" && "text-primary",
           tone === "success" && "text-emerald-400",
           tone === "warning" && "text-warning",
@@ -413,6 +414,7 @@ export default function ClienteDetalhe() {
           hint={`${kpis.campanhas} campanha${kpis.campanhas === 1 ? "" : "s"}`}
           tier="hero"
           domain="clients"
+          className="col-span-2 md:col-span-1"
         />
         <KpiBig
           label="Valor recebido"
@@ -526,7 +528,13 @@ export default function ClienteDetalhe() {
         <TabsContent value="visao" className="space-y-4">
           {/* Linha 2 — KPIs Operacionais */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
-            <Stat label="Campanhas ativas" value={kpis.campanhasAtivas} tone={kpis.campanhasAtivas > 0 ? "primary" : "muted"} />
+            <Stat
+              label="Campanhas ativas"
+              value={kpis.campanhasAtivas}
+              tone={kpis.campanhasAtivas > 0 ? "primary" : "muted"}
+              tier="hero"
+              className="col-span-2 md:col-span-1"
+            />
             <Stat label="Deals ativos" value={kpis.ativos} tone={kpis.ativos > 0 ? "primary" : "muted"} />
             <Stat label="Curadores trabalhando" value={kpis.curadoresAtivos} tone="muted" />
             <Stat label="Músicas em campanha" value={kpis.musicas} tone="muted" />
