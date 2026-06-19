@@ -3,8 +3,9 @@
 // que o curador acessa para ver a meta e cadastrar playlists.
 // Sem auth (rota pública). Service role para ignorar RLS.
 //
-// Fonte de verdade do progresso: curator_deal_snapshots (prints do admin via S4A).
-// O frontend não calcula nada — apenas renderiza `progress` e `snapshot_history`.
+// FASE 13.0 — Fonte canônica de leitura: campaign_playlist_collections (CPC)
+// via vw_campaign_playlist_growth. curator_deal_snapshots permanece como
+// fallback de compatibilidade para deals antigos pré-CPC.
 import { corsHeaders as baseCorsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { assertDealOperable } from "../_shared/deal-access.ts";
@@ -209,9 +210,10 @@ Deno.serve(async (req) => {
     if (proofsErr) console.error("[get-curator-deal-public] proofs error (degraded):", proofsErr.message);
     if (uploadsErr) console.error("[get-curator-deal-public] uploads error (degraded):", uploadsErr.message);
 
-    // Fase 7.3 P3 — Delivery acumulado, baseline e crescimento por playlist.
-    // Calculado a partir de TODOS os snapshots (incl. is_initial_capture=true),
-    // sem nova coleta. baseline = primeiro snapshot; current = último; delivery = current-baseline.
+    // FASE 13.0 — perPlaylistDelivery por curator_playlists.id.
+    // Inicial: derivado de curator_deal_snapshots (fallback de compatibilidade
+    // para deals legados sem CPC). Sobrescrito abaixo com dados de
+    // vw_campaign_playlist_growth (fonte canônica) quando disponível.
     const perPlaylistDelivery: Record<string, {
       baseline_plays: number | null;
       current_plays: number | null;
@@ -221,6 +223,7 @@ Deno.serve(async (req) => {
       last_capture_at: string | null;
       snapshot_count: number;
       last_print_url: string | null;
+      source: "cpc" | "snapshots";
     }> = {};
     {
       const byPid = new Map<string, any[]>();
@@ -248,6 +251,7 @@ Deno.serve(async (req) => {
           last_capture_at: last?.captured_at ?? null,
           snapshot_count: arr.length,
           last_print_url: lastPrint,
+          source: "snapshots",
         };
       }
     }
