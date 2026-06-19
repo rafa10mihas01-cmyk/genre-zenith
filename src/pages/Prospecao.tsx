@@ -39,6 +39,7 @@ function FunilStep({
 
 export default function Prospecao() {
   const [segment, setSegment] = useScreenField<Segment>("/curadores", "segment", "ativos");
+  const [addCuratorOpen, setAddCuratorOpen] = useState(false);
   const {
     curators, balances, deals, loading,
     addCurator, updateCurator, addCuratorPurchase, archiveCurator, deleteCurator, pauseCurator,
