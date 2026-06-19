@@ -107,7 +107,7 @@ interface Props {
 }
 
 
-export function ClientesLibraryTab({ deals, songs, loading, financeByClient }: Props) {
+export function ClientesLibraryTab({ deals, songs, loading, campaignsByClient }: Props) {
   const navigate = useNavigate();
   const { clients, loading: loadingClients, addClient, updateClient, archiveClient, deleteClient, reload, isEnriching } = useClients();
   const [query, setQuery] = useState("");
@@ -149,30 +149,45 @@ export function ClientesLibraryTab({ deals, songs, loading, financeByClient }: P
           (c.contact ?? "").toLowerCase().includes(q),
       )
       .map((c) => {
+        // Fonte canônica: campaigns vinculadas ao cliente (1:N).
+        const clientCampaigns = campaignsByClient?.get(c.id) ?? [];
         const clientSongs = songs.filter((s) => s.client_id === c.id);
-        const dealIds = new Set(clientSongs.map((s) => s.deal_id));
-        const clientDeals = Array.from(dealIds)
+
+        // Une deals provenientes de campaigns.deal_id e de songs.deal_id (compatibilidade histórica).
+        const dealIdSet = new Set<string>();
+        for (const cp of clientCampaigns) if (cp.deal_id) dealIdSet.add(cp.deal_id);
+        for (const s of clientSongs) if (s.deal_id) dealIdSet.add(s.deal_id);
+        const clientDeals = Array.from(dealIdSet)
           .map((id) => dealById.get(id))
           .filter(Boolean) as CuratorDeal[];
-        const activeDeals = clientDeals.filter((d) => !d.closed_at).length;
-        const closedDeals = clientDeals.filter((d) => !!d.closed_at).length;
-        const lastTs = clientSongs.reduce<number>((acc, s) => {
-          const t = new Date(s.created_at).getTime();
-          return Number.isFinite(t) && t > acc ? t : acc;
-        }, 0);
-        const invested = clientDeals.reduce((acc, d) => acc + (Number(d.cost) || 0), 0);
-        const fin = financeByClient?.get(c.id) ?? EMPTY_FIN;
+
+        const activeCampaigns = clientCampaigns.filter((cp) => !isCampaignClosed(cp)).length;
+        const closedCampaigns = clientCampaigns.filter((cp) => isCampaignClosed(cp)).length;
+
+        // Cada campaign = 1 faixa promovida; agrega com músicas manuais antigas.
+        const totalSongs = Math.max(clientCampaigns.length, clientSongs.length);
+
+        const lastTs = (() => {
+          let max = 0;
+          for (const cp of clientCampaigns) {
+            const t = new Date(cp.updated_at ?? cp.created_at).getTime();
+            if (Number.isFinite(t) && t > max) max = t;
+          }
+          for (const s of clientSongs) {
+            const t = new Date(s.created_at).getTime();
+            if (Number.isFinite(t) && t > max) max = t;
+          }
+          return max;
+        })();
+
         return {
           client: c,
           songs: clientSongs,
-          totalSongs: clientSongs.length,
-          activeDeals,
-          closedDeals,
-          totalDeals: clientDeals.length,
+          totalSongs,
+          activeDeals: activeCampaigns,
+          closedDeals: closedCampaigns,
+          totalDeals: clientCampaigns.length || clientDeals.length,
           lastTs,
-          invested,
-          revenue: fin.recebido,
-          pending: fin.pendente,
         };
       })
       .filter((row) => {
@@ -182,15 +197,14 @@ export function ClientesLibraryTab({ deals, songs, loading, financeByClient }: P
       });
 
     enriched.sort((a, b) => {
-      if (sortBy === "invested") return b.invested - a.invested;
-      if (sortBy === "revenue") return b.revenue - a.revenue;
       if (sortBy === "alpha") return a.client.name.localeCompare(b.client.name, "pt-BR");
       // activity default
       if (a.activeDeals !== b.activeDeals) return b.activeDeals - a.activeDeals;
       return b.lastTs - a.lastTs;
     });
     return enriched;
-  }, [clients, songs, dealById, query, showArchived, statusFilter, sortBy, financeByClient]);
+  }, [clients, songs, dealById, query, showArchived, statusFilter, sortBy, campaignsByClient]);
+
 
   return (
     <div className="space-y-4 animate-fade-in">
