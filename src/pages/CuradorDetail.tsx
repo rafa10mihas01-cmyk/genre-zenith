@@ -268,23 +268,25 @@ export default function CuradorDetail() {
                 <button
                   type="button"
                   onClick={() => setHealthOpen((v) => !v)}
-                  className="w-full flex items-center justify-between gap-2 px-5 py-4 text-left hover:bg-muted/20 transition-colors rounded-2xl"
+                  className="w-full flex items-center justify-between gap-3 px-4 sm:px-5 py-4 text-left hover:bg-muted/20 transition-colors rounded-2xl"
                   aria-expanded={healthOpen}
                 >
-                  <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
                     <Brain className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Saúde do curador</h3>
-                    <div className="flex items-center gap-1.5 ml-1">
-                      {(brain.signals?.length ?? 0) > 0 && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-warning/20 text-warning">
-                          <AlertCircle className="h-3 w-3" /> {brain.signals!.length} sinais
-                        </span>
-                      )}
-                      {(brain.recommendations?.length ?? 0) > 0 && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/20 text-primary">
-                          <Lightbulb className="h-3 w-3" /> {brain.recommendations!.length} ações
-                        </span>
-                      )}
+                    <div className="min-w-0 flex-1 flex flex-col sm:flex-row sm:items-center sm:gap-3">
+                      <h3 className="text-[11px] sm:text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground truncate">Saúde do curador</h3>
+                      <div className="flex items-center gap-1.5 mt-1.5 sm:mt-0 flex-wrap">
+                        {(brain.signals?.length ?? 0) > 0 && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-warning/20 text-warning">
+                            <AlertCircle className="h-3 w-3" /> {brain.signals!.length} sinais
+                          </span>
+                        )}
+                        {(brain.recommendations?.length ?? 0) > 0 && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/20 text-primary">
+                            <Lightbulb className="h-3 w-3" /> {brain.recommendations!.length} ações
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
