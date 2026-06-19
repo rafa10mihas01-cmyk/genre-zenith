@@ -268,7 +268,7 @@ function HealthCard({
   );
 }
 
-function DayStat({ icon: Icon, label, value }: { icon: any; label: string; value: number }) {
+function DayStat({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: number }) {
   return (
     <div className="nx-card border border-border p-3 flex flex-col gap-1">
       <div className="flex items-center gap-1.5 text-muted-foreground">
