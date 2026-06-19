@@ -2430,9 +2430,21 @@ export default function CuratorPage() {
             ) : (
               (() => {
                 const ordered = [...snapshotHistory];
+                const uploadsWithUrl = uploads.filter((u) => !!u.download_url);
+                const findMatchingUpload = (capturedAt: string) => {
+                  const t = new Date(capturedAt).getTime();
+                  let best: typeof uploadsWithUrl[number] | null = null;
+                  let bestDelta = Infinity;
+                  for (const u of uploadsWithUrl) {
+                    const d = Math.abs(new Date(u.created_at).getTime() - t);
+                    if (d < bestDelta) { bestDelta = d; best = u; }
+                  }
+                  return bestDelta <= 5 * 60 * 1000 ? best : null;
+                };
                 return (
                   <div className="max-h-[600px] overflow-y-auto pr-1 -mr-1 scroll-smooth space-y-2.5 [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]">
                     {ordered.map((entry, idx) => {
+
                       const prev = ordered[idx - 1];
                       const delta = prev
                         ? Number(entry.total_plays) - Number(prev.total_plays)
