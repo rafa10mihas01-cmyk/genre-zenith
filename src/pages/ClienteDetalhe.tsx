@@ -527,57 +527,181 @@ export default function ClienteDetalhe() {
 
         {/* ----- Visão geral ----- */}
         <TabsContent value="visao" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <Card>
-              <CardContent className="p-5">
-                <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-3">Contato</div>
-                <div className="divide-y divide-border/40">
-                  <InfoRow icon={Mail} label="E-mail" value={client.email} href={mailHref} />
-                  <InfoRow icon={Phone} label="WhatsApp / Telefone" value={client.phone || client.contact} href={phoneHref} />
-                  <InfoRow icon={Instagram} label="Instagram" value={client.instagram ? `@${client.instagram.replace(/^@/, "")}` : null} href={igHref} />
-                  <InfoRow
-                    icon={Music2}
-                    label="Spotify do artista"
-                    value={client.spotify_artist_url ? "Abrir perfil no Spotify" : null}
-                    hint={null}
-                    href={client.spotify_artist_url ?? undefined}
-                  />
-                  {!client.email && !client.phone && !client.contact && !client.instagram && !client.spotify_artist_url && (
-                    <p className="text-sm text-muted-foreground py-2">Sem contatos.</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-5">
-                <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-3">Perfil & Comercial</div>
-                <div className="divide-y divide-border/40">
-                  <InfoRow icon={Music2} label="Gênero principal" value={client.primary_genre} />
-                  <InfoRow
-                    icon={Users2}
-                    label="Ouvintes mensais"
-                    value={client.monthly_listeners != null ? client.monthly_listeners.toLocaleString("pt-BR") : null}
-                  />
-                  <InfoRow icon={FileText} label="Documento" value={client.document} />
-                  <InfoRow icon={CreditCard} label="Condição de pagamento" value={client.payment_terms} />
-                  {!client.primary_genre && client.monthly_listeners == null && !client.document && !client.payment_terms && (
-                    <p className="text-sm text-muted-foreground py-2">Sem perfil comercial.</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+          {/* Linha 2 — KPIs Operacionais */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+            <Stat label="Campanhas ativas" value={kpis.campanhasAtivas} tone={kpis.campanhasAtivas > 0 ? "primary" : "muted"} />
+            <Stat label="Deals ativos" value={kpis.ativos} tone={kpis.ativos > 0 ? "primary" : "muted"} />
+            <Stat label="Curadores trabalhando" value={kpis.curadoresAtivos} tone="muted" />
+            <Stat label="Músicas em campanha" value={kpis.musicas} tone="muted" />
+            <Stat
+              label="Última atividade"
+              value={ultimaAtividade ? formatDistanceToNow(new Date(ultimaAtividade), { addSuffix: true, locale: ptBR }) : "—"}
+              tone="muted"
+            />
           </div>
 
+          {/* Linha 3 — Campanhas (card por campanha) */}
+          {clientCampaigns.length > 0 && (
+            <div className={cn("grid gap-3", clientCampaigns.length === 1 ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
+              {clientCampaigns.map((c) => {
+                const agg = campaignAggregates.get(c.id);
+                const cobrado = Number(c.valor_cobrado) || 0;
+                const recebido = Number(c.valor_recebido) || 0;
+                const pendente = Math.max(0, cobrado - recebido);
+                const dealsTotal = agg?.deals ?? 0;
+                const dealsConcluidos = agg?.dealsConcluidos ?? 0;
+                const progresso = dealsTotal > 0 ? Math.round((dealsConcluidos / dealsTotal) * 100) : 0;
+                const entrega = cobrado > 0 ? Math.min(100, Math.round((recebido / cobrado) * 100)) : 0;
+                const statusLabel = c.status === "active" ? "Ativa"
+                  : c.status === "completed" ? "Concluída"
+                  : c.status === "paused" ? "Pausada"
+                  : c.status === "cancelled" ? "Cancelada"
+                  : c.status === "draft" ? "Rascunho"
+                  : c.status;
+                const statusCls = c.status === "active" ? "bg-primary/15 text-primary border-primary/30"
+                  : c.status === "completed" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                  : c.status === "cancelled" ? "bg-muted/40 text-muted-foreground border-border"
+                  : "bg-muted/30 text-foreground/70 border-border";
+                const inicio = format(new Date(c.created_at), "dd MMM", { locale: ptBR });
+                const fim = c.deadline ? format(new Date(c.deadline), "dd MMM", { locale: ptBR }) : null;
+                const href = c.snapshot_locked_at ? `/campanhas/${c.id}/execucao` : `/campanhas/${c.id}`;
+                return (
+                  <Card key={c.id} className="hover:border-foreground/20 transition-colors">
+                    <CardContent className="p-5 space-y-4">
+                      <div className="flex items-start justify-between gap-3 min-w-0">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-semibold truncate">{c.track_name}</div>
+                          <div className="text-[11px] text-muted-foreground truncate">
+                            {c.artist || "—"}
+                            {c.campaign_type && <> · {c.campaign_type}</>}
+                            <> · {inicio}{fim ? ` → ${fim}` : ""}</>
+                          </div>
+                        </div>
+                        <span className={cn("inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-full border shrink-0", statusCls)}>
+                          {statusLabel}
+                        </span>
+                      </div>
+
+                      {/* Progresso operacional */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-muted-foreground">Progresso operacional</span>
+                          <span className="tabular-nums font-medium">{dealsConcluidos}/{dealsTotal} deals · {progresso}%</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-elevated overflow-hidden">
+                          <div className="h-full bg-primary/70 transition-all" style={{ width: `${progresso}%` }} />
+                        </div>
+                      </div>
+
+                      {/* Entrega financeira */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-muted-foreground">Entrega financeira</span>
+                          <span className="tabular-nums font-medium">{formatBRL(recebido)} / {formatBRL(cobrado)}</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-elevated overflow-hidden">
+                          <div className="h-full bg-emerald-500/70 transition-all" style={{ width: `${entrega}%` }} />
+                        </div>
+                      </div>
+
+                      {/* Métricas em linha */}
+                      <div className="grid grid-cols-4 gap-2 pt-1">
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Curadores</div>
+                          <div className="text-sm font-semibold tabular-nums">{agg?.curadores ?? 0}</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Deals</div>
+                          <div className="text-sm font-semibold tabular-nums">{agg?.dealsAtivos ?? 0}<span className="text-muted-foreground text-xs"> ativos</span></div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Meta</div>
+                          <div className="text-sm font-semibold tabular-nums">{formatBRL(cobrado)}</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Pendente</div>
+                          <div className={cn("text-sm font-semibold tabular-nums", pendente > 0 ? "text-warning" : "text-muted-foreground")}>{formatBRL(pendente)}</div>
+                        </div>
+                      </div>
+
+                      <div className="pt-1">
+                        <Button asChild size="sm" variant="outline" className="w-full gap-1.5">
+                          <Link to={href}>Abrir campanha <ExternalLink className="h-3.5 w-3.5" /></Link>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Linha 4 — Timeline + Linha 5 — Contato lado a lado */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+            {timeline.length > 0 && (
+              <Card className="lg:col-span-2">
+                <CardContent className="p-5">
+                  <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-3">Linha do tempo</div>
+                  <ol className="relative space-y-3">
+                    {timeline.map((e, i) => {
+                      const Icon = e.icon;
+                      return (
+                        <li key={i} className="flex items-start gap-3">
+                          <div className="h-7 w-7 rounded-full bg-elevated border border-border/60 flex items-center justify-center shrink-0 mt-0.5">
+                            <Icon className={cn("h-3.5 w-3.5", e.tone ?? "text-muted-foreground")} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm text-foreground truncate">{e.label}</div>
+                            <div className="text-[11px] text-muted-foreground">
+                              {formatDistanceToNow(new Date(e.when), { addSuffix: true, locale: ptBR })}
+                              <span className="mx-1.5">·</span>
+                              {format(new Date(e.when), "dd MMM yyyy", { locale: ptBR })}
+                            </div>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </CardContent>
+              </Card>
+            )}
+
+            {(client.email || client.phone || client.contact || client.instagram || client.spotify_artist_url) && (
+              <Card>
+                <CardContent className="p-5">
+                  <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-2">Contato</div>
+                  <div className="divide-y divide-border/40">
+                    <InfoRow
+                      icon={Music2}
+                      label="Spotify"
+                      value={client.spotify_artist_url ? "Abrir perfil" : null}
+                      href={client.spotify_artist_url ?? undefined}
+                    />
+                    <InfoRow
+                      icon={Instagram}
+                      label="Instagram"
+                      value={client.instagram ? `@${client.instagram.replace(/^@/, "")}` : null}
+                      href={igHref}
+                    />
+                    <InfoRow icon={Mail} label="E-mail" value={client.email} href={mailHref} />
+                    <InfoRow icon={Phone} label="WhatsApp" value={client.phone || client.contact} href={phoneHref} />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Linha 6 — Observações (somente se houver) */}
           {client.notes && (
             <Card>
               <CardContent className="p-5">
-                <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-3">Observações</div>
+                <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold mb-2">Observações</div>
                 <p className="text-sm text-foreground whitespace-pre-wrap">{client.notes}</p>
               </CardContent>
             </Card>
           )}
         </TabsContent>
+
 
         {/* ----- Músicas ----- */}
         <TabsContent value="musicas">
