@@ -256,33 +256,29 @@ export function useFinancialOverview() {
     });
   }, [dealsRaw, purchases]);
 
-  // totals — derivados APENAS das views (zero recálculo paralelo)
+  // totals — fonte canônica = v_campaign_overview (via useCockpitOverview).
+  // Cliente / Campanha / Financeiro / Cockpit consomem exatamente estes números.
   const totals = useMemo(() => {
-    let recebido = 0;
-    let cobrado = 0;
-    let pagoPorCampanha = 0;
-    for (const s of summary) {
-      recebido += Number(s.valor_recebido ?? 0);
-      cobrado += Number(s.valor_cobrado ?? 0);
-      pagoPorCampanha += Number(s.total_pago_curadores ?? 0);
-    }
-    const custoCaixa = Number(globalTotals.total_spent ?? 0);
-    const margem = recebido - pagoPorCampanha;
+    const cobrado = overviewTotals?.contratado ?? 0;
+    const recebido = overviewTotals?.recebido ?? 0;
+    const pagoPorCampanha = overviewTotals?.custo_operacional ?? 0;
+    const margem = overviewTotals?.margem_prevista ?? 0;
+    const margemPct = overviewTotals?.margem_pct ?? null;
     return {
       cobrado,
       recebido,
       pagoPorCampanha,
-      custoCaixa,
+      custoCaixa: Number(globalTotals.total_spent ?? 0),
       cppGlobal: globalTotals.global_cpp,
       totalPlays: Number(globalTotals.total_plays_purchased ?? 0),
       purchaseCount: Number(globalTotals.purchase_count ?? 0),
       curatorsCount: byCurator.length,
       margem,
-      margemPct: recebido > 0 ? (margem / recebido) * 100 : null,
+      margemPct,
       custoNaoAlocado: Number(unallocated.total_nao_alocado ?? 0),
       numComprasNaoAlocadas: Number(unallocated.num_compras ?? 0),
     };
-  }, [summary, byCurator, globalTotals, unallocated]);
+  }, [overviewTotals, byCurator, globalTotals, unallocated]);
 
   const reload = useCallback(async () => {
     await Promise.all([
