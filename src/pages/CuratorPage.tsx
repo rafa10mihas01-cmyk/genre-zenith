@@ -2398,269 +2398,124 @@ export default function CuratorPage() {
         )}
 
 
-        {/* Histórico de prints — vem da RPC get_curator_deal_snapshot_history */}
+        {/* Histórico de importações — espelha o modal do admin: 1 linha por planilha. */}
         {activeTab === "historico" && (
         <Card className="nx-card nx-card-glow !p-0 border-border">
-          <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-5">
-            <div className="flex items-center justify-between">
+          <CardContent className="p-4 sm:p-6 space-y-4">
+            <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <h2 className="text-[15px] font-semibold tracking-tight">Histórico de prints</h2>
+                <h2 className="text-[15px] font-semibold tracking-tight">Histórico de importações</h2>
                 <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
-                  Snapshots enviados pelo admin a partir do Spotify for Artists
+                  Planilhas enviadas pelo admin para esta campanha.
                 </p>
               </div>
-              <span className="text-[12px] text-muted-foreground shrink-0">
-                {snapshotHistory.length} {snapshotHistory.length === 1 ? "registro" : "registros"}
+              <span className="text-[11px] uppercase tracking-wider text-muted-foreground shrink-0 tabular-nums">
+                {uploads.length} {uploads.length === 1 ? "registro" : "registros"}
               </span>
             </div>
-            {snapshotHistory.length === 0 ? (
+
+            {uploads.length === 0 ? (
               <div className="py-10 flex flex-col items-center text-center gap-3.5">
-                <div className="h-12 w-12 rounded-2xl bg-[hsl(var(--elevated))] border border-border/60 flex items-center justify-center shadow-[0_8px_24px_-12px_rgba(0,0,0,0.5)]">
-                  <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                <div className="h-12 w-12 rounded-2xl bg-[hsl(var(--elevated))] border border-border/60 flex items-center justify-center">
+                  <Download className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <div className="space-y-1 max-w-xs">
                   <div className="text-[14px] font-semibold text-foreground">
-                    Aguardando primeiro print do admin
+                    Nenhuma planilha enviada ainda
                   </div>
                   <div className="text-[12px] text-muted-foreground leading-relaxed">
-                    Os números reais virão dos prints do Spotify for Artists.
+                    Quando o admin importar a primeira planilha, ela aparece aqui.
                   </div>
                 </div>
               </div>
             ) : (
               (() => {
-                const ordered = [...snapshotHistory];
-                const uploadsWithUrl = uploads.filter((u) => !!u.download_url);
-                const findMatchingUpload = (capturedAt: string) => {
-                  const t = new Date(capturedAt).getTime();
-                  let best: typeof uploadsWithUrl[number] | null = null;
-                  let bestDelta = Infinity;
-                  for (const u of uploadsWithUrl) {
-                    const d = Math.abs(new Date(u.created_at).getTime() - t);
-                    if (d < bestDelta) { bestDelta = d; best = u; }
-                  }
-                  return bestDelta <= 5 * 60 * 1000 ? best : null;
-                };
+                // Ordenar por reference_date desc; sem ref, usa created_at. Dedup por reference_date.
+                const sorted = [...uploads].sort((a, b) => {
+                  const ra = a.reference_date ?? a.created_at;
+                  const rb = b.reference_date ?? b.created_at;
+                  return rb.localeCompare(ra);
+                });
+                const seen = new Set<string>();
+                const unique = sorted.filter((u) => {
+                  const key = u.reference_date ?? u.id;
+                  if (seen.has(key)) return false;
+                  seen.add(key);
+                  return true;
+                });
                 return (
-                  <div className="max-h-[600px] overflow-y-auto pr-1 -mr-1 scroll-smooth space-y-2.5 [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]">
-                    {ordered.map((entry, idx) => {
-
-                      const prev = ordered[idx - 1];
-                      const delta = prev
-                        ? Number(entry.total_plays) - Number(prev.total_plays)
-                        : 0;
-                      const dt = new Date(entry.captured_at);
-                      const dayLabel = dt.toLocaleDateString("pt-BR", {
-                        weekday: "short",
-                        day: "2-digit",
-                        month: "2-digit",
-                      });
-                      const time = dt.toLocaleTimeString("pt-BR", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      });
-                      const prints = (entry.print_urls && entry.print_urls.length > 0)
-                        ? entry.print_urls
-                        : (entry.print_url ? [entry.print_url] : []);
-                      const cleanNote = cleanSnapshotNote(entry.note);
-                      const snapPlaylists = entry.playlists ?? [];
-                      const coverUrl =
-                        selectedSong?.song_cover_url ??
-                        songs[0]?.song_cover_url ??
-                        null;
-                      const snapshotKey = `${entry.captured_at}-${idx}`;
-                      const matchedUpload = findMatchingUpload(entry.captured_at);
-
+                  <ul className="space-y-2">
+                    {unique.map((u) => {
+                      const refLabel = u.reference_date
+                        ? formatDate(u.reference_date)
+                        : formatDate(u.created_at);
                       return (
-                        <details
-                          key={snapshotKey}
-                          open={openSnapshotKey === snapshotKey}
-                          onToggle={(event) => {
-                            const isOpen = event.currentTarget.open;
-                            setOpenSnapshotKey((current) => {
-                              if (isOpen) return snapshotKey;
-                              return current === snapshotKey ? null : current;
-                            });
-                          }}
-                          className="group/snap nx-subcard p-0 overflow-hidden [&[open]>summary_.snapchev]:rotate-90"
+                        <li
+                          key={u.id}
+                          className="rounded-xl border border-border/60 bg-[hsl(var(--elevated))]/40 px-3 py-3 sm:px-4 sm:py-3.5"
                         >
-                          <summary className="cursor-pointer list-none p-3.5 flex items-center gap-3 hover:bg-[hsl(var(--hover))] transition-colors">
-                            {coverUrl ? (
-                              <img
-                                src={coverUrl}
-                                alt={`Capa de ${dayLabel}`}
-                                loading="lazy"
-                                className="h-11 w-11 rounded-lg object-cover ring-1 ring-border shrink-0 bg-muted/40"
-                              />
-                            ) : (
-                              <div className="h-11 w-11 rounded-lg bg-muted/40 ring-1 ring-border flex items-center justify-center shrink-0">
-                                <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                              </div>
-                            )}
+                          <div className="flex items-center gap-3">
+                            <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-lg bg-muted/30 ring-1 ring-border/50 flex items-center justify-center shrink-0">
+                              <Download className="h-4 w-4 text-muted-foreground" />
+                            </div>
                             <div className="min-w-0 flex-1">
-                              <div className="text-[13px] font-semibold leading-tight capitalize">
-                                {dayLabel} · {time}
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="text-[13px] sm:text-[14px] font-semibold tabular-nums leading-tight">
+                                  {refLabel}
+                                </span>
+                                {u.is_baseline && (
+                                  <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-primary/15 text-primary font-semibold">
+                                    baseline
+                                  </span>
+                                )}
                               </div>
-                              <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
-                                {entry.is_initial_capture ? "Início da medição" : "Coleta"} ·{" "}
-                                {entry.playlists_count}{" "}
-                                {entry.playlists_count === 1 ? "playlist" : "playlists"}
-                                {prints.length > 0 && (
-                                  <>
-                                    {" · "}
-                                    {prints.length} {prints.length === 1 ? "print" : "prints"}
-                                  </>
+                              <div className="text-[11px] text-muted-foreground tabular-nums mt-1 leading-snug">
+                                {u.total_streams != null && (
+                                  <>{formatPlays(u.total_streams)} streams</>
+                                )}
+                                {u.total_streams != null && u.rows_imported != null && " · "}
+                                {u.rows_imported != null && (
+                                  <>{u.rows_imported.toLocaleString("pt-BR")} playlists</>
                                 )}
                               </div>
                             </div>
-                            <div className="text-right shrink-0">
-                              <div className="text-[13px] font-bold tabular-nums leading-tight">
-                                {Number(entry.total_plays).toLocaleString("pt-BR")}
-                              </div>
-                              <div className="text-[9.5px] uppercase tracking-wider text-muted-foreground/80 mt-0.5">
-                                total da playlist
-                              </div>
-                              {prev && delta !== 0 && (
-                                <div className="mt-1.5">
-                                  <div
-                                    className={cn(
-                                      "text-[11px] font-semibold tabular-nums leading-none",
-                                      delta >= 0 ? "text-success" : "text-warning",
-                                    )}
-                                  >
-                                    {delta >= 0 ? "+" : "−"}
-                                    {Math.abs(delta).toLocaleString("pt-BR")}
-                                  </div>
-                                  <div className="text-[9.5px] text-muted-foreground/80 mt-0.5 leading-tight">
-                                    {delta >= 0
-                                      ? "novos plays desde o último print"
-                                      : "Spotify revisou plays"}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                            {matchedUpload && (
+                            {u.download_url ? (
                               <button
                                 type="button"
-                                onClick={async (e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
+                                onClick={async () => {
                                   try {
                                     await downloadUploadUrlAsXlsx({
-                                      signedUrl: matchedUpload.download_url!,
-                                      fileName: matchedUpload.file_name,
-                                      referenceDate: matchedUpload.reference_date,
+                                      signedUrl: u.download_url!,
+                                      fileName: u.file_name,
+                                      referenceDate: u.reference_date,
                                     });
                                   } catch (err) {
                                     toast.error(err instanceof Error ? err.message : "Falha ao baixar planilha");
                                   }
                                 }}
-                                title="Baixar planilha desta coleta"
-                                className="shrink-0 inline-flex items-center gap-1 rounded-md border border-border/60 bg-card/40 px-2 py-1 text-[11px] text-primary hover:bg-[hsl(var(--hover))] hover:border-primary/40 transition-colors"
+                                className="shrink-0 inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-card/40 px-2.5 py-1.5 text-[11.5px] font-medium text-primary hover:bg-[hsl(var(--hover))] hover:border-primary/40 transition-colors"
+                                aria-label={`Baixar planilha de ${refLabel}`}
                               >
-                                <Download className="h-3.5 w-3.5" /> Baixar
+                                <Download className="h-3.5 w-3.5" />
+                                <span className="hidden xs:inline sm:inline">Baixar</span>
                               </button>
+                            ) : (
+                              <span className="shrink-0 text-[10.5px] text-muted-foreground/60 italic">
+                                indisponível
+                              </span>
                             )}
-                            <ChevronRight className="snapchev h-4 w-4 text-muted-foreground shrink-0 transition-transform ml-1" />
-
-                          </summary>
-
-                          <div className="border-t border-border/60 px-4 py-4 bg-[hsl(var(--background))]/40 space-y-4">
-                            {cleanNote && (
-                              <div>
-                                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
-                                  Observação
-                                </div>
-                                <div className="text-[12.5px] text-foreground/90 rounded-md bg-muted/30 px-3 py-2 leading-relaxed">
-                                  {cleanNote}
-                                </div>
-                              </div>
-                            )}
-
-                            {prints.length > 0 && (
-                              <div>
-                                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
-                                  Prints ({prints.length})
-                                </div>
-                                <PrintThumbs urls={prints} size="md" />
-                              </div>
-                            )}
-
-                            <div>
-                              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
-                                Playlists do registro ({snapPlaylists.length})
-                              </div>
-                              {snapPlaylists.length === 0 ? (
-                                <div className="text-[12px] text-muted-foreground italic py-2">
-                                  Nenhuma playlist vinculada a este registro.
-                                </div>
-                              ) : (
-                                <ul className="space-y-1.5">
-                                  {snapPlaylists.map((pl) => (
-                                    <li
-                                      key={pl.playlist_id}
-                                      className="flex items-center gap-3 rounded-md border border-border/40 bg-[hsl(var(--elevated))]/40 px-2.5 py-2"
-                                    >
-                                      {pl.image_url ? (
-                                        <img
-                                          src={pl.image_url}
-                                          alt=""
-                                          className="h-9 w-9 rounded-md object-cover shrink-0 ring-1 ring-border/50"
-                                        />
-                                      ) : (
-                                        <div className="h-9 w-9 rounded-md bg-muted/40 flex items-center justify-center shrink-0">
-                                          <Music2 className="h-4 w-4 text-muted-foreground" />
-                                        </div>
-                                      )}
-                                      <div className="min-w-0 flex-1">
-                                        <div className="text-[12.5px] font-medium leading-tight truncate">
-                                          {pl.playlist_name}
-                                        </div>
-                                        <div className="text-[10.5px] text-muted-foreground truncate mt-0.5">
-                                          {pl.spotify_owner_name ?? "—"}
-                                          {pl.followers != null && (
-                                            <>
-                                              {" · "}
-                                              {formatFollowers(pl.followers)} seguidores
-                                            </>
-                                          )}
-                                        </div>
-                                      </div>
-                                      <div className="text-right shrink-0">
-                                        <div className="text-[12.5px] font-semibold tabular-nums leading-tight">
-                                          {Number(pl.plays ?? 0).toLocaleString("pt-BR")}
-                                        </div>
-                                        <div className="text-[10px] text-muted-foreground">
-                                          plays
-                                        </div>
-                                      </div>
-                                      {pl.spotify_url && (
-                                        <a
-                                          href={pl.spotify_url}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-                                          aria-label="Abrir no Spotify"
-                                        >
-                                          <ExternalLink className="h-3.5 w-3.5" />
-                                        </a>
-                                      )}
-                                    </li>
-                                  ))}
-                                </ul>
-                              )}
-                            </div>
                           </div>
-                        </details>
+                        </li>
                       );
                     })}
-                  </div>
+                  </ul>
                 );
               })()
             )}
           </CardContent>
         </Card>
         )}
+
 
         {/* Footer — minimal: logo + wordmark */}
         <footer className="pt-6 pb-4 flex flex-col items-center justify-center gap-1 text-center">
