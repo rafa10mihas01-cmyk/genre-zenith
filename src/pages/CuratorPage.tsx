@@ -2108,13 +2108,13 @@ export default function CuratorPage() {
             )}
             <div>
 
-              <h2 className="text-[15px] font-semibold tracking-tight">Adicionar playlist</h2>
-              <p className="text-[12px] text-muted-foreground mt-1.5 leading-snug">
+              <h2 className="text-[15px] font-semibold tracking-tight text-foreground">Adicionar playlist</h2>
+              <p className="text-[11.5px] text-subtle-foreground mt-1 leading-snug">
                 {playlistSongRequired
                   ? "Selecione a música da campanha antes de adicionar a playlist"
                   : selectedSong
                     ? `Playlist será vinculada em ${selectedSong.song_name}`
-                    : "Cole o link de uma playlist do Spotify ou importe um lote em planilha"}
+                    : "Cole o link de uma playlist do Spotify ou importe em lote"}
               </p>
             </div>
             {hasMultipleSongs && (
