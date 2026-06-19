@@ -71,6 +71,13 @@ export function setSpotifyCtx(patch: CtxFields): void {
   enterCtx(patch);
 }
 
+/** Define se as próximas chamadas Spotify devem usar o circuit breaker de
+ *  "operation" (default, derruba sync/bot/execução) ou "enrichment" (isolado,
+ *  só afeta jobs de catálogo). Chamar UMA vez no entrypoint do worker/edge. */
+export function setSpotifyBreakerContext(context: SpotifyBreakerContext): void {
+  enterCtx({ breaker_context: context });
+}
+
 const appNameCache = new Map<string, string>();
 async function resolveAppName(appId: string | null | undefined): Promise<string | null> {
   if (!appId) return null;
