@@ -3,7 +3,15 @@
 **Aberto em:** 2026-06-20
 **Severidade:** Alta — worker Nível A operando com ~1.9% de sucesso há ≥3 dias.
 **Tipo:** Incidente operacional. **Não faz parte da revisão arquitetural (Fase 17-C).**
-**Status:** Mitigação aplicada — aguardando observação de 24h pra encerrar.
+**Status:** ⚠️ **Parcialmente encerrado** (decisão oficial 2026-06-20).
+
+## Decisão de encerramento parcial
+
+- ✅ Loop infinito eliminado — os 5 jobs originais estão em `cancelled` e fora do processamento automático.
+- ✅ Guard `max_attempts` implantado e funcionando no início do worker.
+- ✅ Jobs não permanecem mais presos indefinidamente.
+- ➡️ O comportamento residual (HTTP 403 sistemático em `/v1/playlists/:id/items`) **não é mais classificado como incidente da fila**. Passa a ser tratado como **questão de confiabilidade de endpoint**, dentro do escopo da revisão arquitetural da Fase 17-C (ver `phase-17c-vps-benchmark-protocol.md`).
+- ⚠️ **Observação residual:** 5 novos jobs (`bb7b4934`, `2b3b302f`, `8c916b07`, `7219f171`, `45b2a10e`), criados em 2026-06-20 17:27 UTC, aparecem com `attempts ∈ {5,6}` ainda em `status='claimed'`. Indica que o guard atual só dispara no início do tick e não intercepta jobs já claimed por outro ciclo no mesmo intervalo. Tratar em ticket separado — não reabre INC-002.
 
 ## Resumo executivo
 
