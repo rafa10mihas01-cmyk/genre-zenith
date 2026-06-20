@@ -14,7 +14,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { loadGateContext, scoreAndGate } from "../_shared/discovery-scoring.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
-import { getAppToken, forceRefreshAppToken, spotifyFetch, setSpotifyCtx } from "../_shared/spotify-client.ts";
+import { ccFetch } from "../_shared/catalog-gateway.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -22,24 +22,12 @@ const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const THROTTLE_MS = 300;
 
-async function fetchUserPlaylists(token: string, ownerId: string, limit = 50): Promise<any[]> {
+async function fetchUserPlaylists(ownerId: string, limit = 50): Promise<any[]> {
   // Spotify só expõe playlists públicas de usuários comuns.
   // Para owner_type='label' ou ownerId 'spotify', o endpoint pode falhar.
   const url = `https://api.spotify.com/v1/users/${encodeURIComponent(ownerId)}/playlists?limit=${limit}`;
-  const callOpts = {
-    functionName: "expand-from-winners",
-    operation: "fetch_user_playlists",
-    meta: { spotify_user_id: ownerId, owner_id: ownerId },
-  };
-  const r = await spotifyFetch(url, { headers: { Authorization: `Bearer ${token}` } }, callOpts);
+  const r = await ccFetch(url, "expand-from-winners", ownerId);
   if (r.status === 404 || r.status === 403) return [];
-  if (r.status === 401) {
-    const t2 = await forceRefreshAppToken({ functionName: "expand-from-winners", operation: "refresh_on_401" });
-    const r2 = await spotifyFetch(url, { headers: { Authorization: `Bearer ${t2}` } }, callOpts);
-    if (!r2.ok) return [];
-    const j2 = await r2.json();
-    return j2.items ?? [];
-  }
   if (!r.ok) return [];
   const j = await r.json();
   return j.items ?? [];
@@ -98,7 +86,7 @@ async function expandGenre(
     .select("spotify_user_id");
   const blocklist = new Set<string>((blocklistRows ?? []).map((r: any) => String(r.spotify_user_id).toLowerCase()));
 
-  const token = await getAppToken({ functionName: "expand-from-winners", operation: "expand_initial_token" });
+  // Tokens gerenciados pelo Catalog Gateway (pool CC NexEngine 05/10).
 
   // 2) IDs já existentes nesse gênero (para dedupe rápido)
   const { data: existing } = await supabase
@@ -116,15 +104,10 @@ async function expandGenre(
       continue;
     }
     if (ownerIdx++ > 0) await sleep(THROTTLE_MS);
-    setSpotifyCtx({
-      owner_id: owner.owner_id,
-      spotify_user_id: owner.owner_id,
-      function_name: "expand-from-winners",
-    });
     stats.owners_processed++;
     let items: any[] = [];
     try {
-      items = await fetchUserPlaylists(token, owner.owner_id, Math.min(50, opts.maxPerOwner));
+      items = await fetchUserPlaylists(owner.owner_id, Math.min(50, opts.maxPerOwner));
     } catch (e) {
       stats.errors++;
       console.error(`[expand] owner ${owner.owner_id} fetch failed:`, (e as Error).message);
