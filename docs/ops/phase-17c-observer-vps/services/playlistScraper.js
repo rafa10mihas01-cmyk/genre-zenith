@@ -6,15 +6,16 @@
  *   https://api-partner.spotify.com/pathfinder/v2/query
  * cujo corpo contém `data.playlistV2.content.items[]`.
  *
- * Esta função recebe uma `page` Playwright já configurada (browser.js)
- * e retorna a estrutura normalizada de uma playlist pública.
+ * Exporta `getPlaylist(playlistId)`, compatível com o server.js do Observer.
+ * A função abre uma nova page via browser.js e retorna a estrutura normalizada
+ * de uma playlist pública.
  *
  * Não faz fallback para DOM — se o Pathfinder não responder dentro
  * do timeout, a função lança erro e o caller decide o que fazer
  * (retry, marcar 502, etc).
  */
 
-'use strict';
+import { getBrowser } from './browser.js';
 
 const PATHFINDER_HOST = 'api-partner.spotify.com';
 const PATHFINDER_PATH = '/pathfinder/v2/query';
@@ -38,7 +39,18 @@ const DEFAULT_TIMEOUT_MS = 25_000;
  *   captured_at: string
  * }>}
  */
-async function scrapePlaylist(page, playlistId, opts = {}) {
+export async function getPlaylist(playlistId, opts = {}) {
+  const browser = await getBrowser();
+  const page = await browser.newPage();
+
+  try {
+    return await scrapePlaylist(page, playlistId, opts);
+  } finally {
+    await page.close();
+  }
+}
+
+export async function scrapePlaylist(page, playlistId, opts = {}) {
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
   if (!playlistId || typeof playlistId !== 'string') {
