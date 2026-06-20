@@ -31,23 +31,67 @@ Para cada categoria com status "Decidir", a fase deve produzir evidência empír
 2. **Risco de silent fail** — o endpoint pode retornar 200 com dados incompletos? (consultar `phase-17b6-compatibility-matrix.md`)
 3. **Custo operacional** — OAuth exige whitelist manual (ver `INT-001`); VPS exige infra dedicada; CC é o mais barato quando funciona.
 
-Decisão = quem maximiza (1) e (3) sem violar (2).
+Decisão preliminar = quem maximiza (1) e (3) sem violar (2). **A decisão final só é tomada cruzando com a criticidade do dado consumidor (próxima seção).**
+
+## Segunda dimensão obrigatória — Criticidade do dado
+
+A decisão `endpoint → componente` é insuficiente sozinha. O mesmo endpoint pode ser **aceitável** para um consumidor e **inaceitável** para outro, dependendo do que o dado alimenta. Toda migração desta fase em diante deve cruzar a matriz de endpoints com a classificação abaixo.
+
+### Níveis de criticidade
+
+| Nível | Definição | Exemplos de domínio | SLA mínimo de confiabilidade da fonte |
+|---|---|---|---|
+| **A — Crítico** | Não pode estar errado nem desatualizado. Impacta cliente, financeiro ou compromisso contratual. | Delivery, provas de entrega, validação de campanhas, financeiro, CPC/CPP, snapshots de execução | **≥ 99.5%** + zero risco de silent fail |
+| **B — Operacional** | Erros toleráveis se detectáveis e re-executáveis. Impacta operação interna, não cliente direto. | Catálogo, enriquecimento de metadados, métricas agregadas, hidratação de referências, observação de playlists | **≥ 98%** + silent fail aceitável se houver reconciliação |
+| **C — Auxiliar** | Erros toleráveis sem ação corretiva imediata. Não impacta decisão de negócio. | Busca, descoberta de gêneros, sugestões, cache, lexicon, prospecção | **≥ 95%**, silent fail tolerado |
+
+### Regra de cruzamento
+
+Para cada worker a ser migrado:
+
+```
+componente_oficial = matriz_endpoint[endpoint]
+nivel              = criticidade[dado_alimentado]
+
+SE confiabilidade(componente_oficial, endpoint) < SLA_mínimo(nivel):
+    componente_oficial é PROIBIDO para este worker
+    → escalar para o próximo componente que atende o SLA
+SENÃO:
+    componente_oficial é AUTORIZADO
+```
+
+### Consequência prática
+
+Um endpoint com 98% de confiabilidade no Gateway CC:
+
+- ✅ Autorizado para busca, descoberta, sugestões (Nível C).
+- ✅ Autorizado para enriquecimento e métricas (Nível B), com reconciliação.
+- ❌ **Proibido** para delivery, provas, financeiro (Nível A) — mesmo que o endpoint esteja "tecnicamente disponível" no CC.
+
+Isso significa que a matriz de endpoints **não tem um único responsável por linha** — tem um responsável *padrão* e exceções obrigatórias quando o consumidor é Nível A.
 
 ## Entregáveis desta fase
 
 1. **Matriz de responsabilidade preenchida e congelada** (atualizar este documento, mover linhas de "Decidir" para "Decidido em YYYY-MM-DD").
-2. **Política arquitetural definitiva** substituindo `phase-17b6-architectural-policy.md`.
-3. **Re-classificação completa de todos os workers** existentes (não só os 4 de Onda 1) por categoria de endpoint que utilizam.
-4. **Plano de execução priorizado** — quais workers migram primeiro com base na matriz definitiva (não mais na hipótese cc-only).
-5. **Critérios de regressão** — quando uma migração deve ser revertida automaticamente.
+2. **Classificação de criticidade de todos os workers existentes** (Nível A/B/C), documentada em `phase-17c-worker-criticality.md` (a criar).
+3. **Política arquitetural definitiva** substituindo `phase-17b6-architectural-policy.md`, incluindo a regra de cruzamento endpoint × criticidade.
+4. **Re-classificação completa de todos os workers** existentes por (categoria de endpoint, nível de criticidade) — saída combinada de #1 e #2.
+5. **Plano de execução priorizado** — workers Nível A primeiro (maior risco), depois B, depois C.
+6. **Critérios de regressão** — quando uma migração deve ser revertida automaticamente, com limiar diferenciado por nível.
 
 ## Regras desta fase
 
 - **Não escrever código de migração.** Só investigação, medição e documentação.
 - **Não tomar decisões parciais.** A matriz inteira precisa estar fechada antes de retomar implementação.
 - **Toda decisão precisa de evidência numérica** (consultas em `spotify_call_log`, testes controlados em sandbox).
+- **Toda migração precisa declarar o nível de criticidade** do dado consumidor antes de escolher o componente.
 - **`INT-001` é independente** desta fase — não bloqueia, não acelera.
 
 ## Próximo passo concreto
 
-Coletar o baseline de 7 dias do `spotify_call_log` agregado por (endpoint, http_status), para alimentar a coluna "Confiabilidade do Gateway CC" da matriz. Esta é a primeira tarefa quando a Fase 17-C for oficialmente iniciada.
+Duas tarefas em paralelo quando a Fase 17-C for oficialmente iniciada:
+
+1. **Dimensão endpoint** — coletar o baseline de 7 dias do `spotify_call_log` agregado por (endpoint, http_status) para alimentar a coluna "Confiabilidade do Gateway CC" da matriz.
+2. **Dimensão criticidade** — classificar todos os workers existentes por nível A/B/C em `phase-17c-worker-criticality.md`.
+
+O cruzamento dessas duas saídas é o que produz a decisão arquitetural final.
