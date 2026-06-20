@@ -1,8 +1,11 @@
-// fetch-tracks-spotify — busca tracks de uma playlist via Spotify Web API
-// (substitui chamadas Apify mode:"urls" que custavam 1 unidade por playlist).
+// fetch-tracks-spotify — busca tracks de uma playlist via Spotify Web API.
 //
-// Uso típico (on-demand): chamado pelo extract-blueprints / create-spotify-playlist
-// quando precisa do DNA real (tracks reais) de uma playlist semente.
+// Fase 17-B.6 (Onda revisada): MIGRADO para roteamento HÍBRIDO.
+//   - Playlist pública  → Catalog Gateway (Client Credentials, NexEngine 05/10)
+//   - Playlist managed  → OAuth do owner (via spotify-client + getUserToken)
+//
+// Decisão de rota é feita ANTES da chamada, consultando managed_playlists.
+// Justificativa em docs/ops/phase-17b6-architectural-policy.md §2.3.
 //
 // Body: { playlist_id: string, result_id?: string, save?: boolean, max?: number }
 //   - playlist_id: spotify_playlist_id (ID público do Spotify)
@@ -10,16 +13,18 @@
 //   - save:        default false (apenas retorna). true = grava em search_tracks
 //   - max:         default 100 (1 página). Use 200/300 pra playlists maiores
 //
-// Retorno: { ok, tracks: [{ spotify_track_id, nome_musica, artista, posicao_na_playlist }], saved }
+// Retorno: { ok, tracks: [{ spotify_track_id, nome_musica, artista, posicao_na_playlist }], saved, route }
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getAppToken } from "../_shared/spotify-client.ts";
+import { getUserToken } from "../_shared/spotify-client.ts";
 import { listPlaylistTracksRich } from "../_shared/spotify-playlist.ts";
+import { ccFetch } from "../_shared/catalog-gateway.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
 
 import { deprecationGate } from "../_shared/_deprecation.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const FN = "fetch-tracks-spotify";
 
 interface Body {
   playlist_id: string;
@@ -35,11 +40,55 @@ interface TrackOut {
   posicao_na_playlist: number;
 }
 
-async function fetchPlaylistTracks(
+type Route = "gateway-cc" | "oauth-managed";
+
+/** Ramo público: lê via Catalog Gateway (Client Credentials). */
+async function fetchPublicViaGateway(playlistId: string, max: number): Promise<TrackOut[]> {
+  const out: TrackOut[] = [];
+  const fields = "items(track(id,name,artists(name))),next";
+  let offset = 0;
+  const limit = 100;
+  while (out.length < max) {
+    const url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=${limit}&offset=${offset}&fields=${encodeURIComponent(fields)}`;
+    const r = await ccFetch(url, FN, playlistId);
+    if (!r.ok) {
+      if (r.status === 404) return out;
+      const t = await r.text().catch(() => "");
+      throw new Error(`gateway-cc ${r.status} playlist=${playlistId}: ${t.slice(0, 180)}`);
+    }
+    const j = await r.json() as {
+      items?: Array<{ track: { id: string; name: string; artists: Array<{ name: string }> } | null }>;
+      next?: string | null;
+    };
+    const page = j.items ?? [];
+    for (const it of page) {
+      const tr = it?.track;
+      if (!tr?.id) continue;
+      out.push({
+        spotify_track_id: tr.id,
+        nome_musica: tr.name || "Unknown",
+        artista: (tr.artists ?? []).map((a) => a?.name).filter(Boolean).join(", ") || "Unknown",
+        posicao_na_playlist: out.length + 1,
+      });
+      if (out.length >= max) break;
+    }
+    if (!j.next || page.length < limit) break;
+    offset += limit;
+    if (offset > 10_000) break;
+  }
+  return out;
+}
+
+/** Ramo managed: lê via OAuth do owner (não pode usar Gateway CC — falha silenciosa). */
+async function fetchManagedViaOauth(
   playlistId: string,
-  token: string,
+  ownerSpotifyUserId: string | null,
   max: number,
 ): Promise<TrackOut[]> {
+  if (!ownerSpotifyUserId) {
+    throw new Error(`managed playlist sem owner_spotify_user_id: ${playlistId}`);
+  }
+  const { token } = await getUserToken(ownerSpotifyUserId);
   const rich = await listPlaylistTracksRich(playlistId, token, {
     max,
     fields: "items(track(id,name,artists(name))),next",
@@ -81,19 +130,27 @@ Deno.serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
   try {
-    const token = await getAppToken();
-    const tracks = await fetchPlaylistTracks(body.playlist_id, token, max);
+    // ── ROTEAMENTO HÍBRIDO (§2.3) ──────────────────────────────────────
+    const { data: managed } = await supabase
+      .from("managed_playlists")
+      .select("spotify_playlist_id, owner_spotify_user_id")
+      .eq("spotify_playlist_id", body.playlist_id)
+      .maybeSingle();
+
+    const route: Route = managed ? "oauth-managed" : "gateway-cc";
+
+    const tracks = route === "oauth-managed"
+      ? await fetchManagedViaOauth(body.playlist_id, managed!.owner_spotify_user_id ?? null, max)
+      : await fetchPublicViaGateway(body.playlist_id, max);
 
     let saved = 0;
     if (body.save && body.result_id && tracks.length > 0) {
-      // Resolve genre_id pelo result_id pra preencher search_tracks consistente
       const { data: result } = await supabase
         .from("search_results")
         .select("genre_id")
         .eq("id", body.result_id)
         .maybeSingle();
 
-      // Limpa tracks antigas dessa playlist (snapshot atual)
       await supabase.from("search_tracks").delete().eq("result_id", body.result_id);
 
       const nowIso = new Date().toISOString();
@@ -114,12 +171,13 @@ Deno.serve(async (req) => {
     await supabase.from("collection_logs").insert({
       acao: "fetch-tracks-spotify",
       status: "sucesso",
-      mensagem: `playlist ${body.playlist_id}: ${tracks.length} tracks${saved ? ` (saved ${saved})` : ""}`,
+      mensagem: `[${route}] playlist ${body.playlist_id}: ${tracks.length} tracks${saved ? ` (saved ${saved})` : ""}`,
       duracao_ms: Date.now() - start,
     });
 
     return new Response(JSON.stringify({
       ok: true,
+      route,
       playlist_id: body.playlist_id,
       tracks,
       total: tracks.length,
