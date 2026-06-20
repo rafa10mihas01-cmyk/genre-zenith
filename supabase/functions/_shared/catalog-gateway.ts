@@ -167,7 +167,7 @@ async function getGatewayCcToken(): Promise<{ token: string; appName: string }> 
 // ---------------------------------------------------------------------------
 // Fetch com Client Credentials + logging
 // ---------------------------------------------------------------------------
-async function ccFetch(url: string, caller: string, resourceId?: string): Promise<Response> {
+export async function ccFetch(url: string, caller: string, resourceId?: string): Promise<Response> {
   const startedAt = Date.now();
   const endpoint = normalizeEndpointForLog(url);
   let httpStatus: number | null = null;
