@@ -676,6 +676,18 @@ Deno.serve(async (req) => {
         metadata: { error: msg.slice(0, 240) },
       });
     } catch (_) { /* ignore */ }
+    if (msg.startsWith("SPOTIFY_CIRCUIT_OPEN")) {
+      const blockedMatch = msg.match(/blocked_until=([^\s]+)/);
+      const retryMatch = msg.match(/retry_after=(\d+)/);
+      return jr({
+        ok: false,
+        error: "spotify_circuit_open",
+        fallback: true,
+        message: "Spotify temporariamente bloqueado. Tente novamente em alguns minutos.",
+        blocked_until: blockedMatch?.[1] ?? null,
+        retry_after_seconds: retryMatch ? Number(retryMatch[1]) : null,
+      }, 200);
+    }
     return jr({ ok: false, error: msg }, 200);
   }
 });
