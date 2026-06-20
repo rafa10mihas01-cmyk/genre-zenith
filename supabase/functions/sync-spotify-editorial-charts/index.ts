@@ -15,7 +15,7 @@
 // =====================================================================
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getAppToken, spotifyFetch } from "../_shared/spotify-client.ts";
+import { ccFetch } from "../_shared/catalog-gateway.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -37,12 +37,29 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return out;
 }
 
-async function fetchTracksBatch(ids: string[], token: string) {
-  const url = `https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`;
-  const r = await spotifyFetch(url, { headers: { Authorization: `Bearer ${token}` } });
-  if (!r.ok) throw new Error(`Spotify ${r.status}: ${(await r.text()).slice(0, 200)}`);
-  const j = await r.json();
-  return j.tracks ?? [];
+// IMPORTANTE: o pool CC do Catalog Gateway retorna 403 no endpoint batch
+// `/v1/tracks?ids=...` (Extended Quota Mode). Por isso iteramos singles com
+// concorrência controlada.
+async function fetchTrackSingle(id: string): Promise<any | null> {
+  const r = await ccFetch(`https://api.spotify.com/v1/tracks/${id}`, "sync-spotify-editorial-charts", id);
+  if (!r.ok) { await r.text().catch(() => ""); return null; }
+  return await r.json();
+}
+
+async function fetchTracksBatch(ids: string[]) {
+  // Concorrência baixa pra ficar Spotify-friendly.
+  const CONCURRENCY = 4;
+  const out: any[] = [];
+  let i = 0;
+  async function worker() {
+    while (i < ids.length) {
+      const idx = i++;
+      const tr = await fetchTrackSingle(ids[idx]);
+      if (tr) out.push(tr);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, ids.length) }, () => worker()));
+  return out;
 }
 
 Deno.serve(async (req) => {
@@ -71,7 +88,7 @@ Deno.serve(async (req) => {
       return jr({ ok: true, message: "nada pra enriquecer", chart: chartName });
     }
 
-    const token = await getAppToken();
+    // Token via Catalog Gateway.
     let enriched = 0;
     let failed = 0;
 
@@ -80,7 +97,7 @@ Deno.serve(async (req) => {
       if (batchIdx++ > 0) await sleep(THROTTLE_MS);
       const ids = batch.map((b) => b.spotify_track_id!);
       try {
-        const tracks = await fetchTracksBatch(ids, token);
+        const tracks = await fetchTracksBatch(ids);
         // map por id pra preservar ordem
         const byId = new Map<string, any>();
         for (const tr of tracks) if (tr?.id) byId.set(tr.id, tr);
