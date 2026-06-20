@@ -118,21 +118,25 @@ function AppRow({ r }: { r: Row }) {
         </div>
       </div>
 
-      {/* Scores */}
+      {/* Scores — barra inline pra controlar cor (Progress shadcn não expõe indicatorClassName) */}
       <div className="grid grid-cols-2 gap-4 mb-3">
         <div>
           <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
             <span className="inline-flex items-center gap-1"><Gauge className="h-3 w-3" /> Capacity</span>
             <span className="tabular-nums font-medium text-foreground">{r.capacity_score}%</span>
           </div>
-          <Progress value={r.capacity_score} className="h-1.5" indicatorClassName={capacityColor(r.capacity_score, r.soft_capacity_cap)} />
+          <div className="h-1.5 rounded bg-elevated overflow-hidden">
+            <div className={cn("h-full transition-all", capacityColor(r.capacity_score, r.soft_capacity_cap))} style={{ width: `${r.capacity_score}%` }} />
+          </div>
         </div>
         <div>
           <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
             <span className="inline-flex items-center gap-1"><Heart className="h-3 w-3" /> Health</span>
             <span className="tabular-nums font-medium text-foreground">{r.health_score}%</span>
           </div>
-          <Progress value={r.health_score} className="h-1.5" indicatorClassName={healthColor(r.health_score, r.min_health_score)} />
+          <div className="h-1.5 rounded bg-elevated overflow-hidden">
+            <div className={cn("h-full transition-all", healthColor(r.health_score, r.min_health_score))} style={{ width: `${r.health_score}%` }} />
+          </div>
         </div>
       </div>
 
