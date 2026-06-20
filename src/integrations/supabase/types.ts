@@ -13504,8 +13504,8 @@ export type Database = {
         }[]
       }
       force_close_spotify_circuit_breaker: {
-        Args: { _app_id: string; _context?: string }
-        Returns: number
+        Args: { p_app_id: string; p_context?: string }
+        Returns: Json
       }
       generate_community_invite_slug: {
         Args: { p_email: string; p_id: string; p_note: string }
