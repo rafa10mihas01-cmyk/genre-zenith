@@ -231,8 +231,40 @@ export default function Catalogo() {
         </section>
 
 
-        {/* KPIs globais de telemetria (agregado de todas as faixas) */}
-        <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {/* Mobile + Tablet: telemetria consolidada — 4 colunas finas */}
+        <div className="lg:hidden">
+          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+            <div className="grid grid-cols-4 divide-x divide-border">
+              <div className="px-1.5 py-3 flex flex-col items-center justify-center gap-0.5">
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium text-center">Streams 28d</span>
+                <span className="text-base font-semibold tabular-nums text-foreground">
+                  {telemetryQ.isLoading ? "—" : fmt(g?.total_plays_28d)}
+                </span>
+              </div>
+              <div className="px-1.5 py-3 flex flex-col items-center justify-center gap-0.5">
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium text-center">Δ Baseline</span>
+                <span className="text-base font-semibold tabular-nums text-foreground">
+                  {telemetryQ.isLoading ? "—" : (g?.growth_abs != null ? `${g.growth_abs >= 0 ? "+" : ""}${fmt(g.growth_abs)}` : "—")}
+                </span>
+              </div>
+              <div className="px-1.5 py-3 flex flex-col items-center justify-center gap-0.5">
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium text-center">Playlists</span>
+                <span className="text-base font-semibold tabular-nums text-foreground">
+                  {telemetryQ.isLoading ? "—" : fmt(g?.playlists_detected)}
+                </span>
+              </div>
+              <div className="px-1.5 py-3 flex flex-col items-center justify-center gap-0.5">
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium text-center">Saúde 24h</span>
+                <span className="text-base font-semibold tabular-nums text-foreground">
+                  {telemetryQ.isLoading ? "—" : fmt(g?.fresh_snapshots_24h)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop: KPIs globais de telemetria (agregado de todas as faixas) */}
+        <section className="hidden lg:grid grid-cols-4 gap-3">
           <KpiBig
             tier="hero"
             icon={TrendingUp}
@@ -268,6 +300,7 @@ export default function Catalogo() {
             loading={telemetryQ.isLoading}
           />
         </section>
+
 
         {(() => {
           const TABS = [
