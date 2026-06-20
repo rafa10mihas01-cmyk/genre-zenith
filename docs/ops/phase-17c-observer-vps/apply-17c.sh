@@ -32,10 +32,35 @@ restart_observer() {
   else
     log "PM2 não tem 'observer'. Matando porta ${PORT} e subindo via nohup."
     fuser -k "${PORT}/tcp" 2>/dev/null || true
-    sleep 1
+    for _ in {1..20}; do
+      if ! fuser "${PORT}/tcp" >/dev/null 2>&1; then
+        break
+      fi
+      sleep 0.5
+    done
+    if fuser "${PORT}/tcp" >/dev/null 2>&1; then
+      err "Porta ${PORT} ainda ocupada após fuser -k. PIDs: $(fuser "${PORT}/tcp" 2>/dev/null || true)"
+      return 1
+    fi
     nohup node server.js > observer.log 2>&1 &
+    log "Observer iniciado em background (pid=$!)."
     disown || true
   fi
+}
+
+wait_for_health() {
+  local body=""
+  local last_error=""
+  for _ in {1..60}; do
+    if body="$(curl -fsS --max-time 2 "$HEALTH_URL" 2>&1)"; then
+      HEALTH_BODY="$body"
+      return 0
+    fi
+    last_error="$body"
+    sleep 1
+  done
+  err "Último erro de /health: $last_error"
+  return 1
 }
 
 trap 'rc=$?; if [[ $rc -ne 0 ]]; then err "Falha (exit=$rc). Tentando restaurar backup..."; restore_backup; fi' ERR
@@ -89,20 +114,17 @@ ok "Sintaxe OK."
 # 6. Restart
 restart_observer
 
-# 7. Espera
-log "Aguardando 3s para o servidor subir..."
-sleep 3
-
-# 8. /health
+# 7. /health com polling
 log "GET $HEALTH_URL"
-if ! HEALTH_BODY="$(curl -fsS --max-time 10 "$HEALTH_URL")"; then
+HEALTH_BODY=""
+if ! wait_for_health; then
   err "Falha em /health. Restaurando backup."
   restore_backup
   exit 4
 fi
 ok "/health respondeu: $(printf '%s' "$HEALTH_BODY" | head -c 200)"
 
-# 9. /playlists/:id
+# 8. /playlists/:id
 log "GET $PLAYLIST_URL"
 if ! PLAYLIST_BODY="$(curl -fsS --max-time 60 "$PLAYLIST_URL")"; then
   err "Falha em $PLAYLIST_URL. Restaurando backup."
@@ -110,7 +132,7 @@ if ! PLAYLIST_BODY="$(curl -fsS --max-time 60 "$PLAYLIST_URL")"; then
   exit 5
 fi
 
-# 10. Validação dos campos no primeiro track via Node (sem depender de jq)
+# 9. Validação dos campos no primeiro track via Node (sem depender de jq)
 log "Validando contrato do primeiro track..."
 VALIDATION="$(node -e '
   let raw = "";
