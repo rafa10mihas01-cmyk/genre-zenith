@@ -18,7 +18,11 @@
 //      para a view catalog_gateway_metrics medir o antes × depois.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getSpotifyToken } from "./spotify.ts";
+// NOTE (Fase 17-B.0.2): NÃO importamos `getSpotifyToken` aqui de propósito.
+// O Catalog Gateway tem um SELETOR PRÓPRIO de Client Credentials, restrito
+// a um pool de Apps validadas na auditoria 17-B.0.1. Isso é totalmente
+// independente do balanceador OAuth (que continua usando `pick_spotify_app`
+// / `getSpotifyTokenWithApp` em spotify.ts para escrever em playlists).
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -102,6 +106,65 @@ async function releaseInflight(resourceKey: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Pool EXCLUSIVO do Catalog Gateway (Fase 17-B.0.2)
+// ---------------------------------------------------------------------------
+// Apps autorizadas a emitir Client Credentials PARA O GATEWAY.
+// Validadas em 17-B.0.1: token CC emitido + endpoints públicos retornam 200.
+//
+// Apps deliberadamente EXCLUÍDAS deste pool (status no banco permanece intacto):
+//   - NexEngine 07: token CC emite, mas endpoints públicos retornam 403
+//                   "Active premium subscription required for the owner of the app".
+//   - NexEngine 09: /api/token retorna 400 invalid_client.
+//
+// Isso NÃO afeta o balanceador OAuth — todas as 4 apps continuam disponíveis
+// para escrita (add/remove/reorder/cover) via getSpotifyTokenWithApp.
+const GATEWAY_CC_APP_ALLOWLIST = ["NexEngine 05", "NexEngine 10"] as const;
+
+type CachedToken = { token: string; expiresAt: number; appName: string };
+const gatewayTokenCache = new Map<string, CachedToken>(); // key = client_id
+
+async function pickGatewayApp(): Promise<{ client_id: string; client_secret: string; name: string }> {
+  const { data, error } = await svc()
+    .from("spotify_apps")
+    .select("name, client_id, client_secret, status")
+    .in("name", GATEWAY_CC_APP_ALLOWLIST as unknown as string[])
+    .eq("status", "active");
+  if (error) throw new Error(`[catalog-gateway] pool lookup: ${error.message}`);
+  const rows = (data ?? []) as Array<{ name: string; client_id: string; client_secret: string }>;
+  if (rows.length === 0) {
+    throw new Error("[catalog-gateway] nenhuma App do pool CC saudável disponível (esperado: NexEngine 05 ou 10)");
+  }
+  // Round-robin aleatório simples entre as apps saudáveis do pool.
+  return rows[Math.floor(Math.random() * rows.length)];
+}
+
+async function getGatewayCcToken(): Promise<{ token: string; appName: string }> {
+  const app = await pickGatewayApp();
+  const cached = gatewayTokenCache.get(app.client_id);
+  if (cached && cached.expiresAt > Date.now() + 60_000) {
+    return { token: cached.token, appName: cached.appName };
+  }
+  const basic = btoa(`${app.client_id}:${app.client_secret}`);
+  const resp = await fetch("https://accounts.spotify.com/api/token", {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${basic}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: "grant_type=client_credentials",
+  });
+  if (!resp.ok) {
+    const t = await resp.text();
+    throw new Error(`[catalog-gateway] CC token ${resp.status} (app=${app.name}): ${t.slice(0, 200)}`);
+  }
+  const j = await resp.json();
+  const token: string = j.access_token;
+  const expiresAt = Date.now() + ((j.expires_in ?? 3600) * 1000);
+  gatewayTokenCache.set(app.client_id, { token, expiresAt, appName: app.name });
+  return { token, appName: app.name };
+}
+
+// ---------------------------------------------------------------------------
 // Fetch com Client Credentials + logging
 // ---------------------------------------------------------------------------
 async function ccFetch(url: string, caller: string, resourceId?: string): Promise<Response> {
@@ -111,7 +174,7 @@ async function ccFetch(url: string, caller: string, resourceId?: string): Promis
   let status: GatewayLog["status"] = "ok";
   let errorMsg: string | null = null;
   try {
-    const token = await getSpotifyToken();
+    const { token } = await getGatewayCcToken();
     const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     httpStatus = r.status;
     if (!r.ok) status = "http_error";
