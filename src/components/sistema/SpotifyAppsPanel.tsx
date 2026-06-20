@@ -1,12 +1,18 @@
 // Painel operacional: estado dos apps Spotify (Fase 8.9 — visibilidade).
 // Mostra status agregado por app: nível, playlists vinculadas, circuit breaker.
-import { ShieldAlert, ShieldCheck, ShieldQuestion, RefreshCw, Loader2, Info } from "lucide-react";
+import { useState } from "react";
+import { ShieldAlert, ShieldCheck, ShieldQuestion, RefreshCw, Loader2, Info, Unlock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useSpotifyAppsStatus, type AppLevel, type SpotifyAppStatusRow } from "@/hooks/useSpotifyAppsStatus";
+import { useSpotifyAppsStatus, useOpenSpotifyBreakers, type AppLevel, type SpotifyAppStatusRow, type OpenBreakerRow } from "@/hooks/useSpotifyAppsStatus";
+import { useUserRole } from "@/hooks/useUserRole";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
 
 
 const LEVEL_META: Record<AppLevel, { label: string; icon: typeof ShieldAlert; cls: string; dot: string; helper: string }> = {
