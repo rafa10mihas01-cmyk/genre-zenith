@@ -37,12 +37,29 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return out;
 }
 
+// IMPORTANTE: o pool CC do Catalog Gateway retorna 403 no endpoint batch
+// `/v1/tracks?ids=...` (Extended Quota Mode). Por isso iteramos singles com
+// concorrência controlada.
+async function fetchTrackSingle(id: string): Promise<any | null> {
+  const r = await ccFetch(`https://api.spotify.com/v1/tracks/${id}`, "sync-spotify-editorial-charts", id);
+  if (!r.ok) { await r.text().catch(() => ""); return null; }
+  return await r.json();
+}
+
 async function fetchTracksBatch(ids: string[]) {
-  const url = `https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`;
-  const r = await ccFetch(url, "sync-spotify-editorial-charts");
-  if (!r.ok) throw new Error(`Spotify ${r.status}: ${(await r.text()).slice(0, 200)}`);
-  const j = await r.json();
-  return j.tracks ?? [];
+  // Concorrência baixa pra ficar Spotify-friendly.
+  const CONCURRENCY = 4;
+  const out: any[] = [];
+  let i = 0;
+  async function worker() {
+    while (i < ids.length) {
+      const idx = i++;
+      const tr = await fetchTrackSingle(ids[idx]);
+      if (tr) out.push(tr);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, ids.length) }, () => worker()));
+  return out;
 }
 
 Deno.serve(async (req) => {
