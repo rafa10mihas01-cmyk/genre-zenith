@@ -14,18 +14,24 @@ roda dentro do projeto Lovable.
 
 ## Como aplicar
 
-1. Na VPS, dentro do repositório do Observer, **substituir integralmente**
-   `services/playlistScraper.js` pelo arquivo deste diretório.
-2. Confirmar que o caller (provavelmente `server.js` no handler
-   `GET /playlists/:id`) usa a assinatura:
+1. Na VPS, aplicar o pacote completo desta pasta:
 
-   ```js
-   const { scrapePlaylist } = require('./services/playlistScraper');
-   const playlist = await scrapePlaylist(page, req.params.id);
+   ```bash
+   cd ~/genre-zenith
+   bash docs/ops/phase-17c-observer-vps/apply-17c.sh
    ```
 
-3. `pm2 restart observer` (ou equivalente).
-4. Validar:
+2. O caller `server.js` no handler `GET /playlists/:id` deve usar a assinatura:
+
+   ```js
+   import { getPlaylist } from './services/playlistScraper.js';
+   const playlist = await getPlaylist(req.params.id);
+   ```
+
+3. O script valida que o SHA256 em `services/playlistScraper.js` é idêntico
+   ao payload do pacote antes e depois do restart.
+4. `pm2 restart observer` (ou equivalente) é executado automaticamente.
+5. Validar:
 
    ```bash
    curl -s -H "x-observer-token: $TOKEN" \
@@ -56,7 +62,7 @@ Ver JSDoc no topo de `services/playlistScraper.js`. Resumo por track:
 ## Garantias
 
 - **Não há fallback para DOM.** Se o Pathfinder não responder dentro de
-  `timeoutMs` (default 25s), `scrapePlaylist` lança erro — caller decide
+  `timeoutMs` (default 25s), `getPlaylist` lança erro — caller decide
   retry / 502.
 - Listener `page.on('response', …)` é registrado **antes** de `page.goto`
   para não perder a resposta inicial.
