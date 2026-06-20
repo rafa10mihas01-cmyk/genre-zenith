@@ -293,5 +293,3 @@ function pickNumber(v) {
   if (typeof v === 'string' && v.trim() !== '' && Number.isFinite(Number(v))) return Number(v);
   return null;
 }
-
-module.exports = { scrapePlaylist };
