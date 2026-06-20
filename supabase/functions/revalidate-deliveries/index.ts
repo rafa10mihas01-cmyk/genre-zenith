@@ -6,6 +6,10 @@
 // mais é re-checado. Só jobs nunca validados, ou que ficaram em `error` /
 // `removed`, voltam pra fila.
 //
+// Fase 17-B.1: leitura agora vai pelo Catalog Gateway (Client Credentials +
+// cache 24h + coalescência). Não precisa mais de token OAuth do dono —
+// `GET playlists/{id}/tracks` em playlist pública é endpoint público.
+//
 // Salvaguardas:
 //  - Lote pequeno (default 50, máx 200) — evita varrer tudo de uma vez.
 //  - Respeita o circuit breaker do Spotify: se mais da metade das apps
@@ -14,12 +18,10 @@
 
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { listPlaylistTrackRefs } from '../_shared/spotify-playlist.ts';
+import { getPlaylistItems } from '../_shared/catalog-gateway.ts';
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
-// Status que contam como "confirmado, missão cumprida" — não revisitar.
-const CONFIRMED_STATUSES = ['present', 'moved', 'duplicate'];
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -30,7 +32,6 @@ Deno.serve(async (req) => {
   );
 
   // ── Circuit breaker check ─────────────────────────────────────────────
-  // Se mais da metade das apps estiver bloqueada, melhor não tentar.
   const { data: breakers } = await sb
     .from('spotify_circuit_breaker')
     .select('status, blocked_until');
@@ -72,8 +73,6 @@ Deno.serve(async (req) => {
   }
 
   // ── Jobs candidatos a revalidar ───────────────────────────────────────
-  // Regra: ainda não foi confirmado (status NULL, 'error' ou 'removed').
-  // Ordena pelo mais antigo nunca validado primeiro (NULL first).
   const { data: jobs } = await sb
     .from('playlist_execution_jobs')
     .select('id, campaign_id, spotify_playlist_id, to_position, last_validation_status, last_validated_at')
@@ -100,75 +99,23 @@ Deno.serve(async (req) => {
     );
   }
 
-  // ── Tokens por playlist ───────────────────────────────────────────────
-  const pids = [...new Set([...uniq.values()].map((j) => j.spotify_playlist_id))];
-  const { data: pls } = await sb
-    .from('playlists')
-    .select('spotify_playlist_id, account_id')
-    .in('spotify_playlist_id', pids);
-  const plMap = new Map(pls?.map((p) => [p.spotify_playlist_id, p]) ?? []);
-  const acctIds = [
-    ...new Set(
-      (pls ?? [])
-        .map((p) => p.account_id)
-        .filter((id): id is string => !!id),
-    ),
-  ];
-  const { data: accts, error: acctsErr } = acctIds.length
-    ? await sb.from('accounts').select('id, spotify_user_token_id').in('id', acctIds)
-    : { data: [], error: null };
-  if (acctsErr) console.error('[revalidate] accounts query error', acctsErr);
-  const tokIds = (accts ?? [])
-    .map((a) => a.spotify_user_token_id)
-    .filter((id): id is string => !!id);
-  const { data: toks, error: toksErr } = tokIds.length
-    ? await sb.from('spotify_user_tokens').select('id, access_token').in('id', tokIds)
-    : { data: [], error: null };
-  if (toksErr) console.error('[revalidate] tokens query error', toksErr);
-  const tokById = new Map(toks?.map((t) => [t.id, t.access_token]) ?? []);
-  const tokByAcct = new Map(
-    (accts ?? []).map((a) => [a.id, tokById.get(a.spotify_user_token_id)]),
-  );
-
-  // ── Loop de validação ─────────────────────────────────────────────────
-  const refsCache = new Map<string, { id: string }[]>();
+  // ── Loop de validação (via Catalog Gateway) ──────────────────────────
+  // Não precisa mais buscar accounts/tokens — gateway usa CC.
+  const itemsCache = new Map<string, { track_id: string }[]>();
   const counts = { present: 0, moved: 0, duplicate: 0, removed: 0, error: 0, skipped: 0 };
   const validations: any[] = [];
   const jobUpdates: { id: string; status: string; position: number | null }[] = [];
 
   for (const j of uniq.values()) {
-    const pl = plMap.get(j.spotify_playlist_id);
-    if (!pl || !pl.account_id) {
-      counts.skipped++;
-      continue;
-    }
-    const tok = tokByAcct.get(pl.account_id);
-    if (!tok) {
-      counts.error++;
-      validations.push({
-        job_id: j.id,
-        campaign_id: j.campaign_id,
-        spotify_playlist_id: j.spotify_playlist_id,
-        spotify_track_id: j.spotify_track_id,
-        expected_position: j.to_position,
-        actual_position: null,
-        occurrences: 0,
-        status: 'error',
-        error: 'sem token',
-      });
-      jobUpdates.push({ id: j.id, status: 'error', position: null });
-      continue;
-    }
-
     try {
-      let refs = refsCache.get(j.spotify_playlist_id);
-      if (!refs) {
-        refs = await listPlaylistTrackRefs(j.spotify_playlist_id, tok);
-        refsCache.set(j.spotify_playlist_id, refs);
+      let items = itemsCache.get(j.spotify_playlist_id);
+      if (!items) {
+        items = await getPlaylistItems(j.spotify_playlist_id, 'revalidate-deliveries');
+        itemsCache.set(j.spotify_playlist_id, items);
       }
       const positions: number[] = [];
-      refs.forEach((r, idx) => {
-        if (r.id === j.spotify_track_id) positions.push(idx + 1);
+      items.forEach((r, idx) => {
+        if (r.track_id === j.spotify_track_id) positions.push(idx + 1);
       });
       const actual = positions[0] ?? null;
       let status: string;
@@ -227,6 +174,7 @@ Deno.serve(async (req) => {
       checked: uniq.size,
       limit,
       counts,
+      via: 'catalog-gateway-cc',
       policy: 'confirm_once: present/moved/duplicate never re-checked',
     }, null, 2),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
