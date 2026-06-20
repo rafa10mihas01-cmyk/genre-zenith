@@ -741,15 +741,16 @@ async function getDefaultSpotifyAppId(): Promise<string | null> {
 
 export type GetAppCredentialsOpts = {
   excludeAppIds?: string[];
+  /** Finalidade da App (Fase 16): 'write' (default), 'enrich' ou 'hybrid'. */
+  purpose?: "write" | "enrich" | "hybrid";
 };
 
 /** Busca credenciais do app Spotify.
  *  - appId informado → carrega esse app (erro se não achar).
- *  - sem appId → expira quarentenas vencidas; escolhe primeiro app `active` AND
- *    não-quarentenado AND não em excludeAppIds (ordem: is_default DESC, created_at ASC).
- *    Se nenhum saudável, faz fallback pra qualquer active (mesmo padrão antigo
- *    pra não derrubar operação em incidente Spotify-wide). Só cai no env como
- *    último recurso quando não há ZERO apps cadastrados.
+ *  - sem appId → ✅ Fase 16: delega para `pick_spotify_app(purpose)` (RPC oficial,
+ *    única fonte de verdade). Ranqueia por Capacity Score + Health Score, respeita
+ *    limites e usa lock pra evitar seleção paralela. Fallback legado só ocorre
+ *    se a RPC falhar ou retornar uma App em excludeAppIds. ENV é o último recurso.
  */
 export async function getAppCredentials(
   appIdOrOpts?: string | null | GetAppCredentialsOpts,
@@ -758,6 +759,7 @@ export async function getAppCredentials(
   const appId = typeof appIdOrOpts === "string" ? appIdOrOpts : null;
   const opts: GetAppCredentialsOpts = (appIdOrOpts && typeof appIdOrOpts === "object") ? appIdOrOpts : {};
   const excludeAppIds = new Set((opts.excludeAppIds ?? []).filter(Boolean));
+  const purpose = opts.purpose ?? "write";
 
   if (appId) {
     const { data, error } = await sb
@@ -775,38 +777,49 @@ export async function getAppCredentials(
     };
   }
 
-  // Expira quarentenas vencidas antes de selecionar (fail-silent, ~5ms).
+  // Expira quarentenas vencidas (fail-silent).
   try { await sb.rpc("expire_spotify_app_quarantines"); } catch { /* noop */ }
 
-  const nowIso = new Date().toISOString();
+  // ✅ Fase 16 — RPC canônica.
+  try {
+    const { data: picked } = await sb.rpc("pick_spotify_app", { p_purpose: purpose });
+    const row: any = Array.isArray(picked) ? picked[0] : picked;
+    if (row?.id && !excludeAppIds.has(row.id)) {
+      return {
+        app_id: row.id,
+        name: row.name,
+        client_id: row.client_id,
+        client_secret: row.client_secret,
+      };
+    }
+  } catch (e) {
+    console.warn(`[pick_spotify_app] indisponível, usando fallback legado: ${(e as Error).message}`);
+  }
+
+  // Fallback legado: varredura direta respeitando exclusões.
   const { data: rows } = await sb
     .from("spotify_apps")
-    .select("id, name, client_id, client_secret, is_default, status, quarantined_until")
-    .eq("status", "active")
-    .order("is_default", { ascending: false })
-    .order("created_at", { ascending: true });
-
-  const allActive = (rows ?? []) as Array<{ id: string; name: string; client_id: string; client_secret: string; quarantined_until: string | null }>;
+    .select("id, name, client_id, client_secret, status, quarantined_until, lifecycle_state")
+    .eq("status", "active");
+  const allActive = (rows ?? []) as Array<{ id: string; name: string; client_id: string; client_secret: string; quarantined_until: string | null; lifecycle_state?: string | null }>;
   const healthy = allActive.filter((r) => {
     if (excludeAppIds.has(r.id)) return false;
     if (r.quarantined_until && new Date(r.quarantined_until).getTime() > Date.now()) return false;
+    if (r.lifecycle_state && r.lifecycle_state !== "active") return false;
     return true;
   });
-
-  // Prioridade: healthy > active (mesmo quarentenado) excluindo excludeAppIds > primeiro active
   const fallback = allActive.filter((r) => !excludeAppIds.has(r.id));
-  const picked = healthy[0] ?? fallback[0] ?? allActive[0] ?? null;
+  const pickedRow = healthy[0] ?? fallback[0] ?? allActive[0] ?? null;
 
-  if (picked) {
+  if (pickedRow) {
     return {
-      app_id: picked.id,
-      name: picked.name,
-      client_id: picked.client_id,
-      client_secret: picked.client_secret,
+      app_id: pickedRow.id,
+      name: pickedRow.name,
+      client_id: pickedRow.client_id,
+      client_secret: pickedRow.client_secret,
     };
   }
 
-  // Fallback final: env vars (compat retroativo)
   if (!ENV_CLIENT_ID || !ENV_CLIENT_SECRET) {
     throw new Error(
       "NO_HEALTHY_SPOTIFY_APP: nenhum app Spotify saudável e SPOTIFY_CLIENT_ID/SECRET não configurados.",
@@ -825,6 +838,8 @@ export type GetSpotifyTokenOpts = {
   excludeAppIds?: string[];
   /** Força usar um app específico (ex.: app do owner da playlist). Bypassa default global. */
   appId?: string | null;
+  /** Finalidade da App (Fase 16): 'write' (default), 'enrich' ou 'hybrid'. */
+  purpose?: "write" | "enrich" | "hybrid";
 };
 
 /** Versão estendida que retorna também o appId/appName usados. Útil pra failover. */
@@ -834,7 +849,7 @@ export async function getSpotifyTokenWithApp(
   const supabase = db();
   const creds = opts.appId
     ? await getAppCredentials(opts.appId)
-    : await getAppCredentials({ excludeAppIds: opts.excludeAppIds });
+    : await getAppCredentials({ excludeAppIds: opts.excludeAppIds, purpose: opts.purpose });
   // Propaga app pra TODAS as chamadas Spotify subsequentes neste contexto async.
   enterCtx({ appId: creds.app_id, appName: creds.name });
   if (creds.app_id) appNameCache.set(creds.app_id, creds.name);
