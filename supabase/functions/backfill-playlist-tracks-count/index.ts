@@ -56,7 +56,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    const token = await getAppToken();
     const nowIso = new Date().toISOString();
     const CONCURRENCY = 3;
     const BATCH_DELAY_MS = 500;
@@ -68,9 +67,10 @@ Deno.serve(async (req) => {
       const batch = rows.slice(i, i + CONCURRENCY);
       await Promise.all(batch.map(async (row) => {
         try {
-          const r = await spotifyFetch(
+          const r = await ccFetch(
             `https://api.spotify.com/v1/playlists/${row.spotify_playlist_id}?fields=tracks(total)`,
-            { headers: { Authorization: `Bearer ${token}` } },
+            "backfill-playlist-tracks-count",
+            row.spotify_playlist_id,
           );
           if (!r.ok) {
             const t = await r.text();
