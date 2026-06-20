@@ -7,7 +7,8 @@
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
-import { getAppToken, SpotifyCircuitOpenError, spotifyFetch } from "../_shared/spotify-client.ts";
+import { SpotifyCircuitOpenError } from "../_shared/spotify-client.ts";
+import { ccFetch } from "../_shared/catalog-gateway.ts";
 import { getPlaylistMeta } from "../_shared/spotify-playlist.ts";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -47,20 +48,19 @@ function defaultTerms(slug: string, nome: string): string[] {
   ];
 }
 
-async function spotifyFetch(token: string, url: string): Promise<any> {
-  // Passa pelo circuit breaker explicitamente (spotifyFetch).
-  // Se breaker estiver aberto, lança SpotifyCircuitOpenError — propagamos sem retry.
+async function searchSpotify(url: string): Promise<any> {
+  // Lê via Catalog Gateway (CC pool NexEngine 05/10). Preserva tratamento de 429
+  // que o wrapper anterior tinha (lança erro pra cima — caller decide).
   let r: Response;
   try {
-    r = await spotifyFetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    r = await ccFetch(url, "genre-spotify-discover");
   } catch (e) {
     if (e instanceof SpotifyCircuitOpenError) throw e;
     throw e;
   }
   if (r.status === 429) {
-    // guard já abriu o breaker — chamadas seguintes vão abortar.
     const txt = await r.text().catch(() => "");
-    throw new Error(`spotify 429 (breaker aberto): ${txt.slice(0, 180)}`);
+    throw new Error(`spotify 429: ${txt.slice(0, 180)}`);
   }
   if (!r.ok) {
     const t = await r.text();
@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
     }
     stats.terms_used = termRows.length;
 
-    const token = await getAppToken();
+    // Token gerenciado pelo Catalog Gateway.
     const gateCtx = await loadGateContext(supabase, genreId);
 
     const seenPlaylistIds = new Set<string>();
@@ -136,7 +136,7 @@ Deno.serve(async (req) => {
       const term = termRows[ti];
       try {
         const url = `https://api.spotify.com/v1/search?type=playlist&limit=${maxPlsPerTerm}&q=${encodeURIComponent(term.termo)}`;
-        const data = await spotifyFetch(token, url);
+        const data = await searchSpotify(url);
         const items = data?.playlists?.items ?? [];
         const ctxForTerm = { ...gateCtx, termLower: term.termo.toLowerCase() };
 
