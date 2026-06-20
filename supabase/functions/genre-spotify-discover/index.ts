@@ -9,7 +9,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
 import { SpotifyCircuitOpenError } from "../_shared/spotify-client.ts";
 import { ccFetch } from "../_shared/catalog-gateway.ts";
-import { getPlaylistMeta } from "../_shared/spotify-playlist.ts";
+// getPlaylistMeta foi removido — agora lemos detalhes via ccFetch direto.
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const THROTTLE_MS = 300;
@@ -167,10 +167,11 @@ Deno.serve(async (req) => {
           let ownerType: string | null = null;
           let trackItems: any[] = [];
           try {
-            const meta = await getPlaylistMeta(p.id, token, {
-              fields: `followers(total),tracks(total,items(track(id,name,artists(name)))),owner(id)`,
-            });
-            const detail = meta.raw;
+            const detailFields = `followers(total),tracks(total,items(track(id,name,artists(name)))),owner(id)`;
+            const detailUrl = `https://api.spotify.com/v1/playlists/${p.id}?fields=${encodeURIComponent(detailFields)}`;
+            const dr = await ccFetch(detailUrl, "genre-spotify-discover", p.id);
+            if (!dr.ok) throw new Error(`detail http ${dr.status}`);
+            const detail = await dr.json();
             if (detail?.followers?.total != null) detailFollowers = detail.followers.total;
             if (detail?.tracks?.total != null) detailTracks = detail.tracks.total;
             ownerId = detail?.owner?.id ?? null;
