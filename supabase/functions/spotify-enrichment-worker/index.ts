@@ -67,14 +67,8 @@ Deno.serve(async (req) => {
   const list = (jobs ?? []) as Job[];
   if (list.length === 0) return jr({ ok: true, claimed: 0, processed: 0 });
 
-  let token: string;
-  try {
-    token = await getAppToken();
-  } catch (e) {
-    // Sem token → libera jobs (volta pra pending) e devolve
-    await releaseJobs(sb, list.map((j) => j.id), `token_error: ${String((e as Error)?.message ?? e)}`);
-    return jr({ ok: false, error: "token_error", claimed: list.length, processed: 0 }, 500);
-  }
+  // Fase 17-B.2: tokens vêm do Catalog Gateway (pool CC NexEngine 05/10).
+  // ccFetch lida com aquisição/refresh de token internamente.
 
   const results = { done: 0, not_found: 0, forbidden: 0, retry: 0, failed: 0 };
 
@@ -84,7 +78,7 @@ Deno.serve(async (req) => {
       const idx = i++;
       const job = list[idx];
       try {
-        const r = await processJob(sb, token, job);
+        const r = await processJob(sb, job);
         (results as any)[r] = ((results as any)[r] ?? 0) + 1;
       } catch (e) {
         if (e instanceof SpotifyCircuitOpenError) {
