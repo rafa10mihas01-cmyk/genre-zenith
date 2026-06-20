@@ -146,3 +146,60 @@ Adicional: investigar por que o catch handler não está executando (provavelmen
 3. **Investigar 403s reais residuais** → identificar se `z4ox6sjcnfkjulzdqkwj6qcd0` e `kondzilla` ainda geram falhas em jobs futuros (e por quê).
 4. **Implementar guarda anti-loop** (correção definitiva) em ciclo separado de deploy.
 5. **Verificar logs do edge function** para confirmar hipótese 1 (timeout silencioso vs catch não executando).
+
+---
+
+## Mitigação aplicada — 2026-06-20 17:27 UTC
+
+### Auditoria pré-mitigação (snapshot)
+
+Os 5 jobs foram congelados em `/mnt/documents/INC-002-pre-mitigation-audit.csv`. Resumo:
+
+| Job ID | attempts | claimed_by | claimed_at |
+|---|---:|---|---|
+| `47a4b0e2-…e4b0` | 745 | internal-cron | 2026-06-20 17:26:02 UTC |
+| `f60bcadc-…9806` | 507 | internal-cron | 2026-06-20 17:26:02 UTC |
+| `7604f853-…e427` | 492 | internal-cron | 2026-06-20 17:26:02 UTC |
+| `69f98638-…836d` | 492 | internal-cron | 2026-06-20 17:26:02 UTC |
+| `e1736a87-…7e0c` | 241 | internal-cron | 2026-06-20 17:26:02 UTC |
+
+### Ações executadas (somente nesses 5 IDs — nenhum outro job afetado)
+
+1. **Inserido em `manual_distribution_queue`** — 1 linha por job, `status = MANUAL_PENDING`, `motivo = "INC-002: loop infinito (attempts ultrapassou max_attempts; bot-execution-queue reprocessou via recovery)"`.
+2. **`playlist_execution_jobs.status` → `cancelled`** com `last_error = "INC-002: cancelado pela mitigação operacional. attempts=N ultrapassou max_attempts=3. Movido para manual_distribution_queue."`, `completed_at = now()`, `claimed_by/claimed_at/lease_expires_at = NULL`.
+
+> ℹ️ A coluna `status` em `playlist_execution_jobs` tem CHECK constraint que **não permite o valor `manual`** — apenas `pending|claimed|done|failed|cancelled`. Por isso usamos `cancelled`. Esse é um bug separado descoberto durante a mitigação: o caminho `enqueueManual` no worker tenta atualizar para `manual` e a chamada falha silenciosamente (sem `if (error)` após o `.update()`), o que **contribuiu para o loop** — quando classifyManualReason retorna `spotify_403`, o MDQ recebe a entrada (existem 5 linhas `AUTO_FAILED_FALLBACK_MANUAL` de 17–19 jun nesses mesmos jobs comprovando isso), mas o job permanece `claimed` e o recovery sweep o devolve pra `pending`. **Abrir ticket separado** para (a) corrigir a constraint OU (b) trocar `status: "manual"` por `status: "cancelled"` no worker.
+
+### Auditoria pós-mitigação
+
+| Job ID | status final | claimed_by | lease_expires_at |
+|---|---|---|---|
+| `47a4b0e2-…e4b0` | `cancelled` | NULL | NULL |
+| `f60bcadc-…9806` | `cancelled` | NULL | NULL |
+| `7604f853-…e427` | `cancelled` | NULL | NULL |
+| `69f98638-…836d` | `cancelled` | NULL | NULL |
+| `e1736a87-…7e0c` | `cancelled` | NULL | NULL |
+
+Nenhum deles pode voltar para `pending` ou `claimed`:
+- O recovery sweep filtra por `status = 'claimed'` — `cancelled` não entra.
+- O guard novo (ver abaixo) cancelaria de novo qualquer um cujo `attempts >= max_attempts` reaparecesse em `pending`/`claimed`.
+
+## Correção definitiva — guard de `max_attempts`
+
+**Arquivo:** `supabase/functions/bot-execution-queue/index.ts` (linhas 114–172)
+
+Inserido no início de cada execução do worker, **antes** do recovery sweep e dos SELECTs de candidatos:
+
+- Varre `playlist_execution_jobs` em `status IN ('pending','claimed')`.
+- Para cada job onde `attempts >= max_attempts`, transiciona para `status = 'cancelled'` com `last_error = "INC-002 guard: attempts ultrapassou max_attempts (auto-cancelado pelo worker)"` e limpa lease.
+- Loga `evt: "inc002.guard.cancelled"` com a lista de IDs.
+- O guard executa **independentemente do bloco catch** — é o que estava faltando e que impedia o catch de falhar em fechar o ciclo.
+
+### Critérios de encerramento
+
+1. ✅ Os 5 jobs estão fora do loop (verificado pós-mitigação).
+2. ⏳ Volume de chamadas `/v1/playlists/:id/items` 403 cai pra ≤ baseline esperado nas próximas 24h.
+3. ✅ Guard de `max_attempts` implantado.
+4. ⏳ Próxima execução do worker emite `inc002.guard.cancelled` com count=0 (confirma que não há mais jobs em loop).
+
+Encerrar oficialmente o ticket após observar (2) e (4) durante a janela de 24h.
