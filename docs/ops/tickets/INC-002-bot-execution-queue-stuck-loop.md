@@ -3,7 +3,7 @@
 **Aberto em:** 2026-06-20
 **Severidade:** Alta — worker Nível A operando com ~1.9% de sucesso há ≥3 dias.
 **Tipo:** Incidente operacional. **Não faz parte da revisão arquitetural (Fase 17-C).**
-**Status:** Aberto — correção pendente.
+**Status:** Mitigação aplicada — aguardando observação de 24h pra encerrar.
 
 ## Resumo executivo
 
