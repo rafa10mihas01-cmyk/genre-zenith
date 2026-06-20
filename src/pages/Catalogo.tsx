@@ -154,8 +154,8 @@ export default function Catalogo() {
       />
 
       <PageContainer>
-        {/* Mobile: card consolidado — 4 colunas finas + barra de capacidade */}
-        <div className="sm:hidden">
+        {/* Mobile + Tablet: card consolidado — 4 colunas finas + barra de capacidade */}
+        <div className="lg:hidden">
           <div className="bg-card border border-border rounded-2xl overflow-hidden">
             <div className="grid grid-cols-4 divide-x divide-border">
               <div className="px-1.5 py-3 flex flex-col items-center justify-center gap-0.5">
@@ -192,8 +192,8 @@ export default function Catalogo() {
           </div>
         </div>
 
-        {/* Tablet/Desktop: 4 cards separados */}
-        <section className="hidden sm:grid grid-cols-2 md:grid-cols-4 gap-3">
+        {/* Desktop: 4 cards separados */}
+        <section className="hidden lg:grid grid-cols-4 gap-3">
           <KpiBig
             tier="hero"
             icon={Music2}
@@ -229,6 +229,7 @@ export default function Catalogo() {
             loading={summaryQ.isLoading}
           />
         </section>
+
 
         {/* KPIs globais de telemetria (agregado de todas as faixas) */}
         <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
