@@ -6,7 +6,10 @@
 // POST body: { limit?: number (default 50), only_zero?: boolean (default true), dry_run?: boolean }
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getAppToken, spotifyFetch } from "../_shared/spotify-client.ts";
+// Fase 17-B.6: leitura pública → Catalog Gateway (CC).
+// Classificação: CC-ONLY. Endpoint público de playlist (fields=tracks(total))
+// não requer OAuth do owner.
+import { ccFetch } from "../_shared/catalog-gateway.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
