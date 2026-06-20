@@ -246,22 +246,26 @@ Deno.serve(async (req) => {
           }
           const ids = Array.from(artistIdMap.values()).slice(0, 10);
           if (ids.length > 0) {
-            const r = await ccFetch(
-              `https://api.spotify.com/v1/artists?ids=${ids.join(",")}`,
-              "analyze-genre-visual-dna",
-            );
-            if (r.ok) {
-              const aj = await r.json();
-              const existing = new Set(results.map((x) => x.imagem_url));
-              for (const a of (aj?.artists ?? []) as any[]) {
+            // Pool CC do Gateway não aceita /v1/artists?ids= (Extended Quota).
+            // Iteramos singles.
+            const existing = new Set(results.map((x) => x.imagem_url));
+            for (const aid of ids) {
+              if (results.length >= TOP_N) break;
+              try {
+                const r = await ccFetch(
+                  `https://api.spotify.com/v1/artists/${aid}`,
+                  "analyze-genre-visual-dna",
+                  aid,
+                );
+                if (!r.ok) { await r.text().catch(() => ""); continue; }
+                const a: any = await r.json();
                 const img = a?.images?.[0]?.url ?? null;
                 if (!img || existing.has(img)) continue;
                 results.push({ nome_playlist: `[artista] ${a.name}`, imagem_url: img, seguidores: a.followers?.total ?? 0 });
                 existing.add(img);
-                if (results.length >= TOP_N) break;
-              }
-              console.log(`[visual-dna] fallback artistas aplicado → ${results.length} capas`);
+              } catch { /* skip */ }
             }
+            console.log(`[visual-dna] fallback artistas aplicado → ${results.length} capas`);
           }
         } catch (e) {
           console.warn("[visual-dna] fallback artistas falhou:", (e as Error).message);
