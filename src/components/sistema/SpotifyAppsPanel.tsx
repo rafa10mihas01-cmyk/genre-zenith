@@ -230,12 +230,3 @@ function OpenBreakersAdminSection() {
   );
 }
 
-            Nenhum app em produção encontrado.
-          </div>
-        ) : (
-          rows.map((r) => <Row key={r.app_id} row={r} />)
-        )}
-      </Card>
-    </TooltipProvider>
-  );
-}
