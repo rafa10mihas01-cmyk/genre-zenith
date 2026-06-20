@@ -563,6 +563,8 @@ export async function guardedSpotifyFetch(
           method,
           errorBody,
         });
+        // NUNCA RETRY: lança erro permanente — caller deve marcar job failed_permanent.
+        throw new SpotifyPermanentAccessError(merged.app_id, merged.spotify_user_id, errorBody ?? "");
       }
     }
     // Hook AUTH_INVALID em 401 + reset em 2xx (debounced).
