@@ -404,6 +404,8 @@ function fireAndForgetAccessBlock(args: Parameters<typeof recordAppAccessBlock>[
   else p.catch(() => {});
 }
 
+// ---------------------------------------------------------------------------
+// Telemetria — log fail-silent em `spotify_call_log`.
 // Usado pelo guardedSpotifyFetch e pelo monkey-patch global do fetch.
 // Mantém o caller ileso (nunca lança) mas grita no console em falha
 // para que problemas de GRANT/RLS apareçam nos edge logs.
