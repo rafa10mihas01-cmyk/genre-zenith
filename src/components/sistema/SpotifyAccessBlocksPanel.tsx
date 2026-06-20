@@ -85,6 +85,7 @@ function useBlockedApps() {
 
 export function SpotifyAccessBlocksPanel() {
   const { data, isLoading, refetch, isFetching } = useAccessBlocks();
+  const { data: blockedApps = [] } = useBlockedApps();
   const rows = data ?? [];
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
