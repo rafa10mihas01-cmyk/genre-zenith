@@ -119,34 +119,26 @@ Deno.serve(async (req) => {
   // ultrapassou max_attempts. Isso impede o loop infinito: o catch block pode
   // falhar (ex.: timeout em chamada Spotify), mas o guard aqui executa SEMPRE
   // no início do worker e bloqueia a re-entrada na fila.
-  const { data: overLimit, error: overLimitErr } = await supabase
-    .from("playlist_execution_jobs")
-    .update({
-      status: "cancelled",
-      completed_at: nowIso,
-      claimed_by: null,
-      claimed_at: null,
-      lease_expires_at: null,
-      last_error: "INC-002 guard: attempts ultrapassou max_attempts (auto-cancelado pelo worker)",
-    })
-    .in("status", ["pending", "claimed"])
-    .filter("attempts", "gte", "max_attempts" as any) // PostgREST não suporta col-vs-col; ver fallback abaixo
-    .select("id");
-
-  // Fallback: PostgREST não compara colunas entre si via .filter(...). Usa RPC simples:
-  // se o caminho acima não filtrar (overLimit vazio), executa varredura por SELECT+UPDATE.
-  if (overLimitErr || !overLimit) {
-    const { data: candidatesOver } = await supabase
+  //
+  // NOTA: PostgREST não suporta comparação coluna-vs-coluna em .filter(...).
+  // A versão anterior usava .filter("attempts","gte","max_attempts") que era
+  // interpretado como string literal — guard virava no-op. Agora fazemos
+  // SELECT → filtro em memória → UPDATE por ids.
+  {
+    const { data: candidatesOver, error: candErr } = await supabase
       .from("playlist_execution_jobs")
       .select("id, attempts, max_attempts")
       .in("status", ["pending", "claimed"])
       .gte("attempts", 1)
-      .limit(200);
+      .limit(500);
+    if (candErr) {
+      console.error(JSON.stringify({ evt: "inc002.guard.select_error", error: candErr.message }));
+    }
     const ids = (candidatesOver ?? [])
       .filter((c: any) => (c.attempts ?? 0) >= (c.max_attempts ?? 3))
       .map((c: any) => c.id);
     if (ids.length > 0) {
-      await supabase
+      const { error: updErr } = await supabase
         .from("playlist_execution_jobs")
         .update({
           status: "cancelled",
@@ -157,11 +149,16 @@ Deno.serve(async (req) => {
           last_error: "INC-002 guard: attempts ultrapassou max_attempts (auto-cancelado pelo worker)",
         })
         .in("id", ids);
-      console.log(JSON.stringify({ evt: "inc002.guard.cancelled", count: ids.length, ids }));
+      if (updErr) {
+        console.error(JSON.stringify({ evt: "inc002.guard.update_error", error: updErr.message, count: ids.length }));
+      } else {
+        console.log(JSON.stringify({ evt: "inc002.guard.cancelled", count: ids.length, ids }));
+      }
+    } else {
+      console.log(JSON.stringify({ evt: "inc002.guard.cancelled", count: 0 }));
     }
-  } else if (overLimit.length > 0) {
-    console.log(JSON.stringify({ evt: "inc002.guard.cancelled", count: overLimit.length }));
   }
+
 
   // Recovery normal: jobs claimed com lease vencido E attempts ainda dentro do limite voltam pra pending
   await supabase
