@@ -44,7 +44,6 @@ Deno.serve(async (req) => {
   const { data: pls, error: plErr } = await q;
   if (plErr) return jr({ ok: false, error: plErr.message }, 500);
 
-  const token = await getAppToken();
   const results: any[] = [];
   let matched = 0, unknown = 0, failed = 0;
 
@@ -53,10 +52,10 @@ Deno.serve(async (req) => {
       let ownerId: string | null = null;
       let ownerDisplay: string | null = null;
       try {
-        const r = await spotifyFetch(
+        const r = await ccFetch(
           `https://api.spotify.com/v1/playlists/${p.spotify_playlist_id}?fields=owner(id,display_name)`,
-          { headers: { Authorization: `Bearer ${token}` } },
-          { functionName: "discover-playlist-owners", operation: "get_playlist_owner", meta: { playlist_id: p.spotify_playlist_id } },
+          "discover-playlist-owners",
+          p.spotify_playlist_id,
         );
         if (!r.ok) {
           failed++;
