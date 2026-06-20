@@ -3,7 +3,9 @@
 // Idempotente. Roda sob demanda pelo painel.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getAppToken, spotifyFetch } from "../_shared/spotify-client.ts";
+// Fase 17-B.6: leitura pública → Catalog Gateway (CC).
+// Classificação: CC-ONLY. `playlists/{id}?fields=owner(...)` é público.
+import { ccFetch } from "../_shared/catalog-gateway.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
