@@ -15,11 +15,11 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import {
-  getAppToken,
   SpotifyCircuitOpenError,
   setSpotifyBreakerContext,
   installSpotifyCircuitFetchGuard,
 } from "../_shared/spotify-client.ts";
+import { ccFetch } from "../_shared/catalog-gateway.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -67,14 +67,8 @@ Deno.serve(async (req) => {
   const list = (jobs ?? []) as Job[];
   if (list.length === 0) return jr({ ok: true, claimed: 0, processed: 0 });
 
-  let token: string;
-  try {
-    token = await getAppToken();
-  } catch (e) {
-    // Sem token → libera jobs (volta pra pending) e devolve
-    await releaseJobs(sb, list.map((j) => j.id), `token_error: ${String((e as Error)?.message ?? e)}`);
-    return jr({ ok: false, error: "token_error", claimed: list.length, processed: 0 }, 500);
-  }
+  // Fase 17-B.2: tokens vêm do Catalog Gateway (pool CC NexEngine 05/10).
+  // ccFetch lida com aquisição/refresh de token internamente.
 
   const results = { done: 0, not_found: 0, forbidden: 0, retry: 0, failed: 0 };
 
@@ -84,7 +78,7 @@ Deno.serve(async (req) => {
       const idx = i++;
       const job = list[idx];
       try {
-        const r = await processJob(sb, token, job);
+        const r = await processJob(sb, job);
         (results as any)[r] = ((results as any)[r] ?? 0) + 1;
       } catch (e) {
         if (e instanceof SpotifyCircuitOpenError) {
@@ -104,11 +98,11 @@ Deno.serve(async (req) => {
   return jr({ ok: true, worker: WORKER_ID, claimed: list.length, ...results });
 });
 
-async function processJob(sb: any, token: string, job: Job): Promise<"done" | "not_found" | "forbidden" | "retry" | "failed"> {
+async function processJob(sb: any, job: Job): Promise<"done" | "not_found" | "forbidden" | "retry" | "failed"> {
   const url = job.kind === "track"
     ? `https://api.spotify.com/v1/tracks/${job.ref_id}`
     : `https://api.spotify.com/v1/artists/${job.ref_id}`;
-  const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const r = await ccFetch(url, "spotify-enrichment-worker", job.ref_id);
 
   if (r.status === 200) {
     const j = await r.json();
