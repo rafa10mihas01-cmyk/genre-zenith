@@ -38,6 +38,7 @@ import { SpotifyPilotPanel } from "@/components/sistema/SpotifyPilotPanel";
 import { ManualDistribuicoesPanel } from "@/components/sistema/ManualDistribuicoesPanel";
 import { SpotifyAppsPanel } from "@/components/sistema/SpotifyAppsPanel";
 import { SpotifyAccessBlocksPanel } from "@/components/sistema/SpotifyAccessBlocksPanel";
+import { SpotifyBalancerOverviewPanel } from "@/components/sistema/SpotifyBalancerOverviewPanel";
 import { ExecutiveStatusBar } from "@/components/sistema/ExecutiveStatusBar";
 import { AttentionInbox } from "@/components/sistema/AttentionInbox";
 import { OperationalSummary } from "@/components/sistema/OperationalSummary";
