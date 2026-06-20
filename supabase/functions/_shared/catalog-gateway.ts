@@ -138,12 +138,7 @@ async function pickGatewayApp(): Promise<{ client_id: string; client_secret: str
   return rows[Math.floor(Math.random() * rows.length)];
 }
 
-async function getGatewayCcToken(): Promise<{ token: string; appName: string }> {
-  const app = await pickGatewayApp();
-  const cached = gatewayTokenCache.get(app.client_id);
-  if (cached && cached.expiresAt > Date.now() + 60_000) {
-    return { token: cached.token, appName: cached.appName };
-  }
+async function requestCcToken(app: { client_id: string; client_secret: string; name: string }): Promise<{ token: string; expiresIn: number }> {
   const basic = btoa(`${app.client_id}:${app.client_secret}`);
   const resp = await fetch("https://accounts.spotify.com/api/token", {
     method: "POST",
@@ -158,10 +153,31 @@ async function getGatewayCcToken(): Promise<{ token: string; appName: string }> 
     throw new Error(`[catalog-gateway] CC token ${resp.status} (app=${app.name}): ${t.slice(0, 200)}`);
   }
   const j = await resp.json();
-  const token: string = j.access_token;
-  const expiresAt = Date.now() + ((j.expires_in ?? 3600) * 1000);
-  gatewayTokenCache.set(app.client_id, { token, expiresAt, appName: app.name });
-  return { token, appName: app.name };
+  return { token: j.access_token as string, expiresIn: (j.expires_in ?? 3600) as number };
+}
+
+async function getGatewayCcToken(): Promise<{ token: string; appName: string }> {
+  let app = await pickGatewayApp();
+  const cached = gatewayTokenCache.get(app.client_id);
+  if (cached && cached.expiresAt > Date.now() + 60_000) {
+    return { token: cached.token, appName: cached.appName };
+  }
+  // Fase 17-B.5.2: retry único pra absorver blips de `invalid_client` na
+  // Spotify Accounts API. Espera 200ms e re-sorteia a app (se cair em outra,
+  // melhor — distribui pressão).
+  try {
+    const r = await requestCcToken(app);
+    gatewayTokenCache.set(app.client_id, { token: r.token, expiresAt: Date.now() + r.expiresIn * 1000, appName: app.name });
+    return { token: r.token, appName: app.name };
+  } catch (e) {
+    const msg = (e as Error)?.message ?? "";
+    if (!/invalid_client/i.test(msg)) throw e;
+    await new Promise((res) => setTimeout(res, 200));
+    app = await pickGatewayApp();
+    const r = await requestCcToken(app);
+    gatewayTokenCache.set(app.client_id, { token: r.token, expiresAt: Date.now() + r.expiresIn * 1000, appName: app.name });
+    return { token: r.token, appName: app.name };
+  }
 }
 
 // ---------------------------------------------------------------------------
