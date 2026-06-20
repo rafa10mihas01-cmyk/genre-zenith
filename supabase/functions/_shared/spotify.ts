@@ -838,6 +838,8 @@ export type GetSpotifyTokenOpts = {
   excludeAppIds?: string[];
   /** Força usar um app específico (ex.: app do owner da playlist). Bypassa default global. */
   appId?: string | null;
+  /** Finalidade da App (Fase 16): 'write' (default), 'enrich' ou 'hybrid'. */
+  purpose?: "write" | "enrich" | "hybrid";
 };
 
 /** Versão estendida que retorna também o appId/appName usados. Útil pra failover. */
@@ -847,7 +849,7 @@ export async function getSpotifyTokenWithApp(
   const supabase = db();
   const creds = opts.appId
     ? await getAppCredentials(opts.appId)
-    : await getAppCredentials({ excludeAppIds: opts.excludeAppIds });
+    : await getAppCredentials({ excludeAppIds: opts.excludeAppIds, purpose: opts.purpose });
   // Propaga app pra TODAS as chamadas Spotify subsequentes neste contexto async.
   enterCtx({ appId: creds.app_id, appName: creds.name });
   if (creds.app_id) appNameCache.set(creds.app_id, creds.name);
