@@ -663,6 +663,8 @@ export function installSpotifyCircuitFetchGuard() {
             method,
             errorBody,
           });
+          // NUNCA RETRY — propaga erro permanente.
+          throw new SpotifyPermanentAccessError(merged.app_id, merged.spotify_user_id, errorBody ?? "");
         }
       }
       // Hook AUTH_INVALID: 401 em api.spotify.com (não em accounts) → conta falha do app.
