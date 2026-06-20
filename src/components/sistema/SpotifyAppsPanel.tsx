@@ -1,12 +1,18 @@
 // Painel operacional: estado dos apps Spotify (Fase 8.9 — visibilidade).
 // Mostra status agregado por app: nível, playlists vinculadas, circuit breaker.
-import { ShieldAlert, ShieldCheck, ShieldQuestion, RefreshCw, Loader2, Info } from "lucide-react";
+import { useState } from "react";
+import { ShieldAlert, ShieldCheck, ShieldQuestion, RefreshCw, Loader2, Info, Unlock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useSpotifyAppsStatus, type AppLevel, type SpotifyAppStatusRow } from "@/hooks/useSpotifyAppsStatus";
+import { useSpotifyAppsStatus, useOpenSpotifyBreakers, type AppLevel, type SpotifyAppStatusRow, type OpenBreakerRow } from "@/hooks/useSpotifyAppsStatus";
+import { useUserRole } from "@/hooks/useUserRole";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
 
 
 const LEVEL_META: Record<AppLevel, { label: string; icon: typeof ShieldAlert; cls: string; dot: string; helper: string }> = {
@@ -126,7 +132,101 @@ export function SpotifyAppsPanel() {
         ) : (
           rows.map((r) => <Row key={r.app_id} row={r} />)
         )}
+
+        <OpenBreakersAdminSection />
       </Card>
     </TooltipProvider>
   );
 }
+
+function OpenBreakersAdminSection() {
+  const { isAdmin } = useUserRole();
+  const { data, isLoading, refetch } = useOpenSpotifyBreakers();
+  const qc = useQueryClient();
+  const [resetting, setResetting] = useState<string | null>(null);
+
+  if (!isAdmin) return null;
+  const breakers = (data ?? []) as OpenBreakerRow[];
+  if (!isLoading && breakers.length === 0) return null;
+
+  async function handleReset(b: OpenBreakerRow) {
+    const key = `${b.app_id}::${b.context}`;
+    setResetting(key);
+    try {
+      const { data: res, error } = await supabase.rpc(
+        "force_close_spotify_circuit_breaker" as any,
+        { p_app_id: b.app_id, p_context: b.context },
+      );
+      if (error) throw error;
+      const ok = (res as any)?.ok;
+      if (!ok) {
+        toast.error(`Não foi possível resetar: ${(res as any)?.error ?? "erro"}`);
+      } else {
+        toast.success(`Breaker resetado (${b.app_name} / ${b.context})`);
+        await Promise.all([
+          refetch(),
+          qc.invalidateQueries({ queryKey: ["spotify-apps-status"] }),
+          qc.invalidateQueries({ queryKey: ["blocked-playlist-ids"] }),
+        ]);
+      }
+    } catch (e: any) {
+      toast.error(`Falha ao resetar: ${e?.message ?? String(e)}`);
+    } finally {
+      setResetting(null);
+    }
+  }
+
+  return (
+    <div className="border-t border-border">
+      <div className="px-4 py-2 bg-elevated/40 text-[10px] uppercase tracking-wider text-muted-foreground font-medium flex items-center gap-2">
+        <ShieldAlert className="h-3 w-3" />
+        Breakers abertos (admin)
+      </div>
+      {isLoading ? (
+        <div className="p-4 grid place-items-center">
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        breakers.map((b) => {
+          const key = `${b.app_id}::${b.context}`;
+          const isOp = b.context === "operation";
+          return (
+            <div key={key} className="grid grid-cols-[1fr_auto_auto_auto] gap-3 items-center px-4 py-2.5 border-b border-border last:border-0">
+              <div className="min-w-0">
+                <div className="text-sm font-medium truncate">{b.app_name}</div>
+                <div className="text-[11px] text-muted-foreground">
+                  Liberação automática {fmtLocal(b.blocked_until)}
+                </div>
+              </div>
+              <Badge
+                variant="outline"
+                className={cn(
+                  "text-[10px]",
+                  isOp ? "border-destructive/40 text-destructive" : "border-warning/40 text-warning",
+                )}
+              >
+                {b.context}
+              </Badge>
+              <div className="text-right text-[11px] text-muted-foreground tabular-nums">
+                retry {b.retry_after_sec}s
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleReset(b)}
+                disabled={resetting === key}
+                className="h-7 text-xs gap-1"
+              >
+                {resetting === key
+                  ? <Loader2 className="h-3 w-3 animate-spin" />
+                  : <Unlock className="h-3 w-3" />}
+                Resetar
+              </Button>
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
