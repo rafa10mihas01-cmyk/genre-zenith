@@ -530,6 +530,19 @@ export async function guardedSpotifyFetch(
         const text = await clone.text();
         if (text) errorBody = text.slice(0, 1000);
       } catch { /* ignore */ }
+      // PERMANENT: app em Development Mode + user fora da whitelist (403)
+      if (r.status === 403 && isAppUserNotWhitelistedBody(errorBody)) {
+        fireAndForgetAccessBlock({
+          appId: merged.app_id,
+          appName: merged.app_name,
+          functionName: merged.function_name,
+          spotifyUserId: merged.spotify_user_id,
+          rawUrl: url,
+          endpoint,
+          method,
+          errorBody,
+        });
+      }
     }
     // Hook AUTH_INVALID em 401 + reset em 2xx (debounced).
     // FASE APP-03: 401/403 em endpoints restritos NÃO marcam falha de auth
