@@ -58,6 +58,31 @@ function useAccessBlocks() {
   });
 }
 
+type BlockedApp = {
+  id: string;
+  name: string;
+  quarantine_reason: string | null;
+  updated_at: string | null;
+};
+
+function useBlockedApps() {
+  return useQuery({
+    queryKey: ["spotify-apps-dev-mode-blocked"],
+    queryFn: async (): Promise<BlockedApp[]> => {
+      const { data, error } = await supabase
+        .from("spotify_apps")
+        .select("id,name,quarantine_reason,updated_at")
+        .eq("status", "quarantined")
+        .like("quarantine_reason", "development_mode_blocked%")
+        .order("name");
+      if (error) throw error;
+      return (data ?? []) as BlockedApp[];
+    },
+    refetchInterval: 60_000,
+  });
+}
+
+
 export function SpotifyAccessBlocksPanel() {
   const { data, isLoading, refetch, isFetching } = useAccessBlocks();
   const rows = data ?? [];
