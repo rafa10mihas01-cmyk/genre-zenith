@@ -98,11 +98,11 @@ Deno.serve(async (req) => {
   return jr({ ok: true, worker: WORKER_ID, claimed: list.length, ...results });
 });
 
-async function processJob(sb: any, token: string, job: Job): Promise<"done" | "not_found" | "forbidden" | "retry" | "failed"> {
+async function processJob(sb: any, job: Job): Promise<"done" | "not_found" | "forbidden" | "retry" | "failed"> {
   const url = job.kind === "track"
     ? `https://api.spotify.com/v1/tracks/${job.ref_id}`
     : `https://api.spotify.com/v1/artists/${job.ref_id}`;
-  const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const r = await ccFetch(url, "spotify-enrichment-worker", job.ref_id);
 
   if (r.status === 200) {
     const j = await r.json();
