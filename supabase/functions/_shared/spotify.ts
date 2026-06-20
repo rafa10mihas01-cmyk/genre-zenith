@@ -628,6 +628,19 @@ export function installSpotifyCircuitFetchGuard() {
           const text = await clone.text();
           if (text) errorBody = text.slice(0, 1000);
         } catch { /* ignore */ }
+        // PERMANENT: app em Development Mode + user fora da whitelist (403)
+        if (r.status === 403 && isAppUserNotWhitelistedBody(errorBody)) {
+          fireAndForgetAccessBlock({
+            appId: merged.app_id,
+            appName: merged.app_name,
+            functionName: merged.function_name,
+            spotifyUserId: merged.spotify_user_id,
+            rawUrl,
+            endpoint,
+            method,
+            errorBody,
+          });
+        }
       }
       // Hook AUTH_INVALID: 401 em api.spotify.com (não em accounts) → conta falha do app.
       // FASE APP-03: pula endpoints restritos (descoberta) — 401/403 lá é quota do Spotify, não falha do app.
