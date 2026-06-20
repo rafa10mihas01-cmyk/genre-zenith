@@ -4,7 +4,7 @@
 // Sem efeitos colaterais. Idempotente.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getAppToken, spotifyFetch } from "../_shared/spotify-client.ts";
+import { ccFetch } from "../_shared/catalog-gateway.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -64,10 +64,10 @@ Deno.serve(async (req) => {
       }, 200);
     }
 
-    const token = await getAppToken();
-    const trackResp = await spotifyFetch(
+    const trackResp = await ccFetch(
       `https://api.spotify.com/v1/tracks/${trackId}`,
-      { headers: { Authorization: `Bearer ${token}` } },
+      "resolve-catalog-track",
+      trackId,
     );
     if (!trackResp.ok) {
       const text = await trackResp.text();
@@ -89,9 +89,10 @@ Deno.serve(async (req) => {
     const primaryArtistId = track.artists?.[0]?.id;
     if (primaryArtistId) {
       try {
-        const artResp = await spotifyFetch(
+        const artResp = await ccFetch(
           `https://api.spotify.com/v1/artists/${primaryArtistId}`,
-          { headers: { Authorization: `Bearer ${token}` } },
+          "resolve-catalog-track",
+          primaryArtistId,
         );
         if (artResp.ok) {
           const a = await artResp.json() as {

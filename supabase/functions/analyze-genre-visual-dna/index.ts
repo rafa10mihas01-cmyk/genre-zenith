@@ -4,7 +4,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
-import { getAppToken, spotifyFetch } from "../_shared/spotify-client.ts";
+import { ccFetch } from "../_shared/catalog-gateway.ts";
 
 import { deprecationGate } from "../_shared/_deprecation.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -246,10 +246,10 @@ Deno.serve(async (req) => {
           }
           const ids = Array.from(artistIdMap.values()).slice(0, 10);
           if (ids.length > 0) {
-            const token = await getAppToken();
-            const r = await spotifyFetch(`https://api.spotify.com/v1/artists?ids=${ids.join(",")}`, {
-              headers: { Authorization: `Bearer ${token}` },
-            });
+            const r = await ccFetch(
+              `https://api.spotify.com/v1/artists?ids=${ids.join(",")}`,
+              "analyze-genre-visual-dna",
+            );
             if (r.ok) {
               const aj = await r.json();
               const existing = new Set(results.map((x) => x.imagem_url));
