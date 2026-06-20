@@ -397,8 +397,29 @@ async function recordAppAccessBlock(args: {
   }
 }
 
+// Dedupe: evita inserir centenas de rows iguais quando o mesmo app+user+playlist
+// estoura repetidamente no mesmo isolate. Mantém só 1 insert por triple por hora.
+const __seenAccessBlock = new Map<string, number>();
+const ACCESS_BLOCK_DEDUPE_MS = 60 * 60 * 1000;
+
 function fireAndForgetAccessBlock(args: Parameters<typeof recordAppAccessBlock>[0]): void {
+  const key = `${args.appId ?? "?"}|${args.spotifyUserId ?? "?"}|${args.rawUrl.match(/[A-Za-z0-9]{22}/)?.[0] ?? "?"}`;
+  const last = __seenAccessBlock.get(key) ?? 0;
+  const now = Date.now();
   const er = (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } }).EdgeRuntime;
+
+  // Sempre tenta quarentenar a app (RPC é idempotente e dedupa alerta).
+  if (args.appId) {
+    const q = db().rpc("quarantine_spotify_app_dev_mode", {
+      p_app_id: args.appId,
+      p_spotify_user_id: args.spotifyUserId ?? null,
+    }).then(() => {}).catch(() => {});
+    if (er?.waitUntil) { try { er.waitUntil(q); } catch { /* noop */ } }
+  }
+
+  if (now - last < ACCESS_BLOCK_DEDUPE_MS) return;
+  __seenAccessBlock.set(key, now);
+
   const p = recordAppAccessBlock(args);
   if (er?.waitUntil) { try { er.waitUntil(p); } catch { p.catch(() => {}); } }
   else p.catch(() => {});
