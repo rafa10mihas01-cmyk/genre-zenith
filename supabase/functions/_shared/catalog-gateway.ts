@@ -167,7 +167,12 @@ async function getGatewayCcToken(): Promise<{ token: string; appName: string }> 
 // ---------------------------------------------------------------------------
 // Fetch com Client Credentials + logging
 // ---------------------------------------------------------------------------
-export async function ccFetch(url: string, caller: string, resourceId?: string): Promise<Response> {
+export async function ccFetch(
+  url: string,
+  caller: string,
+  resourceId?: string,
+  init?: { signal?: AbortSignal },
+): Promise<Response> {
   const startedAt = Date.now();
   const endpoint = normalizeEndpointForLog(url);
   let httpStatus: number | null = null;
@@ -175,7 +180,10 @@ export async function ccFetch(url: string, caller: string, resourceId?: string):
   let errorMsg: string | null = null;
   try {
     const { token } = await getGatewayCcToken();
-    const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    const r = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: init?.signal,
+    });
     httpStatus = r.status;
     if (!r.ok) status = "http_error";
     return r;
