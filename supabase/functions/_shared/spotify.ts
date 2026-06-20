@@ -280,7 +280,130 @@ export function isRestrictedDiscoveryEndpoint(rawUrl: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Telemetria — log fail-silent em `spotify_call_log`.
+// Spotify App em Development Mode — detecção e registro permanente.
+// Quando o Spotify retorna 403 com mensagem indicando que o usuário não
+// está registrado na whitelist do app, é ERRO PERMANENTE: não adianta retry.
+// Registramos diagnóstico granular em `spotify_app_access_blocks` para que
+// o admin saiba EXATAMENTE quais apps/usuários/playlists estão sem acesso.
+// ---------------------------------------------------------------------------
+export class SpotifyPermanentAccessError extends Error {
+  appId: string | null;
+  spotifyUserId: string | null;
+  reason = "app_user_not_whitelisted" as const;
+  status = 403 as const;
+  constructor(appId: string | null, spotifyUserId: string | null, detail = "") {
+    super(`SPOTIFY_APP_USER_NOT_WHITELISTED app=${appId ?? "unknown"} user=${spotifyUserId ?? "unknown"}${detail ? ": " + detail.slice(0, 200) : ""}`);
+    this.name = "SpotifyPermanentAccessError";
+    this.appId = appId;
+    this.spotifyUserId = spotifyUserId;
+  }
+}
+
+export function isAppUserNotWhitelistedBody(body: string | null | undefined): boolean {
+  if (!body) return false;
+  const b = body.toLowerCase();
+  return (
+    b.includes("user may not be registered") ||
+    (b.includes("check settings on") && b.includes("developer.spotify.com/dashboard"))
+  );
+}
+
+function extractSpotifyResourceIds(rawUrl: string): {
+  playlistId: string | null;
+  trackId: string | null;
+  userId: string | null;
+} {
+  try {
+    const u = new URL(rawUrl);
+    const p = u.pathname;
+    const playlistId = p.match(/\/v1\/playlists\/([A-Za-z0-9]{22})/)?.[1] ?? null;
+    const trackId = p.match(/\/v1\/tracks\/([A-Za-z0-9]{22})/)?.[1] ?? null;
+    const userId = p.match(/\/v1\/users\/([^/]+)/)?.[1] ?? null;
+    return { playlistId, trackId, userId };
+  } catch {
+    return { playlistId: null, trackId: null, userId: null };
+  }
+}
+
+async function recordAppAccessBlock(args: {
+  appId: string | null;
+  appName: string | null;
+  functionName: string | null;
+  spotifyUserId: string | null;
+  rawUrl: string;
+  endpoint: string;
+  method: string;
+  errorBody: string | null;
+}): Promise<void> {
+  try {
+    const ids = extractSpotifyResourceIds(args.rawUrl);
+    // Lookup client_id e app_name se faltar
+    let clientId: string | null = null;
+    let appName = args.appName;
+    if (args.appId) {
+      try {
+        const { data } = await db()
+          .from("spotify_apps")
+          .select("name, client_id")
+          .eq("id", args.appId)
+          .maybeSingle();
+        if (data) {
+          clientId = (data as { client_id: string | null }).client_id ?? null;
+          if (!appName) appName = (data as { name: string | null }).name ?? null;
+        }
+      } catch { /* noop */ }
+    }
+    // Lookup playlist owner/name best-effort
+    let playlistName: string | null = null;
+    let ownerId: string | null = null;
+    let ownerName: string | null = null;
+    if (ids.playlistId) {
+      try {
+        const { data } = await db()
+          .from("spotify_playlist_cache")
+          .select("name, owner_id, owner_display_name")
+          .eq("playlist_id", ids.playlistId)
+          .maybeSingle();
+        if (data) {
+          const d = data as { name: string | null; owner_id: string | null; owner_display_name: string | null };
+          playlistName = d.name;
+          ownerId = d.owner_id;
+          ownerName = d.owner_display_name;
+        }
+      } catch { /* noop */ }
+    }
+    const { error } = await db().from("spotify_app_access_blocks").insert({
+      app_id: args.appId,
+      app_name: appName,
+      client_id: clientId,
+      spotify_user_id: args.spotifyUserId ?? ids.userId,
+      function_name: args.functionName,
+      endpoint: args.endpoint,
+      http_method: args.method,
+      spotify_playlist_id: ids.playlistId,
+      playlist_name: playlistName,
+      playlist_owner_id: ownerId,
+      playlist_owner_name: ownerName,
+      spotify_track_id: ids.trackId,
+      raw_url: args.rawUrl.slice(0, 500),
+      error_body: args.errorBody?.slice(0, 1000) ?? null,
+      reason: "app_user_not_whitelisted",
+    });
+    if (error) {
+      console.error("[spotify_app_access_blocks] insert failed:", error.message);
+    }
+  } catch (e) {
+    console.error("[spotify_app_access_blocks] insert threw:", (e as Error)?.message ?? String(e));
+  }
+}
+
+function fireAndForgetAccessBlock(args: Parameters<typeof recordAppAccessBlock>[0]): void {
+  const er = (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } }).EdgeRuntime;
+  const p = recordAppAccessBlock(args);
+  if (er?.waitUntil) { try { er.waitUntil(p); } catch { p.catch(() => {}); } }
+  else p.catch(() => {});
+}
+
 // Usado pelo guardedSpotifyFetch e pelo monkey-patch global do fetch.
 // Mantém o caller ileso (nunca lança) mas grita no console em falha
 // para que problemas de GRANT/RLS apareçam nos edge logs.
