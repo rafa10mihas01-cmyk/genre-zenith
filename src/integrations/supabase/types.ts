@@ -11113,6 +11113,13 @@ export type Database = {
             foreignKeyName: "spotify_app_access_blocks_app_id_fkey"
             columns: ["app_id"]
             isOneToOne: false
+            referencedRelation: "spotify_app_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "spotify_app_access_blocks_app_id_fkey"
+            columns: ["app_id"]
+            isOneToOne: false
             referencedRelation: "spotify_apps"
             referencedColumns: ["id"]
           },
@@ -11121,64 +11128,97 @@ export type Database = {
       spotify_apps: {
         Row: {
           auth_failure_count: number
+          blocked_reason: string | null
+          cap_calls_per_hour: number
+          cap_calls_per_minute: number
           client_id: string
           client_secret: string
           created_at: string
+          development_mode: boolean
+          extended_quota: boolean
           id: string
           is_default: boolean
           last_auth_failure_at: string | null
+          lifecycle_state: string
           max_accounts: number
+          max_playlists: number
+          min_health_score: number
           name: string
           notes: string | null
           owner_email: string | null
+          purpose: string
           quarantine_reason: string | null
           quarantined_until: string | null
           ready_for_deletion: boolean
+          removed_from_pool_at: string | null
           retired_from_production: boolean
           retirement_audit: Json | null
           slug: string
+          soft_capacity_cap: number
           status: string
           updated_at: string
         }
         Insert: {
           auth_failure_count?: number
+          blocked_reason?: string | null
+          cap_calls_per_hour?: number
+          cap_calls_per_minute?: number
           client_id: string
           client_secret: string
           created_at?: string
+          development_mode?: boolean
+          extended_quota?: boolean
           id?: string
           is_default?: boolean
           last_auth_failure_at?: string | null
+          lifecycle_state?: string
           max_accounts?: number
+          max_playlists?: number
+          min_health_score?: number
           name: string
           notes?: string | null
           owner_email?: string | null
+          purpose?: string
           quarantine_reason?: string | null
           quarantined_until?: string | null
           ready_for_deletion?: boolean
+          removed_from_pool_at?: string | null
           retired_from_production?: boolean
           retirement_audit?: Json | null
           slug: string
+          soft_capacity_cap?: number
           status?: string
           updated_at?: string
         }
         Update: {
           auth_failure_count?: number
+          blocked_reason?: string | null
+          cap_calls_per_hour?: number
+          cap_calls_per_minute?: number
           client_id?: string
           client_secret?: string
           created_at?: string
+          development_mode?: boolean
+          extended_quota?: boolean
           id?: string
           is_default?: boolean
           last_auth_failure_at?: string | null
+          lifecycle_state?: string
           max_accounts?: number
+          max_playlists?: number
+          min_health_score?: number
           name?: string
           notes?: string | null
           owner_email?: string | null
+          purpose?: string
           quarantine_reason?: string | null
           quarantined_until?: string | null
           ready_for_deletion?: boolean
+          removed_from_pool_at?: string | null
           retired_from_production?: boolean
           retirement_audit?: Json | null
           slug?: string
+          soft_capacity_cap?: number
           status?: string
           updated_at?: string
         }
@@ -11505,6 +11545,13 @@ export type Database = {
             foreignKeyName: "spotify_invite_tokens_app_id_fkey"
             columns: ["app_id"]
             isOneToOne: false
+            referencedRelation: "spotify_app_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "spotify_invite_tokens_app_id_fkey"
+            columns: ["app_id"]
+            isOneToOne: false
             referencedRelation: "spotify_apps"
             referencedColumns: ["id"]
           },
@@ -11573,6 +11620,13 @@ export type Database = {
             foreignKeyName: "spotify_oauth_audit_app_id_fkey"
             columns: ["app_id"]
             isOneToOne: false
+            referencedRelation: "spotify_app_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "spotify_oauth_audit_app_id_fkey"
+            columns: ["app_id"]
+            isOneToOne: false
             referencedRelation: "spotify_apps"
             referencedColumns: ["id"]
           },
@@ -11604,6 +11658,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "spotify_oauth_states_app_id_fkey"
+            columns: ["app_id"]
+            isOneToOne: false
+            referencedRelation: "spotify_app_overview"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "spotify_oauth_states_app_id_fkey"
             columns: ["app_id"]
@@ -11669,6 +11730,13 @@ export type Database = {
           singleton_key?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "spotify_tokens_app_id_fkey"
+            columns: ["app_id"]
+            isOneToOne: false
+            referencedRelation: "spotify_app_overview"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "spotify_tokens_app_id_fkey"
             columns: ["app_id"]
@@ -11779,6 +11847,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "spotify_user_tokens_app_id_fkey"
+            columns: ["app_id"]
+            isOneToOne: false
+            referencedRelation: "spotify_app_overview"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "spotify_user_tokens_app_id_fkey"
             columns: ["app_id"]
@@ -12248,6 +12323,44 @@ export type Database = {
         }
         Relationships: []
       }
+      spotify_app_overview: {
+        Row: {
+          accounts_count: number | null
+          active_playlists: number | null
+          average_latency_ms: number | null
+          blocked_reason: string | null
+          calls_last_1h: number | null
+          calls_last_24h: number | null
+          calls_last_5m: number | null
+          calls_last_7d: number | null
+          cap_calls_per_hour: number | null
+          cap_calls_per_minute: number | null
+          capacity_score: number | null
+          circuit_breaker: string | null
+          created_at: string | null
+          development_mode: boolean | null
+          error_403_last_hour: number | null
+          error_429_last_hour: number | null
+          extended_quota: boolean | null
+          health_score: number | null
+          id: string | null
+          is_default: boolean | null
+          lifecycle_state: string | null
+          max_accounts: number | null
+          max_playlists: number | null
+          min_health_score: number | null
+          name: string | null
+          pool_eligible: boolean | null
+          purpose: string | null
+          quarantined_until: string | null
+          removed_from_pool_at: string | null
+          retries_last_hour: number | null
+          soft_capacity_cap: number | null
+          status: string | null
+          total_playlists: number | null
+        }
+        Relationships: []
+      }
       spotify_user_tokens_public: {
         Row: {
           app_id: string | null
@@ -12274,6 +12387,13 @@ export type Database = {
           spotify_user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "spotify_user_tokens_app_id_fkey"
+            columns: ["app_id"]
+            isOneToOne: false
+            referencedRelation: "spotify_app_overview"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "spotify_user_tokens_app_id_fkey"
             columns: ["app_id"]
@@ -12993,6 +13113,13 @@ export type Database = {
           spotify_user_url: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "spotify_app_access_blocks_app_id_fkey"
+            columns: ["app_id"]
+            isOneToOne: false
+            referencedRelation: "spotify_app_overview"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "spotify_app_access_blocks_app_id_fkey"
             columns: ["app_id"]
@@ -14003,6 +14130,18 @@ export type Database = {
           spotify_user_id: string
         }[]
       }
+      pick_spotify_app: {
+        Args: { p_purpose?: string }
+        Returns: {
+          capacity_score: number
+          client_id: string
+          client_secret: string
+          health_score: number
+          id: string
+          name: string
+          purpose: string
+        }[]
+      }
       preview_distribute_catalog_track: {
         Args: { p_genre_id: string; p_spotify_track_id: string }
         Returns: Json
@@ -14018,6 +14157,17 @@ export type Database = {
       purge_cron_job_run_details: { Args: never; Returns: undefined }
       quarantine_spotify_app_dev_mode: {
         Args: { p_app_id: string; p_spotify_user_id?: string }
+        Returns: undefined
+      }
+      raise_spotify_balancer_alert: {
+        Args: {
+          p_app_id: string
+          p_kind: string
+          p_message: string
+          p_metadata?: Json
+          p_severity: string
+          p_title: string
+        }
         Returns: undefined
       }
       read_email_batch: {
@@ -14171,6 +14321,7 @@ export type Database = {
           suggested_weight: number
         }[]
       }
+      sweep_spotify_balancer_alerts: { Args: never; Returns: undefined }
       sync_campaign_curator_playlist_attribution: {
         Args: { p_campaign_id: string; p_playlist_id?: string }
         Returns: number
