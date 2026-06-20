@@ -126,13 +126,13 @@ Deno.serve(async (req) => {
 
     for (let page = 0; page < MAX_PAGES; page++) {
       const offset = page * PAGE_SIZE;
-      let resp = await spotifySearch(token, body.search_term, offset, controller.signal);
+      let resp = await spotifySearch(body.search_term, offset, controller.signal);
 
       // 429 retry once
       if (!resp.ok && resp.status === 429) {
         const wait = Math.min(60, Math.max(1, resp.retryAfter ?? 1));
         await new Promise((r) => setTimeout(r, wait * 1000));
-        resp = await spotifySearch(token, body.search_term, offset, controller.signal);
+        resp = await spotifySearch(body.search_term, offset, controller.signal);
         if (!resp.ok && resp.status === 429) {
           rateLimited = true;
           lastSpotifyStatus = 429;
