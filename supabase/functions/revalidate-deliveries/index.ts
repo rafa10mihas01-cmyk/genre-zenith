@@ -6,12 +6,16 @@
 // mais é re-checado. Só jobs nunca validados, ou que ficaram em `error` /
 // `removed`, voltam pra fila.
 //
-// Fase 17-B.1: leitura agora vai pelo Catalog Gateway (Client Credentials +
-// cache 24h + coalescência). Não precisa mais de token OAuth do dono —
-// `GET playlists/{id}/tracks` em playlist pública é endpoint público.
+// Fase 17-B.1: leitura via Catalog Gateway (Client Credentials + cache 24h
+// + coalescência) para playlists públicas.
+//
+// Fase 17-B.5.2: roteamento híbrido. Playlists do ecossistema (existem em
+// `managed_playlists`) são privadas/colab e o pool CC retorna 403 nelas.
+// Para essas usamos OAuth do owner (`owner_spotify_user_id`) com leitura
+// paginada direta em `/playlists/{id}/tracks`. Resto do pipeline inalterado.
 //
 // Salvaguardas:
-//  - Lote pequeno (default 50, máx 200) — evita varrer tudo de uma vez.
+//  - Lote pequeno (default 50, máx 200).
 //  - Respeita o circuit breaker do Spotify: se mais da metade das apps
 //    estiver `open`, a função sai sem chamar nada.
 //  - Cron deve rodar de hora em hora — não de 1 em 1 min.
@@ -19,9 +23,47 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { getPlaylistItems } from '../_shared/catalog-gateway.ts';
+import { getUserToken, spotifyFetch } from '../_shared/spotify-client.ts';
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
+const FN = 'revalidate-deliveries';
+
+type Item = { track_id: string };
+
+/** Leitura paginada via OAuth do owner para playlists managed/privadas. */
+async function fetchManagedItems(playlistId: string, ownerSpotifyUserId: string | null): Promise<Item[]> {
+  if (!ownerSpotifyUserId) {
+    throw new Error(`managed playlist sem owner_spotify_user_id (${playlistId})`);
+  }
+  const { token } = await getUserToken(ownerSpotifyUserId);
+  const out: Item[] = [];
+  let offset = 0;
+  const limit = 100;
+  const fields = 'items(track(id)),next';
+  while (true) {
+    const url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=${limit}&offset=${offset}&fields=${encodeURIComponent(fields)}`;
+    const r = await spotifyFetch(url, { headers: { Authorization: `Bearer ${token}` } }, {
+      functionName: FN,
+      operation: 'managed_read',
+      playlist_id: playlistId,
+      spotify_user_id: ownerSpotifyUserId,
+    });
+    if (!r.ok) {
+      if (r.status === 404) return [];
+      throw new Error(`managed read ${r.status} playlist=${playlistId}`);
+    }
+    const j = await r.json() as { items?: Array<{ track: { id: string } | null }>; next?: string | null };
+    const page = j.items ?? [];
+    for (const it of page) {
+      if (it.track?.id) out.push({ track_id: it.track.id });
+    }
+    if (!j.next || page.length < limit) break;
+    offset += limit;
+    if (offset > 10_000) break;
+  }
+  return out;
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -99,10 +141,20 @@ Deno.serve(async (req) => {
     );
   }
 
-  // ── Loop de validação (via Catalog Gateway) ──────────────────────────
-  // Não precisa mais buscar accounts/tokens — gateway usa CC.
-  const itemsCache = new Map<string, { track_id: string }[]>();
+  // ── Pré-lookup: quais playlists são managed (e qual o owner OAuth) ───
+  const playlistIds = Array.from(new Set(Array.from(uniq.values()).map((j) => j.spotify_playlist_id)));
+  const { data: managedRows } = await sb
+    .from('managed_playlists')
+    .select('spotify_playlist_id, owner_spotify_user_id')
+    .in('spotify_playlist_id', playlistIds);
+  const managedOwner = new Map<string, string | null>(
+    (managedRows ?? []).map((r: any) => [r.spotify_playlist_id, r.owner_spotify_user_id ?? null]),
+  );
+
+  // ── Loop de validação (rota híbrida: gateway-cc | oauth-managed) ─────
+  const itemsCache = new Map<string, Item[]>();
   const counts = { present: 0, moved: 0, duplicate: 0, removed: 0, error: 0, skipped: 0 };
+  const routing = { gateway_cc: 0, oauth_managed: 0 };
   const validations: any[] = [];
   const jobUpdates: { id: string; status: string; position: number | null }[] = [];
 
@@ -110,7 +162,13 @@ Deno.serve(async (req) => {
     try {
       let items = itemsCache.get(j.spotify_playlist_id);
       if (!items) {
-        items = await getPlaylistItems(j.spotify_playlist_id, 'revalidate-deliveries');
+        if (managedOwner.has(j.spotify_playlist_id)) {
+          items = await fetchManagedItems(j.spotify_playlist_id, managedOwner.get(j.spotify_playlist_id) ?? null);
+          routing.oauth_managed++;
+        } else {
+          items = await getPlaylistItems(j.spotify_playlist_id, FN);
+          routing.gateway_cc++;
+        }
         itemsCache.set(j.spotify_playlist_id, items);
       }
       const positions: number[] = [];
@@ -174,7 +232,8 @@ Deno.serve(async (req) => {
       checked: uniq.size,
       limit,
       counts,
-      via: 'catalog-gateway-cc',
+      routing,
+      via: 'hybrid: gateway-cc (public) + oauth (managed)',
       policy: 'confirm_once: present/moved/duplicate never re-checked',
     }, null, 2),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
