@@ -37,6 +37,7 @@ import { CapacidadePanel } from "@/components/sistema/CapacidadePanel";
 import { SpotifyPilotPanel } from "@/components/sistema/SpotifyPilotPanel";
 import { ManualDistribuicoesPanel } from "@/components/sistema/ManualDistribuicoesPanel";
 import { SpotifyAppsPanel } from "@/components/sistema/SpotifyAppsPanel";
+import { SpotifyAccessBlocksPanel } from "@/components/sistema/SpotifyAccessBlocksPanel";
 import { ExecutiveStatusBar } from "@/components/sistema/ExecutiveStatusBar";
 import { AttentionInbox } from "@/components/sistema/AttentionInbox";
 import { OperationalSummary } from "@/components/sistema/OperationalSummary";
@@ -208,6 +209,10 @@ export default function Sistema() {
                 <section>
                   <SectionHeader icon={ShieldAlert} title="Apps Spotify" subtitle="Quais apps estão saudáveis, em atenção ou bloqueados agora" />
                   <SpotifyAppsPanel />
+                </section>
+                <section>
+                  <SectionHeader icon={ShieldAlert} title="Apps sem acesso" subtitle="Apps em Development Mode bloqueando usuários e playlists específicos" />
+                  <SpotifyAccessBlocksPanel />
                 </section>
                 <section>
                   <SectionHeader icon={Workflow} title="Motor editorial" subtitle="Saúde do pipeline de curadoria" />

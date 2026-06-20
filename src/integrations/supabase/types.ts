@@ -11047,6 +11047,77 @@ export type Database = {
           },
         ]
       }
+      spotify_app_access_blocks: {
+        Row: {
+          app_id: string | null
+          app_name: string | null
+          client_id: string | null
+          created_at: string
+          endpoint: string
+          error_body: string | null
+          function_name: string | null
+          http_method: string
+          id: number
+          playlist_name: string | null
+          playlist_owner_id: string | null
+          playlist_owner_name: string | null
+          raw_url: string | null
+          reason: string
+          spotify_playlist_id: string | null
+          spotify_track_id: string | null
+          spotify_user_id: string | null
+          spotify_user_name: string | null
+        }
+        Insert: {
+          app_id?: string | null
+          app_name?: string | null
+          client_id?: string | null
+          created_at?: string
+          endpoint: string
+          error_body?: string | null
+          function_name?: string | null
+          http_method?: string
+          id?: number
+          playlist_name?: string | null
+          playlist_owner_id?: string | null
+          playlist_owner_name?: string | null
+          raw_url?: string | null
+          reason?: string
+          spotify_playlist_id?: string | null
+          spotify_track_id?: string | null
+          spotify_user_id?: string | null
+          spotify_user_name?: string | null
+        }
+        Update: {
+          app_id?: string | null
+          app_name?: string | null
+          client_id?: string | null
+          created_at?: string
+          endpoint?: string
+          error_body?: string | null
+          function_name?: string | null
+          http_method?: string
+          id?: number
+          playlist_name?: string | null
+          playlist_owner_id?: string | null
+          playlist_owner_name?: string | null
+          raw_url?: string | null
+          reason?: string
+          spotify_playlist_id?: string | null
+          spotify_track_id?: string | null
+          spotify_user_id?: string | null
+          spotify_user_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spotify_app_access_blocks_app_id_fkey"
+            columns: ["app_id"]
+            isOneToOne: false
+            referencedRelation: "spotify_apps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       spotify_apps: {
         Row: {
           auth_failure_count: number
@@ -12902,6 +12973,35 @@ export type Database = {
           },
         ]
       }
+      v_spotify_app_access_blocks_summary: {
+        Row: {
+          app_id: string | null
+          app_name: string | null
+          client_id: string | null
+          error_count: number | null
+          first_seen: string | null
+          last_seen: string | null
+          playlist_name: string | null
+          playlist_owner_id: string | null
+          playlist_owner_name: string | null
+          playlist_url: string | null
+          reason: string | null
+          sample_error: string | null
+          spotify_playlist_id: string | null
+          spotify_user_id: string | null
+          spotify_user_name: string | null
+          spotify_user_url: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spotify_app_access_blocks_app_id_fkey"
+            columns: ["app_id"]
+            isOneToOne: false
+            referencedRelation: "spotify_apps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vw_403_audit_report: {
         Row: {
           errors_7d: number | null
@@ -13699,6 +13799,33 @@ export type Database = {
           tempo_horas: number
           total_tracks: number
         }[]
+      }
+      get_spotify_app_access_blocks: {
+        Args: never
+        Returns: {
+          app_id: string | null
+          app_name: string | null
+          client_id: string | null
+          error_count: number | null
+          first_seen: string | null
+          last_seen: string | null
+          playlist_name: string | null
+          playlist_owner_id: string | null
+          playlist_owner_name: string | null
+          playlist_url: string | null
+          reason: string | null
+          sample_error: string | null
+          spotify_playlist_id: string | null
+          spotify_user_id: string | null
+          spotify_user_name: string | null
+          spotify_user_url: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "v_spotify_app_access_blocks_summary"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_spotify_app_for_playlist: {
         Args: { p_playlist_id: string }

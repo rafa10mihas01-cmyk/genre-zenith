@@ -1,0 +1,1 @@
+UPDATE public.spotify_app_access_blocks SET spotify_playlist_id = NULL WHERE spotify_playlist_id = ':id';
