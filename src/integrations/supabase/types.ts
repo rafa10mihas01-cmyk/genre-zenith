@@ -2015,6 +2015,39 @@ export type Database = {
           },
         ]
       }
+      catalog_inflight: {
+        Row: {
+          caller: string | null
+          endpoint: string
+          expires_at: string
+          id: string
+          resource_id: string
+          resource_key: string
+          started_at: string
+          status: string
+        }
+        Insert: {
+          caller?: string | null
+          endpoint: string
+          expires_at?: string
+          id?: string
+          resource_id: string
+          resource_key: string
+          started_at?: string
+          status?: string
+        }
+        Update: {
+          caller?: string | null
+          endpoint?: string
+          expires_at?: string
+          id?: string
+          resource_id?: string
+          resource_key?: string
+          started_at?: string
+          status?: string
+        }
+        Relationships: []
+      }
       catalog_placement_execution_log: {
         Row: {
           catalog_track_id: string
@@ -11677,30 +11710,72 @@ export type Database = {
       spotify_playlist_cache: {
         Row: {
           cached_at: string
+          collaborative: boolean | null
           created_at: string
+          description: string | null
+          etag: string | null
+          fetch_status: string | null
           followers: number | null
           id: string
           image_url: string | null
+          last_error: string | null
+          meta_refreshed_at: string | null
+          name: string | null
+          owner_id: string | null
           owner_name: string | null
+          public_flag: boolean | null
+          snapshot_id: string | null
+          source: string | null
           spotify_playlist_id: string
+          total_tracks: number | null
+          tracks_jsonb: Json | null
+          tracks_refreshed_at: string | null
         }
         Insert: {
           cached_at?: string
+          collaborative?: boolean | null
           created_at?: string
+          description?: string | null
+          etag?: string | null
+          fetch_status?: string | null
           followers?: number | null
           id?: string
           image_url?: string | null
+          last_error?: string | null
+          meta_refreshed_at?: string | null
+          name?: string | null
+          owner_id?: string | null
           owner_name?: string | null
+          public_flag?: boolean | null
+          snapshot_id?: string | null
+          source?: string | null
           spotify_playlist_id: string
+          total_tracks?: number | null
+          tracks_jsonb?: Json | null
+          tracks_refreshed_at?: string | null
         }
         Update: {
           cached_at?: string
+          collaborative?: boolean | null
           created_at?: string
+          description?: string | null
+          etag?: string | null
+          fetch_status?: string | null
           followers?: number | null
           id?: string
           image_url?: string | null
+          last_error?: string | null
+          meta_refreshed_at?: string | null
+          name?: string | null
+          owner_id?: string | null
           owner_name?: string | null
+          public_flag?: boolean | null
+          snapshot_id?: string | null
+          source?: string | null
           spotify_playlist_id?: string
+          total_tracks?: number | null
+          tracks_jsonb?: Json | null
+          tracks_refreshed_at?: string | null
         }
         Relationships: []
       }
@@ -12298,6 +12373,21 @@ export type Database = {
           spotify_track_id: string | null
           start_captured_at: string | null
           start_plays_7d: number | null
+        }
+        Relationships: []
+      }
+      catalog_gateway_metrics: {
+        Row: {
+          avg_duration_ms: number | null
+          caller: string | null
+          calls: number | null
+          endpoint: string | null
+          forbidden_calls: number | null
+          hour: string | null
+          ok_calls: number | null
+          ratelimited_calls: number | null
+          server_error_calls: number | null
+          source: string | null
         }
         Relationships: []
       }
