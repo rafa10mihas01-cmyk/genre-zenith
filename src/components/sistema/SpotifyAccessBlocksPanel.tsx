@@ -58,8 +58,34 @@ function useAccessBlocks() {
   });
 }
 
+type BlockedApp = {
+  id: string;
+  name: string;
+  quarantine_reason: string | null;
+  updated_at: string | null;
+};
+
+function useBlockedApps() {
+  return useQuery({
+    queryKey: ["spotify-apps-dev-mode-blocked"],
+    queryFn: async (): Promise<BlockedApp[]> => {
+      const { data, error } = await supabase
+        .from("spotify_apps")
+        .select("id,name,quarantine_reason,updated_at")
+        .eq("status", "quarantined")
+        .like("quarantine_reason", "development_mode_blocked%")
+        .order("name");
+      if (error) throw error;
+      return (data ?? []) as BlockedApp[];
+    },
+    refetchInterval: 60_000,
+  });
+}
+
+
 export function SpotifyAccessBlocksPanel() {
   const { data, isLoading, refetch, isFetching } = useAccessBlocks();
+  const { data: blockedApps = [] } = useBlockedApps();
   const rows = data ?? [];
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
@@ -118,14 +144,38 @@ export function SpotifyAccessBlocksPanel() {
         </Button>
       </div>
 
+      {blockedApps.length > 0 && (
+        <div className="px-4 py-3 border-b border-border bg-warning/5">
+          <div className="text-[10px] uppercase tracking-wider text-warning font-semibold mb-2">
+            Apps removidas do balanceador ({blockedApps.length})
+          </div>
+          <div className="grid gap-1.5">
+            {blockedApps.map((a) => {
+              const userMatch = a.quarantine_reason?.match(/user=([^\s,;]+)/);
+              const user = userMatch?.[1] ?? "?";
+              return (
+                <div key={a.id} className="grid grid-cols-[1fr_auto_auto] gap-3 items-center text-xs">
+                  <div className="font-medium truncate">{a.name}</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Motivo: <span className="text-warning">Development Mode</span> · Usuário: <span className="font-mono">{user}</span>
+                  </div>
+                  <Badge variant="outline" className="border-warning/40 text-warning text-[10px]">
+                    Aguardando regularização
+                  </Badge>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="flex items-start gap-2 px-4 py-2.5 border-b border-border bg-muted/30 text-[11px] text-muted-foreground">
         <AlertOctagon className="h-3.5 w-3.5 mt-0.5 shrink-0" />
         <div>
-          Esses apps estão em <strong>Development Mode</strong> no Spotify e os usuários abaixo <strong>não estão na whitelist</strong>.
-          Para resolver: abra o Developer Dashboard, vá em <em>User Management</em> e adicione o e-mail/ID do usuário,
-          ou solicite <em>Extended Quota Mode</em>. Enquanto isso, toda chamada falha com 403 permanente (sem retry).
+          Apps em <strong>Development Mode</strong> ficam <strong>fora do balanceador</strong> automaticamente. Toda chamada com usuário fora da whitelist vira erro permanente (sem retry, job marcado como <code>failed_permanent</code>). Para liberar: Spotify Developer Dashboard → <em>User Management</em>, adicione o usuário e remova a quarentena.
         </div>
       </div>
+
 
       {isLoading ? (
         <div className="p-8 grid place-items-center">
