@@ -211,6 +211,10 @@ export default function Sistema() {
                   <SpotifyAppsPanel />
                 </section>
                 <section>
+                  <SectionHeader icon={ShieldAlert} title="Apps sem acesso" subtitle="Apps em Development Mode bloqueando usuários e playlists específicos" />
+                  <SpotifyAccessBlocksPanel />
+                </section>
+                <section>
                   <SectionHeader icon={Workflow} title="Motor editorial" subtitle="Saúde do pipeline de curadoria" />
                   <EngineHealthGrid />
                 </section>
