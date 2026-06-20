@@ -1,106 +1,92 @@
-# Fase 17-B.6 — Classificação dos Workers do Grupo B
+# Fase 17-B.6 — Classificação dos Workers do Grupo B (REVISADA)
 
-**Status:** Oficial · resultado do pré-trabalho da Fase 17-B.6.
+**Status:** Oficial · resultado da reauditoria pós tentativa frustrada da Onda 1.
 **Regra de classificação:** ver `phase-17b6-architectural-policy.md` §1.
+**Método:** leitura completa do `index.ts` + rastreio dos helpers de `_shared/` + cruzamento com `managed_playlists` / `spotify_user_tokens` / `search_results`.
 
-> Grupo A (já migrado e congelado) **não consta nesta lista**. Esta tabela cobre apenas workers que ainda usam `_shared/spotify-client` e são candidatos à migração.
-
----
-
-## Legenda
-
-- `cc-only` — só lê catálogo público (tracks, artists, albums, search, browse). Seguro para migrar 100% ao Gateway CC.
-- `oauth-only` — só faz mutação ou lê `/me/*` / privado. **Não migrar** — permanece em OAuth.
-- `hybrid` — lê `/playlists/{id}` (qualquer variante) ou enumera playlists de usuário. **Obrigatório** roteamento §2.3 da política.
-- `diagnostic` — ferramenta de homologação/diagnóstico operada manualmente; fora de escopo da migração automática.
+> Esta versão **invalida** a tabela anterior. A premissa de que `refresh-search-results`, `hydrate-genre-reference-tracks`, `fetch-tracks-spotify` e `genre-spotify-discover` eram `cc-only` estava incorreta. Nenhum deles é seguro para CC puro.
 
 ---
 
-## Workers do Grupo B reclassificados
+## Auditoria dos 4 candidatos originais
 
-| Worker                                  | Antes (17-B.6 v1) | **Depois (oficial)** | Justificativa |
-|-----------------------------------------|-------------------|----------------------|---------------|
-| `refresh-search-results`                | cc-only           | **cc-only** ✅       | Apenas `GET /v1/search`. Migração SEGURA. |
-| `hydrate-genre-reference-tracks`        | cc-only           | **cc-only** ✅       | Apenas `GET /v1/tracks/{id}` e `/v1/artists/{id}`. Migração SEGURA. |
-| `fetch-tracks-spotify`                  | cc-only           | **cc-only** ✅       | Só `/v1/tracks/{id}` (single + fan-out). |
-| `fetch-spotify-meta`                    | hybrid?           | **hybrid** ⚠️        | Lê `/playlists/{id}` + tracks + artists. Requer §2.3. |
-| `backfill-playlist-tracks-count`        | cc-only ❌        | **hybrid** ⚠️        | Lê `/playlists/{id}?fields=tracks(total)` — **falha silenciosa em managed** (incidente 17-B.6). |
-| `discover-playlist-owners`              | cc-only ❌        | **hybrid** ⚠️        | Lê `/playlists/{id}?fields=owner(...)` — **falha silenciosa em managed** (incidente 17-B.6). |
-| `snapshot-playlist-tracks`              | hybrid?           | **hybrid** ⚠️        | Lê `/playlists/{id}/tracks` paginado. |
-| `track-playlist-metrics`                | hybrid?           | **hybrid** ⚠️        | Lê `/playlists/{id}?fields=followers(total)`. |
-| `track-external-metrics`                | cc-only?          | **hybrid** ⚠️        | Mistura tracks + leitura de playlist externa (pode ser managed em deals). |
-| `enrich-playlists`                      | hybrid            | **hybrid** ⚠️        | Lê `/playlists/{id}` completo. |
-| `recheck-archived-followers`            | hybrid            | **hybrid** ⚠️        | `followers(total)` em mix público/managed. |
-| `playlist-tracks-list`                  | hybrid            | **hybrid** ⚠️        | Endpoint público para o frontend; mas precisa cobrir managed. |
-| `genre-spotify-discover`                | cc-only           | **cc-only** ✅       | Só `/v1/search` + `/v1/artists/*`. |
-| `process-catalog-placements`            | oauth-only        | **oauth-only** 🔒    | Cria/modifica playlists managed. NÃO migrar. |
-| `apply-playlist-plan`                   | oauth-only        | **oauth-only** 🔒    | Mutação. |
-| `apply-playlist-identity`               | oauth-only        | **oauth-only** 🔒    | PUT em playlist. |
-| `apply-playlist-suggestions`            | oauth-only        | **oauth-only** 🔒    | Mutação. |
-| `apply-managed-cover` / `upload-playlist-cover` | oauth-only | **oauth-only** 🔒  | PUT cover. |
-| `apply-meta-plan`                       | oauth-only        | **oauth-only** 🔒    | PUT metadata. |
-| `auto-adjust-playlists`                 | oauth-only        | **oauth-only** 🔒    | Reorder/remove tracks. |
-| `bot-collect-queue` / `bot-execution-queue` | oauth-only    | **oauth-only** 🔒    | Pipeline bot — escrita. |
-| `create-spotify-playlist`               | oauth-only        | **oauth-only** 🔒    | POST. |
-| `sync-managed-playlists`                | oauth-only        | **oauth-only** 🔒    | `/v1/me/playlists` + write. |
-| `sync-managed-playlist-tracks`          | oauth-only        | **oauth-only** 🔒    | Sync de playlist própria. |
-| `backfill-managed-playlist-tracks`      | oauth-only        | **oauth-only** 🔒    | Backfill em managed (privadas). |
-| `import-managed-playlist` / `import-account-playlists` | oauth-only | **oauth-only** 🔒 | Owner OAuth. |
-| `link-managed-playlist-accounts`        | oauth-only        | **oauth-only** 🔒    | OAuth. |
-| `diagnose-managed-playlist`             | oauth-only        | **oauth-only** 🔒    | OAuth (managed). |
-| `seo-experiment-apply`                  | oauth-only        | **oauth-only** 🔒    | PUT metadata. |
-| `revalidate-deliveries`                 | hybrid            | **hybrid** ✅ (já)   | Já implementado em 17-B.5.2 como referência. |
-| `spotify-token-watchdog`                | oauth-only        | **oauth-only** 🔒    | Auth interno. |
-| `spotify-auth` / `spotify-public-auth` / `spotify-invite` | oauth-only | **oauth-only** 🔒 | Auth/UX. |
-| `spotify-enrichment-worker`             | hybrid            | **hybrid** ⚠️        | Enriquece tracks/artists (CC) + playlists managed (OAuth). |
-| `engine-health`                         | diagnostic        | **diagnostic** 🧪    | Saúde — fora de escopo. |
-| `app-homologation-test`                 | diagnostic        | **diagnostic** 🧪    | Homologação manual. |
-| `spotify-resolution-test`               | diagnostic        | **diagnostic** 🧪    | Teste. |
-| `spotify-pipeline-audit`                | diagnostic        | **diagnostic** 🧪    | Auditoria. |
-| `spotify-tracks-forensics`              | diagnostic        | **diagnostic** 🧪    | Forense. |
-| `spotify-me-playlist-test`              | diagnostic        | **diagnostic** 🧪    | Teste `/me`. |
-| `diag-observer-extract`                 | diagnostic        | **diagnostic** 🧪    | Diagnóstico. |
+### 1. `refresh-search-results` → **HYBRID** ⚠️
 
----
+| Item | Evidência |
+|------|-----------|
+| Endpoint efetivo | `GET /v1/playlists/{id}?fields=name,images,followers(total),tracks(total)` (via `getPlaylistMeta` em `_shared/spotify-playlist.ts:253`) |
+| Helper usado | `getPlaylistMeta` (legado, OAuth via `getAppToken`) |
+| Padrão na matriz | #2 + #3 + #5 — **falha silenciosa em managed** |
+| Cruzamento | `search_results` ∩ `managed_playlists` = **17 linhas** |
+| Risco se migrar para CC puro | Sobrescrever `seguidores`, `total_musicas`, `imagem_url` de 17 managed com NULL/0 sem erro HTTP |
+| Veredicto | **HYBRID** — exige roteamento §2.3 antes de migrar |
 
-## Resumo numérico
+### 2. `hydrate-genre-reference-tracks` → **HYBRID** ⚠️
 
-| Categoria      | Qtd | Ação na Fase 17-B.6 |
-|----------------|-----|---------------------|
-| `cc-only` ✅   | 4   | Migrar 1 a 1, com painel de saúde entre cada deploy. |
-| `hybrid` ⚠️    | 10  | Migrar **só após** cada um implementar o algoritmo §2.3. |
-| `oauth-only` 🔒| 20+ | **Não migrar** — permanecem em `spotify-client`. |
-| `diagnostic` 🧪| 7   | Fora de escopo. |
+| Item | Evidência |
+|------|-----------|
+| Endpoint efetivo | `GET /v1/playlists/{id}/items?fields=items(track(...))` (via `listPlaylistTracksRich` em `_shared/spotify-playlist.ts:400`) |
+| Helper usado | `listPlaylistTracksRich` (legado, OAuth) |
+| Padrão na matriz | #7 — **falha silenciosa em managed** (200 com `items: []`) |
+| Cruzamento | Itera sobre `search_results` (mesmas 17 managed presentes) |
+| Risco se migrar para CC puro | `search_tracks` recebe zero linhas para 17 managed, marcando-as como "sem DNA musical" silenciosamente |
+| Veredicto | **HYBRID** — exige roteamento §2.3 antes de migrar |
+
+### 3. `fetch-tracks-spotify` → **HYBRID** ⚠️
+
+| Item | Evidência |
+|------|-----------|
+| Endpoint efetivo | `GET /v1/playlists/{id}/items?fields=items(track(...))` (mesmo helper acima) |
+| Helper usado | `listPlaylistTracksRich` |
+| Padrão na matriz | #7 — falha silenciosa em managed |
+| Cruzamento | **On-demand** com `playlist_id` no body — caller pode passar qualquer ID, inclusive um de `managed_playlists` (898 candidatas). Já usado por `create-spotify-playlist` e `extract-blueprints` em fluxos que envolvem managed |
+| Risco se migrar para CC puro | Retorno vazio para 898 managed, com `saved=0`, sem erro |
+| Veredicto | **HYBRID** — exige roteamento §2.3 antes de migrar |
+
+### 4. `genre-spotify-discover` → **JÁ MIGRADO + HYBRID DE BAIXO RISCO** ✅⚠️
+
+| Item | Evidência |
+|------|-----------|
+| Estado atual | **Já usa `ccFetch` do Catalog Gateway** desde Fase 17-B anterior (linha 11 + 56 + 172) |
+| Endpoints | `GET /v1/search?type=playlist` (padrão público — SEGURO) + `GET /v1/playlists/{id}?fields=followers(total),tracks(total,items(...)),owner(id)` (padrões #3 + #4 + #7 da matriz) |
+| Cruzamento | IDs vêm de `/v1/search`, que só indexa playlists **públicas**. Managed playlists públicas no banco hoje = **0** (`spotify_playlist_cache.public_flag=true ∩ managed_playlists`) |
+| Calls últimos 7 dias | 4 chamadas CC. Sem regressões reportadas no painel. |
+| Risco real | Hoje **nulo** (0 managed públicas). Risco futuro se algum dia uma managed for tornada pública pelo owner → falha silenciosa em campos detalhados |
+| Veredicto | **HYBRID-PERMISSIVO** — não exige rollback imediato, mas deve ganhar o guard §2.3 na próxima onda pra blindar contra mudança futura de visibilidade |
 
 ---
 
-## Ordem sugerida de migração (a confirmar antes de iniciar)
+## Conclusão crítica
 
-**Onda 1 (cc-only, baixíssimo risco):**
+**A Onda 1 (`cc-only`) NÃO EXISTE.** Todos os 4 workers candidatos lêem `/playlists/{id}` direta ou indiretamente.
 
-1. `refresh-search-results`
-2. `hydrate-genre-reference-tracks`
-3. `fetch-tracks-spotify`
-4. `genre-spotify-discover`
+Implicações:
 
-**Onda 2 (hybrid, após Onda 1 validada):**
-
-5. `backfill-playlist-tracks-count`
-6. `discover-playlist-owners`
-7. `track-playlist-metrics`
-8. `recheck-archived-followers`
-9. `snapshot-playlist-tracks`
-10. `enrich-playlists`
-11. `fetch-spotify-meta`
-12. `track-external-metrics`
-13. `playlist-tracks-list`
-14. `spotify-enrichment-worker`
-
-Entre cada onda: executar `gateway-cc-health-panel.sql` e exigir STATUS GREEN.
+1. O plano original (4 ondas: cc-only primeiro, hybrid depois) deve ser **abandonado** ou **redefinido**.
+2. Todos os workers restantes do Grupo B caem em `hybrid` ou `oauth-only`. Não há atalho `cc-only`.
+3. O único caminho seguro é: **migrar 1 a 1, sempre implementando §2.3 desde o primeiro deploy**.
 
 ---
 
-## Pool OAuth — situação pós Etapa A
+## Plano revisado (proposta para aprovação)
+
+Ordem por risco crescente (mais baixo risco primeiro, para testar o padrão híbrido):
+
+| # | Worker | Justificativa da ordem |
+|---|--------|------------------------|
+| 1 | `fetch-tracks-spotify` | On-demand, baixo volume, rollback trivial (não roda em cron). Bom alvo de teste. |
+| 2 | `refresh-search-results` | Cron mas com job_name claro, fácil monitorar. 17 managed conhecidas. |
+| 3 | `hydrate-genre-reference-tracks` | Bound a `requireTeamAccess`, disparo manual frequente. |
+| 4 | `genre-spotify-discover` | Hardening — adicionar guard §2.3 mesmo já estando em CC, antes de o cenário "managed pública" aparecer. |
+
+Cada deploy:
+- Implementa lookup em `managed_playlists` → OAuth via `_shared/spotify-client`; público → `ccFetch` / `getPlaylistMeta` / `getPlaylistItems` do gateway.
+- Mantém helper legado para o ramo OAuth.
+- Roda painel `gateway-cc-health-panel.sql` antes de avançar.
+
+---
+
+## Pool OAuth — situação pós Etapa A (inalterada)
 
 | App           | Status        | Observação |
 |---------------|---------------|------------|
