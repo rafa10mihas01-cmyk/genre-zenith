@@ -18,7 +18,11 @@
 //      para a view catalog_gateway_metrics medir o antes × depois.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getSpotifyToken } from "./spotify.ts";
+// NOTE (Fase 17-B.0.2): NÃO importamos `getSpotifyToken` aqui de propósito.
+// O Catalog Gateway tem um SELETOR PRÓPRIO de Client Credentials, restrito
+// a um pool de Apps validadas na auditoria 17-B.0.1. Isso é totalmente
+// independente do balanceador OAuth (que continua usando `pick_spotify_app`
+// / `getSpotifyTokenWithApp` em spotify.ts para escrever em playlists).
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
