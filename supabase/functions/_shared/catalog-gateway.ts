@@ -406,3 +406,154 @@ export async function getPlaylistItems(playlistId: string, caller: string, force
 // Re-exporta os helpers existentes de tracks/artists (já consolidados via
 // spotify-cache.ts + worker). Mantém UMA superfície pública pro futuro.
 export { getTrackCacheBatch as getTracksBatch, getArtistCacheBatch as getArtistsBatch } from "./spotify-cache.ts";
+
+// ---------------------------------------------------------------------------
+// BATCH helpers (Fase 17-B.5.1)
+// ---------------------------------------------------------------------------
+// IMPORTANTE: o pool atual do Gateway CC (NexEngine 05 / 10) **NÃO suporta**
+// os endpoints batch da Spotify (`/v1/tracks?ids=`, `/v1/artists?ids=`).
+// Eles retornam 403 ("Active premium subscription required for the owner of
+// the app") mesmo com token CC válido — restrição de cota imposta pela
+// Spotify aos donos das Apps.
+//
+// Estes helpers expõem uma interface **compatível com batch** mas internamente
+// fazem fan-out para chamadas single (`/v1/tracks/{id}`, `/v1/artists/{id}`),
+// que funcionam perfeitamente no pool CC. Toda a centralização de:
+//   - circuit breaker (cooldown global após N falhas seguidas);
+//   - retry com backoff em 429/5xx;
+//   - limite de concorrência;
+// fica aqui, num único lugar. Callers não precisam reimplementar isso.
+//
+// Quando a Spotify liberar batch pro pool (ou trocarmos de pool), basta
+// substituir a implementação interna mantendo a assinatura.
+
+type CircuitState = { failures: number; openUntil: number };
+const circuit: CircuitState = { failures: 0, openUntil: 0 };
+const CIRCUIT_THRESHOLD = 8;          // falhas seguidas antes de abrir
+const CIRCUIT_COOLDOWN_MS = 30_000;   // 30s de cooldown quando aberto
+
+export class GatewayCircuitOpenError extends Error {
+  constructor() {
+    super("[catalog-gateway] circuit open — too many recent failures");
+    this.name = "GatewayCircuitOpenError";
+  }
+}
+
+function circuitGuard(): void {
+  if (Date.now() < circuit.openUntil) throw new GatewayCircuitOpenError();
+}
+function circuitOnSuccess(): void {
+  circuit.failures = 0;
+}
+function circuitOnFailure(): void {
+  circuit.failures += 1;
+  if (circuit.failures >= CIRCUIT_THRESHOLD) {
+    circuit.openUntil = Date.now() + CIRCUIT_COOLDOWN_MS;
+    circuit.failures = 0;
+  }
+}
+
+async function ccFetchSingleJson<T>(
+  url: string,
+  caller: string,
+  resourceId: string,
+): Promise<T | null> {
+  circuitGuard();
+  const maxAttempts = 3;
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const r = await ccFetch(url, caller, resourceId);
+      if (r.status === 404) { circuitOnSuccess(); return null; }
+      if (r.status === 429) {
+        const ra = Number(r.headers.get("retry-after") ?? "1");
+        await new Promise((res) => setTimeout(res, Math.min(5000, ra * 1000)));
+        lastErr = new Error("429 rate limit");
+        continue;
+      }
+      if (r.status >= 500) {
+        await new Promise((res) => setTimeout(res, 400 * attempt));
+        lastErr = new Error(`${r.status} server error`);
+        continue;
+      }
+      if (!r.ok) {
+        // 401/403/etc — não retry, mas conta como falha pro breaker
+        circuitOnFailure();
+        return null;
+      }
+      circuitOnSuccess();
+      return await r.json() as T;
+    } catch (e) {
+      lastErr = e;
+      if (e instanceof GatewayCircuitOpenError) throw e;
+      await new Promise((res) => setTimeout(res, 300 * attempt));
+    }
+  }
+  circuitOnFailure();
+  console.warn(`[catalog-gateway] single fetch failed after ${maxAttempts} attempts: ${(lastErr as Error)?.message}`);
+  return null;
+}
+
+async function fanOut<T>(
+  ids: string[],
+  concurrency: number,
+  fn: (id: string) => Promise<T | null>,
+): Promise<Map<string, T>> {
+  const out = new Map<string, T>();
+  const unique = Array.from(new Set(ids.filter(Boolean)));
+  let i = 0;
+  async function worker() {
+    while (i < unique.length) {
+      const idx = i++;
+      const id = unique[idx];
+      try {
+        const v = await fn(id);
+        if (v != null) out.set(id, v);
+      } catch (e) {
+        if (e instanceof GatewayCircuitOpenError) throw e;
+        console.warn(`[catalog-gateway] fanOut item ${id} failed:`, (e as Error)?.message);
+      }
+    }
+  }
+  const workers = Array.from({ length: Math.min(concurrency, unique.length) }, () => worker());
+  await Promise.all(workers);
+  return out;
+}
+
+/**
+ * Interface compatível com `GET /v1/tracks?ids=...` da Spotify.
+ * Internamente faz fan-out para `/v1/tracks/{id}` (pool CC não aceita batch).
+ * Retorna array na MESMA ORDEM dos ids, com `null` nos não encontrados/falha.
+ *
+ * @param ids       até centenas de IDs — o gateway pagina internamente.
+ * @param caller    nome do worker (vai pro spotify_call_log).
+ * @param opts.concurrency  default 6; ajuste se a quota apertar.
+ */
+export async function gatewayGetTracksBatch(
+  ids: string[],
+  caller: string,
+  opts: { concurrency?: number } = {},
+): Promise<Array<Record<string, unknown> | null>> {
+  const concurrency = opts.concurrency ?? 6;
+  const found = await fanOut(ids, concurrency, (id) =>
+    ccFetchSingleJson<Record<string, unknown>>(`https://api.spotify.com/v1/tracks/${id}`, caller, id),
+  );
+  return ids.map((id) => found.get(id) ?? null);
+}
+
+/**
+ * Interface compatível com `GET /v1/artists?ids=...` da Spotify.
+ * Internamente faz fan-out para `/v1/artists/{id}` (pool CC não aceita batch).
+ * Retorna array na MESMA ORDEM dos ids, com `null` nos não encontrados/falha.
+ */
+export async function gatewayGetArtistsBatch(
+  ids: string[],
+  caller: string,
+  opts: { concurrency?: number } = {},
+): Promise<Array<Record<string, unknown> | null>> {
+  const concurrency = opts.concurrency ?? 6;
+  const found = await fanOut(ids, concurrency, (id) =>
+    ccFetchSingleJson<Record<string, unknown>>(`https://api.spotify.com/v1/artists/${id}`, caller, id),
+  );
+  return ids.map((id) => found.get(id) ?? null);
+}
