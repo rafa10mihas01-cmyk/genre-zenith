@@ -208,6 +208,10 @@ export default function Sistema() {
                   <CircuitBreakerHistoryCard />
                 </section>
                 <section>
+                  <SectionHeader icon={ShieldAlert} title="Balanceador Spotify" subtitle="Capacity Score, Health Score e limites por App — fonte única (Fase 16)" />
+                  <SpotifyBalancerOverviewPanel />
+                </section>
+                <section>
                   <SectionHeader icon={ShieldAlert} title="Apps Spotify" subtitle="Quais apps estão saudáveis, em atenção ou bloqueados agora" />
                   <SpotifyAppsPanel />
                 </section>
