@@ -6,6 +6,7 @@ import { recordMetric } from "../_shared/ops-metrics.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 import { getTrackCacheBatch, enqueueEnrichment } from "../_shared/spotify-cache.ts";
 import { spotifyFetch, getAppToken } from "../_shared/spotify-client.ts";
+import { ccFetch } from "../_shared/catalog-gateway.ts";
 
 // FASE 6.A.3 — resolução inline de spotify_artist_id removida.
 // Agora consultamos spotify_track_cache (alimentado pelo spotify-enrichment-worker).
@@ -452,11 +453,11 @@ Deno.serve(async (req) => {
           let artistId: string | null = artistByTrack.get(r.catalog_track_id) ?? null;
           if (!artistId && r.spotify_track_id) {
             try {
-              const token = await getAppToken();
-              const tRes = await spotifyFetch(
+              // Fallback Spotify — leitura pública via Catalog Gateway.
+              const tRes = await ccFetch(
                 `https://api.spotify.com/v1/tracks/${r.spotify_track_id}`,
-                { headers: { Authorization: `Bearer ${token}` } },
-                { functionName: "bot-collect-queue", operation: "resolve_artist_fallback" },
+                "bot-collect-queue",
+                r.spotify_track_id,
               );
               if (tRes.ok) {
                 const tJson = await tRes.json();

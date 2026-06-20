@@ -2,7 +2,7 @@
 // que não estão em curator_playlists e salva em spotify_playlist_cache.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getAppToken, spotifyFetch } from "../_shared/spotify-client.ts";
+import { ccFetch } from "../_shared/catalog-gateway.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const token = await getAppToken();
+    // Token via Catalog Gateway.
     const rows: Array<{
       spotify_playlist_id: string;
       image_url: string | null;
@@ -65,9 +65,10 @@ Deno.serve(async (req) => {
       const results = await Promise.all(
         chunk.map(async (id): Promise<typeof rows[number] | null> => {
           try {
-            const r = await spotifyFetch(
+            const r = await ccFetch(
               `https://api.spotify.com/v1/playlists/${id}?fields=images,followers(total),owner(display_name)`,
-              { headers: { Authorization: `Bearer ${token}` } },
+              "enrich-playlist-covers",
+              id,
             );
             if (r.status === 429) {
               rateLimited = true;

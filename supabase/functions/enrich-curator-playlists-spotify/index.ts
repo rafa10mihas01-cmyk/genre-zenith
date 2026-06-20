@@ -8,7 +8,7 @@
 // Idempotente. Pode ser chamada inline pelo importer ou via curl pra backfill.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { getAppToken } from "../_shared/spotify-client.ts";
+import { ccFetch } from "../_shared/catalog-gateway.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -22,9 +22,9 @@ function jr(p: unknown, status = 200) {
 
 const FIELDS = "name,followers.total,images,owner(display_name,id)";
 
-async function fetchOne(token: string, spotifyId: string) {
+async function fetchOne(spotifyId: string) {
   const url = `https://api.spotify.com/v1/playlists/${spotifyId}?fields=${encodeURIComponent(FIELDS)}`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const res = await ccFetch(url, "enrich-curator-playlists-spotify", spotifyId);
   if (res.status === 404 || res.status === 400) return { spotifyId, gone: true };
   if (!res.ok) return { spotifyId, error: `HTTP ${res.status}` };
   const j = await res.json();
@@ -104,11 +104,11 @@ Deno.serve(async (req) => {
       return jr({ ok: true, enriched: 0, total_candidates: cps?.length ?? 0, skipped: true });
     }
 
-    const token = await getAppToken();
+    // Token via Catalog Gateway (pool CC NexEngine 05/10).
 
     // Dedupe por spotify_playlist_id (várias campanhas podem ter o mesmo id)
     const uniqueIds = Array.from(new Set(targets.map((t: any) => t.spotify_playlist_id as string)));
-    const results = await runWithConcurrency(uniqueIds, 6, (id) => fetchOne(token, id));
+    const results = await runWithConcurrency(uniqueIds, 6, (id) => fetchOne(id));
     const byId = new Map<string, any>();
     for (const r of results) byId.set((r as any).spotifyId, r);
 

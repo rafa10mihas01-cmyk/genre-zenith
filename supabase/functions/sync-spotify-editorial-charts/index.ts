@@ -15,7 +15,7 @@
 // =====================================================================
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getAppToken, spotifyFetch } from "../_shared/spotify-client.ts";
+import { ccFetch } from "../_shared/catalog-gateway.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -37,9 +37,9 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return out;
 }
 
-async function fetchTracksBatch(ids: string[], token: string) {
+async function fetchTracksBatch(ids: string[]) {
   const url = `https://api.spotify.com/v1/tracks?ids=${ids.join(",")}`;
-  const r = await spotifyFetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const r = await ccFetch(url, "sync-spotify-editorial-charts");
   if (!r.ok) throw new Error(`Spotify ${r.status}: ${(await r.text()).slice(0, 200)}`);
   const j = await r.json();
   return j.tracks ?? [];
@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
       return jr({ ok: true, message: "nada pra enriquecer", chart: chartName });
     }
 
-    const token = await getAppToken();
+    // Token via Catalog Gateway.
     let enriched = 0;
     let failed = 0;
 
@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
       if (batchIdx++ > 0) await sleep(THROTTLE_MS);
       const ids = batch.map((b) => b.spotify_track_id!);
       try {
-        const tracks = await fetchTracksBatch(ids, token);
+        const tracks = await fetchTracksBatch(ids);
         // map por id pra preservar ordem
         const byId = new Map<string, any>();
         for (const tr of tracks) if (tr?.id) byId.set(tr.id, tr);
