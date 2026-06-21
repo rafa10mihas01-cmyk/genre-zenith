@@ -8,13 +8,22 @@ Deno.serve(async (req) => {
   // Tentativa de fetch real, capturando o erro literal
   let fetchErr: string | null = null;
   let fetchStatus: number | null = null;
-  try {
-    const cleanU = u.trim().replace(/\/+$/, '');
-    const cleanT = t.replace(/[^\x21-\x7e]/g, '');
-    const r = await fetch(`${cleanU}/health`, { headers: { 'X-Observer-Token': cleanT } });
-    fetchStatus = r.status;
-  } catch (e) {
-    fetchErr = String((e as any)?.message ?? e);
+  const cleanU = u.trim().replace(/\/+$/, '');
+  const cleanT = t.replace(/[^\x21-\x7e]/g, '');
+  const results: Record<string, unknown> = {};
+  const headerVariants: Array<[string, Record<string, string>]> = [
+    ['x-observer-token', { 'x-observer-token': cleanT, Accept: 'application/json' }],
+    ['x-ops-agent-token', { 'x-ops-agent-token': cleanT, Accept: 'application/json' }],
+    ['x-api-key', { 'x-api-key': cleanT, Accept: 'application/json' }],
+    ['authorization-bearer', { Authorization: `Bearer ${cleanT}`, Accept: 'application/json' }],
+  ];
+  for (const [name, headers] of headerVariants) {
+    try {
+      const r = await fetch(`${cleanU}/playlists/37i9dQZF1DXcBWIGoYBM5M`, { headers });
+      results[name] = { status: r.status, body: (await r.text()).slice(0, 120) };
+    } catch (e) {
+      results[name] = { error: String((e as any)?.message ?? e).slice(0, 120) };
+    }
   }
   return new Response(JSON.stringify({
     url_len: u.length,
