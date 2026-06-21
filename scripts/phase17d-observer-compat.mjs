@@ -75,7 +75,7 @@ async function observerFetch(path, params = {}) {
     if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, String(v));
   }
   const headers = { Accept: 'application/json' };
-  if (TOKEN) headers['X-Observer-Token'] = TOKEN;
+  if (TOKEN && AUTH_HEADER) headers[AUTH_HEADER] = TOKEN;
   const r = await fetch(url.toString(), { method: 'GET', headers });
   const text = await r.text();
   if (!r.ok) {
