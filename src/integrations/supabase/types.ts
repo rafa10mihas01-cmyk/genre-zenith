@@ -122,6 +122,42 @@ export type Database = {
         }
         Relationships: []
       }
+      _spotify_apps_caps_snapshots: {
+        Row: {
+          app_id: string
+          app_name: string
+          id: string
+          lifecycle_state: string | null
+          max_accounts: number | null
+          max_playlists: number | null
+          reason: string | null
+          soft_capacity_cap: number | null
+          taken_at: string
+        }
+        Insert: {
+          app_id: string
+          app_name: string
+          id?: string
+          lifecycle_state?: string | null
+          max_accounts?: number | null
+          max_playlists?: number | null
+          reason?: string | null
+          soft_capacity_cap?: number | null
+          taken_at?: string
+        }
+        Update: {
+          app_id?: string
+          app_name?: string
+          id?: string
+          lifecycle_state?: string | null
+          max_accounts?: number | null
+          max_playlists?: number | null
+          reason?: string | null
+          soft_capacity_cap?: number | null
+          taken_at?: string
+        }
+        Relationships: []
+      }
       accounts: {
         Row: {
           created_at: string
