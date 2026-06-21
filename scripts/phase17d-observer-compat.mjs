@@ -92,6 +92,8 @@ async function main() {
     playlist_id: PLAYLIST_ID,
     observer_base_url: BASE,
     observer_token_present: !!TOKEN,
+    observer_token_source: TOKEN_SOURCE,
+    observer_auth_header: TOKEN ? AUTH_HEADER : null,
     checked_at: new Date().toISOString(),
     phase: '17-D step 1: contract compatibility (local VPS run)',
   };
