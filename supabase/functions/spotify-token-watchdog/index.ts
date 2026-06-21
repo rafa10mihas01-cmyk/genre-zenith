@@ -93,10 +93,38 @@ Deno.serve(async (req) => {
     return credsCache[key];
   }
 
+  // Helper: registra cada chamada em spotify_call_log (Fase 0 — instrumentação).
+  async function logTokenCall(opts: {
+    appId: string | null; appName: string | null; httpStatus: number | null;
+    durationMs: number; ok: boolean; error?: string | null; spotifyUserId?: string | null;
+    grant: "refresh_token" | "client_credentials";
+  }) {
+    try {
+      await sb.from("spotify_call_log").insert({
+        function_name: "spotify-token-watchdog",
+        endpoint: "accounts.spotify.com/api/token",
+        method: "POST",
+        app_id: opts.appId,
+        app_name: opts.appName,
+        http_status: opts.httpStatus,
+        status: opts.ok ? "ok" : "http_error",
+        duration_ms: opts.durationMs,
+        attempts: 1,
+        breaker_open: false,
+        error: opts.error ?? null,
+        spotify_user_id: opts.spotifyUserId ?? null,
+        meta: { grant_type: opts.grant, source: "watchdog" },
+      });
+    } catch (e) {
+      console.error("[spotify-token-watchdog] call_log insert failed:", (e as Error)?.message ?? e);
+    }
+  }
+
   for (const acc of accounts ?? []) {
     try {
       const c = await credsFor(acc.app_id ?? null);
       const basic = btoa(`${c.client_id}:${c.client_secret}`);
+      const t0 = Date.now();
       const r = await fetch("https://accounts.spotify.com/api/token", {
         method: "POST",
         headers: {
@@ -110,6 +138,7 @@ Deno.serve(async (req) => {
       });
       if (!r.ok) {
         const txt = await r.text();
+        await logTokenCall({ appId: acc.app_id ?? null, appName: c.name, httpStatus: r.status, durationMs: Date.now()-t0, ok: false, error: txt.slice(0,200), spotifyUserId: acc.spotify_user_id, grant: "refresh_token" });
         failCount++;
         try {
           await sb.from("collection_logs").insert({
@@ -146,14 +175,13 @@ Deno.serve(async (req) => {
         continue;
       }
       const j = await r.json();
+      await logTokenCall({ appId: acc.app_id ?? null, appName: c.name, httpStatus: r.status, durationMs: Date.now()-t0, ok: true, spotifyUserId: acc.spotify_user_id, grant: "refresh_token" });
       const access_token: string = j.access_token;
       const expires_at = new Date(Date.now() + (j.expires_in ?? 3600) * 1000).toISOString();
       const refresh_token: string = j.refresh_token ?? acc.refresh_token;
-      // 🔧 Audit #10 B.2: atualiza updated_at também (afeta ordering em getUserToken)
       await sb.from("spotify_user_tokens").update({
         access_token, refresh_token, expires_at, updated_at: new Date().toISOString(),
       }).eq("id", acc.id);
-      // Auto-resolve notificação anterior de falha (se existir)
       try {
         await sb.rpc("resolve_notifications_by_dedupe" as any, {
           p_dedupe_key: `spotify_token_failed:${acc.id}`,
@@ -186,6 +214,7 @@ Deno.serve(async (req) => {
     if (expSoon) {
       const appCreds = await getAppCredentials();
       const appBasic = btoa(`${appCreds.client_id}:${appCreds.client_secret}`);
+      const t0 = Date.now();
       const ar = await fetch("https://accounts.spotify.com/api/token", {
         method: "POST",
         headers: {
@@ -194,6 +223,7 @@ Deno.serve(async (req) => {
         },
         body: "grant_type=client_credentials",
       });
+      await logTokenCall({ appId: appCreds.app_id, appName: appCreds.name, httpStatus: ar.status, durationMs: Date.now()-t0, ok: ar.ok, grant: "client_credentials", error: ar.ok ? null : `HTTP ${ar.status}` });
       if (ar.ok) {
         const aj = await ar.json();
         const access_token: string = aj.access_token;
