@@ -58,20 +58,65 @@ function isAuthorized(req) {
 }
 
 // --------------------------------------------------------------------------
-// Cache
+// Cache — LRU bounded by OBSERVER_CACHE_MAX, with periodic TTL sweep.
+// Fix for Phase 17-E memory leak: unbounded Map causing OOM ~12-24h.
 // --------------------------------------------------------------------------
-/** @type {Map<string, { fetched_at: number, data: any }>} */
+const CACHE_MAX = Math.max(10, Number(process.env.OBSERVER_CACHE_MAX) || 200);
+const CACHE_SWEEP_INTERVAL_MS = Math.max(
+  30_000,
+  Number(process.env.OBSERVER_CACHE_SWEEP_MS) || 5 * 60_000,
+);
+const CACHE_SWEEP_TTL_MS = Math.max(
+  60_000,
+  Number(process.env.OBSERVER_CACHE_SWEEP_TTL_MS) || 30 * 60_000,
+);
+
+/** @type {Map<string, { fetched_at: number, data: any }>} Insertion order = LRU. */
 const cache = new Map();
+
+function cacheTouch(key, entry) {
+  // Re-insert to move to the tail (most-recently used).
+  cache.delete(key);
+  cache.set(key, entry);
+  // Evict oldest until under cap.
+  while (cache.size > CACHE_MAX) {
+    const oldestKey = cache.keys().next().value;
+    if (oldestKey === undefined) break;
+    cache.delete(oldestKey);
+  }
+}
+
+function cacheSweep() {
+  const now = Date.now();
+  let removed = 0;
+  for (const [key, entry] of cache) {
+    if (now - entry.fetched_at > CACHE_SWEEP_TTL_MS) {
+      cache.delete(key);
+      removed++;
+    }
+  }
+  if (removed > 0) {
+    console.log(`[observer] cache sweep: removed=${removed} size=${cache.size}/${CACHE_MAX}`);
+  }
+}
+
+const sweepTimer = setInterval(cacheSweep, CACHE_SWEEP_INTERVAL_MS);
+if (typeof sweepTimer.unref === 'function') sweepTimer.unref();
 
 async function getPlaylistCached(playlistId, maxAgeSeconds) {
   const now = Date.now();
   const ttlMs = Math.max(0, Number(maxAgeSeconds) || 0) * 1000;
   const cached = cache.get(playlistId);
   if (cached && ttlMs > 0 && now - cached.fetched_at < ttlMs) {
+    // LRU touch on hit.
+    cache.delete(playlistId);
+    cache.set(playlistId, cached);
     return { data: cached.data, source: 'cache' };
   }
+  // Drop stale entry before refetch so we don't hold the old payload during the scrape.
+  if (cached) cache.delete(playlistId);
   const data = await getPlaylist(playlistId);
-  cache.set(playlistId, { fetched_at: now, data });
+  cacheTouch(playlistId, { fetched_at: now, data });
   return { data, source: 'fresh_scrape' };
 }
 
