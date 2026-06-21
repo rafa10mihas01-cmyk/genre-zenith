@@ -6,8 +6,17 @@
 // http://127.0.0.1:3100. Não usa Supabase, Service Role, Edge Function nem
 // nenhuma variável SUPABASE_*. Único requisito: ter acesso ao Observer local.
 //
-// Uso na VPS:
-//   OBSERVER_TOKEN=<token> node scripts/phase17d-observer-compat.mjs
+// Uso na VPS (sem auth — endpoint local):
+//   node scripts/phase17d-observer-compat.mjs
+//
+// Com auth (qualquer um dos nomes abaixo é aceito automaticamente):
+//   OPS_AGENT_TOKEN=... node scripts/phase17d-observer-compat.mjs
+//   BOT_INGEST_TOKEN=... node scripts/phase17d-observer-compat.mjs
+//   BOT_API_KEY=...      node scripts/phase17d-observer-compat.mjs
+//   OBSERVER_TOKEN=...   node scripts/phase17d-observer-compat.mjs
+//
+// Forçar nome do header (default tenta vários):
+//   OBSERVER_AUTH_HEADER=x-ops-agent-token OPS_AGENT_TOKEN=... node ...
 //
 // Opcional:
 //   OBSERVER_BASE_URL=http://127.0.0.1:3100   (default)
@@ -18,8 +27,27 @@
 // =============================================================================
 
 const BASE = (process.env.OBSERVER_BASE_URL || 'http://127.0.0.1:3100').replace(/\/+$/, '');
-const TOKEN = process.env.OBSERVER_TOKEN || '';
 const PLAYLIST_ID = process.env.PLAYLIST_ID || '37i9dQZF1DXcBWIGoYBM5M';
+
+// Resolve token a partir de qualquer variável conhecida (primeira não vazia vence)
+const TOKEN_CANDIDATES = [
+  ['OBSERVER_TOKEN',   'x-observer-token'],
+  ['OPS_AGENT_TOKEN',  'x-ops-agent-token'],
+  ['BOT_INGEST_TOKEN', 'x-bot-ingest-token'],
+  ['BOT_API_KEY',      'x-api-key'],
+];
+let TOKEN = '';
+let TOKEN_SOURCE = null;
+let AUTH_HEADER = process.env.OBSERVER_AUTH_HEADER || '';
+for (const [envName, hdr] of TOKEN_CANDIDATES) {
+  const v = process.env[envName];
+  if (v && v.trim()) {
+    TOKEN = v.trim();
+    TOKEN_SOURCE = envName;
+    if (!AUTH_HEADER) AUTH_HEADER = hdr;
+    break;
+  }
+}
 
 function typeOf(v) {
   if (v === null) return 'null';
@@ -47,7 +75,7 @@ async function observerFetch(path, params = {}) {
     if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, String(v));
   }
   const headers = { Accept: 'application/json' };
-  if (TOKEN) headers['X-Observer-Token'] = TOKEN;
+  if (TOKEN && AUTH_HEADER) headers[AUTH_HEADER] = TOKEN;
   const r = await fetch(url.toString(), { method: 'GET', headers });
   const text = await r.text();
   if (!r.ok) {
@@ -64,6 +92,8 @@ async function main() {
     playlist_id: PLAYLIST_ID,
     observer_base_url: BASE,
     observer_token_present: !!TOKEN,
+    observer_token_source: TOKEN_SOURCE,
+    observer_auth_header: TOKEN ? AUTH_HEADER : null,
     checked_at: new Date().toISOString(),
     phase: '17-D step 1: contract compatibility (local VPS run)',
   };
