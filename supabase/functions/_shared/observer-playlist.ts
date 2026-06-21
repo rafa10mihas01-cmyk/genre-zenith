@@ -89,7 +89,7 @@ function getConfig() {
   if (!baseUrlRaw || !tokenRaw) throw new ObserverNotConfiguredError();
   // trim invisíveis (newline/CR/espaço) que quebram fetch com "not a valid ByteString"
   const baseUrl = baseUrlRaw.trim().replace(/\/+$/, "");
-  const token = tokenRaw.replace(/[\r\n\t\s]+/g, "");
+  const token = tokenRaw.replace(/[^\x21-\x7e]/g, "");
   return { baseUrl, token };
 }
 
