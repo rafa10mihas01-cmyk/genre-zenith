@@ -32,16 +32,21 @@ export function OperationalSummary() {
     let cancelled = false;
     const load = async () => {
       const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+      const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
       const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
 
-      const [token, hb, queueRes, failedQueue, cronStale, vpsRes] = await Promise.all([
+      const [token, hb, queueRes, failedQueue, recentFailedQueue, cronStale, vpsRes, lastCollection] = await Promise.all([
         supabase.rpc("get_spotify_token_status").maybeSingle(),
         supabase.from("bot_heartbeats").select("created_at").order("created_at", { ascending: false }).limit(1).maybeSingle(),
         supabase.from("playlist_execution_jobs").select("id", { count: "exact", head: true }).in("status", ["pending", "claimed"]),
         supabase.from("playlist_execution_jobs").select("id", { count: "exact", head: true }).eq("status", "failed").gte("updated_at", new Date(Date.now() - 24 * 3600_000).toISOString()),
+        // Falhas REALMENTE recentes (última hora) — separa "está quebrando agora" de "lixo antigo"
+        supabase.from("playlist_execution_jobs").select("id", { count: "exact", head: true }).eq("status", "failed").gte("updated_at", oneHourAgo),
         supabase.from("cron_health").select("job_name, status, ran_at").gte("ran_at", new Date(Date.now() - 6 * 3600_000).toISOString()),
         supabase.from("vps_nodes").select("status, last_heartbeat_at"),
+        // Cross-check: VPS pode ter heartbeat morto mas coleta viva
+        supabase.from("collection_logs").select("created_at").order("created_at", { ascending: false }).limit(1).maybeSingle(),
       ]);
 
       // Spotify
@@ -54,40 +59,59 @@ export function OperationalSummary() {
         detail: tokenExpired ? "Reconectar conta" : "Token válido",
       };
 
-      // Bots
+      // VPS — checa heartbeat E também atividade real de coleta (cross-check)
+      const vpsRows = (vpsRes.data ?? []) as Array<{ status: string; last_heartbeat_at: string | null }>;
+      const active = vpsRows.filter((v) => v.status === "active");
+      const offline = active.filter((v) => !v.last_heartbeat_at || v.last_heartbeat_at < fifteenMinAgo).length;
+      const lastColl = lastCollection.data?.created_at;
+      const collectingNow = !!(lastColl && lastColl > thirtyMinAgo);
+      // Heartbeat morto mas coleta continua → degrada para warn ("agent travado, coleta OK")
+      const vpsTone: Tone = offline > 0
+        ? (collectingNow ? "warn" : "bad")
+        : active.length === 0 ? "warn" : "ok";
+      const vps: Row = {
+        icon: Server,
+        label: "VPS",
+        tone: vpsTone,
+        detail: vpsTone === "ok"
+          ? `${active.length} online`
+          : vpsTone === "warn"
+            ? (offline > 0 && collectingNow ? "Heartbeat travado, coleta OK" : "Nenhum ativo")
+            : `${offline} offline`,
+      };
+
+      // Bots — dedup com VPS: se VPS está mal, Bots herda warn (não duplica crítico)
       const lastHb = hb.data?.created_at;
-      const botTone: Tone = !lastHb ? "bad" : lastHb < twoHoursAgo ? "bad" : lastHb < oneHourAgo ? "warn" : "ok";
-      const bots: Row = {
-        icon: Bot,
-        label: "Bots",
-        tone: botTone,
-        detail: botTone === "ok" ? "Recebendo sinal" : botTone === "warn" ? "Sinal lento" : "Sem sinal recente",
-      };
+      let botTone: Tone = !lastHb ? "bad" : lastHb < twoHoursAgo ? "bad" : lastHb < oneHourAgo ? "warn" : "ok";
+      let botDetail = botTone === "ok" ? "Recebendo sinal" : botTone === "warn" ? "Sinal lento" : "Sem sinal recente";
+      if (botTone === "bad" && vpsTone !== "ok") {
+        botTone = "warn";
+        botDetail = "Derivado do VPS";
+      }
+      const bots: Row = { icon: Bot, label: "Bots", tone: botTone, detail: botDetail };
 
-      // Filas
+      // Filas — diferencia falhas recentes (últimos 60 min) de lixo antigo
       const pending = queueRes.count ?? 0;
-      const failed = failedQueue.count ?? 0;
-      const activeSpotifyWait = failed > 0
-        ? await supabase
-            .from("playlist_execution_jobs")
-            .select("id", { count: "exact", head: true })
-            .eq("status", "failed")
-            .like("last_error", "%SPOTIFY_CIRCUIT_OPEN%")
-            .gte("updated_at", new Date(Date.now() - 24 * 3600_000).toISOString())
-        : { count: 0 };
-      const waitingSpotify = failed > 0 && (activeSpotifyWait.count ?? 0) === failed;
-      const filaTone: Tone = failed > 0 ? (waitingSpotify ? "warn" : "bad") : pending > 50 ? "warn" : "ok";
-      const filas: Row = {
-        icon: ListChecks,
-        label: "Filas",
-        tone: filaTone,
-        detail: filaTone === "ok"
-          ? pending === 0 ? "Vazia" : `${pending} na fila`
-          : filaTone === "warn" ? waitingSpotify ? `${failed} aguardando Spotify` : `${pending} aguardando`
-          : `${failed} com falha`,
-      };
+      const failed24h = failedQueue.count ?? 0;
+      const failedRecent = recentFailedQueue.count ?? 0;
+      let filaTone: Tone;
+      let filaDetail: string;
+      if (failedRecent > 0) {
+        filaTone = "bad";
+        filaDetail = `${failedRecent} falha${failedRecent > 1 ? "s" : ""} na última hora`;
+      } else if (failed24h > 0) {
+        filaTone = "warn";
+        filaDetail = `${failed24h} falha${failed24h > 1 ? "s" : ""} antiga${failed24h > 1 ? "s" : ""}`;
+      } else if (pending > 50) {
+        filaTone = "warn";
+        filaDetail = `${pending} aguardando`;
+      } else {
+        filaTone = "ok";
+        filaDetail = pending === 0 ? "Vazia" : `${pending} na fila`;
+      }
+      const filas: Row = { icon: ListChecks, label: "Filas", tone: filaTone, detail: filaDetail };
 
-      // Crons — conta jobs distintos com status 'error' nas últimas 6h
+      // Crons
       const cronRows = (cronStale.data ?? []) as Array<{ job_name: string; status: string; ran_at: string }>;
       const failedJobs = new Set(cronRows.filter((c) => c.status === "error").map((c) => c.job_name));
       const cronTone: Tone = failedJobs.size > 0 ? "bad" : "ok";
@@ -96,21 +120,6 @@ export function OperationalSummary() {
         label: "Crons",
         tone: cronTone,
         detail: cronTone === "ok" ? "Todos rodando" : `${failedJobs.size} com falha`,
-      };
-
-      // VPS
-      const vpsRows = (vpsRes.data ?? []) as Array<{ status: string; last_heartbeat_at: string | null }>;
-      const active = vpsRows.filter((v) => v.status === "active");
-      const offline = active.filter((v) => !v.last_heartbeat_at || v.last_heartbeat_at < fifteenMinAgo).length;
-      const vpsTone: Tone = offline > 0 ? "bad" : active.length === 0 ? "warn" : "ok";
-      const vps: Row = {
-        icon: Server,
-        label: "VPS",
-        tone: vpsTone,
-        detail: vpsTone === "ok"
-          ? `${active.length} online`
-          : vpsTone === "warn" ? "Nenhum ativo"
-          : `${offline} offline`,
       };
 
       if (!cancelled) setRows([spotify, bots, filas, crons, vps]);
