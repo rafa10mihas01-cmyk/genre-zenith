@@ -1,34 +1,28 @@
 /**
  * Phase 17-D — Observer server.js
  * --------------------------------------------------------------------------
- * Express server (Node 18 ESM) that exposes the Observer HTTP contract
- * required by the Lovable Cloud worker `revalidate-deliveries` and by the
- * validation script `scripts/phase17d-observer-compat.mjs`.
+ * Node 18 ESM, ZERO external dependencies (only `http` + project modules).
  *
  * Endpoints:
  *   GET /health
  *   GET /playlists/:id
- *   GET /playlists/:id/items
+ *   GET /playlists/:id/items?offset&limit&max_age
  *
- * Auth (optional — loopback bypasses):
- *   Header  x-ops-agent-token    matches env OPS_AGENT_TOKEN
- *   Header  x-bot-ingest-token   matches env BOT_INGEST_TOKEN
- *   Header  x-api-key            matches env BOT_API_KEY
- *   Header  x-observer-token     matches env OBSERVER_TOKEN
- *   If NONE of those envs are set, the server runs open (dev mode).
+ * Auth (optional — loopback always bypasses):
+ *   x-ops-agent-token   == env OPS_AGENT_TOKEN
+ *   x-bot-ingest-token  == env BOT_INGEST_TOKEN
+ *   x-api-key           == env BOT_API_KEY
+ *   x-observer-token    == env OBSERVER_TOKEN
+ *   If none of those envs are set, the server runs open (dev mode).
  *
- * Cache:
- *   In-memory by playlist_id, TTL = ?max_age seconds (default 600). The same
- *   cached payload feeds both /playlists/:id and /playlists/:id/items so the
- *   two endpoints stay consistent without re-scraping.
+ * Cache: in-memory by playlist_id, TTL = ?max_age seconds (default 600).
+ * Same cached payload feeds both /playlists/:id and /playlists/:id/items.
  *
- * IMPORTANT:
- *   - Does NOT modify services/playlistScraper.js
- *   - Does NOT modify services/browser.js
- *   - Reuses getPlaylist() exactly as exported by playlistScraper.js
+ * Does NOT modify services/playlistScraper.js or services/browser.js.
  */
 
-import express from 'express';
+import http from 'http';
+import { URL } from 'url';
 import { getPlaylist } from './services/playlistScraper.js';
 
 const PORT = Number(process.env.PORT || 3100);
@@ -49,18 +43,18 @@ const AUTH_MAP = [
 const AUTH_ENABLED = AUTH_MAP.length > 0;
 
 function isLoopback(req) {
-  const ip = (req.ip || req.connection?.remoteAddress || '').replace('::ffff:', '');
-  return ip === '127.0.0.1' || ip === '::1' || ip === 'localhost';
+  const ip = String(req.socket?.remoteAddress || '').replace('::ffff:', '');
+  return ip === '127.0.0.1' || ip === '::1' || ip === 'localhost' || ip === '';
 }
 
-function authMiddleware(req, res, next) {
-  if (!AUTH_ENABLED) return next();
-  if (isLoopback(req)) return next();
+function isAuthorized(req) {
+  if (!AUTH_ENABLED) return true;
+  if (isLoopback(req)) return true;
   for (const [header, expected] of AUTH_MAP) {
     const got = req.headers[header];
-    if (typeof got === 'string' && got.trim() === expected) return next();
+    if (typeof got === 'string' && got.trim() === expected) return true;
   }
-  return res.status(401).json({ error: 'unauthorized' });
+  return false;
 }
 
 // --------------------------------------------------------------------------
@@ -169,14 +163,29 @@ function toItem(track, idx) {
 }
 
 // --------------------------------------------------------------------------
-// App
+// HTTP helpers
 // --------------------------------------------------------------------------
-const app = express();
-app.disable('x-powered-by');
-app.set('trust proxy', true);
+function sendJson(res, status, payload) {
+  const body = JSON.stringify(payload);
+  res.writeHead(status, {
+    'content-type': 'application/json; charset=utf-8',
+    'content-length': Buffer.byteLength(body),
+    'cache-control': 'no-store',
+    'x-observer-phase': '17-D',
+  });
+  res.end(body);
+}
 
-app.get('/health', (_req, res) => {
-  res.json({
+function parseIntSafe(value, fallback) {
+  const n = Number.parseInt(String(value ?? ''), 10);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+// --------------------------------------------------------------------------
+// Route handlers
+// --------------------------------------------------------------------------
+async function handleHealth(_req, res) {
+  sendJson(res, 200, {
     ok: true,
     service: 'observer',
     phase: '17-D',
@@ -184,37 +193,35 @@ app.get('/health', (_req, res) => {
     uptime_s: Math.round(process.uptime()),
     now: new Date().toISOString(),
   });
-});
+}
 
-app.get('/playlists/:id', authMiddleware, async (req, res) => {
-  const playlistId = String(req.params.id || '').trim();
-  if (!playlistId) return res.status(400).json({ error: 'missing playlist id' });
-  const maxAge = req.query.max_age != null
-    ? Number(req.query.max_age)
+async function handlePlaylistMeta(req, res, playlistId, query) {
+  if (!playlistId) return sendJson(res, 400, { error: 'missing playlist id' });
+  const maxAge = query.get('max_age') != null
+    ? Number(query.get('max_age'))
     : DEFAULT_MAX_AGE_SECONDS;
 
   try {
     const { data, source } = await getPlaylistCached(playlistId, maxAge);
-    return res.json(toMeta(data, source));
+    return sendJson(res, 200, toMeta(data, source));
   } catch (err) {
     console.error('[observer] /playlists/:id failed', playlistId, err);
-    return res.status(502).json({
+    return sendJson(res, 502, {
       error: 'scrape_failed',
       message: String(err?.message ?? err),
       playlist_id: playlistId,
     });
   }
-});
+}
 
-app.get('/playlists/:id/items', authMiddleware, async (req, res) => {
-  const playlistId = String(req.params.id || '').trim();
-  if (!playlistId) return res.status(400).json({ error: 'missing playlist id' });
+async function handlePlaylistItems(req, res, playlistId, query) {
+  if (!playlistId) return sendJson(res, 400, { error: 'missing playlist id' });
 
-  const offset = Math.max(0, Number.parseInt(String(req.query.offset ?? '0'), 10) || 0);
-  const rawLimit = Number.parseInt(String(req.query.limit ?? '50'), 10);
-  const limit = Math.max(1, Math.min(500, Number.isFinite(rawLimit) ? rawLimit : 50));
-  const maxAge = req.query.max_age != null
-    ? Number(req.query.max_age)
+  const offset = Math.max(0, parseIntSafe(query.get('offset'), 0));
+  const rawLimit = parseIntSafe(query.get('limit'), 50);
+  const limit = Math.max(1, Math.min(500, rawLimit));
+  const maxAge = query.get('max_age') != null
+    ? Number(query.get('max_age'))
     : DEFAULT_MAX_AGE_SECONDS;
 
   try {
@@ -235,25 +242,67 @@ app.get('/playlists/:id/items', authMiddleware, async (req, res) => {
       next = `/playlists/${encodeURIComponent(playlistId)}/items?${params.toString()}`;
     }
 
-    return res.json({
-      items,
-      total,
-      limit,
-      offset,
-      next,
-    });
+    return sendJson(res, 200, { items, total, limit, offset, next });
   } catch (err) {
     console.error('[observer] /playlists/:id/items failed', playlistId, err);
-    return res.status(502).json({
+    return sendJson(res, 502, {
       error: 'scrape_failed',
       message: String(err?.message ?? err),
       playlist_id: playlistId,
     });
   }
+}
+
+// --------------------------------------------------------------------------
+// Router
+// --------------------------------------------------------------------------
+const RE_PLAYLIST_ITEMS = /^\/playlists\/([^/]+)\/items\/?$/;
+const RE_PLAYLIST_META  = /^\/playlists\/([^/]+)\/?$/;
+
+async function router(req, res) {
+  const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+  const pathname = url.pathname;
+  const query = url.searchParams;
+  const method = (req.method || 'GET').toUpperCase();
+
+  if (method !== 'GET' && method !== 'HEAD') {
+    return sendJson(res, 405, { error: 'method_not_allowed' });
+  }
+
+  if (pathname === '/health' || pathname === '/health/') {
+    return handleHealth(req, res);
+  }
+
+  // Auth gate for everything below /health
+  if (!isAuthorized(req)) {
+    return sendJson(res, 401, { error: 'unauthorized' });
+  }
+
+  let m;
+  if ((m = pathname.match(RE_PLAYLIST_ITEMS))) {
+    return handlePlaylistItems(req, res, decodeURIComponent(m[1]), query);
+  }
+  if ((m = pathname.match(RE_PLAYLIST_META))) {
+    return handlePlaylistMeta(req, res, decodeURIComponent(m[1]), query);
+  }
+
+  return sendJson(res, 404, { error: 'not_found', path: pathname });
+}
+
+// --------------------------------------------------------------------------
+// Server
+// --------------------------------------------------------------------------
+const server = http.createServer((req, res) => {
+  router(req, res).catch((err) => {
+    console.error('[observer] unhandled error', err);
+    try {
+      sendJson(res, 500, { error: 'internal_error', message: String(err?.message ?? err) });
+    } catch {
+      try { res.end(); } catch {}
+    }
+  });
 });
 
-app.use((_req, res) => res.status(404).json({ error: 'not_found' }));
-
-app.listen(PORT, HOST, () => {
+server.listen(PORT, HOST, () => {
   console.log(`[observer] listening on http://${HOST}:${PORT} (auth_enabled=${AUTH_ENABLED})`);
 });
