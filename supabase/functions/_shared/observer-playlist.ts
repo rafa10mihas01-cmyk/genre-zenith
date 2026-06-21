@@ -84,10 +84,13 @@ export type ObserverItemsPage = {
 type FreshnessOpts = { fresh?: boolean; maxAgeSeconds?: number };
 
 function getConfig() {
-  const baseUrl = Deno.env.get("OBSERVER_BASE_URL");
-  const token = Deno.env.get("OBSERVER_TOKEN");
-  if (!baseUrl || !token) throw new ObserverNotConfiguredError();
-  return { baseUrl: baseUrl.replace(/\/+$/, ""), token };
+  const baseUrlRaw = Deno.env.get("OBSERVER_BASE_URL");
+  const tokenRaw = Deno.env.get("OBSERVER_TOKEN");
+  if (!baseUrlRaw || !tokenRaw) throw new ObserverNotConfiguredError();
+  // trim invisíveis (newline/CR/espaço) que quebram fetch com "not a valid ByteString"
+  const baseUrl = baseUrlRaw.trim().replace(/\/+$/, "");
+  const token = tokenRaw.replace(/[\r\n\t\s]+/g, "");
+  return { baseUrl, token };
 }
 
 function buildUrl(path: string, params: Record<string, string | number | undefined> = {}) {
@@ -104,7 +107,7 @@ async function observerFetch<T>(path: string, params: Record<string, string | nu
   const url = buildUrl(path, params);
   const r = await fetch(url, {
     method: "GET",
-    headers: { "X-Observer-Token": token, Accept: "application/json" },
+    headers: { "X-Observer-Token": token, "Accept": "application/json" },
   });
   if (!r.ok) {
     const body = await r.text();
