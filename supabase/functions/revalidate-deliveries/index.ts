@@ -24,6 +24,10 @@ import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { getPlaylistItems } from '../_shared/catalog-gateway.ts';
 import { getUserToken, spotifyFetch } from '../_shared/spotify-client.ts';
+import {
+  isObserverConfigured,
+  observerListAllPlaylistItems,
+} from '../_shared/observer-playlist.ts';
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
