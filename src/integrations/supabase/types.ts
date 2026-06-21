@@ -12495,6 +12495,20 @@ export type Database = {
         }
         Relationships: []
       }
+      oauth_migration_actions: {
+        Row: {
+          assigned_at: string | null
+          completed_at: string | null
+          current_app: string | null
+          current_state: string | null
+          playlists_count: number | null
+          reconnect_path: string | null
+          spotify_user_id: string | null
+          status: string | null
+          target_app: string | null
+        }
+        Relationships: []
+      }
       spotify_app_overview: {
         Row: {
           accounts_count: number | null
