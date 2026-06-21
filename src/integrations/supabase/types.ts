@@ -7224,6 +7224,88 @@ export type Database = {
         }
         Relationships: []
       }
+      oauth_migration_plan: {
+        Row: {
+          assigned_at: string
+          completed_at: string | null
+          current_app_id: string
+          id: string
+          notes: string | null
+          playlists_count: number
+          spotify_user_id: string
+          status: string
+          target_app_id: string
+          token_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          completed_at?: string | null
+          current_app_id: string
+          id?: string
+          notes?: string | null
+          playlists_count?: number
+          spotify_user_id: string
+          status?: string
+          target_app_id: string
+          token_id: string
+        }
+        Update: {
+          assigned_at?: string
+          completed_at?: string | null
+          current_app_id?: string
+          id?: string
+          notes?: string | null
+          playlists_count?: number
+          spotify_user_id?: string
+          status?: string
+          target_app_id?: string
+          token_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oauth_migration_plan_current_app_id_fkey"
+            columns: ["current_app_id"]
+            isOneToOne: false
+            referencedRelation: "spotify_app_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "oauth_migration_plan_current_app_id_fkey"
+            columns: ["current_app_id"]
+            isOneToOne: false
+            referencedRelation: "spotify_apps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "oauth_migration_plan_target_app_id_fkey"
+            columns: ["target_app_id"]
+            isOneToOne: false
+            referencedRelation: "spotify_app_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "oauth_migration_plan_target_app_id_fkey"
+            columns: ["target_app_id"]
+            isOneToOne: false
+            referencedRelation: "spotify_apps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "oauth_migration_plan_token_id_fkey"
+            columns: ["token_id"]
+            isOneToOne: true
+            referencedRelation: "spotify_user_tokens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "oauth_migration_plan_token_id_fkey"
+            columns: ["token_id"]
+            isOneToOne: true
+            referencedRelation: "spotify_user_tokens_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       observed_playlist_snapshots: {
         Row: {
           captured_at: string
