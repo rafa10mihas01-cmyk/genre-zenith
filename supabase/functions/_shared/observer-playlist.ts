@@ -107,7 +107,7 @@ async function observerFetch<T>(path: string, params: Record<string, string | nu
   const url = buildUrl(path, params);
   const r = await fetch(url, {
     method: "GET",
-    headers: { "X-Observer-Token": token, "Accept": "application/json" },
+    headers: { "x-ops-agent-token": token, "Accept": "application/json" },
   });
   if (!r.ok) {
     const body = await r.text();
