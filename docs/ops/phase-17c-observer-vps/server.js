@@ -1,5 +1,5 @@
 /**
- * Phase 17-D — Observer server.js
+ * Phase 17-E — Observer server.js
  * --------------------------------------------------------------------------
  * Node 18 ESM, ZERO external dependencies (only `http` + project modules).
  *
@@ -216,7 +216,7 @@ function sendJson(res, status, payload) {
     'content-type': 'application/json; charset=utf-8',
     'content-length': Buffer.byteLength(body),
     'cache-control': 'no-store',
-    'x-observer-phase': '17-D',
+    'x-observer-phase': '17-E',
   });
   res.end(body);
 }
