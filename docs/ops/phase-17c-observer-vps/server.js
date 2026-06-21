@@ -230,13 +230,26 @@ function parseIntSafe(value, fallback) {
 // Route handlers
 // --------------------------------------------------------------------------
 async function handleHealth(_req, res) {
+  const mem = process.memoryUsage();
   sendJson(res, 200, {
     ok: true,
     service: 'observer',
-    phase: '17-D',
+    phase: '17-E',
     auth_enabled: AUTH_ENABLED,
     uptime_s: Math.round(process.uptime()),
     now: new Date().toISOString(),
+    // Additive monitoring metadata (backward-compatible).
+    cache: {
+      size: cache.size,
+      max: CACHE_MAX,
+      sweep_interval_ms: CACHE_SWEEP_INTERVAL_MS,
+      sweep_ttl_ms: CACHE_SWEEP_TTL_MS,
+    },
+    memory: {
+      rss_mb: +(mem.rss / 1048576).toFixed(1),
+      heap_used_mb: +(mem.heapUsed / 1048576).toFixed(1),
+      heap_total_mb: +(mem.heapTotal / 1048576).toFixed(1),
+    },
   });
 }
 
