@@ -26,16 +26,10 @@ Deno.serve(async (req) => {
     }
   }
   return new Response(JSON.stringify({
-    url_len: u.length,
     url_first40: u.slice(0, 40),
-    url_codes_tail: codes(u).slice(-6),
     token_len: t.length,
     token_first8: t.slice(0, 8),
     token_last8: t.slice(-8),
-    token_has_newline: /\r|\n/.test(t),
-    token_has_space: / /.test(t),
-    token_codes_tail: codes(t).slice(-6),
-    fetchStatus,
-    fetchErr,
+    header_results: results,
   }, null, 2), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 });
