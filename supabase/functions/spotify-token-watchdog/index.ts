@@ -214,6 +214,7 @@ Deno.serve(async (req) => {
     if (expSoon) {
       const appCreds = await getAppCredentials();
       const appBasic = btoa(`${appCreds.client_id}:${appCreds.client_secret}`);
+      const t0 = Date.now();
       const ar = await fetch("https://accounts.spotify.com/api/token", {
         method: "POST",
         headers: {
@@ -222,6 +223,7 @@ Deno.serve(async (req) => {
         },
         body: "grant_type=client_credentials",
       });
+      await logTokenCall({ appId: appCreds.app_id, appName: appCreds.name, httpStatus: ar.status, durationMs: Date.now()-t0, ok: ar.ok, grant: "client_credentials", error: ar.ok ? null : `HTTP ${ar.status}` });
       if (ar.ok) {
         const aj = await ar.json();
         const access_token: string = aj.access_token;
