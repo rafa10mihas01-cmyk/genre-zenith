@@ -9,11 +9,10 @@
 // Uso na VPS (sem auth — endpoint local):
 //   node scripts/phase17d-observer-compat.mjs
 //
-// Com auth (qualquer um dos nomes abaixo é aceito automaticamente):
-//   OPS_AGENT_TOKEN=... node scripts/phase17d-observer-compat.mjs
+// Com auth (variáveis reais encontradas na VPS; primeira não vazia vence):
+//   OPS_AGENT_TOKEN=...  node scripts/phase17d-observer-compat.mjs
 //   BOT_INGEST_TOKEN=... node scripts/phase17d-observer-compat.mjs
 //   BOT_API_KEY=...      node scripts/phase17d-observer-compat.mjs
-//   OBSERVER_TOKEN=...   node scripts/phase17d-observer-compat.mjs
 //
 // Forçar nome do header (default tenta vários):
 //   OBSERVER_AUTH_HEADER=x-ops-agent-token OPS_AGENT_TOKEN=... node ...
@@ -31,7 +30,6 @@ const PLAYLIST_ID = process.env.PLAYLIST_ID || '37i9dQZF1DXcBWIGoYBM5M';
 
 // Resolve token a partir de qualquer variável conhecida (primeira não vazia vence)
 const TOKEN_CANDIDATES = [
-  ['OBSERVER_TOKEN',   'x-observer-token'],
   ['OPS_AGENT_TOKEN',  'x-ops-agent-token'],
   ['BOT_INGEST_TOKEN', 'x-bot-ingest-token'],
   ['BOT_API_KEY',      'x-api-key'],
