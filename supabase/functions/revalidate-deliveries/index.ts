@@ -24,6 +24,10 @@ import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { getPlaylistItems } from '../_shared/catalog-gateway.ts';
 import { getUserToken, spotifyFetch } from '../_shared/spotify-client.ts';
+import {
+  isObserverConfigured,
+  observerListAllPlaylistItems,
+} from '../_shared/observer-playlist.ts';
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
@@ -154,21 +158,40 @@ Deno.serve(async (req) => {
   // ── Loop de validação (rota híbrida: gateway-cc | oauth-managed) ─────
   const itemsCache = new Map<string, Item[]>();
   const counts = { present: 0, moved: 0, duplicate: 0, removed: 0, error: 0, skipped: 0 };
-  const routing = { gateway_cc: 0, oauth_managed: 0 };
+  const routing = { observer: 0, observer_fallback: 0, gateway_cc: 0, oauth_managed: 0 };
+  const observerOn = isObserverConfigured();
   const validations: any[] = [];
   const jobUpdates: { id: string; status: string; position: number | null }[] = [];
+
+  async function loadItems(playlistId: string): Promise<Item[]> {
+    // Fase 17-D: Observer primeiro quando configurado (vale pra públicas E managed)
+    if (observerOn) {
+      try {
+        const tracks = await observerListAllPlaylistItems(playlistId, { maxAgeSeconds: 600 });
+        const out: Item[] = [];
+        for (const it of tracks) if (it.track?.id) out.push({ track_id: it.track.id });
+        routing.observer++;
+        return out;
+      } catch (e) {
+        routing.observer_fallback++;
+        console.warn(`[${FN}] observer falhou pra ${playlistId}, caindo no fallback:`, String((e as any)?.message ?? e).slice(0, 200));
+      }
+    }
+    if (managedOwner.has(playlistId)) {
+      const items = await fetchManagedItems(playlistId, managedOwner.get(playlistId) ?? null);
+      routing.oauth_managed++;
+      return items;
+    }
+    const items = await getPlaylistItems(playlistId, FN);
+    routing.gateway_cc++;
+    return items;
+  }
 
   for (const j of uniq.values()) {
     try {
       let items = itemsCache.get(j.spotify_playlist_id);
       if (!items) {
-        if (managedOwner.has(j.spotify_playlist_id)) {
-          items = await fetchManagedItems(j.spotify_playlist_id, managedOwner.get(j.spotify_playlist_id) ?? null);
-          routing.oauth_managed++;
-        } else {
-          items = await getPlaylistItems(j.spotify_playlist_id, FN);
-          routing.gateway_cc++;
-        }
+        items = await loadItems(j.spotify_playlist_id);
         itemsCache.set(j.spotify_playlist_id, items);
       }
       const positions: number[] = [];
@@ -233,7 +256,9 @@ Deno.serve(async (req) => {
       limit,
       counts,
       routing,
-      via: 'hybrid: gateway-cc (public) + oauth (managed)',
+      via: observerOn
+        ? 'phase-17D: observer (primary) → gateway-cc/oauth (fallback)'
+        : 'hybrid: gateway-cc (public) + oauth (managed)',
       policy: 'confirm_once: present/moved/duplicate never re-checked',
     }, null, 2),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
