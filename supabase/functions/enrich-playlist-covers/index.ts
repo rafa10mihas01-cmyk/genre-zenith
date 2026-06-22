@@ -1,8 +1,13 @@
 // enrich-playlist-covers — Hidrata capa/seguidores de playlists do Spotify
 // que não estão em curator_playlists e salva em spotify_playlist_cache.
+// Fase 17-C: leitura pública agora vem exclusivamente da VPS Observer.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { ccFetch } from "../_shared/catalog-gateway.ts";
+import {
+  observerGetPlaylist,
+  ObserverApiError,
+  ObserverNotConfiguredError,
+} from "../_shared/observer-playlist.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -45,7 +50,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Token via Catalog Gateway.
+    // Fase 17-C: VPS Observer.
     const rows: Array<{
       spotify_playlist_id: string;
       image_url: string | null;
@@ -54,7 +59,6 @@ Deno.serve(async (req) => {
       cached_at: string;
     }> = [];
 
-    // Spotify não suporta batch pra playlists — fetch com baixa concorrência pra evitar 429
     const CONCURRENCY = 2;
     let rateLimited = false;
     let retryAfterSec: number | null = null;
@@ -65,35 +69,7 @@ Deno.serve(async (req) => {
       const results = await Promise.all(
         chunk.map(async (id): Promise<typeof rows[number] | null> => {
           try {
-            const r = await ccFetch(
-              `https://api.spotify.com/v1/playlists/${id}?fields=images,followers(total),owner(display_name)`,
-              "enrich-playlist-covers",
-              id,
-            );
-            if (r.status === 429) {
-              rateLimited = true;
-              const ra = r.headers.get("retry-after");
-              if (ra) retryAfterSec = parseInt(ra, 10) || null;
-              await r.text().catch(() => "");
-              console.warn(`spotify ${id} -> 429, retry-after=${ra}`);
-              return null; // não cachear falha
-            }
-            if (!r.ok) {
-              const errText = await r.text().catch(() => "");
-              console.warn(`spotify ${id} -> ${r.status}: ${errText.slice(0, 200)}`);
-              // 404 / 403: playlist removida ou privada → cacheia null pra parar de tentar
-              if (r.status === 404 || r.status === 403) {
-                return {
-                  spotify_playlist_id: id,
-                  image_url: null,
-                  followers: null,
-                  owner_name: null,
-                  cached_at: new Date().toISOString(),
-                };
-              }
-              return null; // outros erros: não cacheia, permite retry
-            }
-            const j = await r.json();
+            const j = await observerGetPlaylist(id);
             return {
               spotify_playlist_id: id,
               image_url: j?.images?.[0]?.url ?? null,
@@ -102,13 +78,36 @@ Deno.serve(async (req) => {
               cached_at: new Date().toISOString(),
             };
           } catch (err) {
-            console.error(`spotify ${id} threw:`, err);
+            if (err instanceof ObserverApiError) {
+              if (err.status === 429) {
+                rateLimited = true;
+                if (err.retryAfter) retryAfterSec = err.retryAfter;
+                console.warn(`observer ${id} -> 429, retry-after=${err.retryAfter}`);
+                return null;
+              }
+              if (err.status === 404 || err.status === 403) {
+                return {
+                  spotify_playlist_id: id,
+                  image_url: null,
+                  followers: null,
+                  owner_name: null,
+                  cached_at: new Date().toISOString(),
+                };
+              }
+              console.warn(`observer ${id} -> ${err.status}: ${err.body.slice(0, 200)}`);
+              return null;
+            }
+            if (err instanceof ObserverNotConfiguredError) {
+              console.error("observer not configured");
+              return null;
+            }
+            console.error(`observer ${id} threw:`, err);
             return null;
           }
         }),
       );
       for (const r of results) if (r) rows.push(r);
-      // Pequeno delay entre lotes pra suavizar rate
+      // Pequeno delay entre lotes
       if (i + CONCURRENCY < toFetch.length && !rateLimited) {
         await new Promise((res) => setTimeout(res, 150));
       }

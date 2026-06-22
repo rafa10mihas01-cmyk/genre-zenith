@@ -1,10 +1,15 @@
 // discover-playlist-owners — descobre qual conta Spotify é dona de cada
-// managed_playlist (via API pública) e popula `owner_spotify_user_id`.
+// managed_playlist (via VPS Observer) e popula `owner_spotify_user_id`.
 // Idempotente. Roda sob demanda pelo painel.
+// Fase 17-C: leitura de owner agora exclusivamente via observerGetOwner.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getAppToken, spotifyFetch } from "../_shared/spotify-client.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
+import {
+  observerGetOwner,
+  ObserverApiError,
+  ObserverNotConfiguredError,
+} from "../_shared/observer-playlist.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -42,7 +47,6 @@ Deno.serve(async (req) => {
   const { data: pls, error: plErr } = await q;
   if (plErr) return jr({ ok: false, error: plErr.message }, 500);
 
-  const token = await getAppToken();
   const results: any[] = [];
   let matched = 0, unknown = 0, failed = 0;
 
@@ -51,22 +55,18 @@ Deno.serve(async (req) => {
       let ownerId: string | null = null;
       let ownerDisplay: string | null = null;
       try {
-        const r = await spotifyFetch(
-          `https://api.spotify.com/v1/playlists/${p.spotify_playlist_id}?fields=owner(id,display_name)`,
-          { headers: { Authorization: `Bearer ${token}` } },
-          { functionName: "discover-playlist-owners", operation: "get_playlist_owner", meta: { playlist_id: p.spotify_playlist_id } },
-        );
-        if (!r.ok) {
-          failed++;
-          results.push({ playlist: p.name, error: `spotify ${r.status}` });
-          continue;
-        }
-        const j: any = await r.json();
-        ownerId = j?.owner?.id ?? null;
-        ownerDisplay = j?.owner?.display_name ?? null;
+        const owner = await observerGetOwner(p.spotify_playlist_id);
+        ownerId = owner?.id ?? null;
+        ownerDisplay = owner?.display_name ?? null;
       } catch (e) {
         failed++;
-        results.push({ playlist: p.name, error: (e as Error).message });
+        if (e instanceof ObserverApiError) {
+          results.push({ playlist: p.name, error: `observer ${e.status}` });
+        } else if (e instanceof ObserverNotConfiguredError) {
+          results.push({ playlist: p.name, error: "observer_not_configured" });
+        } else {
+          results.push({ playlist: p.name, error: (e as Error).message });
+        }
         continue;
       }
       if (!ownerId) { failed++; results.push({ playlist: p.name, error: "no owner" }); continue; }
