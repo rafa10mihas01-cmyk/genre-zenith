@@ -69,34 +69,48 @@ Deno.serve(async (req) => {
 
     if (picked.length === 0) return jr({ ok: true, processed: 0, saved: 0, errors: [] });
 
-    const token = await getAppToken();
     let saved = 0;
     const errors: Array<{ id: string; name: string | null; error: string }> = [];
 
     for (const row of picked) {
       try {
-        const rich = await listPlaylistTracksRich(row.spotify_playlist_id, token, {
-          max: maxTracks,
-          fields: "items(track(id,name,duration_ms,popularity,artists(name),album(name,release_date,images))),next",
+        // Fase 17-C: items via Observer (leitura pública); popularity/ISRC via cache.
+        const items = await observerListAllPlaylistItems(row.spotify_playlist_id, {
+          maxItems: maxTracks,
+          maxAgeSeconds: 3600,
         });
+        const trackIds = items
+          .map((it) => it.track?.id)
+          .filter((id): id is string => !!id);
+        const cache = await getTrackCacheBatch(trackIds);
+
         const rowsByTrack = new Map<string, any>();
         let pos = 0;
-        for (const t of rich) {
-          if (!t.spotify_track_id) continue;
-          if (rowsByTrack.has(t.spotify_track_id)) continue;
-          rowsByTrack.set(t.spotify_track_id, {
+        for (const it of items) {
+          const tr = it.track;
+          if (!tr?.id) continue;
+          if (rowsByTrack.has(tr.id)) continue;
+          const cacheRow = cache.get(tr.id);
+          const cacheRaw: any = cacheRow?.raw ?? null;
+          const albumImages: Array<{ url: string }> =
+            cacheRaw?.album?.images ?? tr.album?.images ?? [];
+          const releaseDate = cacheRaw?.album?.release_date ?? null;
+          const albumName = cacheRaw?.album?.name ?? tr.album?.name ?? null;
+          const popularity = typeof cacheRow?.popularity === "number" ? cacheRow.popularity : null;
+          const artistNames = (tr.artists ?? []).map((a) => a.name).filter(Boolean).join(", ");
+          rowsByTrack.set(tr.id, {
             genre_id: row.genre_id,
             result_id: row.id,
-            nome_musica: t.name || "Desconhecida",
-            artista: t.artists || "Desconhecido",
-            spotify_track_id: t.spotify_track_id,
+            nome_musica: tr.name || "Desconhecida",
+            artista: artistNames || "Desconhecido",
+            spotify_track_id: tr.id,
             posicao_na_playlist: ++pos,
             coletado_em: new Date().toISOString(),
-            cover_url: t.album_images[0]?.url ?? t.album_cover,
-            release_date: normalizeReleaseDate(t.release_date),
-            popularity: t.popularity,
-            album: t.album,
-            duration_ms: t.duration_ms,
+            cover_url: albumImages[0]?.url ?? albumImages[albumImages.length - 1]?.url ?? null,
+            release_date: normalizeReleaseDate(releaseDate),
+            popularity,
+            album: albumName,
+            duration_ms: typeof tr.duration_ms === "number" ? tr.duration_ms : null,
           });
           if (rowsByTrack.size >= maxTracks) break;
         }
