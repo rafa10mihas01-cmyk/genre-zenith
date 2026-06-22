@@ -30,11 +30,23 @@ export function KpiCompactStrip({
 }) {
   return (
     <div className={cn("lg:hidden", className)}>
-      <div className="bg-card border border-border rounded-2xl overflow-hidden divide-y divide-border">
+      <div
+        className={cn(
+          "relative rounded-2xl overflow-hidden border border-border/80",
+          "bg-gradient-to-b from-[hsl(var(--card))] to-[hsl(0_0%_9%)]",
+          "shadow-[0_1px_0_0_hsl(var(--primary)/0.08)_inset,0_8px_24px_-12px_hsl(0_0%_0%/0.6)]",
+          "divide-y divide-border/60",
+        )}
+      >
+        {/* hairline verde sutil no topo — sinaliza KPI sem ser agressivo */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent"
+        />
         {rows.map((row, ri) => {
           const cols = (row.cols ?? (row.items.length as 2 | 3 | 4 | 5)) as 2 | 3 | 4 | 5;
           return (
-            <div key={ri} className={cn("grid divide-x divide-border", COL_CLASS[cols])}>
+            <div key={ri} className={cn("grid divide-x divide-border/60", COL_CLASS[cols])}>
               {row.items.map((item, i) => (
                 <div
                   key={i}
@@ -55,3 +67,4 @@ export function KpiCompactStrip({
     </div>
   );
 }
+
