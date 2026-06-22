@@ -339,7 +339,7 @@ export function SpotifyAppsManager({
         </div>
       ) : (
         <div className="space-y-3">
-          {apps.slice(page * APPS_PER_PAGE, page * APPS_PER_PAGE + APPS_PER_PAGE).map((a) => {
+          {visibleApps.slice(page * APPS_PER_PAGE, page * APPS_PER_PAGE + APPS_PER_PAGE).map((a) => {
             const appAccounts = accountsByApp.get(a.id) ?? [];
             // Deriva uso a partir das contas reais (prop), pra atualizar na hora ao deletar/conectar.
             const liveUsed = appAccounts.length;
