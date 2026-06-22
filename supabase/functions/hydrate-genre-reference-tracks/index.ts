@@ -1,11 +1,15 @@
-// hydrate-genre-reference-tracks — preenche search_tracks usando Spotify API
-// para playlists de referência que já existem em search_results mas ainda não
-// têm faixas salvas. Resolve gêneros com referências sem DNA musical.
+// hydrate-genre-reference-tracks — preenche search_tracks com as faixas das
+// playlists de referência de cada gênero.
+//
+// Fase 17-C (arquitetura definitiva):
+//   - Listagem pública de items via OBSERVER (observerListAllPlaylistItems).
+//   - popularity / ISRC via CACHE (spotify_track_cache); miss → auto-enqueue.
+// Nenhuma chamada a api.spotify.com.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
-import { getAppToken, SpotifyCircuitOpenError, spotifyFetch } from "../_shared/spotify-client.ts";
-import { listPlaylistTracksRich } from "../_shared/spotify-playlist.ts";
+import { observerListAllPlaylistItems } from "../_shared/observer-playlist.ts";
+import { getTrackCacheBatch } from "../_shared/spotify-cache.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -17,24 +21,12 @@ function jr(p: unknown, status = 200) {
   });
 }
 
-async function spotifyFetch(token: string, url: string): Promise<any> {
-  // NOTE: guard global trata breaker. SpotifyCircuitOpenError → abort imediato, sem retry.
-  let r: Response;
-  try {
-    r = await spotifyFetch(url, { headers: { Authorization: `Bearer ${token}` } });
-  } catch (e) {
-    if (e instanceof SpotifyCircuitOpenError) throw e;
-    throw e;
-  }
-  if (r.status === 429) {
-    const txt = await r.text().catch(() => "");
-    throw new Error(`Spotify 429 (breaker aberto): ${txt.slice(0, 180)}`);
-  }
-  if (!r.ok) {
-    const txt = await r.text();
-    throw new Error(`Spotify ${r.status}: ${txt.slice(0, 180)}`);
-  }
-  return r.json();
+function normalizeReleaseDate(value: unknown): string | null {
+  const raw = String(value ?? "").trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  if (/^\d{4}-\d{2}$/.test(raw)) return `${raw}-01`;
+  if (/^\d{4}$/.test(raw)) return `${raw}-01-01`;
+  return null;
 }
 
 function normalizeReleaseDate(value: unknown): string | null {
