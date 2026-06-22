@@ -13984,61 +13984,6 @@ export type Database = {
         }
         Relationships: []
       }
-      vw_campaign_playlist_growth: {
-        Row: {
-          attributed_to: string | null
-          baseline_at: string | null
-          baseline_name: string | null
-          baseline_plays: number | null
-          campaign_id: string | null
-          current_name: string | null
-          current_plays: number | null
-          delivery_accumulated: number | null
-          delta: number | null
-          first_seen_at: string | null
-          last_captured_at: string | null
-          last_import_delta: number | null
-          playlist_id: string | null
-          playlist_url: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "campaign_radio_collected"
-            referencedColumns: ["campaign_id"]
-          },
-          {
-            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "campaigns"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "v_campaign_overview"
-            referencedColumns: ["campaign_id"]
-          },
-          {
-            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "v_campaign_velocity"
-            referencedColumns: ["campaign_id"]
-          },
-          {
-            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "v_financial_summary"
-            referencedColumns: ["campaign_id"]
-          },
-        ]
-      }
       vw_inventory_vs_monitor_diff: {
         Row: {
           campaign_id: string | null
