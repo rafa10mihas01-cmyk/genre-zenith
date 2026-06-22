@@ -181,27 +181,35 @@ export default function Campanhas() {
 
       <PageContainer>
         {/* KPIs globais — sempre visíveis pra manter padrão entre abas */}
-        <KpiCompactStrip
-          loading={loading}
-          className="mb-6"
-          rows={[
-            {
-              cols: 3,
-              items: [
-                { label: "Meta total", value: kpis.goal.toLocaleString("pt-BR") },
-                { label: "Ativas", value: kpis.activeCount.toLocaleString("pt-BR") },
-                { label: "Entregue", value: kpis.delivered.toLocaleString("pt-BR") },
-              ],
-            },
-            {
-              cols: 2,
-              items: [
-                { label: "Cumprimento", value: `${kpis.pct}%` },
-                { label: "CPP médio", value: kpis.cpp != null ? formatBRLDetail(kpis.cpp) : "—" },
-              ],
-            },
-          ]}
-        />
+        {/* KPIs mobile/tablet — duas réguas separadas, padrão Catálogo */}
+        <div className="lg:hidden space-y-3 mb-6">
+          <KpiCompactStrip
+            loading={loading}
+            rows={[
+              {
+                cols: 3,
+                items: [
+                  { label: "Meta total", value: kpis.goal.toLocaleString("pt-BR") },
+                  { label: "Ativas", value: kpis.activeCount.toLocaleString("pt-BR") },
+                  { label: "Entregue", value: kpis.delivered.toLocaleString("pt-BR") },
+                ],
+              },
+            ]}
+          />
+          <KpiCompactStrip
+            loading={loading}
+            rows={[
+              {
+                cols: 3,
+                items: [
+                  { label: "Cumprimento", value: `${kpis.pct}%` },
+                  { label: "Alocado", value: kpis.allocated.toLocaleString("pt-BR") },
+                  { label: "CPP médio", value: kpis.cpp != null ? formatBRLDetail(kpis.cpp) : "—" },
+                ],
+              },
+            ]}
+          />
+        </div>
         <section className="hidden lg:grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
           <KpiBig
             tier="hero"
