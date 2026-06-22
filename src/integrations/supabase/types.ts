@@ -5387,6 +5387,60 @@ export type Database = {
         }
         Relationships: []
       }
+      engine_priority_runs: {
+        Row: {
+          components_used: Json
+          created_at: string
+          duration_ms: number | null
+          errors: number
+          finished_at: string | null
+          id: string
+          notes: string | null
+          placements_evaluated: number
+          score_avg: number | null
+          score_max: number | null
+          score_min: number | null
+          score_p50: number | null
+          score_p90: number | null
+          started_at: string
+          triggered_by: string
+        }
+        Insert: {
+          components_used?: Json
+          created_at?: string
+          duration_ms?: number | null
+          errors?: number
+          finished_at?: string | null
+          id?: string
+          notes?: string | null
+          placements_evaluated?: number
+          score_avg?: number | null
+          score_max?: number | null
+          score_min?: number | null
+          score_p50?: number | null
+          score_p90?: number | null
+          started_at?: string
+          triggered_by?: string
+        }
+        Update: {
+          components_used?: Json
+          created_at?: string
+          duration_ms?: number | null
+          errors?: number
+          finished_at?: string | null
+          id?: string
+          notes?: string | null
+          placements_evaluated?: number
+          score_avg?: number | null
+          score_max?: number | null
+          score_min?: number | null
+          score_p50?: number | null
+          score_p90?: number | null
+          started_at?: string
+          triggered_by?: string
+        }
+        Relationships: []
+      }
       external_curators: {
         Row: {
           activity: string | null
@@ -8013,6 +8067,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "placement_origin_log_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_placements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      placement_priority_scores: {
+        Row: {
+          calculated_at: string
+          components: Json
+          created_at: string
+          id: string
+          placement_id: string
+          run_id: string | null
+          score: number
+        }
+        Insert: {
+          calculated_at?: string
+          components?: Json
+          created_at?: string
+          id?: string
+          placement_id: string
+          run_id?: string | null
+          score?: number
+        }
+        Update: {
+          calculated_at?: string
+          components?: Json
+          created_at?: string
+          id?: string
+          placement_id?: string
+          run_id?: string | null
+          score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "placement_priority_scores_placement_id_fkey"
             columns: ["placement_id"]
             isOneToOne: false
             referencedRelation: "catalog_placements"
@@ -13436,6 +13528,77 @@ export type Database = {
         }
         Relationships: []
       }
+      v_placement_priority_latest: {
+        Row: {
+          artist_name: string | null
+          calculated_at: string | null
+          catalog_track_id: string | null
+          components: Json | null
+          managed_playlist_id: string | null
+          placement_id: string | null
+          score: number | null
+          spotify_artist_id: string | null
+          track_name: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_placements_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_tracks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_placements_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_track_distribution_stats"
+            referencedColumns: ["catalog_track_id"]
+          },
+          {
+            foreignKeyName: "catalog_placements_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_track_performance"
+            referencedColumns: ["catalog_track_id"]
+          },
+          {
+            foreignKeyName: "catalog_placements_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_track_telemetry"
+            referencedColumns: ["catalog_track_id"]
+          },
+          {
+            foreignKeyName: "catalog_placements_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "managed_playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_placements_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_playlist_occupancy"
+            referencedColumns: ["managed_playlist_id"]
+          },
+          {
+            foreignKeyName: "catalog_placements_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_playlist_vps_assignment"
+            referencedColumns: ["managed_playlist_id"]
+          },
+          {
+            foreignKeyName: "placement_priority_scores_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_placements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_playlist_vps_assignment: {
         Row: {
           account_id: string | null
@@ -13984,6 +14147,14 @@ export type Database = {
         Args: { p_genre_id: string; p_version_a: number; p_version_b: number }
         Returns: Json
       }
+      compute_placement_priority: {
+        Args: { _placement_id: string }
+        Returns: {
+          calculated_at: string
+          components: Json
+          score: number
+        }[]
+      }
       compute_playlist_execution_mode: {
         Args: { p_archived_at: string; p_owner: string }
         Returns: Database["public"]["Enums"]["playlist_execution_mode"]
@@ -14093,6 +14264,10 @@ export type Database = {
           p_track_name?: string
         }
         Returns: Json
+      }
+      engine_priority_compute_all: {
+        Args: { _limit?: number }
+        Returns: string
       }
       engine_propose_playlist_occupancy: {
         Args: {
