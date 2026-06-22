@@ -109,7 +109,7 @@ export async function getArtistCacheBatch(ids: string[]): Promise<Map<string, Ar
     const slice = unique.slice(i, i + 500);
     const { data } = await sb
       .from("spotify_artist_cache")
-      .select("spotify_artist_id,name,genres,popularity,followers,image_url,refreshed_at,genres_refreshed_at,enriched_at,fetch_status")
+      .select("spotify_artist_id,name,genres,popularity,followers,image_url,refreshed_at,genres_refreshed_at,enriched_at,fetch_status,raw")
       .in("spotify_artist_id", slice);
     for (const row of data ?? []) out.set((row as any).spotify_artist_id, row as ArtistCacheRow);
   }
