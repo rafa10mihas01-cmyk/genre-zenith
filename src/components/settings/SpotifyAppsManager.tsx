@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import {
   Plus, Star, Trash2, Pencil, Loader2, ExternalLink, AlertTriangle, LinkIcon, Copy, Check,
-  Music2, RefreshCw, Settings2, ChevronDown, CheckCircle2,
+  Music2, RefreshCw, Settings2, ChevronDown, CheckCircle2, Eye, EyeOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
