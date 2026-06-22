@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
     await supabase.from("collection_logs").insert({
       acao: "sync-spotify-editorial-charts",
       status: "sucesso",
-      mensagem: `chart=${chartName} enriched=${enriched} failed=${failed}`,
+      mensagem: `chart=${chartName} enriched=${enriched} failed=${failed} pending=${pending}`,
       duracao_ms: Date.now() - start,
     });
 
@@ -126,10 +126,10 @@ Deno.serve(async (req) => {
       job_name: "sync-spotify-editorial-charts",
       status: failed === 0 ? "ok" : (enriched === 0 ? "error" : "partial"),
       startedAt: start,
-      metrics: { chart: chartName, date: today, enriched, failed },
+      metrics: { chart: chartName, date: today, enriched, failed, pending },
     });
 
-    return jr({ ok: true, chart: chartName, date: today, enriched, failed });
+    return jr({ ok: true, chart: chartName, date: today, enriched, failed, pending });
   } catch (e) {
     const msg = (e as Error).message;
     await supabase.from("collection_logs").insert({
