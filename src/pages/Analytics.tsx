@@ -49,15 +49,14 @@ export default function Analytics() {
 
       const campaignIds = Array.from(new Set(deals.map((d) => d.campaign_id).filter((v): v is string => !!v)));
 
-      // 2) vw_campaign_playlist_growth — fonte canônica de delivery_accumulated.
+      // 2) fn_campaign_playlist_growth (RPC com pushdown — Etapa 2B) — fonte canônica de delivery_accumulated.
       let growthRows: GrowthRow[] = [];
       if (campaignIds.length > 0) {
-        const { data: gr } = await supabase
-          .from("vw_campaign_playlist_growth")
-          .select("campaign_id, playlist_id, baseline_plays, current_plays, delivery_accumulated, baseline_at, last_captured_at, attributed_to")
-          .in("campaign_id", campaignIds);
+        const { data: gr } = await (supabase as any)
+          .rpc("fn_campaign_playlist_growth", { p_campaign_ids: campaignIds });
         growthRows = ((gr ?? []) as unknown as GrowthRow[]);
       }
+
 
       // 3) CPC raw — apenas para chart de atividade diária (momentum), 30d.
       let cpcRows: CpcRow[] = [];

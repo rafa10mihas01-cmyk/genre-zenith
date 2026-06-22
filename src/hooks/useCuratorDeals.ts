@@ -349,14 +349,13 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
     enabled: campaignIdsForView.length > 0,
     staleTime: 30_000,
     queryFn: async () => {
-      // Growth Engine: vw_campaign_playlist_growth expõe `attributed_to` como
-      // texto ('curator:<uuid>' | 'ecosystem' | 'organic'). A coluna
-      // `attributed_curator_id` NÃO existe — parsing manual.
+      // Growth Engine: fn_campaign_playlist_growth (RPC com pushdown — Etapa 2B)
+      // expõe `attributed_to` como texto ('curator:<uuid>' | 'ecosystem' | 'organic').
+      // A coluna `attributed_curator_id` NÃO existe — parsing manual.
       const { data, error } = await (supabase as any)
-        .from("vw_campaign_playlist_growth")
-        .select("campaign_id, attributed_to, delta, last_captured_at")
-        .in("campaign_id", campaignIdsForView);
+        .rpc("fn_campaign_playlist_growth", { p_campaign_ids: campaignIdsForView });
       if (error) throw error;
+
       return (data ?? []) as Array<{
         campaign_id: string;
         attributed_to: string | null;
