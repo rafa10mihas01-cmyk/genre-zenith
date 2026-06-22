@@ -131,16 +131,15 @@ export function ExecucaoView({
 
     (async () => {
       // ─────────────────────────────────────────────────────────────
-      // FONTE DE VERDADE: vw_campaign_playlist_growth.
-      // Ela já trata janela last_24h vs last_7d/28d no banco; recalcular aqui
-      // reintroduz erro quando a planilha é diária.
+      // FONTE DE VERDADE: fn_campaign_playlist_growth (RPC com pushdown — Etapa 2B).
+      // Mesma semântica da antiga vw_campaign_playlist_growth; janela last_24h vs
+      // last_7d/28d tratada no banco — recalcular aqui reintroduz erro quando a
+      // planilha é diária.
       // ─────────────────────────────────────────────────────────────
       try {
       const [growthRes, collections, ccpRes, ecoRes] = await Promise.all([
-        supabase
-          .from("vw_campaign_playlist_growth")
-          .select("campaign_id, playlist_id, playlist_url, current_name, baseline_name, baseline_plays, current_plays, delta, last_import_delta, baseline_at, last_captured_at, first_seen_at, attributed_to")
-          .eq("campaign_id", campaignId),
+        (supabase as any)
+          .rpc("fn_campaign_playlist_growth", { p_campaign_ids: [campaignId] }),
         fetchAllCollections(),
         supabase
           .from("curator_campaign_playlists")
@@ -152,6 +151,7 @@ export function ExecucaoView({
           .eq("campaign_id", campaignId),
       ]);
       if (growthRes.error) throw growthRes.error;
+
 
       const uploadIds = Array.from(new Set(collections.map((c) => c.upload_id).filter((id): id is string => !!id)));
       const { data: uploadRows, error: uploadErr } = uploadIds.length > 0
