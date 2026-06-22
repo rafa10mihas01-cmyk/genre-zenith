@@ -225,8 +225,10 @@ async function upsertArtist(sb: any, id: string, j: any) {
     enriched_at: now,
     refreshed_at: now,
     genres_refreshed_at: now,
+    raw: j,
   });
 }
+
 
 function parseDate(s: any): string | null {
   if (!s || typeof s !== "string") return null;
