@@ -71,30 +71,11 @@ function fireAndForgetLog(row: GatewayLog): void {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Coalescência: tenta inserir um lock em catalog_inflight. Se já existe
-// (outro caller buscando o mesmo recurso), faz polling do cache.
-// ---------------------------------------------------------------------------
-async function tryAcquireInflight(resourceKey: string, endpoint: string, resourceId: string, caller: string): Promise<boolean> {
-  const sb = svc();
-  // Limpa expirados primeiro (best-effort)
-  await sb.from("catalog_inflight").delete().lt("expires_at", new Date().toISOString());
-  const { error } = await sb.from("catalog_inflight").insert({
-    resource_key: resourceKey, endpoint, resource_id: resourceId, caller,
-  });
-  if (error) {
-    if (/duplicate key/i.test(error.message)) return false;
-    // Em qualquer outro erro, prossegue (não bloqueia)
-    return true;
-  }
-  return true;
-}
+// Coalescência (catalog_inflight) e helpers de cache de playlist foram REMOVIDOS
+// na Onda 3 da Fase 17-C: a leitura pública de playlists migrou inteiramente
+// para o Observer. Este módulo só mantém o pool CC para o worker de cache e
+// para a exceção documentada `/search`.
 
-async function releaseInflight(resourceKey: string): Promise<void> {
-  try {
-    await svc().from("catalog_inflight").delete().eq("resource_key", resourceKey);
-  } catch { /* noop */ }
-}
 
 // ---------------------------------------------------------------------------
 // Pool EXCLUSIVO do Catalog Gateway (Fase 17-B.0.2)
