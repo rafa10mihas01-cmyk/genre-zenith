@@ -235,6 +235,11 @@ export function SpotifyAppsManager({
   const totalMax = apps.reduce((sum, a) => sum + a.max_accounts, 0);
   const totalUsed = accounts.filter((a) => a.app_id && apps.some((x) => x.id === a.app_id)).length;
   const allHealthy = apps.length > 0 && apps.every((a) => a.status === "active");
+  const pausedCount = apps.filter((a) => a.status !== "active").length;
+  const visibleApps = useMemo(
+    () => (hidePaused ? apps.filter((a) => a.status === "active") : apps),
+    [apps, hidePaused],
+  );
   const accountsByApp = useMemo(() => {
     const m = new Map<string, SpotifyAccount[]>();
     for (const a of accounts) {
