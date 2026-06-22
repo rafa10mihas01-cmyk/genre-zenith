@@ -277,14 +277,28 @@ export function SpotifyAppsManager({
             </p>
           </div>
         </div>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => setEditing({ name: "", max_accounts: 5, is_default: apps.length === 0, status: "active" })}
-          className="h-8 text-xs gap-1.5"
-        >
-          <Plus className="h-3.5 w-3.5" /> Cadastrar app
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          {pausedCount > 0 && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setHidePaused((v) => !v)}
+              className="h-8 text-xs gap-1.5"
+              title={hidePaused ? "Mostrar apps pausadas/bloqueadas" : "Ocultar apps pausadas/bloqueadas"}
+            >
+              {hidePaused ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+              {hidePaused ? `Mostrar pausadas (${pausedCount})` : "Ocultar pausadas"}
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setEditing({ name: "", max_accounts: 5, is_default: apps.length === 0, status: "active" })}
+            className="h-8 text-xs gap-1.5"
+          >
+            <Plus className="h-3.5 w-3.5" /> Cadastrar app
+          </Button>
+        </div>
       </header>
 
       {/* ─── Aviso contextual único (iframe) ─── */}
