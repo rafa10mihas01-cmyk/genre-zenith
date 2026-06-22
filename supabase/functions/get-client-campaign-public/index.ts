@@ -506,6 +506,7 @@ Deno.serve(async (req) => {
       current_name: string | null;
       baseline_name: string | null;
       first_seen_at: string | null;
+      attributed_to: string | null;
     };
     const growthByPid = new Map<string, CuratorGrowthRow>();
     if (campaignIdsForDeals.size > 0) {
@@ -526,6 +527,7 @@ Deno.serve(async (req) => {
           current_name: (g.current_name as string | null) ?? null,
           baseline_name: (g.baseline_name as string | null) ?? null,
           first_seen_at: (g.first_seen_at as string | null) ?? null,
+          attributed_to: (g.attributed_to as string | null) ?? null,
         };
         if (!prev) {
           growthByPid.set(k, inc);
@@ -537,18 +539,35 @@ Deno.serve(async (req) => {
           if (inc.current_plays != null) {
             prev.current_plays = Math.max(prev.current_plays ?? 0, inc.current_plays);
           }
+          // Preserva classificação de curador caso outra linha agregada
+          // já tenha vindo como `organic`/`ecosystem` por acaso de ordem.
+          if (
+            inc.attributed_to &&
+            inc.attributed_to.startsWith("curator:") &&
+            !(prev.attributed_to ?? "").startsWith("curator:")
+          ) {
+            prev.attributed_to = inc.attributed_to;
+          }
         }
     }
 
-    // MERGE: playlists descobertas pelo bot — presentes em
-    // vw_campaign_playlist_growth mas ausentes em curator_campaign_playlists.
-    // CCP segue como fonte principal (preserva registered_at e playlist_url
-    // cadastrados manualmente); o growth só adiciona o que falta. Sem isso,
-    // playlists coletadas automaticamente nunca apareciam no portal.
-    {
+    // MERGE — REGRA DE NEGÓCIO OFICIAL:
+    // Uma playlist só pode aparecer como "do curador" no portal quando
+    // existe vínculo explícito (campaign_id, curator_id, playlist_id) em
+    // curator_campaign_playlists. A view vw_campaign_playlist_growth já
+    // materializa essa regra no campo `attributed_to`:
+    //   - 'curator:<id>' → existe linha em CCP (JOIN por campaign_id+playlist_id)
+    //   - 'organic'      → editorial / orgânica de terceiros / sem vínculo
+    //   - 'ecosystem'    → playlist do nosso ecossistema (managed_playlists)
+    // Só promovemos para `discovered_by_bot` quando a view classifica como
+    // curador — editoriais e ecossistema NUNCA entram como playlist do
+    // curador. Na prática, attributed_to='curator:<id>' implica CCP já
+    // capturada acima; este merge cobre apenas a janela rara entre as
+    // duas queries em que uma linha CCP nova foi inserida no meio.
       const ccpIds = new Set(contracted.map((c) => c.playlist_id));
       for (const [pid, g] of growthByPid.entries()) {
         if (ccpIds.has(pid)) continue;
+        if (!g.attributed_to || !g.attributed_to.startsWith("curator:")) continue;
         contracted.push({
           playlist_id: pid,
           playlist_url: null,
