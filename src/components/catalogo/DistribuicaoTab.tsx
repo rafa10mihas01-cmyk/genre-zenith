@@ -33,12 +33,14 @@ type Flags = {
   engine_natural_distribution_active: boolean;
   engine_natural_distribution_window_days: number;
   engine_natural_distribution_wave_size: number;
+  engine_natural_distribution_max_per_track_per_day: number;
+  engine_natural_distribution_max_per_wave_per_track: number;
 };
 
 async function fetchFlags(): Promise<Flags | null> {
   const { data, error } = await supabase
     .from("system_flags")
-    .select("id, engine_natural_distribution_active, engine_natural_distribution_window_days, engine_natural_distribution_wave_size")
+    .select("id, engine_natural_distribution_active, engine_natural_distribution_window_days, engine_natural_distribution_wave_size, engine_natural_distribution_max_per_track_per_day, engine_natural_distribution_max_per_wave_per_track")
     .order("id")
     .limit(1)
     .maybeSingle();
