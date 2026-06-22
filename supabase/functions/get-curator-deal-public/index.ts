@@ -712,17 +712,16 @@ Deno.serve(async (req) => {
           ),
         );
         if (playlistIds.length > 0) {
-          const { data: growthRows } = await admin
-            .from("vw_campaign_playlist_growth")
-            .select("playlist_id, baseline_plays")
-            .eq("campaign_id", growthCampaignId)
-            .in("playlist_id", playlistIds);
-          for (const r of (growthRows ?? []) as Array<{ playlist_id: string | null; baseline_plays: number | null }>) {
+          const { data: rpcRows } = await admin
+            .rpc("fn_campaign_playlist_growth", { p_campaign_ids: [growthCampaignId] });
+          const wanted = new Set(playlistIds);
+          for (const r of (rpcRows ?? []) as Array<{ playlist_id: string | null; baseline_plays: number | null }>) {
             const pid = (r.playlist_id ?? "").trim();
-            if (!pid) continue;
+            if (!pid || !wanted.has(pid)) continue;
             baselinePlaysByPid[pid] = Math.max(0, Number(r.baseline_plays ?? 0));
           }
         }
+
       } catch (_e) { /* best-effort */ }
     }
 
