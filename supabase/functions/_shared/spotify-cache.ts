@@ -6,11 +6,19 @@
 //
 // O worker (spotify-enrichment-worker) drena a fila de forma assíncrona usando
 // /v1/tracks/{id} e /v1/artists/{id} (single-path), respeitando rate limit.
+//
+// EXCEÇÃO 17-C documentada (`hydrateTrackSync`): fluxos iniciados por usuário
+// humano (ex.: cadastro manual de música no /catalogo) PODEM hidratar o cache
+// de forma síncrona via gateway. Volume é trivial (unidades por dia) e o UX
+// exige resposta no primeiro clique. Worker e processos automáticos continuam
+// 100% cache-first.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { ccFetch } from "./catalog-gateway.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
 
 // TTLs (configuráveis via env vars; defaults conservadores).
 function envDays(name: string, def: number): number {
