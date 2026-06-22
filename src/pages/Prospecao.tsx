@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { PageContainer } from "@/components/PageContainer";
 import { PageHeader } from "@/components/PageHeader";
 import { KpiBig } from "@/components/KpiBig";
+import { KpiCompactStrip } from "@/components/KpiCompactStrip";
 import { CuradoresCRM } from "@/components/operacao/CuradoresCRM";
 import { CuradoresLibraryTab } from "@/components/playlist-deals/CuradoresLibraryTab";
 import { OutreachDashboard } from "@/components/operacao/OutreachDashboard";
