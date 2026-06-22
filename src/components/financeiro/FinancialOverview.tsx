@@ -6,6 +6,7 @@ import { DealPaymentDialog } from "./DealPaymentDialog";
 import { LegacyValorCobradoPanel } from "./LegacyValorCobradoPanel";
 import { Button } from "@/components/ui/button";
 import { Kpi } from "@/components/ui/kpi";
+import { KpiCompactStrip } from "@/components/KpiCompactStrip";
 
 import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/format";
@@ -66,8 +67,22 @@ export function FinancialOverview() {
       {/* Pendências legadas (some quando a fila esvazia) */}
       <LegacyValorCobradoPanel />
 
-      {/* ===== Cards de resumo ===== */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* ===== KPIs mobile/tablet: strip compacta ===== */}
+      <KpiCompactStrip
+        rows={[
+          {
+            items: [
+              { label: "Recebido", value: fmtBRL(totals.recebido) },
+              { label: "Investido", value: fmtBRL(totals.custoCaixa) },
+              { label: "Margem", value: fmtBRL(totals.margem) },
+              { label: "Margem %", value: totals.margemPct == null ? "—" : `${totals.margemPct.toFixed(1)}%` },
+            ],
+          },
+        ]}
+      />
+
+      {/* ===== KPIs desktop ===== */}
+      <section className="hidden lg:grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Kpi icon={DollarSign} label="Recebido de clientes" value={fmtBRL(totals.recebido)} tone="primary" />
         <Kpi
           icon={Wallet}

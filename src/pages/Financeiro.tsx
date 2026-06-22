@@ -13,6 +13,7 @@ import {
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { Kpi, type KpiTone } from "@/components/ui/kpi";
+import { KpiCompactStrip } from "@/components/KpiCompactStrip";
 import { FinanceiroTab } from "@/components/playlist-deals/FinanceiroTab";
 import { FinancialOverview } from "@/components/financeiro/FinancialOverview";
 import { PricingSettingsPanel } from "@/components/financeiro/PricingSettingsPanel";
@@ -36,7 +37,18 @@ function ReceitaView() {
   if (loading) return <div className="h-40 rounded-2xl bg-card border border-border animate-pulse" />;
   return (
     <div className="space-y-6">
-      <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <KpiCompactStrip
+        rows={[
+          {
+            items: [
+              { label: "Recebido", value: fmtBRL(totals.recebido) },
+              { label: "Cobrado", value: fmtBRL(totals.cobrado) },
+              { label: "Pendente", value: fmtBRL(Math.max(0, totals.cobrado - totals.recebido)) },
+            ],
+          },
+        ]}
+      />
+      <section className="hidden lg:grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Kpi icon={DollarSign} label="Recebido" value={fmtBRL(totals.recebido)} tone="primary" />
         <Kpi icon={Receipt} label="Cobrado" value={fmtBRL(totals.cobrado)} />
         <Kpi
@@ -99,7 +111,18 @@ function MargemView() {
   if (loading) return <div className="h-40 rounded-2xl bg-card border border-border animate-pulse" />;
   return (
     <div className="space-y-6">
-      <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <KpiCompactStrip
+        rows={[
+          {
+            items: [
+              { label: "Margem", value: fmtBRL(totals.margem) },
+              { label: "Margem %", value: totals.margemPct == null ? "—" : `${totals.margemPct.toFixed(1)}%` },
+              { label: "Líquido", value: fmtBRL(totals.recebido - totals.pagoPorCampanha) },
+            ],
+          },
+        ]}
+      />
+      <section className="hidden lg:grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Kpi
           icon={totals.margem >= 0 ? TrendingUp : TrendingDown}
           label="Margem bruta"
@@ -187,65 +210,68 @@ export default function Financeiro() {
         manualKey="financeiro"
       />
       <PageContainer>
-        {/* Desktop: tabs underline */}
-        <div className="hidden sm:flex items-center gap-1 border-b border-border mb-6 overflow-x-auto scrollbar-none">
-          {TABS.map((t) => {
-            const Icon = t.icon;
-            const active = tab === t.id;
-            return (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className={cn(
-                  "px-3 lg:px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap shrink-0",
-                  active
-                    ? "border-primary text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <Icon className="h-3.5 w-3.5" />
-                {t.label}
-              </button>
-            );
-          })}
-        </div>
+        <div className="flex flex-col">
+          {/* Desktop: tabs underline (sempre no topo) */}
+          <div className="hidden sm:flex items-center gap-1 border-b border-border mb-6 overflow-x-auto scrollbar-none">
+            {TABS.map((t) => {
+              const Icon = t.icon;
+              const active = tab === t.id;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
+                  className={cn(
+                    "px-3 lg:px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap shrink-0",
+                    active
+                      ? "border-primary text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
 
-        {/* Mobile: 5 cards na mesma régua */}
-        <div className="grid grid-cols-5 gap-1.5 sm:hidden mb-4">
-          {TABS.map((t) => {
-            const Icon = t.icon;
-            const active = tab === t.id;
-            const shortLabel =
-              t.id === "visao" ? "Visão" :
-              t.id === "receita" ? "Receita" :
-              t.id === "custo" ? "Custo" :
-              t.id === "margem" ? "Margem" : "Config";
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setTab(t.id)}
-                aria-pressed={active}
-                className={cn(
-                  "rounded-xl border px-0.5 py-2 flex flex-col items-center justify-center gap-1 min-w-0 transition-colors",
-                  active
-                    ? "border-primary/60 bg-primary/10 text-foreground"
-                    : "border-border bg-card text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                <span className="text-[10px] font-medium leading-tight truncate w-full text-center">{shortLabel}</span>
-              </button>
-            );
-          })}
-        </div>
+          {/* Conteúdo: vem primeiro no mobile, depois das tabs no desktop */}
+          <div className="animate-tab-in order-1 sm:order-none">
+            {tab === "visao"   && <FinancialOverview />}
+            {tab === "receita" && <ReceitaView />}
+            {tab === "custo"   && <FinanceiroTab />}
+            {tab === "margem"  && <MargemView />}
+            {tab === "config"  && <PricingSettingsPanel />}
+          </div>
 
-        <div className="animate-tab-in">
-          {tab === "visao"   && <FinancialOverview />}
-          {tab === "receita" && <ReceitaView />}
-          {tab === "custo"   && <FinanceiroTab />}
-          {tab === "margem"  && <MargemView />}
-          {tab === "config"  && <PricingSettingsPanel />}
+          {/* Mobile: tabs depois do conteúdo */}
+          <div className="grid grid-cols-5 gap-1.5 sm:hidden mt-4 order-2 sm:order-none">
+            {TABS.map((t) => {
+              const Icon = t.icon;
+              const active = tab === t.id;
+              const shortLabel =
+                t.id === "visao" ? "Visão" :
+                t.id === "receita" ? "Receita" :
+                t.id === "custo" ? "Custo" :
+                t.id === "margem" ? "Margem" : "Config";
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setTab(t.id)}
+                  aria-pressed={active}
+                  className={cn(
+                    "rounded-xl border px-0.5 py-2 flex flex-col items-center justify-center gap-1 min-w-0 transition-colors",
+                    active
+                      ? "border-primary/60 bg-primary/10 text-foreground"
+                      : "border-border bg-card text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="text-[10px] font-medium leading-tight truncate w-full text-center">{shortLabel}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </PageContainer>
     </>
