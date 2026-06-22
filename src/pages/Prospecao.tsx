@@ -185,12 +185,25 @@ export default function Prospecao() {
 
       {/* Ativos: KPI grid original (mobile + desktop). Prospecção: funil único no mobile. */}
       {segment === "ativos" ? (
-        <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <KpiBig tier="hero" icon={Users} label="Curadores" value={formatNumber(kpisAtivos.curadores)} hint="Ativos na biblioteca" domain="curators" loading={loading} />
-          <KpiBig icon={Activity} label="Deals ativos" value={formatNumber(kpisAtivos.dealsAtivos)} hint="Negociações em andamento" domain="campaigns" loading={loading} />
-          <KpiBig icon={DollarSign} label="Receita" value={formatBRL(kpisAtivos.receita)} hint="Total investido em curadoria" domain="deals" loading={loading} />
-          <KpiBig tier="quiet" icon={TrendingUp} label="Ticket médio" value={formatBRL(kpisAtivos.ticket)} hint={`Base ${formatNumber(deals.length)} deals`} domain="deals" loading={loading} />
-        </section>
+        <>
+          <KpiCompactStrip
+            loading={loading}
+            rows={[{
+              items: [
+                { label: "Curadores", value: formatNumber(kpisAtivos.curadores) },
+                { label: "Deals ativos", value: formatNumber(kpisAtivos.dealsAtivos) },
+                { label: "Receita", value: formatBRL(kpisAtivos.receita) },
+                { label: "Ticket médio", value: formatBRL(kpisAtivos.ticket) },
+              ],
+            }]}
+          />
+          <section className="hidden lg:grid grid-cols-2 md:grid-cols-4 gap-3">
+            <KpiBig tier="hero" icon={Users} label="Curadores" value={formatNumber(kpisAtivos.curadores)} hint="Ativos na biblioteca" domain="curators" loading={loading} />
+            <KpiBig icon={Activity} label="Deals ativos" value={formatNumber(kpisAtivos.dealsAtivos)} hint="Negociações em andamento" domain="campaigns" loading={loading} />
+            <KpiBig icon={DollarSign} label="Receita" value={formatBRL(kpisAtivos.receita)} hint="Total investido em curadoria" domain="deals" loading={loading} />
+            <KpiBig tier="quiet" icon={TrendingUp} label="Ticket médio" value={formatBRL(kpisAtivos.ticket)} hint={`Base ${formatNumber(deals.length)} deals`} domain="deals" loading={loading} />
+          </section>
+        </>
       ) : (
         <>
           {/* MOBILE — funil único de prospecção */}
