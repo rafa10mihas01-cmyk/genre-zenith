@@ -1,0 +1,1 @@
+ALTER VIEW public.v_placement_priority_latest SET (security_invoker = true);
