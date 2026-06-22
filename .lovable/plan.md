@@ -1,6 +1,25 @@
-# Evolução do Engine de Catálogo — Catálogo como Administrador Permanente das Playlists
+# Evolução do Engine de Catálogo — Engine Único como Orquestrador das Playlists
 
 Diretriz incorporada: **evoluir o engine existente, não criar paralelo**. Todo novo comportamento entra como módulo interno do `process-catalog-placements` + RPCs no schema atual, atrás de feature flags em `system_flags`. Nada que funciona hoje pode parar.
+
+## Princípios arquiteturais (vinculantes em todas as fases)
+
+1. **Um único Engine.** Proibido criar "Occupancy Engine", "Campaign Engine" ou qualquer cérebro paralelo. Novos comportamentos entram como **módulos internos** do Engine de Catálogo: Elegibilidade · Ocupação · Priorização · Reordenação · Inteligência Editorial · Aprendizado · Sincronização Spotify. Um único cérebro decide.
+2. **Origem ≠ Controle.** `origin` (já criado na Fase 1) registra apenas como o placement nasceu. Quem o controla *agora* será o futuro `owner` (`CATALOG | CAMPAIGN`) — a ser introduzido na Fase 5. Ao fim da campanha, `owner` volta para `CATALOG` e `origin` permanece histórico.
+3. **Campanhas não tocam playlists.** Campanha envia **intenção** ("priorizar esta música por N dias"); o Engine decide se entra, onde entra, quem desloca, quando sai.
+4. **Engine é o único dono de posição.** Nenhum módulo externo (campanha, painel admin, worker, edge function) grava `position` diretamente — todos enviam intenções; só o Engine calcula posição, prioridade, elegibilidade, permanência, remoção e reorganização.
+5. **Zonas editoriais, não posições fixas.** O Engine raciocina em zonas (`PREMIUM` = topo de impacto · `DISCOVERY` = crescimento/novidade · `CATALOG` = cobertura/diversidade). Posições absolutas são derivadas, não decididas pelo cliente.
+6. **Campanha é fator do score**, não criadora de placement. Entra como um componente em `priority_score` ao lado de popularidade, performance, retenção, diversidade e aprendizado.
+
+## Ajustes nas fases seguintes (em função das diretrizes acima)
+
+- **Fase 3 (Priorização):** `compute_placement_priority()` inclui obrigatoriamente o componente `campaign_boost` (ativo enquanto houver intenção de campanha vigente para a música).
+- **Fase 4 (Reordenação):** trabalha em **zonas editoriais** (`PREMIUM | DISCOVERY | CATALOG`) — posições absolutas são apenas o output final. Adicionar tabela `playlist_editorial_zones` (playlist_id, zone, start_pos, end_pos, rules jsonb) ou derivar de `playlist_blueprints`.
+- **Fase 5 (Campanha como intenção):**
+  - Nova tabela `campaign_priority_intents (id, track_id, playlist_id NULLABLE, weight, starts_at, ends_at, status, source_campaign_id)`.
+  - Coluna `owner text` em `catalog_placements` (`CATALOG | CAMPAIGN`, default `CATALOG`). Ao expirar a intenção, `owner` retorna a `CATALOG` automaticamente via job.
+  - Campanha **nunca** insere/remove/reordena diretamente. API atual da campanha é convertida em "registrar intenção" por dentro.
+- **Fase 9 (Desativação do legado):** critério de sucesso reforçado — nenhum INSERT/UPDATE de `position` em `catalog_placements` pode partir de fora do Engine.
 
 ---
 
