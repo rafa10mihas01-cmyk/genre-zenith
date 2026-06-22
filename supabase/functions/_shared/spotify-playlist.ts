@@ -1,10 +1,22 @@
 // _shared/spotify-playlist.ts
 // =====================================================================
-// HELPERS CANÔNICOS para mutações de tracks em playlists do Spotify.
+// HELPERS CANÔNICOS para operações OAUTENTICADAS em playlists do Spotify.
 //
-// REGRA DE OURO — qualquer edge function que mexer em faixas de playlist
-// DEVE usar estes helpers ao invés de chamar `fetch` direto. Isso evita
-// repetir bugs já caçados (endpoint deprecado, body errado, chunk >100, etc).
+// RESPONSABILIDADE ÚNICA (pós Onda 3 da Migração 17-C):
+//   Única porta de entrada para chamadas que exigem OAuth de App (token de
+//   dono) — escrita e leitura proprietária. Inclui:
+//     - ADD / REMOVE / REORDER / REPLACE de tracks
+//     - PUT detalhes da playlist (name/description/public/collaborative)
+//     - PUT capa (image/jpeg)
+//     - POST criar playlist
+//     - GET metadata / GET items RICOS de playlists próprias ou geridas
+//       (usados para validar ownership/snapshot antes de escrever, ou
+//        para hidratar managed_playlists com o token do dono).
+//
+// PROIBIDO neste módulo:
+//   - Leituras públicas anônimas (qualquer caller que não precise de token
+//     de dono DEVE usar `_shared/observer-playlist.ts`).
+//   - Caminhos legados via Client Credentials.
 //
 // Endpoints corretos (validados em produção em 2026-05):
 //   - LIST     → GET    /v1/playlists/{id}/items?fields=...&limit=100
