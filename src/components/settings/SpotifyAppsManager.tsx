@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import {
   Plus, Star, Trash2, Pencil, Loader2, ExternalLink, AlertTriangle, LinkIcon, Copy, Check,
-  Music2, RefreshCw, Settings2, ChevronDown, CheckCircle2,
+  Music2, RefreshCw, Settings2, ChevronDown, CheckCircle2, Eye, EyeOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -157,6 +157,7 @@ export function SpotifyAppsManager({
   const [page, setPage] = useState(0);
   const [inviteAppId, setInviteAppId] = useState<string | null>(null);
   const [collapsedApps, setCollapsedApps] = useState<Set<string>>(new Set());
+  const [hidePaused, setHidePaused] = useState(true);
   const initializedCollapse = useRef(false);
   const toggleAppCollapsed = (id: string) => setCollapsedApps((prev) => {
     const next = new Set(prev);
@@ -234,6 +235,11 @@ export function SpotifyAppsManager({
   const totalMax = apps.reduce((sum, a) => sum + a.max_accounts, 0);
   const totalUsed = accounts.filter((a) => a.app_id && apps.some((x) => x.id === a.app_id)).length;
   const allHealthy = apps.length > 0 && apps.every((a) => a.status === "active");
+  const pausedCount = apps.filter((a) => a.status !== "active").length;
+  const visibleApps = useMemo(
+    () => (hidePaused ? apps.filter((a) => a.status === "active") : apps),
+    [apps, hidePaused],
+  );
   const accountsByApp = useMemo(() => {
     const m = new Map<string, SpotifyAccount[]>();
     for (const a of accounts) {
@@ -271,14 +277,28 @@ export function SpotifyAppsManager({
             </p>
           </div>
         </div>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => setEditing({ name: "", max_accounts: 5, is_default: apps.length === 0, status: "active" })}
-          className="h-8 text-xs gap-1.5"
-        >
-          <Plus className="h-3.5 w-3.5" /> Cadastrar app
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          {pausedCount > 0 && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setHidePaused((v) => !v)}
+              className="h-8 text-xs gap-1.5"
+              title={hidePaused ? "Mostrar apps pausadas/bloqueadas" : "Ocultar apps pausadas/bloqueadas"}
+            >
+              {hidePaused ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+              {hidePaused ? `Mostrar pausadas (${pausedCount})` : "Ocultar pausadas"}
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setEditing({ name: "", max_accounts: 5, is_default: apps.length === 0, status: "active" })}
+            className="h-8 text-xs gap-1.5"
+          >
+            <Plus className="h-3.5 w-3.5" /> Cadastrar app
+          </Button>
+        </div>
       </header>
 
       {/* ─── Aviso contextual único (iframe) ─── */}
@@ -319,7 +339,7 @@ export function SpotifyAppsManager({
         </div>
       ) : (
         <div className="space-y-3">
-          {apps.slice(page * APPS_PER_PAGE, page * APPS_PER_PAGE + APPS_PER_PAGE).map((a) => {
+          {visibleApps.slice(page * APPS_PER_PAGE, page * APPS_PER_PAGE + APPS_PER_PAGE).map((a) => {
             const appAccounts = accountsByApp.get(a.id) ?? [];
             // Deriva uso a partir das contas reais (prop), pra atualizar na hora ao deletar/conectar.
             const liveUsed = appAccounts.length;
@@ -516,15 +536,15 @@ export function SpotifyAppsManager({
           })}
 
           {/* Paginação de apps */}
-          {apps.length > APPS_PER_PAGE && (() => {
-            const totalPages = Math.ceil(apps.length / APPS_PER_PAGE);
+          {visibleApps.length > APPS_PER_PAGE && (() => {
+            const totalPages = Math.ceil(visibleApps.length / APPS_PER_PAGE);
             const safePage = Math.min(page, totalPages - 1);
             const from = safePage * APPS_PER_PAGE + 1;
-            const to = Math.min(safePage * APPS_PER_PAGE + APPS_PER_PAGE, apps.length);
+            const to = Math.min(safePage * APPS_PER_PAGE + APPS_PER_PAGE, visibleApps.length);
             return (
               <div className="flex items-center justify-between gap-3 px-1 pt-1">
                 <span className="text-[11px] text-muted-foreground tabular-nums">
-                  Apps <span className="text-foreground font-medium">{from}–{to}</span> de {apps.length}
+                  Apps <span className="text-foreground font-medium">{from}–{to}</span> de {visibleApps.length}
                 </span>
                 <div className="flex items-center gap-1">
                   <Button
