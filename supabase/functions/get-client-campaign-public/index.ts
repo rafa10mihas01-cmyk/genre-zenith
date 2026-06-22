@@ -394,6 +394,7 @@ Deno.serve(async (req) => {
       playlist_url: string | null;
       first_seen_at: string | null;
       registered_at: string | null;
+      discovered_by_bot?: boolean;
     };
     const contracted: ContractedPlaylist[] = [];
     if (campaignIdsForDeals.size > 0) {
