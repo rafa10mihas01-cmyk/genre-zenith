@@ -18,7 +18,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getUserToken } from "../_shared/spotify-client.ts";
 import { listPlaylistTracksRich } from "../_shared/spotify-playlist.ts";
-import { ccFetch } from "../_shared/catalog-gateway.ts";
+import { observerListAllPlaylistItems, ObserverApiError } from "../_shared/observer-playlist.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
 
 import { deprecationGate } from "../_shared/_deprecation.ts";
@@ -40,30 +40,16 @@ interface TrackOut {
   posicao_na_playlist: number;
 }
 
-type Route = "gateway-cc" | "oauth-managed";
+type Route = "observer" | "oauth-managed";
 
-/** Ramo público: lê via Catalog Gateway (Client Credentials). */
-async function fetchPublicViaGateway(playlistId: string, max: number): Promise<TrackOut[]> {
-  const out: TrackOut[] = [];
-  const fields = "items(track(id,name,artists(name))),next";
-  let offset = 0;
-  const limit = 100;
-  while (out.length < max) {
-    const url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=${limit}&offset=${offset}&fields=${encodeURIComponent(fields)}`;
-    const r = await ccFetch(url, FN, playlistId);
-    if (!r.ok) {
-      if (r.status === 404) return out;
-      const t = await r.text().catch(() => "");
-      throw new Error(`gateway-cc ${r.status} playlist=${playlistId}: ${t.slice(0, 180)}`);
-    }
-    const j = await r.json() as {
-      items?: Array<{ track: { id: string; name: string; artists: Array<{ name: string }> } | null }>;
-      next?: string | null;
-    };
-    const page = j.items ?? [];
-    for (const it of page) {
+/** Ramo público: lê via VPS Observer (Fase 17-C). */
+async function fetchPublicViaObserver(playlistId: string, max: number): Promise<TrackOut[]> {
+  try {
+    const items = await observerListAllPlaylistItems(playlistId, { maxItems: max });
+    const out: TrackOut[] = [];
+    for (const it of items) {
       const tr = it?.track;
-      if (!tr?.id) continue;
+      if (!tr?.id) continue; // skip null/local/removed
       out.push({
         spotify_track_id: tr.id,
         nome_musica: tr.name || "Unknown",
@@ -72,11 +58,11 @@ async function fetchPublicViaGateway(playlistId: string, max: number): Promise<T
       });
       if (out.length >= max) break;
     }
-    if (!j.next || page.length < limit) break;
-    offset += limit;
-    if (offset > 10_000) break;
+    return out;
+  } catch (e) {
+    if (e instanceof ObserverApiError && e.status === 404) return [];
+    throw e;
   }
-  return out;
 }
 
 /** Ramo managed: lê via OAuth do owner (não pode usar Gateway CC — falha silenciosa). */
@@ -137,11 +123,11 @@ Deno.serve(async (req) => {
       .eq("spotify_playlist_id", body.playlist_id)
       .maybeSingle();
 
-    const route: Route = managed ? "oauth-managed" : "gateway-cc";
+    const route: Route = managed ? "oauth-managed" : "observer";
 
     const tracks = route === "oauth-managed"
       ? await fetchManagedViaOauth(body.playlist_id, managed!.owner_spotify_user_id ?? null, max)
-      : await fetchPublicViaGateway(body.playlist_id, max);
+      : await fetchPublicViaObserver(body.playlist_id, max);
 
     let saved = 0;
     if (body.save && body.result_id && tracks.length > 0) {

@@ -9,6 +9,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
 import { SpotifyCircuitOpenError } from "../_shared/spotify-client.ts";
 import { ccFetch } from "../_shared/catalog-gateway.ts";
+import { observerGetPlaylist, observerListPlaylistItems, ObserverApiError } from "../_shared/observer-playlist.ts";
 // getPlaylistMeta foi removido — agora lemos detalhes via ccFetch direto.
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -167,18 +168,22 @@ Deno.serve(async (req) => {
           let ownerType: string | null = null;
           let trackItems: any[] = [];
           try {
-            const detailFields = `followers(total),tracks(total,items(track(id,name,artists(name)))),owner(id)`;
-            const detailUrl = `https://api.spotify.com/v1/playlists/${p.id}?fields=${encodeURIComponent(detailFields)}`;
-            const dr = await ccFetch(detailUrl, "genre-spotify-discover", p.id);
-            if (!dr.ok) throw new Error(`detail http ${dr.status}`);
-            const detail = await dr.json();
-            if (detail?.followers?.total != null) detailFollowers = detail.followers.total;
-            if (detail?.tracks?.total != null) detailTracks = detail.tracks.total;
-            ownerId = detail?.owner?.id ?? null;
+            // Fase 17-C/1B: metadados via Observer (VPS) — sem ccFetch.
+            const meta = await observerGetPlaylist(p.id, { maxAgeSeconds: 600 });
+            if (meta?.followers?.total != null) detailFollowers = meta.followers.total;
+            if (meta?.tracks?.total != null) detailTracks = meta.tracks.total;
+            ownerId = meta?.owner?.id ?? null;
             ownerType = ownerId ? classifyOwner(ownerId) : null;
-            trackItems = detail?.tracks?.items ?? [];
+
+            const itemsLimit = Math.min(maxTracksPerPl, 100);
+            const page = await observerListPlaylistItems(p.id, { offset: 0, limit: itemsLimit, maxAgeSeconds: 600 });
+            trackItems = page?.items ?? [];
           } catch (e) {
-            stats.errors.push(`detail ${p.id}: ${(e as Error).message}`);
+            if (e instanceof ObserverApiError && e.status === 404) {
+              // playlist inacessível/privada — segue só com gate stats
+            } else {
+              stats.errors.push(`detail ${p.id}: ${(e as Error).message}`);
+            }
           }
 
           // Phase-2 gate
