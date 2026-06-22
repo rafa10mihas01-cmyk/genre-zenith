@@ -449,11 +449,15 @@ Deno.serve(async (req) => {
         }
 
         // 2) Enriquece — fallback via cache (Fase 17-C) só quando catalog_tracks não tiver.
-        const missingArtistIds = catRows
-          .map((r: any) => r.spotify_track_id)
-          .filter((id: string | null) => id && !artistByTrack.has(catRows.find((x: any) => x.spotify_track_id === id)?.catalog_track_id ?? ""));
-        const trackFallbackCache = missingArtistIds.length > 0
-          ? await getTrackCacheBatch(missingArtistIds as string[])
+        //    Coletamos os spotify_track_id das linhas SEM artista resolvido.
+        const missingTrackIds: string[] = [];
+        for (const r of catRows as any[]) {
+          if (!artistByTrack.get(r.catalog_track_id) && r.spotify_track_id) {
+            missingTrackIds.push(r.spotify_track_id);
+          }
+        }
+        const trackFallbackCache = missingTrackIds.length > 0
+          ? await getTrackCacheBatch(missingTrackIds)
           : new Map();
         const enriched = await Promise.all(catRows.map(async (r: any) => {
           let artistId: string | null = artistByTrack.get(r.catalog_track_id) ?? null;
