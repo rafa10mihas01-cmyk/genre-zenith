@@ -111,17 +111,26 @@ Deno.serve(async (req) => {
       album?: { images?: Array<{ url: string }> };
       artists?: Array<{ id: string; name: string }>;
     };
-    const trackName = trackRow.name ?? raw?.album?.images ? trackRow.name ?? "" : "";
-    const trackArtistsRaw = Array.isArray(raw.artists) && raw.artists.length > 0
-      ? raw.artists
-      : (trackRow.artist_ids ?? []).map((id) => ({ id, name: "" }));
-    const artistName = joinArtists(trackArtistsRaw);
+    // Se `raw` não tiver artist names, busca no artist cache.
+    let trackArtists: Array<{ id: string; name: string }> =
+      Array.isArray(raw.artists) && raw.artists.length > 0 && raw.artists[0]?.name
+        ? raw.artists
+        : [];
+    if (trackArtists.length === 0 && Array.isArray(trackRow.artist_ids) && trackRow.artist_ids.length > 0) {
+      const artCache = await getArtistCacheBatch(trackRow.artist_ids);
+      trackArtists = trackRow.artist_ids.map((aid) => ({
+        id: aid,
+        name: artCache.get(aid)?.name ?? "",
+      }));
+    }
+    const trackName = trackRow.name ?? "";
+    const artistName = joinArtists(trackArtists);
     const isrc = trackRow.isrc ?? null;
     const spotifyUri = raw.uri ?? `spotify:track:${trackId}`;
     const coverUrl = raw?.album?.images?.[0]?.url ?? null;
     // IMPORTANTE: NÃO usamos popularity/monthly_listeners da cache como baseline.
     // A baseline T0 vem 100% do bot (Spotify for Artists), mesmo padrão dos deal_songs.
-    const primaryArtistId = trackArtistsRaw[0]?.id ?? trackRow.artist_ids?.[0] ?? null;
+    const primaryArtistId = trackArtists[0]?.id ?? trackRow.artist_ids?.[0] ?? null;
 
     const baselineRaw = {
       track_cache: { id: trackId, name: trackRow.name, isrc, enriched_at: trackRow.enriched_at },
