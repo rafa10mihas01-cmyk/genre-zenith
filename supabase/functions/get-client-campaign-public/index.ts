@@ -511,11 +511,8 @@ Deno.serve(async (req) => {
     const growthByPid = new Map<string, CuratorGrowthRow>();
     if (campaignIdsForDeals.size > 0) {
       const { data: growthRows } = await admin
-        .from("vw_campaign_playlist_growth")
-        .select(
-          "playlist_id, delivery_accumulated, last_import_delta, current_plays, current_name, baseline_name, first_seen_at, attributed_to",
-        )
-        .in("campaign_id", Array.from(campaignIdsForDeals));
+        .rpc("fn_campaign_playlist_growth", { p_campaign_ids: Array.from(campaignIdsForDeals) });
+
       for (const g of (growthRows ?? []) as AnyRec[]) {
         const k = String(g.playlist_id ?? "");
         if (!k) continue;
