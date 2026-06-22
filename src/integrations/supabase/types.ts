@@ -2051,6 +2051,192 @@ export type Database = {
           },
         ]
       }
+      catalog_distribution_plan_targets: {
+        Row: {
+          catalog_track_id: string
+          created_at: string
+          distributed_at: string | null
+          id: string
+          managed_playlist_id: string
+          placement_id: string | null
+          plan_id: string
+          scheduled_for: string
+          skip_reason: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          catalog_track_id: string
+          created_at?: string
+          distributed_at?: string | null
+          id?: string
+          managed_playlist_id: string
+          placement_id?: string | null
+          plan_id: string
+          scheduled_for: string
+          skip_reason?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          catalog_track_id?: string
+          created_at?: string
+          distributed_at?: string | null
+          id?: string
+          managed_playlist_id?: string
+          placement_id?: string | null
+          plan_id?: string
+          scheduled_for?: string
+          skip_reason?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_distribution_plan_targets_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_tracks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_distribution_plan_targets_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_track_distribution_stats"
+            referencedColumns: ["catalog_track_id"]
+          },
+          {
+            foreignKeyName: "catalog_distribution_plan_targets_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_track_performance"
+            referencedColumns: ["catalog_track_id"]
+          },
+          {
+            foreignKeyName: "catalog_distribution_plan_targets_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_track_telemetry"
+            referencedColumns: ["catalog_track_id"]
+          },
+          {
+            foreignKeyName: "catalog_distribution_plan_targets_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "managed_playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_distribution_plan_targets_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_playlist_occupancy"
+            referencedColumns: ["managed_playlist_id"]
+          },
+          {
+            foreignKeyName: "catalog_distribution_plan_targets_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_playlist_vps_assignment"
+            referencedColumns: ["managed_playlist_id"]
+          },
+          {
+            foreignKeyName: "catalog_distribution_plan_targets_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_distribution_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_distribution_plan_targets_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_distribution_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_distribution_plans: {
+        Row: {
+          catalog_track_id: string
+          completed_at: string | null
+          created_at: string
+          expected_end_at: string | null
+          id: string
+          next_wave_at: string | null
+          notes: string | null
+          started_at: string
+          status: string
+          total_distributed: number
+          total_eligible: number
+          total_skipped: number
+          updated_at: string
+          window_days: number
+        }
+        Insert: {
+          catalog_track_id: string
+          completed_at?: string | null
+          created_at?: string
+          expected_end_at?: string | null
+          id?: string
+          next_wave_at?: string | null
+          notes?: string | null
+          started_at?: string
+          status?: string
+          total_distributed?: number
+          total_eligible?: number
+          total_skipped?: number
+          updated_at?: string
+          window_days?: number
+        }
+        Update: {
+          catalog_track_id?: string
+          completed_at?: string | null
+          created_at?: string
+          expected_end_at?: string | null
+          id?: string
+          next_wave_at?: string | null
+          notes?: string | null
+          started_at?: string
+          status?: string
+          total_distributed?: number
+          total_eligible?: number
+          total_skipped?: number
+          updated_at?: string
+          window_days?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_distribution_plans_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_tracks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_distribution_plans_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_track_distribution_stats"
+            referencedColumns: ["catalog_track_id"]
+          },
+          {
+            foreignKeyName: "catalog_distribution_plans_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_track_performance"
+            referencedColumns: ["catalog_track_id"]
+          },
+          {
+            foreignKeyName: "catalog_distribution_plans_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_track_telemetry"
+            referencedColumns: ["catalog_track_id"]
+          },
+        ]
+      }
       catalog_inflight: {
         Row: {
           caller: string | null
@@ -12520,6 +12706,9 @@ export type Database = {
           created_at: string
           engine_campaign_promotes: boolean
           engine_editorial_weights: boolean
+          engine_natural_distribution_active: boolean
+          engine_natural_distribution_wave_size: number
+          engine_natural_distribution_window_days: number
           engine_occupancy_autofill: boolean
           engine_priority_active: boolean
           engine_priority_weights: Json
@@ -12542,6 +12731,9 @@ export type Database = {
           created_at?: string
           engine_campaign_promotes?: boolean
           engine_editorial_weights?: boolean
+          engine_natural_distribution_active?: boolean
+          engine_natural_distribution_wave_size?: number
+          engine_natural_distribution_window_days?: number
           engine_occupancy_autofill?: boolean
           engine_priority_active?: boolean
           engine_priority_weights?: Json
@@ -12564,6 +12756,9 @@ export type Database = {
           created_at?: string
           engine_campaign_promotes?: boolean
           engine_editorial_weights?: boolean
+          engine_natural_distribution_active?: boolean
+          engine_natural_distribution_wave_size?: number
+          engine_natural_distribution_window_days?: number
           engine_occupancy_autofill?: boolean
           engine_priority_active?: boolean
           engine_priority_weights?: Json
@@ -13039,6 +13234,55 @@ export type Database = {
           track_name?: string | null
         }
         Relationships: []
+      }
+      v_catalog_distribution_plans: {
+        Row: {
+          artist_name: string | null
+          catalog_track_id: string | null
+          completed_at: string | null
+          expected_end_at: string | null
+          id: string | null
+          next_wave_at: string | null
+          percent_done: number | null
+          started_at: string | null
+          status: string | null
+          total_distributed: number | null
+          total_eligible: number | null
+          total_pending: number | null
+          total_skipped: number | null
+          track_name: string | null
+          window_days: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_distribution_plans_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_tracks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_distribution_plans_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_track_distribution_stats"
+            referencedColumns: ["catalog_track_id"]
+          },
+          {
+            foreignKeyName: "catalog_distribution_plans_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_track_performance"
+            referencedColumns: ["catalog_track_id"]
+          },
+          {
+            foreignKeyName: "catalog_distribution_plans_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_track_telemetry"
+            referencedColumns: ["catalog_track_id"]
+          },
+        ]
       }
       v_catalog_playlist_occupancy: {
         Row: {
@@ -14268,6 +14512,10 @@ export type Database = {
         }
         Returns: Json
       }
+      engine_create_distribution_plan: {
+        Args: { _days?: number; _track_id: string }
+        Returns: string
+      }
       engine_priority_compute_all: {
         Args: { _limit?: number }
         Returns: string
@@ -14279,6 +14527,14 @@ export type Database = {
           p_playlist_id?: string
         }
         Returns: string
+      }
+      engine_run_distribution_wave: {
+        Args: { _limit?: number }
+        Returns: {
+          distributed: number
+          remaining: number
+          skipped: number
+        }[]
       }
       enqueue_baseline_collection: {
         Args: { p_campaign_id: string }
