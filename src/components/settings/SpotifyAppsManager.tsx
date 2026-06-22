@@ -536,15 +536,15 @@ export function SpotifyAppsManager({
           })}
 
           {/* Paginação de apps */}
-          {apps.length > APPS_PER_PAGE && (() => {
-            const totalPages = Math.ceil(apps.length / APPS_PER_PAGE);
+          {visibleApps.length > APPS_PER_PAGE && (() => {
+            const totalPages = Math.ceil(visibleApps.length / APPS_PER_PAGE);
             const safePage = Math.min(page, totalPages - 1);
             const from = safePage * APPS_PER_PAGE + 1;
-            const to = Math.min(safePage * APPS_PER_PAGE + APPS_PER_PAGE, apps.length);
+            const to = Math.min(safePage * APPS_PER_PAGE + APPS_PER_PAGE, visibleApps.length);
             return (
               <div className="flex items-center justify-between gap-3 px-1 pt-1">
                 <span className="text-[11px] text-muted-foreground tabular-nums">
-                  Apps <span className="text-foreground font-medium">{from}–{to}</span> de {apps.length}
+                  Apps <span className="text-foreground font-medium">{from}–{to}</span> de {visibleApps.length}
                 </span>
                 <div className="flex items-center gap-1">
                   <Button
