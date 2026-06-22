@@ -15,7 +15,7 @@
 // =====================================================================
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { ccFetch } from "../_shared/catalog-gateway.ts";
+import { getTrackCacheBatch } from "../_shared/spotify-cache.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -37,30 +37,9 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return out;
 }
 
-// IMPORTANTE: o pool CC do Catalog Gateway retorna 403 no endpoint batch
-// `/v1/tracks?ids=...` (Extended Quota Mode). Por isso iteramos singles com
-// concorrência controlada.
-async function fetchTrackSingle(id: string): Promise<any | null> {
-  const r = await ccFetch(`https://api.spotify.com/v1/tracks/${id}`, "sync-spotify-editorial-charts", id);
-  if (!r.ok) { await r.text().catch(() => ""); return null; }
-  return await r.json();
-}
-
-async function fetchTracksBatch(ids: string[]) {
-  // Concorrência baixa pra ficar Spotify-friendly.
-  const CONCURRENCY = 4;
-  const out: any[] = [];
-  let i = 0;
-  async function worker() {
-    while (i < ids.length) {
-      const idx = i++;
-      const tr = await fetchTrackSingle(ids[idx]);
-      if (tr) out.push(tr);
-    }
-  }
-  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, ids.length) }, () => worker()));
-  return out;
-}
+// Fase 17-C: leitura pública via CACHE (spotify_track_cache).
+// Miss → getTrackCacheBatch auto-enfileira na spotify_enrichment_queue;
+// próximo run do cron encontra os dados.
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
