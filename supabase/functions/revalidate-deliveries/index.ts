@@ -6,13 +6,11 @@
 // mais é re-checado. Só jobs nunca validados, ou que ficaram em `error` /
 // `removed`, voltam pra fila.
 //
-// Fase 17-B.1: leitura via Catalog Gateway (Client Credentials + cache 24h
-// + coalescência) para playlists públicas.
-//
-// Fase 17-B.5.2: roteamento híbrido. Playlists do ecossistema (existem em
-// `managed_playlists`) são privadas/colab e o pool CC retorna 403 nelas.
-// Para essas usamos OAuth do owner (`owner_spotify_user_id`) com leitura
-// paginada direta em `/playlists/{id}/tracks`. Resto do pipeline inalterado.
+// Fase 17-C (arquitetura DEFINITIVA): leitura pública SEMPRE via Observer.
+// Playlists do ecossistema (managed) que o Observer não consegue ler caem
+// SOMENTE no OAuth do owner — leitura autenticada legítima do proprietário.
+// O fallback público (Catalog Gateway / Client Credentials) foi REMOVIDO:
+// não existe mais caminho público fora do Observer.
 //
 // Salvaguardas:
 //  - Lote pequeno (default 50, máx 200).
@@ -22,7 +20,6 @@
 
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { getPlaylistItems } from '../_shared/catalog-gateway.ts';
 import { getUserToken, spotifyFetch } from '../_shared/spotify-client.ts';
 import {
   isObserverConfigured,
@@ -155,16 +152,16 @@ Deno.serve(async (req) => {
     (managedRows ?? []).map((r: any) => [r.spotify_playlist_id, r.owner_spotify_user_id ?? null]),
   );
 
-  // ── Loop de validação (rota híbrida: gateway-cc | oauth-managed) ─────
+  // ── Loop de validação (Observer primary; OAuth managed; sem fallback público) ─
   const itemsCache = new Map<string, Item[]>();
   const counts = { present: 0, moved: 0, duplicate: 0, removed: 0, error: 0, skipped: 0 };
-  const routing = { observer: 0, observer_fallback: 0, gateway_cc: 0, oauth_managed: 0 };
+  const routing = { observer: 0, oauth_managed: 0, observer_failed: 0 };
   const observerOn = isObserverConfigured();
   const validations: any[] = [];
   const jobUpdates: { id: string; status: string; position: number | null }[] = [];
 
   async function loadItems(playlistId: string): Promise<Item[]> {
-    // Fase 17-D: Observer primeiro quando configurado (vale pra públicas E managed)
+    // Fase 17-C: Observer é o ÚNICO caminho público.
     if (observerOn) {
       try {
         const tracks = await observerListAllPlaylistItems(playlistId, { maxAgeSeconds: 600 });
@@ -173,8 +170,14 @@ Deno.serve(async (req) => {
         routing.observer++;
         return out;
       } catch (e) {
-        routing.observer_fallback++;
-        console.warn(`[${FN}] observer falhou pra ${playlistId}, caindo no fallback:`, String((e as any)?.message ?? e).slice(0, 200));
+        // Observer falhou. Se for managed (privada), tentamos OAuth do owner —
+        // leitura autenticada legítima do proprietário. Senão, propagamos o erro
+        // (NÃO existe mais fallback público fora do Observer).
+        if (!managedOwner.has(playlistId)) {
+          routing.observer_failed++;
+          throw e;
+        }
+        console.warn(`[${FN}] observer falhou pra managed ${playlistId}, usando OAuth owner:`, String((e as any)?.message ?? e).slice(0, 200));
       }
     }
     if (managedOwner.has(playlistId)) {
@@ -182,9 +185,8 @@ Deno.serve(async (req) => {
       routing.oauth_managed++;
       return items;
     }
-    const items = await getPlaylistItems(playlistId, FN);
-    routing.gateway_cc++;
-    return items;
+    // Sem Observer e não-managed: não há caminho legítimo. Falha explícita.
+    throw new Error(`leitura pública requer Observer (Fase 17-C). playlist=${playlistId}`);
   }
 
   for (const j of uniq.values()) {
@@ -256,9 +258,7 @@ Deno.serve(async (req) => {
       limit,
       counts,
       routing,
-      via: observerOn
-        ? 'phase-17D: observer (primary) → gateway-cc/oauth (fallback)'
-        : 'hybrid: gateway-cc (public) + oauth (managed)',
+      via: 'phase-17C: observer (único caminho público) + oauth-managed (auth legítima)',
       policy: 'confirm_once: present/moved/duplicate never re-checked',
     }, null, 2),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
