@@ -11,7 +11,10 @@
 // `getPlaylistItems` foram REMOVIDOS — não restaurar.
 //
 // Princípios definitivos:
-//   1. `ccFetch` é uso restrito: cache enrichment (worker) + `/search`.
+//   1. `ccFetch` é uso restrito: cache enrichment (worker) + `/search` +
+//      hidratação síncrona user-driven (`hydrateTrackSync` em spotify-cache.ts,
+//      usado SOMENTE pelo cadastro manual de música — volume trivial).
+
 //   2. Coalescência via `catalog_inflight` continua disponível para
 //      hidratações pesadas que precisem deduplicar concorrentemente.
 //   3. Toda chamada gera linha em `spotify_call_log` com meta.source='gateway'
