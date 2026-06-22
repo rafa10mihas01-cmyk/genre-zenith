@@ -155,18 +155,15 @@ export function ExternalPackageEditor({
       })) as any);
       setCandidates(cand);
 
-      // Entregas reais por curador na campanha — soma deltas da view de crescimento.
+      // Entregas reais por curador na campanha — soma deltas via RPC fn_campaign_playlist_growth (Etapa 2B).
       try {
         const { data: rows } = await (supabase as any)
-          .from("vw_campaign_playlist_growth")
-          .select("attributed_to, delta, baseline_plays")
-          .eq("campaign_id", campaignId)
-          .like("attributed_to", "curator:%");
+          .rpc("fn_campaign_playlist_growth", { p_campaign_ids: [campaignId] });
         const map: Record<string, CuratorDelivery> = {};
-        for (const r of (rows ?? []) as Array<{ attributed_to: string; delta: number | null; baseline_plays: number | null }>) {
-          const curatorId = (r.attributed_to ?? "").startsWith("curator:")
-            ? r.attributed_to.slice("curator:".length)
-            : null;
+        for (const r of (rows ?? []) as Array<{ attributed_to: string | null; delta: number | null; baseline_plays: number | null }>) {
+          const at = r.attributed_to ?? "";
+          if (!at.startsWith("curator:")) continue;
+          const curatorId = at.slice("curator:".length);
           if (!curatorId) continue;
           const v = Math.max(0, Number(r.delta ?? 0));
           if (v === 0) continue;
@@ -178,8 +175,9 @@ export function ExternalPackageEditor({
         }
         setDeliveryByCurator(map);
       } catch (e) {
-        console.warn("[ExternalPackageEditor] growth view fetch failed", e);
+        console.warn("[ExternalPackageEditor] growth RPC fetch failed", e);
       }
+
 
       onChanged?.();
     } catch (e: unknown) {
