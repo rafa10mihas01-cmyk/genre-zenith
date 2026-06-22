@@ -113,6 +113,11 @@ export function DistribuicaoTab() {
         if (!Number.isFinite(n) || n < 1 || n > 50) throw new Error("Playlists por onda/música deve estar entre 1 e 50");
         payload.engine_natural_distribution_max_per_wave_per_track = n;
       }
+      if (draftTierDelay != null) {
+        const n = Number(draftTierDelay);
+        if (!Number.isFinite(n) || n < 1 || n > 30) throw new Error("Atraso entre camadas deve estar entre 1 e 30 dias");
+        payload.engine_natural_distribution_tier_delay_days = n;
+      }
       if (Object.keys(payload).length === 0) return;
       const { error } = await supabase.from("system_flags").update(payload).eq("id", flags.id);
       if (error) throw error;
@@ -123,6 +128,7 @@ export function DistribuicaoTab() {
       setDraftWave(null);
       setDraftDaily(null);
       setDraftPerWave(null);
+      setDraftTierDelay(null);
       qc.invalidateQueries({ queryKey: ["natural-distribution", "flags"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Falha ao salvar"),
