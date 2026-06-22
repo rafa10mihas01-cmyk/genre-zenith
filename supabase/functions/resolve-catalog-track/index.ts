@@ -4,7 +4,7 @@
 // Sem efeitos colaterais. Idempotente.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { ccFetch } from "../_shared/catalog-gateway.ts";
+import { getTrackCacheBatch, getArtistCacheBatch } from "../_shared/spotify-cache.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -64,47 +64,60 @@ Deno.serve(async (req) => {
       }, 200);
     }
 
-    const trackResp = await ccFetch(
-      `https://api.spotify.com/v1/tracks/${trackId}`,
-      "resolve-catalog-track",
-      trackId,
-    );
-    if (!trackResp.ok) {
-      const text = await trackResp.text();
+    // Fase 17-C: leitura pública via CACHE (spotify_track_cache + spotify_artist_cache).
+    // Miss → auto-enqueue + 202; o enrichment-worker preenche async.
+    const trackCache = await getTrackCacheBatch([trackId]);
+    const trackRow = trackCache.get(trackId);
+    if (!trackRow || trackRow.fetch_status !== "ok") {
       return jr({
-        ok: false, error: "spotify_track_lookup_failed",
-        status: trackResp.status, details: text.slice(0, 300),
-      }, trackResp.status === 404 ? 404 : 502);
+        ok: false,
+        error: "enrichment_in_progress",
+        spotify_track_id: trackId,
+        message: "Faixa enfileirada no enrichment worker (Fase 17-C). Reenvie em alguns segundos.",
+      }, 202);
     }
-    const track = await trackResp.json() as {
-      id: string; uri: string; name: string;
-      popularity?: number;
-      external_ids?: { isrc?: string };
-      artists: Array<{ id: string; name: string }>;
+    const trackRaw = (trackRow.raw ?? {}) as {
+      uri?: string;
       album?: { images?: Array<{ url: string }> };
+      artists?: Array<{ id: string; name: string }>;
     };
 
+    // Artistas: nomes vêm de `raw` ou (fallback) do artist_cache em batch.
+    let trackArtists: Array<{ id: string; name: string }> =
+      Array.isArray(trackRaw.artists) && trackRaw.artists.length > 0 && trackRaw.artists[0]?.name
+        ? trackRaw.artists
+        : [];
+    if (trackArtists.length === 0 && Array.isArray(trackRow.artist_ids) && trackRow.artist_ids.length > 0) {
+      const artCache = await getArtistCacheBatch(trackRow.artist_ids);
+      trackArtists = trackRow.artist_ids.map((aid) => ({
+        id: aid,
+        name: artCache.get(aid)?.name ?? "",
+      }));
+    }
+
+    // Detecção de gênero: lê genres do artist cache (primeiro artista).
     let artistGenres: string[] = [];
     let artistFollowers: number | null = null;
-    const primaryArtistId = track.artists?.[0]?.id;
+    const primaryArtistId = trackArtists[0]?.id ?? trackRow.artist_ids?.[0] ?? null;
     if (primaryArtistId) {
-      try {
-        const artResp = await ccFetch(
-          `https://api.spotify.com/v1/artists/${primaryArtistId}`,
-          "resolve-catalog-track",
-          primaryArtistId,
-        );
-        if (artResp.ok) {
-          const a = await artResp.json() as {
-            followers?: { total?: number }; genres?: string[];
-          };
-          artistGenres = Array.isArray(a?.genres) ? a.genres : [];
-          artistFollowers = a?.followers?.total ?? null;
-        } else {
-          await artResp.text();
-        }
-      } catch { /* ok */ }
+      const artCache = await getArtistCacheBatch([primaryArtistId]);
+      const artRow = artCache.get(primaryArtistId);
+      if (artRow && artRow.fetch_status === "ok") {
+        artistGenres = Array.isArray(artRow.genres) ? artRow.genres : [];
+        artistFollowers = typeof artRow.followers === "number" ? artRow.followers : null;
+      }
     }
+
+    // Shape compatível com o código a seguir.
+    const track = {
+      id: trackId,
+      uri: trackRaw.uri ?? `spotify:track:${trackId}`,
+      name: trackRow.name ?? "",
+      popularity: typeof trackRow.popularity === "number" ? trackRow.popularity : undefined,
+      external_ids: { isrc: trackRow.isrc ?? undefined },
+      artists: trackArtists,
+      album: { images: trackRaw.album?.images ?? [] },
+    };
 
     // Detecção: cruza todos os artist.genres[] com genre_aliases
     const sb = createClient(SUPABASE_URL, SERVICE_KEY);
