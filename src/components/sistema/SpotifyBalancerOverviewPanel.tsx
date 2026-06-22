@@ -2,7 +2,6 @@
 // Lê exclusivamente a view `spotify_app_overview`. Não recalcula nada no client.
 // Capacity Score e Health Score vêm separados do banco — UI só renderiza.
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
 import { Activity, ShieldCheck, ShieldAlert, ShieldQuestion, Gauge, Heart, RefreshCw, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
