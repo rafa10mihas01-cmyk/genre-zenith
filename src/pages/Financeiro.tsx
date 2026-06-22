@@ -124,6 +124,7 @@ function MargemView() {
           },
         ]}
       />
+      <FinanceiroMobileTabs />
       <section className="hidden lg:grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Kpi
           icon={totals.margem >= 0 ? TrendingUp : TrendingDown}
