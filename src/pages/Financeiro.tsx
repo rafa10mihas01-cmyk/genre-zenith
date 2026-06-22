@@ -240,9 +240,9 @@ export default function Financeiro() {
         <div className="animate-tab-in">
           {tab === "visao"   && <FinancialOverview />}
           {tab === "receita" && <ReceitaView />}
-          {tab === "custo"   && <FinanceiroTab />}
+          {tab === "custo"   && (<><div className="sm:hidden mb-4"><FinanceiroMobileTabs /></div><FinanceiroTab /></>)}
           {tab === "margem"  && <MargemView />}
-          {tab === "config"  && <PricingSettingsPanel />}
+          {tab === "config"  && (<><div className="sm:hidden mb-4"><FinanceiroMobileTabs /></div><PricingSettingsPanel /></>)}
         </div>
       </PageContainer>
     </>
