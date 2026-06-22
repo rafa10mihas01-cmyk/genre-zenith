@@ -6,13 +6,11 @@
 // mais é re-checado. Só jobs nunca validados, ou que ficaram em `error` /
 // `removed`, voltam pra fila.
 //
-// Fase 17-B.1: leitura via Catalog Gateway (Client Credentials + cache 24h
-// + coalescência) para playlists públicas.
-//
-// Fase 17-B.5.2: roteamento híbrido. Playlists do ecossistema (existem em
-// `managed_playlists`) são privadas/colab e o pool CC retorna 403 nelas.
-// Para essas usamos OAuth do owner (`owner_spotify_user_id`) com leitura
-// paginada direta em `/playlists/{id}/tracks`. Resto do pipeline inalterado.
+// Fase 17-C (arquitetura DEFINITIVA): leitura pública SEMPRE via Observer.
+// Playlists do ecossistema (managed) que o Observer não consegue ler caem
+// SOMENTE no OAuth do owner — leitura autenticada legítima do proprietário.
+// O fallback público (Catalog Gateway / Client Credentials) foi REMOVIDO:
+// não existe mais caminho público fora do Observer.
 //
 // Salvaguardas:
 //  - Lote pequeno (default 50, máx 200).
@@ -22,7 +20,6 @@
 
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { getPlaylistItems } from '../_shared/catalog-gateway.ts';
 import { getUserToken, spotifyFetch } from '../_shared/spotify-client.ts';
 import {
   isObserverConfigured,
