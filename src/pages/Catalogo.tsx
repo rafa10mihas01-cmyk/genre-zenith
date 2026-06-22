@@ -318,7 +318,7 @@ export default function Catalogo() {
           return (
             <>
               {/* Mobile: grid de cards */}
-              <div className="grid grid-cols-3 gap-1.5 sm:hidden">
+              <div className="grid grid-cols-4 gap-1.5 sm:hidden">
 
                 {TABS.map((t) => {
                   const Icon = t.icon;
