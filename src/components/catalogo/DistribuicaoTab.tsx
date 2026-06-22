@@ -35,12 +35,13 @@ type Flags = {
   engine_natural_distribution_wave_size: number;
   engine_natural_distribution_max_per_track_per_day: number;
   engine_natural_distribution_max_per_wave_per_track: number;
+  engine_natural_distribution_tier_delay_days: number;
 };
 
 async function fetchFlags(): Promise<Flags | null> {
   const { data, error } = await supabase
     .from("system_flags")
-    .select("id, engine_natural_distribution_active, engine_natural_distribution_window_days, engine_natural_distribution_wave_size, engine_natural_distribution_max_per_track_per_day, engine_natural_distribution_max_per_wave_per_track")
+    .select("id, engine_natural_distribution_active, engine_natural_distribution_window_days, engine_natural_distribution_wave_size, engine_natural_distribution_max_per_track_per_day, engine_natural_distribution_max_per_wave_per_track, engine_natural_distribution_tier_delay_days")
     .order("id")
     .limit(1)
     .maybeSingle();
@@ -67,6 +68,7 @@ export function DistribuicaoTab() {
   const [draftWave, setDraftWave] = useState<string | null>(null);
   const [draftDaily, setDraftDaily] = useState<string | null>(null);
   const [draftPerWave, setDraftPerWave] = useState<string | null>(null);
+  const [draftTierDelay, setDraftTierDelay] = useState<string | null>(null);
 
   const flagsQ = useQuery({ queryKey: ["natural-distribution", "flags"], queryFn: fetchFlags });
   const plansQ = useQuery({ queryKey: ["natural-distribution", "plans", filter], queryFn: () => fetchPlans(filter), staleTime: 15_000 });
@@ -111,6 +113,11 @@ export function DistribuicaoTab() {
         if (!Number.isFinite(n) || n < 1 || n > 50) throw new Error("Playlists por onda/música deve estar entre 1 e 50");
         payload.engine_natural_distribution_max_per_wave_per_track = n;
       }
+      if (draftTierDelay != null) {
+        const n = Number(draftTierDelay);
+        if (!Number.isFinite(n) || n < 1 || n > 30) throw new Error("Atraso entre camadas deve estar entre 1 e 30 dias");
+        payload.engine_natural_distribution_tier_delay_days = n;
+      }
       if (Object.keys(payload).length === 0) return;
       const { error } = await supabase.from("system_flags").update(payload).eq("id", flags.id);
       if (error) throw error;
@@ -121,6 +128,7 @@ export function DistribuicaoTab() {
       setDraftWave(null);
       setDraftDaily(null);
       setDraftPerWave(null);
+      setDraftTierDelay(null);
       qc.invalidateQueries({ queryKey: ["natural-distribution", "flags"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Falha ao salvar"),
@@ -223,12 +231,23 @@ export function DistribuicaoTab() {
               className="h-8 text-sm"
             />
           </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-muted-foreground">Atraso entre camadas (dias)</span>
+            <Input
+              type="number"
+              min={1}
+              max={30}
+              value={draftTierDelay ?? flags?.engine_natural_distribution_tier_delay_days ?? 2}
+              onChange={(e) => setDraftTierDelay(e.target.value)}
+              className="h-8 text-sm"
+            />
+          </label>
         </div>
         <div className="flex items-center gap-2 mt-3">
           <Button
             size="sm"
             onClick={() => saveSettingsMut.mutate()}
-            disabled={(draftDays == null && draftWave == null && draftDaily == null && draftPerWave == null) || saveSettingsMut.isPending}
+            disabled={(draftDays == null && draftWave == null && draftDaily == null && draftPerWave == null && draftTierDelay == null) || saveSettingsMut.isPending}
             className="gap-1.5"
           >
             <Save className="h-4 w-4" />
@@ -242,7 +261,7 @@ export function DistribuicaoTab() {
         <div className="flex items-start gap-2 mt-3 text-[11px] text-muted-foreground">
           <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
           <span>
-            Plano dinâmico: a cada onda o Engine reavalia playlists elegíveis (vaga, cooldown, gênero) com o estado atual. A distribuição é paralela entre todas as músicas ativas (round-robin), respeitando o limite diário por música. Cron `engine-distribution-wave` roda a cada 15 min.
+            Expansão em camadas: Camada 1 (playlists mais robustas por ciclo de vida, estado curatorial e seguidores) abre no Dia 0. Camada 2 libera após o atraso configurado; Camada 3 após o dobro. Tudo respeita vaga, cooldown, gênero, limite diário e diversificação entre músicas.
           </span>
         </div>
       </section>
