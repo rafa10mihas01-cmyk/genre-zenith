@@ -77,13 +77,21 @@ export function useCampaigns() {
         clientIds.length > 0
           ? supabase.from("clients").select("id, email").in("id", clientIds)
           : Promise.resolve({ data: [] as Array<{ id: string; email: string | null }> } as any),
-        // FONTE DE VERDADE da lista = view vw_campaign_playlist_growth.
+        // FONTE DE VERDADE da lista = RPC fn_campaign_playlist_growth (Etapa 2B).
+        // Substitui vw_campaign_playlist_growth com predicate pushdown via p_campaign_ids.
         // Somamos só os buckets que contam pra entrega (curadores + ecossistema),
         // excluindo "organic" (rádio). Mesma regra usada na tela de execução.
         supabase
-          .from("vw_campaign_playlist_growth" as any)
-          .select("campaign_id, attributed_to, delta")
-          .in("campaign_id", ids),
+          .rpc("fn_campaign_playlist_growth" as any, { p_campaign_ids: ids })
+          .then(({ data, error }) => ({
+            data: (data ?? []).map((r: any) => ({
+              campaign_id: r.campaign_id,
+              attributed_to: r.attributed_to,
+              delta: r.delta,
+            })),
+            error,
+          })),
+
       ]);
 
 
