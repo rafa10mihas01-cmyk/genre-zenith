@@ -157,6 +157,7 @@ export function SpotifyAppsManager({
   const [page, setPage] = useState(0);
   const [inviteAppId, setInviteAppId] = useState<string | null>(null);
   const [collapsedApps, setCollapsedApps] = useState<Set<string>>(new Set());
+  const [hidePaused, setHidePaused] = useState(true);
   const initializedCollapse = useRef(false);
   const toggleAppCollapsed = (id: string) => setCollapsedApps((prev) => {
     const next = new Set(prev);
