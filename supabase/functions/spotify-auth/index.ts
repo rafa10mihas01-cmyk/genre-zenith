@@ -1,4 +1,4 @@
-// spotify-auth — múltiplos modos (multi-app aware):
+// spotify-auth — múltiplos modos (multi-app aware) — pós-17-C (sem app default):
 //   GET  ?mode=ping                              → testa client_credentials do app default
 //   GET  ?mode=login&redirect=<url>[&app_id=…]   → URL OAuth pro app escolhido
 //   GET  ?mode=callback&code=…&state=…&redirect= → troca code (usa app gravado no state)
