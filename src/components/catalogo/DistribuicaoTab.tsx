@@ -33,12 +33,14 @@ type Flags = {
   engine_natural_distribution_active: boolean;
   engine_natural_distribution_window_days: number;
   engine_natural_distribution_wave_size: number;
+  engine_natural_distribution_max_per_track_per_day: number;
+  engine_natural_distribution_max_per_wave_per_track: number;
 };
 
 async function fetchFlags(): Promise<Flags | null> {
   const { data, error } = await supabase
     .from("system_flags")
-    .select("id, engine_natural_distribution_active, engine_natural_distribution_window_days, engine_natural_distribution_wave_size")
+    .select("id, engine_natural_distribution_active, engine_natural_distribution_window_days, engine_natural_distribution_wave_size, engine_natural_distribution_max_per_track_per_day, engine_natural_distribution_max_per_wave_per_track")
     .order("id")
     .limit(1)
     .maybeSingle();
@@ -63,6 +65,8 @@ export function DistribuicaoTab() {
   const [filter, setFilter] = useState<"active" | "all">("active");
   const [draftDays, setDraftDays] = useState<string | null>(null);
   const [draftWave, setDraftWave] = useState<string | null>(null);
+  const [draftDaily, setDraftDaily] = useState<string | null>(null);
+  const [draftPerWave, setDraftPerWave] = useState<string | null>(null);
 
   const flagsQ = useQuery({ queryKey: ["natural-distribution", "flags"], queryFn: fetchFlags });
   const plansQ = useQuery({ queryKey: ["natural-distribution", "plans", filter], queryFn: () => fetchPlans(filter), staleTime: 15_000 });
@@ -89,13 +93,23 @@ export function DistribuicaoTab() {
       const payload: any = {};
       if (draftDays != null) {
         const n = Number(draftDays);
-        if (!Number.isFinite(n) || n < 1 || n > 14) throw new Error("Janela deve estar entre 1 e 14 dias");
+        if (!Number.isFinite(n) || n < 1 || n > 30) throw new Error("Janela deve estar entre 1 e 30 dias");
         payload.engine_natural_distribution_window_days = n;
       }
       if (draftWave != null) {
         const n = Number(draftWave);
-        if (!Number.isFinite(n) || n < 1 || n > 500) throw new Error("Onda deve estar entre 1 e 500");
+        if (!Number.isFinite(n) || n < 1 || n > 1000) throw new Error("Onda deve estar entre 1 e 1000");
         payload.engine_natural_distribution_wave_size = n;
+      }
+      if (draftDaily != null) {
+        const n = Number(draftDaily);
+        if (!Number.isFinite(n) || n < 1 || n > 500) throw new Error("Limite diário deve estar entre 1 e 500");
+        payload.engine_natural_distribution_max_per_track_per_day = n;
+      }
+      if (draftPerWave != null) {
+        const n = Number(draftPerWave);
+        if (!Number.isFinite(n) || n < 1 || n > 50) throw new Error("Playlists por onda/música deve estar entre 1 e 50");
+        payload.engine_natural_distribution_max_per_wave_per_track = n;
       }
       if (Object.keys(payload).length === 0) return;
       const { error } = await supabase.from("system_flags").update(payload).eq("id", flags.id);
@@ -105,6 +119,8 @@ export function DistribuicaoTab() {
       toast.success("Configurações salvas");
       setDraftDays(null);
       setDraftWave(null);
+      setDraftDaily(null);
+      setDraftPerWave(null);
       qc.invalidateQueries({ queryKey: ["natural-distribution", "flags"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Falha ao salvar"),
@@ -162,13 +178,13 @@ export function DistribuicaoTab() {
           <Calendar className="h-4 w-4 text-primary" />
           Ritmo da distribuição
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
           <label className="flex flex-col gap-1">
             <span className="text-xs text-muted-foreground">Janela padrão (dias)</span>
             <Input
               type="number"
               min={1}
-              max={14}
+              max={30}
               value={draftDays ?? flags?.engine_natural_distribution_window_days ?? 5}
               onChange={(e) => setDraftDays(e.target.value)}
               className="h-8 text-sm"
@@ -179,31 +195,55 @@ export function DistribuicaoTab() {
             <Input
               type="number"
               min={1}
-              max={500}
+              max={1000}
               value={draftWave ?? flags?.engine_natural_distribution_wave_size ?? 50}
               onChange={(e) => setDraftWave(e.target.value)}
               className="h-8 text-sm"
             />
           </label>
-          <div className="flex items-end gap-2">
-            <Button
-              size="sm"
-              onClick={() => saveSettingsMut.mutate()}
-              disabled={(draftDays == null && draftWave == null) || saveSettingsMut.isPending}
-              className="gap-1.5"
-            >
-              <Save className="h-4 w-4" />
-              Salvar
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => runWaveMut.mutate()} disabled={!isActive || runWaveMut.isPending} className="gap-1.5">
-              <Play className="h-4 w-4" />
-              {runWaveMut.isPending ? "Executando…" : "Rodar onda agora"}
-            </Button>
-          </div>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-muted-foreground">Máx. playlists / música / dia</span>
+            <Input
+              type="number"
+              min={1}
+              max={500}
+              value={draftDaily ?? flags?.engine_natural_distribution_max_per_track_per_day ?? 20}
+              onChange={(e) => setDraftDaily(e.target.value)}
+              className="h-8 text-sm"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-muted-foreground">Playlists por onda (por música)</span>
+            <Input
+              type="number"
+              min={1}
+              max={50}
+              value={draftPerWave ?? flags?.engine_natural_distribution_max_per_wave_per_track ?? 1}
+              onChange={(e) => setDraftPerWave(e.target.value)}
+              className="h-8 text-sm"
+            />
+          </label>
+        </div>
+        <div className="flex items-center gap-2 mt-3">
+          <Button
+            size="sm"
+            onClick={() => saveSettingsMut.mutate()}
+            disabled={(draftDays == null && draftWave == null && draftDaily == null && draftPerWave == null) || saveSettingsMut.isPending}
+            className="gap-1.5"
+          >
+            <Save className="h-4 w-4" />
+            Salvar
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => runWaveMut.mutate()} disabled={!isActive || runWaveMut.isPending} className="gap-1.5">
+            <Play className="h-4 w-4" />
+            {runWaveMut.isPending ? "Executando…" : "Rodar onda agora"}
+          </Button>
         </div>
         <div className="flex items-start gap-2 mt-3 text-[11px] text-muted-foreground">
           <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-          <span>O cron `engine-distribution-wave` roda a cada 15 minutos. Cada onda insere até N placements pendentes; o worker existente sincroniza com o Spotify normalmente.</span>
+          <span>
+            Plano dinâmico: a cada onda o Engine reavalia playlists elegíveis (vaga, cooldown, gênero) com o estado atual. A distribuição é paralela entre todas as músicas ativas (round-robin), respeitando o limite diário por música. Cron `engine-distribution-wave` roda a cada 15 min.
+          </span>
         </div>
       </section>
 
