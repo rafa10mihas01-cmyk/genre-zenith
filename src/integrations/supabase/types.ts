@@ -14586,6 +14586,25 @@ export type Database = {
           total_plays: number
         }[]
       }
+      fn_campaign_playlist_growth: {
+        Args: { p_campaign_ids: string[] }
+        Returns: {
+          attributed_to: string
+          baseline_at: string
+          baseline_name: string
+          baseline_plays: number
+          campaign_id: string
+          current_name: string
+          current_plays: number
+          delivery_accumulated: number
+          delta: number
+          first_seen_at: string
+          last_captured_at: string
+          last_import_delta: number
+          playlist_id: string
+          playlist_url: string
+        }[]
+      }
       fn_curator_delivery_accumulated: {
         Args: { p_campaign_id: string }
         Returns: {
