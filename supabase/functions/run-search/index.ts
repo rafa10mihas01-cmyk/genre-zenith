@@ -4,10 +4,40 @@
 // - 429: respeita Retry-After uma vez; segundo 429 → log rate_limited e segue.
 // - Upsert search_tracks por (genre_id, spotify_track_id).
 // - Upsert search_results por (genre_id, spotify_playlist_id).
+//
+// =====================================================================
+// EXCEÇÃO DOCUMENTADA — `/v1/search` (Fase 17-C, Onda 4)
+// ---------------------------------------------------------------------
+// Esta função é uma das DUAS únicas exceções permitidas ao princípio
+// "toda leitura pública passa pelo Observer". A outra é
+// `generate-templates` (fallback de resolução nome→id).
+//
+// Por que ainda existe:
+//   O Observer (VPS) só expõe endpoints de PLAYLIST (`/playlists/:id`,
+//   `/playlists/:id/items`, `/owner`, `/followers`). Ele NÃO implementa
+//   busca textual (`/v1/search`), porque busca não tem URL canônica
+//   pública para scrape — exige token Spotify.
+//
+// Limitação do Observer que impede a migração:
+//   Falta endpoint `/search` no contrato VPS. A descoberta inicial de
+//   playlists/tracks por termo (run-search, expand de descoberta de gênero)
+//   depende obrigatoriamente do `GET /v1/search`.
+//
+// Por isso permanece usando `ccFetch` (pool Client Credentials do
+// catalog-gateway). Toda chamada é registrada em `spotify_call_log`
+// com `meta.source='gateway-cc'` para monitoramento.
+//
+// Condição para futura remoção:
+//   Quando a VPS expuser `GET /search?q=...&type=...&market=...` com
+//   contrato compatível, migrar `spotifySearch` para `observerSearch`
+//   e remover o import de `ccFetch`. Nenhuma OUTRA exceção pode ser
+//   introduzida no projeto — qualquer leitura pública nova deve usar
+//   Observer + Cache.
+// =====================================================================
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
-import { ccFetch } from "../_shared/catalog-gateway.ts";
+import { ccFetch } from "../_shared/catalog-gateway.ts"; // exceção /search — ver header
 import { deprecationGate } from "../_shared/_deprecation.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
