@@ -9,6 +9,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
 import { SpotifyCircuitOpenError } from "../_shared/spotify-client.ts";
 import { ccFetch } from "../_shared/catalog-gateway.ts";
+import { observerGetPlaylist, observerListPlaylistItems, ObserverApiError } from "../_shared/observer-playlist.ts";
 // getPlaylistMeta foi removido — agora lemos detalhes via ccFetch direto.
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
