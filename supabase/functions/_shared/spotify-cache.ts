@@ -80,7 +80,7 @@ export async function getTrackCacheBatch(ids: string[]): Promise<Map<string, Tra
     const slice = unique.slice(i, i + 500);
     const { data } = await sb
       .from("spotify_track_cache")
-      .select("spotify_track_id,name,isrc,album_id,release_date,duration_ms,explicit,popularity,artist_ids,popularity_refreshed_at,enriched_at,fetch_status")
+      .select("spotify_track_id,name,isrc,album_id,release_date,duration_ms,explicit,popularity,artist_ids,popularity_refreshed_at,enriched_at,fetch_status,raw")
       .in("spotify_track_id", slice);
     for (const row of data ?? []) out.set((row as any).spotify_track_id, row as TrackCacheRow);
   }
