@@ -410,59 +410,11 @@ Deno.serve(async (req) => {
     // === TELEMETRIA (Fase 0A) — passiva, não altera fluxo ===
     const tel = new DiagnoseTelemetry();
 
-    // === EXPERIMENTAL (Recovery 1) — single-path enrichment ===
-    // Ativa fetch /v1/tracks/{id} e /v1/artists/{id} (200) em vez do batch
-    // /v1/tracks?ids= (403). Default: ADRENALINA (2fkWRA6qFJi8JZpvlVuXOO).
-    const SINGLE_PATH_TARGET = (Deno.env.get("DIAGNOSE_SINGLE_PATH_TARGET") ?? "2fkWRA6qFJi8JZpvlVuXOO").trim();
-    const SINGLE_PATH_FORCE = (Deno.env.get("DIAGNOSE_SINGLE_PATH") ?? "").toLowerCase() === "true";
-    const useSinglePath =
-      SINGLE_PATH_FORCE || ((pl as any).spotify_playlist_id === SINGLE_PATH_TARGET);
-    const singlePathStats = {
-      enabled: useSinglePath,
-      tracks_attempted: 0, tracks_ok: 0, tracks_403: 0, tracks_other_err: 0,
-      artists_attempted: 0, artists_ok: 0, artists_403: 0, artists_other_err: 0,
-    };
-    async function fetchSingleTrack(token: string, id: string) {
-      singlePathStats.tracks_attempted++;
-      const r = await spotifyFetch(
-        `https://api.spotify.com/v1/tracks/${id}`,
-        { headers: { Authorization: `Bearer ${token}` } },
-        { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, functionName: 'diagnose-managed-playlist' },
-      );
-      tel.noteSpotifyStatus(r.status);
-      if (r.status === 403) { singlePathStats.tracks_403++; return null; }
-      if (!r.ok) { singlePathStats.tracks_other_err++; return null; }
-      singlePathStats.tracks_ok++;
-      return await r.json();
-    }
-    async function fetchSingleArtist(token: string, id: string) {
-      singlePathStats.artists_attempted++;
-      const r = await spotifyFetch(
-        `https://api.spotify.com/v1/artists/${id}`,
-        { headers: { Authorization: `Bearer ${token}` } },
-        { playlist_id: pl.id, owner_id: ownerSpotifyId, spotify_user_id: ownerSpotifyId, functionName: 'diagnose-managed-playlist' },
-      );
-      tel.noteSpotifyStatus(r.status);
-      if (r.status === 403) { singlePathStats.artists_403++; return null; }
-      if (!r.ok) { singlePathStats.artists_other_err++; return null; }
-      singlePathStats.artists_ok++;
-      return await r.json();
-    }
-    // Paralelismo controlado: 2 in-flight, 150ms stall (~13 req/s). Spotify-friendly.
-    async function fetchAllSingle<T>(ids: string[], fn: (id: string) => Promise<T | null>, concurrency = 2, stallMs = 150): Promise<Array<T | null>> {
+    // Fase 17-C: leitura pública de tracks/artists vai EXCLUSIVAMENTE pelo cache
+    // (getTrackCacheBatch / getArtistCacheBatch — usado mais abaixo). O antigo
+    // bloco experimental "single-path" (fetchSingleTrack / fetchSingleArtist com
+    // ccFetch/spotifyFetch direto) foi REMOVIDO — era dead code não invocado.
 
-      const out: Array<T | null> = new Array(ids.length).fill(null);
-      let i = 0;
-      async function worker() {
-        while (i < ids.length) {
-          const idx = i++;
-          out[idx] = await fn(ids[idx]);
-          if (stallMs > 0) await new Promise((r) => setTimeout(r, stallMs));
-        }
-      }
-      await Promise.all(Array.from({ length: Math.min(concurrency, ids.length) }, () => worker()));
-      return out;
-    }
 
 
 
