@@ -360,7 +360,21 @@ Deno.serve(async (req) => {
   }
   if (missing.size > 0) {
     try {
-      const { ccFetch } = await import("../_shared/catalog-gateway.ts");
+      // =====================================================================
+      // EXCEÇÃO DOCUMENTADA — `/v1/search` (Fase 17-C, Onda 4)
+      // ---------------------------------------------------------------------
+      // Fallback de resolução nome+artista → spotify_track_id. Usa o pool CC
+      // do catalog-gateway via `/v1/search` porque:
+      //   - o Observer (VPS) não expõe busca textual (sem URL pública
+      //     canônica para scrape);
+      //   - o cache local (`spotify_track_cache`) é indexado por id, não
+      //     por (nome, artista), então não resolve nomes que nunca foram
+      //     enfileirados pelo worker.
+      // Remoção condicionada à VPS expor `/search` no contrato Observer
+      // (mesma condição do `run-search`). Throttle 300ms entre buscas e
+      // cap rígido de 200 termos por execução.
+      // =====================================================================
+      const { ccFetch } = await import("../_shared/catalog-gateway.ts"); // exceção /search
       const items = Array.from(missing).slice(0, 200); // hard cap
       const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
       for (let idx = 0; idx < items.length; idx++) {
