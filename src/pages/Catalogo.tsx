@@ -368,6 +368,8 @@ export default function Catalogo() {
         <div>
           {tab === "musicas" && <MusicasTab />}
           {tab === "playlists" && <PlaylistsTab />}
+          {tab === "engine" && <EnginePriorityTab />}
+
         </div>
 
       </PageContainer>
