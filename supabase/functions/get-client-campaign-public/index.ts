@@ -394,6 +394,7 @@ Deno.serve(async (req) => {
       playlist_url: string | null;
       first_seen_at: string | null;
       registered_at: string | null;
+      discovered_by_bot?: boolean;
     };
     const contracted: ContractedPlaylist[] = [];
     if (campaignIdsForDeals.size > 0) {
@@ -537,7 +538,26 @@ Deno.serve(async (req) => {
             prev.current_plays = Math.max(prev.current_plays ?? 0, inc.current_plays);
           }
         }
+    }
+
+    // MERGE: playlists descobertas pelo bot — presentes em
+    // vw_campaign_playlist_growth mas ausentes em curator_campaign_playlists.
+    // CCP segue como fonte principal (preserva registered_at e playlist_url
+    // cadastrados manualmente); o growth só adiciona o que falta. Sem isso,
+    // playlists coletadas automaticamente nunca apareciam no portal.
+    {
+      const ccpIds = new Set(contracted.map((c) => c.playlist_id));
+      for (const [pid, g] of growthByPid.entries()) {
+        if (ccpIds.has(pid)) continue;
+        contracted.push({
+          playlist_id: pid,
+          playlist_url: null,
+          first_seen_at: g.first_seen_at,
+          registered_at: g.first_seen_at,
+          discovered_by_bot: true,
+        });
       }
+    }
     }
 
     // Enriquecimento de metadados (nome/cover) via curator_playlist_library —
@@ -586,6 +606,7 @@ Deno.serve(async (req) => {
         spotify_playlist_id: c.playlist_id,
         registered_at: c.registered_at,
         is_pre_campaign: baselinePlaylistIds.has(c.playlist_id),
+        discovered_by_bot: Boolean(c.discovered_by_bot),
       };
     });
 
