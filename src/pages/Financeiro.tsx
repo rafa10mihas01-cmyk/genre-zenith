@@ -14,6 +14,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { Kpi, type KpiTone } from "@/components/ui/kpi";
 import { KpiCompactStrip } from "@/components/KpiCompactStrip";
+import { FinanceiroMobileTabs } from "@/components/financeiro/FinanceiroMobileTabs";
 import { FinanceiroTab } from "@/components/playlist-deals/FinanceiroTab";
 import { FinancialOverview } from "@/components/financeiro/FinancialOverview";
 import { PricingSettingsPanel } from "@/components/financeiro/PricingSettingsPanel";
@@ -48,6 +49,7 @@ function ReceitaView() {
           },
         ]}
       />
+      <FinanceiroMobileTabs />
       <section className="hidden lg:grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Kpi icon={DollarSign} label="Recebido" value={fmtBRL(totals.recebido)} tone="primary" />
         <Kpi icon={Receipt} label="Cobrado" value={fmtBRL(totals.cobrado)} />
@@ -122,6 +124,7 @@ function MargemView() {
           },
         ]}
       />
+      <FinanceiroMobileTabs />
       <section className="hidden lg:grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Kpi
           icon={totals.margem >= 0 ? TrendingUp : TrendingDown}
@@ -210,68 +213,36 @@ export default function Financeiro() {
         manualKey="financeiro"
       />
       <PageContainer>
-        <div className="flex flex-col">
-          {/* Desktop: tabs underline (sempre no topo) */}
-          <div className="hidden sm:flex items-center gap-1 border-b border-border mb-6 overflow-x-auto scrollbar-none">
-            {TABS.map((t) => {
-              const Icon = t.icon;
-              const active = tab === t.id;
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => setTab(t.id)}
-                  className={cn(
-                    "px-3 lg:px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap shrink-0",
-                    active
-                      ? "border-primary text-foreground"
-                      : "border-transparent text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {t.label}
-                </button>
-              );
-            })}
-          </div>
+        {/* Desktop: tabs underline (no topo) */}
+        <div className="hidden sm:flex items-center gap-1 border-b border-border mb-6 overflow-x-auto scrollbar-none">
+          {TABS.map((t) => {
+            const Icon = t.icon;
+            const active = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={cn(
+                  "px-3 lg:px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap shrink-0",
+                  active
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
 
-          {/* Conteúdo: vem primeiro no mobile, depois das tabs no desktop */}
-          <div className="animate-tab-in order-1 sm:order-none">
-            {tab === "visao"   && <FinancialOverview />}
-            {tab === "receita" && <ReceitaView />}
-            {tab === "custo"   && <FinanceiroTab />}
-            {tab === "margem"  && <MargemView />}
-            {tab === "config"  && <PricingSettingsPanel />}
-          </div>
-
-          {/* Mobile: tabs depois do conteúdo */}
-          <div className="grid grid-cols-5 gap-1.5 sm:hidden mt-4 order-2 sm:order-none">
-            {TABS.map((t) => {
-              const Icon = t.icon;
-              const active = tab === t.id;
-              const shortLabel =
-                t.id === "visao" ? "Visão" :
-                t.id === "receita" ? "Receita" :
-                t.id === "custo" ? "Custo" :
-                t.id === "margem" ? "Margem" : "Config";
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setTab(t.id)}
-                  aria-pressed={active}
-                  className={cn(
-                    "rounded-xl border px-0.5 py-2 flex flex-col items-center justify-center gap-1 min-w-0 transition-colors",
-                    active
-                      ? "border-primary/60 bg-primary/10 text-foreground"
-                      : "border-border bg-card text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  <span className="text-[10px] font-medium leading-tight truncate w-full text-center">{shortLabel}</span>
-                </button>
-              );
-            })}
-          </div>
+        {/* Conteúdo (no mobile cada view inclui o FinanceiroMobileTabs logo abaixo do KPI strip) */}
+        <div className="animate-tab-in">
+          {tab === "visao"   && <FinancialOverview />}
+          {tab === "receita" && <ReceitaView />}
+          {tab === "custo"   && (<><div className="sm:hidden mb-4"><FinanceiroMobileTabs /></div><FinanceiroTab /></>)}
+          {tab === "margem"  && <MargemView />}
+          {tab === "config"  && (<><div className="sm:hidden mb-4"><FinanceiroMobileTabs /></div><PricingSettingsPanel /></>)}
         </div>
       </PageContainer>
     </>

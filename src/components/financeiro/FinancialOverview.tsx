@@ -7,6 +7,7 @@ import { LegacyValorCobradoPanel } from "./LegacyValorCobradoPanel";
 import { Button } from "@/components/ui/button";
 import { Kpi } from "@/components/ui/kpi";
 import { KpiCompactStrip } from "@/components/KpiCompactStrip";
+import { FinanceiroMobileTabs } from "./FinanceiroMobileTabs";
 
 import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/format";
@@ -80,6 +81,8 @@ export function FinancialOverview() {
           },
         ]}
       />
+
+      <FinanceiroMobileTabs />
 
       {/* ===== KPIs desktop ===== */}
       <section className="hidden lg:grid grid-cols-2 lg:grid-cols-4 gap-4">
