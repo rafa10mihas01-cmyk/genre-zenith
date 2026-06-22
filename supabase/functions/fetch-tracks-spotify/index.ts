@@ -123,11 +123,11 @@ Deno.serve(async (req) => {
       .eq("spotify_playlist_id", body.playlist_id)
       .maybeSingle();
 
-    const route: Route = managed ? "oauth-managed" : "gateway-cc";
+    const route: Route = managed ? "oauth-managed" : "observer";
 
     const tracks = route === "oauth-managed"
       ? await fetchManagedViaOauth(body.playlist_id, managed!.owner_spotify_user_id ?? null, max)
-      : await fetchPublicViaGateway(body.playlist_id, max);
+      : await fetchPublicViaObserver(body.playlist_id, max);
 
     let saved = 0;
     if (body.save && body.result_id && tracks.length > 0) {
