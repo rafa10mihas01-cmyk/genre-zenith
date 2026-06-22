@@ -351,10 +351,9 @@ export default function PlanoCampanhaPublico() {
     if (!campaignId) { setDeliveredFromView(null); return; }
     let cancelled = false;
     (async () => {
-      const { data, error } = await supabase
-        .from("vw_campaign_playlist_growth")
-        .select("attributed_to, delta")
-        .eq("campaign_id", campaignId);
+      const { data, error } = await (supabase as any)
+        .rpc("fn_campaign_playlist_growth", { p_campaign_ids: [campaignId] });
+
       if (cancelled || error || !Array.isArray(data)) return;
       if (data.length === 0) {
         setDeliveredFromView(null);
