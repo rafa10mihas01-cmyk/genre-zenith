@@ -143,7 +143,13 @@ async function callAI(text: string): Promise<{ rows: ParsedRow[]; tokens: number
   return { rows, tokens };
 }
 
-/** Busca a playlist no Spotify pelo nome + creator. Retorna o melhor match. */
+/** Busca a playlist no Spotify pelo nome + creator. Retorna o melhor match.
+ *
+ *  EXCEÇÃO DOCUMENTADA — `/v1/search` (Fase 17-C, Onda 4)
+ *  O Observer (VPS) não expõe busca textual. Resolução nome→spotify_id por
+ *  busca textual exige `GET /v1/search`. Mantida via pool OAuth (token de
+ *  app) com guardedSpotifyFetch para reaproveitar o circuit breaker.
+ *  Remoção condicionada à VPS expor `/search` no contrato Observer. */
 async function searchSpotifyPlaylist(
   name: string,
   creator: string | null,
@@ -152,7 +158,7 @@ async function searchSpotifyPlaylist(
   const token = await getSpotifyToken();
   const q = encodeURIComponent(name);
   const res = await guardedSpotifyFetch(
-    `https://api.spotify.com/v1/search?type=playlist&limit=10&q=${q}`,
+    `https://api.spotify.com/v1/search?type=playlist&limit=10&q=${q}`, // exceção /search
     { headers: { Authorization: `Bearer ${token}` } },
   );
   if (!res.ok) return null;

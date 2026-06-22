@@ -56,9 +56,11 @@ async function fetchPlaylistFollowers(token: string, playlistId: string): Promis
 }
 
 async function searchTrackUri(token: string, nome: string, artista: string): Promise<string | null> {
-  // 🎯 Busca top 5 e escolhe pela maior popularidade — evita remix/cover errado
+  // 🎯 Busca top 5 e escolhe pela maior popularidade — evita remix/cover errado.
+  // EXCEÇÃO DOCUMENTADA — `/v1/search` (Fase 17-C, Onda 4): Observer não expõe
+  // busca textual; mantida via OAuth do app até a VPS implementar `/search`.
   const q = `track:${nome} artist:${artista}`;
-  const url = `https://api.spotify.com/v1/search?type=track&limit=5&q=${encodeURIComponent(q)}`;
+  const url = `https://api.spotify.com/v1/search?type=track&limit=5&q=${encodeURIComponent(q)}`; // exceção /search
   const r = await spotifyFetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (!r.ok) return null;
   const j = await r.json();

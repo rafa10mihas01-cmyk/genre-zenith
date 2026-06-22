@@ -50,11 +50,14 @@ function defaultTerms(slug: string, nome: string): string[] {
 }
 
 async function searchSpotify(url: string): Promise<any> {
-  // Lê via Catalog Gateway (CC pool NexEngine 05/10). Preserva tratamento de 429
-  // que o wrapper anterior tinha (lança erro pra cima — caller decide).
+  // EXCEÇÃO DOCUMENTADA — `/v1/search` (Fase 17-C, Onda 4)
+  // O Observer (VPS) não expõe busca textual; descoberta de playlists por
+  // termo de gênero ainda depende de `GET /v1/search`. Mantida via pool CC
+  // do catalog-gateway. Remoção condicionada à VPS expor `/search` no
+  // contrato Observer.
   let r: Response;
   try {
-    r = await ccFetch(url, "genre-spotify-discover");
+    r = await ccFetch(url, "genre-spotify-discover"); // exceção /search
   } catch (e) {
     if (e instanceof SpotifyCircuitOpenError) throw e;
     throw e;
