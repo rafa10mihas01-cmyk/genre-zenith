@@ -1,5 +1,5 @@
 // /analytics — Aba "Deals".
-// FASE 13.0 — Fonte canônica: vw_campaign_playlist_growth (delivery
+// FASE 13.0 — Fonte canônica: fn_campaign_playlist_growth (delivery
 // já consolidado) + campaign_playlist_collections (raw para série de momentum).
 // curator_deal_snapshots NÃO é mais consumido.
 import { useMemo } from "react";

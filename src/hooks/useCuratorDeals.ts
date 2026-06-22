@@ -330,7 +330,7 @@ export function useCuratorDeals(opts?: { includeInternal?: boolean }) {
   });
 
   // Enriquecimento: pra deals vinculados a campanhas, somar a entrega real
-  // direto da vw_campaign_playlist_growth (mesma fonte usada pela lista de
+  // direto da fn_campaign_playlist_growth (mesma fonte usada pela lista de
   // campanhas e pela tela de execução). Sobrescreve daily_avg / today / delivered
   // quando o RPC retorna zero mas o view tem dados.
   const campaignDealRefs = useMemo(
