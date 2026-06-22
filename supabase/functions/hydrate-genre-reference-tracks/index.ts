@@ -29,14 +29,6 @@ function normalizeReleaseDate(value: unknown): string | null {
   return null;
 }
 
-function normalizeReleaseDate(value: unknown): string | null {
-  const raw = String(value ?? "").trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
-  if (/^\d{4}-\d{2}$/.test(raw)) return `${raw}-01`;
-  if (/^\d{4}$/.test(raw)) return `${raw}-01-01`;
-  return null;
-}
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const guard = await requireTeamAccess(req);
