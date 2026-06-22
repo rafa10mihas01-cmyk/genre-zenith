@@ -197,18 +197,37 @@ export function SpotifyBalancerOverviewPanel() {
   const active = rows.filter(r => r.lifecycle_state === "active");
   const blocked = rows.filter(r => r.lifecycle_state !== "active");
 
+  const [hideBlocked, setHideBlocked] = useState(true);
+
   return (
     <TooltipProvider>
       <Card className="overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <div className="flex items-center gap-2">
-            <Activity className="h-4 w-4 text-primary" />
-            <div className="text-sm font-semibold">Balanceador Spotify</div>
-            <span className="text-[11px] text-muted-foreground">fonte: spotify_app_overview</span>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Activity className="h-4 w-4 text-primary shrink-0" />
+            <div className="text-sm font-semibold truncate">Balanceador Spotify</div>
+            <span className="text-[11px] text-muted-foreground hidden sm:inline">fonte: spotify_app_overview</span>
           </div>
-          <Button variant="ghost" size="sm" className="h-7" onClick={() => refetch()} disabled={isFetching}>
-            {isFetching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-          </Button>
+          <div className="flex items-center gap-1 shrink-0">
+            {blocked.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-[11px] gap-1"
+                onClick={() => setHideBlocked(v => !v)}
+                title={hideBlocked ? "Mostrar apps bloqueadas/fora do pool" : "Ocultar apps bloqueadas/fora do pool"}
+              >
+                {hideBlocked ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                <span className="hidden sm:inline">
+                  {hideBlocked ? `Mostrar bloqueadas (${blocked.length})` : "Ocultar bloqueadas"}
+                </span>
+                <span className="sm:hidden tabular-nums">{blocked.length}</span>
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" className="h-7" onClick={() => refetch()} disabled={isFetching}>
+              {isFetching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+            </Button>
+          </div>
         </div>
 
         {isLoading ? (
@@ -225,12 +244,17 @@ export function SpotifyBalancerOverviewPanel() {
                 {active.map(r => <AppRow key={r.id} r={r} />)}
               </div>
             )}
-            {blocked.length > 0 && (
+            {blocked.length > 0 && !hideBlocked && (
               <div>
                 <div className="px-4 py-2 text-[10px] uppercase tracking-wide text-muted-foreground bg-elevated/40 border-b border-t border-border">
                   Bloqueadas / fora do pool ({blocked.length})
                 </div>
                 {blocked.map(r => <AppRow key={r.id} r={r} />)}
+              </div>
+            )}
+            {blocked.length > 0 && hideBlocked && (
+              <div className="px-4 py-2 text-[11px] text-muted-foreground bg-elevated/20 border-t border-border text-center">
+                {blocked.length} app{blocked.length === 1 ? "" : "s"} bloqueada{blocked.length === 1 ? "" : "s"} oculta{blocked.length === 1 ? "" : "s"}
               </div>
             )}
           </>
