@@ -8,7 +8,7 @@ import { KpiBig } from "@/components/KpiBig";
 /**
  * Header do Ecossistema (planejamento). Mostra apenas valores de PLANO
  * (allocations + snapshot). A entrega REAL é responsabilidade dos
- * componentes de execução que consomem vw_campaign_playlist_growth —
+ * componentes de execução que consomem fn_campaign_playlist_growth —
  * este header não deve mais somar campaign_eco_snapshots.plays_28d.
  */
 export function InternalEcosystemHeader({

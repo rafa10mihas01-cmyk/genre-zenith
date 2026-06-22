@@ -1,6 +1,6 @@
 // dealsAnalytics — helpers puros pro /analytics.
 //
-// FASE 13.0 — Fonte canônica: vw_campaign_playlist_growth (delivery_accumulated
+// FASE 13.0 — Fonte canônica: fn_campaign_playlist_growth (delivery_accumulated
 // já consolidado pela view) + campaign_playlist_collections (raw para série
 // temporal de momentum). curator_deal_snapshots NÃO é mais consumido.
 //

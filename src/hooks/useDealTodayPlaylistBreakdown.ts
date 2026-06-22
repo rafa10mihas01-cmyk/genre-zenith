@@ -1,7 +1,7 @@
 // useDealTodayPlaylistBreakdown — Mostra a contribuição de plays "hoje"
 // por playlist do deal.
 //
-// FONTE OFICIAL (pós P2.1/P2.2): vw_campaign_playlist_growth — mesma view
+// FONTE OFICIAL (pós P2.1/P2.2): fn_campaign_playlist_growth — mesma view
 // que alimenta o portal do cliente, indexada por (campaign_id, spotify_playlist_id).
 // A tabela legada `curator_deal_snapshots` ficou vazia após a migração do
 // Growth Engine e não deve mais ser usada para métricas por playlist.

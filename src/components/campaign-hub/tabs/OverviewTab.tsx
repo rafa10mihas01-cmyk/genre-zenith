@@ -182,7 +182,7 @@ export function OverviewTab({
   // Última snapshot por playlist — mantida APENAS pra montar Top playlists
   // (delivered/delta24 por playlist específica). NÃO é mais usada pra
   // agregados eco/ext — esses vêm exclusivamente de deliveryBreakdown
-  // (vw_campaign_playlist_growth, mesma fonte da execução).
+  // (fn_campaign_playlist_growth, mesma fonte da execução).
   const latestByPl = new Map<string, EcoSnap>();
   for (const s of snapshots) {
     if (!latestByPl.has(s.managed_playlist_id)) latestByPl.set(s.managed_playlist_id, s);
@@ -193,7 +193,7 @@ export function OverviewTab({
     .reduce((acc, s) => acc + Number(s.plays_28d ?? s.plays_7d ?? 0), 0);
   const radioDeliveredSafe = Math.max(0, Math.round(radioDelta));
 
-  // FONTE ÚNICA: vw_campaign_playlist_growth via prop deliveryBreakdown.
+  // FONTE ÚNICA: fn_campaign_playlist_growth via prop deliveryBreakdown.
   // Sem fallback legado — quando a view não tem dados, mostramos 0.
   const ecoDelivered = (deliveryBreakdown?.ecosystem ?? 0) + radioDeliveredSafe;
   const extDelivered = deliveryBreakdown?.curators ?? 0;

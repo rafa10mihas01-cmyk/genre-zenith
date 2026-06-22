@@ -4,7 +4,7 @@
 // Sem auth (rota pública). Service role para ignorar RLS.
 //
 // FASE 13.0 — Fonte canônica de leitura: campaign_playlist_collections (CPC)
-// via vw_campaign_playlist_growth. curator_deal_snapshots permanece como
+// via fn_campaign_playlist_growth. curator_deal_snapshots permanece como
 // fallback de compatibilidade para deals antigos pré-CPC.
 import { corsHeaders as baseCorsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -213,7 +213,7 @@ Deno.serve(async (req) => {
     // FASE 13.0 — perPlaylistDelivery por curator_playlists.id.
     // Inicial: derivado de curator_deal_snapshots (fallback de compatibilidade
     // para deals legados sem CPC). Sobrescrito abaixo com dados de
-    // vw_campaign_playlist_growth (fonte canônica) quando disponível.
+    // fn_campaign_playlist_growth (fonte canônica) quando disponível.
     const perPlaylistDelivery: Record<string, {
       baseline_plays: number | null;
       current_plays: number | null;
@@ -456,7 +456,7 @@ Deno.serve(async (req) => {
     }
 
     // FASE 13.0 — CPC override em perPlaylistDelivery + has_baseline.
-    // vw_campaign_playlist_growth (curatorGrowthRows) é a fonte canônica.
+    // fn_campaign_playlist_growth (curatorGrowthRows) é a fonte canônica.
     // Mapeamos spotify_playlist_id → curator_playlists.id usando `playlists`.
     {
       const spotifyToCuratorPid = new Map<string, string>();

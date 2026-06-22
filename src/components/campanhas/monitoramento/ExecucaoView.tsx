@@ -132,7 +132,7 @@ export function ExecucaoView({
     (async () => {
       // ─────────────────────────────────────────────────────────────
       // FONTE DE VERDADE: fn_campaign_playlist_growth (RPC com pushdown — Etapa 2B).
-      // Mesma semântica da antiga vw_campaign_playlist_growth; janela last_24h vs
+      // Mesma semântica da antiga fn_campaign_playlist_growth; janela last_24h vs
       // last_7d/28d tratada no banco — recalcular aqui reintroduz erro quando a
       // planilha é diária.
       // ─────────────────────────────────────────────────────────────

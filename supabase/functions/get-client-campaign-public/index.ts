@@ -270,7 +270,7 @@ Deno.serve(async (req) => {
     let pct = Math.max(0, Math.min(100, Number(prog.progress_pct ?? 0)));
 
     // 4) FASE 13.0 — Histórico via campaign_playlist_collections (CPC).
-    // Fonte canônica é vw_campaign_playlist_growth para totais; para série
+    // Fonte canônica é fn_campaign_playlist_growth para totais; para série
     // temporal usamos CPC raw (plays_7d por captured_at), filtrando pelas
     // playlists do curador via curator_campaign_playlists (CCP).
     const histCampaignId = dealRow.campaign_id as string | null;
@@ -349,7 +349,7 @@ Deno.serve(async (req) => {
 
     // 5) Playlists do curador — FONTE OFICIAL DE EXIBIÇÃO: curator_campaign_playlists
     // (lista CONTRATADA pelo curador). Crescimento/entrega vem de
-    // vw_campaign_playlist_growth via LEFT JOIN — playlists sem match na view
+    // fn_campaign_playlist_growth via LEFT JOIN — playlists sem match na view
     // ficam visíveis com status "Aguardando coleta" e delivered=0.
     // Importante: NÃO ocultamos playlists só porque ainda não tem coleta.
     const campaignIdsForDeals = new Set<string>();
@@ -551,7 +551,7 @@ Deno.serve(async (req) => {
     // MERGE — REGRA DE NEGÓCIO OFICIAL:
     // Uma playlist só pode aparecer como "do curador" no portal quando
     // existe vínculo explícito (campaign_id, curator_id, playlist_id) em
-    // curator_campaign_playlists. A view vw_campaign_playlist_growth já
+    // curator_campaign_playlists. A view fn_campaign_playlist_growth já
     // materializa essa regra no campo `attributed_to`:
     //   - 'curator:<id>' → existe linha em CCP (JOIN por campaign_id+playlist_id)
     //   - 'organic'      → editorial / orgânica de terceiros / sem vínculo
@@ -651,7 +651,7 @@ Deno.serve(async (req) => {
           .filter(Boolean);
         // P2.3 — Ecossistema também deve vir do Growth Engine oficial.
         // `campaign_eco_snapshots` é legado e está vazio para Carnívoro; por isso
-        // o portal mostrava ENGINE zerado mesmo com entrega em vw_campaign_playlist_growth.
+        // o portal mostrava ENGINE zerado mesmo com entrega em fn_campaign_playlist_growth.
         const ecoGrowthBySpotifyId = new Map<string, { delivered: number; last_import_delta: number | null; current_plays: number | null }>();
         if (ecoSpotifyIds.length > 0) {
           const { data: rpcRows } = await admin
