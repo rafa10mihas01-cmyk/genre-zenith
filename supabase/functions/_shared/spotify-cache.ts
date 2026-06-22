@@ -37,6 +37,9 @@ export type TrackCacheRow = {
   popularity_refreshed_at: string | null;
   enriched_at: string | null;
   fetch_status: string;
+  // Fase 17-C: `raw` é o payload Spotify completo. Consumidores que precisam de
+  // album.name, album.images, artists[].name etc. leem daqui — não fazem fetch.
+  raw: any | null;
 };
 
 export type ArtistCacheRow = {
@@ -50,6 +53,7 @@ export type ArtistCacheRow = {
   genres_refreshed_at: string | null;
   enriched_at: string | null;
   fetch_status: string;
+  raw: any | null;
 };
 
 function svc() {
