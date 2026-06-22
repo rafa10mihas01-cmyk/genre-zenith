@@ -511,11 +511,8 @@ Deno.serve(async (req) => {
     const growthByPid = new Map<string, CuratorGrowthRow>();
     if (campaignIdsForDeals.size > 0) {
       const { data: growthRows } = await admin
-        .from("vw_campaign_playlist_growth")
-        .select(
-          "playlist_id, delivery_accumulated, last_import_delta, current_plays, current_name, baseline_name, first_seen_at, attributed_to",
-        )
-        .in("campaign_id", Array.from(campaignIdsForDeals));
+        .rpc("fn_campaign_playlist_growth", { p_campaign_ids: Array.from(campaignIdsForDeals) });
+
       for (const g of (growthRows ?? []) as AnyRec[]) {
         const k = String(g.playlist_id ?? "");
         if (!k) continue;
@@ -657,13 +654,13 @@ Deno.serve(async (req) => {
         // o portal mostrava ENGINE zerado mesmo com entrega em vw_campaign_playlist_growth.
         const ecoGrowthBySpotifyId = new Map<string, { delivered: number; last_import_delta: number | null; current_plays: number | null }>();
         if (ecoSpotifyIds.length > 0) {
-          const { data: ecoGrowth } = await admin
-            .from("vw_campaign_playlist_growth")
-            .select("playlist_id, delivery_accumulated, last_import_delta, current_plays, attributed_to")
-            .eq("campaign_id", campaignId)
-            .in("playlist_id", ecoSpotifyIds)
-            .eq("attributed_to", "ecosystem");
-          for (const g of (ecoGrowth ?? []) as AnyRec[]) {
+          const { data: rpcRows } = await admin
+            .rpc("fn_campaign_playlist_growth", { p_campaign_ids: [campaignId] });
+          const wanted = new Set(ecoSpotifyIds);
+          const ecoGrowth = ((rpcRows ?? []) as AnyRec[]).filter(
+            (g) => g.attributed_to === "ecosystem" && g.playlist_id && wanted.has(String(g.playlist_id)),
+          );
+          for (const g of ecoGrowth) {
             const k = String(g.playlist_id ?? "");
             if (!k) continue;
             ecoGrowthBySpotifyId.set(k, {
@@ -673,6 +670,7 @@ Deno.serve(async (req) => {
             });
           }
         }
+
         for (const a of (ecoAllocs ?? []) as AnyRec[]) {
           const mp = (a.managed_playlists as AnyRec) ?? {};
           const spotifyId = String(mp.spotify_playlist_id ?? "");

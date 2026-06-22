@@ -417,12 +417,12 @@ Deno.serve(async (req) => {
       try {
         const attributedTo = (deal as any).curator_id ? `curator:${(deal as any).curator_id}` : null;
         if (attributedTo) {
-          const { data: attributedRows } = await admin
-            .from("vw_campaign_playlist_growth")
-            .select("playlist_id, current_name, baseline_plays, current_plays, delivery_accumulated, delta, baseline_at, last_captured_at")
-            .eq("campaign_id", growthCampaignId)
-            .eq("attributed_to", attributedTo);
-          curatorGrowthRows.push(...((attributedRows ?? []) as any[]));
+          const { data: rpcRows } = await admin
+            .rpc("fn_campaign_playlist_growth", { p_campaign_ids: [growthCampaignId] });
+          const attributedRows = ((rpcRows ?? []) as any[]).filter(
+            (r) => r.attributed_to === attributedTo,
+          );
+          curatorGrowthRows.push(...attributedRows);
         }
 
         const playlistIds = Array.from(
@@ -433,12 +433,13 @@ Deno.serve(async (req) => {
           ),
         );
         if (playlistIds.length > 0) {
-          const { data: growthRows } = await admin
-            .from("vw_campaign_playlist_growth")
-            .select("playlist_id, current_plays, delivery_accumulated, delta, attributed_to")
-            .eq("campaign_id", growthCampaignId)
-            .in("playlist_id", playlistIds);
-          for (const r of (growthRows ?? []) as Array<{ playlist_id: string | null; current_plays: number | null; delivery_accumulated: number | null; delta: number | null }>) {
+          const { data: rpcRows } = await admin
+            .rpc("fn_campaign_playlist_growth", { p_campaign_ids: [growthCampaignId] });
+          const wanted = new Set(playlistIds);
+          const growthRows = ((rpcRows ?? []) as any[]).filter(
+            (r) => r.playlist_id && wanted.has(String(r.playlist_id).trim()),
+          );
+          for (const r of growthRows as Array<{ playlist_id: string | null; current_plays: number | null; delivery_accumulated: number | null; delta: number | null }>) {
             const pid = (r.playlist_id ?? "").trim();
             if (!pid) continue;
             const plays7d = r.current_plays ?? r.delivery_accumulated ?? r.delta ?? null;
@@ -450,6 +451,7 @@ Deno.serve(async (req) => {
             };
           }
         }
+
       } catch (_e) { /* best-effort */ }
     }
 
@@ -710,17 +712,16 @@ Deno.serve(async (req) => {
           ),
         );
         if (playlistIds.length > 0) {
-          const { data: growthRows } = await admin
-            .from("vw_campaign_playlist_growth")
-            .select("playlist_id, baseline_plays")
-            .eq("campaign_id", growthCampaignId)
-            .in("playlist_id", playlistIds);
-          for (const r of (growthRows ?? []) as Array<{ playlist_id: string | null; baseline_plays: number | null }>) {
+          const { data: rpcRows } = await admin
+            .rpc("fn_campaign_playlist_growth", { p_campaign_ids: [growthCampaignId] });
+          const wanted = new Set(playlistIds);
+          for (const r of (rpcRows ?? []) as Array<{ playlist_id: string | null; baseline_plays: number | null }>) {
             const pid = (r.playlist_id ?? "").trim();
-            if (!pid) continue;
+            if (!pid || !wanted.has(pid)) continue;
             baselinePlaysByPid[pid] = Math.max(0, Number(r.baseline_plays ?? 0));
           }
         }
+
       } catch (_e) { /* best-effort */ }
     }
 
