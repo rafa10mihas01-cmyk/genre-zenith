@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { PageContainer } from "@/components/PageContainer";
 import { PageHeader } from "@/components/PageHeader";
 import { KpiBig } from "@/components/KpiBig";
+import { KpiCompactStrip } from "@/components/KpiCompactStrip";
 import { ClientesLibraryTab, type ClientCampaignsMap, type ClientCampaignRow } from "@/components/playlist-deals/ClientesLibraryTab";
 import { useCuratorDeals } from "@/hooks/useCuratorDeals";
 import { useClients } from "@/hooks/useClients";
