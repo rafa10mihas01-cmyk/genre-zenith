@@ -145,9 +145,8 @@ Deno.serve(async (req) => {
   let operationalDelivered: number | null = null;
   try {
     const { data: growthRows } = await supabase
-      .from("vw_campaign_playlist_growth")
-      .select("attributed_to, delta, delivery_accumulated")
-      .eq("campaign_id", campRaw.id);
+      .rpc("fn_campaign_playlist_growth", { p_campaign_ids: [campRaw.id] });
+
     let total = 0;
     for (const r of (growthRows ?? []) as Array<{ attributed_to?: string | null; delta?: number | null; delivery_accumulated?: number | null }>) {
       const at = r.attributed_to ?? "";
