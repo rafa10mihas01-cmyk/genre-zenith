@@ -310,8 +310,10 @@ export default function Catalogo() {
           const TABS = [
             { id: "musicas" as const, label: "Músicas", icon: Music2 },
             { id: "playlists" as const, label: "Playlists", icon: Layers },
+            { id: "distribuicao" as const, label: "Distribuição", icon: Send },
             { id: "engine" as const, label: "Engine", icon: Brain },
           ];
+
 
           return (
             <>
