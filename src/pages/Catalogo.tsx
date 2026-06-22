@@ -3,7 +3,7 @@
 // KPIs hero logo abaixo e tabs por último.
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, RefreshCw, Music2, Layers, Gauge, CircleSlash, TrendingUp, Activity } from "lucide-react";
+import { Plus, RefreshCw, Music2, Layers, Gauge, CircleSlash, TrendingUp, Activity, Brain } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
@@ -12,9 +12,11 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { MusicasTab } from "@/components/catalogo/MusicasTab";
 import { PlaylistsTab } from "@/components/catalogo/PlaylistsTab";
+import { EnginePriorityTab } from "@/components/catalogo/EnginePriorityTab";
 
-const VALID_TABS = ["musicas", "playlists"] as const;
+const VALID_TABS = ["musicas", "playlists", "engine"] as const;
 type TabId = (typeof VALID_TABS)[number];
+
 
 type Summary = {
   total_tracks: number;
