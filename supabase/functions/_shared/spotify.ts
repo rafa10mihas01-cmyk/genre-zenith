@@ -262,8 +262,8 @@ function isCircuitBypassUrl(rawUrl: string): boolean {
 // FASE APP-03 — Endpoints de descoberta com quota restrita pelo Spotify
 // (Web API mudanças nov/2024). Tratamos 401/403 nesses endpoints como
 // "modo degradado" — não geram incidente, não abrem breaker, não marcam
-// auth-failure no app. Os consumidores (engine-health, expand-from-winners)
-// já tratam ausência desses dados sem quebrar a operação.
+// auth-failure no app. Os consumidores (engine-health, etc.) já tratam
+// ausência desses dados sem quebrar a operação.
 // ---------------------------------------------------------------------------
 export function isRestrictedDiscoveryEndpoint(rawUrl: string): boolean {
   try {
