@@ -606,6 +606,7 @@ Deno.serve(async (req) => {
         spotify_playlist_id: c.playlist_id,
         registered_at: c.registered_at,
         is_pre_campaign: baselinePlaylistIds.has(c.playlist_id),
+        discovered_by_bot: Boolean(c.discovered_by_bot),
       };
     });
 
