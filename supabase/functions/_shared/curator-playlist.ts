@@ -47,29 +47,24 @@ export type SpotifyPlaylistMeta = {
   total_tracks: number;
 };
 
-/** Busca metadados públicos de uma playlist via Spotify Web API (client credentials). */
+/** Busca metadados públicos de uma playlist via Observer (Fase 17-C). */
 export async function fetchPlaylistMeta(playlistId: string): Promise<SpotifyPlaylistMeta | null> {
-  const token = await getSpotifyToken();
-  const fields =
-    "id,name,owner(id,display_name),followers(total),images(url),tracks(total)";
-  const res = await fetchWithRetry(
-    `https://api.spotify.com/v1/playlists/${playlistId}?fields=${encodeURIComponent(fields)}`,
-    { headers: { Authorization: `Bearer ${token}` } },
-  );
-  if (res.status === 404) return null;
-  if (!res.ok) {
-    throw new Error(`Spotify playlist ${playlistId} HTTP ${res.status}`);
+  try {
+    const p = await observerGetPlaylist(playlistId);
+    return {
+      id: p.id,
+      name: p.name ?? "Playlist",
+      owner_id: p.owner?.id ?? "",
+      owner_name: p.owner?.display_name ?? p.owner?.id ?? "",
+      followers: p.followers?.total ?? 0,
+      image_url: Array.isArray(p.images) && p.images.length > 0 ? p.images[0].url : null,
+      total_tracks: p.tracks?.total ?? 0,
+    };
+  } catch (e) {
+    const status = (e as { status?: number })?.status;
+    if (status === 404) return null;
+    throw e;
   }
-  const j = await res.json();
-  return {
-    id: j.id,
-    name: j.name ?? "Playlist",
-    owner_id: j.owner?.id ?? "",
-    owner_name: j.owner?.display_name ?? j.owner?.id ?? "",
-    followers: j.followers?.total ?? 0,
-    image_url: Array.isArray(j.images) && j.images.length > 0 ? j.images[0].url : null,
-    total_tracks: j.tracks?.total ?? 0,
-  };
 }
 
 export type PlaylistTrackPresence = {
@@ -79,7 +74,18 @@ export type PlaylistTrackPresence = {
   artist_name: string | null;
 };
 
-/** Confere se uma faixa já existe na playlist pública do Spotify. */
+/**
+ * Confere se uma faixa existe numa playlist pública.
+ *
+ * Fase 17-C / Onda 3: lê items via Observer (VPS) e resolve ISRC pelo cache
+ * local (`spotify_track_cache`). NÃO chama mais api.spotify.com.
+ *
+ * Limitação aceita: Observer não expõe `linked_from`. O match acontece por
+ *   (a) id direto, ou
+ *   (b) ISRC original × ISRC do item — usando spotify_track_cache pra ambos.
+ * Tracks ainda não presentes no cache não participam do fallback ISRC; o
+ * worker de enriquecimento popula o cache assincronamente.
+ */
 export async function checkTrackInPlaylist(
   playlistId: string,
   trackId: string | null,
@@ -88,65 +94,52 @@ export async function checkTrackInPlaylist(
     return { found: false, position: null, track_name: null, artist_name: null };
   }
 
-  const token = await getSpotifyToken();
-  // Inclui linked_from pra cobrir track relinking (regional/remaster). O Spotify
-  // pode retornar um id diferente do "original" quando a faixa foi relincada.
-  const fields = "items(track(id,name,artists(name),linked_from(id),external_ids(isrc))),next";
-  let offset = 0;
-  let position = 0;
-
-  // Busca o ISRC da faixa "original" pra fallback de match (cobre casos onde o
-  // mesmo lançamento existe em álbuns/regiões diferentes com ids distintos).
-  let originalIsrc: string | null = null;
+  let items;
   try {
-    const trRes = await fetchWithRetry(
-      `https://api.spotify.com/v1/tracks/${trackId}?market=from_token`,
-      { headers: { Authorization: `Bearer ${token}` } },
-    );
-    if (trRes.ok) {
-      const tj = await trRes.json();
-      originalIsrc = tj?.external_ids?.isrc ?? null;
-    } else {
-      await trRes.text().catch(() => {});
+    items = await observerListAllPlaylistItems(playlistId);
+  } catch (e) {
+    const status = (e as { status?: number })?.status;
+    if (status === 404) return { found: false, position: null, track_name: null, artist_name: null };
+    throw e;
+  }
+
+  // Coleta ids pra resolver ISRCs via cache num único batch
+  const itemIds: string[] = [];
+  for (const it of items) {
+    const id = it?.track?.id;
+    if (id) itemIds.push(id);
+  }
+  const idsForCache = Array.from(new Set([trackId, ...itemIds]));
+  let isrcByTrackId = new Map<string, string | null>();
+  try {
+    const cacheRows = await getTrackCacheBatch(idsForCache);
+    isrcByTrackId = new Map(cacheRows.map((r) => [r.spotify_track_id, r.isrc ?? null]));
+  } catch (_) { /* cache opcional pra ISRC fallback */ }
+
+  const originalIsrc = isrcByTrackId.get(trackId) ?? null;
+
+  let position = 0;
+  for (const item of items) {
+    position += 1;
+    const track = item?.track;
+    if (!track) continue;
+    const idMatch = track.id === trackId;
+    const itemIsrc = isrcByTrackId.get(track.id) ?? null;
+    const isrcMatch = !!originalIsrc && !!itemIsrc && originalIsrc === itemIsrc;
+    if (idMatch || isrcMatch) {
+      const artists = Array.isArray(track.artists) ? track.artists : [];
+      return {
+        found: true,
+        position,
+        track_name: track.name ?? null,
+        artist_name: artists.map((a: { name?: string }) => a?.name).filter(Boolean).join(", ") || null,
+      };
     }
-  } catch (_) { /* ignore */ }
-
-  while (offset < 10000) {
-    const url = new URL(`https://api.spotify.com/v1/playlists/${playlistId}/items`);
-    url.searchParams.set("fields", fields);
-    url.searchParams.set("limit", "100");
-    url.searchParams.set("offset", String(offset));
-    const res = await fetchWithRetry(url.toString(), { headers: { Authorization: `Bearer ${token}` } });
-    if (res.status === 404) return { found: false, position: null, track_name: null, artist_name: null };
-    if (!res.ok) throw new Error(`Spotify playlist tracks ${playlistId} HTTP ${res.status}`);
-
-    const j = await res.json();
-    const items = Array.isArray(j.items) ? j.items : [];
-    for (const item of items) {
-      position += 1;
-      const track = item?.track;
-      if (!track) continue;
-      const linkedId = track?.linked_from?.id ?? null;
-      const isrc = track?.external_ids?.isrc ?? null;
-      const idMatch = track.id === trackId || linkedId === trackId;
-      const isrcMatch = !!originalIsrc && !!isrc && originalIsrc === isrc;
-      if (idMatch || isrcMatch) {
-        const artists = Array.isArray(track.artists) ? track.artists : [];
-        return {
-          found: true,
-          position,
-          track_name: track.name ?? null,
-          artist_name: artists.map((a: any) => a?.name).filter(Boolean).join(", ") || null,
-        };
-      }
-    }
-
-    if (!j.next || items.length === 0) break;
-    offset += items.length;
   }
 
   return { found: false, position: null, track_name: null, artist_name: null };
 }
+
 
 export type MatchStatus = "curator" | "baseline" | "editorial" | "suspicious" | "organic";
 
