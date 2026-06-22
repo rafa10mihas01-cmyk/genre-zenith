@@ -178,13 +178,13 @@ export function DistribuicaoTab() {
           <Calendar className="h-4 w-4 text-primary" />
           Ritmo da distribuição
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
           <label className="flex flex-col gap-1">
             <span className="text-xs text-muted-foreground">Janela padrão (dias)</span>
             <Input
               type="number"
               min={1}
-              max={14}
+              max={30}
               value={draftDays ?? flags?.engine_natural_distribution_window_days ?? 5}
               onChange={(e) => setDraftDays(e.target.value)}
               className="h-8 text-sm"
@@ -195,31 +195,55 @@ export function DistribuicaoTab() {
             <Input
               type="number"
               min={1}
-              max={500}
+              max={1000}
               value={draftWave ?? flags?.engine_natural_distribution_wave_size ?? 50}
               onChange={(e) => setDraftWave(e.target.value)}
               className="h-8 text-sm"
             />
           </label>
-          <div className="flex items-end gap-2">
-            <Button
-              size="sm"
-              onClick={() => saveSettingsMut.mutate()}
-              disabled={(draftDays == null && draftWave == null) || saveSettingsMut.isPending}
-              className="gap-1.5"
-            >
-              <Save className="h-4 w-4" />
-              Salvar
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => runWaveMut.mutate()} disabled={!isActive || runWaveMut.isPending} className="gap-1.5">
-              <Play className="h-4 w-4" />
-              {runWaveMut.isPending ? "Executando…" : "Rodar onda agora"}
-            </Button>
-          </div>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-muted-foreground">Máx. playlists / música / dia</span>
+            <Input
+              type="number"
+              min={1}
+              max={500}
+              value={draftDaily ?? flags?.engine_natural_distribution_max_per_track_per_day ?? 20}
+              onChange={(e) => setDraftDaily(e.target.value)}
+              className="h-8 text-sm"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-muted-foreground">Playlists por onda (por música)</span>
+            <Input
+              type="number"
+              min={1}
+              max={50}
+              value={draftPerWave ?? flags?.engine_natural_distribution_max_per_wave_per_track ?? 1}
+              onChange={(e) => setDraftPerWave(e.target.value)}
+              className="h-8 text-sm"
+            />
+          </label>
+        </div>
+        <div className="flex items-center gap-2 mt-3">
+          <Button
+            size="sm"
+            onClick={() => saveSettingsMut.mutate()}
+            disabled={(draftDays == null && draftWave == null && draftDaily == null && draftPerWave == null) || saveSettingsMut.isPending}
+            className="gap-1.5"
+          >
+            <Save className="h-4 w-4" />
+            Salvar
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => runWaveMut.mutate()} disabled={!isActive || runWaveMut.isPending} className="gap-1.5">
+            <Play className="h-4 w-4" />
+            {runWaveMut.isPending ? "Executando…" : "Rodar onda agora"}
+          </Button>
         </div>
         <div className="flex items-start gap-2 mt-3 text-[11px] text-muted-foreground">
           <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-          <span>O cron `engine-distribution-wave` roda a cada 15 minutos. Cada onda insere até N placements pendentes; o worker existente sincroniza com o Spotify normalmente.</span>
+          <span>
+            Plano dinâmico: a cada onda o Engine reavalia playlists elegíveis (vaga, cooldown, gênero) com o estado atual. A distribuição é paralela entre todas as músicas ativas (round-robin), respeitando o limite diário por música. Cron `engine-distribution-wave` roda a cada 15 min.
+          </span>
         </div>
       </section>
 
