@@ -13,6 +13,7 @@ import {
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { Kpi, type KpiTone } from "@/components/ui/kpi";
+import { KpiCompactStrip } from "@/components/KpiCompactStrip";
 import { FinanceiroTab } from "@/components/playlist-deals/FinanceiroTab";
 import { FinancialOverview } from "@/components/financeiro/FinancialOverview";
 import { PricingSettingsPanel } from "@/components/financeiro/PricingSettingsPanel";
