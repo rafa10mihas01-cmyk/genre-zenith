@@ -5249,6 +5249,144 @@ export type Database = {
         }
         Relationships: []
       }
+      engine_occupancy_proposals: {
+        Row: {
+          available_slots_at_run: number | null
+          catalog_track_id: string
+          created_at: string
+          id: string
+          managed_playlist_id: string
+          match_components: Json | null
+          reason: string
+          run_id: string
+          slot_index: number | null
+          status: string
+        }
+        Insert: {
+          available_slots_at_run?: number | null
+          catalog_track_id: string
+          created_at?: string
+          id?: string
+          managed_playlist_id: string
+          match_components?: Json | null
+          reason?: string
+          run_id: string
+          slot_index?: number | null
+          status?: string
+        }
+        Update: {
+          available_slots_at_run?: number | null
+          catalog_track_id?: string
+          created_at?: string
+          id?: string
+          managed_playlist_id?: string
+          match_components?: Json | null
+          reason?: string
+          run_id?: string
+          slot_index?: number | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "engine_occupancy_proposals_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_tracks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engine_occupancy_proposals_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_track_distribution_stats"
+            referencedColumns: ["catalog_track_id"]
+          },
+          {
+            foreignKeyName: "engine_occupancy_proposals_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_track_performance"
+            referencedColumns: ["catalog_track_id"]
+          },
+          {
+            foreignKeyName: "engine_occupancy_proposals_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_track_telemetry"
+            referencedColumns: ["catalog_track_id"]
+          },
+          {
+            foreignKeyName: "engine_occupancy_proposals_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "managed_playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engine_occupancy_proposals_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_playlist_occupancy"
+            referencedColumns: ["managed_playlist_id"]
+          },
+          {
+            foreignKeyName: "engine_occupancy_proposals_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_playlist_vps_assignment"
+            referencedColumns: ["managed_playlist_id"]
+          },
+          {
+            foreignKeyName: "engine_occupancy_proposals_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "engine_occupancy_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      engine_occupancy_runs: {
+        Row: {
+          candidates_considered: number
+          error: string | null
+          finished_at: string | null
+          id: string
+          mode: string
+          notes: Json | null
+          playlists_scanned: number
+          playlists_with_gap: number
+          proposals_generated: number
+          scope_playlist_id: string | null
+          started_at: string
+        }
+        Insert: {
+          candidates_considered?: number
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          mode?: string
+          notes?: Json | null
+          playlists_scanned?: number
+          playlists_with_gap?: number
+          proposals_generated?: number
+          scope_playlist_id?: string | null
+          started_at?: string
+        }
+        Update: {
+          candidates_considered?: number
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          mode?: string
+          notes?: Json | null
+          playlists_scanned?: number
+          playlists_with_gap?: number
+          proposals_generated?: number
+          scope_playlist_id?: string | null
+          started_at?: string
+        }
+        Relationships: []
+      }
       external_curators: {
         Row: {
           activity: string | null
@@ -13955,6 +14093,14 @@ export type Database = {
           p_track_name?: string
         }
         Returns: Json
+      }
+      engine_propose_playlist_occupancy: {
+        Args: {
+          p_max_per_playlist?: number
+          p_max_playlists?: number
+          p_playlist_id?: string
+        }
+        Returns: string
       }
       enqueue_baseline_collection: {
         Args: { p_campaign_id: string }
