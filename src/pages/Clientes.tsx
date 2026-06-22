@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { PageContainer } from "@/components/PageContainer";
 import { PageHeader } from "@/components/PageHeader";
 import { KpiBig } from "@/components/KpiBig";
+import { KpiCompactStrip } from "@/components/KpiCompactStrip";
 import { ClientesLibraryTab, type ClientCampaignsMap, type ClientCampaignRow } from "@/components/playlist-deals/ClientesLibraryTab";
 import { useCuratorDeals } from "@/hooks/useCuratorDeals";
 import { useClients } from "@/hooks/useClients";
@@ -108,7 +109,18 @@ export default function Clientes() {
       <PageContainer>
 
       {/* KPIs — hierarquia cockpit: hero (Clientes) + secundários + quiet (histórico) */}
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <KpiCompactStrip
+        loading={loading}
+        rows={[{
+          items: [
+            { label: "Clientes", value: formatNumber(kpis.total) },
+            { label: "Deals ativos", value: formatNumber(kpis.dealsAtivos) },
+            { label: "Músicas", value: formatNumber(kpis.musicas) },
+            { label: "Deals totais", value: formatNumber(kpis.deals) },
+          ],
+        }]}
+      />
+      <section className="hidden lg:grid grid-cols-2 md:grid-cols-4 gap-3">
         <KpiBig
           tier="hero"
           icon={Users}
