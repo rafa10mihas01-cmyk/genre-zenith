@@ -2200,6 +2200,7 @@ export type Database = {
           locked_by: string | null
           managed_playlist_id: string
           max_attempts: number
+          origin: string
           position: number | null
           priority: number
           removed_at: string | null
@@ -2221,6 +2222,7 @@ export type Database = {
           locked_by?: string | null
           managed_playlist_id: string
           max_attempts?: number
+          origin?: string
           position?: number | null
           priority?: number
           removed_at?: string | null
@@ -2242,6 +2244,7 @@ export type Database = {
           locked_by?: string | null
           managed_playlist_id?: string
           max_attempts?: number
+          origin?: string
           position?: number | null
           priority?: number
           removed_at?: string | null
@@ -7826,6 +7829,59 @@ export type Database = {
         }
         Relationships: []
       }
+      placement_origin_log: {
+        Row: {
+          actor: string | null
+          catalog_track_id: string | null
+          created_at: string
+          distribution_batch_id: string | null
+          id: string
+          managed_playlist_id: string | null
+          origin: string
+          payload: Json | null
+          placement_id: string
+          priority_at_insert: number | null
+          request_id: string | null
+          status_at_insert: string | null
+        }
+        Insert: {
+          actor?: string | null
+          catalog_track_id?: string | null
+          created_at?: string
+          distribution_batch_id?: string | null
+          id?: string
+          managed_playlist_id?: string | null
+          origin: string
+          payload?: Json | null
+          placement_id: string
+          priority_at_insert?: number | null
+          request_id?: string | null
+          status_at_insert?: string | null
+        }
+        Update: {
+          actor?: string | null
+          catalog_track_id?: string | null
+          created_at?: string
+          distribution_batch_id?: string | null
+          id?: string
+          managed_playlist_id?: string | null
+          origin?: string
+          payload?: Json | null
+          placement_id?: string
+          priority_at_insert?: number | null
+          request_id?: string | null
+          status_at_insert?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "placement_origin_log_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_placements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plan_execution_snapshots: {
         Row: {
           accuracy_by_metric: Json | null
@@ -12232,6 +12288,11 @@ export type Database = {
           apify_blocked_reason: string | null
           auto_deal_from_campaign: boolean
           created_at: string
+          engine_campaign_promotes: boolean
+          engine_editorial_weights: boolean
+          engine_occupancy_autofill: boolean
+          engine_priority_active: boolean
+          engine_reorder_active: boolean
           execution_frozen: boolean
           execution_frozen_at: string | null
           execution_frozen_by: string | null
@@ -12248,6 +12309,11 @@ export type Database = {
           apify_blocked_reason?: string | null
           auto_deal_from_campaign?: boolean
           created_at?: string
+          engine_campaign_promotes?: boolean
+          engine_editorial_weights?: boolean
+          engine_occupancy_autofill?: boolean
+          engine_priority_active?: boolean
+          engine_reorder_active?: boolean
           execution_frozen?: boolean
           execution_frozen_at?: string | null
           execution_frozen_by?: string | null
@@ -12264,6 +12330,11 @@ export type Database = {
           apify_blocked_reason?: string | null
           auto_deal_from_campaign?: boolean
           created_at?: string
+          engine_campaign_promotes?: boolean
+          engine_editorial_weights?: boolean
+          engine_occupancy_autofill?: boolean
+          engine_priority_active?: boolean
+          engine_reorder_active?: boolean
           execution_frozen?: boolean
           execution_frozen_at?: string | null
           execution_frozen_by?: string | null
@@ -13590,6 +13661,7 @@ export type Database = {
           locked_by: string | null
           managed_playlist_id: string
           max_attempts: number
+          origin: string
           position: number | null
           priority: number
           removed_at: string | null
