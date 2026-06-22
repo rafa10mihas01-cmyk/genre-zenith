@@ -5,7 +5,6 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { recordMetric } from "../_shared/ops-metrics.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 import { getTrackCacheBatch, enqueueEnrichment } from "../_shared/spotify-cache.ts";
-import { spotifyFetch, getAppToken } from "../_shared/spotify-client.ts";
 // Fase 17-C: leituras públicas via cache; api.spotify.com proibida fora do OAuth.
 
 // FASE 6.A.3 — resolução inline de spotify_artist_id removida.
