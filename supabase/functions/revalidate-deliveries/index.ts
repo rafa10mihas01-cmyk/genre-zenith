@@ -258,9 +258,7 @@ Deno.serve(async (req) => {
       limit,
       counts,
       routing,
-      via: observerOn
-        ? 'phase-17D: observer (primary) → gateway-cc/oauth (fallback)'
-        : 'hybrid: gateway-cc (public) + oauth (managed)',
+      via: 'phase-17C: observer (único caminho público) + oauth-managed (auth legítima)',
       policy: 'confirm_once: present/moved/duplicate never re-checked',
     }, null, 2),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
