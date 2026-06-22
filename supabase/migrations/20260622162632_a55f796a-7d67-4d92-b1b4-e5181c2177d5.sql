@@ -1,0 +1,1 @@
+ALTER VIEW public.oauth_migration_actions SET (security_invoker = true);
