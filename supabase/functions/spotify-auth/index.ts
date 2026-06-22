@@ -408,11 +408,15 @@ Deno.serve(async (req) => {
       if (!auth.isAdmin) return jr({ ok: false, error: "Somente admin" }, 403);
 
       const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+      console.log("[spotify-auth mode=apps] v2 — sem is_default");
       const { data: apps, error } = await supabase
         .from("spotify_apps")
         .select("id, name, slug, client_id, max_accounts, status, notes, owner_email, created_at")
         .order("created_at", { ascending: true });
-      if (error) return jr({ ok: false, error: error.message }, 500);
+      if (error) {
+        console.error("[spotify-auth mode=apps] select failed", error);
+        return jr({ ok: false, error: error.message }, 500);
+      }
 
       // Conta accounts por app (uma query)
       const { data: counts } = await supabase
