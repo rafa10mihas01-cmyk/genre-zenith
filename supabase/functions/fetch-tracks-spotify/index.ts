@@ -18,7 +18,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getUserToken } from "../_shared/spotify-client.ts";
 import { listPlaylistTracksRich } from "../_shared/spotify-playlist.ts";
-import { ccFetch } from "../_shared/catalog-gateway.ts";
+import { observerListAllPlaylistItems, ObserverApiError } from "../_shared/observer-playlist.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
 
 import { deprecationGate } from "../_shared/_deprecation.ts";
