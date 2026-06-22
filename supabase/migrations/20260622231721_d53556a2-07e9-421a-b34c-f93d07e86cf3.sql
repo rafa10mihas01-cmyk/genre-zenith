@@ -1,0 +1,1 @@
+DROP VIEW IF EXISTS public.vw_campaign_playlist_delivery_origin;
