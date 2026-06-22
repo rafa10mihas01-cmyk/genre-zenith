@@ -160,6 +160,103 @@ export async function enqueueEnrichment(
     if (error && !/duplicate key/i.test(error.message)) {
       // log soft, não joga
       console.warn("[spotify-cache] enqueue warn:", error.message);
-    }
   }
+}
+
+// ---------------------------------------------------------------------------
+// Exceção 17-C: hidratação síncrona user-driven.
+// ---------------------------------------------------------------------------
+/**
+ * Cache-first com fallback síncrono. USO RESTRITO a fluxos disparados por
+ * usuário humano (cadastro manual de música). NÃO usar em batch/worker/cron —
+ * esses devem usar `getTrackCacheBatch` (cache-only).
+ *
+ * Comportamento:
+ *   - HIT (fetch_status='ok') → devolve a TrackCacheRow do cache.
+ *   - MISS → 1 fetch via `ccFetch` em /v1/tracks/{id}, upsert no cache
+ *     (inclusive `raw` pra capa/artistas), best-effort no artista primário,
+ *     e retorna a row recém-gravada.
+ *   - Spotify 404 / 5xx / circuit-open → `{ ok:false, error, status }`.
+ */
+export async function hydrateTrackSync(
+  trackId: string,
+  caller: string,
+): Promise<
+  | { ok: true; row: TrackCacheRow }
+  | { ok: false; status: number; error: string; details?: string }
+> {
+  const cache = await getTrackCacheBatch([trackId]);
+  const hit = cache.get(trackId);
+  if (hit && hit.fetch_status === "ok") return { ok: true, row: hit };
+
+  const r = await ccFetch(`https://api.spotify.com/v1/tracks/${trackId}`, caller, trackId);
+  if (!r.ok) {
+    const details = await r.text().catch(() => "");
+    return {
+      ok: false,
+      status: r.status,
+      error: r.status === 404 ? "spotify_track_not_found" : "spotify_track_lookup_failed",
+      details: details.slice(0, 300),
+    };
+  }
+  const j = await r.json();
+  const artistIds: string[] = Array.isArray(j?.artists)
+    ? j.artists.map((a: any) => a?.id).filter(Boolean)
+    : [];
+  const now = new Date().toISOString();
+  const releaseDate =
+    typeof j?.album?.release_date === "string" && j.album.release_date.length >= 10
+      ? j.album.release_date.slice(0, 10)
+      : null;
+  const sb = svc();
+  await sb.from("spotify_track_cache").upsert({
+    spotify_track_id: trackId,
+    name: j?.name ?? null,
+    isrc: j?.external_ids?.isrc ?? null,
+    album_id: j?.album?.id ?? null,
+    release_date: releaseDate,
+    duration_ms: j?.duration_ms ?? null,
+    explicit: j?.explicit ?? null,
+    popularity: typeof j?.popularity === "number" ? j.popularity : null,
+    artist_ids: artistIds,
+    fetch_status: "ok",
+    fetch_error: null,
+    enriched_at: now,
+    popularity_refreshed_at: now,
+    raw: j,
+  });
+
+  // Best-effort no artista primário (detecção de gênero precisa de genres[]).
+  const primary = artistIds[0];
+  if (primary) {
+    try {
+      const ar = await ccFetch(`https://api.spotify.com/v1/artists/${primary}`, caller, primary);
+      if (ar.ok) {
+        const aj = await ar.json();
+        await sb.from("spotify_artist_cache").upsert({
+          spotify_artist_id: primary,
+          name: aj?.name ?? null,
+          genres: Array.isArray(aj?.genres) ? aj.genres.map((g: any) => String(g).toLowerCase()) : [],
+          popularity: typeof aj?.popularity === "number" ? aj.popularity : null,
+          followers: typeof aj?.followers?.total === "number" ? aj.followers.total : null,
+          image_url: aj?.images?.[0]?.url ?? null,
+          fetch_status: "ok",
+          fetch_error: null,
+          enriched_at: now,
+          refreshed_at: now,
+          genres_refreshed_at: now,
+          raw: aj,
+        });
+      }
+    } catch { /* best-effort */ }
+  }
+
+  const refreshed = await getTrackCacheBatch([trackId]);
+  const row = refreshed.get(trackId);
+  if (!row || row.fetch_status !== "ok") {
+    return { ok: false, status: 500, error: "cache_hydration_failed" };
+  }
+  return { ok: true, row };
+}
+
 }
