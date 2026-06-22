@@ -261,19 +261,17 @@ export function MusicasTab() {
               const failed = t.stats?.placements_failed ?? 0;
               const pct = total > 0 ? Math.min(100, Math.round((active / total) * 100)) : 0;
               const hasBaseline = !!t.tel?.baseline_at;
-              const noCollect = !t.tel || t.tel.snapshots_count === 0;
-              const collectAge = t.tel?.last_captured_at ? (Date.now() - new Date(t.tel.last_captured_at).getTime()) / 60000 : Infinity;
-              const stale = collectAge > 60 * 24;
+              const collect = computeCollectState(t);
               const growth = t.tel?.growth_abs;
               const growthPct = t.tel?.growth_pct;
               const last28 = t.tel?.last_plays_28d;
 
               const status: { variant: StatusVariant; label: string } =
                 failed > 0 ? { variant: "danger", label: `${failed} falha${failed > 1 ? "s" : ""}` }
-                : noCollect ? { variant: "warning", label: "Sem coleta" }
-                : stale ? { variant: "warning", label: "Coleta atrasada" }
+                : collect.kind === "no_collect" ? { variant: "warning", label: "Sem coleta" }
+                : collect.kind === "stale" ? { variant: "warning", label: "Coleta atrasada" }
                 : !hasBaseline ? { variant: "warning", label: "Sem baseline" }
-                : t.status === "active" ? { variant: "success", label: "Ativa" }
+                : t.status === "active" ? { variant: "success", label: collect.label }
                 : { variant: "neutral", label: t.status };
 
               return (
