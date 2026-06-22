@@ -67,33 +67,39 @@ Deno.serve(async (req) => {
       return jr({ ok: true, message: "nada pra enriquecer", chart: chartName });
     }
 
-    // Token via Catalog Gateway.
+    // Fase 17-C: leitura via spotify_track_cache.
     let enriched = 0;
     let failed = 0;
+    let pending = 0;
 
     let batchIdx = 0;
     for (const batch of chunk(targets, 50)) {
       if (batchIdx++ > 0) await sleep(THROTTLE_MS);
       const ids = batch.map((b) => b.spotify_track_id!);
       try {
-        const tracks = await fetchTracksBatch(ids);
-        // map por id pra preservar ordem
-        const byId = new Map<string, any>();
-        for (const tr of tracks) if (tr?.id) byId.set(tr.id, tr);
-
+        const cacheMap = await getTrackCacheBatch(ids);
         for (const row of batch) {
-          const tr = byId.get(row.spotify_track_id!);
-          if (!tr) continue;
-          const imgs = tr.album?.images ?? [];
+          const cacheRow = cacheMap.get(row.spotify_track_id!);
+          if (!cacheRow || cacheRow.fetch_status !== "ok") {
+            // Cache miss → já enfileirado por getTrackCacheBatch; tenta no próximo cron.
+            pending++;
+            continue;
+          }
+          const raw = (cacheRow.raw ?? {}) as {
+            album?: { images?: Array<{ url: string }>; name?: string };
+            artists?: Array<{ id: string }>;
+          };
+          const imgs = raw.album?.images ?? [];
           const cover = imgs[0]?.url ?? null;
-          const artists = (tr.artists ?? []).filter(Boolean);
+          const albumName = raw.album?.name ?? null;
+          const firstArtistId = raw.artists?.[0]?.id ?? cacheRow.artist_ids?.[0] ?? null;
           const { error: upErr } = await supabase
             .from("raw_chart_daily")
             .update({
               cover_url: cover,
-              album_name: tr.album?.name ?? null,
-              popularity: typeof tr.popularity === "number" ? tr.popularity : null,
-              spotify_artist_id: artists[0]?.id ?? null,
+              album_name: albumName,
+              popularity: typeof cacheRow.popularity === "number" ? cacheRow.popularity : null,
+              spotify_artist_id: firstArtistId,
             })
             .eq("id", row.id);
           if (upErr) failed++;
