@@ -8,7 +8,11 @@
 // Idempotente. Pode ser chamada inline pelo importer ou via curl pra backfill.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { ccFetch } from "../_shared/catalog-gateway.ts";
+import {
+  observerGetPlaylist,
+  ObserverApiError,
+  ObserverNotConfiguredError,
+} from "../_shared/observer-playlist.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -20,22 +24,31 @@ function jr(p: unknown, status = 200) {
   });
 }
 
-const FIELDS = "name,followers.total,images,owner(display_name,id)";
-
+// Fase 17-C: leitura pública de playlist agora vem da VPS Observer.
+// Nenhuma chamada api.spotify.com aqui.
 async function fetchOne(spotifyId: string) {
-  const url = `https://api.spotify.com/v1/playlists/${spotifyId}?fields=${encodeURIComponent(FIELDS)}`;
-  const res = await ccFetch(url, "enrich-curator-playlists-spotify", spotifyId);
-  if (res.status === 404 || res.status === 400) return { spotifyId, gone: true };
-  if (!res.ok) return { spotifyId, error: `HTTP ${res.status}` };
-  const j = await res.json();
-  return {
-    spotifyId,
-    name: j?.name ?? null,
-    followers: j?.followers?.total ?? null,
-    cover: Array.isArray(j?.images) && j.images.length > 0 ? j.images[0]?.url ?? null : null,
-    owner_id: j?.owner?.id ?? null,
-    owner_name: j?.owner?.display_name ?? null,
-  };
+  try {
+    const j = await observerGetPlaylist(spotifyId);
+    return {
+      spotifyId,
+      name: j?.name ?? null,
+      followers: j?.followers?.total ?? null,
+      cover: Array.isArray(j?.images) && j.images.length > 0 ? j.images[0]?.url ?? null : null,
+      owner_id: j?.owner?.id ?? null,
+      owner_name: j?.owner?.display_name ?? null,
+    };
+  } catch (e) {
+    if (e instanceof ObserverApiError) {
+      if (e.status === 404 || e.status === 400 || e.status === 403) {
+        return { spotifyId, gone: true };
+      }
+      return { spotifyId, error: `observer ${e.status}` };
+    }
+    if (e instanceof ObserverNotConfiguredError) {
+      return { spotifyId, error: "observer_not_configured" };
+    }
+    return { spotifyId, error: (e as Error).message };
+  }
 }
 
 async function runWithConcurrency<T, R>(items: T[], limit: number, fn: (x: T) => Promise<R>): Promise<R[]> {
@@ -104,7 +117,7 @@ Deno.serve(async (req) => {
       return jr({ ok: true, enriched: 0, total_candidates: cps?.length ?? 0, skipped: true });
     }
 
-    // Token via Catalog Gateway (pool CC NexEngine 05/10).
+    // Fase 17-C: dados vêm da VPS Observer (sem token Spotify).
 
     // Dedupe por spotify_playlist_id (várias campanhas podem ter o mesmo id)
     const uniqueIds = Array.from(new Set(targets.map((t: any) => t.spotify_playlist_id as string)));

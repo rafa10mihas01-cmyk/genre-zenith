@@ -1,12 +1,16 @@
 // backfill-playlist-tracks-count
 // Backfill do campo `tracks_count` em managed_playlists.
-// Busca detalhe via Spotify (GET /v1/playlists/{id}?fields=tracks(total)) em lotes
-// e atualiza tracks_count + last_metrics_at. Idempotente.
+// Fase 17-C: busca total via VPS Observer (observerGetPlaylist.tracks.total).
+// Atualiza tracks_count + last_metrics_at. Idempotente.
 //
 // POST body: { limit?: number (default 50), only_zero?: boolean (default true), dry_run?: boolean }
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getAppToken, spotifyFetch } from "../_shared/spotify-client.ts";
+import {
+  observerGetPlaylist,
+  ObserverApiError,
+  ObserverNotConfiguredError,
+} from "../_shared/observer-playlist.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -53,7 +57,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    const token = await getAppToken();
     const nowIso = new Date().toISOString();
     const CONCURRENCY = 3;
     const BATCH_DELAY_MS = 500;
@@ -65,18 +68,8 @@ Deno.serve(async (req) => {
       const batch = rows.slice(i, i + CONCURRENCY);
       await Promise.all(batch.map(async (row) => {
         try {
-          const r = await spotifyFetch(
-            `https://api.spotify.com/v1/playlists/${row.spotify_playlist_id}?fields=tracks(total)`,
-            { headers: { Authorization: `Bearer ${token}` } },
-          );
-          if (!r.ok) {
-            const t = await r.text();
-            failed++;
-            details.push({ id: row.id, spotify_playlist_id: row.spotify_playlist_id, before: row.tracks_count ?? null, after: null, ok: false, error: `${r.status}: ${t.slice(0, 120)}` });
-            return;
-          }
-          const j: { tracks?: { total?: number } } = await r.json();
-          const total = j.tracks?.total ?? 0;
+          const meta = await observerGetPlaylist(row.spotify_playlist_id);
+          const total = meta?.tracks?.total ?? 0;
           const { error: uErr } = await supabase
             .from("managed_playlists")
             .update({ tracks_count: total, last_metrics_at: nowIso })
@@ -90,10 +83,13 @@ Deno.serve(async (req) => {
           }
         } catch (e) {
           failed++;
-          details.push({ id: row.id, spotify_playlist_id: row.spotify_playlist_id, before: row.tracks_count ?? null, after: null, ok: false, error: (e as Error).message });
+          let errMsg = (e as Error).message;
+          if (e instanceof ObserverApiError) errMsg = `observer ${e.status}: ${e.body.slice(0, 120)}`;
+          else if (e instanceof ObserverNotConfiguredError) errMsg = "observer_not_configured";
+          details.push({ id: row.id, spotify_playlist_id: row.spotify_playlist_id, before: row.tracks_count ?? null, after: null, ok: false, error: errMsg });
         }
       }));
-      // Delay entre lotes pra respeitar rate limit do Spotify (evita 429 em série).
+      // Delay entre lotes pra suavizar pressão na VPS.
       if (i + CONCURRENCY < rows.length) {
         await new Promise((res) => setTimeout(res, BATCH_DELAY_MS));
       }
