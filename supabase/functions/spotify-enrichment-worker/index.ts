@@ -192,7 +192,9 @@ async function upsertTrack(sb: any, id: string, j: any) {
     fetch_error: null,
     enriched_at: new Date().toISOString(),
     popularity_refreshed_at: new Date().toISOString(),
+    raw: j,
   });
+
   // Auto-enqueue artist_ids ainda não cacheados
   const artistIds: string[] = Array.isArray(j?.artists) ? j.artists.map((a: any) => a?.id).filter(Boolean) : [];
   if (artistIds.length) {
