@@ -68,6 +68,7 @@ export function DistribuicaoTab() {
   const [draftWave, setDraftWave] = useState<string | null>(null);
   const [draftDaily, setDraftDaily] = useState<string | null>(null);
   const [draftPerWave, setDraftPerWave] = useState<string | null>(null);
+  const [draftTierDelay, setDraftTierDelay] = useState<string | null>(null);
 
   const flagsQ = useQuery({ queryKey: ["natural-distribution", "flags"], queryFn: fetchFlags });
   const plansQ = useQuery({ queryKey: ["natural-distribution", "plans", filter], queryFn: () => fetchPlans(filter), staleTime: 15_000 });
