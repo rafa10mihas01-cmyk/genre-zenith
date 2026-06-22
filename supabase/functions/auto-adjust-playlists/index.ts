@@ -63,6 +63,8 @@ async function getPlaylistTracks(token: string, playlistId: string): Promise<str
 
 async function searchTrackUri(token: string, nome: string, artista: string): Promise<string | null> {
   const q = `track:${nome} artist:${artista}`;
+  // EXCEÇÃO 17-C: /v1/search não é coberto pelo Observer. Mantido como exceção
+  // técnica documentada até a VPS expor o endpoint (vide Onda 4).
   const url = `https://api.spotify.com/v1/search?type=track&limit=1&q=${encodeURIComponent(q)}`;
   const r = await spotifyFetch(token, url);
   if (!r.ok) return null;
