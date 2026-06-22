@@ -96,7 +96,7 @@ function AppRow({ r }: { r: Row }) {
               <span className={cn("inline-flex items-center px-1.5 h-5 rounded text-[10px] font-medium border", pp.cls)}>
                 {pp.label}
               </span>
-              {removed && null}
+              
               {removed && (
                 <span className="inline-flex items-center px-1.5 h-5 rounded text-[10px] font-medium border border-destructive/40 text-destructive bg-destructive/10">
                   fora do pool
