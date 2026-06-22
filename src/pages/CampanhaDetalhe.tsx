@@ -53,17 +53,16 @@ export default function CampanhaDetalhe() {
 
   const detailKey = useMemo(() => ["campaign_detail", id] as const, [id]);
 
-  // Fonte oficial da entrega: vw_campaign_playlist_growth (Growth Engine).
+  // Fonte oficial da entrega: fn_campaign_playlist_growth (RPC com pushdown — Etapa 2B).
   const detailQuery = useQuery({
     queryKey: detailKey,
     enabled: !!id,
     queryFn: async () => {
       const [c, g] = await Promise.all([
         supabase.from("campaigns").select("*").eq("id", id!).maybeSingle(),
-        supabase.from("vw_campaign_playlist_growth")
-          .select("attributed_to, delta")
-          .eq("campaign_id", id!),
+        (supabase as any).rpc("fn_campaign_playlist_growth", { p_campaign_ids: [id!] }),
       ]);
+
       if (c.error) throw c.error;
       const campData = (c.data as any) ?? null;
       if (campData && Array.isArray(g.data)) {
