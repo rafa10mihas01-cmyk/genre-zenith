@@ -4,7 +4,7 @@
 // Sem efeitos colaterais. Idempotente.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getTrackCacheBatch, getArtistCacheBatch } from "../_shared/spotify-cache.ts";
+import { getArtistCacheBatch, hydrateTrackSync } from "../_shared/spotify-cache.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -64,18 +64,20 @@ Deno.serve(async (req) => {
       }, 200);
     }
 
-    // Fase 17-C: leitura pública via CACHE (spotify_track_cache + spotify_artist_cache).
-    // Miss → auto-enqueue + 202; o enrichment-worker preenche async.
-    const trackCache = await getTrackCacheBatch([trackId]);
-    const trackRow = trackCache.get(trackId);
-    if (!trackRow || trackRow.fetch_status !== "ok") {
+    // Fase 17-C — EXCEÇÃO documentada: cadastro manual user-driven faz
+    // hidratação síncrona em cache miss (1 fetch via gateway + upsert).
+    // Worker e processos automáticos continuam 100% cache-first.
+    const hydrate = await hydrateTrackSync(trackId, "resolve-catalog-track");
+    if (!hydrate.ok) {
       return jr({
         ok: false,
-        error: "enrichment_in_progress",
+        error: hydrate.error,
         spotify_track_id: trackId,
-        message: "Faixa enfileirada no enrichment worker (Fase 17-C). Reenvie em alguns segundos.",
-      }, 202);
+        details: hydrate.details ?? null,
+      }, hydrate.status === 404 ? 404 : hydrate.status >= 500 ? 502 : hydrate.status);
     }
+    const trackRow = hydrate.row;
+
     const trackRaw = (trackRow.raw ?? {}) as {
       uri?: string;
       album?: { images?: Array<{ url: string }> };
