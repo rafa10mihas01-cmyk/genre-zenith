@@ -81,6 +81,8 @@ export function FinancialOverview() {
         ]}
       />
 
+      <FinanceiroMobileTabs />
+
       {/* ===== KPIs desktop ===== */}
       <section className="hidden lg:grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Kpi icon={DollarSign} label="Recebido de clientes" value={fmtBRL(totals.recebido)} tone="primary" />
