@@ -4,7 +4,7 @@
 //   GET  ?mode=callback&code=…&state=…&redirect= → troca code (usa app gravado no state)
 //   GET  ?mode=accounts                          → lista contas conectadas (com app)
 //   GET  ?mode=apps                              → lista apps Spotify (com contagem)
-//   POST ?mode=app_save     body {id?,name,client_id,client_secret,max_accounts?,is_default?,notes?}
+//   POST ?mode=app_save     body {id?,name,client_id,client_secret,max_accounts?,notes?}
 //   POST ?mode=app_delete   body {id}
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -64,12 +64,11 @@ async function resolveAppForNewAccount(sb: any, requestedAppId?: string | null) 
     return app.id as string;
   }
 
-  // Auto-pick: primeiro app active com vaga (default primeiro)
+  // Auto-pick: primeiro app active com vaga (pós-17-C: sem "default" — só created_at)
   const { data: apps } = await sb
     .from("spotify_apps")
-    .select("id, name, max_accounts, is_default")
+    .select("id, name, max_accounts")
     .eq("status", "active")
-    .order("is_default", { ascending: false })
     .order("created_at", { ascending: true });
 
   for (const a of apps ?? []) {
@@ -411,8 +410,7 @@ Deno.serve(async (req) => {
       const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
       const { data: apps, error } = await supabase
         .from("spotify_apps")
-        .select("id, name, slug, client_id, max_accounts, is_default, status, notes, owner_email, created_at")
-        .order("is_default", { ascending: false })
+        .select("id, name, slug, client_id, max_accounts, status, notes, owner_email, created_at")
         .order("created_at", { ascending: true });
       if (error) return jr({ ok: false, error: error.message }, 500);
 
@@ -448,7 +446,6 @@ Deno.serve(async (req) => {
       const client_id: string = (body.client_id ?? "").trim();
       const client_secret: string = (body.client_secret ?? "").trim();
       const max_accounts: number = Number(body.max_accounts ?? 5);
-      const is_default: boolean = !!body.is_default;
       const notes: string | null = body.notes ?? null;
       const owner_email: string | null = body.owner_email ? String(body.owner_email).trim().toLowerCase() : null;
       const status: string = body.status ?? "active";
@@ -460,13 +457,8 @@ Deno.serve(async (req) => {
 
       const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
-      // Se marcou is_default, desmarca os outros antes
-      if (is_default) {
-        await supabase.from("spotify_apps").update({ is_default: false }).neq("id", id ?? "00000000-0000-0000-0000-000000000000");
-      }
-
       if (id) {
-        const patch: any = { name, max_accounts, is_default, notes, owner_email, status };
+        const patch: any = { name, max_accounts, notes, owner_email, status };
         if (client_id) patch.client_id = client_id;
         if (client_secret) patch.client_secret = client_secret;
         if (slug) patch.slug = slug;
@@ -474,7 +466,7 @@ Deno.serve(async (req) => {
         if (error) return jr({ ok: false, error: error.message }, 500);
         return jr({ ok: true, id });
       } else {
-        const insert: any = { name, client_id, client_secret, max_accounts, is_default, notes, owner_email, status };
+        const insert: any = { name, client_id, client_secret, max_accounts, notes, owner_email, status };
         if (slug) insert.slug = slug;
         const { data, error } = await supabase
           .from("spotify_apps")
