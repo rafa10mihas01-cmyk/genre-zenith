@@ -12709,6 +12709,7 @@ export type Database = {
           engine_natural_distribution_active: boolean
           engine_natural_distribution_max_per_track_per_day: number
           engine_natural_distribution_max_per_wave_per_track: number
+          engine_natural_distribution_tier_delay_days: number
           engine_natural_distribution_wave_size: number
           engine_natural_distribution_window_days: number
           engine_occupancy_autofill: boolean
@@ -12736,6 +12737,7 @@ export type Database = {
           engine_natural_distribution_active?: boolean
           engine_natural_distribution_max_per_track_per_day?: number
           engine_natural_distribution_max_per_wave_per_track?: number
+          engine_natural_distribution_tier_delay_days?: number
           engine_natural_distribution_wave_size?: number
           engine_natural_distribution_window_days?: number
           engine_occupancy_autofill?: boolean
@@ -12763,6 +12765,7 @@ export type Database = {
           engine_natural_distribution_active?: boolean
           engine_natural_distribution_max_per_track_per_day?: number
           engine_natural_distribution_max_per_wave_per_track?: number
+          engine_natural_distribution_tier_delay_days?: number
           engine_natural_distribution_wave_size?: number
           engine_natural_distribution_window_days?: number
           engine_occupancy_autofill?: boolean
