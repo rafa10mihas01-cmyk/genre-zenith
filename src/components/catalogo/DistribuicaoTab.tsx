@@ -93,13 +93,23 @@ export function DistribuicaoTab() {
       const payload: any = {};
       if (draftDays != null) {
         const n = Number(draftDays);
-        if (!Number.isFinite(n) || n < 1 || n > 14) throw new Error("Janela deve estar entre 1 e 14 dias");
+        if (!Number.isFinite(n) || n < 1 || n > 30) throw new Error("Janela deve estar entre 1 e 30 dias");
         payload.engine_natural_distribution_window_days = n;
       }
       if (draftWave != null) {
         const n = Number(draftWave);
-        if (!Number.isFinite(n) || n < 1 || n > 500) throw new Error("Onda deve estar entre 1 e 500");
+        if (!Number.isFinite(n) || n < 1 || n > 1000) throw new Error("Onda deve estar entre 1 e 1000");
         payload.engine_natural_distribution_wave_size = n;
+      }
+      if (draftDaily != null) {
+        const n = Number(draftDaily);
+        if (!Number.isFinite(n) || n < 1 || n > 500) throw new Error("Limite diário deve estar entre 1 e 500");
+        payload.engine_natural_distribution_max_per_track_per_day = n;
+      }
+      if (draftPerWave != null) {
+        const n = Number(draftPerWave);
+        if (!Number.isFinite(n) || n < 1 || n > 50) throw new Error("Playlists por onda/música deve estar entre 1 e 50");
+        payload.engine_natural_distribution_max_per_wave_per_track = n;
       }
       if (Object.keys(payload).length === 0) return;
       const { error } = await supabase.from("system_flags").update(payload).eq("id", flags.id);
@@ -109,6 +119,8 @@ export function DistribuicaoTab() {
       toast.success("Configurações salvas");
       setDraftDays(null);
       setDraftWave(null);
+      setDraftDaily(null);
+      setDraftPerWave(null);
       qc.invalidateQueries({ queryKey: ["natural-distribution", "flags"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Falha ao salvar"),
