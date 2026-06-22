@@ -24,6 +24,8 @@ type CatalogTrack = {
   isrc: string | null;
   status: string;
   added_at: string;
+  next_auto_collect_at: string | null;
+  auto_collect_interval_minutes: number | null;
 };
 type DistributionStats = {
   catalog_track_id: string;
@@ -48,7 +50,7 @@ type SortId = "added" | "growth" | "placements";
 
 async function fetchAll(): Promise<Row[]> {
   const [tracksRes, statsRes, telRes] = await Promise.all([
-    supabase.from("catalog_tracks").select("id, spotify_track_id, track_name, artist_name, cover_url, isrc, status, added_at").order("added_at", { ascending: false }).limit(200),
+    supabase.from("catalog_tracks").select("id, spotify_track_id, track_name, artist_name, cover_url, isrc, status, added_at, next_auto_collect_at, auto_collect_interval_minutes").order("added_at", { ascending: false }).limit(200),
     supabase.from("v_catalog_track_distribution_stats").select("catalog_track_id, placements_total, placements_pending, placements_active, placements_failed"),
     supabase.from("v_catalog_track_telemetry").select("catalog_track_id, baseline_at, last_captured_at, last_plays_28d, growth_abs, growth_pct, snapshots_count"),
   ]);
@@ -70,17 +72,67 @@ const rel = (iso: string | null | undefined) => {
   if (h < 24) return `${h}h`;
   return `${Math.round(h / 24)}d`;
 };
+// Tempo restante até uma data futura. Null se já venceu.
+const relFuture = (iso: string | null | undefined) => {
+  if (!iso) return null;
+  const diff = new Date(iso).getTime() - Date.now();
+  if (diff <= 0) return null;
+  const min = Math.round(diff / 60000);
+  if (min < 60) return `${min}m`;
+  const h = Math.round(min / 60);
+  if (h < 24) return `${h}h`;
+  return `${Math.round(h / 24)}d`;
+};
 
-function CollectBadge({ tel }: { tel: Telemetry | null }) {
-  if (!tel || tel.snapshots_count === 0) {
-    return <span className="inline-flex items-center gap-1 text-[11px] text-amber-400" title="Sem snapshots ainda"><AlertTriangle className="h-3 w-3" />sem coleta</span>;
+// Tolerância depois da janela esperada antes de marcar como "atrasada"
+const STALE_GRACE_MIN = 6 * 60; // 6h pós-vencimento
+
+type CollectState = {
+  kind: "no_collect" | "waiting" | "stale";
+  label: string;
+  title: string;
+};
+
+function computeCollectState(t: Row): CollectState {
+  const hasSnap = !!t.tel && t.tel.snapshots_count > 0;
+  if (!hasSnap) {
+    return { kind: "no_collect", label: "Sem coleta", title: "Sem snapshots ainda" };
   }
-  const ageMin = tel.last_captured_at ? (Date.now() - new Date(tel.last_captured_at).getTime()) / 60000 : Infinity;
-  const stale = ageMin > 60 * 24; // >24h
+  const nextAt = t.next_auto_collect_at ? new Date(t.next_auto_collect_at).getTime() : null;
+  const last = t.tel?.last_captured_at ? `Última coleta há ${rel(t.tel.last_captured_at)}` : "";
+  if (nextAt != null) {
+    const minsLate = (Date.now() - nextAt) / 60000;
+    if (minsLate <= 0) {
+      const remaining = relFuture(t.next_auto_collect_at);
+      return {
+        kind: "waiting",
+        label: remaining ? `Próxima em ${remaining}` : "Aguardando coleta",
+        title: `${last}${last ? " · " : ""}Próxima coleta em ${remaining ?? "instantes"}`,
+      };
+    }
+    if (minsLate <= STALE_GRACE_MIN) {
+      return { kind: "waiting", label: "Coletando…", title: `${last} · Coleta em andamento` };
+    }
+    return { kind: "stale", label: "Coleta atrasada", title: `${last} · Vencida há ${rel(t.next_auto_collect_at)}` };
+  }
+  const intervalMin = t.auto_collect_interval_minutes ?? 2880;
+  const ageMin = t.tel?.last_captured_at ? (Date.now() - new Date(t.tel.last_captured_at).getTime()) / 60000 : Infinity;
+  const stale = ageMin > intervalMin + STALE_GRACE_MIN;
+  return stale
+    ? { kind: "stale", label: "Coleta atrasada", title: last }
+    : { kind: "waiting", label: "Aguardando coleta", title: last };
+}
+
+function CollectBadge({ row }: { row: Row }) {
+  const s = computeCollectState(row);
+  if (s.kind === "no_collect") {
+    return <span className="inline-flex items-center gap-1 text-[11px] text-amber-400" title={s.title}><AlertTriangle className="h-3 w-3" />sem coleta</span>;
+  }
+  const isStale = s.kind === "stale";
   return (
-    <span className={cn("inline-flex items-center gap-1 text-[11px]", stale ? "text-amber-400" : "text-emerald-400")} title={`Última coleta há ${rel(tel.last_captured_at)}`}>
-      {stale ? <Clock className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />}
-      {rel(tel.last_captured_at)}
+    <span className={cn("inline-flex items-center gap-1 text-[11px]", isStale ? "text-amber-400" : "text-emerald-400")} title={s.title}>
+      {isStale ? <Clock className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />}
+      {rel(row.tel?.last_captured_at)}
     </span>
   );
 }
