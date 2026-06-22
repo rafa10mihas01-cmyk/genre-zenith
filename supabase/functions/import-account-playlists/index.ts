@@ -71,7 +71,10 @@ Deno.serve(async (req) => {
       .maybeSingle();
     const accountId: string | null = acc?.id ?? null;
 
-    // 3) paginação /v1/me/playlists — limit=50 por página + 500ms entre páginas
+    // 3) paginação /v1/me/playlists — limit=50 por página + 500ms entre páginas.
+    // OAUTH OBRIGATÓRIO (Fase 17-C): /me/playlists lista playlists DO PRÓPRIO
+    // usuário autenticado (inclusive privadas). Não há equivalente público no
+    // Observer — esta é leitura autenticada legítima do proprietário.
     const collected: SpotifyPlaylistItem[] = [];
     let url: string | null = "https://api.spotify.com/v1/me/playlists?limit=50";
     let safety = 0;

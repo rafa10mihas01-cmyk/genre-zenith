@@ -37,6 +37,9 @@ export type TrackCacheRow = {
   popularity_refreshed_at: string | null;
   enriched_at: string | null;
   fetch_status: string;
+  // Fase 17-C: `raw` é o payload Spotify completo. Consumidores que precisam de
+  // album.name, album.images, artists[].name etc. leem daqui — não fazem fetch.
+  raw: any | null;
 };
 
 export type ArtistCacheRow = {
@@ -50,6 +53,7 @@ export type ArtistCacheRow = {
   genres_refreshed_at: string | null;
   enriched_at: string | null;
   fetch_status: string;
+  raw: any | null;
 };
 
 function svc() {
@@ -76,7 +80,7 @@ export async function getTrackCacheBatch(ids: string[]): Promise<Map<string, Tra
     const slice = unique.slice(i, i + 500);
     const { data } = await sb
       .from("spotify_track_cache")
-      .select("spotify_track_id,name,isrc,album_id,release_date,duration_ms,explicit,popularity,artist_ids,popularity_refreshed_at,enriched_at,fetch_status")
+      .select("spotify_track_id,name,isrc,album_id,release_date,duration_ms,explicit,popularity,artist_ids,popularity_refreshed_at,enriched_at,fetch_status,raw")
       .in("spotify_track_id", slice);
     for (const row of data ?? []) out.set((row as any).spotify_track_id, row as TrackCacheRow);
   }
@@ -105,7 +109,7 @@ export async function getArtistCacheBatch(ids: string[]): Promise<Map<string, Ar
     const slice = unique.slice(i, i + 500);
     const { data } = await sb
       .from("spotify_artist_cache")
-      .select("spotify_artist_id,name,genres,popularity,followers,image_url,refreshed_at,genres_refreshed_at,enriched_at,fetch_status")
+      .select("spotify_artist_id,name,genres,popularity,followers,image_url,refreshed_at,genres_refreshed_at,enriched_at,fetch_status,raw")
       .in("spotify_artist_id", slice);
     for (const row of data ?? []) out.set((row as any).spotify_artist_id, row as ArtistCacheRow);
   }

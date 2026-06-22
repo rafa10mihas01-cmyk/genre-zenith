@@ -5,8 +5,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { recordMetric } from "../_shared/ops-metrics.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 import { getTrackCacheBatch, enqueueEnrichment } from "../_shared/spotify-cache.ts";
-import { spotifyFetch, getAppToken } from "../_shared/spotify-client.ts";
-import { ccFetch } from "../_shared/catalog-gateway.ts";
+// Fase 17-C: leituras públicas via cache; api.spotify.com proibida fora do OAuth.
 
 // FASE 6.A.3 — resolução inline de spotify_artist_id removida.
 // Agora consultamos spotify_track_cache (alimentado pelo spotify-enrichment-worker).
@@ -448,30 +447,35 @@ Deno.serve(async (req) => {
           }
         }
 
-        // 2) Enriquece — fallback Spotify API só quando catalog_tracks não tiver.
+        // 2) Enriquece — fallback via cache (Fase 17-C) só quando catalog_tracks não tiver.
+        //    Coletamos os spotify_track_id das linhas SEM artista resolvido.
+        const missingTrackIds: string[] = [];
+        for (const r of catRows as any[]) {
+          if (!artistByTrack.get(r.catalog_track_id) && r.spotify_track_id) {
+            missingTrackIds.push(r.spotify_track_id);
+          }
+        }
+        const trackFallbackCache = missingTrackIds.length > 0
+          ? await getTrackCacheBatch(missingTrackIds)
+          : new Map();
         const enriched = await Promise.all(catRows.map(async (r: any) => {
           let artistId: string | null = artistByTrack.get(r.catalog_track_id) ?? null;
           if (!artistId && r.spotify_track_id) {
-            try {
-              // Fallback Spotify — leitura pública via Catalog Gateway.
-              const tRes = await ccFetch(
-                `https://api.spotify.com/v1/tracks/${r.spotify_track_id}`,
-                "bot-collect-queue",
-                r.spotify_track_id,
-              );
-              if (tRes.ok) {
-                const tJson = await tRes.json();
-                artistId = tJson?.artists?.[0]?.id ?? null;
-                // Persiste em catalog_tracks pra próxima rodada ser instantânea
-                if (artistId) {
+            // Fase 17-C: leitura pública via spotify_track_cache. Miss → auto-enqueue.
+            const tRow = trackFallbackCache.get(r.spotify_track_id);
+            if (tRow && tRow.fetch_status === "ok" && Array.isArray(tRow.artist_ids) && tRow.artist_ids.length > 0) {
+              artistId = tRow.artist_ids[0] ?? null;
+              // Persiste em catalog_tracks pra próxima rodada ser instantânea.
+              if (artistId) {
+                try {
                   await supabase
                     .from("catalog_tracks")
                     .update({ spotify_artist_id: artistId })
                     .eq("id", r.catalog_track_id)
                     .is("spotify_artist_id", null);
-                }
+                } catch { /* silent */ }
               }
-            } catch (_) { /* silent */ }
+            }
           }
           const s4aSongUrl = artistId && r.spotify_track_id
             ? `https://artists.spotify.com/c/pt/artist/${artistId}/song/${r.spotify_track_id}/stats`

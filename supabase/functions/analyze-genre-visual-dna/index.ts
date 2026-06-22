@@ -4,7 +4,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
-import { ccFetch } from "../_shared/catalog-gateway.ts";
+import { getArtistCacheBatch } from "../_shared/spotify-cache.ts";
 
 import { deprecationGate } from "../_shared/_deprecation.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -246,26 +246,24 @@ Deno.serve(async (req) => {
           }
           const ids = Array.from(artistIdMap.values()).slice(0, 10);
           if (ids.length > 0) {
-            // Pool CC do Gateway não aceita /v1/artists?ids= (Extended Quota).
-            // Iteramos singles.
+            // Fase 17-C: leitura pública via cache (spotify_artist_cache).
+            // Miss → auto-enqueue na spotify_enrichment_queue; worker preenche async.
+            const cache = await getArtistCacheBatch(ids);
             const existing = new Set(results.map((x) => x.imagem_url));
             for (const aid of ids) {
               if (results.length >= TOP_N) break;
-              try {
-                const r = await ccFetch(
-                  `https://api.spotify.com/v1/artists/${aid}`,
-                  "analyze-genre-visual-dna",
-                  aid,
-                );
-                if (!r.ok) { await r.text().catch(() => ""); continue; }
-                const a: any = await r.json();
-                const img = a?.images?.[0]?.url ?? null;
-                if (!img || existing.has(img)) continue;
-                results.push({ nome_playlist: `[artista] ${a.name}`, imagem_url: img, seguidores: a.followers?.total ?? 0 });
-                existing.add(img);
-              } catch { /* skip */ }
+              const row = cache.get(aid);
+              if (!row || row.fetch_status !== "ok") continue;
+              const img = row.image_url ?? null;
+              if (!img || existing.has(img)) continue;
+              results.push({
+                nome_playlist: `[artista] ${row.name ?? aid}`,
+                imagem_url: img,
+                seguidores: row.followers ?? 0,
+              });
+              existing.add(img);
             }
-            console.log(`[visual-dna] fallback artistas aplicado → ${results.length} capas`);
+            console.log(`[visual-dna] fallback artistas (cache) → ${results.length} capas`);
           }
         } catch (e) {
           console.warn("[visual-dna] fallback artistas falhou:", (e as Error).message);

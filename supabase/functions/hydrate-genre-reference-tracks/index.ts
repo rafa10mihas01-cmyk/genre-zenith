@@ -1,11 +1,15 @@
-// hydrate-genre-reference-tracks — preenche search_tracks usando Spotify API
-// para playlists de referência que já existem em search_results mas ainda não
-// têm faixas salvas. Resolve gêneros com referências sem DNA musical.
+// hydrate-genre-reference-tracks — preenche search_tracks com as faixas das
+// playlists de referência de cada gênero.
+//
+// Fase 17-C (arquitetura definitiva):
+//   - Listagem pública de items via OBSERVER (observerListAllPlaylistItems).
+//   - popularity / ISRC via CACHE (spotify_track_cache); miss → auto-enqueue.
+// Nenhuma chamada a api.spotify.com.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
-import { getAppToken, SpotifyCircuitOpenError, spotifyFetch } from "../_shared/spotify-client.ts";
-import { listPlaylistTracksRich } from "../_shared/spotify-playlist.ts";
+import { observerListAllPlaylistItems } from "../_shared/observer-playlist.ts";
+import { getTrackCacheBatch } from "../_shared/spotify-cache.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -15,26 +19,6 @@ function jr(p: unknown, status = 200) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
-}
-
-async function spotifyFetch(token: string, url: string): Promise<any> {
-  // NOTE: guard global trata breaker. SpotifyCircuitOpenError → abort imediato, sem retry.
-  let r: Response;
-  try {
-    r = await spotifyFetch(url, { headers: { Authorization: `Bearer ${token}` } });
-  } catch (e) {
-    if (e instanceof SpotifyCircuitOpenError) throw e;
-    throw e;
-  }
-  if (r.status === 429) {
-    const txt = await r.text().catch(() => "");
-    throw new Error(`Spotify 429 (breaker aberto): ${txt.slice(0, 180)}`);
-  }
-  if (!r.ok) {
-    const txt = await r.text();
-    throw new Error(`Spotify ${r.status}: ${txt.slice(0, 180)}`);
-  }
-  return r.json();
 }
 
 function normalizeReleaseDate(value: unknown): string | null {
@@ -85,34 +69,48 @@ Deno.serve(async (req) => {
 
     if (picked.length === 0) return jr({ ok: true, processed: 0, saved: 0, errors: [] });
 
-    const token = await getAppToken();
     let saved = 0;
     const errors: Array<{ id: string; name: string | null; error: string }> = [];
 
     for (const row of picked) {
       try {
-        const rich = await listPlaylistTracksRich(row.spotify_playlist_id, token, {
-          max: maxTracks,
-          fields: "items(track(id,name,duration_ms,popularity,artists(name),album(name,release_date,images))),next",
+        // Fase 17-C: items via Observer (leitura pública); popularity/ISRC via cache.
+        const items = await observerListAllPlaylistItems(row.spotify_playlist_id, {
+          maxItems: maxTracks,
+          maxAgeSeconds: 3600,
         });
+        const trackIds = items
+          .map((it) => it.track?.id)
+          .filter((id): id is string => !!id);
+        const cache = await getTrackCacheBatch(trackIds);
+
         const rowsByTrack = new Map<string, any>();
         let pos = 0;
-        for (const t of rich) {
-          if (!t.spotify_track_id) continue;
-          if (rowsByTrack.has(t.spotify_track_id)) continue;
-          rowsByTrack.set(t.spotify_track_id, {
+        for (const it of items) {
+          const tr = it.track;
+          if (!tr?.id) continue;
+          if (rowsByTrack.has(tr.id)) continue;
+          const cacheRow = cache.get(tr.id);
+          const cacheRaw: any = cacheRow?.raw ?? null;
+          const albumImages: Array<{ url: string }> =
+            cacheRaw?.album?.images ?? tr.album?.images ?? [];
+          const releaseDate = cacheRaw?.album?.release_date ?? null;
+          const albumName = cacheRaw?.album?.name ?? tr.album?.name ?? null;
+          const popularity = typeof cacheRow?.popularity === "number" ? cacheRow.popularity : null;
+          const artistNames = (tr.artists ?? []).map((a) => a.name).filter(Boolean).join(", ");
+          rowsByTrack.set(tr.id, {
             genre_id: row.genre_id,
             result_id: row.id,
-            nome_musica: t.name || "Desconhecida",
-            artista: t.artists || "Desconhecido",
-            spotify_track_id: t.spotify_track_id,
+            nome_musica: tr.name || "Desconhecida",
+            artista: artistNames || "Desconhecido",
+            spotify_track_id: tr.id,
             posicao_na_playlist: ++pos,
             coletado_em: new Date().toISOString(),
-            cover_url: t.album_images[0]?.url ?? t.album_cover,
-            release_date: normalizeReleaseDate(t.release_date),
-            popularity: t.popularity,
-            album: t.album,
-            duration_ms: t.duration_ms,
+            cover_url: albumImages[0]?.url ?? albumImages[albumImages.length - 1]?.url ?? null,
+            release_date: normalizeReleaseDate(releaseDate),
+            popularity,
+            album: albumName,
+            duration_ms: typeof tr.duration_ms === "number" ? tr.duration_ms : null,
           });
           if (rowsByTrack.size >= maxTracks) break;
         }

@@ -15,7 +15,7 @@
 // =====================================================================
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { ccFetch } from "../_shared/catalog-gateway.ts";
+import { getTrackCacheBatch } from "../_shared/spotify-cache.ts";
 import { reportCronHealth } from "../_shared/cron-health.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -37,30 +37,9 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return out;
 }
 
-// IMPORTANTE: o pool CC do Catalog Gateway retorna 403 no endpoint batch
-// `/v1/tracks?ids=...` (Extended Quota Mode). Por isso iteramos singles com
-// concorrência controlada.
-async function fetchTrackSingle(id: string): Promise<any | null> {
-  const r = await ccFetch(`https://api.spotify.com/v1/tracks/${id}`, "sync-spotify-editorial-charts", id);
-  if (!r.ok) { await r.text().catch(() => ""); return null; }
-  return await r.json();
-}
-
-async function fetchTracksBatch(ids: string[]) {
-  // Concorrência baixa pra ficar Spotify-friendly.
-  const CONCURRENCY = 4;
-  const out: any[] = [];
-  let i = 0;
-  async function worker() {
-    while (i < ids.length) {
-      const idx = i++;
-      const tr = await fetchTrackSingle(ids[idx]);
-      if (tr) out.push(tr);
-    }
-  }
-  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, ids.length) }, () => worker()));
-  return out;
-}
+// Fase 17-C: leitura pública via CACHE (spotify_track_cache).
+// Miss → getTrackCacheBatch auto-enfileira na spotify_enrichment_queue;
+// próximo run do cron encontra os dados.
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -88,33 +67,39 @@ Deno.serve(async (req) => {
       return jr({ ok: true, message: "nada pra enriquecer", chart: chartName });
     }
 
-    // Token via Catalog Gateway.
+    // Fase 17-C: leitura via spotify_track_cache.
     let enriched = 0;
     let failed = 0;
+    let pending = 0;
 
     let batchIdx = 0;
     for (const batch of chunk(targets, 50)) {
       if (batchIdx++ > 0) await sleep(THROTTLE_MS);
       const ids = batch.map((b) => b.spotify_track_id!);
       try {
-        const tracks = await fetchTracksBatch(ids);
-        // map por id pra preservar ordem
-        const byId = new Map<string, any>();
-        for (const tr of tracks) if (tr?.id) byId.set(tr.id, tr);
-
+        const cacheMap = await getTrackCacheBatch(ids);
         for (const row of batch) {
-          const tr = byId.get(row.spotify_track_id!);
-          if (!tr) continue;
-          const imgs = tr.album?.images ?? [];
+          const cacheRow = cacheMap.get(row.spotify_track_id!);
+          if (!cacheRow || cacheRow.fetch_status !== "ok") {
+            // Cache miss → já enfileirado por getTrackCacheBatch; tenta no próximo cron.
+            pending++;
+            continue;
+          }
+          const raw = (cacheRow.raw ?? {}) as {
+            album?: { images?: Array<{ url: string }>; name?: string };
+            artists?: Array<{ id: string }>;
+          };
+          const imgs = raw.album?.images ?? [];
           const cover = imgs[0]?.url ?? null;
-          const artists = (tr.artists ?? []).filter(Boolean);
+          const albumName = raw.album?.name ?? null;
+          const firstArtistId = raw.artists?.[0]?.id ?? cacheRow.artist_ids?.[0] ?? null;
           const { error: upErr } = await supabase
             .from("raw_chart_daily")
             .update({
               cover_url: cover,
-              album_name: tr.album?.name ?? null,
-              popularity: typeof tr.popularity === "number" ? tr.popularity : null,
-              spotify_artist_id: artists[0]?.id ?? null,
+              album_name: albumName,
+              popularity: typeof cacheRow.popularity === "number" ? cacheRow.popularity : null,
+              spotify_artist_id: firstArtistId,
             })
             .eq("id", row.id);
           if (upErr) failed++;
@@ -133,7 +118,7 @@ Deno.serve(async (req) => {
     await supabase.from("collection_logs").insert({
       acao: "sync-spotify-editorial-charts",
       status: "sucesso",
-      mensagem: `chart=${chartName} enriched=${enriched} failed=${failed}`,
+      mensagem: `chart=${chartName} enriched=${enriched} failed=${failed} pending=${pending}`,
       duracao_ms: Date.now() - start,
     });
 
@@ -141,10 +126,10 @@ Deno.serve(async (req) => {
       job_name: "sync-spotify-editorial-charts",
       status: failed === 0 ? "ok" : (enriched === 0 ? "error" : "partial"),
       startedAt: start,
-      metrics: { chart: chartName, date: today, enriched, failed },
+      metrics: { chart: chartName, date: today, enriched, failed, pending },
     });
 
-    return jr({ ok: true, chart: chartName, date: today, enriched, failed });
+    return jr({ ok: true, chart: chartName, date: today, enriched, failed, pending });
   } catch (e) {
     const msg = (e as Error).message;
     await supabase.from("collection_logs").insert({

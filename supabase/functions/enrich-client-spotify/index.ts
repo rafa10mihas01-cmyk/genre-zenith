@@ -1,11 +1,15 @@
 // enrich-client-spotify — Recebe { client_id }, lê spotify_artist_url do cliente,
-// extrai o artist ID da URL, chama /v1/artists/{id} via guardedSpotifyFetch e salva
-// spotify_artist_id, monthly_listeners (followers) e image_url em clients.
+// extrai o artist ID e popula clients.{spotify_artist_id, monthly_listeners, image_url}.
 //
-// Gap 5: disparado pelo frontend após criar/atualizar cliente que tenha spotify_artist_url.
+// Fase 17-C (arquitetura definitiva): leitura pública via CACHE (spotify_artist_cache).
+// Nenhuma chamada direta a api.spotify.com. Em cache miss / stale, getArtistCacheBatch
+// auto-enfileira em spotify_enrichment_queue (priority=3); o spotify-enrichment-worker
+// preenche assincronamente e a próxima invocação encontra os dados.
+//
+// Disparado pelo frontend após criar/atualizar cliente com spotify_artist_url.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { ccFetch } from "../_shared/catalog-gateway.ts";
+import { getArtistCacheBatch } from "../_shared/spotify-cache.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -17,7 +21,6 @@ function jr(p: unknown, status = 200) {
   });
 }
 
-// Extrai o ID de uma URL tipo https://open.spotify.com/artist/{id}?si=...
 function extractArtistId(url: string): string | null {
   if (!url) return null;
   const m = url.match(/artist\/([A-Za-z0-9]{22})/);
@@ -48,27 +51,26 @@ Deno.serve(async (req) => {
     return jr({ ok: false, skipped: "sem_spotify_artist_url_valida" });
   }
 
-  // Se já temos o mesmo id salvo, ainda assim refetchamos pra atualizar followers/imagem.
-  // Token vem do Catalog Gateway (CC pool NexEngine 05/10).
-  const r = await ccFetch(
-    `https://api.spotify.com/v1/artists/${artistId}`,
-    "enrich-client-spotify",
-    artistId,
-  );
-  if (!r.ok) {
-    const t = await r.text().catch(() => "");
-    return jr({ ok: false, error: `spotify ${r.status}: ${t.slice(0, 200)}` }, r.status === 404 ? 404 : 502);
+  // Fase 17-C: cache + fila. Cache miss → auto-enqueue.
+  const cache = await getArtistCacheBatch([artistId]);
+  const row = cache.get(artistId);
+
+  if (!row || row.fetch_status !== "ok") {
+    // Persiste pelo menos o ID — UI já tem o handle; restante chega na próxima rodada.
+    await supabase.from("clients").update({ spotify_artist_id: artistId }).eq("id", clientId);
+    return jr({
+      ok: true,
+      client_id: clientId,
+      spotify_artist_id: artistId,
+      enrichment_status: "enqueued",
+      message: "Dados de artista serão preenchidos pelo enrichment worker (cache miss). Reabra em alguns instantes.",
+    }, 202);
   }
-  const artist: any = await r.json();
-  const followers = Number(artist?.followers?.total ?? 0);
-  const image = Array.isArray(artist?.images) && artist.images.length > 0
-    ? (artist.images[0]?.url as string | null)
-    : null;
 
   const updates: Record<string, unknown> = {
     spotify_artist_id: artistId,
-    monthly_listeners: Number.isFinite(followers) ? followers : null,
-    image_url: image,
+    monthly_listeners: typeof row.followers === "number" ? row.followers : null,
+    image_url: row.image_url ?? null,
   };
 
   const { error: uErr } = await supabase.from("clients").update(updates).eq("id", clientId);
@@ -79,7 +81,8 @@ Deno.serve(async (req) => {
     client_id: clientId,
     spotify_artist_id: artistId,
     monthly_listeners: updates.monthly_listeners,
-    image_url: image,
-    name: artist?.name ?? null,
+    image_url: updates.image_url,
+    name: row.name ?? null,
+    source: "spotify_artist_cache",
   });
 });

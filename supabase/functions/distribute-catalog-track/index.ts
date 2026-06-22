@@ -18,7 +18,7 @@
 // As únicas barreiras pra distribuição são capacidade e duplicidade.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { ccFetch } from "../_shared/catalog-gateway.ts";
+import { getTrackCacheBatch, getArtistCacheBatch } from "../_shared/spotify-cache.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -92,43 +92,48 @@ Deno.serve(async (req) => {
       } catch { /* segue sem added_by */ }
     }
 
-    // 1) Resolve a faixa no Spotify via Catalog Gateway (CC público)
-    const trackResp = await ccFetch(
-      `https://api.spotify.com/v1/tracks/${trackId}`,
-      "distribute-catalog-track",
-      trackId,
-    );
-    if (!trackResp.ok) {
-      const text = await trackResp.text();
+    // 1) Resolve a faixa via CACHE (Fase 17-C: spotify_track_cache).
+    //    Miss → getTrackCacheBatch auto-enfileira; respondemos 202 e o cliente
+    //    refaz a chamada em ~30s quando o enrichment-worker tiver populado.
+    const trackCache = await getTrackCacheBatch([trackId]);
+    const trackRow = trackCache.get(trackId);
+    if (!trackRow || trackRow.fetch_status !== "ok") {
       return jr({
         ok: false,
-        error: "spotify_track_lookup_failed",
-        status: trackResp.status,
-        details: text.slice(0, 300),
-      }, trackResp.status === 404 ? 404 : 502);
+        error: "enrichment_in_progress",
+        spotify_track_id: trackId,
+        message: "Faixa enfileirada no enrichment worker (Fase 17-C). Reenvie em alguns segundos.",
+      }, 202);
     }
-    const track = await trackResp.json() as {
-      id: string;
-      uri: string;
-      name: string;
-      popularity?: number;
-      external_ids?: { isrc?: string };
-      artists: Array<{ id: string; name: string }>;
-      album?: { images?: Array<{ url: string; width: number; height: number }> };
+    // `raw` carrega o payload completo (album.images, artists[].name, etc.).
+    const raw = (trackRow.raw ?? {}) as {
+      uri?: string;
+      album?: { images?: Array<{ url: string }> };
+      artists?: Array<{ id: string; name: string }>;
     };
-
-    const trackName = track.name;
-    const artistName = joinArtists(track.artists);
-    const isrc = track.external_ids?.isrc ?? null;
-    const spotifyUri = track.uri ?? `spotify:track:${trackId}`;
-    const coverUrl = track.album?.images?.[0]?.url ?? null;
-    // IMPORTANTE: NÃO usamos popularity/monthly_listeners da Spotify API como baseline.
+    // Se `raw` não tiver artist names, busca no artist cache.
+    let trackArtists: Array<{ id: string; name: string }> =
+      Array.isArray(raw.artists) && raw.artists.length > 0 && raw.artists[0]?.name
+        ? raw.artists
+        : [];
+    if (trackArtists.length === 0 && Array.isArray(trackRow.artist_ids) && trackRow.artist_ids.length > 0) {
+      const artCache = await getArtistCacheBatch(trackRow.artist_ids);
+      trackArtists = trackRow.artist_ids.map((aid) => ({
+        id: aid,
+        name: artCache.get(aid)?.name ?? "",
+      }));
+    }
+    const trackName = trackRow.name ?? "";
+    const artistName = joinArtists(trackArtists);
+    const isrc = trackRow.isrc ?? null;
+    const spotifyUri = raw.uri ?? `spotify:track:${trackId}`;
+    const coverUrl = raw?.album?.images?.[0]?.url ?? null;
+    // IMPORTANTE: NÃO usamos popularity/monthly_listeners da cache como baseline.
     // A baseline T0 vem 100% do bot (Spotify for Artists), mesmo padrão dos deal_songs.
-    // Aqui só resolvemos o spotify_artist_id pra que o bot consiga montar a URL S4A.
-    const primaryArtistId = track.artists?.[0]?.id ?? null;
+    const primaryArtistId = trackArtists[0]?.id ?? trackRow.artist_ids?.[0] ?? null;
 
     const baselineRaw = {
-      track,
+      track_cache: { id: trackId, name: trackRow.name, isrc, enriched_at: trackRow.enriched_at },
       captured_at: new Date().toISOString(),
       note: "baseline-empty-awaiting-bot",
     };
