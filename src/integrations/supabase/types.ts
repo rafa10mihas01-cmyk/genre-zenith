@@ -12522,6 +12522,7 @@ export type Database = {
           engine_editorial_weights: boolean
           engine_occupancy_autofill: boolean
           engine_priority_active: boolean
+          engine_priority_weights: Json
           engine_reorder_active: boolean
           execution_frozen: boolean
           execution_frozen_at: string | null
@@ -12543,6 +12544,7 @@ export type Database = {
           engine_editorial_weights?: boolean
           engine_occupancy_autofill?: boolean
           engine_priority_active?: boolean
+          engine_priority_weights?: Json
           engine_reorder_active?: boolean
           execution_frozen?: boolean
           execution_frozen_at?: string | null
@@ -12564,6 +12566,7 @@ export type Database = {
           engine_editorial_weights?: boolean
           engine_occupancy_autofill?: boolean
           engine_priority_active?: boolean
+          engine_priority_weights?: Json
           engine_reorder_active?: boolean
           execution_frozen?: boolean
           execution_frozen_at?: string | null
