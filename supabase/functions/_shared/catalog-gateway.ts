@@ -1,21 +1,21 @@
-// Catalog Gateway — ponto único de leitura PÚBLICA da API Spotify.
+// Catalog Gateway — backend Client Credentials da camada de Cache (Fase 17-C).
 //
-// Fase 17-B.0 (Foundation): este módulo está implementado, mas NENHUM caller
-// foi migrado ainda. Ele será adotado por callers em 17-B.1 (process-catalog-
-// placements, revalidate-deliveries, sync-managed-playlists).
+// RESPONSABILIDADE ÚNICA (pós Onda 3 da Migração 17-C):
+//   Servir como pool autenticado por Client Credentials para POPULAR o cache
+//   (spotify_track_cache, spotify_artist_cache) via worker assíncrono e para
+//   atender à exceção documentada `/search`.
 //
-// Princípios:
-//   1. Endpoints públicos (tracks/artists/albums/search/public playlists/items)
-//      DEVEM passar por aqui. Proibido fetch direto pra esses endpoints
-//      em código novo.
-//   2. Gateway tenta SEMPRE Client Credentials primeiro. OAuth de App só
-//      como fallback quando o recurso exigir (raro pra GET público).
-//   3. TTL-aware: lê de spotify_playlist_cache / spotify_track_cache /
-//      spotify_artist_cache antes de chamar a API.
-//   4. Coalescência: requisições paralelas para o mesmo (endpoint, id) são
-//      deduplicadas via catalog_inflight (advisory).
-//   5. Toda chamada gera linha em spotify_call_log com meta.source='gateway'
-//      para a view catalog_gateway_metrics medir o antes × depois.
+// NÃO É MAIS um caminho de leitura pública de playlists. Toda leitura pública
+// de playlists (metadados, owner, followers, items) DEVE passar pelo Observer
+// (`_shared/observer-playlist.ts`). Os helpers legados `getPlaylistMeta`/
+// `getPlaylistItems` foram REMOVIDOS — não restaurar.
+//
+// Princípios definitivos:
+//   1. `ccFetch` é uso restrito: cache enrichment (worker) + `/search`.
+//   2. Coalescência via `catalog_inflight` continua disponível para
+//      hidratações pesadas que precisem deduplicar concorrentemente.
+//   3. Toda chamada gera linha em `spotify_call_log` com meta.source='gateway'
+//      para a view `catalog_gateway_metrics` medir uso/saúde do pool.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 // NOTE (Fase 17-B.0.2): NÃO importamos `getSpotifyToken` aqui de propósito.
