@@ -723,10 +723,9 @@ export default function CampanhaExecucao() {
     (async () => {
       try {
         const [growthRes, collections, ccpRes, ecoRes] = await Promise.all([
-          supabase
-            .from("vw_campaign_playlist_growth")
-            .select("playlist_id, playlist_url, current_name, baseline_name, delivery_accumulated, delta, last_import_delta, current_plays, baseline_plays, attributed_to")
-            .eq("campaign_id", camp.id),
+          (supabase as any)
+            .rpc("fn_campaign_playlist_growth", { p_campaign_ids: [camp.id] }),
+
           fetchAllCollections(),
           supabase
             .from("curator_campaign_playlists")
