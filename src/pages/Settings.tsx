@@ -437,7 +437,7 @@ export default function Settings({ embedded = false }: { embedded?: boolean } = 
                   className="w-full text-left p-3 rounded-lg border border-border hover:bg-accent transition-colors"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <div className="font-medium text-sm">{a.name}{a.is_default && <span className="ml-2 text-[10px] text-primary">padrão</span>}</div>
+                    <div className="font-medium text-sm">{a.name}</div>
                     <span className="text-[11px] text-success">{a.slots_remaining} vaga{a.slots_remaining > 1 ? "s" : ""}</span>
                   </div>
                   <div className="text-[11px] text-muted-foreground font-mono mt-0.5">{a.client_id_preview}</div>

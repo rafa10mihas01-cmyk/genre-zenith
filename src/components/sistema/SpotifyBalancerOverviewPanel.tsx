@@ -16,8 +16,7 @@ type Row = {
   name: string;
   status: string;
   lifecycle_state: string;
-  purpose: "write" | "enrich" | "hybrid";
-  is_default: boolean | null;
+  purpose: "write" | "hybrid";
   development_mode: boolean;
   extended_quota: boolean;
   blocked_reason: string | null;
@@ -57,7 +56,6 @@ const LIFECYCLE_META: Record<string, { label: string; cls: string; dot: string }
 
 const PURPOSE_META: Record<string, { label: string; cls: string }> = {
   write:  { label: "WRITE",  cls: "border-primary/30 text-primary bg-primary/5" },
-  enrich: { label: "ENRICH", cls: "border-info/40 text-info bg-info/10" },
   hybrid: { label: "HYBRID", cls: "border-muted-foreground/30 text-muted-foreground bg-elevated" },
 };
 
@@ -98,11 +96,7 @@ function AppRow({ r }: { r: Row }) {
               <span className={cn("inline-flex items-center px-1.5 h-5 rounded text-[10px] font-medium border", pp.cls)}>
                 {pp.label}
               </span>
-              {r.is_default && (
-                <span className="inline-flex items-center px-1.5 h-5 rounded text-[10px] font-medium border border-muted-foreground/30 text-muted-foreground">
-                  default
-                </span>
-              )}
+              
               {removed && (
                 <span className="inline-flex items-center px-1.5 h-5 rounded text-[10px] font-medium border border-destructive/40 text-destructive bg-destructive/10">
                   fora do pool

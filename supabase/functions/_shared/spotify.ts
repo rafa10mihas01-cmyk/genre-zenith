@@ -201,7 +201,7 @@ export async function assertSpotifyCircuitClosed(
   context: SpotifyBreakerContext = "operation",
 ): Promise<void> {
   const supabase = db();
-  const effectiveAppId = appId === "global" ? (await getDefaultSpotifyAppId()) ?? "global" : appId;
+  const effectiveAppId = appId === "global" ? (await pickFallbackAppId()) ?? "global" : appId;
   try { await supabase.rpc("close_expired_spotify_circuit_breakers"); } catch { /* noop */ }
   const { data, error } = await supabase
     .from("spotify_circuit_breaker")
@@ -221,7 +221,7 @@ export async function openSpotifyCircuitBreaker(
   causedBy?: string,
   context: SpotifyBreakerContext = "operation",
 ): Promise<{ blockedUntil: string; retryAfterSec: number }> {
-  const effectiveAppId = appId === "global" ? (await getDefaultSpotifyAppId()) ?? "global" : appId;
+  const effectiveAppId = appId === "global" ? (await pickFallbackAppId()) ?? "global" : appId;
   const safeRetry = Math.max(2, Math.min(Number(retryAfterSec ?? 60), 86_400));
   const blockedUntil = new Date(Date.now() + safeRetry * 1000).toISOString();
   await db().from("spotify_circuit_breaker").upsert({
@@ -726,13 +726,19 @@ export type SpotifyAppCreds = {
   name: string;
 };
 
-async function getDefaultSpotifyAppId(): Promise<string | null> {
+/**
+ * Pós-17-C: o conceito de "App default do pool" foi removido. Esta função
+ * apenas resolve um app_id concreto quando o caller passa `"global"` (legacy)
+ * para tabelas que requerem FK por app_id (ex.: spotify_circuit_breaker).
+ * Estratégia determinística: primeiro app `status=active`, fora de quarentena,
+ * ordenado por `created_at`. Sem flag de preferência.
+ */
+async function pickFallbackAppId(): Promise<string | null> {
   const { data } = await db()
     .from("spotify_apps")
     .select("id")
     .eq("status", "active")
     .or("quarantined_until.is.null,quarantined_until.lt." + new Date().toISOString())
-    .order("is_default", { ascending: false })
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
@@ -741,8 +747,8 @@ async function getDefaultSpotifyAppId(): Promise<string | null> {
 
 export type GetAppCredentialsOpts = {
   excludeAppIds?: string[];
-  /** Finalidade da App (Fase 16): 'write' (default), 'enrich' ou 'hybrid'. */
-  purpose?: "write" | "enrich" | "hybrid";
+  /** Finalidade da App: 'write' (default) ou 'hybrid'. Pós-17-C 'enrich' foi normalizado para 'hybrid'. */
+  purpose?: "write" | "hybrid";
 };
 
 /** Busca credenciais do app Spotify.
@@ -839,7 +845,7 @@ export type GetSpotifyTokenOpts = {
   /** Força usar um app específico (ex.: app do owner da playlist). Bypassa default global. */
   appId?: string | null;
   /** Finalidade da App (Fase 16): 'write' (default), 'enrich' ou 'hybrid'. */
-  purpose?: "write" | "enrich" | "hybrid";
+  purpose?: "write" | "hybrid";
 };
 
 /** Versão estendida que retorna também o appId/appName usados. Útil pra failover. */
@@ -957,7 +963,6 @@ export async function refreshUserToken(row: SpotifyUserToken): Promise<string> {
  *  nesse caso usa mesmo assim e o circuit breaker decide. */
 export async function getUserAccessToken(userId?: string): Promise<{ token: string; row: SpotifyUserToken }> {
   const supabase = db();
-  const defaultAppId = await getDefaultSpotifyAppId();
 
   // Lista de apps ativos para filtrar contas em quarentena.
   const { data: activeApps } = await supabase
@@ -981,14 +986,11 @@ export async function getUserAccessToken(userId?: string): Promise<{ token: stri
   const activeRows = allRows.filter((r) => !r.app_id || activeAppIds.has(r.app_id));
   const rows = activeRows.length > 0 ? activeRows : allRows;
 
-  // Prioridade determinística:
-  //   1) is_default=true (PRIMARY por owner)
-  //   2) defaultAppId global (compat)
-  //   3) primeiro da lista (já ordenada por is_default desc, updated_at desc)
+  // Prioridade determinística (pós-17-C — sem "default app" do pool):
+  //   1) is_default=true (PRIMARY POR OWNER em spotify_user_tokens)
+  //   2) primeiro da lista (já ordenada por is_default desc, updated_at desc)
   const primary = rows.find((r) => r.is_default === true);
-  const row = primary
-    ?? (defaultAppId ? rows.find((r) => r.app_id === defaultAppId) : undefined)
-    ?? rows[0];
+  const row = primary ?? rows[0];
   enterCtx({ appId: row.app_id, spotify_user_id: row.spotify_user_id });
   const expiresMs = new Date(row.expires_at).getTime();
   if (expiresMs > Date.now() + 60_000) return { token: row.access_token, row };
@@ -1000,7 +1002,6 @@ export async function getUserAccessToken(userId?: string): Promise<{ token: stri
  *  Também respeita quarentena (igual getUserAccessToken). */
 export async function forceRefreshUserAccessToken(userId: string): Promise<{ token: string; row: SpotifyUserToken }> {
   const supabase = db();
-  const defaultAppId = await getDefaultSpotifyAppId();
 
   const { data: activeApps } = await supabase
     .from("spotify_apps")
@@ -1020,10 +1021,9 @@ export async function forceRefreshUserAccessToken(userId: string): Promise<{ tok
   if (allRows.length === 0) throw new Error(`Sem token para spotify_user_id=${userId}`);
   const activeRows = allRows.filter((r) => !r.app_id || activeAppIds.has(r.app_id));
   const rows = activeRows.length > 0 ? activeRows : allRows;
+  // Pós-17-C: sem "default app" do pool. Prioriza apenas is_default por owner.
   const primary = rows.find((r) => r.is_default === true);
-  const row = primary
-    ?? (defaultAppId ? rows.find((r) => r.app_id === defaultAppId) : undefined)
-    ?? rows[0];
+  const row = primary ?? rows[0];
   const fresh = await refreshUserToken(row);
   return { token: fresh, row: { ...row, access_token: fresh } };
 }

@@ -75,12 +75,11 @@ Deno.serve(async (req) => {
   const ownerSpotifyId: string | null = (pl as any).owner_spotify_user_id ?? null;
 
   // === Roteamento do app ANTES do guard ===
-  // Resolve o app real do owner via spotify_user_tokens. Sem isso o guard cai em
-  // getDefaultSpotifyAppId() (NexEngine 02 = is_default) e bloqueia o sync de
-  // playlists que pertencem a apps saudáveis quando o default está OPEN.
-  // Esta função roda em processo separado do diagnose, então o async-local ctx
-  // do caller NÃO atravessa o fetch HTTP — temos que reresolver aqui.
-  // Ver auditoria de 2026-06-07 (Fase 8.8.1).
+  // Resolve o app real do owner via spotify_user_tokens. Esta função roda em
+  // processo separado do diagnose, então o async-local ctx do caller NÃO
+  // atravessa o fetch HTTP — temos que reresolver aqui.
+  // Pós-17-C: o conceito de "default app do pool" foi removido. is_default abaixo
+  // refere-se apenas à conta primária POR OWNER (spotify_user_tokens.is_default).
   let ownerAppId: string | null = null;
   if (ownerSpotifyId) {
     const { data: tokenRows } = await supabase

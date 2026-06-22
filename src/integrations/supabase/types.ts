@@ -11760,7 +11760,6 @@ export type Database = {
           development_mode: boolean
           extended_quota: boolean
           id: string
-          is_default: boolean
           last_auth_failure_at: string | null
           lifecycle_state: string
           max_accounts: number
@@ -11792,7 +11791,6 @@ export type Database = {
           development_mode?: boolean
           extended_quota?: boolean
           id?: string
-          is_default?: boolean
           last_auth_failure_at?: string | null
           lifecycle_state?: string
           max_accounts?: number
@@ -11824,7 +11822,6 @@ export type Database = {
           development_mode?: boolean
           extended_quota?: boolean
           id?: string
-          is_default?: boolean
           last_auth_failure_at?: string | null
           lifecycle_state?: string
           max_accounts?: number
@@ -13074,7 +13071,6 @@ export type Database = {
           extended_quota: boolean | null
           health_score: number | null
           id: string | null
-          is_default: boolean | null
           lifecycle_state: string | null
           max_accounts: number | null
           max_playlists: number | null
