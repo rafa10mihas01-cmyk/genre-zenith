@@ -130,16 +130,12 @@ export function useDealTodayPlaylistBreakdown(dealId: string | null | undefined)
       >();
 
       if (spotifyIds.length > 0 && campaignId) {
-        const { data: growth, error: gErr } = await supabase
-          .from("vw_campaign_playlist_growth")
-          .select(
-            "playlist_id, delivery_accumulated, last_import_delta, current_plays, baseline_plays, last_captured_at, baseline_at",
-          )
-          .eq("campaign_id", campaignId)
-          .in("playlist_id", spotifyIds);
+        const { data: growth, error: gErr } = await (supabase as any)
+          .rpc("fn_campaign_playlist_growth", { p_campaign_ids: [campaignId] });
         if (gErr) throw gErr;
-        for (const g of growth ?? []) {
-          if (!g.playlist_id) continue;
+        const wanted = new Set(spotifyIds);
+        for (const g of (growth ?? []) as Array<any>) {
+          if (!g.playlist_id || !wanted.has(g.playlist_id)) continue;
           growthMap.set(g.playlist_id, {
             delivery_accumulated: Number(g.delivery_accumulated ?? 0),
             last_import_delta:
@@ -152,6 +148,7 @@ export function useDealTodayPlaylistBreakdown(dealId: string | null | undefined)
           });
         }
       }
+
 
       const rows: TodayPlaylistRow[] = playlists.map((p) => {
         const g = p.spotify_playlist_id ? growthMap.get(p.spotify_playlist_id) : null;
