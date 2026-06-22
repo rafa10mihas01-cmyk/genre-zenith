@@ -93,18 +93,20 @@ Deno.serve(async (req) => {
     }
 
     // 1) Resolve a faixa via CACHE (Fase 17-C: spotify_track_cache).
-    //    Miss → getTrackCacheBatch auto-enfileira; respondemos 202 e o cliente
-    //    refaz a chamada em ~30s quando o enrichment-worker tiver populado.
-    const trackCache = await getTrackCacheBatch([trackId]);
-    const trackRow = trackCache.get(trackId);
-    if (!trackRow || trackRow.fetch_status !== "ok") {
+    //    EXCEÇÃO documentada: cadastro manual user-driven faz hidratação
+    //    síncrona em cache miss (1 fetch via gateway). Worker e processos
+    //    automáticos continuam 100% cache-first.
+    const hydrate = await hydrateTrackSync(trackId, "distribute-catalog-track");
+    if (!hydrate.ok) {
       return jr({
         ok: false,
-        error: "enrichment_in_progress",
+        error: hydrate.error,
         spotify_track_id: trackId,
-        message: "Faixa enfileirada no enrichment worker (Fase 17-C). Reenvie em alguns segundos.",
-      }, 202);
+        details: hydrate.details ?? null,
+      }, hydrate.status === 404 ? 404 : hydrate.status >= 500 ? 502 : hydrate.status);
     }
+    const trackRow = hydrate.row;
+
     // `raw` carrega o payload completo (album.images, artists[].name, etc.).
     const raw = (trackRow.raw ?? {}) as {
       uri?: string;
