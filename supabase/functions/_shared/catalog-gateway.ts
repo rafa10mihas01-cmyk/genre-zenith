@@ -27,17 +27,8 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-const DAY_MS = 86_400_000;
-const PLAYLIST_META_TTL_MS = 7 * DAY_MS;
-const PLAYLIST_TRACKS_TTL_MS = 24 * 60 * 60 * 1000; // 24h
-
 function svc() {
   return createClient(SUPABASE_URL, SERVICE_KEY);
-}
-
-function isFresh(ts: string | null | undefined, ttlMs: number): boolean {
-  if (!ts) return false;
-  return Date.now() - new Date(ts).getTime() < ttlMs;
 }
 
 // ---------------------------------------------------------------------------
