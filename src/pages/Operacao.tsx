@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
 import { KpiBig } from "@/components/KpiBig";
+import { KpiCompactStrip } from "@/components/KpiCompactStrip";
 import { AccountsManager } from "@/components/operacao/AccountsManager";
 import { PageContainer } from "@/components/PageContainer";
 import { supabase } from "@/integrations/supabase/client";
@@ -280,32 +281,53 @@ export default function Operacao() {
 
       <PageContainer>
         {/* KPIs operacionais — todos referenciam o catálogo importado (managed_playlists) */}
-        {/* KPIs — hierarquia cockpit: hero (Salvamentos) + secundários + quiet (derivada) */}
-        <section className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
-          {(() => {
-            const filtered = !!playlistStats.filterLabel;
-            const followers = filtered ? playlistStats.filteredFollowers : kpi.totalFollowers;
-            const count = filtered ? playlistStats.filteredCount : kpi.totalPlaylists;
-            const scopeHint = filtered
-              ? `${playlistStats.filterLabel} · ${formatNumber(count)} playlist${count === 1 ? "" : "s"}`
-              : `Somando ${formatNumber(count)} playlists`;
-            const playsHint = filtered
-              ? `${playlistStats.filterLabel} · ${formatNumber(followers)} × 30 saves`
-              : `${formatNumber(followers)} × 30 saves`;
-            const totalHint = filtered ? playlistStats.filterLabel! : "Catálogo importado";
-            return (
-              <>
-                <KpiBig tier="hero" icon={Heart} label="Salvamentos totais" value={formatNumber(followers)} hint={scopeHint} domain="playlists" loading={loading && playlistsAll.length === 0} className="!col-span-2 xl:!col-span-2" />
-                <KpiBig icon={Target}        label="Plays teóricos / mês" value={formatNumber(followers * 30)} tone="primary" hint={playsHint} loading={loading && playlistsAll.length === 0} />
-                <KpiBig icon={Activity}      label="Total ativas"  value={formatNumber(count)} hint={totalHint} loading={loading && playlistsAll.length === 0} />
-              </>
-            );
-          })()}
-          <KpiBig icon={Gauge}         label="Saúde média"  value={String(playlistStats.avgHealth)} hint={`${playlistStats.topPerf} ${playlistStats.topPerf === 1 ? "destaque" : "destaques"}`} loading={loading && playlistsAll.length === 0} />
-          <KpiBig icon={ShieldAlert}   label="Em risco / inativas" value={`${playlistStats.atRisk} / ${playlistStats.inactive}`} tone={(playlistStats.atRisk + playlistStats.inactive) > 0 ? "destructive" : "default"} hint="Risco ≥ 60 · Atividade < 30" loading={loading && playlistsAll.length === 0} />
-          {/* KPI "Precisa atenção" ocultado a pedido. */}
+        {(() => {
+          const filtered = !!playlistStats.filterLabel;
+          const followers = filtered ? playlistStats.filteredFollowers : kpi.totalFollowers;
+          const count = filtered ? playlistStats.filteredCount : kpi.totalPlaylists;
+          const scopeHint = filtered
+            ? `${playlistStats.filterLabel} · ${formatNumber(count)} playlist${count === 1 ? "" : "s"}`
+            : `Somando ${formatNumber(count)} playlists`;
+          const playsHint = filtered
+            ? `${playlistStats.filterLabel} · ${formatNumber(followers)} × 30 saves`
+            : `${formatNumber(followers)} × 30 saves`;
+          const totalHint = filtered ? playlistStats.filterLabel! : "Catálogo importado";
+          const stripLoading = loading && playlistsAll.length === 0;
+          return (
+            <>
+              {/* Mobile/tablet: strip compacta no padrão Catálogo */}
+              <KpiCompactStrip
+                loading={stripLoading}
+                rows={[
+                  {
+                    cols: 3,
+                    items: [
+                      { label: "Salvamentos", value: formatNumber(followers) },
+                      { label: "Plays/mês", value: formatNumber(followers * 30) },
+                      { label: "Ativas", value: formatNumber(count) },
+                    ],
+                  },
+                  {
+                    cols: 2,
+                    items: [
+                      { label: "Saúde média", value: String(playlistStats.avgHealth) },
+                      { label: "Risco/Inativ.", value: `${playlistStats.atRisk} / ${playlistStats.inactive}` },
+                    ],
+                  },
+                ]}
+              />
 
-        </section>
+              {/* Desktop: KPIs grandes */}
+              <section className="hidden lg:grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
+                <KpiBig tier="hero" icon={Heart} label="Salvamentos totais" value={formatNumber(followers)} hint={scopeHint} domain="playlists" loading={stripLoading} className="!col-span-2 xl:!col-span-2" />
+                <KpiBig icon={Target}      label="Plays teóricos / mês" value={formatNumber(followers * 30)} tone="primary" hint={playsHint} loading={stripLoading} />
+                <KpiBig icon={Activity}    label="Total ativas"  value={formatNumber(count)} hint={totalHint} loading={stripLoading} />
+                <KpiBig icon={Gauge}       label="Saúde média"  value={String(playlistStats.avgHealth)} hint={`${playlistStats.topPerf} ${playlistStats.topPerf === 1 ? "destaque" : "destaques"}`} loading={stripLoading} />
+                <KpiBig icon={ShieldAlert} label="Em risco / inativas" value={`${playlistStats.atRisk} / ${playlistStats.inactive}`} tone={(playlistStats.atRisk + playlistStats.inactive) > 0 ? "destructive" : "default"} hint="Risco ≥ 60 · Atividade < 30" loading={stripLoading} />
+              </section>
+            </>
+          );
+        })()}
 
 
         {/* Conteúdo único — Minhas Playlists (Simulador foi movido para /campanhas) */}
