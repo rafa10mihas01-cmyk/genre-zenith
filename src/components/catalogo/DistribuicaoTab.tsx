@@ -231,12 +231,23 @@ export function DistribuicaoTab() {
               className="h-8 text-sm"
             />
           </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-muted-foreground">Atraso entre camadas (dias)</span>
+            <Input
+              type="number"
+              min={1}
+              max={30}
+              value={draftTierDelay ?? flags?.engine_natural_distribution_tier_delay_days ?? 2}
+              onChange={(e) => setDraftTierDelay(e.target.value)}
+              className="h-8 text-sm"
+            />
+          </label>
         </div>
         <div className="flex items-center gap-2 mt-3">
           <Button
             size="sm"
             onClick={() => saveSettingsMut.mutate()}
-            disabled={(draftDays == null && draftWave == null && draftDaily == null && draftPerWave == null) || saveSettingsMut.isPending}
+            disabled={(draftDays == null && draftWave == null && draftDaily == null && draftPerWave == null && draftTierDelay == null) || saveSettingsMut.isPending}
             className="gap-1.5"
           >
             <Save className="h-4 w-4" />
@@ -250,7 +261,7 @@ export function DistribuicaoTab() {
         <div className="flex items-start gap-2 mt-3 text-[11px] text-muted-foreground">
           <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
           <span>
-            Plano dinâmico: a cada onda o Engine reavalia playlists elegíveis (vaga, cooldown, gênero) com o estado atual. A distribuição é paralela entre todas as músicas ativas (round-robin), respeitando o limite diário por música. Cron `engine-distribution-wave` roda a cada 15 min.
+            Expansão em camadas: Camada 1 (playlists mais robustas por ciclo de vida, estado curatorial e seguidores) abre no Dia 0. Camada 2 libera após o atraso configurado; Camada 3 após o dobro. Tudo respeita vaga, cooldown, gênero, limite diário e diversificação entre músicas.
           </span>
         </div>
       </section>
