@@ -1,80 +1,117 @@
+# Evolução do Engine de Catálogo — Catálogo como Administrador Permanente das Playlists
 
-# Correção Definitiva — Spotify Circuit Breaker
+Diretriz incorporada: **evoluir o engine existente, não criar paralelo**. Todo novo comportamento entra como módulo interno do `process-catalog-placements` + RPCs no schema atual, atrás de feature flags em `system_flags`. Nada que funciona hoje pode parar.
 
-## Diagnóstico (confirmado)
+---
 
-- `spotify-enrichment-worker` drena fila em lote (BATCH=30, CONCURRENCY=2) → estoura 429 do Spotify.
-- O guard global em `_shared/spotify.ts` (linhas 390 e 474) abre **um único** `spotify_circuit_breaker` por `app_id`, sem distinguir contexto (enriquecimento vs operação).
-- Operações reais (sync, bot, execução de campanha) passam a falhar com `SPOTIFY_CIRCUIT_OPEN` mesmo sem terem causado nada.
-- A RPC `get_blocked_playlist_ids` retorna *playlists* vinculadas ao app bloqueado, e a UI exibe esse número como "Apps bloqueados (N)" — semanticamente errado.
+## Mapa de reuso obrigatório (proibido recriar)
 
-## Objetivo
+| Responsabilidade | Componente existente reutilizado |
+|---|---|
+| Fila / inflight / lease / reaper | `catalog_snapshot_queue`, `catalog_inflight`, `process-catalog-placements` |
+| Dedupe físico | `idx_catalog_placements_unique_alive` em `catalog_placements` |
+| Vagas / elegibilidade já modelada | `v_catalog_playlist_occupancy`, filtros do worker atual |
+| Escrita Spotify | `_shared/spotify-playlist.ts` + `pick_spotify_app` |
+| Snapshots / baseline / aprendizado base | `catalog_track_snapshots`, `catalog_track_baselines`, `curator_deal_snapshots` |
+| Observabilidade | `catalog_placement_execution_log`, `spotify_call_log`, `cron_run_log`, `system_alerts` |
+| Cron | `pg_cron` já em uso (mesmo padrão dos jobs do catálogo) |
+| Sync VPS / Observer | `bot-ingest*`, `observer_*` |
 
-1. Bloqueio causado por enriquecimento **não pode** derrubar operação.
-2. Worker de enriquecimento **não pode** mais estourar 429 em volume normal.
-3. UI deve refletir a verdade: apps de fato bloqueados vs playlists afetadas.
+Nada disso ganha duplicata. Os módulos novos abaixo **chamam** esses componentes.
 
-## Plano
+---
 
-### 1. Separar o circuit breaker por contexto (banco)
+## Componentes NOVOS — apenas onde a responsabilidade é nova
 
-Nova migration:
-- Adicionar coluna `context text NOT NULL DEFAULT 'operation'` em `spotify_circuit_breaker` e `spotify_circuit_breaker_log` (`enrichment` | `operation`).
-- Trocar PK/unique para `(app_id, context)`.
-- Atualizar a RPC `close_expired_spotify_circuit_breakers` para fechar por `(app_id, context)`.
-- Atualizar `get_blocked_playlist_ids` para considerar **apenas** `context = 'operation'` (enriquecimento não afeta a tela do operador).
+1. **Score de prioridade** — não existe hoje.
+   - Tabela `placement_priority_scores (placement_id PK, score numeric, components jsonb, computed_at timestamptz)`.
+   - Função `compute_placement_priority()` consumindo dados já existentes (snapshots, charts, popularity, campanha ativa via `curator_deal_songs`, força do artista, ecosystem score).
+2. **Reordenador editorial** — não existe hoje.
+   - Tabela `playlist_reorder_proposals` (dry-run).
+   - Módulo dentro do worker existente que, quando flag ON, aplica reorder via `_shared/spotify-playlist.ts` (reorder já implementado).
+3. **Auditoria de origem do placement** — não existe hoje.
+   - Coluna `origin` em `catalog_placements` (`CATALOG|CAMPAIGN|MANUAL|IMPORT`), default `CATALOG`.
+   - Trigger AFTER INSERT → `placement_origin_log` (append-only).
+4. **Sinais de aprendizado** — não existe hoje.
+   - Tabela `placement_learning_signals` alimentada por job que consolida snapshots + posição histórica; entra como `components` no score.
 
-### 2. Propagar `context` no guard (edge functions)
+Tudo o mais é evolução de função/RPC existente.
 
-Em `supabase/functions/_shared/spotify.ts`:
-- `assertSpotifyCircuitClosed(appId, context)` e `openSpotifyCircuitBreaker(..., context)` passam a aceitar e gravar `context`.
-- `spotifyFetch` e o fetch-guard global leem `context` do `resolveLogCtx()` (default `operation`).
-- Em `spotify-enrichment-worker/index.ts`, setar `ctx.context = 'enrichment'` antes das chamadas.
+---
 
-Resultado: 429 do worker abre breaker `('app_x','enrichment')`; sync/bot/execução continuam usando `('app_x','operation')` e não veem nada.
+## Fases (incrementais, todas reversíveis via flag)
 
-### 3. Throttle real no worker
+### Fase 1 — Instrumentação (zero mudança de regra)
+- `catalog_placements.origin` + backfill heurístico.
+- `placement_origin_log` + trigger AFTER INSERT (não bloqueia).
+- Flags em `system_flags`, todas OFF: `engine.priority_active`, `engine.reorder_active`, `engine.occupancy_autofill`, `engine.campaign_promotes`, `engine.editorial_weights`.
+- Atualizar todos os call sites de INSERT em `catalog_placements` para preencher `origin` explicitamente.
 
-`supabase/functions/spotify-enrichment-worker/index.ts`:
-- Reduzir defaults: `BATCH=10`, `CONCURRENCY=1`, `STALL_MS=400` (Spotify Web API tolera ~10 req/s sustentado por app).
-- Implementar **token-bucket por app_id** dentro do worker (limite ~5 req/s) — pausa naturalmente antes de levar 429.
-- Ao receber 429: abortar o lote inteiro e respeitar `Retry-After` integral antes de re-claim.
+**Aceite:** comportamento idêntico, log popula, flags existem.
 
-### 4. Fallback estruturado nas edges que chamam Spotify
+### Fase 2 — Ocupação como RPC interna do engine
+Sem novo worker. Nova RPC `enqueue_catalog_autofill(playlist_id uuid)` que:
+- lê `v_catalog_playlist_occupancy` para detectar vagas reais;
+- aplica filtros já existentes (gênero, cooldown via `playlist_cooldowns`, limite por artista, diversidade);
+- enfileira em `catalog_snapshot_queue` com `origin='CATALOG'`.
 
-Padrão aplicado em `resolve-catalog-track`, `diagnose-managed-playlist`, `preview-distribute-catalog-track`, `register-curator-playlist`:
-- `catch (SpotifyCircuitOpenError)` → retorna **HTTP 200** com `{ ok:false, error:"spotify_circuit_open", fallback:true, context, blocked_until, retry_after_seconds }`.
-- Frontend já trata `!r.ok` mostrando mensagem; sem mais 500/tela branca.
+Consumo continua sendo `process-catalog-placements` sem alteração de núcleo. Novo cron `cron-catalog-autofill` criado mas **desligado por flag**.
 
-### 5. UI honesta
+### Fase 3 — Cálculo de prioridade (shadow)
+- `placement_priority_scores` + `compute_placement_priority()`.
+- Cron de 1h calcula scores. Nenhuma posição muda. Flag `engine.priority_active=ON` apenas habilita gravação.
 
-`src/components/operacao/MinhasPlaylists.tsx` + `src/hooks/useSpotifyAppsStatus.ts`:
-- Renomear chip para `"{N} playlists em app rate-limited"` (ou ocultar quando todos os breakers forem de `enrichment`).
-- Tooltip lista cada app distinto + horário de liberação.
-- Adicionar segundo hook `useBlockedAppsCount()` que conta apps únicos com breaker `operation` aberto — usar esse número quando quisermos falar de "apps".
+### Fase 4 — Reordenador (dry-run → cohort)
+- Módulo `reorderer` interno ao worker, consome scores + inventário → `playlist_reorder_proposals`.
+- Quando `engine.reorder_active=ON` para um cohort específico, aplica reorder real via helper Spotify existente.
 
-### 6. Botão admin: "Resetar breaker"
-
-Em `/sistema` (aba Saúde) adicionar ação que chama RPC `force_close_spotify_circuit_breaker(app_id, context)` (admin-only) — para destravar manualmente sem esperar `retry_after`.
-
-## Arquivos afetados
-
+### Fase 5 — Campanhas viram promotoras (camada de compat)
+Atrás de `engine.campaign_promotes`:
 ```text
-supabase/migrations/<novo>.sql              (context + RPCs)
-supabase/functions/_shared/spotify.ts       (context no guard)
-supabase/functions/spotify-enrichment-worker/index.ts (throttle + ctx)
-supabase/functions/resolve-catalog-track/index.ts     (fallback ctx)
-supabase/functions/diagnose-managed-playlist/index.ts (fallback ctx)
-supabase/functions/preview-distribute-catalog-track/index.ts
-supabase/functions/register-curator-playlist/index.ts
-src/hooks/useSpotifyAppsStatus.ts           (novo hook + semântica)
-src/components/operacao/MinhasPlaylists.tsx (chip honesto)
-src/pages/Sistema.tsx                       (botão reset admin)
+start_campaign(track, playlist):
+  if alive_placement existe → bump_priority + recompute_position
+  else → enqueue_catalog_autofill(hint: track, playlist, origin='CAMPAIGN', priority=HIGH)
+         após persistLocal → bump_priority
 ```
+API pública das campanhas não muda — roteamento interno.
 
-## Critérios de aceite
+### Fase 6 — Autofill total (cohort piloto)
+`engine.occupancy_autofill=ON` para um conjunto pequeno de playlists. Meta: `alive_count == capacity` sempre que houver candidatos elegíveis. Métricas via logs existentes.
 
-1. Rodar `spotify-enrichment-worker` em loop por 5 min → nenhum breaker `operation` aberto.
-2. Forçar 429 em enriquecimento → operação (sync de playlist) segue funcionando.
-3. Chip da UI mostra "0 apps bloqueados" quando só houver breaker de enriquecimento.
-4. Botão "Resetar" funciona apenas para admin e fecha o breaker imediatamente.
+### Fase 7 — Inteligência editorial nas posições
+Estender reordenador com perfil topo/meio/fundo a partir de `playlist_blueprints` (tabela já existe). Pesos atrás de `engine.editorial_weights`.
+
+### Fase 8 — Aprendizado contínuo
+`placement_learning_signals` populado por cron a partir de snapshots + posição histórica. Entra como `components` em `compute_placement_priority()`. Sem nova fila.
+
+### Fase 9 — Desativação do caminho legado
+Após cohort 100% estável por N dias:
+- INSERTs diretos em `catalog_placements` originados por campanha são substituídos por `enqueue_catalog_autofill`.
+- Campanhas passam a ser **apenas** modificador de prioridade.
+- Tabelas legadas permanecem (congelar escrita, manter leitura). Rollback = flag OFF.
+
+---
+
+## Pré-requisitos (já mapeados em auditorias anteriores, devem vir antes da Fase 6)
+
+- Corrigir race POST↔persistLocal no `process-catalog-placements`.
+- Remover allowlist hardcoded do Catalog Gateway.
+
+---
+
+## Detalhes técnicos
+
+**Mudanças mínimas no que existe:**
+- `catalog_placements`: +`origin`.
+- `process-catalog-placements`: ordena leitura da fila por `priority_score` quando `engine.priority_active=ON` (mudança pequena, atrás de flag).
+- Helpers Spotify, fila, lease, reaper, dedupe: intocados.
+
+**Reversibilidade:** flag OFF restaura comportamento anterior em todas as fases. Sem DROP, sem trigger BEFORE, sem mudança de contrato em RPC pública.
+
+**Critério de sucesso (alinhado à diretriz):** quando a Fase 9 puder ser ativada sem regressão funcional, a migração está concluída — campanhas viraram modificadores de prioridade e o catálogo é o administrador permanente das playlists.
+
+---
+
+## Próximo passo
+
+Aprovar e iniciar **Fase 1** (coluna `origin` + `placement_origin_log` + flags). Sem mudança de comportamento, dá base de evidência para tudo que vem depois.
