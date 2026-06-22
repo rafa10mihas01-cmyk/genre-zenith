@@ -22,7 +22,6 @@ export type SpotifyApp = {
   client_id: string;
   client_id_preview: string;
   max_accounts: number;
-  is_default: boolean;
   status: string;
   notes: string | null;
   owner_email: string | null;
@@ -199,7 +198,6 @@ export function SpotifyAppsManager({
       id: editing.id,
       name: (editing.name ?? "").trim(),
       max_accounts: Number(editing.max_accounts ?? 5),
-      is_default: !!editing.is_default,
       notes: editing.notes ?? null,
       owner_email: (editing as any).owner_email ?? null,
       status: editing.status ?? "active",
@@ -293,7 +291,7 @@ export function SpotifyAppsManager({
           <Button
             size="sm"
             variant="outline"
-            onClick={() => setEditing({ name: "", max_accounts: 5, is_default: apps.length === 0, status: "active" })}
+            onClick={() => setEditing({ name: "", max_accounts: 5, status: "active" })}
             className="h-8 text-xs gap-1.5"
           >
             <Plus className="h-3.5 w-3.5" /> Cadastrar app
@@ -331,7 +329,7 @@ export function SpotifyAppsManager({
           </div>
           <Button
             size="sm"
-            onClick={() => setEditing({ name: "", max_accounts: 5, is_default: true, status: "active" })}
+            onClick={() => setEditing({ name: "", max_accounts: 5, status: "active" })}
             className="h-9 text-xs gap-1.5"
           >
             <Plus className="h-3.5 w-3.5" /> Cadastrar app
@@ -364,11 +362,6 @@ export function SpotifyAppsManager({
                         </button>
                         <h3 className="text-sm font-bold">{a.name}</h3>
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">{a.slug}</span>
-                        {a.is_default && (
-                          <span className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/15 text-primary">
-                            <Star className="h-2.5 w-2.5" /> padrão
-                          </span>
-                        )}
                         {isPaused ? (
                           <span className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-warning/30 text-warning bg-warning/10">
                             <span className="h-1.5 w-1.5 rounded-full bg-warning" /> pausado
@@ -712,18 +705,6 @@ export function SpotifyAppsManager({
                 <RedirectUrisPanel slug={editing.slug} />
               </div>
             )}
-            <label className="flex items-start gap-2.5 text-xs text-muted-foreground p-3 rounded-md bg-muted/20 border border-border/40 cursor-pointer hover:bg-muted/30 transition-colors">
-              <input
-                type="checkbox"
-                checked={!!editing?.is_default}
-                onChange={(e) => setEditing((s) => ({ ...s!, is_default: e.target.checked }))}
-                className="mt-0.5 accent-primary"
-              />
-              <span className="leading-relaxed">
-                <span className="text-foreground font-medium">Definir como app padrão</span>
-                <span className="block text-[11px] mt-0.5">Usado quando nenhum app é escolhido explicitamente.</span>
-              </span>
-            </label>
           </div>
           <DialogFooter className="px-6 py-3 border-t border-border/40 shrink-0">
             <Button variant="outline" size="sm" onClick={() => setEditing(null)} disabled={saving}>Cancelar</Button>
