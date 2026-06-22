@@ -295,27 +295,35 @@ export default function Operacao() {
           const stripLoading = loading && playlistsAll.length === 0;
           return (
             <>
-              {/* Mobile/tablet: strip compacta no padrão Catálogo */}
-              <KpiCompactStrip
-                loading={stripLoading}
-                rows={[
-                  {
-                    cols: 3,
-                    items: [
-                      { label: "Salvamentos", value: formatNumber(followers) },
-                      { label: "Plays/mês", value: formatNumber(followers * 30) },
-                      { label: "Ativas", value: formatNumber(count) },
-                    ],
-                  },
-                  {
-                    cols: 2,
-                    items: [
-                      { label: "Saúde média", value: String(playlistStats.avgHealth) },
-                      { label: "Risco/Inativ.", value: `${playlistStats.atRisk} / ${playlistStats.inactive}` },
-                    ],
-                  },
-                ]}
-              />
+              {/* Mobile/tablet: duas réguas separadas — padrão Catálogo */}
+              <div className="lg:hidden space-y-3">
+                <KpiCompactStrip
+                  loading={stripLoading}
+                  rows={[
+                    {
+                      cols: 3,
+                      items: [
+                        { label: "Salvamentos", value: formatNumber(followers) },
+                        { label: "Plays/mês", value: formatNumber(followers * 30) },
+                        { label: "Ativas", value: formatNumber(count) },
+                      ],
+                    },
+                  ]}
+                />
+                <KpiCompactStrip
+                  loading={stripLoading}
+                  rows={[
+                    {
+                      cols: 3,
+                      items: [
+                        { label: "Saúde média", value: String(playlistStats.avgHealth) },
+                        { label: "Destaques", value: String(playlistStats.topPerf) },
+                        { label: "Risco/Inat.", value: `${playlistStats.atRisk} / ${playlistStats.inactive}` },
+                      ],
+                    },
+                  ]}
+                />
+              </div>
 
               {/* Desktop: KPIs grandes */}
               <section className="hidden lg:grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
