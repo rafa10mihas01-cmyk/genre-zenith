@@ -1,8 +1,9 @@
 // Distribuição Natural — plano gradual por ondas.
-// Usa só a infra da Fase 2 (gênero + vaga + cooldown). Sem score, ranking ou pesos.
-import { useState } from "react";
+// Consolidação: usa só dados já existentes (v_catalog_distribution_plans + system_flags).
+// Nenhuma nova fonte, RPC, métrica ou cálculo de negócio.
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Play, Save, Calendar, Activity, Layers, ChevronDown } from "lucide-react";
+import { Play, Save, Activity, Layers, ChevronDown, Settings2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,44 @@ type Flags = {
   engine_natural_distribution_max_per_wave_per_track: number;
   engine_natural_distribution_tier_delay_days: number;
 };
+
+type DerivedStatus = "distribuindo" | "aguardando_onda" | "aguardando_vaga" | "erro" | "finalizada";
+
+function derivePlanStatus(p: Plan): DerivedStatus {
+  const s = (p.status ?? "").toLowerCase();
+  if (s === "completed" || p.completed_at) return "finalizada";
+  if (s === "error" || s === "failed" || s === "paused") return "erro";
+  const now = Date.now();
+  const nextMs = p.next_wave_at ? new Date(p.next_wave_at).getTime() : null;
+  if (p.total_pending <= 0) return "aguardando_vaga";
+  if (nextMs && nextMs > now) return "aguardando_onda";
+  return "distribuindo";
+}
+
+const STATUS_META: Record<DerivedStatus, { dot: string; label: string; chip: string }> = {
+  distribuindo:     { dot: "bg-emerald-500",  label: "Distribuindo",           chip: "border-emerald-500/40 text-emerald-300 bg-emerald-500/10" },
+  aguardando_vaga:  { dot: "bg-yellow-400",   label: "Aguardando vaga",        chip: "border-yellow-400/40 text-yellow-200 bg-yellow-400/10" },
+  aguardando_onda:  { dot: "bg-orange-400",   label: "Aguardando próxima onda",chip: "border-orange-400/40 text-orange-200 bg-orange-400/10" },
+  erro:             { dot: "bg-red-500",      label: "Com erro",               chip: "border-red-500/40 text-red-300 bg-red-500/10" },
+  finalizada:       { dot: "bg-muted-foreground",label: "Finalizada",          chip: "border-border text-muted-foreground bg-muted/20" },
+};
+
+function fmtDateTime(iso: string | null) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
+function fmtTime(iso: string | null) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
+
+function daysUntil(iso: string | null): number | null {
+  if (!iso) return null;
+  const diff = new Date(iso).getTime() - Date.now();
+  if (!Number.isFinite(diff)) return null;
+  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+}
 
 async function fetchFlags(): Promise<Flags | null> {
   const { data, error } = await supabase
@@ -75,7 +114,33 @@ export function DistribuicaoTab() {
   const flags = flagsQ.data;
   const plans = plansQ.data ?? [];
 
+  // Derivações puramente em cima dos campos existentes.
+  const decorated = useMemo(
+    () => plans.map((p) => ({ ...p, _status: derivePlanStatus(p), _etaDays: daysUntil(p.expected_end_at) })),
+    [plans],
+  );
 
+  const summary = useMemo(() => {
+    const counts = { distribuindo: 0, aguardando_vaga: 0, aguardando_onda: 0, erro: 0, finalizada: 0 } as Record<DerivedStatus, number>;
+    let nextWave: number | null = null;
+    const etas: number[] = [];
+    for (const p of decorated) {
+      counts[p._status] += 1;
+      if (p._status !== "finalizada" && p.next_wave_at) {
+        const ms = new Date(p.next_wave_at).getTime();
+        if (ms > Date.now() && (nextWave == null || ms < nextWave)) nextWave = ms;
+      }
+      if (p._status !== "finalizada" && p._etaDays != null) etas.push(p._etaDays);
+    }
+    const etaAvg = etas.length ? Math.round(etas.reduce((a, b) => a + b, 0) / etas.length) : null;
+    const aguardandoTotal = counts.aguardando_vaga + counts.aguardando_onda;
+    return {
+      counts,
+      aguardandoTotal,
+      nextWaveLabel: nextWave ? fmtTime(new Date(nextWave).toISOString()) : null,
+      etaAvg,
+    };
+  }, [decorated]);
 
   const saveSettingsMut = useMutation({
     mutationFn: async () => {
@@ -144,9 +209,49 @@ export function DistribuicaoTab() {
 
   return (
     <div className="space-y-6">
+      {/* Resumo operacional — frase humana, só interpreta o que já existe */}
+      <section className="rounded-2xl border border-border bg-card px-4 py-4 sm:px-5 sm:py-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Estado agora</div>
+            <p className="mt-1 text-sm sm:text-[15px] leading-relaxed text-foreground">
+              <span className="font-semibold text-emerald-300 tabular-nums">{summary.counts.distribuindo}</span>{" "}
+              distribuindo ·{" "}
+              <span className="font-semibold text-foreground tabular-nums">{summary.counts.finalizada}</span>{" "}
+              finalizadas ·{" "}
+              <span className="font-semibold text-yellow-200 tabular-nums">{summary.aguardandoTotal}</span>{" "}
+              aguardando
+              {summary.counts.erro > 0 && (
+                <>
+                  {" "}·{" "}
+                  <span className="font-semibold text-red-300 tabular-nums">{summary.counts.erro}</span>{" "}
+                  com erro
+                </>
+              )}
+              .
+            </p>
+            <p className="mt-1.5 text-xs sm:text-sm text-muted-foreground">
+              {summary.nextWaveLabel
+                ? <>Próxima onda às <span className="text-foreground tabular-nums">{summary.nextWaveLabel}</span>. </>
+                : <>Sem próxima onda agendada. </>}
+              {summary.etaAvg != null
+                ? <>ETA médio: <span className="text-foreground tabular-nums">{summary.etaAvg}</span> {summary.etaAvg === 1 ? "dia" : "dias"}.</>
+                : <>ETA médio indisponível.</>}
+            </p>
+          </div>
+          <span
+            className={cn(
+              "shrink-0 inline-flex items-center gap-1.5 px-2 py-1 rounded-full border text-[10px] uppercase tracking-wider",
+              isActive ? "border-emerald-500/40 text-emerald-300 bg-emerald-500/10" : "border-border text-muted-foreground",
+            )}
+          >
+            <span className={cn("h-1.5 w-1.5 rounded-full", isActive ? "bg-emerald-400" : "bg-muted-foreground")} />
+            Engine {isActive ? "ativa" : "pausada"}
+          </span>
+        </div>
+      </section>
 
-
-      {/* Lista de planos — operacional, vem primeiro */}
+      {/* Lista de planos — elemento principal */}
       <section className="rounded-2xl border border-border bg-card">
         <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-2">
           <h3 className="text-sm font-semibold flex items-center gap-2">
@@ -168,38 +273,57 @@ export function DistribuicaoTab() {
             ))}
           </div>
         </div>
+
         {/* Mobile: cards */}
         <div className="md:hidden divide-y divide-border/50">
           {plansQ.isLoading && (
             <div className="px-4 py-6 text-center text-sm text-muted-foreground">Carregando…</div>
           )}
-          {!plansQ.isLoading && plans.length === 0 && (
-            <div className="px-4 py-8 text-center text-sm text-muted-foreground">Nenhum plano ainda. Ative a flag e adicione uma música no catálogo.</div>
+          {!plansQ.isLoading && decorated.length === 0 && (
+            <div className="px-4 py-8 text-center text-sm text-muted-foreground">Nenhum plano ainda. Ative a engine e adicione uma música no catálogo.</div>
           )}
-          {plans.map((p) => (
-            <div key={p.id} className="px-4 py-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-semibold truncate">{p.track_name ?? "—"}</div>
-                  <div className="text-xs text-muted-foreground truncate">{p.artist_name ?? "—"}</div>
+          {decorated.map((p) => {
+            const meta = STATUS_META[p._status];
+            return (
+              <div key={p.id} className="px-4 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className={cn("h-2 w-2 rounded-full shrink-0", meta.dot)} />
+                      <div className="text-sm font-semibold truncate">{p.track_name ?? "—"}</div>
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate mt-0.5 pl-4">{p.artist_name ?? "—"}</div>
+                  </div>
+                  <span className={cn("text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border tabular-nums shrink-0", meta.chip)}>
+                    {meta.label}
+                  </span>
                 </div>
-                <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border border-border/60 text-muted-foreground tabular-nums shrink-0">
-                  {p.window_days}d
-                </span>
-              </div>
-              <div className="mt-2.5 flex items-center gap-2">
-                <div className="flex-1 h-1.5 bg-border/60 rounded-full overflow-hidden">
-                  <div className="h-full bg-primary transition-all" style={{ width: `${p.percent_done}%` }} />
+                <div className="mt-2.5 flex items-center gap-2">
+                  <div className="flex-1 h-1.5 bg-border/60 rounded-full overflow-hidden">
+                    <div className="h-full bg-primary transition-all" style={{ width: `${p.percent_done}%` }} />
+                  </div>
+                  <span className="text-[11px] tabular-nums text-muted-foreground w-9 text-right">{p.percent_done}%</span>
                 </div>
-                <span className="text-[11px] tabular-nums text-muted-foreground w-9 text-right">{p.percent_done}%</span>
+                <div className="mt-2 grid grid-cols-3 gap-2 text-[11px] text-muted-foreground tabular-nums">
+                  <div>
+                    <div className="text-[9px] uppercase tracking-wider">Distribuídas</div>
+                    <div className="text-foreground font-medium">{p.total_distributed}/{p.total_eligible}</div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] uppercase tracking-wider">Pendentes</div>
+                    <div className="text-foreground">{p.total_pending}</div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] uppercase tracking-wider">ETA</div>
+                    <div className="text-foreground">{p._etaDays != null ? `${p._etaDays}d` : "—"}</div>
+                  </div>
+                </div>
+                <div className="mt-1.5 text-[11px] text-muted-foreground tabular-nums">
+                  Próx. onda: <span className="text-foreground">{fmtDateTime(p.next_wave_at)}</span>
+                </div>
               </div>
-              <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground tabular-nums">
-                <span><span className="text-foreground font-medium">{p.total_distributed}</span> de {p.total_eligible}</span>
-                <span>{p.total_pending} pendentes</span>
-                <span>{p.next_wave_at ? new Date(p.next_wave_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—"}</span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Desktop: tabela */}
@@ -207,57 +331,63 @@ export function DistribuicaoTab() {
           <table className="w-full text-sm">
             <thead className="text-xs uppercase tracking-wider text-muted-foreground">
               <tr className="border-b border-border">
+                <th className="text-left px-3 py-2 w-48">Status</th>
                 <th className="text-left px-3 py-2">Música</th>
                 <th className="text-left px-3 py-2">Artista</th>
-                <th className="text-center px-3 py-2 w-16">Janela</th>
-                <th className="text-right px-3 py-2 w-20">Total</th>
-                <th className="text-right px-3 py-2 w-24">Distribuídas</th>
+                <th className="text-left px-3 py-2 w-56">Progresso</th>
                 <th className="text-right px-3 py-2 w-24">Pendentes</th>
-                <th className="text-left px-3 py-2 w-48">Progresso</th>
                 <th className="text-left px-3 py-2 w-32">Próx. onda</th>
+                <th className="text-right px-3 py-2 w-20">ETA</th>
               </tr>
             </thead>
             <tbody>
               {plansQ.isLoading && (
-                <tr><td colSpan={8} className="px-3 py-6 text-center text-muted-foreground">Carregando…</td></tr>
+                <tr><td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">Carregando…</td></tr>
               )}
-              {!plansQ.isLoading && plans.length === 0 && (
-                <tr><td colSpan={8} className="px-3 py-6 text-center text-muted-foreground">Nenhum plano ainda. Ative a flag e adicione uma música no catálogo.</td></tr>
+              {!plansQ.isLoading && decorated.length === 0 && (
+                <tr><td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">Nenhum plano ainda. Ative a engine e adicione uma música no catálogo.</td></tr>
               )}
-              {plans.map((p) => (
-                <tr key={p.id} className="border-b border-border/50">
-                  <td className="px-3 py-2 font-medium">{p.track_name ?? "—"}</td>
-                  <td className="px-3 py-2 text-muted-foreground">{p.artist_name ?? "—"}</td>
-                  <td className="px-3 py-2 text-center tabular-nums">{p.window_days}d</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{p.total_eligible}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-primary">{p.total_distributed}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{p.total_pending}</td>
-                  <td className="px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-1.5 bg-border/60 rounded-full overflow-hidden">
-                        <div className="h-full bg-primary" style={{ width: `${p.percent_done}%` }} />
+              {decorated.map((p) => {
+                const meta = STATUS_META[p._status];
+                return (
+                  <tr key={p.id} className="border-b border-border/50">
+                    <td className="px-3 py-2">
+                      <span className={cn("inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] uppercase tracking-wider", meta.chip)}>
+                        <span className={cn("h-1.5 w-1.5 rounded-full", meta.dot)} />
+                        {meta.label}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 font-medium">{p.track_name ?? "—"}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{p.artist_name ?? "—"}</td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-1.5 bg-border/60 rounded-full overflow-hidden">
+                          <div className="h-full bg-primary" style={{ width: `${p.percent_done}%` }} />
+                        </div>
+                        <span className="text-xs tabular-nums text-muted-foreground w-10 text-right">{p.percent_done}%</span>
                       </div>
-                      <span className="text-xs tabular-nums text-muted-foreground w-10 text-right">{p.percent_done}%</span>
-                    </div>
-                    <div className="text-[10px] uppercase tracking-wider mt-0.5 text-muted-foreground">{p.status}</div>
-                  </td>
-                  <td className="px-3 py-2 text-xs text-muted-foreground">
-                    {p.next_wave_at ? new Date(p.next_wave_at).toLocaleString("pt-BR") : "—"}
-                  </td>
-                </tr>
-              ))}
+                      <div className="text-[10px] mt-0.5 text-muted-foreground tabular-nums">
+                        {p.total_distributed} de {p.total_eligible} · janela {p.window_days}d
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums">{p.total_pending}</td>
+                    <td className="px-3 py-2 text-xs text-muted-foreground tabular-nums">{fmtDateTime(p.next_wave_at)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums text-xs">{p._etaDays != null ? `${p._etaDays}d` : "—"}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       </section>
 
-      {/* Configurações (Ritmo) — colapsado por padrão pra evitar edição acidental */}
+      {/* Configuração da Engine — colapsada por padrão */}
       <details className="group rounded-2xl border border-border bg-card overflow-hidden">
         <summary className="list-none cursor-pointer px-4 py-3 flex items-center justify-between gap-2 hover:bg-muted/30 transition-colors">
           <h3 className="text-sm font-semibold flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-primary" />
-            Ritmo da distribuição
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-normal ml-1">configuração avançada</span>
+            <Settings2 className="h-4 w-4 text-muted-foreground" />
+            Configuração da Engine
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-normal ml-1">avançado</span>
           </h3>
           <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
         </summary>
@@ -360,7 +490,6 @@ export function DistribuicaoTab() {
           </p>
         </div>
       </details>
-
     </div>
   );
 }
