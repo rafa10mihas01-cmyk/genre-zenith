@@ -163,7 +163,7 @@ export function SpotifyAppsManager({
     if (next.has(id)) next.delete(id); else next.add(id);
     return next;
   });
-  const APPS_PER_PAGE = 5;
+  const APPS_PER_PAGE = 8;
 
   async function load() {
     setLoading(true);
@@ -337,6 +337,7 @@ export function SpotifyAppsManager({
         </div>
       ) : (
         <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {visibleApps.slice(page * APPS_PER_PAGE, page * APPS_PER_PAGE + APPS_PER_PAGE).map((a) => {
             const appAccounts = accountsByApp.get(a.id) ?? [];
             // Deriva uso a partir das contas reais (prop), pra atualizar na hora ao deletar/conectar.
@@ -345,81 +346,101 @@ export function SpotifyAppsManager({
             const isPaused = a.status !== "active";
             const isCollapsed = collapsedApps.has(a.id);
             return (
-              <article key={a.id} className="nx-card overflow-hidden">
-                {/* App header */}
-                <header className={cn("p-4", !isCollapsed && "border-b border-border")}>
-                  <div className="flex items-start justify-between gap-3 flex-wrap">
+              <article
+                key={a.id}
+                className={cn(
+                  "nx-card overflow-hidden flex flex-col transition-colors",
+                  "border-l-2",
+                  isPaused ? "border-l-warning/60" : "border-l-success/60",
+                  !isCollapsed && "sm:col-span-2 lg:col-span-3 xl:col-span-4",
+                )}
+              >
+                {/* App header — compacto, padrão catálogo */}
+                <header className={cn("p-3", !isCollapsed && "border-b border-border")}>
+                  {/* Linha 1 — identidade */}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <button
+                      type="button"
+                      onClick={() => toggleAppCollapsed(a.id)}
+                      className="h-8 w-8 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 hover:bg-primary/20 transition-colors"
+                      title={isCollapsed ? "Expandir" : "Recolher"}
+                      aria-expanded={!isCollapsed}
+                    >
+                      <Music2 className="h-3.5 w-3.5 text-primary" />
+                    </button>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <button
-                          type="button"
-                          onClick={() => toggleAppCollapsed(a.id)}
-                          className="h-6 w-6 -ml-1 rounded hover:bg-muted/40 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                          title={isCollapsed ? "Expandir" : "Recolher"}
-                          aria-expanded={!isCollapsed}
-                        >
-                          <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isCollapsed && "-rotate-90")} />
-                        </button>
-                        <h3 className="text-sm font-bold">{a.name}</h3>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">{a.slug}</span>
-                        {isPaused ? (
-                          <span className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-warning/30 text-warning bg-warning/10">
-                            <span className="h-1.5 w-1.5 rounded-full bg-warning" /> pausado
-                          </span>
-                        ) : (
-                          <span className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-success/30 text-success bg-success/10">
-                            <span className="h-1.5 w-1.5 rounded-full bg-success" /> ativo
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-[11px] text-muted-foreground font-mono truncate mt-1">{a.client_id_preview}</div>
-                      {a.owner_email ? (
-                        <div
-                          className="flex items-center gap-1.5 mt-1 text-[11px] text-muted-foreground min-w-0"
-                          title={`Dono do app no Spotify Developer: ${a.owner_email}`}
-                        >
-                          <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70 shrink-0">Dono:</span>
-                          <span className="truncate">{a.owner_email}</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1.5 mt-1 text-[11px] text-muted-foreground/60 min-w-0 italic">
-                          Dono do app não informado — edite o app para preencher.
-                        </div>
-                      )}
+                      <div className="text-[12.5px] font-semibold text-foreground truncate leading-tight">{a.name}</div>
+                      <div className="text-[10.5px] text-muted-foreground font-mono truncate mt-0.5">{a.slug}</div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={isPaused || full}
-                        onClick={() => setInviteAppId(a.id)}
-                        className="h-8 text-xs gap-1.5 border-white/10 hover:bg-white/[0.06] disabled:opacity-50"
-                        title={
-                          isPaused ? "App pausado"
-                          : full ? "Sem vagas neste app"
-                          : `Gerar link de convite para "${a.name}"`
-                        }
-                      >
-                        <LinkIcon className="h-3.5 w-3.5" /> Link de convite
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={isPaused || full}
-                        onClick={() => onConnect(a.id, false)}
-                        className="h-8 text-xs gap-1.5 border-primary/40 text-primary hover:bg-primary/10 hover:text-primary disabled:opacity-50"
-                        title={
-                          isPaused ? "App pausado"
-                          : full ? "Sem vagas neste app"
-                          : `Conectar nova conta no app "${a.name}"`
-                        }
-                      >
-                        <LinkIcon className="h-3.5 w-3.5" /> Conectar conta
-                      </Button>
-                    </div>
+                    {isPaused ? (
+                      <span className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-warning/30 text-warning bg-warning/10 shrink-0">
+                        <span className="h-1.5 w-1.5 rounded-full bg-warning" /> pausado
+                      </span>
+                    ) : (
+                      <span className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-success/30 text-success bg-success/10 shrink-0">
+                        <span className="h-1.5 w-1.5 rounded-full bg-success" /> ativo
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => toggleAppCollapsed(a.id)}
+                      className="h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/40 flex items-center justify-center shrink-0 transition-colors"
+                      aria-label={isCollapsed ? "Expandir" : "Recolher"}
+                    >
+                      <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isCollapsed && "-rotate-90")} />
+                    </button>
                   </div>
-                  <div className="mt-3">
+
+                  <div className="my-2 border-t border-border/40" />
+
+                  {/* Linha 2 — dono + capacidade */}
+                  <div className="space-y-2 min-w-0">
+                    {a.owner_email ? (
+                      <div
+                        className="flex items-center gap-1.5 text-[10.5px] text-muted-foreground min-w-0"
+                        title={`Dono do app no Spotify Developer: ${a.owner_email}`}
+                      >
+                        <span className="text-[9.5px] uppercase tracking-wide text-muted-foreground/70 shrink-0">Dono</span>
+                        <span className="truncate font-mono">{a.owner_email}</span>
+                      </div>
+                    ) : (
+                      <div className="text-[10.5px] text-muted-foreground/60 italic truncate">
+                        Dono não informado
+                      </div>
+                    )}
                     <CapacityBar used={liveUsed} max={a.max_accounts} />
+                  </div>
+
+                  {/* Linha 3 — ações */}
+                  <div className="flex items-center gap-1.5 mt-3 pt-2 border-t border-border/30">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={isPaused || full}
+                      onClick={() => setInviteAppId(a.id)}
+                      className="h-7 px-2 text-[11px] gap-1 flex-1 border-white/10 hover:bg-white/[0.06] disabled:opacity-50"
+                      title={
+                        isPaused ? "App pausado"
+                        : full ? "Sem vagas neste app"
+                        : `Gerar link de convite para "${a.name}"`
+                      }
+                    >
+                      <LinkIcon className="h-3 w-3" /> Convite
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={isPaused || full}
+                      onClick={() => onConnect(a.id, false)}
+                      className="h-7 px-2 text-[11px] gap-1 flex-1 border-primary/40 text-primary hover:bg-primary/10 hover:text-primary disabled:opacity-50"
+                      title={
+                        isPaused ? "App pausado"
+                        : full ? "Sem vagas neste app"
+                        : `Conectar nova conta no app "${a.name}"`
+                      }
+                    >
+                      <LinkIcon className="h-3 w-3" /> Conectar
+                    </Button>
                   </div>
                 </header>
 
@@ -527,6 +548,8 @@ export function SpotifyAppsManager({
               </article>
             );
           })}
+          </div>
+
 
           {/* Paginação de apps */}
           {visibleApps.length > APPS_PER_PAGE && (() => {
