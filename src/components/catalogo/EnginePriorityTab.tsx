@@ -46,9 +46,8 @@ type PlaylistDeliveryRow = {
   cover_url: string | null;
   spotify_url: string | null;
   followers: number | null;
-  total_plays_7d: number | null;
-  exact_delivery: number;
-  attributed_delivery: number;
+  plays_7d: number;
+  plays_28d: number | null;
   catalog_tracks: number;
   active_tracks: number;
   removed_tracks: number;
@@ -56,24 +55,11 @@ type PlaylistDeliveryRow = {
   status: "active" | "partial" | "removed";
   archived: boolean;
   growth_delta: number | null;
-  source: "playlist_breakdown" | "catalog_growth" | "mixed" | "placement_only";
   exact_tracks: number;
-  attributed_tracks: number;
-};
-
-type TrackTelemetryRow = {
-  catalog_track_id: string;
-  baseline_at: string | null;
-  last_captured_at: string | null;
-  last_plays_28d: number | null;
-  growth_abs: number | null;
-  growth_pct: number | null;
-  snapshots_count: number;
 };
 
 type PlaylistBreakdownPoint = {
   current_plays_7d: number;
-  delivery: number;
   growth_delta: number | null;
   last_at: string | null;
 };
@@ -131,18 +117,8 @@ async function fetchPlacementsJoined(): Promise<PlacementJoined[]> {
 }
 
 
-async function fetchTrackTelemetry(): Promise<Record<string, TrackTelemetryRow>> {
-  const { data, error } = await supabase
-    .from("v_catalog_track_telemetry")
-    .select("catalog_track_id, baseline_at, last_captured_at, last_plays_28d, growth_abs, growth_pct, snapshots_count")
-    .limit(20000);
-  if (error) throw error;
-  return Object.fromEntries(((data ?? []) as TrackTelemetryRow[]).map((r) => [r.catalog_track_id, r]));
-}
-
-// Breakdown exato quando existe: song_snapshot_playlists por snapshot da música.
-// Importante: algumas coletas do catálogo gravam apenas total agregado em song_snapshots;
-// nesses casos o fallback fica em v_catalog_track_telemetry, sem inventar nova fonte.
+// Fonte oficial da coleta por playlist: song_snapshots → song_snapshot_playlists.
+// Sem fallback, sem rateio, sem métrica artificial.
 async function fetchPlaylistBreakdown(
   spotifyToCatalogTrack: Record<string, string>,
 ): Promise<PlaylistBreakdown> {
@@ -180,7 +156,6 @@ async function fetchPlaylistBreakdown(
       const prev = points.length >= 2 ? points[points.length - 2].plays : null;
       byTrackPlaylist[trackId][pid] = {
         current_plays_7d: last,
-        delivery: Math.max(0, last - first),
         growth_delta: prev == null ? null : last - prev,
         last_at: points[points.length - 1]?.at ?? null,
       };
