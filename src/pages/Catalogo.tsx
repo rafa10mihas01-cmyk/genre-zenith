@@ -385,3 +385,58 @@ export default function Catalogo() {
     </>
   );
 }
+
+function NaturalDistributionToggle() {
+  const qc = useQueryClient();
+  const flagsQ = useQuery({
+    queryKey: ["system_flags", "natural-distribution-active"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("system_flags")
+        .select("id, engine_natural_distribution_active")
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data as { id: string; engine_natural_distribution_active: boolean } | null;
+    },
+    staleTime: 30_000,
+  });
+
+  const toggleMut = useMutation({
+    mutationFn: async (value: boolean) => {
+      if (!flagsQ.data?.id) throw new Error("Flags não carregadas");
+      const { error } = await supabase
+        .from("system_flags")
+        .update({ engine_natural_distribution_active: value })
+        .eq("id", flagsQ.data.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["system_flags"] });
+      qc.invalidateQueries({ queryKey: ["natural-distribution"] });
+    },
+    onError: (e: Error) => toast.error(e?.message ?? "Falha ao alterar"),
+  });
+
+  const isActive = !!flagsQ.data?.engine_natural_distribution_active;
+  const disabled = !flagsQ.data || toggleMut.isPending;
+
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-2 h-9 rounded-full border px-3 transition-colors",
+        isActive ? "border-primary/40 bg-primary/10" : "border-border bg-card",
+      )}
+      title={isActive ? "Distribuição Natural ativa" : "Distribuição Natural desligada"}
+    >
+      <Power className={cn("h-3.5 w-3.5", isActive ? "text-primary" : "text-muted-foreground")} />
+      <span className="hidden sm:inline text-xs font-medium text-foreground">Natural</span>
+      <Switch
+        checked={isActive}
+        disabled={disabled}
+        onCheckedChange={(v) => toggleMut.mutate(v)}
+        aria-label="Distribuição Natural"
+      />
+    </div>
+  );
+}
