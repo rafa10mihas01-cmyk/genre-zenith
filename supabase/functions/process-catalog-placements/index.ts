@@ -66,6 +66,7 @@ type Enriched = ClaimedRow & {
   tracks_count: number | null;
   spotify_track_id: string;
   spotify_uri: string | null;
+  track_name: string | null;
 };
 
 type Outcome = "active" | "already_present" | "retry" | "failed";
@@ -165,8 +166,10 @@ Deno.serve(async (req) => {
       tracks_count: typeof p.tracks_count === "number" ? p.tracks_count : null,
       spotify_track_id: t.spotify_track_id,
       spotify_uri: t.spotify_uri ?? null,
+      track_name: typeof t.track_name === "string" ? t.track_name : null,
     });
   }
+
 
   // Inválidos (sem track/playlist no banco) → fatal direto.
   for (const r of invalid) {
