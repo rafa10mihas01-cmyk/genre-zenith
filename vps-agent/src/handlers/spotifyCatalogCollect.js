@@ -583,7 +583,9 @@ export async function spotifyCatalogCollect(job, ctx = {}) {
       await assertLoggedIn(page);
       await page.locator(SELECTORS.printArea).first().waitFor({ state: "visible", timeout: 15000 });
       await applySevenDayFilter(page);
-      await page.locator(ROW_SEL).first().waitFor({ state: "visible", timeout: 10000 }).catch(() => {});
+      await page.locator('a[href*="/playlist/"]').first().waitFor({ state: "visible", timeout: 10000 }).catch(() => {});
+      const detected = await detectRowSelector(page);
+      if (detected) ROW_SEL = detected;
       return capturePlaylistPrints(page, { catalog_track_id, correlation_id, playlists: result.playlists });
     });
 
