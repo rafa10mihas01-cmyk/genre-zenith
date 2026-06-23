@@ -1,6 +1,7 @@
 // preview-distribute-catalog-track — Etapa 2 do fluxo. Dry-run.
 // Recebe spotify_track_id + genre_id e retorna o que aconteceria se distribuísse.
 // Não persiste nada. Chama a RPC preview_distribute_catalog_track.
+// (touch: força redeploy 2026-06-23)
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
