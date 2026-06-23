@@ -206,9 +206,9 @@ function bucket(score: number) {
 export function EnginePriorityTab() {
   const qc = useQueryClient();
 
-  const attrQ = useQuery({
-    queryKey: ["engine-delivery", "attribution"],
-    queryFn: fetchAttribution,
+  const placementsQ = useQuery({
+    queryKey: ["engine-delivery", "placements"],
+    queryFn: fetchPlacements,
     staleTime: 15_000,
     refetchInterval: 30_000,
     refetchOnWindowFocus: true,
@@ -218,14 +218,27 @@ export function EnginePriorityTab() {
     queryFn: fetchManagedIndex,
     staleTime: 60_000,
   });
-  const growthQ = useQuery({
-    queryKey: ["engine-delivery", "growth"],
-    queryFn: fetchGrowthByPlaylist,
+  const tracksQ = useQuery({
+    queryKey: ["engine-delivery", "tracks-index"],
+    queryFn: fetchCatalogTracks,
+    staleTime: 60_000,
+  });
+  const catalogSpotifyIds = useMemo(() => {
+    const s = new Set<string>();
+    for (const t of Object.values(tracksQ.data ?? {})) {
+      if (t.spotify_track_id) s.add(t.spotify_track_id);
+    }
+    return s;
+  }, [tracksQ.data]);
+  const playsQ = useQuery({
+    queryKey: ["engine-delivery", "plays", catalogSpotifyIds.size],
+    queryFn: () => fetchPlaysByPlaylist(catalogSpotifyIds),
+    enabled: catalogSpotifyIds.size > 0,
     staleTime: 30_000,
     refetchInterval: 60_000,
   });
 
-  // Realtime — recálculos da engine continuam atualizando o diagnóstico
+  // Realtime — recálculos da engine atualizam o diagnóstico, placements atualizam o ranking
   useEffect(() => {
     const channel = supabase
       .channel("engine-priority-live")
@@ -235,7 +248,7 @@ export function EnginePriorityTab() {
       .on("postgres_changes", { event: "*", schema: "public", table: "placement_priority_scores" }, () => {
         qc.invalidateQueries({ queryKey: ["engine-diagnostic"] });
       })
-      .on("postgres_changes", { event: "*", schema: "public", table: "song_snapshots" }, () => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "catalog_placements" }, () => {
         qc.invalidateQueries({ queryKey: ["engine-delivery"] });
       })
       .subscribe();
@@ -245,57 +258,67 @@ export function EnginePriorityTab() {
   }, [qc]);
 
   const rows = useMemo<PlaylistDeliveryRow[]>(() => {
-    const attr = attrQ.data ?? [];
+    const placements = placementsQ.data ?? [];
     const managed = managedQ.data ?? {};
-    const growth = growthQ.data ?? {};
+    const plays = playsQ.data ?? {};
 
-    const byPid = new Map<string, AttributionRow[]>();
-    for (const r of attr) {
-      if (!r.spotify_playlist_id) continue;
-      const list = byPid.get(r.spotify_playlist_id) ?? [];
-      list.push(r);
-      byPid.set(r.spotify_playlist_id, list);
+    const byMp = new Map<string, PlacementRow[]>();
+    for (const p of placements) {
+      const list = byMp.get(p.managed_playlist_id) ?? [];
+      list.push(p);
+      byMp.set(p.managed_playlist_id, list);
     }
 
     const out: PlaylistDeliveryRow[] = [];
-    for (const [pid, list] of byPid.entries()) {
-      const mp = managed[pid];
-      const activeTracks = list.filter((x) => x.status === "active").length;
-      const leftTracks = list.filter((x) => x.status === "left").length;
-      const total_plays_7d = list.reduce((a, b) => a + (b.current_plays_7d ?? 0), 0);
-      const last_delivery = list
-        .map((x) => x.last_seen_at)
-        .filter(Boolean)
-        .sort()
-        .pop() ?? null;
+    for (const [mpId, list] of byMp.entries()) {
+      const mp = managed[mpId];
+      const active = list.filter((x) => x.status === "active").length;
+      const removed = list.filter((x) => x.status === "removed").length;
+      if (active === 0 && removed === 0) continue;
+      const last_delivery =
+        list
+          .map((x) => x.added_at)
+          .filter(Boolean)
+          .sort()
+          .pop() ?? null;
       const status: PlaylistDeliveryRow["status"] =
-        activeTracks > 0 && leftTracks === 0 ? "active" : activeTracks > 0 ? "partial" : "left";
+        active > 0 && removed === 0 ? "active" : active > 0 ? "partial" : "removed";
+      const playData = mp?.spotify_playlist_id ? plays[mp.spotify_playlist_id] : undefined;
 
       out.push({
-        spotify_playlist_id: pid,
-        display_name: mp?.name ?? list[0]?.name ?? pid,
+        managed_playlist_id: mpId,
+        spotify_playlist_id: mp?.spotify_playlist_id ?? null,
+        display_name: mp?.name ?? mpId,
         cover_url: mp?.cover_url ?? null,
-        spotify_url: mp?.spotify_url ?? list[0]?.spotify_url ?? null,
-        total_plays_7d,
+        spotify_url: mp?.spotify_url ?? null,
+        followers: mp?.followers ?? null,
+        total_plays_7d: playData?.plays_7d ?? null,
         catalog_tracks: list.length,
-        active_tracks: activeTracks,
-        left_tracks: leftTracks,
+        active_tracks: active,
+        removed_tracks: removed,
         last_delivery,
         status,
-        managed: !!mp,
         archived: !!mp?.archived_at,
-        growth_delta: growth[pid] ?? null,
+        growth_delta: playData?.growth_delta ?? null,
       });
     }
-    out.sort((a, b) => b.total_plays_7d - a.total_plays_7d);
+    out.sort((a, b) => {
+      // ordena por entrega: primeiro plays 7d (quando houver), depois nº ativo, depois data
+      const pa = a.total_plays_7d ?? -1;
+      const pb = b.total_plays_7d ?? -1;
+      if (pb !== pa) return pb - pa;
+      if (b.active_tracks !== a.active_tracks) return b.active_tracks - a.active_tracks;
+      return (b.last_delivery ?? "").localeCompare(a.last_delivery ?? "");
+    });
     return out;
-  }, [attrQ.data, managedQ.data, growthQ.data]);
+  }, [placementsQ.data, managedQ.data, playsQ.data]);
 
-  const totalPlays = rows.reduce((a, b) => a + b.total_plays_7d, 0);
+  const totalActiveTracks = rows.reduce((a, b) => a + b.active_tracks, 0);
   const totalActive = rows.filter((r) => r.status === "active").length;
   const totalPartial = rows.filter((r) => r.status === "partial").length;
 
-  const loading = attrQ.isLoading || managedQ.isLoading;
+  const loading = placementsQ.isLoading || managedQ.isLoading;
+
 
   return (
     <div className="space-y-6">
