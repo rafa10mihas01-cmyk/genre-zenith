@@ -373,7 +373,7 @@ export function EnginePriorityTab() {
         {/* Mobile: cards */}
         <div className="sm:hidden divide-y divide-border/50">
           {rows.map((r, i) => (
-            <PlaylistRowMobile key={r.spotify_playlist_id} rank={i + 1} row={r} />
+            <PlaylistRowMobile key={r.managed_playlist_id} rank={i + 1} row={r} />
           ))}
         </div>
 
