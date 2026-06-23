@@ -869,16 +869,8 @@ export default function CatalogoMusicaDetalhe() {
             </>
           )}
         </section>
-        {/* Inteligência: timeline → histórico → ranking → saúde → feed (mesma página, sem trocar de aba) */}
-        <MusicaIntelligenceSection
-          track={t}
-          baseline={b}
-          telemetry={tel}
-          placements={placements}
-          snapshots={snapshots}
-          queue={queue}
-        />
       </PageContainer>
     </>
   );
 }
+
