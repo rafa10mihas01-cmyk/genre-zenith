@@ -542,7 +542,9 @@ function Kpi({ label, value }: { label: string; value: any }) {
   );
 }
 
-function fmtNumber(n: number) {
+function fmtNumber(n: number | null | undefined) {
+  if (n == null) return "—";
+
   if (!Number.isFinite(n)) return "—";
   if (Math.abs(n) >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
   if (Math.abs(n) >= 1_000) return (n / 1_000).toFixed(1) + "k";
