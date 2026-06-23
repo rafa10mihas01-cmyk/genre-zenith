@@ -1,12 +1,13 @@
 // Engine — Pergunta operacional: "Quais playlists mais entregam para o meu catálogo?"
 // Ranking principal por plays entregues, agregando placements por playlist.
 // O conteúdo antigo (scores, distribuição, calibração) fica em "Diagnóstico da Engine" (colapsado).
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Brain, Play, Save, RefreshCw, ChevronDown, ListMusic, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -46,6 +47,8 @@ type PlaylistDeliveryRow = {
   spotify_url: string | null;
   followers: number | null;
   total_plays_7d: number | null;
+  exact_delivery: number;
+  attributed_delivery: number;
   catalog_tracks: number;
   active_tracks: number;
   removed_tracks: number;
@@ -53,6 +56,30 @@ type PlaylistDeliveryRow = {
   status: "active" | "partial" | "removed";
   archived: boolean;
   growth_delta: number | null;
+  source: "playlist_breakdown" | "catalog_growth" | "mixed" | "placement_only";
+  exact_tracks: number;
+  attributed_tracks: number;
+};
+
+type TrackTelemetryRow = {
+  catalog_track_id: string;
+  baseline_at: string | null;
+  last_captured_at: string | null;
+  last_plays_28d: number | null;
+  growth_abs: number | null;
+  growth_pct: number | null;
+  snapshots_count: number;
+};
+
+type PlaylistBreakdownPoint = {
+  current_plays_7d: number;
+  delivery: number;
+  growth_delta: number | null;
+  last_at: string | null;
+};
+
+type PlaylistBreakdown = {
+  byTrackPlaylist: Record<string, Record<string, PlaylistBreakdownPoint>>;
 };
 
 type ScoreRow = {
@@ -104,44 +131,62 @@ async function fetchPlacementsJoined(): Promise<PlacementJoined[]> {
 }
 
 
-// Plays/crescimento opcional: agrega song_snapshot_playlists por spotify_playlist_id,
-// considerando snapshots cuja música casa com o catálogo (via spotify_song_id ou catalog_track_id).
-async function fetchPlaysByPlaylist(
-  catalogSpotifyIds: Set<string>,
-): Promise<Record<string, { plays_7d: number; growth_delta: number | null }>> {
-  if (catalogSpotifyIds.size === 0) return {};
+async function fetchTrackTelemetry(): Promise<Record<string, TrackTelemetryRow>> {
+  const { data, error } = await supabase
+    .from("v_catalog_track_telemetry")
+    .select("catalog_track_id, baseline_at, last_captured_at, last_plays_28d, growth_abs, growth_pct, snapshots_count")
+    .limit(20000);
+  if (error) throw error;
+  return Object.fromEntries(((data ?? []) as TrackTelemetryRow[]).map((r) => [r.catalog_track_id, r]));
+}
+
+// Breakdown exato quando existe: song_snapshot_playlists por snapshot da música.
+// Importante: algumas coletas do catálogo gravam apenas total agregado em song_snapshots;
+// nesses casos o fallback fica em v_catalog_track_telemetry, sem inventar nova fonte.
+async function fetchPlaylistBreakdown(
+  spotifyToCatalogTrack: Record<string, string>,
+): Promise<PlaylistBreakdown> {
+  const spotifyIds = new Set(Object.keys(spotifyToCatalogTrack));
+  if (spotifyIds.size === 0) return { byTrackPlaylist: {} };
   const { data, error } = await supabase
     .from("song_snapshot_playlists")
     .select(
-      "spotify_playlist_id, plays_7d, song_snapshots!inner(spotify_song_id, catalog_track_id, captured_at)",
+      "spotify_playlist_id, plays_7d, created_at, song_snapshots!inner(spotify_song_id, catalog_track_id, captured_at)",
     )
     .limit(50000);
   if (error) throw error;
 
-  // (playlist, dia) → soma de plays_7d (apenas snaps que casam com catálogo)
-  const daily: Record<string, Record<string, number>> = {};
+  const series: Record<string, Record<string, Array<{ at: string; plays: number }>>> = {};
   for (const r of (data ?? []) as any[]) {
     const snap = r.song_snapshots;
     if (!snap) continue;
-    const matches =
-      !!snap.catalog_track_id ||
-      (snap.spotify_song_id && catalogSpotifyIds.has(snap.spotify_song_id));
-    if (!matches) continue;
+    const trackId = snap.catalog_track_id ?? spotifyToCatalogTrack[snap.spotify_song_id];
+    if (!trackId) continue;
     const pid = r.spotify_playlist_id;
-    const cap = snap.captured_at;
-    if (!pid || !cap) continue;
-    const day = String(cap).slice(0, 10);
-    daily[pid] ??= {};
-    daily[pid][day] = (daily[pid][day] ?? 0) + (Number(r.plays_7d) || 0);
+    const at = r.created_at ?? snap.captured_at;
+    if (!pid || !at) continue;
+    series[trackId] ??= {};
+    series[trackId][pid] ??= [];
+    series[trackId][pid].push({ at, plays: Number(r.plays_7d) || 0 });
   }
-  const out: Record<string, { plays_7d: number; growth_delta: number | null }> = {};
-  for (const [pid, byDay] of Object.entries(daily)) {
-    const days = Object.keys(byDay).sort();
-    const last = byDay[days[days.length - 1]] ?? 0;
-    const prev = days.length >= 2 ? byDay[days[days.length - 2]] : null;
-    out[pid] = { plays_7d: last, growth_delta: prev == null ? null : last - prev };
+
+  const byTrackPlaylist: PlaylistBreakdown["byTrackPlaylist"] = {};
+  for (const [trackId, byPlaylist] of Object.entries(series)) {
+    byTrackPlaylist[trackId] = {};
+    for (const [pid, points] of Object.entries(byPlaylist)) {
+      points.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+      const first = points[0]?.plays ?? 0;
+      const last = points[points.length - 1]?.plays ?? 0;
+      const prev = points.length >= 2 ? points[points.length - 2].plays : null;
+      byTrackPlaylist[trackId][pid] = {
+        current_plays_7d: last,
+        delivery: Math.max(0, last - first),
+        growth_delta: prev == null ? null : last - prev,
+        last_at: points[points.length - 1]?.at ?? null,
+      };
+    }
   }
-  return out;
+  return { byTrackPlaylist };
 }
 
 async function fetchTopScores(): Promise<ScoreRow[]> {
@@ -212,6 +257,7 @@ function bucket(score: number) {
 // ─────────────────────────────────────────────────────────────────────────────
 export function EnginePriorityTab() {
   const qc = useQueryClient();
+  const [selectedPlaylist, setSelectedPlaylist] = useState<PlaylistDeliveryRow | null>(null);
 
   const placementsQ = useQuery({
     queryKey: ["engine-delivery", "placements-joined-v2"],
@@ -221,19 +267,26 @@ export function EnginePriorityTab() {
     refetchOnWindowFocus: true,
   });
 
-  const catalogSpotifyIds = useMemo(() => {
-    const s = new Set<string>();
+  const spotifyToCatalogTrack = useMemo(() => {
+    const out: Record<string, string> = {};
     for (const p of placementsQ.data ?? []) {
       const id = p.catalog_tracks?.spotify_track_id;
-      if (id) s.add(id);
+      if (id) out[id] = p.catalog_track_id;
     }
-    return s;
+    return out;
   }, [placementsQ.data]);
 
-  const playsQ = useQuery({
-    queryKey: ["engine-delivery", "plays", catalogSpotifyIds.size],
-    queryFn: () => fetchPlaysByPlaylist(catalogSpotifyIds),
-    enabled: catalogSpotifyIds.size > 0,
+  const breakdownQ = useQuery({
+    queryKey: ["engine-delivery", "playlist-breakdown", Object.keys(spotifyToCatalogTrack).length],
+    queryFn: () => fetchPlaylistBreakdown(spotifyToCatalogTrack),
+    enabled: Object.keys(spotifyToCatalogTrack).length > 0,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+
+  const telemetryQ = useQuery({
+    queryKey: ["engine-delivery", "track-telemetry"],
+    queryFn: fetchTrackTelemetry,
     staleTime: 30_000,
     refetchInterval: 60_000,
   });
@@ -250,6 +303,12 @@ export function EnginePriorityTab() {
       .on("postgres_changes", { event: "*", schema: "public", table: "catalog_placements" }, () => {
         qc.invalidateQueries({ queryKey: ["engine-delivery"] });
       })
+      .on("postgres_changes", { event: "*", schema: "public", table: "song_snapshots" }, () => {
+        qc.invalidateQueries({ queryKey: ["engine-delivery"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "song_snapshot_playlists" }, () => {
+        qc.invalidateQueries({ queryKey: ["engine-delivery"] });
+      })
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -258,13 +317,18 @@ export function EnginePriorityTab() {
 
   const rows = useMemo<PlaylistDeliveryRow[]>(() => {
     const placements = placementsQ.data ?? [];
-    const plays = playsQ.data ?? {};
+    const byTrackPlaylist = breakdownQ.data?.byTrackPlaylist ?? {};
+    const telemetry = telemetryQ.data ?? {};
 
     const byMp = new Map<string, PlacementJoined[]>();
+    const activeByTrack = new Map<string, number>();
     for (const p of placements) {
       const list = byMp.get(p.managed_playlist_id) ?? [];
       list.push(p);
       byMp.set(p.managed_playlist_id, list);
+      if (p.status === "active") {
+        activeByTrack.set(p.catalog_track_id, (activeByTrack.get(p.catalog_track_id) ?? 0) + 1);
+      }
     }
 
     const out: PlaylistDeliveryRow[] = [];
@@ -277,40 +341,87 @@ export function EnginePriorityTab() {
         list.map((x) => x.added_at).filter(Boolean).sort().pop() ?? null;
       const status: PlaylistDeliveryRow["status"] =
         active > 0 && removed === 0 ? "active" : active > 0 ? "partial" : "removed";
-      const playData = mp?.spotify_playlist_id ? plays[mp.spotify_playlist_id] : undefined;
+      const pid = mp?.spotify_playlist_id ?? null;
+
+      let exactCurrent = 0;
+      let exactDelivery = 0;
+      let exactGrowth = 0;
+      let hasExactGrowth = false;
+      let attributedDelivery = 0;
+      const exactTracks = new Set<string>();
+      const attributedTracks = new Set<string>();
+
+      for (const p of list) {
+        if (!pid) continue;
+        const exact = byTrackPlaylist[p.catalog_track_id]?.[pid];
+        if (exact) {
+          exactTracks.add(p.catalog_track_id);
+          exactCurrent += exact.current_plays_7d;
+          exactDelivery += exact.delivery;
+          if (exact.growth_delta != null) {
+            exactGrowth += exact.growth_delta;
+            hasExactGrowth = true;
+          }
+          continue;
+        }
+
+        if (p.status !== "active") continue;
+        const tel = telemetry[p.catalog_track_id];
+        const growth = Number(tel?.growth_abs ?? 0);
+        const activeCount = activeByTrack.get(p.catalog_track_id) ?? 0;
+        if (tel?.snapshots_count > 1 && growth > 0 && activeCount > 0) {
+          attributedTracks.add(p.catalog_track_id);
+          attributedDelivery += growth / activeCount;
+        }
+      }
+
+      const totalDelivery = Math.round(exactDelivery + attributedDelivery);
+      const source: PlaylistDeliveryRow["source"] =
+        exactDelivery > 0 && attributedDelivery > 0
+          ? "mixed"
+          : exactDelivery > 0
+            ? "playlist_breakdown"
+            : attributedDelivery > 0
+              ? "catalog_growth"
+              : "placement_only";
 
       out.push({
         managed_playlist_id: mpId,
-        spotify_playlist_id: mp?.spotify_playlist_id ?? null,
+        spotify_playlist_id: pid,
         display_name: mp?.name ?? "Playlist sem nome",
         cover_url: mp?.cover_url ?? null,
         spotify_url: mp?.spotify_url ?? null,
         followers: mp?.followers ?? null,
-        total_plays_7d: playData?.plays_7d ?? null,
+        total_plays_7d: totalDelivery > 0 ? totalDelivery : exactCurrent > 0 ? exactCurrent : null,
+        exact_delivery: Math.round(exactDelivery),
+        attributed_delivery: Math.round(attributedDelivery),
         catalog_tracks: list.length,
         active_tracks: active,
         removed_tracks: removed,
         last_delivery,
         status,
         archived: !!mp?.archived_at,
-        growth_delta: playData?.growth_delta ?? null,
+        growth_delta: hasExactGrowth ? exactGrowth : attributedDelivery > 0 ? Math.round(attributedDelivery) : null,
+        source,
+        exact_tracks: exactTracks.size,
+        attributed_tracks: attributedTracks.size,
       });
     }
     out.sort((a, b) => {
-      const pa = a.total_plays_7d ?? -1;
-      const pb = b.total_plays_7d ?? -1;
+      const pa = deliveryValue(a);
+      const pb = deliveryValue(b);
       if (pb !== pa) return pb - pa;
       if (b.active_tracks !== a.active_tracks) return b.active_tracks - a.active_tracks;
       return (b.last_delivery ?? "").localeCompare(a.last_delivery ?? "");
     });
     return out;
-  }, [placementsQ.data, playsQ.data]);
+  }, [placementsQ.data, breakdownQ.data, telemetryQ.data]);
 
   const totalActiveTracks = rows.reduce((a, b) => a + b.active_tracks, 0);
   const totalActive = rows.filter((r) => r.status === "active").length;
   const totalPartial = rows.filter((r) => r.status === "partial").length;
 
-  const loading = placementsQ.isLoading;
+  const loading = placementsQ.isLoading || telemetryQ.isLoading;
 
 
 
@@ -367,7 +478,7 @@ export function EnginePriorityTab() {
         {/* Mobile: cards compactos com scroll */}
         <div className="sm:hidden max-h-[60vh] overflow-y-auto divide-y divide-border/50">
           {rows.map((r, i) => (
-            <PlaylistRowMobile key={r.managed_playlist_id} rank={i + 1} row={r} />
+            <PlaylistRowMobile key={r.managed_playlist_id} rank={i + 1} row={r} onSelect={setSelectedPlaylist} />
           ))}
         </div>
 
@@ -380,7 +491,7 @@ export function EnginePriorityTab() {
               <tr className="border-b border-border">
                 <th className="text-left px-3 py-2 w-10">#</th>
                 <th className="text-left px-3 py-2">Playlist</th>
-                <th className="text-right px-3 py-2 w-28">Plays 7d</th>
+                <th className="text-right px-3 py-2 w-28">Entrega</th>
                 <th className="text-right px-3 py-2 w-24">Crescimento</th>
                 <th className="text-right px-3 py-2 w-20">Faixas</th>
                 <th className="text-left px-3 py-2 w-36">Última entrega</th>
@@ -389,7 +500,11 @@ export function EnginePriorityTab() {
             </thead>
             <tbody>
               {rows.map((r, i) => (
-                <tr key={r.managed_playlist_id} className="border-b border-border/50 hover:bg-muted/30">
+                <tr
+                  key={r.managed_playlist_id}
+                  className="border-b border-border/50 hover:bg-muted/30 cursor-pointer"
+                  onClick={() => setSelectedPlaylist(r)}
+                >
                   <td className="px-3 py-2 tabular-nums text-muted-foreground">{i + 1}</td>
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2 min-w-0">
@@ -406,7 +521,7 @@ export function EnginePriorityTab() {
                     </div>
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums font-semibold text-primary">
-                    {fmtNumber(r.total_plays_7d)}
+                    {fmtNumber(deliveryValue(r))}
                   </td>
                   <td className="px-3 py-2 text-right">
                     <GrowthCell delta={r.growth_delta} />
@@ -439,6 +554,8 @@ export function EnginePriorityTab() {
 
       {/* Diagnóstico da Engine (colapsado) */}
       <EngineDiagnostic />
+
+      <PlaylistDeliveryDialog row={selectedPlaylist} onOpenChange={(open) => !open && setSelectedPlaylist(null)} />
     </div>
   );
 }
@@ -446,54 +563,115 @@ export function EnginePriorityTab() {
 // ─────────────────────────────────────────────────────────────────────────────
 // UI helpers
 // ─────────────────────────────────────────────────────────────────────────────
-function PlaylistRowMobile({ rank, row }: { rank: number; row: PlaylistDeliveryRow }) {
-  const hasPlays = row.total_plays_7d != null && row.total_plays_7d > 0;
+function PlaylistRowMobile({
+  rank,
+  row,
+  onSelect,
+}: {
+  rank: number;
+  row: PlaylistDeliveryRow;
+  onSelect: (row: PlaylistDeliveryRow) => void;
+}) {
+  const delivery = deliveryValue(row);
   return (
-    <div className="px-3 py-2 flex items-center gap-2.5">
-      <span className="text-[11px] tabular-nums text-muted-foreground w-4 shrink-0 text-right">
-        {rank}
-      </span>
-      {row.cover_url ? (
-        <img src={row.cover_url} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
-      ) : (
-        <div className="w-8 h-8 rounded bg-muted shrink-0" />
-      )}
-      <div className="flex-1 min-w-0">
-        <div className="text-[13px] font-medium leading-tight truncate">{row.display_name}</div>
-        <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-muted-foreground">
-          <StatusDot status={row.status} />
-          <span className="tabular-nums">{row.active_tracks}f</span>
-          {row.last_delivery && (
-            <span>
-              ·{" "}
-              {new Date(row.last_delivery).toLocaleDateString("pt-BR", {
-                day: "2-digit",
-                month: "2-digit",
-              })}
-            </span>
-          )}
-          {row.followers != null && row.followers > 0 && (
-            <span>· {fmtNumber(row.followers)} seg.</span>
-          )}
-        </div>
-      </div>
-      {hasPlays ? (
-        <div className="text-right shrink-0">
-          <div className="text-sm font-semibold tabular-nums text-primary leading-none">
-            {fmtNumber(row.total_plays_7d)}
+    <button type="button" onClick={() => onSelect(row)} className="w-full px-3 py-2.5 text-left active:bg-muted/30">
+      <div className="flex items-center gap-2.5 min-w-0">
+        <span className="text-[11px] tabular-nums text-muted-foreground w-4 shrink-0 text-right">
+          {rank}
+        </span>
+        {row.cover_url ? (
+          <img src={row.cover_url} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
+        ) : (
+          <div className="w-8 h-8 rounded bg-muted shrink-0" />
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="text-[13px] font-medium leading-tight truncate">{row.display_name}</div>
+          <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-muted-foreground min-w-0">
+            <StatusDot status={row.status} />
+            <span className="tabular-nums">{row.active_tracks}f</span>
+            {row.followers != null && row.followers > 0 && <span className="truncate">· {fmtNumber(row.followers)} seg.</span>}
           </div>
-          <div className="text-[9px] text-muted-foreground mt-0.5">plays 7d</div>
-          {row.growth_delta != null && (
-            <div className="text-[10px] mt-0.5">
-              <GrowthCell delta={row.growth_delta} compact />
-            </div>
-          )}
         </div>
-      ) : (
+        <div className="text-right shrink-0">
+          <div className="text-sm font-semibold tabular-nums text-primary leading-none">{fmtNumber(delivery)}</div>
+          <div className="text-[9px] text-muted-foreground mt-0.5">entrega</div>
+        </div>
         <ChevronDown className="h-3.5 w-3.5 -rotate-90 text-muted-foreground/40 shrink-0" />
-      )}
+      </div>
+      <div className="ml-[58px] mt-2 grid grid-cols-4 gap-1.5 text-[10px]">
+        <MobileMetric label="Cresc." value={<GrowthCell delta={row.growth_delta} compact />} />
+        <MobileMetric label="Faixas" value={`${row.active_tracks}${row.removed_tracks > 0 ? `/${row.catalog_tracks}` : ""}`} />
+        <MobileMetric label="Última" value={shortDate(row.last_delivery)} />
+        <MobileMetric label="Fonte" value={<SourceLabel source={row.source} />} />
+      </div>
+    </button>
+  );
+}
+
+function MobileMetric({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="rounded-lg border border-border/60 bg-muted/20 px-1.5 py-1 min-w-0">
+      <div className="text-[8px] uppercase tracking-wider text-muted-foreground truncate">{label}</div>
+      <div className="mt-0.5 tabular-nums text-foreground text-[10px] leading-tight truncate">{value}</div>
     </div>
   );
+}
+
+function PlaylistDeliveryDialog({ row, onOpenChange }: { row: PlaylistDeliveryRow | null; onOpenChange: (open: boolean) => void }) {
+  return (
+    <Dialog open={!!row} onOpenChange={onOpenChange}>
+      <DialogContent className="w-[calc(100vw-24px)] max-w-md rounded-2xl border-border bg-card p-4">
+        {row && (
+          <>
+            <DialogHeader className="text-left pr-6">
+              <DialogTitle className="text-base leading-tight">{row.display_name}</DialogTitle>
+              <DialogDescription>Detalhe dos números que alimentam o ranking.</DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-2">
+              <DetailMetric label="Entrega total" value={fmtNumber(deliveryValue(row))} strong />
+              <DetailMetric label="Crescimento" value={<GrowthCell delta={row.growth_delta} />} />
+              <DetailMetric label="Breakdown exato" value={fmtNumber(row.exact_delivery)} sub={`${row.exact_tracks} faixas`} />
+              <DetailMetric label="Atribuído" value={fmtNumber(row.attributed_delivery)} sub={`${row.attributed_tracks} faixas`} />
+              <DetailMetric label="Faixas catálogo" value={`${row.active_tracks}${row.removed_tracks > 0 ? `/${row.catalog_tracks}` : ""}`} />
+              <DetailMetric label="Última entrega" value={shortDate(row.last_delivery)} />
+              <DetailMetric label="Status" value={<StatusPill status={row.status} compact />} />
+              <DetailMetric label="Fonte" value={<SourceLabel source={row.source} />} />
+            </div>
+            <div className="rounded-xl border border-border bg-muted/20 p-3 text-[11px] leading-relaxed text-muted-foreground">
+              {sourceExplanation(row.source)}
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DetailMetric({ label, value, sub, strong }: { label: string; value: ReactNode; sub?: string; strong?: boolean }) {
+  return (
+    <div className="rounded-xl border border-border bg-background/30 p-3 min-w-0">
+      <div className="text-[9px] uppercase tracking-wider text-muted-foreground truncate">{label}</div>
+      <div className={cn("mt-1 tabular-nums truncate", strong ? "text-lg font-semibold text-primary" : "text-sm font-medium text-foreground")}>{value}</div>
+      {sub && <div className="mt-0.5 text-[10px] text-muted-foreground truncate">{sub}</div>}
+    </div>
+  );
+}
+
+function SourceLabel({ source }: { source: PlaylistDeliveryRow["source"] }) {
+  const labels = {
+    playlist_breakdown: "exato",
+    catalog_growth: "atribuído",
+    mixed: "misto",
+    placement_only: "posição",
+  } as const;
+  return <span className="text-muted-foreground">{labels[source]}</span>;
+}
+
+function sourceExplanation(source: PlaylistDeliveryRow["source"]) {
+  if (source === "playlist_breakdown") return "Fonte exata: song_snapshot_playlists ligado aos snapshots da música; mostra quais playlists registraram plays para essa faixa.";
+  if (source === "mixed") return "Fonte mista: parte veio do breakdown por playlist e parte veio do crescimento agregado da música rateado entre placements ativos.";
+  if (source === "catalog_growth") return "Fonte atribuída: a música tem baseline e crescimento em v_catalog_track_telemetry, mas essa coleta não gravou breakdown por playlist em song_snapshot_playlists; o crescimento foi distribuído entre as playlists ativas da faixa.";
+  return "Fonte operacional: há placement no catálogo, mas ainda não existe snapshot com entrega por playlist nem crescimento agregado positivo para atribuir.";
 }
 
 function StatusDot({ status }: { status: PlaylistDeliveryRow["status"] }) {
@@ -535,7 +713,7 @@ function StatusPill({ status, compact }: { status: PlaylistDeliveryRow["status"]
   const map = {
     active: { label: "Ativa", cls: "bg-primary/15 text-primary border-primary/30" },
     partial: { label: "Parcial", cls: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
-    left: { label: "Saiu", cls: "bg-muted text-muted-foreground border-border" },
+    removed: { label: "Saiu", cls: "bg-muted text-muted-foreground border-border" },
   } as const;
   const s = map[status];
   return (
@@ -567,6 +745,15 @@ function fmtNumber(n: number | null | undefined) {
   if (Math.abs(n) >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
   if (Math.abs(n) >= 1_000) return (n / 1_000).toFixed(1) + "k";
   return String(Math.round(n));
+}
+
+function deliveryValue(row: PlaylistDeliveryRow) {
+  return row.exact_delivery + row.attributed_delivery || row.total_plays_7d || 0;
+}
+
+function shortDate(iso: string | null | undefined) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
