@@ -425,6 +425,7 @@ export async function spotifyCatalogCollect(job, ctx = {}) {
       await page.goto(statsUrl.replace("/stats", "/playlists"), { waitUntil: "networkidle", timeout: 30000 });
       await assertLoggedIn(page);
       await page.locator(SELECTORS.printArea).first().waitFor({ state: "visible", timeout: 15000 });
+      await applySevenDayFilter(page);
       await page.locator(ROW_SEL).first().waitFor({ state: "visible", timeout: 10000 }).catch(() => {});
       return capturePlaylistPrints(page, { catalog_track_id, correlation_id, playlists: result.playlists });
     });
@@ -432,6 +433,7 @@ export async function spotifyCatalogCollect(job, ctx = {}) {
     const ingestPayload = {
       catalog_track_id,
       queue_id,
+      spotify_track_id,
       spotify_song_id: spotify_track_id,
       correlation_id,
       captured_at: new Date().toISOString(),
@@ -453,13 +455,18 @@ export async function spotifyCatalogCollect(job, ctx = {}) {
         kind: "catalog",
         worker_id: workerId,
         queue_id,
+        catalog_track_id,
+        spotify_track_id,
+        spotify_song_id: spotify_track_id,
         duration_ms: Date.now() - t0,
         attempts: job?.attempts ?? payload.attempts ?? 0,
         requires_playlist_breakdown: requiresBreakdown,
         capture_mode: payload.capture_mode ?? null,
         rows_captured: result.rows_captured,
         scroll_passes: result.scroll_passes,
-        filter_7d_applied: result.filter_7d_applied,
+        filter_7d_applied: result.filter_7d_applied || result.playlist_filter_7d_applied,
+        stats_filter_7d_applied: result.filter_7d_applied,
+        playlist_filter_7d_applied: result.playlist_filter_7d_applied,
         prints_captured: print_urls.length,
       },
     };
