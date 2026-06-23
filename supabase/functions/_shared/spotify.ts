@@ -413,7 +413,7 @@ function fireAndForgetAccessBlock(args: Parameters<typeof recordAppAccessBlock>[
     const q = db().rpc("quarantine_spotify_app_dev_mode", {
       p_app_id: args.appId,
       p_spotify_user_id: args.spotifyUserId ?? null,
-    }).then(() => {}).catch(() => {});
+    }).then(() => {}, () => {});
     if (er?.waitUntil) { try { er.waitUntil(q); } catch { /* noop */ } }
   }
 
