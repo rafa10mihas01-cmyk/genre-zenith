@@ -9,8 +9,8 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ListMusic, TrendingUp, Layers } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+
 import { cn } from "@/lib/utils";
 
 type Occupancy = {
@@ -215,57 +215,72 @@ export function PlaylistsTab() {
         })}
       </div>
 
-      {/* Desktop: tabela — delivery em primeiro, ocupação em segundo */}
-      <div className="hidden md:block border border-border rounded-2xl overflow-y-auto bg-card max-h-[65vh]">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Playlist</TableHead>
-              <TableHead className="text-right">Plays 7d</TableHead>
-              <TableHead className="text-right">Faixas detectadas</TableHead>
-              <TableHead className="text-right">Visto por último</TableHead>
-              <TableHead className="text-right">Ocupação</TableHead>
-              <TableHead className="w-40">Capacidade</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((r) => {
-              const pct = r.catalog_capacity > 0 ? Math.min(100, Math.round((r.active_placements / r.catalog_capacity) * 100)) : 0;
-              const full = r.available_slots === 0;
-              const hasDelivery = r.delivery_7d > 0;
-              return (
-                <TableRow key={r.managed_playlist_id}>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Cover url={r.cover_url} alt={r.playlist_name} />
-                      <span className="truncate">{r.playlist_name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className={cn("text-right font-semibold tabular-nums", hasDelivery ? "text-[#1DB954]" : "text-muted-foreground/50")}>
+      {/* Desktop: grid de cards finos estilo playlist — capa quadrada em cima, info embaixo */}
+      <div className="hidden md:grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+        {rows.map((r) => {
+          const pct = r.catalog_capacity > 0 ? Math.min(100, Math.round((r.active_placements / r.catalog_capacity) * 100)) : 0;
+          const full = r.available_slots === 0;
+          const hasDelivery = r.delivery_7d > 0;
+          return (
+            <div
+              key={r.managed_playlist_id}
+              className="group rounded-xl border border-border bg-card p-2.5 flex flex-col gap-2 hover:border-border/80 hover:bg-card/80 transition-colors min-w-0"
+            >
+              {/* Capa quadrada */}
+              <div className="relative aspect-square w-full rounded-md overflow-hidden bg-muted">
+                {r.cover_url ? (
+                  <img
+                    src={r.cover_url}
+                    alt={r.playlist_name}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <ListMusic className="h-6 w-6 text-muted-foreground/60" />
+                  </div>
+                )}
+                {/* Badge plays 7d sobreposto */}
+                {hasDelivery && (
+                  <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-black/70 backdrop-blur-sm text-[10px] font-bold tabular-nums text-[#1DB954] flex items-center gap-1">
+                    <TrendingUp className="h-2.5 w-2.5" />
                     {fmt(r.delivery_7d)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">{r.tracks_detected}</TableCell>
-                  <TableCell className="text-right text-xs text-muted-foreground">{relDays(r.last_seen_at)}</TableCell>
-                  <TableCell className="text-right text-muted-foreground tabular-nums">
-                    {r.active_placements}<span className="text-muted-foreground/50">/{r.catalog_capacity}</span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className={cn("h-full transition-all", full ? "bg-destructive" : "bg-primary/60")}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-muted-foreground tabular-nums w-8 text-right">{pct}%</span>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                  </div>
+                )}
+              </div>
+
+              {/* Nome */}
+              <div className="text-[12px] font-medium leading-tight line-clamp-2 text-foreground min-h-[2.2em]" title={r.playlist_name}>
+                {r.playlist_name}
+              </div>
+
+              {/* Métricas compactas */}
+              <div className="flex items-center justify-between text-[10px] tabular-nums">
+                <span className={cn("font-semibold", hasDelivery ? "text-[#1DB954]" : "text-muted-foreground/40")}>
+                  {fmt(r.delivery_7d)} plays
+                </span>
+                <span className="text-muted-foreground">{r.tracks_detected} faixas</span>
+              </div>
+
+              {/* Ocupação */}
+              <div className="flex items-center gap-1.5">
+                <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className={cn("h-full transition-all", full ? "bg-destructive" : "bg-primary/60")}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <span className="text-[9px] text-muted-foreground tabular-nums whitespace-nowrap">
+                  {r.active_placements}/{r.catalog_capacity}
+                </span>
+              </div>
+            </div>
+          );
+        })}
       </div>
+
     </div>
   );
 }
