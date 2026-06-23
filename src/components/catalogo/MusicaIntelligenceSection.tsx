@@ -714,41 +714,49 @@ function ExecutiveSummary({
         <h3 className="text-sm font-semibold text-foreground">Resumo executivo</h3>
       </div>
 
-      {/* MOBILE: 2 cards verticais, sem grid apertado */}
-      <div className="sm:hidden space-y-2.5">
+      {/* MOBILE: 2 cards verticais com divisões claras */}
+      <div className="sm:hidden space-y-3">
         {/* Card 1 — Resultado */}
-        <div className="rounded-xl border border-border bg-black/20 p-3.5">
-          <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-3">Resultado</div>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-3">
-            <SummaryCell
-              label="Streams atuais"
-              value={fmt(telemetry?.last_plays_28d)}
-              sub="últimos 28d"
-            />
-            <SummaryCell
-              label="Crescimento"
-              value={growth == null ? "—" : `${growth >= 0 ? "+" : ""}${growth}%`}
-              valueClass={growth == null ? "" : growth >= 0 ? "text-emerald-400" : "text-rose-400"}
-              sub={growthAbs != null ? `${growthAbs >= 0 ? "+" : ""}${fmt(growthAbs)} streams` : undefined}
-            />
-            <SummaryCell
-              label="Baseline"
-              value={baseline?.streams != null ? fmt(baseline.streams) : "—"}
-              sub={baseline?.captured_at ? d(baseline.captured_at) : undefined}
-            />
-            <SummaryCell
-              label="Delivery acumulado"
-              value={totalDelivery > 0 ? `+${fmt(totalDelivery)}` : "+0"}
-              valueClass="text-emerald-400"
-              sub="via playlists"
-            />
+        <div className="rounded-xl border border-border bg-black/20 overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-border/70 text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
+            Resultado
+          </div>
+          <div className="grid grid-cols-2 divide-x divide-border/70">
+            <div className="divide-y divide-border/70">
+              <SummaryCell
+                label="Streams atuais"
+                value={fmt(telemetry?.last_plays_28d)}
+                sub="últimos 28d"
+              />
+              <SummaryCell
+                label="Baseline"
+                value={baseline?.streams != null ? fmt(baseline.streams) : "—"}
+                sub={baseline?.captured_at ? d(baseline.captured_at) : undefined}
+              />
+            </div>
+            <div className="divide-y divide-border/70">
+              <SummaryCell
+                label="Crescimento"
+                value={growth == null ? "—" : `${growth >= 0 ? "+" : ""}${growth}%`}
+                valueClass={growth == null ? "" : growth >= 0 ? "text-emerald-400" : "text-rose-400"}
+                sub={growthAbs != null ? `${growthAbs >= 0 ? "+" : ""}${fmt(growthAbs)} streams` : undefined}
+              />
+              <SummaryCell
+                label="Delivery acumulado"
+                value={totalDelivery > 0 ? `+${fmt(totalDelivery)}` : "+0"}
+                valueClass="text-emerald-400"
+                sub="via playlists"
+              />
+            </div>
           </div>
         </div>
 
         {/* Card 2 — Operação */}
-        <div className="rounded-xl border border-border bg-black/20 p-3.5">
-          <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-3">Operação</div>
-          <div className="space-y-3">
+        <div className="rounded-xl border border-border bg-black/20 overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-border/70 text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
+            Operação
+          </div>
+          <div className="divide-y divide-border/70">
             <SummaryRow
               label="Status"
               value={status.label}
@@ -771,7 +779,6 @@ function ExecutiveSummary({
               label="Melhor playlist"
               value={best ? best.name : "—"}
               sub={best ? `+${fmt(best.deliveryAccumulated)} delivery` : undefined}
-              wrap
             />
           </div>
         </div>
