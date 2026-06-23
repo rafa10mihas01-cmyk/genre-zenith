@@ -11,12 +11,11 @@ import { makeLogger } from "../logger.js";
 
 const log = makeLogger("h:catalog.collect");
 
-const ROW_SEL = [
-  '[data-testid="sort-table-body-row"]',
-  '[data-testid="row"]',
-  '[role="row"]',
-  "tbody tr",
-].join(", ");
+// Mesmo seletor canônico usado por spotifyDealCollect.js — única fonte para a tabela
+// de playlists do S4A. Fallbacks anteriores ([data-testid="row"], [role="row"],
+// "tbody tr") foram REMOVIDOS porque capturavam linhas de header/skeleton e
+// faziam o catalog devolver playlists=[] mesmo com a tabela populada.
+const ROW_SEL = '[data-testid="sort-table-body-row"]';
 const SCROLL_CONTAINER = '#chrome-v2-main-content-scroll-root';
 const ROWS_PER_PRINT = 16;
 
