@@ -66,6 +66,7 @@ type Enriched = ClaimedRow & {
   tracks_count: number | null;
   spotify_track_id: string;
   spotify_uri: string | null;
+  track_name: string | null;
 };
 
 type Outcome = "active" | "already_present" | "retry" | "failed";
