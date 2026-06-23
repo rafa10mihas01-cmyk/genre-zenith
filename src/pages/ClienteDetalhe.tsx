@@ -15,8 +15,6 @@ import {
   Instagram,
   Music2,
   ExternalLink,
-  Copy,
-  Link2,
   FileText,
   CreditCard,
   Users2,
@@ -24,8 +22,8 @@ import {
   XCircle,
   LayoutDashboard,
   Megaphone,
-  StickyNote,
 } from "lucide-react";
+
 import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow, format } from "date-fns";
@@ -245,12 +243,7 @@ export default function ClienteDetalhe() {
 
   const client = useMemo(() => clients.find((c) => c.id === id), [clients, id]);
 
-  // Apoio: deals/músicas só pras abas legadas (Músicas/Deals/Notas) — não entram em KPIs.
-  const dealById = useMemo(() => {
-    const m = new Map<string, (typeof deals)[number]>();
-    for (const d of deals) m.set(d.id, d);
-    return m;
-  }, [deals]);
+  // Apoio: agregados auxiliares pra KPIs da Visão (Músicas em campanha, Deals ativos, etc).
   const campaignIdSet = useMemo(() => new Set(clientCampaigns.map((c) => c.campaign_id)), [clientCampaigns]);
   const clientDeals = useMemo(
     () =>
@@ -266,6 +259,7 @@ export default function ClienteDetalhe() {
     () => songs.filter((s) => s.client_id === id || clientDealIds.has(s.deal_id)),
     [songs, id, clientDealIds],
   );
+
 
   // KPIs lidos do overview (totals já agregados pelo service).
   const t = overview?.totals;
@@ -465,78 +459,31 @@ export default function ClienteDetalhe() {
 
 
 
-      {/* Cliente com campanhas ativas (modelo novo) usa shell enxuta: só Visão + Campanhas.
-          Clientes legados sem nenhuma campanha mantêm as abas antigas (Músicas/Deals/Notas)
-          até serem migrados. */}
-      {(() => null)()}
+      {/* Shell única: Visão + Campanhas (fallback legado de Músicas/Deals/Notas removido). */}
       <Tabs defaultValue="visao" className="space-y-4">
-        {kpis.campanhas > 0 ? (
-          <>
-            {/* Mobile */}
-            <TabsList className="grid grid-cols-2 gap-1.5 sm:hidden bg-transparent p-0 h-auto">
-              <TabsTrigger
-                value="visao"
-                className="rounded-xl border border-border bg-card px-1 py-2 flex flex-col items-center justify-center gap-1 text-muted-foreground data-[state=active]:border-primary/60 data-[state=active]:bg-primary/10 data-[state=active]:text-foreground data-[state=active]:shadow-none"
-              >
-                <LayoutDashboard className="h-4 w-4" />
-                <span className="text-[11px] font-medium leading-none">Visão</span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="campanhas"
-                className="rounded-xl border border-border bg-card px-1 py-2 flex flex-col items-center justify-center gap-1 text-muted-foreground data-[state=active]:border-primary/60 data-[state=active]:bg-primary/10 data-[state=active]:text-foreground data-[state=active]:shadow-none"
-              >
-                <Megaphone className="h-4 w-4" />
-                <span className="text-[11px] font-medium leading-none">Camp. {kpis.campanhas}</span>
-              </TabsTrigger>
-            </TabsList>
-            {/* Desktop */}
-            <TabsList className="hidden sm:inline-flex">
-              <TabsTrigger value="visao" className="gap-1.5"><LayoutDashboard className="h-3.5 w-3.5" /> Visão geral</TabsTrigger>
-              <TabsTrigger value="campanhas">Campanhas <span className="ml-1.5 text-muted-foreground">{kpis.campanhas}</span></TabsTrigger>
-            </TabsList>
-          </>
-        ) : (
-          <>
-            {/* Mobile (legado) */}
-            <TabsList className="grid grid-cols-4 gap-1.5 sm:hidden bg-transparent p-0 h-auto">
-              <TabsTrigger
-                value="visao"
-                className="rounded-xl border border-border bg-card px-1 py-2 flex flex-col items-center justify-center gap-1 text-muted-foreground data-[state=active]:border-primary/60 data-[state=active]:bg-primary/10 data-[state=active]:text-foreground data-[state=active]:shadow-none"
-              >
-                <LayoutDashboard className="h-4 w-4" />
-                <span className="text-[11px] font-medium leading-none">Visão</span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="musicas"
-                className="rounded-xl border border-border bg-card px-1 py-2 flex flex-col items-center justify-center gap-1 text-muted-foreground data-[state=active]:border-primary/60 data-[state=active]:bg-primary/10 data-[state=active]:text-foreground data-[state=active]:shadow-none"
-              >
-                <Music2 className="h-4 w-4" />
-                <span className="text-[11px] font-medium leading-none">Músicas {kpis.musicas}</span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="deals"
-                className="rounded-xl border border-border bg-card px-1 py-2 flex flex-col items-center justify-center gap-1 text-muted-foreground data-[state=active]:border-primary/60 data-[state=active]:bg-primary/10 data-[state=active]:text-foreground data-[state=active]:shadow-none"
-              >
-                <FileText className="h-4 w-4" />
-                <span className="text-[11px] font-medium leading-none">Deals {kpis.deals}</span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="notas"
-                className="rounded-xl border border-border bg-card px-1 py-2 flex flex-col items-center justify-center gap-1 text-muted-foreground data-[state=active]:border-primary/60 data-[state=active]:bg-primary/10 data-[state=active]:text-foreground data-[state=active]:shadow-none"
-              >
-                <StickyNote className="h-4 w-4" />
-                <span className="text-[11px] font-medium leading-none">Notas</span>
-              </TabsTrigger>
-            </TabsList>
-            {/* Desktop (legado) */}
-            <TabsList className="hidden sm:inline-flex">
-              <TabsTrigger value="visao" className="gap-1.5"><LayoutDashboard className="h-3.5 w-3.5" /> Visão geral</TabsTrigger>
-              <TabsTrigger value="musicas">Músicas <span className="ml-1.5 text-muted-foreground">{kpis.musicas}</span></TabsTrigger>
-              <TabsTrigger value="deals">Deals <span className="ml-1.5 text-muted-foreground">{kpis.deals}</span></TabsTrigger>
-              <TabsTrigger value="notas">Notas</TabsTrigger>
-            </TabsList>
-          </>
-        )}
+        {/* Mobile */}
+        <TabsList className="grid grid-cols-2 gap-1.5 sm:hidden bg-transparent p-0 h-auto">
+          <TabsTrigger
+            value="visao"
+            className="rounded-xl border border-border bg-card px-1 py-2 flex flex-col items-center justify-center gap-1 text-muted-foreground data-[state=active]:border-primary/60 data-[state=active]:bg-primary/10 data-[state=active]:text-foreground data-[state=active]:shadow-none"
+          >
+            <LayoutDashboard className="h-4 w-4" />
+            <span className="text-[11px] font-medium leading-none">Visão</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="campanhas"
+            className="rounded-xl border border-border bg-card px-1 py-2 flex flex-col items-center justify-center gap-1 text-muted-foreground data-[state=active]:border-primary/60 data-[state=active]:bg-primary/10 data-[state=active]:text-foreground data-[state=active]:shadow-none"
+          >
+            <Megaphone className="h-4 w-4" />
+            <span className="text-[11px] font-medium leading-none">Camp. {kpis.campanhas}</span>
+          </TabsTrigger>
+        </TabsList>
+        {/* Desktop */}
+        <TabsList className="hidden sm:inline-flex">
+          <TabsTrigger value="visao" className="gap-1.5"><LayoutDashboard className="h-3.5 w-3.5" /> Visão geral</TabsTrigger>
+          <TabsTrigger value="campanhas">Campanhas <span className="ml-1.5 text-muted-foreground">{kpis.campanhas}</span></TabsTrigger>
+        </TabsList>
+
 
         {/* ----- Visão geral ----- */}
         <TabsContent value="visao" className="space-y-4">
@@ -636,106 +583,6 @@ export default function ClienteDetalhe() {
         </TabsContent>
 
 
-        {/* ----- Músicas ----- */}
-        <TabsContent value="musicas">
-          {clientSongs.length === 0 ? (
-            <Card>
-              <CardContent className="p-10 text-center">
-                <Music2 className="mx-auto size-8 text-muted-foreground/40 mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  Sem músicas vinculadas. Selecione o cliente ao criar uma música no deal.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-2.5">
-              {clientSongs.map((s) => {
-                const deal = dealById.get(s.deal_id);
-                const url = (s.slug || s.client_token)
-                  ? clientCampaignUrl({ slug: s.slug ?? null, client_token: s.client_token ?? null })
-                  : null;
-                return (
-                  <Card key={s.id}>
-                    <CardContent className="p-4 flex items-center gap-3 min-w-0">
-                      <div className="h-12 w-12 rounded-lg overflow-hidden bg-elevated border border-border shrink-0">
-                        {s.song_cover_url ? (
-                          <img src={s.song_cover_url} alt={s.song_name} className="h-full w-full object-cover" loading="lazy" />
-                        ) : (
-                          <div className="h-full w-full flex items-center justify-center"><Music2 className="h-5 w-5 text-muted-foreground" /></div>
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-sm font-semibold truncate">{s.song_name}</div>
-                        <div className="text-[11px] text-muted-foreground truncate">
-                          {s.song_artist || "—"}{deal && <> · {deal.curator_name}</>}
-                        </div>
-                        {s.smartlink_url && (
-                          <a href={s.smartlink_url} target="_blank" rel="noreferrer" className="text-[11px] text-primary inline-flex items-center gap-1 mt-1 hover:underline">
-                            <Link2 className="h-3 w-3" /> smartlink <ExternalLink className="h-2.5 w-2.5" />
-                          </a>
-                        )}
-                      </div>
-                      {url && (
-                        <div className="flex items-center gap-1 shrink-0">
-                          <Button size="sm" variant="outline" className="h-8 w-8 p-0" title="Copiar link do cliente" onClick={() => copy(url)}>
-                            <Copy className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button size="sm" variant="outline" className="h-8 w-8 p-0" title="Abrir painel do cliente" asChild>
-                            <a href={url} target="_blank" rel="noreferrer"><ExternalLink className="h-3.5 w-3.5" /></a>
-                          </Button>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-        </TabsContent>
-
-        {/* ----- Deals ----- */}
-        <TabsContent value="deals">
-          {clientDeals.length === 0 ? (
-            <Card>
-              <CardContent className="p-10 text-center">
-                <p className="text-sm text-muted-foreground">Sem deals vinculados.</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-2.5">
-              {clientDeals.map((d) => {
-                const isClosed = !!d.closed_at;
-                const status = !isClosed
-                  ? { label: "Ativo", icon: CheckCircle2, cls: "text-primary" }
-                  : d.closed_status === "completed"
-                  ? { label: "Concluído", icon: CheckCircle2, cls: "text-emerald-400" }
-                  : { label: "Cancelado", icon: XCircle, cls: "text-muted-foreground" };
-                const Icon = status.icon;
-                return (
-                  <Link key={d.id} to={`/deals/${d.id}`}>
-                    <Card className="hover:border-foreground/20 transition-colors">
-                      <CardContent className="p-4 flex items-center gap-3 min-w-0">
-                        <div className="min-w-0 flex-1">
-                          <div className="text-sm font-semibold truncate">{d.curator_name}</div>
-                          <div className="text-[11px] text-muted-foreground truncate">
-                            {d.song_name}{d.song_artist && <> · {d.song_artist}</>}
-                          </div>
-                          <div className="text-[11px] text-muted-foreground mt-0.5">
-                            Iniciado {formatDistanceToNow(new Date(d.started_at), { addSuffix: true, locale: ptBR })}
-                            {d.cost != null && <> · {formatBRL(d.cost)}</>}
-                          </div>
-                        </div>
-                        <div className={cn("inline-flex items-center gap-1.5 text-[11px] font-medium shrink-0", status.cls)}>
-                          <Icon className="h-3.5 w-3.5" /> {status.label}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-        </TabsContent>
 
         {/* ----- Campanhas ----- */}
         <TabsContent value="campanhas">
@@ -756,20 +603,6 @@ export default function ClienteDetalhe() {
 
 
 
-        {/* ----- Notas ----- */}
-        <TabsContent value="notas">
-          <Card>
-            <CardContent className="p-5">
-              {client.notes ? (
-                <p className="text-sm text-foreground whitespace-pre-wrap">{client.notes}</p>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Sem observações.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
 
       {/* Edit dialog */}
