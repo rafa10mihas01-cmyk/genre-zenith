@@ -129,22 +129,13 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // /v1/playlists/:id/items requer USER token (OAuth) — client_credentials retorna 401.
-    // Usa token do owner quando a playlist tem owner; só cai pra client_credentials se não houver.
-    let token: string;
-    if (ownerSpotifyId) {
-      const { token: userToken, row } = await getUserToken(ownerSpotifyId);
-      token = userToken;
-      setSpotifyCtx({
-        appId: row?.app_id ?? null,
-        playlist_id: managedPlaylistId,
-        owner_id: ownerSpotifyId,
-        spotify_user_id: ownerSpotifyId,
-        function_name: "playlist-tracks-list",
-      });
-    } else {
-      token = await getAppToken({ functionName: "playlist-tracks-list", operation: "list_tracks_app_token" });
-    }
+    // Arquitetura nova: exclusivamente Client Credentials (sem OAuth).
+    // Playlists públicas funcionam normalmente; privadas/colaborativas devolvem 401/403
+    // do Spotify e são reportadas como `not_public` (sem fallback OAuth).
+    const token = await getAppToken({
+      functionName: "playlist-tracks-list",
+      operation: "list_tracks_app_token",
+    });
     const fetcher = makeThrottledFetcher();
     const rich = await listPlaylistTracksRich(spotifyPlaylistId, token, {
       max: 10000,
