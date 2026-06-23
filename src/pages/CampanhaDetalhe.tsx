@@ -13,6 +13,7 @@ import { toast } from "@/hooks/use-toast";
 import { PUBLIC_DOMAIN } from "@/lib/curatorPublicUrl";
 import { Kpi } from "@/components/ui/kpi";
 import { CampaignClosureReportCard } from "@/components/campanhas/CampaignClosureReportCard";
+import { deliveryPct } from "@/lib/campaignPct";
 
 type Campaign = {
   id: string; track_name: string; artist: string | null;
@@ -166,7 +167,7 @@ export default function CampanhaDetalhe() {
     );
   }
 
-  const pct = camp.goal_plays > 0 ? Math.min(100, Math.round((camp.total_delivered / camp.goal_plays) * 100)) : 0;
+  const pct = deliveryPct(camp.total_delivered, camp.goal_plays);
   const daysLeft = Math.ceil((new Date(camp.deadline).getTime() - Date.now()) / 86400_000);
 
   return (

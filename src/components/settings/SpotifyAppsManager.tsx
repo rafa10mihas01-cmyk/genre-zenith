@@ -51,16 +51,17 @@ async function callAuth(qs: string, init?: RequestInit) {
   return resp.json();
 }
 
-const KNOWN_ORIGINS: { label: string; origin: string }[] = [
-  { label: "Editor Lovable", origin: "https://f5e1a9fd-9e98-4abe-83b5-56808d1c1add.lovableproject.com" },
-  { label: "Preview Lovable", origin: "https://id-preview--f5e1a9fd-9e98-4abe-83b5-56808d1c1add.lovable.app" },
-  { label: "Publicado", origin: "https://genre-zenith.lovable.app" },
-  { label: "Domínio próprio", origin: "https://engine.nexcreatorx.com" },
-];
+function getCurrentOrigin(): string {
+  if (typeof window !== "undefined" && window.location?.origin) return window.location.origin;
+  return "";
+}
 
 function buildAppRedirects(slug: string): { label: string; url: string }[] {
-  return KNOWN_ORIGINS.map(({ label, origin }) => ({ label, url: `${origin}/spotify/callback/${slug}` }));
+  const origin = getCurrentOrigin();
+  if (!origin) return [];
+  return [{ label: "Origem atual", url: `${origin}/spotify/callback/${slug}` }];
 }
+
 
 function RedirectUrisPanel({ slug }: { slug: string }) {
   const urls = useMemo(() => buildAppRedirects(slug), [slug]);

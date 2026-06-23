@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { CalendarDays, Music2, TrendingUp, ExternalLink, ListMusic, Clock, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CampaignHubCampaign, EcoAllocation } from "./types";
+import { deliveryPct } from "@/lib/campaignPct";
 
 type EcoSnap = {
   managed_playlist_id: string;
@@ -54,7 +55,7 @@ function timeAgo(iso: string): string {
 export function ClientHeroCard({
   camp, delivered, goal, daysElapsed, daysTotal, allocations, snapshots, stage,
 }: Props) {
-  const pct = goal > 0 ? Math.min(100, Math.round((delivered / goal) * 100)) : 0;
+  const pct = deliveryPct(delivered, goal);
   const isDone = goal > 0 && delivered >= goal;
 
   // Soma plays_7d mais recente por playlist

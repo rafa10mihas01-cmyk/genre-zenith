@@ -7,6 +7,7 @@ import { Music, TrendingUp, TrendingDown, Minus, ArrowRight, ExternalLink, Chevr
 import { useState } from "react";
 import type { EcoAllocation } from "../types";
 import { KpiBig } from "@/components/KpiBig";
+import { deliveryPct } from "@/lib/campaignPct";
 
 type CompactItem = { name: string; image_url: string | null; delivered: number; planned?: number | null; lastDelta?: number | null };
 function formatPlays(n: number | null | undefined): string {
@@ -166,7 +167,7 @@ export function OverviewTab({
   const showCurveCard = !hideCurveCard && !curveSlot;
   const [planOpen, setPlanOpen] = useState(false);
   const [savingLock, setSavingLock] = useState(false);
-  const pct = snapshot.meta > 0 ? Math.min(100, Math.round((delivered / snapshot.meta) * 100)) : 0;
+  const pct = deliveryPct(delivered, snapshot.meta);
   // `curva` pode vir indefinida quando o snapshot é entregue por endpoints
   // públicos sanitizados (ex: get-shared-campaign-plan no portal do cliente).
   const curva = Array.isArray(snapshot.curva) ? snapshot.curva : [];
@@ -366,102 +367,8 @@ export function OverviewTab({
         );
       })()}
 
-      {/* Detalhes do plano — ocultado: informações já cobertas pelos KPIs + cards eco/ext/org */}
-      {/* eslint-disable-next-line no-constant-binary-expression */}
-      {false && !hideDeliveryPlan && (
-      <Card>
+      {/* Bloco "Detalhes do plano" removido — coberto pelos KPIs + cards eco/ext/org. */}
 
-        <button
-          type="button"
-          onClick={() => setPlanOpen(o => !o)}
-          className="w-full text-left p-4 md:p-5 flex items-center justify-between gap-3 hover:bg-muted/20 transition-colors rounded-[inherit]"
-        >
-          <div className="text-sm font-semibold flex items-center gap-2">
-            Detalhes do plano
-            <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", planOpen && "rotate-180")} />
-          </div>
-          <div className="text-[11px] text-muted-foreground tabular-nums">
-            entregue {formatInt(delivered)} · {pct}% da meta
-          </div>
-        </button>
-
-        {planOpen && (
-        <CardContent className="p-5 pt-0 space-y-5">
-          <div>
-            <div className="flex items-baseline justify-between text-xs mb-1.5">
-              <span className="text-muted-foreground">Meta</span>
-              <span className="tabular-nums">
-                <span className="text-foreground font-medium">{formatInt(delivered)}</span>
-                <span className="text-muted-foreground"> / {formatInt(snapshot.meta)} ({pct}%)</span>
-              </span>
-            </div>
-            <div className="h-2 rounded-full bg-muted overflow-hidden">
-              <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
-            </div>
-          </div>
-
-          {(isLocked || lockedDiverged) && (
-            <div className={cn(
-              "rounded-lg border px-3 py-2 text-xs flex items-start justify-between gap-3 flex-wrap",
-              lockedDiverged ? "border-amber-500/30 bg-amber-500/5" : "border-border/70 bg-muted/20",
-            )}>
-              <div className="flex-1 min-w-0">
-                {lockedDiverged ? (
-                  <span className="text-foreground/90">
-                    Lock divergente da calculadora:{" "}
-                    <span className="font-medium">eco travado em {formatInt(Number(lockedEcoStreams))}</span>{" "}
-                    <span className="text-muted-foreground">— calculadora pediu {formatInt(ecoTarget)} ({ecoEffectivePct}% / {extEffectivePct}%{orgTarget > 0 ? ` + ${orgPctOfMeta}% orgânico` : ""}).</span>
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground">
-                    Split travado em {ecoEffectivePct}% / {extEffectivePct}%
-                    {orgTarget > 0 ? ` (+ ${orgPctOfMeta}% orgânico)` : ""}
-                    {" "}(eco {formatInt(ecoTarget)} · ext {formatInt(extTarget)}{orgTarget > 0 ? ` · org ${formatInt(orgTarget)}` : ""})
-                  </span>
-                )}
-              </div>
-              {canManageSplit && (
-                lockedDiverged ? (
-                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={handleLock} disabled={savingLock}>
-                    Alinhar à calculadora
-                  </Button>
-                ) : (
-                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={handleUnlock} disabled={savingLock}>
-                    Destravar
-                  </Button>
-                )
-              )}
-            </div>
-          )}
-
-          <div className="rounded-lg border border-border/70 bg-muted/20 px-4 py-3">
-            <div className="flex items-baseline justify-between gap-3 flex-wrap">
-              <div>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                  Meta de hoje · D{Math.max(1, daysElapsed)}
-                </div>
-                <div className="text-xl font-semibold tabular-nums leading-none mt-1">
-                  {formatInt(todayTotal)} <span className="text-xs text-muted-foreground font-normal">streams</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-4 text-xs tabular-nums">
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-primary" />
-                  <span className="text-muted-foreground">Eco</span>
-                  <span className="font-medium">{formatInt(todayEco)}</span>
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-[hsl(265_60%_60%)]" />
-                  <span className="text-muted-foreground">Externo</span>
-                  <span className="font-medium">{formatInt(todayExt)}</span>
-                </span>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-        )}
-      </Card>
-      )}
 
 
 

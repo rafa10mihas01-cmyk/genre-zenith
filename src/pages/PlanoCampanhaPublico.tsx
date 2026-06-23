@@ -63,6 +63,7 @@ import { DeliveryForecastCard, type ForecastPayload } from "@/components/client-
 import { MusicStreamsCard } from "@/components/client-portal/MusicStreamsCard";
 import { GenresUsedChip, type GenreUsed } from "@/components/campanhas/GenresUsedChip";
 import { PlanHistoryTab } from "@/components/campaign-hub/tabs/PlanHistoryTab";
+import { deliveryPct } from "@/lib/campaignPct";
 
 
 
@@ -760,7 +761,7 @@ export default function PlanoCampanhaPublico() {
                   <EvolutionChart
                     series={evolutionSeries}
                     target={snapshot.meta}
-                    pct={snapshot.meta > 0 ? Math.min(100, Math.round((delivered / snapshot.meta) * 100)) : 0}
+                    pct={deliveryPct(delivered, snapshot.meta)}
                   />
                 )}
                 <OverviewTab

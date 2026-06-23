@@ -25,7 +25,10 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useCampaigns, type Campaign } from "@/hooks/useCampaigns";
+import { useFinancialOverview } from "@/hooks/useFinancialOverview";
+import { deliveryPct } from "@/lib/campaignPct";
 import { CollectionSourceBadge } from "@/components/campanhas/CollectionSourceBadge";
+
 
 
 const STATUS_TONE: Record<string, "success" | "warning" | "neutral" | "danger"> = {
@@ -107,6 +110,8 @@ function pipelineStage(c: import("@/hooks/useCampaigns").Campaign): PipelineFilt
 export default function Campanhas() {
   const navigate = useNavigate();
   const { items, loading } = useCampaigns();
+  const { totals: finTotals } = useFinancialOverview();
+
   const [filter, setFilter] = useScreenField<PipelineFilter>("/campanhas", "filter", "all");
   const [tab, setTab] = useScreenField<"lista" | "financeiro">("/campanhas", "tab", "financeiro");
   const [searchParams, setSearchParams] = useSearchParams();
@@ -151,18 +156,13 @@ export default function Campanhas() {
     const goal = active.reduce((s, i) => s + Number(i.goal_plays || 0), 0);
     const delivered = active.reduce((s, i) => s + Number(i.total_delivered || 0), 0);
     const allocated = active.reduce((s, i) => s + Number(i.total_allocated || 0), 0);
-    const pct = goal > 0 ? Math.round((delivered / goal) * 100) : 0;
-    // CPP médio ponderado (só campanhas ativas com valor e entrega > 0)
-    let totalCost = 0;
-    let totalDeliveredCpp = 0;
-    for (const c of active) {
-      const cost = Number(c.valor_cobrado || 0);
-      const d = Number(c.total_delivered || 0);
-      if (cost > 0 && d > 0) { totalCost += cost; totalDeliveredCpp += d; }
-    }
-    const cpp = totalDeliveredCpp > 0 ? totalCost / totalDeliveredCpp : null;
+    const pct = deliveryPct(delivered, goal);
+    // CPP médio: fonte canônica (Fase 13.0) — v_curator_global_finance via useFinancialOverview.
+    // Antes calculávamos valor_cobrado/total_delivered, que é CPR cliente, não CPP curador.
+    const cpp = finTotals.cppGlobal ?? null;
     return { activeCount: active.length, goal, delivered, allocated, pct, cpp };
-  }, [items]);
+  }, [items, finTotals.cppGlobal]);
+
 
   // Botão "Recalcular" removido na Fase 2.A.2 — Família B aposentada.
   // O cache campaigns.total_delivered é mantido em tempo real pelo Growth Engine.
@@ -410,7 +410,7 @@ export default function Campanhas() {
 
 function CampaignRow({ c }: { c: Campaign }) {
   const { updateStatus, removeCampaign, approve, refresh } = useCampaigns();
-  const pct = c.goal_plays > 0 ? Math.min(100, Math.round((c.total_delivered / c.goal_plays) * 100)) : 0;
+  const pct = deliveryPct(c.total_delivered, c.goal_plays);
   const daysLeft = Math.ceil((new Date(c.deadline).getTime() - Date.now()) / 86400_000);
   const href = c.snapshot_locked_at ? `/campanhas/${c.id}/execucao` : `/campanhas/${c.id}`;
   const [confirmDelete, setConfirmDelete] = useState(false);

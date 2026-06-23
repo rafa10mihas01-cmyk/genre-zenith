@@ -221,7 +221,14 @@ export function planEcoAllocations(
  * Default status = "draft" — só vira "active" depois da aprovação do cliente
  * + approve_campaign interno.
  */
-const NEXENGINE_CURATOR_ID = "f37de5a5-c2e6-44bd-a14e-2718c83b1bd8";
+let _houseCuratorIdCache: string | null = null;
+async function getHouseCuratorId(): Promise<string | null> {
+  if (_houseCuratorIdCache) return _houseCuratorIdCache;
+  const { data } = await supabase.from("curators").select("id").eq("name", "NexEngine").is("archived_at", null).limit(1).maybeSingle();
+  _houseCuratorIdCache = (data as { id?: string } | null)?.id ?? null;
+  return _houseCuratorIdCache;
+}
+
 
 export async function closeCampaignFromCalculator(args: {
   snapshot: CampaignSnapshot;
@@ -285,7 +292,7 @@ export async function closeCampaignFromCalculator(args: {
       simulation_snapshot: enrichedSnapshot as any,
       snapshot_locked_at: snapshot.lockedAt,
       client_id: clientId,
-      curator_id: curatorId ?? NEXENGINE_CURATOR_ID,
+      curator_id: curatorId ?? (await getHouseCuratorId()),
       campaign_type: campaignType,
       collection_mode: collectionMode,
     } as any)

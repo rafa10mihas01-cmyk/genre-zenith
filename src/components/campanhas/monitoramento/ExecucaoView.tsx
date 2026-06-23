@@ -700,9 +700,8 @@ export function ExecucaoView({
                   </span>
                 </div>
               </div>
-              <div className="w-full lg:w-[360px] shrink-0 lg:pl-6">
-                <GrowthSparkline />
-              </div>
+              {/* Sparkline decorativa removida — exibia série mock fixa que não refletia dados reais. */}
+
             </div>
           </CardContent>
         </Card>
@@ -809,39 +808,7 @@ export function ExecucaoView({
   );
 }
 
-/** Sparkline puramente decorativa (linha verde subindo) — visual placeholder do mockup. */
-function GrowthSparkline() {
-  const points = [10, 18, 16, 28, 24, 36, 34, 48, 56, 52, 70, 78, 92];
-  const w = 420;
-  const h = 100;
-  const stepX = w / (points.length - 1);
-  const maxY = Math.max(...points);
-  const path = points
-    .map((p, i) => `${i === 0 ? "M" : "L"} ${i * stepX} ${h - (p / maxY) * (h - 10) - 4}`)
-    .join(" ");
-  const areaPath = `${path} L ${w} ${h} L 0 ${h} Z`;
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-[100px]" preserveAspectRatio="none">
-      <defs>
-        <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.25" />
-          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={areaPath} fill="url(#sparkFill)" />
-      <path d={path} fill="none" stroke="hsl(var(--primary))" strokeWidth="1.75" strokeLinejoin="round" strokeLinecap="round" />
-      {points.map((p, i) => (
-        <circle
-          key={i}
-          cx={i * stepX}
-          cy={h - (p / maxY) * (h - 10) - 4}
-          r={i === points.length - 1 ? 3.5 : 2}
-          fill="hsl(var(--primary))"
-        />
-      ))}
-    </svg>
-  );
-}
+
 
 
 

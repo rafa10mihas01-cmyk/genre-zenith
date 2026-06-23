@@ -4,8 +4,9 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const APP_01_ID = "d0676425-59bc-40a1-94ad-d96ce7b483c4";
+const APP_01_SLUG = "nexengine";
 const DEFAULT_TRACK = "spotify:track:11dFghVXANMlKmJXsNCbNl";
+
 
 async function refreshIfNeeded(sb: ReturnType<typeof createClient>, row: any): Promise<string> {
   if (new Date(row.expires_at).getTime() > Date.now() + 60_000) return row.access_token;
@@ -50,11 +51,16 @@ Deno.serve(async (req) => {
   let body: any = {}; try { body = await req.json(); } catch { /* */ }
   const trackUri = body.test_track_uri ?? DEFAULT_TRACK;
 
+  const { data: app } = await sb.from("spotify_apps").select("id, name").eq("slug", APP_01_SLUG).maybeSingle();
+  if (!app?.id) return new Response(JSON.stringify({ error: `app slug ${APP_01_SLUG} not found` }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  const APP_01_ID = app.id as string;
+
   const { data: tokens } = await sb.from("spotify_user_tokens").select("*")
     .eq("app_id", APP_01_ID).order("updated_at", { ascending: false });
   if (!tokens?.length) return new Response(JSON.stringify({ error: "no tokens" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-  const out: Record<string, unknown> = { app: { id: APP_01_ID, name: "NexEngine (App 01)" }, owners_tried: [] };
+  const out: Record<string, unknown> = { app: { id: APP_01_ID, name: app.name ?? "App 01" }, owners_tried: [] };
+
   let liveOwner: any = null;
   const probes: any[] = [];
 
