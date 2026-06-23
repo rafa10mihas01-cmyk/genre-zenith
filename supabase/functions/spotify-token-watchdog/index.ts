@@ -64,10 +64,25 @@ Deno.serve(async (req) => {
     console.error("[spotify-token-watchdog] breaker unlock failed:", breakerUnlockError);
   }
 
-  const { data: accounts, error } = await sb
-    .from("spotify_user_tokens")
-    .select("id, spotify_user_id, refresh_token, expires_at, app_id")
-    .lt("expires_at", threshold);
+  // Apenas Apps com lifecycle_state='active' entram na validação.
+  // Apps quarantined/disabled/development_blocked não devem disparar 'partial'.
+  const { data: activeApps, error: appsErr } = await sb
+    .from("spotify_apps")
+    .select("id")
+    .eq("lifecycle_state", "active");
+  if (appsErr) {
+    await reportCronHealth(sb, { job_name: "spotify-token-watchdog", status: "error", startedAt, message: appsErr.message });
+    return jr({ error: appsErr.message }, 500);
+  }
+  const activeAppIds = (activeApps ?? []).map((a: any) => a.id);
+
+  const { data: accounts, error } = activeAppIds.length === 0
+    ? { data: [] as any[], error: null as any }
+    : await sb
+        .from("spotify_user_tokens")
+        .select("id, spotify_user_id, refresh_token, expires_at, app_id")
+        .lt("expires_at", threshold)
+        .in("app_id", activeAppIds);
 
   if (error) {
     await sb.from("collection_logs").insert({
