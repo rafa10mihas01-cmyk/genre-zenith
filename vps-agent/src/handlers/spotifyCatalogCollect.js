@@ -18,6 +18,23 @@ const log = makeLogger("h:catalog.collect");
 const ROW_SEL = '[data-testid="sort-table-body-row"]';
 const SCROLL_CONTAINER = '#chrome-v2-main-content-scroll-root';
 const ROWS_PER_PRINT = 16;
+const SCREENSHOT_UPLOAD_TIMEOUT_MS = 45_000;
+const INGEST_TIMEOUT_MS = 60_000;
+const BOT_EVENT_TIMEOUT_MS = 15_000;
+
+async function withTimeout(promise, ms, label) {
+  let timer;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label}_timeout_after_${ms}ms`)), ms);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
 
 function parsePlays(txt) {
   if (!txt) return null;
@@ -368,27 +385,44 @@ async function capturePlaylistPrints(page, { catalog_track_id, correlation_id, p
   const print_urls = [];
   const totalParts = screenshot_buffers.length;
   for (let i = 0; i < screenshot_buffers.length; i++) {
-    const up = await uploadScreenshot(
-      screenshot_buffers[i],
-      `catalog/${catalog_track_id}/${correlation_id}-playlists-part-${i + 1}-of-${totalParts}.png`,
-      {
-        catalog_track_id,
-        correlation_id,
-        label: `catalog-playlists-part-${i + 1}-of-${totalParts}`,
-        dom_playlists: i === 0 ? playlists.map((p) => ({
-          spotify_playlist_id: p.spotify_playlist_id ?? null,
-          spotify_url: p.spotify_url ?? null,
-          playlist_name: p.name ?? null,
-          plays_7d: p.plays_7d ?? null,
-        })) : [],
-      },
-    );
-    const url = up?.signed_url ?? up?.publicUrl ?? null;
-    if (url) print_urls.push(url);
+      try {
+        const up = await withTimeout(
+          uploadScreenshot(
+            screenshot_buffers[i],
+            `catalog/${catalog_track_id}/${correlation_id}-playlists-part-${i + 1}-of-${totalParts}.png`,
+            {
+              catalog_track_id,
+              correlation_id,
+              label: `catalog-playlists-part-${i + 1}-of-${totalParts}`,
+              dom_playlists: i === 0 ? playlists.map((p) => ({
+                spotify_playlist_id: p.spotify_playlist_id ?? null,
+                spotify_url: p.spotify_url ?? null,
+                playlist_name: p.name ?? null,
+                plays_7d: p.plays_7d ?? null,
+              })) : [],
+            },
+          ),
+          SCREENSHOT_UPLOAD_TIMEOUT_MS,
+          "uploadScreenshot",
+        );
+        const url = up?.signed_url ?? up?.publicUrl ?? null;
+        if (url) print_urls.push(url);
+      } catch (e) {
+        log.warn("uploadScreenshot catalog falhou; seguindo para ingest estruturado", {
+          catalog_track_id,
+          correlation_id,
+          part: i + 1,
+          totalParts,
+          err: String(e?.message || e),
+        });
+      }
   }
 
   if (playlists.length > 30 && print_urls.length <= 1) {
-    throw new Error(`multi_print_required: upload retornou ${print_urls.length} prints para ${playlists.length} playlists`);
+    log.warn("multi_print_required sem prints suficientes; seguindo para ingest estruturado", {
+      playlists: playlists.length,
+      print_urls: print_urls.length,
+    });
   }
 
   return print_urls;
@@ -478,16 +512,20 @@ export async function spotifyCatalogCollect(job, ctx = {}) {
       throw new Error("playlist_breakdown_required: payload final ficaria com playlists=[]");
     }
 
-    const res = await fetch(`${config.OPS_BASE}/bot-ingest-song-snapshot`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-bot-key": config.BOT_API_KEY,
-        "x-worker-id": workerId ?? "",
-        "x-correlation-id": correlation_id ?? "",
-      },
-      body: JSON.stringify(ingestPayload),
-    });
+    const res = await withTimeout(
+      fetch(`${config.OPS_BASE}/bot-ingest-song-snapshot`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-bot-key": config.BOT_API_KEY,
+          "x-worker-id": workerId ?? "",
+          "x-correlation-id": correlation_id ?? "",
+        },
+        body: JSON.stringify(ingestPayload),
+      }),
+      INGEST_TIMEOUT_MS,
+      "bot-ingest-song-snapshot",
+    );
 
     if (!res.ok) {
       const txt = await res.text();
@@ -503,36 +541,48 @@ export async function spotifyCatalogCollect(job, ctx = {}) {
       scroll_passes: result.scroll_passes,
     });
 
-    await insertBotEvent({
-      bot_name: "spotify-artists-worker",
-      step: "catalog.collect",
-      status: "success",
-      worker_id: workerId,
-      correlation_id,
-      duration_ms: Date.now() - t0,
-      metadata: {
-        catalog_track_id,
-        queue_id,
-        playlists: ingestPayload.playlists.length,
-        rows_captured: result.rows_captured,
-        scroll_passes: result.scroll_passes,
-        filter_7d_applied: result.filter_7d_applied,
-        total_plays_28d: result.total_plays_28d,
-      },
-    }).catch(() => {});
+    await withTimeout(
+      insertBotEvent({
+        bot_name: "spotify-artists-worker",
+        step: "catalog.collect",
+        status: "success",
+        worker_id: workerId,
+        correlation_id,
+        duration_ms: Date.now() - t0,
+        metadata: {
+          catalog_track_id,
+          queue_id,
+          playlists: ingestPayload.playlists.length,
+          rows_captured: result.rows_captured,
+          scroll_passes: result.scroll_passes,
+          filter_7d_applied: result.filter_7d_applied,
+          total_plays_28d: result.total_plays_28d,
+        },
+      }),
+      BOT_EVENT_TIMEOUT_MS,
+      "insertBotEvent(success)",
+    ).catch((eventErr) => {
+      log.warn("insertBotEvent success falhou; retornando payload mesmo assim", { err: String(eventErr?.message || eventErr) });
+    });
 
     return ingestPayload;
   } catch (e) {
-    await insertBotEvent({
-      bot_name: "spotify-artists-worker",
-      step: "catalog.collect",
-      status: e?.fatal ? "fatal" : "error",
-      worker_id: workerId,
-      correlation_id,
-      duration_ms: Date.now() - t0,
-      message: String(e?.message || e),
-      metadata: { catalog_track_id, queue_id, spotify_track_id, requires_playlist_breakdown: requiresBreakdown },
-    }).catch(() => {});
+    await withTimeout(
+      insertBotEvent({
+        bot_name: "spotify-artists-worker",
+        step: "catalog.collect",
+        status: e?.fatal ? "fatal" : "error",
+        worker_id: workerId,
+        correlation_id,
+        duration_ms: Date.now() - t0,
+        message: String(e?.message || e),
+        metadata: { catalog_track_id, queue_id, spotify_track_id, requires_playlist_breakdown: requiresBreakdown },
+      }),
+      BOT_EVENT_TIMEOUT_MS,
+      "insertBotEvent(error)",
+    ).catch((eventErr) => {
+      log.warn("insertBotEvent error falhou", { err: String(eventErr?.message || eventErr) });
+    });
     throw e;
   }
 }
