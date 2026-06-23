@@ -75,18 +75,7 @@ export function DistribuicaoTab() {
   const flags = flagsQ.data;
   const plans = plansQ.data ?? [];
 
-  const toggleMut = useMutation({
-    mutationFn: async (value: boolean) => {
-      if (!flags) return;
-      const { error } = await supabase.from("system_flags").update({ engine_natural_distribution_active: value }).eq("id", flags.id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Configuração atualizada");
-      qc.invalidateQueries({ queryKey: ["natural-distribution"] });
-    },
-    onError: (e: any) => toast.error(e?.message ?? "Falha"),
-  });
+
 
   const saveSettingsMut = useMutation({
     mutationFn: async () => {
