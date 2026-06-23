@@ -2395,6 +2395,8 @@ export type Database = {
           removed_at: string | null
           removed_reason: string | null
           scheduled_for: string
+          skip_reason: string | null
+          skipped_at: string | null
           status: string
           updated_at: string
         }
@@ -2417,6 +2419,8 @@ export type Database = {
           removed_at?: string | null
           removed_reason?: string | null
           scheduled_for?: string
+          skip_reason?: string | null
+          skipped_at?: string | null
           status?: string
           updated_at?: string
         }
@@ -2439,6 +2443,8 @@ export type Database = {
           removed_at?: string | null
           removed_reason?: string | null
           scheduled_for?: string
+          skip_reason?: string | null
+          skipped_at?: string | null
           status?: string
           updated_at?: string
         }
@@ -14120,6 +14126,8 @@ export type Database = {
           removed_at: string | null
           removed_reason: string | null
           scheduled_for: string
+          skip_reason: string | null
+          skipped_at: string | null
           status: string
           updated_at: string
         }[]

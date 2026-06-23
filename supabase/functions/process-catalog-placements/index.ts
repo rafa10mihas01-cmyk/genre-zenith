@@ -292,21 +292,49 @@ Deno.serve(async (req) => {
   let cntWaiting = 0;        // novo: placements desviados pelo pré-flight
   let cntLocalHits = 0;      // pré-check local resolveu sem ir à Spotify
   let cntSpotifyCalls = 0;   // POSTs efetivos enviados à Spotify
+  let cntSkipped = 0;        // condição recuperável → retry automático futuro
 
-  // Classifica erro como retry transitório ou fatal definitivo.
-  function classify(err: any): { kind: "retry" | "fatal" | "circuit"; code: string } {
+  // Classifica erro como retry transitório, skip recuperável ou fatal definitivo.
+  // ETAPA 1 — Robustez: nunca marca `failed` quando há possibilidade de recuperação.
+  function classify(err: any): {
+    kind: "retry" | "fatal" | "circuit" | "skip";
+    code: string;
+    skipReason?: string;
+    skipDelaySec?: number;
+  } {
     const status: number | null = typeof err?.status === "number" ? err.status : null;
     const name = err?.name as string | undefined;
+    const msg = String(err?.message ?? err ?? "");
+    const msgLow = msg.toLowerCase();
+
     if (name === "SpotifyCircuitOpenError") return { kind: "circuit", code: "spotify_circuit_open" };
-    if (name === "SpotifyAuthInvalidError") return { kind: "fatal", code: "spotify_auth_invalid" };
+    if (name === "SpotifyAuthInvalidError") {
+      return { kind: "skip", code: "spotify_auth_invalid", skipReason: "owner_token_invalid", skipDelaySec: 3600 };
+    }
+    // Owner sem token Spotify conectado — recuperável quando reconectar.
+    if (msgLow.includes("nenhuma conta spotify") || msgLow.includes("no spotify account") || msgLow.includes("no refresh token")) {
+      return { kind: "skip", code: "owner_token_missing", skipReason: "owner_token_missing", skipDelaySec: 3600 };
+    }
     if (status === 429) return { kind: "retry", code: "spotify_429" };
     if (status != null && status >= 500 && status < 600) return { kind: "retry", code: `spotify_${status}` };
+    // 400 Index out of bounds → posição estourada (tracks_count desatualizado).
+    if (status === 400 && msgLow.includes("index out of bounds")) {
+      return { kind: "skip", code: "spotify_position_oob", skipReason: "position_out_of_bounds", skipDelaySec: 300 };
+    }
     if (status === 400) return { kind: "fatal", code: "spotify_400" };
-    if (status === 401) return { kind: "fatal", code: "spotify_401" };
-    if (status === 403) return { kind: "fatal", code: "spotify_403" };
-    if (status === 404) return { kind: "fatal", code: "spotify_404" };
-    const msg = String(err?.message ?? err ?? "").toLowerCase();
-    if (msg.includes("timeout") || msg.includes("network") || msg.includes("fetch failed")) {
+    // 401 — token inválido após refresh; recuperável após reconexão.
+    if (status === 401) {
+      return { kind: "skip", code: "spotify_401", skipReason: "owner_token_invalid", skipDelaySec: 1800 };
+    }
+    // 403 — owner perdeu permissão. Recuperável.
+    if (status === 403) {
+      return { kind: "skip", code: "spotify_403", skipReason: "owner_forbidden", skipDelaySec: 3600 };
+    }
+    // 404 — playlist arquivada/removida no Spotify. Recuperável se voltar.
+    if (status === 404) {
+      return { kind: "skip", code: "spotify_404", skipReason: "playlist_unavailable", skipDelaySec: 6 * 3600 };
+    }
+    if (msgLow.includes("timeout") || msgLow.includes("network") || msgLow.includes("fetch failed")) {
       return { kind: "retry", code: "network_error" };
     }
     return { kind: "fatal", code: status ? `spotify_${status}` : "exception" };
@@ -413,6 +441,43 @@ Deno.serve(async (req) => {
     cntFailed++;
   }
 
+  async function markSkipped(
+    p: Enriched,
+    code: string,
+    reason: string,
+    delaySec: number,
+    msg: string | null,
+    correlationId: string,
+  ) {
+    cntSkipped++;
+    const resumeAt = new Date(Date.now() + Math.max(60, delaySec) * 1000).toISOString();
+    // skip não consome tentativa: devolve o increment feito no claim.
+    await sb.from("catalog_placements").update({
+      status: "skipped",
+      skip_reason: reason,
+      skipped_at: new Date().toISOString(),
+      scheduled_for: resumeAt,
+      last_error_code: code,
+      attempts: Math.max(0, (p.attempts ?? 1) - 1),
+      locked_at: null, locked_by: null, lease_expires_at: null,
+    }).eq("id", p.id);
+    await sb.from("catalog_placement_execution_log").insert({
+      placement_id: p.id,
+      catalog_track_id: p.catalog_track_id,
+      managed_playlist_id: p.managed_playlist_id,
+      spotify_playlist_id: p.spotify_playlist_id,
+      spotify_track_id: p.spotify_track_id,
+      position: p.position,
+      outcome: "skipped",
+      error_code: code,
+      error_message: trim(
+        `source=skip reason=${reason} resume_at=${resumeAt} ` +
+        `attempts_refunded=true (${p.attempts}→${Math.max(0, (p.attempts ?? 1) - 1)}) ` +
+        `${msg ?? ""} corr=${correlationId}`,
+      ),
+    });
+  }
+
   async function markActive(
     p: Enriched,
     outcome: Outcome,
@@ -484,7 +549,8 @@ Deno.serve(async (req) => {
 
       await markActive(p, "active", "spotify_post", correlationId, addRes.snapshot_id ?? null);
     } catch (e: any) {
-      const { kind, code } = classify(e);
+      const cls = classify(e);
+      const { kind, code } = cls;
       const msg = trim(e?.message ?? String(e));
 
       if (kind === "circuit") {
@@ -495,12 +561,20 @@ Deno.serve(async (req) => {
         await markWaitingCircuit(p, appId, breaker.blocked_until, correlationId, retryAfter);
       } else if (kind === "retry") {
         await markRetry(p, code, msg, correlationId);
-      } else {
-        await markFailed(p, code, msg, correlationId);
-        // 401 → derruba cache pra próximo refresh.
-        if (code === "spotify_401" && p.owner_spotify_user_id) {
+      } else if (kind === "skip") {
+        await markSkipped(
+          p,
+          code,
+          cls.skipReason ?? "recoverable",
+          cls.skipDelaySec ?? 1800,
+          msg,
+          correlationId,
+        );
+        if ((code === "spotify_401" || code === "spotify_auth_invalid") && p.owner_spotify_user_id) {
           tokenCache.delete(p.owner_spotify_user_id);
         }
+      } else {
+        await markFailed(p, code, msg, correlationId);
       }
     }
   }
@@ -515,6 +589,7 @@ Deno.serve(async (req) => {
     already_present: cntAlready,
     retry: cntRetry,
     failed: cntFailed,
+    skipped: cntSkipped,
     circuit_open: cntCircuit,
     waiting_circuit_breaker: cntWaiting,
     local_hits: cntLocalHits,
