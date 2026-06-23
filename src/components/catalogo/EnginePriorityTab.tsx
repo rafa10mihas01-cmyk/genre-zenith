@@ -393,7 +393,7 @@ export function EnginePriorityTab() {
             </thead>
             <tbody>
               {rows.map((r, i) => (
-                <tr key={r.spotify_playlist_id} className="border-b border-border/50 hover:bg-muted/30">
+                <tr key={r.managed_playlist_id} className="border-b border-border/50 hover:bg-muted/30">
                   <td className="px-3 py-2 tabular-nums text-muted-foreground">{i + 1}</td>
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2 min-w-0">
