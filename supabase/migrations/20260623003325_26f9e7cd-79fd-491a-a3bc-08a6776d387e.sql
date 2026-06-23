@@ -1,0 +1,1 @@
+ALTER VIEW public.spotify_app_overview SET (security_invoker = true);
