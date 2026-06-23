@@ -252,61 +252,102 @@ async function scrapePlaylistBreakdown(page, statsUrl) {
 
   const playlistsUrl = statsUrl.replace("/stats", "/playlists");
   log.info("navegando para playlists", { url: playlistsUrl });
-  await page.goto(playlistsUrl, { waitUntil: "networkidle", timeout: 30000 });
-  await assertLoggedIn(page);
-  await page.locator(SELECTORS.printArea).first().waitFor({ state: "visible", timeout: 15000 });
-  await page.waitForTimeout(2000);
-  const playlist_filter_7d_applied = await applySevenDayFilter(page);
+  log.info("CATALOG_STEP_2_PRE_GOTO_PLAYLISTS", { playlistsUrl });
+  try {
+    await page.goto(playlistsUrl, { waitUntil: "networkidle", timeout: 30000 });
+  } catch (e) {
+    log.error("CATALOG_STEP_2_GOTO_FAILED", {
+      name: e?.name, message: e?.message, stack: String(e?.stack || "").slice(0, 2000),
+      url: page.url(),
+    });
+    throw e;
+  }
+  log.info("CATALOG_STEP_2_POST_GOTO_PLAYLISTS", { url: page.url() });
 
   try {
-    await page.locator(ROW_SEL).first().waitFor({ state: "visible", timeout: 10000 });
-  } catch {
-    log.warn("tabela de playlists nao renderizou em 10s", {});
-  }
+    log.info("CATALOG_STEP_2A_ASSERT_LOGIN", {});
+    await assertLoggedIn(page);
 
-  const playlists = [];
-  const seen = new Set();
-  let passesWithoutNew = 0;
-  let scroll_passes = 0;
+    log.info("CATALOG_STEP_2B_WAIT_PRINTAREA", {});
+    await page.locator(SELECTORS.printArea).first().waitFor({ state: "visible", timeout: 15000 });
 
-  while (passesWithoutNew < 3 && scroll_passes < 80) {
-    scroll_passes++;
-    const rows = await extractVisiblePlaylistRows(page);
-    let newFound = 0;
+    log.info("CATALOG_STEP_2C_WAIT_2S", {});
+    await page.waitForTimeout(2000);
 
-    for (const row of rows) {
-      const id = row.playlistId || extractPlaylistId(row.href);
-      const key = id || (row.playlist_name || "").toLowerCase().trim();
-      if (!key || seen.has(key)) continue;
-      seen.add(key);
-      newFound++;
+    log.info("CATALOG_STEP_2D_APPLY_FILTER_7D", {});
+    const playlist_filter_7d_applied = await applySevenDayFilter(page);
+    log.info("CATALOG_STEP_2E_FILTER_DONE", { playlist_filter_7d_applied });
 
-      playlists.push({
-        spotify_playlist_id: id || null,
-        spotify_url: id ? (row.href || `https://open.spotify.com/playlist/${id}`) : null,
-        name: row.playlist_name || null,
-        owner: row.owner || null,
-        plays_7d: parsePlays(pickBestPlaysText(row)) ?? null,
-      });
+    try {
+      await page.locator(ROW_SEL).first().waitFor({ state: "visible", timeout: 10000 });
+      log.info("CATALOG_STEP_2F_ROW_VISIBLE", {});
+    } catch {
+      log.warn("tabela de playlists nao renderizou em 10s", {});
     }
 
-    if (newFound === 0) passesWithoutNew++;
-    else passesWithoutNew = 0;
+    const playlists = [];
+    const seen = new Set();
+    let passesWithoutNew = 0;
+    let scroll_passes = 0;
 
-    if (await isPlaylistTableAtBottom(page)) break;
-    const moved = await scrollPlaylistTable(page, 600);
-    if (!moved) break;
+    log.info("CATALOG_STEP_2G_ENTER_LOOP", {});
+    while (passesWithoutNew < 3 && scroll_passes < 80) {
+      scroll_passes++;
+      const rows = await extractVisiblePlaylistRows(page);
+      let newFound = 0;
+
+      for (const row of rows) {
+        const id = row.playlistId || extractPlaylistId(row.href);
+        const key = id || (row.playlist_name || "").toLowerCase().trim();
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        newFound++;
+
+        playlists.push({
+          spotify_playlist_id: id || null,
+          spotify_url: id ? (row.href || `https://open.spotify.com/playlist/${id}`) : null,
+          name: row.playlist_name || null,
+          owner: row.owner || null,
+          plays_7d: parsePlays(pickBestPlaysText(row)) ?? null,
+        });
+      }
+
+      if (newFound === 0) passesWithoutNew++;
+      else passesWithoutNew = 0;
+
+      if (await isPlaylistTableAtBottom(page)) break;
+      const moved = await scrollPlaylistTable(page, 600);
+      if (!moved) break;
+    }
+
+    log.info("CATALOG_STEP_2H_LOOP_DONE", { rows_captured: playlists.length, scroll_passes });
+    log.info("playlists capturadas", { rows_captured: playlists.length, scroll_passes });
+
+    return {
+      ...totals,
+      playlists,
+      rows_captured: playlists.length,
+      scroll_passes,
+      playlist_filter_7d_applied,
+    };
+  } catch (e) {
+    let pageUrl = null, pageTitle = null, bodyText = null;
+    try { pageUrl = page.url(); } catch {}
+    try { pageTitle = await page.title(); } catch (te) { pageTitle = `__title_failed:${te?.message}`; }
+    try {
+      bodyText = await page.locator("body").innerText({ timeout: 3000 });
+      if (bodyText && bodyText.length > 1000) bodyText = bodyText.slice(0, 1000);
+    } catch (be) { bodyText = `__body_failed:${be?.message}`; }
+    log.error("CATALOG_STEP_2_BLOCK_FAILED", {
+      name: e?.name || null,
+      message: e?.message || String(e),
+      stack: String(e?.stack || "").slice(0, 4000),
+      pageUrl,
+      pageTitle,
+      bodyText,
+    });
+    throw e;
   }
-
-  log.info("playlists capturadas", { rows_captured: playlists.length, scroll_passes });
-
-  return {
-    ...totals,
-    playlists,
-    rows_captured: playlists.length,
-    scroll_passes,
-    playlist_filter_7d_applied,
-  };
 }
 
 async function capturePlaylistPrints(page, { catalog_track_id, correlation_id, playlists }) {
