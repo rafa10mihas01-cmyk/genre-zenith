@@ -236,6 +236,7 @@ async function scrapePlaylistBreakdown(page, statsUrl) {
   await assertLoggedIn(page);
   await page.locator(SELECTORS.printArea).first().waitFor({ state: "visible", timeout: 15000 });
   await page.waitForTimeout(2000);
+  const playlist_filter_7d_applied = await applySevenDayFilter(page);
 
   try {
     await page.locator(ROW_SEL).first().waitFor({ state: "visible", timeout: 10000 });
@@ -265,7 +266,7 @@ async function scrapePlaylistBreakdown(page, statsUrl) {
         spotify_url: id ? (row.href || `https://open.spotify.com/playlist/${id}`) : null,
         name: row.playlist_name || null,
         owner: row.owner || null,
-        plays_7d: parsePlays(row.plays_text) || null,
+        plays_7d: parsePlays(pickBestPlaysText(row)) ?? null,
       });
     }
 
@@ -284,6 +285,7 @@ async function scrapePlaylistBreakdown(page, statsUrl) {
     playlists,
     rows_captured: playlists.length,
     scroll_passes,
+    playlist_filter_7d_applied,
   };
 }
 
