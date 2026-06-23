@@ -2,7 +2,7 @@
 // Usa só a infra da Fase 2 (gênero + vaga + cooldown). Sem score, ranking ou pesos.
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Play, Info, Power, Save, Calendar, Activity } from "lucide-react";
+import { Play, Power, Save, Calendar, Activity, Layers } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -258,12 +258,30 @@ export function DistribuicaoTab() {
             {runWaveMut.isPending ? "Executando…" : "Rodar onda agora"}
           </Button>
         </div>
-        <div className="flex items-start gap-2 mt-3 text-[11px] text-muted-foreground">
-          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-          <span>
-            Expansão em camadas: Camada 1 (playlists mais robustas por ciclo de vida, estado curatorial e seguidores) abre no Dia 0. Camada 2 libera após o atraso configurado; Camada 3 após o dobro. Tudo respeita vaga, cooldown, gênero, limite diário e diversificação entre músicas.
-          </span>
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {[
+            { n: 1, title: "Camada 1", when: "Dia 0", desc: "Playlists mais robustas — ciclo de vida, estado curatorial e seguidores." },
+            { n: 2, title: "Camada 2", when: `Dia +${flags?.engine_natural_distribution_tier_delay_days ?? 2}`, desc: "Segunda onda libera após o atraso configurado." },
+            { n: 3, title: "Camada 3", when: `Dia +${(flags?.engine_natural_distribution_tier_delay_days ?? 2) * 2}`, desc: "Cauda longa, abre após o dobro do atraso." },
+          ].map((c) => (
+            <div key={c.n} className="rounded-xl border border-border/60 bg-background/40 p-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="h-6 w-6 rounded-md bg-primary/10 text-primary flex items-center justify-center text-[11px] font-semibold tabular-nums">
+                    {c.n}
+                  </div>
+                  <span className="text-xs font-semibold">{c.title}</span>
+                </div>
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground tabular-nums">{c.when}</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-2 leading-snug">{c.desc}</p>
+            </div>
+          ))}
         </div>
+        <p className="text-[11px] text-muted-foreground mt-3 flex items-center gap-1.5">
+          <Layers className="h-3 w-3" />
+          Toda camada respeita vaga, cooldown, gênero, limite diário e diversificação entre músicas.
+        </p>
       </section>
 
       {/* Lista de planos */}
@@ -288,7 +306,42 @@ export function DistribuicaoTab() {
             ))}
           </div>
         </div>
-        <div className="overflow-x-auto">
+        {/* Mobile: cards */}
+        <div className="md:hidden divide-y divide-border/50">
+          {plansQ.isLoading && (
+            <div className="px-4 py-6 text-center text-sm text-muted-foreground">Carregando…</div>
+          )}
+          {!plansQ.isLoading && plans.length === 0 && (
+            <div className="px-4 py-8 text-center text-sm text-muted-foreground">Nenhum plano ainda. Ative a flag e adicione uma música no catálogo.</div>
+          )}
+          {plans.map((p) => (
+            <div key={p.id} className="px-4 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-semibold truncate">{p.track_name ?? "—"}</div>
+                  <div className="text-xs text-muted-foreground truncate">{p.artist_name ?? "—"}</div>
+                </div>
+                <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border border-border/60 text-muted-foreground tabular-nums shrink-0">
+                  {p.window_days}d
+                </span>
+              </div>
+              <div className="mt-2.5 flex items-center gap-2">
+                <div className="flex-1 h-1.5 bg-border/60 rounded-full overflow-hidden">
+                  <div className="h-full bg-primary transition-all" style={{ width: `${p.percent_done}%` }} />
+                </div>
+                <span className="text-[11px] tabular-nums text-muted-foreground w-9 text-right">{p.percent_done}%</span>
+              </div>
+              <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground tabular-nums">
+                <span><span className="text-foreground font-medium">{p.total_distributed}</span> de {p.total_eligible}</span>
+                <span>{p.total_pending} pendentes</span>
+                <span>{p.next_wave_at ? new Date(p.next_wave_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—"}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop: tabela */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-xs uppercase tracking-wider text-muted-foreground">
               <tr className="border-b border-border">
