@@ -10,6 +10,8 @@ import { useQuery } from "@tanstack/react-query";
 import { ListMusic, TrendingUp, Layers } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+
 
 import { cn } from "@/lib/utils";
 
