@@ -13,6 +13,7 @@ import { toast } from "@/hooks/use-toast";
 import { PUBLIC_DOMAIN } from "@/lib/curatorPublicUrl";
 import { Kpi } from "@/components/ui/kpi";
 import { CampaignClosureReportCard } from "@/components/campanhas/CampaignClosureReportCard";
+import { deliveryPct } from "@/lib/campaignPct";
 
 type Campaign = {
   id: string; track_name: string; artist: string | null;

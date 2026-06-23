@@ -2,6 +2,7 @@ import { Activity, Target, Gauge, CalendarDays } from "lucide-react";
 import { KpiBig } from "@/components/KpiBig";
 import { formatInt } from "@/lib/campaignEngine";
 import type { CampaignSnapshot } from "@/lib/campaignSnapshot";
+import { deliveryPct } from "@/lib/campaignPct";
 
 type Props = {
   snapshot: CampaignSnapshot;

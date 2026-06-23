@@ -7,6 +7,7 @@ import { Music, TrendingUp, TrendingDown, Minus, ArrowRight, ExternalLink, Chevr
 import { useState } from "react";
 import type { EcoAllocation } from "../types";
 import { KpiBig } from "@/components/KpiBig";
+import { deliveryPct } from "@/lib/campaignPct";
 
 type CompactItem = { name: string; image_url: string | null; delivered: number; planned?: number | null; lastDelta?: number | null };
 function formatPlays(n: number | null | undefined): string {

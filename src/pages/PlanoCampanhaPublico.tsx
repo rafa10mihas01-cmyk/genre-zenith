@@ -63,6 +63,7 @@ import { DeliveryForecastCard, type ForecastPayload } from "@/components/client-
 import { MusicStreamsCard } from "@/components/client-portal/MusicStreamsCard";
 import { GenresUsedChip, type GenreUsed } from "@/components/campanhas/GenresUsedChip";
 import { PlanHistoryTab } from "@/components/campaign-hub/tabs/PlanHistoryTab";
+import { deliveryPct } from "@/lib/campaignPct";
 
 
 

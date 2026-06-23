@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { CalendarDays, Music2, TrendingUp, ExternalLink, ListMusic, Clock, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CampaignHubCampaign, EcoAllocation } from "./types";
+import { deliveryPct } from "@/lib/campaignPct";
 
 type EcoSnap = {
   managed_playlist_id: string;
