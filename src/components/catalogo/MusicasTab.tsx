@@ -50,7 +50,7 @@ type SortId = "added" | "growth" | "placements";
 
 async function fetchAll(): Promise<Row[]> {
   const [tracksRes, statsRes, telRes] = await Promise.all([
-    supabase.from("catalog_tracks").select("id, spotify_track_id, track_name, artist_name, cover_url, isrc, status, added_at, next_auto_collect_at, auto_collect_interval_minutes").order("added_at", { ascending: false }).limit(200),
+    supabase.from("catalog_tracks").select("id, spotify_track_id, track_name, artist_name, cover_url, isrc, status, added_at, next_auto_collect_at, auto_collect_interval_minutes").order("added_at", { ascending: false }),
     supabase.from("v_catalog_track_distribution_stats").select("catalog_track_id, placements_total, placements_pending, placements_active, placements_failed"),
     supabase.from("v_catalog_track_telemetry").select("catalog_track_id, baseline_at, last_captured_at, last_plays_28d, growth_abs, growth_pct, snapshots_count"),
   ]);
