@@ -549,7 +549,8 @@ Deno.serve(async (req) => {
 
       await markActive(p, "active", "spotify_post", correlationId, addRes.snapshot_id ?? null);
     } catch (e: any) {
-      const { kind, code } = classify(e);
+      const cls = classify(e);
+      const { kind, code } = cls;
       const msg = trim(e?.message ?? String(e));
 
       if (kind === "circuit") {
@@ -560,12 +561,20 @@ Deno.serve(async (req) => {
         await markWaitingCircuit(p, appId, breaker.blocked_until, correlationId, retryAfter);
       } else if (kind === "retry") {
         await markRetry(p, code, msg, correlationId);
-      } else {
-        await markFailed(p, code, msg, correlationId);
-        // 401 → derruba cache pra próximo refresh.
-        if (code === "spotify_401" && p.owner_spotify_user_id) {
+      } else if (kind === "skip") {
+        await markSkipped(
+          p,
+          code,
+          cls.skipReason ?? "recoverable",
+          cls.skipDelaySec ?? 1800,
+          msg,
+          correlationId,
+        );
+        if ((code === "spotify_401" || code === "spotify_auth_invalid") && p.owner_spotify_user_id) {
           tokenCache.delete(p.owner_spotify_user_id);
         }
+      } else {
+        await markFailed(p, code, msg, correlationId);
       }
     }
   }
@@ -580,6 +589,7 @@ Deno.serve(async (req) => {
     already_present: cntAlready,
     retry: cntRetry,
     failed: cntFailed,
+    skipped: cntSkipped,
     circuit_open: cntCircuit,
     waiting_circuit_breaker: cntWaiting,
     local_hits: cntLocalHits,
