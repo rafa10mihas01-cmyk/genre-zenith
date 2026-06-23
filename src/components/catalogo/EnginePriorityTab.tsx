@@ -13,42 +13,46 @@ import { cn } from "@/lib/utils";
 // ─────────────────────────────────────────────────────────────────────────────
 // Tipos
 // ─────────────────────────────────────────────────────────────────────────────
-type AttributionRow = {
+type PlacementRow = {
+  id: string;
+  managed_playlist_id: string;
   catalog_track_id: string;
-  spotify_playlist_id: string;
-  name: string | null;
-  owner: string | null;
-  spotify_url: string | null;
-  first_seen_at: string;
-  last_seen_at: string;
-  observations: number;
-  current_position: number | null;
-  current_plays_7d: number | null;
-  status: "active" | "left";
+  status: string;
+  added_at: string | null;
+  created_at: string;
+  removed_at: string | null;
 };
 
 type ManagedRow = {
+  id: string;
   spotify_playlist_id: string;
   name: string;
   cover_url: string | null;
   spotify_url: string | null;
   archived_at: string | null;
+  followers: number | null;
+};
+
+type CatalogTrackRow = {
+  id: string;
+  spotify_track_id: string | null;
 };
 
 type PlaylistDeliveryRow = {
-  spotify_playlist_id: string;
+  managed_playlist_id: string;
+  spotify_playlist_id: string | null;
   display_name: string;
   cover_url: string | null;
   spotify_url: string | null;
-  total_plays_7d: number;
+  followers: number | null;
+  total_plays_7d: number | null;
   catalog_tracks: number;
   active_tracks: number;
-  left_tracks: number;
+  removed_tracks: number;
   last_delivery: string | null;
-  status: "active" | "partial" | "left";
-  managed: boolean;
+  status: "active" | "partial" | "removed";
   archived: boolean;
-  growth_delta: number | null; // Δ plays_7d entre as duas capturas mais recentes
+  growth_delta: number | null;
 };
 
 type ScoreRow = {
@@ -63,56 +67,72 @@ type ScoreRow = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Fetchers
+// Fetchers — fonte primária: catalog_placements (entrega real)
 // ─────────────────────────────────────────────────────────────────────────────
-async function fetchAttribution(): Promise<AttributionRow[]> {
+async function fetchPlacements(): Promise<PlacementRow[]> {
   const { data, error } = await supabase
-    .from("v_catalog_track_playlist_attribution")
-    .select("*")
-    .limit(10000);
+    .from("catalog_placements")
+    .select("id, managed_playlist_id, catalog_track_id, status, added_at, created_at, removed_at")
+    .in("status", ["active", "removed"])
+    .limit(20000);
   if (error) throw error;
-  return (data ?? []) as AttributionRow[];
+  return (data ?? []) as PlacementRow[];
 }
 
 async function fetchManagedIndex(): Promise<Record<string, ManagedRow>> {
   const { data, error } = await supabase
     .from("managed_playlists")
-    .select("spotify_playlist_id, name, cover_url, spotify_url, archived_at");
+    .select("id, spotify_playlist_id, name, cover_url, spotify_url, archived_at, followers");
   if (error) throw error;
   const idx: Record<string, ManagedRow> = {};
-  for (const r of (data ?? []) as ManagedRow[]) {
-    if (r.spotify_playlist_id) idx[r.spotify_playlist_id] = r;
-  }
+  for (const r of (data ?? []) as ManagedRow[]) idx[r.id] = r;
   return idx;
 }
 
-// Crescimento honesto: diferença de plays_7d entre as duas capturas mais recentes,
-// agregadas por playlist (somando todas as faixas de catálogo).
-async function fetchGrowthByPlaylist(): Promise<Record<string, number>> {
+async function fetchCatalogTracks(): Promise<Record<string, CatalogTrackRow>> {
+  const { data, error } = await supabase.from("catalog_tracks").select("id, spotify_track_id");
+  if (error) throw error;
+  const idx: Record<string, CatalogTrackRow> = {};
+  for (const r of (data ?? []) as CatalogTrackRow[]) idx[r.id] = r;
+  return idx;
+}
+
+// Plays/crescimento opcional: agrega song_snapshot_playlists por spotify_playlist_id,
+// considerando snapshots cuja música casa com o catálogo (via spotify_song_id ou catalog_track_id).
+async function fetchPlaysByPlaylist(
+  catalogSpotifyIds: Set<string>,
+): Promise<Record<string, { plays_7d: number; growth_delta: number | null }>> {
+  if (catalogSpotifyIds.size === 0) return {};
   const { data, error } = await supabase
     .from("song_snapshot_playlists")
-    .select("spotify_playlist_id, plays_7d, song_snapshots!inner(captured_at, catalog_track_id)")
-    .not("song_snapshots.catalog_track_id", "is", null)
-    .limit(20000);
+    .select(
+      "spotify_playlist_id, plays_7d, song_snapshots!inner(spotify_song_id, catalog_track_id, captured_at)",
+    )
+    .limit(50000);
   if (error) throw error;
 
-  // (playlist, dia) → soma de plays_7d
+  // (playlist, dia) → soma de plays_7d (apenas snaps que casam com catálogo)
   const daily: Record<string, Record<string, number>> = {};
   for (const r of (data ?? []) as any[]) {
+    const snap = r.song_snapshots;
+    if (!snap) continue;
+    const matches =
+      !!snap.catalog_track_id ||
+      (snap.spotify_song_id && catalogSpotifyIds.has(snap.spotify_song_id));
+    if (!matches) continue;
     const pid = r.spotify_playlist_id;
-    const cap = r.song_snapshots?.captured_at;
+    const cap = snap.captured_at;
     if (!pid || !cap) continue;
     const day = String(cap).slice(0, 10);
     daily[pid] ??= {};
     daily[pid][day] = (daily[pid][day] ?? 0) + (Number(r.plays_7d) || 0);
   }
-  const out: Record<string, number> = {};
+  const out: Record<string, { plays_7d: number; growth_delta: number | null }> = {};
   for (const [pid, byDay] of Object.entries(daily)) {
     const days = Object.keys(byDay).sort();
-    if (days.length < 2) continue;
-    const last = byDay[days[days.length - 1]];
-    const prev = byDay[days[days.length - 2]];
-    out[pid] = last - prev;
+    const last = byDay[days[days.length - 1]] ?? 0;
+    const prev = days.length >= 2 ? byDay[days[days.length - 2]] : null;
+    out[pid] = { plays_7d: last, growth_delta: prev == null ? null : last - prev };
   }
   return out;
 }
@@ -186,9 +206,9 @@ function bucket(score: number) {
 export function EnginePriorityTab() {
   const qc = useQueryClient();
 
-  const attrQ = useQuery({
-    queryKey: ["engine-delivery", "attribution"],
-    queryFn: fetchAttribution,
+  const placementsQ = useQuery({
+    queryKey: ["engine-delivery", "placements"],
+    queryFn: fetchPlacements,
     staleTime: 15_000,
     refetchInterval: 30_000,
     refetchOnWindowFocus: true,
@@ -198,14 +218,27 @@ export function EnginePriorityTab() {
     queryFn: fetchManagedIndex,
     staleTime: 60_000,
   });
-  const growthQ = useQuery({
-    queryKey: ["engine-delivery", "growth"],
-    queryFn: fetchGrowthByPlaylist,
+  const tracksQ = useQuery({
+    queryKey: ["engine-delivery", "tracks-index"],
+    queryFn: fetchCatalogTracks,
+    staleTime: 60_000,
+  });
+  const catalogSpotifyIds = useMemo(() => {
+    const s = new Set<string>();
+    for (const t of Object.values(tracksQ.data ?? {})) {
+      if (t.spotify_track_id) s.add(t.spotify_track_id);
+    }
+    return s;
+  }, [tracksQ.data]);
+  const playsQ = useQuery({
+    queryKey: ["engine-delivery", "plays", catalogSpotifyIds.size],
+    queryFn: () => fetchPlaysByPlaylist(catalogSpotifyIds),
+    enabled: catalogSpotifyIds.size > 0,
     staleTime: 30_000,
     refetchInterval: 60_000,
   });
 
-  // Realtime — recálculos da engine continuam atualizando o diagnóstico
+  // Realtime — recálculos da engine atualizam o diagnóstico, placements atualizam o ranking
   useEffect(() => {
     const channel = supabase
       .channel("engine-priority-live")
@@ -215,7 +248,7 @@ export function EnginePriorityTab() {
       .on("postgres_changes", { event: "*", schema: "public", table: "placement_priority_scores" }, () => {
         qc.invalidateQueries({ queryKey: ["engine-diagnostic"] });
       })
-      .on("postgres_changes", { event: "*", schema: "public", table: "song_snapshots" }, () => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "catalog_placements" }, () => {
         qc.invalidateQueries({ queryKey: ["engine-delivery"] });
       })
       .subscribe();
@@ -225,57 +258,67 @@ export function EnginePriorityTab() {
   }, [qc]);
 
   const rows = useMemo<PlaylistDeliveryRow[]>(() => {
-    const attr = attrQ.data ?? [];
+    const placements = placementsQ.data ?? [];
     const managed = managedQ.data ?? {};
-    const growth = growthQ.data ?? {};
+    const plays = playsQ.data ?? {};
 
-    const byPid = new Map<string, AttributionRow[]>();
-    for (const r of attr) {
-      if (!r.spotify_playlist_id) continue;
-      const list = byPid.get(r.spotify_playlist_id) ?? [];
-      list.push(r);
-      byPid.set(r.spotify_playlist_id, list);
+    const byMp = new Map<string, PlacementRow[]>();
+    for (const p of placements) {
+      const list = byMp.get(p.managed_playlist_id) ?? [];
+      list.push(p);
+      byMp.set(p.managed_playlist_id, list);
     }
 
     const out: PlaylistDeliveryRow[] = [];
-    for (const [pid, list] of byPid.entries()) {
-      const mp = managed[pid];
-      const activeTracks = list.filter((x) => x.status === "active").length;
-      const leftTracks = list.filter((x) => x.status === "left").length;
-      const total_plays_7d = list.reduce((a, b) => a + (b.current_plays_7d ?? 0), 0);
-      const last_delivery = list
-        .map((x) => x.last_seen_at)
-        .filter(Boolean)
-        .sort()
-        .pop() ?? null;
+    for (const [mpId, list] of byMp.entries()) {
+      const mp = managed[mpId];
+      const active = list.filter((x) => x.status === "active").length;
+      const removed = list.filter((x) => x.status === "removed").length;
+      if (active === 0 && removed === 0) continue;
+      const last_delivery =
+        list
+          .map((x) => x.added_at)
+          .filter(Boolean)
+          .sort()
+          .pop() ?? null;
       const status: PlaylistDeliveryRow["status"] =
-        activeTracks > 0 && leftTracks === 0 ? "active" : activeTracks > 0 ? "partial" : "left";
+        active > 0 && removed === 0 ? "active" : active > 0 ? "partial" : "removed";
+      const playData = mp?.spotify_playlist_id ? plays[mp.spotify_playlist_id] : undefined;
 
       out.push({
-        spotify_playlist_id: pid,
-        display_name: mp?.name ?? list[0]?.name ?? pid,
+        managed_playlist_id: mpId,
+        spotify_playlist_id: mp?.spotify_playlist_id ?? null,
+        display_name: mp?.name ?? mpId,
         cover_url: mp?.cover_url ?? null,
-        spotify_url: mp?.spotify_url ?? list[0]?.spotify_url ?? null,
-        total_plays_7d,
+        spotify_url: mp?.spotify_url ?? null,
+        followers: mp?.followers ?? null,
+        total_plays_7d: playData?.plays_7d ?? null,
         catalog_tracks: list.length,
-        active_tracks: activeTracks,
-        left_tracks: leftTracks,
+        active_tracks: active,
+        removed_tracks: removed,
         last_delivery,
         status,
-        managed: !!mp,
         archived: !!mp?.archived_at,
-        growth_delta: growth[pid] ?? null,
+        growth_delta: playData?.growth_delta ?? null,
       });
     }
-    out.sort((a, b) => b.total_plays_7d - a.total_plays_7d);
+    out.sort((a, b) => {
+      // ordena por entrega: primeiro plays 7d (quando houver), depois nº ativo, depois data
+      const pa = a.total_plays_7d ?? -1;
+      const pb = b.total_plays_7d ?? -1;
+      if (pb !== pa) return pb - pa;
+      if (b.active_tracks !== a.active_tracks) return b.active_tracks - a.active_tracks;
+      return (b.last_delivery ?? "").localeCompare(a.last_delivery ?? "");
+    });
     return out;
-  }, [attrQ.data, managedQ.data, growthQ.data]);
+  }, [placementsQ.data, managedQ.data, playsQ.data]);
 
-  const totalPlays = rows.reduce((a, b) => a + b.total_plays_7d, 0);
+  const totalActiveTracks = rows.reduce((a, b) => a + b.active_tracks, 0);
   const totalActive = rows.filter((r) => r.status === "active").length;
   const totalPartial = rows.filter((r) => r.status === "partial").length;
 
-  const loading = attrQ.isLoading || managedQ.isLoading;
+  const loading = placementsQ.isLoading || managedQ.isLoading;
+
 
   return (
     <div className="space-y-6">
@@ -299,11 +342,12 @@ export function EnginePriorityTab() {
           </Button>
         </div>
         <div className="grid grid-cols-3 gap-2 mt-4">
-          <Kpi label="Plays 7d" value={fmtNumber(totalPlays)} />
+          <Kpi label="Faixas entregues" value={totalActiveTracks} />
           <Kpi label="Playlists ativas" value={totalActive} />
           <Kpi label="Parcialmente ativas" value={totalPartial} />
         </div>
       </section>
+
 
       {/* Ranking de playlists */}
       <section className="rounded-2xl border border-border bg-card">
@@ -312,22 +356,24 @@ export function EnginePriorityTab() {
             <ListMusic className="h-4 w-4 text-primary shrink-0" />
             Ranking por entrega ({rows.length})
           </h3>
-          <span className="text-[11px] text-muted-foreground">ordenado por plays 7d</span>
+          <span className="text-[11px] text-muted-foreground">ordenado por entrega</span>
         </div>
+
 
         {loading && (
           <div className="px-4 py-8 text-center text-sm text-muted-foreground">Carregando…</div>
         )}
         {!loading && rows.length === 0 && (
           <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-            Sem dados de entrega ainda. Quando houver snapshots das faixas do catálogo, o ranking aparece aqui.
+            Sem entregas registradas em catalog_placements.
           </div>
         )}
+
 
         {/* Mobile: cards */}
         <div className="sm:hidden divide-y divide-border/50">
           {rows.map((r, i) => (
-            <PlaylistRowMobile key={r.spotify_playlist_id} rank={i + 1} row={r} />
+            <PlaylistRowMobile key={r.managed_playlist_id} rank={i + 1} row={r} />
           ))}
         </div>
 
@@ -347,7 +393,7 @@ export function EnginePriorityTab() {
             </thead>
             <tbody>
               {rows.map((r, i) => (
-                <tr key={r.spotify_playlist_id} className="border-b border-border/50 hover:bg-muted/30">
+                <tr key={r.managed_playlist_id} className="border-b border-border/50 hover:bg-muted/30">
                   <td className="px-3 py-2 tabular-nums text-muted-foreground">{i + 1}</td>
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2 min-w-0">
@@ -357,8 +403,9 @@ export function EnginePriorityTab() {
                       <div className="min-w-0">
                         <div className="font-medium truncate">{r.display_name}</div>
                         <div className="text-[11px] text-muted-foreground">
-                          {r.managed ? (r.archived ? "Arquivada" : "Gerenciada") : "Externa"}
+                          {r.archived ? "Arquivada" : r.followers != null ? `${fmtNumber(r.followers)} seguidores` : "Gerenciada"}
                         </div>
+
                       </div>
                     </div>
                   </td>
@@ -370,10 +417,11 @@ export function EnginePriorityTab() {
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">
                     {r.active_tracks}
-                    {r.left_tracks > 0 && (
+                    {r.removed_tracks > 0 && (
                       <span className="text-muted-foreground"> /{r.catalog_tracks}</span>
                     )}
                   </td>
+
                   <td className="px-3 py-2 text-xs text-muted-foreground">
                     {r.last_delivery
                       ? new Date(r.last_delivery).toLocaleDateString("pt-BR", {
@@ -494,7 +542,9 @@ function Kpi({ label, value }: { label: string; value: any }) {
   );
 }
 
-function fmtNumber(n: number) {
+function fmtNumber(n: number | null | undefined) {
+  if (n == null) return "—";
+
   if (!Number.isFinite(n)) return "—";
   if (Math.abs(n) >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
   if (Math.abs(n) >= 1_000) return (n / 1_000).toFixed(1) + "k";
