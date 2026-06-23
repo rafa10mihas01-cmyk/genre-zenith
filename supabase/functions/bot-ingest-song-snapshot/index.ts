@@ -88,6 +88,7 @@ Deno.serve(async (req) => {
     catalog_track_id,
     queue_id,
     spotify_song_id,
+    spotify_track_id,
     correlation_id,
     captured_at,
     window: timeWindow,
@@ -97,6 +98,11 @@ Deno.serve(async (req) => {
     playlists,
     bot_metadata,
   } = body ?? {};
+  const effectiveSpotifySongId = typeof spotify_song_id === "string" && spotify_song_id.trim().length > 0
+    ? spotify_song_id.trim()
+    : typeof spotify_track_id === "string" && spotify_track_id.trim().length > 0
+      ? spotify_track_id.trim()
+      : null;
   let effectiveCatalogTrackId = typeof catalog_track_id === "string" ? catalog_track_id : "";
   const effectiveQueueId = typeof queue_id === "string" ? queue_id : "";
 
@@ -125,6 +131,21 @@ Deno.serve(async (req) => {
   }
   if (!Array.isArray(playlists)) {
     return jr({ error: "playlists array required (may be empty)" }, 400);
+  }
+  const catalogRequiresPlaylistBreakdown = isCatalogMode && (
+    effectiveQueueId.length > 0 ||
+    body?.requires_playlist_breakdown === true ||
+    body?.capture_mode === "playlist_breakdown_required" ||
+    bot_metadata?.requires_playlist_breakdown === true ||
+    bot_metadata?.capture_mode === "playlist_breakdown_required"
+  );
+  if (catalogRequiresPlaylistBreakdown && playlists.length === 0) {
+    return jr({
+      error: "playlist_breakdown_required",
+      message: "Catalog snapshot jobs marked as playlist_breakdown_required must include playlist rows; empty payload was not saved.",
+      catalog_track_id: effectiveCatalogTrackId,
+      queue_id: effectiveQueueId || null,
+    }, 422);
   }
   for (const p of playlists) {
     if (!p || typeof p.name !== "string" || !p.name.trim()) {
@@ -193,7 +214,7 @@ Deno.serve(async (req) => {
     .insert({
       song_id: song_id ?? null,
       catalog_track_id: effectiveCatalogTrackId || null,
-      spotify_song_id: spotify_song_id ?? null,
+      spotify_song_id: effectiveSpotifySongId,
       correlation_id: correlation_id ?? null,
       captured_at: captured_at ?? new Date().toISOString(),
       time_window: typeof timeWindow === "string" ? timeWindow : "7d",
@@ -201,7 +222,15 @@ Deno.serve(async (req) => {
       total_plays_28d: toInt(total_plays_28d),
       screenshot_url: null,
       snapshot_run_id: snapshotRunId,
-      bot_metadata: bot_metadata ?? {},
+      bot_metadata: {
+        ...(bot_metadata ?? {}),
+        ...(isCatalogMode ? {
+          catalog_track_id: effectiveCatalogTrackId,
+          spotify_track_id: effectiveSpotifySongId,
+          spotify_song_id: effectiveSpotifySongId,
+          queue_id: effectiveQueueId || queue_id || null,
+        } : {}),
+      },
     })
     .select("id, captured_at")
     .single();

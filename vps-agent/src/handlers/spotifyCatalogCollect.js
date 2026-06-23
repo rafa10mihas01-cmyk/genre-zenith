@@ -11,7 +11,12 @@ import { makeLogger } from "../logger.js";
 
 const log = makeLogger("h:catalog.collect");
 
-const ROW_SEL = '[data-testid="sort-table-body-row"]';
+const ROW_SEL = [
+  '[data-testid="sort-table-body-row"]',
+  '[data-testid="row"]',
+  '[role="row"]',
+  "tbody tr",
+].join(", ");
 const SCROLL_CONTAINER = '#chrome-v2-main-content-scroll-root';
 const ROWS_PER_PRINT = 16;
 
@@ -30,8 +35,71 @@ function parsePlays(txt) {
 
 function extractPlaylistId(href) {
   if (!href) return null;
-  const m = String(href).match(/playlist[/:]([a-zA-Z0-9]{15,})/);
-  return m ? m[1] : null;
+  const m = String(href).match(/spotify:playlist:([a-zA-Z0-9]{15,})|playlist[/:]([a-zA-Z0-9]{15,})/);
+  return m ? (m[1] || m[2]) : null;
+}
+
+function normalizeWhitespace(txt) {
+  return String(txt ?? "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function pickBestPlaysText(row) {
+  const candidates = [
+    row.plays_text,
+    ...(Array.isArray(row.metric_text_candidates) ? row.metric_text_candidates : []),
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    if (parsePlays(candidate) != null) return candidate;
+  }
+
+  return null;
+}
+
+async function applySevenDayFilter(page) {
+  const bodyText = await page.locator("body").innerText({ timeout: 5000 }).catch(() => "");
+  if (/[Úú]ltimos 7 dias|last 7 days/i.test(bodyText) && !/[Úú]ltimos 28 dias|last 28 days/i.test(bodyText)) {
+    return true;
+  }
+
+  const dropdownCandidates = [
+    'button#dropdown-toggle',
+    'button[aria-haspopup="listbox"]',
+    'button[aria-haspopup="menu"]',
+    '[role="button"][aria-haspopup="listbox"]',
+    'button:has-text("Últimos")',
+    'button:has-text("Last")',
+    'button:has-text("28")',
+    'button:has-text("7")',
+  ];
+
+  for (const selector of dropdownCandidates) {
+    const dropdown = page.locator(selector).first();
+    if ((await dropdown.count().catch(() => 0)) === 0) continue;
+
+    try {
+      await dropdown.click({ timeout: 3000 });
+      await page.waitForTimeout(400);
+      const option7d = page
+        .locator('li, [role="option"], [role="menuitem"], button, a')
+        .filter({ hasText: /[Úú]ltimos 7 dias|last 7 days|\b7 dias\b|\b7 days\b/i })
+        .first();
+
+      if ((await option7d.count().catch(() => 0)) > 0) {
+        await option7d.click({ timeout: 3000 });
+        await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
+        await page.waitForTimeout(1200);
+        return true;
+      }
+
+      await page.keyboard.press("Escape").catch(() => {});
+    } catch (e) {
+      log.warn("falha tentando aplicar filtro 7d", { selector, err: String(e) });
+      await page.keyboard.press("Escape").catch(() => {});
+    }
+  }
+
+  return false;
 }
 
 function buildStatsUrl(payload) {
@@ -68,30 +136,18 @@ async function readTotalPlays(page, statsUrl) {
   total_plays_28d = parsePlays(txt28);
 
   // Mesmo fluxo do deal: tenta selecionar "Últimos 7 dias" no header quando o S4A expõe o dropdown.
-  try {
-    const dropdown = page.locator('button#dropdown-toggle').first();
-    if (await dropdown.count() > 0) {
-      await dropdown.click();
-      await page.waitForTimeout(500);
-      const opt7d = page.locator('li, [role="option"]').filter({ hasText: /[Úú]ltimos 7 dias|7 days/i }).first();
-      if (await opt7d.count() > 0) {
-        await opt7d.click();
-        filter_7d_applied = true;
-        await page.waitForLoadState("networkidle").catch(() => {});
-        await page.waitForFunction(
-          (sel) => {
-            const el = document.querySelector(sel);
-            return el && /\d/.test(el.textContent || "");
-          },
-          SELECTORS.songTotalStreams,
-          { timeout: 8000 },
-        ).catch(() => {});
-        const txt7 = await page.locator(SELECTORS.songTotalStreams).first().innerText().catch(() => null);
-        total_plays_7d = parsePlays(txt7);
-      }
-    }
-  } catch (e) {
-    log.warn("falha aplicando filtro 7d", { err: String(e) });
+  filter_7d_applied = await applySevenDayFilter(page);
+  if (filter_7d_applied) {
+    await page.waitForFunction(
+      (sel) => {
+        const el = document.querySelector(sel);
+        return el && /\d/.test(el.textContent || "");
+      },
+      SELECTORS.songTotalStreams,
+      { timeout: 8000 },
+    ).catch(() => {});
+    const txt7 = await page.locator(SELECTORS.songTotalStreams).first().innerText().catch(() => null);
+    total_plays_7d = parsePlays(txt7);
   }
 
   return { total_plays_28d, total_plays_7d, filter_7d_applied };
@@ -124,22 +180,48 @@ async function isPlaylistTableAtBottom(page) {
 
 async function extractVisiblePlaylistRows(page) {
   return await page.evaluate((rowSelector) => {
+    const norm = (txt) => String(txt || "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+    const pickPlaylistName = (row, cells, linkEl) => {
+      const heading = row.querySelector('h1, h2, h3, [role="heading"]');
+      const anchorText = norm(linkEl?.textContent);
+      const cellTexts = cells.map((td) => norm(td.textContent)).filter(Boolean);
+      const textCandidates = [norm(heading?.textContent), anchorText, ...cellTexts];
+
+      for (const txt of textCandidates) {
+        if (!txt) continue;
+        if (/^#?$|playlist|streams?|ouvintes?|listeners?|plays?|reprodu/i.test(txt)) continue;
+        if (/^[\d.,\s]+[km]?$/i.test(txt)) continue;
+        return txt;
+      }
+      return null;
+    };
+
     const result = [];
     document.querySelectorAll(rowSelector).forEach((row) => {
       const ariaLabel = row.getAttribute("aria-label") || "";
-      const idMatch = ariaLabel.match(/spotify:playlist:([a-zA-Z0-9]{15,})/);
-      const playlistId = idMatch ? idMatch[1] : null;
-      const tds = Array.from(row.querySelectorAll("td"));
-      const nameTd = tds[1];
-      const playlist_name = nameTd?.querySelector("h3")?.textContent?.trim()
-        || nameTd?.querySelector("p")?.textContent?.trim()
-        || nameTd?.textContent?.trim()
-        || null;
-      const owner = nameTd?.querySelectorAll("p")?.[1]?.textContent?.trim() || null;
-      const playsText = tds[3]?.textContent?.trim() || null;
-      const linkEl = row.querySelector('a[href*="playlist"]');
-      const href = linkEl?.href || null;
-      result.push({ href, playlistId, playlist_name, owner, plays_text: playsText });
+      const linkEl = row.querySelector('a[href*="playlist"], a[href*="open.spotify.com/playlist"]');
+      const href = linkEl?.href || linkEl?.getAttribute("href") || null;
+      const idSource = `${ariaLabel} ${href || ""}`;
+      const idMatch = idSource.match(/spotify:playlist:([a-zA-Z0-9]{15,})|playlist[/:]([a-zA-Z0-9]{15,})/);
+      const playlistId = idMatch ? (idMatch[1] || idMatch[2]) : null;
+      const cells = Array.from(row.querySelectorAll('td, [role="cell"], [role="gridcell"]'));
+      const playlist_name = pickPlaylistName(row, cells, linkEl);
+      if (!playlistId && !playlist_name) return;
+
+      const nameCell = cells.find((td) => {
+        const txt = norm(td.textContent);
+        return playlist_name && txt.includes(playlist_name);
+      }) || cells[1] || row;
+      const ownerCandidates = Array.from(nameCell.querySelectorAll("p, span, small"))
+        .map((el) => norm(el.textContent))
+        .filter((txt) => txt && txt !== playlist_name && !/^[\d.,\s]+[km]?$/i.test(txt));
+      const owner = ownerCandidates[1] || ownerCandidates[0] || null;
+      const metric_text_candidates = [
+        ...cells.slice(2).map((td) => norm(td.textContent)),
+        ...Array.from(row.querySelectorAll("span, div, p")).map((el) => norm(el.textContent)).filter((txt) => txt.length <= 24),
+      ].filter(Boolean);
+      const playsText = metric_text_candidates.find((txt) => /\d/.test(txt) && /^[\d.,\s]+[km]?$/i.test(txt)) || null;
+      result.push({ href, playlistId, playlist_name, owner, plays_text: playsText, metric_text_candidates });
     });
     return result;
   }, ROW_SEL);
@@ -154,6 +236,7 @@ async function scrapePlaylistBreakdown(page, statsUrl) {
   await assertLoggedIn(page);
   await page.locator(SELECTORS.printArea).first().waitFor({ state: "visible", timeout: 15000 });
   await page.waitForTimeout(2000);
+  const playlist_filter_7d_applied = await applySevenDayFilter(page);
 
   try {
     await page.locator(ROW_SEL).first().waitFor({ state: "visible", timeout: 10000 });
@@ -183,7 +266,7 @@ async function scrapePlaylistBreakdown(page, statsUrl) {
         spotify_url: id ? (row.href || `https://open.spotify.com/playlist/${id}`) : null,
         name: row.playlist_name || null,
         owner: row.owner || null,
-        plays_7d: parsePlays(row.plays_text) || null,
+        plays_7d: parsePlays(pickBestPlaysText(row)) ?? null,
       });
     }
 
@@ -202,6 +285,7 @@ async function scrapePlaylistBreakdown(page, statsUrl) {
     playlists,
     rows_captured: playlists.length,
     scroll_passes,
+    playlist_filter_7d_applied,
   };
 }
 
@@ -341,6 +425,7 @@ export async function spotifyCatalogCollect(job, ctx = {}) {
       await page.goto(statsUrl.replace("/stats", "/playlists"), { waitUntil: "networkidle", timeout: 30000 });
       await assertLoggedIn(page);
       await page.locator(SELECTORS.printArea).first().waitFor({ state: "visible", timeout: 15000 });
+      await applySevenDayFilter(page);
       await page.locator(ROW_SEL).first().waitFor({ state: "visible", timeout: 10000 }).catch(() => {});
       return capturePlaylistPrints(page, { catalog_track_id, correlation_id, playlists: result.playlists });
     });
@@ -348,6 +433,7 @@ export async function spotifyCatalogCollect(job, ctx = {}) {
     const ingestPayload = {
       catalog_track_id,
       queue_id,
+      spotify_track_id,
       spotify_song_id: spotify_track_id,
       correlation_id,
       captured_at: new Date().toISOString(),
@@ -369,13 +455,18 @@ export async function spotifyCatalogCollect(job, ctx = {}) {
         kind: "catalog",
         worker_id: workerId,
         queue_id,
+        catalog_track_id,
+        spotify_track_id,
+        spotify_song_id: spotify_track_id,
         duration_ms: Date.now() - t0,
         attempts: job?.attempts ?? payload.attempts ?? 0,
         requires_playlist_breakdown: requiresBreakdown,
         capture_mode: payload.capture_mode ?? null,
         rows_captured: result.rows_captured,
         scroll_passes: result.scroll_passes,
-        filter_7d_applied: result.filter_7d_applied,
+        filter_7d_applied: result.filter_7d_applied || result.playlist_filter_7d_applied,
+        stats_filter_7d_applied: result.filter_7d_applied,
+        playlist_filter_7d_applied: result.playlist_filter_7d_applied,
         prints_captured: print_urls.length,
       },
     };
