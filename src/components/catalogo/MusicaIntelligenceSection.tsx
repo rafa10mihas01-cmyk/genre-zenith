@@ -1016,21 +1016,21 @@ export function MusicaIntelligenceSection(props: MusicaIntelligenceProps) {
 
   return (
     <div className="flex flex-col gap-3">
-      {/* 1. Resumo executivo — sempre no topo */}
+      {/* 1. Resumo executivo — sempre no topo, aberto */}
       <ExecutiveSummary baseline={props.baseline} telemetry={props.telemetry} ranking={ranking} />
 
-      {/* 2. Ranking de playlists — quem entregou mais */}
-      <Panel title="Ranking de playlists" hint="Ordenado por DELIVERY · clique na linha pra expandir" icon={Award} defaultOpen>
+      {/* 2. Ranking de playlists — FECHADO por padrão */}
+      <Panel title="Ranking de playlists" hint="Ordenado por DELIVERY · clique na linha pra expandir" icon={Award} defaultOpen={false}>
         <PlaylistRankingPanel placements={props.placements} obs={intel.observerTracks} ssPl={intel.songSnapPlaylists} exec={intel.executionLog} />
       </Panel>
 
-      {/* 3. Timeline da música */}
-      <Panel title="Timeline da música" hint="Cadastro → baseline → primeira playlist → pico → última coleta" icon={History}>
+      {/* 3. Timeline da música — FECHADO por padrão */}
+      <Panel title="Timeline da música" hint="Cadastro → baseline → primeira playlist → pico → última coleta" icon={History} defaultOpen={false}>
         <TimelinePanel {...props} exec={intel.executionLog} obs={intel.observerTracks} />
       </Panel>
 
-      {/* 4. Feed de negócio */}
-      <Panel title="Feed de negócio" hint="Baseline, entradas, saídas, delivery, picos e melhor playlist" icon={Sparkles}>
+      {/* 4. Feed de negócio — FECHADO por padrão */}
+      <Panel title="Feed de negócio" hint="Baseline, entradas, saídas, delivery, picos e melhor playlist" icon={Sparkles} defaultOpen={false}>
         <EventFeedPanel placements={props.placements} baseline={props.baseline} snapshots={props.snapshots} obs={intel.observerTracks} ssPl={intel.songSnapPlaylists} />
       </Panel>
 
@@ -1044,7 +1044,7 @@ export function MusicaIntelligenceSection(props: MusicaIntelligenceProps) {
         <PlacementTimelinesPanel placements={props.placements} exec={intel.executionLog} obs={intel.observerTracks} />
       </Panel>
 
-      {/* 7. Saúde operacional — fim da página, fechada por padrão */}
+      {/* 7. Saúde operacional */}
       <Panel title="Saúde operacional" hint="Administração: worker, VPS, fila, breaker, erros" icon={Server} defaultOpen={false}>
         <OperationalHealthPanel {...props} exec={intel.executionLog} breakers={intel.breakers} vps={intel.vpsAssignments} />
       </Panel>
