@@ -37,10 +37,12 @@ Deno.serve(async (req) => {
 
   const { data: deal } = await supabase
     .from("curator_deals")
-    .select("id")
+    .select("id, ends_at, closed_at, closed_status, token_revoked_at")
     .or(`public_token.eq.${token},slug.eq.${token}`)
     .maybeSingle();
   if (!deal) return jr({ error: "not_found" }, 404);
+  if (deal.token_revoked_at) return jr({ error: "deal_revoked" }, 403);
+  if (deal.closed_at || deal.closed_status) return jr({ error: "deal_closed" }, 403);
 
   const tryRl = await checkRateLimit(`verifyCuratorOtp:try:${deal.id}:${emailRaw}`, 3600, 20);
   if (!tryRl.allowed) return jr({ error: "too_many_attempts" }, 429);
@@ -78,7 +80,18 @@ Deno.serve(async (req) => {
     .from("curator_access_logs")
     .insert({ deal_id: deal.id, email: emailRaw, ip });
 
-  const jwt = await signCuratorAccessJwt({ deal_id: deal.id, email: emailRaw, token }, 86400);
+  // TTL = até o fim da campanha + 7d de folga; mínimo 90 dias como salvaguarda.
+  // Expiração real é governada por gateCuratorAccess olhando o estado do deal.
+  const MIN_TTL = 60 * 60 * 24 * 90;
+  let ttl = MIN_TTL;
+  if (deal.ends_at) {
+    const endsSec = Math.floor(new Date(deal.ends_at).getTime() / 1000);
+    const nowSec = Math.floor(Date.now() / 1000);
+    const untilEnd = endsSec - nowSec + 60 * 60 * 24 * 7;
+    if (untilEnd > ttl) ttl = untilEnd;
+  }
 
-  return jr({ ok: true, jwt, expires_in: 86400 });
+  const jwt = await signCuratorAccessJwt({ deal_id: deal.id, email: emailRaw, token }, ttl);
+
+  return jr({ ok: true, jwt, expires_in: ttl });
 });
