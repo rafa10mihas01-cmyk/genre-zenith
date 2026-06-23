@@ -312,8 +312,13 @@ Deno.serve(async (req) => {
       return { kind: "skip", code: "spotify_auth_invalid", skipReason: "owner_token_invalid", skipDelaySec: 3600 };
     }
     // Owner sem token Spotify conectado — recuperável quando reconectar.
+    // Owner sem token Spotify conectado — recuperável quando reconectar.
     if (msgLow.includes("nenhuma conta spotify") || msgLow.includes("no spotify account") || msgLow.includes("no refresh token")) {
       return { kind: "skip", code: "owner_token_missing", skipReason: "owner_token_missing", skipDelaySec: 3600 };
+    }
+    // Refresh do refresh_token falhou (revogado/expirado) — recuperável após reconexão.
+    if (msgLow.includes("spotify refresh ") || msgLow.includes("invalid_grant")) {
+      return { kind: "skip", code: "spotify_refresh_failed", skipReason: "owner_token_invalid", skipDelaySec: 3600 };
     }
     if (status === 429) return { kind: "retry", code: "spotify_429" };
     if (status != null && status >= 500 && status < 600) return { kind: "retry", code: `spotify_${status}` };
