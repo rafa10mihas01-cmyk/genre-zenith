@@ -160,6 +160,7 @@ export async function enqueueEnrichment(
     if (error && !/duplicate key/i.test(error.message)) {
       // log soft, não joga
       console.warn("[spotify-cache] enqueue warn:", error.message);
+    }
   }
 }
 
