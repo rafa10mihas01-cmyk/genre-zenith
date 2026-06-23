@@ -365,9 +365,10 @@ export function EnginePriorityTab() {
         )}
         {!loading && rows.length === 0 && (
           <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-            Sem dados de entrega ainda. Quando houver snapshots das faixas do catálogo, o ranking aparece aqui.
+            Sem entregas registradas em catalog_placements.
           </div>
         )}
+
 
         {/* Mobile: cards */}
         <div className="sm:hidden divide-y divide-border/50">
