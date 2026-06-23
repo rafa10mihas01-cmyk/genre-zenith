@@ -478,7 +478,7 @@ export function EnginePriorityTab() {
         {/* Mobile: cards compactos com scroll */}
         <div className="sm:hidden max-h-[60vh] overflow-y-auto divide-y divide-border/50">
           {rows.map((r, i) => (
-            <PlaylistRowMobile key={r.managed_playlist_id} rank={i + 1} row={r} />
+            <PlaylistRowMobile key={r.managed_playlist_id} rank={i + 1} row={r} onSelect={setSelectedPlaylist} />
           ))}
         </div>
 
@@ -491,7 +491,7 @@ export function EnginePriorityTab() {
               <tr className="border-b border-border">
                 <th className="text-left px-3 py-2 w-10">#</th>
                 <th className="text-left px-3 py-2">Playlist</th>
-                <th className="text-right px-3 py-2 w-28">Plays 7d</th>
+                <th className="text-right px-3 py-2 w-28">Entrega</th>
                 <th className="text-right px-3 py-2 w-24">Crescimento</th>
                 <th className="text-right px-3 py-2 w-20">Faixas</th>
                 <th className="text-left px-3 py-2 w-36">Última entrega</th>
@@ -500,7 +500,11 @@ export function EnginePriorityTab() {
             </thead>
             <tbody>
               {rows.map((r, i) => (
-                <tr key={r.managed_playlist_id} className="border-b border-border/50 hover:bg-muted/30">
+                <tr
+                  key={r.managed_playlist_id}
+                  className="border-b border-border/50 hover:bg-muted/30 cursor-pointer"
+                  onClick={() => setSelectedPlaylist(r)}
+                >
                   <td className="px-3 py-2 tabular-nums text-muted-foreground">{i + 1}</td>
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2 min-w-0">
@@ -517,7 +521,7 @@ export function EnginePriorityTab() {
                     </div>
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums font-semibold text-primary">
-                    {fmtNumber(r.total_plays_7d)}
+                    {fmtNumber(deliveryValue(r))}
                   </td>
                   <td className="px-3 py-2 text-right">
                     <GrowthCell delta={r.growth_delta} />
@@ -550,6 +554,8 @@ export function EnginePriorityTab() {
 
       {/* Diagnóstico da Engine (colapsado) */}
       <EngineDiagnostic />
+
+      <PlaylistDeliveryDialog row={selectedPlaylist} onOpenChange={(open) => !open && setSelectedPlaylist(null)} />
     </div>
   );
 }
@@ -557,54 +563,115 @@ export function EnginePriorityTab() {
 // ─────────────────────────────────────────────────────────────────────────────
 // UI helpers
 // ─────────────────────────────────────────────────────────────────────────────
-function PlaylistRowMobile({ rank, row }: { rank: number; row: PlaylistDeliveryRow }) {
-  const hasPlays = row.total_plays_7d != null && row.total_plays_7d > 0;
+function PlaylistRowMobile({
+  rank,
+  row,
+  onSelect,
+}: {
+  rank: number;
+  row: PlaylistDeliveryRow;
+  onSelect: (row: PlaylistDeliveryRow) => void;
+}) {
+  const delivery = deliveryValue(row);
   return (
-    <div className="px-3 py-2 flex items-center gap-2.5">
-      <span className="text-[11px] tabular-nums text-muted-foreground w-4 shrink-0 text-right">
-        {rank}
-      </span>
-      {row.cover_url ? (
-        <img src={row.cover_url} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
-      ) : (
-        <div className="w-8 h-8 rounded bg-muted shrink-0" />
-      )}
-      <div className="flex-1 min-w-0">
-        <div className="text-[13px] font-medium leading-tight truncate">{row.display_name}</div>
-        <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-muted-foreground">
-          <StatusDot status={row.status} />
-          <span className="tabular-nums">{row.active_tracks}f</span>
-          {row.last_delivery && (
-            <span>
-              ·{" "}
-              {new Date(row.last_delivery).toLocaleDateString("pt-BR", {
-                day: "2-digit",
-                month: "2-digit",
-              })}
-            </span>
-          )}
-          {row.followers != null && row.followers > 0 && (
-            <span>· {fmtNumber(row.followers)} seg.</span>
-          )}
-        </div>
-      </div>
-      {hasPlays ? (
-        <div className="text-right shrink-0">
-          <div className="text-sm font-semibold tabular-nums text-primary leading-none">
-            {fmtNumber(row.total_plays_7d)}
+    <button type="button" onClick={() => onSelect(row)} className="w-full px-3 py-2.5 text-left active:bg-muted/30">
+      <div className="flex items-center gap-2.5 min-w-0">
+        <span className="text-[11px] tabular-nums text-muted-foreground w-4 shrink-0 text-right">
+          {rank}
+        </span>
+        {row.cover_url ? (
+          <img src={row.cover_url} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
+        ) : (
+          <div className="w-8 h-8 rounded bg-muted shrink-0" />
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="text-[13px] font-medium leading-tight truncate">{row.display_name}</div>
+          <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-muted-foreground min-w-0">
+            <StatusDot status={row.status} />
+            <span className="tabular-nums">{row.active_tracks}f</span>
+            {row.followers != null && row.followers > 0 && <span className="truncate">· {fmtNumber(row.followers)} seg.</span>}
           </div>
-          <div className="text-[9px] text-muted-foreground mt-0.5">plays 7d</div>
-          {row.growth_delta != null && (
-            <div className="text-[10px] mt-0.5">
-              <GrowthCell delta={row.growth_delta} compact />
-            </div>
-          )}
         </div>
-      ) : (
+        <div className="text-right shrink-0">
+          <div className="text-sm font-semibold tabular-nums text-primary leading-none">{fmtNumber(delivery)}</div>
+          <div className="text-[9px] text-muted-foreground mt-0.5">entrega</div>
+        </div>
         <ChevronDown className="h-3.5 w-3.5 -rotate-90 text-muted-foreground/40 shrink-0" />
-      )}
+      </div>
+      <div className="ml-[58px] mt-2 grid grid-cols-4 gap-1.5 text-[10px]">
+        <MobileMetric label="Cresc." value={<GrowthCell delta={row.growth_delta} compact />} />
+        <MobileMetric label="Faixas" value={`${row.active_tracks}${row.removed_tracks > 0 ? `/${row.catalog_tracks}` : ""}`} />
+        <MobileMetric label="Última" value={shortDate(row.last_delivery)} />
+        <MobileMetric label="Fonte" value={<SourceLabel source={row.source} />} />
+      </div>
+    </button>
+  );
+}
+
+function MobileMetric({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="rounded-lg border border-border/60 bg-muted/20 px-1.5 py-1 min-w-0">
+      <div className="text-[8px] uppercase tracking-wider text-muted-foreground truncate">{label}</div>
+      <div className="mt-0.5 tabular-nums text-foreground text-[10px] leading-tight truncate">{value}</div>
     </div>
   );
+}
+
+function PlaylistDeliveryDialog({ row, onOpenChange }: { row: PlaylistDeliveryRow | null; onOpenChange: (open: boolean) => void }) {
+  return (
+    <Dialog open={!!row} onOpenChange={onOpenChange}>
+      <DialogContent className="w-[calc(100vw-24px)] max-w-md rounded-2xl border-border bg-card p-4">
+        {row && (
+          <>
+            <DialogHeader className="text-left pr-6">
+              <DialogTitle className="text-base leading-tight">{row.display_name}</DialogTitle>
+              <DialogDescription>Detalhe dos números que alimentam o ranking.</DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-2">
+              <DetailMetric label="Entrega total" value={fmtNumber(deliveryValue(row))} strong />
+              <DetailMetric label="Crescimento" value={<GrowthCell delta={row.growth_delta} />} />
+              <DetailMetric label="Breakdown exato" value={fmtNumber(row.exact_delivery)} sub={`${row.exact_tracks} faixas`} />
+              <DetailMetric label="Atribuído" value={fmtNumber(row.attributed_delivery)} sub={`${row.attributed_tracks} faixas`} />
+              <DetailMetric label="Faixas catálogo" value={`${row.active_tracks}${row.removed_tracks > 0 ? `/${row.catalog_tracks}` : ""}`} />
+              <DetailMetric label="Última entrega" value={shortDate(row.last_delivery)} />
+              <DetailMetric label="Status" value={<StatusPill status={row.status} compact />} />
+              <DetailMetric label="Fonte" value={<SourceLabel source={row.source} />} />
+            </div>
+            <div className="rounded-xl border border-border bg-muted/20 p-3 text-[11px] leading-relaxed text-muted-foreground">
+              {sourceExplanation(row.source)}
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DetailMetric({ label, value, sub, strong }: { label: string; value: ReactNode; sub?: string; strong?: boolean }) {
+  return (
+    <div className="rounded-xl border border-border bg-background/30 p-3 min-w-0">
+      <div className="text-[9px] uppercase tracking-wider text-muted-foreground truncate">{label}</div>
+      <div className={cn("mt-1 tabular-nums truncate", strong ? "text-lg font-semibold text-primary" : "text-sm font-medium text-foreground")}>{value}</div>
+      {sub && <div className="mt-0.5 text-[10px] text-muted-foreground truncate">{sub}</div>}
+    </div>
+  );
+}
+
+function SourceLabel({ source }: { source: PlaylistDeliveryRow["source"] }) {
+  const labels = {
+    playlist_breakdown: "exato",
+    catalog_growth: "atribuído",
+    mixed: "misto",
+    placement_only: "posição",
+  } as const;
+  return <span className="text-muted-foreground">{labels[source]}</span>;
+}
+
+function sourceExplanation(source: PlaylistDeliveryRow["source"]) {
+  if (source === "playlist_breakdown") return "Fonte exata: song_snapshot_playlists ligado aos snapshots da música; mostra quais playlists registraram plays para essa faixa.";
+  if (source === "mixed") return "Fonte mista: parte veio do breakdown por playlist e parte veio do crescimento agregado da música rateado entre placements ativos.";
+  if (source === "catalog_growth") return "Fonte atribuída: a música tem baseline e crescimento em v_catalog_track_telemetry, mas essa coleta não gravou breakdown por playlist em song_snapshot_playlists; o crescimento foi distribuído entre as playlists ativas da faixa.";
+  return "Fonte operacional: há placement no catálogo, mas ainda não existe snapshot com entrega por playlist nem crescimento agregado positivo para atribuir.";
 }
 
 function StatusDot({ status }: { status: PlaylistDeliveryRow["status"] }) {
