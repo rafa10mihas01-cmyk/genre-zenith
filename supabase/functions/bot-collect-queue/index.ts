@@ -415,6 +415,18 @@ Deno.serve(async (req) => {
   // kind='deal_song' (default no bot); itens novos chegam com kind='catalog'.
   // Workers antigos que ignoram `kind` continuam funcionando porque os itens
   // de deal mantêm exatamente o mesmo shape.
+  let catalogSchedulerResult: any = null;
+  try {
+    const { data: schedRes, error: schedErr } = await supabase.rpc("enqueue_catalog_snapshots_due");
+    if (schedErr) {
+      console.warn("[bot-collect-queue] catalog scheduler failed:", schedErr.message);
+    } else {
+      catalogSchedulerResult = schedRes;
+    }
+  } catch (e) {
+    console.warn("[bot-collect-queue] catalog scheduler exception:", (e as Error).message);
+  }
+
   for (const s of claimedEligible as any[]) {
     s.kind = "deal_song";
   }
@@ -526,6 +538,7 @@ Deno.serve(async (req) => {
     count: ids.length + catalogClaimed.length,
     deal_song_count: ids.length,
     catalog_count: catalogClaimed.length,
+    catalog_scheduler: catalogSchedulerResult,
     blocked_no_whitelist: blocked.length,
     queue: [...claimedEligible, ...catalogClaimed],
   });
