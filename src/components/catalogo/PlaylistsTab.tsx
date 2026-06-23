@@ -229,7 +229,7 @@ export function PlaylistsTab() {
 
       {/* Desktop: grid de cards finos estilo playlist — capa quadrada em cima, info embaixo */}
       <div className="hidden md:grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
-        {rows.map((r) => {
+        {pageRows.map((r) => {
           const pct = r.catalog_capacity > 0 ? Math.min(100, Math.round((r.active_placements / r.catalog_capacity) * 100)) : 0;
           const full = r.available_slots === 0;
           const hasDelivery = r.delivery_7d > 0;
