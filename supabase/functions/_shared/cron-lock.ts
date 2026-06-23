@@ -232,3 +232,104 @@ export async function withCronJob<T>(
     { status: 500, headers: corsHeaders },
   );
 }
+
+// -----------------------------------------------------------------------------
+// serveCron — wrapper HTTP usado pelos crons agendados via pg_cron.
+// O handler recebe `Request` e devolve `Response`. Em torno dele aplicamos:
+//   • advisory lock (mesma chave de withCronJob) → evita execução concorrente;
+//   • log start/end em cron_run_log (mesmo schema usado pelo restante da plataforma);
+//   • timeout duro via AbortSignal;
+//   • catch global que sempre retorna 500 com correlation_id (cron continua).
+// Falhas de instrumentação são silenciosas — nunca derrubam o handler.
+// -----------------------------------------------------------------------------
+export function serveCron(
+  opts: CronJobOptions,
+  handler: (req: Request, ctx: CronCtx) => Promise<Response> | Response,
+): void {
+  Deno.serve(async (req: Request) => {
+    // OPTIONS / preflight passa direto, sem lock nem log.
+    if (req.method === "OPTIONS") {
+      return handler(req, {
+        job_name: opts.job_name,
+        correlation_id: "preflight",
+        worker: opts.worker ?? (Deno.env.get("DENO_REGION") ?? "edge"),
+        attempt: 0,
+        signal: new AbortController().signal,
+        startedAt: Date.now(),
+      });
+    }
+
+    const job_name = opts.job_name;
+    const correlation_id = opts.correlation_id ?? crypto.randomUUID();
+    const worker = opts.worker ?? (Deno.env.get("DENO_REGION") ?? "edge");
+    const timeout_ms = opts.timeout_ms ?? 120_000;
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const sb = (supabaseUrl && serviceKey)
+      ? createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } })
+      : null;
+
+    // Idempotência opcional.
+    if (sb && await hasRecentSuccess(sb, job_name, opts.min_interval_ms ?? 0)) {
+      return new Response(
+        JSON.stringify({ ok: true, skipped: "recent_success", job_name }),
+        { status: 200, headers: corsHeaders },
+      );
+    }
+
+    // Lock distribuído.
+    const got = sb ? await tryAdvisoryLock(sb, job_name) : true;
+    if (!got) {
+      return new Response(
+        JSON.stringify({ ok: false, skipped: "locked", job_name }),
+        { status: 423, headers: corsHeaders },
+      );
+    }
+
+    const logId = sb ? await logStart(sb, { job_name, correlation_id, payload: opts.payload }) : null;
+    const startedAt = Date.now();
+    const ac = new AbortController();
+    const to = setTimeout(() => ac.abort(new Error("cron_timeout")), timeout_ms);
+
+    try {
+      const res = await handler(req, {
+        job_name,
+        correlation_id,
+        worker,
+        attempt: 0,
+        signal: ac.signal,
+        startedAt,
+      });
+      clearTimeout(to);
+      if (sb) {
+        await logFinish(sb, logId, {
+          success: res.status < 500,
+          duration_ms: Date.now() - startedAt,
+          retries: 0,
+          payload: { ...(opts.payload ?? {}), worker, status: res.status },
+        });
+        await releaseAdvisoryLock(sb, job_name);
+      }
+      return res;
+    } catch (e) {
+      clearTimeout(to);
+      const msg = (e as Error)?.message ?? String(e);
+      if (sb) {
+        await logFinish(sb, logId, {
+          success: false,
+          duration_ms: Date.now() - startedAt,
+          error_message: msg,
+          retries: 0,
+          payload: { ...(opts.payload ?? {}), worker },
+        });
+        await releaseAdvisoryLock(sb, job_name);
+      }
+      return new Response(
+        JSON.stringify({ ok: false, job_name, correlation_id, error: msg }),
+        { status: 500, headers: corsHeaders },
+      );
+    }
+  });
+}
+
