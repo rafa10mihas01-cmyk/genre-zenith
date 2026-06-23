@@ -708,12 +708,77 @@ function ExecutiveSummary({
   ];
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-4 sm:p-5">
-      <div className="flex items-center gap-2 mb-4">
+    <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4">
+      <div className="flex items-center gap-2">
         <Sparkles className="h-4 w-4 text-[#1DB954]" />
         <h3 className="text-sm font-semibold text-foreground">Resumo executivo</h3>
       </div>
-      <dl className="grid grid-cols-2 md:grid-cols-4 gap-x-4 sm:gap-x-5 gap-y-4">
+
+      {/* MOBILE: 2 cards verticais, sem grid apertado */}
+      <div className="sm:hidden space-y-2.5">
+        {/* Card 1 — Resultado */}
+        <div className="rounded-xl border border-border bg-black/20 p-3.5">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-3">Resultado</div>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-3">
+            <SummaryCell
+              label="Streams atuais"
+              value={fmt(telemetry?.last_plays_28d)}
+              sub="últimos 28d"
+            />
+            <SummaryCell
+              label="Crescimento"
+              value={growth == null ? "—" : `${growth >= 0 ? "+" : ""}${growth}%`}
+              valueClass={growth == null ? "" : growth >= 0 ? "text-emerald-400" : "text-rose-400"}
+              sub={growthAbs != null ? `${growthAbs >= 0 ? "+" : ""}${fmt(growthAbs)} streams` : undefined}
+            />
+            <SummaryCell
+              label="Baseline"
+              value={baseline?.streams != null ? fmt(baseline.streams) : "—"}
+              sub={baseline?.captured_at ? d(baseline.captured_at) : undefined}
+            />
+            <SummaryCell
+              label="Delivery acumulado"
+              value={totalDelivery > 0 ? `+${fmt(totalDelivery)}` : "+0"}
+              valueClass="text-emerald-400"
+              sub="via playlists"
+            />
+          </div>
+        </div>
+
+        {/* Card 2 — Operação */}
+        <div className="rounded-xl border border-border bg-black/20 p-3.5">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-3">Operação</div>
+          <div className="space-y-3">
+            <SummaryRow
+              label="Status"
+              value={status.label}
+              valueClass={cn(
+                status.tone === "good" && "text-emerald-400",
+                status.tone === "warn" && "text-amber-400",
+                status.tone === "bad" && "text-rose-400",
+              )}
+            />
+            <SummaryRow
+              label="Playlists ativas"
+              value={`${ativas} de ${ranking.length}`}
+            />
+            <SummaryRow
+              label="Última coleta"
+              value={rel(telemetry?.last_captured_at)}
+              sub={telemetry?.last_captured_at ? dt(telemetry.last_captured_at) : undefined}
+            />
+            <SummaryRow
+              label="Melhor playlist"
+              value={best ? best.name : "—"}
+              sub={best ? `+${fmt(best.deliveryAccumulated)} delivery` : undefined}
+              wrap
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* DESKTOP: grid 4 colunas (mantido) */}
+      <dl className="hidden sm:grid grid-cols-2 md:grid-cols-4 gap-x-4 sm:gap-x-5 gap-y-4">
         {kpis.map((k) => (
           <div key={k.k} className="flex flex-col gap-0.5 min-w-0">
             <dt className="text-[10px] uppercase tracking-wider text-muted-foreground truncate">{k.k}</dt>
@@ -725,9 +790,9 @@ function ExecutiveSummary({
 
       {/* Top Playlists — 🥇🥈🥉 */}
       {ranking.length > 0 && (
-        <div className="mt-5 pt-5 border-t border-border">
+        <div className="pt-4 border-t border-border">
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-3">Top Playlists</div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
             {["🥇", "🥈", "🥉"].map((medal, i) => {
               const p = ranking[i];
               if (!p) return <div key={medal} className="opacity-30 text-xs text-muted-foreground">—</div>;
@@ -752,6 +817,30 @@ function ExecutiveSummary({
         </div>
       )}
     </section>
+  );
+}
+
+function SummaryCell({ label, value, valueClass, sub }: { label: string; value: React.ReactNode; valueClass?: string; sub?: string }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-0.5 truncate">{label}</div>
+      <div className={cn("text-lg font-bold font-mono tabular-nums leading-tight truncate", valueClass ?? "text-foreground")}>{value}</div>
+      {sub && <div className="text-[10px] text-muted-foreground mt-0.5 truncate">{sub}</div>}
+    </div>
+  );
+}
+
+function SummaryRow({ label, value, valueClass, sub, wrap }: { label: string; value: React.ReactNode; valueClass?: string; sub?: string; wrap?: boolean }) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium shrink-0 pt-0.5">{label}</div>
+      <div className="min-w-0 text-right">
+        <div className={cn("text-sm font-semibold font-mono tabular-nums", wrap ? "break-words" : "truncate", valueClass ?? "text-foreground")} title={typeof value === "string" ? value : undefined}>
+          {value}
+        </div>
+        {sub && <div className="text-[10px] text-muted-foreground mt-0.5">{sub}</div>}
+      </div>
+    </div>
   );
 }
 
