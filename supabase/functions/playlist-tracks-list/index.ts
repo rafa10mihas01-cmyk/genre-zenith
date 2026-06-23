@@ -3,7 +3,7 @@
 // Retorna: { ok, tracks: [{ spotify_track_id, name, artists, album_cover, duration_ms, added_at }] }
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getAppToken, getUserToken, SpotifyCircuitOpenError, setSpotifyCtx } from "../_shared/spotify-client.ts";
+import { getAppToken, SpotifyCircuitOpenError } from "../_shared/spotify-client.ts";
 import {
   listPlaylistTracksRich,
   SpotifyApiError,
@@ -129,22 +129,13 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // /v1/playlists/:id/items requer USER token (OAuth) — client_credentials retorna 401.
-    // Usa token do owner quando a playlist tem owner; só cai pra client_credentials se não houver.
-    let token: string;
-    if (ownerSpotifyId) {
-      const { token: userToken, row } = await getUserToken(ownerSpotifyId);
-      token = userToken;
-      setSpotifyCtx({
-        appId: row?.app_id ?? null,
-        playlist_id: managedPlaylistId,
-        owner_id: ownerSpotifyId,
-        spotify_user_id: ownerSpotifyId,
-        function_name: "playlist-tracks-list",
-      });
-    } else {
-      token = await getAppToken({ functionName: "playlist-tracks-list", operation: "list_tracks_app_token" });
-    }
+    // Arquitetura nova: exclusivamente Client Credentials (sem OAuth).
+    // Playlists públicas funcionam normalmente; privadas/colaborativas devolvem 401/403
+    // do Spotify e são reportadas como `not_public` (sem fallback OAuth).
+    const token = await getAppToken({
+      functionName: "playlist-tracks-list",
+      operation: "list_tracks_app_token",
+    });
     const fetcher = makeThrottledFetcher();
     const rich = await listPlaylistTracksRich(spotifyPlaylistId, token, {
       max: 10000,
@@ -212,7 +203,37 @@ Deno.serve(async (req) => {
       }, 503);
     }
     const err = e as SpotifyApiError;
-    const rateLimited = err?.status === 429 || /429|too many requests/i.test(err?.message ?? "");
+    const status = err?.status;
+    const errBody = String((err as any)?.body ?? err?.message ?? "");
+
+    // 403 específico: app Spotify do Client Credentials sem Premium ativo.
+    // Mensagem-padrão do Spotify: "Active premium subscription required for the owner of the app."
+    if (status === 403 && /premium subscription required/i.test(errBody)) {
+      return jr({
+        ok: false,
+        code: "spotify_app_no_premium",
+        error: "spotify_app_no_premium",
+        message: "App Spotify usada (Client Credentials) está sem Premium ativo. Reative o Premium na conta dona da app ou troque a app no spotify_apps.",
+        status,
+        tracks: [],
+        total: 0,
+      }, 200);
+    }
+
+    // 401/403: playlist privada ou colaborativa — exigiria OAuth, fora desta arquitetura.
+    if (status === 401 || status === 403) {
+      return jr({
+        ok: false,
+        code: "not_public",
+        error: "playlist_not_public",
+        message: "Playlist não é pública. A arquitetura nova consulta apenas playlists públicas via Client Credentials.",
+        status,
+        tracks: [],
+        total: 0,
+      }, 200);
+    }
+
+    const rateLimited = status === 429 || /429|too many requests/i.test(err?.message ?? "");
     const retryAfter = rateLimited
       ? Math.min(60, Math.max(2, err?.retryAfter ?? 10))
       : null;
