@@ -136,16 +136,19 @@ export default function SpotifyCallback() {
           return;
         }
 
-        // Allowlist OK → cria sessão a partir do magic link
-        if (!json.magic_link) {
+        // Allowlist OK → sessão já trocada server-side; apenas materializa
+        if (!json.session?.access_token || !json.session?.refresh_token) {
           setStatus("error");
-          setError("Servidor não devolveu link de acesso.");
+          setError("Servidor não devolveu sessão de acesso.");
           return;
         }
 
         setStatus("signing_in");
-        const ok = await consumeMagicLink(json.magic_link);
-        if (!ok) {
+        const { error: setErr } = await supabase.auth.setSession({
+          access_token: json.session.access_token,
+          refresh_token: json.session.refresh_token,
+        });
+        if (setErr) {
           setStatus("error");
           setError("Não conseguimos criar a sessão. Tente novamente.");
           return;
