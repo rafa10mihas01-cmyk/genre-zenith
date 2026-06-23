@@ -114,9 +114,9 @@ export default function Clientes() {
         rows={[{
           items: [
             { label: "Clientes", value: formatNumber(kpis.total) },
-            { label: "Deals ativos", value: formatNumber(kpis.dealsAtivos) },
+            { label: "Campanhas ativas", value: formatNumber(kpis.dealsAtivos) },
             { label: "Músicas", value: formatNumber(kpis.musicas) },
-            { label: "Deals totais", value: formatNumber(kpis.deals) },
+            { label: "Campanhas totais", value: formatNumber(kpis.deals) },
           ],
         }]}
       />
@@ -132,9 +132,9 @@ export default function Clientes() {
         />
         <KpiBig
           icon={Activity}
-          label="Deals ativos"
+          label="Campanhas ativas"
           value={formatNumber(kpis.dealsAtivos)}
-          hint="Campanhas em andamento"
+          hint="Em andamento"
           domain="campaigns"
           loading={loading}
         />
@@ -149,13 +149,14 @@ export default function Clientes() {
         <KpiBig
           tier="quiet"
           icon={Handshake}
-          label="Deals totais"
+          label="Campanhas totais"
           value={formatNumber(kpis.deals)}
           hint="Histórico completo"
-          domain="deals"
+          domain="campaigns"
           loading={loading}
         />
       </section>
+
 
 
         <ClientesLibraryTab deals={deals} songs={songs} loading={loading} campaignsByClient={campaignsByClient} />
