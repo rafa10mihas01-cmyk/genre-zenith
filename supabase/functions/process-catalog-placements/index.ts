@@ -527,7 +527,6 @@ Deno.serve(async (req) => {
     // simulação. Nenhum efeito colateral em playlists reais.
     if (p.track_name && p.track_name.startsWith("__LOADTEST__")) {
       await markActive(p, "active", "spotify_post", correlationId, "simulated");
-      cntSpotifyCalls++; // contabiliza decisão (não consumo real)
       continue;
     }
 
