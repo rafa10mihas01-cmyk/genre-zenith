@@ -73,6 +73,15 @@ function isStale(ts: string | null, days: number): boolean {
   return Date.now() - new Date(ts).getTime() > days * DAY_MS;
 }
 
+function hasCompleteTrackRaw(raw: any | null): boolean {
+  return !!raw
+    && typeof raw === "object"
+    && !Array.isArray(raw)
+    && Array.isArray(raw?.artists)
+    && !!raw?.album
+    && Array.isArray(raw.album?.images);
+}
+
 /**
  * Lê tracks do cache (em lote). Retorna mapa por spotify_track_id.
  * Tracks ausentes e tracks com popularity stale são enfileiradas automaticamente
@@ -188,7 +197,7 @@ export async function hydrateTrackSync(
 > {
   const cache = await getTrackCacheBatch([trackId]);
   const hit = cache.get(trackId);
-  if (hit && hit.fetch_status === "ok") return { ok: true, row: hit };
+  if (hit && hit.fetch_status === "ok" && hasCompleteTrackRaw(hit.raw)) return { ok: true, row: hit };
 
   const r = await ccFetch(`https://api.spotify.com/v1/tracks/${trackId}`, caller, trackId);
   if (!r.ok) {
