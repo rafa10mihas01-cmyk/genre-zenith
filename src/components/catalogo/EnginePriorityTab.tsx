@@ -7,6 +7,7 @@ import { Brain, Play, Save, RefreshCw, ChevronDown, ListMusic, TrendingUp, Trend
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -46,6 +47,8 @@ type PlaylistDeliveryRow = {
   spotify_url: string | null;
   followers: number | null;
   total_plays_7d: number | null;
+  exact_delivery: number;
+  attributed_delivery: number;
   catalog_tracks: number;
   active_tracks: number;
   removed_tracks: number;
@@ -53,6 +56,30 @@ type PlaylistDeliveryRow = {
   status: "active" | "partial" | "removed";
   archived: boolean;
   growth_delta: number | null;
+  source: "playlist_breakdown" | "catalog_growth" | "mixed" | "placement_only";
+  exact_tracks: number;
+  attributed_tracks: number;
+};
+
+type TrackTelemetryRow = {
+  catalog_track_id: string;
+  baseline_at: string | null;
+  last_captured_at: string | null;
+  last_plays_28d: number | null;
+  growth_abs: number | null;
+  growth_pct: number | null;
+  snapshots_count: number;
+};
+
+type PlaylistBreakdownPoint = {
+  current_plays_7d: number;
+  delivery: number;
+  growth_delta: number | null;
+  last_at: string | null;
+};
+
+type PlaylistBreakdown = {
+  byTrackPlaylist: Record<string, Record<string, PlaylistBreakdownPoint>>;
 };
 
 type ScoreRow = {
@@ -104,44 +131,62 @@ async function fetchPlacementsJoined(): Promise<PlacementJoined[]> {
 }
 
 
-// Plays/crescimento opcional: agrega song_snapshot_playlists por spotify_playlist_id,
-// considerando snapshots cuja música casa com o catálogo (via spotify_song_id ou catalog_track_id).
-async function fetchPlaysByPlaylist(
-  catalogSpotifyIds: Set<string>,
-): Promise<Record<string, { plays_7d: number; growth_delta: number | null }>> {
-  if (catalogSpotifyIds.size === 0) return {};
+async function fetchTrackTelemetry(): Promise<Record<string, TrackTelemetryRow>> {
+  const { data, error } = await supabase
+    .from("v_catalog_track_telemetry")
+    .select("catalog_track_id, baseline_at, last_captured_at, last_plays_28d, growth_abs, growth_pct, snapshots_count")
+    .limit(20000);
+  if (error) throw error;
+  return Object.fromEntries(((data ?? []) as TrackTelemetryRow[]).map((r) => [r.catalog_track_id, r]));
+}
+
+// Breakdown exato quando existe: song_snapshot_playlists por snapshot da música.
+// Importante: algumas coletas do catálogo gravam apenas total agregado em song_snapshots;
+// nesses casos o fallback fica em v_catalog_track_telemetry, sem inventar nova fonte.
+async function fetchPlaylistBreakdown(
+  spotifyToCatalogTrack: Record<string, string>,
+): Promise<PlaylistBreakdown> {
+  const spotifyIds = new Set(Object.keys(spotifyToCatalogTrack));
+  if (spotifyIds.size === 0) return { byTrackPlaylist: {} };
   const { data, error } = await supabase
     .from("song_snapshot_playlists")
     .select(
-      "spotify_playlist_id, plays_7d, song_snapshots!inner(spotify_song_id, catalog_track_id, captured_at)",
+      "spotify_playlist_id, plays_7d, created_at, song_snapshots!inner(spotify_song_id, catalog_track_id, captured_at)",
     )
     .limit(50000);
   if (error) throw error;
 
-  // (playlist, dia) → soma de plays_7d (apenas snaps que casam com catálogo)
-  const daily: Record<string, Record<string, number>> = {};
+  const series: Record<string, Record<string, Array<{ at: string; plays: number }>>> = {};
   for (const r of (data ?? []) as any[]) {
     const snap = r.song_snapshots;
     if (!snap) continue;
-    const matches =
-      !!snap.catalog_track_id ||
-      (snap.spotify_song_id && catalogSpotifyIds.has(snap.spotify_song_id));
-    if (!matches) continue;
+    const trackId = snap.catalog_track_id ?? spotifyToCatalogTrack[snap.spotify_song_id];
+    if (!trackId) continue;
     const pid = r.spotify_playlist_id;
-    const cap = snap.captured_at;
-    if (!pid || !cap) continue;
-    const day = String(cap).slice(0, 10);
-    daily[pid] ??= {};
-    daily[pid][day] = (daily[pid][day] ?? 0) + (Number(r.plays_7d) || 0);
+    const at = r.created_at ?? snap.captured_at;
+    if (!pid || !at) continue;
+    series[trackId] ??= {};
+    series[trackId][pid] ??= [];
+    series[trackId][pid].push({ at, plays: Number(r.plays_7d) || 0 });
   }
-  const out: Record<string, { plays_7d: number; growth_delta: number | null }> = {};
-  for (const [pid, byDay] of Object.entries(daily)) {
-    const days = Object.keys(byDay).sort();
-    const last = byDay[days[days.length - 1]] ?? 0;
-    const prev = days.length >= 2 ? byDay[days[days.length - 2]] : null;
-    out[pid] = { plays_7d: last, growth_delta: prev == null ? null : last - prev };
+
+  const byTrackPlaylist: PlaylistBreakdown["byTrackPlaylist"] = {};
+  for (const [trackId, byPlaylist] of Object.entries(series)) {
+    byTrackPlaylist[trackId] = {};
+    for (const [pid, points] of Object.entries(byPlaylist)) {
+      points.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+      const first = points[0]?.plays ?? 0;
+      const last = points[points.length - 1]?.plays ?? 0;
+      const prev = points.length >= 2 ? points[points.length - 2].plays : null;
+      byTrackPlaylist[trackId][pid] = {
+        current_plays_7d: last,
+        delivery: Math.max(0, last - first),
+        growth_delta: prev == null ? null : last - prev,
+        last_at: points[points.length - 1]?.at ?? null,
+      };
+    }
   }
-  return out;
+  return { byTrackPlaylist };
 }
 
 async function fetchTopScores(): Promise<ScoreRow[]> {
