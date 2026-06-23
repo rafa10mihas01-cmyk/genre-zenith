@@ -203,7 +203,22 @@ Deno.serve(async (req) => {
       }, 503);
     }
     const err = e as SpotifyApiError;
-    const rateLimited = err?.status === 429 || /429|too many requests/i.test(err?.message ?? "");
+    const status = err?.status;
+
+    // 401/403: playlist privada ou colaborativa — exigiria OAuth, fora desta arquitetura.
+    if (status === 401 || status === 403) {
+      return jr({
+        ok: false,
+        code: "not_public",
+        error: "playlist_not_public",
+        message: "Playlist não é pública. A arquitetura nova consulta apenas playlists públicas via Client Credentials.",
+        status,
+        tracks: [],
+        total: 0,
+      }, 200);
+    }
+
+    const rateLimited = status === 429 || /429|too many requests/i.test(err?.message ?? "");
     const retryAfter = rateLimited
       ? Math.min(60, Math.max(2, err?.retryAfter ?? 10))
       : null;
