@@ -2,7 +2,7 @@
 // Apenas leitura/calibração. Nenhuma decisão operacional é tomada aqui.
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Brain, Play, Save, RefreshCw } from "lucide-react";
+import { Brain, Play, Save, RefreshCw, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -245,11 +245,14 @@ export function EnginePriorityTab() {
         </div>
       </section>
 
-      {/* Pesos calibráveis */}
-      <section className="rounded-2xl border border-border bg-card p-4">
-        <div className="flex items-center justify-between mb-3">
+      {/* Pesos calibráveis (colapsado por padrão) */}
+      <details className="group rounded-2xl border border-border bg-card">
+        <summary className="flex items-center justify-between gap-2 cursor-pointer list-none px-4 py-3">
           <h3 className="text-sm font-semibold">Calibração de pesos</h3>
-          <div className="flex gap-2">
+          <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="px-4 pb-4">
+          <div className="flex items-center justify-end mb-3 gap-2">
             {draft && (
               <Button size="sm" variant="ghost" onClick={() => setDraft(null)}>
                 Cancelar
@@ -260,25 +263,25 @@ export function EnginePriorityTab() {
               Salvar pesos
             </Button>
           </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {COMPONENT_KEYS.map((k) => (
+              <label key={k} className="flex flex-col gap-1">
+                <span className="text-xs text-muted-foreground">{COMPONENT_LABELS[k]}</span>
+                <Input
+                  type="number"
+                  step="0.05"
+                  value={effectiveDraft[k]}
+                  onChange={(e) => setDraft({ ...effectiveDraft, [k]: e.target.value })}
+                  className="h-8 text-sm"
+                />
+              </label>
+            ))}
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-3">
+            Cada peso multiplica o valor bruto do componente. Alterações entram em vigor no próximo cálculo (manual ou cron horário).
+          </p>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {COMPONENT_KEYS.map((k) => (
-            <label key={k} className="flex flex-col gap-1">
-              <span className="text-xs text-muted-foreground">{COMPONENT_LABELS[k]}</span>
-              <Input
-                type="number"
-                step="0.05"
-                value={effectiveDraft[k]}
-                onChange={(e) => setDraft({ ...effectiveDraft, [k]: e.target.value })}
-                className="h-8 text-sm"
-              />
-            </label>
-          ))}
-        </div>
-        <p className="text-[11px] text-muted-foreground mt-3">
-          Cada peso multiplica o valor bruto do componente. Alterações entram em vigor no próximo cálculo (manual ou cron horário).
-        </p>
-      </section>
+      </details>
 
       {/* Explicabilidade */}
       {selected && (
