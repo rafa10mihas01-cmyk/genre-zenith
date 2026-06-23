@@ -37,7 +37,7 @@ export interface CuratorAccessPayload {
 
 export async function signCuratorAccessJwt(
   payload: Omit<CuratorAccessPayload, "iat" | "exp">,
-  ttlSeconds = 86400,
+  ttlSeconds = 60 * 60 * 24 * 90, // 90 dias — autoridade real de encerramento é o estado do deal (ver gateCuratorAccess).
 ): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   const full: CuratorAccessPayload = { ...payload, iat: now, exp: now + ttlSeconds };
