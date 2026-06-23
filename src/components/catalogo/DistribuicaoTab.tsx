@@ -3,7 +3,7 @@
 // Nenhuma nova fonte, RPC, métrica ou cálculo de negócio.
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Play, Save, Calendar, Activity, Layers, ChevronDown, Settings2 } from "lucide-react";
+import { Play, Save, Activity, Layers, ChevronDown, Settings2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
