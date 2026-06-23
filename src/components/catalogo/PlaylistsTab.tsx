@@ -293,6 +293,19 @@ export function PlaylistsTab() {
         })}
       </div>
 
+      {/* Paginação — mesmo padrão das outras telas (Curadores etc.) */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-1 pt-2">
+          <Button variant="outline" size="sm" className="rounded-full h-8" disabled={safePage === 1} onClick={() => setPage(1)}>«</Button>
+          <Button variant="outline" size="sm" className="rounded-full h-8" disabled={safePage === 1} onClick={() => setPage(safePage - 1)}>‹</Button>
+          <span className="text-xs text-muted-foreground px-3 tabular-nums">
+            {safePage} / {totalPages}
+          </span>
+          <Button variant="outline" size="sm" className="rounded-full h-8" disabled={safePage === totalPages} onClick={() => setPage(safePage + 1)}>›</Button>
+          <Button variant="outline" size="sm" className="rounded-full h-8" disabled={safePage === totalPages} onClick={() => setPage(totalPages)}>»</Button>
+        </div>
+      )}
     </div>
+
   );
 }
