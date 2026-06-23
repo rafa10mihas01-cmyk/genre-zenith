@@ -214,29 +214,22 @@ export function EnginePriorityTab() {
   const qc = useQueryClient();
 
   const placementsQ = useQuery({
-    queryKey: ["engine-delivery", "placements"],
-    queryFn: fetchPlacements,
+    queryKey: ["engine-delivery", "placements-joined-v2"],
+    queryFn: fetchPlacementsJoined,
     staleTime: 15_000,
     refetchInterval: 30_000,
     refetchOnWindowFocus: true,
   });
-  const managedQ = useQuery({
-    queryKey: ["engine-delivery", "managed-index"],
-    queryFn: fetchManagedIndex,
-    staleTime: 60_000,
-  });
-  const tracksQ = useQuery({
-    queryKey: ["engine-delivery", "tracks-index"],
-    queryFn: fetchCatalogTracks,
-    staleTime: 60_000,
-  });
+
   const catalogSpotifyIds = useMemo(() => {
     const s = new Set<string>();
-    for (const t of Object.values(tracksQ.data ?? {})) {
-      if (t.spotify_track_id) s.add(t.spotify_track_id);
+    for (const p of placementsQ.data ?? []) {
+      const id = p.catalog_tracks?.spotify_track_id;
+      if (id) s.add(id);
     }
     return s;
-  }, [tracksQ.data]);
+  }, [placementsQ.data]);
+
   const playsQ = useQuery({
     queryKey: ["engine-delivery", "plays", catalogSpotifyIds.size],
     queryFn: () => fetchPlaysByPlaylist(catalogSpotifyIds),
@@ -245,7 +238,6 @@ export function EnginePriorityTab() {
     refetchInterval: 60_000,
   });
 
-  // Realtime — recálculos da engine atualizam o diagnóstico, placements atualizam o ranking
   useEffect(() => {
     const channel = supabase
       .channel("engine-priority-live")
@@ -266,10 +258,9 @@ export function EnginePriorityTab() {
 
   const rows = useMemo<PlaylistDeliveryRow[]>(() => {
     const placements = placementsQ.data ?? [];
-    const managed = managedQ.data ?? {};
     const plays = playsQ.data ?? {};
 
-    const byMp = new Map<string, PlacementRow[]>();
+    const byMp = new Map<string, PlacementJoined[]>();
     for (const p of placements) {
       const list = byMp.get(p.managed_playlist_id) ?? [];
       list.push(p);
@@ -278,16 +269,12 @@ export function EnginePriorityTab() {
 
     const out: PlaylistDeliveryRow[] = [];
     for (const [mpId, list] of byMp.entries()) {
-      const mp = managed[mpId];
+      const mp = list[0]?.managed_playlists ?? null;
       const active = list.filter((x) => x.status === "active").length;
       const removed = list.filter((x) => x.status === "removed").length;
       if (active === 0 && removed === 0) continue;
       const last_delivery =
-        list
-          .map((x) => x.added_at)
-          .filter(Boolean)
-          .sort()
-          .pop() ?? null;
+        list.map((x) => x.added_at).filter(Boolean).sort().pop() ?? null;
       const status: PlaylistDeliveryRow["status"] =
         active > 0 && removed === 0 ? "active" : active > 0 ? "partial" : "removed";
       const playData = mp?.spotify_playlist_id ? plays[mp.spotify_playlist_id] : undefined;
@@ -295,7 +282,7 @@ export function EnginePriorityTab() {
       out.push({
         managed_playlist_id: mpId,
         spotify_playlist_id: mp?.spotify_playlist_id ?? null,
-        display_name: mp?.name ?? mpId,
+        display_name: mp?.name ?? "Playlist sem nome",
         cover_url: mp?.cover_url ?? null,
         spotify_url: mp?.spotify_url ?? null,
         followers: mp?.followers ?? null,
@@ -310,7 +297,6 @@ export function EnginePriorityTab() {
       });
     }
     out.sort((a, b) => {
-      // ordena por entrega: primeiro plays 7d (quando houver), depois nº ativo, depois data
       const pa = a.total_plays_7d ?? -1;
       const pb = b.total_plays_7d ?? -1;
       if (pb !== pa) return pb - pa;
@@ -318,13 +304,14 @@ export function EnginePriorityTab() {
       return (b.last_delivery ?? "").localeCompare(a.last_delivery ?? "");
     });
     return out;
-  }, [placementsQ.data, managedQ.data, playsQ.data]);
+  }, [placementsQ.data, playsQ.data]);
 
   const totalActiveTracks = rows.reduce((a, b) => a + b.active_tracks, 0);
   const totalActive = rows.filter((r) => r.status === "active").length;
   const totalPartial = rows.filter((r) => r.status === "partial").length;
 
-  const loading = placementsQ.isLoading || managedQ.isLoading;
+  const loading = placementsQ.isLoading;
+
 
 
   return (
