@@ -11,7 +11,12 @@ import { makeLogger } from "../logger.js";
 
 const log = makeLogger("h:catalog.collect");
 
-const ROW_SEL = '[data-testid="sort-table-body-row"]';
+const ROW_SEL = [
+  '[data-testid="sort-table-body-row"]',
+  '[data-testid="row"]',
+  '[role="row"]',
+  "tbody tr",
+].join(", ");
 const SCROLL_CONTAINER = '#chrome-v2-main-content-scroll-root';
 const ROWS_PER_PRINT = 16;
 
@@ -30,8 +35,71 @@ function parsePlays(txt) {
 
 function extractPlaylistId(href) {
   if (!href) return null;
-  const m = String(href).match(/playlist[/:]([a-zA-Z0-9]{15,})/);
-  return m ? m[1] : null;
+  const m = String(href).match(/spotify:playlist:([a-zA-Z0-9]{15,})|playlist[/:]([a-zA-Z0-9]{15,})/);
+  return m ? (m[1] || m[2]) : null;
+}
+
+function normalizeWhitespace(txt) {
+  return String(txt ?? "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function pickBestPlaysText(row) {
+  const candidates = [
+    row.plays_text,
+    ...(Array.isArray(row.metric_text_candidates) ? row.metric_text_candidates : []),
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    if (parsePlays(candidate) != null) return candidate;
+  }
+
+  return null;
+}
+
+async function applySevenDayFilter(page) {
+  const bodyText = await page.locator("body").innerText({ timeout: 5000 }).catch(() => "");
+  if (/[Úú]ltimos 7 dias|last 7 days/i.test(bodyText) && !/[Úú]ltimos 28 dias|last 28 days/i.test(bodyText)) {
+    return true;
+  }
+
+  const dropdownCandidates = [
+    'button#dropdown-toggle',
+    'button[aria-haspopup="listbox"]',
+    'button[aria-haspopup="menu"]',
+    '[role="button"][aria-haspopup="listbox"]',
+    'button:has-text("Últimos")',
+    'button:has-text("Last")',
+    'button:has-text("28")',
+    'button:has-text("7")',
+  ];
+
+  for (const selector of dropdownCandidates) {
+    const dropdown = page.locator(selector).first();
+    if ((await dropdown.count().catch(() => 0)) === 0) continue;
+
+    try {
+      await dropdown.click({ timeout: 3000 });
+      await page.waitForTimeout(400);
+      const option7d = page
+        .locator('li, [role="option"], [role="menuitem"], button, a')
+        .filter({ hasText: /[Úú]ltimos 7 dias|last 7 days|\b7 dias\b|\b7 days\b/i })
+        .first();
+
+      if ((await option7d.count().catch(() => 0)) > 0) {
+        await option7d.click({ timeout: 3000 });
+        await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
+        await page.waitForTimeout(1200);
+        return true;
+      }
+
+      await page.keyboard.press("Escape").catch(() => {});
+    } catch (e) {
+      log.warn("falha tentando aplicar filtro 7d", { selector, err: String(e) });
+      await page.keyboard.press("Escape").catch(() => {});
+    }
+  }
+
+  return false;
 }
 
 function buildStatsUrl(payload) {
