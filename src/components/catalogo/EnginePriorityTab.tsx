@@ -342,11 +342,12 @@ export function EnginePriorityTab() {
           </Button>
         </div>
         <div className="grid grid-cols-3 gap-2 mt-4">
-          <Kpi label="Plays 7d" value={fmtNumber(totalPlays)} />
+          <Kpi label="Faixas entregues" value={totalActiveTracks} />
           <Kpi label="Playlists ativas" value={totalActive} />
           <Kpi label="Parcialmente ativas" value={totalPartial} />
         </div>
       </section>
+
 
       {/* Ranking de playlists */}
       <section className="rounded-2xl border border-border bg-card">
