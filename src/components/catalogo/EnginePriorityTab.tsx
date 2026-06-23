@@ -13,42 +13,46 @@ import { cn } from "@/lib/utils";
 // ─────────────────────────────────────────────────────────────────────────────
 // Tipos
 // ─────────────────────────────────────────────────────────────────────────────
-type AttributionRow = {
+type PlacementRow = {
+  id: string;
+  managed_playlist_id: string;
   catalog_track_id: string;
-  spotify_playlist_id: string;
-  name: string | null;
-  owner: string | null;
-  spotify_url: string | null;
-  first_seen_at: string;
-  last_seen_at: string;
-  observations: number;
-  current_position: number | null;
-  current_plays_7d: number | null;
-  status: "active" | "left";
+  status: string;
+  added_at: string | null;
+  created_at: string;
+  removed_at: string | null;
 };
 
 type ManagedRow = {
+  id: string;
   spotify_playlist_id: string;
   name: string;
   cover_url: string | null;
   spotify_url: string | null;
   archived_at: string | null;
+  followers: number | null;
+};
+
+type CatalogTrackRow = {
+  id: string;
+  spotify_track_id: string | null;
 };
 
 type PlaylistDeliveryRow = {
-  spotify_playlist_id: string;
+  managed_playlist_id: string;
+  spotify_playlist_id: string | null;
   display_name: string;
   cover_url: string | null;
   spotify_url: string | null;
-  total_plays_7d: number;
+  followers: number | null;
+  total_plays_7d: number | null;
   catalog_tracks: number;
   active_tracks: number;
-  left_tracks: number;
+  removed_tracks: number;
   last_delivery: string | null;
-  status: "active" | "partial" | "left";
-  managed: boolean;
+  status: "active" | "partial" | "removed";
   archived: boolean;
-  growth_delta: number | null; // Δ plays_7d entre as duas capturas mais recentes
+  growth_delta: number | null;
 };
 
 type ScoreRow = {
@@ -63,56 +67,72 @@ type ScoreRow = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Fetchers
+// Fetchers — fonte primária: catalog_placements (entrega real)
 // ─────────────────────────────────────────────────────────────────────────────
-async function fetchAttribution(): Promise<AttributionRow[]> {
+async function fetchPlacements(): Promise<PlacementRow[]> {
   const { data, error } = await supabase
-    .from("v_catalog_track_playlist_attribution")
-    .select("*")
-    .limit(10000);
+    .from("catalog_placements")
+    .select("id, managed_playlist_id, catalog_track_id, status, added_at, created_at, removed_at")
+    .in("status", ["active", "removed"])
+    .limit(20000);
   if (error) throw error;
-  return (data ?? []) as AttributionRow[];
+  return (data ?? []) as PlacementRow[];
 }
 
 async function fetchManagedIndex(): Promise<Record<string, ManagedRow>> {
   const { data, error } = await supabase
     .from("managed_playlists")
-    .select("spotify_playlist_id, name, cover_url, spotify_url, archived_at");
+    .select("id, spotify_playlist_id, name, cover_url, spotify_url, archived_at, followers");
   if (error) throw error;
   const idx: Record<string, ManagedRow> = {};
-  for (const r of (data ?? []) as ManagedRow[]) {
-    if (r.spotify_playlist_id) idx[r.spotify_playlist_id] = r;
-  }
+  for (const r of (data ?? []) as ManagedRow[]) idx[r.id] = r;
   return idx;
 }
 
-// Crescimento honesto: diferença de plays_7d entre as duas capturas mais recentes,
-// agregadas por playlist (somando todas as faixas de catálogo).
-async function fetchGrowthByPlaylist(): Promise<Record<string, number>> {
+async function fetchCatalogTracks(): Promise<Record<string, CatalogTrackRow>> {
+  const { data, error } = await supabase.from("catalog_tracks").select("id, spotify_track_id");
+  if (error) throw error;
+  const idx: Record<string, CatalogTrackRow> = {};
+  for (const r of (data ?? []) as CatalogTrackRow[]) idx[r.id] = r;
+  return idx;
+}
+
+// Plays/crescimento opcional: agrega song_snapshot_playlists por spotify_playlist_id,
+// considerando snapshots cuja música casa com o catálogo (via spotify_song_id ou catalog_track_id).
+async function fetchPlaysByPlaylist(
+  catalogSpotifyIds: Set<string>,
+): Promise<Record<string, { plays_7d: number; growth_delta: number | null }>> {
+  if (catalogSpotifyIds.size === 0) return {};
   const { data, error } = await supabase
     .from("song_snapshot_playlists")
-    .select("spotify_playlist_id, plays_7d, song_snapshots!inner(captured_at, catalog_track_id)")
-    .not("song_snapshots.catalog_track_id", "is", null)
-    .limit(20000);
+    .select(
+      "spotify_playlist_id, plays_7d, song_snapshots!inner(spotify_song_id, catalog_track_id, captured_at)",
+    )
+    .limit(50000);
   if (error) throw error;
 
-  // (playlist, dia) → soma de plays_7d
+  // (playlist, dia) → soma de plays_7d (apenas snaps que casam com catálogo)
   const daily: Record<string, Record<string, number>> = {};
   for (const r of (data ?? []) as any[]) {
+    const snap = r.song_snapshots;
+    if (!snap) continue;
+    const matches =
+      !!snap.catalog_track_id ||
+      (snap.spotify_song_id && catalogSpotifyIds.has(snap.spotify_song_id));
+    if (!matches) continue;
     const pid = r.spotify_playlist_id;
-    const cap = r.song_snapshots?.captured_at;
+    const cap = snap.captured_at;
     if (!pid || !cap) continue;
     const day = String(cap).slice(0, 10);
     daily[pid] ??= {};
     daily[pid][day] = (daily[pid][day] ?? 0) + (Number(r.plays_7d) || 0);
   }
-  const out: Record<string, number> = {};
+  const out: Record<string, { plays_7d: number; growth_delta: number | null }> = {};
   for (const [pid, byDay] of Object.entries(daily)) {
     const days = Object.keys(byDay).sort();
-    if (days.length < 2) continue;
-    const last = byDay[days[days.length - 1]];
-    const prev = byDay[days[days.length - 2]];
-    out[pid] = last - prev;
+    const last = byDay[days[days.length - 1]] ?? 0;
+    const prev = days.length >= 2 ? byDay[days[days.length - 2]] : null;
+    out[pid] = { plays_7d: last, growth_delta: prev == null ? null : last - prev };
   }
   return out;
 }
