@@ -760,7 +760,7 @@ export default function PlanoCampanhaPublico() {
                   <EvolutionChart
                     series={evolutionSeries}
                     target={snapshot.meta}
-                    pct={snapshot.meta > 0 ? Math.min(100, Math.round((delivered / snapshot.meta) * 100)) : 0}
+                    pct={deliveryPct(delivered, snapshot.meta)}
                   />
                 )}
                 <OverviewTab

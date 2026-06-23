@@ -166,7 +166,7 @@ export default function CampanhaDetalhe() {
     );
   }
 
-  const pct = camp.goal_plays > 0 ? Math.min(100, Math.round((camp.total_delivered / camp.goal_plays) * 100)) : 0;
+  const pct = deliveryPct(camp.total_delivered, camp.goal_plays);
   const daysLeft = Math.ceil((new Date(camp.deadline).getTime() - Date.now()) / 86400_000);
 
   return (

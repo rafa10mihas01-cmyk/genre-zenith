@@ -166,7 +166,7 @@ export function OverviewTab({
   const showCurveCard = !hideCurveCard && !curveSlot;
   const [planOpen, setPlanOpen] = useState(false);
   const [savingLock, setSavingLock] = useState(false);
-  const pct = snapshot.meta > 0 ? Math.min(100, Math.round((delivered / snapshot.meta) * 100)) : 0;
+  const pct = deliveryPct(delivered, snapshot.meta);
   // `curva` pode vir indefinida quando o snapshot é entregue por endpoints
   // públicos sanitizados (ex: get-shared-campaign-plan no portal do cliente).
   const curva = Array.isArray(snapshot.curva) ? snapshot.curva : [];

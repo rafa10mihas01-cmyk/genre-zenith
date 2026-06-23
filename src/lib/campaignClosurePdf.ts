@@ -161,7 +161,7 @@ export async function buildCampaignClosurePdf(input: CampaignClosureInput): Prom
 
   const delivered = Number(c.total_delivered ?? 0);
   const goal = Number(c.goal_plays ?? 0);
-  const pct = goal > 0 ? Math.round((delivered / goal) * 100) : 0;
+  const pct = deliveryPct(delivered, goal);
   const cost = Number(c.valor_cobrado ?? 0) || 0;
   const cpp = cost > 0 && delivered > 0 ? cost / delivered : null;
   const startStr = format(new Date(c.started_at), "dd/MM/yyyy", { locale: ptBR });

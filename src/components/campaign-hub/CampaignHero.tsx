@@ -42,7 +42,7 @@ const STATUS_TONE: Record<string, string> = {
 };
 
 export function CampaignHero({ camp, mode, delivered = 0, deliveryBreakdown, goal = 0, daysElapsed = 0, daysTotal = 0, lastUpdateAt, extraActions, extraActionsAfter, hideProgress = false }: Props) {
-  const pct = goal > 0 ? Math.min(100, Math.round((delivered / goal) * 100)) : 0;
+  const pct = deliveryPct(delivered, goal);
   const daysLeft = Math.max(0, daysTotal - daysElapsed);
   const statusKey = camp.status ?? "draft";
 
