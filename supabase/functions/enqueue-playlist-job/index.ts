@@ -3,7 +3,7 @@
 //   { playlist_id, spotify_track_id, action: 'add' | 'remove' }
 //   { playlist_id, spotify_track_id, action: 'reorder', from_position, to_position }  // 1-indexed
 // Auth: usuário autenticado com role admin/curador (has_team_access).
-import { corsHeaders } from "npm:@supabase/supabase-js/cors";
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
 

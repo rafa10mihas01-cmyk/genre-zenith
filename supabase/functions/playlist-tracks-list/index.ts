@@ -1,7 +1,7 @@
 // playlist-tracks-list — lista faixas atuais de uma playlist via Spotify Web API.
 // Body: { playlist_id: uuid }  (uuid de public.playlists)
 // Retorna: { ok, tracks: [{ spotify_track_id, name, artists, album_cover, duration_ms, added_at }] }
-import { corsHeaders } from "npm:@supabase/supabase-js/cors";
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getAppToken, getUserToken, SpotifyCircuitOpenError, setSpotifyCtx } from "../_shared/spotify-client.ts";
 import {
