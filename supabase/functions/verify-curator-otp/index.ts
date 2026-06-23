@@ -37,10 +37,12 @@ Deno.serve(async (req) => {
 
   const { data: deal } = await supabase
     .from("curator_deals")
-    .select("id")
+    .select("id, ends_at, closed_at, closed_status, token_revoked_at")
     .or(`public_token.eq.${token},slug.eq.${token}`)
     .maybeSingle();
   if (!deal) return jr({ error: "not_found" }, 404);
+  if (deal.token_revoked_at) return jr({ error: "deal_revoked" }, 403);
+  if (deal.closed_at || deal.closed_status) return jr({ error: "deal_closed" }, 403);
 
   const tryRl = await checkRateLimit(`verifyCuratorOtp:try:${deal.id}:${emailRaw}`, 3600, 20);
   if (!tryRl.allowed) return jr({ error: "too_many_attempts" }, 429);
