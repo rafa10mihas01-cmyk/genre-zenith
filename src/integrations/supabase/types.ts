@@ -2166,6 +2166,7 @@ export type Database = {
           id: string
           next_wave_at: string | null
           notes: string | null
+          priority: number
           started_at: string
           status: string
           total_distributed: number
@@ -2182,6 +2183,7 @@ export type Database = {
           id?: string
           next_wave_at?: string | null
           notes?: string | null
+          priority?: number
           started_at?: string
           status?: string
           total_distributed?: number
@@ -2198,6 +2200,7 @@ export type Database = {
           id?: string
           next_wave_at?: string | null
           notes?: string | null
+          priority?: number
           started_at?: string
           status?: string
           total_distributed?: number
@@ -14414,7 +14417,28 @@ export type Database = {
         }
         Returns: Json
       }
+      distribute_catalog_track_v1: {
+        Args: {
+          p_added_by?: string
+          p_artist_name?: string
+          p_baseline_monthly_listeners?: number
+          p_baseline_popularity?: number
+          p_baseline_raw?: Json
+          p_baseline_streams?: number
+          p_cover_url?: string
+          p_genre_id: string
+          p_isrc?: string
+          p_spotify_track_id: string
+          p_spotify_uri?: string
+          p_track_name?: string
+        }
+        Returns: Json
+      }
       engine_create_distribution_plan: {
+        Args: { _days?: number; _track_id: string }
+        Returns: string
+      }
+      engine_create_distribution_plan_v1: {
         Args: { _days?: number; _track_id: string }
         Returns: string
       }
@@ -14437,6 +14461,18 @@ export type Database = {
           remaining: number
           skipped: number
         }[]
+      }
+      engine_run_distribution_wave_v1: {
+        Args: { _limit?: number }
+        Returns: {
+          distributed: number
+          remaining: number
+          skipped: number
+        }[]
+      }
+      engine_try_consume_target: {
+        Args: { _now: string; _target_id: string }
+        Returns: boolean
       }
       enqueue_baseline_collection: {
         Args: { p_campaign_id: string }
