@@ -713,7 +713,7 @@ function StatusPill({ status, compact }: { status: PlaylistDeliveryRow["status"]
   const map = {
     active: { label: "Ativa", cls: "bg-primary/15 text-primary border-primary/30" },
     partial: { label: "Parcial", cls: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
-    left: { label: "Saiu", cls: "bg-muted text-muted-foreground border-border" },
+    removed: { label: "Saiu", cls: "bg-muted text-muted-foreground border-border" },
   } as const;
   const s = map[status];
   return (
@@ -745,6 +745,15 @@ function fmtNumber(n: number | null | undefined) {
   if (Math.abs(n) >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
   if (Math.abs(n) >= 1_000) return (n / 1_000).toFixed(1) + "k";
   return String(Math.round(n));
+}
+
+function deliveryValue(row: PlaylistDeliveryRow) {
+  return row.exact_delivery + row.attributed_delivery || row.total_plays_7d || 0;
+}
+
+function shortDate(iso: string | null | undefined) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
