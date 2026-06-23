@@ -358,7 +358,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
           <div className="truncate text-[13px] font-medium text-foreground leading-tight max-w-full">{p.name}</div>
           <div className="flex items-center gap-1.5 flex-wrap">
             {kind === "hybrid" ? (
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-amber-500/40 text-amber-500">Híbrida · reserva 1-18</Badge>
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-amber-500/40 text-amber-500">Híbrida</Badge>
             ) : (
               <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">Catálogo puro</Badge>
             )}
