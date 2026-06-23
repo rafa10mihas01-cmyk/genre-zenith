@@ -718,6 +718,17 @@ export default function CatalogoMusicaDetalhe() {
           <Sparkline points={snapshots} />
         </section>
 
+        {/* RESUMO + INTELIGÊNCIA — sobe antes das tabelas técnicas para responder a pergunta "como essa música está?" em <10s */}
+        <MusicaIntelligenceSection
+          track={t}
+          baseline={b}
+          telemetry={tel}
+          placements={placements}
+          snapshots={snapshots}
+          queue={queue}
+        />
+
+
         {/* PLACEMENTS GERENCIADOS */}
         <section className="rounded-2xl border border-border bg-card overflow-hidden">
           <div className="p-5 border-b border-border flex items-center justify-between">
