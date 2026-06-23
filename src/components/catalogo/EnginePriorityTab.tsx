@@ -372,8 +372,9 @@ export function EnginePriorityTab() {
         </div>
 
 
-        {/* Desktop: tabela */}
-        <div className="hidden sm:block overflow-x-auto">
+        {/* Desktop: tabela com scroll */}
+        <div className="hidden sm:block max-h-[70vh] overflow-y-auto overflow-x-auto">
+
           <table className="w-full text-sm">
             <thead className="text-xs uppercase tracking-wider text-muted-foreground">
               <tr className="border-b border-border">
