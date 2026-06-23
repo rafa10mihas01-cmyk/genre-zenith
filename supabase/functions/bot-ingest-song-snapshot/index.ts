@@ -133,6 +133,7 @@ Deno.serve(async (req) => {
     return jr({ error: "playlists array required (may be empty)" }, 400);
   }
   const catalogRequiresPlaylistBreakdown = isCatalogMode && (
+    effectiveQueueId.length > 0 ||
     body?.requires_playlist_breakdown === true ||
     body?.capture_mode === "playlist_breakdown_required" ||
     bot_metadata?.requires_playlist_breakdown === true ||
