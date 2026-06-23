@@ -4,7 +4,7 @@
 //   3. dispara playlist-brain-calc pra recalcular score
 //   4. registra cada execução em sync_log
 // Body: { playlist_id?: string, source?: string }
-import { corsHeaders } from "npm:@supabase/supabase-js/cors";
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
 import { getAppToken, SpotifyCircuitOpenError, withSpotifyCtx } from "../_shared/spotify-client.ts";
