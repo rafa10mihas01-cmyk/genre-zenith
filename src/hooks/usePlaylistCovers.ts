@@ -25,9 +25,9 @@ export function usePlaylistCovers(playlistIds: string[]) {
       return;
     }
     (async () => {
-      // Busca em paralelo nas duas fontes: playlists (gerenciadas) e
-      // curator_playlists (importadas via planilha / vindas de curadores).
-      const [{ data: managed }, { data: curated }] = await Promise.all([
+      // Busca em paralelo nas fontes conhecidas: playlists gerenciadas,
+      // curadores operacionais e playlists observadas pelo bot.
+      const [{ data: managed }, { data: curated }, { data: observed }] = await Promise.all([
         supabase
           .from("playlists")
           .select("spotify_playlist_id, name, cover_url, followers")
@@ -37,10 +37,14 @@ export function usePlaylistCovers(playlistIds: string[]) {
           .from("v_curator_playlists_operational")
           .select("spotify_playlist_id, playlist_name, image_url, followers")
           .in("spotify_playlist_id", playlistIds),
+        supabase
+          .from("observed_playlists")
+          .select("spotify_playlist_id, playlist_name, image_url, followers")
+          .in("spotify_playlist_id", playlistIds),
       ]);
       const next: Record<string, PlaylistMeta> = {};
-      // curator_playlists primeiro (fallback)
-      for (const r of (curated ?? []) as any[]) {
+      // Observadas pelo bot primeiro (fallback global para campanhas automáticas)
+      for (const r of (observed ?? []) as any[]) {
         const id = r.spotify_playlist_id as string;
         if (!id) continue;
         next[id] = {
@@ -48,6 +52,18 @@ export function usePlaylistCovers(playlistIds: string[]) {
           name: cleanPlaylistName(r.playlist_name),
           cover_url: r.image_url ?? null,
           followers: r.followers ?? null,
+        };
+      }
+      // curator_playlists sobrescreve observado quando existir
+      for (const r of (curated ?? []) as any[]) {
+        const id = r.spotify_playlist_id as string;
+        if (!id) continue;
+        const prev = next[id];
+        next[id] = {
+          spotify_playlist_id: id,
+          name: cleanPlaylistName(r.playlist_name) ?? prev?.name ?? null,
+          cover_url: r.image_url ?? prev?.cover_url ?? null,
+          followers: r.followers ?? prev?.followers ?? null,
         };
       }
       // playlists gerenciadas têm prioridade (sobrescrevem)

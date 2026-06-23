@@ -506,8 +506,8 @@ function BaselineStatus({
               const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
               return tb - ta;
             });
-            const visible = runsDesc.slice(0, 2);
-            const hidden = runsDesc.slice(2);
+            const visible = runsDesc.slice(0, 1);
+            const hidden = runsDesc.slice(1);
 
             return (
               <div className="space-y-3">
@@ -519,8 +519,21 @@ function BaselineStatus({
                       <span>Mostrar {hidden.length} coleta{hidden.length === 1 ? "" : "s"} anterior{hidden.length === 1 ? "" : "es"}</span>
                       <span className="text-[10px] group-open:rotate-180 transition-transform">▾</span>
                     </summary>
-                    <div className="p-3 pt-0 space-y-3">
-                      {hidden.map(renderRun)}
+                    <div className="px-3 pb-3 pt-0 divide-y divide-border/50">
+                      {hidden.map((run) => {
+                        const dt = run.created_at ? new Date(run.created_at) : null;
+                        const label = dt
+                          ? dt.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
+                          : "Coleta";
+                        return (
+                          <div key={run.run_id} className="flex items-center justify-between gap-3 py-2 text-[12px]">
+                            <span className="font-medium tabular-nums text-foreground/90 truncate">{label}</span>
+                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
+                              {run.print_urls?.length ?? 0} {(run.print_urls?.length ?? 0) === 1 ? "print" : "prints"}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </details>
                 )}
