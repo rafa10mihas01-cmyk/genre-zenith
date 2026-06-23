@@ -54,18 +54,6 @@ type ResolveResult = {
   } | null;
 };
 
-type PreviewPlaylist = {
-  id: string;
-  name: string;
-  cover_url: string | null;
-  followers: number | null;
-  available_slots?: number;
-  real_tracks?: number;
-  campaign_reserved_slots?: number;
-  projected_position?: number;
-  kind?: "hybrid" | "catalog_pure";
-};
-
 type PreviewResult = {
   ok: boolean;
   error?: string;
@@ -74,15 +62,9 @@ type PreviewResult = {
   genre_id?: string;
   genre_name?: string;
   pool_total?: number;
-  pool_hybrid?: number;
-  pool_catalog_pure?: number;
-  capacity_total?: number;
-  capacity_used?: number;
-  capacity_free?: number;
-  eligible_hybrid?: PreviewPlaylist[];
-  eligible_catalog_pure?: PreviewPlaylist[];
-  already_present?: PreviewPlaylist[];
-  no_capacity?: PreviewPlaylist[];
+  eligible_total?: number;
+  already_present_count?: number;
+  no_capacity_count?: number;
 };
 
 
