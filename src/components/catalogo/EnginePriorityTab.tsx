@@ -69,33 +69,40 @@ type ScoreRow = {
 // ─────────────────────────────────────────────────────────────────────────────
 // Fetchers — fonte primária: catalog_placements (entrega real)
 // ─────────────────────────────────────────────────────────────────────────────
-async function fetchPlacements(): Promise<PlacementRow[]> {
+// Uma única query: placements + managed_playlists embedded + catalog_tracks embedded.
+type PlacementJoined = {
+  id: string;
+  managed_playlist_id: string;
+  catalog_track_id: string;
+  status: string;
+  added_at: string | null;
+  removed_at: string | null;
+  managed_playlists: {
+    id: string;
+    spotify_playlist_id: string | null;
+    name: string | null;
+    cover_url: string | null;
+    spotify_url: string | null;
+    archived_at: string | null;
+    followers: number | null;
+  } | null;
+  catalog_tracks: { id: string; spotify_track_id: string | null } | null;
+};
+
+async function fetchPlacementsJoined(): Promise<PlacementJoined[]> {
   const { data, error } = await supabase
     .from("catalog_placements")
-    .select("id, managed_playlist_id, catalog_track_id, status, added_at, created_at, removed_at")
+    .select(
+      `id, managed_playlist_id, catalog_track_id, status, added_at, removed_at,
+       managed_playlists ( id, spotify_playlist_id, name, cover_url, spotify_url, archived_at, followers ),
+       catalog_tracks ( id, spotify_track_id )`,
+    )
     .in("status", ["active", "removed"])
     .limit(20000);
   if (error) throw error;
-  return (data ?? []) as PlacementRow[];
+  return (data ?? []) as unknown as PlacementJoined[];
 }
 
-async function fetchManagedIndex(): Promise<Record<string, ManagedRow>> {
-  const { data, error } = await supabase
-    .from("managed_playlists")
-    .select("id, spotify_playlist_id, name, cover_url, spotify_url, archived_at, followers");
-  if (error) throw error;
-  const idx: Record<string, ManagedRow> = {};
-  for (const r of (data ?? []) as ManagedRow[]) idx[r.id] = r;
-  return idx;
-}
-
-async function fetchCatalogTracks(): Promise<Record<string, CatalogTrackRow>> {
-  const { data, error } = await supabase.from("catalog_tracks").select("id, spotify_track_id");
-  if (error) throw error;
-  const idx: Record<string, CatalogTrackRow> = {};
-  for (const r of (data ?? []) as CatalogTrackRow[]) idx[r.id] = r;
-  return idx;
-}
 
 // Plays/crescimento opcional: agrega song_snapshot_playlists por spotify_playlist_id,
 // considerando snapshots cuja música casa com o catálogo (via spotify_song_id ou catalog_track_id).
