@@ -356,8 +356,9 @@ export function EnginePriorityTab() {
             <ListMusic className="h-4 w-4 text-primary shrink-0" />
             Ranking por entrega ({rows.length})
           </h3>
-          <span className="text-[11px] text-muted-foreground">ordenado por plays 7d</span>
+          <span className="text-[11px] text-muted-foreground">ordenado por entrega</span>
         </div>
+
 
         {loading && (
           <div className="px-4 py-8 text-center text-sm text-muted-foreground">Carregando…</div>
