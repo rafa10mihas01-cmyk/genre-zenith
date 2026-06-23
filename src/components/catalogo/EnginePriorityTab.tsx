@@ -417,10 +417,11 @@ export function EnginePriorityTab() {
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">
                     {r.active_tracks}
-                    {r.left_tracks > 0 && (
+                    {r.removed_tracks > 0 && (
                       <span className="text-muted-foreground"> /{r.catalog_tracks}</span>
                     )}
                   </td>
+
                   <td className="px-3 py-2 text-xs text-muted-foreground">
                     {r.last_delivery
                       ? new Date(r.last_delivery).toLocaleDateString("pt-BR", {
