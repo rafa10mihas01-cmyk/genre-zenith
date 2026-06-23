@@ -447,23 +447,24 @@ export function EnginePriorityTab() {
 // UI helpers
 // ─────────────────────────────────────────────────────────────────────────────
 function PlaylistRowMobile({ rank, row }: { rank: number; row: PlaylistDeliveryRow }) {
+  const hasPlays = row.total_plays_7d != null && row.total_plays_7d > 0;
   return (
-    <div className="px-4 py-3 flex items-center gap-3">
-      <span className="text-xs tabular-nums text-muted-foreground w-5 shrink-0">{rank}</span>
+    <div className="px-3 py-2 flex items-center gap-2.5">
+      <span className="text-[11px] tabular-nums text-muted-foreground w-4 shrink-0 text-right">
+        {rank}
+      </span>
       {row.cover_url ? (
-        <img src={row.cover_url} alt="" className="w-10 h-10 rounded object-cover shrink-0" />
+        <img src={row.cover_url} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
       ) : (
-        <div className="w-10 h-10 rounded bg-muted shrink-0" />
+        <div className="w-8 h-8 rounded bg-muted shrink-0" />
       )}
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium truncate">{row.display_name}</div>
-        <div className="flex items-center gap-2 mt-0.5">
-          <StatusPill status={row.status} compact />
-          <span className="text-[10px] text-muted-foreground">
-            {row.active_tracks} faixa{row.active_tracks === 1 ? "" : "s"}
-          </span>
+        <div className="text-[13px] font-medium leading-tight truncate">{row.display_name}</div>
+        <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-muted-foreground">
+          <StatusDot status={row.status} />
+          <span className="tabular-nums">{row.active_tracks}f</span>
           {row.last_delivery && (
-            <span className="text-[10px] text-muted-foreground">
+            <span>
               ·{" "}
               {new Date(row.last_delivery).toLocaleDateString("pt-BR", {
                 day: "2-digit",
@@ -471,19 +472,40 @@ function PlaylistRowMobile({ rank, row }: { rank: number; row: PlaylistDeliveryR
               })}
             </span>
           )}
+          {row.followers != null && row.followers > 0 && (
+            <span>· {fmtNumber(row.followers)} seg.</span>
+          )}
         </div>
       </div>
-      <div className="text-right shrink-0">
-        <div className="text-base font-semibold tabular-nums text-primary">
-          {fmtNumber(row.total_plays_7d)}
+      {hasPlays ? (
+        <div className="text-right shrink-0">
+          <div className="text-sm font-semibold tabular-nums text-primary leading-none">
+            {fmtNumber(row.total_plays_7d)}
+          </div>
+          <div className="text-[9px] text-muted-foreground mt-0.5">plays 7d</div>
+          {row.growth_delta != null && (
+            <div className="text-[10px] mt-0.5">
+              <GrowthCell delta={row.growth_delta} compact />
+            </div>
+          )}
         </div>
-        <div className="text-[10px]">
-          <GrowthCell delta={row.growth_delta} compact />
-        </div>
-      </div>
+      ) : (
+        <ChevronDown className="h-3.5 w-3.5 -rotate-90 text-muted-foreground/40 shrink-0" />
+      )}
     </div>
   );
 }
+
+function StatusDot({ status }: { status: PlaylistDeliveryRow["status"] }) {
+  const cls =
+    status === "active"
+      ? "bg-primary"
+      : status === "partial"
+        ? "bg-amber-400"
+        : "bg-muted-foreground/40";
+  return <span className={cn("inline-block w-1.5 h-1.5 rounded-full", cls)} />;
+}
+
 
 function GrowthCell({ delta, compact }: { delta: number | null; compact?: boolean }) {
   if (delta == null) return <span className="text-muted-foreground text-xs">—</span>;
