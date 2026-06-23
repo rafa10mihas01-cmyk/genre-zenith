@@ -2,11 +2,13 @@
 // Estrutura igual à página de Clientes: PageHeader com ações no topo,
 // KPIs hero logo abaixo e tabs por último.
 import { useSearchParams } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, RefreshCw, Music2, Layers, Gauge, CircleSlash, TrendingUp, Activity, Brain, Send } from "lucide-react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { Plus, RefreshCw, Music2, Layers, Gauge, CircleSlash, TrendingUp, Activity, Brain, Send, Power } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { KpiBig } from "@/components/KpiBig";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
