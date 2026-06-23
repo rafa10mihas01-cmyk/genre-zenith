@@ -113,5 +113,22 @@ export async function gateCuratorAccess(
   if (expectedToken && payload.token && payload.token !== expectedToken) {
     return { ok: false, status: 403, error: "jwt_token_mismatch" };
   }
+
+  // Autoridade final de expiração = estado do deal, não o relógio do JWT.
+  // O link permanece válido enquanto o deal estiver aberto. Bloqueia quando:
+  //   - admin/operador encerrou o deal (closed_at preenchido), ou
+  //   - o share token foi revogado manualmente (token_revoked_at), ou
+  //   - foi marcado um closed_status final (ex.: 'concluido', 'encerrado', 'cancelado').
+  const { data: dealRow } = await admin
+    .from("curator_deals")
+    .select("id, closed_at, closed_status, token_revoked_at")
+    .eq("id", dealId)
+    .maybeSingle();
+  if (!dealRow) return { ok: false, status: 404, error: "deal_not_found" };
+  if (dealRow.token_revoked_at) return { ok: false, status: 403, error: "deal_revoked" };
+  if (dealRow.closed_at || dealRow.closed_status) {
+    return { ok: false, status: 403, error: "deal_closed" };
+  }
+
   return { ok: true, email: payload.email };
 }
