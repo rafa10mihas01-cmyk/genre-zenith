@@ -414,7 +414,7 @@ function fireAndForgetAccessBlock(args: Parameters<typeof recordAppAccessBlock>[
       p_app_id: args.appId,
       p_spotify_user_id: args.spotifyUserId ?? null,
     }).then(() => {}, () => {});
-    if (er?.waitUntil) { try { er.waitUntil(q); } catch { /* noop */ } }
+    if (er?.waitUntil) { try { er.waitUntil(Promise.resolve(q)); } catch { /* noop */ } }
   }
 
   if (now - last < ACCESS_BLOCK_DEDUPE_MS) return;
