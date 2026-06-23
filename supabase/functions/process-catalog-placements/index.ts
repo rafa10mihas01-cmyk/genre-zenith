@@ -441,6 +441,43 @@ Deno.serve(async (req) => {
     cntFailed++;
   }
 
+  async function markSkipped(
+    p: Enriched,
+    code: string,
+    reason: string,
+    delaySec: number,
+    msg: string | null,
+    correlationId: string,
+  ) {
+    cntSkipped++;
+    const resumeAt = new Date(Date.now() + Math.max(60, delaySec) * 1000).toISOString();
+    // skip não consome tentativa: devolve o increment feito no claim.
+    await sb.from("catalog_placements").update({
+      status: "skipped",
+      skip_reason: reason,
+      skipped_at: new Date().toISOString(),
+      scheduled_for: resumeAt,
+      last_error_code: code,
+      attempts: Math.max(0, (p.attempts ?? 1) - 1),
+      locked_at: null, locked_by: null, lease_expires_at: null,
+    }).eq("id", p.id);
+    await sb.from("catalog_placement_execution_log").insert({
+      placement_id: p.id,
+      catalog_track_id: p.catalog_track_id,
+      managed_playlist_id: p.managed_playlist_id,
+      spotify_playlist_id: p.spotify_playlist_id,
+      spotify_track_id: p.spotify_track_id,
+      position: p.position,
+      outcome: "skipped",
+      error_code: code,
+      error_message: trim(
+        `source=skip reason=${reason} resume_at=${resumeAt} ` +
+        `attempts_refunded=true (${p.attempts}→${Math.max(0, (p.attempts ?? 1) - 1)}) ` +
+        `${msg ?? ""} corr=${correlationId}`,
+      ),
+    });
+  }
+
   async function markActive(
     p: Enriched,
     outcome: Outcome,
