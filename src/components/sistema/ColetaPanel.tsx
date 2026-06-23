@@ -29,29 +29,36 @@ export function ColetaPanel() {
 
   const load = async () => {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const [genresRes, verifRes, recentRes] = await Promise.all([
+    const [genresRes, verifRes, recentRes, breakdownRes] = await Promise.all([
       supabase.from("genres").select("id, nome, total_termos, total_playlists, ultima_coleta").eq("ativo", true),
       supabase.from("search_results").select("followers_verified_at").not("followers_verified_at", "is", null).order("followers_verified_at", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("search_results").select("id", { count: "exact", head: true }).not("followers_verified_at", "is", null).gte("followers_verified_at", sevenDaysAgo),
+      // Substitui o N+1 (2 queries por gênero) por UMA única busca dos últimos 7 dias.
+      supabase.from("search_results").select("genre_id, is_valid").not("followers_verified_at", "is", null).gte("followers_verified_at", sevenDaysAgo),
     ]);
 
-    // Para cada gênero, contar válidas/inválidas
-    const out: GenreStats[] = [];
-    for (const g of genresRes.data ?? []) {
-      const [validas, invalidas] = await Promise.all([
-        supabase.from("search_results").select("id", { count: "exact", head: true }).eq("genre_id", g.id).eq("is_valid", true).not("followers_verified_at", "is", null).gte("followers_verified_at", sevenDaysAgo),
-        supabase.from("search_results").select("id", { count: "exact", head: true }).eq("genre_id", g.id).eq("is_valid", false).not("followers_verified_at", "is", null).gte("followers_verified_at", sevenDaysAgo),
-      ]);
-      out.push({
+    // Agrega válidas/inválidas por gênero a partir do resultado único.
+    const counts = new Map<string, { validas: number; invalidas: number }>();
+    for (const r of (breakdownRes.data ?? []) as Array<{ genre_id: string | null; is_valid: boolean | null }>) {
+      if (!r.genre_id) continue;
+      const cur = counts.get(r.genre_id) ?? { validas: 0, invalidas: 0 };
+      if (r.is_valid) cur.validas++;
+      else cur.invalidas++;
+      counts.set(r.genre_id, cur);
+    }
+
+    const out: GenreStats[] = (genresRes.data ?? []).map((g: any) => {
+      const c = counts.get(g.id) ?? { validas: 0, invalidas: 0 };
+      return {
         genre_id: g.id,
         nome: g.nome,
         total_termos: g.total_termos ?? 0,
-        total_playlists: (validas.count ?? 0) + (invalidas.count ?? 0),
-        validas: validas.count ?? 0,
-        invalidas: invalidas.count ?? 0,
+        total_playlists: c.validas + c.invalidas,
+        validas: c.validas,
+        invalidas: c.invalidas,
         ultima_coleta: g.ultima_coleta,
-      });
-    }
+      };
+    });
     const visible = out.filter((g) => g.total_playlists > 0);
     visible.sort((a, b) => b.total_playlists - a.total_playlists);
     setStats(visible);
@@ -59,6 +66,7 @@ export function ColetaPanel() {
     setRecentVerified(recentRes.count ?? 0);
     setLoading(false);
   };
+
 
   useEffect(() => {
     load();
