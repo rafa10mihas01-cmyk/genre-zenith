@@ -136,30 +136,18 @@ async function readTotalPlays(page, statsUrl) {
   total_plays_28d = parsePlays(txt28);
 
   // Mesmo fluxo do deal: tenta selecionar "Últimos 7 dias" no header quando o S4A expõe o dropdown.
-  try {
-    const dropdown = page.locator('button#dropdown-toggle').first();
-    if (await dropdown.count() > 0) {
-      await dropdown.click();
-      await page.waitForTimeout(500);
-      const opt7d = page.locator('li, [role="option"]').filter({ hasText: /[Úú]ltimos 7 dias|7 days/i }).first();
-      if (await opt7d.count() > 0) {
-        await opt7d.click();
-        filter_7d_applied = true;
-        await page.waitForLoadState("networkidle").catch(() => {});
-        await page.waitForFunction(
-          (sel) => {
-            const el = document.querySelector(sel);
-            return el && /\d/.test(el.textContent || "");
-          },
-          SELECTORS.songTotalStreams,
-          { timeout: 8000 },
-        ).catch(() => {});
-        const txt7 = await page.locator(SELECTORS.songTotalStreams).first().innerText().catch(() => null);
-        total_plays_7d = parsePlays(txt7);
-      }
-    }
-  } catch (e) {
-    log.warn("falha aplicando filtro 7d", { err: String(e) });
+  filter_7d_applied = await applySevenDayFilter(page);
+  if (filter_7d_applied) {
+    await page.waitForFunction(
+      (sel) => {
+        const el = document.querySelector(sel);
+        return el && /\d/.test(el.textContent || "");
+      },
+      SELECTORS.songTotalStreams,
+      { timeout: 8000 },
+    ).catch(() => {});
+    const txt7 = await page.locator(SELECTORS.songTotalStreams).first().innerText().catch(() => null);
+    total_plays_7d = parsePlays(txt7);
   }
 
   return { total_plays_28d, total_plays_7d, filter_7d_applied };
@@ -192,22 +180,48 @@ async function isPlaylistTableAtBottom(page) {
 
 async function extractVisiblePlaylistRows(page) {
   return await page.evaluate((rowSelector) => {
+    const norm = (txt) => String(txt || "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+    const pickPlaylistName = (row, cells, linkEl) => {
+      const heading = row.querySelector('h1, h2, h3, [role="heading"]');
+      const anchorText = norm(linkEl?.textContent);
+      const cellTexts = cells.map((td) => norm(td.textContent)).filter(Boolean);
+      const textCandidates = [norm(heading?.textContent), anchorText, ...cellTexts];
+
+      for (const txt of textCandidates) {
+        if (!txt) continue;
+        if (/^#?$|playlist|streams?|ouvintes?|listeners?|plays?|reprodu/i.test(txt)) continue;
+        if (/^[\d.,\s]+[km]?$/i.test(txt)) continue;
+        return txt;
+      }
+      return null;
+    };
+
     const result = [];
     document.querySelectorAll(rowSelector).forEach((row) => {
       const ariaLabel = row.getAttribute("aria-label") || "";
-      const idMatch = ariaLabel.match(/spotify:playlist:([a-zA-Z0-9]{15,})/);
-      const playlistId = idMatch ? idMatch[1] : null;
-      const tds = Array.from(row.querySelectorAll("td"));
-      const nameTd = tds[1];
-      const playlist_name = nameTd?.querySelector("h3")?.textContent?.trim()
-        || nameTd?.querySelector("p")?.textContent?.trim()
-        || nameTd?.textContent?.trim()
-        || null;
-      const owner = nameTd?.querySelectorAll("p")?.[1]?.textContent?.trim() || null;
-      const playsText = tds[3]?.textContent?.trim() || null;
-      const linkEl = row.querySelector('a[href*="playlist"]');
-      const href = linkEl?.href || null;
-      result.push({ href, playlistId, playlist_name, owner, plays_text: playsText });
+      const linkEl = row.querySelector('a[href*="playlist"], a[href*="open.spotify.com/playlist"]');
+      const href = linkEl?.href || linkEl?.getAttribute("href") || null;
+      const idSource = `${ariaLabel} ${href || ""}`;
+      const idMatch = idSource.match(/spotify:playlist:([a-zA-Z0-9]{15,})|playlist[/:]([a-zA-Z0-9]{15,})/);
+      const playlistId = idMatch ? (idMatch[1] || idMatch[2]) : null;
+      const cells = Array.from(row.querySelectorAll('td, [role="cell"], [role="gridcell"]'));
+      const playlist_name = pickPlaylistName(row, cells, linkEl);
+      if (!playlistId && !playlist_name) return;
+
+      const nameCell = cells.find((td) => {
+        const txt = norm(td.textContent);
+        return playlist_name && txt.includes(playlist_name);
+      }) || cells[1] || row;
+      const ownerCandidates = Array.from(nameCell.querySelectorAll("p, span, small"))
+        .map((el) => norm(el.textContent))
+        .filter((txt) => txt && txt !== playlist_name && !/^[\d.,\s]+[km]?$/i.test(txt));
+      const owner = ownerCandidates[1] || ownerCandidates[0] || null;
+      const metric_text_candidates = [
+        ...cells.slice(2).map((td) => norm(td.textContent)),
+        ...Array.from(row.querySelectorAll("span, div, p")).map((el) => norm(el.textContent)).filter((txt) => txt.length <= 24),
+      ].filter(Boolean);
+      const playsText = metric_text_candidates.find((txt) => /\d/.test(txt) && /^[\d.,\s]+[km]?$/i.test(txt)) || null;
+      result.push({ href, playlistId, playlist_name, owner, plays_text: playsText, metric_text_candidates });
     });
     return result;
   }, ROW_SEL);
