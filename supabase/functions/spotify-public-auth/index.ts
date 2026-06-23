@@ -297,23 +297,46 @@ Deno.serve(async (req) => {
 
       if (!userId) return jr({ ok: false, error: "user_id ausente" }, 500);
 
-      // Gera magic link — o client extrai o token e cria sessão sem email
+      // Gera magic link e CONSOME server-side via verifyOtp. O magic link nunca trafega
+      // pra fora da edge function — só o session token resultante (que o client precisaria
+      // de qualquer forma) é devolvido, com Cache-Control: no-store pra impedir cache.
       const { data: link, error: linkErr } = await supabase.auth.admin.generateLink({
         type: "magiclink",
         email: emailLower,
       });
-      if (linkErr || !link?.properties?.action_link) {
-        return jr({ ok: false, error: `magic link: ${linkErr?.message ?? "sem link"}` }, 500);
+      if (linkErr || !link?.properties?.hashed_token) {
+        return jr({ ok: false, error: `magic link: ${linkErr?.message ?? "sem hash"}` }, 500);
       }
 
-      return jr({
-        ok: true,
-        allowed: true,
-        magic_link: link.properties.action_link,
-        email,
-        display_name,
-        spotify_user_id,
+      const anon = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
+      const { data: verified, error: vErr } = await anon.auth.verifyOtp({
+        token_hash: link.properties.hashed_token,
+        type: "magiclink",
       });
+      if (vErr || !verified?.session) {
+        return jr({ ok: false, error: `verify otp: ${vErr?.message ?? "sem sessão"}` }, 500);
+      }
+
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          allowed: true,
+          session: {
+            access_token: verified.session.access_token,
+            refresh_token: verified.session.refresh_token,
+            expires_in: verified.session.expires_in,
+            expires_at: verified.session.expires_at,
+            token_type: verified.session.token_type,
+          },
+          email,
+          display_name,
+          spotify_user_id,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" },
+        },
+      );
     }
 
     return jr({ ok: false, error: `mode desconhecido: ${mode}` }, 400);
