@@ -521,15 +521,6 @@ Deno.serve(async (req) => {
     const correlationId = crypto.randomUUID().slice(0, 8);
     const uri = p.spotify_uri ?? `spotify:track:${p.spotify_track_id}`;
 
-    // ── ETAPA 2 homologação: dry-run por marcador __LOADTEST__ ────────────
-    // Faixas de teste de carga executam o pipeline completo (claim, lease,
-    // execution_log, status) mas substituem a chamada ao Spotify por uma
-    // simulação. Nenhum efeito colateral em playlists reais.
-    if (p.track_name && p.track_name.startsWith("__LOADTEST__")) {
-      await markActive(p, "active", "spotify_post", correlationId, "simulated");
-      continue;
-    }
-
     try {
       // 3.1) Pré-flight Circuit Breaker (sem chamada Spotify).
       const appId = await appIdForOwner(p.owner_spotify_user_id);
