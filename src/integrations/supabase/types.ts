@@ -14500,6 +14500,17 @@ export type Database = {
         Args: { p_deal_id: string }
         Returns: number
       }
+      fn_enqueue_catalog_test_snapshot: {
+        Args: { p_catalog_track_id: string }
+        Returns: {
+          catalog_track_id: string
+          queue_id: string
+          reason: string
+          scheduled_for: string
+          spotify_track_id: string
+          status: string
+        }[]
+      }
       fn_playlist_delivery_accumulated: {
         Args: { p_campaign_id: string }
         Returns: {
