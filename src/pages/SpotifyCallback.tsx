@@ -306,24 +306,3 @@ export default function SpotifyCallback() {
   );
 }
 
-/**
- * Recebe um magic link do Supabase (URL completa) e materializa a sessão
- * usando verifyOtp com o token_hash extraído da query string.
- */
-async function consumeMagicLink(actionLink: string): Promise<boolean> {
-  try {
-    const u = new URL(actionLink);
-    // Magic links usam ?token_hash=…&type=magiclink
-    const tokenHash = u.searchParams.get("token_hash");
-    const type = (u.searchParams.get("type") as "magiclink" | "email" | null) ?? "magiclink";
-    if (!tokenHash) return false;
-
-    const { error } = await supabase.auth.verifyOtp({
-      token_hash: tokenHash,
-      type,
-    });
-    return !error;
-  } catch {
-    return false;
-  }
-}
