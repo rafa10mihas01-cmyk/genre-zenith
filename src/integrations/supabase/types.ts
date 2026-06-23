@@ -7946,36 +7946,6 @@ export type Database = {
         }
         Relationships: []
       }
-      observer_runs: {
-        Row: {
-          ended_at: string | null
-          error: string | null
-          hostname: string
-          id: string
-          playlists_processed: number | null
-          started_at: string | null
-          status: string | null
-        }
-        Insert: {
-          ended_at?: string | null
-          error?: string | null
-          hostname: string
-          id?: string
-          playlists_processed?: number | null
-          started_at?: string | null
-          status?: string | null
-        }
-        Update: {
-          ended_at?: string | null
-          error?: string | null
-          hostname?: string
-          id?: string
-          playlists_processed?: number | null
-          started_at?: string | null
-          status?: string | null
-        }
-        Relationships: []
-      }
       organic_plays_snapshots: {
         Row: {
           captured_at: string
@@ -10054,38 +10024,6 @@ export type Database = {
             columns: ["template_id"]
             isOneToOne: false
             referencedRelation: "playlist_templates"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      playlist_observations: {
-        Row: {
-          hostname: string
-          id: string
-          observed_at: string | null
-          playlist_id: string
-          snapshot: Json
-        }
-        Insert: {
-          hostname: string
-          id?: string
-          observed_at?: string | null
-          playlist_id: string
-          snapshot: Json
-        }
-        Update: {
-          hostname?: string
-          id?: string
-          observed_at?: string | null
-          playlist_id?: string
-          snapshot?: Json
-        }
-        Relationships: [
-          {
-            foreignKeyName: "playlist_observations_playlist_id_fkey"
-            columns: ["playlist_id"]
-            isOneToOne: false
-            referencedRelation: "playlists_to_observe"
             referencedColumns: ["id"]
           },
         ]
