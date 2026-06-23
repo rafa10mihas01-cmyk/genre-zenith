@@ -139,8 +139,11 @@ function Cover({ url, alt }: { url: string | null; alt: string }) {
   );
 }
 
+const PAGE_SIZE = 24;
+
 export function PlaylistsTab() {
   const q = useQuery({ queryKey: ["catalog", "playlists-ranking"], queryFn: fetchAll, staleTime: 30_000 });
+  const [page, setPage] = useState(1);
 
   const totals = useMemo(() => {
     const rows = q.data ?? [];
@@ -161,6 +164,12 @@ export function PlaylistsTab() {
   }
 
   const rows = q.data ?? [];
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const start = (safePage - 1) * PAGE_SIZE;
+  const pageRows = rows.slice(start, start + PAGE_SIZE);
+
+
 
   return (
     <div className="flex flex-col gap-3">
