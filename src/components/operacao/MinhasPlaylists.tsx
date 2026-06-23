@@ -525,11 +525,6 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     }
   }
 
-  // Contas a IGNORAR na sincronização global (já importadas e congeladas)
-  const EXCLUDED_SPOTIFY_USER_IDS = new Set<string>([
-    "31kxavlirmnk4nm63bozv6z4pgri", // Top Hits Brasil 🇧🇷 (rafa10mihas01@gmail.com) — não re-sincronizar
-  ]);
-
   async function handleBulkImportAllAccounts() {
     setBulkImporting(true);
     try {
@@ -539,9 +534,8 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
       if (tokErr) throw new Error(tokErr.message);
       const tokens = ((tokensRaw ?? []) as unknown) as Array<{ spotify_user_id: string | null; display_name: string | null; email: string | null }>;
 
-      const targets = tokens.filter(
-        (t) => t.spotify_user_id && !EXCLUDED_SPOTIFY_USER_IDS.has(t.spotify_user_id),
-      );
+      const targets = tokens.filter((t) => !!t.spotify_user_id);
+
       if (targets.length === 0) {
         toast({ title: "Nenhuma conta para sincronizar" });
         return;
