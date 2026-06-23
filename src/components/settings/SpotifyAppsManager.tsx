@@ -117,8 +117,9 @@ function RedirectUrisPanel({ slug }: { slug: string }) {
 
 function CapacityBar({ used, max }: { used: number; max: number }) {
   const pct = max === 0 ? 0 : Math.min(100, Math.round((used / max) * 100));
+  // Capacidade cheia = objetivo alcançado (verde), não bloqueio (vermelho).
   const tone =
-    pct > 90 ? "bg-destructive"
+    pct >= 100 ? "bg-success"
     : pct > 60 ? "bg-warning"
     : "bg-success";
   return (
