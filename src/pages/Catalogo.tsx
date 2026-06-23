@@ -129,10 +129,11 @@ export default function Catalogo() {
       <PageHeader
         domain="playlists"
         title="Catálogo"
-        subtitle="Distribuir músicas em massa na rede de playlists"
+        subtitle="Distribuição musical"
         manualKey="catalogo"
         actions={
           <div className="flex items-center gap-2">
+            {tab === "distribuicao" && <NaturalDistributionToggle />}
             {/* Mobile: só ícone +  · Desktop: ícone + label */}
             <Button
               size="sm"
