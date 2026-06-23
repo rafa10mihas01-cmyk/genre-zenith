@@ -180,20 +180,23 @@ export function EnginePriorityTab() {
 
       {/* Distribuição */}
       <section className="rounded-2xl border border-border bg-card p-4">
-        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-          <Brain className="h-4 w-4 text-primary" />
-          Distribuição dos scores ({distribution.count} placements no topo)
-        </h3>
-        <div className="grid grid-cols-5 gap-2">
+        <div className="mb-3">
+          <h3 className="text-sm font-semibold flex items-center gap-2">
+            <Brain className="h-4 w-4 text-primary shrink-0" />
+            Distribuição dos scores
+          </h3>
+          <p className="text-[11px] text-muted-foreground mt-0.5">{distribution.count} placements no topo</p>
+        </div>
+        <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
           {Object.entries(distribution.buckets).map(([k, v]) => {
             const max = Math.max(1, ...Object.values(distribution.buckets));
             const pct = (v / max) * 100;
             return (
-              <div key={k} className="flex flex-col items-center gap-1.5">
-                <div className="w-full h-20 bg-border/40 rounded-md overflow-hidden flex items-end">
+              <div key={k} className="flex flex-col items-center gap-1.5 min-w-0">
+                <div className="w-full h-16 sm:h-20 bg-border/40 rounded-md overflow-hidden flex items-end">
                   <div className="w-full bg-primary/70 transition-all" style={{ height: `${pct}%` }} />
                 </div>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{k}</div>
+                <div className="text-[9px] sm:text-[10px] uppercase tracking-wider text-muted-foreground">{k}</div>
                 <div className="text-sm font-semibold tabular-nums">{v}</div>
               </div>
             );
@@ -206,7 +209,43 @@ export function EnginePriorityTab() {
         <div className="px-4 py-3 border-b border-border">
           <h3 className="text-sm font-semibold">Ranking ({rows.length})</h3>
         </div>
-        <div className="overflow-x-auto">
+
+        {/* Mobile: card list */}
+        <div className="sm:hidden divide-y divide-border/50">
+          {topQ.isLoading && (
+            <div className="px-4 py-6 text-center text-sm text-muted-foreground">Carregando…</div>
+          )}
+          {!topQ.isLoading && rows.length === 0 && (
+            <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+              Nenhum score calculado ainda. Clique em "Executar agora".
+            </div>
+          )}
+          {rows.map((r, i) => (
+            <button
+              key={r.placement_id}
+              onClick={() => setSelected(r)}
+              className={cn(
+                "w-full text-left px-4 py-3 flex items-center gap-3 active:bg-muted/40 transition-colors",
+                selected?.placement_id === r.placement_id && "bg-muted/40",
+              )}
+            >
+              <span className="text-xs tabular-nums text-muted-foreground w-5 shrink-0">{i + 1}</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium truncate">{r.track_name ?? "—"}</div>
+                <div className="text-xs text-muted-foreground truncate">{r.artist_name ?? "—"}</div>
+              </div>
+              <div className="text-right shrink-0">
+                <div className="text-base font-semibold tabular-nums text-primary">{Number(r.score).toFixed(1)}</div>
+                <div className="text-[10px] text-muted-foreground">
+                  {new Date(r.calculated_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* Desktop: tabela */}
+        <div className="hidden sm:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-xs uppercase tracking-wider text-muted-foreground">
               <tr className="border-b border-border">
