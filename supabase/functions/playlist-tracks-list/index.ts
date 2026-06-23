@@ -204,6 +204,21 @@ Deno.serve(async (req) => {
     }
     const err = e as SpotifyApiError;
     const status = err?.status;
+    const errBody = String((err as any)?.body ?? err?.message ?? "");
+
+    // 403 específico: app Spotify do Client Credentials sem Premium ativo.
+    // Mensagem-padrão do Spotify: "Active premium subscription required for the owner of the app."
+    if (status === 403 && /premium subscription required/i.test(errBody)) {
+      return jr({
+        ok: false,
+        code: "spotify_app_no_premium",
+        error: "spotify_app_no_premium",
+        message: "App Spotify usada (Client Credentials) está sem Premium ativo. Reative o Premium na conta dona da app ou troque a app no spotify_apps.",
+        status,
+        tracks: [],
+        total: 0,
+      }, 200);
+    }
 
     // 401/403: playlist privada ou colaborativa — exigiria OAuth, fora desta arquitetura.
     if (status === 401 || status === 403) {
