@@ -1,6 +1,6 @@
 // Fase 3.5 — Painel de Validação do Motor de Prioridade.
 // Apenas leitura/calibração. Nenhuma decisão operacional é tomada aqui.
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Brain, Play, Save, RefreshCw, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -82,9 +82,38 @@ function bucket(score: number) {
 
 export function EnginePriorityTab() {
   const qc = useQueryClient();
-  const topQ = useQuery({ queryKey: ["engine-priority", "top"], queryFn: fetchTop, staleTime: 30_000 });
-  const runQ = useQuery({ queryKey: ["engine-priority", "run"], queryFn: fetchLatestRun, staleTime: 30_000 });
+  // Polling agressivo enquanto a aba está aberta — painel "vivo".
+  const topQ = useQuery({
+    queryKey: ["engine-priority", "top"],
+    queryFn: fetchTop,
+    staleTime: 15_000,
+    refetchInterval: 20_000,
+    refetchOnWindowFocus: true,
+  });
+  const runQ = useQuery({
+    queryKey: ["engine-priority", "run"],
+    queryFn: fetchLatestRun,
+    staleTime: 15_000,
+    refetchInterval: 20_000,
+    refetchOnWindowFocus: true,
+  });
   const weightsQ = useQuery({ queryKey: ["engine-priority", "weights"], queryFn: fetchWeights });
+
+  // Realtime: assim que um novo run completa ou novos scores entram, invalida.
+  useEffect(() => {
+    const channel = supabase
+      .channel("engine-priority-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "engine_priority_runs" }, () => {
+        qc.invalidateQueries({ queryKey: ["engine-priority"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "placement_priority_scores" }, () => {
+        qc.invalidateQueries({ queryKey: ["engine-priority"] });
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [qc]);
 
   const [draft, setDraft] = useState<Record<string, string> | null>(null);
   const [selected, setSelected] = useState<Row | null>(null);
