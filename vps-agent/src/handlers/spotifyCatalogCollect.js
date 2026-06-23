@@ -345,23 +345,32 @@ async function scrapePlaylistBreakdown(page, statsUrl) {
     const playlist_filter_7d_applied = await applySevenDayFilter(page);
     log.info("CATALOG_STEP_2E_FILTER_DONE", { playlist_filter_7d_applied });
 
+    // Espera pelo menos um link de playlist aparecer (mais estável que data-testid).
     try {
-      await page.locator(ROW_SEL).first().waitFor({ state: "visible", timeout: 10000 });
+      await page.locator('a[href*="/playlist/"]').first().waitFor({ state: "visible", timeout: 15000 });
       log.info("CATALOG_STEP_2F_ROW_VISIBLE", {});
     } catch {
-      log.warn("tabela de playlists nao renderizou em 10s", {});
+      log.warn("nenhum a[href*=/playlist/] visível em 15s", {});
     }
+
+    // Detecta o seletor de "row" real desta tela (cacheia pro restante do job).
+    const detectedRowSel = await detectRowSelector(page);
+    if (detectedRowSel) ROW_SEL = detectedRowSel;
 
     const playlists = [];
     const seen = new Set();
     let passesWithoutNew = 0;
     let scroll_passes = 0;
 
-    log.info("CATALOG_STEP_2G_ENTER_LOOP", {});
+    log.info("CATALOG_STEP_2G_ENTER_LOOP", { rowSelector: detectedRowSel ?? "anchor-fallback" });
     while (passesWithoutNew < 3 && scroll_passes < 80) {
       scroll_passes++;
-      const rows = await extractVisiblePlaylistRows(page);
+      const rows = await extractVisiblePlaylistRows(page, detectedRowSel);
+      if (scroll_passes === 1) {
+        log.info("CATALOG_DEBUG_ROWS", { rows: rows.length, sample: rows.slice(0, 3).map((r) => ({ name: r.playlist_name, id: r.playlistId, plays: r.plays_text })) });
+      }
       let newFound = 0;
+
 
       for (const row of rows) {
         const id = row.playlistId || extractPlaylistId(row.href);
