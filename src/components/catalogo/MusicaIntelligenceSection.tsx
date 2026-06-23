@@ -829,23 +829,23 @@ function ExecutiveSummary({
 
 function SummaryCell({ label, value, valueClass, sub }: { label: string; value: React.ReactNode; valueClass?: string; sub?: string }) {
   return (
-    <div className="min-w-0">
-      <div className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-0.5 truncate">{label}</div>
+    <div className="min-w-0 px-4 py-3">
+      <div className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 truncate">{label}</div>
       <div className={cn("text-lg font-bold font-mono tabular-nums leading-tight truncate", valueClass ?? "text-foreground")}>{value}</div>
       {sub && <div className="text-[10px] text-muted-foreground mt-0.5 truncate">{sub}</div>}
     </div>
   );
 }
 
-function SummaryRow({ label, value, valueClass, sub, wrap }: { label: string; value: React.ReactNode; valueClass?: string; sub?: string; wrap?: boolean }) {
+function SummaryRow({ label, value, valueClass, sub }: { label: string; value: React.ReactNode; valueClass?: string; sub?: string }) {
   return (
-    <div className="flex items-start justify-between gap-3">
-      <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium shrink-0 pt-0.5">{label}</div>
-      <div className="min-w-0 text-right">
-        <div className={cn("text-sm font-semibold font-mono tabular-nums", wrap ? "break-words" : "truncate", valueClass ?? "text-foreground")} title={typeof value === "string" ? value : undefined}>
+    <div className="flex items-center justify-between gap-3 px-4 py-3">
+      <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium shrink-0">{label}</div>
+      <div className="min-w-0 text-right flex-1">
+        <div className={cn("text-sm font-semibold font-mono tabular-nums truncate", valueClass ?? "text-foreground")} title={typeof value === "string" ? value : undefined}>
           {value}
         </div>
-        {sub && <div className="text-[10px] text-muted-foreground mt-0.5">{sub}</div>}
+        {sub && <div className="text-[10px] text-muted-foreground mt-0.5 truncate">{sub}</div>}
       </div>
     </div>
   );
