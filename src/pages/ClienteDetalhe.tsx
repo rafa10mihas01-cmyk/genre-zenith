@@ -15,8 +15,6 @@ import {
   Instagram,
   Music2,
   ExternalLink,
-  Copy,
-  Link2,
   FileText,
   CreditCard,
   Users2,
@@ -24,8 +22,8 @@ import {
   XCircle,
   LayoutDashboard,
   Megaphone,
-  StickyNote,
 } from "lucide-react";
+
 import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow, format } from "date-fns";
