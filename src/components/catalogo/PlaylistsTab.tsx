@@ -10,6 +10,8 @@ import { useQuery } from "@tanstack/react-query";
 import { ListMusic, TrendingUp, Layers } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+
 
 import { cn } from "@/lib/utils";
 
@@ -137,8 +139,11 @@ function Cover({ url, alt }: { url: string | null; alt: string }) {
   );
 }
 
+const PAGE_SIZE = 24;
+
 export function PlaylistsTab() {
   const q = useQuery({ queryKey: ["catalog", "playlists-ranking"], queryFn: fetchAll, staleTime: 30_000 });
+  const [page, setPage] = useState(1);
 
   const totals = useMemo(() => {
     const rows = q.data ?? [];
@@ -159,6 +164,12 @@ export function PlaylistsTab() {
   }
 
   const rows = q.data ?? [];
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const start = (safePage - 1) * PAGE_SIZE;
+  const pageRows = rows.slice(start, start + PAGE_SIZE);
+
+
 
   return (
     <div className="flex flex-col gap-3">
@@ -182,7 +193,8 @@ export function PlaylistsTab() {
 
       {/* Mobile: cards ordenados por delivery */}
       <div className="md:hidden border border-border rounded-2xl overflow-y-auto bg-card divide-y divide-border max-h-[60vh]">
-        {rows.map((r) => {
+        {pageRows.map((r) => {
+
           const pct = r.catalog_capacity > 0 ? Math.min(100, Math.round((r.active_placements / r.catalog_capacity) * 100)) : 0;
           const full = r.available_slots === 0;
           const hasDelivery = r.delivery_7d > 0;
@@ -217,7 +229,7 @@ export function PlaylistsTab() {
 
       {/* Desktop: grid de cards finos estilo playlist — capa quadrada em cima, info embaixo */}
       <div className="hidden md:grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
-        {rows.map((r) => {
+        {pageRows.map((r) => {
           const pct = r.catalog_capacity > 0 ? Math.min(100, Math.round((r.active_placements / r.catalog_capacity) * 100)) : 0;
           const full = r.available_slots === 0;
           const hasDelivery = r.delivery_7d > 0;
@@ -281,6 +293,19 @@ export function PlaylistsTab() {
         })}
       </div>
 
+      {/* Paginação — mesmo padrão das outras telas (Curadores etc.) */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-1 pt-2">
+          <Button variant="outline" size="sm" className="rounded-full h-8" disabled={safePage === 1} onClick={() => setPage(1)}>«</Button>
+          <Button variant="outline" size="sm" className="rounded-full h-8" disabled={safePage === 1} onClick={() => setPage(safePage - 1)}>‹</Button>
+          <span className="text-xs text-muted-foreground px-3 tabular-nums">
+            {safePage} / {totalPages}
+          </span>
+          <Button variant="outline" size="sm" className="rounded-full h-8" disabled={safePage === totalPages} onClick={() => setPage(safePage + 1)}>›</Button>
+          <Button variant="outline" size="sm" className="rounded-full h-8" disabled={safePage === totalPages} onClick={() => setPage(totalPages)}>»</Button>
+        </div>
+      )}
     </div>
+
   );
 }

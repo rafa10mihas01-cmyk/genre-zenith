@@ -2,7 +2,7 @@
 // Usa só a infra da Fase 2 (gênero + vaga + cooldown). Sem score, ranking ou pesos.
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Play, Power, Save, Calendar, Activity, Layers } from "lucide-react";
+import { Play, Power, Save, Calendar, Activity, Layers, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -180,111 +180,7 @@ export function DistribuicaoTab() {
         </div>
       </section>
 
-      {/* Configurações */}
-      <section className="rounded-2xl border border-border bg-card p-4">
-        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-primary" />
-          Ritmo da distribuição
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-          <label className="flex flex-col gap-1">
-            <span className="text-xs text-muted-foreground">Janela padrão (dias)</span>
-            <Input
-              type="number"
-              min={1}
-              max={30}
-              value={draftDays ?? flags?.engine_natural_distribution_window_days ?? 5}
-              onChange={(e) => setDraftDays(e.target.value)}
-              className="h-8 text-sm"
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-xs text-muted-foreground">Tamanho da onda (global)</span>
-            <Input
-              type="number"
-              min={1}
-              max={1000}
-              value={draftWave ?? flags?.engine_natural_distribution_wave_size ?? 50}
-              onChange={(e) => setDraftWave(e.target.value)}
-              className="h-8 text-sm"
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-xs text-muted-foreground">Máx. playlists / música / dia</span>
-            <Input
-              type="number"
-              min={1}
-              max={500}
-              value={draftDaily ?? flags?.engine_natural_distribution_max_per_track_per_day ?? 20}
-              onChange={(e) => setDraftDaily(e.target.value)}
-              className="h-8 text-sm"
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-xs text-muted-foreground">Playlists por onda (por música)</span>
-            <Input
-              type="number"
-              min={1}
-              max={50}
-              value={draftPerWave ?? flags?.engine_natural_distribution_max_per_wave_per_track ?? 1}
-              onChange={(e) => setDraftPerWave(e.target.value)}
-              className="h-8 text-sm"
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-xs text-muted-foreground">Atraso entre camadas (dias)</span>
-            <Input
-              type="number"
-              min={1}
-              max={30}
-              value={draftTierDelay ?? flags?.engine_natural_distribution_tier_delay_days ?? 2}
-              onChange={(e) => setDraftTierDelay(e.target.value)}
-              className="h-8 text-sm"
-            />
-          </label>
-        </div>
-        <div className="flex items-center gap-2 mt-3">
-          <Button
-            size="sm"
-            onClick={() => saveSettingsMut.mutate()}
-            disabled={(draftDays == null && draftWave == null && draftDaily == null && draftPerWave == null && draftTierDelay == null) || saveSettingsMut.isPending}
-            className="gap-1.5"
-          >
-            <Save className="h-4 w-4" />
-            Salvar
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => runWaveMut.mutate()} disabled={!isActive || runWaveMut.isPending} className="gap-1.5">
-            <Play className="h-4 w-4" />
-            {runWaveMut.isPending ? "Executando…" : "Rodar onda agora"}
-          </Button>
-        </div>
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2">
-          {[
-            { n: 1, title: "Camada 1", when: "Dia 0", desc: "Playlists mais robustas — ciclo de vida, estado curatorial e seguidores." },
-            { n: 2, title: "Camada 2", when: `Dia +${flags?.engine_natural_distribution_tier_delay_days ?? 2}`, desc: "Segunda onda libera após o atraso configurado." },
-            { n: 3, title: "Camada 3", when: `Dia +${(flags?.engine_natural_distribution_tier_delay_days ?? 2) * 2}`, desc: "Cauda longa, abre após o dobro do atraso." },
-          ].map((c) => (
-            <div key={c.n} className="rounded-xl border border-border/60 bg-background/40 p-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="h-6 w-6 rounded-md bg-primary/10 text-primary flex items-center justify-center text-[11px] font-semibold tabular-nums">
-                    {c.n}
-                  </div>
-                  <span className="text-xs font-semibold">{c.title}</span>
-                </div>
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground tabular-nums">{c.when}</span>
-              </div>
-              <p className="text-[11px] text-muted-foreground mt-2 leading-snug">{c.desc}</p>
-            </div>
-          ))}
-        </div>
-        <p className="text-[11px] text-muted-foreground mt-3 flex items-center gap-1.5">
-          <Layers className="h-3 w-3" />
-          Toda camada respeita vaga, cooldown, gênero, limite diário e diversificação entre músicas.
-        </p>
-      </section>
-
-      {/* Lista de planos */}
+      {/* Lista de planos — operacional, vem primeiro */}
       <section className="rounded-2xl border border-border bg-card">
         <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-2">
           <h3 className="text-sm font-semibold flex items-center gap-2">
@@ -388,6 +284,117 @@ export function DistribuicaoTab() {
           </table>
         </div>
       </section>
+
+      {/* Configurações (Ritmo) — colapsado por padrão pra evitar edição acidental */}
+      <details className="group rounded-2xl border border-border bg-card overflow-hidden">
+        <summary className="list-none cursor-pointer px-4 py-3 flex items-center justify-between gap-2 hover:bg-muted/30 transition-colors">
+          <h3 className="text-sm font-semibold flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-primary" />
+            Ritmo da distribuição
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-normal ml-1">configuração avançada</span>
+          </h3>
+          <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="p-4 border-t border-border">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground">Janela padrão (dias)</span>
+              <Input
+                type="number"
+                min={1}
+                max={30}
+                value={draftDays ?? flags?.engine_natural_distribution_window_days ?? 5}
+                onChange={(e) => setDraftDays(e.target.value)}
+                className="h-8 text-sm"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground">Tamanho da onda (global)</span>
+              <Input
+                type="number"
+                min={1}
+                max={1000}
+                value={draftWave ?? flags?.engine_natural_distribution_wave_size ?? 50}
+                onChange={(e) => setDraftWave(e.target.value)}
+                className="h-8 text-sm"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground">Máx. playlists / música / dia</span>
+              <Input
+                type="number"
+                min={1}
+                max={500}
+                value={draftDaily ?? flags?.engine_natural_distribution_max_per_track_per_day ?? 20}
+                onChange={(e) => setDraftDaily(e.target.value)}
+                className="h-8 text-sm"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground">Playlists por onda (por música)</span>
+              <Input
+                type="number"
+                min={1}
+                max={50}
+                value={draftPerWave ?? flags?.engine_natural_distribution_max_per_wave_per_track ?? 1}
+                onChange={(e) => setDraftPerWave(e.target.value)}
+                className="h-8 text-sm"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground">Atraso entre camadas (dias)</span>
+              <Input
+                type="number"
+                min={1}
+                max={30}
+                value={draftTierDelay ?? flags?.engine_natural_distribution_tier_delay_days ?? 2}
+                onChange={(e) => setDraftTierDelay(e.target.value)}
+                className="h-8 text-sm"
+              />
+            </label>
+          </div>
+          <div className="flex items-center gap-2 mt-3">
+            <Button
+              size="sm"
+              onClick={() => saveSettingsMut.mutate()}
+              disabled={(draftDays == null && draftWave == null && draftDaily == null && draftPerWave == null && draftTierDelay == null) || saveSettingsMut.isPending}
+              className="gap-1.5"
+            >
+              <Save className="h-4 w-4" />
+              Salvar
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => runWaveMut.mutate()} disabled={!isActive || runWaveMut.isPending} className="gap-1.5">
+              <Play className="h-4 w-4" />
+              {runWaveMut.isPending ? "Executando…" : "Rodar onda agora"}
+            </Button>
+          </div>
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {[
+              { n: 1, title: "Camada 1", when: "Dia 0", desc: "Playlists mais robustas — ciclo de vida, estado curatorial e seguidores." },
+              { n: 2, title: "Camada 2", when: `Dia +${flags?.engine_natural_distribution_tier_delay_days ?? 2}`, desc: "Segunda onda libera após o atraso configurado." },
+              { n: 3, title: "Camada 3", when: `Dia +${(flags?.engine_natural_distribution_tier_delay_days ?? 2) * 2}`, desc: "Cauda longa, abre após o dobro do atraso." },
+            ].map((c) => (
+              <div key={c.n} className="rounded-xl border border-border/60 bg-background/40 p-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="h-6 w-6 rounded-md bg-primary/10 text-primary flex items-center justify-center text-[11px] font-semibold tabular-nums">
+                      {c.n}
+                    </div>
+                    <span className="text-xs font-semibold">{c.title}</span>
+                  </div>
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground tabular-nums">{c.when}</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-2 leading-snug">{c.desc}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-3 flex items-center gap-1.5">
+            <Layers className="h-3 w-3" />
+            Toda camada respeita vaga, cooldown, gênero, limite diário e diversificação entre músicas.
+          </p>
+        </div>
+      </details>
+
     </div>
   );
 }
