@@ -178,49 +178,53 @@ async function isPlaylistTableAtBottom(page) {
 }
 
 async function extractVisiblePlaylistRows(page) {
+  // Rotina espelhada de spotifyDealCollect.js — uma única fonte para extrair
+  // linhas de playlist no S4A. Mudanças aqui devem ser refletidas lá (e vice-versa).
   return await page.evaluate((rowSelector) => {
     const norm = (txt) => String(txt || "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
-    const pickPlaylistName = (row, cells, linkEl) => {
-      const heading = row.querySelector('h1, h2, h3, [role="heading"]');
-      const anchorText = norm(linkEl?.textContent);
-      const cellTexts = cells.map((td) => norm(td.textContent)).filter(Boolean);
-      const textCandidates = [norm(heading?.textContent), anchorText, ...cellTexts];
-
-      for (const txt of textCandidates) {
-        if (!txt) continue;
-        if (/^#?$|playlist|streams?|ouvintes?|listeners?|plays?|reprodu/i.test(txt)) continue;
-        if (/^[\d.,\s]+[km]?$/i.test(txt)) continue;
-        return txt;
-      }
-      return null;
-    };
+    const isNumericMetric = (txt) => !!txt && /\d/.test(txt) && /^[\d.,\s]+[km]?$/i.test(txt);
 
     const result = [];
     document.querySelectorAll(rowSelector).forEach((row) => {
-      const ariaLabel = row.getAttribute("aria-label") || "";
-      const linkEl = row.querySelector('a[href*="playlist"], a[href*="open.spotify.com/playlist"]');
+      // 1) Link da playlist é a âncora canônica usada pelo S4A.
+      const linkEl = row.querySelector('a[href*="/playlist/"], a[href*="spotify:playlist:"]');
       const href = linkEl?.href || linkEl?.getAttribute("href") || null;
-      const idSource = `${ariaLabel} ${href || ""}`;
-      const idMatch = idSource.match(/spotify:playlist:([a-zA-Z0-9]{15,})|playlist[/:]([a-zA-Z0-9]{15,})/);
+      const ariaLabel = row.getAttribute("aria-label") || "";
+      const idSource = `${href || ""} ${ariaLabel}`;
+      const idMatch = idSource.match(/spotify:playlist:([a-zA-Z0-9]{15,})|\/playlist[/:]([a-zA-Z0-9]{15,})/);
       const playlistId = idMatch ? (idMatch[1] || idMatch[2]) : null;
-      const cells = Array.from(row.querySelectorAll('td, [role="cell"], [role="gridcell"]'));
-      const playlist_name = pickPlaylistName(row, cells, linkEl);
+
+      // 2) Nome = texto do link (mesma fonte que o deal usa).
+      const playlist_name = norm(linkEl?.textContent) || null;
       if (!playlistId && !playlist_name) return;
 
-      const nameCell = cells.find((td) => {
-        const txt = norm(td.textContent);
-        return playlist_name && txt.includes(playlist_name);
-      }) || cells[1] || row;
-      const ownerCandidates = Array.from(nameCell.querySelectorAll("p, span, small"))
-        .map((el) => norm(el.textContent))
-        .filter((txt) => txt && txt !== playlist_name && !/^[\d.,\s]+[km]?$/i.test(txt));
-      const owner = ownerCandidates[1] || ownerCandidates[0] || null;
-      const metric_text_candidates = [
-        ...cells.slice(2).map((td) => norm(td.textContent)),
-        ...Array.from(row.querySelectorAll("span, div, p")).map((el) => norm(el.textContent)).filter((txt) => txt.length <= 24),
-      ].filter(Boolean);
-      const playsText = metric_text_candidates.find((txt) => /\d/.test(txt) && /^[\d.,\s]+[km]?$/i.test(txt)) || null;
-      result.push({ href, playlistId, playlist_name, owner, plays_text: playsText, metric_text_candidates });
+      // 3) Owner = primeiro span/p irmão do link que não seja o próprio nome
+      //    nem texto numérico. No S4A o owner fica abaixo do nome, dentro da
+      //    mesma célula do título.
+      const nameCell = linkEl?.closest('td, [role="cell"], [role="gridcell"]') || row;
+      const owner = (() => {
+        const candidates = Array.from(nameCell.querySelectorAll("p, span, small"))
+          .map((el) => norm(el.textContent))
+          .filter((t) => t && t !== playlist_name && !isNumericMetric(t));
+        return candidates[0] || null;
+      })();
+
+      // 4) Plays = última célula numérica da linha (no deal é a coluna "Plays").
+      const cells = Array.from(row.querySelectorAll('td, [role="cell"], [role="gridcell"]'));
+      let playsText = null;
+      for (let i = cells.length - 1; i >= 0; i--) {
+        const t = norm(cells[i].textContent);
+        if (isNumericMetric(t)) { playsText = t; break; }
+      }
+
+      result.push({
+        href,
+        playlistId,
+        playlist_name,
+        owner,
+        plays_text: playsText,
+        metric_text_candidates: playsText ? [playsText] : [],
+      });
     });
     return result;
   }, ROW_SEL);
