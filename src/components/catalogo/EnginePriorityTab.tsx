@@ -157,24 +157,26 @@ export function EnginePriorityTab() {
         <Kpi label="Duração" value={latestRun?.duration_ms != null ? `${latestRun.duration_ms} ms` : "—"} />
       </section>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" onClick={() => runMut.mutate()} disabled={runMut.isPending} className="gap-1.5">
-          <Play className="h-4 w-4" />
-          {runMut.isPending ? "Executando…" : "Executar agora"}
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => qc.invalidateQueries({ queryKey: ["engine-priority"] })}
-          className="gap-1.5"
-        >
-          <RefreshCw className="h-4 w-4" />
-          Recarregar
-        </Button>
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" onClick={() => runMut.mutate()} disabled={runMut.isPending} className="gap-1.5">
+            <Play className="h-4 w-4" />
+            {runMut.isPending ? "Executando…" : "Executar agora"}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => qc.invalidateQueries({ queryKey: ["engine-priority"] })}
+            className="gap-1.5"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Recarregar
+          </Button>
+        </div>
         {latestRun?.started_at && (
-          <span className="text-xs text-muted-foreground">
+          <p className="text-[11px] text-muted-foreground">
             Último run: {new Date(latestRun.started_at).toLocaleString("pt-BR")}
-          </span>
+          </p>
         )}
       </div>
 
