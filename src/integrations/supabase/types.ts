@@ -14380,6 +14380,10 @@ export type Database = {
         }
         Returns: Json
       }
+      engine_backfill_legacy_distribution_plan: {
+        Args: { _days?: number; _track_id: string }
+        Returns: string
+      }
       engine_create_distribution_plan: {
         Args: { _days?: number; _track_id: string }
         Returns: string
