@@ -2,11 +2,10 @@
 // Usa só a infra da Fase 2 (gênero + vaga + cooldown). Sem score, ranking ou pesos.
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Play, Power, Save, Calendar, Activity, Layers, ChevronDown } from "lucide-react";
+import { Play, Save, Calendar, Activity, Layers, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -76,18 +75,7 @@ export function DistribuicaoTab() {
   const flags = flagsQ.data;
   const plans = plansQ.data ?? [];
 
-  const toggleMut = useMutation({
-    mutationFn: async (value: boolean) => {
-      if (!flags) return;
-      const { error } = await supabase.from("system_flags").update({ engine_natural_distribution_active: value }).eq("id", flags.id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Configuração atualizada");
-      qc.invalidateQueries({ queryKey: ["natural-distribution"] });
-    },
-    onError: (e: any) => toast.error(e?.message ?? "Falha"),
-  });
+
 
   const saveSettingsMut = useMutation({
     mutationFn: async () => {
@@ -156,29 +144,7 @@ export function DistribuicaoTab() {
 
   return (
     <div className="space-y-6">
-      {/* Status + controle */}
-      <section className={cn("rounded-2xl border p-4", isActive ? "border-primary/40 bg-primary/5" : "border-border bg-card")}>
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div className="flex items-start gap-3">
-            <Power className={cn("h-5 w-5 mt-0.5", isActive ? "text-primary" : "text-muted-foreground")} />
-            <div>
-              <div className="text-sm font-semibold">
-                Distribuição Natural {isActive ? "ATIVA" : "DESLIGADA"}
-              </div>
-              <div className="text-xs text-muted-foreground mt-0.5 max-w-xl">
-                {isActive
-                  ? "Cada nova música ativa cria um plano. O Engine distribui em ondas a cada 15 min, dentro da janela definida."
-                  : "Ligue para que toda música nova entre em um plano gradual de distribuição. Nada será sincronizado até a flag ficar ligada."}
-              </div>
-            </div>
-          </div>
-          <Switch
-            checked={isActive}
-            disabled={!flags || toggleMut.isPending}
-            onCheckedChange={(v) => toggleMut.mutate(v)}
-          />
-        </div>
-      </section>
+
 
       {/* Lista de planos — operacional, vem primeiro */}
       <section className="rounded-2xl border border-border bg-card">

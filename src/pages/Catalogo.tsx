@@ -2,11 +2,13 @@
 // Estrutura igual à página de Clientes: PageHeader com ações no topo,
 // KPIs hero logo abaixo e tabs por último.
 import { useSearchParams } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, RefreshCw, Music2, Layers, Gauge, CircleSlash, TrendingUp, Activity, Brain, Send } from "lucide-react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { Plus, RefreshCw, Music2, Layers, Gauge, CircleSlash, TrendingUp, Activity, Brain, Send, Power } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { KpiBig } from "@/components/KpiBig";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -127,10 +129,11 @@ export default function Catalogo() {
       <PageHeader
         domain="playlists"
         title="Catálogo"
-        subtitle="Distribuir músicas em massa na rede de playlists"
+        subtitle="Distribuição musical"
         manualKey="catalogo"
         actions={
           <div className="flex items-center gap-2">
+            {tab === "distribuicao" && <NaturalDistributionToggle />}
             {/* Mobile: só ícone +  · Desktop: ícone + label */}
             <Button
               size="sm"
@@ -380,5 +383,60 @@ export default function Catalogo() {
 
       </PageContainer>
     </>
+  );
+}
+
+function NaturalDistributionToggle() {
+  const qc = useQueryClient();
+  const flagsQ = useQuery({
+    queryKey: ["system_flags", "natural-distribution-active"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("system_flags")
+        .select("id, engine_natural_distribution_active")
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data as { id: string; engine_natural_distribution_active: boolean } | null;
+    },
+    staleTime: 30_000,
+  });
+
+  const toggleMut = useMutation({
+    mutationFn: async (value: boolean) => {
+      if (!flagsQ.data?.id) throw new Error("Flags não carregadas");
+      const { error } = await supabase
+        .from("system_flags")
+        .update({ engine_natural_distribution_active: value })
+        .eq("id", flagsQ.data.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["system_flags"] });
+      qc.invalidateQueries({ queryKey: ["natural-distribution"] });
+    },
+    onError: (e: Error) => toast.error(e?.message ?? "Falha ao alterar"),
+  });
+
+  const isActive = !!flagsQ.data?.engine_natural_distribution_active;
+  const disabled = !flagsQ.data || toggleMut.isPending;
+
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-2 h-9 rounded-full border px-3 transition-colors",
+        isActive ? "border-primary/40 bg-primary/10" : "border-border bg-card",
+      )}
+      title={isActive ? "Distribuição Natural ativa" : "Distribuição Natural desligada"}
+    >
+      <Power className={cn("h-3.5 w-3.5", isActive ? "text-primary" : "text-muted-foreground")} />
+      <span className="hidden sm:inline text-xs font-medium text-foreground">Natural</span>
+      <Switch
+        checked={isActive}
+        disabled={disabled}
+        onCheckedChange={(v) => toggleMut.mutate(v)}
+        aria-label="Distribuição Natural"
+      />
+    </div>
   );
 }
