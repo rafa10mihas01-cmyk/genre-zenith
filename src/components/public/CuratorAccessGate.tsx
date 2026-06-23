@@ -14,7 +14,7 @@ interface Props {
   onAuthed: (jwt: string, email: string) => void;
 }
 
-import { curatorAccessStorageKey } from "@/lib/curatorPortalAuth";
+import { curatorAccessStorageKey, storeCuratorJwt } from "@/lib/curatorPortalAuth";
 export { curatorAccessStorageKey };
 
 export function CuratorAccessGate({ token, onAuthed }: Props) {
@@ -78,11 +78,7 @@ export function CuratorAccessGate({ token, onAuthed }: Props) {
     const jwt = (data as { jwt?: string } | null)?.jwt as string;
     if (!jwt) { toast.error("Erro inesperado."); return; }
     try {
-      localStorage.setItem(curatorAccessStorageKey(token), JSON.stringify({
-        jwt,
-        email: email.trim().toLowerCase(),
-        exp: Date.now() + 86400_000,
-      }));
+      storeCuratorJwt(token, jwt, email.trim().toLowerCase());
     } catch { /* ignore */ }
     onAuthed(jwt, email.trim().toLowerCase());
   }

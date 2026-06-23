@@ -16,6 +16,26 @@ export function curatorAccessStorageKey(token: string) {
   return `${STORAGE_PREFIX}${token}`;
 }
 
+function decodeJwtExpMs(jwt: string): number | null {
+  try {
+    const payload = jwt.split(".")[1];
+    if (!payload) return null;
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), "=");
+    const decoded = JSON.parse(atob(padded)) as { exp?: unknown };
+    const expSeconds = Number(decoded?.exp);
+    if (!Number.isFinite(expSeconds) || expSeconds <= 0) return null;
+    return expSeconds * 1000;
+  } catch {
+    return null;
+  }
+}
+
+export function storeCuratorJwt(token: string, jwt: string, email: string) {
+  const exp = decodeJwtExpMs(jwt) ?? Date.now() + 86400_000;
+  localStorage.setItem(curatorAccessStorageKey(token), JSON.stringify({ jwt, email, exp }));
+}
+
 /** Lê o JWT válido do localStorage, ou null se expirado/ausente. */
 export function getCuratorJwt(token: string): string | null {
   if (!token) return null;
@@ -23,9 +43,16 @@ export function getCuratorJwt(token: string): string | null {
     const raw = localStorage.getItem(curatorAccessStorageKey(token));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { jwt?: string; exp?: number };
-    if (!parsed?.jwt || !parsed?.exp || parsed.exp <= Date.now()) {
+    const jwtExp = parsed?.jwt ? decodeJwtExpMs(parsed.jwt) : null;
+    const effectiveExp = jwtExp ?? parsed?.exp;
+    if (!parsed?.jwt || !effectiveExp || effectiveExp <= Date.now()) {
       try { localStorage.removeItem(curatorAccessStorageKey(token)); } catch { /* ignore */ }
       return null;
+    }
+    if (jwtExp && parsed.exp !== jwtExp) {
+      try {
+        localStorage.setItem(curatorAccessStorageKey(token), JSON.stringify({ ...parsed, exp: jwtExp }));
+      } catch { /* ignore */ }
     }
     return parsed.jwt;
   } catch {
