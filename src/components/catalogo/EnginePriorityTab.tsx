@@ -284,13 +284,6 @@ export function EnginePriorityTab() {
     refetchInterval: 60_000,
   });
 
-  const telemetryQ = useQuery({
-    queryKey: ["engine-delivery", "track-telemetry"],
-    queryFn: fetchTrackTelemetry,
-    staleTime: 30_000,
-    refetchInterval: 60_000,
-  });
-
   useEffect(() => {
     const channel = supabase
       .channel("engine-priority-live")
@@ -318,17 +311,12 @@ export function EnginePriorityTab() {
   const rows = useMemo<PlaylistDeliveryRow[]>(() => {
     const placements = placementsQ.data ?? [];
     const byTrackPlaylist = breakdownQ.data?.byTrackPlaylist ?? {};
-    const telemetry = telemetryQ.data ?? {};
 
     const byMp = new Map<string, PlacementJoined[]>();
-    const activeByTrack = new Map<string, number>();
     for (const p of placements) {
       const list = byMp.get(p.managed_playlist_id) ?? [];
       list.push(p);
       byMp.set(p.managed_playlist_id, list);
-      if (p.status === "active") {
-        activeByTrack.set(p.catalog_track_id, (activeByTrack.get(p.catalog_track_id) ?? 0) + 1);
-      }
     }
 
     const out: PlaylistDeliveryRow[] = [];
@@ -344,12 +332,8 @@ export function EnginePriorityTab() {
       const pid = mp?.spotify_playlist_id ?? null;
 
       let exactCurrent = 0;
-      let exactDelivery = 0;
-      let exactGrowth = 0;
-      let hasExactGrowth = false;
-      let attributedDelivery = 0;
       const exactTracks = new Set<string>();
-      const attributedTracks = new Set<string>();
+      let lastCollectionAt: string | null = null;
 
       for (const p of list) {
         if (!pid) continue;
@@ -357,33 +341,13 @@ export function EnginePriorityTab() {
         if (exact) {
           exactTracks.add(p.catalog_track_id);
           exactCurrent += exact.current_plays_7d;
-          exactDelivery += exact.delivery;
-          if (exact.growth_delta != null) {
-            exactGrowth += exact.growth_delta;
-            hasExactGrowth = true;
+          if (exact.last_at && (!lastCollectionAt || new Date(exact.last_at) > new Date(lastCollectionAt))) {
+            lastCollectionAt = exact.last_at;
           }
-          continue;
-        }
-
-        if (p.status !== "active") continue;
-        const tel = telemetry[p.catalog_track_id];
-        const growth = Number(tel?.growth_abs ?? 0);
-        const activeCount = activeByTrack.get(p.catalog_track_id) ?? 0;
-        if (tel?.snapshots_count > 1 && growth > 0 && activeCount > 0) {
-          attributedTracks.add(p.catalog_track_id);
-          attributedDelivery += growth / activeCount;
         }
       }
 
-      const totalDelivery = Math.round(exactDelivery + attributedDelivery);
-      const source: PlaylistDeliveryRow["source"] =
-        exactDelivery > 0 && attributedDelivery > 0
-          ? "mixed"
-          : exactDelivery > 0
-            ? "playlist_breakdown"
-            : attributedDelivery > 0
-              ? "catalog_growth"
-              : "placement_only";
+      if (exactTracks.size === 0) continue;
 
       out.push({
         managed_playlist_id: mpId,
@@ -392,19 +356,19 @@ export function EnginePriorityTab() {
         cover_url: mp?.cover_url ?? null,
         spotify_url: mp?.spotify_url ?? null,
         followers: mp?.followers ?? null,
-        total_plays_7d: totalDelivery > 0 ? totalDelivery : exactCurrent > 0 ? exactCurrent : null,
-        exact_delivery: Math.round(exactDelivery),
-        attributed_delivery: Math.round(attributedDelivery),
+        total_plays_7d: Math.round(exactCurrent),
+        exact_delivery: Math.round(exactCurrent),
+        attributed_delivery: 0,
         catalog_tracks: list.length,
         active_tracks: active,
         removed_tracks: removed,
-        last_delivery,
+        last_delivery: lastCollectionAt ?? last_delivery,
         status,
         archived: !!mp?.archived_at,
-        growth_delta: hasExactGrowth ? exactGrowth : attributedDelivery > 0 ? Math.round(attributedDelivery) : null,
-        source,
+        growth_delta: null,
+        source: "playlist_breakdown",
         exact_tracks: exactTracks.size,
-        attributed_tracks: attributedTracks.size,
+        attributed_tracks: 0,
       });
     }
     out.sort((a, b) => {
@@ -415,13 +379,13 @@ export function EnginePriorityTab() {
       return (b.last_delivery ?? "").localeCompare(a.last_delivery ?? "");
     });
     return out;
-  }, [placementsQ.data, breakdownQ.data, telemetryQ.data]);
+  }, [placementsQ.data, breakdownQ.data]);
 
   const totalActiveTracks = rows.reduce((a, b) => a + b.active_tracks, 0);
   const totalActive = rows.filter((r) => r.status === "active").length;
   const totalPartial = rows.filter((r) => r.status === "partial").length;
 
-  const loading = placementsQ.isLoading || telemetryQ.isLoading;
+  const loading = placementsQ.isLoading || breakdownQ.isLoading;
 
 
 
