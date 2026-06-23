@@ -227,7 +227,7 @@ export function PlaylistsTab() {
         })}
       </div>
 
-      {/* Desktop: grid de cards finos estilo playlist — capa quadrada em cima, info embaixo */}
+      {/* Desktop: grid de cards — capa pequena no topo, info dominante embaixo */}
       <div className="hidden md:grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
         {pageRows.map((r) => {
           const pct = r.catalog_capacity > 0 ? Math.min(100, Math.round((r.active_placements / r.catalog_capacity) * 100)) : 0;
@@ -236,62 +236,74 @@ export function PlaylistsTab() {
           return (
             <div
               key={r.managed_playlist_id}
-              className="group rounded-xl border border-border bg-card p-2.5 flex flex-col gap-2 hover:border-border/80 hover:bg-card/80 transition-colors min-w-0"
+              className="group rounded-xl border border-border bg-card p-3 flex flex-col gap-2.5 hover:border-border/80 hover:bg-card/80 transition-colors min-w-0"
             >
-              {/* Capa quadrada */}
-              <div className="relative aspect-square w-full rounded-md overflow-hidden bg-muted">
-                {r.cover_url ? (
-                  <img
-                    src={r.cover_url}
-                    alt={r.playlist_name}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                    referrerPolicy="no-referrer"
-                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <ListMusic className="h-6 w-6 text-muted-foreground/60" />
+              {/* Header: capa pequena + nome ao lado */}
+              <div className="flex items-start gap-2.5 min-w-0">
+                <div className="relative h-12 w-12 rounded-md overflow-hidden bg-muted shrink-0">
+                  {r.cover_url ? (
+                    <img
+                      src={r.cover_url}
+                      alt={r.playlist_name}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <ListMusic className="h-5 w-5 text-muted-foreground/60" />
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-semibold leading-tight line-clamp-2 text-foreground" title={r.playlist_name}>
+                    {r.playlist_name}
                   </div>
-                )}
-                {/* Badge plays 7d sobreposto */}
-                {hasDelivery && (
-                  <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-black/70 backdrop-blur-sm text-[10px] font-bold tabular-nums text-[#1DB954] flex items-center gap-1">
-                    <TrendingUp className="h-2.5 w-2.5" />
+                </div>
+              </div>
+
+              {/* Métricas principais — grid de 3 blocos legíveis */}
+              <div className="grid grid-cols-3 gap-[1px] bg-border/60 border border-border/60 rounded-md overflow-hidden">
+                <div className="bg-card px-2 py-1.5">
+                  <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">Plays 7d</div>
+                  <div className={cn("text-sm font-bold tabular-nums mt-0.5", hasDelivery ? "text-[#1DB954]" : "text-muted-foreground/50")}>
                     {fmt(r.delivery_7d)}
                   </div>
-                )}
+                </div>
+                <div className="bg-card px-2 py-1.5">
+                  <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">Faixas</div>
+                  <div className="text-sm font-bold tabular-nums mt-0.5 text-foreground">
+                    {r.tracks_detected}
+                  </div>
+                </div>
+                <div className="bg-card px-2 py-1.5">
+                  <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">Visto</div>
+                  <div className="text-sm font-bold tabular-nums mt-0.5 text-foreground">
+                    {relDays(r.last_seen_at)}
+                  </div>
+                </div>
               </div>
 
-              {/* Nome */}
-              <div className="text-[12px] font-medium leading-tight line-clamp-2 text-foreground min-h-[2.2em]" title={r.playlist_name}>
-                {r.playlist_name}
-              </div>
-
-              {/* Métricas compactas */}
-              <div className="flex items-center justify-between text-[10px] tabular-nums">
-                <span className={cn("font-semibold", hasDelivery ? "text-[#1DB954]" : "text-muted-foreground/40")}>
-                  {fmt(r.delivery_7d)} plays
-                </span>
-                <span className="text-muted-foreground">{r.tracks_detected} faixas</span>
-              </div>
-
-              {/* Ocupação */}
-              <div className="flex items-center gap-1.5">
-                <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
+              {/* Ocupação — linha clara com números legíveis */}
+              <div>
+                <div className="flex items-center justify-between text-[10px] uppercase tracking-wider font-bold mb-1">
+                  <span className="text-muted-foreground">Ocupação</span>
+                  <span className="tabular-nums text-foreground">{r.active_placements}/{r.catalog_capacity} · {pct}%</span>
+                </div>
+                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                   <div
-                    className={cn("h-full transition-all", full ? "bg-destructive" : "bg-primary/60")}
+                    className={cn("h-full transition-all", full ? "bg-destructive" : "bg-primary/70")}
                     style={{ width: `${pct}%` }}
                   />
                 </div>
-                <span className="text-[9px] text-muted-foreground tabular-nums whitespace-nowrap">
-                  {r.active_placements}/{r.catalog_capacity}
-                </span>
               </div>
             </div>
           );
         })}
       </div>
+
+
 
       {/* Paginação — mesmo padrão das outras telas (Curadores etc.) */}
       {totalPages > 1 && (
