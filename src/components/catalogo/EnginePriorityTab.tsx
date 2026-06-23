@@ -364,12 +364,13 @@ export function EnginePriorityTab() {
         )}
 
 
-        {/* Mobile: cards */}
-        <div className="sm:hidden divide-y divide-border/50">
+        {/* Mobile: cards compactos com scroll */}
+        <div className="sm:hidden max-h-[60vh] overflow-y-auto divide-y divide-border/50">
           {rows.map((r, i) => (
             <PlaylistRowMobile key={r.managed_playlist_id} rank={i + 1} row={r} />
           ))}
         </div>
+
 
         {/* Desktop: tabela */}
         <div className="hidden sm:block overflow-x-auto">
