@@ -495,7 +495,7 @@ Para cada campo:
       status: "erro",
       mensagem: msg.slice(0, 500),
       duracao_ms: Date.now() - start,
-    }).catch(() => {});
+    }).then(() => {}, () => {});
     return j({ ok: false, error: msg }, 500);
   }
 });
