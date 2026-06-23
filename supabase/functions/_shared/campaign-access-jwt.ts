@@ -1,6 +1,7 @@
 // Mini JWT (HS256) para sessões temporárias do portal do cliente.
-// Assinado com SUPABASE_SERVICE_ROLE_KEY — não precisa de novo secret.
-const SECRET = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+// Assinado com PORTAL_JWT_SECRET — secret dedicado, desacoplado do service role key
+// para evitar que uma rotação do service role invalide sessões do portal (e vice-versa).
+const SECRET = Deno.env.get("PORTAL_JWT_SECRET") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 function b64urlEncode(bytes: Uint8Array): string {
   let str = "";
