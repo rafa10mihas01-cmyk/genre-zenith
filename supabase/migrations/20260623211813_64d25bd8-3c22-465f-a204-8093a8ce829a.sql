@@ -1,0 +1,1 @@
+UPDATE catalog_snapshot_queue SET status='pending', attempts=0, locked_at=NULL, locked_by=NULL, lease_expires_at=NULL, last_error=NULL, last_error_at=NULL, scheduled_for=now() WHERE id='d45a90d1-3954-465e-adec-8b6585691bda';
