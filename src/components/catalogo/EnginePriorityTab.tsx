@@ -2,7 +2,7 @@
 // Apenas leitura/calibração. Nenhuma decisão operacional é tomada aqui.
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Brain, Play, Save, RefreshCw, Info } from "lucide-react";
+import { Brain, Play, Save, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
