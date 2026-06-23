@@ -358,7 +358,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
           <div className="truncate text-[13px] font-medium text-foreground leading-tight max-w-full">{p.name}</div>
           <div className="flex items-center gap-1.5 flex-wrap">
             {kind === "hybrid" ? (
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-amber-500/40 text-amber-500">Híbrida · reserva 1-18</Badge>
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-amber-500/40 text-amber-500">Híbrida</Badge>
             ) : (
               <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">Catálogo puro</Badge>
             )}
@@ -481,7 +481,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
               <span className="h-2 w-2 rounded-full bg-amber-400 shrink-0" />
               <span className="font-semibold text-foreground text-[13px] uppercase tracking-wide">Híbridas</span>
               <span className="text-[11px] text-muted-foreground tabular-nums ml-auto">
-                {hybridList.length} · entra ≥#19
+                {hybridList.length} · posição real
               </span>
               <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
             </summary>
