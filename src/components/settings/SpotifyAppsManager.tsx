@@ -163,7 +163,7 @@ export function SpotifyAppsManager({
     if (next.has(id)) next.delete(id); else next.add(id);
     return next;
   });
-  const APPS_PER_PAGE = 5;
+  const APPS_PER_PAGE = 8;
 
   async function load() {
     setLoading(true);
