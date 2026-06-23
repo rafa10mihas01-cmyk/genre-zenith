@@ -25,7 +25,10 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useCampaigns, type Campaign } from "@/hooks/useCampaigns";
+import { useFinancialOverview } from "@/hooks/useFinancialOverview";
+import { deliveryPct } from "@/lib/campaignPct";
 import { CollectionSourceBadge } from "@/components/campanhas/CollectionSourceBadge";
+
 
 
 const STATUS_TONE: Record<string, "success" | "warning" | "neutral" | "danger"> = {
