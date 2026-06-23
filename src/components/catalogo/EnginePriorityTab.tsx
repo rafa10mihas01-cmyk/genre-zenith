@@ -331,9 +331,8 @@ export function EnginePriorityTab() {
         cover_url: mp?.cover_url ?? null,
         spotify_url: mp?.spotify_url ?? null,
         followers: mp?.followers ?? null,
-        total_plays_7d: Math.round(exactCurrent),
-        exact_delivery: Math.round(exactCurrent),
-        attributed_delivery: 0,
+        plays_7d: Math.round(exactCurrent),
+        plays_28d: null,
         catalog_tracks: list.length,
         active_tracks: active,
         removed_tracks: removed,
@@ -341,9 +340,7 @@ export function EnginePriorityTab() {
         status,
         archived: !!mp?.archived_at,
         growth_delta: null,
-        source: "playlist_breakdown",
         exact_tracks: exactTracks.size,
-        attributed_tracks: 0,
       });
     }
     out.sort((a, b) => {
@@ -430,8 +427,8 @@ export function EnginePriorityTab() {
               <tr className="border-b border-border">
                 <th className="text-left px-3 py-2 w-10">#</th>
                 <th className="text-left px-3 py-2">Playlist</th>
-                <th className="text-right px-3 py-2 w-28">Entrega</th>
-                <th className="text-right px-3 py-2 w-24">Crescimento</th>
+                <th className="text-right px-3 py-2 w-28">Plays 7d</th>
+                <th className="text-right px-3 py-2 w-24">Plays 28d</th>
                 <th className="text-right px-3 py-2 w-20">Faixas</th>
                 <th className="text-left px-3 py-2 w-36">Última entrega</th>
                 <th className="text-left px-3 py-2 w-28">Status</th>
@@ -460,10 +457,10 @@ export function EnginePriorityTab() {
                     </div>
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums font-semibold text-primary">
-                    {fmtNumber(deliveryValue(r))}
+                    {fmtNumber(r.plays_7d)}
                   </td>
                   <td className="px-3 py-2 text-right">
-                    <GrowthCell delta={r.growth_delta} />
+                    <UnavailableMetric />
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">
                     {r.active_tracks}
@@ -511,7 +508,6 @@ function PlaylistRowMobile({
   row: PlaylistDeliveryRow;
   onSelect: (row: PlaylistDeliveryRow) => void;
 }) {
-  const delivery = deliveryValue(row);
   return (
     <button type="button" onClick={() => onSelect(row)} className="w-full px-3 py-2.5 text-left active:bg-muted/30">
       <div className="flex items-center gap-2.5 min-w-0">
@@ -532,16 +528,16 @@ function PlaylistRowMobile({
           </div>
         </div>
         <div className="text-right shrink-0">
-          <div className="text-sm font-semibold tabular-nums text-primary leading-none">{fmtNumber(delivery)}</div>
-          <div className="text-[9px] text-muted-foreground mt-0.5">entrega</div>
+          <div className="text-sm font-semibold tabular-nums text-primary leading-none">{fmtNumber(row.plays_7d)}</div>
+          <div className="text-[9px] text-muted-foreground mt-0.5">plays 7d</div>
         </div>
         <ChevronDown className="h-3.5 w-3.5 -rotate-90 text-muted-foreground/40 shrink-0" />
       </div>
       <div className="ml-[58px] mt-2 grid grid-cols-4 gap-1.5 text-[10px]">
-        <MobileMetric label="Cresc." value={<GrowthCell delta={row.growth_delta} compact />} />
+        <MobileMetric label="28d" value={<UnavailableMetric compact />} />
         <MobileMetric label="Faixas" value={`${row.active_tracks}${row.removed_tracks > 0 ? `/${row.catalog_tracks}` : ""}`} />
         <MobileMetric label="Última" value={shortDate(row.last_delivery)} />
-        <MobileMetric label="Fonte" value={<SourceLabel source={row.source} />} />
+        <MobileMetric label="Fonte" value="coleta" />
       </div>
     </button>
   );
@@ -567,17 +563,17 @@ function PlaylistDeliveryDialog({ row, onOpenChange }: { row: PlaylistDeliveryRo
               <DialogDescription>Detalhe dos números que alimentam o ranking.</DialogDescription>
             </DialogHeader>
             <div className="grid grid-cols-2 gap-2">
-              <DetailMetric label="Entrega total" value={fmtNumber(deliveryValue(row))} strong />
-              <DetailMetric label="Crescimento" value={<GrowthCell delta={row.growth_delta} />} />
-              <DetailMetric label="Breakdown exato" value={fmtNumber(row.exact_delivery)} sub={`${row.exact_tracks} faixas`} />
-              <DetailMetric label="Atribuído" value={fmtNumber(row.attributed_delivery)} sub={`${row.attributed_tracks} faixas`} />
+              <DetailMetric label="Plays 7d" value={fmtNumber(row.plays_7d)} strong />
+              <DetailMetric label="Plays 28d" value={<UnavailableMetric />} />
+              <DetailMetric label="Fonte" value="song_snapshot_playlists" sub={`${row.exact_tracks} faixas`} />
+              <DetailMetric label="Métrica artificial" value="0" sub="nenhuma" />
               <DetailMetric label="Faixas catálogo" value={`${row.active_tracks}${row.removed_tracks > 0 ? `/${row.catalog_tracks}` : ""}`} />
               <DetailMetric label="Última entrega" value={shortDate(row.last_delivery)} />
               <DetailMetric label="Status" value={<StatusPill status={row.status} compact />} />
-              <DetailMetric label="Fonte" value={<SourceLabel source={row.source} />} />
+              <DetailMetric label="Ranking" value="plays 7d" />
             </div>
             <div className="rounded-xl border border-border bg-muted/20 p-3 text-[11px] leading-relaxed text-muted-foreground">
-              {sourceExplanation(row.source)}
+              Fonte exclusiva: linhas de playlist da coleta em song_snapshot_playlists, ligadas a song_snapshots. Plays 28d por playlist não existe nessa tabela; só existe total_plays_28d no snapshot da música.
             </div>
           </>
         )}
@@ -596,21 +592,8 @@ function DetailMetric({ label, value, sub, strong }: { label: string; value: Rea
   );
 }
 
-function SourceLabel({ source }: { source: PlaylistDeliveryRow["source"] }) {
-  const labels = {
-    playlist_breakdown: "exato",
-    catalog_growth: "atribuído",
-    mixed: "misto",
-    placement_only: "posição",
-  } as const;
-  return <span className="text-muted-foreground">{labels[source]}</span>;
-}
-
-function sourceExplanation(source: PlaylistDeliveryRow["source"]) {
-  if (source === "playlist_breakdown") return "Fonte exata: song_snapshot_playlists ligado aos snapshots da música; mostra quais playlists registraram plays para essa faixa.";
-  if (source === "mixed") return "Fonte mista: parte veio do breakdown por playlist e parte veio do crescimento agregado da música rateado entre placements ativos.";
-  if (source === "catalog_growth") return "Fonte atribuída: a música tem baseline e crescimento em v_catalog_track_telemetry, mas essa coleta não gravou breakdown por playlist em song_snapshot_playlists; o crescimento foi distribuído entre as playlists ativas da faixa.";
-  return "Fonte operacional: há placement no catálogo, mas ainda não existe snapshot com entrega por playlist nem crescimento agregado positivo para atribuir.";
+function UnavailableMetric({ compact }: { compact?: boolean }) {
+  return <span className={cn("text-muted-foreground", compact ? "text-[10px]" : "text-xs")}>não coletado</span>;
 }
 
 function StatusDot({ status }: { status: PlaylistDeliveryRow["status"] }) {
@@ -687,7 +670,7 @@ function fmtNumber(n: number | null | undefined) {
 }
 
 function deliveryValue(row: PlaylistDeliveryRow) {
-  return row.exact_delivery + row.attributed_delivery || row.total_plays_7d || 0;
+  return row.plays_7d;
 }
 
 function shortDate(iso: string | null | undefined) {
