@@ -512,7 +512,24 @@ export function ExecucaoView({
   // porque esta view (ExecucaoView) só vive dentro do hub interno da campanha.
   const { data: radioData } = useRadioCollected(isEcosystem ? campaignId : undefined);
 
-  if (!rows) return <Skeleton className="h-96 w-full" />;
+  if (!rows) {
+    return (
+      <div className="space-y-4">
+        {tabsSlot}
+        <Card className="p-6">
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <div className="h-4 w-4 rounded-full border-2 border-primary/30 border-t-primary animate-spin" aria-hidden />
+            Carregando monitoramento…
+          </div>
+          <div className="mt-4 space-y-2">
+            <Skeleton className="h-4 w-2/3" />
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-32 w-full" />
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   const hasRadio = isEcosystem && !!radioData && (
     (radioData.start_plays_7d ?? 0) > 0 || (radioData.current_plays_7d ?? 0) > 0
