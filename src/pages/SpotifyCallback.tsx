@@ -136,16 +136,19 @@ export default function SpotifyCallback() {
           return;
         }
 
-        // Allowlist OK → cria sessão a partir do magic link
-        if (!json.magic_link) {
+        // Allowlist OK → sessão já trocada server-side; apenas materializa
+        if (!json.session?.access_token || !json.session?.refresh_token) {
           setStatus("error");
-          setError("Servidor não devolveu link de acesso.");
+          setError("Servidor não devolveu sessão de acesso.");
           return;
         }
 
         setStatus("signing_in");
-        const ok = await consumeMagicLink(json.magic_link);
-        if (!ok) {
+        const { error: setErr } = await supabase.auth.setSession({
+          access_token: json.session.access_token,
+          refresh_token: json.session.refresh_token,
+        });
+        if (setErr) {
           setStatus("error");
           setError("Não conseguimos criar a sessão. Tente novamente.");
           return;
@@ -303,24 +306,3 @@ export default function SpotifyCallback() {
   );
 }
 
-/**
- * Recebe um magic link do Supabase (URL completa) e materializa a sessão
- * usando verifyOtp com o token_hash extraído da query string.
- */
-async function consumeMagicLink(actionLink: string): Promise<boolean> {
-  try {
-    const u = new URL(actionLink);
-    // Magic links usam ?token_hash=…&type=magiclink
-    const tokenHash = u.searchParams.get("token_hash");
-    const type = (u.searchParams.get("type") as "magiclink" | "email" | null) ?? "magiclink";
-    if (!tokenHash) return false;
-
-    const { error } = await supabase.auth.verifyOtp({
-      token_hash: tokenHash,
-      type,
-    });
-    return !error;
-  } catch {
-    return false;
-  }
-}

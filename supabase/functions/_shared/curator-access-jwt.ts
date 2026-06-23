@@ -1,6 +1,7 @@
 // Mini JWT (HS256) pro portal do curador.
-// Mesmo padrão de campaign-access-jwt, mas escopo deal_id + token.
-const SECRET = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+// Mesmo padrão de campaign-access-jwt: assina com PORTAL_JWT_SECRET (dedicado),
+// com fallback temporário pro service role key durante a transição.
+const SECRET = Deno.env.get("PORTAL_JWT_SECRET") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 function b64urlEncode(bytes: Uint8Array): string {
   let str = "";

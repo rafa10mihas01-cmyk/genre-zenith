@@ -23,7 +23,10 @@ function jr(p: unknown, status = 200) {
 }
 
 function genCode(): string {
-  return String(Math.floor(100000 + Math.random() * 900000));
+  // CSPRNG — evita predição de códigos OTP via Math.random.
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  return String(100000 + (buf[0] % 900000));
 }
 
 Deno.serve(async (req) => {
