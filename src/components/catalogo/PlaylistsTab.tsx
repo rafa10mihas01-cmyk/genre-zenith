@@ -193,7 +193,8 @@ export function PlaylistsTab() {
 
       {/* Mobile: cards ordenados por delivery */}
       <div className="md:hidden border border-border rounded-2xl overflow-y-auto bg-card divide-y divide-border max-h-[60vh]">
-        {rows.map((r) => {
+        {pageRows.map((r) => {
+
           const pct = r.catalog_capacity > 0 ? Math.min(100, Math.round((r.active_placements / r.catalog_capacity) * 100)) : 0;
           const full = r.available_slots === 0;
           const hasDelivery = r.delivery_7d > 0;
