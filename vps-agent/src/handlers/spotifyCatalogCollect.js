@@ -11,11 +11,23 @@ import { makeLogger } from "../logger.js";
 
 const log = makeLogger("h:catalog.collect");
 
-// Mesmo seletor canônico usado por spotifyDealCollect.js — única fonte para a tabela
-// de playlists do S4A. Fallbacks anteriores ([data-testid="row"], [role="row"],
-// "tbody tr") foram REMOVIDOS porque capturavam linhas de header/skeleton e
-// faziam o catalog devolver playlists=[] mesmo com a tabela populada.
-const ROW_SEL = '[data-testid="sort-table-body-row"]';
+// Lista ordenada de seletores tentados para casar a "linha" da tabela de playlists
+// do S4A. A tela /playlists do Catálogo NÃO usa o mesmo data-testid da tela do Deal
+// (sort-table-body-row vinha retornando 0). Tentamos do mais específico para o mais
+// genérico, e em último caso caímos no fallback ancorado em `a[href*="/playlist/"]`
+// (ver pickRowSelector no page.evaluate abaixo).
+const ROW_SEL_CANDIDATES = [
+  '[data-testid="sort-table-body-row"]',
+  '[data-testid="table-row"]',
+  '[data-testid$="-row"]',
+  '[data-testid*="row"]',
+  '[role="row"][aria-rowindex]',
+  '[role="row"]:not([aria-hidden="true"])',
+  'tbody tr',
+  'li[data-testid]',
+];
+// Mantido por compat com capturePlaylistPrints (resolvido em runtime).
+let ROW_SEL = ROW_SEL_CANDIDATES[0];
 const SCROLL_CONTAINER = '#chrome-v2-main-content-scroll-root';
 const ROWS_PER_PRINT = 16;
 const SCREENSHOT_UPLOAD_TIMEOUT_MS = 45_000;
