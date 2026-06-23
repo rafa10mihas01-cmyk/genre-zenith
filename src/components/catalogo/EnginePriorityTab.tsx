@@ -1,7 +1,7 @@
 // Engine — Pergunta operacional: "Quais playlists mais entregam para o meu catálogo?"
 // Ranking principal por plays entregues, agregando placements por playlist.
 // O conteúdo antigo (scores, distribuição, calibração) fica em "Diagnóstico da Engine" (colapsado).
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Brain, Play, Save, RefreshCw, ChevronDown, ListMusic, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
