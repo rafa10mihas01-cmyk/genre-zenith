@@ -379,7 +379,10 @@ async function capturePlaylistPrints(page, { catalog_track_id, correlation_id, p
   }
 
   if (playlists.length > 30 && screenshot_buffers.length <= 1) {
-    throw new Error(`multi_print_required: ${playlists.length} playlists exigem prints paginados; capturados=${screenshot_buffers.length}`);
+    log.warn("multi_print_required sem buffers suficientes; seguindo para ingest estruturado", {
+      playlists: playlists.length,
+      screenshot_buffers: screenshot_buffers.length,
+    });
   }
 
   const print_urls = [];
