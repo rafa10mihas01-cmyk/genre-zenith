@@ -421,22 +421,42 @@ function NaturalDistributionToggle() {
   const isActive = !!flagsQ.data?.engine_natural_distribution_active;
   const disabled = !flagsQ.data || toggleMut.isPending;
 
+  // Mobile: botão único circular (estado por cor). Desktop: pílula com label + switch.
   return (
-    <div
-      className={cn(
-        "flex items-center gap-2 h-9 rounded-full border px-3 transition-colors",
-        isActive ? "border-primary/40 bg-primary/10" : "border-border bg-card",
-      )}
-      title={isActive ? "Distribuição Natural ativa" : "Distribuição Natural desligada"}
-    >
-      <Power className={cn("h-3.5 w-3.5", isActive ? "text-primary" : "text-muted-foreground")} />
-      <span className="hidden sm:inline text-xs font-medium text-foreground">Natural</span>
-      <Switch
-        checked={isActive}
+    <>
+      <button
+        type="button"
+        onClick={() => !disabled && toggleMut.mutate(!isActive)}
         disabled={disabled}
-        onCheckedChange={(v) => toggleMut.mutate(v)}
-        aria-label="Distribuição Natural"
-      />
-    </div>
+        aria-label={isActive ? "Desligar Distribuição Natural" : "Ligar Distribuição Natural"}
+        aria-pressed={isActive}
+        title={isActive ? "Distribuição Natural ativa" : "Distribuição Natural desligada"}
+        className={cn(
+          "sm:hidden inline-flex items-center justify-center h-9 w-9 rounded-full border transition-colors",
+          isActive
+            ? "border-primary/40 bg-primary/15 text-primary"
+            : "border-border bg-card text-muted-foreground",
+          disabled && "opacity-60",
+        )}
+      >
+        <Power className="h-4 w-4" />
+      </button>
+      <div
+        className={cn(
+          "hidden sm:flex items-center gap-2 h-9 rounded-full border px-3 transition-colors",
+          isActive ? "border-primary/40 bg-primary/10" : "border-border bg-card",
+        )}
+        title={isActive ? "Distribuição Natural ativa" : "Distribuição Natural desligada"}
+      >
+        <Power className={cn("h-3.5 w-3.5", isActive ? "text-primary" : "text-muted-foreground")} />
+        <span className="text-xs font-medium text-foreground">Natural</span>
+        <Switch
+          checked={isActive}
+          disabled={disabled}
+          onCheckedChange={(v) => toggleMut.mutate(v)}
+          aria-label="Distribuição Natural"
+        />
+      </div>
+    </>
   );
 }

@@ -209,12 +209,55 @@ export function DistribuicaoTab() {
 
   return (
     <div className="space-y-6">
-      {/* Resumo operacional — frase humana, só interpreta o que já existe */}
-      <section className="rounded-2xl border border-border bg-card px-4 py-4 sm:px-5 sm:py-5">
-        <div className="flex items-start justify-between gap-3">
+      {/* Resumo operacional — compacto no mobile, frase no desktop */}
+      <section className="rounded-2xl border border-border bg-card overflow-hidden">
+        {/* Mobile: 3 colunas grandes, bate o olho */}
+        <div className="sm:hidden">
+          <div className="flex items-center justify-between px-4 pt-3">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Estado agora</div>
+            <span
+              className={cn(
+                "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] uppercase tracking-wider",
+                isActive ? "border-emerald-500/40 text-emerald-300 bg-emerald-500/10" : "border-border text-muted-foreground",
+              )}
+            >
+              <span className={cn("h-1.5 w-1.5 rounded-full", isActive ? "bg-emerald-400" : "bg-muted-foreground")} />
+              {isActive ? "Ativa" : "Pausada"}
+            </span>
+          </div>
+          <div className="mt-3 grid grid-cols-3 divide-x divide-border">
+            <div className="px-2 py-3 flex flex-col items-center gap-0.5">
+              <span className="text-xl font-semibold tabular-nums text-emerald-300">{summary.counts.distribuindo}</span>
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Distribuindo</span>
+            </div>
+            <div className="px-2 py-3 flex flex-col items-center gap-0.5">
+              <span className="text-xl font-semibold tabular-nums text-foreground">{summary.counts.finalizada}</span>
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Finalizadas</span>
+            </div>
+            <div className="px-2 py-3 flex flex-col items-center gap-0.5">
+              <span className={cn("text-xl font-semibold tabular-nums", summary.counts.erro > 0 ? "text-red-300" : "text-yellow-200")}>
+                {summary.counts.erro > 0 ? summary.counts.erro : summary.aguardandoTotal}
+              </span>
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                {summary.counts.erro > 0 ? "Com erro" : "Aguardando"}
+              </span>
+            </div>
+          </div>
+          <div className="px-4 py-2.5 border-t border-border flex items-center justify-between gap-3 text-[11px] text-muted-foreground tabular-nums">
+            <span>
+              {summary.nextWaveLabel ? <>Próx. <span className="text-foreground">{summary.nextWaveLabel}</span></> : <>Sem próx. onda</>}
+            </span>
+            <span>
+              ETA {summary.etaAvg != null ? <span className="text-foreground">{summary.etaAvg}d</span> : "—"}
+            </span>
+          </div>
+        </div>
+
+        {/* Desktop: frase humana original */}
+        <div className="hidden sm:flex items-start justify-between gap-3 px-5 py-5">
           <div className="min-w-0">
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Estado agora</div>
-            <p className="mt-1 text-sm sm:text-[15px] leading-relaxed text-foreground">
+            <p className="mt-1 text-[15px] leading-relaxed text-foreground">
               <span className="font-semibold text-emerald-300 tabular-nums">{summary.counts.distribuindo}</span>{" "}
               distribuindo ·{" "}
               <span className="font-semibold text-foreground tabular-nums">{summary.counts.finalizada}</span>{" "}
@@ -230,7 +273,7 @@ export function DistribuicaoTab() {
               )}
               .
             </p>
-            <p className="mt-1.5 text-xs sm:text-sm text-muted-foreground">
+            <p className="mt-1.5 text-sm text-muted-foreground">
               {summary.nextWaveLabel
                 ? <>Próxima onda às <span className="text-foreground tabular-nums">{summary.nextWaveLabel}</span>. </>
                 : <>Sem próxima onda agendada. </>}
@@ -274,8 +317,8 @@ export function DistribuicaoTab() {
           </div>
         </div>
 
-        {/* Mobile: cards */}
-        <div className="md:hidden divide-y divide-border/50">
+        {/* Mobile: cards com separação clara */}
+        <div className="md:hidden p-3 space-y-3 bg-background/40">
           {plansQ.isLoading && (
             <div className="px-4 py-6 text-center text-sm text-muted-foreground">Carregando…</div>
           )}
@@ -285,7 +328,7 @@ export function DistribuicaoTab() {
           {decorated.map((p) => {
             const meta = STATUS_META[p._status];
             return (
-              <div key={p.id} className="px-4 py-3">
+              <div key={p.id} className="rounded-xl border border-border bg-card px-3.5 py-3 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
@@ -298,13 +341,13 @@ export function DistribuicaoTab() {
                     {meta.label}
                   </span>
                 </div>
-                <div className="mt-2.5 flex items-center gap-2">
+                <div className="mt-3 flex items-center gap-2">
                   <div className="flex-1 h-1.5 bg-border/60 rounded-full overflow-hidden">
                     <div className="h-full bg-primary transition-all" style={{ width: `${p.percent_done}%` }} />
                   </div>
                   <span className="text-[11px] tabular-nums text-muted-foreground w-9 text-right">{p.percent_done}%</span>
                 </div>
-                <div className="mt-2 grid grid-cols-3 gap-2 text-[11px] text-muted-foreground tabular-nums">
+                <div className="mt-3 grid grid-cols-3 gap-2 text-[11px] text-muted-foreground tabular-nums">
                   <div>
                     <div className="text-[9px] uppercase tracking-wider">Distribuídas</div>
                     <div className="text-foreground font-medium">{p.total_distributed}/{p.total_eligible}</div>
@@ -318,13 +361,14 @@ export function DistribuicaoTab() {
                     <div className="text-foreground">{p._etaDays != null ? `${p._etaDays}d` : "—"}</div>
                   </div>
                 </div>
-                <div className="mt-1.5 text-[11px] text-muted-foreground tabular-nums">
+                <div className="mt-2.5 pt-2.5 border-t border-border/60 text-[11px] text-muted-foreground tabular-nums">
                   Próx. onda: <span className="text-foreground">{fmtDateTime(p.next_wave_at)}</span>
                 </div>
               </div>
             );
           })}
         </div>
+
 
         {/* Desktop: tabela */}
         <div className="hidden md:block overflow-x-auto">
