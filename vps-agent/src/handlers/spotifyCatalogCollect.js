@@ -206,44 +206,98 @@ async function isPlaylistTableAtBottom(page) {
   }, SCROLL_CONTAINER).catch(() => true);
 }
 
-async function extractVisiblePlaylistRows(page) {
-  // Rotina espelhada de spotifyDealCollect.js — uma única fonte para extrair
-  // linhas de playlist no S4A. Mudanças aqui devem ser refletidas lá (e vice-versa).
-  return await page.evaluate((rowSelector) => {
+async function detectRowSelector(page) {
+  // Roda no browser: testa cada candidato e devolve o primeiro que tem >= 1 linha
+  // contendo um link de playlist. Loga as contagens (CATALOG_DEBUG_SELECTORS) pra
+  // diagnóstico. Se nenhum casar, devolve null e o extrator cai no fallback
+  // ancorado em `a[href*="/playlist/"]`.
+  const report = await page.evaluate((candidates) => {
+    const out = [];
+    for (const sel of candidates) {
+      let total = 0, withLink = 0;
+      try {
+        const nodes = document.querySelectorAll(sel);
+        total = nodes.length;
+        nodes.forEach((n) => {
+          if (n.querySelector('a[href*="/playlist/"], a[href*="spotify:playlist:"]')) withLink++;
+        });
+      } catch (e) {
+        out.push({ sel, error: String(e?.message || e) });
+        continue;
+      }
+      out.push({ sel, total, withLink });
+    }
+    const anchorCount = document.querySelectorAll('a[href*="/playlist/"], a[href*="spotify:playlist:"]').length;
+    return { candidates: out, anchorCount };
+  }, ROW_SEL_CANDIDATES);
+
+  const winner = report.candidates.find((c) => (c.withLink ?? 0) > 0);
+  log.info("CATALOG_DEBUG_SELECTORS", { winner: winner?.sel ?? null, anchorCount: report.anchorCount, candidates: report.candidates });
+  return winner?.sel ?? null;
+}
+
+async function extractVisiblePlaylistRows(page, rowSelectorOverride) {
+  // Se `rowSelectorOverride` casar, usa como antes. Caso contrário, ancora em
+  // `a[href*="/playlist/"]` e sobe pra um ancestral "row-like".
+  return await page.evaluate(({ rowSelector }) => {
     const norm = (txt) => String(txt || "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
     const isNumericMetric = (txt) => !!txt && /\d/.test(txt) && /^[\d.,\s]+[km]?$/i.test(txt);
 
+    function findRowAncestor(el) {
+      let cur = el;
+      for (let i = 0; i < 12 && cur; i++) {
+        if (cur.matches?.('tr, [role="row"], li[data-testid], [data-testid*="row" i], [data-row-index]')) return cur;
+        cur = cur.parentElement;
+      }
+      cur = el;
+      for (let i = 0; i < 8 && cur && cur.parentElement; i++) {
+        cur = cur.parentElement;
+        const t = norm(cur.textContent);
+        const last = t.split(/\s+/).pop() || "";
+        if (isNumericMetric(last)) return cur;
+      }
+      return el.parentElement || el;
+    }
+
+    let rows = [];
+    if (rowSelector) rows = Array.from(document.querySelectorAll(rowSelector));
+    if (rows.length === 0) {
+      const anchors = Array.from(document.querySelectorAll('a[href*="/playlist/"], a[href*="spotify:playlist:"]'));
+      const seenRows = new Set();
+      for (const a of anchors) {
+        const row = findRowAncestor(a);
+        if (row && !seenRows.has(row)) { seenRows.add(row); rows.push(row); }
+      }
+    }
+
     const result = [];
-    document.querySelectorAll(rowSelector).forEach((row) => {
-      // 1) Link da playlist é a âncora canônica usada pelo S4A.
+    rows.forEach((row) => {
       const linkEl = row.querySelector('a[href*="/playlist/"], a[href*="spotify:playlist:"]');
-      const href = linkEl?.href || linkEl?.getAttribute("href") || null;
+      if (!linkEl) return;
+      const href = linkEl.href || linkEl.getAttribute("href") || null;
       const ariaLabel = row.getAttribute("aria-label") || "";
       const idSource = `${href || ""} ${ariaLabel}`;
       const idMatch = idSource.match(/spotify:playlist:([a-zA-Z0-9]{15,})|\/playlist[/:]([a-zA-Z0-9]{15,})/);
       const playlistId = idMatch ? (idMatch[1] || idMatch[2]) : null;
 
-      // 2) Nome = texto do link (mesma fonte que o deal usa).
-      const playlist_name = norm(linkEl?.textContent) || null;
+      const playlist_name = norm(linkEl.textContent) || norm(linkEl.getAttribute("aria-label")) || null;
       if (!playlistId && !playlist_name) return;
 
-      // 3) Owner = primeiro span/p irmão do link que não seja o próprio nome
-      //    nem texto numérico. No S4A o owner fica abaixo do nome, dentro da
-      //    mesma célula do título.
-      const nameCell = linkEl?.closest('td, [role="cell"], [role="gridcell"]') || row;
+      const nameCell = linkEl.closest('td, [role="cell"], [role="gridcell"]') || row;
       const owner = (() => {
-        const candidates = Array.from(nameCell.querySelectorAll("p, span, small"))
+        const cands = Array.from(nameCell.querySelectorAll("p, span, small, div"))
           .map((el) => norm(el.textContent))
-          .filter((t) => t && t !== playlist_name && !isNumericMetric(t));
-        return candidates[0] || null;
+          .filter((t) => t && t !== playlist_name && !isNumericMetric(t) && t.length < 80);
+        return cands.find((t) => t !== playlist_name) || null;
       })();
 
-      // 4) Plays = última célula numérica da linha (no deal é a coluna "Plays").
-      const cells = Array.from(row.querySelectorAll('td, [role="cell"], [role="gridcell"]'));
+      let cells = Array.from(row.querySelectorAll('td, [role="cell"], [role="gridcell"]'));
+      if (cells.length === 0) cells = Array.from(row.querySelectorAll("span, div, p"));
       let playsText = null;
+      const metricCandidates = [];
       for (let i = cells.length - 1; i >= 0; i--) {
         const t = norm(cells[i].textContent);
-        if (isNumericMetric(t)) { playsText = t; break; }
+        if (isNumericMetric(t)) { metricCandidates.push(t); if (!playsText) playsText = t; }
       }
 
       result.push({
@@ -252,12 +306,13 @@ async function extractVisiblePlaylistRows(page) {
         playlist_name,
         owner,
         plays_text: playsText,
-        metric_text_candidates: playsText ? [playsText] : [],
+        metric_text_candidates: metricCandidates,
       });
     });
     return result;
-  }, ROW_SEL);
+  }, { rowSelector: rowSelectorOverride ?? null });
 }
+
 
 async function scrapePlaylistBreakdown(page, statsUrl) {
   const totals = await readTotalPlays(page, statsUrl);
