@@ -2,11 +2,10 @@
 // Usa só a infra da Fase 2 (gênero + vaga + cooldown). Sem score, ranking ou pesos.
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Play, Power, Save, Calendar, Activity, Layers, ChevronDown } from "lucide-react";
+import { Play, Save, Calendar, Activity, Layers, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
