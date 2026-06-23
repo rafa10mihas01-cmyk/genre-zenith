@@ -258,12 +258,30 @@ export function DistribuicaoTab() {
             {runWaveMut.isPending ? "Executando…" : "Rodar onda agora"}
           </Button>
         </div>
-        <div className="flex items-start gap-2 mt-3 text-[11px] text-muted-foreground">
-          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-          <span>
-            Expansão em camadas: Camada 1 (playlists mais robustas por ciclo de vida, estado curatorial e seguidores) abre no Dia 0. Camada 2 libera após o atraso configurado; Camada 3 após o dobro. Tudo respeita vaga, cooldown, gênero, limite diário e diversificação entre músicas.
-          </span>
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {[
+            { n: 1, title: "Camada 1", when: "Dia 0", desc: "Playlists mais robustas — ciclo de vida, estado curatorial e seguidores." },
+            { n: 2, title: "Camada 2", when: `Dia +${flags?.engine_natural_distribution_tier_delay_days ?? 2}`, desc: "Segunda onda libera após o atraso configurado." },
+            { n: 3, title: "Camada 3", when: `Dia +${(flags?.engine_natural_distribution_tier_delay_days ?? 2) * 2}`, desc: "Cauda longa, abre após o dobro do atraso." },
+          ].map((c) => (
+            <div key={c.n} className="rounded-xl border border-border/60 bg-background/40 p-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="h-6 w-6 rounded-md bg-primary/10 text-primary flex items-center justify-center text-[11px] font-semibold tabular-nums">
+                    {c.n}
+                  </div>
+                  <span className="text-xs font-semibold">{c.title}</span>
+                </div>
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground tabular-nums">{c.when}</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-2 leading-snug">{c.desc}</p>
+            </div>
+          ))}
         </div>
+        <p className="text-[11px] text-muted-foreground mt-3 flex items-center gap-1.5">
+          <Layers className="h-3 w-3" />
+          Toda camada respeita vaga, cooldown, gênero, limite diário e diversificação entre músicas.
+        </p>
       </section>
 
       {/* Lista de planos */}
