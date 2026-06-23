@@ -306,7 +306,42 @@ export function DistribuicaoTab() {
             ))}
           </div>
         </div>
-        <div className="overflow-x-auto">
+        {/* Mobile: cards */}
+        <div className="md:hidden divide-y divide-border/50">
+          {plansQ.isLoading && (
+            <div className="px-4 py-6 text-center text-sm text-muted-foreground">Carregando…</div>
+          )}
+          {!plansQ.isLoading && plans.length === 0 && (
+            <div className="px-4 py-8 text-center text-sm text-muted-foreground">Nenhum plano ainda. Ative a flag e adicione uma música no catálogo.</div>
+          )}
+          {plans.map((p) => (
+            <div key={p.id} className="px-4 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-semibold truncate">{p.track_name ?? "—"}</div>
+                  <div className="text-xs text-muted-foreground truncate">{p.artist_name ?? "—"}</div>
+                </div>
+                <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border border-border/60 text-muted-foreground tabular-nums shrink-0">
+                  {p.window_days}d
+                </span>
+              </div>
+              <div className="mt-2.5 flex items-center gap-2">
+                <div className="flex-1 h-1.5 bg-border/60 rounded-full overflow-hidden">
+                  <div className="h-full bg-primary transition-all" style={{ width: `${p.percent_done}%` }} />
+                </div>
+                <span className="text-[11px] tabular-nums text-muted-foreground w-9 text-right">{p.percent_done}%</span>
+              </div>
+              <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground tabular-nums">
+                <span><span className="text-foreground font-medium">{p.total_distributed}</span> de {p.total_eligible}</span>
+                <span>{p.total_pending} pendentes</span>
+                <span>{p.next_wave_at ? new Date(p.next_wave_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—"}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop: tabela */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-xs uppercase tracking-wider text-muted-foreground">
               <tr className="border-b border-border">
