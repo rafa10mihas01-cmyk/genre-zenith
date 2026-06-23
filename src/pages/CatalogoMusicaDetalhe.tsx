@@ -8,7 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft, Music2, Layers, TrendingUp, Activity, ExternalLink,
   BarChart3, ListMusic, History, Gauge, CheckCircle2, AlertTriangle, Clock,
-  PlayCircle, RefreshCw, ChevronDown, LayoutDashboard, Sparkles,
+  PlayCircle, RefreshCw, ChevronDown,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
@@ -476,7 +476,7 @@ function DesktopPlacementsGroups({ placements }: { placements: Placement[] }) {
 
 export default function CatalogoMusicaDetalhe() {
   const { id = "" } = useParams<{ id: string }>();
-  const [tab, setTab] = useState<"geral" | "inteligencia">("geral");
+  
   const q = useQuery({ queryKey: ["catalog", "detail", id], queryFn: () => fetchDetail(id), enabled: !!id, refetchInterval: 30_000 });
 
   const placementsByStatus = useMemo(() => {
@@ -545,77 +545,6 @@ export default function CatalogoMusicaDetalhe() {
       />
 
       <PageContainer>
-        {/* Tab switcher — padrão oficial (cards no mobile, rail no desktop) igual Campanhas */}
-        {(() => {
-          const TABS_TOP = [
-            { id: "geral" as const, label: "Visão geral", icon: LayoutDashboard },
-            { id: "inteligencia" as const, label: "Inteligência", icon: Sparkles },
-          ];
-          return (
-            <>
-              {/* Mobile: grid de cards */}
-              <div className="grid grid-cols-2 gap-1.5 mb-4 sm:hidden">
-                {TABS_TOP.map((t) => {
-                  const Icon = t.icon;
-                  const active = tab === t.id;
-                  return (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => setTab(t.id)}
-                      className={cn(
-                        "rounded-xl border px-1 py-2 flex flex-col items-center justify-center gap-1 transition-colors",
-                        active
-                          ? "border-primary/60 bg-primary/10 text-foreground"
-                          : "border-border bg-card text-muted-foreground hover:text-foreground",
-                      )}
-                      aria-pressed={active}
-                    >
-                      <Icon className={cn("h-4 w-4", active && "text-primary")} />
-                      <span className="text-[11px] font-medium leading-none text-center">{t.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Desktop: rail clássico */}
-              <div className="hidden sm:flex items-center gap-1 border-b border-border mb-6 overflow-x-auto overflow-y-hidden scrollbar-none">
-                {TABS_TOP.map((t) => {
-                  const Icon = t.icon;
-                  const active = tab === t.id;
-                  return (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => setTab(t.id)}
-                      className={cn(
-                        "px-3 lg:px-4 h-10 inline-flex items-center gap-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap shrink-0",
-                        active
-                          ? "border-primary text-foreground"
-                          : "border-transparent text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      <Icon className="h-3.5 w-3.5" />
-                      <span>{t.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </>
-          );
-        })()}
-
-        {tab === "inteligencia" ? (
-          <MusicaIntelligenceSection
-            track={t}
-            baseline={b}
-            telemetry={tel}
-            placements={placements}
-            snapshots={snapshots}
-            queue={queue}
-          />
-        ) : (
-        <>
         {/* ============ MOBILE ONLY: HAIRLINE GRID TÉCNICO ============ */}
         <div className="sm:hidden flex flex-col gap-2.5">
           {/* Identity */}
@@ -699,34 +628,7 @@ export default function CatalogoMusicaDetalhe() {
             </div>
           </section>
 
-          {/* Fila de coleta compacta */}
-          <section className="rounded-xl border border-border bg-card overflow-hidden divide-y divide-border">
-            <div className="p-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="relative flex h-2 w-2">
-                  {queueActive && (
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1DB954] opacity-40" />
-                  )}
-                  <span className={cn("relative inline-flex rounded-full h-2 w-2", queue?.status === "failed" ? "bg-rose-500" : queue ? "bg-[#1DB954]" : "bg-muted-foreground/40")} />
-                </span>
-                <span className="text-xs font-semibold text-foreground">Fila de coleta</span>
-              </div>
-              {queue ? (
-                <span className="text-[10px] font-mono tabular-nums text-muted-foreground">{new Date(queue.scheduled_for).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
-              ) : (
-                <span className="text-[10px] text-muted-foreground/60">{rel(tel?.last_captured_at)}</span>
-              )}
-            </div>
-            {queueActive && (
-              <div className="p-3 flex items-center justify-between text-[11px]">
-                <span className="text-muted-foreground uppercase tracking-wider font-bold">Tentativas</span>
-                <span className="font-mono tabular-nums text-foreground">{queue.attempts}/{queue.max_attempts}</span>
-              </div>
-            )}
-            {queue?.last_error && (
-              <div className="p-3 text-[11px] text-rose-300 bg-rose-500/5">{queue.last_error}</div>
-            )}
-          </section>
+          {/* Fila de coleta: ver bloco "Saúde operacional" mais abaixo (fonte única) */}
         </div>
 
         {/* ============ DESKTOP / TABLET (mantém original) ============ */}
@@ -769,8 +671,8 @@ export default function CatalogoMusicaDetalhe() {
           <KpiBig tier="quiet" icon={Activity} label="Snapshots" value={fmt(snapshotsCount)} hint={`Última: ${rel(tel?.last_captured_at ?? snapshots.at(-1)?.captured_at)}`} domain="system" />
         </section>
 
-        {/* BASELINE + COLETA desktop */}
-        <section className="hidden sm:grid grid-cols-1 lg:grid-cols-2 gap-3">
+        {/* BASELINE desktop — Fila de coleta foi consolidada em "Saúde operacional" abaixo */}
+        <section className="hidden sm:block">
           <div className="rounded-2xl border border-border bg-card p-5">
             <div className="flex items-center justify-between mb-3">
               <div>
@@ -799,28 +701,6 @@ export default function CatalogoMusicaDetalhe() {
               </div>
             ) : (
               <div className="text-xs text-muted-foreground">Baseline ainda não chegou. O bot deve gravar nas próximas coletas.</div>
-            )}
-          </div>
-
-          <div className="rounded-2xl border border-border bg-card p-5">
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">Fila de coleta</h3>
-                <p className="text-xs text-muted-foreground">Próxima rodada do bot</p>
-              </div>
-              <RefreshCw className="h-4 w-4 text-muted-foreground" />
-            </div>
-            {queueActive ? (
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground">Status</span><StatusDot status={queue.status === "pending" || queue.status === "processing" ? queue.status : queue.status === "failed" ? "failed" : "pending"} /></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Agendada para</span><span className="font-mono text-xs">{new Date(queue.scheduled_for).toLocaleString("pt-BR")}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Tentativas</span><span className="font-mono text-xs">{queue.attempts}/{queue.max_attempts}</span></div>
-                {queue.last_error && (
-                  <div className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-2 text-xs text-rose-300">{queue.last_error}</div>
-                )}
-              </div>
-            ) : (
-              <div className="text-xs text-muted-foreground">Nenhum item na fila. Última coleta {rel(tel?.last_captured_at)}.</div>
             )}
           </div>
         </section>
@@ -978,8 +858,15 @@ export default function CatalogoMusicaDetalhe() {
             </>
           )}
         </section>
-        </>
-        )}
+        {/* Inteligência: timeline → histórico → ranking → saúde → feed (mesma página, sem trocar de aba) */}
+        <MusicaIntelligenceSection
+          track={t}
+          baseline={b}
+          telemetry={tel}
+          placements={placements}
+          snapshots={snapshots}
+          queue={queue}
+        />
       </PageContainer>
     </>
   );
