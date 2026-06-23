@@ -56,7 +56,7 @@ const Campanhas = lazy(() => import("./pages/Campanhas"));
 const CampanhaDetalhe = lazy(() => import("./pages/CampanhaDetalhe"));
 const CampanhaExecucao = lazy(() => import("./pages/CampanhaExecucao"));
 const Catalogo = lazy(() => import("./pages/Catalogo"));
-const CatalogoMusicaPreview = lazy(() => import("./pages/CatalogoMusicaPreview"));
+
 const CatalogoMusicaDetalhe = lazy(() => import("./pages/CatalogoMusicaDetalhe"));
 
 const PlanoCampanhaPublico = lazy(() => import("./pages/PlanoCampanhaPublico"));
