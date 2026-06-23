@@ -7,8 +7,9 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const APP_05_ID = "821cb0cc-001b-4d2f-a0c0-66cafe055e72";
+const DEFAULT_APP_SLUG = "nexengine-05";
 const DEFAULT_TRACK = "spotify:track:11dFghVXANMlKmJXsNCbNl"; // Cut To The Feeling
+
 
 async function refreshIfNeeded(sb: ReturnType<typeof createClient>, row: any): Promise<string> {
   if (new Date(row.expires_at).getTime() > Date.now() + 60_000) return row.access_token;
@@ -58,7 +59,13 @@ Deno.serve(async (req) => {
   if (!uid) {
     return new Response(JSON.stringify({ error: "spotify_user_id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
-  const appId = body.app_id ?? APP_05_ID;
+  let appId = body.app_id ?? null;
+  if (!appId) {
+    const { data: app } = await sb.from("spotify_apps").select("id").eq("slug", DEFAULT_APP_SLUG).maybeSingle();
+    appId = app?.id ?? null;
+    if (!appId) return new Response(JSON.stringify({ error: `app slug ${DEFAULT_APP_SLUG} not found` }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  }
+
   const trackUri = body.test_track_uri ?? DEFAULT_TRACK;
 
   const { data: tokens, error } = await sb.from("spotify_user_tokens")
