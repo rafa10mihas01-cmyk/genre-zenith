@@ -201,41 +201,6 @@ export function EnginePriorityTab() {
         </div>
       </section>
 
-      {/* Pesos calibráveis */}
-      <section className="rounded-2xl border border-border bg-card p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold">Calibração de pesos</h3>
-          <div className="flex gap-2">
-            {draft && (
-              <Button size="sm" variant="ghost" onClick={() => setDraft(null)}>
-                Cancelar
-              </Button>
-            )}
-            <Button size="sm" onClick={() => saveMut.mutate()} disabled={!draft || saveMut.isPending} className="gap-1.5">
-              <Save className="h-4 w-4" />
-              Salvar pesos
-            </Button>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {COMPONENT_KEYS.map((k) => (
-            <label key={k} className="flex flex-col gap-1">
-              <span className="text-xs text-muted-foreground">{COMPONENT_LABELS[k]}</span>
-              <Input
-                type="number"
-                step="0.05"
-                value={effectiveDraft[k]}
-                onChange={(e) => setDraft({ ...effectiveDraft, [k]: e.target.value })}
-                className="h-8 text-sm"
-              />
-            </label>
-          ))}
-        </div>
-        <p className="text-[11px] text-muted-foreground mt-3">
-          Cada peso multiplica o valor bruto do componente. Alterações entram em vigor no próximo cálculo (manual ou cron horário).
-        </p>
-      </section>
-
       {/* Ranking */}
       <section className="rounded-2xl border border-border bg-card">
         <div className="px-4 py-3 border-b border-border">
@@ -278,6 +243,41 @@ export function EnginePriorityTab() {
             </tbody>
           </table>
         </div>
+      </section>
+
+      {/* Pesos calibráveis */}
+      <section className="rounded-2xl border border-border bg-card p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold">Calibração de pesos</h3>
+          <div className="flex gap-2">
+            {draft && (
+              <Button size="sm" variant="ghost" onClick={() => setDraft(null)}>
+                Cancelar
+              </Button>
+            )}
+            <Button size="sm" onClick={() => saveMut.mutate()} disabled={!draft || saveMut.isPending} className="gap-1.5">
+              <Save className="h-4 w-4" />
+              Salvar pesos
+            </Button>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {COMPONENT_KEYS.map((k) => (
+            <label key={k} className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground">{COMPONENT_LABELS[k]}</span>
+              <Input
+                type="number"
+                step="0.05"
+                value={effectiveDraft[k]}
+                onChange={(e) => setDraft({ ...effectiveDraft, [k]: e.target.value })}
+                className="h-8 text-sm"
+              />
+            </label>
+          ))}
+        </div>
+        <p className="text-[11px] text-muted-foreground mt-3">
+          Cada peso multiplica o valor bruto do componente. Alterações entram em vigor no próximo cálculo (manual ou cron horário).
+        </p>
       </section>
 
       {/* Explicabilidade */}
