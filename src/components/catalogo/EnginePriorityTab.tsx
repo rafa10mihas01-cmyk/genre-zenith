@@ -403,8 +403,9 @@ export function EnginePriorityTab() {
                       <div className="min-w-0">
                         <div className="font-medium truncate">{r.display_name}</div>
                         <div className="text-[11px] text-muted-foreground">
-                          {r.managed ? (r.archived ? "Arquivada" : "Gerenciada") : "Externa"}
+                          {r.archived ? "Arquivada" : r.followers != null ? `${fmtNumber(r.followers)} seguidores` : "Gerenciada"}
                         </div>
+
                       </div>
                     </div>
                   </td>
