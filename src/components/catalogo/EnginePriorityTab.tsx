@@ -2,7 +2,7 @@
 // Apenas leitura/calibração. Nenhuma decisão operacional é tomada aqui.
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Brain, Play, Save, RefreshCw, Info } from "lucide-react";
+import { Brain, Play, Save, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -143,18 +143,14 @@ export function EnginePriorityTab() {
 
   return (
     <div className="space-y-6">
-      {/* Aviso modo shadow */}
-      <div className="flex items-start gap-2 rounded-xl border border-border bg-card/50 p-3 text-xs text-muted-foreground">
-        <Info className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
-        <div>
-          <strong className="text-foreground">Modo shadow.</strong> O Engine apenas calcula como pensaria — nenhuma playlist, posição,
-          campanha ou Spotify é alterado. Esta tela serve para validar coerência antes de habilitar a Reordenação Editorial (Fase 4).
-        </div>
-      </div>
+      {/* Hero KPI: Placements avaliados */}
+      <section className="rounded-2xl border border-border bg-card p-5">
+        <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Placements avaliados</div>
+        <div className="text-5xl font-bold tabular-nums mt-1">{latestRun?.placements_evaluated ?? "—"}</div>
+      </section>
 
-      {/* KPIs do último run + ação executar */}
-      <section className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-        <Kpi label="Placements avaliados" value={latestRun?.placements_evaluated ?? "—"} />
+      {/* KPIs secundários do último run */}
+      <section className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <Kpi label="Score médio" value={latestRun?.score_avg != null ? Number(latestRun.score_avg).toFixed(1) : "—"} />
         <Kpi label="Score p50" value={latestRun?.score_p50 != null ? Number(latestRun.score_p50).toFixed(1) : "—"} />
         <Kpi label="Score p90" value={latestRun?.score_p90 != null ? Number(latestRun.score_p90).toFixed(1) : "—"} />
@@ -205,41 +201,6 @@ export function EnginePriorityTab() {
         </div>
       </section>
 
-      {/* Pesos calibráveis */}
-      <section className="rounded-2xl border border-border bg-card p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold">Calibração de pesos</h3>
-          <div className="flex gap-2">
-            {draft && (
-              <Button size="sm" variant="ghost" onClick={() => setDraft(null)}>
-                Cancelar
-              </Button>
-            )}
-            <Button size="sm" onClick={() => saveMut.mutate()} disabled={!draft || saveMut.isPending} className="gap-1.5">
-              <Save className="h-4 w-4" />
-              Salvar pesos
-            </Button>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {COMPONENT_KEYS.map((k) => (
-            <label key={k} className="flex flex-col gap-1">
-              <span className="text-xs text-muted-foreground">{COMPONENT_LABELS[k]}</span>
-              <Input
-                type="number"
-                step="0.05"
-                value={effectiveDraft[k]}
-                onChange={(e) => setDraft({ ...effectiveDraft, [k]: e.target.value })}
-                className="h-8 text-sm"
-              />
-            </label>
-          ))}
-        </div>
-        <p className="text-[11px] text-muted-foreground mt-3">
-          Cada peso multiplica o valor bruto do componente. Alterações entram em vigor no próximo cálculo (manual ou cron horário).
-        </p>
-      </section>
-
       {/* Ranking */}
       <section className="rounded-2xl border border-border bg-card">
         <div className="px-4 py-3 border-b border-border">
@@ -282,6 +243,41 @@ export function EnginePriorityTab() {
             </tbody>
           </table>
         </div>
+      </section>
+
+      {/* Pesos calibráveis */}
+      <section className="rounded-2xl border border-border bg-card p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold">Calibração de pesos</h3>
+          <div className="flex gap-2">
+            {draft && (
+              <Button size="sm" variant="ghost" onClick={() => setDraft(null)}>
+                Cancelar
+              </Button>
+            )}
+            <Button size="sm" onClick={() => saveMut.mutate()} disabled={!draft || saveMut.isPending} className="gap-1.5">
+              <Save className="h-4 w-4" />
+              Salvar pesos
+            </Button>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {COMPONENT_KEYS.map((k) => (
+            <label key={k} className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground">{COMPONENT_LABELS[k]}</span>
+              <Input
+                type="number"
+                step="0.05"
+                value={effectiveDraft[k]}
+                onChange={(e) => setDraft({ ...effectiveDraft, [k]: e.target.value })}
+                className="h-8 text-sm"
+              />
+            </label>
+          ))}
+        </div>
+        <p className="text-[11px] text-muted-foreground mt-3">
+          Cada peso multiplica o valor bruto do componente. Alterações entram em vigor no próximo cálculo (manual ou cron horário).
+        </p>
       </section>
 
       {/* Explicabilidade */}
