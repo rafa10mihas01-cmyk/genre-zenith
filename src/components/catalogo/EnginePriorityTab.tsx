@@ -143,18 +143,14 @@ export function EnginePriorityTab() {
 
   return (
     <div className="space-y-6">
-      {/* Aviso modo shadow */}
-      <div className="flex items-start gap-2 rounded-xl border border-border bg-card/50 p-3 text-xs text-muted-foreground">
-        <Info className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
-        <div>
-          <strong className="text-foreground">Modo shadow.</strong> O Engine apenas calcula como pensaria — nenhuma playlist, posição,
-          campanha ou Spotify é alterado. Esta tela serve para validar coerência antes de habilitar a Reordenação Editorial (Fase 4).
-        </div>
-      </div>
+      {/* Hero KPI: Placements avaliados */}
+      <section className="rounded-2xl border border-border bg-card p-5">
+        <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Placements avaliados</div>
+        <div className="text-5xl font-bold tabular-nums mt-1">{latestRun?.placements_evaluated ?? "—"}</div>
+      </section>
 
-      {/* KPIs do último run + ação executar */}
-      <section className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-        <Kpi label="Placements avaliados" value={latestRun?.placements_evaluated ?? "—"} />
+      {/* KPIs secundários do último run */}
+      <section className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <Kpi label="Score médio" value={latestRun?.score_avg != null ? Number(latestRun.score_avg).toFixed(1) : "—"} />
         <Kpi label="Score p50" value={latestRun?.score_p50 != null ? Number(latestRun.score_p50).toFixed(1) : "—"} />
         <Kpi label="Score p90" value={latestRun?.score_p90 != null ? Number(latestRun.score_p90).toFixed(1) : "—"} />
