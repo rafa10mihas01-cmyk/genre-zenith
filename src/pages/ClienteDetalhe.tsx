@@ -243,12 +243,7 @@ export default function ClienteDetalhe() {
 
   const client = useMemo(() => clients.find((c) => c.id === id), [clients, id]);
 
-  // Apoio: deals/músicas só pras abas legadas (Músicas/Deals/Notas) — não entram em KPIs.
-  const dealById = useMemo(() => {
-    const m = new Map<string, (typeof deals)[number]>();
-    for (const d of deals) m.set(d.id, d);
-    return m;
-  }, [deals]);
+  // Apoio: agregados auxiliares pra KPIs da Visão (Músicas em campanha, Deals ativos, etc).
   const campaignIdSet = useMemo(() => new Set(clientCampaigns.map((c) => c.campaign_id)), [clientCampaigns]);
   const clientDeals = useMemo(
     () =>
@@ -264,6 +259,7 @@ export default function ClienteDetalhe() {
     () => songs.filter((s) => s.client_id === id || clientDealIds.has(s.deal_id)),
     [songs, id, clientDealIds],
   );
+
 
   // KPIs lidos do overview (totals já agregados pelo service).
   const t = overview?.totals;
