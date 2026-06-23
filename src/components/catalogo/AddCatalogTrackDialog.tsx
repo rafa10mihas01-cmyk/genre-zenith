@@ -481,7 +481,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
               <span className="h-2 w-2 rounded-full bg-amber-400 shrink-0" />
               <span className="font-semibold text-foreground text-[13px] uppercase tracking-wide">Híbridas</span>
               <span className="text-[11px] text-muted-foreground tabular-nums ml-auto">
-                {hybridList.length} · entra ≥#19
+                {hybridList.length} · posição real
               </span>
               <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
             </summary>
