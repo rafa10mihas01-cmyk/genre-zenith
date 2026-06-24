@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { cn } from "@/lib/utils";
 import { PrintThumbs } from "@/components/playlist-deals/PrintThumbs";
+import { PrintsHistoryCard, type PrintsHistoryEntry } from "@/components/client-portal/PrintsHistoryCard";
 import {
   CuratorSubmissionsKpis,
   type BaselineConflict,
@@ -2318,51 +2319,27 @@ export default function CuratorPage() {
         />
 
 
-        {/* Fase 7.3 P4 — Galeria de Evidências (prints reais por playlist). */}
-        {activeTab === "historico" && prints.length > 0 && (
-          <Card className="nx-card nx-card-glow !p-0 border-border">
-            <CardContent className="p-5 sm:p-6 pt-5 sm:pt-6 md:pt-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="min-w-0">
-                  <h2 className="text-[15px] font-semibold tracking-tight inline-flex items-center gap-2">
-                    <ImageIcon className="h-4 w-4 text-muted-foreground" /> Evidências
-                  </h2>
-                  <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
-                    Prints coletados pelos bots e pelo admin, em ordem cronológica.
-                  </p>
-                </div>
-                <span className="text-[12px] text-muted-foreground shrink-0 tabular-nums">{prints.length}</span>
-              </div>
-              {prints.length === 0 ? (
-                <div className="text-center py-10 text-sm text-muted-foreground">Sem evidências ainda.</div>
-              ) : (
-                <ul className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {prints.map((p, i) => (
-                    <li key={`${p.kind}-${i}-${p.captured_at}`} className="rounded-lg border border-border overflow-hidden bg-card/40">
-                      <a href={p.screenshot_url} target="_blank" rel="noreferrer" className="block aspect-video bg-muted overflow-hidden">
-                        
-                        <img src={p.screenshot_url} alt={p.playlist_name ?? "print"} className="w-full h-full object-cover hover:scale-105 transition-transform" loading="lazy" />
-                      </a>
-                      <div className="p-2 space-y-1">
-                        <div className="text-[12px] font-medium truncate" title={p.playlist_name ?? ""}>
-                          {p.playlist_name ?? "Playlist"}
-                        </div>
-                        <div className="flex items-center justify-between text-[10px] text-muted-foreground tabular-nums">
-                          <span>{formatDateTime(p.captured_at)}</span>
-                          {p.position != null && <span className="text-primary">#{p.position}</span>}
-                        </div>
-                        <div className="text-[9px] uppercase tracking-wider text-muted-foreground/60 truncate">
-                          {p.kind === "delivery_proof" ? "bot" : "admin"}
-                          {p.source ? ` · ${p.source}` : ""}
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
+        {/* Histórico de prints — espelha o admin: 1 card por coleta, expansível, com prints e playlists. */}
+        {activeTab === "historico" && (
+          <PrintsHistoryCard
+            history={snapshotHistory.map((h) => ({
+              captured_at: h.captured_at,
+              is_initial_capture: h.is_initial_capture,
+              playlists_count: h.playlists_count,
+              total_plays: h.total_plays,
+              print_url: h.print_url,
+              print_urls: h.print_urls ?? [],
+              playlists: (h.playlists ?? []).map((pl) => ({
+                playlist_id: pl.playlist_id,
+                playlist_name: pl.playlist_name,
+                image_url: pl.image_url ?? null,
+                plays: Number(pl.plays ?? 0),
+              })),
+            })) as PrintsHistoryEntry[]}
+            coverUrl={selectedSong?.song_cover_url ?? deal?.song_cover_url ?? null}
+          />
         )}
+
 
 
         {/* Histórico de importações — espelha o modal do admin: 1 linha por planilha. */}
