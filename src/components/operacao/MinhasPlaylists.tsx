@@ -1854,6 +1854,11 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                   <div className="flex items-center justify-between flex-wrap gap-y-1 mt-0.5">
                     {/* === ÍCONES (esquerda) === */}
                     <div className="flex items-center gap-1.5 flex-wrap">
+                      <SyncStatusBadge
+                        info={syncByPlaylist[p.id]}
+                        lastSyncAt={p.last_metrics_at ?? null}
+                        isCatalog={!!p.is_catalog}
+                      />
                       {p.lifecycle_stage === "onboarding" && (
                         <IconBadge
                           title="Em onboarding"
