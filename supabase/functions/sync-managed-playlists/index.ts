@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
       const { data: flags } = await supabase
         .from("system_flags")
         .select("catalog_sync_enabled, catalog_sync_batch_size, catalog_sync_priority")
-        .eq("singleton_key", "global")
+        .limit(1)
         .maybeSingle();
 
       const enabled = flags?.catalog_sync_enabled ?? true;
