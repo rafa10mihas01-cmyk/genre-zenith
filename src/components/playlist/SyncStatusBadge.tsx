@@ -35,20 +35,27 @@ export function SyncStatusBadge({ info, lastSyncAt, isCatalog, compact = true }:
   const { Icon } = meta;
   const tokenLabel = info?.tokenSource === "oauth" ? "OAuth" : info?.tokenSource === "app" ? "App" : "—";
 
+  // Estado principal sempre visível: rótulo + (quando aplicável) tempo relativo da última sync.
+  const showRelative = status === "done" || status === "idle";
+  const relative = lastSyncAt ? timeAgo(lastSyncAt) : null;
+  const inlineLabel = showRelative && relative
+    ? (status === "done" ? `Sincronizada ${relative}` : `Sem sync · ${relative}`)
+    : meta.label;
+
   return (
     <Popover>
       <PopoverTrigger asChild>
         <button
           type="button"
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
-          aria-label={`Status de sincronização: ${meta.label}`}
+          aria-label={`Status de sincronização: ${inlineLabel}`}
           className={cn(
-            "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium shrink-0",
+            "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10.5px] font-medium shrink-0 leading-none",
             TONE_CLASS[meta.tone],
           )}
         >
-          <Icon className={cn("h-2.5 w-2.5", meta.spin && "animate-spin")} />
-          {!compact && <span>{meta.label}</span>}
+          <Icon className={cn("h-3 w-3", meta.spin && "animate-spin")} />
+          <span className="whitespace-nowrap">{inlineLabel}</span>
         </button>
       </PopoverTrigger>
       <PopoverContent
