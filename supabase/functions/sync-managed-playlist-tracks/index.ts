@@ -15,7 +15,7 @@
 //   - force: ignora o hash match e força recálculo do delta (útil pra backfill / debug).
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getAppToken, SpotifyCircuitOpenError, setSpotifyCtx } from "../_shared/spotify-client.ts";
+import { getAppToken, getUserToken, SpotifyCircuitOpenError, setSpotifyCtx } from "../_shared/spotify-client.ts";
 import { listPlaylistTracksRich } from "../_shared/spotify-playlist.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
 import {
@@ -98,10 +98,23 @@ Deno.serve(async (req) => {
 
   try {
     // 1) Fonte da verdade: Spotify (com ISRC via external_ids — fields default do helper já inclui)
-    // Pós-Etapa 2: usa exclusivamente Client Credentials (pool de apps com quarentena/seleção).
-    // Endpoint /v1/playlists/:id/items aceita CC para playlists públicas — o mesmo modelo
-    // já adotado pelo restante da arquitetura (NexEngine 05/09/10).
-    const token = await getAppToken();
+    // Híbrido: preferimos OAuth do owner quando existe (funciona em playlists privadas/colab
+    // e em qualquer estado de visibilidade). Fallback pra Client Credentials só quando
+    // a playlist não tem owner OAuth disponível (playlists externas/públicas do catálogo).
+    let token: string;
+    let tokenSource: "oauth" | "app" = "app";
+    if (ownerSpotifyId) {
+      try {
+        const userTok = await getUserToken(ownerSpotifyId);
+        token = userTok.token;
+        tokenSource = "oauth";
+      } catch (_e) {
+        token = await getAppToken();
+      }
+    } else {
+      token = await getAppToken();
+    }
+    console.log(`[sync] playlist=${pl.id} owner=${ownerSpotifyId ?? "null"} token_source=${tokenSource}`);
 
     const rich = await listPlaylistTracksRich(pl.spotify_playlist_id, token, {
       max: 10000,
