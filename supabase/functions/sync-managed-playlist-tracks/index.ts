@@ -74,35 +74,17 @@ Deno.serve(async (req) => {
   // Propaga contexto pras chamadas Spotify deste request (listPlaylistTracksRich etc.)
   const ownerSpotifyId: string | null = (pl as any).owner_spotify_user_id ?? null;
 
-  // === Roteamento do app ANTES do guard ===
-  // Resolve o app real do owner via spotify_user_tokens. Esta função roda em
-  // processo separado do diagnose, então o async-local ctx do caller NÃO
-  // atravessa o fetch HTTP — temos que reresolver aqui.
-  // Pós-17-C: o conceito de "default app do pool" foi removido. is_default abaixo
-  // refere-se apenas à conta primária POR OWNER (spotify_user_tokens.is_default).
-  let ownerAppId: string | null = null;
-  if (ownerSpotifyId) {
-    const { data: tokenRows } = await supabase
-      .from("spotify_user_tokens")
-      .select("app_id, is_default, updated_at")
-      .eq("spotify_user_id", ownerSpotifyId);
-    const rows = (tokenRows ?? []) as Array<{ app_id: string | null; is_default: boolean | null; updated_at: string | null }>;
-    const sorted = rows.slice().sort((a, b) => {
-      const da = a.is_default ? 1 : 0;
-      const db = b.is_default ? 1 : 0;
-      if (da !== db) return db - da;
-      return String(b.updated_at ?? "").localeCompare(String(a.updated_at ?? ""));
-    });
-    ownerAppId = sorted[0]?.app_id ?? null;
-  }
-
+  // Pós-Etapa 2: pipeline 100% Client Credentials.
+  // O app é escolhido pelo pool (com quarentena/seleção) dentro de getAppToken();
+  // não consultamos mais spotify_user_tokens nem mantemos dependência indireta de OAuth.
   setSpotifyCtx({
-    appId: ownerAppId,
+    appId: null,
     playlist_id: pl.id,
     owner_id: ownerSpotifyId,
     spotify_user_id: ownerSpotifyId,
     function_name: "sync-managed-playlist-tracks",
   });
+
 
   const { count: tracksBefore } = await supabase
     .from("managed_playlist_tracks")
