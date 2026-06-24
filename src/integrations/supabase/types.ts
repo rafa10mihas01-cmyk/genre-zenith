@@ -12647,6 +12647,9 @@ export type Database = {
           apify_blocked_at: string | null
           apify_blocked_reason: string | null
           auto_deal_from_campaign: boolean
+          catalog_sync_batch_size: number
+          catalog_sync_enabled: boolean
+          catalog_sync_priority: number
           created_at: string
           engine_campaign_promotes: boolean
           engine_editorial_weights: boolean
@@ -12675,6 +12678,9 @@ export type Database = {
           apify_blocked_at?: string | null
           apify_blocked_reason?: string | null
           auto_deal_from_campaign?: boolean
+          catalog_sync_batch_size?: number
+          catalog_sync_enabled?: boolean
+          catalog_sync_priority?: number
           created_at?: string
           engine_campaign_promotes?: boolean
           engine_editorial_weights?: boolean
@@ -12703,6 +12709,9 @@ export type Database = {
           apify_blocked_at?: string | null
           apify_blocked_reason?: string | null
           auto_deal_from_campaign?: boolean
+          catalog_sync_batch_size?: number
+          catalog_sync_enabled?: boolean
+          catalog_sync_priority?: number
           created_at?: string
           engine_campaign_promotes?: boolean
           engine_editorial_weights?: boolean
