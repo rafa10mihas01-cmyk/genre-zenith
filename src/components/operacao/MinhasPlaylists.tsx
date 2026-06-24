@@ -862,6 +862,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
 
   const visibleIds = useMemo(() => visible.map((p) => p.id), [visible]);
   const { byPlaylist: cooldownsByPlaylist } = useActiveCooldowns(visibleIds);
+  const { data: syncByPlaylist = {} } = useSyncStatusBatch(visibleIds);
 
   async function handleImport() {
     if (!importUrl.trim()) return;
