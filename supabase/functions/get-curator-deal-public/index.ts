@@ -256,7 +256,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Fase 7.3 P4 — Galeria de prints unificada (delivery_proofs + snapshots).
+    // Fase 7.3 P4 — Galeria de prints unificada.
+    // Fonte visual do admin: get_curator_deal_snapshot_history/curator_deal_logs.print_urls.
+    // delivery_proofs e curator_deal_snapshots.print_url ficam como compatibilidade legada.
     const playlistMetaByPid: Record<string, { name: string | null; image: string | null; spotify_url: string | null }> = {};
     for (const p of (playlists ?? []) as any[]) {
       playlistMetaByPid[p.id] = {
@@ -266,7 +268,7 @@ Deno.serve(async (req) => {
       };
     }
     const printsGallery: Array<{
-      kind: "delivery_proof" | "snapshot";
+      kind: "delivery_proof" | "snapshot" | "history";
       captured_at: string;
       playlist_id: string | null;
       playlist_name: string | null;
@@ -276,10 +278,38 @@ Deno.serve(async (req) => {
       bot: string | null;
       source: string | null;
     }> = [];
+    const seenPrintUrls = new Set<string>();
+    const pushPrint = (entry: (typeof printsGallery)[number]) => {
+      const url = String(entry.screenshot_url ?? "").trim();
+      if (!url || seenPrintUrls.has(url)) return;
+      seenPrintUrls.add(url);
+      printsGallery.push({ ...entry, screenshot_url: url });
+    };
+    for (const h of ((historyRpc ?? []) as any[])) {
+      const urls = Array.isArray(h.print_urls)
+        ? h.print_urls
+        : h.print_url
+          ? [h.print_url]
+          : [];
+      for (const url of urls) {
+        if (!url) continue;
+        pushPrint({
+          kind: "history",
+          captured_at: h.captured_at,
+          playlist_id: null,
+          playlist_name: null,
+          playlist_image: null,
+          screenshot_url: String(url),
+          position: null,
+          bot: null,
+          source: "curator_deal_logs",
+        });
+      }
+    }
     for (const p of (proofs ?? []) as any[]) {
       if (!p.screenshot_url) continue;
       const meta = p.playlist_id ? playlistMetaByPid[p.playlist_id] : null;
-      printsGallery.push({
+      pushPrint({
         kind: "delivery_proof",
         captured_at: p.captured_at,
         playlist_id: p.playlist_id ?? null,
@@ -294,7 +324,7 @@ Deno.serve(async (req) => {
     for (const s of (allSnaps ?? []) as any[]) {
       if (!s.print_url) continue;
       const meta = s.playlist_id ? playlistMetaByPid[s.playlist_id] : null;
-      printsGallery.push({
+      pushPrint({
         kind: "snapshot",
         captured_at: s.captured_at,
         playlist_id: s.playlist_id ?? null,
