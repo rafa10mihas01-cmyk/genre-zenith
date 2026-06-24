@@ -6,7 +6,7 @@
 // FASE 13.0 — Fonte canônica de leitura: campaign_playlist_collections (CPC)
 // via fn_campaign_playlist_growth. curator_deal_snapshots permanece como
 // fallback de compatibilidade para deals antigos pré-CPC.
-import { corsHeaders as baseCorsHeaders } from "npm:@supabase/supabase-js/cors";
+import { corsHeaders as baseCorsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { assertDealOperable } from "../_shared/deal-access.ts";
 import { checkRateLimit, clientIp, rateLimitResponse } from "../_shared/rate-limit.ts";

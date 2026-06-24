@@ -66,7 +66,7 @@ import { markCuratorPublicMode } from "@/lib/publicRouteMode";
 import { PasteUrlsDialog } from "@/components/curators/PasteUrlsDialog";
 import { AddSongToPlaylistDialog } from "@/components/curators/AddSongToPlaylistDialog";
 import { CuratorAccessGate, curatorAccessStorageKey } from "@/components/public/CuratorAccessGate";
-import { invokeCuratorPortal } from "@/lib/curatorPortalAuth";
+import { getCuratorJwt, invokeCuratorPortal, storeCuratorJwt } from "@/lib/curatorPortalAuth";
 import { HistoricoPrevioBadge, HistoricoPrevioAlert, HistoricoPrevioCounter } from "@/components/campanhas/HistoricoPrevio";
 import { friendlyUploadName, downloadUploadUrlAsXlsx } from "@/lib/spreadsheetDisplay";
 
@@ -326,25 +326,15 @@ export default function CuratorPage() {
         const match = hash.match(/[#&]admin_jwt=([^&]+)/);
         if (match) {
           const adminJwt = decodeURIComponent(match[1]);
-          localStorage.setItem(curatorAccessStorageKey(tok), JSON.stringify({
-            jwt: adminJwt,
-            email: "admin",
-            exp: Date.now() + 86400_000,
-          }));
+          storeCuratorJwt(tok, adminJwt, "admin");
           try { window.history.replaceState(null, "", window.location.pathname + window.location.search); } catch { /* ignore */ }
           if (!cancelled) { setGateAuthed(true); setGateRequired(true); setGateChecked(true); return; }
         }
       } catch { /* ignore */ }
 
       try {
-        const stored = localStorage.getItem(curatorAccessStorageKey(tok));
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (parsed?.jwt && parsed?.exp && parsed.exp > Date.now()) {
-            if (!cancelled) { setGateAuthed(true); setGateRequired(true); setGateChecked(true); return; }
-          } else {
-            localStorage.removeItem(curatorAccessStorageKey(tok));
-          }
+        if (getCuratorJwt(tok)) {
+          if (!cancelled) { setGateAuthed(true); setGateRequired(true); setGateChecked(true); return; }
         }
       } catch { /* ignore */ }
 
@@ -357,11 +347,7 @@ export default function CuratorPage() {
           const adminJwt = (bp as any)?.jwt as string | undefined;
           const adminEmail = (bp as any)?.email as string | undefined;
           if (adminJwt) {
-            localStorage.setItem(curatorAccessStorageKey(tok), JSON.stringify({
-              jwt: adminJwt,
-              email: adminEmail ?? "admin",
-              exp: Date.now() + 86400_000,
-            }));
+            storeCuratorJwt(tok, adminJwt, adminEmail ?? "admin");
             if (!cancelled) { setGateAuthed(true); setGateRequired(true); setGateChecked(true); return; }
           }
         }
