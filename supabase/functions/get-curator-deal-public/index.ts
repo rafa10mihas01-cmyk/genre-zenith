@@ -145,7 +145,6 @@ Deno.serve(async (req) => {
       { data: allSnaps, error: allSnapsErr },
       { data: proofs, error: proofsErr },
       { data: uploads, error: uploadsErr },
-      { data: botBatches, error: botBatchesErr },
     ] = await Promise.all([
       admin
         // Separação operacional × observacional: hub público do curador só vê entregas reais.
@@ -193,16 +192,6 @@ Deno.serve(async (req) => {
         .in("deal_id", Array.from(uploadDealIds))
         .order("reference_date", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false }),
-      // Fallback de evidências — prints gerados pelo bot ficam em bot_print_batches.
-      // Mesma tabela que o MonitoramentoTab do admin lê. Usada só quando delivery_proofs
-      // e curator_deal_snapshots.print_url não trouxerem nada.
-      admin
-        .from("bot_print_batches")
-        .select("id, song_id, print_urls, total_parts, status, created_at, completed_at")
-        .eq("deal_id", deal.id)
-        .not("print_urls", "is", null)
-        .order("created_at", { ascending: false })
-        .limit(200),
     ]);
 
 
@@ -220,7 +209,6 @@ Deno.serve(async (req) => {
     if (allSnapsErr) console.error("[get-curator-deal-public] allSnaps error (degraded):", allSnapsErr.message);
     if (proofsErr) console.error("[get-curator-deal-public] proofs error (degraded):", proofsErr.message);
     if (uploadsErr) console.error("[get-curator-deal-public] uploads error (degraded):", uploadsErr.message);
-    if (botBatchesErr) console.error("[get-curator-deal-public] botBatches error (degraded):", botBatchesErr.message);
 
     // FASE 13.0 — perPlaylistDelivery por curator_playlists.id.
     // Inicial: derivado de curator_deal_snapshots (fallback de compatibilidade
@@ -278,7 +266,7 @@ Deno.serve(async (req) => {
       };
     }
     const printsGallery: Array<{
-      kind: "delivery_proof" | "snapshot" | "bot_batch";
+      kind: "delivery_proof" | "snapshot";
       captured_at: string;
       playlist_id: string | null;
       playlist_name: string | null;
@@ -317,27 +305,6 @@ Deno.serve(async (req) => {
         bot: s.match_method ?? null,
         source: s.source ?? null,
       });
-    }
-    // Fallback — só usado quando nem delivery_proofs nem snapshots trouxeram print.
-    // Mantém a mesma forma de saída para o frontend não saber a origem.
-    if (printsGallery.length === 0) {
-      for (const b of (botBatches ?? []) as any[]) {
-        const urls = Array.isArray(b.print_urls) ? (b.print_urls as unknown[]) : [];
-        for (const u of urls) {
-          if (typeof u !== "string" || !u) continue;
-          printsGallery.push({
-            kind: "bot_batch",
-            captured_at: b.completed_at ?? b.created_at,
-            playlist_id: null,
-            playlist_name: null,
-            playlist_image: null,
-            screenshot_url: u,
-            position: null,
-            bot: null,
-            source: "bot_batch",
-          });
-        }
-      }
     }
     printsGallery.sort((a, b) => +new Date(b.captured_at) - +new Date(a.captured_at));
 
