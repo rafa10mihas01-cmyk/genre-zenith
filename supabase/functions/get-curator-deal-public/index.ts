@@ -193,6 +193,16 @@ Deno.serve(async (req) => {
         .in("deal_id", Array.from(uploadDealIds))
         .order("reference_date", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false }),
+      // Fallback de evidências — prints gerados pelo bot ficam em bot_print_batches.
+      // Mesma tabela que o MonitoramentoTab do admin lê. Usada só quando delivery_proofs
+      // e curator_deal_snapshots.print_url não trouxerem nada.
+      admin
+        .from("bot_print_batches")
+        .select("id, song_id, print_urls, total_parts, status, created_at, completed_at")
+        .eq("deal_id", deal.id)
+        .not("print_urls", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(200),
     ]);
 
 
