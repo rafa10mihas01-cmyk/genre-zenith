@@ -278,7 +278,7 @@ Deno.serve(async (req) => {
       };
     }
     const printsGallery: Array<{
-      kind: "delivery_proof" | "snapshot";
+      kind: "delivery_proof" | "snapshot" | "bot_batch";
       captured_at: string;
       playlist_id: string | null;
       playlist_name: string | null;
@@ -317,6 +317,27 @@ Deno.serve(async (req) => {
         bot: s.match_method ?? null,
         source: s.source ?? null,
       });
+    }
+    // Fallback — só usado quando nem delivery_proofs nem snapshots trouxeram print.
+    // Mantém a mesma forma de saída para o frontend não saber a origem.
+    if (printsGallery.length === 0) {
+      for (const b of (botBatches ?? []) as any[]) {
+        const urls = Array.isArray(b.print_urls) ? (b.print_urls as unknown[]) : [];
+        for (const u of urls) {
+          if (typeof u !== "string" || !u) continue;
+          printsGallery.push({
+            kind: "bot_batch",
+            captured_at: b.completed_at ?? b.created_at,
+            playlist_id: null,
+            playlist_name: null,
+            playlist_image: null,
+            screenshot_url: u,
+            position: null,
+            bot: null,
+            source: "bot_batch",
+          });
+        }
+      }
     }
     printsGallery.sort((a, b) => +new Date(b.captured_at) - +new Date(a.captured_at));
 
