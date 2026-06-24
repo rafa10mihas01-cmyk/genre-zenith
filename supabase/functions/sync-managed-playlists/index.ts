@@ -55,8 +55,94 @@ Deno.serve(async (req) => {
       ? rawTier
       : null;
   const limit: number = Math.min(Math.max(Number(body?.limit) || 300, 1), 500);
-  const source: string = isCron ? `cron${tier ? `:${tier}` : ""}` : (body?.source ?? "manual");
+  const mode: "operational" | "catalog" =
+    body?.mode === "catalog" ? "catalog" : "operational";
+  const source: string = isCron
+    ? `cron${mode === "catalog" ? ":catalog" : (tier ? `:${tier}` : "")}`
+    : (body?.source ?? "manual");
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+
+  // ─────────────────────────────────────────────────────────────────
+  // Modo CATALOG — reaproveita 100% do pipeline existente:
+  //   sync-managed-playlists (este fluxo) → playlist_operation_queue
+  //   → playlist-queue-processor → sync-managed-playlist-tracks
+  //
+  // Diferenças vs operational:
+  //   - filtra archived_at IS NOT NULL (catálogo);
+  //   - lote pequeno (system_flags.catalog_sync_batch_size);
+  //   - prioridade baixa (system_flags.catalog_sync_priority);
+  //   - NÃO chama fetchMeta, brain-calc, updates em managed_playlists;
+  //   - apenas enfileira AUTO_SYNC pra atualizar tracks/snapshot.
+  // Operacional intacto: arquivadas nunca entram em Hot/Warm/Cold.
+  // ─────────────────────────────────────────────────────────────────
+  if (mode === "catalog") {
+    try {
+      const { data: flags } = await supabase
+        .from("system_flags")
+        .select("catalog_sync_enabled, catalog_sync_batch_size, catalog_sync_priority")
+        .eq("singleton_key", "global")
+        .maybeSingle();
+
+      const enabled = flags?.catalog_sync_enabled ?? true;
+      const batchSize = Math.min(Math.max(Number(flags?.catalog_sync_batch_size) || 100, 1), 500);
+      const rawPriority = Number(flags?.catalog_sync_priority) || 3;
+      const priority = (rawPriority === 1 || rawPriority === 2 ? rawPriority : 3) as 1 | 2 | 3;
+
+      if (!enabled) {
+        if (isCron) {
+          await reportCronHealth(supabase, {
+            job_name: "sync-managed-playlists-catalog",
+            status: "ok", startedAt, metrics: { enabled: false, enqueued: 0 },
+          });
+        }
+        return jr({ ok: true, mode, enabled: false, enqueued: 0 });
+      }
+
+      const { data: archived, error: archErr } = await supabase
+        .from("managed_playlists")
+        .select("id, name, owner_spotify_user_id, account_id, execution_mode")
+        .not("archived_at", "is", null)
+        .not("owner_spotify_user_id", "is", null)
+        .not("account_id", "is", null)
+        .neq("execution_mode", "MANUAL_ONLY")
+        .order("last_metrics_at", { ascending: true, nullsFirst: true })
+        .limit(batchSize);
+      if (archErr) throw new Error(archErr.message);
+
+      let enqueued = 0, skipped = 0;
+      for (const p of archived ?? []) {
+        const r = await enqueuePlaylistJob(supabase, {
+          playlist_id: p.id,
+          operation_type: "AUTO_SYNC",
+          priority,
+        }).catch((e) => ({ ok: false, error: (e as Error).message } as const));
+        if ((r as any).ok && !(r as any).skipped) enqueued++;
+        else skipped++;
+      }
+
+      await supabase.from("sync_log").insert({
+        source, tier: null, synced: enqueued, failed: 0, recalculated: 0,
+        errors: null, duration_ms: Date.now() - startedAt,
+      });
+
+      if (isCron) {
+        await reportCronHealth(supabase, {
+          job_name: "sync-managed-playlists-catalog",
+          status: "ok", startedAt,
+          metrics: { mode: "catalog", enqueued, skipped, batch_size: batchSize, priority },
+        });
+      }
+      return jr({ ok: true, mode, enqueued, skipped, batch_size: batchSize, priority });
+    } catch (e) {
+      if (isCron) {
+        await reportCronHealth(supabase, {
+          job_name: "sync-managed-playlists-catalog",
+          status: "error", startedAt, message: (e as Error).message,
+        });
+      }
+      return jr({ ok: false, mode, error: (e as Error).message }, 500);
+    }
+  }
 
   let synced = 0, failed = 0, recalculated = 0;
   const errors: string[] = [];
