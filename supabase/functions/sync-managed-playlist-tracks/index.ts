@@ -15,7 +15,7 @@
 //   - force: ignora o hash match e força recálculo do delta (útil pra backfill / debug).
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getAppToken, getUserToken, SpotifyCircuitOpenError, setSpotifyCtx } from "../_shared/spotify-client.ts";
+import { getAppToken, SpotifyCircuitOpenError, setSpotifyCtx } from "../_shared/spotify-client.ts";
 import { listPlaylistTracksRich } from "../_shared/spotify-playlist.ts";
 import { requireTeamAccess } from "../_shared/auth.ts";
 import {
@@ -74,35 +74,17 @@ Deno.serve(async (req) => {
   // Propaga contexto pras chamadas Spotify deste request (listPlaylistTracksRich etc.)
   const ownerSpotifyId: string | null = (pl as any).owner_spotify_user_id ?? null;
 
-  // === Roteamento do app ANTES do guard ===
-  // Resolve o app real do owner via spotify_user_tokens. Esta função roda em
-  // processo separado do diagnose, então o async-local ctx do caller NÃO
-  // atravessa o fetch HTTP — temos que reresolver aqui.
-  // Pós-17-C: o conceito de "default app do pool" foi removido. is_default abaixo
-  // refere-se apenas à conta primária POR OWNER (spotify_user_tokens.is_default).
-  let ownerAppId: string | null = null;
-  if (ownerSpotifyId) {
-    const { data: tokenRows } = await supabase
-      .from("spotify_user_tokens")
-      .select("app_id, is_default, updated_at")
-      .eq("spotify_user_id", ownerSpotifyId);
-    const rows = (tokenRows ?? []) as Array<{ app_id: string | null; is_default: boolean | null; updated_at: string | null }>;
-    const sorted = rows.slice().sort((a, b) => {
-      const da = a.is_default ? 1 : 0;
-      const db = b.is_default ? 1 : 0;
-      if (da !== db) return db - da;
-      return String(b.updated_at ?? "").localeCompare(String(a.updated_at ?? ""));
-    });
-    ownerAppId = sorted[0]?.app_id ?? null;
-  }
-
+  // Pós-Etapa 2: pipeline 100% Client Credentials.
+  // O app é escolhido pelo pool (com quarentena/seleção) dentro de getAppToken();
+  // não consultamos mais spotify_user_tokens nem mantemos dependência indireta de OAuth.
   setSpotifyCtx({
-    appId: ownerAppId,
+    appId: null,
     playlist_id: pl.id,
     owner_id: ownerSpotifyId,
     spotify_user_id: ownerSpotifyId,
     function_name: "sync-managed-playlist-tracks",
   });
+
 
   const { count: tracksBefore } = await supabase
     .from("managed_playlist_tracks")
@@ -116,27 +98,11 @@ Deno.serve(async (req) => {
 
   try {
     // 1) Fonte da verdade: Spotify (com ISRC via external_ids — fields default do helper já inclui)
-    // IMPORTANTE: /v1/playlists/:id/items requer USER token (OAuth) — client_credentials
-    // retorna 401 "Valid user authentication required" pra playlists privadas/managed.
-    // Usamos o token do owner da playlist; só caímos pra client_credentials se não houver owner.
-    let token: string;
-    if (ownerSpotifyId) {
-      const { token: userToken, row } = await getUserToken(ownerSpotifyId);
-      token = userToken;
-      // Atualiza ctx com o app_id real do token escolhido (pode diferir do ownerAppId resolvido acima).
-      if (row?.app_id && row.app_id !== ownerAppId) {
-        ownerAppId = row.app_id;
-        setSpotifyCtx({
-          appId: ownerAppId,
-          playlist_id: pl.id,
-          owner_id: ownerSpotifyId,
-          spotify_user_id: ownerSpotifyId,
-          function_name: "sync-managed-playlist-tracks",
-        });
-      }
-    } else {
-      token = await getAppToken({ appId: ownerAppId });
-    }
+    // Pós-Etapa 2: usa exclusivamente Client Credentials (pool de apps com quarentena/seleção).
+    // Endpoint /v1/playlists/:id/items aceita CC para playlists públicas — o mesmo modelo
+    // já adotado pelo restante da arquitetura (NexEngine 05/09/10).
+    const token = await getAppToken();
+
     const rich = await listPlaylistTracksRich(pl.spotify_playlist_id, token, {
       max: 10000,
       fields: "items(added_at,track(id,name,duration_ms,external_ids,artists(name),album(images)),item(id,name,duration_ms,external_ids,artists(name),album(images))),next",
