@@ -145,7 +145,6 @@ Deno.serve(async (req) => {
       { data: allSnaps, error: allSnapsErr },
       { data: proofs, error: proofsErr },
       { data: uploads, error: uploadsErr },
-      { data: botBatches, error: botBatchesErr },
     ] = await Promise.all([
       admin
         // Separação operacional × observacional: hub público do curador só vê entregas reais.
