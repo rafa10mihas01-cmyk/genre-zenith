@@ -189,10 +189,14 @@ Deno.serve(async (req) => {
               }
 
               // Enfileira AUTO_SYNC da playlist (dedupe ativo: skippa se já pending).
-              await enqueuePlaylistJob(supabase, {
-                playlist_id: p.id,
-                operation_type: "AUTO_SYNC",
-              }).catch(() => { /* best-effort */ });
+              // Playlists marcadas como MANUAL_ONLY (ecossistema sem OAuth — ex: kondzilla,
+              // ilzmi8th..., hu3m8z8...) NÃO entram no AUTO_SYNC; só são tocadas manualmente.
+              if ((p as any).execution_mode !== "MANUAL_ONLY") {
+                await enqueuePlaylistJob(supabase, {
+                  playlist_id: p.id,
+                  operation_type: "AUTO_SYNC",
+                }).catch(() => { /* best-effort */ });
+              }
             } catch (e) {
               if (e instanceof SpotifyCircuitOpenError) throw e;
               failed++;
