@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { cn } from "@/lib/utils";
 import { PrintThumbs } from "@/components/playlist-deals/PrintThumbs";
+import { PrintsHistoryCard, type PrintsHistoryEntry } from "@/components/client-portal/PrintsHistoryCard";
 import {
   CuratorSubmissionsKpis,
   type BaselineConflict,
