@@ -185,6 +185,15 @@ export default function Sistema() {
             {/* PRIORIDADE 2 — operação (resumo em uma olhada) */}
             <OperationalSummary />
 
+            <section>
+              <SectionHeader
+                icon={Activity}
+                title="Sincronização de playlists"
+                subtitle="Jobs, backlog, taxa de sucesso e crons — derivado de playlist_operation_queue e cron_run_log"
+              />
+              <SincronizacaoSaudePanel />
+            </section>
+
             {/* PRIORIDADE 3 — diagnóstico técnico e analítico (final da página) */}
             <details className="group">
               <summary className="cursor-pointer list-none flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground font-bold hover:text-foreground py-2">
