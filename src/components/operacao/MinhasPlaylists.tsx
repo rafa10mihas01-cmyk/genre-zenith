@@ -33,6 +33,8 @@ import { PlaylistScoreBadge, type PlaylistScoreRow } from "./PlaylistScoreBadge"
 import { PlaylistTracksAnalysisCard } from "@/components/playlists/PlaylistTracksAnalysisCard";
 import { CuratorialStateBadge, CooldownStack, type CuratorialState } from "@/components/playlist/CuratorialStateBadge";
 import { IconBadge } from "@/components/playlist/IconBadge";
+import { SyncStatusBadge } from "@/components/playlist/SyncStatusBadge";
+import { useSyncStatusBatch } from "@/hooks/useSyncStatusBatch";
 import { GraduationCap } from "lucide-react";
 import { useActiveCooldowns } from "@/hooks/useActiveCooldowns";
 import { useBlockedPlaylistIds } from "@/hooks/useSpotifyAppsStatus";
@@ -53,6 +55,8 @@ type ManagedPlaylist = {
   archived_followers?: number | null;
   reactivation_eligible_at?: string | null;
   last_diagnosis_at: string | null;
+  last_metrics_at?: string | null;
+  is_catalog?: boolean | null;
   imported_at: string;
   canonical_playlist_id: string | null;
   account_id: string | null;
@@ -858,6 +862,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
 
   const visibleIds = useMemo(() => visible.map((p) => p.id), [visible]);
   const { byPlaylist: cooldownsByPlaylist } = useActiveCooldowns(visibleIds);
+  const { data: syncByPlaylist = {} } = useSyncStatusBatch(visibleIds);
 
   async function handleImport() {
     if (!importUrl.trim()) return;
@@ -1849,6 +1854,11 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
                   <div className="flex items-center justify-between flex-wrap gap-y-1 mt-0.5">
                     {/* === ÍCONES (esquerda) === */}
                     <div className="flex items-center gap-1.5 flex-wrap">
+                      <SyncStatusBadge
+                        info={syncByPlaylist[p.id]}
+                        lastSyncAt={p.last_metrics_at ?? null}
+                        isCatalog={!!p.is_catalog}
+                      />
                       {p.lifecycle_stage === "onboarding" && (
                         <IconBadge
                           title="Em onboarding"

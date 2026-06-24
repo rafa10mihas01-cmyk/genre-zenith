@@ -43,6 +43,7 @@ import { ExecutiveStatusBar } from "@/components/sistema/ExecutiveStatusBar";
 import { AttentionInbox } from "@/components/sistema/AttentionInbox";
 import { OperationalSummary } from "@/components/sistema/OperationalSummary";
 import { NocPanel } from "@/components/sistema/NocPanel";
+import { SincronizacaoSaudePanel } from "@/components/sistema/SincronizacaoSaudePanel";
 
 type SistemaTab = "saude" | "capacidade" | "aprendizado" | "alertas" | "noc" | "motores" | "configuracoes" | "dev";
 type MotorSub = "robo" | "coleta" | "execucao" | "manual" | "fluxo" | "ao-vivo";
@@ -183,6 +184,15 @@ export default function Sistema() {
 
             {/* PRIORIDADE 2 — operação (resumo em uma olhada) */}
             <OperationalSummary />
+
+            <section>
+              <SectionHeader
+                icon={Activity}
+                title="Sincronização de playlists"
+                subtitle="Jobs, backlog, taxa de sucesso e crons — derivado de playlist_operation_queue e cron_run_log"
+              />
+              <SincronizacaoSaudePanel />
+            </section>
 
             {/* PRIORIDADE 3 — diagnóstico técnico e analítico (final da página) */}
             <details className="group">
