@@ -53,6 +53,8 @@ type ManagedPlaylist = {
   archived_followers?: number | null;
   reactivation_eligible_at?: string | null;
   last_diagnosis_at: string | null;
+  last_metrics_at?: string | null;
+  is_catalog?: boolean | null;
   imported_at: string;
   canonical_playlist_id: string | null;
   account_id: string | null;
