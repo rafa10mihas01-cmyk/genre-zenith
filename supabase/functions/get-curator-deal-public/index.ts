@@ -220,6 +220,7 @@ Deno.serve(async (req) => {
     if (allSnapsErr) console.error("[get-curator-deal-public] allSnaps error (degraded):", allSnapsErr.message);
     if (proofsErr) console.error("[get-curator-deal-public] proofs error (degraded):", proofsErr.message);
     if (uploadsErr) console.error("[get-curator-deal-public] uploads error (degraded):", uploadsErr.message);
+    if (botBatchesErr) console.error("[get-curator-deal-public] botBatches error (degraded):", botBatchesErr.message);
 
     // FASE 13.0 — perPlaylistDelivery por curator_playlists.id.
     // Inicial: derivado de curator_deal_snapshots (fallback de compatibilidade
