@@ -152,6 +152,9 @@ export function usePlaylistDiagnosis(managedId: string | null | undefined) {
       return (data as any) ?? null;
     },
   });
+}
+
+
 
 /**
  * Phase 4.4 — leitura gateada de `playlist_diagnoses` pelo Analysis Snapshot.
