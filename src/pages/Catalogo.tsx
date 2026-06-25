@@ -276,29 +276,8 @@ export default function Catalogo() {
           />
         </section>
 
-        {/* Faixa de evolução editorial — Catálogo vs Third Party (todas as resoluções) */}
-        <section className="bg-card border border-border rounded-2xl px-4 py-3 grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Catálogo</span>
-            <span className="text-sm font-semibold tabular-nums text-foreground">
-              {fmt(s?.catalog_current)}<span className="text-muted-foreground"> / {fmt(s?.catalog_target)}</span>
-            </span>
-          </div>
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Catálogo Faltante</span>
-            <span className="text-sm font-semibold tabular-nums text-foreground">{fmt(s?.catalog_missing)}</span>
-          </div>
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Third Party</span>
-            <span className="text-sm font-semibold tabular-nums text-foreground">
-              {fmt(s?.third_party_current)}<span className="text-muted-foreground"> / {fmt(s?.third_party_target)}</span>
-            </span>
-          </div>
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Third Party Excedente</span>
-            <span className="text-sm font-semibold tabular-nums text-foreground">{fmt(s?.third_party_excess)}</span>
-          </div>
-        </section>
+
+
 
 
         {/* Mobile + Tablet: telemetria consolidada — 4 colunas finas */}
