@@ -47,6 +47,7 @@ type OccupancyRow = {
   total_current?: number;
   free_slots?: number;
   catalog_count?: number;
+  campaign_count?: number;
   catalog_target?: number;
   catalog_missing?: number;
   third_party_count?: number;
