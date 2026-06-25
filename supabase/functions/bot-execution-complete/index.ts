@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
   const completeCatalogQueue = async (catalogQueueId: string | null, catTrackId: string | null) => {
     let query = supabase
       .from("catalog_snapshot_queue")
-      .select("id, catalog_track_id, spotify_track_id, status, attempts, max_attempts, locked_at, locked_by, lease_expires_at")
+      .select("id, catalog_track_id, spotify_track_id, status, attempts, max_attempts, locked_at, locked_by, lease_expires_at, last_error")
       .limit(1);
 
     if (catalogQueueId) query = query.eq("id", catalogQueueId);
@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
     const queueAgeMs = (q as any).locked_at ? Date.now() - new Date((q as any).locked_at).getTime() : null;
 
     if (status === "done") {
-      await supabase
+      const { error: updateDoneErr } = await supabase
         .from("catalog_snapshot_queue")
         .update({
           status: "done",
@@ -132,6 +132,7 @@ Deno.serve(async (req) => {
           lease_expires_at: null,
         })
         .eq("id", (q as any).id);
+      if (updateDoneErr) return jr({ error: "catalog_queue_update_failed", detail: updateDoneErr.message }, 500);
 
       await supabase.from("bot_events").insert({
         bot_name: botName,
@@ -169,7 +170,7 @@ Deno.serve(async (req) => {
     const errorText = String(errorMsg ?? "catalog collect failed").slice(0, 800);
     const storedError = `${errorText}${activeArtistId ? `; artist=${activeArtistId}` : ""}${triedArtists.length ? `; tried_artists=${triedArtists.join(",")}` : ""}`.slice(0, 1000);
 
-    await supabase
+    const { error: updateFailErr } = await supabase
       .from("catalog_snapshot_queue")
       .update({
         status: willRetry ? "pending" : "failed",
@@ -181,6 +182,7 @@ Deno.serve(async (req) => {
         lease_expires_at: null,
       })
       .eq("id", (q as any).id);
+    if (updateFailErr) return jr({ error: "catalog_queue_update_failed", detail: updateFailErr.message }, 500);
 
     await supabase.from("bot_events").insert({
       bot_name: botName,
