@@ -328,10 +328,6 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
     const poolTotal = preview.pool_total ?? 0;
     const distributionCount = preview.distribution_count ?? preview.eligible_total ?? 0;
     const presentCount = preview.already_present_count ?? 0;
-    const noCapCount = preview.no_capacity_count ?? 0;
-    const blockedCount = preview.blocked_count ?? preview.ignored_count ?? 0;
-    const manualCount = preview.manual_count ?? 0;
-    const apiCount = preview.api_count ?? Math.max(0, distributionCount - manualCount);
     const genreName = preview.genre_name ?? "—";
 
     return (
@@ -344,56 +340,47 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
             <div>
               <div className="font-medium">Música já existe no catálogo.</div>
               <div className="text-xs text-muted-foreground mt-0.5">
-                Apenas novos placements serão criados. Nada será duplicado.
+                Apenas placements novos serão criados. Nada será duplicado.
               </div>
             </div>
           </div>
         )}
 
-        <div className="p-3 rounded-lg bg-muted/20 border border-border/60">
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Universo do gênero</div>
-          <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-2xl font-semibold tabular-nums">{fmtNum(poolTotal)}</span>
-            <span className="text-xs text-muted-foreground capitalize">playlists em {genreName}</span>
+        <div className="grid grid-cols-3 gap-2 text-sm">
+          <div className="p-3 rounded-lg bg-muted/30 border border-border/60 min-w-0">
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wider leading-tight">Total no gênero</div>
+            <div className="text-xl font-semibold tabular-nums leading-none mt-1">{fmtNum(poolTotal)}</div>
           </div>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
-          <div className="p-2.5 rounded-lg bg-muted/30 border border-border/60 min-w-0">
+          <div className="p-3 rounded-lg bg-muted/30 border border-border/60 min-w-0">
             <div className="text-[10px] text-muted-foreground uppercase tracking-wider leading-tight">Já possuem</div>
-            <div className="text-lg sm:text-xl font-semibold tabular-nums leading-none mt-1">{presentCount}</div>
+            <div className="text-xl font-semibold tabular-nums leading-none mt-1">{fmtNum(presentCount)}</div>
           </div>
-          <div className="p-2.5 rounded-lg bg-primary/5 border border-primary/30 min-w-0">
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wider leading-tight">Vão receber</div>
-            <div className="text-lg sm:text-xl font-semibold tabular-nums text-primary leading-none mt-1">{distributionCount}</div>
-          </div>
-          <div className="p-2.5 rounded-lg bg-muted/30 border border-border/60 min-w-0">
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wider leading-tight">Via manual</div>
-            <div className="text-lg sm:text-xl font-semibold tabular-nums leading-none mt-1">{noCapCount}</div>
-          </div>
-          <div className="p-2.5 rounded-lg bg-muted/30 border border-border/60 min-w-0">
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wider leading-tight">Bloqueadas</div>
-            <div className="text-lg sm:text-xl font-semibold tabular-nums leading-none mt-1">{blockedCount}</div>
+          <div className="p-3 rounded-lg bg-primary/5 border border-primary/30 min-w-0">
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wider leading-tight">Serão distribuídas</div>
+            <div className="text-xl font-semibold tabular-nums text-primary leading-none mt-1">{fmtNum(distributionCount)}</div>
           </div>
         </div>
 
         <p className="text-[12px] text-muted-foreground leading-relaxed">
-          Esta música pertence ao gênero <span className="capitalize text-foreground font-medium">{genreName}</span>. Existem <span className="text-foreground font-medium">{fmtNum(poolTotal)}</span> playlists de <span className="capitalize">{genreName}</span> no ecossistema. A música já está presente em <span className="text-foreground font-medium">{presentCount}</span> {presentCount === 1 ? "playlist" : "playlists"} e será distribuída para <span className="text-foreground font-medium">{distributionCount}</span> {distributionCount === 1 ? "playlist" : "playlists"}: <span className="text-foreground font-medium">{apiCount}</span> via Occupancy Engine e <span className="text-foreground font-medium">{manualCount}</span> via fila manual. {noCapCount > 0 && (<>As <span className="text-foreground font-medium">{noCapCount}</span> sem vaga entram mesmo assim; o Occupancy Engine decide a substituição.</>)} {blockedCount > 0 && (<><span className="text-foreground font-medium">{blockedCount}</span> ficaram bloqueadas por status operacional ou ausência de ID Spotify.</>)}
+          Existem <span className="text-foreground font-medium">{fmtNum(poolTotal)}</span> playlists de <span className="capitalize text-foreground font-medium">{genreName}</span> no ecossistema. <span className="text-foreground font-medium">{fmtNum(presentCount)}</span> já {presentCount === 1 ? "possui" : "possuem"} esta música; as outras <span className="text-foreground font-medium">{fmtNum(distributionCount)}</span> receberão pendência de distribuição. O Occupancy Engine decide quando cada execução acontece conforme houver vaga.
         </p>
 
         {distributionCount === 0 && (
           <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-sm">
             <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
             <div className="min-w-0">
-              <div className="font-medium">Nenhuma playlist nova para receber esta música em <span className="capitalize">{genreName}</span>.</div>
+              <div className="font-medium">Nada a distribuir em <span className="capitalize">{genreName}</span>.</div>
               <div className="text-xs text-muted-foreground mt-0.5">
                 {poolTotal === 0
-                  ? "Esse gênero não tem playlists cadastradas no catálogo."
-                  : "Todas já possuem a música ou estão bloqueadas operacionalmente."}
+                  ? "Esse gênero não tem playlists cadastradas no ecossistema."
+                  : "Todas as playlists do gênero já possuem esta música."}
               </div>
             </div>
           </div>
         )}
+      </div>
+    );
+  };
       </div>
     );
   };
