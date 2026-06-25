@@ -242,8 +242,26 @@ Deno.serve(async (req) => {
     tracks_hash: tracksHash,
   });
 
-  // Fase 1: ainda não enfileira jobs no playlist_operation_queue.
-  // Fase 2 fará isso quando os motores aceitarem snapshot_id.
+  // Fase 2: dispara a primeira etapa (sync) via snapshot-step-runner em fire-and-forget.
+  const firstStep = STEPS[0];
+  try {
+    const runnerUrl = `${SUPABASE_URL}/functions/v1/snapshot-step-runner`;
+    const p = fetch(runnerUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${SERVICE_KEY}`,
+        apikey: SERVICE_KEY,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ snapshot_id: snap.id, step: firstStep }),
+    }).catch(() => { /* best-effort */ });
+    // @ts-ignore EdgeRuntime disponível no runtime Supabase.
+    if (typeof EdgeRuntime !== "undefined" && EdgeRuntime.waitUntil) {
+      // @ts-ignore
+      EdgeRuntime.waitUntil(p);
+    }
+  } catch { /* best-effort */ }
+
   return jr({
     ok: true,
     created: true,
@@ -251,5 +269,6 @@ Deno.serve(async (req) => {
     status: "processing",
     started_at: snap.started_at,
     steps: STEPS,
+    first_step_dispatched: firstStep,
   });
 });
