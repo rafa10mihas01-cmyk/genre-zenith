@@ -204,25 +204,25 @@ export default function Catalogo() {
           <div className="bg-card border border-border rounded-2xl overflow-hidden">
             <div className="grid grid-cols-4 divide-x divide-border">
               <div className="px-1.5 py-3 flex flex-col items-center justify-center gap-0.5">
-                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium">Músicas</span>
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium">Planejada</span>
                 <span className="text-base font-semibold tabular-nums text-foreground">
-                  {summaryQ.isLoading ? "—" : fmt(s?.total_tracks)}
+                  {summaryQ.isLoading ? "—" : fmt(s?.planned_ceiling)}
                 </span>
               </div>
               <div className="px-1.5 py-3 flex flex-col items-center justify-center gap-0.5">
-                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium">Placements</span>
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium">Efetiva</span>
                 <span className="text-base font-semibold tabular-nums text-foreground">
-                  {summaryQ.isLoading ? "—" : fmt(s?.active_placements)}
+                  {summaryQ.isLoading ? "—" : fmt(s?.capacity_total)}
                 </span>
               </div>
               <div className="px-1.5 py-3 flex flex-col items-center justify-center gap-0.5">
-                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium">Usado</span>
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium">Ocupação</span>
                 <span className="text-base font-semibold tabular-nums text-foreground">
                   {summaryQ.isLoading ? "—" : fmt(s?.capacity_used)}
                 </span>
               </div>
               <div className="px-1.5 py-3 flex flex-col items-center justify-center gap-0.5">
-                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium">Livres</span>
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium">Vagas</span>
                 <span className="text-base font-semibold tabular-nums text-foreground">
                   {summaryQ.isLoading ? "—" : fmt(s?.capacity_available)}
                 </span>
