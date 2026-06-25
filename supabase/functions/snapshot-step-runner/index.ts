@@ -261,12 +261,27 @@ Deno.serve(async (req) => {
       step, attempt: newRetry, max: stepRow.max_retry, error: outcome.error,
     }, step);
 
-    // Re-invoca self após backoff curto (2s * attempt). Fire-and-forget.
-    setTimeout(() => {
-      fireAndForget(`${SUPABASE_URL}/functions/v1/snapshot-step-runner`, {
-        snapshot_id: snapshotId, step,
-      });
-    }, Math.min(10_000, 2_000 * newRetry));
+    // Re-invoca self após backoff. Cold start de Edge Function (503
+    // LOAD_FUNCTION_ERROR) leva ~10-30s pra estabilizar, então aplicamos
+    // backoff exponencial maior pra erros transitórios de plataforma.
+    const is503 = outcome.error === "http_503" || outcome.error === "http_502";
+    const baseDelay = is503 ? 15_000 : 3_000; // 15s pra cold start, 3s genérico
+    const delayMs = Math.min(45_000, baseDelay * newRetry);
+    const retryPromise = new Promise<void>((resolve) => {
+      setTimeout(() => {
+        fireAndForget(`${SUPABASE_URL}/functions/v1/snapshot-step-runner`, {
+          snapshot_id: snapshotId, step,
+        });
+        resolve();
+      }, delayMs);
+    });
+    try {
+      // @ts-ignore garante que o worker fique vivo até disparar o retry
+      if (typeof EdgeRuntime !== "undefined" && EdgeRuntime.waitUntil) {
+        // @ts-ignore
+        EdgeRuntime.waitUntil(retryPromise);
+      }
+    } catch { /* */ }
 
     return jr({ ok: false, step, retry: newRetry, error: outcome.error });
   }
