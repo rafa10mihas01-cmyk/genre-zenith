@@ -57,8 +57,14 @@ const HANDLERS: Record<string, { fn: string; body: (job: Job) => Record<string, 
     body: (j) => ({ playlist_id: j.playlist_id, source: "queue", ...j.payload }),
   },
   BRAIN_CALC: {
-    fn: "playlist-brain-calc",
-    body: (j) => ({ playlist_id: j.playlist_id, ...j.payload }),
+    // Fase 5.2 — BRAIN_CALC vindo da fila agora dispara o pipeline unificado.
+    // O orquestrador roda dna→diagnose→brain→score com idempotência e lock.
+    fn: "analysis-orchestrator",
+    body: (j) => ({
+      playlist_id: j.playlist_id,
+      trigger_event: "manual_reanalyze",
+      payload: { source: "queue:BRAIN_CALC", ...j.payload },
+    }),
   },
 };
 
