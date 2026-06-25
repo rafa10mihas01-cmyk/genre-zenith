@@ -33,11 +33,12 @@ type Summary = {
   capacity_available: number;    // soma de free_slots
   // Política editorial — evolução
   catalog_current: number;
+  campaign_current: number;
   catalog_target: number;
   catalog_missing: number;
   third_party_current: number;
   third_party_target: number;
-  third_party_excess: number;
+  third_party_excess: number;        // excesso per-playlist (substituições futuras)
 };
 
 type OccupancyRow = {
