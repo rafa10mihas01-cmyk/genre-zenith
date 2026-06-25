@@ -89,24 +89,28 @@ const rel = (iso: string | null | undefined) => {
 };
 
 async function fetchDetail(id: string) {
-  const [trackRes, baselineRes, telemetryRes, placementsRes, attributionRes, queueRes, snapshotsRes, batchesRes] = await Promise.all([
+  const [trackRes, telemetryRes, placementsRes, attributionRes, snapshotsRes, batchesRes] = await Promise.all([
     supabase.from("catalog_tracks").select("id, spotify_track_id, track_name, artist_name, cover_url, isrc, status, added_at").eq("id", id).maybeSingle(),
-    supabase.from("catalog_track_baselines").select("captured_at, popularity, monthly_listeners, streams").eq("catalog_track_id", id).maybeSingle(),
     supabase.from("v_catalog_track_telemetry").select("baseline_at, baseline_plays_28d, last_captured_at, last_plays_28d, growth_abs, growth_pct, playlists_present_count, total_plays_7d_from_playlists, snapshots_count").eq("catalog_track_id", id).maybeSingle(),
     supabase.from("catalog_placements").select("id, status, position, added_at, scheduled_for, attempts, last_error_code, managed_playlists:managed_playlist_id(name, cover_url, followers, spotify_playlist_id, archived_at, execution_mode)").eq("catalog_track_id", id).order("status", { ascending: true }),
     supabase.from("v_catalog_track_playlist_attribution").select("spotify_playlist_id, name, owner, spotify_url, first_seen_at, last_seen_at, observations, current_position, current_plays_7d, status").eq("catalog_track_id", id).order("current_plays_7d", { ascending: false, nullsFirst: false }),
-    supabase.from("catalog_snapshot_queue").select("status, scheduled_for, attempts, max_attempts, last_error, locked_at").eq("catalog_track_id", id).order("scheduled_for", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("song_snapshots").select("id, captured_at, total_plays_28d, processing_error").eq("catalog_track_id", id).order("captured_at", { ascending: true }).limit(60),
     supabase.from("catalog_distribution_batches").select("id, created_at, total_eligible_playlists, skipped_already_present, skipped_no_capacity, placements_created").eq("catalog_track_id", id).order("created_at", { ascending: false }).limit(50),
   ]);
+  const snapshots = (snapshotsRes.data ?? []) as Snapshot[];
+  // Baseline T0 derivada do PRIMEIRO snapshot do Pipeline SONG (substitui catalog_track_baselines).
+  const firstSnap = snapshots[0] ?? null;
+  const baseline: Baseline | null = firstSnap
+    ? { captured_at: firstSnap.captured_at, popularity: null, monthly_listeners: null, streams: firstSnap.total_plays_28d }
+    : null;
   return {
     track: trackRes.data as Track | null,
-    baseline: baselineRes.data as Baseline | null,
+    baseline,
     telemetry: telemetryRes.data as Telemetry | null,
     placements: (placementsRes.data ?? []) as unknown as Placement[],
     attribution: (attributionRes.data ?? []) as Attribution[],
-    queue: queueRes.data as QueueRow | null,
-    snapshots: (snapshotsRes.data ?? []) as Snapshot[],
+    queue: null as QueueRow | null,
+    snapshots,
     batches: (batchesRes.data ?? []) as Batch[],
   };
 }
