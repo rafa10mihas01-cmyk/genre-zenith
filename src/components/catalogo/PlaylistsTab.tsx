@@ -22,6 +22,16 @@ type Occupancy = {
   active_placements: number | null;
   available_slots: number | null;
   cover_url: string | null;
+  planned_ceiling: number | null;
+  effective_ceiling: number | null;
+  total_current: number | null;
+  free_slots: number | null;
+  catalog_count: number | null;
+  catalog_target: number | null;
+  catalog_missing: number | null;
+  third_party_count: number | null;
+  third_party_target: number | null;
+  third_party_excess: number | null;
 };
 type Bridge = { id: string; spotify_playlist_id: string | null };
 type Attribution = {
@@ -41,13 +51,25 @@ type Row = {
   delivery_7d: number;
   tracks_detected: number;
   last_seen_at: string | null;
+  planned_ceiling: number;
+  effective_ceiling: number;
+  total_current: number;
+  free_slots: number;
+  catalog_count: number;
+  catalog_target: number;
+  catalog_missing: number;
+  third_party_count: number;
+  third_party_target: number;
+  third_party_excess: number;
 };
 
 async function fetchAll(): Promise<Row[]> {
   const [occRes, bridgeRes, attRes] = await Promise.all([
     supabase
       .from("v_catalog_playlist_occupancy")
-      .select("managed_playlist_id, playlist_name, catalog_capacity, active_placements, available_slots, cover_url")
+      .select(
+        "managed_playlist_id, playlist_name, catalog_capacity, active_placements, available_slots, cover_url, planned_ceiling, effective_ceiling, total_current, free_slots, catalog_count, catalog_target, catalog_missing, third_party_count, third_party_target, third_party_excess",
+      )
       .limit(1000),
     supabase
       .from("managed_playlists")
@@ -101,6 +123,16 @@ async function fetchAll(): Promise<Row[]> {
       delivery_7d: g?.delivery ?? 0,
       tracks_detected: g?.tracks.size ?? 0,
       last_seen_at: g?.lastSeen ?? null,
+      planned_ceiling: o.planned_ceiling ?? 0,
+      effective_ceiling: o.effective_ceiling ?? 0,
+      total_current: o.total_current ?? 0,
+      free_slots: o.free_slots ?? 0,
+      catalog_count: o.catalog_count ?? 0,
+      catalog_target: o.catalog_target ?? 0,
+      catalog_missing: o.catalog_missing ?? 0,
+      third_party_count: o.third_party_count ?? 0,
+      third_party_target: o.third_party_target ?? 0,
+      third_party_excess: o.third_party_excess ?? 0,
     };
   });
 
@@ -296,6 +328,28 @@ export function PlaylistsTab() {
                     className={cn("h-full transition-all", full ? "bg-destructive" : "bg-primary/70")}
                     style={{ width: `${pct}%` }}
                   />
+                </div>
+              </div>
+
+              {/* Evolução editorial — Catálogo vs Third Party */}
+              <div className="grid grid-cols-2 gap-2 text-[10px]">
+                <div className="flex flex-col gap-0.5">
+                  <span className="uppercase tracking-wider text-muted-foreground font-bold">Catálogo</span>
+                  <span className="tabular-nums text-foreground font-semibold">
+                    {r.catalog_count}<span className="text-muted-foreground"> / {r.catalog_target}</span>
+                    {r.catalog_missing > 0 && (
+                      <span className="ml-1 text-muted-foreground">(falta {r.catalog_missing})</span>
+                    )}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <span className="uppercase tracking-wider text-muted-foreground font-bold">Third Party</span>
+                  <span className="tabular-nums text-foreground font-semibold">
+                    {r.third_party_count}<span className="text-muted-foreground"> / {r.third_party_target}</span>
+                    {r.third_party_excess > 0 && (
+                      <span className="ml-1 text-muted-foreground">(+{r.third_party_excess})</span>
+                    )}
+                  </span>
                 </div>
               </div>
             </div>
