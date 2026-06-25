@@ -1,7 +1,7 @@
 // Detalhe de uma música do catálogo — dados reais.
-// Lê: catalog_tracks, catalog_track_baselines, v_catalog_track_telemetry,
-//     v_catalog_track_playlist_attribution, catalog_placements (+managed_playlists),
-//     catalog_snapshot_queue, song_snapshots.
+// Fonte oficial das métricas operacionais: Pipeline SONG (song_snapshots + song_snapshot_playlists).
+// Pipeline BASELINE (catalog_track_baselines / catalog_track_snapshots / catalog_snapshot_queue) é LEGACY
+// e não é mais lido por esta tela.
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -30,10 +30,11 @@ type Track = {
   status: string;
   added_at: string;
 };
+// LEGACY: Baseline mantida no tipo apenas como sintetizada a partir do primeiro snapshot SONG.
 type Baseline = {
   captured_at: string;
-  popularity: number | null;
-  monthly_listeners: number | null;
+  popularity: null;
+  monthly_listeners: null;
   streams: number | null;
 };
 type Telemetry = {
@@ -88,24 +89,28 @@ const rel = (iso: string | null | undefined) => {
 };
 
 async function fetchDetail(id: string) {
-  const [trackRes, baselineRes, telemetryRes, placementsRes, attributionRes, queueRes, snapshotsRes, batchesRes] = await Promise.all([
+  const [trackRes, telemetryRes, placementsRes, attributionRes, snapshotsRes, batchesRes] = await Promise.all([
     supabase.from("catalog_tracks").select("id, spotify_track_id, track_name, artist_name, cover_url, isrc, status, added_at").eq("id", id).maybeSingle(),
-    supabase.from("catalog_track_baselines").select("captured_at, popularity, monthly_listeners, streams").eq("catalog_track_id", id).maybeSingle(),
     supabase.from("v_catalog_track_telemetry").select("baseline_at, baseline_plays_28d, last_captured_at, last_plays_28d, growth_abs, growth_pct, playlists_present_count, total_plays_7d_from_playlists, snapshots_count").eq("catalog_track_id", id).maybeSingle(),
     supabase.from("catalog_placements").select("id, status, position, added_at, scheduled_for, attempts, last_error_code, managed_playlists:managed_playlist_id(name, cover_url, followers, spotify_playlist_id, archived_at, execution_mode)").eq("catalog_track_id", id).order("status", { ascending: true }),
     supabase.from("v_catalog_track_playlist_attribution").select("spotify_playlist_id, name, owner, spotify_url, first_seen_at, last_seen_at, observations, current_position, current_plays_7d, status").eq("catalog_track_id", id).order("current_plays_7d", { ascending: false, nullsFirst: false }),
-    supabase.from("catalog_snapshot_queue").select("status, scheduled_for, attempts, max_attempts, last_error, locked_at").eq("catalog_track_id", id).order("scheduled_for", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("song_snapshots").select("id, captured_at, total_plays_28d, processing_error").eq("catalog_track_id", id).order("captured_at", { ascending: true }).limit(60),
     supabase.from("catalog_distribution_batches").select("id, created_at, total_eligible_playlists, skipped_already_present, skipped_no_capacity, placements_created").eq("catalog_track_id", id).order("created_at", { ascending: false }).limit(50),
   ]);
+  const snapshots = (snapshotsRes.data ?? []) as Snapshot[];
+  // Baseline T0 derivada do PRIMEIRO snapshot do Pipeline SONG (substitui catalog_track_baselines).
+  const firstSnap = snapshots[0] ?? null;
+  const baseline: Baseline | null = firstSnap
+    ? { captured_at: firstSnap.captured_at, popularity: null, monthly_listeners: null, streams: firstSnap.total_plays_28d }
+    : null;
   return {
     track: trackRes.data as Track | null,
-    baseline: baselineRes.data as Baseline | null,
+    baseline,
     telemetry: telemetryRes.data as Telemetry | null,
     placements: (placementsRes.data ?? []) as unknown as Placement[],
     attribution: (attributionRes.data ?? []) as Attribution[],
-    queue: queueRes.data as QueueRow | null,
-    snapshots: (snapshotsRes.data ?? []) as Snapshot[],
+    queue: null as QueueRow | null,
+    snapshots,
     batches: (batchesRes.data ?? []) as Batch[],
   };
 }
@@ -604,55 +609,44 @@ export default function CatalogoMusicaDetalhe() {
             </div>
           </section>
 
-          {/* Baseline T0 — 2 cards organizados */}
+          {/* Estado Operacional — métricas reais do Pipeline SONG */}
           <section className="space-y-2">
             <div className="flex items-center justify-between px-1">
-              <h3 className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Baseline T0</h3>
+              <h3 className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Estado Operacional</h3>
               <span className="text-[9px] text-muted-foreground/60 font-mono tracking-tighter px-1.5 py-0.5 border border-white/5 rounded bg-black/20">
-                {baselineCapturedAt ? new Date(baselineCapturedAt).toLocaleDateString("pt-BR") : "—"}
+                Pipeline SONG
               </span>
             </div>
 
-            {/* Card principal — Streams (o número que importa) */}
             <div className="rounded-xl border border-border bg-card p-4">
               <div className="flex items-baseline justify-between mb-1">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Streams na entrada</span>
-                <span className="text-[9px] text-muted-foreground/60 uppercase tracking-wider">snapshot do bot</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Plays (últimos 28d)</span>
+                <span className="text-[9px] text-muted-foreground/60 uppercase tracking-wider">última coleta</span>
               </div>
-              <div className={cn("text-3xl font-bold tabular-nums tracking-tight", baselineStreams != null ? "text-foreground" : "text-muted-foreground/40")}>
-                {fmt(baselineStreams)}
+              <div className={cn("text-3xl font-bold tabular-nums tracking-tight", currentStreams != null ? "text-foreground" : "text-muted-foreground/40")}>
+                {fmt(currentStreams)}
               </div>
-            </div>
-
-            {/* Card secundário — Spotify (Popularity + Ouvintes) */}
-            <div className="rounded-xl border border-border bg-card p-4">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Snapshot Spotify</span>
-                {(b?.popularity == null && b?.monthly_listeners == null) && (
-                  <span className="text-[9px] text-amber-400/80 uppercase tracking-wider">não enriquecido</span>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">Popularity</div>
-                  <div className={cn("text-xl font-bold tabular-nums", b?.popularity != null ? "text-foreground" : "text-muted-foreground/40")}>
-                    {b?.popularity ?? "—"}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">Ouvintes/mês</div>
-                  <div className={cn("text-xl font-bold tabular-nums", b?.monthly_listeners != null ? "text-foreground" : "text-muted-foreground/40")}>
-                    {fmt(b?.monthly_listeners)}
-                  </div>
-                </div>
-              </div>
-              {(b?.popularity == null && b?.monthly_listeners == null) && (
-                <p className="text-[10px] text-muted-foreground/70 mt-3 leading-relaxed">
-                  Vem do enriquecimento via API do Spotify (fila <span className="font-mono">spotify_enrichment_queue</span>). Ainda não rodou pra essa música.
-                </p>
+              {tel?.last_captured_at && (
+                <div className="text-[10px] text-muted-foreground/70 mt-2">{rel(tel.last_captured_at)}</div>
               )}
             </div>
+
+            <div className="rounded-xl border border-border bg-card p-4 grid grid-cols-2 gap-3">
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">Playlists ativas</div>
+                <div className={cn("text-xl font-bold tabular-nums", tel?.playlists_present_count ? "text-foreground" : "text-muted-foreground/40")}>
+                  {fmt(tel?.playlists_present_count)}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">Primeira coleta</div>
+                <div className={cn("text-xs font-medium tabular-nums", baselineCapturedAt ? "text-foreground" : "text-muted-foreground/40")}>
+                  {baselineCapturedAt ? new Date(baselineCapturedAt).toLocaleDateString("pt-BR") : "—"}
+                </div>
+              </div>
+            </div>
           </section>
+
 
           {/* Fila de coleta: ver bloco "Saúde operacional" mais abaixo (fonte única) */}
         </div>
@@ -683,53 +677,58 @@ export default function CatalogoMusicaDetalhe() {
               </Badge>
               <Badge variant="outline" className={cn("text-xs gap-1", baselineOk ? "" : "border-amber-500/40 text-amber-400")}>
                 {baselineOk ? <CheckCircle2 className="h-3 w-3 text-emerald-500" /> : <AlertTriangle className="h-3 w-3 text-amber-500" />}
-                Baseline {baselineOk ? "capturada" : "pendente"}
+                {baselineOk ? "Coletando" : "Sem coleta"}
               </Badge>
             </div>
           </div>
         </section>
 
-        {/* KPIs desktop */}
+        {/* KPIs desktop — todos vindos do Pipeline SONG */}
         <section className="hidden sm:grid grid-cols-2 md:grid-cols-4 gap-3">
-          <KpiBig tier="hero" icon={Music2} label="Streams 28d (atual)" value={fmt(currentStreams)} hint={baselineStreams != null ? `Baseline ${fmt(baselineStreams)}` : "Sem baseline ainda"} domain="playlists" />
-          <KpiBig icon={TrendingUp} label="Δ vs baseline" value={tel?.growth_abs != null ? `${tel.growth_abs >= 0 ? "+" : ""}${fmt(tel.growth_abs)}` : "—"} hint={tel?.growth_pct != null ? `${tel.growth_pct >= 0 ? "+" : ""}${tel.growth_pct}%` : "Aguardando 2º snapshot"} domain="campaigns" />
-          <KpiBig icon={Layers} label="Playlists detectadas" value={fmt(tel?.playlists_present_count)} hint={`${fmt(tel?.total_plays_7d_from_playlists)} plays 7d (VPS)`} domain="deals" />
-          <KpiBig tier="quiet" icon={Activity} label="Snapshots" value={fmt(snapshotsCount)} hint={`Última: ${rel(tel?.last_captured_at ?? snapshots.at(-1)?.captured_at)}`} domain="system" />
+          <KpiBig tier="hero" icon={Music2} label="Plays 28d (última coleta)" value={fmt(currentStreams)} hint={baselineStreams != null ? `1ª coleta: ${fmt(baselineStreams)}` : "Aguardando 1ª coleta"} domain="playlists" />
+          <KpiBig icon={TrendingUp} label="Δ vs 1ª coleta" value={tel?.growth_abs != null ? `${tel.growth_abs >= 0 ? "+" : ""}${fmt(tel.growth_abs)}` : "—"} hint={tel?.growth_pct != null ? `${tel.growth_pct >= 0 ? "+" : ""}${tel.growth_pct}%` : "Aguardando 2º snapshot"} domain="campaigns" />
+          <KpiBig icon={Layers} label="Playlists ativas" value={fmt(tel?.playlists_present_count)} hint={`${fmt(tel?.total_plays_7d_from_playlists)} plays 7d`} domain="deals" />
+          <KpiBig tier="quiet" icon={Activity} label="Coletas" value={fmt(snapshotsCount)} hint={`Última: ${rel(tel?.last_captured_at ?? snapshots.at(-1)?.captured_at)}`} domain="system" />
         </section>
 
-        {/* BASELINE desktop — Fila de coleta foi consolidada em "Saúde operacional" abaixo */}
+        {/* ESTADO OPERACIONAL desktop — Pipeline SONG */}
         <section className="hidden sm:block">
           <div className="rounded-2xl border border-border bg-card p-5">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <h3 className="text-sm font-semibold text-foreground">Baseline T0</h3>
-                <p className="text-xs text-muted-foreground">Estado inicial capturado na entrada</p>
+                <h3 className="text-sm font-semibold text-foreground">Estado operacional</h3>
+                <p className="text-xs text-muted-foreground">Métricas reais do Pipeline SONG (Spotify for Artists)</p>
               </div>
               {baselineOk ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <AlertTriangle className="h-4 w-4 text-amber-500" />}
             </div>
             {baselineOk ? (
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-4 gap-3">
                 <div className="rounded-lg border border-border p-3">
-                  <div className="text-[11px] uppercase text-muted-foreground">Popularity</div>
-                  <div className="text-lg font-semibold font-mono">{b?.popularity ?? "—"}</div>
+                  <div className="text-[11px] uppercase text-muted-foreground">Plays 28d (atual)</div>
+                  <div className="text-lg font-semibold font-mono">{fmt(currentStreams)}</div>
                 </div>
                 <div className="rounded-lg border border-border p-3">
-                  <div className="text-[11px] uppercase text-muted-foreground">Ouvintes/mês</div>
-                  <div className="text-lg font-semibold font-mono">{fmt(b?.monthly_listeners)}</div>
-                </div>
-                <div className="rounded-lg border border-border p-3">
-                  <div className="text-[11px] uppercase text-muted-foreground">Streams</div>
+                  <div className="text-[11px] uppercase text-muted-foreground">Plays 28d (1ª coleta)</div>
                   <div className="text-lg font-semibold font-mono">{fmt(baselineStreams)}</div>
                 </div>
-                <div className="col-span-3 text-[11px] text-muted-foreground">
-                  Capturada {baselineCapturedAt ? new Date(baselineCapturedAt).toLocaleString("pt-BR") : "—"}
+                <div className="rounded-lg border border-border p-3">
+                  <div className="text-[11px] uppercase text-muted-foreground">Playlists ativas</div>
+                  <div className="text-lg font-semibold font-mono">{fmt(tel?.playlists_present_count)}</div>
+                </div>
+                <div className="rounded-lg border border-border p-3">
+                  <div className="text-[11px] uppercase text-muted-foreground">Primeira coleta</div>
+                  <div className="text-sm font-semibold font-mono">{baselineCapturedAt ? new Date(baselineCapturedAt).toLocaleDateString("pt-BR") : "—"}</div>
+                </div>
+                <div className="col-span-4 text-[11px] text-muted-foreground">
+                  Última coleta: {tel?.last_captured_at ? new Date(tel.last_captured_at).toLocaleString("pt-BR") : "—"}
                 </div>
               </div>
             ) : (
-              <div className="text-xs text-muted-foreground">Baseline ainda não chegou. O bot deve gravar nas próximas coletas.</div>
+              <div className="text-xs text-muted-foreground">Nenhuma coleta registrada ainda. O bot do Pipeline SONG vai capturar nas próximas execuções.</div>
             )}
           </div>
         </section>
+
 
 
         {/* CURVA */}

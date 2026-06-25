@@ -130,17 +130,11 @@ Deno.serve(async (req) => {
     const isrc = trackRow.isrc ?? null;
     const spotifyUri = raw.uri ?? `spotify:track:${trackId}`;
     const coverUrl = raw?.album?.images?.[0]?.url ?? null;
-    // IMPORTANTE: NÃO usamos popularity/monthly_listeners da cache como baseline.
-    // A baseline T0 vem 100% do bot (Spotify for Artists), mesmo padrão dos deal_songs.
+    // Pipeline BASELINE (catalog_track_baselines) descontinuado.
+    // Métricas operacionais agora vêm do Pipeline SONG (song_snapshots).
     const primaryArtistId = trackArtists[0]?.id ?? trackRow.artist_ids?.[0] ?? null;
 
-    const baselineRaw = {
-      track_cache: { id: trackId, name: trackRow.name, isrc, enriched_at: trackRow.enriched_at },
-      captured_at: new Date().toISOString(),
-      note: "baseline-empty-awaiting-bot",
-    };
-
-    // 3) Invoca a RPC atômica — baseline vai vazia (será preenchida pelo bot).
+    // 3) Invoca a RPC atômica — sem baseline (parâmetros mantidos por compatibilidade).
     const sb = createClient(SUPABASE_URL, SERVICE_KEY);
     const { data: rpcData, error: rpcErr } = await sb.rpc("distribute_catalog_track", {
       p_spotify_track_id: trackId,
@@ -153,7 +147,7 @@ Deno.serve(async (req) => {
       p_baseline_popularity: null,
       p_baseline_monthly_listeners: null,
       p_baseline_streams: null,
-      p_baseline_raw: baselineRaw,
+      p_baseline_raw: null,
       p_added_by: addedBy,
     });
 
