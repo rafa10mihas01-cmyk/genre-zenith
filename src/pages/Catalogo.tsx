@@ -231,21 +231,25 @@ export default function Catalogo() {
               <div className="px-2 py-3 flex flex-col items-center justify-center gap-0.5">
                 <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium text-center">Catálogo</span>
                 <span className="text-base font-semibold tabular-nums text-foreground">
-                  {summaryQ.isLoading ? "—" : fmt(s?.catalog_current)}
+                  {summaryQ.isLoading ? "—" : fmt(s?.catalog_tracks)}
                 </span>
+                <span className="text-[9px] text-subtle-foreground tabular-nums">{summaryQ.isLoading ? "" : `${fmt(s?.catalog_positions)} vagas`}</span>
               </div>
               <div className="px-2 py-3 flex flex-col items-center justify-center gap-0.5">
                 <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium text-center">Campaign</span>
                 <span className="text-base font-semibold tabular-nums text-foreground">
-                  {summaryQ.isLoading ? "—" : fmt(s?.campaign_current)}
+                  {summaryQ.isLoading ? "—" : fmt(s?.campaign_tracks)}
                 </span>
+                <span className="text-[9px] text-subtle-foreground tabular-nums">{summaryQ.isLoading ? "" : `${fmt(s?.campaign_positions)} vagas`}</span>
               </div>
               <div className="px-2 py-3 flex flex-col items-center justify-center gap-0.5">
                 <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium text-center">Third Party</span>
                 <span className="text-base font-semibold tabular-nums text-foreground">
-                  {summaryQ.isLoading ? "—" : fmt(s?.third_party_current)}
+                  {summaryQ.isLoading ? "—" : fmt(s?.third_party_tracks)}
                 </span>
+                <span className="text-[9px] text-subtle-foreground tabular-nums">{summaryQ.isLoading ? "" : `${fmt(s?.third_party_positions)} vagas`}</span>
               </div>
+
               <div className="px-2 py-3 flex flex-col items-center justify-center gap-0.5">
                 <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium text-center">Vagas livres</span>
                 <span className="text-base font-semibold tabular-nums text-foreground">
