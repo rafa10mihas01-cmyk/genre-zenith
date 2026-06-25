@@ -609,55 +609,44 @@ export default function CatalogoMusicaDetalhe() {
             </div>
           </section>
 
-          {/* Baseline T0 — 2 cards organizados */}
+          {/* Estado Operacional — métricas reais do Pipeline SONG */}
           <section className="space-y-2">
             <div className="flex items-center justify-between px-1">
-              <h3 className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Baseline T0</h3>
+              <h3 className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Estado Operacional</h3>
               <span className="text-[9px] text-muted-foreground/60 font-mono tracking-tighter px-1.5 py-0.5 border border-white/5 rounded bg-black/20">
-                {baselineCapturedAt ? new Date(baselineCapturedAt).toLocaleDateString("pt-BR") : "—"}
+                Pipeline SONG
               </span>
             </div>
 
-            {/* Card principal — Streams (o número que importa) */}
             <div className="rounded-xl border border-border bg-card p-4">
               <div className="flex items-baseline justify-between mb-1">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Streams na entrada</span>
-                <span className="text-[9px] text-muted-foreground/60 uppercase tracking-wider">snapshot do bot</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Plays (últimos 28d)</span>
+                <span className="text-[9px] text-muted-foreground/60 uppercase tracking-wider">última coleta</span>
               </div>
-              <div className={cn("text-3xl font-bold tabular-nums tracking-tight", baselineStreams != null ? "text-foreground" : "text-muted-foreground/40")}>
-                {fmt(baselineStreams)}
+              <div className={cn("text-3xl font-bold tabular-nums tracking-tight", currentStreams != null ? "text-foreground" : "text-muted-foreground/40")}>
+                {fmt(currentStreams)}
               </div>
-            </div>
-
-            {/* Card secundário — Spotify (Popularity + Ouvintes) */}
-            <div className="rounded-xl border border-border bg-card p-4">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Snapshot Spotify</span>
-                {(b?.popularity == null && b?.monthly_listeners == null) && (
-                  <span className="text-[9px] text-amber-400/80 uppercase tracking-wider">não enriquecido</span>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">Popularity</div>
-                  <div className={cn("text-xl font-bold tabular-nums", b?.popularity != null ? "text-foreground" : "text-muted-foreground/40")}>
-                    {b?.popularity ?? "—"}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">Ouvintes/mês</div>
-                  <div className={cn("text-xl font-bold tabular-nums", b?.monthly_listeners != null ? "text-foreground" : "text-muted-foreground/40")}>
-                    {fmt(b?.monthly_listeners)}
-                  </div>
-                </div>
-              </div>
-              {(b?.popularity == null && b?.monthly_listeners == null) && (
-                <p className="text-[10px] text-muted-foreground/70 mt-3 leading-relaxed">
-                  Vem do enriquecimento via API do Spotify (fila <span className="font-mono">spotify_enrichment_queue</span>). Ainda não rodou pra essa música.
-                </p>
+              {tel?.last_captured_at && (
+                <div className="text-[10px] text-muted-foreground/70 mt-2">{rel(tel.last_captured_at)}</div>
               )}
             </div>
+
+            <div className="rounded-xl border border-border bg-card p-4 grid grid-cols-2 gap-3">
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">Playlists ativas</div>
+                <div className={cn("text-xl font-bold tabular-nums", tel?.playlists_present_count ? "text-foreground" : "text-muted-foreground/40")}>
+                  {fmt(tel?.playlists_present_count)}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">Primeira coleta</div>
+                <div className={cn("text-xs font-medium tabular-nums", baselineCapturedAt ? "text-foreground" : "text-muted-foreground/40")}>
+                  {baselineCapturedAt ? new Date(baselineCapturedAt).toLocaleDateString("pt-BR") : "—"}
+                </div>
+              </div>
+            </div>
           </section>
+
 
           {/* Fila de coleta: ver bloco "Saúde operacional" mais abaixo (fonte única) */}
         </div>
