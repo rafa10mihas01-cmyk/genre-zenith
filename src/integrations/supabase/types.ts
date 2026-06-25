@@ -15179,7 +15179,7 @@ export type Database = {
           plan_id: string
           playlist_id: string
           queue_id: string
-          status: string
+          result_status: string
         }[]
       }
       fn_resolve_playlist_policy: {
