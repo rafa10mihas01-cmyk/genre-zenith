@@ -86,27 +86,23 @@ async function ensureFreshDiagnose(supabase: any, managedId: string): Promise<{ 
       .eq("id", managedId)
       .maybeSingle();
     const useAi = shouldUseEditorialAI(mp?.followers ?? 0, tier);
-    const r = await fetch(`${SUPABASE_URL}/functions/v1/diagnose-managed-playlist`, {
+    // Fase 5.2 — disparo unificado via Analysis Snapshot.
+    // O orquestrador encadeia diagnose+brain (e demais etapas) com idempotência.
+    const r = await fetch(`${SUPABASE_URL}/functions/v1/analysis-orchestrator`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${SERVICE_KEY}`,
         apikey: SERVICE_KEY,
       },
-      body: JSON.stringify({ playlist_id: managedId, source: "cron", skip_ai: !useAi }),
+      body: JSON.stringify({
+        playlist_id: managedId,
+        trigger_event: "manual_reanalyze",
+        payload: { source: "evaluate-plan-snapshots", tier, skip_ai: !useAi },
+      }),
     });
     const txt = await r.text();
-    if (!r.ok) return { reused: false, error: `diagnose ${r.status}: ${txt.slice(0, 200)}` };
-    // Após diagnose, recalcula brain pra refletir o novo snapshot
-    await fetch(`${SUPABASE_URL}/functions/v1/playlist-brain-calc`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${SERVICE_KEY}`,
-        apikey: SERVICE_KEY,
-      },
-      body: JSON.stringify({ playlist_id: managedId }),
-    }).catch(() => { /* best-effort */ });
+    if (!r.ok) return { reused: false, error: `orchestrator ${r.status}: ${txt.slice(0, 200)}` };
     return { reused: false };
   } catch (e) {
     return { reused: false, error: (e as Error).message };
