@@ -56,7 +56,7 @@ function ConfidencePill({ level }: { level: "Baixa" | "Média" | "Alta" }) {
 
 export function PlanImpactCard() {
   const { diag, buckets, liveTracksCount, canonicalPlaylistId } = useCockpit();
-  const { data: brain } = usePlaylistBrain(canonicalPlaylistId ?? undefined);
+  const { brain } = usePlaylistBrainGated(canonicalPlaylistId ?? undefined);
 
   const total = buckets.remove.length + buckets.demote.length + buckets.promote.length + buckets.add.length;
   if (!diag || total === 0) return null;
