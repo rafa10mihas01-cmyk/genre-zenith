@@ -123,6 +123,16 @@ async function fetchAll(): Promise<Row[]> {
       delivery_7d: g?.delivery ?? 0,
       tracks_detected: g?.tracks.size ?? 0,
       last_seen_at: g?.lastSeen ?? null,
+      planned_ceiling: o.planned_ceiling ?? 0,
+      effective_ceiling: o.effective_ceiling ?? 0,
+      total_current: o.total_current ?? 0,
+      free_slots: o.free_slots ?? 0,
+      catalog_count: o.catalog_count ?? 0,
+      catalog_target: o.catalog_target ?? 0,
+      catalog_missing: o.catalog_missing ?? 0,
+      third_party_count: o.third_party_count ?? 0,
+      third_party_target: o.third_party_target ?? 0,
+      third_party_excess: o.third_party_excess ?? 0,
     };
   });
 
