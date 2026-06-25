@@ -9918,6 +9918,7 @@ export type Database = {
           is_active: boolean
           managed_playlist_id: string
           notes: string | null
+          policy_type: string
           protect_top_n: number
           source: string
           third_party_max_pct: number
@@ -9932,6 +9933,7 @@ export type Database = {
           is_active?: boolean
           managed_playlist_id: string
           notes?: string | null
+          policy_type?: string
           protect_top_n?: number
           source?: string
           third_party_max_pct?: number
@@ -9946,6 +9948,7 @@ export type Database = {
           is_active?: boolean
           managed_playlist_id?: string
           notes?: string | null
+          policy_type?: string
           protect_top_n?: number
           source?: string
           third_party_max_pct?: number
