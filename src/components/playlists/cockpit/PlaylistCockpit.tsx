@@ -11,6 +11,7 @@ import {
 // Header sticky com capa/título/KPIs (Commit 6 — cleanup final).
 import { CockpitHeader } from "./shared/CockpitHeader";
 import { SpotifyAppBlockedBanner } from "./shared/SpotifyAppBlockedBanner";
+import { SnapshotStatusBanner } from "./shared/SnapshotStatusBanner";
 
 // Tabs (Commits 4 e 5 da Fase 2) — cada aba consome o CockpitContext.
 import { PlanTab } from "./tabs/PlanTab";
@@ -98,6 +99,9 @@ export function PlaylistCockpit({
       {/* ============ 1. HEADER ============ */}
       <CockpitHeader />
       <SpotifyAppBlockedBanner managedId={managedId} />
+      <SnapshotStatusBanner playlistId={canonicalPlaylistId ?? null} />
+
+
 
 
       {loading ? (
