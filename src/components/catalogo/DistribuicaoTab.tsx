@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { DailyDistributionMeter } from "./DailyDistributionMeter";
 
 type Plan = {
   id: string;
