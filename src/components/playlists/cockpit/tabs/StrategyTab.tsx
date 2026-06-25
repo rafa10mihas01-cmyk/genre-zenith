@@ -9,7 +9,7 @@ import { TabKpiStrip } from "../shared/ds/TabKpiStrip";
 import { KpiCard } from "../shared/ds/KpiCard";
 import { SecondarySection } from "../shared/ds/SecondarySection";
 import { useCockpit } from "../context/CockpitContext";
-import { usePlaylistBrain } from "@/hooks/usePlaylistBrain";
+import { usePlaylistBrainGated } from "@/hooks/usePlaylistBrain";
 
 const PHASE_LABEL: Record<string, { label: string; tone: "primary" | "default" | "warning" | "destructive" | "muted" }> = {
   seed:    { label: "Seed",    tone: "primary" },
