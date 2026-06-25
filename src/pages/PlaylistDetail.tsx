@@ -26,7 +26,7 @@ export default function PlaylistDetail() {
     else navigate("/catalogo");
   };
 
-  const { data: brain } = usePlaylistBrain(id);
+  const { brain } = usePlaylistBrainGated(id);
 
   // 1) tenta como playlist canonical
   const playlistQ = usePlaylistById(id);
