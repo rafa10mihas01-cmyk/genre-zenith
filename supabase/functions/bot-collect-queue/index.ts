@@ -478,8 +478,9 @@ Deno.serve(async (req) => {
           ? await getTrackCacheBatch(spotifyTrackIds)
           : new Map();
 
-        // 3) Universo de artistas que precisamos verificar no pool.
+        // 3) Universo de artistas que precisamos verificar no pool + nomes (para preferir DJs).
         const allArtistIds = new Set<string>();
+        const artistNameById = new Map<string, string>();
         for (const r of catRows as any[]) {
           const primary = primaryArtistByTrack.get(r.catalog_track_id);
           if (primary) allArtistIds.add(primary);
@@ -489,7 +490,16 @@ Deno.serve(async (req) => {
               if (typeof aid === "string" && aid) allArtistIds.add(aid);
             }
           }
+          const rawArtists = cacheRow?.raw?.artists;
+          if (Array.isArray(rawArtists)) {
+            for (const a of rawArtists) {
+              if (a?.id && a?.name && !artistNameById.has(a.id)) {
+                artistNameById.set(a.id, String(a.name));
+              }
+            }
+          }
         }
+        const isDjName = (aid: string) => /^\s*dj[\s._-]/i.test(artistNameById.get(aid) ?? "");
 
         // 4) Pool S4A ativo + matriz de acesso.
         const { data: poolRows } = await supabase
@@ -539,6 +549,12 @@ Deno.serve(async (req) => {
             }
           }
 
+          // Regra do operador: DJ tem maior chance de estar logado no S4A.
+          // Reordena coautores para testar DJs primeiro, mantendo o restante na ordem original.
+          const djs = ordered.filter((a) => isDjName(a));
+          const nonDjs = ordered.filter((a) => !isDjName(a));
+          const orderedDjFirst = [...djs, ...nonDjs];
+
           const previousError = lastErrorByQueue.get(r.id) ?? "";
           const shouldRotateArtist = /playlist_breakdown_required|playlists=\[\]|breakdown.*empty|retornou playlists=\[\]/i.test(previousError);
           const triedMatch = previousError.match(/tried_artists=([^\s;]+)/i);
@@ -552,8 +568,8 @@ Deno.serve(async (req) => {
           // Se algum artista já retornou breakdown vazio, pula todos eles nas
           // próximas tentativas para testar os demais coautores acessíveis.
           const selectable = shouldRotateArtist
-            ? ordered.filter((a) => !triedArtists.has(a))
-            : ordered;
+            ? orderedDjFirst.filter((a) => !triedArtists.has(a))
+            : orderedDjFirst;
           const chosen =
             selectable.find((a) => accessByArtist.get(a) === "yes") ??
             selectable.find((a) => accessByArtist.get(a) === "unknown") ??
