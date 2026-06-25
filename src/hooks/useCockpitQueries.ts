@@ -152,4 +152,43 @@ export function usePlaylistDiagnosis(managedId: string | null | undefined) {
       return (data as any) ?? null;
     },
   });
+
+/**
+ * Phase 4.4 — leitura gateada de `playlist_diagnoses` pelo Analysis Snapshot.
+ *
+ * - `processing` → não retorna dados (UI deve mostrar estado intermediário).
+ * - `failed`     → não retorna dados; UI usa `gate.failureReason` para fallback.
+ * - `ready` / `no_snapshot` → libera leitura (compat com legado pré-pipeline).
+ */
+export function usePlaylistDiagnosisGated(managedId: string | null | undefined): {
+  diag: any | null;
+  isLoading: boolean;
+  gate: SnapshotGate;
+} {
+  const { loading: gateLoading, gate } = useSnapshotGate(managedId);
+  const canRead = gate.kind === "ready" || gate.kind === "no_snapshot";
+  const q = useQuery({
+    queryKey: ["playlist-diagnosis-gated", managedId, gate.kind],
+    enabled: !!managedId && canRead,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("playlist_diagnoses")
+        .select(
+          "id, created_at, name_current, name_suggestion, name_score, tracks_analysis, tracks_suggestions, tracks_summary, raw",
+        )
+        .eq("playlist_id", managedId!)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return (data as any) ?? null;
+    },
+  });
+
+  return {
+    diag: canRead ? (q.data ?? null) : null,
+    isLoading: gateLoading || (canRead && q.isLoading),
+    gate,
+  };
 }
+
