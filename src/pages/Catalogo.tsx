@@ -286,27 +286,28 @@ export default function Catalogo() {
           <KpiBig
             icon={Disc3}
             label="Catálogo"
-            value={fmt(s?.catalog_current)}
-            hint="Músicas do nosso catálogo distribuídas"
+            value={fmt(s?.catalog_tracks)}
+            hint={`${fmt(s?.catalog_positions)} vagas ocupadas`}
             domain="deals"
             loading={summaryQ.isLoading}
           />
           <KpiBig
             icon={Megaphone}
             label="Campaign"
-            value={fmt(s?.campaign_current)}
-            hint="Músicas de campanhas ativas"
+            value={fmt(s?.campaign_tracks)}
+            hint={`${fmt(s?.campaign_positions)} vagas ocupadas`}
             domain="campaigns"
             loading={summaryQ.isLoading}
           />
           <KpiBig
             icon={Users}
             label="Third Party"
-            value={fmt(s?.third_party_current)}
-            hint="Músicas de terceiros nas playlists"
+            value={fmt(s?.third_party_tracks)}
+            hint={`${fmt(s?.third_party_positions)} vagas ocupadas`}
             domain="curators"
             loading={summaryQ.isLoading}
           />
+
           <KpiBig
             tier="quiet"
             icon={CircleSlash}
