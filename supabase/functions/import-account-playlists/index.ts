@@ -362,7 +362,7 @@ Deno.serve(async (req) => {
             },
             body: JSON.stringify({
               playlist_id: playlistId,
-              trigger: "import",
+              trigger_event: "import",
               idempotency_key: `import:${playlistId}:${nowIso.slice(0, 10)}`,
             }),
             signal: ctrl.signal,

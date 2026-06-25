@@ -144,7 +144,7 @@ export function useRecalcPlaylistBrain() {
   return useMutation({
     mutationFn: async (playlistId: string) => {
       const { data, error } = await supabase.functions.invoke("analysis-orchestrator", {
-        body: { playlist_id: playlistId, trigger: "manual_reanalyze" },
+        body: { playlist_id: playlistId, trigger_event: "manual_reanalyze" },
       });
       if (error) throw error;
       if (!data?.ok && data?.status === "rejected") {
@@ -168,7 +168,7 @@ export function useDiagnoseManagedPlaylist() {
   return useMutation({
     mutationFn: async (args: { managedId: string; playlistId: string }) => {
       const { data, error } = await supabase.functions.invoke("analysis-orchestrator", {
-        body: { playlist_id: args.playlistId, trigger: "manual_reanalyze" },
+        body: { playlist_id: args.playlistId, trigger_event: "manual_reanalyze" },
       });
       if (error) throw error;
       if (!data?.ok && data?.status === "rejected") {
