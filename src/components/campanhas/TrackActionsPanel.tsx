@@ -114,8 +114,8 @@ export function TrackActionsPanel({
   async function runOne(playlist_id: string) {
     setRunning((r) => ({ ...r, [playlist_id]: true }));
     try {
-      const { error: fnErr } = await supabase.functions.invoke("diagnose-managed-playlist", {
-        body: { playlist_id },
+      const { error: fnErr } = await supabase.functions.invoke("analysis-orchestrator", {
+        body: { playlist_id, trigger_event: "manual_reanalyze" },
       });
       if (fnErr) throw fnErr;
       toast.success("Diagnóstico enfileirado", { description: "Resultado disponível em Playlists." });
@@ -133,8 +133,8 @@ export function TrackActionsPanel({
     let fail = 0;
     for (const a of actionable) {
       try {
-        const { error: fnErr } = await supabase.functions.invoke("diagnose-managed-playlist", {
-          body: { playlist_id: a.playlist_id },
+        const { error: fnErr } = await supabase.functions.invoke("analysis-orchestrator", {
+          body: { playlist_id: a.playlist_id, trigger_event: "manual_reanalyze" },
         });
         if (fnErr) throw fnErr;
         ok++;
