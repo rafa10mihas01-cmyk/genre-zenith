@@ -381,9 +381,6 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
       </div>
     );
   };
-      </div>
-    );
-  };
 
 
   const renderStepDone = () => {
