@@ -439,6 +439,22 @@ Deno.serve(async (req) => {
         // Faixas onde TODOS os artistas estão marcados has_access=false são
         // descartadas com last_error='NO_ACCESSIBLE_ARTIST' (fail-fast, sem novos leases).
         const trackIds = catRows.map((r: any) => r.catalog_track_id).filter(Boolean);
+        const queueIds = catRows.map((r: any) => r.id).filter(Boolean);
+
+        // Quando o handler abriu um artista e o S4A devolveu playlists=[], não
+        // devemos insistir no mesmo spotify_artist_id na próxima tentativa. Esse
+        // caso normalmente significa "esse artista/conta não mostra o breakdown
+        // dessa faixa", mas outro coautor pode mostrar.
+        const lastErrorByQueue = new Map<string, string>();
+        if (queueIds.length) {
+          const { data: qMetaRows } = await supabase
+            .from("catalog_snapshot_queue")
+            .select("id, last_error")
+            .in("id", queueIds);
+          for (const q of qMetaRows ?? []) {
+            lastErrorByQueue.set((q as any).id, String((q as any).last_error ?? ""));
+          }
+        }
 
         // 1) Artistas conhecidos em catalog_tracks (artista "principal" do registro).
         const primaryArtistByTrack = new Map<string, string>();
@@ -523,10 +539,24 @@ Deno.serve(async (req) => {
             }
           }
 
+          const previousError = lastErrorByQueue.get(r.id) ?? "";
+          const shouldRotateArtist = /playlist_breakdown_required|playlists=\[\]|breakdown.*empty|retornou playlists=\[\]/i.test(previousError);
+          const triedMatch = previousError.match(/tried_artists=([^\s;]+)/i);
+          const triedArtists = triedMatch?.[1]
+            ? new Set(triedMatch[1].split(",").map((v) => v.trim()).filter(Boolean))
+            : new Set<string>();
+          const singleArtistMatch = previousError.match(/artist=([^\s;]+)/i);
+          if (singleArtistMatch?.[1]) triedArtists.add(singleArtistMatch[1]);
+
           // Preferência: "yes" antes de "unknown"; "no" nunca.
+          // Se algum artista já retornou breakdown vazio, pula todos eles nas
+          // próximas tentativas para testar os demais coautores acessíveis.
+          const selectable = shouldRotateArtist
+            ? ordered.filter((a) => !triedArtists.has(a))
+            : ordered;
           const chosen =
-            ordered.find((a) => accessByArtist.get(a) === "yes") ??
-            ordered.find((a) => accessByArtist.get(a) === "unknown") ??
+            selectable.find((a) => accessByArtist.get(a) === "yes") ??
+            selectable.find((a) => accessByArtist.get(a) === "unknown") ??
             null;
 
           if (!chosen) {
