@@ -2,7 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import { usePlaylistBrain, type LifecyclePhase, type RoadmapStep } from "@/hooks/usePlaylistBrain";
+import { usePlaylistBrainGated, type LifecyclePhase, type RoadmapStep } from "@/hooks/usePlaylistBrain";
 import {
   Sprout, TrendingUp, ShieldCheck, Scissors, AlertTriangle, CheckCircle2, Target, CalendarClock,
 } from "lucide-react";
