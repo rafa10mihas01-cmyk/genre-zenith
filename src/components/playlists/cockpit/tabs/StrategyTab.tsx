@@ -21,7 +21,7 @@ const PHASE_LABEL: Record<string, { label: string; tone: "primary" | "default" |
 
 export function StrategyTab() {
   const { canonicalPlaylistId, liveTracksCount, managedId } = useCockpit();
-  const { data: brain } = usePlaylistBrain(canonicalPlaylistId ?? undefined);
+  const { brain } = usePlaylistBrainGated(canonicalPlaylistId ?? undefined);
 
   const phase = brain?.lifecycle_phase ?? null;
   const phaseMeta = phase ? PHASE_LABEL[phase] : null;
