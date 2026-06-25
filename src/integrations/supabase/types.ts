@@ -2369,6 +2369,7 @@ export type Database = {
           catalog_track_id: string
           completed_at: string | null
           created_at: string
+          daily_quota: number
           expected_end_at: string | null
           id: string
           next_wave_at: string | null
@@ -2386,6 +2387,7 @@ export type Database = {
           catalog_track_id: string
           completed_at?: string | null
           created_at?: string
+          daily_quota?: number
           expected_end_at?: string | null
           id?: string
           next_wave_at?: string | null
@@ -2403,6 +2405,7 @@ export type Database = {
           catalog_track_id?: string
           completed_at?: string | null
           created_at?: string
+          daily_quota?: number
           expected_end_at?: string | null
           id?: string
           next_wave_at?: string | null
