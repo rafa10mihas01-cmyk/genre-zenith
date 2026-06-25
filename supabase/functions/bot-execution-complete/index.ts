@@ -1,6 +1,6 @@
-// bot-execution-complete — Bot reporta resultado de execução de playlist OU coleta de song.
+// bot-execution-complete — Bot reporta resultado de execução de playlist, coleta de song OU fila de catálogo.
 // Auth: header x-bot-key.
-// POST { job_id?, song_id?, deal_id?, correlation_id, status: 'done'|'failed', error? }
+// POST { job_id?, song_id?, deal_id?, queue_id?, catalog_track_id?, kind?, correlation_id, status: 'done'|'failed', error? }
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -49,6 +49,14 @@ function classify_error_code(msg: string | null | undefined): string {
   return "bot_error";
 }
 
+function catalog_backoff_ms(attempt: number) {
+  const a = Math.max(1, Math.floor(attempt));
+  if (a === 1) return 2 * 60_000;
+  if (a === 2) return 8 * 60_000;
+  if (a === 3) return 30 * 60_000;
+  return 120 * 60_000;
+}
+
 function jr(p: unknown, status = 200) {
   return new Response(JSON.stringify(p), {
     status,
@@ -69,6 +77,9 @@ Deno.serve(async (req) => {
   }
 
   const jobId = body?.job_id;
+  const queueId = body?.queue_id ?? body?.catalog_snapshot_queue_id ?? null;
+  const catalogTrackId = body?.catalog_track_id ?? null;
+  const kind = body?.kind ?? body?.job_type ?? null;
   const explicitSongId = body?.song_id;
   const dealId = body?.deal_id ?? null;
   const status = body?.status;
@@ -78,12 +89,109 @@ Deno.serve(async (req) => {
   const botName = req.headers.get("x-bot-name") || "spotify-artists-bot";
   const session = req.headers.get("x-bot-session") || null;
 
-  if ((!jobId && !explicitSongId) || !["done", "failed"].includes(status)) {
+  if ((!jobId && !explicitSongId && !queueId && !catalogTrackId) || !["done", "failed"].includes(status)) {
     return jr({ error: "invalid_input" }, 400);
   }
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
   const nowIso = new Date().toISOString();
+
+  const completeCatalogQueue = async (catalogQueueId: string | null, catTrackId: string | null) => {
+    let query = supabase
+      .from("catalog_snapshot_queue")
+      .select("id, catalog_track_id, spotify_track_id, status, attempts, max_attempts, locked_at, locked_by, lease_expires_at")
+      .limit(1);
+
+    if (catalogQueueId) query = query.eq("id", catalogQueueId);
+    else if (catTrackId) query = query.eq("catalog_track_id", catTrackId).eq("status", "processing").order("locked_at", { ascending: false });
+    else return jr({ error: "catalog_queue_id_required" }, 400);
+
+    const { data: rows, error: qErr } = await query;
+    const q = Array.isArray(rows) ? rows[0] : null;
+    if (qErr || !q) return jr({ error: "catalog_queue_not_found" }, 404);
+
+    const attempt = Number((q as any).attempts ?? 0);
+    const maxAttempts = Number((q as any).max_attempts ?? 5);
+    const queueAgeMs = (q as any).locked_at ? Date.now() - new Date((q as any).locked_at).getTime() : null;
+
+    if (status === "done") {
+      await supabase
+        .from("catalog_snapshot_queue")
+        .update({
+          status: "done",
+          last_error: null,
+          locked_at: null,
+          locked_by: null,
+          lease_expires_at: null,
+        })
+        .eq("id", (q as any).id);
+
+      await supabase.from("bot_events").insert({
+        bot_name: botName,
+        session_id: session,
+        step: "catalog.collect_complete",
+        status: "success",
+        lifecycle_state: "FINISHED",
+        correlation_id: correlationId,
+        worker_id: workerId,
+        message: "catalog collect done",
+        metadata: {
+          queue_id: (q as any).id,
+          catalog_track_id: (q as any).catalog_track_id,
+          queue_age_ms: queueAgeMs,
+        },
+      });
+
+      return jr({ ok: true, mode: "catalog", status: "done", queue_id: (q as any).id });
+    }
+
+    const willRetry = attempt < maxAttempts;
+    const scheduledFor = willRetry
+      ? new Date(Date.now() + catalog_backoff_ms(attempt)).toISOString()
+      : nowIso;
+
+    await supabase
+      .from("catalog_snapshot_queue")
+      .update({
+        status: willRetry ? "pending" : "failed",
+        scheduled_for: scheduledFor,
+        last_error: String(errorMsg ?? "catalog collect failed").slice(0, 1000),
+        last_error_at: nowIso,
+        locked_at: null,
+        locked_by: null,
+        lease_expires_at: null,
+      })
+      .eq("id", (q as any).id);
+
+    await supabase.from("bot_events").insert({
+      bot_name: botName,
+      session_id: session,
+      step: "catalog.collect_complete",
+      status: willRetry ? "warning" : "error",
+      lifecycle_state: "FAILED",
+      correlation_id: correlationId,
+      worker_id: workerId,
+      message: String(errorMsg ?? "catalog collect failed").slice(0, 500),
+      metadata: {
+        queue_id: (q as any).id,
+        catalog_track_id: (q as any).catalog_track_id,
+        spotify_track_id: (q as any).spotify_track_id,
+        queue_age_ms: queueAgeMs,
+        attempt,
+        max_attempts: maxAttempts,
+        will_retry: willRetry,
+        next_scheduled_for: scheduledFor,
+        error_code: classify_error_code(errorMsg),
+      },
+    });
+
+    return jr({ ok: true, mode: "catalog", status: willRetry ? "pending" : "failed", queue_id: (q as any).id, will_retry: willRetry });
+  };
+
+  const looksLikeCatalog = kind === "catalog" || body?.type === "spotify.catalog.collect" || Boolean(queueId || catalogTrackId);
+  if (looksLikeCatalog) {
+    return await completeCatalogQueue(queueId ?? jobId ?? null, catalogTrackId);
+  }
 
   // Novo ciclo de coleta: o bot encerra a song diretamente, não via playlist_execution_jobs.
   // Compat: versões antigas do worker enviavam o id da música em `job_id`.
@@ -183,6 +291,19 @@ Deno.serve(async (req) => {
     .eq("id", jobId)
     .maybeSingle();
   if (jobErr || !job) {
+    // Compat: alguns builds do VPS antigo reportam falha de catálogo como
+    // { job_id: <catalog_snapshot_queue.id> } sem kind/queue_id. Antes isso caía
+    // em completeCollectSong(job_id) e voltava 404, deixando o lease preso.
+    if (jobId && !explicitSongId) {
+      const { data: catJob } = await supabase
+        .from("catalog_snapshot_queue")
+        .select("id")
+        .eq("id", jobId)
+        .maybeSingle();
+      if (catJob?.id) {
+        return await completeCatalogQueue(jobId, null);
+      }
+    }
     const fallbackSongId = explicitSongId ?? jobId;
     if (fallbackSongId) {
       return await completeCollectSong(fallbackSongId);
