@@ -286,7 +286,7 @@ export default function Catalogo() {
             label="Third Party"
             value={fmt(s?.third_party_current)}
             hint="Músicas de terceiros nas playlists"
-            domain="curadores"
+            domain="curators"
             loading={summaryQ.isLoading}
           />
           <KpiBig
