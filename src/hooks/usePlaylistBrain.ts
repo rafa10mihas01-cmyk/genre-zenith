@@ -138,50 +138,52 @@ export function usePlaylistBrainHistory(playlistId?: string, limit = 30) {
   });
 }
 
-/** Recalcula sob demanda (chama edge function). */
+/** Recalcula sob demanda via Snapshot Único (analysis-orchestrator, trigger=manual_reanalyze). */
 export function useRecalcPlaylistBrain() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (playlistId: string) => {
-      const { data, error } = await supabase.functions.invoke("playlist-brain-calc", {
-        body: { playlist_id: playlistId },
+      const { data, error } = await supabase.functions.invoke("analysis-orchestrator", {
+        body: { playlist_id: playlistId, trigger_event: "manual_reanalyze" },
       });
       if (error) throw error;
-      if (!data?.ok) throw new Error(data?.error ?? "Falha ao recalcular");
+      if (!data?.ok && data?.status === "rejected") {
+        throw new Error(data?.reason ?? "Falha ao recalcular");
+      }
       return data;
     },
     onSuccess: (_, playlistId) => {
       qc.invalidateQueries({ queryKey: ["playlist_brain", playlistId] });
       qc.invalidateQueries({ queryKey: ["playlist_brain_history", playlistId] });
-      toast.success("Cérebro atualizado");
+      qc.invalidateQueries({ queryKey: ["analysis_snapshot", playlistId] });
+      toast.success("Reanálise iniciada");
     },
     onError: (e: Error) => toast.error(e?.message ?? "Erro ao recalcular"),
   });
 }
 
-/** Roda o diagnóstico de IA (gaps de nome, sugestões de faixas) e recalcula o cérebro. */
+/** Dispara reanálise completa (sync→dna→diagnose→brain→score) via Snapshot Único. */
 export function useDiagnoseManagedPlaylist() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (args: { managedId: string; playlistId: string }) => {
-      const { data, error } = await supabase.functions.invoke("diagnose-managed-playlist", {
-        body: { playlist_id: args.managedId },
+      const { data, error } = await supabase.functions.invoke("analysis-orchestrator", {
+        body: { playlist_id: args.playlistId, trigger_event: "manual_reanalyze" },
       });
       if (error) throw error;
-      if (!data?.ok) throw new Error(data?.error ?? "Falha ao diagnosticar");
-      // Recalcula o cérebro pra refletir o novo last_diagnosis_at e remover o sinal
-      const { error: calcErr } = await supabase.functions.invoke("playlist-brain-calc", {
-        body: { playlist_id: args.playlistId },
-      });
-      if (calcErr) throw calcErr;
+      if (!data?.ok && data?.status === "rejected") {
+        throw new Error(data?.reason ?? "Falha ao diagnosticar");
+      }
       return data;
     },
     onSuccess: (_, args) => {
       qc.invalidateQueries({ queryKey: ["playlist_brain", args.playlistId] });
       qc.invalidateQueries({ queryKey: ["playlist_brain_history", args.playlistId] });
-      toast.success("Diagnóstico concluído");
+      qc.invalidateQueries({ queryKey: ["analysis_snapshot", args.playlistId] });
+      toast.success("Diagnóstico iniciado");
     },
     onError: (e: Error) => toast.error(e?.message ?? "Erro ao diagnosticar"),
   });
 }
+
 

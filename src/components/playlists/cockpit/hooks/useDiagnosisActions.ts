@@ -39,8 +39,9 @@ export function useDiagnosisActions(args: {
   const runDiagnose = useCallback(async () => {
     setRunning(true);
     try {
-      const { data, error } = await supabase.functions.invoke("diagnose-managed-playlist", {
-        body: { playlist_id: managedId },
+      // Snapshot Único: dispara pipeline completo (sync→dna→diagnose→brain→score)
+      const { data, error } = await supabase.functions.invoke("analysis-orchestrator", {
+        body: { playlist_id: managedId, trigger_event: "manual_reanalyze" },
       });
       if (error) throw new Error(error.message ?? "Falha no diagnóstico");
       if (data?.code === "spotify_circuit_open" || data?.circuit_open) {
@@ -52,15 +53,18 @@ export function useDiagnosisActions(args: {
         });
         return;
       }
-      if (!data?.ok) throw new Error(data?.error ?? data?.message ?? "Falha");
-      setDiag(data.diagnosis);
-      toast({ title: "Diagnóstico pronto" });
+      if (data?.ok === false && data?.status === "rejected") {
+        throw new Error(data?.reason ?? data?.error ?? "Falha");
+      }
+      toast({ title: "Reanálise iniciada", description: "O diagnóstico será atualizado em instantes." });
+      // O snapshot é assíncrono; o gate da UI vai promover quando ficar ready.
+      queryClient.invalidateQueries({ queryKey: ["analysis_snapshot", managedId] });
     } catch (e: unknown) {
       toast({ title: "Erro no diagnóstico", description: getErrorMessage(e), variant: "destructive" });
     } finally {
       setRunning(false);
     }
-  }, [managedId, setDiag]);
+  }, [managedId, queryClient]);
 
   const applyPlan = useCallback(async (action: ApplyAction, snapshotPayload?: Record<string, any> | null) => {
     setApplying(action);
