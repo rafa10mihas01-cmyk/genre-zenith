@@ -619,8 +619,8 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
           title: `${data?.inserted ?? count} faixas adicionadas no topo`,
           description: "Rodando novo diagnóstico em seguida…",
         });
-        // dispara re-diagnóstico em background pra atualizar análise
-        supabase.functions.invoke("diagnose-managed-playlist", { body: { playlist_id: plId } }).catch(() => {});
+        // Dispara reanálise unificada (Snapshot Único) em background
+        supabase.functions.invoke("analysis-orchestrator", { body: { playlist_id: plId, trigger_event: "manual_reanalyze" } }).catch(() => {});
       }
     } finally {
       setApplyingSuggestions(false);
