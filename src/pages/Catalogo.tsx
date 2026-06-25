@@ -3,7 +3,7 @@
 // KPIs hero logo abaixo e tabs por último.
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { Plus, RefreshCw, Music2, Layers, Gauge, CircleSlash, TrendingUp, Activity, Brain, Send, Power } from "lucide-react";
+import { Plus, RefreshCw, Music2, Layers, Gauge, CircleSlash, TrendingUp, Activity, Brain, Send, Power, Disc3, Megaphone, Users, Repeat } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { PageContainer } from "@/components/PageContainer";
@@ -33,11 +33,12 @@ type Summary = {
   capacity_available: number;    // soma de free_slots
   // Política editorial — evolução
   catalog_current: number;
+  campaign_current: number;
   catalog_target: number;
   catalog_missing: number;
   third_party_current: number;
   third_party_target: number;
-  third_party_excess: number;
+  third_party_excess: number;        // excesso per-playlist (substituições futuras)
 };
 
 type OccupancyRow = {
@@ -46,6 +47,7 @@ type OccupancyRow = {
   total_current?: number;
   free_slots?: number;
   catalog_count?: number;
+  campaign_count?: number;
   catalog_target?: number;
   catalog_missing?: number;
   third_party_count?: number;
@@ -59,7 +61,7 @@ async function fetchSummary(): Promise<Summary> {
     supabase.from("managed_playlists").select("id", { count: "exact", head: true }).eq("is_catalog", true),
     supabase.from("catalog_placements").select("id", { count: "exact", head: true }).eq("status", "active"),
     supabase.from("v_catalog_playlist_occupancy").select(
-      "planned_ceiling, effective_ceiling, total_current, free_slots, catalog_count, catalog_target, catalog_missing, third_party_count, third_party_target, third_party_excess",
+      "planned_ceiling, effective_ceiling, total_current, free_slots, catalog_count, campaign_count, catalog_target, catalog_missing, third_party_count, third_party_target, third_party_excess",
     ),
   ]);
   const totals = ((occupancyRes.data ?? []) as OccupancyRow[]).reduce(
@@ -69,6 +71,7 @@ async function fetchSummary(): Promise<Summary> {
       acc.used += row.total_current ?? 0;
       acc.avail += row.free_slots ?? 0;
       acc.catCur += row.catalog_count ?? 0;
+      acc.campCur += row.campaign_count ?? 0;
       acc.catTgt += row.catalog_target ?? 0;
       acc.catMiss += row.catalog_missing ?? 0;
       acc.tpCur += row.third_party_count ?? 0;
@@ -76,7 +79,7 @@ async function fetchSummary(): Promise<Summary> {
       acc.tpExc += row.third_party_excess ?? 0;
       return acc;
     },
-    { planned: 0, cap: 0, used: 0, avail: 0, catCur: 0, catTgt: 0, catMiss: 0, tpCur: 0, tpTgt: 0, tpExc: 0 },
+    { planned: 0, cap: 0, used: 0, avail: 0, catCur: 0, campCur: 0, catTgt: 0, catMiss: 0, tpCur: 0, tpTgt: 0, tpExc: 0 },
   );
   return {
     total_tracks: tracksRes.count ?? 0,
@@ -87,12 +90,13 @@ async function fetchSummary(): Promise<Summary> {
     capacity_used: totals.used,
     capacity_available: totals.avail,
     catalog_current: totals.catCur,
+    campaign_current: totals.campCur,
     catalog_target: totals.catTgt,
     catalog_missing: totals.catMiss,
     third_party_current: totals.tpCur,
     third_party_target: totals.tpTgt,
-    // Excedente GLOBAL (não soma per‑playlist) — compensa playlists abaixo do target
-    third_party_excess: Math.max(0, totals.tpCur - totals.tpTgt),
+    // Substituições futuras = excesso de Third Party acima da política editorial (soma per‑playlist)
+    third_party_excess: totals.tpExc,
   };
 }
 
@@ -200,26 +204,44 @@ export default function Catalogo() {
       />
 
       <PageContainer>
-        {/* Mobile + Tablet: card consolidado — 3 colunas + barra de ocupação */}
+        {/* Mobile + Tablet: card consolidado — 6 indicadores (3x2) + barra de ocupação */}
         <div className="lg:hidden">
           <div className="bg-card border border-border rounded-2xl overflow-hidden">
-            <div className="grid grid-cols-3 divide-x divide-border">
+            <div className="grid grid-cols-3 divide-x divide-y divide-border">
               <div className="px-2 py-3 flex flex-col items-center justify-center gap-0.5">
-                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium">Total de vagas</span>
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium text-center">Capacidade total</span>
                 <span className="text-base font-semibold tabular-nums text-foreground">
                   {summaryQ.isLoading ? "—" : fmt(s?.capacity_total)}
                 </span>
               </div>
               <div className="px-2 py-3 flex flex-col items-center justify-center gap-0.5">
-                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium">Ocupadas</span>
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium text-center">Catálogo</span>
                 <span className="text-base font-semibold tabular-nums text-foreground">
-                  {summaryQ.isLoading ? "—" : fmt(s?.capacity_used)}
+                  {summaryQ.isLoading ? "—" : fmt(s?.catalog_current)}
                 </span>
               </div>
               <div className="px-2 py-3 flex flex-col items-center justify-center gap-0.5">
-                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium">Livres</span>
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium text-center">Campaign</span>
+                <span className="text-base font-semibold tabular-nums text-foreground">
+                  {summaryQ.isLoading ? "—" : fmt(s?.campaign_current)}
+                </span>
+              </div>
+              <div className="px-2 py-3 flex flex-col items-center justify-center gap-0.5">
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium text-center">Third Party</span>
+                <span className="text-base font-semibold tabular-nums text-foreground">
+                  {summaryQ.isLoading ? "—" : fmt(s?.third_party_current)}
+                </span>
+              </div>
+              <div className="px-2 py-3 flex flex-col items-center justify-center gap-0.5">
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium text-center">Vagas livres</span>
                 <span className="text-base font-semibold tabular-nums text-foreground">
                   {summaryQ.isLoading ? "—" : fmt(s?.capacity_available)}
+                </span>
+              </div>
+              <div className="px-2 py-3 flex flex-col items-center justify-center gap-0.5">
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium text-center">Substituições futuras</span>
+                <span className="text-base font-semibold tabular-nums text-foreground">
+                  {summaryQ.isLoading ? "—" : fmt(s?.third_party_excess)}
                 </span>
               </div>
             </div>
@@ -232,32 +254,56 @@ export default function Catalogo() {
           </div>
         </div>
 
-        {/* Desktop: 3 cards — Total de Vagas → Vagas Ocupadas → Vagas Livres */}
-        <section className="hidden lg:grid grid-cols-3 gap-3">
+        {/* Desktop: 6 cards — Capacidade · Catálogo · Campaign · Third Party · Vagas Livres · Substituições Futuras */}
+        <section className="hidden lg:grid grid-cols-6 gap-3">
           <KpiBig
             tier="hero"
             icon={Layers}
-            label="Total de vagas nas playlists"
+            label="Capacidade total"
             value={fmt(s?.capacity_total)}
-            hint={`Soma de espaços em ${fmt(s?.total_playlists)} playlists do ecossistema`}
+            hint={`Posições em ${fmt(s?.total_playlists)} playlists elegíveis`}
             domain="playlists"
             loading={summaryQ.isLoading}
           />
           <KpiBig
-            icon={Gauge}
-            label="Vagas ocupadas hoje"
-            value={fmt(s?.capacity_used)}
-            hint={pct != null ? `${pct}% preenchido · músicas presentes nas playlists agora` : "—"}
+            icon={Disc3}
+            label="Catálogo"
+            value={fmt(s?.catalog_current)}
+            hint="Músicas do nosso catálogo distribuídas"
             domain="deals"
+            loading={summaryQ.isLoading}
+          />
+          <KpiBig
+            icon={Megaphone}
+            label="Campaign"
+            value={fmt(s?.campaign_current)}
+            hint="Músicas de campanhas ativas"
+            domain="campaigns"
+            loading={summaryQ.isLoading}
+          />
+          <KpiBig
+            icon={Users}
+            label="Third Party"
+            value={fmt(s?.third_party_current)}
+            hint="Músicas de terceiros nas playlists"
+            domain="curators"
             loading={summaryQ.isLoading}
           />
           <KpiBig
             tier="quiet"
             icon={CircleSlash}
-            label="Vagas livres para o catálogo"
+            label="Vagas livres"
             value={fmt(s?.capacity_available)}
-            hint="Espaço disponível para inserir mais músicas"
+            hint="Posições para INSERT sem remover ninguém"
             domain="system"
+            loading={summaryQ.isLoading}
+          />
+          <KpiBig
+            icon={Repeat}
+            label="Substituições futuras"
+            value={fmt(s?.third_party_excess)}
+            hint="Third Party acima da política editorial"
+            domain="playlists"
             loading={summaryQ.isLoading}
           />
         </section>
