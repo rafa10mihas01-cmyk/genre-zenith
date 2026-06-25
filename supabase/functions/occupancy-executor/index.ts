@@ -358,19 +358,10 @@ async function executePlan(supabase: any, plan: PlanRow) {
       ? "partial"
       : "failed";
 
-  // Só enfileira post_executor_sync DEPOIS de garantir o dual-write local.
-  // Se houver erros de escrita local, ainda assim enfileiramos para que o
-  // re-sync por Spotify GET reconcilie eventual divergência.
-  if (okCount > 0) {
-    try {
-      await supabase.from("occupancy_rebuild_queue").insert({
-        managed_playlist_id: playlistId,
-        trigger_source: "post_executor_sync",
-        payload: { plan_id: planId, local_writes: stats.local_writes, local_write_errors: stats.local_write_errors },
-        status: "pending",
-      });
-    } catch (_e) { /* deduplica via unique index */ }
-  }
+  // Sob a regra event-driven (overflow gradual revogado), o dual-write local
+  // já mantém managed_playlist_tracks convergente. Não enfileiramos rebuild
+  // pós-execução — isso reintroduziria loops sem evento real.
+
 
   return await finalize(supabase, planId, finalStatus, stats);
 }
