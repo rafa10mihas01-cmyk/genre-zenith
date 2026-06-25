@@ -478,8 +478,9 @@ Deno.serve(async (req) => {
           ? await getTrackCacheBatch(spotifyTrackIds)
           : new Map();
 
-        // 3) Universo de artistas que precisamos verificar no pool.
+        // 3) Universo de artistas que precisamos verificar no pool + nomes (para preferir DJs).
         const allArtistIds = new Set<string>();
+        const artistNameById = new Map<string, string>();
         for (const r of catRows as any[]) {
           const primary = primaryArtistByTrack.get(r.catalog_track_id);
           if (primary) allArtistIds.add(primary);
@@ -489,7 +490,16 @@ Deno.serve(async (req) => {
               if (typeof aid === "string" && aid) allArtistIds.add(aid);
             }
           }
+          const rawArtists = cacheRow?.raw?.artists;
+          if (Array.isArray(rawArtists)) {
+            for (const a of rawArtists) {
+              if (a?.id && a?.name && !artistNameById.has(a.id)) {
+                artistNameById.set(a.id, String(a.name));
+              }
+            }
+          }
         }
+        const isDjName = (aid: string) => /^\s*dj[\s._-]/i.test(artistNameById.get(aid) ?? "");
 
         // 4) Pool S4A ativo + matriz de acesso.
         const { data: poolRows } = await supabase
