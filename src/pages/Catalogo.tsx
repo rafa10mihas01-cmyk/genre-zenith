@@ -26,9 +26,31 @@ type Summary = {
   total_tracks: number;
   total_playlists: number;
   active_placements: number;
-  capacity_total: number;
-  capacity_used: number;
-  capacity_available: number;
+  // Capacidade
+  planned_ceiling: number;       // soma das capacidades planejadas (gênero)
+  capacity_total: number;        // soma de effective_ceiling
+  capacity_used: number;         // soma de total_current
+  capacity_available: number;    // soma de free_slots
+  // Política editorial — evolução
+  catalog_current: number;
+  catalog_target: number;
+  catalog_missing: number;
+  third_party_current: number;
+  third_party_target: number;
+  third_party_excess: number;
+};
+
+type OccupancyRow = {
+  planned_ceiling?: number;
+  effective_ceiling?: number;
+  total_current?: number;
+  free_slots?: number;
+  catalog_count?: number;
+  catalog_target?: number;
+  catalog_missing?: number;
+  third_party_count?: number;
+  third_party_target?: number;
+  third_party_excess?: number;
 };
 
 async function fetchSummary(): Promise<Summary> {
@@ -36,24 +58,40 @@ async function fetchSummary(): Promise<Summary> {
     supabase.from("catalog_tracks").select("id", { count: "exact", head: true }).eq("status", "active"),
     supabase.from("managed_playlists").select("id", { count: "exact", head: true }).eq("is_catalog", true),
     supabase.from("catalog_placements").select("id", { count: "exact", head: true }).eq("status", "active"),
-    supabase.from("v_catalog_playlist_occupancy").select("catalog_capacity, active_placements, available_slots"),
+    supabase.from("v_catalog_playlist_occupancy").select(
+      "planned_ceiling, effective_ceiling, total_current, free_slots, catalog_count, catalog_target, catalog_missing, third_party_count, third_party_target, third_party_excess",
+    ),
   ]);
-  const totals = (occupancyRes.data ?? []).reduce(
-    (acc, row: { catalog_capacity?: number; active_placements?: number; available_slots?: number }) => {
-      acc.cap += row.catalog_capacity ?? 0;
-      acc.used += row.active_placements ?? 0;
-      acc.avail += row.available_slots ?? 0;
+  const totals = ((occupancyRes.data ?? []) as OccupancyRow[]).reduce(
+    (acc, row) => {
+      acc.planned += row.planned_ceiling ?? 0;
+      acc.cap += row.effective_ceiling ?? 0;
+      acc.used += row.total_current ?? 0;
+      acc.avail += row.free_slots ?? 0;
+      acc.catCur += row.catalog_count ?? 0;
+      acc.catTgt += row.catalog_target ?? 0;
+      acc.catMiss += row.catalog_missing ?? 0;
+      acc.tpCur += row.third_party_count ?? 0;
+      acc.tpTgt += row.third_party_target ?? 0;
+      acc.tpExc += row.third_party_excess ?? 0;
       return acc;
     },
-    { cap: 0, used: 0, avail: 0 },
+    { planned: 0, cap: 0, used: 0, avail: 0, catCur: 0, catTgt: 0, catMiss: 0, tpCur: 0, tpTgt: 0, tpExc: 0 },
   );
   return {
     total_tracks: tracksRes.count ?? 0,
     total_playlists: playlistsRes.count ?? 0,
     active_placements: placementsRes.count ?? 0,
+    planned_ceiling: totals.planned,
     capacity_total: totals.cap,
     capacity_used: totals.used,
     capacity_available: totals.avail,
+    catalog_current: totals.catCur,
+    catalog_target: totals.catTgt,
+    catalog_missing: totals.catMiss,
+    third_party_current: totals.tpCur,
+    third_party_target: totals.tpTgt,
+    third_party_excess: totals.tpExc,
   };
 }
 
