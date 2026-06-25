@@ -110,6 +110,13 @@ Deno.serve(async (req) => {
     const q = Array.isArray(rows) ? rows[0] : null;
     if (qErr || !q) return jr({ error: "catalog_queue_not_found" }, 404);
 
+    const { data: catTrack } = await supabase
+      .from("catalog_tracks")
+      .select("spotify_artist_id")
+      .eq("id", (q as any).catalog_track_id)
+      .maybeSingle();
+    const activeArtistId = (catTrack as any)?.spotify_artist_id ?? null;
+
     const attempt = Number((q as any).attempts ?? 0);
     const maxAttempts = Number((q as any).max_attempts ?? 5);
     const queueAgeMs = (q as any).locked_at ? Date.now() - new Date((q as any).locked_at).getTime() : null;
@@ -150,12 +157,24 @@ Deno.serve(async (req) => {
       ? new Date(Date.now() + catalog_backoff_ms(attempt)).toISOString()
       : nowIso;
 
+    const previousError = String((q as any).last_error ?? "");
+    const previousTriedMatch = previousError.match(/tried_artists=([^\s;]+)/i);
+    const previousTried = previousTriedMatch?.[1]
+      ? previousTriedMatch[1].split(",").map((v) => v.trim()).filter(Boolean)
+      : [];
+    const triedArtists = Array.from(new Set([
+      ...previousTried,
+      ...(activeArtistId ? [String(activeArtistId)] : []),
+    ]));
+    const errorText = String(errorMsg ?? "catalog collect failed").slice(0, 800);
+    const storedError = `${errorText}${activeArtistId ? `; artist=${activeArtistId}` : ""}${triedArtists.length ? `; tried_artists=${triedArtists.join(",")}` : ""}`.slice(0, 1000);
+
     await supabase
       .from("catalog_snapshot_queue")
       .update({
         status: willRetry ? "pending" : "failed",
         scheduled_for: scheduledFor,
-        last_error: String(errorMsg ?? "catalog collect failed").slice(0, 1000),
+        last_error: storedError,
         last_error_at: nowIso,
         locked_at: null,
         locked_by: null,
@@ -176,6 +195,8 @@ Deno.serve(async (req) => {
         queue_id: (q as any).id,
         catalog_track_id: (q as any).catalog_track_id,
         spotify_track_id: (q as any).spotify_track_id,
+        spotify_artist_id: activeArtistId,
+        tried_artists: triedArtists,
         queue_age_ms: queueAgeMs,
         attempt,
         max_attempts: maxAttempts,
