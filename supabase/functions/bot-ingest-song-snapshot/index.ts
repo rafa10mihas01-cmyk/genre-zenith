@@ -132,17 +132,18 @@ Deno.serve(async (req) => {
   if (!Array.isArray(playlists)) {
     return jr({ error: "playlists array required (may be empty)" }, 400);
   }
+  const totalPlays28dValue = toInt(total_plays_28d);
   const catalogRequiresPlaylistBreakdown = isCatalogMode && (
-    effectiveQueueId.length > 0 ||
     body?.requires_playlist_breakdown === true ||
     body?.capture_mode === "playlist_breakdown_required" ||
     bot_metadata?.requires_playlist_breakdown === true ||
     bot_metadata?.capture_mode === "playlist_breakdown_required"
   );
-  if (catalogRequiresPlaylistBreakdown && playlists.length === 0) {
+  const hasAggregateStreams = totalPlays28dValue != null;
+  if (catalogRequiresPlaylistBreakdown && playlists.length === 0 && !hasAggregateStreams) {
     return jr({
       error: "playlist_breakdown_required",
-      message: "Catalog snapshot jobs marked as playlist_breakdown_required must include playlist rows; empty payload was not saved.",
+      message: "Catalog snapshot jobs marked as playlist_breakdown_required must include playlist rows or an aggregate total_plays_28d value; empty payload was not saved.",
       catalog_track_id: effectiveCatalogTrackId,
       queue_id: effectiveQueueId || null,
     }, 422);
@@ -219,7 +220,7 @@ Deno.serve(async (req) => {
       captured_at: captured_at ?? new Date().toISOString(),
       time_window: typeof timeWindow === "string" ? timeWindow : "7d",
 
-      total_plays_28d: toInt(total_plays_28d),
+      total_plays_28d: totalPlays28dValue,
       screenshot_url: null,
       snapshot_run_id: snapshotRunId,
       bot_metadata: {

@@ -607,8 +607,9 @@ Deno.serve(async (req) => {
             priority: r.priority,
             attempts: r.attempts,
             lease_expires_at: r.lease_expires_at,
-            requires_playlist_breakdown: true,
-            capture_mode: "playlist_breakdown_required",
+            requires_playlist_breakdown: false,
+            capture_mode: "aggregate_or_playlist",
+            requires_snapshot_even_without_playlists: true,
             artist_resolution: {
               tested: ordered,
               chosen,
