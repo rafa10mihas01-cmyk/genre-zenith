@@ -67,7 +67,9 @@ async function fetchAll(): Promise<Row[]> {
   const [occRes, bridgeRes, attRes] = await Promise.all([
     supabase
       .from("v_catalog_playlist_occupancy")
-      .select("managed_playlist_id, playlist_name, catalog_capacity, active_placements, available_slots, cover_url")
+      .select(
+        "managed_playlist_id, playlist_name, catalog_capacity, active_placements, available_slots, cover_url, planned_ceiling, effective_ceiling, total_current, free_slots, catalog_count, catalog_target, catalog_missing, third_party_count, third_party_target, third_party_excess",
+      )
       .limit(1000),
     supabase
       .from("managed_playlists")
