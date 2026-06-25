@@ -677,7 +677,7 @@ export default function CatalogoMusicaDetalhe() {
               </Badge>
               <Badge variant="outline" className={cn("text-xs gap-1", baselineOk ? "" : "border-amber-500/40 text-amber-400")}>
                 {baselineOk ? <CheckCircle2 className="h-3 w-3 text-emerald-500" /> : <AlertTriangle className="h-3 w-3 text-amber-500" />}
-                Baseline {baselineOk ? "capturada" : "pendente"}
+                {baselineOk ? "Coletando" : "Sem coleta"}
               </Badge>
             </div>
           </div>
