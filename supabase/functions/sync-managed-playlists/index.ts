@@ -265,12 +265,18 @@ Deno.serve(async (req) => {
               await supabase.from("managed_playlists").update(update).eq("id", p.id);
               synced++;
 
-              if (canonicalId) {
-                // fire-and-forget pra não bloquear o sync
-                fetch(`${SUPABASE_URL}/functions/v1/playlist-brain-calc`, {
+              // Fase 5.1 — disparo unificado via Analysis Snapshot.
+              // Substitui o fire-and-forget direto pra playlist-brain-calc; o orquestrador
+              // cuida do pipeline completo (sync→dna→diagnose→brain→score) com idempotência.
+              if ((p as any).execution_mode !== "MANUAL_ONLY") {
+                fetch(`${SUPABASE_URL}/functions/v1/analysis-orchestrator`, {
                   method: "POST",
                   headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
-                  body: JSON.stringify({ playlist_id: canonicalId }),
+                  body: JSON.stringify({
+                    playlist_id: p.id,
+                    trigger_event: "auto_sync",
+                    payload: { source, tier },
+                  }),
                 }).then((r) => { if (r.ok) recalculated++; }).catch(() => {});
               }
 
