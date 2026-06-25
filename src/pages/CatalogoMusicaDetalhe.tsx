@@ -1,7 +1,7 @@
 // Detalhe de uma música do catálogo — dados reais.
-// Lê: catalog_tracks, catalog_track_baselines, v_catalog_track_telemetry,
-//     v_catalog_track_playlist_attribution, catalog_placements (+managed_playlists),
-//     catalog_snapshot_queue, song_snapshots.
+// Fonte oficial das métricas operacionais: Pipeline SONG (song_snapshots + song_snapshot_playlists).
+// Pipeline BASELINE (catalog_track_baselines / catalog_track_snapshots / catalog_snapshot_queue) é LEGACY
+// e não é mais lido por esta tela.
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
