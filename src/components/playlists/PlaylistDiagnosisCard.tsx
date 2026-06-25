@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Sparkles, Music2, Users, AlertCircle, CheckCircle2, Radar, Disc3 } from "lucide-react";
+import { useSnapshotGate } from "@/hooks/useSnapshotGate";
 
 type NameReason = {
   type: string;
@@ -69,9 +70,12 @@ function scoreTone(score: number | null) {
 export function PlaylistDiagnosisCard({ managedId }: { managedId: string }) {
   const [diag, setDiag] = useState<DiagnosisRow | null>(null);
   const [loading, setLoading] = useState(true);
+  const { loading: gateLoading, gate } = useSnapshotGate(managedId);
+
+  const canRead = gate.kind === "ready" || gate.kind === "no_snapshot";
 
   useEffect(() => {
-    if (!managedId) return;
+    if (!managedId || !canRead) return;
     let active = true;
     (async () => {
       setLoading(true);
@@ -88,7 +92,34 @@ export function PlaylistDiagnosisCard({ managedId }: { managedId: string }) {
       }
     })();
     return () => { active = false; };
-  }, [managedId]);
+  }, [managedId, canRead]);
+
+  // Phase 4.2 — bloqueia render durante pipeline processando.
+  if (gateLoading) {
+    return (
+      <Card className="p-5 h-32 grid place-items-center">
+        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+      </Card>
+    );
+  }
+
+  if (gate.kind === "processing") {
+    return (
+      <Card className="p-5 text-sm text-muted-foreground flex items-center gap-3">
+        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+        Pipeline de análise em execução — diagnóstico será exibido quando o snapshot ficar pronto.
+      </Card>
+    );
+  }
+
+  if (gate.kind === "failed") {
+    return (
+      <Card className="p-5 text-sm text-warning border-warning/30">
+        Última análise falhou{gate.failureReason ? `: ${gate.failureReason}` : ""}. Exibindo último diagnóstico válido abaixo.
+        {/* fallback continua com o último diag persistido — sem mistura de estados visuais */}
+      </Card>
+    );
+  }
 
   if (loading) {
     return (
