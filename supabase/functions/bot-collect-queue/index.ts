@@ -431,10 +431,17 @@ Deno.serve(async (req) => {
       if (catErr) {
         console.warn("[bot-collect-queue] catalog claim failed:", catErr.message);
       } else if (Array.isArray(catRows) && catRows.length) {
-        // 1) Resolve spotify_artist_id em batch a partir de catalog_tracks
-        //    (fonte de verdade — evita chamada extra à Spotify API).
+        // === Resolução de artista acessível no pool S4A ===
+        // Para cada faixa: carrega TODOS os spotify_artist_id (catalog_tracks + cache),
+        // consulta `spotify_account_artist_access` e escolhe o PRIMEIRO artista
+        // (ordem original) que tenha pelo menos uma conta com has_access=true
+        // OU sem registro (desconhecido = tenta otimisticamente).
+        // Faixas onde TODOS os artistas estão marcados has_access=false são
+        // descartadas com last_error='NO_ACCESSIBLE_ARTIST' (fail-fast, sem novos leases).
         const trackIds = catRows.map((r: any) => r.catalog_track_id).filter(Boolean);
-        const artistByTrack = new Map<string, string>();
+
+        // 1) Artistas conhecidos em catalog_tracks (artista "principal" do registro).
+        const primaryArtistByTrack = new Map<string, string>();
         if (trackIds.length) {
           const { data: ctRows } = await supabase
             .from("catalog_tracks")
@@ -442,51 +449,111 @@ Deno.serve(async (req) => {
             .in("id", trackIds);
           for (const ct of ctRows ?? []) {
             if ((ct as any).spotify_artist_id) {
-              artistByTrack.set((ct as any).id, (ct as any).spotify_artist_id);
+              primaryArtistByTrack.set((ct as any).id, (ct as any).spotify_artist_id);
             }
           }
         }
 
-        // 2) Enriquece — fallback via cache (Fase 17-C) só quando catalog_tracks não tiver.
-        //    Coletamos os spotify_track_id das linhas SEM artista resolvido.
-        const missingTrackIds: string[] = [];
-        for (const r of catRows as any[]) {
-          if (!artistByTrack.get(r.catalog_track_id) && r.spotify_track_id) {
-            missingTrackIds.push(r.spotify_track_id);
-          }
-        }
-        const trackFallbackCache = missingTrackIds.length > 0
-          ? await getTrackCacheBatch(missingTrackIds)
+        // 2) Lista COMPLETA de artistas vem do spotify_track_cache.artist_ids.
+        const spotifyTrackIds = catRows
+          .map((r: any) => r.spotify_track_id)
+          .filter((v: any) => typeof v === "string" && v.length > 0);
+        const trackCache = spotifyTrackIds.length > 0
+          ? await getTrackCacheBatch(spotifyTrackIds)
           : new Map();
-        const enriched = await Promise.all(catRows.map(async (r: any) => {
-          let artistId: string | null = artistByTrack.get(r.catalog_track_id) ?? null;
-          if (!artistId && r.spotify_track_id) {
-            // Fase 17-C: leitura pública via spotify_track_cache. Miss → auto-enqueue.
-            const tRow = trackFallbackCache.get(r.spotify_track_id);
-            if (tRow && tRow.fetch_status === "ok" && Array.isArray(tRow.artist_ids) && tRow.artist_ids.length > 0) {
-              artistId = tRow.artist_ids[0] ?? null;
-              // Persiste em catalog_tracks pra próxima rodada ser instantânea.
-              if (artistId) {
-                try {
-                  await supabase
-                    .from("catalog_tracks")
-                    .update({ spotify_artist_id: artistId })
-                    .eq("id", r.catalog_track_id)
-                    .is("spotify_artist_id", null);
-                } catch { /* silent */ }
-              }
+
+        // 3) Universo de artistas que precisamos verificar no pool.
+        const allArtistIds = new Set<string>();
+        for (const r of catRows as any[]) {
+          const primary = primaryArtistByTrack.get(r.catalog_track_id);
+          if (primary) allArtistIds.add(primary);
+          const cacheRow = r.spotify_track_id ? trackCache.get(r.spotify_track_id) : null;
+          if (cacheRow && Array.isArray(cacheRow.artist_ids)) {
+            for (const aid of cacheRow.artist_ids) {
+              if (typeof aid === "string" && aid) allArtistIds.add(aid);
             }
           }
-          const s4aSongUrl = artistId && r.spotify_track_id
-            ? `https://artists.spotify.com/c/pt/artist/${artistId}/song/${r.spotify_track_id}/stats`
+        }
+
+        // 4) Pool S4A ativo + matriz de acesso.
+        const { data: poolRows } = await supabase
+          .from("spotify_accounts")
+          .select("account_id, email")
+          .eq("status", "active");
+        const poolAccountIds = (poolRows ?? []).map((p: any) => p.account_id);
+
+        // accessByArtist: artistId -> "yes" (≥1 conta acessa) | "no" (todas marcadas false) | "unknown" (sem registro)
+        const accessByArtist = new Map<string, "yes" | "no" | "unknown">();
+        for (const aid of allArtistIds) accessByArtist.set(aid, "unknown");
+
+        if (allArtistIds.size > 0 && poolAccountIds.length > 0) {
+          const { data: accessRows } = await supabase
+            .from("spotify_account_artist_access")
+            .select("account_id, spotify_artist_id, has_access")
+            .in("spotify_artist_id", Array.from(allArtistIds))
+            .in("account_id", poolAccountIds);
+          // Agrega: yes vence; senão se houver pelo menos um "no" e nenhum "yes" e
+          // cobrir TODAS as contas do pool → "no"; senão "unknown".
+          const yesCount = new Map<string, number>();
+          const noCount = new Map<string, number>();
+          for (const row of accessRows ?? []) {
+            const aid = (row as any).spotify_artist_id as string;
+            if ((row as any).has_access) yesCount.set(aid, (yesCount.get(aid) ?? 0) + 1);
+            else noCount.set(aid, (noCount.get(aid) ?? 0) + 1);
+          }
+          for (const aid of allArtistIds) {
+            if ((yesCount.get(aid) ?? 0) > 0) accessByArtist.set(aid, "yes");
+            else if ((noCount.get(aid) ?? 0) >= poolAccountIds.length) accessByArtist.set(aid, "no");
+            else accessByArtist.set(aid, "unknown");
+          }
+        }
+
+        // 5) Para cada job: escolhe o primeiro artista com acesso (yes > unknown).
+        const enriched: any[] = [];
+        const noAccess: { queue_id: string; tested: string[] }[] = [];
+        for (const r of catRows as any[]) {
+          // Ordem oficial: primeiro o registrado em catalog_tracks, depois o restante do cache.
+          const ordered: string[] = [];
+          const primary = primaryArtistByTrack.get(r.catalog_track_id);
+          if (primary) ordered.push(primary);
+          const cacheRow = r.spotify_track_id ? trackCache.get(r.spotify_track_id) : null;
+          if (cacheRow && Array.isArray(cacheRow.artist_ids)) {
+            for (const aid of cacheRow.artist_ids) {
+              if (typeof aid === "string" && aid && !ordered.includes(aid)) ordered.push(aid);
+            }
+          }
+
+          // Preferência: "yes" antes de "unknown"; "no" nunca.
+          const chosen =
+            ordered.find((a) => accessByArtist.get(a) === "yes") ??
+            ordered.find((a) => accessByArtist.get(a) === "unknown") ??
+            null;
+
+          if (!chosen) {
+            noAccess.push({ queue_id: r.id, tested: ordered });
+            continue;
+          }
+
+          // Persiste o artista escolhido em catalog_tracks (atualiza se mudou).
+          if (chosen !== primary) {
+            try {
+              await supabase
+                .from("catalog_tracks")
+                .update({ spotify_artist_id: chosen })
+                .eq("id", r.catalog_track_id);
+            } catch { /* silent */ }
+          }
+
+          const s4aSongUrl = r.spotify_track_id
+            ? `https://artists.spotify.com/c/pt/artist/${chosen}/song/${r.spotify_track_id}/stats`
             : null;
-          return {
+          enriched.push({
             kind: "catalog",
-            id: r.id, // worker VPS lê job.id — sem isso rejeita como "id nulo"
+            id: r.id,
             queue_id: r.id,
             catalog_track_id: r.catalog_track_id,
             spotify_track_id: r.spotify_track_id,
-            spotify_artist_id: artistId,
+            spotify_artist_id: chosen,
             s4a_song_url: s4aSongUrl,
             song_s4a_url: s4aSongUrl,
             url: s4aSongUrl,
@@ -496,25 +563,36 @@ Deno.serve(async (req) => {
             lease_expires_at: r.lease_expires_at,
             requires_playlist_breakdown: true,
             capture_mode: "playlist_breakdown_required",
-          };
-        }));
-
-        // 3) Descarta itens sem artist_id (não dá pra montar URL S4A).
-        //    Libera o lease pra outra rodada poder tentar resolver depois.
-        const valid = enriched.filter((e) => e.spotify_artist_id);
-        const invalid = enriched.filter((e) => !e.spotify_artist_id);
-        if (invalid.length) {
-          console.warn(
-            `[bot-collect-queue] catalog: ${invalid.length} itens sem spotify_artist_id — descartados`,
-            invalid.map((i) => ({ queue_id: i.queue_id, track: i.spotify_track_id })),
-          );
-          const invalidIds = invalid.map((i) => i.queue_id);
-          await supabase
-            .from("catalog_snapshot_queue")
-            .update({ status: "pending", locked_by: null, locked_at: null, lease_expires_at: null })
-            .in("id", invalidIds);
+            artist_resolution: {
+              tested: ordered,
+              chosen,
+              access_state: accessByArtist.get(chosen),
+            },
+          });
         }
-        catalogClaimed = valid;
+
+        // 6) Fail-fast: itens sem nenhum artista acessível -> failed (NO_ACCESSIBLE_ARTIST).
+        if (noAccess.length > 0) {
+          console.warn(
+            `[bot-collect-queue] catalog: ${noAccess.length} itens sem artista acessível no pool S4A`,
+            noAccess,
+          );
+          for (const item of noAccess) {
+            await supabase
+              .from("catalog_snapshot_queue")
+              .update({
+                status: "failed",
+                locked_by: null,
+                locked_at: null,
+                lease_expires_at: null,
+                last_error: `NO_ACCESSIBLE_ARTIST: tested=${JSON.stringify(item.tested)}`,
+                last_error_at: new Date().toISOString(),
+              })
+              .eq("id", item.queue_id);
+          }
+        }
+
+        catalogClaimed = enriched;
       }
     }
   } catch (e) {
