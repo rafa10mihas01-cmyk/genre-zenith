@@ -346,7 +346,7 @@ Deno.serve(async (req) => {
   const willRetry = job.attempts < job.max_attempts;
   const nextStatus = willRetry ? "pending" : "failed";
   const scheduled = willRetry
-    ? new Date(Date.now() + backoffMs(job.attempts)).toISOString()
+    ? new Date(Date.now() + deal_collect_backoff_ms(job.attempts)).toISOString()
     : job.scheduled_for;
 
   await supabase
