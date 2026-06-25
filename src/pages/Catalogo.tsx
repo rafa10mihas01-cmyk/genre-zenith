@@ -61,7 +61,7 @@ async function fetchSummary(): Promise<Summary> {
     supabase.from("managed_playlists").select("id", { count: "exact", head: true }).eq("is_catalog", true),
     supabase.from("catalog_placements").select("id", { count: "exact", head: true }).eq("status", "active"),
     supabase.from("v_catalog_playlist_occupancy").select(
-      "planned_ceiling, effective_ceiling, total_current, free_slots, catalog_count, catalog_target, catalog_missing, third_party_count, third_party_target, third_party_excess",
+      "planned_ceiling, effective_ceiling, total_current, free_slots, catalog_count, campaign_count, catalog_target, catalog_missing, third_party_count, third_party_target, third_party_excess",
     ),
   ]);
   const totals = ((occupancyRes.data ?? []) as OccupancyRow[]).reduce(
@@ -71,6 +71,7 @@ async function fetchSummary(): Promise<Summary> {
       acc.used += row.total_current ?? 0;
       acc.avail += row.free_slots ?? 0;
       acc.catCur += row.catalog_count ?? 0;
+      acc.campCur += row.campaign_count ?? 0;
       acc.catTgt += row.catalog_target ?? 0;
       acc.catMiss += row.catalog_missing ?? 0;
       acc.tpCur += row.third_party_count ?? 0;
@@ -78,7 +79,7 @@ async function fetchSummary(): Promise<Summary> {
       acc.tpExc += row.third_party_excess ?? 0;
       return acc;
     },
-    { planned: 0, cap: 0, used: 0, avail: 0, catCur: 0, catTgt: 0, catMiss: 0, tpCur: 0, tpTgt: 0, tpExc: 0 },
+    { planned: 0, cap: 0, used: 0, avail: 0, catCur: 0, campCur: 0, catTgt: 0, catMiss: 0, tpCur: 0, tpTgt: 0, tpExc: 0 },
   );
   return {
     total_tracks: tracksRes.count ?? 0,
@@ -89,12 +90,13 @@ async function fetchSummary(): Promise<Summary> {
     capacity_used: totals.used,
     capacity_available: totals.avail,
     catalog_current: totals.catCur,
+    campaign_current: totals.campCur,
     catalog_target: totals.catTgt,
     catalog_missing: totals.catMiss,
     third_party_current: totals.tpCur,
     third_party_target: totals.tpTgt,
-    // Excedente GLOBAL (não soma per‑playlist) — compensa playlists abaixo do target
-    third_party_excess: Math.max(0, totals.tpCur - totals.tpTgt),
+    // Substituições futuras = excesso de Third Party acima da política editorial (soma per‑playlist)
+    third_party_excess: totals.tpExc,
   };
 }
 
