@@ -2,8 +2,8 @@
 //
 // Etapa 1 (metadata): cola URL, busca via `resolve-catalog-track`, mostra capa/nome/
 // artista/ISRC + select de gênero (pré-selecionado com a detecção, editável).
-// Etapa 2 (preview): chama `preview-distribute-catalog-track` e mostra playlists
-// compatíveis, já presentes, sem capacidade, e capacidade total do gênero.
+// Etapa 2 (preview): chama `preview-distribute-catalog-track` e mostra o
+// universo inteiro do gênero, sem filtro de compatibilidade/capacidade.
 // Botão final invoca `distribute-catalog-track` com o genre_id confirmado.
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, CheckCircle2, AlertTriangle, ArrowLeft, Music, Info, RefreshCw } from "lucide-react";
@@ -62,10 +62,14 @@ type PreviewResult = {
   genre_id?: string;
   genre_name?: string;
   pool_total?: number;
+  distribution_count?: number;
   eligible_total?: number;
   already_present_count?: number;
   no_capacity_count?: number;
+  blocked_count?: number;
   ignored_count?: number;
+  manual_count?: number;
+  api_count?: number;
 };
 
 
@@ -327,10 +331,12 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
   const renderStepPreview = () => {
     if (!preview || !resolved) return null;
     const poolTotal = preview.pool_total ?? 0;
-    const eligibleCount = preview.eligible_total ?? 0;
+    const distributionCount = preview.distribution_count ?? preview.eligible_total ?? 0;
     const presentCount = preview.already_present_count ?? 0;
     const noCapCount = preview.no_capacity_count ?? 0;
-    const ignoredCount = preview.ignored_count ?? 0;
+    const blockedCount = preview.blocked_count ?? preview.ignored_count ?? 0;
+    const manualCount = preview.manual_count ?? 0;
+    const apiCount = preview.api_count ?? Math.max(0, distributionCount - manualCount);
     const genreName = preview.genre_name ?? "—";
 
     return (
@@ -363,32 +369,32 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
             <div className="text-lg sm:text-xl font-semibold tabular-nums leading-none mt-1">{presentCount}</div>
           </div>
           <div className="p-2.5 rounded-lg bg-primary/5 border border-primary/30 min-w-0">
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wider leading-tight">Faltam distribuir</div>
-            <div className="text-lg sm:text-xl font-semibold tabular-nums text-primary leading-none mt-1">{eligibleCount}</div>
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wider leading-tight">Vão receber</div>
+            <div className="text-lg sm:text-xl font-semibold tabular-nums text-primary leading-none mt-1">{distributionCount}</div>
           </div>
           <div className="p-2.5 rounded-lg bg-muted/30 border border-border/60 min-w-0">
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wider leading-tight">Sem vaga</div>
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wider leading-tight">Via manual</div>
             <div className="text-lg sm:text-xl font-semibold tabular-nums leading-none mt-1">{noCapCount}</div>
           </div>
           <div className="p-2.5 rounded-lg bg-muted/30 border border-border/60 min-w-0">
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wider leading-tight">Ignoradas</div>
-            <div className="text-lg sm:text-xl font-semibold tabular-nums leading-none mt-1">{ignoredCount}</div>
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wider leading-tight">Bloqueadas</div>
+            <div className="text-lg sm:text-xl font-semibold tabular-nums leading-none mt-1">{blockedCount}</div>
           </div>
         </div>
 
         <p className="text-[12px] text-muted-foreground leading-relaxed">
-          Esta música pertence ao gênero <span className="capitalize text-foreground font-medium">{genreName}</span>. Existem <span className="text-foreground font-medium">{fmtNum(poolTotal)}</span> playlists de <span className="capitalize">{genreName}</span> no ecossistema. A música já está presente em <span className="text-foreground font-medium">{presentCount}</span> {presentCount === 1 ? "playlist" : "playlists"}, será enfileirada para <span className="text-foreground font-medium">{eligibleCount}</span> e <span className="text-foreground font-medium">{noCapCount}</span> permanecerão aguardando vaga conforme as regras do Occupancy Engine. {ignoredCount > 0 && (<>Outras <span className="text-foreground font-medium">{ignoredCount}</span> foram ignoradas (modo manual, arquivadas ou sem ID do Spotify).</>)}
+          Esta música pertence ao gênero <span className="capitalize text-foreground font-medium">{genreName}</span>. Existem <span className="text-foreground font-medium">{fmtNum(poolTotal)}</span> playlists de <span className="capitalize">{genreName}</span> no ecossistema. A música já está presente em <span className="text-foreground font-medium">{presentCount}</span> {presentCount === 1 ? "playlist" : "playlists"} e será distribuída para <span className="text-foreground font-medium">{distributionCount}</span> {distributionCount === 1 ? "playlist" : "playlists"}: <span className="text-foreground font-medium">{apiCount}</span> via Occupancy Engine e <span className="text-foreground font-medium">{manualCount}</span> via fila manual. {noCapCount > 0 && (<>As <span className="text-foreground font-medium">{noCapCount}</span> sem vaga entram mesmo assim; o Occupancy Engine decide a substituição.</>)} {blockedCount > 0 && (<><span className="text-foreground font-medium">{blockedCount}</span> ficaram bloqueadas por status operacional ou ausência de ID Spotify.</>)}
         </p>
 
-        {eligibleCount === 0 && (
+        {distributionCount === 0 && (
           <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-sm">
             <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
             <div className="min-w-0">
-              <div className="font-medium">Nenhuma playlist com vaga no momento em <span className="capitalize">{genreName}</span>.</div>
+              <div className="font-medium">Nenhuma playlist nova para receber esta música em <span className="capitalize">{genreName}</span>.</div>
               <div className="text-xs text-muted-foreground mt-0.5">
                 {poolTotal === 0
                   ? "Esse gênero não tem playlists cadastradas no catálogo."
-                  : "A faixa será registrada e voltará à fila quando surgir vaga."}
+                  : "Todas já possuem a música ou estão bloqueadas operacionalmente."}
               </div>
             </div>
           </div>
@@ -516,7 +522,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
                 {step === "distributing" && <Loader2 className="h-4 w-4 animate-spin" />}
                 {step === "distributing"
                   ? "Distribuindo…"
-                  : `Distribuir para ${preview?.eligible_total ?? 0} ${(preview?.eligible_total ?? 0) === 1 ? "playlist" : "playlists"}`}
+                  : `Distribuir para ${preview?.distribution_count ?? preview?.eligible_total ?? 0} ${(preview?.distribution_count ?? preview?.eligible_total ?? 0) === 1 ? "playlist" : "playlists"}`}
               </Button>
             </>
           ) : step === "done" ? (
