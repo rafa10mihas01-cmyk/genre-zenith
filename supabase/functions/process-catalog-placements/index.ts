@@ -561,7 +561,7 @@ Deno.serve(async (req) => {
       // 3.2) Pré-check local (managed_playlist_tracks).
       if (await localPlaylistHasTrack(p.managed_playlist_id, p.spotify_track_id)) {
         cntLocalHits++;
-        await markActive(p, "already_present", "local_hit", correlationId);
+        await markActive(p, "already_present", "local_hit", correlationId, null, null);
         continue;
       }
 
@@ -583,7 +583,8 @@ Deno.serve(async (req) => {
       //      Eventual ghost_add será reconciliado pelo sync periódico.
       await persistLocal(p.managed_playlist_id, p.spotify_track_id);
 
-      await markActive(p, "active", "spotify_post", correlationId, addRes.snapshot_id ?? null);
+      const usedPosition = typeof insertOpts.position === "number" ? insertOpts.position : null;
+      await markActive(p, "active", "spotify_post", correlationId, addRes.snapshot_id ?? null, usedPosition);
     } catch (e: any) {
       const cls = classify(e);
       const { kind, code } = cls;
