@@ -902,12 +902,15 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   async function runDiagnosis(pl: ManagedPlaylist) {
     setDiagLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("diagnose-managed-playlist", {
-        body: { playlist_id: pl.id },
+      // Snapshot Único: dispara pipeline completo (sync→dna→diagnose→brain→score)
+      const { data, error } = await supabase.functions.invoke("analysis-orchestrator", {
+        body: { playlist_id: pl.id, trigger_event: "manual_reanalyze" },
       });
-      if (error || !data?.ok) throw new Error(error?.message ?? data?.error ?? "Falhou");
-      setDiagnosis(data.diagnosis);
-      toast({ title: "Diagnóstico pronto" });
+      if (error) throw new Error(error?.message ?? "Falhou");
+      if (data?.ok === false && data?.status === "rejected") {
+        throw new Error(data?.reason ?? "Falhou");
+      }
+      toast({ title: "Reanálise iniciada", description: "O diagnóstico será atualizado em instantes." });
       load();
     } catch (e: unknown) {
       toast({ title: "Erro no diagnóstico", description: getErrorMessage(e), variant: "destructive" });
