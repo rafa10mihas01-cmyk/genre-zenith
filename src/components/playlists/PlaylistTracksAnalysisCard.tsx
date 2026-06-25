@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
+import { useSnapshotGate } from "@/hooks/useSnapshotGate";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -150,8 +151,15 @@ export function PlaylistTracksAnalysisCard({ managedId }: { managedId: string })
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | Status>("all");
 
+  const { gate } = useSnapshotGate(managedId);
+  const canRead = gate.kind === "ready" || gate.kind === "no_snapshot";
+
   useEffect(() => {
     if (!managedId) return;
+    if (!canRead) {
+      setLoading(false);
+      return;
+    }
     let active = true;
     (async () => {
       setLoading(true);
@@ -174,12 +182,29 @@ export function PlaylistTracksAnalysisCard({ managedId }: { managedId: string })
     return () => {
       active = false;
     };
-  }, [managedId]);
+  }, [managedId, canRead]);
 
   const visible = useMemo(() => {
     if (filter === "all") return analysis;
     return analysis.filter((t) => t.status === filter);
   }, [analysis, filter]);
+
+  // Phase 4.4: gate por Analysis Snapshot — nunca renderizar dados parciais.
+  if (gate.kind === "processing") {
+    return (
+      <Card className="p-5 text-sm text-muted-foreground flex items-center gap-2">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Pipeline em execução — análise faixa-a-faixa será publicada quando o snapshot ficar pronto.
+      </Card>
+    );
+  }
+  if (gate.kind === "failed") {
+    return (
+      <Card className="p-5 text-sm text-destructive">
+        Última análise falhou{gate.failureReason ? `: ${gate.failureReason}` : ""}. Aguarde o próximo ciclo ou dispare manualmente.
+      </Card>
+    );
+  }
 
   if (loading) {
     return (
