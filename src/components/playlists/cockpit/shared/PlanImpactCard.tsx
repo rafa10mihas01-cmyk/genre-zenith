@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ArrowDown, ArrowUp, Minus, ShieldCheck, Target } from "lucide-react";
 import { useCockpit } from "../context/CockpitContext";
-import { usePlaylistBrain } from "@/hooks/usePlaylistBrain";
+import { usePlaylistBrainGated } from "@/hooks/usePlaylistBrain";
 import { computePlanImpact, type ImpactDelta } from "./computePlanImpact";
 import { SectionTitle } from "./SectionTitle";
 
