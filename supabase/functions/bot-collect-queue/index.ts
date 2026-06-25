@@ -568,8 +568,8 @@ Deno.serve(async (req) => {
           // Se algum artista já retornou breakdown vazio, pula todos eles nas
           // próximas tentativas para testar os demais coautores acessíveis.
           const selectable = shouldRotateArtist
-            ? ordered.filter((a) => !triedArtists.has(a))
-            : ordered;
+            ? orderedDjFirst.filter((a) => !triedArtists.has(a))
+            : orderedDjFirst;
           const chosen =
             selectable.find((a) => accessByArtist.get(a) === "yes") ??
             selectable.find((a) => accessByArtist.get(a) === "unknown") ??
