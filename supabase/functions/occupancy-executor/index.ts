@@ -185,8 +185,22 @@ async function executePlan(supabase: any, plan: PlanRow) {
     replaced: 0,
     skipped: 0,
     errors: 0,
+    local_writes: 0,
+    local_write_errors: 0,
     last_snapshot_id: null as string | null,
   };
+
+  // === LOCAL STATE (Option A — dual write) ===========================
+  // Carrega o estado local atual da playlist para mutarmos em memória
+  // após cada operação executada com sucesso no Spotify e persistir as
+  // alterações em managed_playlist_tracks. Sem isto, post_executor_sync
+  // dispara rebuilds redundantes baseados em estado stale.
+  type LocalRow = {
+    id: string | null;
+    spotify_track_id: string;
+    position: number;
+  };
+  const localState: LocalRow[] = await loadLocalState(supabase, playlistId);
 
   // 4. Ordem: REMOVE → REPOSITION → REPLACE → INSERT
   const removes = ops.filter((o) => o.op_type === "REMOVE");
@@ -196,12 +210,21 @@ async function executePlan(supabase: any, plan: PlanRow) {
 
   // ----- REMOVE (bulk) -----
   if (removes.length > 0) {
-    const uris = removes.map((o) => toUri(o.spotify_track_id));
+    const ids = removes.map((o) => o.spotify_track_id);
+    const uris = ids.map(toUri);
     try {
       const r = await removePlaylistTracks(pl.spotify_playlist_id, uris, token);
       if (r.snapshot_id) stats.last_snapshot_id = r.snapshot_id;
       stats.removed = removes.length;
       await markOps(supabase, removes.map((o) => o.id), "done", null);
+      // local mirror
+      try {
+        await applyLocalRemove(supabase, playlistId, localState, ids);
+        stats.local_writes += ids.length;
+      } catch (e: any) {
+        stats.local_write_errors += ids.length;
+        console.error("local_remove_failed", e?.message ?? e);
+      }
     } catch (e: any) {
       stats.errors += removes.length;
       await markOps(supabase, removes.map((o) => o.id), "error", e?.message ?? String(e));
@@ -214,7 +237,6 @@ async function executePlan(supabase: any, plan: PlanRow) {
     try {
       refs = await listPlaylistTrackRefs(pl.spotify_playlist_id, token);
     } catch (e: any) {
-      // sem refs não dá pra continuar reposition/insert. Marca o restante como erro.
       const pending = [...repositions, ...inserts, ...replaces].map((o) => o.id);
       stats.errors += pending.length;
       await markOps(supabase, pending, "error", `refresh_refs_failed: ${e?.message ?? e}`);
@@ -230,8 +252,7 @@ async function executePlan(supabase: any, plan: PlanRow) {
     return -1;
   };
 
-  // ----- REPOSITION (um por um; refetch após cada) -----
-  // Ordenamos por to_position asc pra deslocamentos cumulativos serem previsíveis.
+  // ----- REPOSITION -----
   const sortedRepos = [...repositions].sort(
     (a, b) => (a.to_position ?? 0) - (b.to_position ?? 0),
   );
@@ -257,17 +278,24 @@ async function executePlan(supabase: any, plan: PlanRow) {
       if (r.snapshot_id) stats.last_snapshot_id = r.snapshot_id;
       stats.repositioned++;
       await markOps(supabase, [op.id], "done", null);
-      // refresh local
+      // local mirror
+      try {
+        await applyLocalReposition(supabase, playlistId, localState, op.spotify_track_id, target);
+        stats.local_writes += 1;
+      } catch (e: any) {
+        stats.local_write_errors += 1;
+        console.error("local_reposition_failed", e?.message ?? e);
+      }
       try {
         refs = await listPlaylistTrackRefs(pl.spotify_playlist_id, token);
-      } catch (_e) { /* mantém refs antigas, próximo erro tratará */ }
+      } catch (_e) { /* mantém refs antigas */ }
     } catch (e: any) {
       stats.errors++;
       await markOps(supabase, [op.id], "error", e?.message ?? String(e));
     }
   }
 
-  // ----- REPLACE (até 100; raro nesta fase) -----
+  // ----- REPLACE (substitui playlist inteira pela URI única) -----
   for (const op of replaces) {
     try {
       const r = await replacePlaylistTracks(
@@ -278,13 +306,20 @@ async function executePlan(supabase: any, plan: PlanRow) {
       if (r.snapshot_id) stats.last_snapshot_id = r.snapshot_id;
       stats.replaced++;
       await markOps(supabase, [op.id], "done", null);
+      try {
+        await applyLocalReplace(supabase, playlistId, localState, op.spotify_track_id);
+        stats.local_writes += 1;
+      } catch (e: any) {
+        stats.local_write_errors += 1;
+        console.error("local_replace_failed", e?.message ?? e);
+      }
     } catch (e: any) {
       stats.errors++;
       await markOps(supabase, [op.id], "error", e?.message ?? String(e));
     }
   }
 
-  // ----- INSERT (ascendente por to_position; chamadas individuais p/ respeitar posição) -----
+  // ----- INSERT -----
   const sortedInserts = [...inserts].sort(
     (a, b) => (a.to_position ?? 0) - (b.to_position ?? 0),
   );
@@ -296,6 +331,19 @@ async function executePlan(supabase: any, plan: PlanRow) {
       if (r.snapshot_id) stats.last_snapshot_id = r.snapshot_id;
       stats.inserted++;
       await markOps(supabase, [op.id], "done", null);
+      try {
+        await applyLocalInsert(
+          supabase,
+          playlistId,
+          localState,
+          op.spotify_track_id,
+          typeof pos === "number" ? pos : localState.length,
+        );
+        stats.local_writes += 1;
+      } catch (e: any) {
+        stats.local_write_errors += 1;
+        console.error("local_insert_failed", e?.message ?? e);
+      }
     } catch (e: any) {
       stats.errors++;
       await markOps(supabase, [op.id], "error", e?.message ?? String(e));
@@ -310,19 +358,179 @@ async function executePlan(supabase: any, plan: PlanRow) {
       ? "partial"
       : "failed";
 
-  // Após execução, enfileira um sync pra reconciliar managed_playlist_tracks.
+  // Só enfileira post_executor_sync DEPOIS de garantir o dual-write local.
+  // Se houver erros de escrita local, ainda assim enfileiramos para que o
+  // re-sync por Spotify GET reconcilie eventual divergência.
   if (okCount > 0) {
     try {
       await supabase.from("occupancy_rebuild_queue").insert({
         managed_playlist_id: playlistId,
         trigger_source: "post_executor_sync",
-        payload: { plan_id: planId },
+        payload: { plan_id: planId, local_writes: stats.local_writes, local_write_errors: stats.local_write_errors },
         status: "pending",
       });
-    } catch (_e) { /* deduplica via unique index; ignora conflito */ }
+    } catch (_e) { /* deduplica via unique index */ }
   }
 
   return await finalize(supabase, planId, finalStatus, stats);
+}
+
+// ============================================================================
+// Local state helpers (Option A — dual write em managed_playlist_tracks)
+// ============================================================================
+
+async function loadLocalState(
+  supabase: any,
+  playlistId: string,
+): Promise<Array<{ id: string | null; spotify_track_id: string; position: number }>> {
+  const { data, error } = await supabase
+    .from("managed_playlist_tracks")
+    .select("id, spotify_track_id, position")
+    .eq("playlist_id", playlistId)
+    .order("position", { ascending: true });
+  if (error) throw new Error(`load_local_state: ${error.message}`);
+  return (data ?? []).map((r: any) => ({
+    id: r.id,
+    spotify_track_id: r.spotify_track_id,
+    position: r.position,
+  }));
+}
+
+async function resequenceLocal(
+  supabase: any,
+  playlistId: string,
+  localState: Array<{ id: string | null; spotify_track_id: string; position: number }>,
+) {
+  // Atualiza apenas as linhas cuja posição mudou em relação ao índice.
+  const updates: Array<Promise<unknown>> = [];
+  for (let i = 0; i < localState.length; i++) {
+    const row = localState[i];
+    if (row.position !== i) {
+      row.position = i;
+      if (row.id) {
+        updates.push(
+          supabase
+            .from("managed_playlist_tracks")
+            .update({ position: i })
+            .eq("id", row.id),
+        );
+      } else {
+        updates.push(
+          supabase
+            .from("managed_playlist_tracks")
+            .update({ position: i })
+            .eq("playlist_id", playlistId)
+            .eq("spotify_track_id", row.spotify_track_id),
+        );
+      }
+    }
+  }
+  if (updates.length > 0) await Promise.all(updates);
+}
+
+async function applyLocalRemove(
+  supabase: any,
+  playlistId: string,
+  localState: Array<{ id: string | null; spotify_track_id: string; position: number }>,
+  trackIds: string[],
+) {
+  const idSet = new Set(trackIds);
+  // 1. Delete físico
+  const { error } = await supabase
+    .from("managed_playlist_tracks")
+    .delete()
+    .eq("playlist_id", playlistId)
+    .in("spotify_track_id", trackIds);
+  if (error) throw new Error(`delete: ${error.message}`);
+  // 2. Estado em memória
+  for (let i = localState.length - 1; i >= 0; i--) {
+    if (idSet.has(localState[i].spotify_track_id)) localState.splice(i, 1);
+  }
+  // 3. Resequenciar posições
+  await resequenceLocal(supabase, playlistId, localState);
+}
+
+async function applyLocalInsert(
+  supabase: any,
+  playlistId: string,
+  localState: Array<{ id: string | null; spotify_track_id: string; position: number }>,
+  trackId: string,
+  position: number,
+) {
+  const idx = Math.max(0, Math.min(localState.length, position));
+  // Se já existir, é deduplicação — não dupla. Apenas reposiciona.
+  const existing = localState.findIndex((r) => r.spotify_track_id === trackId);
+  if (existing >= 0) {
+    const [row] = localState.splice(existing, 1);
+    localState.splice(idx > existing ? idx - 1 : idx, 0, row);
+    await resequenceLocal(supabase, playlistId, localState);
+    return;
+  }
+  // Shift posições >= idx em memória
+  localState.splice(idx, 0, { id: null, spotify_track_id: trackId, position: idx });
+  // Insert no banco (metadata virá via post_executor_sync)
+  const nowIso = new Date().toISOString();
+  const { data: ins, error } = await supabase
+    .from("managed_playlist_tracks")
+    .insert({
+      playlist_id: playlistId,
+      spotify_track_id: trackId,
+      position: idx,
+      snapshot_at: nowIso,
+      added_at: nowIso,
+    })
+    .select("id")
+    .maybeSingle();
+  if (error) throw new Error(`insert: ${error.message}`);
+  if (ins?.id) localState[idx].id = ins.id;
+  await resequenceLocal(supabase, playlistId, localState);
+}
+
+async function applyLocalReposition(
+  supabase: any,
+  playlistId: string,
+  localState: Array<{ id: string | null; spotify_track_id: string; position: number }>,
+  trackId: string,
+  insertBefore: number,
+) {
+  const cur = localState.findIndex((r) => r.spotify_track_id === trackId);
+  if (cur < 0) return; // nada a fazer localmente
+  const target = Math.max(0, Math.min(localState.length, insertBefore));
+  if (cur === target) return;
+  const [row] = localState.splice(cur, 1);
+  const insertIdx = cur < target ? target - 1 : target;
+  localState.splice(insertIdx, 0, row);
+  await resequenceLocal(supabase, playlistId, localState);
+}
+
+async function applyLocalReplace(
+  supabase: any,
+  playlistId: string,
+  localState: Array<{ id: string | null; spotify_track_id: string; position: number }>,
+  trackId: string,
+) {
+  // Spotify replacePlaylistTracks substitui o conteúdo inteiro pelas URIs passadas.
+  // Aqui sempre passamos uma única URI, então o resultado local é: 1 faixa só.
+  const { error: delErr } = await supabase
+    .from("managed_playlist_tracks")
+    .delete()
+    .eq("playlist_id", playlistId);
+  if (delErr) throw new Error(`replace_delete: ${delErr.message}`);
+  localState.length = 0;
+  const nowIso = new Date().toISOString();
+  const { data: ins, error } = await supabase
+    .from("managed_playlist_tracks")
+    .insert({
+      playlist_id: playlistId,
+      spotify_track_id: trackId,
+      position: 0,
+      snapshot_at: nowIso,
+      added_at: nowIso,
+    })
+    .select("id")
+    .maybeSingle();
+  if (error) throw new Error(`replace_insert: ${error.message}`);
+  localState.push({ id: ins?.id ?? null, spotify_track_id: trackId, position: 0 });
 }
 
 async function markOps(
