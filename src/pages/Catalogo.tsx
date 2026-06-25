@@ -204,26 +204,44 @@ export default function Catalogo() {
       />
 
       <PageContainer>
-        {/* Mobile + Tablet: card consolidado — 3 colunas + barra de ocupação */}
+        {/* Mobile + Tablet: card consolidado — 6 indicadores (3x2) + barra de ocupação */}
         <div className="lg:hidden">
           <div className="bg-card border border-border rounded-2xl overflow-hidden">
-            <div className="grid grid-cols-3 divide-x divide-border">
+            <div className="grid grid-cols-3 divide-x divide-y divide-border">
               <div className="px-2 py-3 flex flex-col items-center justify-center gap-0.5">
-                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium">Total de vagas</span>
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium text-center">Capacidade total</span>
                 <span className="text-base font-semibold tabular-nums text-foreground">
                   {summaryQ.isLoading ? "—" : fmt(s?.capacity_total)}
                 </span>
               </div>
               <div className="px-2 py-3 flex flex-col items-center justify-center gap-0.5">
-                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium">Ocupadas</span>
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium text-center">Catálogo</span>
                 <span className="text-base font-semibold tabular-nums text-foreground">
-                  {summaryQ.isLoading ? "—" : fmt(s?.capacity_used)}
+                  {summaryQ.isLoading ? "—" : fmt(s?.catalog_current)}
                 </span>
               </div>
               <div className="px-2 py-3 flex flex-col items-center justify-center gap-0.5">
-                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium">Livres</span>
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium text-center">Campaign</span>
+                <span className="text-base font-semibold tabular-nums text-foreground">
+                  {summaryQ.isLoading ? "—" : fmt(s?.campaign_current)}
+                </span>
+              </div>
+              <div className="px-2 py-3 flex flex-col items-center justify-center gap-0.5">
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium text-center">Third Party</span>
+                <span className="text-base font-semibold tabular-nums text-foreground">
+                  {summaryQ.isLoading ? "—" : fmt(s?.third_party_current)}
+                </span>
+              </div>
+              <div className="px-2 py-3 flex flex-col items-center justify-center gap-0.5">
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium text-center">Vagas livres</span>
                 <span className="text-base font-semibold tabular-nums text-foreground">
                   {summaryQ.isLoading ? "—" : fmt(s?.capacity_available)}
+                </span>
+              </div>
+              <div className="px-2 py-3 flex flex-col items-center justify-center gap-0.5">
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium text-center">Substituições futuras</span>
+                <span className="text-base font-semibold tabular-nums text-foreground">
+                  {summaryQ.isLoading ? "—" : fmt(s?.third_party_excess)}
                 </span>
               </div>
             </div>
@@ -236,32 +254,56 @@ export default function Catalogo() {
           </div>
         </div>
 
-        {/* Desktop: 3 cards — Total de Vagas → Vagas Ocupadas → Vagas Livres */}
-        <section className="hidden lg:grid grid-cols-3 gap-3">
+        {/* Desktop: 6 cards — Capacidade · Catálogo · Campaign · Third Party · Vagas Livres · Substituições Futuras */}
+        <section className="hidden lg:grid grid-cols-6 gap-3">
           <KpiBig
             tier="hero"
             icon={Layers}
-            label="Total de vagas nas playlists"
+            label="Capacidade total"
             value={fmt(s?.capacity_total)}
-            hint={`Soma de espaços em ${fmt(s?.total_playlists)} playlists do ecossistema`}
+            hint={`Posições em ${fmt(s?.total_playlists)} playlists elegíveis`}
             domain="playlists"
             loading={summaryQ.isLoading}
           />
           <KpiBig
-            icon={Gauge}
-            label="Vagas ocupadas hoje"
-            value={fmt(s?.capacity_used)}
-            hint={pct != null ? `${pct}% preenchido · músicas presentes nas playlists agora` : "—"}
+            icon={Disc3}
+            label="Catálogo"
+            value={fmt(s?.catalog_current)}
+            hint="Músicas do nosso catálogo distribuídas"
             domain="deals"
+            loading={summaryQ.isLoading}
+          />
+          <KpiBig
+            icon={Megaphone}
+            label="Campaign"
+            value={fmt(s?.campaign_current)}
+            hint="Músicas de campanhas ativas"
+            domain="campaigns"
+            loading={summaryQ.isLoading}
+          />
+          <KpiBig
+            icon={Users}
+            label="Third Party"
+            value={fmt(s?.third_party_current)}
+            hint="Músicas de terceiros nas playlists"
+            domain="curadores"
             loading={summaryQ.isLoading}
           />
           <KpiBig
             tier="quiet"
             icon={CircleSlash}
-            label="Vagas livres para o catálogo"
+            label="Vagas livres"
             value={fmt(s?.capacity_available)}
-            hint="Espaço disponível para inserir mais músicas"
+            hint="Posições para INSERT sem remover ninguém"
             domain="system"
+            loading={summaryQ.isLoading}
+          />
+          <KpiBig
+            icon={Repeat}
+            label="Substituições futuras"
+            value={fmt(s?.third_party_excess)}
+            hint="Third Party acima da política editorial"
+            domain="playlists"
             loading={summaryQ.isLoading}
           />
         </section>
