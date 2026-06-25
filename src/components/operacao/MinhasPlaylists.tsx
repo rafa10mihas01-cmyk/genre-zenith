@@ -828,8 +828,8 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     setItems((prev) => prev.map((x) => (x.id === pl.id ? { ...x, genre_id: genreId } : x)));
     setDrawerPl((prev) => (prev && prev.id === pl.id ? { ...prev, genre_id: genreId } : prev));
     if (pl.canonical_playlist_id) {
-      supabase.functions.invoke("playlist-brain-calc", {
-        body: { playlist_id: pl.canonical_playlist_id },
+      supabase.functions.invoke("analysis-orchestrator", {
+        body: { playlist_id: pl.id, trigger_event: "manual_reanalyze" },
       }).then(() => load());
     }
   }
