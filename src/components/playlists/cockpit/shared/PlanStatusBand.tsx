@@ -41,7 +41,7 @@ function confidenceTone(c: number) {
 
 export function PlanStatusBand() {
   const { canonicalPlaylistId, diag } = useCockpit();
-  const { data: brain } = usePlaylistBrain(canonicalPlaylistId ?? undefined);
+  const { brain } = usePlaylistBrainGated(canonicalPlaylistId ?? undefined);
 
   // Sem brain: ainda mostramos a idade da análise se houver diag.
   const confidence = brain?.confidence_score ?? null;
