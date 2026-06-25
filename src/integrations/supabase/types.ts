@@ -15263,16 +15263,14 @@ export type Database = {
           readings_count: number
         }[]
       }
-      fn_playlist_occupancy_rebuild:
-        | { Args: { p_mode?: string; p_playlist_id: string }; Returns: string }
-        | {
-            Args: {
-              p_mode?: string
-              p_playlist_id: string
-              p_trigger_source?: string
-            }
-            Returns: string
-          }
+      fn_playlist_occupancy_rebuild: {
+        Args: {
+          p_mode?: string
+          p_playlist_id: string
+          p_trigger_source?: string
+        }
+        Returns: string
+      }
       fn_playlist_occupancy_rebuild_batch: {
         Args: { p_limit?: number; p_policy_type?: string }
         Returns: {
