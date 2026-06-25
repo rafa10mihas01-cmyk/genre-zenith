@@ -13926,6 +13926,14 @@ export type Database = {
         }
         Relationships: []
       }
+      v_catalog_origin_summary: {
+        Row: {
+          distinct_tracks: number | null
+          origin: string | null
+          positions: number | null
+        }
+        Relationships: []
+      }
       v_catalog_playlist_occupancy: {
         Row: {
           active_placements: number | null
