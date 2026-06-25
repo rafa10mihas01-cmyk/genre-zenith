@@ -27,7 +27,7 @@ const PHASE_META: Record<LifecyclePhase, {
 };
 
 export function LifecycleRoadmapCard({ playlistId, currentTracks }: Props) {
-  const { data: brain, isLoading } = usePlaylistBrain(playlistId);
+  const { brain, isLoading } = usePlaylistBrainGated(playlistId);
 
   if (isLoading || !brain) return null;
 
