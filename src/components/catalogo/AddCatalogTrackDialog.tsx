@@ -1,10 +1,3 @@
-// AddCatalogTrackDialog — fluxo URL → Buscar → Confirmar → Preview → Distribuir.
-//
-// Etapa 1 (metadata): cola URL, busca via `resolve-catalog-track`, mostra capa/nome/
-// artista/ISRC + select de gênero (pré-selecionado com a detecção, editável).
-// Etapa 2 (preview): chama `preview-distribute-catalog-track` e mostra o
-// universo inteiro do gênero, sem filtros legados.
-// Botão final invoca `distribute-catalog-track` com o genre_id confirmado.
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, CheckCircle2, AlertTriangle, ArrowLeft, Music, Info, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -267,7 +260,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
           <div className="flex items-start gap-2 p-3 nx-subcard border-amber-500/30 text-[12px]">
             <Info className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
             <div className="min-w-0">
-              <div className="font-medium leading-tight">Esta música já existe no catálogo.</div>
+              <div className="font-medium leading-tight">Esta música já está cadastrada.</div>
               <div className="text-[11px] text-muted-foreground mt-0.5">
                 Gênero atual: <span className="capitalize font-medium">{existing.current_genre_name ?? "(não definido)"}</span>.
                 Será atualizado se você escolher outro. Placements existentes serão preservados.
@@ -338,7 +331,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
           <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-[12px]">
             <Info className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
             <div>
-              <div className="font-medium">Música já existe no catálogo.</div>
+              <div className="font-medium">Música já está cadastrada.</div>
               <div className="text-xs text-muted-foreground mt-0.5">
                 Apenas placements novos serão criados. Nada será duplicado.
               </div>
@@ -393,7 +386,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
             <div className="font-semibold">Distribuição concluída</div>
             <div className="text-xs text-muted-foreground">
               {distributed.track?.is_new
-                ? "Música nova adicionada ao catálogo."
+                ? "Música nova cadastrada."
                 : distributed.track?.genre_changed
                   ? "Música já existia — gênero atualizado e expansão executada."
                   : "Música já existia — expansão para playlists novas."}
