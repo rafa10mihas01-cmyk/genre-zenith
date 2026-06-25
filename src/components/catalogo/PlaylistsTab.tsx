@@ -22,6 +22,16 @@ type Occupancy = {
   active_placements: number | null;
   available_slots: number | null;
   cover_url: string | null;
+  planned_ceiling: number | null;
+  effective_ceiling: number | null;
+  total_current: number | null;
+  free_slots: number | null;
+  catalog_count: number | null;
+  catalog_target: number | null;
+  catalog_missing: number | null;
+  third_party_count: number | null;
+  third_party_target: number | null;
+  third_party_excess: number | null;
 };
 type Bridge = { id: string; spotify_playlist_id: string | null };
 type Attribution = {
@@ -41,6 +51,16 @@ type Row = {
   delivery_7d: number;
   tracks_detected: number;
   last_seen_at: string | null;
+  planned_ceiling: number;
+  effective_ceiling: number;
+  total_current: number;
+  free_slots: number;
+  catalog_count: number;
+  catalog_target: number;
+  catalog_missing: number;
+  third_party_count: number;
+  third_party_target: number;
+  third_party_excess: number;
 };
 
 async function fetchAll(): Promise<Row[]> {
