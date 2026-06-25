@@ -486,28 +486,56 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Fase 0 — Resolve a posição final na playlist após o add.
+  // Ordem de preferência:
+  //   1) posição efetivamente usada na chamada Spotify (insertOpts.position)
+  //   2) posição registrada em managed_playlist_tracks (caso local_hit)
+  //   3) p.tracks_count (append: índice 0-based equivale ao count antes do add)
+  async function resolveFinalPosition(
+    p: Enriched,
+    source: "local_hit" | "spotify_post" | "local_post_writethrough",
+    usedPosition: number | null,
+  ): Promise<number | null> {
+    if (typeof usedPosition === "number" && usedPosition >= 0) return usedPosition;
+    if (source === "local_hit" || source === "local_post_writethrough") {
+      const { data } = await sb
+        .from("managed_playlist_tracks")
+        .select("position")
+        .eq("playlist_id", p.managed_playlist_id)
+        .eq("spotify_track_id", p.spotify_track_id)
+        .maybeSingle();
+      if (data && typeof data.position === "number") return data.position;
+    }
+    if (typeof p.tracks_count === "number" && p.tracks_count >= 0) return p.tracks_count;
+    return null;
+  }
+
   async function markActive(
     p: Enriched,
     outcome: Outcome,
     source: "local_hit" | "spotify_post" | "local_post_writethrough",
     correlationId: string,
     snapshotId: string | null = null,
+    usedPosition: number | null = null,
   ) {
-    await sb.from("catalog_placements").update({
+    const finalPosition = await resolveFinalPosition(p, source, usedPosition);
+    const update: Record<string, unknown> = {
       status: "active",
       added_at: new Date().toISOString(),
       last_error_code: null,
       locked_at: null, locked_by: null, lease_expires_at: null,
-    }).eq("id", p.id);
+    };
+    if (finalPosition !== null) update.position = finalPosition;
+    await sb.from("catalog_placements").update(update).eq("id", p.id);
     await sb.from("catalog_placement_execution_log").insert({
       placement_id: p.id,
       catalog_track_id: p.catalog_track_id,
       managed_playlist_id: p.managed_playlist_id,
       spotify_playlist_id: p.spotify_playlist_id,
       spotify_track_id: p.spotify_track_id,
-      position: p.position,
+      position: finalPosition ?? p.position,
       outcome,
-      error_message: trim(`source=${source} corr=${correlationId}`),
+      error_message: trim(`source=${source} pos=${finalPosition ?? "?"} corr=${correlationId}`),
       snapshot_id: snapshotId,
     });
     if (outcome === "already_present") cntAlready++;
@@ -533,7 +561,7 @@ Deno.serve(async (req) => {
       // 3.2) Pré-check local (managed_playlist_tracks).
       if (await localPlaylistHasTrack(p.managed_playlist_id, p.spotify_track_id)) {
         cntLocalHits++;
-        await markActive(p, "already_present", "local_hit", correlationId);
+        await markActive(p, "already_present", "local_hit", correlationId, null, null);
         continue;
       }
 
@@ -555,7 +583,8 @@ Deno.serve(async (req) => {
       //      Eventual ghost_add será reconciliado pelo sync periódico.
       await persistLocal(p.managed_playlist_id, p.spotify_track_id);
 
-      await markActive(p, "active", "spotify_post", correlationId, addRes.snapshot_id ?? null);
+      const usedPosition = typeof insertOpts.position === "number" ? insertOpts.position : null;
+      await markActive(p, "active", "spotify_post", correlationId, addRes.snapshot_id ?? null, usedPosition);
     } catch (e: any) {
       const cls = classify(e);
       const { kind, code } = cls;
