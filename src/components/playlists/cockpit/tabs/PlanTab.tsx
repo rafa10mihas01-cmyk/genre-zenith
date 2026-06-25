@@ -25,7 +25,7 @@ import { TabKpiStrip } from "../shared/ds/TabKpiStrip";
 import { KpiCard } from "../shared/ds/KpiCard";
 import { SecondarySection } from "../shared/ds/SecondarySection";
 import { useCockpit } from "../context/CockpitContext";
-import { usePlaylistBrain, type PlaylistBrain } from "@/hooks/usePlaylistBrain";
+import { usePlaylistBrainGated, type PlaylistBrain } from "@/hooks/usePlaylistBrain";
 import { Badge } from "@/components/ui/badge";
 
 function ageLabel(iso?: string | null) {
