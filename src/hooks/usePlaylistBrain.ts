@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useSnapshotGate, type SnapshotGate } from "./useSnapshotGate";
 
 export type BrainSignal = {
   code: string;
@@ -79,6 +80,44 @@ export function usePlaylistBrain(playlistId?: string) {
       return data as unknown as PlaylistBrain | null;
     },
   });
+}
+
+/**
+ * Phase 4.2 — leitura do Brain gateada por Analysis Snapshot.
+ *
+ * Garante o contrato "nunca misturar estados":
+ *  - Enquanto o snapshot estiver `processing`, retorna `brain=null` + `gate.isProcessing=true`.
+ *  - Quando `ready`, libera a leitura de `playlist_brain` (consistente com o pipeline).
+ *  - Quando `failed`, retorna `brain=null` e expõe `gate.failureReason` para a UI decidir o fallback.
+ *  - Quando `no_snapshot` (legado pré-pipeline), mantém a leitura legada como compat.
+ */
+export function usePlaylistBrainGated(playlistId?: string): {
+  brain: PlaylistBrain | null;
+  isLoading: boolean;
+  gate: SnapshotGate;
+} {
+  const { loading: gateLoading, gate } = useSnapshotGate(playlistId);
+
+  const canRead = gate.kind === "ready" || gate.kind === "no_snapshot";
+  const q = useQuery({
+    queryKey: ["playlist_brain_gated", playlistId, gate.kind],
+    enabled: !!playlistId && canRead,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("playlist_brain")
+        .select("*")
+        .eq("playlist_id", playlistId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data as unknown as PlaylistBrain | null;
+    },
+  });
+
+  return {
+    brain: canRead ? (q.data ?? null) : null,
+    isLoading: gateLoading || (canRead && q.isLoading),
+    gate,
+  };
 }
 
 /** Histórico leve para gráficos de trend. */
