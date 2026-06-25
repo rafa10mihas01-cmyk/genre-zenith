@@ -172,7 +172,7 @@ export default function Catalogo() {
   };
 
   const qc = useQueryClient();
-  const summaryQ = useQuery({ queryKey: ["catalog", "summary", "v2-campaign"], queryFn: fetchSummary, staleTime: 30_000 });
+  const summaryQ = useQuery({ queryKey: ["catalog", "summary", "v3-tracks-vs-positions"], queryFn: fetchSummary, staleTime: 30_000 });
   const telemetryQ = useQuery({ queryKey: ["catalog", "global-telemetry"], queryFn: fetchGlobalTelemetry, staleTime: 30_000, refetchInterval: 60_000 });
   const s = summaryQ.data;
   const g = telemetryQ.data;
