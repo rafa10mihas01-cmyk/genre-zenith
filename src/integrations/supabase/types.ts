@@ -12126,6 +12126,53 @@ export type Database = {
           },
         ]
       }
+      spotify_account_artist_access: {
+        Row: {
+          account_id: string
+          created_at: string
+          has_access: boolean
+          id: string
+          last_error: string | null
+          last_probed_at: string
+          notes: string | null
+          source: string
+          spotify_artist_id: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          has_access: boolean
+          id?: string
+          last_error?: string | null
+          last_probed_at?: string
+          notes?: string | null
+          source?: string
+          spotify_artist_id: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          has_access?: boolean
+          id?: string
+          last_error?: string | null
+          last_probed_at?: string
+          notes?: string | null
+          source?: string
+          spotify_artist_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spotify_account_artist_access_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "spotify_accounts"
+            referencedColumns: ["account_id"]
+          },
+        ]
+      }
       spotify_accounts: {
         Row: {
           account_id: string
