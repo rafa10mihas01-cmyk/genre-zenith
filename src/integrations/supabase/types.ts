@@ -13908,13 +13908,21 @@ export type Database = {
       v_catalog_playlist_occupancy: {
         Row: {
           active_placements: number | null
+          active_placements_catalog: number | null
           archived_at: string | null
           available_slots: number | null
+          campaign_count: number | null
           campaign_reserved_slots: number | null
           catalog_capacity: number | null
+          catalog_count: number | null
           cover_url: string | null
+          effective_ceiling: number | null
+          free_slots: number | null
           managed_playlist_id: string | null
+          planned_ceiling: number | null
           playlist_name: string | null
+          third_party_count: number | null
+          total_current: number | null
           tracks_count: number | null
         }
         Relationships: []
