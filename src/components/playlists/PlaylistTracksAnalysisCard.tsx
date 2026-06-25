@@ -151,8 +151,15 @@ export function PlaylistTracksAnalysisCard({ managedId }: { managedId: string })
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | Status>("all");
 
+  const { gate } = useSnapshotGate(managedId);
+  const canRead = gate.kind === "ready" || gate.kind === "no_snapshot";
+
   useEffect(() => {
     if (!managedId) return;
+    if (!canRead) {
+      setLoading(false);
+      return;
+    }
     let active = true;
     (async () => {
       setLoading(true);
