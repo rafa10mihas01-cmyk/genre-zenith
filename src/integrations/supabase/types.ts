@@ -8207,6 +8207,111 @@ export type Database = {
         }
         Relationships: []
       }
+      occupancy_plan_ops: {
+        Row: {
+          classification: string | null
+          created_at: string
+          from_position: number | null
+          id: string
+          op_type: string
+          payload: Json
+          plan_id: string
+          reason: string
+          spotify_track_id: string | null
+          to_position: number | null
+        }
+        Insert: {
+          classification?: string | null
+          created_at?: string
+          from_position?: number | null
+          id?: string
+          op_type: string
+          payload?: Json
+          plan_id: string
+          reason: string
+          spotify_track_id?: string | null
+          to_position?: number | null
+        }
+        Update: {
+          classification?: string | null
+          created_at?: string
+          from_position?: number | null
+          id?: string
+          op_type?: string
+          payload?: Json
+          plan_id?: string
+          reason?: string
+          spotify_track_id?: string | null
+          to_position?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "occupancy_plan_ops_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "occupancy_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      occupancy_plans: {
+        Row: {
+          block_reason: string | null
+          created_at: string
+          finalized_at: string | null
+          id: string
+          managed_playlist_id: string
+          mode: string
+          policy_snapshot: Json
+          stats: Json
+          status: string
+        }
+        Insert: {
+          block_reason?: string | null
+          created_at?: string
+          finalized_at?: string | null
+          id?: string
+          managed_playlist_id: string
+          mode?: string
+          policy_snapshot?: Json
+          stats?: Json
+          status?: string
+        }
+        Update: {
+          block_reason?: string | null
+          created_at?: string
+          finalized_at?: string | null
+          id?: string
+          managed_playlist_id?: string
+          mode?: string
+          policy_snapshot?: Json
+          stats?: Json
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "occupancy_plans_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "managed_playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "occupancy_plans_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_playlist_occupancy"
+            referencedColumns: ["managed_playlist_id"]
+          },
+          {
+            foreignKeyName: "occupancy_plans_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_playlist_vps_assignment"
+            referencedColumns: ["managed_playlist_id"]
+          },
+        ]
+      }
       organic_plays_snapshots: {
         Row: {
           captured_at: string
@@ -14203,41 +14308,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "campaign_radio_collected"
-            referencedColumns: ["campaign_id"]
-          },
-          {
-            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "campaigns"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "v_campaign_overview"
-            referencedColumns: ["campaign_id"]
-          },
-          {
-            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "v_campaign_velocity"
-            referencedColumns: ["campaign_id"]
-          },
-          {
-            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "v_financial_summary"
-            referencedColumns: ["campaign_id"]
-          },
-          {
             foreignKeyName: "managed_playlist_tracks_playlist_id_fkey"
             columns: ["managed_playlist_id"]
             isOneToOne: false
@@ -14982,6 +15052,17 @@ export type Database = {
           last_reading_at: string
           playlist_id: string
           readings_count: number
+        }[]
+      }
+      fn_playlist_occupancy_rebuild: {
+        Args: { p_mode?: string; p_playlist_id: string }
+        Returns: string
+      }
+      fn_playlist_occupancy_rebuild_batch: {
+        Args: { p_limit?: number; p_policy_type?: string }
+        Returns: {
+          plan_id: string
+          playlist_id: string
         }[]
       }
       fn_resolve_playlist_policy: {
