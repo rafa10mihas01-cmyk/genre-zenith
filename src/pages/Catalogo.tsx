@@ -66,7 +66,12 @@ type OriginRow = {
 async function fetchSummary(): Promise<Summary> {
   const [tracksRes, playlistsRes, placementsRes, occupancyRes, originRes] = await Promise.all([
     supabase.from("catalog_tracks").select("id", { count: "exact", head: true }).eq("status", "active"),
-    supabase.from("managed_playlists").select("id", { count: "exact", head: true }).eq("is_catalog", true),
+    // Universo oficial do Occupancy Engine: todas as playlists do ecossistema MENOS as marcadas
+    // explicitamente como do_not_operate. Sem filtros legados (is_catalog/archived_at/MANUAL_ONLY).
+    supabase
+      .from("managed_playlists")
+      .select("id", { count: "exact", head: true })
+      .or("operational_status.is.null,operational_status.neq.do_not_operate"),
     supabase.from("catalog_placements").select("id", { count: "exact", head: true }).eq("status", "active"),
     supabase.from("v_catalog_playlist_occupancy").select(
       "planned_ceiling, effective_ceiling, total_current, free_slots, catalog_target, catalog_missing, third_party_target, third_party_excess",
