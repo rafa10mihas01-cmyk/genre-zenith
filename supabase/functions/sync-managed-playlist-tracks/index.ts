@@ -335,6 +335,15 @@ Deno.serve(async (req) => {
         tracks_changed: tracksChanged,
       });
     }
+
+    // FASE 4 — Enfileira rebuild SHADOW do Occupancy Engine após sincronização completa
+    try {
+      await supabase.rpc("fn_enqueue_occupancy_rebuild", {
+        p_playlist_id: pl.id,
+        p_trigger_source: "sync_completed",
+        p_payload: { tracks_changed: tracksChanged, total: spotifyRows.length },
+      });
+    } catch (_) { /* não bloqueia a sync */ }
     return jr({
       ok: true,
       total: spotifyRows.length,
