@@ -3,6 +3,7 @@
 // POST {mode:"single", spotify_playlist_id:"..."} → recalcula uma playlist
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { reportCronHealth } from "../_shared/cron-health.ts";
+import { logSnapshotBypass } from "../_shared/_snapshot-phase6.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -234,6 +235,7 @@ async function processPlaylist(
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  logSnapshotBypass(req, "calculate-playlist-ecosystem-score");
   const startedAt = Date.now();
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,

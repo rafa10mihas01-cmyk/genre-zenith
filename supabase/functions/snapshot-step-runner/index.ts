@@ -78,6 +78,8 @@ async function callEngine(
   fn: string,
   body: Record<string, unknown>,
   timeoutMs: number,
+  step: StepName,
+  snapshotId: string,
 ): Promise<{ ok: boolean; status: number; result: any; error?: string }> {
   const ac = new AbortController();
   const t = setTimeout(() => ac.abort(), timeoutMs);
@@ -88,6 +90,10 @@ async function callEngine(
         Authorization: `Bearer ${SERVICE_KEY}`,
         apikey: SERVICE_KEY,
         "Content-Type": "application/json",
+        // Fase 6: marca chamada como originada do pipeline Snapshot Único.
+        // Motores legados usam essa flag para distinguir chamadas legítimas de chamadas diretas (deprecated).
+        "x-snapshot-step": step,
+        "x-snapshot-id": snapshotId,
       },
       body: JSON.stringify(body),
       signal: ac.signal,
@@ -213,7 +219,7 @@ Deno.serve(async (req) => {
   // Invoca motor
   const { fn, body: engineBody } = buildEngineRequest(step, pl as any);
   const timeoutMs = (stepRow.timeout_seconds ?? 120) * 1000;
-  const outcome = await callEngine(fn, engineBody, timeoutMs);
+  const outcome = await callEngine(fn, engineBody, timeoutMs, step, snapshotId);
   const durationMs = Date.now() - startedAt.getTime();
 
   if (outcome.ok) {

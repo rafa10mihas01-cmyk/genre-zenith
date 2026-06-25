@@ -17,6 +17,7 @@
 //   - Hibrida:    fallback
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { logSnapshotBypass } from "../_shared/_snapshot-phase6.ts";
 // Auth: gated by Supabase platform auth (verify_jwt=false globally, but the
 // Functions gateway still requires a valid project key). Read-only on source
 // tables, writes apenas em playlist_dna / playlist_dna_runs.
@@ -60,6 +61,7 @@ function round(n: number | null, d = 2): number | null {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  logSnapshotBypass(req, "compute-playlist-dna");
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
