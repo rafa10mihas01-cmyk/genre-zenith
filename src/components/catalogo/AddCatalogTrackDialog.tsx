@@ -65,11 +65,6 @@ type PreviewResult = {
   distribution_count?: number;
   eligible_total?: number;
   already_present_count?: number;
-  no_capacity_count?: number;
-  blocked_count?: number;
-  ignored_count?: number;
-  manual_count?: number;
-  api_count?: number;
 };
 
 
