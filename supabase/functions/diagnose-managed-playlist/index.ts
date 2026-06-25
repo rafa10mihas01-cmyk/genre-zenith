@@ -20,6 +20,7 @@ import {
 import { buildRoadmap, derivePhase, bloatedRemovalBudget } from "../_shared/lifecycle.ts";
 import { getProtectedTracksForPlaylist } from "../_shared/protected-tracks.ts";
 import { getTrackCacheBatch, getArtistCacheBatch } from "../_shared/spotify-cache.ts";
+import { logSnapshotBypass } from "../_shared/_snapshot-phase6.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -327,6 +328,7 @@ async function generateEditorialCopy(ctx: {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  logSnapshotBypass(req, "diagnose-managed-playlist");
   const guard = await requireTeamAccess(req);
   if (!guard.ok) return guard.resp;
 
