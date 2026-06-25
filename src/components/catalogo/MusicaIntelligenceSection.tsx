@@ -308,11 +308,11 @@ function OperationalHealthPanel(props: MusicaIntelligenceProps & {
 
   const rows: Array<{ label: string; value: React.ReactNode; tone?: "good" | "warn" | "bad" }> = [
     { label: "Última coleta", value: rel(telemetry?.last_captured_at) },
-    { label: "Próxima coleta", value: queue?.scheduled_for ? dt(queue.scheduled_for) : "—" },
-    { label: "Worker responsável", value: queue?.locked_at ? <span className="font-mono">claimed @ {dt(queue.locked_at)}</span> : "—" },
+    ...(queue ? [{ label: "Próxima coleta", value: queue.scheduled_for ? dt(queue.scheduled_for) : "—" }] : []),
+    ...(queue ? [{ label: "Worker responsável", value: queue.locked_at ? <span className="font-mono">claimed @ {dt(queue.locked_at)}</span> : "—" }] : []),
     { label: "VPS na rota", value: vpsCount ? `${vpsCount} nó(s)` : "—" },
-    { label: "Status da fila", value: queue?.status ?? "—", tone: queue?.status === "failed" ? "bad" : queueActive ? "warn" : "good" },
-    { label: "Tentativas", value: queue ? `${queue.attempts}/${queue.max_attempts}` : "—" },
+    ...(queue ? [{ label: "Status da fila", value: queue.status, tone: (queue.status === "failed" ? "bad" : queueActive ? "warn" : "good") as "good" | "warn" | "bad" }] : []),
+    ...(queue ? [{ label: "Tentativas", value: `${queue.attempts}/${queue.max_attempts}` }] : []),
     { label: "Snapshots totais", value: fmt(telemetry?.snapshots_count) },
     { label: "Última execução (POST)", value: lastExec ? `${lastExec.outcome} · ${rel(lastExec.executed_at)}` : "—" },
     { label: "Último erro", value: lastErr ? `${lastErr.outcome}${lastErr.error_code ? ` (${lastErr.error_code})` : ""} · ${rel(lastErr.executed_at)}` : "—", tone: lastErr ? "warn" : "good" },
