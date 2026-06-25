@@ -14308,41 +14308,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "campaign_radio_collected"
-            referencedColumns: ["campaign_id"]
-          },
-          {
-            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "campaigns"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "v_campaign_overview"
-            referencedColumns: ["campaign_id"]
-          },
-          {
-            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "v_campaign_velocity"
-            referencedColumns: ["campaign_id"]
-          },
-          {
-            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "v_financial_summary"
-            referencedColumns: ["campaign_id"]
-          },
-          {
             foreignKeyName: "managed_playlist_tracks_playlist_id_fkey"
             columns: ["managed_playlist_id"]
             isOneToOne: false
