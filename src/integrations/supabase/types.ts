@@ -6372,6 +6372,7 @@ export type Database = {
           id: string
           intercalation_ratio: number
           notes: string | null
+          operational_ceiling: number
           protect_top_n: number
           third_party_max_pct: number
           updated_at: string
@@ -6384,6 +6385,7 @@ export type Database = {
           id?: string
           intercalation_ratio?: number
           notes?: string | null
+          operational_ceiling?: number
           protect_top_n?: number
           third_party_max_pct?: number
           updated_at?: string
@@ -6396,6 +6398,7 @@ export type Database = {
           id?: string
           intercalation_ratio?: number
           notes?: string | null
+          operational_ceiling?: number
           protect_top_n?: number
           third_party_max_pct?: number
           updated_at?: string
@@ -10136,6 +10139,7 @@ export type Database = {
           is_active: boolean
           managed_playlist_id: string
           notes: string | null
+          operational_ceiling: number | null
           policy_type: string
           protect_top_n: number
           source: string
@@ -10151,6 +10155,7 @@ export type Database = {
           is_active?: boolean
           managed_playlist_id: string
           notes?: string | null
+          operational_ceiling?: number | null
           policy_type?: string
           protect_top_n?: number
           source?: string
@@ -10166,6 +10171,7 @@ export type Database = {
           is_active?: boolean
           managed_playlist_id?: string
           notes?: string | null
+          operational_ceiling?: number | null
           policy_type?: string
           protect_top_n?: number
           source?: string
@@ -15296,6 +15302,7 @@ export type Database = {
           catalog_capacity: number
           intercalation_ratio: number
           managed_playlist_id: string
+          operational_ceiling: number
           protect_top_n: number
           source: string
           third_party_max_pct: number
