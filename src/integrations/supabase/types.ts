@@ -13915,6 +13915,8 @@ export type Database = {
           campaign_reserved_slots: number | null
           catalog_capacity: number | null
           catalog_count: number | null
+          catalog_missing: number | null
+          catalog_target: number | null
           cover_url: string | null
           effective_ceiling: number | null
           free_slots: number | null
@@ -13922,6 +13924,9 @@ export type Database = {
           planned_ceiling: number | null
           playlist_name: string | null
           third_party_count: number | null
+          third_party_excess: number | null
+          third_party_max_pct: number | null
+          third_party_target: number | null
           total_current: number | null
           tracks_count: number | null
         }
