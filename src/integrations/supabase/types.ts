@@ -6363,6 +6363,60 @@ export type Database = {
         }
         Relationships: []
       }
+      genre_editorial_policy_defaults: {
+        Row: {
+          campaign_reserved_slots: number
+          catalog_capacity: number
+          created_at: string
+          genre_id: string
+          id: string
+          intercalation_ratio: number
+          notes: string | null
+          protect_top_n: number
+          third_party_max_pct: number
+          updated_at: string
+        }
+        Insert: {
+          campaign_reserved_slots?: number
+          catalog_capacity?: number
+          created_at?: string
+          genre_id: string
+          id?: string
+          intercalation_ratio?: number
+          notes?: string | null
+          protect_top_n?: number
+          third_party_max_pct?: number
+          updated_at?: string
+        }
+        Update: {
+          campaign_reserved_slots?: number
+          catalog_capacity?: number
+          created_at?: string
+          genre_id?: string
+          id?: string
+          intercalation_ratio?: number
+          notes?: string | null
+          protect_top_n?: number
+          third_party_max_pct?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "genre_editorial_policy_defaults_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: true
+            referencedRelation: "genres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "genre_editorial_policy_defaults_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: true
+            referencedRelation: "genres_with_health"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       genre_filters: {
         Row: {
           base_daily: number
@@ -9854,6 +9908,73 @@ export type Database = {
         }
         Relationships: []
       }
+      playlist_editorial_policies: {
+        Row: {
+          campaign_reserved_slots: number
+          catalog_capacity: number
+          created_at: string
+          id: string
+          intercalation_ratio: number
+          is_active: boolean
+          managed_playlist_id: string
+          notes: string | null
+          protect_top_n: number
+          source: string
+          third_party_max_pct: number
+          updated_at: string
+        }
+        Insert: {
+          campaign_reserved_slots?: number
+          catalog_capacity?: number
+          created_at?: string
+          id?: string
+          intercalation_ratio?: number
+          is_active?: boolean
+          managed_playlist_id: string
+          notes?: string | null
+          protect_top_n?: number
+          source?: string
+          third_party_max_pct?: number
+          updated_at?: string
+        }
+        Update: {
+          campaign_reserved_slots?: number
+          catalog_capacity?: number
+          created_at?: string
+          id?: string
+          intercalation_ratio?: number
+          is_active?: boolean
+          managed_playlist_id?: string
+          notes?: string | null
+          protect_top_n?: number
+          source?: string
+          third_party_max_pct?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "playlist_editorial_policies_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: true
+            referencedRelation: "managed_playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_editorial_policies_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: true
+            referencedRelation: "v_catalog_playlist_occupancy"
+            referencedColumns: ["managed_playlist_id"]
+          },
+          {
+            foreignKeyName: "playlist_editorial_policies_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: true
+            referencedRelation: "v_playlist_vps_assignment"
+            referencedColumns: ["managed_playlist_id"]
+          },
+        ]
+      }
       playlist_execution_jobs: {
         Row: {
           allocation_id: string | null
@@ -10359,6 +10480,61 @@ export type Database = {
           {
             foreignKeyName: "playlist_operation_queue_playlist_id_fkey"
             columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_playlist_vps_assignment"
+            referencedColumns: ["managed_playlist_id"]
+          },
+        ]
+      }
+      playlist_policy_alerts: {
+        Row: {
+          alert_type: string
+          created_at: string
+          details: Json
+          id: string
+          managed_playlist_id: string
+          message: string
+          resolved_at: string | null
+          severity: string
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string
+          details?: Json
+          id?: string
+          managed_playlist_id: string
+          message: string
+          resolved_at?: string | null
+          severity?: string
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string
+          details?: Json
+          id?: string
+          managed_playlist_id?: string
+          message?: string
+          resolved_at?: string | null
+          severity?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "playlist_policy_alerts_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "managed_playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_policy_alerts_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_playlist_occupancy"
+            referencedColumns: ["managed_playlist_id"]
+          },
+          {
+            foreignKeyName: "playlist_policy_alerts_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
             isOneToOne: false
             referencedRelation: "v_playlist_vps_assignment"
             referencedColumns: ["managed_playlist_id"]
@@ -14014,6 +14190,73 @@ export type Database = {
           },
         ]
       }
+      v_playlist_track_origin: {
+        Row: {
+          campaign_id: string | null
+          managed_playlist_id: string | null
+          origin: string | null
+          position: number | null
+          spotify_track_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_radio_collected"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_campaign_overview"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_campaign_velocity"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "campaign_playlist_collections_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "v_financial_summary"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "managed_playlist_tracks_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "managed_playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "managed_playlist_tracks_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_playlist_occupancy"
+            referencedColumns: ["managed_playlist_id"]
+          },
+          {
+            foreignKeyName: "managed_playlist_tracks_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_playlist_vps_assignment"
+            referencedColumns: ["managed_playlist_id"]
+          },
+        ]
+      }
       v_playlist_vps_assignment: {
         Row: {
           account_id: string | null
@@ -14736,6 +14979,18 @@ export type Database = {
           last_reading_at: string
           playlist_id: string
           readings_count: number
+        }[]
+      }
+      fn_resolve_playlist_policy: {
+        Args: { p_playlist_id: string }
+        Returns: {
+          campaign_reserved_slots: number
+          catalog_capacity: number
+          intercalation_ratio: number
+          managed_playlist_id: string
+          protect_top_n: number
+          source: string
+          third_party_max_pct: number
         }[]
       }
       force_close_spotify_circuit_breaker: {
