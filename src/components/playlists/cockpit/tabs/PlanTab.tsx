@@ -63,7 +63,7 @@ export function PlanTab() {
     canonicalPlaylistId,
   } = useCockpit();
 
-  const { data: brain } = usePlaylistBrain(canonicalPlaylistId ?? undefined);
+  const { brain } = usePlaylistBrainGated(canonicalPlaylistId ?? undefined);
   const { data: lastResult } = useLastPlanResult(managedId ?? null);
 
   if (!diag) return null;
