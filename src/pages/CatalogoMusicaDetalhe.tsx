@@ -30,10 +30,11 @@ type Track = {
   status: string;
   added_at: string;
 };
+// LEGACY: Baseline mantida no tipo apenas como sintetizada a partir do primeiro snapshot SONG.
 type Baseline = {
   captured_at: string;
-  popularity: number | null;
-  monthly_listeners: number | null;
+  popularity: null;
+  monthly_listeners: null;
   streams: number | null;
 };
 type Telemetry = {
