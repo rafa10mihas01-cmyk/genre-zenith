@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { DailyDistributionMeter } from "./DailyDistributionMeter";
 
 type Plan = {
   id: string;
@@ -209,6 +210,7 @@ export function DistribuicaoTab() {
 
   return (
     <div className="space-y-6">
+      <DailyDistributionMeter />
       {/* Resumo operacional — compacto no mobile, frase no desktop */}
       <section className="rounded-2xl border border-border bg-card overflow-hidden">
         {/* Mobile: 3 colunas grandes, bate o olho */}
