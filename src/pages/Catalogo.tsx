@@ -91,7 +91,8 @@ async function fetchSummary(): Promise<Summary> {
     catalog_missing: totals.catMiss,
     third_party_current: totals.tpCur,
     third_party_target: totals.tpTgt,
-    third_party_excess: totals.tpExc,
+    // Excedente GLOBAL (não soma per‑playlist) — compensa playlists abaixo do target
+    third_party_excess: Math.max(0, totals.tpCur - totals.tpTgt),
   };
 }
 
