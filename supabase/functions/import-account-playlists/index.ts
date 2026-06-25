@@ -341,57 +341,51 @@ Deno.serve(async (req) => {
     }
 
     // 10) Pipeline automático pós-import (fire-and-forget, não bloqueia resposta).
-    //     Para cada playlist importada: classify-playlist-genre → snapshot-playlist-tracks → playlist-brain-calc.
-    //     Cada step tem timeout próprio; falha de uma playlist não derruba as outras.
-    //     IMPORTANTE: só pra playlists que NÃO nasceram arquivadas — arquivadas não consomem Spotify até reativação manual.
+    //     Fase 5.3: substitui a cadeia classify/snapshot/brain por UMA chamada ao
+    //     analysis-orchestrator (trigger=import). O orquestrador cria o snapshot
+    //     único e roda sync→dna→diagnose→brain→score com lock/idempotência.
+    //     Só pra playlists que NÃO nasceram arquivadas.
     if (activeImportedIds.length > 0) {
-      const PIPELINE_STEPS = [
-        { name: "classify-playlist-genre", bodyKey: "playlist_id", timeoutMs: 45_000 },
-        { name: "snapshot-playlist-tracks", bodyKey: "playlist_id", timeoutMs: 60_000 },
-        { name: "playlist-brain-calc", bodyKey: "playlist_id", timeoutMs: 45_000 },
-      ] as const;
-      const PIPELINE_CONCURRENCY = 2; // antes: 4 — reduzido pra não saturar Spotify
-      const PIPELINE_BATCH_DELAY_MS = 500; // delay entre lotes
+      const ORCH_CONCURRENCY = 4;
+      const ORCH_BATCH_DELAY_MS = 300;
+      const ORCH_TIMEOUT_MS = 20_000;
 
-      const callStep = async (step: typeof PIPELINE_STEPS[number], playlistId: string) => {
+      const triggerOrchestrator = async (playlistId: string) => {
         const ctrl = new AbortController();
-        const tid = setTimeout(() => ctrl.abort(), step.timeoutMs);
+        const tid = setTimeout(() => ctrl.abort(), ORCH_TIMEOUT_MS);
         try {
-          const r = await fetch(`${SUPABASE_URL}/functions/v1/${step.name}`, {
+          const r = await fetch(`${SUPABASE_URL}/functions/v1/analysis-orchestrator`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${SERVICE_KEY}`,
             },
-            body: JSON.stringify({ [step.bodyKey]: playlistId }),
+            body: JSON.stringify({
+              playlist_id: playlistId,
+              trigger: "import",
+              idempotency_key: `import:${playlistId}:${nowIso.slice(0, 10)}`,
+            }),
             signal: ctrl.signal,
           });
           if (!r.ok) {
-            console.warn(`pipeline ${step.name} ${playlistId} → ${r.status}`);
+            console.warn(`orchestrator import ${playlistId} → ${r.status}`);
           }
         } catch (e) {
-          console.warn(`pipeline ${step.name} ${playlistId} error:`, (e as Error).message);
+          console.warn(`orchestrator import ${playlistId} error:`, (e as Error).message);
         } finally {
           clearTimeout(tid);
         }
       };
 
       const runPipeline = async () => {
-        for (let i = 0; i < activeImportedIds.length; i += PIPELINE_CONCURRENCY) {
-          if (i > 0) await sleep(PIPELINE_BATCH_DELAY_MS);
-          const batch = activeImportedIds.slice(i, i + PIPELINE_CONCURRENCY);
-          await Promise.all(batch.map(async (pid) => {
-            for (const step of PIPELINE_STEPS) {
-              await callStep(step, pid);
-              await sleep(SPOTIFY_CALL_DELAY_MS); // 500ms entre steps por playlist
-            }
-          }));
+        for (let i = 0; i < activeImportedIds.length; i += ORCH_CONCURRENCY) {
+          if (i > 0) await sleep(ORCH_BATCH_DELAY_MS);
+          const batch = activeImportedIds.slice(i, i + ORCH_CONCURRENCY);
+          await Promise.all(batch.map(triggerOrchestrator));
         }
-        console.log(`pipeline done: ${activeImportedIds.length} active playlists processed (${importedIds.length - activeImportedIds.length} auto-archived skipped)`);
+        console.log(`pipeline done: ${activeImportedIds.length} active playlists enqueued via analysis-orchestrator (${importedIds.length - activeImportedIds.length} auto-archived skipped)`);
       };
 
-      // EdgeRuntime.waitUntil mantém a função viva após o response.
-      // Fallback: dispara sem await.
       const runtime = (globalThis as any).EdgeRuntime;
       if (runtime?.waitUntil) {
         runtime.waitUntil(runPipeline());
