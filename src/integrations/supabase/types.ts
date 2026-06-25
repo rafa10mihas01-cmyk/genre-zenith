@@ -8209,10 +8209,14 @@ export type Database = {
       }
       occupancy_plan_ops: {
         Row: {
+          attempts: number
           classification: string | null
           created_at: string
+          error: string | null
+          executed_at: string | null
           from_position: number | null
           id: string
+          op_status: string
           op_type: string
           payload: Json
           plan_id: string
@@ -8221,10 +8225,14 @@ export type Database = {
           to_position: number | null
         }
         Insert: {
+          attempts?: number
           classification?: string | null
           created_at?: string
+          error?: string | null
+          executed_at?: string | null
           from_position?: number | null
           id?: string
+          op_status?: string
           op_type: string
           payload?: Json
           plan_id: string
@@ -8233,10 +8241,14 @@ export type Database = {
           to_position?: number | null
         }
         Update: {
+          attempts?: number
           classification?: string | null
           created_at?: string
+          error?: string | null
+          executed_at?: string | null
           from_position?: number | null
           id?: string
+          op_status?: string
           op_type?: string
           payload?: Json
           plan_id?: string
@@ -8259,12 +8271,18 @@ export type Database = {
           block_reason: string | null
           created_at: string
           duration_ms: number | null
+          executed_at: string | null
+          executor_attempts: number
+          executor_error: string | null
+          executor_stats: Json | null
+          executor_status: string
           finalized_at: string | null
           id: string
           managed_playlist_id: string
           mode: string
           ops_count: number
           policy_snapshot: Json
+          spotify_snapshot_id: string | null
           started_at: string | null
           stats: Json
           status: string
@@ -8274,12 +8292,18 @@ export type Database = {
           block_reason?: string | null
           created_at?: string
           duration_ms?: number | null
+          executed_at?: string | null
+          executor_attempts?: number
+          executor_error?: string | null
+          executor_stats?: Json | null
+          executor_status?: string
           finalized_at?: string | null
           id?: string
           managed_playlist_id: string
           mode?: string
           ops_count?: number
           policy_snapshot?: Json
+          spotify_snapshot_id?: string | null
           started_at?: string | null
           stats?: Json
           status?: string
@@ -8289,12 +8313,18 @@ export type Database = {
           block_reason?: string | null
           created_at?: string
           duration_ms?: number | null
+          executed_at?: string | null
+          executor_attempts?: number
+          executor_error?: string | null
+          executor_stats?: Json | null
+          executor_status?: string
           finalized_at?: string | null
           id?: string
           managed_playlist_id?: string
           mode?: string
           ops_count?: number
           policy_snapshot?: Json
+          spotify_snapshot_id?: string | null
           started_at?: string | null
           stats?: Json
           status?: string
@@ -13243,6 +13273,7 @@ export type Database = {
           execution_frozen_reason: string | null
           execution_queue_internal_enabled: boolean
           id: string
+          occupancy_engine_mode: string
           singleton_key: string
           updated_at: string
         }
@@ -13274,6 +13305,7 @@ export type Database = {
           execution_frozen_reason?: string | null
           execution_queue_internal_enabled?: boolean
           id?: string
+          occupancy_engine_mode?: string
           singleton_key?: string
           updated_at?: string
         }
@@ -13305,6 +13337,7 @@ export type Database = {
           execution_frozen_reason?: string | null
           execution_queue_internal_enabled?: boolean
           id?: string
+          occupancy_engine_mode?: string
           singleton_key?: string
           updated_at?: string
         }
@@ -14310,6 +14343,20 @@ export type Database = {
         }
         Relationships: []
       }
+      v_occupancy_executor_metrics: {
+        Row: {
+          avg_rebuild_ms: number | null
+          bucket: string | null
+          executed: number | null
+          executor_status: string | null
+          failed: number | null
+          mode: string | null
+          ops_total: number | null
+          partial: number | null
+          plans: number | null
+        }
+        Relationships: []
+      }
       v_occupancy_rebuild_metrics: {
         Row: {
           avg_ms: number | null
@@ -15148,6 +15195,15 @@ export type Database = {
           p_trigger_source: string
         }
         Returns: string
+      }
+      fn_occupancy_claim_executable_plans: {
+        Args: { p_limit?: number }
+        Returns: {
+          managed_playlist_id: string
+          mode: string
+          ops_count: number
+          plan_id: string
+        }[]
       }
       fn_playlist_delivery_accumulated: {
         Args: { p_campaign_id: string }
