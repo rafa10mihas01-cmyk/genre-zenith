@@ -219,7 +219,7 @@ Deno.serve(async (req) => {
   // Invoca motor
   const { fn, body: engineBody } = buildEngineRequest(step, pl as any);
   const timeoutMs = (stepRow.timeout_seconds ?? 120) * 1000;
-  const outcome = await callEngine(fn, engineBody, timeoutMs);
+  const outcome = await callEngine(fn, engineBody, timeoutMs, step, snapshotId);
   const durationMs = Date.now() - startedAt.getTime();
 
   if (outcome.ok) {
