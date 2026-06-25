@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { PlaylistTracksTab } from "@/components/playlists/PlaylistTracksTab";
 import { PlaylistCockpit } from "@/components/playlists/cockpit/PlaylistCockpit";
-import { usePlaylistBrain } from "@/hooks/usePlaylistBrain";
+import { usePlaylistBrainGated } from "@/hooks/usePlaylistBrain";
 import {
   usePlaylistById,
   useManagedByPlaylistId,
@@ -26,7 +26,7 @@ export default function PlaylistDetail() {
     else navigate("/catalogo");
   };
 
-  const { data: brain } = usePlaylistBrain(id);
+  const { brain } = usePlaylistBrainGated(id);
 
   // 1) tenta como playlist canonical
   const playlistQ = usePlaylistById(id);

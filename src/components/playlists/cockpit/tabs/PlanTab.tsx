@@ -25,7 +25,7 @@ import { TabKpiStrip } from "../shared/ds/TabKpiStrip";
 import { KpiCard } from "../shared/ds/KpiCard";
 import { SecondarySection } from "../shared/ds/SecondarySection";
 import { useCockpit } from "../context/CockpitContext";
-import { usePlaylistBrain, type PlaylistBrain } from "@/hooks/usePlaylistBrain";
+import { usePlaylistBrainGated, type PlaylistBrain } from "@/hooks/usePlaylistBrain";
 import { Badge } from "@/components/ui/badge";
 
 function ageLabel(iso?: string | null) {
@@ -63,7 +63,7 @@ export function PlanTab() {
     canonicalPlaylistId,
   } = useCockpit();
 
-  const { data: brain } = usePlaylistBrain(canonicalPlaylistId ?? undefined);
+  const { brain } = usePlaylistBrainGated(canonicalPlaylistId ?? undefined);
   const { data: lastResult } = useLastPlanResult(managedId ?? null);
 
   if (!diag) return null;

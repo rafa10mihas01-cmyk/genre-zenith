@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ArrowDown, ArrowUp, Minus, ShieldCheck, Target } from "lucide-react";
 import { useCockpit } from "../context/CockpitContext";
-import { usePlaylistBrain } from "@/hooks/usePlaylistBrain";
+import { usePlaylistBrainGated } from "@/hooks/usePlaylistBrain";
 import { computePlanImpact, type ImpactDelta } from "./computePlanImpact";
 import { SectionTitle } from "./SectionTitle";
 
@@ -56,7 +56,7 @@ function ConfidencePill({ level }: { level: "Baixa" | "Média" | "Alta" }) {
 
 export function PlanImpactCard() {
   const { diag, buckets, liveTracksCount, canonicalPlaylistId } = useCockpit();
-  const { data: brain } = usePlaylistBrain(canonicalPlaylistId ?? undefined);
+  const { brain } = usePlaylistBrainGated(canonicalPlaylistId ?? undefined);
 
   const total = buckets.remove.length + buckets.demote.length + buckets.promote.length + buckets.add.length;
   if (!diag || total === 0) return null;
