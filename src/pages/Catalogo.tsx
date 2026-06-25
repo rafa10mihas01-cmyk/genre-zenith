@@ -200,30 +200,24 @@ export default function Catalogo() {
       />
 
       <PageContainer>
-        {/* Mobile + Tablet: card consolidado — 4 colunas finas + barra de capacidade */}
+        {/* Mobile + Tablet: card consolidado — 3 colunas + barra de ocupação */}
         <div className="lg:hidden">
           <div className="bg-card border border-border rounded-2xl overflow-hidden">
-            <div className="grid grid-cols-4 divide-x divide-border">
-              <div className="px-1.5 py-3 flex flex-col items-center justify-center gap-0.5">
-                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium">Planejada</span>
-                <span className="text-base font-semibold tabular-nums text-foreground">
-                  {summaryQ.isLoading ? "—" : fmt(s?.planned_ceiling)}
-                </span>
-              </div>
-              <div className="px-1.5 py-3 flex flex-col items-center justify-center gap-0.5">
-                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium">Efetiva</span>
+            <div className="grid grid-cols-3 divide-x divide-border">
+              <div className="px-2 py-3 flex flex-col items-center justify-center gap-0.5">
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium">Total de vagas</span>
                 <span className="text-base font-semibold tabular-nums text-foreground">
                   {summaryQ.isLoading ? "—" : fmt(s?.capacity_total)}
                 </span>
               </div>
-              <div className="px-1.5 py-3 flex flex-col items-center justify-center gap-0.5">
-                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium">Ocupação</span>
+              <div className="px-2 py-3 flex flex-col items-center justify-center gap-0.5">
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium">Ocupadas</span>
                 <span className="text-base font-semibold tabular-nums text-foreground">
                   {summaryQ.isLoading ? "—" : fmt(s?.capacity_used)}
                 </span>
               </div>
-              <div className="px-1.5 py-3 flex flex-col items-center justify-center gap-0.5">
-                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium">Vagas</span>
+              <div className="px-2 py-3 flex flex-col items-center justify-center gap-0.5">
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium">Livres</span>
                 <span className="text-base font-semibold tabular-nums text-foreground">
                   {summaryQ.isLoading ? "—" : fmt(s?.capacity_available)}
                 </span>
@@ -238,39 +232,31 @@ export default function Catalogo() {
           </div>
         </div>
 
-        {/* Desktop: 4 cards separados — Capacidade Planejada → Efetiva → Ocupação → Vagas */}
-        <section className="hidden lg:grid grid-cols-4 gap-3">
+        {/* Desktop: 3 cards — Total de Vagas → Vagas Ocupadas → Vagas Livres */}
+        <section className="hidden lg:grid grid-cols-3 gap-3">
           <KpiBig
             tier="hero"
-            icon={Music2}
-            label="Capacidade Planejada"
-            value={fmt(s?.planned_ceiling)}
-            hint={`${fmt(s?.total_tracks)} músicas · ${fmt(s?.total_playlists)} playlists`}
+            icon={Layers}
+            label="Total de vagas nas playlists"
+            value={fmt(s?.capacity_total)}
+            hint={`Soma de espaços em ${fmt(s?.total_playlists)} playlists do ecossistema`}
             domain="playlists"
             loading={summaryQ.isLoading}
           />
           <KpiBig
-            icon={Layers}
-            label="Capacidade Efetiva"
-            value={fmt(s?.capacity_total)}
-            hint="Planejada + tamanhos preservados"
-            domain="campaigns"
-            loading={summaryQ.isLoading}
-          />
-          <KpiBig
             icon={Gauge}
-            label="Ocupação Atual"
+            label="Vagas ocupadas hoje"
             value={fmt(s?.capacity_used)}
-            hint={pct != null ? `${pct}% da efetiva` : "—"}
+            hint={pct != null ? `${pct}% preenchido · músicas presentes nas playlists agora` : "—"}
             domain="deals"
             loading={summaryQ.isLoading}
           />
           <KpiBig
             tier="quiet"
             icon={CircleSlash}
-            label="Vagas Livres"
+            label="Vagas livres para o catálogo"
             value={fmt(s?.capacity_available)}
-            hint="Disponíveis para catálogo"
+            hint="Espaço disponível para inserir mais músicas"
             domain="system"
             loading={summaryQ.isLoading}
           />
