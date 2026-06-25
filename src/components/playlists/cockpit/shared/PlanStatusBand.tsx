@@ -8,7 +8,7 @@ import {
   ShieldCheck, TrendingUp, TrendingDown, Minus, Sparkles, AlertTriangle, Timer, Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { usePlaylistBrain, type PlaylistBrain } from "@/hooks/usePlaylistBrain";
+import { usePlaylistBrainGated, type PlaylistBrain } from "@/hooks/usePlaylistBrain";
 import { useCockpit } from "../context/CockpitContext";
 
 function ageLabel(iso?: string | null) {
