@@ -330,6 +330,28 @@ export function PlaylistsTab() {
                   />
                 </div>
               </div>
+
+              {/* Evolução editorial — Catálogo vs Third Party */}
+              <div className="grid grid-cols-2 gap-2 text-[10px]">
+                <div className="flex flex-col gap-0.5">
+                  <span className="uppercase tracking-wider text-muted-foreground font-bold">Catálogo</span>
+                  <span className="tabular-nums text-foreground font-semibold">
+                    {r.catalog_count}<span className="text-muted-foreground"> / {r.catalog_target}</span>
+                    {r.catalog_missing > 0 && (
+                      <span className="ml-1 text-muted-foreground">(falta {r.catalog_missing})</span>
+                    )}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <span className="uppercase tracking-wider text-muted-foreground font-bold">Third Party</span>
+                  <span className="tabular-nums text-foreground font-semibold">
+                    {r.third_party_count}<span className="text-muted-foreground"> / {r.third_party_target}</span>
+                    {r.third_party_excess > 0 && (
+                      <span className="ml-1 text-muted-foreground">(+{r.third_party_excess})</span>
+                    )}
+                  </span>
+                </div>
+              </div>
             </div>
           );
         })}
