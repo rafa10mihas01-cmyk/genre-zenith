@@ -237,42 +237,66 @@ export default function Catalogo() {
           </div>
         </div>
 
-        {/* Desktop: 4 cards separados */}
+        {/* Desktop: 4 cards separados — Capacidade Planejada → Efetiva → Ocupação → Vagas */}
         <section className="hidden lg:grid grid-cols-4 gap-3">
           <KpiBig
             tier="hero"
             icon={Music2}
-            label="Músicas no catálogo"
-            value={fmt(s?.total_tracks)}
-            hint={`${fmt(s?.total_playlists)} playlists na rede`}
+            label="Capacidade Planejada"
+            value={fmt(s?.planned_ceiling)}
+            hint={`${fmt(s?.total_tracks)} músicas · ${fmt(s?.total_playlists)} playlists`}
             domain="playlists"
             loading={summaryQ.isLoading}
           />
           <KpiBig
             icon={Layers}
-            label="Placements ativos"
-            value={fmt(s?.active_placements)}
-            hint="Faixas distribuídas hoje"
+            label="Capacidade Efetiva"
+            value={fmt(s?.capacity_total)}
+            hint="Planejada + tamanhos preservados"
             domain="campaigns"
             loading={summaryQ.isLoading}
           />
           <KpiBig
             icon={Gauge}
-            label="Capacidade utilizada"
+            label="Ocupação Atual"
             value={fmt(s?.capacity_used)}
-            hint={pct != null ? `${pct}% de ${fmt(s?.capacity_total)}` : "—"}
+            hint={pct != null ? `${pct}% da efetiva` : "—"}
             domain="deals"
             loading={summaryQ.isLoading}
           />
           <KpiBig
             tier="quiet"
             icon={CircleSlash}
-            label="Capacidade disponível"
+            label="Vagas Livres"
             value={fmt(s?.capacity_available)}
-            hint="Slots livres na rede"
+            hint="Disponíveis para catálogo"
             domain="system"
             loading={summaryQ.isLoading}
           />
+        </section>
+
+        {/* Faixa de evolução editorial — Catálogo vs Third Party (todas as resoluções) */}
+        <section className="bg-card border border-border rounded-2xl px-4 py-3 grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Catálogo</span>
+            <span className="text-sm font-semibold tabular-nums text-foreground">
+              {fmt(s?.catalog_current)}<span className="text-muted-foreground"> / {fmt(s?.catalog_target)}</span>
+            </span>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Catálogo Faltante</span>
+            <span className="text-sm font-semibold tabular-nums text-foreground">{fmt(s?.catalog_missing)}</span>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Third Party</span>
+            <span className="text-sm font-semibold tabular-nums text-foreground">
+              {fmt(s?.third_party_current)}<span className="text-muted-foreground"> / {fmt(s?.third_party_target)}</span>
+            </span>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Third Party Excedente</span>
+            <span className="text-sm font-semibold tabular-nums text-foreground">{fmt(s?.third_party_excess)}</span>
+          </div>
         </section>
 
 
