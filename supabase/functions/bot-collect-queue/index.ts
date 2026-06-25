@@ -541,12 +541,18 @@ Deno.serve(async (req) => {
 
           const previousError = lastErrorByQueue.get(r.id) ?? "";
           const shouldRotateArtist = /playlist_breakdown_required|playlists=\[\]|breakdown.*empty|retornou playlists=\[\]/i.test(previousError);
+          const triedMatch = previousError.match(/tried_artists=([^\s;]+)/i);
+          const triedArtists = triedMatch?.[1]
+            ? new Set(triedMatch[1].split(",").map((v) => v.trim()).filter(Boolean))
+            : new Set<string>();
+          const singleArtistMatch = previousError.match(/artist=([^\s;]+)/i);
+          if (singleArtistMatch?.[1]) triedArtists.add(singleArtistMatch[1]);
 
           // Preferência: "yes" antes de "unknown"; "no" nunca.
-          // Se o artista primário acabou de retornar breakdown vazio, pula ele
-          // nesta tentativa para testar o próximo coautor acessível.
-          const selectable = shouldRotateArtist && primary
-            ? ordered.filter((a) => a !== primary)
+          // Se algum artista já retornou breakdown vazio, pula todos eles nas
+          // próximas tentativas para testar os demais coautores acessíveis.
+          const selectable = shouldRotateArtist
+            ? ordered.filter((a) => !triedArtists.has(a))
             : ordered;
           const chosen =
             selectable.find((a) => accessByArtist.get(a) === "yes") ??
