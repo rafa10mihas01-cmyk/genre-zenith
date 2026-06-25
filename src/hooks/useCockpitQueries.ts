@@ -13,6 +13,7 @@
 //   ["playlist-diagnosis", managedId]
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useSnapshotGate, type SnapshotGate } from "./useSnapshotGate";
 
 export type PlaylistRow = {
   id: string;
