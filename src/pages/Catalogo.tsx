@@ -26,19 +26,24 @@ type Summary = {
   total_tracks: number;
   total_playlists: number;
   active_placements: number;
-  // Capacidade
-  planned_ceiling: number;       // soma das capacidades planejadas (gênero)
-  capacity_total: number;        // soma de effective_ceiling
-  capacity_used: number;         // soma de total_current
-  capacity_available: number;    // soma de free_slots
-  // Política editorial — evolução
-  catalog_current: number;
-  campaign_current: number;
+  // Capacidade (em VAGAS / posições)
+  planned_ceiling: number;
+  capacity_total: number;
+  capacity_used: number;
+  capacity_available: number;
+  // Ocupação por origem — VAGAS (posições ocupadas)
+  catalog_positions: number;
+  campaign_positions: number;
+  third_party_positions: number;
+  // Ocupação por origem — MÚSICAS DISTINTAS
+  catalog_tracks: number;
+  campaign_tracks: number;
+  third_party_tracks: number;
+  // Política editorial
   catalog_target: number;
   catalog_missing: number;
-  third_party_current: number;
   third_party_target: number;
-  third_party_excess: number;        // excesso per-playlist (substituições futuras)
+  third_party_excess: number;
 };
 
 type OccupancyRow = {
@@ -46,23 +51,27 @@ type OccupancyRow = {
   effective_ceiling?: number;
   total_current?: number;
   free_slots?: number;
-  catalog_count?: number;
-  campaign_count?: number;
   catalog_target?: number;
   catalog_missing?: number;
-  third_party_count?: number;
   third_party_target?: number;
   third_party_excess?: number;
 };
 
+type OriginRow = {
+  origin: string;
+  positions: number;
+  distinct_tracks: number;
+};
+
 async function fetchSummary(): Promise<Summary> {
-  const [tracksRes, playlistsRes, placementsRes, occupancyRes] = await Promise.all([
+  const [tracksRes, playlistsRes, placementsRes, occupancyRes, originRes] = await Promise.all([
     supabase.from("catalog_tracks").select("id", { count: "exact", head: true }).eq("status", "active"),
     supabase.from("managed_playlists").select("id", { count: "exact", head: true }).eq("is_catalog", true),
     supabase.from("catalog_placements").select("id", { count: "exact", head: true }).eq("status", "active"),
     supabase.from("v_catalog_playlist_occupancy").select(
-      "planned_ceiling, effective_ceiling, total_current, free_slots, catalog_count, campaign_count, catalog_target, catalog_missing, third_party_count, third_party_target, third_party_excess",
+      "planned_ceiling, effective_ceiling, total_current, free_slots, catalog_target, catalog_missing, third_party_target, third_party_excess",
     ),
+    supabase.from("v_catalog_origin_summary").select("origin, positions, distinct_tracks"),
   ]);
   const totals = ((occupancyRes.data ?? []) as OccupancyRow[]).reduce(
     (acc, row) => {
@@ -70,17 +79,19 @@ async function fetchSummary(): Promise<Summary> {
       acc.cap += row.effective_ceiling ?? 0;
       acc.used += row.total_current ?? 0;
       acc.avail += row.free_slots ?? 0;
-      acc.catCur += row.catalog_count ?? 0;
-      acc.campCur += row.campaign_count ?? 0;
       acc.catTgt += row.catalog_target ?? 0;
       acc.catMiss += row.catalog_missing ?? 0;
-      acc.tpCur += row.third_party_count ?? 0;
       acc.tpTgt += row.third_party_target ?? 0;
       acc.tpExc += row.third_party_excess ?? 0;
       return acc;
     },
-    { planned: 0, cap: 0, used: 0, avail: 0, catCur: 0, campCur: 0, catTgt: 0, catMiss: 0, tpCur: 0, tpTgt: 0, tpExc: 0 },
+    { planned: 0, cap: 0, used: 0, avail: 0, catTgt: 0, catMiss: 0, tpTgt: 0, tpExc: 0 },
   );
+  const byOrigin = new Map<string, OriginRow>();
+  ((originRes.data ?? []) as OriginRow[]).forEach((r) => byOrigin.set(r.origin, r));
+  const cat = byOrigin.get("Catalog");
+  const camp = byOrigin.get("Campaign");
+  const tp = byOrigin.get("ThirdParty");
   return {
     total_tracks: tracksRes.count ?? 0,
     total_playlists: playlistsRes.count ?? 0,
@@ -89,16 +100,19 @@ async function fetchSummary(): Promise<Summary> {
     capacity_total: totals.cap,
     capacity_used: totals.used,
     capacity_available: totals.avail,
-    catalog_current: totals.catCur,
-    campaign_current: totals.campCur,
+    catalog_positions: cat?.positions ?? 0,
+    campaign_positions: camp?.positions ?? 0,
+    third_party_positions: tp?.positions ?? 0,
+    catalog_tracks: cat?.distinct_tracks ?? 0,
+    campaign_tracks: camp?.distinct_tracks ?? 0,
+    third_party_tracks: tp?.distinct_tracks ?? 0,
     catalog_target: totals.catTgt,
     catalog_missing: totals.catMiss,
-    third_party_current: totals.tpCur,
     third_party_target: totals.tpTgt,
-    // Substituições futuras = excesso de Third Party acima da política editorial (soma per‑playlist)
     third_party_excess: totals.tpExc,
   };
 }
+
 
 type GlobalTelemetry = {
   total_plays_28d: number;
