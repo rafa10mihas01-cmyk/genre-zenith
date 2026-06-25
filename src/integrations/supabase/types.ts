@@ -13905,6 +13905,27 @@ export type Database = {
           },
         ]
       }
+      v_catalog_occupancy_by_genre: {
+        Row: {
+          above_ceiling: number | null
+          at_ceiling: number | null
+          below_ceiling: number | null
+          catalog_current: number | null
+          catalog_missing: number | null
+          catalog_target: number | null
+          current_total: number | null
+          effective_ceiling_total: number | null
+          free_slots_total: number | null
+          genre_key: string | null
+          genre_name: string | null
+          planned_ceiling_total: number | null
+          playlists: number | null
+          third_party_current: number | null
+          third_party_excess: number | null
+          third_party_target: number | null
+        }
+        Relationships: []
+      }
       v_catalog_playlist_occupancy: {
         Row: {
           active_placements: number | null
@@ -13920,6 +13941,7 @@ export type Database = {
           cover_url: string | null
           effective_ceiling: number | null
           free_slots: number | null
+          genre_id: string | null
           managed_playlist_id: string | null
           planned_ceiling: number | null
           playlist_name: string | null
@@ -15306,6 +15328,18 @@ export type Database = {
           playlist_id: string
           queue_id: string
           result_status: string
+        }[]
+      }
+      fn_reconcile_catalog_pending: {
+        Args: { p_dry_run?: boolean; p_genre_id?: string; p_track_id?: string }
+        Returns: {
+          alive_placements: number
+          already_present: number
+          catalog_track_id: string
+          eligible_playlists: number
+          genre_id: string
+          pending_created: number
+          track_name: string
         }[]
       }
       fn_resolve_playlist_policy: {
