@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { PlaylistTracksTab } from "@/components/playlists/PlaylistTracksTab";
 import { PlaylistCockpit } from "@/components/playlists/cockpit/PlaylistCockpit";
-import { usePlaylistBrain } from "@/hooks/usePlaylistBrain";
+import { usePlaylistBrainGated } from "@/hooks/usePlaylistBrain";
 import {
   usePlaylistById,
   useManagedByPlaylistId,
