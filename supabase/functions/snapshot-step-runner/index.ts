@@ -225,9 +225,53 @@ Deno.serve(async (req) => {
       error: null,
     }).eq("id", stepRow.id);
 
+    // Fase 3: gravar versões canônicas no snapshot conforme cada etapa conclui.
+    // Os motores existentes não devolvem versão no payload — derivamos das tabelas
+    // canônicas (timestamps de recomputação) para manter um carimbo determinístico.
+    try {
+      const patch: Record<string, unknown> = {};
+      if (step === "dna") {
+        const { data: dna } = await sb
+          .from("playlist_dna")
+          .select("computed_at, updated_at")
+          .eq("playlist_id", snap.playlist_id)
+          .maybeSingle();
+        const ts = (dna as any)?.computed_at ?? (dna as any)?.updated_at;
+        if (ts) patch.dna_version = String(ts);
+      } else if (step === "brain") {
+        const { data: gb } = await sb
+          .from("genre_brain")
+          .select("last_recomputed_at")
+          .order("last_recomputed_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const gbTs = (gb as any)?.last_recomputed_at;
+        if (gbTs) patch.genre_brain_version = String(gbTs);
+
+        const { data: gcm } = await sb
+          .from("genre_capacity_matrix")
+          .select("updated_at")
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const gcmTs = (gcm as any)?.updated_at;
+        if (gcmTs) patch.market_version = String(gcmTs);
+      }
+      if (Object.keys(patch).length > 0) {
+        await sb.from("analysis_snapshots").update(patch).eq("id", snapshotId);
+        await logEvent(sb, snapshotId, snap.playlist_id, "snapshot_version_set", patch, step);
+      }
+    } catch (e) {
+      // Não bloqueia o pipeline — finalizer dirá 'missing_versions' se faltar.
+      await logEvent(sb, snapshotId, snap.playlist_id, "version_capture_error", {
+        step, error: (e as Error).message,
+      }, step);
+    }
+
     await logEvent(sb, snapshotId, snap.playlist_id, "step_done", {
       step, duration_ms: durationMs, http_status: outcome.status,
     }, step);
+
 
     const nxt = nextStep(step);
     if (nxt) {
