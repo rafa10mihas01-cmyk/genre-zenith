@@ -549,6 +549,12 @@ Deno.serve(async (req) => {
             }
           }
 
+          // Regra do operador: DJ tem maior chance de estar logado no S4A.
+          // Reordena coautores para testar DJs primeiro, mantendo o restante na ordem original.
+          const djs = ordered.filter((a) => isDjName(a));
+          const nonDjs = ordered.filter((a) => !isDjName(a));
+          const orderedDjFirst = [...djs, ...nonDjs];
+
           const previousError = lastErrorByQueue.get(r.id) ?? "";
           const shouldRotateArtist = /playlist_breakdown_required|playlists=\[\]|breakdown.*empty|retornou playlists=\[\]/i.test(previousError);
           const triedMatch = previousError.match(/tried_artists=([^\s;]+)/i);
