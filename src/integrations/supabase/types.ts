@@ -13307,6 +13307,7 @@ export type Database = {
           apify_blocked_at: string | null
           apify_blocked_reason: string | null
           auto_deal_from_campaign: boolean
+          catalog_max_daily_distributions: number
           catalog_sync_batch_size: number
           catalog_sync_enabled: boolean
           catalog_sync_priority: number
@@ -13339,6 +13340,7 @@ export type Database = {
           apify_blocked_at?: string | null
           apify_blocked_reason?: string | null
           auto_deal_from_campaign?: boolean
+          catalog_max_daily_distributions?: number
           catalog_sync_batch_size?: number
           catalog_sync_enabled?: boolean
           catalog_sync_priority?: number
@@ -13371,6 +13373,7 @@ export type Database = {
           apify_blocked_at?: string | null
           apify_blocked_reason?: string | null
           auto_deal_from_campaign?: boolean
+          catalog_max_daily_distributions?: number
           catalog_sync_batch_size?: number
           catalog_sync_enabled?: boolean
           catalog_sync_priority?: number
