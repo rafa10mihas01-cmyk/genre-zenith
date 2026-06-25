@@ -169,7 +169,7 @@ export function MusicasTab() {
   const navigate = useNavigate();
   const [addOpen, setAddOpen] = useState(false);
   const [filter, setFilter] = useState<FilterId>("all");
-  const [sort, setSort] = useState<SortId>("added");
+  const [sort, setSort] = useState<SortId>("growth");
   const qc = useQueryClient();
   const tracksQ = useQuery({ queryKey: ["catalog", "tracks"], queryFn: fetchAll, staleTime: 15_000, refetchInterval: 20_000 });
 
