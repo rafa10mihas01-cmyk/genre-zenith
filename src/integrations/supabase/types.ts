@@ -290,6 +290,213 @@ export type Database = {
         }
         Relationships: []
       }
+      analysis_snapshot_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          payload: Json
+          playlist_id: string
+          snapshot_id: string
+          step: Database["public"]["Enums"]["analysis_snapshot_step"] | null
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          payload?: Json
+          playlist_id: string
+          snapshot_id: string
+          step?: Database["public"]["Enums"]["analysis_snapshot_step"] | null
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          payload?: Json
+          playlist_id?: string
+          snapshot_id?: string
+          step?: Database["public"]["Enums"]["analysis_snapshot_step"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analysis_snapshot_events_snapshot_id_fkey"
+            columns: ["snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "analysis_snapshots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      analysis_snapshot_results: {
+        Row: {
+          created_at: string
+          duration_ms: number | null
+          error: string | null
+          finished_at: string | null
+          id: string
+          last_retry_at: string | null
+          max_retry: number
+          metrics: Json
+          result: Json
+          retry_count: number
+          snapshot_id: string
+          started_at: string | null
+          status: Database["public"]["Enums"]["analysis_step_status"]
+          step: Database["public"]["Enums"]["analysis_snapshot_step"]
+          timeout_seconds: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          duration_ms?: number | null
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          last_retry_at?: string | null
+          max_retry?: number
+          metrics?: Json
+          result?: Json
+          retry_count?: number
+          snapshot_id: string
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["analysis_step_status"]
+          step: Database["public"]["Enums"]["analysis_snapshot_step"]
+          timeout_seconds?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          duration_ms?: number | null
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          last_retry_at?: string | null
+          max_retry?: number
+          metrics?: Json
+          result?: Json
+          retry_count?: number
+          snapshot_id?: string
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["analysis_step_status"]
+          step?: Database["public"]["Enums"]["analysis_snapshot_step"]
+          timeout_seconds?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analysis_snapshot_results_snapshot_id_fkey"
+            columns: ["snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "analysis_snapshots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      analysis_snapshots: {
+        Row: {
+          created_at: string
+          dna_version: string | null
+          event_hash: string | null
+          failed_at: string | null
+          failure_reason: string | null
+          genre_brain_version: string | null
+          id: string
+          idempotency_key: string | null
+          market_version: string | null
+          metrics: Json
+          pending_event_id: string | null
+          playlist_id: string
+          ready_at: string | null
+          request_hash: string | null
+          started_at: string
+          status: Database["public"]["Enums"]["analysis_snapshot_status"]
+          strategy_version: string | null
+          superseded_by: string | null
+          tracks_hash: string | null
+          trigger_event: Database["public"]["Enums"]["analysis_snapshot_trigger"]
+          trigger_payload: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          dna_version?: string | null
+          event_hash?: string | null
+          failed_at?: string | null
+          failure_reason?: string | null
+          genre_brain_version?: string | null
+          id?: string
+          idempotency_key?: string | null
+          market_version?: string | null
+          metrics?: Json
+          pending_event_id?: string | null
+          playlist_id: string
+          ready_at?: string | null
+          request_hash?: string | null
+          started_at?: string
+          status?: Database["public"]["Enums"]["analysis_snapshot_status"]
+          strategy_version?: string | null
+          superseded_by?: string | null
+          tracks_hash?: string | null
+          trigger_event: Database["public"]["Enums"]["analysis_snapshot_trigger"]
+          trigger_payload?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          dna_version?: string | null
+          event_hash?: string | null
+          failed_at?: string | null
+          failure_reason?: string | null
+          genre_brain_version?: string | null
+          id?: string
+          idempotency_key?: string | null
+          market_version?: string | null
+          metrics?: Json
+          pending_event_id?: string | null
+          playlist_id?: string
+          ready_at?: string | null
+          request_hash?: string | null
+          started_at?: string
+          status?: Database["public"]["Enums"]["analysis_snapshot_status"]
+          strategy_version?: string | null
+          superseded_by?: string | null
+          tracks_hash?: string | null
+          trigger_event?: Database["public"]["Enums"]["analysis_snapshot_trigger"]
+          trigger_payload?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analysis_snapshots_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "managed_playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analysis_snapshots_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_playlist_occupancy"
+            referencedColumns: ["managed_playlist_id"]
+          },
+          {
+            foreignKeyName: "analysis_snapshots_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_playlist_vps_assignment"
+            referencedColumns: ["managed_playlist_id"]
+          },
+          {
+            foreignKeyName: "analysis_snapshots_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "analysis_snapshots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       anchor_playlists_audit: {
         Row: {
           anchor_genre: string
@@ -15167,6 +15374,24 @@ export type Database = {
       }
     }
     Enums: {
+      analysis_snapshot_status: "processing" | "ready" | "failed" | "superseded"
+      analysis_snapshot_step: "sync" | "dna" | "diagnose" | "brain" | "score"
+      analysis_snapshot_trigger:
+        | "auto_sync"
+        | "tracks_changed"
+        | "meta_changed"
+        | "cover_changed"
+        | "manual_reanalyze"
+        | "import"
+        | "reactivation"
+        | "cron_catalog"
+        | "observer"
+      analysis_step_status:
+        | "pending"
+        | "running"
+        | "done"
+        | "failed"
+        | "timeout"
       app_role: "admin" | "curador" | "operador"
       curatorial_action_type:
         | "cover"
@@ -15318,6 +15543,20 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      analysis_snapshot_status: ["processing", "ready", "failed", "superseded"],
+      analysis_snapshot_step: ["sync", "dna", "diagnose", "brain", "score"],
+      analysis_snapshot_trigger: [
+        "auto_sync",
+        "tracks_changed",
+        "meta_changed",
+        "cover_changed",
+        "manual_reanalyze",
+        "import",
+        "reactivation",
+        "cron_catalog",
+        "observer",
+      ],
+      analysis_step_status: ["pending", "running", "done", "failed", "timeout"],
       app_role: ["admin", "curador", "operador"],
       curatorial_action_type: [
         "cover",
