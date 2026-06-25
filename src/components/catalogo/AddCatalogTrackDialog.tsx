@@ -3,7 +3,7 @@
 // Etapa 1 (metadata): cola URL, busca via `resolve-catalog-track`, mostra capa/nome/
 // artista/ISRC + select de gênero (pré-selecionado com a detecção, editável).
 // Etapa 2 (preview): chama `preview-distribute-catalog-track` e mostra o
-// universo inteiro do gênero, sem filtro de compatibilidade/capacidade.
+// universo inteiro do gênero, sem filtros legados.
 // Botão final invoca `distribute-catalog-track` com o genre_id confirmado.
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, CheckCircle2, AlertTriangle, ArrowLeft, Music, Info, RefreshCw } from "lucide-react";
@@ -73,9 +73,9 @@ type DistributeResult = {
   error?: string;
   message?: string;
   track?: { is_new: boolean; genre_changed?: boolean };
+  total_targets?: number;
   total_eligible_playlists?: number;
   skipped_already_present?: number;
-  skipped_no_capacity?: number;
   placements_created?: number;
 };
 
@@ -348,7 +348,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
 
         <div className="grid grid-cols-3 gap-2 text-sm">
           <div className="p-3 rounded-lg bg-muted/30 border border-border/60 min-w-0">
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wider leading-tight">Total no gênero</div>
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wider leading-tight">Total de playlists do gênero</div>
             <div className="text-xl font-semibold tabular-nums leading-none mt-1">{fmtNum(poolTotal)}</div>
           </div>
           <div className="p-3 rounded-lg bg-muted/30 border border-border/60 min-w-0">
@@ -356,13 +356,13 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
             <div className="text-xl font-semibold tabular-nums leading-none mt-1">{fmtNum(presentCount)}</div>
           </div>
           <div className="p-3 rounded-lg bg-primary/5 border border-primary/30 min-w-0">
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wider leading-tight">Serão distribuídas</div>
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wider leading-tight">Faltam distribuir</div>
             <div className="text-xl font-semibold tabular-nums text-primary leading-none mt-1">{fmtNum(distributionCount)}</div>
           </div>
         </div>
 
         <p className="text-[12px] text-muted-foreground leading-relaxed">
-          Existem <span className="text-foreground font-medium">{fmtNum(poolTotal)}</span> playlists de <span className="capitalize text-foreground font-medium">{genreName}</span> no ecossistema. <span className="text-foreground font-medium">{fmtNum(presentCount)}</span> já {presentCount === 1 ? "possui" : "possuem"} esta música; as outras <span className="text-foreground font-medium">{fmtNum(distributionCount)}</span> receberão pendência de distribuição. O Occupancy Engine decide quando cada execução acontece conforme houver vaga.
+          Existem <span className="text-foreground font-medium">{fmtNum(poolTotal)}</span> playlists de <span className="capitalize text-foreground font-medium">{genreName}</span> no ecossistema. <span className="text-foreground font-medium">{fmtNum(presentCount)}</span> já {presentCount === 1 ? "possui" : "possuem"} esta música; faltam distribuir para <span className="text-foreground font-medium">{fmtNum(distributionCount)}</span>.
         </p>
 
         {distributionCount === 0 && (
@@ -400,22 +400,10 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
             </div>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-2 text-sm">
+        <div className="grid grid-cols-1 gap-2 text-sm">
           <div className="p-3 rounded-lg bg-primary/10 border border-primary/30">
-            <div className="text-[11px] text-muted-foreground uppercase tracking-wider">Placements criados</div>
+            <div className="text-[11px] text-muted-foreground uppercase tracking-wider">Pendências criadas</div>
             <div className="text-2xl font-semibold tabular-nums text-primary">{distributed.placements_created ?? 0}</div>
-          </div>
-          <div className="p-3 rounded-lg bg-muted/40">
-            <div className="text-[11px] text-muted-foreground uppercase tracking-wider">Compatíveis</div>
-            <div className="text-2xl font-semibold tabular-nums">{distributed.total_eligible_playlists ?? 0}</div>
-          </div>
-          <div className="p-3 rounded-lg bg-muted/40">
-            <div className="text-[11px] text-muted-foreground uppercase tracking-wider">Já presentes</div>
-            <div className="text-xl font-semibold tabular-nums">{distributed.skipped_already_present ?? 0}</div>
-          </div>
-          <div className="p-3 rounded-lg bg-muted/40">
-            <div className="text-[11px] text-muted-foreground uppercase tracking-wider">Sem vaga</div>
-            <div className="text-xl font-semibold tabular-nums">{distributed.skipped_no_capacity ?? 0}</div>
           </div>
         </div>
       </div>
@@ -440,7 +428,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
     step === "preview" || step === "previewing" || step === "distributing" ? "Confirmar distribuição" :
     step === "done" ? "Distribuição concluída" :
     step === "error" ? "Erro" :
-    "Adicionar música ao catálogo";
+    "Adicionar música";
 
   const description =
     step === "idle" || step === "resolving"
@@ -501,7 +489,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
                 {step === "distributing" && <Loader2 className="h-4 w-4 animate-spin" />}
                 {step === "distributing"
                   ? "Distribuindo…"
-                  : `Distribuir para ${preview?.distribution_count ?? preview?.eligible_total ?? 0} ${(preview?.distribution_count ?? preview?.eligible_total ?? 0) === 1 ? "playlist" : "playlists"}`}
+          : `Distribuir para ${preview?.distribution_count ?? preview?.eligible_total ?? 0} ${(preview?.distribution_count ?? preview?.eligible_total ?? 0) === 1 ? "playlist" : "playlists"}`}
               </Button>
             </>
           ) : step === "done" ? (
