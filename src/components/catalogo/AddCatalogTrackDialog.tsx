@@ -516,7 +516,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
                 {step === "distributing" && <Loader2 className="h-4 w-4 animate-spin" />}
                 {step === "distributing"
                   ? "Distribuindo…"
-                  : `Distribuir ${preview?.eligible_total ?? 0} placements`}
+                  : `Distribuir para ${preview?.eligible_total ?? 0} ${(preview?.eligible_total ?? 0) === 1 ? "playlist" : "playlists"}`}
               </Button>
             </>
           ) : step === "done" ? (
