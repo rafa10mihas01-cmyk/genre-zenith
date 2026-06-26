@@ -97,12 +97,22 @@ Deno.serve(async (req) => {
     results.push(r);
   }
 
+  // ── ETAPA 2 — Consumir catalog_placements (pending/retry) diretamente.
+  // O executor passa a ser a ÚNICA fonte da transição pending → active.
+  // Respeita OAuth, circuit breaker, pacing (scheduled_for) e a quota diária
+  // já compartilhada via fn_occupancy_claim_executable_plans /
+  // claim_next_catalog_placements (mesma janela em system_flags).
+  const placementsLimit = 50;
+  const placementsReport = await runCatalogPlacements(supabase, placementsLimit)
+    .catch((e) => ({ ok: false, error: e?.message ?? String(e) }));
+
   return jr({
     ok: true,
     mode: flag,
     claimed: plans.length,
     duration_ms: Date.now() - t0,
     results,
+    placements: placementsReport,
   });
 });
 
