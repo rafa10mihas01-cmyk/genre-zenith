@@ -1,5 +1,6 @@
 import * as React from "react";
 import * as RechartsPrimitive from "recharts";
+import type { LegendPayload, TooltipContentProps, TooltipValueType } from "recharts";
 
 import { cn } from "@/lib/utils";
 
@@ -16,6 +17,8 @@ export type ChartConfig = {
 type ChartContextProps = {
   config: ChartConfig;
 };
+
+type ChartNameType = string | number;
 
 const ChartContext = React.createContext<ChartContextProps | null>(null);
 
@@ -91,7 +94,7 @@ const ChartTooltip = RechartsPrimitive.Tooltip;
 
 const ChartTooltipContent = React.forwardRef<
   HTMLDivElement,
-  React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
+  TooltipContentProps<TooltipValueType, ChartNameType> &
     React.ComponentProps<"div"> & {
       hideLabel?: boolean;
       hideIndicator?: boolean;
@@ -167,7 +170,7 @@ const ChartTooltipContent = React.forwardRef<
 
             return (
               <div
-                key={item.dataKey}
+                key={String(item.dataKey ?? item.name ?? index)}
                 className={cn(
                   "flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5 [&>svg]:text-muted-foreground",
                   indicator === "dot" && "items-center",
@@ -230,7 +233,9 @@ const ChartLegend = RechartsPrimitive.Legend;
 const ChartLegendContent = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> &
-    Pick<RechartsPrimitive.LegendProps, "payload" | "verticalAlign"> & {
+    {
+      payload?: ReadonlyArray<LegendPayload>;
+      verticalAlign?: "top" | "middle" | "bottom";
       hideIcon?: boolean;
       nameKey?: string;
     }
