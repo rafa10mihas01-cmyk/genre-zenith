@@ -65,18 +65,29 @@ Deno.serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
   const { data: pl, error: plErr } = await supabase
     .from("managed_playlists")
-    .select("id, spotify_playlist_id, name, tracks_hash, owner_spotify_user_id")
+    .select("id, spotify_playlist_id, name, tracks_hash, owner_spotify_user_id, execution_mode, operational_status")
     .eq("id", playlist_id)
     .maybeSingle();
   if (plErr) return jr({ ok: false, error: plErr.message }, 500);
   if (!pl?.spotify_playlist_id) return jr({ ok: false, error: "playlist não encontrada" }, 404);
 
+  // HARD STOP: playlists MANUAL_ONLY não podem entrar no pipeline automático.
+  // Essas playlists pertencem ao ecossistema, mas não temos OAuth do owner/colaborador;
+  // tentar sincronizar por Client Credentials gera 401 em loop e pode abrir breaker do app.
+  if ((pl as any).execution_mode === "MANUAL_ONLY") {
+    return jr({
+      ok: true,
+      skipped: true,
+      reason: "manual_only_no_auto_sync",
+      playlist_id: pl.id,
+      spotify_playlist_id: pl.spotify_playlist_id,
+    });
+  }
+
   // Propaga contexto pras chamadas Spotify deste request (listPlaylistTracksRich etc.)
   const ownerSpotifyId: string | null = (pl as any).owner_spotify_user_id ?? null;
 
-  // Pós-Etapa 2: pipeline 100% Client Credentials.
-  // O app é escolhido pelo pool (com quarentena/seleção) dentro de getAppToken();
-  // não consultamos mais spotify_user_tokens nem mantemos dependência indireta de OAuth.
+  // Contexto de observabilidade: usado para rate limit/circuit breaker por app/owner.
   setSpotifyCtx({
     appId: null,
     playlist_id: pl.id,

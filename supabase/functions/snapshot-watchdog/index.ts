@@ -96,6 +96,19 @@ Deno.serve(async (req) => {
   if (failErr) report.errors.push(`failed_query: ${failErr.message}`);
 
   for (const f of failed ?? []) {
+    // Falhas de Spotify auth/rate-limit NÃO são transitórias de código.
+    // Reexecutar de minuto em minuto durante um breaker aberto vira martelada no Spotify
+    // (foi exatamente a causa do novo bloqueio do NexEngine 10 em 26/06).
+    const reason = String(f.failure_reason ?? "");
+    if (
+      reason.includes("SPOTIFY_CIRCUIT_OPEN") ||
+      reason.includes("SPOTIFY_AUTH_INVALID") ||
+      reason.includes("Valid user authentication required")
+    ) {
+      report.replay_skipped += 1;
+      continue;
+    }
+
     const replayCount = Number((f.metrics as any)?.replay_count ?? 0);
     if (replayCount >= REPLAY_MAX) { report.replay_skipped += 1; continue; }
 
