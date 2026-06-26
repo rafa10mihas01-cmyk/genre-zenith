@@ -212,7 +212,7 @@ Deno.serve(async (req) => {
   if ((pl as any).execution_mode === "MANUAL_ONLY") {
     const nowIso = new Date().toISOString();
     await sb.from("analysis_snapshot_results").update({
-      status: "skipped",
+      status: "failed",
       finished_at: nowIso,
       error: "manual_only_no_snapshot_spotify_pipeline",
     }).eq("id", stepRow.id);
