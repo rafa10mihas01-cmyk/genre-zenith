@@ -13307,6 +13307,7 @@ export type Database = {
           apify_blocked_at: string | null
           apify_blocked_reason: string | null
           auto_deal_from_campaign: boolean
+          catalog_executor_per_minute_limit: number
           catalog_max_daily_distributions: number
           catalog_sync_batch_size: number
           catalog_sync_enabled: boolean
@@ -13331,6 +13332,7 @@ export type Database = {
           execution_queue_internal_enabled: boolean
           id: string
           occupancy_engine_mode: string
+          occupancy_executor_per_minute_limit: number
           singleton_key: string
           updated_at: string
         }
@@ -13340,6 +13342,7 @@ export type Database = {
           apify_blocked_at?: string | null
           apify_blocked_reason?: string | null
           auto_deal_from_campaign?: boolean
+          catalog_executor_per_minute_limit?: number
           catalog_max_daily_distributions?: number
           catalog_sync_batch_size?: number
           catalog_sync_enabled?: boolean
@@ -13364,6 +13367,7 @@ export type Database = {
           execution_queue_internal_enabled?: boolean
           id?: string
           occupancy_engine_mode?: string
+          occupancy_executor_per_minute_limit?: number
           singleton_key?: string
           updated_at?: string
         }
@@ -13373,6 +13377,7 @@ export type Database = {
           apify_blocked_at?: string | null
           apify_blocked_reason?: string | null
           auto_deal_from_campaign?: boolean
+          catalog_executor_per_minute_limit?: number
           catalog_max_daily_distributions?: number
           catalog_sync_batch_size?: number
           catalog_sync_enabled?: boolean
@@ -13397,6 +13402,7 @@ export type Database = {
           execution_queue_internal_enabled?: boolean
           id?: string
           occupancy_engine_mode?: string
+          occupancy_executor_per_minute_limit?: number
           singleton_key?: string
           updated_at?: string
         }

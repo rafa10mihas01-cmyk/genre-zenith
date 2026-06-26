@@ -60,9 +60,10 @@ Deno.serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
   // Hard guard: nunca executa em SHADOW. Lê flag direto pra evitar race.
+  // Lê também os limites de rate limit interno (por execução = por minuto).
   const { data: flagRow } = await supabase
     .from("system_flags")
-    .select("occupancy_engine_mode")
+    .select("occupancy_engine_mode, catalog_executor_per_minute_limit, occupancy_executor_per_minute_limit")
     .limit(1)
     .maybeSingle();
   const flag = String(flagRow?.occupancy_engine_mode ?? "shadow").toLowerCase();
@@ -70,11 +71,34 @@ Deno.serve(async (req) => {
     return jr({ ok: true, skipped: true, reason: "engine_mode_shadow", flag });
   }
 
-  let limit = 5;
+  // ── RATE LIMIT INTERNO ─────────────────────────────────────────────────────
+  // O executor roda a cada 1 minuto via cron. Para evitar rajadas (ex.: drenar
+  // 327 backlog num único tick após virada de dia ou aumento de cota), cada
+  // execução processa no máximo N placements / M planos. O backlog é drenado
+  // de forma constante ao longo do dia, respeitando também o cap diário
+  // global (`catalog_max_daily_distributions`).
+  const PLAN_PER_MIN_DEFAULT = 5;
+  const PLACEMENTS_PER_MIN_DEFAULT = 10;
+  const planPerMin = Math.max(
+    1,
+    Math.min(25, Number((flagRow as any)?.occupancy_executor_per_minute_limit ?? PLAN_PER_MIN_DEFAULT)),
+  );
+  const placementsPerMin = Math.max(
+    1,
+    Math.min(50, Number((flagRow as any)?.catalog_executor_per_minute_limit ?? PLACEMENTS_PER_MIN_DEFAULT)),
+  );
+
+  // Override manual permitido apenas via body — útil pra debug/replays
+  // pontuais. Continua limitado ao teto absoluto pra impedir uso indevido.
+  let limit = planPerMin;
+  let placementsLimit = placementsPerMin;
   try {
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     if (typeof body?.limit === "number") {
       limit = Math.max(1, Math.min(25, body.limit));
+    }
+    if (typeof body?.placements_limit === "number") {
+      placementsLimit = Math.max(1, Math.min(50, body.placements_limit));
     }
   } catch (_) { /* noop */ }
 
@@ -102,7 +126,7 @@ Deno.serve(async (req) => {
   // Respeita OAuth, circuit breaker, pacing (scheduled_for) e a quota diária
   // já compartilhada via fn_occupancy_claim_executable_plans /
   // claim_next_catalog_placements (mesma janela em system_flags).
-  const placementsLimit = 50;
+  // O `placementsLimit` é o teto POR EXECUÇÃO (rate limit interno), não por dia.
   const placementsReport = await runCatalogPlacements(supabase, placementsLimit)
     .catch((e) => ({ ok: false, error: e?.message ?? String(e) }));
 
@@ -111,6 +135,7 @@ Deno.serve(async (req) => {
     mode: flag,
     claimed: plans.length,
     duration_ms: Date.now() - t0,
+    rate_limit: { plan_per_min: limit, placements_per_min: placementsLimit },
     results,
     placements: placementsReport,
   });
