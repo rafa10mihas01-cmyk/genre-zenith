@@ -200,11 +200,30 @@ Deno.serve(async (req) => {
   // Resolve playlist
   const { data: pl, error: plErr } = await sb
     .from("managed_playlists")
-    .select("id, spotify_playlist_id")
+    .select("id, spotify_playlist_id, execution_mode, operational_status")
     .eq("id", snap.playlist_id)
     .maybeSingle();
   if (plErr) return jr({ ok: false, error: `playlist_lookup: ${plErr.message}` }, 500);
   if (!pl)   return jr({ ok: false, error: "playlist_not_found" }, 404);
+
+  // HARD STOP: Snapshot não pode acionar motores Spotify para playlist MANUAL_ONLY.
+  // Elas existem no ecossistema, mas sem autorização OAuth operacional; insistir aqui
+  // gera 401 repetido e pode abrir rate-limit/breaker dos apps.
+  if ((pl as any).execution_mode === "MANUAL_ONLY") {
+    const nowIso = new Date().toISOString();
+    await sb.from("analysis_snapshot_results").update({
+      status: "skipped",
+      finished_at: nowIso,
+      error: "manual_only_no_snapshot_spotify_pipeline",
+    }).eq("id", stepRow.id);
+    await sb.from("analysis_snapshots").update({
+      status: "failed",
+      failed_at: nowIso,
+      failure_reason: "manual_only_no_snapshot_spotify_pipeline",
+    }).eq("id", snapshotId);
+    await logEvent(sb, snapshotId, snap.playlist_id, "snapshot_skipped_manual_only", { step }, step);
+    return jr({ ok: true, skipped: true, reason: "manual_only_no_snapshot_spotify_pipeline", step });
+  }
 
   // Marca running
   const startedAt = new Date();
@@ -294,7 +313,13 @@ Deno.serve(async (req) => {
 
   // Falha: classifica timeout vs erro genérico
   const isTimeout = outcome.error === "timeout";
-  const newRetry = (stepRow.retry_count ?? 0) + 1;
+  const nonRetryableSpotifyError =
+    String(outcome.error ?? "").includes("SPOTIFY_CIRCUIT_OPEN") ||
+    String(outcome.error ?? "").includes("SPOTIFY_AUTH_INVALID") ||
+    String(outcome.error ?? "").includes("Valid user authentication required");
+  const newRetry = nonRetryableSpotifyError
+    ? (stepRow.max_retry ?? 3)
+    : (stepRow.retry_count ?? 0) + 1;
   const exhausted = newRetry >= (stepRow.max_retry ?? 3);
 
   if (!exhausted) {
