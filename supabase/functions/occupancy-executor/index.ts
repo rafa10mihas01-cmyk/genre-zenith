@@ -883,7 +883,50 @@ async function runCatalogPlacements(sb: any, limit: number) {
     cntFailed++;
   }
 
+  async function markBlocked(p: CPEnriched, code: string, reason: string, msg: string | null) {
+    cntBlocked++;
+    await sb.from("catalog_placements").update({
+      status: "blocked",
+      skip_reason: reason,
+      skipped_at: new Date().toISOString(),
+      last_error_code: code,
+      removed_reason: _trim(`blocked after ${p.attempts}/${p.max_attempts} attempts: ${code} ${msg ?? ""}`),
+      locked_at: null, locked_by: null, lease_expires_at: null,
+    }).eq("id", p.id);
+    await logExec(p, "failed", code, null, `BLOCKED reason=${reason} attempts=${p.attempts}/${p.max_attempts} ${msg ?? ""}`);
+  }
+
   async function markSkipped(p: CPEnriched, code: string, reason: string, delaySec: number, msg: string | null) {
+    const isPermanent = PERMANENT_ERROR_CODES.has(code);
+
+    // BLINDAGEM — erros permanentes:
+    //   - INCREMENTAM attempts (em vez de decrementar como antes, o que
+    //     gerava loops infinitos: claim 'skipped' não incrementa, e o
+    //     decremento mantinha attempts congelado, fazendo a playlist
+    //     consumir cota indefinidamente, ex.: incidente 25/06 / BIA FRAZZO).
+    //   - Ao atingir max_attempts, vão para `blocked` e saem da fila.
+    if (isPermanent) {
+      const nextAttempts = (p.attempts ?? 1) + 1;
+      if (nextAttempts >= p.max_attempts) {
+        await markBlocked(p, code, reason, msg);
+        return;
+      }
+      cntSkipped++;
+      await sb.from("catalog_placements").update({
+        status: "skipped",
+        skip_reason: reason,
+        skipped_at: new Date().toISOString(),
+        scheduled_for: new Date(Date.now() + Math.max(60, delaySec) * 1000).toISOString(),
+        last_error_code: code,
+        attempts: nextAttempts,
+        locked_at: null, locked_by: null, lease_expires_at: null,
+      }).eq("id", p.id);
+      await logExec(p, "skipped", code, null, `permanent reason=${reason} attempts=${nextAttempts}/${p.max_attempts} ${msg ?? ""}`);
+      return;
+    }
+
+    // Erros transitórios mantidos no comportamento atual (não consomem
+    // tentativa — voltam a ser claimados após `delaySec`).
     cntSkipped++;
     await sb.from("catalog_placements").update({
       status: "skipped",
