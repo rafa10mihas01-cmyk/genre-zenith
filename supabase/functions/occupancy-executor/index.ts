@@ -812,7 +812,19 @@ async function runCatalogPlacements(sb: any, limit: number) {
   }
 
   let cntActive = 0, cntAlready = 0, cntRetry = 0, cntFailed = 0;
-  let cntCircuit = 0, cntSkipped = 0, cntSpotify = 0, cntLocalHit = 0;
+  let cntCircuit = 0, cntSkipped = 0, cntBlocked = 0, cntSpotify = 0, cntLocalHit = 0;
+
+  // BLINDAGEM: códigos de erro PERMANENTES — não recuperáveis sem ação humana
+  // (regularizar OAuth do dono, alterar execution_mode, corrigir dados).
+  // Para esses códigos, cada tentativa CONTA e ao atingir max_attempts o
+  // placement é definitivamente marcado como `blocked` e sai da fila.
+  const PERMANENT_ERROR_CODES = new Set([
+    "owner_token_missing",
+    "spotify_401",
+    "spotify_auth_invalid",
+    "spotify_refresh_failed",
+    "blocked_owner_token",
+  ]);
 
   async function logExec(p: CPEnriched, outcome: string, code: string | null, snapId: string | null, msg: string | null) {
     await sb.from("catalog_placement_execution_log").insert({
