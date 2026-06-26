@@ -685,23 +685,28 @@ async function runCatalogPlacements(sb: any, limit: number) {
     const t = tMap.get(r.catalog_track_id);
     const p = pMap.get(r.managed_playlist_id);
     if (!t?.spotify_track_id || !p?.spotify_playlist_id) {
+      // BLINDAGEM: dados inconsistentes não voltam para a fila.
       cntInvalid++;
       await sb.from("catalog_placements").update({
-        status: "skipped",
+        status: "blocked",
         skip_reason: "enrich_missing",
         skipped_at: new Date().toISOString(),
         last_error_code: "enrich_missing",
+        removed_reason: "blocked: enrich_missing (catalog_track ou managed_playlist ausente)",
         locked_at: null, locked_by: null, lease_expires_at: null,
       }).eq("id", r.id);
       continue;
     }
     if (p.operational_status === "do_not_operate" || p.execution_mode === "MANUAL_ONLY" || p.execution_mode === "DISABLED") {
+      // BLINDAGEM: playlist não operável → bloqueio definitivo.
+      // Não deve voltar à fila enquanto execution_mode/operational_status não mudar.
       cntPlaylistBlocked++;
       await sb.from("catalog_placements").update({
-        status: "skipped",
+        status: "blocked",
         skip_reason: "playlist_not_operable",
         skipped_at: new Date().toISOString(),
         last_error_code: "playlist_not_operable",
+        removed_reason: `blocked: playlist_not_operable (op=${p.operational_status} mode=${p.execution_mode})`,
         locked_at: null, locked_by: null, lease_expires_at: null,
       }).eq("id", r.id);
       continue;
